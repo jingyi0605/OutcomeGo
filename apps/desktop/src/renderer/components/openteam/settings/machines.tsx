@@ -5,6 +5,7 @@ import { api } from "../../../client/openteam-api";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../../ui/dropdown-menu";
 import { lastOpened } from "./last-opened";
 import { SectionLabel, SettingsGroup } from "./ui";
+import { settingsText, useSettingsLanguage } from "./language";
 
 type Machine = Awaited<ReturnType<typeof api.machines>>[number];
 
@@ -16,6 +17,7 @@ const MESSAGES_LABELS: Record<string, string> = {
 
 /** One row per computer: online now or when it was last opened, and whether Messages is on there. */
 function DeviceRow({ machine, current, busy, onChange }: { machine: Machine; current: boolean; busy: boolean; onChange: (action: () => Promise<unknown>) => void }) {
+  const { language } = useSettingsLanguage();
   const online = machine.enabled && machine.connected;
   const status = !machine.enabled ? "Disabled" : online ? "Online now" : lastOpened(machine.lastSeenAt);
   const messages = machine.transport === "relay" ? MESSAGES_LABELS[machine.messages] : undefined;
@@ -25,12 +27,12 @@ function DeviceRow({ machine, current, busy, onChange }: { machine: Machine; cur
       <div className="min-w-0 flex-1">
         <div className="truncate text-[13px] leading-[17px] text-foreground">
           {machine.label}
-          {current ? <span className="text-foreground-secondary"> · This computer</span> : null}
+          {current ? <span className="text-foreground-secondary"> · {settingsText(language, "This computer", "此电脑")}</span> : null}
         </div>
         <div className="mt-px flex items-center gap-1.5 text-[12px] leading-4 text-foreground-secondary">
           <span aria-hidden className={`size-1.5 shrink-0 rounded-full ${online ? "bg-emerald-500" : "bg-foreground-tertiary"}`} />
           <span className="truncate">
-            {machine.transport === "relay" ? "Computer" : machine.bridgeUrl} · {status}
+            {machine.transport === "relay" ? settingsText(language, "Computer", "电脑") : machine.bridgeUrl} · {status}
             {messages ? ` · ${messages}` : ""}
           </span>
         </div>
@@ -45,10 +47,10 @@ function DeviceRow({ machine, current, busy, onChange }: { machine: Machine; cur
           <DropdownMenuContent align="end">
             {machine.transport === "relay" ? (
               <DropdownMenuItem onSelect={() => onChange(() => api.setMachineEnabled(machine.machineId, !machine.enabled))}>
-                {machine.enabled ? "Disable" : "Enable"}
+                {machine.enabled ? settingsText(language, "Disable", "停用") : settingsText(language, "Enable", "启用")}
               </DropdownMenuItem>
             ) : null}
-            <DropdownMenuItem onSelect={() => onChange(() => api.removeMachine(machine.machineId))}>Remove</DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => onChange(() => api.removeMachine(machine.machineId))}>{settingsText(language, "Remove", "移除")}</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       ) : null}
@@ -57,6 +59,7 @@ function DeviceRow({ machine, current, busy, onChange }: { machine: Machine; cur
 }
 
 export function MachineSettings() {
+  const { language } = useSettingsLanguage();
   const [machines, setMachines] = useState<Machine[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -81,13 +84,13 @@ export function MachineSettings() {
     finally { setBusy(false); }
   };
   return <>
-    <SectionLabel>Manage devices</SectionLabel>
+    <SectionLabel>{settingsText(language, "Manage devices", "管理设备")}</SectionLabel>
     <SettingsGroup>
       {local && !local.connected && <p role="status" className="pt-3 text-xs text-foreground-secondary">{local.error ?? (local.configured ? "Connecting this computer…" : "Sign in to connect this computer.")}</p>}
       {[...machines].sort((a, b) => rank(a) - rank(b)).map(machine => (
         <DeviceRow busy={busy} current={local?.machineId === machine.machineId} key={machine.machineId} machine={machine} onChange={action => void change(action)} />
       ))}
-      {!machines.length ? <p className="py-3 text-xs text-foreground-secondary">Open the OpenTeam desktop app on a computer and sign in to add it here.</p> : null}
+      {!machines.length ? <p className="py-3 text-xs text-foreground-secondary">{settingsText(language, "Open the OpenTeam desktop app on a computer and sign in to add it here.", "在电脑上打开 OpenTeam 桌面应用并登录，即可在此添加设备。")}</p> : null}
       {error && <p role="alert" className="pb-3 text-xs text-red-600">{error}</p>}
     </SettingsGroup>
   </>;
@@ -100,6 +103,7 @@ const buttonClass =
 
 /** Manual bridges and the bot's screen size: rarely needed, kept out of the device list. */
 export function AdvancedComputerSettings() {
+  const { language } = useSettingsLanguage();
   const [display,setDisplay]=useState({width:1280,height:800});
   const [displaySaved,setDisplaySaved]=useState(false);
   const [address, setAddress] = useState("");
@@ -112,24 +116,24 @@ export function AdvancedComputerSettings() {
     finally { setBusy(false); }
   };
   return <>
-    <SectionLabel>Advanced</SectionLabel>
+    <SectionLabel>{settingsText(language, "Advanced", "高级")}</SectionLabel>
     <SettingsGroup>
-      <details className="animated-disclosure border-b border-black/[0.065] py-3 text-[12.5px] dark:border-white/[0.07]"><summary>Connect a bridge manually</summary>
+      <details className="animated-disclosure border-b border-black/[0.065] py-3 text-[12.5px] dark:border-white/[0.07]"><summary>{settingsText(language, "Connect a bridge manually", "手动连接桥接服务")}</summary>
       <form className="flex gap-2 pt-2.5" onSubmit={event => { event.preventDefault(); void change(async () => { await api.registerMachine(address); setAddress(""); }); }}>
         <input aria-label="Computer bridge URL" type="url" required placeholder="http://computer.local:port" value={address} onChange={event => setAddress(event.target.value)} className={`${fieldClass} min-w-0 flex-1`} />
-        <button type="submit" disabled={busy || !address.trim()} className={buttonClass}>Add computer</button>
+        <button type="submit" disabled={busy || !address.trim()} className={buttonClass}>{settingsText(language, "Add computer", "添加电脑")}</button>
       </form>
       </details>
       <form className="py-3" onSubmit={event=>{event.preventDefault();void change(async()=>{setDisplay(await api.saveComputerDisplay(display));setDisplaySaved(true);});}}>
         <div className="flex flex-wrap items-center gap-2 text-[12.5px]">
-          <span className="mr-auto">Box display</span>
+          <span className="mr-auto">{settingsText(language, "Box display", "Box 显示尺寸")}</span>
           <input aria-label="Box display width" className={`${fieldClass} w-20`} type="number" min={640} max={7680} required value={display.width} onChange={e=>{setDisplaySaved(false);setDisplay({...display,width:Number(e.target.value)});}} />
           <span aria-hidden className="text-foreground-secondary">×</span>
           <input aria-label="Box display height" className={`${fieldClass} w-20`} type="number" min={480} max={4320} required value={display.height} onChange={e=>{setDisplaySaved(false);setDisplay({...display,height:Number(e.target.value)});}} />
-          <button className={buttonClass} disabled={busy} type="submit">Save display</button>
+          <button className={buttonClass} disabled={busy} type="submit">{settingsText(language, "Save display", "保存显示尺寸")}</button>
         </div>
         {error && <p role="alert" className="mt-1.5 text-[12px] text-red-600 dark:text-red-400">{error}</p>}
-        <p className="mt-1.5 text-[12px] leading-4 text-foreground-secondary">{displaySaved ? "Saved. " : ""}Applies to newly opened box desktops. Restart an existing box desktop to apply it there.</p>
+        <p className="mt-1.5 text-[12px] leading-4 text-foreground-secondary">{displaySaved ? `${settingsText(language, "Saved. ", "已保存。")}` : ""}{settingsText(language, "Applies to newly opened box desktops. Restart an existing box desktop to apply it there.", "仅应用于新打开的 Box 桌面端。重启已有 Box 桌面端后生效。")}</p>
       </form>
     </SettingsGroup>
   </>;

@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { api } from "../../../client/openteam-api";
 import { isWindowVisible, WINDOW_VISIBILITY_EVENT } from "../../../lib/window-visibility";
 import { SettingsGroup } from "./ui";
+import { settingsText, useSettingsLanguage } from "./language";
 
 function ResourceGauge({ label, value }: { label: string; value: number | null }) {
   const percent =
@@ -62,6 +63,7 @@ function ResourceGauge({ label, value }: { label: string; value: number | null }
 }
 
 export function ServerActivity() {
+  const { language } = useSettingsLanguage();
   const [activity, setActivity] = useState<SystemActivityView | null>(null);
   const [failed, setFailed] = useState(false);
   const [visible, setVisible] = useState(isWindowVisible);
@@ -112,7 +114,7 @@ export function ServerActivity() {
     <section aria-label="Live server activity" className="mb-4">
       <div className="mb-2 flex items-center justify-between gap-3 px-2">
         {/* Same style as the other section labels (SectionLabel). */}
-        <h3 className="text-[12px] font-normal leading-4 text-foreground-tertiary">Live activity</h3>
+        <h3 className="text-[12px] font-normal leading-4 text-foreground-tertiary">{settingsText(language, "Live activity", "实时活动")}</h3>
         <span
           className="flex items-center gap-1.5 text-[11px] text-foreground-tertiary"
           role="status"
@@ -121,23 +123,23 @@ export function ServerActivity() {
             className={`size-1.5 rounded-full ${failed || !activity || !visible ? "bg-foreground-tertiary" : "bg-emerald-500"}`}
           />
           {!visible
-            ? "Paused"
+            ? settingsText(language, "Paused", "已暂停")
             : failed
-              ? "Unavailable · retrying"
+              ? settingsText(language, "Unavailable · retrying", "不可用 · 重试中")
               : activity
-                ? "Every 5 seconds"
-                : "Connecting…"}
+                ? settingsText(language, "Every 5 seconds", "每 5 秒更新")
+                : settingsText(language, "Connecting…", "连接中…")}
         </span>
       </div>
       <SettingsGroup className="py-2">
         <div className="grid grid-cols-3 gap-3">
           <ResourceGauge label="CPU" value={activity?.cpuPercent ?? null} />
           <ResourceGauge label="RAM" value={activity?.memoryPercent ?? null} />
-          <ResourceGauge label="Disk" value={activity?.diskPercent ?? null} />
+          <ResourceGauge label={settingsText(language, "Disk", "磁盘")} value={activity?.diskPercent ?? null} />
         </div>
       </SettingsGroup>
       <p className="mt-1.5 px-2 text-[10px] leading-relaxed text-foreground-tertiary">
-        Host/VM CPU &amp; RAM · OpenTeam data disk
+        {settingsText(language, "Host/VM CPU & RAM · OpenTeam data disk", "主机/虚拟机 CPU 和 RAM · OpenTeam 数据磁盘")}
       </p>
     </section>
   );

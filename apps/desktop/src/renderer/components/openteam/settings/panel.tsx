@@ -17,6 +17,11 @@ import {
 import { cn } from "../../../lib/cn";
 import { SettingsHeading } from "./ui";
 import {
+  SettingsLanguageProvider,
+  settingsText,
+  useSettingsLanguage,
+} from "./language";
+import {
   Dialog,
   DialogClose,
   DialogContent,
@@ -62,27 +67,118 @@ const sectionComponents = {
 
 const navigation: Array<{
   id: SettingsView;
-  label: string;
+  english: string;
+  chinese: string;
   icon: typeof Settings;
   available: boolean;
 }> = [
-  { id: "general", label: "General", icon: Settings, available: true },
-  { id: "computer", label: "Computer", icon: Monitor, available: true },
-  { id: "model", label: "Model", icon: BrainCircuit, available: true },
-  { id: "voice", label: "Voice notes", icon: Mic, available: true },
-  { id: "server", label: "Server", icon: Server, available: true },
-  { id: "providers", label: "Providers", icon: Globe, available: true },
-  { id: "updates", label: "Updates", icon: CloudDownload, available: true },
+  { id: "general", english: "General", chinese: "通用", icon: Settings, available: true },
+  { id: "computer", english: "Computer", chinese: "电脑", icon: Monitor, available: true },
+  { id: "model", english: "Model", chinese: "模型", icon: BrainCircuit, available: true },
+  { id: "voice", english: "Voice notes", chinese: "语音消息", icon: Mic, available: true },
+  { id: "server", english: "Server", chinese: "服务器", icon: Server, available: true },
+  { id: "providers", english: "Providers", chinese: "服务提供商", icon: Globe, available: true },
+  { id: "updates", english: "Updates", chinese: "更新", icon: CloudDownload, available: true },
 ];
+
+function SettingsNavigation({
+  view,
+  onViewChange,
+  compact = false,
+}: {
+  view: SettingsView;
+  onViewChange: (view: SettingsView) => void;
+  compact?: boolean;
+}) {
+  const { language } = useSettingsLanguage();
+  return (
+    <nav
+      aria-label={settingsText(language, "Settings sections", "设置分区")}
+      className={cn(
+        "space-y-0.5",
+        compact
+          ? "grid grid-cols-2 gap-1 space-y-0"
+          : "max-[512px]:grid max-[512px]:grid-cols-2 max-[512px]:gap-1 max-[512px]:space-y-0"
+      )}
+    >
+      {navigation.map((item) => {
+        const Icon = item.icon;
+        const preload = () => void sectionLoaders[item.id]();
+        return (
+          <button
+            aria-current={view === item.id ? "page" : undefined}
+            aria-disabled={!item.available}
+            className={cn(
+              "flex h-8 w-full items-center gap-2 rounded-[8px] px-2.5 text-left text-[13px] font-normal outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/35",
+              compact && "justify-center",
+              !compact && "max-[512px]:justify-center",
+              view === item.id
+                ? "bg-selected"
+                : item.available
+                  ? "hover:bg-hover"
+                  : "cursor-default"
+            )}
+            key={item.id}
+            onClick={() => {
+              if (item.available) onViewChange(item.id);
+            }}
+            onFocus={preload}
+            onPointerEnter={preload}
+            type="button"
+          >
+            <Icon className="size-[15px] shrink-0" strokeWidth={1.75} />
+            <span className="truncate">{settingsText(language, item.english, item.chinese)}</span>
+          </button>
+        );
+      })}
+    </nav>
+  );
+}
+
+function SettingsContent({
+  view,
+  scrollRef,
+}: {
+  view: SettingsView;
+  scrollRef: React.RefObject<HTMLDivElement | null>;
+}) {
+  const { language } = useSettingsLanguage();
+  const ActiveSection = sectionComponents[view];
+  const currentLabel = navigation.find((item) => item.id === view);
+
+  return (
+    <div className="relative min-h-0 min-w-0 flex-1">
+      <div
+        className="bot-scrollbar h-full overflow-y-auto px-8 pb-10 pt-8 max-[560px]:px-5"
+        ref={scrollRef}
+      >
+        {view === "providers" ? null : (
+          <SettingsHeading>
+            {settingsText(
+              language,
+              currentLabel?.english ?? "General",
+              currentLabel?.chinese ?? "通用"
+            )}
+          </SettingsHeading>
+        )}
+        <Suspense fallback={null}>
+          <ActiveSection />
+        </Suspense>
+      </div>
+    </div>
+  );
+}
 
 export function SettingsPanel({
   onOpenChange,
   open,
   target,
+  presentation = "dialog",
 }: {
   onOpenChange: (open: boolean) => void;
   open: boolean;
   target?: { anchor: SettingsAnchor; nonce: number } | null;
+  presentation?: "dialog" | "page";
 }) {
   const [view, setView] = useState<SettingsView>("general");
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -124,8 +220,119 @@ export function SettingsPanel({
     };
   }, [open, target]);
 
-  const ActiveSection = sectionComponents[view];
+  return (
+    <SettingsLanguageProvider>
+      {presentation === "page" ? (
+        <SettingsPage
+          onOpenChange={onOpenChange}
+          onViewChange={(nextView) => {
+            setView(nextView);
+            scrollRef.current?.scrollTo({ top: 0 });
+          }}
+          open={open}
+          scrollRef={scrollRef}
+          view={view}
+        />
+      ) : (
+        <SettingsDialog
+          onOpenChange={onOpenChange}
+          onViewChange={(nextView) => {
+            setView(nextView);
+            scrollRef.current?.scrollTo({ top: 0 });
+          }}
+          open={open}
+          scrollRef={scrollRef}
+          view={view}
+        />
+      )}
+    </SettingsLanguageProvider>
+  );
+}
 
+function SettingsPage({
+  onOpenChange,
+  onViewChange,
+  open,
+  scrollRef,
+  view,
+}: {
+  onOpenChange: (open: boolean) => void;
+  onViewChange: (view: SettingsView) => void;
+  open: boolean;
+  scrollRef: React.RefObject<HTMLDivElement | null>;
+  view: SettingsView;
+}) {
+  const { language } = useSettingsLanguage();
+  if (!open) return null;
+  return (
+    <div
+      aria-label={settingsText(language, "Settings", "设置")}
+      aria-modal="true"
+      className="fixed inset-0 z-50 flex bg-background text-foreground"
+      role="dialog"
+    >
+      <aside className="flex w-[248px] shrink-0 flex-col border-r border-black/[0.07] bg-[#f6f6f6] px-4 py-4 dark:border-white/[0.08] dark:bg-[#111111] max-[720px]:w-[200px] max-[560px]:absolute max-[560px]:inset-x-0 max-[560px]:bottom-0 max-[560px]:top-0 max-[560px]:z-10 max-[560px]:hidden">
+        <div className="mb-8 flex items-center gap-2 px-2">
+          <span className="grid size-8 place-items-center rounded-[10px] bg-foreground text-[12px] font-semibold text-background">
+            O
+          </span>
+          <div className="min-w-0">
+            <div className="truncate text-[13px] font-semibold">OpenTeam</div>
+            <div className="text-[11px] text-foreground-tertiary">
+              {settingsText(language, "Application settings", "应用设置")}
+            </div>
+          </div>
+        </div>
+        <SettingsNavigation onViewChange={onViewChange} view={view} />
+        <div className="mt-auto px-2 text-[11px] leading-4 text-foreground-tertiary">
+          {settingsText(language, "Changes are saved as you make them.", "设置会在修改后自动保存。")}
+        </div>
+      </aside>
+
+      <main className="flex min-w-0 flex-1 flex-col">
+        <header className="flex h-[68px] shrink-0 items-center justify-between border-b border-black/[0.07] px-8 dark:border-white/[0.08] max-[560px]:px-5">
+          <div>
+            <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-foreground-tertiary">
+              {settingsText(language, "OpenTeam", "OpenTeam")}
+            </p>
+            <h1 className="mt-0.5 text-[18px] font-medium tracking-[-0.02em]">
+              {settingsText(language, "Settings", "设置")}
+            </h1>
+          </div>
+          <button
+            aria-label={settingsText(language, "Close settings", "关闭设置")}
+            className="grid size-9 place-items-center rounded-full text-foreground-tertiary transition-colors hover:bg-black/[0.05] hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35 dark:hover:bg-white/[0.07]"
+            onClick={() => onOpenChange(false)}
+            type="button"
+          >
+            <X className="size-[18px]" strokeWidth={1.7} />
+          </button>
+        </header>
+        <div className="flex min-h-0 flex-1">
+          <div className="hidden w-[194px] shrink-0 border-r border-black/[0.07] px-3 py-5 dark:border-white/[0.08] max-[560px]:block">
+            <SettingsNavigation compact onViewChange={onViewChange} view={view} />
+          </div>
+          <SettingsContent scrollRef={scrollRef} view={view} />
+        </div>
+      </main>
+    </div>
+  );
+}
+
+function SettingsDialog({
+  onOpenChange,
+  onViewChange,
+  open,
+  scrollRef,
+  view,
+}: {
+  onOpenChange: (open: boolean) => void;
+  onViewChange: (view: SettingsView) => void;
+  open: boolean;
+  scrollRef: React.RefObject<HTMLDivElement | null>;
+  view: SettingsView;
+}) {
+  const { language } = useSettingsLanguage();
   return (
     <Dialog onOpenChange={onOpenChange} open={open}>
       <DialogContent
@@ -140,72 +347,24 @@ export function SettingsPanel({
         showCloseButton={false}
         surface="transparent"
       >
-        <DialogTitle className="sr-only">Settings</DialogTitle>
+        <DialogTitle className="sr-only">{settingsText(language, "Settings", "设置")}</DialogTitle>
         <DialogDescription className="sr-only">
-          Configure OpenTeam and application updates.
+          {settingsText(language, "Configure OpenTeam and application updates.", "配置 OpenTeam 和应用更新。")}
         </DialogDescription>
         <aside className="border-r-[0.5px] border-black/[0.07] bg-[#f7f7f7] px-3 pb-4 pt-4 dark:border-white/[0.07] dark:bg-[#111111] max-[512px]:border-b-[0.5px] max-[512px]:border-r-0 max-[512px]:py-2">
-          <nav
-            aria-label="Settings sections"
-            className="space-y-0.5 max-[512px]:grid max-[512px]:grid-cols-2 max-[512px]:gap-1 max-[512px]:space-y-0"
-          >
-            {navigation.map((item) => {
-              const Icon = item.icon;
-              const preload = () => void sectionLoaders[item.id]();
-              return (
-                <button
-                  aria-current={view === item.id ? "page" : undefined}
-                  aria-disabled={!item.available}
-                  className={cn(
-                    "flex h-7 w-full items-center gap-2 rounded-[7px] px-2 text-left text-[13px] font-normal outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/35 max-[512px]:justify-center",
-                    view === item.id
-                      ? "bg-selected"
-                      : item.available
-                        ? "hover:bg-hover"
-                        : "cursor-default"
-                  )}
-                  key={item.id}
-                  onClick={() => {
-                    if (!item.available) return;
-                    setView(item.id);
-                    scrollRef.current?.scrollTo({ top: 0 });
-                  }}
-                  onFocus={preload}
-                  onPointerEnter={preload}
-                  type="button"
-                >
-                  <Icon className="size-[15px] shrink-0" strokeWidth={1.75} />
-                  <span className="truncate">{item.label}</span>
-                </button>
-              );
-            })}
-          </nav>
+          <SettingsNavigation compact={false} onViewChange={onViewChange} view={view} />
         </aside>
-
         <section className="relative min-h-0 min-w-0">
           <DialogClose asChild>
             <button
-              aria-label="Close"
+              aria-label={settingsText(language, "Close", "关闭")}
               className="absolute right-2.5 top-2.5 z-10 grid size-8 place-items-center rounded-full text-foreground-tertiary outline-none transition-colors hover:bg-black/[0.045] hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/35 dark:hover:bg-white/[0.06]"
               type="button"
             >
               <X className="size-4" strokeWidth={1.7} />
             </button>
           </DialogClose>
-          <div
-            className="bot-scrollbar h-full overflow-y-auto px-8 pb-8 pt-8 max-[512px]:px-6"
-            ref={scrollRef}
-          >
-            {/* Providers renders its own heading, with a breadcrumb on its Search and Fetch pages. */}
-            {view === "providers" ? null : (
-              <SettingsHeading>
-                {navigation.find((item) => item.id === view)?.label ?? "General"}
-              </SettingsHeading>
-            )}
-            <Suspense fallback={null}>
-              <ActiveSection />
-            </Suspense>
-          </div>
+          <SettingsContent scrollRef={scrollRef} view={view} />
         </section>
       </DialogContent>
     </Dialog>

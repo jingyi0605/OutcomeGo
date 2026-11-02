@@ -260,7 +260,7 @@ export function AccountMenu({
             openingUpdateDialog.current = false;
           }}
           className="w-[228px] rounded-[13px] border-0 bg-[#fcfcfc] p-1.5 antialiased shadow-[inset_0_0_0_0.5px_#d9d9d9,0_8px_22px_rgba(0,0,0,0.10),0_2px_6px_rgba(0,0,0,0.04)] dark:bg-popover dark:shadow-[inset_0_0_0_0.5px_#3a3a3a,0_8px_22px_rgba(0,0,0,0.10),0_2px_6px_rgba(0,0,0,0.04)]"
-          side={compact ? "right" : "top"}
+          side={compact ? "right" : "bottom"}
           sideOffset={8}
         >
           {["available", "downloading", "downloaded", "installing"].includes(
@@ -2933,6 +2933,20 @@ export const Sidebar = memo(function Sidebar({
       ref={sidebarRef}
       style={{ width: targetCompact ? COMPACT_SIDEBAR_WIDTH : Math.min(sidebarWidth, maxExpandedWidth) }}
     >
+      <div className="sidebar-account-top electron-drag">
+        <AccountMenu compact={compact} onOpenSettings={onOpenSettings}>
+          <Button
+            aria-label={`Account: ${account.name}`}
+            data-sidebar-account-trigger=""
+            className="sidebar-account-top-button electron-no-drag rounded-full p-0 hover:bg-subtle data-[state=open]:bg-subtle"
+            variant="ghost"
+          >
+            <span className="sidebar-account-top-avatar" data-sidebar-account-avatar="">
+              {account.initials}
+            </span>
+          </Button>
+        </AccountMenu>
+      </div>
       <SidebarCollapseMotion compact={compact}>
       {compact ? (
         <CompactSidebarContent
@@ -3349,22 +3363,6 @@ export const Sidebar = memo(function Sidebar({
       )}
 
       </SidebarCollapseMotion>
-      <div className="sidebar-account-footer">
-        <AccountMenu compact={compact} onOpenSettings={onOpenSettings}>
-          <Button
-            aria-label={`Account: ${account.name}`}
-            data-sidebar-account-trigger=""
-            className="sidebar-account-button group/footer-account relative w-full rounded-[11px] p-0 hover:bg-subtle data-[state=open]:bg-subtle"
-            variant="ghost"
-          >
-            <span className="sidebar-account-avatar" data-sidebar-account-avatar="">
-              {account.initials}
-            </span>
-            <span className="sidebar-account-name">{account.name}</span>
-          </Button>
-        </AccountMenu>
-      </div>
-
       <div
         aria-label="Resize sidebar"
         aria-orientation="vertical"

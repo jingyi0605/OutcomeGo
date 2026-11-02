@@ -5,6 +5,7 @@ import { useServerUpdate } from "../../../hooks/use-server-update";
 import { requestDesktopUpdateRestart } from "../../../lib/desktop-update";
 import { LoadingOrb } from "../../ui/loading-orb";
 import { SectionLabel, SettingsGroup, SettingsRow } from "./ui";
+import { settingsText, useSettingsLanguage } from "./language";
 
 const primaryButton =
   "inline-flex h-9 items-center gap-2 rounded-[9px] bg-black px-3 text-[13px] text-white enabled:hover:opacity-80 disabled:bg-black/[0.07] disabled:text-foreground disabled:opacity-50 dark:bg-white dark:text-black dark:disabled:bg-white/[0.09] dark:disabled:text-foreground";
@@ -30,6 +31,7 @@ const clientUpdateFailure = (status: OpenTeamUpdateStatus): string => {
 };
 
 export default function UpdatesSettings() {
+  const { language } = useSettingsLanguage();
   const { clientVersion, clientUpdate, setClientUpdate, server, serverLoading, refreshServer, compatibility } =
     useServerUpdate();
   const [actionError, setActionError] = useState<string | null>(null);
@@ -100,7 +102,7 @@ export default function UpdatesSettings() {
         </p>
       ) : null}
 
-      <SectionLabel>OpenTeam Updates</SectionLabel>
+      <SectionLabel>{settingsText(language, "OpenTeam Updates", "OpenTeam 更新")}</SectionLabel>
       <SettingsGroup>
         <SettingsRow
           anchors={["update-status", "automatic-updates"]}
@@ -116,12 +118,12 @@ export default function UpdatesSettings() {
                   <LoadingOrb aria-hidden size={14} />
                 ) : null}
                 {clientUpdate?.status === "downloaded"
-                  ? "Restart to update"
+                  ? settingsText(language, "Restart to update", "重启以更新")
                   : clientUpdate?.status === "downloading"
                     ? `Downloading ${Math.round(clientUpdate.progress ?? 0)}%`
                     : clientUpdate?.status === "installing"
-                      ? "Restarting…"
-                      : "Update desktop"}
+                    ? settingsText(language, "Restarting…", "正在重启…")
+                    : settingsText(language, "Update desktop", "更新桌面端")}
               </button>
             ) : (
               <button
@@ -133,7 +135,9 @@ export default function UpdatesSettings() {
                 {clientUpdate?.status === "checking" ? (
                   <LoadingOrb aria-hidden size={14} />
                 ) : null}
-                {clientUpdate?.status === "checking" ? "Checking…" : "Check for Updates"}
+                {clientUpdate?.status === "checking"
+                  ? settingsText(language, "Checking…", "正在检查…")
+                  : settingsText(language, "Check for Updates", "检查更新")}
               </button>
             )
           }

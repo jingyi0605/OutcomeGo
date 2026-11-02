@@ -9,6 +9,7 @@ import { useServerUpdate } from "../../../hooks/use-server-update";
 import { cn } from "../../../lib/cn";
 import { inSidebarOrder, useSidebarBotOrder } from "../../../lib/sidebar-bot-order";
 import { SectionLabel, SettingsGroup } from "./ui";
+import { settingsText, useSettingsLanguage } from "./language";
 
 const FAILED = "The computer update failed. Try again.";
 const BUSY_POLL_MS = 2_000;
@@ -62,6 +63,7 @@ export function ConfirmButton({
 
 /** Updates the server, worker and computer together, once no bot is working. */
 export function ComputerUpdateSettings() {
+  const { language } = useSettingsLanguage();
   const {
     server,
     serverNeedsUpdate,
@@ -150,16 +152,16 @@ export function ComputerUpdateSettings() {
   const updateButton = (
     <ConfirmButton
       disabled={state !== "ready"}
-      label="Update"
+      label={settingsText(language, "Update", "更新")}
       onConfirm={() => void update()}
       pending={state === "updating"}
-      pendingLabel="Updating…"
+      pendingLabel={settingsText(language, "Updating…", "正在更新…")}
     />
   );
 
   return (
     <>
-      <SectionLabel>Connected server</SectionLabel>
+      <SectionLabel>{settingsText(language, "Connected server", "已连接的服务器")}</SectionLabel>
       <SettingsGroup>
         <div
           className="flex min-h-[52px] items-center gap-5 py-2.5"
@@ -171,8 +173,7 @@ export function ComputerUpdateSettings() {
               {new URL(API_BASE).host}
             </div>
             <div className="mt-px max-w-[440px] text-[12px] leading-4 text-foreground-secondary">
-              Bots keep their files, installed software and browser sign-ins. Open browser tabs
-              aren’t reopened.
+              {settingsText(language, "Bots keep their files, installed software and browser sign-ins. Open browser tabs aren’t reopened.", "Bot 会保留文件、已安装的软件和浏览器登录状态。打开的浏览器标签页不会恢复。")}
             </div>
             {extraCopy ? (
               <div
@@ -188,7 +189,7 @@ export function ComputerUpdateSettings() {
                 role="status"
               >
                 <CircleCheck aria-hidden className="size-3.5" />
-                Your server is on the latest version
+                {settingsText(language, "Your server is on the latest version", "服务器已是最新版本")}
               </div>
             ) : null}
           </div>

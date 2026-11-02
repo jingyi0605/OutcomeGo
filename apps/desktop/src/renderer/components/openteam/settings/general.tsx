@@ -15,6 +15,11 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../ui/select";
 import type { MicrophoneControlProps } from "./microphone";
 import { SectionLabel, SettingsGroup, SettingsRow } from "./ui";
+import {
+  SettingsLanguageSelect,
+  settingsText,
+  useSettingsLanguage,
+} from "./language";
 const MicrophoneSettings = lazy(() => import("./microphone").then(module => ({ default: module.MicrophoneSettings })));
 
 
@@ -41,6 +46,7 @@ export const renderMicrophoneControl = ({ options, ...props }: MicrophoneControl
 
 export default function GeneralSettings() {
   const auth = useAuthSession();
+  const { language } = useSettingsLanguage();
   const account = accountPresentation(auth.user, auth.mode);
   const [signingOut, setSigningOut] = useState(false);
   const [accountCopied, setAccountCopied] = useState(false);
@@ -68,7 +74,7 @@ export default function GeneralSettings() {
 
   return (
     <>
-      <SectionLabel>Account</SectionLabel>
+      <SectionLabel>{settingsText(language, "Account", "账户")}</SectionLabel>
       <SettingsGroup className="px-3.5">
         <div className="flex min-h-[72px] flex-wrap items-center gap-3 py-3.5">
           <span className="grid size-11 shrink-0 place-items-center rounded-full bg-black/[0.045] text-[13px] font-medium text-foreground-secondary ring-1 ring-black/[0.035] dark:bg-white/[0.07] dark:ring-white/[0.06]">
@@ -77,7 +83,13 @@ export default function GeneralSettings() {
           <div className="min-w-[100px] flex-1">
             <div className="truncate text-[13px] font-medium">{account.name}</div>
             <div className="mt-0.5 flex items-center gap-2 text-[12px] text-foreground-secondary">
-              <span className="truncate">{account.detail}</span>
+              <span className="truncate">
+                {account.detail === "Username and password"
+                  ? settingsText(language, account.detail, "用户名和密码")
+                  : account.detail === "No sign-in required"
+                    ? settingsText(language, account.detail, "无需登录")
+                    : settingsText(language, account.detail, "账户设置")}
+              </span>
               {account.copyValue ? (
                 <button
                   aria-label={accountCopied ? "Account name copied" : "Copy account name"}
@@ -91,7 +103,7 @@ export default function GeneralSettings() {
               ) : null}
             </div>
             <div className="mt-1 flex items-baseline gap-2 text-[12px] leading-4 text-foreground-secondary">
-              <span className="shrink-0">Endpoint</span>
+              <span className="shrink-0">{settingsText(language, "Endpoint", "服务器地址")}</span>
               <button
                 aria-label={endpointRevealed ? "Hide server endpoint" : "Reveal server endpoint"}
                 aria-pressed={endpointRevealed}
@@ -115,7 +127,9 @@ export default function GeneralSettings() {
             onClick={() => void logOut()}
             type="button"
           >
-            {signingOut ? "Signing Out…" : "Sign Out"}
+            {signingOut
+              ? settingsText(language, "Signing Out…", "正在退出…")
+              : settingsText(language, "Sign Out", "退出登录")}
           </button>
         </div>
       </SettingsGroup>
@@ -124,26 +138,39 @@ export default function GeneralSettings() {
 
       <SmartNotificationSettings />
 
-      <SectionLabel>Appearance</SectionLabel>
+      <SectionLabel>{settingsText(language, "Appearance", "外观")}</SectionLabel>
       <SettingsGroup>
         <SettingsRow
           anchors={["theme"]}
           control={
             <Select onValueChange={changeTheme} value={theme}>
               <SelectTrigger
-                aria-label="Theme"
+              aria-label={settingsText(language, "Theme", "主题")}
                 className="h-7 w-auto rounded-[8px] border-black/[0.055] bg-black/[0.035] px-2 text-[12px] shadow-none dark:border-white/[0.07] dark:bg-white/[0.07]"
               >
                 <SelectValue />
               </SelectTrigger>
               <SettingsSelectContent>
-                <SelectItem value="system">Follow System</SelectItem>
-                <SelectItem value="light">Light</SelectItem>
-                <SelectItem value="dark">Dark</SelectItem>
+                <SelectItem value="system">{settingsText(language, "Follow System", "跟随系统")}</SelectItem>
+                <SelectItem value="light">{settingsText(language, "Light", "浅色")}</SelectItem>
+                <SelectItem value="dark">{settingsText(language, "Dark", "深色")}</SelectItem>
               </SettingsSelectContent>
             </Select>
           }
-          title="Theme"
+          title={settingsText(language, "Theme", "主题")}
+        />
+      </SettingsGroup>
+
+      <SectionLabel>{settingsText(language, "Language", "语言")}</SectionLabel>
+      <SettingsGroup>
+        <SettingsRow
+          control={<SettingsLanguageSelect />}
+          description={settingsText(
+            language,
+            "Choose the language used throughout this settings interface.",
+            "选择设置界面使用的语言。"
+          )}
+          title={settingsText(language, "Interface language", "界面语言")}
         />
       </SettingsGroup>
 

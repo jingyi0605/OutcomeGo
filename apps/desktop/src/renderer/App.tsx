@@ -1773,8 +1773,12 @@ export default function App() {
             <Suspense fallback={null}>
               <SidebarBotOrderContext.Provider value={sidebarBotOrder}>
                 <SettingsPanel
-                  onOpenChange={setSettingsOpen}
+                  onOpenChange={(open) => {
+                    setSettingsOpen(open);
+                    if (!open) setSettingsTarget(null);
+                  }}
                   open={settingsOpen}
+                  presentation="page"
                   target={settingsTarget}
                 />
               </SidebarBotOrderContext.Provider>

@@ -2,8 +2,10 @@ import { useCallback, useEffect, useState } from "react";
 import type { DesktopTailscaleStatus } from "@openteam/contracts/tailscale";
 import { API_BASE } from "../../../client/http";
 import { SectionLabel, SettingsGroup, SettingsRow } from "./ui";
+import { settingsText, useSettingsLanguage } from "./language";
 
 export function TailscaleSettings() {
+  const { language } = useSettingsLanguage();
   const [result, setResult] = useState<DesktopTailscaleStatus | null>(null);
   const [port, setPort] = useState("443");
   const [busy, setBusy] = useState<string | null>("Checking Tailscale…");
@@ -61,12 +63,12 @@ export function TailscaleSettings() {
   const buttonClass = "rounded-md border border-border px-3 py-1.5 text-xs disabled:opacity-50";
   return (
     <>
-      <SectionLabel>Remote access</SectionLabel>
+      <SectionLabel>{settingsText(language, "Remote access", "远程访问")}</SectionLabel>
       <SettingsGroup>
         <SettingsRow
-          title="Tailscale HTTPS"
+          title={settingsText(language, "Tailscale HTTPS", "Tailscale HTTPS")}
           anchors={["tailscale-https"]}
-          description="Use a private HTTPS address to connect your devices. Tailscale must be running on the server and on each device."
+          description={settingsText(language, "Use a private HTTPS address to connect your devices. Tailscale must be running on the server and on each device.", "使用私有 HTTPS 地址连接设备。服务器和每台设备都必须运行 Tailscale。")}
           control={
             <button
               className={buttonClass}
@@ -76,15 +78,15 @@ export function TailscaleSettings() {
                 void refresh();
               }}
             >
-              Refresh
+                {settingsText(language, "Refresh", "刷新")}
             </button>
           }
         />
-        <SettingsRow title="Server address" description={status?.publicUrl || API_BASE} />
+        <SettingsRow title={settingsText(language, "Server address", "服务器地址")} description={status?.publicUrl || API_BASE} />
         {result?.canManage ? (
           <>
             <SettingsRow
-              title="HTTPS port"
+              title={settingsText(language, "HTTPS port", "HTTPS 端口")}
               description="Default 443. Choose another port if another application uses it."
               control={
                 <input
@@ -100,7 +102,7 @@ export function TailscaleSettings() {
               }
             />
             <SettingsRow
-              title="HTTPS address"
+              title={settingsText(language, "HTTPS address", "HTTPS 地址")}
               description={
                 status?.hostname && validPort
                   ? `https://${status.hostname}${Number(port) === 443 ? "" : `:${Number(port)}`}`
@@ -108,7 +110,7 @@ export function TailscaleSettings() {
               }
             />
             <SettingsRow
-              title={status?.enabled ? "Tailscale HTTPS configured" : "Enable Tailscale HTTPS"}
+              title={status?.enabled ? settingsText(language, "Tailscale HTTPS configured", "Tailscale HTTPS 已配置") : settingsText(language, "Enable Tailscale HTTPS", "启用 Tailscale HTTPS")}
               description={
                 status?.enabled
                   ? `${status.verified ? "HTTPS endpoint verified." : "This connection needs attention."} ${status.ownership === "openteam" ? "Managed by OpenTeam." : status.ownership === "external" ? "Uses an existing user-managed route." : ""}`
@@ -120,13 +122,13 @@ export function TailscaleSettings() {
                   disabled={!!busy || !validPort}
                   onClick={() => void change("enable")}
                 >
-                  {status?.enabled ? "Apply / repair" : "Enable"}
+                  {status?.enabled ? settingsText(language, "Apply / repair", "应用 / 修复") : settingsText(language, "Enable", "启用")}
                 </button>
               }
             />
             {(status?.enabled || !!status?.managedRoutes) && (
               <SettingsRow
-                title="Disable Tailscale HTTPS"
+                title={settingsText(language, "Disable Tailscale HTTPS", "停用 Tailscale HTTPS")}
                 description="Switch to local access and restart the server. Remote devices will disconnect. Only unchanged OpenTeam-managed mappings are removed."
                 control={
                   <button
@@ -134,7 +136,7 @@ export function TailscaleSettings() {
                     disabled={!!busy}
                     onClick={() => void change("disable")}
                   >
-                    Disable
+                    {settingsText(language, "Disable", "停用")}
                   </button>
                 }
               />

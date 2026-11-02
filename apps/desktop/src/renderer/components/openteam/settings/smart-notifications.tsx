@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../../../client/openteam-api";
 import { InteractiveSwitch, SectionLabel, SettingsGroup, SettingsRow } from "./ui";
+import { settingsText, useSettingsLanguage } from "./language";
 
 export function SmartNotificationSettings() {
+  const { language } = useSettingsLanguage();
   const [enabled, setEnabled] = useState<boolean | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -34,14 +36,14 @@ export function SmartNotificationSettings() {
   if (enabled === null) return null;
   return (
     <>
-      <SectionLabel>Notifications</SectionLabel>
+      <SectionLabel>{settingsText(language, "Notifications", "通知")}</SectionLabel>
       <SettingsGroup>
         <SettingsRow
-          title="Pause iPhone alerts while I’m using this Mac"
-          description="Phone alerts stay quiet while you’re using your Mac, unless OpenTeam is open on your iPhone. They resume after five minutes of Mac inactivity."
+          title={settingsText(language, "Pause iPhone alerts while I’m using this Mac", "使用此 Mac 时暂停 iPhone 提醒")}
+          description={settingsText(language, "Phone alerts stay quiet while you’re using your Mac, unless OpenTeam is open on your iPhone. They resume after five minutes of Mac inactivity.", "使用 Mac 时手机提醒会保持安静，除非 OpenTeam 正在 iPhone 上打开。Mac 闲置五分钟后会恢复提醒。")}
           control={
             <InteractiveSwitch
-              label="Pause iPhone alerts while I’m using this Mac"
+              label={settingsText(language, "Pause iPhone alerts while I’m using this Mac", "使用此 Mac 时暂停 iPhone 提醒")}
               checked={enabled}
               disabled={saving}
               onChange={(value) => {

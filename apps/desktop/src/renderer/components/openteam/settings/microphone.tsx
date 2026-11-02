@@ -2,6 +2,7 @@ import { type ReactNode, useState } from "react";
 import { useMicrophoneDevices } from "../../../hooks/use-microphone-devices";
 import { microphoneErrorMessage, setMicrophonePreference } from "../../../lib/microphone";
 import { SectionLabel, SettingsGroup, SettingsRow } from "./ui";
+import { settingsText, useSettingsLanguage } from "./language";
 
 export interface MicrophoneControlProps {
   disabled: boolean;
@@ -29,6 +30,7 @@ export function MicrophoneSettings({
     openSettings,
     refresh,
   } = useMicrophoneDevices();
+  const { language } = useSettingsLanguage();
   const [saveError, setSaveError] = useState("");
   const [accessError, setAccessError] = useState("");
   const [requesting, setRequesting] = useState(false);
@@ -75,18 +77,18 @@ export function MicrophoneSettings({
             : undefined;
   return (
     <>
-      <SectionLabel>System</SectionLabel>
+      <SectionLabel>{settingsText(language, "System", "系统")}</SectionLabel>
       <SettingsGroup>
         <SettingsRow
-          title="Microphone"
+          title={settingsText(language, "Microphone", "麦克风")}
           anchors={["microphone"]}
           description={saveError || availability}
           control={renderControl({
             disabled: status === "unsupported",
             value: deviceId || "system-default",
             options: [
-              { value: "system-default", label: "System Default" },
-              ...(missing ? [{ value: deviceId, label: "Saved microphone (unavailable)" }] : []),
+              { value: "system-default", label: settingsText(language, "System Default", "系统默认") },
+              ...(missing ? [{ value: deviceId, label: settingsText(language, "Saved microphone (unavailable)", "已保存的麦克风（不可用）") }] : []),
               ...devices.map((device, index) => ({
                 value: device.deviceId,
                 label: device.label || `Microphone ${index + 1}`,
@@ -105,7 +107,7 @@ export function MicrophoneSettings({
           })}
         />
         <SettingsRow
-          title="Microphone access"
+          title={settingsText(language, "Microphone access", "麦克风权限")}
           description={
             accessError ||
             (permission === "denied"
@@ -138,7 +140,9 @@ export function MicrophoneSettings({
                   onClick={() => void requestAccess()}
                   type="button"
                 >
-                  {requesting ? "Requesting…" : "Enable microphone"}
+                  {requesting
+                    ? settingsText(language, "Requesting…", "请求中…")
+                    : settingsText(language, "Enable microphone", "启用麦克风")}
                 </button>
               ) : !checking && canOpenSettings ? (
                 <button
@@ -146,11 +150,11 @@ export function MicrophoneSettings({
                   onClick={() => void showSystemSettings()}
                   type="button"
                 >
-                  System settings
+                  {settingsText(language, "System settings", "系统设置")}
                 </button>
               ) : !checking && permission === "denied" ? (
                 <button className={actionClass} onClick={() => void refresh()} type="button">
-                  Check again
+                  {settingsText(language, "Check again", "再次检查")}
                 </button>
               ) : null}
             </div>
