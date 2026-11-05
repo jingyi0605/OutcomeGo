@@ -17,6 +17,16 @@ public struct APIError: Error, LocalizedError, Sendable {
 
 /// No cookies or cross-origin redirects: the selected server alone receives the bearer token.
 final class RedirectPolicy: NSObject, URLSessionTaskDelegate, Sendable {
+  private let uploadProgress: (@Sendable (Int64) -> Void)?
+  init(uploadProgress: (@Sendable (Int64) -> Void)? = nil) {
+    self.uploadProgress = uploadProgress
+  }
+  func urlSession(
+    _ session: URLSession, task: URLSessionTask, didSendBodyData bytesSent: Int64,
+    totalBytesSent: Int64, totalBytesExpectedToSend: Int64
+  ) {
+    uploadProgress?(totalBytesSent)
+  }
   func urlSession(
     _ session: URLSession, task: URLSessionTask,
     willPerformHTTPRedirection response: HTTPURLResponse, newRequest request: URLRequest
@@ -27,11 +37,14 @@ public struct API: Sendable {
   public let baseURL: URL
   public let token: String?
   private let session: URLSession
+  private let onReachable: (@Sendable () async -> Void)?
   public init(
-    server: String, token: String? = nil, session: URLSession? = nil, timeout: TimeInterval = 35
+    server: String, token: String? = nil, session: URLSession? = nil, timeout: TimeInterval = 35,
+    onReachable: (@Sendable () async -> Void)? = nil
   ) throws {
     self.baseURL = try Self.normalize(server)
     self.token = token
+    self.onReachable = onReachable
     if let session {
       self.session = session
     } else {
@@ -135,15 +148,16 @@ public struct API: Sendable {
     }
   }
   public func get<T: Decodable & Sendable>(
-    _ path: String, as type: T.Type, query: [String: String] = [:]
+    _ path: String, as type: T.Type, query: [String: String] = [:], timeout: TimeInterval? = nil
   ) async throws -> T {
-    let (data, _) = try await raw(path, query: query)
+    let (data, _) = try await raw(path, query: query, timeout: timeout)
     return try JSONDecoder().decode(type, from: data)
   }
   public func raw(
     _ path: String, method: String = "GET", data: Data? = nil,
     contentType: String = "application/json", query: [String: String] = [:],
-    headers: [String: String] = [:], timeout: TimeInterval? = nil
+    headers: [String: String] = [:], timeout: TimeInterval? = nil,
+    uploadProgress: (@Sendable (Int64) -> Void)? = nil
   ) async throws -> (Data, HTTPURLResponse) {
     var request = URLRequest(url: url(path, query: query))
     request.httpMethod = method
@@ -155,19 +169,32 @@ public struct API: Sendable {
     // ASR allows 120 seconds on the server. Both URLSession deadlines need an
     // override; changing only URLRequest still hits the ordinary resource limit.
     var dedicatedSession: URLSession?
-    if let timeout {
+    if timeout != nil || uploadProgress != nil {
       let configuration = session.configuration
-      configuration.timeoutIntervalForRequest = timeout
-      configuration.timeoutIntervalForResource = timeout
-      request.timeoutInterval = timeout
+      if let timeout {
+        configuration.timeoutIntervalForRequest = timeout
+        configuration.timeoutIntervalForResource = timeout
+        request.timeoutInterval = timeout
+      }
       dedicatedSession = URLSession(
-        configuration: configuration, delegate: RedirectPolicy(), delegateQueue: nil)
+        configuration: configuration, delegate: RedirectPolicy(uploadProgress: uploadProgress),
+        delegateQueue: nil)
     }
     defer { dedicatedSession?.finishTasksAndInvalidate() }
-    let (result, response) = try await (dedicatedSession ?? session).data(for: request)
+    let result: Data
+    let response: URLResponse
+    if uploadProgress != nil, let data {
+      request.httpBody = nil
+      (result, response) = try await (dedicatedSession ?? session).upload(for: request, from: data)
+    } else {
+      (result, response) = try await (dedicatedSession ?? session).data(for: request)
+    }
     guard let http = response as? HTTPURLResponse else {
       throw APIError("The server returned an invalid response.")
     }
+    // A response can prove reachability even when its payload cannot be decoded
+    // or the requested action is rejected. Server failures need a separate check.
+    if http.statusCode < 500, !Task.isCancelled { await onReachable?() }
     guard (200..<300).contains(http.statusCode) else {
       let json = (try? JSONDecoder().decode(JSON.self, from: result)) ?? .null
       let message = [json["error"]["message"].string, json["message"].string].first {
@@ -219,11 +246,13 @@ public struct API: Sendable {
       throw error
     }
   }
-  public func send(channel: Channel, bot: Bot?, input: SendInput) async throws -> Message {
+  public func send(
+    channel: Channel, bot: Bot?, input: SendInput, timeout: TimeInterval? = nil
+  ) async throws -> Message {
     let path =
       bot.map { "/api/v0/conversations/\(Self.segment($0.conversationId))/messages" }
       ?? "/api/v0/channels/\(Self.segment(channel.id))/messages"
-    let result = try await request(path, method: "POST", body: .encode(input))
+    let result = try await request(path, method: "POST", body: .encode(input), timeout: timeout)
     return try result["message"].decode(Message.self)
   }
 }

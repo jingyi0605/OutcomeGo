@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Settings pages that other screens open directly.
-enum SettingsRoute: Hashable { case model, voiceNotes, server, updates }
+enum SettingsRoute: Hashable { case model, voiceNotes, server, updates, devices }
 
 struct SettingsView: View {
   @Environment(AppStore.self) private var store
@@ -79,7 +79,6 @@ struct SettingsView: View {
         }
         Section {
           NavigationLink("Bot notifications") { notificationSettings }
-          NavigationLink("Hidden conversations") { HiddenConversationsView() }
         } header: {
           Text("Bot").font(.system(size: 13)).foregroundStyle(NativePalette.faint)
         }
@@ -127,8 +126,9 @@ struct SettingsView: View {
           switch route {
           case .model: ModelSettingsView()
           case .voiceNotes: VoiceNotesSettingsView()
-          case .server: ServerStatusView()
+          case .server: BrowserNetworkSettingsView { path.append($0) }
           case .updates: UpdatesSettingsView()
+          case .devices: ManageDevicesView()
           }
         }
         .toolbar {
@@ -209,26 +209,6 @@ struct SettingsView: View {
         ).tint(NativePalette.toggle)
       }
     }.navigationTitle("Bot notifications")
-  }
-}
-struct HiddenConversationsView: View {
-  @Environment(AppStore.self) private var store
-  var body: some View {
-    NativeList {
-      if store.channels.filter(store.isHidden).isEmpty {
-        ContentUnavailableView(
-          "No hidden conversations", systemImage: "eye.slash",
-          description: Text("Conversations you hide appear here."))
-      }
-      ForEach(store.channels.filter(store.isHidden)) { channel in
-        HStack {
-          ChannelAvatar(channel: channel, size: 36)
-          Text(channel.name)
-          Spacer()
-          Button("Show") { Task { await store.hide(channel, hidden: false) } }
-        }
-      }
-    }.navigationTitle("Hidden conversations")
   }
 }
 /// One computer: its name, a status dot, and "Computer · Online now · Messages on".
@@ -316,13 +296,15 @@ struct ManageDevicesView: View {
   }
 }
 
-struct ServerStatusView: View {
+struct ServerStatusSections: View {
+  // Route through the settings path while the browser priority list is editing.
+  var navigate: (SettingsRoute) -> Void
   @Environment(AppStore.self) private var store
   @State private var release: ServerRelease?
   var body: some View {
-    NativeForm {
+    Group {
       Section("Connected server") {
-        NavigationLink(value: SettingsRoute.updates) {
+        Button { navigate(.updates) } label: {
           HStack {
             VStack(alignment: .leading, spacing: 3) {
               Text(release.map { "Server \($0.releaseVersion)" } ?? "Server version unknown")
@@ -330,8 +312,12 @@ struct ServerStatusView: View {
             }
             Spacer()
             Text("View updates").font(.subheadline).foregroundStyle(NativePalette.link)
+            Image(systemName: "chevron.right").font(.footnote.weight(.semibold))
+              .foregroundStyle(NativePalette.muted).accessibilityHidden(true)
           }
-        }.accessibilityIdentifier("server-view-updates")
+          .frame(maxWidth: .infinity, alignment: .leading)
+          .contentShape(Rectangle())
+        }.buttonStyle(.plain).accessibilityIdentifier("server-view-updates")
       }
       ServerActivitySection()
       Section("Services") {
@@ -340,11 +326,19 @@ struct ServerStatusView: View {
         }
       }
       Section {
-        NavigationLink("Manage devices") { ManageDevicesView() }
-          .accessibilityIdentifier("server-manage-devices")
+        Button { navigate(.devices) } label: {
+          HStack {
+            Text("Manage devices")
+            Spacer()
+            Image(systemName: "chevron.right").font(.footnote.weight(.semibold))
+              .foregroundStyle(NativePalette.muted).accessibilityHidden(true)
+          }
+          .frame(maxWidth: .infinity, alignment: .leading)
+          .contentShape(Rectangle())
+        }.buttonStyle(.plain).accessibilityIdentifier("server-manage-devices")
       }
       Button("Refresh") { Task { await loadRelease(); await store.refresh() } }
-    }.navigationTitle("Server").navigationBarTitleDisplayMode(.inline)
+    }
       .task { await loadRelease() }
   }
   private func loadRelease() async {
@@ -358,7 +352,6 @@ struct ConversationDetails: View {
   @Environment(AppStore.self) private var store
   @Environment(\.dismiss) private var dismiss
   let channelID: String
-  var onDuplicate: (String) -> Void = { _ in }
   @State private var name = ""
   @State private var description = ""
   @State private var instructions = ""
@@ -366,12 +359,10 @@ struct ConversationDetails: View {
   @State private var resetAvatar = false
   @State private var deleting = false
   @State private var saving = false
-  @State private var duplicateID = UUID().uuidString
   @State private var color = "#A47952"
   @State private var icon = "chip"
   @State private var title = ""
   @State private var initialized = false
-  @State private var duplicating = false
   @State private var failure: String?
   @State private var addingRoutine = false
   @State private var editingRoutine: Routine?
@@ -530,20 +521,6 @@ struct ConversationDetails: View {
           ToolbarItem(placement: .topBarTrailing) {
             Menu {
               if let bot {
-                Button("Duplicate bot", systemImage: "plus.square.on.square") {
-                  Task {
-                    guard !duplicating else { return }
-                    duplicating = true
-                    defer { duplicating = false }
-                    if let result = await store.mutate(
-                      "/api/v0/bots/\(API.segment(bot.id))/duplicate",
-                      body: .object(["clientRequestId": .string(duplicateID)]))
-                    {
-                      onDuplicate(result["dmChannelId"].string)
-                      dismiss()
-                    }
-                  }
-                }.disabled(duplicating)
                 if bot.status == "failed" {
                   Button("Retry setup") {
                     Task { await store.mutate("/api/v0/bots/\(API.segment(bot.id))/retry") }

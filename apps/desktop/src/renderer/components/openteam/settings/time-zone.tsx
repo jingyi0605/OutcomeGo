@@ -4,14 +4,12 @@ import { useEffect, useMemo, useState } from "react";
 import { api } from "../../../client/openteam-api";
 import { supportedTimeZones, timeInZone, timeZoneLabel } from "../../../lib/time-zone";
 import { Popover, PopoverContent, PopoverTrigger } from "../../ui/popover";
-import { SettingsGroup, SettingsRow } from "./ui";
-import { settingsText, useSettingsLanguage } from "./language";
+import { SettingsGroup, SettingsRow, settingsSelect } from "./ui";
 
 const AUTO = "auto";
 
 /** The zone routines, the box clock and the bot's sense of time use: auto-detected, or an override. */
 export function TimeZoneSettings() {
-  const { language } = useSettingsLanguage();
   const [setting, setSetting] = useState<UserTimeZoneView | null>(null);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -42,9 +40,7 @@ export function TimeZoneSettings() {
 
   if (!setting) return null;
   const detected = setting.detectedTimeZone;
-  const autoLabel = detected
-    ? `${settingsText(language, "Auto-detect", "自动检测")} (${timeZoneLabel(detected)})`
-    : settingsText(language, "Auto-detect", "自动检测");
+  const autoLabel = detected ? `Auto-detect (${timeZoneLabel(detected)})` : "Auto-detect";
   const override = setting.overrideTimeZone;
   const entries = [
     { value: AUTO, label: autoLabel, zone: detected },
@@ -75,7 +71,8 @@ export function TimeZoneSettings() {
   return (
     <SettingsGroup>
       <SettingsRow
-        title={settingsText(language, "Timezone", "时区")}
+        stackControl
+        title="Timezone"
         description={failed ? <span role="alert" className="text-destructive">Couldn't save. Try again.</span> : undefined}
         control={
           <Popover
@@ -90,8 +87,8 @@ export function TimeZoneSettings() {
           >
             <PopoverTrigger asChild>
               <button
-                aria-label={settingsText(language, "Timezone", "时区")}
-                className="inline-flex h-7 max-w-[260px] items-center gap-1 rounded-[8px] border border-black/[0.055] bg-black/[0.035] px-2 text-[12px] disabled:opacity-50 dark:border-white/[0.07] dark:bg-white/[0.07]"
+                aria-label="Timezone"
+                className={`${settingsSelect} inline-flex max-w-[260px] items-center gap-1 border`}
                 disabled={saving}
                 type="button"
               >
@@ -101,14 +98,14 @@ export function TimeZoneSettings() {
             </PopoverTrigger>
             <PopoverContent align="end" className="w-[424px] max-w-[calc(100vw-16px)] rounded-[12px] p-1.5">
               <input
-                aria-label={settingsText(language, "Search timezone", "搜索时区")}
+                aria-label="Search timezone"
                 autoFocus
                 className="mb-1 h-8 w-full rounded-[8px] bg-black/[0.035] px-2.5 text-[13px] outline-none dark:bg-white/[0.07]"
                 onChange={(event) => setQuery(event.target.value)}
                 onKeyDown={(event) => {
                   if (event.key === "Enter" && visible[0]) choose(visible[0].value);
                 }}
-                placeholder={settingsText(language, "Search timezone", "搜索时区")}
+                placeholder="Search timezone"
                 value={query}
               />
               <div aria-label="Timezone" className="max-h-[320px] overflow-y-auto" role="listbox">

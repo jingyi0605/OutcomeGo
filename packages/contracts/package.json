@@ -1,6 +1,6 @@
 {
   "name": "@openteam/contracts",
-  "version": "0.0.11",
+  "version": "0.0.13",
   "license": "GPL-3.0-only",
   "private": true,
   "type": "module",
@@ -52,6 +52,7 @@
     "./computer-action-aliases": "./src/computer-action-aliases.ts",
     "./notification-presence": "./src/notification-presence.ts",
     "./tailscale": "./src/tailscale.ts",
+    "./browser-network": "./src/browser-network.ts",
     "./task-progress": "./src/task-progress.ts"
   },
   "scripts": {

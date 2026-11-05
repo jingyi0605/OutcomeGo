@@ -5,7 +5,6 @@ import {
   type DurableStagedAttachment,
   durableSendIsInFlight,
   durableSendMessage,
-  durableSendRenderKey,
 } from "@openteam/product-core/durable-delivery";
 import {
   messageDisplayProjection,
@@ -27,6 +26,7 @@ import { api } from "../../client/openteam-api";
 import { useVirtualWindow } from "../../hooks/use-virtual-window";
 import { useInitialConversationLayout } from "../../hooks/use-initial-conversation-layout";
 import { DeliveryFooter } from "./delivery-footer";
+import { retainOutgoingMessageKey } from "../../lib/outgoing-message-key";
 import { sendProgressOwner } from "../../lib/send-progress";
 import type { MentionOption } from "../../lib/mentions";
 import { MessageContent, MessageResponse, MessageRendererBoundary } from "../ai-elements/message";
@@ -91,7 +91,7 @@ const ThreadMessage = ({
       data-thread-message-id={message.id}
     >
       {from !== "user" && <BotAvatar bot={bot} size="sm" />}
-      <div className={`relative max-w-[82%] ${from === "user" ? "items-end" : "items-start"}`}>
+      <div className={`relative ${from === "user" ? "flex w-[82%] min-w-0 flex-col items-end" : "max-w-[82%] items-start"}`}>
         {from !== "user" && (
           <div className="mb-1 px-1 text-[11px] text-muted-foreground">{bot?.name ?? "Bot"}</div>
         )}
@@ -128,13 +128,13 @@ const ThreadMessage = ({
             <MessageResponse>{display.displayContent}</MessageResponse>
           </MessageContent>
         )}
-        <DeliveryFooter
+        {from === "user" && <DeliveryFooter
           delivery={delivery}
           sendingSinceMs={sendingSinceMs}
           onCancel={onCancelSend}
           onDelete={onDeleteSend}
           onResend={onResendSend}
-        />
+        />}
       </div>
     </div>
   );
@@ -211,12 +211,16 @@ export function ThreadTray({
     [deliveryByMessageId, messages]
   );
   const estimateSize = useCallback((index: number) => (index === 0 ? 128 : 76), []);
+  const outgoingKeyAliases = useRef(new Map<string, string>());
   const getKey = useCallback(
     (index: number) => {
       const message = messages[index];
       if (!message) return `missing:${index}`;
       const delivery = deliveryByMessageId.get(message.id);
-      return delivery ? durableSendRenderKey(delivery) : messageRenderKey(message);
+      return retainOutgoingMessageKey(
+        { renderKey: messageRenderKey(message), delivery: delivery ?? null },
+        outgoingKeyAliases.current
+      );
     },
     [deliveryByMessageId, messages]
   );

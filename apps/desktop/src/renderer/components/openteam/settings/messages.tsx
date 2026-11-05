@@ -3,8 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { MachineMessagesSettings } from "@openteam/client-core";
 import { api } from "../../../client/openteam-api";
 import { MessagesPermissionsDialog, missingGrants } from "./messages-permissions-dialog";
-import { InteractiveSwitch, SectionLabel, SettingsGroup, SettingsRow } from "./ui";
-import { settingsText, useSettingsLanguage } from "./language";
+import { InteractiveSwitch, SectionLabel, SettingsGroup, SettingsRow, settingsSecondaryButton } from "./ui";
 
 /** This Mac's Messages switch, its macOS permissions, and who OpenTeam may text without asking. */
 export function MessagesSettings({
@@ -14,7 +13,6 @@ export function MessagesSettings({
   computer: OpenTeamComputerSettings;
   onComputerChange: (value: OpenTeamComputerSettings) => void;
 }) {
-  const { language } = useSettingsLanguage();
   const machineId = computer.machine.machineId;
   const [permissions, setPermissions] = useState<OpenTeamMessagesPermissions | null>(null);
   const [send, setSend] = useState<MachineMessagesSettings | null>(null);
@@ -81,41 +79,41 @@ export function MessagesSettings({
   const recipients = send?.allowedRecipients ?? [];
   return (
     <>
-      <SectionLabel>{settingsText(language, "Messages", "信息")}</SectionLabel>
+      <SectionLabel>Messages</SectionLabel>
       <SettingsGroup>
         <SettingsRow
-          title={settingsText(language, "Use Messages", "使用信息")}
-          description={failed === "enabled" ? settingsText(language, "Couldn't save. Try again.", "保存失败，请重试。") : settingsText(language, "Lets OpenTeam read and send texts on this Mac", "允许 OpenTeam 在此 Mac 上读取和发送短信")}
-          control={<InteractiveSwitch label={settingsText(language, "Use Messages", "使用信息")} checked={enabled} disabled={saving !== null} onChange={(value) => void setEnabled(value)} />}
+          title="Use Messages"
+          description={failed === "enabled" ? "Couldn't save. Try again." : "Lets OpenTeam read and send texts on this Mac"}
+          control={<InteractiveSwitch label="Use Messages" checked={enabled} disabled={saving !== null} onChange={(value) => void setEnabled(value)} />}
         />
         {enabled ? (
           <SettingsRow
-            title={settingsText(language, "macOS permissions", "macOS 权限")}
-            description={!permissions ? settingsText(language, "Loading…", "加载中…") : missing.length ? `${settingsText(language, "Needs", "需要")} ${missing.join(", ")}` : settingsText(language, "Automation, Contacts and Full Disk Access are allowed", "自动化、通讯录和完全磁盘访问权限均已允许")}
+            title="macOS permissions"
+            description={!permissions ? "Loading…" : missing.length ? `Needs ${missing.join(", ")}` : "Automation, Contacts and Full Disk Access are allowed"}
             control={
               <button
-                className="inline-flex h-7 items-center rounded-[8px] bg-black/[0.08] px-3 text-[12px] text-foreground disabled:text-foreground-tertiary dark:bg-white/[0.09]"
+                className={settingsSecondaryButton}
                 disabled={!permissions}
                 onClick={() => setDialogOpen(true)}
                 type="button"
               >
-                {missing.length ? settingsText(language, "Set up", "设置") : settingsText(language, "Review", "查看")}
+                {missing.length ? "Set up" : "Review"}
               </button>
             }
           />
         ) : null}
         {enabled ? (
           <SettingsRow
-            title={settingsText(language, "Send Without Asking", "无需询问即可发送")}
-            description={!send ? (sendFailed ? settingsText(language, "Couldn't load this setting", "无法加载此设置") : settingsText(language, "Loading…", "加载中…")) : failed === "standing" ? settingsText(language, "Couldn't save. Try again.", "保存失败，请重试。") : settingsText(language, "Skips the approval card for every text", "发送短信时跳过审批卡片")}
+            title="Send Without Asking"
+            description={!send ? (sendFailed ? "Couldn't load this setting" : "Loading…") : failed === "standing" ? "Couldn't save. Try again." : "Skips the approval card for every text"}
             control={
               sendFailed ? (
                 <button className="text-[12px] text-foreground-secondary hover:text-foreground" onClick={loadSend} type="button">
-                  {settingsText(language, "Retry", "重试")}
+                  Retry
                 </button>
               ) : (
                 <InteractiveSwitch
-                  label={settingsText(language, "Send Without Asking", "无需询问即可发送")}
+                  label="Send Without Asking"
                   checked={send?.sendWithoutAsking ?? false}
                   disabled={!send || saving !== null}
                   onChange={(sendWithoutAsking) => void updateSend("standing", { sendWithoutAsking }, "standing")}
@@ -127,12 +125,12 @@ export function MessagesSettings({
         {enabled && send && !send.sendWithoutAsking && recipients.length ? (
           <>
             <SettingsRow
-              title={settingsText(language, "Allowed recipients", "允许的收件人")}
-              description={failed === "recipient" ? settingsText(language, "The change could not be applied. Try again.", "无法应用更改，请重试。") : settingsText(language, "OpenTeam can text these people without asking first", "OpenTeam 可以无需询问就向这些联系人发送短信")}
+              title="Allowed recipients"
+              description={failed === "recipient" ? "The change could not be applied. Try again." : "OpenTeam can text these people without asking first"}
               control={
                 <button
                   aria-expanded={recipientsOpen}
-                  className="inline-flex h-7 items-center gap-1 rounded-[8px] bg-black/[0.08] px-3 text-[12px] text-foreground dark:bg-white/[0.09]"
+                  className={settingsSecondaryButton}
                   onClick={() => setRecipientsOpen((open) => !open)}
                   type="button"
                 >

@@ -1,41 +1,43 @@
+import { SettingsSelectContent } from "./select-content";
 import { useModelSetup } from "../../../hooks/use-model-setup";
 import { providerName } from "../../../lib/provider-names";
 import { LoadingOrb } from "../../ui/loading-orb";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../ui/select";
-import { ModelTestStatus, primaryButton, secondaryButton, SignInProgress } from "../model-setup";
+import { Select, SelectItem, SelectTrigger, SelectValue } from "../../ui/select";
+import { ModelTestStatus, SignInProgress } from "../model-setup";
 import { ModelPicker } from "../setup/model-picker";
 import { ProviderMark } from "../setup/provider-marks";
-import { SettingsGroup, SettingsRow } from "./ui";
-import { settingsText, useSettingsLanguage } from "./language";
+import {
+  SettingsGroup,
+  SettingsRow,
+  SettingsIntro,
+  settingsPrimaryButton,
+  settingsSecondaryButton,
+  settingsSelect,
+  settingsRow,
+  settingsInput,
+} from "./ui";
 
-const selectTrigger =
-  "h-7 rounded-[8px] border-black/[0.055] bg-black/[0.035] px-2 text-[12px] shadow-none dark:border-white/[0.07] dark:bg-white/[0.07]";
+const selectTrigger = settingsSelect;
 
-const reasoningLabel = (value: string, language: "en" | "zh"): string =>
+const reasoningLabel = (value: string): string =>
   value === "off"
-    ? settingsText(language, "Off", "关闭")
+    ? "Off"
     : value === "xhigh"
-      ? settingsText(language, "Extra high", "极高")
+      ? "Extra high"
       : `${value[0]?.toUpperCase()}${value.slice(1)}`;
 
 export default function ModelSettings() {
   const setup = useModelSetup();
-  const { language } = useSettingsLanguage();
   const { data, provider, busy } = setup;
   const working = Boolean(busy) || setup.test.status === "running";
   const signingIn = Boolean(setup.authSession);
 
   return (
     <>
-      <p className="mb-5 text-[13px] text-foreground-secondary">
-        {settingsText(
-          language,
-          "Choose the AI provider and model for all bots on this server.",
-          "选择此服务器上所有 Bot 使用的 AI 服务商和模型。"
-        )}
-      </p>
+      <SettingsIntro>Choose the AI provider and model for all bots on this server.</SettingsIntro>
       <SettingsGroup>
         <SettingsRow
+          stackControl
           anchors={["inference-provider"]}
           control={
             <Select
@@ -43,10 +45,10 @@ export default function ModelSettings() {
               onValueChange={(value) => void setup.selectProvider(value)}
               value={setup.providerId}
             >
-              <SelectTrigger aria-label={settingsText(language, "Provider", "服务商")} className={`${selectTrigger} w-[210px]`}>
-                <SelectValue placeholder={settingsText(language, "Choose a provider", "选择服务商")} />
+              <SelectTrigger aria-label="Provider" className={`${selectTrigger} w-[210px]`}>
+                <SelectValue placeholder="Choose a provider" />
               </SelectTrigger>
-              <SelectContent>
+              <SettingsSelectContent>
                 {(data?.providers ?? []).map((candidate) => (
                   <SelectItem key={candidate.id} value={candidate.id}>
                     <span className="flex min-w-0 items-center gap-2">
@@ -58,38 +60,36 @@ export default function ModelSettings() {
                     </span>
                   </SelectItem>
                 ))}
-              </SelectContent>
+              </SettingsSelectContent>
             </Select>
           }
-          description={settingsText(language, "The account your bots use to think. Sign-ins and keys stay on your server.", "Bot 思考时使用的账户。登录信息和密钥会保存在服务器上。")}
-          title={settingsText(language, "Provider", "服务商")}
+          description="The account your bots use to think. Sign-ins and keys stay on your server."
+          title="Provider"
         />
         <SettingsRow
           control={
             provider?.connected ? (
               <button
-                className={secondaryButton}
+                className={settingsSecondaryButton}
                 disabled={working || signingIn}
                 onClick={() => void setup.disconnect()}
                 type="button"
               >
-                {settingsText(language, "Disconnect", "断开连接")}
+                Disconnect
               </button>
             ) : signingIn ? null : (
               // The sign-in or key form below replaces these while it's open.
               <div className="flex items-center gap-2">
                 {(provider?.authMethods ?? []).map((method) => (
                   <button
-                    className={primaryButton}
+                    className={settingsPrimaryButton}
                     disabled={working || signingIn}
                     key={method.type}
                     onClick={() => void setup.connect(method.type)}
                     type="button"
                   >
                     {busy === "connect" ? <LoadingOrb aria-hidden size={14} /> : null}
-                    {method.type === "oauth"
-                      ? settingsText(language, "Sign in", "登录")
-                      : settingsText(language, "Add API key", "添加 API 密钥")}
+                    {method.type === "oauth" ? "Sign in" : "Add API key"}
                   </button>
                 ))}
               </div>
@@ -98,20 +98,26 @@ export default function ModelSettings() {
           description={
             provider?.connected
               ? provider.authType === "oauth"
-                ? settingsText(
-                    language,
-                    `Signed in with your ${providerName(provider.id, provider.name)} account.`,
-                    `已使用 ${providerName(provider.id, provider.name)} 账户登录。`
-                  )
+                ? `Signed in with your ${providerName(provider.id, provider.name)} account.`
                 : /env/i.test(provider.authSource ?? "")
-                  ? settingsText(language, "Using an API key from the server's environment.", "正在使用服务器环境中的 API 密钥。")
-                  : settingsText(language, "Connected with an API key.", "已通过 API 密钥连接。")
-              : settingsText(language, "Not connected.", "未连接。")
+                  ? "Using an API key from the server's environment."
+                  : "Connected with an API key."
+              : "Not connected."
           }
-          title={settingsText(language, "Connection", "连接状态")}
+          title="Connection"
         />
-        {signingIn ? <SignInProgress setup={setup} /> : null}
+        {signingIn ? (
+          <SignInProgress
+            setup={setup}
+            controlStyles={{
+              primaryButton: settingsPrimaryButton,
+              secondaryButton: settingsSecondaryButton,
+              input: settingsInput,
+            }}
+          />
+        ) : null}
         <SettingsRow
+          stackControl
           anchors={["inference-model"]}
           control={
             <ModelPicker
@@ -123,10 +129,11 @@ export default function ModelSettings() {
               variant="settings"
             />
           }
-          description={provider?.modelMessage ?? settingsText(language, "Used for every bot's work and background tasks.", "用于每个 Bot 的工作和后台任务。")}
-          title={settingsText(language, "Model", "模型")}
+          description={provider?.modelMessage ?? "Used for every bot's work and background tasks."}
+          title="Model"
         />
         <SettingsRow
+          stackControl
           anchors={["inference-reasoning"]}
           control={
             <Select
@@ -136,35 +143,35 @@ export default function ModelSettings() {
               }
               value={setup.effectiveReasoning}
             >
-              <SelectTrigger aria-label={settingsText(language, "Reasoning effort", "推理强度")} className={`${selectTrigger} w-[130px]`}>
+              <SelectTrigger aria-label="Reasoning effort" className={`${selectTrigger} w-[130px]`}>
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
+              <SettingsSelectContent>
                 {(setup.reasoningLevels.length ? setup.reasoningLevels : ["off"]).map((level) => (
                   <SelectItem key={level} value={level}>
-                    {reasoningLabel(level, language)}
+                    {reasoningLabel(level)}
                   </SelectItem>
                 ))}
-              </SelectContent>
+              </SettingsSelectContent>
             </Select>
           }
           description={
             setup.selectedModel?.reasoning
-              ? settingsText(language, "Higher effort is slower but more careful.", "更高的推理强度会更慢，但会更加谨慎。")
-              : settingsText(language, "This model doesn't offer reasoning levels.", "此模型不支持推理强度选项。")
+              ? "Higher effort is slower but more careful."
+              : "This model doesn't offer reasoning levels."
           }
-          title={settingsText(language, "Reasoning effort", "推理强度")}
+          title="Reasoning effort"
         />
-        <div className="flex min-h-[52px] items-center justify-between gap-3 border-t border-black/[0.065] py-2 dark:border-white/[0.07]">
+        <div className={`${settingsRow} flex-wrap justify-between`}>
           <div className="min-w-0 text-[12px] text-foreground-secondary">
             {setup.test.status !== "idle" ? (
               <ModelTestStatus test={setup.test} />
             ) : data?.inference.modelId ? (
-              `${settingsText(language, "In use", "当前使用")}: ${providerName(data.inference.providerId, data.providers.find((p) => p.id === data.inference.providerId)?.name)} · ${data.models.find((m) => m.modelId === data.inference.modelId)?.name ?? data.inference.modelId}`
+              `In use: ${providerName(data.inference.providerId, data.providers.find((p) => p.id === data.inference.providerId)?.name)} · ${data.models.find((m) => m.modelId === data.inference.modelId)?.name ?? data.inference.modelId}`
             ) : data ? (
-              settingsText(language, "No model chosen yet. Bots can't reply until you choose one.", "尚未选择模型。选择模型后 Bot 才能回复。")
+              "No model chosen yet. Bots can't reply until you choose one."
             ) : (
-              settingsText(language, "Loading…", "加载中…")
+              "Loading…"
             )}
           </div>
           <div className="flex shrink-0 items-center gap-2">
@@ -174,16 +181,16 @@ export default function ModelSettings() {
             !signingIn ? (
               // A plan sign-in that expired is fixed by signing in again, not by disconnecting.
               <button
-                className={secondaryButton}
+                className={settingsSecondaryButton}
                 disabled={working}
                 onClick={() => void setup.connect("oauth")}
                 type="button"
               >
-                {settingsText(language, "Sign in again", "重新登录")}
+                Sign in again
               </button>
             ) : null}
             <button
-              className={secondaryButton}
+              className={settingsSecondaryButton}
               disabled={
                 setup.changed ||
                 !data?.inference.modelId ||
@@ -193,16 +200,16 @@ export default function ModelSettings() {
               onClick={() => void setup.runTest()}
               type="button"
             >
-              {settingsText(language, "Test", "测试")}
+              Test
             </button>
             <button
-              className={primaryButton}
+              className={settingsPrimaryButton}
               disabled={!setup.changed || !provider?.connected || !setup.selectedModel || working}
               onClick={() => void setup.apply()}
               type="button"
             >
               {busy === "save" ? <LoadingOrb aria-hidden size={14} /> : null}
-              {settingsText(language, "Apply", "应用")}
+              Apply
             </button>
           </div>
         </div>
@@ -212,12 +219,12 @@ export default function ModelSettings() {
           {setup.error}
           {!data ? (
             <button
-              className={secondaryButton}
+              className={settingsSecondaryButton}
               disabled={working}
               onClick={() => void setup.reload()}
               type="button"
             >
-              {settingsText(language, "Try again", "重试")}
+              Try again
             </button>
           ) : null}
         </div>

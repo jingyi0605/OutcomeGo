@@ -365,7 +365,6 @@ export class AppService {
   }
 
   createBot = forwardServiceMethod(() => this.bots.create);
-  duplicateBot = forwardServiceMethod(() => this.bots.duplicate);
 
   broadcast = (input: import("@openteam/contracts").AdminBroadcastInput) =>
     serviceEffect(() => this.messaging.broadcast(input));
@@ -653,6 +652,18 @@ export class AppService {
     return recover(this.prisma, this.boss, this.messaging, (path, init) =>
       this.computerFetch(path, init)
     );
+  }
+
+  async browserNetworkQuality() {
+    const response = await this.computerFetch("/v1/browser-network/quality", { method: "POST", body: "{}", signal: AbortSignal.timeout(24_000) });
+    if (!response.ok) throw new ApiError(503, "network_quality_unavailable", "Could not test the active browser connection");
+    return await response.json() as import("@openteam/contracts/browser-network").NetworkQuality;
+  }
+
+  async browserNetworkEgress() {
+    const response = await this.computerFetch("/v1/browser-network/egress", { method: "POST", body: "{}" });
+    if (!response.ok) throw new ApiError(503, "network_egress_unavailable", "Could not check browser exit connection");
+    return await response.json() as import("@openteam/contracts/browser-network").NetworkEgress;
   }
 
   private computerFetch(path: string, init: RequestInit): Promise<Response> {
