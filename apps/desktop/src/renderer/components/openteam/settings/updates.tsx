@@ -4,8 +4,8 @@ import { useState } from "react";
 import { useServerUpdate } from "../../../hooks/use-server-update";
 import { requestDesktopUpdateRestart } from "../../../lib/desktop-update";
 import { LoadingOrb } from "../../ui/loading-orb";
-import { SectionLabel, SettingsGroup, SettingsRow } from "./ui";
-import { settingsText, useSettingsLanguage } from "./language";
+import { ServerUpdateSettings } from "./server-update";
+import { SectionLabel, SettingsGroup, SettingsLink, SettingsRow } from "./ui";
 
 const primaryButton =
   "inline-flex h-9 items-center gap-2 rounded-[9px] bg-black px-3 text-[13px] text-white enabled:hover:opacity-80 disabled:bg-black/[0.07] disabled:text-foreground disabled:opacity-50 dark:bg-white dark:text-black dark:disabled:bg-white/[0.09] dark:disabled:text-foreground";
@@ -31,9 +31,16 @@ const clientUpdateFailure = (status: OpenTeamUpdateStatus): string => {
 };
 
 export default function UpdatesSettings() {
-  const { language } = useSettingsLanguage();
-  const { clientVersion, clientUpdate, setClientUpdate, server, serverLoading, refreshServer, compatibility } =
-    useServerUpdate();
+  const update = useServerUpdate();
+  const {
+    clientVersion,
+    clientUpdate,
+    setClientUpdate,
+    server,
+    serverLoading,
+    refreshServer,
+    compatibility,
+  } = update;
   const [actionError, setActionError] = useState<string | null>(null);
 
   const clientNeedsUpdate =
@@ -76,7 +83,7 @@ export default function UpdatesSettings() {
 
   const mismatchMessage =
     compatibility === "server-update-required"
-      ? `Server ${server?.currentVersion} cannot support desktop ${clientVersion}. Update the connected server in Settings → Computer.`
+      ? `Server ${server?.currentVersion} cannot support desktop ${clientVersion}. Update the connected server below.`
       : compatibility === "client-update-required"
         ? `Desktop ${clientVersion} is outside server ${server?.currentVersion}'s supported range. Update the desktop app.`
         : compatibility === "unknown" && !serverLoading
@@ -97,12 +104,16 @@ export default function UpdatesSettings() {
 
       {compatibility === "update-recommended" ? (
         <p className="mb-4 px-2 text-[12.5px] text-muted-foreground">
-          Desktop {clientVersion} and server {server?.currentVersion} are compatible. Updating is
-          recommended, but you can keep working.
+          {update.serverNeedsUpdate
+            ? "Server update available. You can keep working."
+            : "Your server is newer than this desktop."}{" "}
+          <SettingsLink anchor={update.serverNeedsUpdate ? "server-update" : "update-status"}>
+            View update
+          </SettingsLink>
         </p>
       ) : null}
 
-      <SectionLabel>{settingsText(language, "OpenTeam Updates", "OpenTeam 更新")}</SectionLabel>
+      <SectionLabel>OpenTeam Updates</SectionLabel>
       <SettingsGroup>
         <SettingsRow
           anchors={["update-status", "automatic-updates"]}
@@ -118,12 +129,12 @@ export default function UpdatesSettings() {
                   <LoadingOrb aria-hidden size={14} />
                 ) : null}
                 {clientUpdate?.status === "downloaded"
-                  ? settingsText(language, "Restart to update", "重启以更新")
+                  ? "Restart to update"
                   : clientUpdate?.status === "downloading"
                     ? `Downloading ${Math.round(clientUpdate.progress ?? 0)}%`
                     : clientUpdate?.status === "installing"
-                    ? settingsText(language, "Restarting…", "正在重启…")
-                    : settingsText(language, "Update desktop", "更新桌面端")}
+                      ? "Restarting…"
+                      : "Update desktop"}
               </button>
             ) : (
               <button
@@ -132,12 +143,8 @@ export default function UpdatesSettings() {
                 onClick={() => void check()}
                 type="button"
               >
-                {clientUpdate?.status === "checking" ? (
-                  <LoadingOrb aria-hidden size={14} />
-                ) : null}
-                {clientUpdate?.status === "checking"
-                  ? settingsText(language, "Checking…", "正在检查…")
-                  : settingsText(language, "Check for Updates", "检查更新")}
+                {clientUpdate?.status === "checking" ? <LoadingOrb aria-hidden size={14} /> : null}
+                {clientUpdate?.status === "checking" ? "Checking…" : "Check for Updates"}
               </button>
             )
           }
@@ -150,7 +157,7 @@ export default function UpdatesSettings() {
                   ? clientUpdate?.message
                   : clientUpdate?.status === "error"
                     ? clientUpdateFailure(clientUpdate)
-                    : "The Electron desktop application"
+                    : "Check for a newer desktop version."
           }
           title={`Desktop app ${clientVersion}`}
         />
@@ -160,6 +167,7 @@ export default function UpdatesSettings() {
           {actionError}
         </p>
       ) : null}
+      <ServerUpdateSettings update={update} />
     </>
   );
 }

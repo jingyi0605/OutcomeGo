@@ -143,11 +143,13 @@
     "test:sidebar-parity": "bun scripts/test-sidebar-parity.ts",
     "test:provider-settings": "bun scripts/test-provider-settings.ts",
     "test:voice-settings": "bun scripts/test-voice-settings.ts",
+    "test:transcription-keys": "bun scripts/test-transcription-settings.ts",
     "test:model-settings": "bun scripts/test-model-settings.ts",
     "test:onboarding": "bun scripts/test-onboarding.ts",
     "test:parity-review": "bun scripts/test-parity-review.ts",
     "test:update-ui": "bun scripts/test-desktop-update-ui.ts",
     "test:computer-update-ui": "bun scripts/test-computer-update-ui.ts",
+    "test:server-update-resume-ui": "bun scripts/test-server-update-resume-ui.ts",
     "test:native:e2e": "bun test/host/fixtures/capability-integration.ts",
     "test:chat-transition-motion": "bun scripts/analyze-chat-transitions.ts"
   },

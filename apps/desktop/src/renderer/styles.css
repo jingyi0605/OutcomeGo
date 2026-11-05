@@ -1362,6 +1362,10 @@ textarea,
   transition: opacity var(--motion-pane) var(--ease-pane);
 }
 
+[data-account-update="true"] .sidebar-account-name {
+  right: 84px;
+}
+
 [data-sidebar-compact="true"] .sidebar-account-footer {
   padding: 6px 17px 8px;
 }

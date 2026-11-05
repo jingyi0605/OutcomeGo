@@ -236,8 +236,8 @@ struct HomeView: View {
                     ChannelAvatar(channel: channel, size: 80)
                     Text(channel.name).font(.subheadline).foregroundStyle(NativePalette.muted)
                       .lineLimit(1)
-                  }.frame(width: 100)
-                }.buttonStyle(.plain).accessibilityIdentifier("pinned-" + channel.id)
+                  }.frame(width: 100).contentShape(Rectangle())
+                }.accessibilityIdentifier("pinned-" + channel.id)
                   .contextMenu {
                     conversationActions(channel)
                   } preview: {
@@ -348,6 +348,7 @@ struct HomeView: View {
         .accessibilityIdentifier("syncing-state")
       }
       Spacer()
+      MobileUpdateBadge()
       if !barRegions.hasHinge && barRegions.sideEdge == nil {
         ChromeButton(title: "Search", symbol: "magnifyingglass") { search = true }
           .accessibilityIdentifier("search-button")
@@ -823,10 +824,10 @@ private struct ConversationLink<Label: View>: View {
             RoundedRectangle(cornerRadius: 18).fill(NativePalette.sidebarSelection).padding(.horizontal, -10)
           }
         }
-      }.buttonStyle(.plain)
+      }.buttonStyle(.borderless)
         .accessibilityAddTraits(store.navigation.last == id ? .isSelected : [])
     } else {
-      NavigationLink(value: id) { label }.buttonStyle(.plain)
+      NavigationLink(value: id) { label }.buttonStyle(.borderless)
     }
   }
 }

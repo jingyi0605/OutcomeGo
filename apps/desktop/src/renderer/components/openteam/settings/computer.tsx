@@ -1,13 +1,9 @@
 import { useEffect, useState } from "react";
 import { clientErrorMessage } from "@openteam/product-core/redaction";
 import { SectionLabel, SettingsGroup } from "./ui";
-import { AdvancedComputerSettings, MachineSettings } from "./machines";
 import { MessagesSettings } from "./messages";
-import { ComputerUpdateSettings } from "./computer-update";
-import { settingsText, useSettingsLanguage } from "./language";
 
 export default function ComputerSettings() {
-  const { language } = useSettingsLanguage();
   const [computer, setComputer] = useState<OpenTeamComputerSettings | null>(null);
   const [machineLabel, setMachineLabel] = useState("");
   const [permissionError, setPermissionError] = useState<string | null>(null);
@@ -48,23 +44,21 @@ export default function ComputerSettings() {
 
   return (
     <>
-      <SectionLabel>{settingsText(language, "Your computer", "你的电脑")}</SectionLabel>
+      <SectionLabel>Your computer</SectionLabel>
       <SettingsGroup>
         <div
           className="flex min-h-[52px] items-center gap-5 py-1.5"
           data-settings-anchor="computers"
         >
           <div className="min-w-0 flex-1">
-            <div className="text-[12.5px] leading-[17px] text-foreground">
-              {settingsText(language, "Current computer", "当前电脑")}
-            </div>
+            <div className="text-[12.5px] leading-[17px] text-foreground">Current computer</div>
             <div className="mt-px text-[12px] leading-4 text-foreground-secondary">
-              {settingsText(language, "This is the computer you are using now", "这是你当前正在使用的电脑")}
+              This is the computer you are using now
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
             <input
-              aria-label={settingsText(language, "Computer label", "电脑名称")}
+              aria-label="Computer label"
               className="h-8 w-[184px] rounded-[8px] border border-black/[0.09] bg-background px-2.5 text-[12.5px] outline-none focus-visible:ring-2 focus-visible:ring-ring/30 dark:border-white/[0.1]"
               maxLength={80}
               onChange={(event) => setMachineLabel(event.target.value)}
@@ -83,15 +77,12 @@ export default function ComputerSettings() {
               onClick={saveMachineLabel}
               type="button"
             >
-              {settingsText(language, "Save", "保存")}
+              Save
             </button>
           </div>
         </div>
       </SettingsGroup>
-      <MachineSettings />
       {computer ? <MessagesSettings computer={computer} onComputerChange={setComputer} /> : null}
-      <AdvancedComputerSettings />
-      <ComputerUpdateSettings />
       {permissionError ? (
         <div className="mt-3 px-2 text-[12px] text-red-600 dark:text-red-400">
           {permissionError}

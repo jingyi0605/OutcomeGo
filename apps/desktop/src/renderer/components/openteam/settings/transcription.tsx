@@ -17,11 +17,11 @@ import {
   HOSTED_TRANSCRIPTION_MODELS,
 } from "../../../lib/transcription-providers";
 import { LoadingOrb } from "../../ui/loading-orb";
+import { Button } from "../../ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../ui/select";
 import { primaryButton, secondaryButton } from "../model-setup";
 import { ProviderMark } from "../setup/provider-marks";
 import { InteractiveSwitch, SectionLabel, SettingsGroup, SettingsRow } from "./ui";
-import { settingsText, useSettingsLanguage } from "./language";
 import "./transcription.css";
 
 const inputClass = "transcription-input";
@@ -31,7 +31,6 @@ export default function VoiceNotesSettings() {
 }
 
 export function TranscriptionSettingsPanel() {
-  const { language } = useSettingsLanguage();
   const [saved, setSaved] = useState<TranscriptionSettingsView | null>(null);
   const [draft, setDraft] = useState<TranscriptionSettings>(defaultTranscriptionSettings);
   const [apiKey, setApiKey] = useState("");
@@ -86,7 +85,7 @@ export function TranscriptionSettingsPanel() {
   const hasSavedKey = sameEndpoint && saved?.hasApiKey && !removeKey;
   const changed =
     saved &&
-    (apiKey !== "" ||
+    (apiKey.trim() !== "" ||
       removeKey ||
       (["enabled", "provider", "baseUrl", "model", "language"] as const).some(
         (key) => saved[key] !== draft[key]
@@ -103,7 +102,7 @@ export function TranscriptionSettingsPanel() {
           baseUrl: draft.baseUrl.trim(),
           model: draft.model.trim(),
           language: draft.language.trim(),
-          ...(key ? { apiKey: key } : removeKey ? { apiKey: null } : {}),
+          ...(removeKey ? { apiKey: null } : key ? { apiKey: key } : {}),
         })
       );
       setSaved(value);
@@ -141,11 +140,8 @@ export function TranscriptionSettingsPanel() {
   return (
     <div className="transcription-settings">
       <p className="mb-5 text-[13px] leading-5 text-foreground-secondary">
-        {settingsText(
-          language,
-          "Turn recordings into text you can review before sending. Shared by all apps connected to this server.",
-          "将录音转换为文字，发送前可以先检查。此设置会应用于连接到此服务器的所有应用。"
-        )}
+        Turn recordings into text you can review before sending. Shared by all apps connected to
+        this server.
       </p>
       {!saved ? (
         <SettingsGroup>
@@ -155,13 +151,13 @@ export function TranscriptionSettingsPanel() {
           >
             {busy ? (
               <>
-                <LoadingOrb aria-hidden size={16} /> {settingsText(language, "Loading voice notes…", "正在加载语音消息…")}
+                <LoadingOrb aria-hidden size={16} /> Loading voice notes…
               </>
             ) : (
               <>
                 <span className="flex-1">{message}</span>
                 <button className={secondaryButton} onClick={() => void load()} type="button">
-                  {settingsText(language, "Try again", "重试")}
+                  Try again
                 </button>
               </>
             )}
@@ -171,21 +167,21 @@ export function TranscriptionSettingsPanel() {
         <fieldset disabled={Boolean(busy)} className="min-w-0">
           <SettingsGroup>
             <SettingsRow
-              title={settingsText(language, "Voice notes", "语音消息")}
-              description={settingsText(language, "Enable transcription for recorded messages on desktop and iPhone.", "为桌面端和 iPhone 上的录音消息启用转写。")}
+              title="Voice notes"
+              description="Enable transcription for recorded messages on desktop and iPhone."
               control={
                 <InteractiveSwitch
-                  label={settingsText(language, "Enable voice notes", "启用语音消息")}
+                  label="Enable voice notes"
                   checked={draft.enabled}
                   onChange={(value) => change("enabled", value)}
                 />
               }
             />
           </SettingsGroup>
-          <SectionLabel>{settingsText(language, "Transcription service", "转写服务")}</SectionLabel>
+          <SectionLabel>Transcription service</SectionLabel>
           <SettingsGroup className="transcription-fields">
             <SettingsRow
-              title={settingsText(language, "Provider", "服务商")}
+              title="Provider"
               className="transcription-setting-row"
               control={
                 <Select
@@ -204,7 +200,7 @@ export function TranscriptionSettingsPanel() {
                   }}
                 >
                   <SelectTrigger
-                    aria-label={settingsText(language, "Transcription provider", "转写服务商")}
+                    aria-label="Transcription provider"
                     className="transcription-input"
                   >
                     <SelectValue />
@@ -223,8 +219,12 @@ export function TranscriptionSettingsPanel() {
                     <SelectItem value="openai-compatible">
                       <span className="flex items-center gap-2">
                         {/* A custom service has no brand; iPhone shows the same sparkles. */}
-                        <Sparkles aria-hidden className="size-3.5 text-violet-500" strokeWidth={1.8} />
-                        {settingsText(language, "Custom / OpenAI-compatible", "自定义 / OpenAI 兼容")}
+                        <Sparkles
+                          aria-hidden
+                          className="size-3.5 text-violet-500"
+                          strokeWidth={1.8}
+                        />
+                        Custom / OpenAI-compatible
                       </span>
                     </SelectItem>
                   </SelectContent>
@@ -233,13 +233,13 @@ export function TranscriptionSettingsPanel() {
             />
             {draft.provider === "openai-compatible" ? (
               <SettingsRow
-                title={settingsText(language, "Base URL", "基础 URL")}
+                title="Base URL"
                 className="transcription-setting-row"
-                description={settingsText(language, "An audio service reachable from your OpenTeam server.", "OpenTeam 服务器可以访问的音频服务地址。")}
+                description="An audio service reachable from your OpenTeam server."
                 control={
                   <input
                     className={inputClass}
-                    aria-label={settingsText(language, "Transcription base URL", "转写基础 URL")}
+                    aria-label="Transcription base URL"
                     inputMode="url"
                     spellCheck={false}
                     value={draft.baseUrl}
@@ -250,12 +250,12 @@ export function TranscriptionSettingsPanel() {
               />
             ) : null}
             <SettingsRow
-              title={settingsText(language, "Model", "模型")}
+              title="Model"
               className="transcription-setting-row"
               control={
                 <input
                   className={inputClass}
-                  aria-label={settingsText(language, "Transcription model", "转写模型")}
+                  aria-label="Transcription model"
                   spellCheck={false}
                   value={draft.model}
                   placeholder="Model ID"
@@ -264,59 +264,70 @@ export function TranscriptionSettingsPanel() {
               }
             />
           </SettingsGroup>
-          <SectionLabel>{settingsText(language, "Credentials and language", "凭据和语言")}</SectionLabel>
+          <SectionLabel>Credentials and language</SectionLabel>
           <SettingsGroup className="transcription-fields">
             <SettingsRow
-              title={settingsText(language, "API key", "API 密钥")}
+              title="API key"
               className="transcription-setting-row"
               description={
-                hasSavedKey
-                  ? settingsText(language, "A key is saved. Leave blank to keep it.", "已有密钥。留空即可保留。")
-                  : settingsText(language, "Separate from chat sign-in. Keys stay on your server.", "与聊天登录分开。密钥会保存在服务器上。")
+                removeKey
+                  ? "Key will be deleted when you save."
+                  : hasSavedKey
+                    ? "Enter a new key to replace it."
+                    : saved.hasApiKey
+                      ? "Replace or delete the saved key to change endpoints."
+                      : "Separate from chat sign-in. Keys stay on your server."
               }
               control={
-                <input
-                  className={inputClass}
-                  type="password"
-                  autoComplete="new-password"
-                  aria-label={settingsText(language, "Transcription API key", "转写 API 密钥")}
-                  value={apiKey}
-                  placeholder={hasSavedKey ? settingsText(language, "Key saved", "密钥已保存") : settingsText(language, "API key", "API 密钥")}
-                  onChange={(e) => {
-                    setApiKey(e.target.value);
-                    if (e.target.value) setRemoveKey(false);
-                    setMessage("");
-                  }}
-                />
-              }
-            />
-            {saved.hasApiKey && sameEndpoint ? (
-              <SettingsRow
-                title={settingsText(language, "Remove saved key", "删除已保存的密钥")}
-                control={
-                  <InteractiveSwitch
-                    label={settingsText(language, "Remove transcription API key", "删除转写 API 密钥")}
-                    checked={removeKey}
-                    onChange={(value) => {
-                      setRemoveKey(value);
-                      if (value) setApiKey("");
+                <div className="transcription-key flex w-[270px] max-w-full items-center gap-2">
+                  <input
+                    className={`${inputClass} min-w-0 flex-1`}
+                    type="password"
+                    autoComplete="new-password"
+                    aria-label="Transcription API key"
+                    value={apiKey}
+                    placeholder={
+                      hasSavedKey
+                        ? saved.apiKeySuffix
+                          ? `••••${saved.apiKeySuffix}`
+                          : "Key saved"
+                        : "API key"
+                    }
+                    onChange={(e) => {
+                      setApiKey(e.target.value);
+                      if (e.target.value.trim()) setRemoveKey(false);
                       setMessage("");
                     }}
                   />
-                }
-              />
-            ) : null}
+                  {saved.hasApiKey ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive"
+                      onClick={() => {
+                        setRemoveKey((value) => !value);
+                        setApiKey("");
+                        setMessage("");
+                      }}
+                    >
+                      {removeKey ? "Undo deletion" : "Delete key"}
+                    </Button>
+                  ) : null}
+                </div>
+              }
+            />
             <SettingsRow
-              title={settingsText(language, "Language", "语言")}
+              title="Language"
               className="transcription-setting-row"
-              description={settingsText(language, "Leave blank to detect automatically, or use a code such as en.", "留空可自动检测，也可以填写 en 等语言代码。")}
+              description="Leave blank to detect automatically, or use a code such as en."
               control={
                 <input
                   className={inputClass}
-                  aria-label={settingsText(language, "Transcription language", "转写语言")}
+                  aria-label="Transcription language"
                   spellCheck={false}
                   value={draft.language}
-                  placeholder={settingsText(language, "Automatic", "自动")}
+                  placeholder="Automatic"
                   onChange={(e) => change("language", e.target.value)}
                 />
               }
@@ -329,8 +340,7 @@ export function TranscriptionSettingsPanel() {
               disabled={Boolean(busy) || Boolean(changed) || !saved.configured}
               onClick={() => void check()}
             >
-              {busy === "check" ? <LoadingOrb aria-hidden size={14} /> : null}{" "}
-              {settingsText(language, "Test connection", "测试连接")}
+              {busy === "check" ? <LoadingOrb aria-hidden size={14} /> : null} Test connection
             </button>
             <button
               type="button"
@@ -338,8 +348,7 @@ export function TranscriptionSettingsPanel() {
               disabled={Boolean(busy) || !changed}
               onClick={() => void save()}
             >
-              {busy === "save" ? <LoadingOrb aria-hidden size={14} /> : null}{" "}
-              {settingsText(language, "Save", "保存")}
+              {busy === "save" ? <LoadingOrb aria-hidden size={14} /> : null} Save
             </button>
           </div>
           {message ? (
