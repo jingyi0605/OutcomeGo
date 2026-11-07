@@ -3061,7 +3061,7 @@ private fun ChatScreen(
             }
             items(chatRows, key = ChatRow::key) { row ->
                 if (row is ChatRow.Voice) {
-                    VoiceConversationCard(row.messages, bot?.name ?: "Assistant")
+                    VoiceConversationCard(row.messages, bot?.title ?: "Assistant")
                     return@items
                 }
                 val message = (row as ChatRow.Single).message
