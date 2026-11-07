@@ -29,9 +29,14 @@ android {
         versionName = "0.1.1"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         manifestPlaceholders["openteamAppLinkHost"] = appLinkHost
+        ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64") }
     }
 
     buildFeatures { compose = true }
+
+    externalNativeBuild {
+        cmake { path = file("src/main/cpp/CMakeLists.txt") }
+    }
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17

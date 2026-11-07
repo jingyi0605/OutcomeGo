@@ -8,6 +8,8 @@ coverage/
 *.log
 *.tsbuildinfo
 .DS_Store
+*.iml
+/.idea/
 packages/db/src/generated/
 apps/desktop/release/
 apps/cli/release/
@@ -20,6 +22,7 @@ apps/desktop/release-local/
 apps/landing/.generated/
 /.agents/skills/openteam-macos-release/
 packages/plugins/_generated/
+**/.cxx/
 
 /.gradle/
 **/.gradle/
