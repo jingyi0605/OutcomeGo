@@ -167,6 +167,42 @@ data class ChatMessage(
         }
 }
 
+/** One list row: an ordinary message, or a run of realtime voice messages shown as one collapsed card. */
+sealed interface ChatRow {
+    val key: String
+    fun contains(messageId: String): Boolean
+
+    data class Single(val message: ChatMessage) : ChatRow {
+        override val key get() = message.id
+        override fun contains(messageId: String) = message.id == messageId
+    }
+
+    data class Voice(val sessionId: String, val messages: List<ChatMessage>) : ChatRow {
+        override val key get() = "voice:${messages.first().id}"
+        override fun contains(messageId: String) = messages.any { it.id == messageId }
+    }
+}
+
+/** The realtime voice session that produced this message, or null for ordinary messages. */
+val ChatMessage.voiceSessionId: String?
+    get() = (metadata["voice"] as? JsonObject)?.let { (it["sessionId"] as? JsonPrimitive)?.contentOrNull.orEmpty() }
+
+/** Folds each consecutive run of messages from one voice session into a single [ChatRow.Voice]. */
+fun List<ChatMessage>.toChatRows(): List<ChatRow> {
+    val rows = mutableListOf<ChatRow>()
+    for (message in this) {
+        val sessionId = message.voiceSessionId
+        val last = rows.lastOrNull()
+        when {
+            sessionId == null -> rows += ChatRow.Single(message)
+            last is ChatRow.Voice && last.sessionId == sessionId ->
+                rows[rows.lastIndex] = last.copy(messages = last.messages + message)
+            else -> rows += ChatRow.Voice(sessionId, listOf(message))
+        }
+    }
+    return rows
+}
+
 /** A routine change reported inline in the conversation, shown as a single tappable line. */
 data class RoutineEvent(val id: String, val name: String, val action: String) {
     val canOpen: Boolean get() = action != "deleted"

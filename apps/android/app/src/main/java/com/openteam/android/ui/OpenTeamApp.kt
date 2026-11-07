@@ -95,6 +95,7 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.Button
 import androidx.compose.material3.AlertDialog
@@ -171,6 +172,8 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.openteam.android.AppViewModel
 import com.openteam.android.data.ChatMessage
+import com.openteam.android.data.ChatRow
+import com.openteam.android.data.toChatRows
 import com.openteam.android.data.Conversation
 import com.openteam.android.data.SearchResult
 import com.openteam.android.data.SidebarPreferences
@@ -2863,10 +2866,11 @@ private fun ChatScreen(
     var forwardingAttachment by remember { mutableStateOf<Attachment?>(null) }
     val attachmentPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> uri?.let { onUpload(it.toString()) } }
     val contextRows = threadContext.take(com.openteam.android.data.ChatHistoryPage.DEFAULT_CONTEXT_LIMIT)
+    val chatRows = remember(messages) { messages.toChatRows() }
     var hasPositionedInitialMessages by remember(conversationId) { mutableStateOf(false) }
     // The list ends with the bot-activity row and a 4dp spacer. Scrolling to that last item can only
     // stop at the end of the list, so the newest message is always shown in full, however tall.
-    val lastItemIndex = (if (hasMoreHistory) 1 else 0) + (if (contextRows.isNotEmpty()) 1 else 0) + messages.size + 1
+    val lastItemIndex = (if (hasMoreHistory) 1 else 0) + (if (contextRows.isNotEmpty()) 1 else 0) + chatRows.size + 1
     val currentLastItemIndex by rememberUpdatedState(lastItemIndex)
     val currentTargetMessageId by rememberUpdatedState(targetMessageId)
     val bottomThresholdPx = with(LocalDensity.current) { 48.dp.toPx() }
@@ -2884,7 +2888,7 @@ private fun ChatScreen(
     // alter its height also re-run this, not only a new message id.
     LaunchedEffect(conversationId, historyLoading, targetMessageId, messages.size, newest, activity) {
         if (historyLoading || messages.isEmpty()) return@LaunchedEffect
-        val targetIndex = targetMessageId?.let { id -> messages.indexOfFirst { it.id == id } }?.takeIf { it >= 0 }
+        val targetIndex = targetMessageId?.let { id -> chatRows.indexOfFirst { it.contains(id) } }?.takeIf { it >= 0 }
         if (targetIndex != null) {
             listState.scrollToItem(targetIndex + if (contextRows.isNotEmpty()) 1 else 0)
             hasPositionedInitialMessages = true
@@ -2918,9 +2922,9 @@ private fun ChatScreen(
     // would keep the list pinned to that message and drag it back after every new message.
     var jumpToMessageId by remember(conversationId) { mutableStateOf<String?>(null) }
     var highlightedMessageId by remember(conversationId) { mutableStateOf<String?>(null) }
-    LaunchedEffect(jumpToMessageId, messages) {
+    LaunchedEffect(jumpToMessageId, chatRows) {
         val id = jumpToMessageId ?: return@LaunchedEffect
-        val index = messages.indexOfFirst { it.id == id }
+        val index = chatRows.indexOfFirst { it.contains(id) }
         if (index < 0) return@LaunchedEffect
         listState.animateScrollToItem(index + if (contextRows.isNotEmpty()) 1 else 0)
         jumpToMessageId = null
@@ -3055,7 +3059,12 @@ private fun ChatScreen(
                     ChatContextSummary(contextRows, threadContextTruncated || threadContext.size > contextRows.size)
                 }
             }
-            items(messages, key = ChatMessage::id) { message ->
+            items(chatRows, key = ChatRow::key) { row ->
+                if (row is ChatRow.Voice) {
+                    VoiceConversationCard(row.messages, bot?.name ?: "Assistant")
+                    return@items
+                }
+                val message = (row as ChatRow.Single).message
                 MessageBubble(
                     message,
                     onRetry,
@@ -3190,6 +3199,39 @@ private fun voiceControls(label: String, onStop: (() -> Unit)?, onCancel: () -> 
         Text(label, Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
         onStop?.let { IconButton(onClick = it) { Icon(Icons.Default.Stop, contentDescription = localizedText("Stop voice note", "停止语音消息")) } }
         IconButton(onClick = onCancel) { Icon(Icons.Default.Close, contentDescription = localizedText("Cancel voice note", "取消语音消息")) }
+    }
+}
+
+@Composable
+private fun VoiceConversationCard(messages: List<ChatMessage>, botName: String) {
+    var expanded by remember(messages.first().id) { mutableStateOf(false) }
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        modifier = Modifier.fillMaxWidth().testTag("voice-conversation-card"),
+    ) {
+        Column(Modifier.clickable { expanded = !expanded }.padding(horizontal = 14.dp, vertical = 10.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.Mic, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    localizedText("Voice conversation · ${messages.size} messages", "语音对话 · ${messages.size} 条消息"),
+                    Modifier.weight(1f),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Icon(if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown, contentDescription = null)
+            }
+            if (expanded) {
+                Column(Modifier.padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    messages.forEach { message ->
+                        Text(
+                            "${if (message.isMine) localizedText("You", "你") else botName}: ${message.body}",
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 
