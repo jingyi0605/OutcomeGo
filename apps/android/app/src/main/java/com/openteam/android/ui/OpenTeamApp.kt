@@ -143,6 +143,8 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.draw.alpha
 import com.openteam.android.data.RoutineEvent
+import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import kotlin.math.roundToInt
 import androidx.compose.ui.draw.rotate
@@ -3216,8 +3218,17 @@ private fun VoiceConversationCard(messages: List<ChatMessage>, botName: String) 
                 Spacer(Modifier.width(8.dp))
                 Text(
                     localizedText("Voice conversation · ${messages.size} messages", "语音对话 · ${messages.size} 条消息"),
-                    Modifier.weight(1f),
                     style = MaterialTheme.typography.bodyMedium,
+                )
+                val preview = messages.firstOrNull { it.isMine }?.body?.trim().orEmpty()
+                Text(
+                    if (expanded) "" else preview,
+                    modifier = Modifier.weight(1f).padding(horizontal = 8.dp).testTag("voice-conversation-preview"),
+                    style = MaterialTheme.typography.bodySmall.copy(fontStyle = FontStyle.Italic),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                    textAlign = TextAlign.End,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
                 Icon(if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown, contentDescription = null)
             }
