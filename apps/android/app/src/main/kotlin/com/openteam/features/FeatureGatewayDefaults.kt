@@ -29,6 +29,8 @@ object UnsupportedFeatureGateway : FeatureGateway {
     override suspend fun loadWebProviders() = unavailable<WebProvidersState>()
     override suspend fun saveWebProvider(tool: String, providerId: String, apiKey: String?, selected: Boolean) = unavailable<WebProvidersState>()
     override suspend fun checkWebProvider(tool: String, providerId: String) = unavailable<WebProviderCheck>()
+    override suspend fun loadVoiceSettings() = unavailable<VoiceSettings>()
+    override suspend fun saveVoiceSettings(settings: VoiceSettings, volcengineApiKey: String?, deepgramApiKey: String?, removeVolcengineKey: Boolean, removeDeepgramKey: Boolean) = unavailable<VoiceSettings>()
     override suspend fun listPlugins() = unavailable<List<Plugin>>()
     override suspend fun installPlugin(pluginId: String) = unavailable<Plugin>()
     override suspend fun updatePlugin(pluginId: String) = unavailable<Plugin>()

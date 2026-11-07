@@ -40,6 +40,7 @@ import com.openteam.features.Routine
 import com.openteam.features.RoutineSchedule
 import com.openteam.features.WebProvider
 import com.openteam.features.WebProvidersState
+import com.openteam.features.VoiceSettings
 import com.openteam.features.UnsupportedFeatureGateway
 import com.openteam.platform.SharePayload
 import com.openteam.platform.AndroidPersistentSearchIndex
@@ -117,6 +118,7 @@ data class FeatureState(
     val account: FeatureLoadState<AccountMemoryState> = FeatureLoadState.Loading,
     val providers: FeatureLoadState<List<ProviderConnection>> = FeatureLoadState.Loading,
     val webProviders: FeatureLoadState<WebProvidersState> = FeatureLoadState.Loading,
+    val voiceSettings: FeatureLoadState<VoiceSettings> = FeatureLoadState.Loading,
     val plugins: FeatureLoadState<List<Plugin>> = FeatureLoadState.Loading,
     val settings: AppSettings = AppSettings(),
     val operation: FeatureOperationState = FeatureOperationState.Idle,
@@ -1062,7 +1064,7 @@ class AppViewModel @JvmOverloads constructor(
         }
     }
 
-    fun updateBot(conversation: Conversation, name: String, description: String, instructions: String, icon: String, color: String) {
+    fun updateBot(conversation: Conversation, name: String, description: String, instructions: String, voice: String, icon: String, color: String) {
         val botId = conversation.botId ?: return
         runConversationMutation {
             request(
@@ -1072,6 +1074,7 @@ class AppViewModel @JvmOverloads constructor(
                     put("name", name.trim())
                     put("description", description)
                     put("instructions", instructions)
+                    put("voice", voice.trim())
                     put("icon", icon)
                     put("color", color)
                 },
@@ -1253,6 +1256,7 @@ class AppViewModel @JvmOverloads constructor(
         loadSettings()
         loadProviders()
         loadWebProviders()
+        loadVoiceSettings()
         loadPlugins()
     }
 
@@ -1419,6 +1423,20 @@ class AppViewModel @JvmOverloads constructor(
         runFeatureOperation { activeFeatureGateway.checkWebProvider(tool, provider.id).onSuccess { loadWebProviders() }.onFailure(::reportFeatureFailure) }
     }
 
+    fun saveVoiceSettings(
+        settings: VoiceSettings,
+        volcengineApiKey: String? = null,
+        deepgramApiKey: String? = null,
+        removeVolcengineKey: Boolean = false,
+        removeDeepgramKey: Boolean = false,
+    ) {
+        runFeatureOperation {
+            activeFeatureGateway.saveVoiceSettings(settings, volcengineApiKey, deepgramApiKey, removeVolcengineKey, removeDeepgramKey)
+                .onSuccess { value -> mutableState.update { it.copy(features = it.features.copy(voiceSettings = FeatureLoadState.Ready(value))) } }
+                .onFailure(::reportFeatureFailure)
+        }
+    }
+
     fun installPlugin(plugin: Plugin) {
         pluginOperation({ activeFeatureGateway.installPlugin(plugin.id) })
     }
@@ -1564,6 +1582,15 @@ class AppViewModel @JvmOverloads constructor(
             mutableState.update { it.copy(features = it.features.copy(webProviders = FeatureLoadState.Loading)) }
             activeFeatureGateway.loadWebProviders().onSuccess { value -> mutableState.update { it.copy(features = it.features.copy(webProviders = FeatureLoadState.Ready(value))) } }
                 .onFailure { error -> mutableState.update { it.copy(features = it.features.copy(webProviders = FeatureLoadState.Failure(error.message ?: "Could not load web providers"))) } }
+        }
+    }
+
+    private fun loadVoiceSettings() {
+        viewModelScope.launch {
+            mutableState.update { it.copy(features = it.features.copy(voiceSettings = FeatureLoadState.Loading)) }
+            activeFeatureGateway.loadVoiceSettings()
+                .onSuccess { value -> mutableState.update { it.copy(features = it.features.copy(voiceSettings = FeatureLoadState.Ready(value))) } }
+                .onFailure { error -> mutableState.update { it.copy(features = it.features.copy(voiceSettings = FeatureLoadState.Failure(error.message ?: "Could not load realtime voice settings"))) } }
         }
     }
 

@@ -227,6 +227,7 @@ class HttpMobileGateway(context: Context) :
                     notificationsEnabled = bot.boolean("notificationsEnabled", true),
                     botIcon = bot.string("icon"),
                     botInstructions = bot.string("instructions"),
+                    botVoice = bot.string("voice"),
                 )
             }
         val hiddenGroups = request(HttpMethod.GET, "/api/v0/groups?includeHidden=1")
@@ -515,6 +516,7 @@ class HttpMobileGateway(context: Context) :
                     notificationsEnabled = bot?.boolean("notificationsEnabled", true) ?: true,
                     botIcon = bot?.string("icon").orEmpty(),
                     botInstructions = bot?.string("instructions").orEmpty(),
+                    botVoice = bot?.string("voice").orEmpty(),
                     updatedLabel = channel.string("updatedLabel", "lastUpdatedLabel").ifBlank { null },
                     latestPreview = latest?.let(::messagePreviewText),
                     updatedAt = channel.string("updatedAt").ifBlank { latest?.string("createdAt").orEmpty() }.takeIf { it.isNotBlank() },

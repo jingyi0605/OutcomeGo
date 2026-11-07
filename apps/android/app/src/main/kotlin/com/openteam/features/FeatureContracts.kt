@@ -214,6 +214,29 @@ data class WebProvidersState(
     val fetch: List<WebProvider> = emptyList(),
 )
 
+data class VoiceProviderSettings(
+    val configured: Boolean = false,
+    val stt: Boolean = false,
+    val tts: Boolean = false,
+    val baseUrl: String? = null,
+    val sttUrl: String? = null,
+    val ttsUrl: String? = null,
+    val sttResourceId: String? = null,
+    val ttsResourceId: String? = null,
+    val apiKeySuffix: String? = null,
+)
+
+data class VoiceSettings(
+    val enabled: Boolean = false,
+    val defaultProvider: String = "volcengine",
+    val volcengine: VoiceProviderSettings = VoiceProviderSettings(),
+    val deepgram: VoiceProviderSettings = VoiceProviderSettings(),
+    val sttModel: String = "nova-3",
+    val ttsModel: String = "aura-2-thalia-en",
+    val voice: String = "alloy",
+    val language: String = "en-US",
+)
+
 data class Plugin(
     val id: String,
     val name: String,
@@ -258,6 +281,8 @@ interface FeatureGateway {
     suspend fun loadWebProviders(): Result<WebProvidersState>
     suspend fun saveWebProvider(tool: String, providerId: String, apiKey: String?, selected: Boolean): Result<WebProvidersState>
     suspend fun checkWebProvider(tool: String, providerId: String): Result<WebProviderCheck>
+    suspend fun loadVoiceSettings(): Result<VoiceSettings>
+    suspend fun saveVoiceSettings(settings: VoiceSettings, volcengineApiKey: String? = null, deepgramApiKey: String? = null, removeVolcengineKey: Boolean = false, removeDeepgramKey: Boolean = false): Result<VoiceSettings>
     suspend fun listPlugins(): Result<List<Plugin>>
     suspend fun installPlugin(pluginId: String): Result<Plugin>
     suspend fun updatePlugin(pluginId: String): Result<Plugin>

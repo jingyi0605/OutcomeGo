@@ -195,6 +195,7 @@ import com.openteam.features.RoutineEditorScreen
 import com.openteam.features.RoutinesScreen
 import com.openteam.features.SettingsScreen
 import com.openteam.features.WebProviderSettingsScreen
+import com.openteam.features.VoiceSettingsScreen
 import com.openteam.features.LocalAppLanguage
 import com.openteam.features.localizedText
 import com.openteam.features.AppSettings
@@ -230,6 +231,7 @@ private const val ROUTINE_EDITOR = "routines/editor"
 private const val SETTINGS = "settings"
 private const val PROVIDERS = "providers"
 private const val WEB_PROVIDERS = "web-providers"
+private const val REALTIME_VOICE = "realtime-voice"
 private const val PLUGINS = "plugins"
 private const val OUTBOX = "outbox"
 private const val SHARE = "share"
@@ -474,8 +476,8 @@ fun OpenTeamApp(appViewModel: AppViewModel = viewModel()) {
             ConversationProfileScreen(
                 conversation = conversation,
                 bots = state.conversations.filter { it.isBot },
-                onSaveBot = { current, name, description, instructions, icon, color ->
-                    appViewModel.updateBot(current, name, description, instructions, icon, color)
+                onSaveBot = { current, name, description, instructions, voice, icon, color ->
+                    appViewModel.updateBot(current, name, description, instructions, voice, icon, color)
                     navController.popBackStack()
                 },
                 onSaveGroup = { current, name, description, botIds ->
@@ -592,6 +594,7 @@ fun OpenTeamApp(appViewModel: AppViewModel = viewModel()) {
                 },
                 onBack = { navController.popBackStack() },
                 onProviders = { navController.navigate(PROVIDERS) },
+                onRealtimeVoice = { navController.navigate(REALTIME_VOICE) },
                 onWebProviders = { navController.navigate(WEB_PROVIDERS) },
                 onOutbox = { navController.navigate(OUTBOX) },
                 onAccount = { navController.navigate(ACCOUNT) },
@@ -670,6 +673,15 @@ fun OpenTeamApp(appViewModel: AppViewModel = viewModel()) {
                 onSaveKey = { tool, provider, key -> appViewModel.saveWebProvider(tool, provider, key) },
                 onRemoveKey = { tool, provider -> appViewModel.saveWebProvider(tool, provider, "") },
                 onCheck = appViewModel::checkWebProvider,
+            )
+        }
+        composable(REALTIME_VOICE) {
+            VoiceSettingsScreen(
+                state = state.features.voiceSettings,
+                language = state.features.settings.language,
+                onRetry = appViewModel::loadFeatureData,
+                onSave = appViewModel::saveVoiceSettings,
+                onBack = { navController.popBackStack() },
             )
         }
         composable(PLUGINS) {
@@ -2410,7 +2422,7 @@ private fun CreateConversationScreen(
 private fun ConversationProfileScreen(
     conversation: Conversation?,
     bots: List<Conversation>,
-    onSaveBot: (Conversation, String, String, String, String, String) -> Unit,
+    onSaveBot: (Conversation, String, String, String, String, String, String) -> Unit,
     onSaveGroup: (Conversation, String, String, List<String>) -> Unit,
     onBack: () -> Unit,
 ) {
@@ -2421,6 +2433,7 @@ private fun ConversationProfileScreen(
     var name by remember(conversation.id) { mutableStateOf(conversation.title) }
     var description by remember(conversation.id) { mutableStateOf(conversation.subtitle) }
     var instructions by remember { mutableStateOf("") }
+    var voice by remember(conversation.id) { mutableStateOf(conversation.botVoice) }
     var icon by remember { mutableStateOf("chip") }
     var color by remember { mutableStateOf(conversation.avatarColor.ifBlank { "#A47952" }) }
     val selected = remember(conversation.id) { mutableStateOf(conversation.memberBotIds.toSet()) }
@@ -2448,13 +2461,14 @@ private fun ConversationProfileScreen(
                 }
             } else {
                 OutlinedTextField(instructions, { instructions = it }, label = { Text(localizedText("Instructions", "说明")) }, modifier = Modifier.fillMaxWidth(), minLines = 5)
+                OutlinedTextField(voice, { voice = it }, label = { Text(localizedText("Realtime voice", "实时语音")) }, supportingText = { Text(localizedText("Provider-specific voice or speaker ID. Leave blank for the server default.", "服务商专用的声音或说话人 ID。留空使用服务器默认值。")) }, modifier = Modifier.fillMaxWidth(), singleLine = true)
                 OutlinedTextField(icon, { icon = it }, label = { Text(localizedText("Icon", "图标")) }, modifier = Modifier.fillMaxWidth(), singleLine = true)
                 OutlinedTextField(color, { color = it }, label = { Text(localizedText("Color (#RRGGBB)", "颜色（#RRGGBB）")) }, modifier = Modifier.fillMaxWidth(), singleLine = true)
             }
             Button(
                 onClick = {
                     if (conversation.isGroup) onSaveGroup(conversation, name, description, selected.value.toList())
-                    else onSaveBot(conversation, name, description, instructions, icon, color)
+                    else onSaveBot(conversation, name, description, instructions, voice, icon, color)
                 },
                 enabled = name.isNotBlank(),
                 modifier = Modifier.fillMaxWidth(),

@@ -206,6 +206,38 @@ class LiveFeatureGateway(private val client: MobileFeatureApi) : FeatureGateway 
         client.request(HttpMethod.POST, "/api/v0/server-settings/web-providers/check", buildJsonObject { put("tool", tool); put("provider", providerId) }).webCheck()
     }
 
+    override suspend fun loadVoiceSettings(): Result<VoiceSettings> = runCatching {
+        client.request(HttpMethod.GET, "/api/v0/server-settings/voice").voiceSettings()
+    }
+
+    override suspend fun saveVoiceSettings(
+        settings: VoiceSettings,
+        volcengineApiKey: String?,
+        deepgramApiKey: String?,
+        removeVolcengineKey: Boolean,
+        removeDeepgramKey: Boolean,
+    ): Result<VoiceSettings> = runCatching {
+        val body = buildJsonObject {
+            put("enabled", settings.enabled)
+            put("defaultProvider", settings.defaultProvider)
+            put("volcengineBaseUrl", settings.volcengine.baseUrl.orEmpty())
+            put("volcengineSttUrl", settings.volcengine.sttUrl.orEmpty())
+            put("volcengineTtsUrl", settings.volcengine.ttsUrl.orEmpty())
+            put("volcengineSttResourceId", settings.volcengine.sttResourceId.orEmpty())
+            put("volcengineTtsResourceId", settings.volcengine.ttsResourceId.orEmpty())
+            put("deepgramBaseUrl", settings.deepgram.baseUrl.orEmpty())
+            put("sttModel", settings.sttModel)
+            put("ttsModel", settings.ttsModel)
+            put("voice", settings.voice)
+            put("language", settings.language)
+            if (removeVolcengineKey) put("volcengineApiKey", JsonNull)
+            else if (!volcengineApiKey.isNullOrBlank()) put("volcengineApiKey", volcengineApiKey)
+            if (removeDeepgramKey) put("deepgramApiKey", JsonNull)
+            else if (!deepgramApiKey.isNullOrBlank()) put("deepgramApiKey", deepgramApiKey)
+        }
+        client.request(HttpMethod.PUT, "/api/v0/server-settings/voice", body).voiceSettings()
+    }
+
     override suspend fun listPlugins(): Result<List<Plugin>> = runCatching {
         client.request(HttpMethod.GET, "/api/v0/plugins").pluginList()
     }
@@ -424,6 +456,31 @@ private fun JsonObject.webTool(name: String): List<WebProvider> {
 }
 
 private fun JsonObject.webCheck() = WebProviderCheck(boolean("passed"), string("message"), string("checkedAt").ifBlank { null })
+private fun JsonObject.voiceSettings(): VoiceSettings {
+    fun provider(name: String) = objectAt(name).let {
+        VoiceProviderSettings(
+            configured = it.boolean("configured"),
+            stt = it.boolean("stt"),
+            tts = it.boolean("tts"),
+            baseUrl = it.string("baseUrl").ifBlank { null },
+            sttUrl = it.string("sttUrl").ifBlank { null },
+            ttsUrl = it.string("ttsUrl").ifBlank { null },
+            sttResourceId = it.string("sttResourceId").ifBlank { null },
+            ttsResourceId = it.string("ttsResourceId").ifBlank { null },
+            apiKeySuffix = it.string("apiKeySuffix").ifBlank { null },
+        )
+    }
+    return VoiceSettings(
+        enabled = boolean("enabled"),
+        defaultProvider = string("defaultProvider").ifBlank { "volcengine" },
+        volcengine = provider("volcengine"),
+        deepgram = provider("deepgram"),
+        sttModel = string("sttModel", "nova-3"),
+        ttsModel = string("ttsModel", "aura-2-thalia-en"),
+        voice = string("voice", "alloy"),
+        language = string("language", "en-US"),
+    )
+}
 private fun JsonObject.reactions() = array("reactions").mapNotNull { element -> element.jsonObjectOrNull()?.let { Reaction(it.string("emoji"), it.int("count"), it.boolean("selected")) } }
 
 private fun JsonObject.array(name: String): List<JsonElement> = this[name]?.jsonArray ?: emptyList()

@@ -787,6 +787,7 @@ fun SettingsScreen(
     onSignOut: () -> Unit,
     onBack: () -> Unit,
     onProviders: () -> Unit,
+    onRealtimeVoice: () -> Unit,
     onWebProviders: () -> Unit,
     onOutbox: () -> Unit,
     onAccount: () -> Unit,
@@ -961,6 +962,7 @@ fun SettingsScreen(
                     SettingsActionRow(text("Plugins", "插件"), text("Manage installed connections and tools", "管理已安装的连接和工具"), text("Open", "打开"), onPlugins)
                     SettingsActionRow(text("Organize conversations", "整理会话"), text("Rename sections and manage hidden conversations", "重命名分区并管理隐藏会话"), text("Open", "打开"), onSidebar)
                     SettingsActionRow(text("AI model", "AI 模型"), text("Choose the provider and model used by bots", "选择 Bot 使用的服务商和模型"), text("Open", "打开"), onProviders)
+                    SettingsActionRow(text("Realtime voice", "实时语音"), text("Configure speech providers for realtime conversations", "配置实时对话的语音服务商"), text("Open", "打开"), onRealtimeVoice)
                     SettingsActionRow(text("Web providers", "网络服务商"), text("Choose search and page-fetch services", "选择搜索和网页抓取服务"), text("Open", "打开"), onWebProviders)
                 }
             }
@@ -1148,6 +1150,71 @@ fun ProviderSettingsScreen(
                 confirmButton = { TextButton(onClick = { pendingDisconnect = null; onDisconnect(provider) }) { Text(text("Disconnect", "断开连接"), color = MaterialTheme.colorScheme.error) } },
                 dismissButton = { TextButton(onClick = { pendingDisconnect = null }) { Text(text("Cancel", "取消")) } },
             )
+        }
+    }
+}
+
+@Composable
+fun VoiceSettingsScreen(
+    state: FeatureLoadState<VoiceSettings>,
+    language: AppSettings.Language,
+    onRetry: () -> Unit,
+    onSave: (VoiceSettings, String?, String?, Boolean, Boolean) -> Unit,
+    onBack: () -> Unit,
+) {
+    val text: (String, String) -> String = { english, chinese -> if (language == AppSettings.Language.Chinese) chinese else english }
+    var draft by remember { mutableStateOf<VoiceSettings?>(null) }
+    var volcengineKey by remember { mutableStateOf("") }
+    var deepgramKey by remember { mutableStateOf("") }
+    var removeVolcengineKey by remember { mutableStateOf(false) }
+    var removeDeepgramKey by remember { mutableStateOf(false) }
+    LaunchedEffect(state) { if (state is FeatureLoadState.Ready) draft = state.value }
+    FeaturePage(text("Realtime voice", "实时语音"), onBack) {
+        LoadStateContent(state, onRetry) { loaded ->
+            val value = draft ?: loaded
+            LazyColumn(Modifier.fillMaxSize().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(14.dp), contentPadding = androidx.compose.foundation.layout.PaddingValues(top = 14.dp, bottom = 28.dp)) {
+                item {
+                    SettingsGroup {
+                        SettingsToggleRow(text("Enable realtime voice", "启用实时语音"), text("Allow authenticated speech sessions from macOS and Android", "允许 macOS 和 Android 建立认证语音会话"), value.enabled) { draft = value.copy(enabled = it) }
+                        SettingsRow(text("Provider", "服务商"), text("Speech-to-text and text-to-speech provider", "语音识别和语音合成服务商"), inline = false) {
+                            ChoiceChips(listOf("volcengine", "deepgram"), value.defaultProvider, { provider -> when (provider) { "volcengine" -> "Volcengine"; else -> "Deepgram" } }) { draft = value.copy(defaultProvider = it) }
+                        }
+                    }
+                }
+                item { SettingsSectionTitle(text("Provider credentials", "服务商凭据")) }
+                item {
+                    SettingsGroup {
+                        SettingsRow(text("Volcengine API key", "Volcengine API 密钥"), text(if (value.volcengine.configured) "A key is saved on the server." else "Enter the key supplied by Volcengine.", if (value.volcengine.configured) "服务器已保存密钥。" else "输入 Volcengine 提供的密钥。"), inline = false) {
+                            OutlinedTextField(volcengineKey, { volcengineKey = it; removeVolcengineKey = false }, label = { Text(if (value.volcengine.configured) text("Replace key", "替换密钥") else text("API key", "API 密钥")) }, visualTransformation = PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth(), singleLine = true)
+                            if (value.volcengine.configured) TextButton(onClick = { removeVolcengineKey = !removeVolcengineKey }) { Text(if (removeVolcengineKey) text("Undo deletion", "撤销删除") else text("Delete key", "删除密钥"), color = MaterialTheme.colorScheme.error) }
+                        }
+                        SettingsRow(text("Deepgram API key", "Deepgram API 密钥"), text(if (value.deepgram.configured) "A key is saved on the server." else "Enter the key supplied by Deepgram.", if (value.deepgram.configured) "服务器已保存密钥。" else "输入 Deepgram 提供的密钥。"), inline = false) {
+                            OutlinedTextField(deepgramKey, { deepgramKey = it; removeDeepgramKey = false }, label = { Text(if (value.deepgram.configured) text("Replace key", "替换密钥") else text("API key", "API 密钥")) }, visualTransformation = PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth(), singleLine = true)
+                            if (value.deepgram.configured) TextButton(onClick = { removeDeepgramKey = !removeDeepgramKey }) { Text(if (removeDeepgramKey) text("Undo deletion", "撤销删除") else text("Delete key", "删除密钥"), color = MaterialTheme.colorScheme.error) }
+                        }
+                    }
+                }
+                item { SettingsSectionTitle(text("Speech defaults", "语音默认值")) }
+                item {
+                    SettingsGroup {
+                        @Composable
+                        fun field(title: String, current: String, update: (String) -> VoiceSettings) {
+                            SettingsRow(title, "", inline = false) { OutlinedTextField(current, { draft = update(it) }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text(title) }) }
+                        }
+                        field(text("Volcengine base URL", "Volcengine 基础 URL"), value.volcengine.baseUrl.orEmpty()) { value.copy(volcengine = value.volcengine.copy(baseUrl = it)) }
+                        field(text("Volcengine STT WebSocket URL", "Volcengine STT WebSocket URL"), value.volcengine.sttUrl.orEmpty()) { value.copy(volcengine = value.volcengine.copy(sttUrl = it)) }
+                        field(text("Volcengine TTS WebSocket URL", "Volcengine TTS WebSocket URL"), value.volcengine.ttsUrl.orEmpty()) { value.copy(volcengine = value.volcengine.copy(ttsUrl = it)) }
+                        field(text("Volcengine STT resource ID", "Volcengine STT 资源 ID"), value.volcengine.sttResourceId.orEmpty()) { value.copy(volcengine = value.volcengine.copy(sttResourceId = it)) }
+                        field(text("Volcengine TTS resource ID", "Volcengine TTS 资源 ID"), value.volcengine.ttsResourceId.orEmpty()) { value.copy(volcengine = value.volcengine.copy(ttsResourceId = it)) }
+                        field(text("Deepgram base URL", "Deepgram 基础 URL"), value.deepgram.baseUrl.orEmpty()) { value.copy(deepgram = value.deepgram.copy(baseUrl = it)) }
+                        field(text("STT model", "语音识别模型"), value.sttModel) { value.copy(sttModel = it) }
+                        field(text("TTS model", "语音合成模型"), value.ttsModel) { value.copy(ttsModel = it) }
+                        field(text("TTS voice", "语音"), value.voice) { value.copy(voice = it) }
+                        field(text("Language", "语言"), value.language) { value.copy(language = it) }
+                        Button(onClick = { onSave(value, volcengineKey.takeIf { it.isNotBlank() }, deepgramKey.takeIf { it.isNotBlank() }, removeVolcengineKey, removeDeepgramKey); volcengineKey = ""; deepgramKey = ""; removeVolcengineKey = false; removeDeepgramKey = false }, modifier = Modifier.fillMaxWidth()) { Text(text("Save settings", "保存设置")) }
+                    }
+                }
+            }
         }
     }
 }

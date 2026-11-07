@@ -25,6 +25,7 @@ data class Conversation(
     val notificationsEnabled: Boolean = true,
     val botIcon: String = "",
     val botInstructions: String = "",
+    val botVoice: String = "",
     val updatedLabel: String? = null,
     /** One-line preview of the newest message, shown in the conversation list. */
     val latestPreview: String? = null,
