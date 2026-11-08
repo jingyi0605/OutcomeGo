@@ -1,7 +1,6 @@
 import { expectedReleaseArtifactKinds } from "./desktop-build-measurement-utils";
 
-const bunExecutable = Bun.which("bun") ?? process.execPath;
-const measure = Bun.spawn([bunExecutable, "scripts/performance/measure-desktop-build.ts"], {
+const measure = Bun.spawn(["bun", "scripts/performance/measure-desktop-build.ts"], {
   cwd: new URL("../..", import.meta.url).pathname,
   stdout: "pipe",
   stderr: "inherit",
