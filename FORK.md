@@ -1,9 +1,9 @@
-# OpenTeamBots (fork of OpenTeam)
+# ai-TeamOS (fork of OpenTeam)
 
-OpenTeamBots is an **unofficial fork** of [OpenTeam](https://github.com/raghavpillai/openteam)
+ai-TeamOS is an **unofficial fork** of [OpenTeam](https://github.com/raghavpillai/openteam)
 by Raghav Pillai. It is not affiliated with or endorsed by the upstream project.
 The "OpenTeam" name and logo belong to the upstream author. This fork uses the name
-"OpenTeamBots" only to state its origin.
+"ai-TeamOS" only to state its origin.
 
 ## Attribution
 
@@ -36,7 +36,7 @@ not want are merged and then reverted, so the same commits do not return as conf
 
 | Item | Upstream | This fork |
 |---|---|---|
-| Product display name | OpenTeam | OpenTeamBots |
+| Product display name | OpenTeam | ai-TeamOS |
 | Android `applicationId` | `com.openteam.android` | `com.teambots.android` |
 | Android `namespace` and Kotlin package | `com.openteam.android` | unchanged, to keep merges with upstream small |
 

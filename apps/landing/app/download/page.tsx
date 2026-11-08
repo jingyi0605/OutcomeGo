@@ -137,7 +137,7 @@ export default function DownloadPage() {
           </div>
           <div className="dl-phone-card">
             <div className="dl-phone-icon">
-              <Image src="/openteam-app-icon.png" alt="OpenTeam app icon" width={52} height={52} unoptimized />
+              <Image src="/ai-teamOS-app-icon.png" alt="ai-TeamOS app icon" width={52} height={52} unoptimized />
             </div>
             <div>
               <h3>Public beta on TestFlight.</h3>

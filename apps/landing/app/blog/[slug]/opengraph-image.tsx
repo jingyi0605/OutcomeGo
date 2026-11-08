@@ -16,7 +16,7 @@ export function generateStaticParams() {
 export default async function OpenGraphImage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const post = getBlogPost(slug);
-  const icon = `data:image/png;base64,${readFileSync(path.join(process.cwd(), "public/openteam-app-icon.png"), "base64")}`;
+  const icon = `data:image/png;base64,${readFileSync(path.join(process.cwd(), "public/ai-teamOS-app-icon.png"), "base64")}`;
   return new ImageResponse(
     (
       <div

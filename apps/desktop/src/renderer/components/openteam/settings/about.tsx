@@ -1,4 +1,5 @@
 import { X } from "lucide-react";
+import appIcon from "../../../assets/ai-teamos-icon.png?url";
 import {
   Dialog,
   DialogClose,
@@ -9,22 +10,12 @@ import {
 
 function OpenTeamAppIcon() {
   return (
-    <svg
+    <img
+      alt=""
       aria-hidden="true"
       className="size-16 rounded-[16px] shadow-[0_12px_24px_rgba(0,0,0,0.18)]"
-      viewBox="0 0 70 70"
-    >
-      <defs>
-        <linearGradient id="openteam-app-icon" x1="13" x2="58" y1="7" y2="66">
-          <stop offset="0" stopColor="#f5f5f5" />
-          <stop offset="0.5" stopColor="#d9d9d9" />
-          <stop offset="1" stopColor="#a7a7a7" />
-        </linearGradient>
-      </defs>
-      <rect fill="url(#openteam-app-icon)" height="70" rx="18" width="70" />
-      <circle cx="35" cy="35" fill="#151515" r="19" />
-      <circle cx="35" cy="35" fill="#f5f5f5" r="6" />
-    </svg>
+      src={appIcon}
+    />
   );
 }
 

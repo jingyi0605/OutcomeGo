@@ -1,15 +1,10 @@
 # OpenTeam app icons
 
 `OpenTeam.icon` is the shared, editable Icon Composer source for iOS and macOS.
-It preserves the Classic 2D bot from `src/robot-avatar-artwork.ts`, including the
-slight face perspective. Colors are defined in `icon.json`; the SVG layers are
-plain vector masks. Layer order is foreground first: eyes, face, body.
-
-The body uses a subtle teal gradient. The default background runs from near-white
-to light gray; the dark background runs from charcoal to near-black. Apple adds
-the platform mask and background lighting. The robot's specular effect is disabled
-to keep the mark flat and avoid a heavy bevel. Clear and tinted appearances use
-the system's native conversion of the same layers.
+It holds one layer, `Assets/logo.png`, the ai-TeamOS prism mark (trimmed from
+`apps/landing/public/ai-teamOS-concept-02-prism.png`), on a charcoal gradient
+background. Colors are defined in `icon.json`. The robot artwork that upstream
+OpenTeam ships here was removed in this fork.
 
 ## Build integration
 

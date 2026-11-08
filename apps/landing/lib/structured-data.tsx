@@ -12,7 +12,7 @@ const organization = {
   "@id": ORGANIZATION_ID,
   name: "OpenTeam",
   url: SITE_URL,
-  logo: { "@type": "ImageObject", url: `${SITE_URL}/openteam-app-icon.png` },
+  logo: { "@type": "ImageObject", url: `${SITE_URL}/ai-teamOS-app-icon.png` },
   sameAs: [GITHUB_URL],
 };
 
