@@ -1,22 +1,8 @@
 import { expectedReleaseArtifactKinds } from "./desktop-build-measurement-utils";
 
-const measureCommand =
-  process.platform === "win32"
-    ? [
-        process.env.ComSpec ?? process.env.COMSPEC ?? "C:\\Windows\\System32\\cmd.exe",
-        "/d",
-        "/s",
-        "/c",
-        "bun scripts/performance/measure-desktop-build.ts",
-      ]
-    : ["bun", "scripts/performance/measure-desktop-build.ts"];
-const measure = Bun.spawn(measureCommand, {
-  cwd: new URL("../..", import.meta.url).pathname,
-  stdout: "pipe",
-  stderr: "inherit",
-});
-const output = await new Response(measure.stdout).text();
-if ((await measure.exited) !== 0) throw new Error("Desktop measurement failed");
+const output = await Bun.$`bun scripts/performance/measure-desktop-build.ts`
+  .cwd(new URL("../..", import.meta.url).pathname)
+  .text();
 
 const result = JSON.parse(output) as {
   electron: {
