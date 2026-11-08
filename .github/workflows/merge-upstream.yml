@@ -1,0 +1,94 @@
+name: Merge upstream into teambots
+
+# Opens (or updates) a pull request that merges upstream `main` into `teambots`.
+# Conflicts are not resolved here: the PR is created from a branch that already
+# contains the merge when it is clean, and otherwise a tracking issue is opened
+# so the merge is done locally with `git merge upstream/main` (rerere enabled).
+
+on:
+  schedule:
+    - cron: "43 2 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: merge-upstream
+  cancel-in-progress: false
+
+jobs:
+  merge:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      # PRs created with github.token do not trigger other workflows (CI).
+      # Set UPSTREAM_SYNC_TOKEN (fine-grained PAT: contents, pull requests,
+      # workflows) so CI runs on the sync PR and workflow files can be merged.
+      GH_TOKEN: ${{ secrets.UPSTREAM_SYNC_TOKEN || github.token }}
+      SYNC_BRANCH: sync/upstream-main
+    steps:
+      - name: Check out teambots
+        uses: actions/checkout@v4
+        with:
+          ref: teambots
+          fetch-depth: 0
+          token: ${{ secrets.UPSTREAM_SYNC_TOKEN || github.token }}
+
+      - name: Fetch upstream
+        run: |
+          git remote add upstream https://github.com/raghavpillai/openteam.git
+          git fetch --no-tags upstream main
+
+      - name: Merge upstream/main
+        id: merge
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          if git merge-base --is-ancestor upstream/main HEAD; then
+            echo "state=uptodate" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          git switch -C "$SYNC_BRANCH"
+          if git merge --no-ff -m "merge: sync upstream/main into teambots" upstream/main; then
+            echo "state=clean" >> "$GITHUB_OUTPUT"
+          else
+            git merge --abort
+            echo "state=conflict" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Open or update pull request
+        if: steps.merge.outputs.state == 'clean'
+        run: |
+          git push --force origin "$SYNC_BRANCH"
+          count=$(git rev-list --count teambots..upstream/main)
+          body="Merges $count upstream commit(s) from raghavpillai/openteam main.
+
+          Use a **merge commit** (not squash or rebase) so upstream history stays an ancestor of teambots."
+          existing=$(gh pr list --head "$SYNC_BRANCH" --base teambots --state open --json number --jq '.[0].number')
+          if [ -z "$existing" ]; then
+            gh pr create --base teambots --head "$SYNC_BRANCH" \
+              --title "merge: sync upstream/main" --body "$body"
+          else
+            gh pr edit "$existing" --body "$body"
+          fi
+
+      - name: Report merge conflict
+        if: steps.merge.outputs.state == 'conflict'
+        run: |
+          title="Upstream merge needs manual conflict resolution"
+          existing=$(gh issue list --state open --search "\"$title\" in:title" --json number --jq '.[0].number')
+          body="upstream/main cannot be merged into teambots automatically.
+
+          Run locally:
+
+          \`\`\`
+          git switch teambots && git fetch upstream && git merge upstream/main
+          \`\`\`"
+          if [ -z "$existing" ]; then
+            gh issue create --title "$title" --body "$body"
+          fi
