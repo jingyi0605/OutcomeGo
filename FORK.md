@@ -8,7 +8,7 @@ The "OpenTeam" name and logo belong to the upstream author. This fork uses the n
 ## Attribution
 
 - Upstream: https://github.com/raghavpillai/openteam (`upstream` remote, `main` branch)
-- This fork: https://github.com/jingyi0605/open_teambots
+- This fork: https://github.com/jingyi0605/ai-TeamOS
 - Copyright in the upstream code belongs to its authors. Copyright in this fork's changes
   belongs to their respective contributors (see `git log`).
 
@@ -25,11 +25,11 @@ some plugins) keep their own licenses.
 | Branch | Purpose |
 |---|---|
 | `main` | Mirror of `upstream/main`. Fast-forward only, no local commits. Source for pull requests to upstream. |
-| `teambots` | Default branch and product line. Upstream merged in regularly. Releases are tagged here. |
-| `feat/*`, `fix/*` | Short-lived branches. Generic fixes start from `main`; fork-specific work starts from `teambots`. |
+| `ai-TeamOS` | Default branch and product line. Upstream merged in regularly. Releases are tagged here. |
+| `feat/*`, `fix/*` | Short-lived branches. Generic fixes start from `main`; fork-specific work starts from `ai-TeamOS`. |
 
-Upstream changes reach `teambots` only through `git merge upstream/main` (or the
-automated "sync upstream" pull request). Do not rebase `teambots`. Upstream changes we do
+Upstream changes reach `ai-TeamOS` only through `git merge upstream/main` (or the
+automated "sync upstream" pull request). Do not rebase `ai-TeamOS`. Upstream changes we do
 not want are merged and then reverted, so the same commits do not return as conflicts.
 
 ## Naming and identifiers
@@ -48,7 +48,7 @@ Release versions follow `<upstream version>-cn.<n>`, for example `0.0.15-cn.1`.
 
 ## Modifications relative to upstream
 
-Based on upstream `main` at v0.0.15. Compare with `git diff upstream/main...teambots`.
+Based on upstream `main` at v0.0.15. Compare with `git diff upstream/main...ai-TeamOS`.
 
 - **Android client** (`apps/android`, `mobile/shared`, `scripts/android`, `docs/android`):
   native Android client with chat, bots, routines, push notifications, share target,

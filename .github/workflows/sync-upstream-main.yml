@@ -1,7 +1,7 @@
 name: Sync upstream main
 
 # Keeps this fork's `main` an exact mirror of raghavpillai/openteam `main`.
-# `main` never receives local commits; fork work lives on `teambots`.
+# `main` never receives local commits; fork work lives on `ai-TeamOS`.
 
 on:
   schedule:

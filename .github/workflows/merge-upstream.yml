@@ -1,6 +1,6 @@
-name: Merge upstream into teambots
+name: Merge upstream into ai-TeamOS
 
-# Opens (or updates) a pull request that merges upstream `main` into `teambots`.
+# Opens (or updates) a pull request that merges upstream `main` into `ai-TeamOS`.
 # Conflicts are not resolved here: the PR is created from a branch that already
 # contains the merge when it is clean, and otherwise a tracking issue is opened
 # so the merge is done locally with `git merge upstream/main` (rerere enabled).
@@ -30,10 +30,10 @@ jobs:
       GH_TOKEN: ${{ secrets.UPSTREAM_SYNC_TOKEN || github.token }}
       SYNC_BRANCH: sync/upstream-main
     steps:
-      - name: Check out teambots
+      - name: Check out ai-TeamOS
         uses: actions/checkout@v4
         with:
-          ref: teambots
+          ref: ai-TeamOS
           fetch-depth: 0
           token: ${{ secrets.UPSTREAM_SYNC_TOKEN || github.token }}
 
@@ -54,7 +54,7 @@ jobs:
           fi
 
           git switch -C "$SYNC_BRANCH"
-          if git merge --no-ff -m "merge: sync upstream/main into teambots" upstream/main; then
+          if git merge --no-ff -m "merge: sync upstream/main into ai-TeamOS" upstream/main; then
             echo "state=clean" >> "$GITHUB_OUTPUT"
           else
             git merge --abort
@@ -65,13 +65,13 @@ jobs:
         if: steps.merge.outputs.state == 'clean'
         run: |
           git push --force origin "$SYNC_BRANCH"
-          count=$(git rev-list --count teambots..upstream/main)
+          count=$(git rev-list --count ai-TeamOS..upstream/main)
           body="Merges $count upstream commit(s) from raghavpillai/openteam main.
 
-          Use a **merge commit** (not squash or rebase) so upstream history stays an ancestor of teambots."
-          existing=$(gh pr list --head "$SYNC_BRANCH" --base teambots --state open --json number --jq '.[0].number')
+          Use a **merge commit** (not squash or rebase) so upstream history stays an ancestor of ai-TeamOS."
+          existing=$(gh pr list --head "$SYNC_BRANCH" --base ai-TeamOS --state open --json number --jq '.[0].number')
           if [ -z "$existing" ]; then
-            gh pr create --base teambots --head "$SYNC_BRANCH" \
+            gh pr create --base ai-TeamOS --head "$SYNC_BRANCH" \
               --title "merge: sync upstream/main" --body "$body"
           else
             gh pr edit "$existing" --body "$body"
@@ -82,12 +82,12 @@ jobs:
         run: |
           title="Upstream merge needs manual conflict resolution"
           existing=$(gh issue list --state open --search "\"$title\" in:title" --json number --jq '.[0].number')
-          body="upstream/main cannot be merged into teambots automatically.
+          body="upstream/main cannot be merged into ai-TeamOS automatically.
 
           Run locally:
 
           \`\`\`
-          git switch teambots && git fetch upstream && git merge upstream/main
+          git switch ai-TeamOS && git fetch upstream && git merge upstream/main
           \`\`\`"
           if [ -z "$existing" ]; then
             gh issue create --title "$title" --body "$body"
