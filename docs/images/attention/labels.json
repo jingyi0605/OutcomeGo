@@ -1,0 +1,100 @@
+{
+  "zh": {
+    "bottleneck": {
+      "title": "多个 AI Agent 汇聚到你的注意力这一个决策瓶颈",
+      "agent": "AI Agent",
+      "roles": ["研究", "开发", "文档", "运维", "测试"],
+      "center": "你的注意力",
+      "centerSub": "唯一的决策瓶颈",
+      "bottom": "判断 · 决策 · 创造 · 验收",
+      "caption": "执行能力可以横向扩展，但人的注意力不能无限扩展。"
+    },
+    "allocation": {
+      "title": "人的注意力分配",
+      "badge": "建议起点",
+      "rows": [
+        { "label": "当前深度工作", "value": "1 项" },
+        { "label": "等待你决策的事项", "value": "最多 2 项" },
+        { "label": "AI 自主执行的任务", "value": "3–5 项试运行" }
+      ]
+    },
+    "controlPlane": {
+      "title": "统一工作控制平面",
+      "sources": [
+        { "t": "Bot 与 Agent 运行", "s": "对话 · 子 Agent · 语音" },
+        { "t": "例行任务与事件", "s": "定时 · Webhook · 事件触发" },
+        { "t": "外部服务", "s": "插件 · MCP · 渠道 · 邮件" }
+      ],
+      "frame": "ai-TeamOS · 唯一数据源",
+      "layers": [
+        { "t": "事件接入层", "s": "Webhook · MCP · 渠道与邮件连接器 · Bot 运行状态" },
+        { "t": "统一工作上下文引擎", "s": "项目关联 · 去重 · 状态归一 · 任务识别 · AI 摘要 · 优先级" },
+        { "t": "驾驶舱", "s": "今天关注什么 · 哪些项目阻塞 · Bot 做到哪里 · 等待什么决策" },
+        { "t": "操作与调度层", "s": "回复 · 分派 · 审批 · 催办 · 启动 Bot · 更新任务" }
+      ]
+    },
+    "layers": {
+      "title": "目标分层架构",
+      "entry": { "t": "统一工作入口", "s": "自然语言交互 · 项目总览 · 决策收件箱 · Bot 进度 · 搜索" },
+      "coordinator": { "t": "AI 协调与规划层", "s": "意图理解 · 项目关联 · 任务规划 · 优先级 · 分派 · 异常处理" },
+      "frame": "全部在 ai-TeamOS 内实现",
+      "services": [
+        { "t": "工作流引擎", "s": "长任务 · 重试 · 等待审批" },
+        { "t": "权限策略引擎", "s": "授权 · 风险分级 · 审计" },
+        { "t": "项目状态服务", "s": "项目 · 任务 · 决策 · 事件" },
+        { "t": "上下文服务", "s": "知识 · 历史 · 证据 · 检索" }
+      ],
+      "execution": { "t": "Bot 执行平面", "items": ["Bot（独立电脑）", "子 Agent", "例行任务"] },
+      "adapters": { "t": "外部服务适配器", "s": "插件 · MCP 服务器 · 渠道 · 邮件 · 日历 · 本地文件" }
+    }
+  },
+  "en": {
+    "bottleneck": {
+      "title": "Many AI agents converge on your attention, the single decision bottleneck",
+      "agent": "AI Agent",
+      "roles": ["Research", "Develop", "Docs", "Ops", "Testing"],
+      "center": "Your attention",
+      "centerSub": "The single decision bottleneck",
+      "bottom": "Judge · Decide · Create · Review",
+      "caption": "Execution scales out. Human attention does not."
+    },
+    "allocation": {
+      "title": "Human attention allocation",
+      "badge": "Suggested start",
+      "rows": [
+        { "label": "Current deep work", "value": "1 item" },
+        { "label": "Waiting for your decision", "value": "At most 2 items" },
+        { "label": "Tasks AI runs on its own", "value": "3–5 items, trial" }
+      ]
+    },
+    "controlPlane": {
+      "title": "Unified work control plane",
+      "sources": [
+        { "t": "Bot and agent runs", "s": "Chats · subagents · voice" },
+        { "t": "Routines and events", "s": "Schedules · webhooks · triggers" },
+        { "t": "External services", "s": "Plugins · MCP · channels · mail" }
+      ],
+      "frame": "ai-TeamOS · single source of truth",
+      "layers": [
+        { "t": "Event intake", "s": "Webhooks · MCP · channel and mail connectors · bot run status" },
+        { "t": "Unified work-context engine", "s": "Project matching · dedup · state merge · task detection · summaries · priority" },
+        { "t": "Cockpit", "s": "What matters today · what is blocked · where bots are · what awaits a decision" },
+        { "t": "Action and scheduling", "s": "Reply · assign · approve · nudge · start a bot · update tasks" }
+      ]
+    },
+    "layers": {
+      "title": "Target layers",
+      "entry": { "t": "Unified work entry", "s": "Natural language · project overview · decision inbox · bot progress · search" },
+      "coordinator": { "t": "AI coordination and planning", "s": "Intent · project matching · task planning · priority · dispatch · exceptions" },
+      "frame": "All built inside ai-TeamOS",
+      "services": [
+        { "t": "Workflow engine", "s": "Long tasks · retries · wait for approval" },
+        { "t": "Policy engine", "s": "Authorization · risk tiers · audit" },
+        { "t": "Project state service", "s": "Projects · tasks · decisions · events" },
+        { "t": "Context service", "s": "Knowledge · history · evidence · search" }
+      ],
+      "execution": { "t": "Bot execution plane", "items": ["Bot (own computer)", "Subagent", "Routine"] },
+      "adapters": { "t": "External service adapters", "s": "Plugins · MCP servers · channels · mail · calendar · local files" }
+    }
+  }
+}

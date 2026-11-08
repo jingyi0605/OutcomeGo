@@ -51,7 +51,7 @@ AI extends what each person can do. One person can now direct research, writing,
 browsing and operations at the same time. **Attention has not grown with it.** The limit is no
 longer what you can do, but how much you can notice, decide and verify.
 
-![Many AI agents, such as research, development, documentation, operations and testing, all converge on your attention, the single decision bottleneck. Execution scales out; human attention does not.](docs/images/attention/attention-bottleneck.png)
+![Many AI agents, such as research, development, documentation, operations and testing, all converge on your attention, the single decision bottleneck. Execution scales out; human attention does not.](docs/images/attention/attention-bottleneck.en.png)
 
 Research on attention points the same way. Switching tasks leaves attention residue on the
 previous one ([Leroy, 2009](https://doi.org/10.1016/j.obhdp.2009.04.002)). Knowledge work with AI
@@ -91,9 +91,9 @@ no second task database, no note-taking tool acting as a task store.
 External services still connect, as plugins, MCP servers and channels. They are sources and
 destinations. They do not hold the state.
 
-![Unified work control plane: AI agents, communication channels and task systems flow through a data intake and event sync layer into a unified work-context engine, then a unified workbench and an action and scheduling layer](docs/images/attention/work-control-plane.png)
+![Unified work control plane: bot and agent runs, routines and events, and external services flow through an event intake layer into a unified work-context engine, then the cockpit and an action and scheduling layer, all inside ai-TeamOS](docs/images/attention/work-control-plane.en.png)
 
-<sub>Illustration of the direction, not of the current state. ChatGPT, Codex, WeChat and SiYuan in the diagram are examples of sources. By this project's principle they connect only as sources, and state lives in ai-TeamOS. The diagram text is in Chinese.</sub>
+<sub>Illustration of the direction, not of the current state. External services connect only as sources, and state lives in ai-TeamOS.</sub>
 
 #### The cockpit
 
@@ -104,7 +104,7 @@ not a board with dozens of cards.
   working on (many in parallel), and what is waiting for you. The figure below is the starting
   point we plan to experiment with. The numbers are adjustable parameters, not research-derived optima.
 
-  ![Human attention allocation: 1 item of current deep work, at most 2 items waiting for your decision, 3 to 5 AI tasks running on their own as a trial](docs/images/attention/attention-allocation.png)
+  ![Human attention allocation: 1 item of current deep work, at most 2 items waiting for your decision, 3 to 5 AI tasks running on their own as a trial](docs/images/attention/attention-allocation.en.png)
 
 - **Decision cards.** Every request for your input says what to decide, what is recommended,
   the evidence and uncertainty, and what happens if you wait. You should not need to read a
@@ -158,9 +158,9 @@ to experiment with, not research-backed guarantees.
 
 #### Target layers
 
-![Target layers: unified work entry, AI coordination and planning, workflow engine and policy engine, project state service and context service, multi-agent execution plane, external system adapters](docs/images/attention/architecture-layers.png)
+![Target layers: unified work entry, AI coordination and planning, workflow engine, policy engine, project state service, context service, bot execution plane, external service adapters](docs/images/attention/architecture-layers.en.png)
 
-<sub>Illustration. The workflow engine, policy engine, project state service and context service are to be built inside this project, not brought in as external systems. The table below shows which parts exist. The diagram text is in Chinese.</sub>
+<sub>Illustration. Every layer is built inside this project, not brought in as an external system. The table below shows which parts exist.</sub>
 
 #### What exists and what is planned
 
