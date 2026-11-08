@@ -5,7 +5,7 @@ import { createRequire } from "node:module";
 import { createServer } from "vite";
 
 const require = createRequire(import.meta.url);
-const directory = await mkdtemp(join(tmpdir(), "openteam-background-activity-"));
+const directory = await mkdtemp(join(tmpdir(), "aiteamos-background-activity-"));
 const server = await createServer({
   root: resolve(import.meta.dir, ".."),
   configFile: resolve(import.meta.dir, "../vite.config.ts"),

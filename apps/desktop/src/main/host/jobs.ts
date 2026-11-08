@@ -1,7 +1,7 @@
-import { renderReadText, renderPdfReadText } from "@openteam/contracts/read-output";
+import { renderReadText, renderPdfReadText } from "@aiteamos/contracts/read-output";
 import { spawn, type ChildProcessByStdio } from "node:child_process";
 import { randomInt } from "node:crypto";
-import { ShellJobRegistry, createShellEnvironmentCapture, loadShellEnvironment, SHELL_ENVIRONMENT_CAPTURE, terminalFooter, terminalFrontmatter, type TerminalStatus } from "@openteam/shell-jobs";
+import { ShellJobRegistry, createShellEnvironmentCapture, loadShellEnvironment, SHELL_ENVIRONMENT_CAPTURE, terminalFooter, terminalFrontmatter, type TerminalStatus } from "@aiteamos/shell-jobs";
 import { createWriteStream, type WriteStream } from "node:fs";
 import { access, mkdir, open, readFile, stat } from "node:fs/promises";
 import { dirname, extname, isAbsolute, resolve } from "node:path";
@@ -9,7 +9,7 @@ import type { Readable } from "node:stream";
 import {
   HOST_INLINE_OUTPUT_MAX_BYTES,
   imageMimeTypeForPath,
-} from "@openteam/contracts/service-protocol";
+} from "@aiteamos/contracts/service-protocol";
 import type { HostJobPayload, HostReadInput, HostShellInput } from "./job-protocol";
 
 export const MAX_INLINE_BYTES = HOST_INLINE_OUTPUT_MAX_BYTES;

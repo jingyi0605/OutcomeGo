@@ -15,15 +15,15 @@ import "./download.css";
 import "../monochrome.css";
 import "../alive.css";
 
-const GITHUB = "https://github.com/raghavpillai/openteam";
+const GITHUB = "https://github.com/jingyi0605/ai-TeamOS";
 const INSTALL_COMMAND = "curl -fsSL https://openteam.so/install | sh";
 const WINDOWS_INSTALL_COMMAND = "irm https://openteam.so/install.ps1 | iex";
 const TESTFLIGHT_URL = "https://testflight.apple.com/join/KFBFPkjP";
 
 export const metadata = pageMetadata({
-  title: "Download OpenTeam: install the server and desktop app",
+  title: "Download aiTeamOS: install the server and desktop app",
   description:
-    "Install the OpenTeam server on macOS, Windows, or Linux, and download the desktop app for macOS or Linux.",
+    "Install the aiTeamOS server on macOS, Windows, or Linux, and download the desktop app for macOS or Linux.",
   path: "/download",
 });
 

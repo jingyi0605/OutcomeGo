@@ -35,7 +35,7 @@ CREATE TABLE IF NOT EXISTS "SearchDocument" (
 -- Prisma creates this table on fresh databases now that its introspected shape
 -- is declared in schema.prisma, but it cannot express the generated tsvector
 -- column or the kind constraint.
-DO $openteam$
+DO $aiteamos$
 BEGIN
   IF EXISTS (
     SELECT 1
@@ -48,7 +48,7 @@ BEGIN
     ALTER TABLE "SearchDocument" DROP COLUMN "searchVector";
   END IF;
 END
-$openteam$;
+$aiteamos$;
 
 ALTER TABLE "SearchDocument" ADD COLUMN IF NOT EXISTS "searchVector" tsvector
   GENERATED ALWAYS AS (
@@ -78,19 +78,19 @@ ALTER TABLE "SubagentAttempt" ALTER COLUMN "id" SET DEFAULT gen_random_uuid();
 
 -- Trigger functions ------------------------------------------------------------------
 
-CREATE OR REPLACE FUNCTION public.openteam_notify_event()
+CREATE OR REPLACE FUNCTION public.aiteamos_notify_event()
  RETURNS trigger
  LANGUAGE plpgsql
 AS $function$
 BEGIN
   -- The listener only needs a wakeup. An identical payload lets PostgreSQL
   -- coalesce many Event inserts from one transaction into one notification.
-  PERFORM pg_notify('openteam_events', '');
+  PERFORM pg_notify('aiteamos_events', '');
   RETURN NEW;
 END;
 $function$
 ;
-CREATE OR REPLACE FUNCTION public.openteam_refresh_bot_search()
+CREATE OR REPLACE FUNCTION public.aiteamos_refresh_bot_search()
  RETURNS trigger
  LANGUAGE plpgsql
 AS $function$
@@ -113,7 +113,7 @@ BEGIN
 END;
 $function$
 ;
-CREATE OR REPLACE FUNCTION public.openteam_refresh_channel_search()
+CREATE OR REPLACE FUNCTION public.aiteamos_refresh_channel_search()
  RETURNS trigger
  LANGUAGE plpgsql
 AS $function$
@@ -136,7 +136,7 @@ BEGIN
 END;
 $function$
 ;
-CREATE OR REPLACE FUNCTION public.openteam_refresh_message_search()
+CREATE OR REPLACE FUNCTION public.aiteamos_refresh_message_search()
  RETURNS trigger
  LANGUAGE plpgsql
 AS $function$
@@ -217,7 +217,7 @@ BEGIN
 END;
 $function$
 ;
-CREATE OR REPLACE FUNCTION public.openteam_refresh_routine_search()
+CREATE OR REPLACE FUNCTION public.aiteamos_refresh_routine_search()
  RETURNS trigger
  LANGUAGE plpgsql
 AS $function$
@@ -244,23 +244,23 @@ $function$
 
 DROP TRIGGER IF EXISTS "Bot_search_refresh" ON "Bot";
 CREATE TRIGGER "Bot_search_refresh" AFTER INSERT OR DELETE OR UPDATE ON "Bot"
-  FOR EACH ROW EXECUTE FUNCTION openteam_refresh_bot_search();
+  FOR EACH ROW EXECUTE FUNCTION aiteamos_refresh_bot_search();
 
 DROP TRIGGER IF EXISTS "Channel_search_refresh" ON "Channel";
 CREATE TRIGGER "Channel_search_refresh" AFTER INSERT OR DELETE OR UPDATE ON "Channel"
-  FOR EACH ROW EXECUTE FUNCTION openteam_refresh_channel_search();
+  FOR EACH ROW EXECUTE FUNCTION aiteamos_refresh_channel_search();
 
 DROP TRIGGER IF EXISTS "Routine_search_refresh" ON "Routine";
 CREATE TRIGGER "Routine_search_refresh" AFTER INSERT OR DELETE OR UPDATE ON "Routine"
-  FOR EACH ROW EXECUTE FUNCTION openteam_refresh_routine_search();
+  FOR EACH ROW EXECUTE FUNCTION aiteamos_refresh_routine_search();
 
 DROP TRIGGER IF EXISTS "ChannelMessage_search_refresh" ON "ChannelMessage";
 CREATE TRIGGER "ChannelMessage_search_refresh" AFTER INSERT OR DELETE OR UPDATE ON "ChannelMessage"
-  FOR EACH ROW EXECUTE FUNCTION openteam_refresh_message_search();
+  FOR EACH ROW EXECUTE FUNCTION aiteamos_refresh_message_search();
 
-DROP TRIGGER IF EXISTS openteam_event_notify ON "Event";
-CREATE TRIGGER openteam_event_notify AFTER INSERT ON "Event"
-  FOR EACH ROW EXECUTE FUNCTION openteam_notify_event();
+DROP TRIGGER IF EXISTS aiteamos_event_notify ON "Event";
+CREATE TRIGGER aiteamos_event_notify AFTER INSERT ON "Event"
+  FOR EACH ROW EXECUTE FUNCTION aiteamos_notify_event();
 
 -- Web tools: one selected provider per tool, and per-tool provider rows holding the API key
 -- and last connection check. Provider lists match packages/contracts/src/web-search.ts.

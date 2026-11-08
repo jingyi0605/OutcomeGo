@@ -1,5 +1,5 @@
 import { setTimeout as delay } from "node:timers/promises";
-import type { ComputerUseActionInput } from "@openteam/contracts";
+import type { ComputerUseActionInput } from "@aiteamos/contracts";
 import { run } from "./processes";
 import { typeText } from "./typing";
 

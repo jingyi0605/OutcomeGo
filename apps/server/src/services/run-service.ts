@@ -1,9 +1,9 @@
 import {
   ApiError,
-} from "@openteam/contracts";
-import { COMPUTER_API_PATHS } from "@openteam/contracts/service-protocol";
-import type { PrismaClient } from "@openteam/db";
-import type { AgentMessaging } from "@openteam/messaging";
+} from "@aiteamos/contracts";
+import { COMPUTER_API_PATHS } from "@aiteamos/contracts/service-protocol";
+import type { PrismaClient } from "@aiteamos/db";
+import type { AgentMessaging } from "@aiteamos/messaging";
 import { appendEvent, type ComputerFetch, serviceEffect } from "./service-utils";
 
 export class RunService {

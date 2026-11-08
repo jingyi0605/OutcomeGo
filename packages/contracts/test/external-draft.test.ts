@@ -90,7 +90,7 @@ test('HTML in an email body and Slack markup in a Slack body are refused before 
  ] as const) expect([...slackBodyProblems(body)]).toEqual([...problems]);
 });
 
-test("the draft contract carries the 10-21 field wording with OpenTeam's adaptations", async () => {
+test("the draft contract carries the 10-21 field wording with aiTeamOS's adaptations", async () => {
  const { referenceTool } = await import('../src/tool-contracts');
  const draft = referenceTool('DraftExternalMessage');
  const fields = draft.inputSchema.properties;
@@ -100,6 +100,6 @@ test("the draft contract carries the 10-21 field wording with OpenTeam's adaptat
  expect(fields.target.description).toStartWith('Required for Slack. Where the message goes');
  expect(fields.channelId.description).toStartWith('Required for Slack. The channel or DM conversation id');
  expect(fields.from.description).toStartWith('Required for email. The plain address');
- expect(draft.description).toContain('OpenTeam verifies the routing (sending address, channel, reply target) before the card appears, shows it on the card, and refuses the draft');
+ expect(draft.description).toContain('aiTeamOS verifies the routing (sending address, channel, reply target) before the card appears, shows it on the card, and refuses the draft');
  expect(Object.keys(fields)).not.toContain('forwardMessageId');
 });

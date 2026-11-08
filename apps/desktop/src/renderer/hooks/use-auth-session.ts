@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from "react";
-import { getAuthSnapshot, type OpenTeamAuthSnapshot, subscribeAuthSnapshot } from "../client/auth";
+import { getAuthSnapshot, type AiTeamOSAuthSnapshot, subscribeAuthSnapshot } from "../client/auth";
 
-export const useAuthSession = (): OpenTeamAuthSnapshot =>
+export const useAuthSession = (): AiTeamOSAuthSnapshot =>
   useSyncExternalStore(subscribeAuthSnapshot, getAuthSnapshot, getAuthSnapshot);

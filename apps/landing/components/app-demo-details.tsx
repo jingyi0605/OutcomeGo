@@ -401,7 +401,7 @@ export function MobileDemo() {
       className="dm-mobile-autoplay"
       data-mobile-stage={cycle.index}
     >
-      <figure className="dm-mobile-scene" aria-label="Example OpenTeam conversation on iPhone">
+      <figure className="dm-mobile-scene" aria-label="Example aiTeamOS conversation on iPhone">
         <div className="dm-phone-frame">
           <div className="dm-phone">
             <div className="dm-status">

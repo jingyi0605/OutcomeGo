@@ -1,11 +1,11 @@
 import { createHash } from "node:crypto";
-import { ApiError } from "@openteam/contracts";
+import { ApiError } from "@aiteamos/contracts";
 import {
   validateTaskProgress,
   type RequestProgressInput,
   type TaskProgress,
-} from "@openteam/contracts/task-progress";
-import { Prisma, type PrismaClient } from "@openteam/db";
+} from "@aiteamos/contracts/task-progress";
+import { Prisma, type PrismaClient } from "@aiteamos/db";
 import type { AgentMessaging, ToolContext } from "./index";
 import { taskProgress } from "./task-progress";
 

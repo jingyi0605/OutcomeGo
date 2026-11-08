@@ -9,13 +9,13 @@ import type { Browser } from "playwright-core";
 import { createJimp } from "@jimp/core";
 import jpeg from "@jimp/js-jpeg";
 
-test.skipIf(process.env.OPENTEAM_TEST_DESKTOP_MEMORY !== "1")("two capped headed desktops preserve UI and tabs while one hits its memory limit", async () => {
+test.skipIf(process.env.AITEAMOS_TEST_DESKTOP_MEMORY !== "1")("two capped headed desktops preserve UI and tabs while one hits its memory limit", async () => {
   const home = await mkdtemp("/tmp/memory-ui-");
   const broker = new ScreenBroker(home);
   const ids = ["memory-ui-a", "memory-ui-b"];
   const browsers: Browser[] = [];
   const driver = await outOfProcessPlaywright();
-  const before = process.env.OPENTEAM_DESKTOP_MEMORY_LIMIT;
+  const before = process.env.AITEAMOS_DESKTOP_MEMORY_LIMIT;
   try {
     const statuses = await Promise.all(ids.map(id => broker.ensure(id, "/workspace")));
     expect(statuses.every(s => s.state === "ready")).toBe(true);
@@ -85,13 +85,13 @@ test.skipIf(process.env.OPENTEAM_TEST_DESKTOP_MEMORY !== "1")("two capped headed
     // Test only: choose the allocator itself for OOM, so existing user-visible
     // fixture tabs remain intact. Production does not change OOM priorities.
     const env = await broker.commandEnvironment(ids[0]!, '/workspace');
-    process.env.OPENTEAM_DESKTOP_MEMORY_LIMIT='512m';
+    process.env.AITEAMOS_DESKTOP_MEMORY_LIMIT='512m';
     const allocator=spawnAgentProcess('/usr/bin/python3',['-c','open("/proc/self/oom_score_adj","w").write("1000")\na=[]\nwhile True: a.append(bytearray(16*1024*1024))'],{env,stdio:'ignore'});
     const [,signal]=await once(allocator,'close');
     expect(signal).toBe('SIGKILL');
     const group=desktopMemoryForSpawn(ids[0]!)!;
     expect(Number((await readFile(`${group}/memory.events`,'utf8')).match(/^oom_kill (\d+)/m)![1])).toBeGreaterThan(0);
-    process.env.OPENTEAM_DESKTOP_MEMORY_LIMIT=before;
+    process.env.AITEAMOS_DESKTOP_MEMORY_LIMIT=before;
     await broker.act(ids[1]!, '/workspace', {action:'type',text:' still alive'},'human');
     expect(await pages[1]!.locator('#field').inputValue()).toBe('Desktop 1: café 東京 still alive');
     for(let i=0;i<2;i++) {
@@ -99,11 +99,11 @@ test.skipIf(process.env.OPENTEAM_TEST_DESKTOP_MEMORY !== "1")("two capped headed
       expect(targets).toEqual(targetIds[i]!);
       const png=await broker.screenshot(ids[i]!, '/workspace');
       expect(png.subarray(1,4).toString()).toBe('PNG');
-      if(process.env.OPENTEAM_MEMORY_TEST_ARTIFACTS) await writeFile(`${process.env.OPENTEAM_MEMORY_TEST_ARTIFACTS}/desktop-${i}.png`,png);
+      if(process.env.AITEAMOS_MEMORY_TEST_ARTIFACTS) await writeFile(`${process.env.AITEAMOS_MEMORY_TEST_ARTIFACTS}/desktop-${i}.png`,png);
     }
     console.info('Two headed desktops: separate limits, native Unicode input, isolated OOM, all four tab IDs preserved');
   } finally {
-    process.env.OPENTEAM_DESKTOP_MEMORY_LIMIT=before;
+    process.env.AITEAMOS_DESKTOP_MEMORY_LIMIT=before;
     for(const browser of browsers) await browser.close();
     await Promise.all(ids.map(id=>broker.destroy(id)));
     await driver.stop();

@@ -1,5 +1,5 @@
-import type { ChannelMessageView } from "@openteam/contracts";
-import { attachmentsPreviewText, messagePreviewText } from "@openteam/contracts/message-preview";
+import type { ChannelMessageView } from "@aiteamos/contracts";
+import { attachmentsPreviewText, messagePreviewText } from "@aiteamos/contracts/message-preview";
 import { messageDisplayProjection, messageMetadata } from "./messages";
 
 export interface ChannelNameChangedEvent {

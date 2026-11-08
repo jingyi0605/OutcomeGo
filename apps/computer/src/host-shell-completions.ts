@@ -1,8 +1,8 @@
 import { createHash, randomUUID } from "node:crypto";
 import { mkdir, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { ShellCompletionInput } from "@openteam/contracts";
-import type { ShellAwaitResponse } from "@openteam/contracts/service-protocol";
+import type { ShellCompletionInput } from "@aiteamos/contracts";
+import type { ShellAwaitResponse } from "@aiteamos/contracts/service-protocol";
 interface PendingHostShell {
   botId: string;
   channelId?: string;

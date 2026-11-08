@@ -3,7 +3,7 @@
   "version": "1.2.0",
   "name": "Notion",
   "description": "Notion skills and MCP server for documents, research, meetings, and tasks.",
-  "publisher": "OpenTeam",
+  "publisher": "aiTeamOS",
   "category": "Documents & Files",
   "featured": true,
   "components": ["mcp", "skills"],
@@ -12,12 +12,12 @@
     "kind": "oauth",
     "connectionKey": "notion",
     "title": "Connect Notion",
-    "description": "Notion registers OpenTeam during OAuth, so there are no secrets to create.",
+    "description": "Notion registers aiTeamOS during OAuth, so there are no secrets to create.",
     "documentationUrl": "https://developers.notion.com/guides/mcp/build-mcp-client",
     "steps": [
       "Continue to Notion's authorization page.",
-      "Choose the workspace and pages OpenTeam may access.",
-      "Return to OpenTeam after authorization completes."
+      "Choose the workspace and pages aiTeamOS may access.",
+      "Return to aiTeamOS after authorization completes."
     ],
     "fields": [],
     "requiredScopes": []

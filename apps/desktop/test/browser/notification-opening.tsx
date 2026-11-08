@@ -1,11 +1,11 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import type { ChannelMessageView } from "@openteam/contracts";
-import type { ProductEventHandlers } from "@openteam/client-core";
-import { CLIENT_CAPABILITIES } from "@openteam/contracts/capabilities";
-import { emptySidebarPreferences } from "@openteam/contracts/client-preferences";
+import type { ChannelMessageView } from "@aiteamos/contracts";
+import type { ProductEventHandlers } from "@aiteamos/client-core";
+import { CLIENT_CAPABILITIES } from "@aiteamos/contracts/capabilities";
+import { emptySidebarPreferences } from "@aiteamos/contracts/client-preferences";
 import { mobileFixture } from "../../../ios/scripts/fixtures/snapshot";
-import { api, openTeamClient } from "../../src/renderer/client/openteam-api";
+import { api, aiTeamOSClient } from "../../src/renderer/client/aiteamos-api";
 import App from "../../src/renderer/App";
 import "../../src/renderer/styles.css";
 
@@ -37,7 +37,7 @@ document.documentElement.dataset.theme = parameters.get("theme") ?? "dark";
 Object.defineProperty(document, "hidden", { configurable: true, value: true });
 Object.defineProperty(document, "hasFocus", { configurable: true, value: () => true });
 localStorage.clear();
-localStorage.setItem("openteam:selected-channel", other.id);
+localStorage.setItem("aiteamos:selected-channel", other.id);
 const calls: Array<{
   kind: string;
   channelId?: string;
@@ -91,7 +91,7 @@ window.fetch = async (input) => {
     return Response.json({});
   throw new Error(`Unexpected network access in isolated fixture: ${path}`);
 };
-openTeamClient.listenForEvents = async (_after, handlers, signal) => {
+aiTeamOSClient.listenForEvents = async (_after, handlers, signal) => {
   eventHandlers = handlers;
   handlers.onOpen?.();
   await new Promise<void>((resolve) => {
@@ -171,7 +171,7 @@ Object.assign(api, {
     };
   },
 });
-window.openteam!.onNotificationClick((target) => bridgeTargets.push(target));
+window.aiteamos!.onNotificationClick((target) => bridgeTargets.push(target));
 Object.assign(window, {
   notificationFixture: {
     channelId: channel.id,
@@ -236,7 +236,7 @@ Object.assign(window, {
               ]
             : [],
       }));
-      window.openteam!.notifications.sync({ cursor: String(cursor), channels: projection });
+      window.aiteamos!.notifications.sync({ cursor: String(cursor), channels: projection });
     },
   },
 });

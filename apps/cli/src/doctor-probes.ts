@@ -1,4 +1,4 @@
-import { redactSensitiveText } from "@openteam/product-core/redaction";
+import { redactSensitiveText } from "@aiteamos/product-core/redaction";
 import type { DoctorCheck } from "./doctor";
 import type { ComposeProject } from "./docker";
 import type { CommandRunner, RunResult } from "./process";
@@ -41,7 +41,7 @@ export const checkContainers = (
       {
         level: "fail",
         label: "Container health",
-        detail: "No containers found; run openteam start",
+        detail: "No containers found; run aiteamos start",
       },
     ];
   if (containers.some((id) => !/^[a-f0-9]{12,64}$/.test(id)))
@@ -95,7 +95,7 @@ export const checkContainers = (
       return {
         level: "fail",
         label: `${service} container`,
-        detail: "Missing; run openteam start",
+        detail: "Missing; run aiteamos start",
       };
     const bad = found.find(
       (s) => s.state !== "running" || s.health === "unhealthy" || s.health === "starting"
@@ -108,7 +108,7 @@ export const checkContainers = (
       level: bad || restarting ? "fail" : restartCount > 0 ? "warn" : "pass",
       label: `${service} container`,
       detail: bad
-        ? `${bad.state}${bad.health !== "none" ? `, health ${bad.health}` : ""}; inspect openteam logs ${service}`
+        ? `${bad.state}${bad.health !== "none" ? `, health ${bad.health}` : ""}; inspect aiteamos logs ${service}`
         : restarting
           ? `Restarted ${restarting.restarts} times and started again within 5 minutes; possible restart loop`
           : `${found.every((s) => s.health === "healthy") ? "Healthy" : "Running; no Docker healthcheck"}${restartCount ? `; ${restartCount} previous restart(s)` : "; no restarts"}`,
@@ -123,10 +123,10 @@ export const checkContainers = (
         : "fail",
     label: "Schema setup",
     detail: !migrations.length
-      ? "No migration container to verify; inspect openteam logs migrate"
+      ? "No migration container to verify; inspect aiteamos logs migrate"
       : migrations.every((s) => s.state === "exited" && s.exitCode === 0)
         ? "Schema deployment completed successfully"
-        : "Schema deployment has not completed successfully; inspect openteam logs migrate",
+        : "Schema deployment has not completed successfully; inspect aiteamos logs migrate",
   });
   return checks;
 };
@@ -155,7 +155,7 @@ await check("Database", async () => {
 });
 for (const [label, query, healthy, problem] of [
   ["Pending jobs", "SELECT EXISTS (SELECT 1 FROM pgboss.job WHERE name IN ('bot-wake', 'bot-provision', 'transcript-project') AND state IN ('created', 'retry') AND start_after < now() - interval '5 minutes') AS pending", "No runnable jobs waiting longer than 5 minutes", "Jobs have waited over 5 minutes; worker may be busy or stuck"],
-  ["Run leases", 'SELECT EXISTS (SELECT 1 FROM "BotRunLease" lease JOIN "Run" run ON run.id = lease."runId" WHERE run.status = \'running\' AND lease."expiresAt" < now() - interval \'30 seconds\') AS pending', "No running tasks with expired worker leases", "A running task has lost its worker lease; inspect openteam logs worker"],
+  ["Run leases", 'SELECT EXISTS (SELECT 1 FROM "BotRunLease" lease JOIN "Run" run ON run.id = lease."runId" WHERE run.status = \'running\' AND lease."expiresAt" < now() - interval \'30 seconds\') AS pending', "No running tasks with expired worker leases", "A running task has lost its worker lease; inspect aiteamos logs worker"],
 ]) {
   if (checks[0].level !== "pass") { checks.push({ label, level: "warn", detail: "Not tested; resolve the database connection first" }); continue; }
   const sql = new Bun.SQL(process.env.DATABASE_URL, { max: 1, connectionTimeout: 4 });
@@ -167,8 +167,8 @@ for (const [label, query, healthy, problem] of [
   finally { await sql.close({ timeout: 1 }); }
 }
 await check("Computer API", async () => {
-  const url = new URL("/health/authenticated", process.env.OPENTEAM_COMPUTER_URL ?? "http://127.0.0.1:8790");
-  const response = await fetch(url, { signal: AbortSignal.timeout(4000), headers: { authorization: "Bearer " + process.env.OPENTEAM_CONTROL_TOKEN } });
+  const url = new URL("/health/authenticated", process.env.AITEAMOS_COMPUTER_URL ?? "http://127.0.0.1:8790");
+  const response = await fetch(url, { signal: AbortSignal.timeout(4000), headers: { authorization: "Bearer " + process.env.AITEAMOS_CONTROL_TOKEN } });
   const body = await response.json();
   if (!response.ok || body?.status !== "ready") throw new Error("Computer readiness failed (HTTP " + response.status + ")");
   return "Reachable and ready from the server";
@@ -182,7 +182,7 @@ const { request } = require("node:http");
 const checks = [];
 let heartbeat;
 try {
-  heartbeat = JSON.parse(readFileSync("/tmp/openteam-worker-heartbeat.json", "utf8"));
+  heartbeat = JSON.parse(readFileSync("/tmp/aiteamos-worker-heartbeat.json", "utf8"));
   if (!heartbeat || typeof heartbeat !== "object") throw new Error("Worker heartbeat is stale or invalid");
   const age = Date.now() - heartbeat.updatedAt;
   if (!Number.isFinite(age) || age < -5000 || age > 20000 || typeof heartbeat.updatedAt !== "number" || typeof heartbeat.instance !== "string" || !heartbeat.instance) throw new Error("Worker heartbeat is stale or invalid");
@@ -195,7 +195,7 @@ if (heartbeat && checks[0].level === "pass") {
     const body = await new Promise((resolve, reject) => {
       let timer;
       const done = (error, value) => { clearTimeout(timer); error ? reject(error) : resolve(value); };
-      const req = request({ socketPath: "/tmp/openteam-worker-doctor.sock", method: "POST", path: "/queue" }, res => {
+      const req = request({ socketPath: "/tmp/aiteamos-worker-doctor.sock", method: "POST", path: "/queue" }, res => {
         let text = "";
         res.on("data", chunk => { text += chunk; if (text.length > 8192) req.destroy(new Error("Invalid queue test response")); });
         res.on("error", () => done(new Error("Worker queue response was interrupted")));
@@ -222,26 +222,26 @@ const fs = await import("node:fs/promises");
 const { constants } = await import("node:fs");
 const { join } = await import("node:path");
 const checks = [];
-const roots = process.env.OPENTEAM_DOCTOR_STORAGE === "computer"
-  ? [process.env.OPENTEAM_WORKSPACE_ROOT || "/workspace"]
-  : [process.env.OPENTEAM_AGENT_DATA_ROOT || "/home/box/agent-data", process.env.OPENTEAM_ASSET_ROOT || "/asset-store"];
-if (process.env.OPENTEAM_DOCTOR_STORAGE === "computer" && process.getuid() === 0) {
+const roots = process.env.AITEAMOS_DOCTOR_STORAGE === "computer"
+  ? [process.env.AITEAMOS_WORKSPACE_ROOT || "/workspace"]
+  : [process.env.AITEAMOS_AGENT_DATA_ROOT || "/home/box/agent-data", process.env.AITEAMOS_ASSET_ROOT || "/asset-store"];
+if (process.env.AITEAMOS_DOCTOR_STORAGE === "computer" && process.getuid() === 0) {
   const identity = (value, fallback) => Number.isSafeInteger(Number(value)) && Number(value) > 0 ? Number(value) : fallback;
   process.setgroups([]);
-  process.setgid(identity(process.env.OPENTEAM_AGENT_GID, 1000));
-  process.setuid(identity(process.env.OPENTEAM_AGENT_UID, 1000));
+  process.setgid(identity(process.env.AITEAMOS_AGENT_GID, 1000));
+  process.setuid(identity(process.env.AITEAMOS_AGENT_UID, 1000));
 }
 for (const root of roots) {
   let directory;
   try {
-    directory = await fs.mkdtemp(join(root, ".openteam-doctor-"));
+    directory = await fs.mkdtemp(join(root, ".aiteamos-doctor-"));
     const path = join(directory, "probe");
-    await fs.writeFile(path, "openteam-doctor", { mode: 0o600 });
-    if (await fs.readFile(path, "utf8") !== "openteam-doctor") throw new Error("Storage readback did not match");
+    await fs.writeFile(path, "aiteamos-doctor", { mode: 0o600 });
+    if (await fs.readFile(path, "utf8") !== "aiteamos-doctor") throw new Error("Storage readback did not match");
     await fs.unlink(path);
     await fs.rmdir(directory);
     directory = undefined;
-    if (root === process.env.OPENTEAM_AGENT_DATA_ROOT) {
+    if (root === process.env.AITEAMOS_AGENT_DATA_ROOT) {
       const agents = join(root, "agents");
       const entries = await fs.readdir(agents, { withFileTypes: true }).catch(error => { if (error.code === "ENOENT") return []; throw error; });
       for (const entry of entries) if (entry.isDirectory()) await fs.access(join(agents, entry.name), constants.R_OK | constants.W_OK | constants.X_OK);
@@ -265,7 +265,7 @@ export const runServiceProbe = (
     [
       "exec",
       "--no-TTY",
-      ...(storage ? ["--env", `OPENTEAM_DOCTOR_STORAGE=${service}`] : []),
+      ...(storage ? ["--env", `AITEAMOS_DOCTOR_STORAGE=${service}`] : []),
       service,
       command,
       "-e",
@@ -306,7 +306,7 @@ export const runServiceProbe = (
       ...(error instanceof Error &&
       error.message === "The service returned an invalid diagnostic response."
         ? {
-            action: `Inspect openteam logs ${service} for diagnostic errors. Run openteam status and check that the running services match the installed release.`,
+            action: `Inspect aiteamos logs ${service} for diagnostic errors. Run aiteamos status and check that the running services match the installed release.`,
           }
         : {}),
     }));

@@ -1,9 +1,9 @@
-import { readLimitNotice } from "@openteam/contracts/read-output";
+import { readLimitNotice } from "@aiteamos/contracts/read-output";
 import { afterEach, describe, expect, test } from "bun:test";
 import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { ShellJobRegistry } from "@openteam/shell-jobs";
+import { ShellJobRegistry } from "@aiteamos/shell-jobs";
 import {
   executeRead,
   executeHostJob,
@@ -156,7 +156,7 @@ describe("host shell resource controls", () => {
   });
 
   test("holds global permits for backgrounded commands until their OS children exit", async () => {
-    const root = await mkdtemp(join(tmpdir(), "openteam-shell-capacity-"));
+    const root = await mkdtemp(join(tmpdir(), "aiteamos-shell-capacity-"));
     const script = join(root, "record-start.cjs");
     const marker = join(root, "starts.txt");
     await writeFile(
@@ -226,7 +226,7 @@ describe("host shell resource controls", () => {
   }, 8_000);
 
   test("shares the global process-tree permits with PDF extraction", async () => {
-    const root = await mkdtemp(join(tmpdir(), "openteam-pdf-capacity-"));
+    const root = await mkdtemp(join(tmpdir(), "aiteamos-pdf-capacity-"));
     const pdf = join(root, "queued.pdf");
     const command = `${shellQuote(process.execPath)} -e ${shellQuote("setTimeout(() => {}, 350)")}`;
     const controller = new AbortController();
@@ -257,7 +257,7 @@ describe("host shell resource controls", () => {
   posixTest(
     "terminates redirected descendants before releasing their permit",
     async () => {
-      const root = await mkdtemp(join(tmpdir(), "openteam-shell-background-"));
+      const root = await mkdtemp(join(tmpdir(), "aiteamos-shell-background-"));
       const marker = join(root, "background-pid.txt");
       const script = join(root, "background.cjs");
       try {
@@ -298,7 +298,7 @@ describe("host shell resource controls", () => {
   posixTest(
     "reports runtime expiry and force-kills descendants that ignore SIGTERM",
     async () => {
-      const root = await mkdtemp(join(tmpdir(), "openteam-shell-timeout-"));
+      const root = await mkdtemp(join(tmpdir(), "aiteamos-shell-timeout-"));
       const tree = await createLongProcessTree(root, "timeout");
       try {
         const result = await executeShell(
@@ -323,7 +323,7 @@ describe("host shell resource controls", () => {
   posixTest(
     "cancellation force-kills the whole process group and closes its log",
     async () => {
-      const root = await mkdtemp(join(tmpdir(), "openteam-shell-cancel-"));
+      const root = await mkdtemp(join(tmpdir(), "aiteamos-shell-cancel-"));
       const tree = await createLongProcessTree(root, "cancel");
       const controller = new AbortController();
       try {
@@ -359,7 +359,7 @@ describe("host shell resource controls", () => {
   posixTest(
     "shutdown drains backgrounded process trees before returning",
     async () => {
-      const root = await mkdtemp(join(tmpdir(), "openteam-shell-shutdown-"));
+      const root = await mkdtemp(join(tmpdir(), "aiteamos-shell-shutdown-"));
       const tree = await createLongProcessTree(root, "shutdown");
       try {
         const result = await executeShell(

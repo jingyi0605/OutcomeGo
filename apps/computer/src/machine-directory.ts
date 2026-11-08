@@ -1,4 +1,4 @@
-import { HOST_BRIDGE_PATHS,parseHostMachinesResponse,type HostMachine } from "@openteam/contracts/service-protocol";
+import { HOST_BRIDGE_PATHS,parseHostMachinesResponse,type HostMachine } from "@aiteamos/contracts/service-protocol";
 export type MachineMessagesState = "ready" | "needs_permission" | "off" | "unavailable";
 export interface RegisteredMachine {machineId:string;label:string;bridgeUrl:string|null;transport?:string;enabled:boolean;connected?:boolean;messages?:MachineMessagesState}
 export class MachineDirectory {

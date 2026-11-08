@@ -6,7 +6,7 @@ import { createServer } from "vite";
 
 const desktopRoot = resolve(import.meta.dir, "..");
 const artifacts = resolve(desktopRoot, "../../output/desktop-update-ui");
-const directory = await mkdtemp(join(tmpdir(), "openteam-update-ui-"));
+const directory = await mkdtemp(join(tmpdir(), "aiteamos-update-ui-"));
 const electron = createRequire(import.meta.url)("electron") as string;
 const server = await createServer({
   root: desktopRoot,

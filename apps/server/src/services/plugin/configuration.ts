@@ -3,8 +3,8 @@ import {
   ApiError,
   type PluginConfigurationInput,
   type PluginConfigurationView,
-} from "@openteam/contracts";
-import type { PrismaClient } from "@openteam/db";
+} from "@aiteamos/contracts";
+import type { PrismaClient } from "@aiteamos/db";
 import {
   applySecretEdits,
   assertComputerMcpRuntime,
@@ -12,7 +12,7 @@ import {
   isSecretKey,
   validateValues,
   type PluginField,
-} from "@openteam/plugin-sdk";
+} from "@aiteamos/plugin-sdk";
 import { serviceEffect, toJson } from "../service-utils";
 import { loadConnectionNamespaces } from "./namespaces";
 import {

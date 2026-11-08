@@ -18,7 +18,7 @@ import {
   normalizeInferenceProviderId,
   piModelRef,
   serverInferenceSettings,
-} from "@openteam/contracts";
+} from "@aiteamos/contracts";
 import {
   CHAT_PROVIDERS,
   ChatProviderRegistry,
@@ -33,7 +33,7 @@ import {
   selectedAuthOption,
 } from "./provider-auth-prompt";
 
-const agentDir = resolve(process.env.OPENTEAM_PI_AGENT_DIR ?? "/home/box/.pi/agent");
+const agentDir = resolve(process.env.AITEAMOS_PI_AGENT_DIR ?? "/home/box/.pi/agent");
 const authPath = join(agentDir, "auth.json");
 const modelsPath = join(agentDir, "models.json");
 const modelsStorePath = join(agentDir, "models-store.json");
@@ -58,16 +58,16 @@ const writeJson = async (value: unknown): Promise<void> => {
 
 const usage = () => {
   console.error(`Usage:
-  openteam-pi-auth providers
-  openteam-pi-auth selection
-  openteam-pi-auth models [provider]
-  openteam-pi-auth catalog [provider]
-  openteam-pi-auth login <provider> <oauth|api_key>
-  openteam-pi-auth import <provider>   # reads OAuth tokens JSON from stdin
-  openteam-pi-auth logout <provider>
-  openteam-pi-auth verify <provider> <model> [reasoning]
-  openteam-pi-auth add-custom       # reads JSON from stdin
-  openteam-pi-auth remove-custom <provider>`);
+  aiteamos-pi-auth providers
+  aiteamos-pi-auth selection
+  aiteamos-pi-auth models [provider]
+  aiteamos-pi-auth catalog [provider]
+  aiteamos-pi-auth login <provider> <oauth|api_key>
+  aiteamos-pi-auth import <provider>   # reads OAuth tokens JSON from stdin
+  aiteamos-pi-auth logout <provider>
+  aiteamos-pi-auth verify <provider> <model> [reasoning]
+  aiteamos-pi-auth add-custom       # reads JSON from stdin
+  aiteamos-pi-auth remove-custom <provider>`);
 };
 
 const stdinText = async (): Promise<string> => {
@@ -348,7 +348,7 @@ const main = async (): Promise<void> => {
   if (command === "add-custom") return addCustomProvider();
   if (command === "selection") {
     const settingsPath = join(
-      resolve(process.env.OPENTEAM_AGENT_DATA_ROOT ?? "/home/box/agent-data"),
+      resolve(process.env.AITEAMOS_AGENT_DATA_ROOT ?? "/home/box/agent-data"),
       "settings.json"
     );
     const document = JSON.parse(await readFile(settingsPath, "utf8")) as {
@@ -374,7 +374,7 @@ const main = async (): Promise<void> => {
     const catalog = await registry.catalog(providerId);
     if (providerId && !catalog.providers.some((p) => p.id === providerId))
       throw new Error(
-        `Provider ${providerId} is not in your registry. Connect a built-in provider, or add a custom endpoint with openteam provider add.`
+        `Provider ${providerId} is not in your registry. Connect a built-in provider, or add a custom endpoint with aiteamos provider add.`
       );
     const providers = catalog.providers.map(({ connected, modelCount, ...provider }) => ({
       ...provider,

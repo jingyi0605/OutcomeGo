@@ -22,13 +22,13 @@ const arg = (name: string, fallback: string) => {
 const base = process.env.BENCH_BASE ?? "http://127.0.0.1:18896";
 const site = process.env.BENCH_SITE ?? "http://127.0.0.1:7462";
 const visibleSite = process.env.BENCH_VISIBLE_SITE ?? "http://host.docker.internal:7462";
-const pg = process.env.BENCH_PG ?? "openteam-support-hill-postgres-1";
-const computer = process.env.BENCH_COMPUTER ?? "openteam-support-hill-computer-1";
+const pg = process.env.BENCH_PG ?? "aiteamos-support-hill-postgres-1";
+const computer = process.env.BENCH_COMPUTER ?? "aiteamos-support-hill-computer-1";
 const workflow = arg("workflow", "return") as Workflow;
 const variant = arg("variant", "normal");
 const fault = arg("fault", "none");
 const runId = arg("id", `${workflow}-${variant}-${Date.now()}`);
-const root = process.env.BENCH_OUT ?? "/tmp/openteam-long-horizon-runs";
+const root = process.env.BENCH_OUT ?? "/tmp/aiteamos-long-horizon-runs";
 const out = join(root, runId);
 mkdirSync(out, { recursive: true });
 const lock = join(root, `${new URL(base).port}.lock`);
@@ -46,7 +46,7 @@ const log = (type: string, value: unknown) =>
 const sql = (query: string) =>
   execFileSync(
     "docker",
-    ["exec", "-i", pg, "psql", "-U", "openteam", "-d", "openteam", "-At", "-c", query],
+    ["exec", "-i", pg, "psql", "-U", "aiteamos", "-d", "aiteamos", "-At", "-c", query],
     { encoding: "utf8", maxBuffer: 64 << 20 }
   ).trim();
 const api = async (path: string, body?: unknown) => {
@@ -160,7 +160,7 @@ try {
         )
       );
       const project = computer.replace(/-computer-1$/, "");
-      if (!["openteam-support-hill", "openteam-support-oct26"].includes(project))
+      if (!["aiteamos-support-hill", "aiteamos-support-oct26"].includes(project))
         throw new Error("Fault injection is restricted to the benchmark stacks");
       const targets = fault === "server-only" ? [`${project}-server-1`] : [`${project}-worker-1`, `${project}-server-1`, computer];
       execFileSync("docker", ["kill", "--signal", "KILL", ...targets]);
@@ -291,7 +291,7 @@ try {
   };
   try {
     const contexts = sql(`select id from "ContextSession" where ${workWhere}`).split("\n");
-    const directory = "/home/box/.pi/agent/sessions/openteam";
+    const directory = "/home/box/.pi/agent/sessions/aiteamos";
     const files = execFileSync("docker", ["exec", "-u", "root", computer, "ls", "-1", directory], {
       encoding: "utf8",
     }).split("\n");

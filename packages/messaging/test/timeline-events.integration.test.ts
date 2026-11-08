@@ -3,18 +3,18 @@ import { randomUUID } from "node:crypto";
 import { mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createPrismaClient } from "@openteam/db";
+import { createPrismaClient } from "@aiteamos/db";
 import { AgentDataStore } from "../src/agent-data";
 import { AgentMessaging } from "../src/index";
 import { appendAgentTimelineEvent } from "../src/timeline-events";
 
-const databaseUrl = process.env.OPENTEAM_TEST_DATABASE_URL;
+const databaseUrl = process.env.AITEAMOS_TEST_DATABASE_URL;
 
 test("timeline mutations persist events and only tap an active idle Bot", async () => {
   if (!databaseUrl) return;
 
   const prisma = createPrismaClient(databaseUrl);
-  const temporary = await mkdtemp(join(tmpdir(), "openteam-timeline-events-"));
+  const temporary = await mkdtemp(join(tmpdir(), "aiteamos-timeline-events-"));
   const root = join(temporary, "agent-data");
   const workspace = join(temporary, "workspace");
   const botId = randomUUID();

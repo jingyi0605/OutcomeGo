@@ -11,7 +11,7 @@ import { docsTools } from "../google-docs/connector/server";
 import { sheetsTools } from "../google-sheets/connector/server";
 import { slidesTools } from "../google-slides/connector/server";
 import { AjvJsonSchemaValidator } from "@modelcontextprotocol/sdk/validation/ajv";
-import { parsePluginDefinition, createPluginTemplate } from "@openteam/plugin-sdk";
+import { parsePluginDefinition, createPluginTemplate } from "@aiteamos/plugin-sdk";
 import { pluginCatalog } from "../src";
 
 test("Large tool results survive process replacement and are complete and account scoped", async () => {

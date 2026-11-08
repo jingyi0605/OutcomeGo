@@ -59,7 +59,7 @@ const object = (value: unknown): value is Record<string, unknown> =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value);
 const invalid = () =>
   new CliError(
-    "The server returned invalid model settings. Run openteam doctor and check the server version."
+    "The server returned invalid model settings. Run aiteamos doctor and check the server version."
   );
 const inference = (value: unknown, allowUnconfigured = false): RuntimeInferenceSettings => {
   if (

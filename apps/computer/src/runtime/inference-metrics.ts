@@ -8,7 +8,7 @@ export function inferenceMetricsExtension(runId: string): {
   factory: ExtensionFactory;
 } {
   return {
-    name: "openteam-inference-metrics",
+    name: "aiteamos-inference-metrics",
     hidden: true,
     factory(pi) {
       let request: Record<string, unknown> | null = null;

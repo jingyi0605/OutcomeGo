@@ -2,7 +2,7 @@ import { test, expect } from "bun:test";
 import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { parsePluginRuntimeComponents, type PluginRuntimePackage } from "@openteam/plugin-sdk";
+import { parsePluginRuntimeComponents, type PluginRuntimePackage } from "@aiteamos/plugin-sdk";
 import {
   expandPluginAgent,
   pluginComponentsExtension,
@@ -10,9 +10,9 @@ import {
 } from "../../src/runtime/plugin-components";
 
 test("installed hooks preserve commands and templates without review gates", async () => {
-  const root = await mkdtemp(join(tmpdir(), "openteam-hooks-"));
-  const previous = process.env.OPENTEAM_AGENT_DATA_ROOT;
-  process.env.OPENTEAM_AGENT_DATA_ROOT = root;
+  const root = await mkdtemp(join(tmpdir(), "aiteamos-hooks-"));
+  const previous = process.env.AITEAMOS_AGENT_DATA_ROOT;
+  process.env.AITEAMOS_AGENT_DATA_ROOT = root;
   const installPath = join(root, "plugins/cache/fixture/v1");
   try {
     await mkdir(installPath, { recursive: true });
@@ -84,7 +84,7 @@ test("installed hooks preserve commands and templates without review gates", asy
       expandPluginAgent([pkg], { plugin_agent: "fixture:reviewer", resume: "existing" })
     ).toThrow("fixed template");
     const secretResult = await runPluginCommand(
-      'printf "%s" "$OPENTEAM_CONTROL_TOKEN"',
+      'printf "%s" "$AITEAMOS_CONTROL_TOKEN"',
       installPath,
       { cwd: root },
       new AbortController().signal,
@@ -96,8 +96,8 @@ test("installed hooks preserve commands and templates without review gates", asy
     controller.abort(new Error("Fixture cancellation"));
     await expect(pending).rejects.toThrow("cancellation");
   } finally {
-    if (previous === undefined) delete process.env.OPENTEAM_AGENT_DATA_ROOT;
-    else process.env.OPENTEAM_AGENT_DATA_ROOT = previous;
+    if (previous === undefined) delete process.env.AITEAMOS_AGENT_DATA_ROOT;
+    else process.env.AITEAMOS_AGENT_DATA_ROOT = previous;
     await rm(root, { recursive: true, force: true });
   }
 });

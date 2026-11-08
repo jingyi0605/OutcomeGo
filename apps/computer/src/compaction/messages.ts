@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { SEND_TO_USER_REPLY_NUDGE_PROMPT } from "@openteam/contracts";
+import { SEND_TO_USER_REPLY_NUDGE_PROMPT } from "@aiteamos/contracts";
 import { estimateBotTextTokens } from "./token-estimate";
 import type {
   BotArchiveBlob,
@@ -215,7 +215,7 @@ export const botDurableBlocks = (
   }
 ): string[] => {
   const blocks: string[] = [];
-  // OpenTeam only renders the project-root reminder for a root-project agent.
+  // aiTeamOS only renders the project-root reminder for a root-project agent.
   // Ordinary durable bots, including the live parity probe, omit it.
   if (context.isRootProject && context.projectRoot) {
     blocks.push(`<system_reminder>Project root: ${xmlText(context.projectRoot)}</system_reminder>`);

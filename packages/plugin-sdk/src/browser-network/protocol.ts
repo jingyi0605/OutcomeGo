@@ -1,5 +1,5 @@
 /** Browser-network wire format. This module is safe to import in renderers. */
-export const NETWORK_PROTOCOL = "openteam-browser-network.v1";
+export const NETWORK_PROTOCOL = "aiteamos-browser-network.v1";
 export const LEASE_MS = 6_000;
 export const RENEW_MS = 2_000;
 export const MAX_STREAMS = 64;

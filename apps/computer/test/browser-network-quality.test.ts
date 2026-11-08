@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
 test("Node quality checks measure the routed TLS path with bounded samples, caching and fencing", async () => {
-  const directory = await mkdtemp(join(tmpdir(), "openteam-quality-test-"));
+  const directory = await mkdtemp(join(tmpdir(), "aiteamos-quality-test-"));
   try {
     const cert = join(directory, "cert.pem"),
       key = join(directory, "key.pem");

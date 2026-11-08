@@ -30,7 +30,7 @@ jobs:
         with:
           bun-version: 1.4.2
       # The full CLI suite also imports the server's update-agent implementation.
-      - run: bun install --frozen-lockfile --ignore-scripts --filter @openteam/cli --filter @openteam/server
+      - run: bun install --frozen-lockfile --ignore-scripts --filter @aiteamos/cli --filter @aiteamos/server
       - name: Installer rendering and terminal behavior
         run: bun test ./apps/cli/test/setup-countdown.test.ts ./apps/landing/lib/install-script.test.ts
       - name: Full CLI and browser-state preservation regressions
@@ -41,13 +41,13 @@ jobs:
         run: |
           bun test ./apps/cli/test/disk-maintenance.test.ts ./apps/cli/test/update-safety.test.ts ./apps/cli/test/lifecycle.test.ts ./apps/computer/test/browser-cache-maintenance.test.ts
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          bun test ./apps/cli/test/release-compose.test.ts --test-name-pattern 'replaces every OpenTeam tag'
+          bun test ./apps/cli/test/release-compose.test.ts --test-name-pattern 'replaces every aiTeamOS tag'
       - name: Disk retention against real Docker
         if: runner.os == 'Linux'
         env:
-          OPENTEAM_TEST_DOCKER_CONTEXT: openteam-retention-ci
+          AITEAMOS_TEST_DOCKER_CONTEXT: aiteamos-retention-ci
         run: |
-          docker context create openteam-retention-ci --docker host=unix:///var/run/docker.sock
+          docker context create aiteamos-retention-ci --docker host=unix:///var/run/docker.sock
           bun apps/cli/scripts/test-disk-maintenance-docker.ts
       - name: Native Windows PowerShell and PowerShell 7
         if: runner.os == 'Windows'
@@ -60,7 +60,7 @@ jobs:
           $runtimeDirectory = Join-Path $env:RUNNER_TEMP 'bun-baseline'
           Invoke-WebRequest 'https://github.com/oven-sh/bun/releases/download/bun-v1.4.2/bun-windows-x64-baseline.zip' -OutFile $runtimeArchive
           Expand-Archive $runtimeArchive -DestinationPath $runtimeDirectory
-          $env:OPENTEAM_TEST_BUN_EXECUTABLE = Join-Path $runtimeDirectory 'bun-windows-x64-baseline/bun.exe'
+          $env:AITEAMOS_TEST_BUN_EXECUTABLE = Join-Path $runtimeDirectory 'bun-windows-x64-baseline/bun.exe'
           bun apps/cli/scripts/test-windows-install.ts
       - name: Fresh Linux installation
         if: runner.os == 'Linux'

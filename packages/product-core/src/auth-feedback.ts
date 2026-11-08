@@ -4,7 +4,7 @@ import { clientErrorMessage } from "./redaction";
 export function authErrorMessage(cause: unknown, fallback: string): string {
   const message = clientErrorMessage(cause, fallback)
     .replace(
-      /^Error invoking remote method ['"]openteam:auth(?:-token)?:[^'"]+['"]:\s*(?:[A-Za-z]*Error:\s*)?/,
+      /^Error invoking remote method ['"]aiteamos:auth(?:-token)?:[^'"]+['"]:\s*(?:[A-Za-z]*Error:\s*)?/,
       ""
     )
     .trim();
@@ -18,21 +18,21 @@ export function authErrorMessage(cause: unknown, fallback: string): string {
     return "The server took too long to respond. Please try again.";
   }
   if (/^(?:fetch failed|failed to fetch|network request failed)$/i.test(message)) {
-    return "Could not reach this OpenTeam server. Check the address and your connection.";
+    return "Could not reach this aiTeamOS server. Check the address and your connection.";
   }
   if (
     /FunctionCallException|KeyChainException|ExpoSecureStore|Keychain unavailable|A required entitlement isn't present|QuotaExceededError/i.test(
       message
     )
   ) {
-    return "OpenTeam could not access your saved sign-in. Restart the app and try again.";
+    return "aiTeamOS could not access your saved sign-in. Restart the app and try again.";
   }
   if (
-    /valid OpenTeam server URL|server URL must use HTTP or HTTPS|server URL is required/.test(
+    /valid aiTeamOS server URL|server URL must use HTTP or HTTPS|server URL is required/.test(
       message
     )
   ) {
-    return "Enter a server address starting with http:// or https://, such as https://openteam.example.com.";
+    return "Enter a server address starting with http:// or https://, such as https://aiteamos.example.com.";
   }
   if (/endpoint without a query or fragment/.test(message)) {
     return "Use the server address without anything after ? or #.";
@@ -40,7 +40,7 @@ export function authErrorMessage(cause: unknown, fallback: string): string {
   if (/endpoint without a username or password/.test(message)) {
     return "Remove the username and password from the server address. You’ll sign in on the next screen.";
   }
-  if (/did not return an OpenTeam session token/.test(message)) {
+  if (/did not return an aiTeamOS session token/.test(message)) {
     return "The server did not complete sign-in. Please try again or contact your server administrator.";
   }
   return message || fallback;

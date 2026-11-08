@@ -1,6 +1,6 @@
 import { stripVTControlCharacters } from "node:util";
 import stringWidth from "string-width";
-import { redactSensitiveText } from "@openteam/product-core/redaction";
+import { redactSensitiveText } from "@aiteamos/product-core/redaction";
 import { colorEnabled } from "./ui";
 
 export type TerminalTone = "info" | "success" | "warning" | "error" | "muted";
@@ -73,7 +73,7 @@ export class TerminalReport {
       }
     };
     this.lines.push("", `  ${this.paint("╭" + "─".repeat(this.width - 4) + "╮", "info")}`);
-    frame(`OPENTEAM / ${command}`, "bold");
+    frame(`AITEAMOS / ${command}`, "bold");
     if (status) frame(status, tone);
     this.lines.push(`  ${this.paint("╰" + "─".repeat(this.width - 4) + "╯", "info")}`);
     return this;

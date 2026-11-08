@@ -3,13 +3,13 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Effect } from "effect";
-import { createPrismaClient } from "@openteam/db";
-import { AgentDataStore } from "@openteam/messaging";
+import { createPrismaClient } from "@aiteamos/db";
+import { AgentDataStore } from "@aiteamos/messaging";
 import { InternalToolService } from "../src/services/internal-tool-service";
 import { DurableStateService } from "../src/update-state";
-import { UPDATE_MEMORY_TOOL } from "@openteam/contracts";
+import { UPDATE_MEMORY_TOOL } from "@aiteamos/contracts";
 
-const databaseUrl = process.env.OPENTEAM_TEST_DATABASE_URL;
+const databaseUrl = process.env.AITEAMOS_TEST_DATABASE_URL;
 const databaseTest = databaseUrl ? test : test.skip;
 const SHARED_REFUSAL =
   "Not saved: shared_profile and shared_journal are the owner's memory across their assistants and are not written from a shared conversation.";

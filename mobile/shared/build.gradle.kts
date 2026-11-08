@@ -21,7 +21,7 @@ kotlin {
 
     targets.withType<org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget>().configureEach {
         binaries.framework {
-            baseName = "OpenTeamShared"
+            baseName = "AiTeamOSShared"
             isStatic = true
         }
     }
@@ -39,7 +39,7 @@ kotlin {
 }
 
 android {
-    namespace = "com.openteam.mobile.shared"
+    namespace = "com.aiteamos.mobile.shared"
     compileSdk = 36
     defaultConfig {
         minSdk = 23

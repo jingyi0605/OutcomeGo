@@ -1,5 +1,5 @@
-export const WINDOW_VISIBILITY_EVENT = "openteam:visibility-change";
-export const WINDOW_ACTIVITY_EVENT = "openteam:window-activity-change";
+export const WINDOW_VISIBILITY_EVENT = "aiteamos:visibility-change";
+export const WINDOW_ACTIVITY_EVENT = "aiteamos:window-activity-change";
 let nativeVisible = true;
 let nativeActive: boolean | undefined;
 
@@ -30,11 +30,11 @@ export const installWindowVisibility = () => {
     publishActivity();
     window.dispatchEvent(new Event(WINDOW_VISIBILITY_EVENT));
   };
-  const unsubscribe = window.openteam?.visibility?.subscribe((visible) => {
+  const unsubscribe = window.aiteamos?.visibility?.subscribe((visible) => {
     nativeVisible = visible;
     publish();
   });
-  const unsubscribeActivity = window.openteam?.visibility?.subscribeActivity?.((active) => {
+  const unsubscribeActivity = window.aiteamos?.visibility?.subscribeActivity?.((active) => {
     nativeActive = active;
     publishActivity();
   });

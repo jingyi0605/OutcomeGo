@@ -8,7 +8,7 @@ import {
   PI_REASONING_LEVELS,
   type PiReasoningLevel,
   type ServerInferenceSettings,
-} from "@openteam/contracts";
+} from "@aiteamos/contracts";
 import { CHAT_PROVIDER_DEFINITIONS } from "./chat-provider-definitions";
 import {
   availableInferenceModels,
@@ -17,7 +17,7 @@ import {
 } from "./inference-models";
 
 export const CHAT_PROVIDERS = new Set(Object.keys(CHAT_PROVIDER_DEFINITIONS));
-export const KEYLESS_API_KEY = "openteam-no-auth";
+export const KEYLESS_API_KEY = "aiteamos-no-auth";
 export type ChatModel = Model<Api> & {
   reasoningLevels?: PiReasoningLevel[];
   defaultReasoningLevel?: PiReasoningLevel;
@@ -473,7 +473,7 @@ export class ChatProviderRegistry {
     const provider = catalog.providers.find((p) => p.id === settings.providerId);
     if (!provider)
       throw new Error(
-        `Provider ${settings.providerId} is not in your registry. Connect a built-in provider, or add a custom endpoint with openteam provider add.`
+        `Provider ${settings.providerId} is not in your registry. Connect a built-in provider, or add a custom endpoint with aiteamos provider add.`
       );
     const model = catalog.models.find((m) => m.id === settings.modelId);
     if (!model)

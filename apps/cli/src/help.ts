@@ -1,7 +1,7 @@
 import type { HelpTopic } from "./arguments";
 import { CLI_VERSION } from "./constants";
 
-const heading = (usage: string, summary: string): string => `OpenTeam ${CLI_VERSION}
+const heading = (usage: string, summary: string): string => `aiTeamOS ${CLI_VERSION}
 
 Usage:
   ${usage}
@@ -12,26 +12,26 @@ const helpHint = "  --help, -h            Show this help";
 const directoryOption = "  --dir <path>          Use a different installation folder";
 
 const pages: Record<HelpTopic, string> = {
-  global: `OpenTeam ${CLI_VERSION}
+  global: `aiTeamOS ${CLI_VERSION}
 
 Usage:
-  openteam <command> [options]
+  aiteamos <command> [options]
 
 Getting started:
-  install       Install OpenTeam and run guided setup
+  install       Install aiTeamOS and run guided setup
   setup         Set up or change the connection and account
 
 Your installation:
   status        Show container health and server readiness
   health        Alias for status
   doctor        Check for installation problems
-  update        Install the latest OpenTeam release
-  start         Start OpenTeam after account setup
-  stop          Stop OpenTeam
+  update        Install the latest aiTeamOS release
+  start         Start aiTeamOS after account setup
+  stop          Stop aiTeamOS
   logs          View troubleshooting logs
   tailscale     Enable, inspect, or disable private Tailscale HTTPS
   notifications  Configure iOS push credentials or show their status
-  uninstall     Remove OpenTeam services and CLI
+  uninstall     Remove aiTeamOS services and CLI
 
 Models and accounts:
   provider      Manage AI accounts and connections
@@ -43,19 +43,19 @@ ${directoryOption}
   --help, -h            Show help
   --version, -v         Show the CLI version
 
-Run "openteam <command> --help" for command options.`,
+Run "aiteamos <command> --help" for command options.`,
 
-  tailscale: `${heading("openteam tailscale <enable|status|disable>", "Manage private HTTPS with Tailscale Serve on this server host.")}
+  tailscale: `${heading("aiteamos tailscale <enable|status|disable>", "Manage private HTTPS with Tailscale Serve on this server host.")}
 
 Commands:
   enable        Configure and verify Tailscale HTTPS; restart the stack
   status        Inspect the mapping, prerequisites, and HTTPS endpoint
-  disable       Switch to local access and remove OpenTeam-managed mappings
+  disable       Switch to local access and remove aiTeamOS-managed mappings
 
 Options:
 ${directoryOption}
 ${helpHint}`,
-  "tailscale-enable": `${heading("openteam tailscale enable [options]", "Configure Tailscale Serve and loopback backend ports, restart OpenTeam, and verify HTTPS. Reuses matching private routes; never replaces another application's route or enables Funnel.")}
+  "tailscale-enable": `${heading("aiteamos tailscale enable [options]", "Configure Tailscale Serve and loopback backend ports, restart aiTeamOS, and verify HTTPS. Reuses matching private routes; never replaces another application's route or enables Funnel.")}
 
 Options:
   --https-port <port>   HTTPS listener (default: current port or 443)
@@ -65,19 +65,19 @@ ${helpHint}
 
 Tailscale must be running and signed in, with MagicDNS and HTTPS certificates enabled.
 On failure the previous server configuration is restored. Reconnect apps to the new URL.`,
-  "tailscale-status": `${heading("openteam tailscale status [options]", "Read-only check of Tailscale, mapping ownership, and HTTPS readiness. Exit 2 if configured HTTPS needs attention.")}
+  "tailscale-status": `${heading("aiteamos tailscale status [options]", "Read-only check of Tailscale, mapping ownership, and HTTPS readiness. Exit 2 if configured HTTPS needs attention.")}
 
 Options:
   --json                Print status as JSON
 ${directoryOption}
 ${helpHint}`,
-  "tailscale-disable": `${heading("openteam tailscale disable [options]", "Switch Tailscale mode to local-only access and restart OpenTeam. Remove only unchanged OpenTeam-managed mappings. Reused user-managed routes are preserved; remote apps must reconnect.")}
+  "tailscale-disable": `${heading("aiteamos tailscale disable [options]", "Switch Tailscale mode to local-only access and restart aiTeamOS. Remove only unchanged aiTeamOS-managed mappings. Reused user-managed routes are preserved; remote apps must reconnect.")}
 
 Options:
   --json                Print status as JSON
 ${directoryOption}
 ${helpHint}`,
-  notifications: `${heading("openteam notifications <command>", "Manage iOS push delivery credentials on the running server.")}
+  notifications: `${heading("aiteamos notifications <command>", "Manage iOS push delivery credentials on the running server.")}
 
 Commands:
   configure     Import APNs credentials and apply them live
@@ -85,7 +85,7 @@ Commands:
 
 ${directoryOption}
 ${helpHint}`,
-  "notifications-configure": `${heading("openteam notifications configure [options]", "Validate and save APNs credentials encrypted in the database. Workers read changes before their next push; no restart is needed.")}
+  "notifications-configure": `${heading("aiteamos notifications configure [options]", "Validate and save APNs credentials encrypted in the database. Workers read changes before their next push; no restart is needed.")}
 
 Options:
   --config <file>        Import JSON with keyId, teamId, topic, privateKeyFile
@@ -98,17 +98,17 @@ ${directoryOption}
 ${helpHint}
 
 Example:
-  openteam notifications configure --key-file ./AuthKey.p8 --key-id ABCDE12345 --team-id FGHIJ67890 --topic dev.openbot.mobile
+  aiteamos notifications configure --key-file ./AuthKey.p8 --key-id ABCDE12345 --team-id FGHIJ67890 --topic dev.openbot.mobile
 
 Local validation checks the key format and signing ability. It does not prove Apple acceptance or phone delivery.`,
-  "notifications-status": `${heading("openteam notifications status [options]", "Show the saved APNs configuration source and local validation status. The signing key is never returned.")}
+  "notifications-status": `${heading("aiteamos notifications status [options]", "Show the saved APNs configuration source and local validation status. The signing key is never returned.")}
 
 Options:
 ${directoryOption}
 ${helpHint}`,
   install: `${heading(
-    "openteam install [options]",
-    "Install the OpenTeam server stack, run guided setup, and wait for it to become healthy."
+    "aiteamos install [options]",
+    "Install the aiTeamOS server stack, run guided setup, and wait for it to become healthy."
   )}
 
 Options:
@@ -129,8 +129,8 @@ Advanced release/testing options:
   --image-prefix <prefix>    Override the container image prefix`,
 
   setup: `${heading(
-    "openteam setup [options]",
-    "Check prerequisites, install the server if needed, and set up its connection and your account.\nRun this again to change the connection. Connect a model in the OpenTeam app under Settings → Server."
+    "aiteamos setup [options]",
+    "Check prerequisites, install the server if needed, and set up its connection and your account.\nRun this again to change the connection. Connect a model in the aiTeamOS app under Settings → Server."
   )}
 
 Options:
@@ -139,7 +139,7 @@ ${directoryOption}
 ${helpHint}`,
 
   doctor: `${heading(
-    "openteam doctor [options]",
+    "aiteamos doctor [options]",
     "Check container health, database/schema setup, worker heartbeat and queue processing, computer API, storage permissions, and host configuration.\nSends one short inference request using your saved provider, model, and thinking setting.\nFinishes without starting services or setup. Failed checks exit 2; warnings alone exit 0."
   )}
 
@@ -149,8 +149,8 @@ ${directoryOption}
 ${helpHint}`,
 
   status: `${heading(
-    "openteam status [options]",
-    "Show container states, Docker health checks, and server readiness.\nAlias: openteam health [options]. Both commands produce the same report.\nRead-only: does not start containers or send an AI request.\nExits 0 when services are ready; exits 2 when stopped, starting, unhealthy, or unable to check.\nUse openteam doctor for deeper database, queue, storage, and model checks."
+    "aiteamos status [options]",
+    "Show container states, Docker health checks, and server readiness.\nAlias: aiteamos health [options]. Both commands produce the same report.\nRead-only: does not start containers or send an AI request.\nExits 0 when services are ready; exits 2 when stopped, starting, unhealthy, or unable to check.\nUse aiteamos doctor for deeper database, queue, storage, and model checks."
   )}
 
 Options:
@@ -158,7 +158,7 @@ ${directoryOption}
 ${helpHint}`,
 
   update: `${heading(
-    "openteam update [options]",
+    "aiteamos update [options]",
     "Safely update the CLI and server stack in one durable job, with health checks and rollback."
   )}
 
@@ -185,8 +185,8 @@ Advanced release/testing options:
   --json-progress            Emit machine-readable progress`,
 
   start: `${heading(
-    "openteam start [options]",
-    "Requires completed account setup; run openteam setup first.\nCheck preflight and start services if needed. Healthy installations report already running.\nAI tasks require a connected provider; startup reports when inference is unavailable."
+    "aiteamos start [options]",
+    "Requires completed account setup; run aiteamos setup first.\nCheck preflight and start services if needed. Healthy installations report already running.\nAI tasks require a connected provider; startup reports when inference is unavailable."
   )}
 
 Options:
@@ -194,15 +194,15 @@ ${directoryOption}
 ${helpHint}`,
 
   stop: `${heading(
-    "openteam stop [options]",
-    "Stop OpenTeam while preserving its containers and data."
+    "aiteamos stop [options]",
+    "Stop aiTeamOS while preserving its containers and data."
   )}
 
 Options:
 ${directoryOption}
 ${helpHint}`,
 
-  logs: `${heading("openteam logs [service] [options]", "Show recent troubleshooting logs.")}
+  logs: `${heading("aiteamos logs [service] [options]", "Show recent troubleshooting logs.")}
 
 Options:
 ${directoryOption}
@@ -212,7 +212,7 @@ ${directoryOption}
 ${helpHint}`,
 
   provider: `${heading(
-    "openteam provider <command> [options]",
+    "aiteamos provider <command> [options]",
     "Manage AI account sign-ins and custom providers."
   )}
 
@@ -223,10 +223,10 @@ Commands:
   add <id>              Connect another compatible AI provider
   remove <id>           Remove a custom AI provider
 
-Run "openteam provider <command> --help" for command options.`,
+Run "aiteamos provider <command> --help" for command options.`,
 
   "provider-list": `${heading(
-    "openteam provider list [options]",
+    "aiteamos provider list [options]",
     "Show AI providers, model counts, and sign-in status."
   )}
 
@@ -235,7 +235,7 @@ ${directoryOption}
 ${helpHint}`,
 
   "provider-login": `${heading(
-    "openteam provider login [provider] [options]",
+    "aiteamos provider login [provider] [options]",
     "Sign in through a browser or with an API key.\nThe active provider is used when omitted."
   )}
 
@@ -245,7 +245,7 @@ ${directoryOption}
 ${helpHint}`,
 
   "provider-logout": `${heading(
-    "openteam provider logout [provider] [options]",
+    "aiteamos provider logout [provider] [options]",
     "Remove one provider credential. The active provider is used when omitted."
   )}
 
@@ -254,7 +254,7 @@ ${directoryOption}
 ${helpHint}`,
 
   "provider-add": `${heading(
-    "openteam provider add <id> [options]",
+    "aiteamos provider add <id> [options]",
     "Add a custom chat endpoint, then authenticate and discover its models."
   )}
 
@@ -275,7 +275,7 @@ ${helpHint}
 Protocols: openai-completions, openai-responses, anthropic-messages, google-generative-ai`,
 
   "provider-remove": `${heading(
-    "openteam provider remove <id> [options]",
+    "aiteamos provider remove <id> [options]",
     "Remove a custom AI provider. The active provider cannot be removed."
   )}
 
@@ -284,7 +284,7 @@ ${directoryOption}
 ${helpHint}`,
 
   model: `${heading(
-    "openteam model [command] [options]",
+    "aiteamos model [command] [options]",
     "Open the interactive model editor. Use left/right to switch between Inference and Transcription.\nUse up/down to move, Enter to choose or edit, and Save to apply each tab.\nEsc goes back or asks to discard unsaved changes."
   )}
 
@@ -296,11 +296,11 @@ Options:
 ${directoryOption}
 ${helpHint}
 
-Bare \`openteam model\` requires an interactive terminal.
-Run "openteam model <command> --help" for scripting options.`,
+Bare \`aiteamos model\` requires an interactive terminal.
+Run "aiteamos model <command> --help" for scripting options.`,
 
   "model-list": `${heading(
-    "openteam model list [provider] [options]",
+    "aiteamos model list [provider] [options]",
     "List accessible chat models from connected providers, grouped by provider."
   )}
 
@@ -309,7 +309,7 @@ ${directoryOption}
 ${helpHint}`,
 
   "model-use": `${heading(
-    "openteam model use <provider> <model> [options]",
+    "aiteamos model use <provider> <model> [options]",
     "Select the installation-wide provider, model, and optional reasoning level."
   )}
 
@@ -319,17 +319,17 @@ ${directoryOption}
 ${helpHint}`,
 
   account: `${heading(
-    "openteam account <command> [options]",
-    "Change the OpenTeam username or password. Changes sign out every app."
+    "aiteamos account <command> [options]",
+    "Change the aiTeamOS username or password. Changes sign out every app."
   )}
 
 Commands:
   update                Change the username and/or password
 
-Run "openteam account update --help" for command options.`,
+Run "aiteamos account update --help" for command options.`,
 
   "account-update": `${heading(
-    "openteam account update [options]",
+    "aiteamos account update [options]",
     "Update the owner account and revoke all active desktop and mobile sessions.\nWith no credential flags, both are prompted."
   )}
 
@@ -340,8 +340,8 @@ ${directoryOption}
 ${helpHint}`,
 
   uninstall: `${heading(
-    "openteam uninstall [options]",
-    "Remove OpenTeam services and CLI while preserving configuration and data by default."
+    "aiteamos uninstall [options]",
+    "Remove aiTeamOS services and CLI while preserving configuration and data by default."
   )}
 
 Options:

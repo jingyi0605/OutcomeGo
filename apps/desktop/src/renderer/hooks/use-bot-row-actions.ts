@@ -1,13 +1,13 @@
-import type { BotTranscriptView, BotView } from "@openteam/contracts";
+import type { BotTranscriptView, BotView } from "@aiteamos/contracts";
 import { useCallback, useState } from "react";
-import { api } from "../client/openteam-api";
-import type { BotRowAction } from "../components/openteam/sidebar";
-import type { OpenTeamMutation } from "../state/use-openteam";
+import { api } from "../client/aiteamos-api";
+import type { BotRowAction } from "../components/aiteamos/sidebar";
+import type { AiTeamOSMutation } from "../state/use-aiteamos";
 
 export type InspectorMode = "summary" | "settings" | "routine";
 
 export function useBotRowActions(options: {
-  mutate: OpenTeamMutation;
+  mutate: AiTeamOSMutation;
   setSelectedId: (id: string | null) => void;
   setDetailsOpen: (open: boolean) => void;
   setInspectorMode: (mode: InspectorMode) => void;

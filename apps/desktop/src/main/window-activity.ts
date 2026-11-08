@@ -8,8 +8,8 @@ export const windowIsActive = (window: WindowState) => windowIsVisible(window) &
 export function bindWindowActivity(window: BrowserWindow) {
   // Retain the emitter: BrowserWindow.webContents cannot be read after closed.
   const webContents = window.webContents;
-  const publishActivity = () => webContents.send("openteam:window-activity-changed", windowIsActive(window));
-  const publishVisibility = () => webContents.send("openteam:window-visibility-changed", windowIsVisible(window));
+  const publishActivity = () => webContents.send("aiteamos:window-activity-changed", windowIsActive(window));
+  const publishVisibility = () => webContents.send("aiteamos:window-visibility-changed", windowIsVisible(window));
   window.on("show", publishActivity);
   window.on("hide", publishActivity);
   window.on("minimize", publishActivity);

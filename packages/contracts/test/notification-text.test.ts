@@ -16,11 +16,11 @@ describe("notification text", () => {
     ).toEqual({ title: "Probe", body: "Finished the command", sound: "default" });
     expect(agentNotificationPresentation({ kind: "message", botName: "Probe" })).toEqual({
       title: "Probe",
-      body: "Open OpenTeam to see what it did.",
+      body: "Open aiTeamOS to see what it did.",
       sound: "default",
     });
     expect(agentNotificationPresentation({ kind: "reaction", botName: "" })).toEqual({
-      title: "OpenTeam",
+      title: "aiTeamOS",
       body: "Reacted to your message.",
       sound: "default",
     });

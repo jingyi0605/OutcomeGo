@@ -6,7 +6,7 @@ say() {
 }
 
 fail() {
-  say "OpenTeam installer: $*" >&2
+  say "aiTeamOS installer: $*" >&2
   exit 1
 }
 
@@ -38,21 +38,21 @@ esac
 case "$arch_name" in
   x86_64|amd64) architecture="x64" ;;
   arm64|aarch64) architecture="arm64" ;;
-  *) fail "unsupported architecture: $arch_name. OpenTeam supports x64 and arm64 hosts." ;;
+  *) fail "unsupported architecture: $arch_name. aiTeamOS supports x64 and arm64 hosts." ;;
 esac
 
-printf '\n  %bOPENTEAM%b / install\n' "$bold$cyan" "$reset"
+printf '\n  %bAITEAMOS%b / install\n' "$bold$cyan" "$reset"
 say "  $platform $middot $architecture"
 say ""
 
-command_exists curl || fail "curl is required to download the OpenTeam CLI."
+command_exists curl || fail "curl is required to download the aiTeamOS CLI."
 
-repository=$(printenv OPENTEAM_REPOSITORY 2>/dev/null || printf raghavpillai/openteam)
-cli_version=$(printenv OPENTEAM_VERSION 2>/dev/null || printf latest)
+repository=$(printenv AITEAMOS_REPOSITORY 2>/dev/null || printf jingyi0605/ai-TeamOS)
+cli_version=$(printenv AITEAMOS_VERSION 2>/dev/null || printf latest)
 # Downloads give up when no data arrives for 20 seconds instead of waiting forever.
 if [ "$cli_version" = "latest" ]; then
   release_json=$(curl -fsSL --connect-timeout 15 --speed-limit 1 --speed-time 20 "https://api.github.com/repos/$repository/releases/latest") ||
-    fail "could not look up the latest OpenTeam release on GitHub. Check your internet connection and try again, or set OPENTEAM_VERSION to install a specific version."
+    fail "could not look up the latest aiTeamOS release on GitHub. Check your internet connection and try again, or set AITEAMOS_VERSION to install a specific version."
   release_tag=$(printf '%s' "$release_json" | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n 1)
   [ -n "$release_tag" ] || fail "the latest GitHub release did not include a tag."
 else
@@ -62,9 +62,9 @@ else
   esac
 fi
 
-asset_name="openteam-$binary_os-$architecture"
+asset_name="aiteamos-$binary_os-$architecture"
 release_base="https://github.com/$repository/releases/download/$release_tag"
-temporary_directory=$(mktemp -d 2>/dev/null || mktemp -d -t openteam)
+temporary_directory=$(mktemp -d 2>/dev/null || mktemp -d -t aiteamos)
 binary_path="$temporary_directory/$asset_name"
 checksums_path="$temporary_directory/SHA256SUMS"
 
@@ -98,15 +98,15 @@ else
   fail "sha256sum or shasum is required to verify the download."
 fi
 
-[ "$actual_checksum" = "$expected_checksum" ] || fail "the OpenTeam CLI checksum did not match."
+[ "$actual_checksum" = "$expected_checksum" ] || fail "the aiTeamOS CLI checksum did not match."
 step "$checkmark" "Download verified" "$green"
 chmod +x "$binary_path"
 
 user_home=$(printenv HOME 2>/dev/null || true)
-[ -n "$user_home" ] || fail "HOME is not set. Set OPENTEAM_BIN_DIR to choose where to install the CLI."
-bin_directory=$(printenv OPENTEAM_BIN_DIR 2>/dev/null || printf '%s/.local/bin' "$user_home")
+[ -n "$user_home" ] || fail "HOME is not set. Set AITEAMOS_BIN_DIR to choose where to install the CLI."
+bin_directory=$(printenv AITEAMOS_BIN_DIR 2>/dev/null || printf '%s/.local/bin' "$user_home")
 mkdir -p "$bin_directory"
-installed_binary="$bin_directory/openteam"
+installed_binary="$bin_directory/aiteamos"
 if command_exists install; then
   install -m 0755 "$binary_path" "$installed_binary"
 else
@@ -117,8 +117,8 @@ fi
 step "$checkmark" "CLI installed" "$green"
 say "    $installed_binary"
 
-# Make openteam available in new terminals. OPENTEAM_NO_MODIFY_PATH=1 leaves profiles alone.
-path_marker="# Added by the OpenTeam installer"
+# Make aiteamos available in new terminals. AITEAMOS_NO_MODIFY_PATH=1 leaves profiles alone.
+path_marker="# Added by the aiTeamOS installer"
 shell_quote() {
   printf "'%s'" "$(printf '%s' "$1" | sed "s/'/'\\\\''/g")"
 }
@@ -161,21 +161,21 @@ add_to_path() {
       fi ;;
     fish)
       fish_directory=$(setting XDG_CONFIG_HOME "$user_home/.config")
-      changed=$(add_path_line "$fish_directory/fish/conf.d/openteam.fish" "fish_add_path -g $(shell_quote "$bin_directory")") || return 1 ;;
+      changed=$(add_path_line "$fish_directory/fish/conf.d/aiteamos.fish" "fish_add_path -g $(shell_quote "$bin_directory")") || return 1 ;;
     *)
       changed=$(add_path_line "$user_home/.profile" "$export_line") || return 1 ;;
   esac
   if [ -n "$changed" ]; then
-    say "  Added $(tilde_path "$bin_directory") to your PATH in $changed. Open a new terminal to use openteam."
+    say "  Added $(tilde_path "$bin_directory") to your PATH in $changed. Open a new terminal to use aiteamos."
   else
-    say "  Open a new terminal to use openteam."
+    say "  Open a new terminal to use aiteamos."
   fi
 }
 case ":$PATH:" in
   *":$bin_directory:"*) ;;
   *)
-    if [ "$(printenv OPENTEAM_NO_MODIFY_PATH 2>/dev/null || true)" = "1" ] || ! add_to_path; then
-      say "  Add $bin_directory to PATH to run openteam from new terminals."
+    if [ "$(printenv AITEAMOS_NO_MODIFY_PATH 2>/dev/null || true)" = "1" ] || ! add_to_path; then
+      say "  Add $bin_directory to PATH to run aiteamos from new terminals."
     fi ;;
 esac
 
@@ -187,14 +187,14 @@ if ( : </dev/tty ) 2>/dev/null; then
 fi
 
 # The CLI checks prerequisites before asking for a terminal. Keep it installed
-# when setup is blocked, so the user can fix Docker and resume with openteam setup.
+# when setup is blocked, so the user can fix Docker and resume with aiteamos setup.
 "$installed_binary" install "$@" </dev/null
 `;
 
 export const powerShellInstallScript = String.raw`$ErrorActionPreference = "Stop"
 
 function Fail([string]$Message) {
-  Write-Error "OpenTeam installer: $Message"
+  Write-Error "aiTeamOS installer: $Message"
   exit 1
 }
 
@@ -204,33 +204,33 @@ function Write-Step([string]$Mark, [string]$Message, [string]$Color = "Cyan") {
   else { Write-Host "  $Mark $Message" }
 }
 Write-Host ""
-Write-Step "OPENTEAM" "/ install"
+Write-Step "AITEAMOS" "/ install"
 Write-Host "  Windows"
 Write-Host ""
 
 $architecture = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString().ToLowerInvariant()
 switch ($architecture) {
-  "x64" { $assetName = "openteam-windows-x64.exe" }
-  "arm64" { $assetName = "openteam-windows-x64.exe" }
+  "x64" { $assetName = "aiteamos-windows-x64.exe" }
+  "arm64" { $assetName = "aiteamos-windows-x64.exe" }
   default { Fail "unsupported Windows architecture: $architecture" }
 }
 
-$repository = if ($env:OPENTEAM_REPOSITORY) { $env:OPENTEAM_REPOSITORY } else { "raghavpillai/openteam" }
-$requestedVersion = if ($env:OPENTEAM_VERSION) { $env:OPENTEAM_VERSION } else { "latest" }
+$repository = if ($env:AITEAMOS_REPOSITORY) { $env:AITEAMOS_REPOSITORY } else { "jingyi0605/ai-TeamOS" }
+$requestedVersion = if ($env:AITEAMOS_VERSION) { $env:AITEAMOS_VERSION } else { "latest" }
 if ($requestedVersion -eq "latest") {
   try { $releaseTag = (Invoke-RestMethod "https://api.github.com/repos/$repository/releases/latest").tag_name }
-  catch { Fail "no public OpenTeam release is available yet." }
+  catch { Fail "no public aiTeamOS release is available yet." }
 } else {
   $releaseTag = if ($requestedVersion.StartsWith("v")) { $requestedVersion } else { "v$requestedVersion" }
 }
 
 $releaseBase = "https://github.com/$repository/releases/download/$releaseTag"
-$temporaryDirectory = Join-Path ([System.IO.Path]::GetTempPath()) ("openteam-" + [guid]::NewGuid())
+$temporaryDirectory = Join-Path ([System.IO.Path]::GetTempPath()) ("aiteamos-" + [guid]::NewGuid())
 New-Item -ItemType Directory -Path $temporaryDirectory | Out-Null
 $binaryPath = Join-Path $temporaryDirectory $assetName
 $checksumsPath = Join-Path $temporaryDirectory "SHA256SUMS"
-$binDirectory = if ($env:OPENTEAM_BIN_DIR) { $env:OPENTEAM_BIN_DIR } else { Join-Path $env:LOCALAPPDATA "OpenTeam\bin" }
-$installedBinary = Join-Path $binDirectory "openteam.exe"
+$binDirectory = if ($env:AITEAMOS_BIN_DIR) { $env:AITEAMOS_BIN_DIR } else { Join-Path $env:LOCALAPPDATA "aiTeamOS\bin" }
+$installedBinary = Join-Path $binDirectory "aiteamos.exe"
 
 $installerProgressPreference = $ProgressPreference
 $ProgressPreference = "SilentlyContinue"
@@ -253,13 +253,13 @@ try {
   if (-not $checksumLine) { Fail "SHA256SUMS does not contain $assetName." }
   $expectedChecksum = ($checksumLine.Trim() -split "\s+")[0].ToLowerInvariant()
   $actualChecksum = (Get-FileHash -Algorithm SHA256 $binaryPath).Hash.ToLowerInvariant()
-  if ($actualChecksum -ne $expectedChecksum) { Fail "the OpenTeam CLI checksum did not match." }
+  if ($actualChecksum -ne $expectedChecksum) { Fail "the aiTeamOS CLI checksum did not match." }
   Write-Step ([char]0x2713) "Download verified" "Green"
   New-Item -ItemType Directory -Force -Path $binDirectory | Out-Null
   Copy-Item -Force $binaryPath $installedBinary
   Write-Step ([char]0x2713) "CLI installed" "Green"
   Write-Host "    $installedBinary"
-  if ($env:OPENTEAM_NO_MODIFY_PATH -ne "1") {
+  if ($env:AITEAMOS_NO_MODIFY_PATH -ne "1") {
     $userPath = [Environment]::GetEnvironmentVariable("Path", "User")
     if (-not $userPath) { $userPath = "" }
     if (-not (($userPath -split ";") -contains $binDirectory)) {

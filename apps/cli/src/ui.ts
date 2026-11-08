@@ -204,7 +204,7 @@ export const renderSetupHeader = (input: {
 }): string => {
   const styled = input.color ?? false;
   const width = Math.max(32, Math.min(96, measuredWidth(input.width)));
-  const heading = ` OPENTEAM SETUP · v${input.version} `;
+  const heading = ` AITEAMOS SETUP · v${input.version} `;
   const markerFor = (index: number): "done" | "active" | "pending" => {
     if (index === input.activeStage) return "active";
     const done = input.completed ? Boolean(input.completed[index]) : index < input.activeStage;
@@ -476,7 +476,7 @@ export const createSetupPresentation = (input: {
     start() {
       write(header());
       for (const line of wrapText(
-        "A few quick choices, then OpenTeam will check the rest.",
+        "A few quick choices, then aiTeamOS will check the rest.",
         width
       )) {
         write(paint(styled, line, ANSI.dim));

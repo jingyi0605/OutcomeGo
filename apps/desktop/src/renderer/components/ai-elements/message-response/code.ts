@@ -187,7 +187,7 @@ const notifyCallbacks = (callbacks: Set<(result: TokensResult) => void>, result:
     try {
       callback(result);
     } catch (error) {
-      console.error("[OpenTeam Code] Highlight callback failed:", error);
+      console.error("[aiTeamOS Code] Highlight callback failed:", error);
     }
   }
 };
@@ -237,7 +237,7 @@ export const code: CodeHighlighterPlugin = {
         notifyCallbacks(callbacks, result);
       })
       .catch((error) => {
-        console.error("[OpenTeam Code] Failed to highlight code:", error);
+        console.error("[aiTeamOS Code] Failed to highlight code:", error);
         notifyCallbacks(callbacks, createPlainResult(source, themes));
       })
       .finally(() => {

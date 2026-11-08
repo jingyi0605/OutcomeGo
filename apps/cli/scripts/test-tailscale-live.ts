@@ -18,11 +18,11 @@ import { cleanManagedTailscaleRoutes, managedTailscaleRoutes } from "../src/tail
 import { readTailscaleServe, requireTailscale } from "../src/tailscale-https";
 import { requireComposeProject } from "../src/docker";
 
-if (process.env.OPENTEAM_TAILSCALE_LIVE_TEST !== "1")
+if (process.env.AITEAMOS_TAILSCALE_LIVE_TEST !== "1")
   throw new Error(
-    "Set OPENTEAM_TAILSCALE_LIVE_TEST=1 to create temporary Docker services and Tailscale routes."
+    "Set AITEAMOS_TAILSCALE_LIVE_TEST=1 to create temporary Docker services and Tailscale routes."
   );
-const image = process.env.OPENTEAM_TAILSCALE_TEST_IMAGE || "oven/bun:1.3.8";
+const image = process.env.AITEAMOS_TAILSCALE_TEST_IMAGE || "oven/bun:1.3.8";
 const runner = new SystemCommandRunner();
 requireTailscale(runner);
 const before = readTailscaleServe(runner);
@@ -32,11 +32,11 @@ assert.equal(ports.length, 2, "Need two unused test HTTPS ports");
 const portProbe = Bun.serve({ hostname: "127.0.0.1", port: 0, fetch: () => new Response("probe") });
 const apiPort = String(portProbe.port);
 await portProbe.stop(true);
-const directory = mkdtempSync(join(tmpdir(), "openteam-tailscale-live-"));
+const directory = mkdtempSync(join(tmpdir(), "aiteamos-tailscale-live-"));
 const paths = installationPaths(directory);
-const projectName = `openteam-ts-qa-${process.pid}`;
+const projectName = `aiteamos-ts-qa-${process.pid}`;
 let env = createEnvironment({ version: "1.2.3" });
-env = replaceEnvironmentValue(env, "OPENTEAM_API_PORT", apiPort);
+env = replaceEnvironmentValue(env, "AITEAMOS_API_PORT", apiPort);
 writeFileAtomic(paths.environment, env);
 writeManifest(paths, {
   schemaVersion: 1,
@@ -50,7 +50,7 @@ writeManifest(paths, {
 });
 writeFileSync(
   join(directory, "backend.ts"),
-  `Bun.serve({port:8787,fetch(req,server){const url=new URL(req.url);if(url.pathname==='/ws'){if(server.upgrade(req))return;return new Response('upgrade required',{status:400});}if(url.pathname==='/config')return Response.json({url:process.env.OPENTEAM_PUBLIC_URL,authUrl:process.env.OPENTEAM_AUTH_URL,mode:process.env.OPENTEAM_ACCESS_MODE});return Response.json({status:'ready',release:{releaseVersion:'1.2.3'}});},websocket:{message(ws,message){ws.send(message)}}});`
+  `Bun.serve({port:8787,fetch(req,server){const url=new URL(req.url);if(url.pathname==='/ws'){if(server.upgrade(req))return;return new Response('upgrade required',{status:400});}if(url.pathname==='/config')return Response.json({url:process.env.AITEAMOS_PUBLIC_URL,authUrl:process.env.AITEAMOS_AUTH_URL,mode:process.env.AITEAMOS_ACCESS_MODE});return Response.json({status:'ready',release:{releaseVersion:'1.2.3'}});},websocket:{message(ws,message){ws.send(message)}}});`
 );
 writeFileAtomic(
   paths.compose,
@@ -60,10 +60,10 @@ writeFileAtomic(
     command: ["bun", "/qa/backend.ts"]
     volumes: ["./backend.ts:/qa/backend.ts:ro"]
     environment:
-      OPENTEAM_PUBLIC_URL: \${OPENTEAM_PUBLIC_URL}
-      OPENTEAM_AUTH_URL: \${OPENTEAM_AUTH_URL}
-      OPENTEAM_ACCESS_MODE: \${OPENTEAM_ACCESS_MODE}
-    ports: ["\${OPENTEAM_BIND_HOST}:\${OPENTEAM_API_PORT}:8787"]
+      AITEAMOS_PUBLIC_URL: \${AITEAMOS_PUBLIC_URL}
+      AITEAMOS_AUTH_URL: \${AITEAMOS_AUTH_URL}
+      AITEAMOS_ACCESS_MODE: \${AITEAMOS_ACCESS_MODE}
+    ports: ["\${AITEAMOS_BIND_HOST}:\${AITEAMOS_API_PORT}:8787"]
   computer:
     image: ${JSON.stringify(image)}
     command: ["sleep", "infinity"]
@@ -81,12 +81,12 @@ const wsEcho = (url: string) =>
       ws.close();
       reject(new Error("WebSocket timeout"));
     }, 10_000);
-    ws.onopen = () => ws.send("openteam-tailscale-qa");
+    ws.onopen = () => ws.send("aiteamos-tailscale-qa");
     ws.onmessage = (event) => {
       clearTimeout(timeout);
       ws.close();
       try {
-        assert.equal(event.data, "openteam-tailscale-qa");
+        assert.equal(event.data, "aiteamos-tailscale-qa");
         resolve();
       } catch (e) {
         reject(e);
@@ -102,7 +102,7 @@ const runCli = (action: string, extra: string[] = []) => {
   const result = runner.run(
     process.execPath.endsWith("bun") ? "node" : process.execPath,
     [
-      new URL("../dist/openteam.js", import.meta.url).pathname,
+      new URL("../dist/aiteamos.js", import.meta.url).pathname,
       "tailscale",
       action,
       "--dir",
@@ -122,7 +122,7 @@ try {
   let status = await tailscaleStatus(paths, runner, true);
   assert.equal(status.issue, null);
   assert.equal(status.verified, true);
-  assert.equal(status.ownership, "openteam");
+  assert.equal(status.ownership, "aiteamos");
   const config = await (await fetch(status.publicUrl + "/config")).json();
   assert.deepEqual(config, { url: status.publicUrl, authUrl: status.publicUrl, mode: "tailscale" });
   await wsEcho(status.publicUrl);
@@ -142,7 +142,7 @@ try {
   console.log("PASS port migration and retired-route cleanup");
   runCli("disable");
   assert.equal(
-    parseEnvironment(readFileSync(paths.environment, "utf8")).get("OPENTEAM_ACCESS_MODE"),
+    parseEnvironment(readFileSync(paths.environment, "utf8")).get("AITEAMOS_ACCESS_MODE"),
     "local"
   );
   assert.equal((await tailscaleStatus(paths, runner)).enabled, false);

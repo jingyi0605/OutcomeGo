@@ -1,13 +1,13 @@
 import { StrictMode, useState } from "react";
 import { createRoot } from "react-dom/client";
-import type { BotRecipe, ChannelMessageView } from "@openteam/contracts";
+import type { BotRecipe, ChannelMessageView } from "@aiteamos/contracts";
 import "../../src/renderer/styles.css";
-import { api } from "../../src/renderer/client/openteam-api";
-import { SharedTemplateCard } from "../../src/renderer/components/openteam/shared-template-card";
+import { api } from "../../src/renderer/client/aiteamos-api";
+import { SharedTemplateCard } from "../../src/renderer/components/aiteamos/shared-template-card";
 
 // Manual browser QA: this fixture has no external side effects. All mutations
 // are recorded visibly so read-only review can be distinguished from publishing.
-if (window.openteam) throw new Error("Open this fixture in an isolated browser tab.");
+if (window.aiteamos) throw new Error("Open this fixture in an isolated browser tab.");
 window.fetch = async () => {
   throw new Error("External network is disabled in this fixture.");
 };

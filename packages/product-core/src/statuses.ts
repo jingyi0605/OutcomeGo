@@ -1,5 +1,5 @@
-import type { RunStatus } from "@openteam/contracts";
-import type { RoutineExecutionView } from "@openteam/contracts/routine-types";
+import type { RunStatus } from "@aiteamos/contracts";
+import type { RoutineExecutionView } from "@aiteamos/contracts/routine-types";
 
 export type ActiveRunStatus = Extract<RunStatus, "queued" | "running">;
 export type TransientRoutineExecutionStatus = Extract<

@@ -1,13 +1,13 @@
-import { rankPluginsLexically } from "@openteam/contracts/reference-formatters";
-import { PLUGIN_WORKFLOW_HOST_CONTEXT } from "@openteam/contracts/plugin-workflows";
-import { pluginDynamicNamespaces } from "@openteam/contracts/plugin-namespaces";
+import { rankPluginsLexically } from "@aiteamos/contracts/reference-formatters";
+import { PLUGIN_WORKFLOW_HOST_CONTEXT } from "@aiteamos/contracts/plugin-workflows";
+import { pluginDynamicNamespaces } from "@aiteamos/contracts/plugin-namespaces";
 import type {
   PluginActivityView,
   PluginConnectionStatusesView,
   PluginDynamicNamespace,
   PluginInstallView,
   PluginSettingsView,
-} from "@openteam/contracts";
+} from "@aiteamos/contracts";
 import { createHash } from "node:crypto";
 import {
   ApiError,
@@ -15,9 +15,9 @@ import {
   PLUGIN_BOT_ACCESS_QUERY_MAX_LENGTH,
   PLUGIN_CONNECTION_ID_MAX_LENGTH,
   PLUGIN_CONNECTION_STATUS_MAX_IDS,
-} from "@openteam/contracts";
-import { Prisma, type PrismaClient } from "@openteam/db";
-import type { PluginDefinition } from "@openteam/plugin-sdk";
+} from "@aiteamos/contracts";
+import { Prisma, type PrismaClient } from "@aiteamos/db";
+import type { PluginDefinition } from "@aiteamos/plugin-sdk";
 import { loadConnectionNamespaces } from "./namespaces";
 import { serviceEffect } from "../service-utils";
 import {
@@ -301,7 +301,7 @@ export class PluginQueries {
       const plugin = definitionFromManifest(installation.manifest);
       return (plugin?.skills ?? []).map(
         (skill) =>
-          `### ${plugin?.name}: ${skill.name}\n${skill.description}\n\n${skill.body}\n\nSupporting files: find pluginId ${JSON.stringify(installation.pluginKey)} and skill ${JSON.stringify(skill.name)} in ${process.env.OPENTEAM_AGENT_DATA_ROOT ?? "/agent-data"}/plugin-skills/cache.json. Resolve relative file links from that SKILL.md directory.`
+          `### ${plugin?.name}: ${skill.name}\n${skill.description}\n\n${skill.body}\n\nSupporting files: find pluginId ${JSON.stringify(installation.pluginKey)} and skill ${JSON.stringify(skill.name)} in ${process.env.AITEAMOS_AGENT_DATA_ROOT ?? "/agent-data"}/plugin-skills/cache.json. Resolve relative file links from that SKILL.md directory.`
       );
     });
     const privateSkills = await this.prisma.pluginPrivateSkill.findMany({
@@ -310,7 +310,7 @@ export class PluginQueries {
     sections.push(
       ...privateSkills.map(
         (skill) =>
-          `### Private skill: ${skill.name}\n${skill.description}\n\n${skill.body}\n\nSupporting files: find pluginId ${JSON.stringify(`private-${skill.id}`)} in ${process.env.OPENTEAM_AGENT_DATA_ROOT ?? "/agent-data"}/plugin-skills/cache.json and resolve links from its SKILL.md directory.`
+          `### Private skill: ${skill.name}\n${skill.description}\n\n${skill.body}\n\nSupporting files: find pluginId ${JSON.stringify(`private-${skill.id}`)} in ${process.env.AITEAMOS_AGENT_DATA_ROOT ?? "/agent-data"}/plugin-skills/cache.json and resolve links from its SKILL.md directory.`
       )
     );
     return sections.length ? `\n\n## Installed plugin skills\n\n${PLUGIN_WORKFLOW_HOST_CONTEXT}\n\n${sections.join("\n\n")}` : "";

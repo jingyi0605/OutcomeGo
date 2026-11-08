@@ -3,7 +3,7 @@ import { createRoot } from "react-dom/client";
 import {
   MessageImageGallery,
   type DisplayImage,
-} from "../../src/renderer/components/openteam/image-attachment";
+} from "../../src/renderer/components/aiteamos/image-attachment";
 import "../../src/renderer/styles.css";
 
 const root = createRoot(document.getElementById("root")!);

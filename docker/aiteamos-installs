@@ -1,0 +1,4 @@
+#!/bin/sh
+# What the computer reinstalls at start: `aiteamos-installs` lists it,
+# `sudo aiteamos-installs forget NAME...` stops tracking a package.
+exec /usr/lib/aiteamos/bin/bun /app/apps/computer/dist/installs-cli.js "${@:-status}"

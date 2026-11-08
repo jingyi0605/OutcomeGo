@@ -20,9 +20,9 @@ const payload = {
 describe("FCM delivery", () => {
   test("reports missing and malformed service-account configuration without exposing secrets", () => {
     expect(fcmConfigurationStatus({}).issues).toEqual([
-      "OPENTEAM_FCM_PROJECT_ID is missing",
-      "OPENTEAM_FCM_CLIENT_EMAIL is missing",
-      "OPENTEAM_FCM_PRIVATE_KEY is missing",
+      "AITEAMOS_FCM_PROJECT_ID is missing",
+      "AITEAMOS_FCM_CLIENT_EMAIL is missing",
+      "AITEAMOS_FCM_PRIVATE_KEY is missing",
     ]);
     expect(fcmConfigurationIssues({
       projectId: "BAD PROJECT", clientEmail: "owner@example.test", privateKey: "private-value",

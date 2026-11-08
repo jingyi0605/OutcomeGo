@@ -2,10 +2,10 @@ import { expect, test } from "bun:test";
 
 // An authenticated production-server fixture owns this disposable database.
 // No owner credentials or existing attachment IDs are needed or logged.
-const enabled = process.env.OPENTEAM_SWIFT_REAL_QA === "1";
+const enabled = process.env.AITEAMOS_SWIFT_REAL_QA === "1";
 test.skipIf(!enabled)("private attachment GET/HEAD/ranges require a valid owner session", async () => {
-  const control = process.env.OPENTEAM_ASSET_QA_CONTROL_URL ?? "http://127.0.0.1:20022";
-  const base = process.env.OPENTEAM_ASSET_QA_URL ?? "http://127.0.0.1:20020";
+  const control = process.env.AITEAMOS_ASSET_QA_CONTROL_URL ?? "http://127.0.0.1:20022";
+  const base = process.env.AITEAMOS_ASSET_QA_URL ?? "http://127.0.0.1:20020";
   const payload = "Disposable attachment authorization QA";
   const upload = await fetch(control + "/api/v0/assets", {
     method: "POST", headers: { "content-type": "application/json" },

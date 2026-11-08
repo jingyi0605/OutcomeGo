@@ -1,13 +1,13 @@
 import type { Server, ServerWebSocket, WebSocketHandler } from "bun";
 import { randomBytes } from "node:crypto";
-import { ApiError } from "@openteam/contracts";
+import { ApiError } from "@aiteamos/contracts";
 
 // Packaged Electron omits Origin on some fetches (or uses "null"), sends
 // "file://" for WebSocket, and Android uses the synthetic local viewer origin.
 // These are opaque/native origins. HTTP origins stay exact; every connection
 // still requires its one-use authenticated ticket.
 const viewerOrigin = (origin: string | null) =>
-  origin === "file://" || origin === "null" || origin === "http://openteam-vnc.invalid"
+  origin === "file://" || origin === "null" || origin === "http://aiteamos-vnc.invalid"
     ? null
     : origin;
 
@@ -53,7 +53,7 @@ export class ScreenVncProxy {
     this.tickets.set(token, { ...identity, origin: viewerOrigin(origin), upstreamUrl: endpoint.url, expiresAt: now + 30_000 });
     return {
       path: `/api/v0/bots/${encodeURIComponent(botId)}/screen/vnc`,
-      protocols: ["openteam-vnc", `ticket.${token}`],
+      protocols: ["aiteamos-vnc", `ticket.${token}`],
       password: endpoint.password,
     };
   }
@@ -64,14 +64,14 @@ export class ScreenVncProxy {
     const ticket = token ? this.tickets.get(token) : undefined;
     // Consume before awaiting authorization; simultaneous replay cannot succeed.
     if (token) this.tickets.delete(token);
-    if (!ticket || !protocols.includes("openteam-vnc") || ticket.botId !== botId ||
+    if (!ticket || !protocols.includes("aiteamos-vnc") || ticket.botId !== botId ||
       ticket.origin !== viewerOrigin(request.headers.get("origin")) || ticket.expiresAt <= (this.options.now ?? Date.now)() ||
       !await this.options.authorized(ticket)) return new Response("Computer access denied", { status: 403 });
     if ([...this.connections].filter((connection) => connection.ticket.botId === botId).length >= 3)
       return new Response("Too many computer viewers", { status: 429 });
     const data: VncConnection = { ticket, upstream: null, client: null, queued: [], queuedBytes: 0, closed: false };
     this.connections.add(data);
-    if (server.upgrade(request, { data, headers: { "sec-websocket-protocol": "openteam-vnc" } })) return;
+    if (server.upgrade(request, { data, headers: { "sec-websocket-protocol": "aiteamos-vnc" } })) return;
     this.connections.delete(data);
     return new Response("WebSocket upgrade required", { status: 400 });
   }

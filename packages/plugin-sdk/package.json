@@ -1,6 +1,6 @@
 {
-  "name": "@openteam/plugin-sdk",
-  "version": "0.0.15",
+  "name": "@aiteamos/plugin-sdk",
+  "version": "0.1.0-beta.1",
   "license": "GPL-3.0-only",
   "private": true,
   "type": "module",

@@ -43,7 +43,7 @@ for await (const line of createInterface({ input: process.stdin })) {
               cwd: process.cwd(),
               label: process.env.PLUGIN_LABEL,
               inheritedSecret: Boolean(
-                process.env.OPENTEAM_CONTROL_TOKEN || process.env.DATABASE_URL
+                process.env.AITEAMOS_CONTROL_TOKEN || process.env.DATABASE_URL
               ),
             }),
           },

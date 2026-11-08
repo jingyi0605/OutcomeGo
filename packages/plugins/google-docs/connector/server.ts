@@ -156,4 +156,4 @@ export function docsTools(api = new GoogleApi('https://docs.googleapis.com')): T
     }),
   ];
 }
-if (import.meta.main) await servePlugin('openteam-google-docs', docsTools());
+if (import.meta.main) await servePlugin('aiteamos-google-docs', docsTools());

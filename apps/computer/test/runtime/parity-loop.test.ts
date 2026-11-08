@@ -176,7 +176,7 @@ for (const { handoff, batch = false } of [{ handoff: false }, { handoff: true },
       internals.bindTurnStop(active, session!);
       await session!.sendCustomMessage(
         {
-          customType: "openteam-ambient",
+          customType: "aiteamos-ambient",
           content: "[SAND_HIDDEN_PROMPT]A background job completed.",
           display: false,
           details: { messageId: "ambient-fixture" },
@@ -231,18 +231,18 @@ for (const { handoff, batch = false } of [{ handoff: false }, { handoff: true },
         reopened
           .getEntries()
           .filter(
-            (entry: any) => entry.type === "custom" && entry.customType === "openteam-input-receipt"
+            (entry: any) => entry.type === "custom" && entry.customType === "aiteamos-input-receipt"
           )
       ).toHaveLength(1);
-      if (process.env.OPENTEAM_PARITY_ARTIFACT_DIR && !handoff) {
+      if (process.env.AITEAMOS_PARITY_ARTIFACT_DIR && !handoff) {
         const { writeFile } = await import("node:fs/promises");
-        await mkdir(process.env.OPENTEAM_PARITY_ARTIFACT_DIR, { recursive: true });
+        await mkdir(process.env.AITEAMOS_PARITY_ARTIFACT_DIR, { recursive: true });
         await writeFile(
-          join(process.env.OPENTEAM_PARITY_ARTIFACT_DIR, "provider-request.json"),
+          join(process.env.AITEAMOS_PARITY_ARTIFACT_DIR, "provider-request.json"),
           JSON.stringify(payload, null, 2)
         );
         await writeFile(
-          join(process.env.OPENTEAM_PARITY_ARTIFACT_DIR, "pi-session.jsonl"),
+          join(process.env.AITEAMOS_PARITY_ARTIFACT_DIR, "pi-session.jsonl"),
           await readFile(path, "utf8")
         );
       }

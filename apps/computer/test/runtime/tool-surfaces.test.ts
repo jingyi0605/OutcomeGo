@@ -3,7 +3,7 @@ import { mkdir, mkdtemp, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { SessionManager } from "@earendil-works/pi-coding-agent";
-import { NATIVE_TOOL_NAMES } from "@openteam/contracts";
+import { NATIVE_TOOL_NAMES } from "@aiteamos/contracts";
 import { BROWSER_USE_TOOLS } from "../../src/browser/use";
 import { BotCompactionArchiveStore, BotCompactionCoordinator } from "../../src/bot-compaction";
 import {
@@ -224,9 +224,9 @@ describe("specialized subagent tool surfaces", () => {
       return { content: [{ type: "text", text: "results" }], details: {} };
     };
     const active = { ...workerTurn("executor"), runId: "run-1" };
-    const result = await runtime.executeOpenTeamTool(active, "call-1", "WebSearch", { search_term: "openteam" });
+    const result = await runtime.executeAiTeamOSTool(active, "call-1", "WebSearch", { search_term: "aiteamos" });
     expect(result.content[0].text).toBe("results");
-    expect(searches).toEqual(["openteam"]);
+    expect(searches).toEqual(["aiteamos"]);
     expect(toolNames("executor")).not.toContain("TodoWrite");
     expect(runtime.customTools(workerTurn("executor", { readOnly: true })).map((tool: any) => tool.name)).toEqual(
       expect.arrayContaining(["WebSearch", "WebFetch"])
@@ -241,7 +241,7 @@ describe("specialized subagent tool surfaces", () => {
       return { content: [{ type: "text", text: "done" }], details: {} };
     };
     const active = { ...workerTurn("computerUse"), botId: "worker-bot", runId: "run-1" };
-    const result = await runtime.executeOpenTeamTool(active, "call-1", "AwaitShell", { shell_id: "7", block_until_ms: 1000 });
+    const result = await runtime.executeAiTeamOSTool(active, "call-1", "AwaitShell", { shell_id: "7", block_until_ms: 1000 });
     expect(result.content[0].text).toBe("done");
     expect(waits).toEqual([[expect.objectContaining({ shell_id: "7" }), "worker-bot"]]);
   });
@@ -364,7 +364,7 @@ describe("specialized subagent tool surfaces", () => {
   });
 
   test("normal agents discover A2A under cursor without legacy graphical Computer control", () => {
-    expect(dynamicToolNames("openteam")).toEqual([]);
+    expect(dynamicToolNames("aiteamos")).toEqual([]);
     expect(dynamicToolNames("cursor")).toContain("Task");
     expect(dynamicToolNames("cursor")).toContain("SendToAgent");
     expect(dynamicToolNames("cursor")).toContain("request_box_help");
@@ -459,7 +459,7 @@ describe("durable state tools", () => {
     }
     const readOnly = { ...workerTurn("executor", { readOnly: true }), runId: "run-1" };
     for (const name of ["UpdateMemory", "UpdateRoutine"])
-      await expect(runtime.executeOpenTeamTool(readOnly, "call-1", name, { action: "pause", id: "brief" })).rejects.toThrow("read-only");
+      await expect(runtime.executeAiTeamOSTool(readOnly, "call-1", name, { action: "pause", id: "brief" })).rejects.toThrow("read-only");
     for (const toolName of namespacedStateTools)
       await expect(runtime.callDynamicTool(readOnly, "call-1", { namespace: "cursor", toolName, arguments: {} })).rejects.toThrow("read-only");
   });
@@ -472,9 +472,9 @@ describe("durable state tools", () => {
       return { content: [], details: {} };
     };
     const active = { ...workerTurn(null), runId: "run-1" };
-    await runtime.executeOpenTeamTool(active, "memory", "UpdateMemory", { target: "memory", action: "write", fact: " Prefers tea. ", type: "profile" });
-    await runtime.executeOpenTeamTool(active, "routine", "UpdateRoutine", { action: "pause", id: "brief" });
-    await expect(runtime.executeOpenTeamTool(active, "invalid", "UpdateMemory", { action: "create", fact: "x", type: "profile" })).rejects.toThrow(
+    await runtime.executeAiTeamOSTool(active, "memory", "UpdateMemory", { target: "memory", action: "write", fact: " Prefers tea. ", type: "profile" });
+    await runtime.executeAiTeamOSTool(active, "routine", "UpdateRoutine", { action: "pause", id: "brief" });
+    await expect(runtime.executeAiTeamOSTool(active, "invalid", "UpdateMemory", { action: "create", fact: "x", type: "profile" })).rejects.toThrow(
       "UpdateMemory only writes or forgets memory"
     );
     const cursor = runtime.dynamicCatalog(active).find((namespace: any) => namespace.name === "cursor");
@@ -506,7 +506,7 @@ describe("local computer routing", () => {
         shell: (...args: unknown[]) => Promise<unknown>;
         externalShell: (...args: unknown[]) => Promise<unknown>;
       };
-      executeOpenTeamTool(
+      executeAiTeamOSTool(
         active: Record<string, unknown>,
         callId: string,
         tool: string,
@@ -531,8 +531,8 @@ describe("local computer routing", () => {
       queue: { push: () => undefined },
     };
 
-    await runtime.executeOpenTeamTool(active, "box-call", "Shell", { command: "pwd" });
-    await runtime.executeOpenTeamTool(active, "host-call", "Shell", {
+    await runtime.executeAiTeamOSTool(active, "box-call", "Shell", { command: "pwd" });
+    await runtime.executeAiTeamOSTool(active, "host-call", "Shell", {
       command: "pwd",
       machineId: "machine-1",
     });
@@ -657,10 +657,10 @@ describe("context turn reservation", () => {
   });
 
   test("a turn sent before the cancelled first turn's session was recorded continues that session file", async () => {
-    const root = await mkdtemp(join(tmpdir(), "openteam-session-race-"));
+    const root = await mkdtemp(join(tmpdir(), "aiteamos-session-race-"));
     temporaryRoots.push(root);
     const runtime = new ComputerRuntime() as any;
-    runtime.sessionsDir = join(root, "sessions", "openteam");
+    runtime.sessionsDir = join(root, "sessions", "aiteamos");
     runtime.contextSessionsDir = join(root, "context-sessions");
     runtime.compactionArchive = new BotCompactionArchiveStore(runtime.contextSessionsDir);
     runtime.compaction = new BotCompactionCoordinator(runtime.compactionArchive, 0);
@@ -741,15 +741,15 @@ describe("context turn reservation", () => {
       isUsingSubscription: () => true,
     };
     await expect(
-      runtime.run(turnRequest({ sessionPath: "/tmp/not-an-openteam-session.jsonl" }))
-    ).rejects.toThrow("outside the OpenTeam session directory");
+      runtime.run(turnRequest({ sessionPath: "/tmp/not-an-aiteamos-session.jsonl" }))
+    ).rejects.toThrow("outside the aiTeamOS session directory");
     expect(runtime.diagnostics.activeTurns).toBe(0);
   });
 
   test("replays a staged archive from the matching persisted Pi compaction", async () => {
-    const root = await mkdtemp(join(tmpdir(), "openteam-compaction-recovery-"));
+    const root = await mkdtemp(join(tmpdir(), "aiteamos-compaction-recovery-"));
     temporaryRoots.push(root);
-    const sessionsDir = join(root, "sessions", "openteam");
+    const sessionsDir = join(root, "sessions", "aiteamos");
     const contextSessionsDir = join(root, "context-sessions");
     await Promise.all([
       mkdir(sessionsDir, { recursive: true }),
@@ -807,7 +807,7 @@ describe("context turn reservation", () => {
       "recoverable summary",
       firstKeptEntryId,
       95_000,
-      { openteamBotCompaction: true, id: compactionId },
+      { aiteamosBotCompaction: true, id: compactionId },
       true
     );
 
@@ -903,7 +903,7 @@ test('Task reads subagent_type spellings as their type and reports a refused dis
     const task = runtime.dynamicCatalog(workerTurn(null)).find((namespace: any) => namespace.name === 'cursor').tools.find((tool: any) => tool.name === 'Task');
     expect(task.decodeArguments({ description: 'Book', prompt: 'Book it', subagent_type: 'computer_use' }).subagent_type).toBe('computerUse');
     const active = { ...workerTurn(null), runId: 'run-1' };
-    await expect(runtime.executeOpenTeamTool(active, 'call', 'CallDynamicTool', {
+    await expect(runtime.executeAiTeamOSTool(active, 'call', 'CallDynamicTool', {
       namespace: 'cursor', toolName: 'Task', arguments: { description: 'Book', prompt: 'Book it', subagent_type: 'computer_use' },
     })).rejects.toThrow(/^Error: That background subagent is still running, so it can't be resumed yet\.$/);
     expect(sent[0].subagent_type).toBe('computerUse');
@@ -920,7 +920,7 @@ test('Computer rewrites other tools\' action names before its schema check', () 
 });
 
 test('the parent-only dispatch reminder names only tools the parent has and that child type lacks', async () => {
-  const { parentOnlyToolsFor } = await import('@openteam/contracts/subagent-dispatch');
+  const { parentOnlyToolsFor } = await import('@aiteamos/contracts/subagent-dispatch');
   const runtime = runtimeTools() as any;
   // A worker without CallDynamicTool cannot reach the catalog.
   const surface = (active: Record<string, unknown>) => {
@@ -956,7 +956,7 @@ test('a readonly worker lists and greps with Shell on the box, reads only throug
     ] }] });
   expect(runtime.customTools(readonly).map((tool: any) => tool.name)).toEqual(['WebSearch', 'WebFetch', 'Shell', 'Read', 'AwaitShell', 'GetDynamicTools', 'CallDynamicTool', 'ReportTaskProgress']);
   expect(runtime.dynamicCatalog(readonly).find((namespace: any) => namespace.name === 'cursor').tools.map((tool: any) => tool.name)).toEqual([]);
-  await expect(runtime.executeOpenTeamTool(readonly, 'call-1', 'Shell', { command: 'ls', machineId: 'mac' })).rejects.toThrow("Read-only agents cannot access the user's computer");
+  await expect(runtime.executeAiTeamOSTool(readonly, 'call-1', 'Shell', { command: 'ls', machineId: 'mac' })).rejects.toThrow("Read-only agents cannot access the user's computer");
   const calls: string[] = [];
   runtime.callControlPlaneTool = async (_active: unknown, _callId: string, _tool: string, args: any) => {
     calls.push(args.toolName);

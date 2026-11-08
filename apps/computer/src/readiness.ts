@@ -38,10 +38,10 @@ try {
     process.setuid(uid);
   }
   if (process.getuid() !== uid || process.getgid() !== gid) throw Error('Wrong probe identity');
-  directory = fs.mkdtempSync(path.join(process.argv[1], '.openteam-health-'));
+  directory = fs.mkdtempSync(path.join(process.argv[1], '.aiteamos-health-'));
   const file = path.join(directory, 'probe');
-  fs.writeFileSync(file, 'openteam-health', {mode: 0o600});
-  if (fs.readFileSync(file, 'utf8') !== 'openteam-health') throw Error('Readback failed');
+  fs.writeFileSync(file, 'aiteamos-health', {mode: 0o600});
+  if (fs.readFileSync(file, 'utf8') !== 'aiteamos-health') throw Error('Readback failed');
   fs.unlinkSync(file);
   fs.rmdirSync(directory);
   directory = undefined;
@@ -62,7 +62,7 @@ export const checkAgentWorkspace = (workspace: string, timeoutMs = 2_000): Promi
       [
         "-c",
         'exec "$1" -e "$2" "$3" "$4" "$5"',
-        "openteam-health",
+        "aiteamos-health",
         process.execPath,
         SCRIPT,
         workspace,

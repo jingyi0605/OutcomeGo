@@ -1,130 +1,106 @@
-# Releasing OpenTeam locally
+# Releasing ai-TeamOS
 
-Build releases on the appropriate local machine. Tag pushes do not run a release
-workflow. GitHub Releases remains the download host used by `openteam.so/download`
-and the install scripts; uploading locally built artifacts does not require GitHub
-Actions. The CLI installer workflow runs tests only.
+Releases are built by `.github/workflows/release.yml`. Pushing a tag builds every artifact and
+publishes one GitHub Release. The workflow file must keep its name: the CLI only trusts
+signatures whose certificate identity is `.github/workflows/release.yml@refs/tags/v<version>`.
 
-## v0.0.15 release preparation
+## Versions
 
-Prepare v0.0.15 from `c2b9b6fcdcdad03fd079542425217b6a15b56e0a`, with
-v0.0.14 (`4194501779e7d593b55982399bd225d04e7f89a2`) as the published baseline.
-Keep the root and all workspace package versions, `bun.lock` workspace versions,
-and `apps/ios/release.json` at `0.0.15`. Dependency resolutions stay unchanged.
+This fork has its own version line, starting at `0.1.0-beta.1`. The root `package.json` is the
+single source of truth.
 
-This candidate includes eight merged PRs since that baseline: #245, #246, #247,
-#248, #249, #252, #253, and #254. They improve iOS Siri/Spotlight switch contrast,
-Duo sidebar selection and contextual controls, persistent app shortcuts, the idle
-chat screen, search and history navigation, settings sheets, attachment tray motion,
-bot deletion, activity indicators, and notification opening on iOS and desktop.
-Review the draft notes in ignored `output/release-v0.0.15/release-notes.md` before
-publication. The existing CLI false `STARTING` status report is not established as
-fixed by this release.
+```sh
+bun scripts/release/version.ts set 0.1.0-beta.2   # root, all workspaces, bun.lock, iOS release.json
+python3 apps/ios/scripts/generate-project.py      # regenerate the Xcode project
+bun scripts/release/version.ts check              # CI runs this on every push
+```
 
-The parent's read-only App Store Connect inventory on November 7, 2026 at 23:19 UTC
-found build `65` unused in both builds and build uploads for `dev.openbot.mobile`
-(app `6807991964`); this candidate selects it. Source metadata does not reserve a
-build number or establish an upload or public availability.
+- Android reads the version from the root `package.json`. `versionCode` is derived from it
+  (`0.1.0-beta.1` is `10001`, `0.1.0` is `10099`) and can be overridden with
+  `-PaiteamosVersionCode`.
+- iOS marketing versions cannot carry a prerelease suffix, so `0.1.0-beta.1` ships as `0.1.0`.
+  The build number is the workflow run number.
+- The tag must be `v<version>` exactly. A mismatch fails the first job.
 
-The separate typed public-build verification at 23:20:54 UTC confirmed version
-`0.0.14 (64)` is VALID, unexpired, APPROVED, externally IN_BETA_TESTING, and a member
-of the existing public TestFlight group. The checked-in update notice advances to
-that verified public build; the production notice changes when the site is deployed.
-Build 65 remains unadvertised. Preserve committed native renderer and noVNC bundle
-bytes for this metadata-only project regeneration; this candidate has no VNC source
-changes. Full QA, artifact builds and installed-artifact verification are separate
-release gates, including physical-device APNs and Siri checks.
+## Cutting a release
 
-## Preparation checks
+1. Set the version, commit, and merge to `ai-TeamOS`.
+2. `git tag v0.1.0-beta.1 && git push origin v0.1.0-beta.1`.
+3. Watch the run. Running the workflow manually from a branch is a dry run: it builds
+   everything, pushes and signs nothing, and publishes nothing.
 
-Before every iOS upload, query App Store Connect builds **and build uploads**
-read-only, including unfinished uploads, and choose an unused build number. Recheck
-immediately before uploading because source metadata does not reserve it on Apple.
-Update `apps/ios/release.json`, then regenerate the checked-in Xcode project with
-`python3 apps/ios/scripts/generate-project.py`. Keep signing credentials outside Git
-and logs. For a public iOS update notice, verify the exact version/build is valid,
-unexpired, approved and available in the public TestFlight group before updating
-`apps/landing/public/ios-update.json` and deploying the site.
+The release is deliberately not marked as a pre-release. The server installer, the CLI updater
+and the desktop updater all read `/releases/latest`, which GitHub only answers for
+non-pre-release releases.
 
-Record the tested SHA, worktree, tool versions and focused metadata, generated
-configuration, documentation rendering/link checks and tests. Keep these results
-separate from the full repository gate, desktop interaction QA, native device QA,
-and installed-artifact verification. Review those broader checks before promotion.
-Siri AI preview reasoning and app-skill selection require supported physical hardware,
-preview access, and a development-signed or internal TestFlight build; simulator
-checks and external public TestFlight do not establish that behavior. See the
-[iOS build and preview requirements](../apps/ios/README.md#siri-ai-preview-and-app-skills).
+## What each job produces
 
-A version bump and passing source checks do not establish installer quality,
-device behavior, or TestFlight availability. Candidate preparation does not publish
-a tag, GitHub release, installer, container, or TestFlight build. Keep public update
-feeds at verified releases until new artifacts are available and verified.
+| Job | Output |
+|---|---|
+| `images` / `merge-images` | `ghcr.io/<owner>/ai-teamos-{server,worker,migrate,computer}:<version>` for linux/amd64 and linux/arm64 |
+| `verify-images` | Anonymous `docker pull` of every image by digest |
+| `cli-build` / `sign` | Five CLI binaries (raw and `.gz`), digest-pinned `aiteamos-compose.yaml`, `install.sh`, `install.ps1`, and a `.sigstore.json` for the Compose file and each raw binary |
+| `desktop` | Linux AppImage and Windows installer, with `latest*.yml` |
+| `macos` | Signed and notarized DMG and ZIP (needs `RELEASE_MACOS=true`) |
+| `android` | Signed `aiTeamOS-<version>-android.apk` (needs `RELEASE_ANDROID=true`) |
+| `ios` | TestFlight upload, no file on the release (needs `RELEASE_IOS=true`) |
+| `publish` | GitHub Release with `SHA256SUMS` and `DESKTOP_SHA256SUMS` |
 
-## macOS desktop
+## First-release checklist
 
-Build the requested source revision in an isolated checkout so unrelated working-tree
-changes cannot enter an installer. For an existing release, use its exact tag commit;
-do not move the tag just to add a missing installer. Use the Bun version pinned in
-root `package.json`, install with `bun install --frozen-lockfile`, and generate the
-database client with `bun run db:generate`.
+1. **GHCR visibility.** New packages are private. After the first push, set each of the four
+   `ai-teamos-*` packages to public (Package settings, Danger Zone). `verify-images` fails with
+   the link until you do; re-run the failed jobs afterwards.
+2. **Signing.** The CLI signs keylessly with the workflow's GitHub OIDC identity and verifies
+   against `DEFAULT_REPOSITORY` in `apps/cli/src/constants.ts`. No private key exists. The
+   historical local P-256 key is still accepted by the verifier for old releases.
+3. **Optional platforms.** Set repository variables and secrets, then add the variable:
 
-From `apps/desktop`, run `bun run typecheck` and `bun run package:mac-release`.
-The signed release script requires a Developer ID Application identity selected by
-`CSC_NAME` and notarization credentials. `CSC_LINK` and `CSC_KEY_PASSWORD` can import
-a protected P12 into a temporary Keychain. Supply notarization through one complete
-credential mode:
+| Platform | Variable | Secrets |
+|---|---|---|
+| Android | `RELEASE_ANDROID=true`, `ANDROID_APP_LINK_HOST` | `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD` |
+| macOS | `RELEASE_MACOS=true`, `MACOS_SIGNING_IDENTITY` (the Developer ID Application name) | `MACOS_CERTIFICATE_BASE64`, `MACOS_CERTIFICATE_PASSWORD`, `APPLE_API_KEY_BASE64`, `APPLE_API_KEY_ID`, `APPLE_API_ISSUER` |
+| iOS | `RELEASE_IOS=true`, optional `IOS_RUNNER`, `IOS_XCODE` | `IOS_DISTRIBUTION_P12_BASE64`, `IOS_DISTRIBUTION_P12_PASSWORD`, `IOS_APP_PROFILE_BASE64`, `IOS_EXTENSION_PROFILE_BASE64`, `IOS_SHARE_PROFILE_BASE64`, `APP_STORE_CONNECT_KEY_ID`, `APP_STORE_CONNECT_ISSUER_ID`, `APP_STORE_CONNECT_PRIVATE_KEY` |
 
-- `APPLE_API_KEY`, `APPLE_API_KEY_ID`, and `APPLE_API_ISSUER`.
-- `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, and `APPLE_TEAM_ID`.
-- `APPLE_KEYCHAIN_PROFILE` (and the existing corresponding Keychain credentials).
+Keep these in an Environment with required reviewers if you want a manual approval before
+signing. Never put signing material in the repository or in logs.
 
-Keep credentials outside the repository, pass them through the process environment,
-and never put their values in logs. Keep the signing identity consistent across
-releases. The release command enables hardened runtime, notarizes the app, checks
-package budgets, and verifies Developer ID signatures, entitlements, Gatekeeper,
-and the stapled notarization ticket. Verify DMG integrity with `hdiutil verify`; mount it read-only and verify the enclosed
-app with `codesign --verify --deep --strict`, `spctl --assess --type execute`, and
-`xcrun stapler validate` before distributing it. The notarization ticket is stapled
-to the app, not necessarily to the DMG container.
+## Android
 
-`package:mac-local` makes an ad-hoc build for testing; use `package:mac-release`
-for public installers. The maintainer's reusable local release skill lives in a
-private, gitignored `.agents/skills/openteam-macos-release/` folder.
+`bash scripts/android/package-release.sh` builds and verifies the signed APK locally when the
+four `ANDROID_KEYSTORE_*`/`ANDROID_KEY_*` variables are set. Without them the release build is
+unsigned and the script refuses to report it. Create the keystore once and keep it:
 
-## Publish artifacts
+```sh
+keytool -genkeypair -v -keystore teamos-release.jks -alias teamos -keyalg RSA -keysize 4096 -validity 10000
+base64 < teamos-release.jks | pbcopy   # paste as ANDROID_KEYSTORE_BASE64
+```
 
-Upload the verified DMG, ZIP, blockmaps, and `latest-mac.yml` from
-`apps/desktop/release/` to the intended release using `gh release upload <tag> <files>`.
-Do not replace existing assets unless that replacement is intended. Preserve other
-platforms' entries in `DESKTOP_SHA256SUMS`, add the hashes of the uploaded macOS files,
-and upload the merged checksum file. Download the published DMG and verify its hash.
+Losing the keystore means existing installs can no longer be updated. The manifest still
+enables cleartext traffic for development, which `scripts/android/release-gate.sh` reports as
+pending. Decide before a public release.
 
-The download page selects `OpenTeam-<version>-mac-arm64.dmg` from the latest published
-GitHub release and caches lookups for five minutes. Verify the download page resolves
-the installer after publication. A local build alone does not make a public download.
+## iOS
 
-## Core artifacts and trust
+`apps/ios/release.json` still carries the upstream bundle identifier and team. The `ios` job
+refuses to run until `bundleIdentifier` and `teamIdentifier` are this fork's, so a build cannot
+be uploaded under upstream's app. Before enabling it:
 
-Core releases are built locally and include native CLI binaries, digest-pinned
-server/worker/migrate/computer images, and the signed Compose manifest. The protected
-local P-256 signing key lives outside Git. Its public key is pinned in
-`apps/cli/src/release-signing-key.ts`. `apps/cli/scripts/sign-release.ts` accepts the
-key path through `OPENTEAM_RELEASE_SIGNING_KEY_PATH`, verifies that the public key
-matches the pin, publishes the signature to Rekor, and verifies each resulting
-Sigstore bundle before writing it. The signed payload binds the repository,
-version, and artifact SHA256; clients require the pinned key and a verified
-transparency-log entry. Historical workflow signatures remain verifiable using
-their original issuer and exact release-tag identity.
+1. Register the bundle identifier and its `.notifications` and `.share` variants, and the App
+   Store Connect app record.
+2. Create an Apple Distribution certificate and three App Store provisioning profiles.
+3. Update `release.json`, run `python3 apps/ios/scripts/generate-project.py`, set
+   `AITEAMOS_APNS_TOPIC` in `deploy/compose.yaml` to the new bundle identifier, and create the
+   APNs key.
 
-Build all four images for linux/amd64 and linux/arm64, push immutable image digests,
-and render `deploy/compose.yaml` with `scripts/render-release-compose.ts`. Run
-`bun --filter @openteam/cli build:release`, then sign the rendered Compose and five
-raw CLI binaries with the local signing helper. Publish raw and gzip binaries,
-signature bundles and SHA256SUMS together. Test the downloaded signature bundles,
-anonymous image pulls, and a fresh public-installer installation before declaring
-success. Keep signing keys, registry credentials, and generated notarization material
-out of Git and logs.
+The workflow stamps `buildNumber` with the run number, so it never collides with an earlier upload.
 
-The tag version must match the CLI, server, worker, computer, desktop, and iOS package
-versions and `apps/ios/release.json`. Before cutting a new core release, run the full
-repository checks and verify anonymous image pulls and a fresh installation.
+## Desktop notes
+
+The desktop app is `aiTeamOS` (bundle and app id `dev.aiteamos.desktop`, executable `aiteamos`, files named
+`aiTeamOS-<version>-<os>-<arch>.<ext>`). Icons come from `packages/design-tokens/assets/aiTeamOS.icon`.
+The local server data folder keeps the name `aiTeamOS`/`.aiteamos` because the CLI and desktop share it.
+
+Windows installers are unsigned until a code-signing certificate is added, so SmartScreen will
+warn. Linux builds are not signed. Siri and APNs behaviour needs a physical device and stays a
+manual check.

@@ -60,7 +60,7 @@ describe("main-agent graphical delegation instructions", () => {
     expect(instructions).toContain("## Working fast");
     expect(instructions).toContain("The ### Page block of each result names the page it acted on");
     expect(instructions).toContain("never drive the browser from Shell");
-    expect(instructions).toContain("openteam-screen-launch chromium");
+    expect(instructions).toContain("aiteamos-screen-launch chromium");
     expect(instructions).toContain("first line is `Status: done`, `Status: partial` or `Status: blocked`");
     expect(instructions).toContain("The owner has authorized completing CAPTCHAs");
     expect(instructions).not.toContain("box-chrome");

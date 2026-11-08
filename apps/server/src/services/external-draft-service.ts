@@ -10,9 +10,9 @@ import {
   type ExternalDraft,
   type ExternalDraftApprovalMode,
   type ExternalDraftVerification,
-} from "@openteam/contracts";
-import { type PrismaClient } from "@openteam/db";
-import { type AgentMessaging, type ToolContext, PRIORITY } from "@openteam/messaging";
+} from "@aiteamos/contracts";
+import { type PrismaClient } from "@aiteamos/db";
+import { type AgentMessaging, type ToolContext, PRIORITY } from "@aiteamos/messaging";
 import { loadConnectionNamespaces } from "./plugin/namespaces";
 import type { PluginService } from "./plugin-service";
 import { definitionFromManifest } from "./plugin/values";

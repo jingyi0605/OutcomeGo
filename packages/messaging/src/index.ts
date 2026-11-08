@@ -1,6 +1,6 @@
 export { ensureRequestForTask, reportRequestProgress, settleRequestProgress, recoverRequestProgress, dispatchRequestChecks, stopRequestProgress, requestProgressSnapshot, requestWakeAllowed } from "./request-progress";
 import { requestProgressSnapshot } from "./request-progress";
-import { renderTaskProgressContext } from "@openteam/contracts/task-progress";
+import { renderTaskProgressContext } from "@aiteamos/contracts/task-progress";
 export { initialTaskProgress, settleTaskProgress, reportTaskProgress, dispatchTaskContinuations, taskProgress, taskProgressContext, notifyTaskProgress, recoverTaskInterruption, TASK_RECOVERY_LOCK } from "./task-progress";
 import { taskProgressContext, taskScopeContext } from "./task-progress";
 export { taskScopeContext, taskScopeUpdates } from "./task-progress";
@@ -24,8 +24,8 @@ import { AUTOMATION_RUN_INSTRUCTIONS, automationContinuationRoute } from "./auto
 import { join } from "node:path";
 import { publishChannelNotification, publishMessageNotification } from "./notifications";
 export { publishChannelNotification, publishMessageNotification, channelNotificationStates } from "./notifications";
-import { messagePreviewText } from "@openteam/contracts/message-preview";
-import { defaultTaskConfiguration, type TaskConfiguration } from "@openteam/contracts/task-configuration";
+import { messagePreviewText } from "@aiteamos/contracts/message-preview";
+import { defaultTaskConfiguration, type TaskConfiguration } from "@aiteamos/contracts/task-configuration";
 import { combinedGraphicalWorkerPrompt } from "./graphical-worker-prompts";
 import {
   type AdminBroadcastInput,
@@ -42,8 +42,8 @@ import {
   TODO_MAX_ITEMS,
   type TranscriptEventView,
   type UserTimeZoneView,
-} from "@openteam/contracts";
-import { Prisma, type PrismaClient } from "@openteam/db";
+} from "@aiteamos/contracts";
+import { Prisma, type PrismaClient } from "@aiteamos/db";
 import { fromPrisma, type PgBoss } from "pg-boss";
 import { AgentDataStore, type AgentPromptContext } from "./agent-data";
 import { AssetStore, MAX_MESSAGE_ASSETS, inlineTurnImages } from "./asset-store";
@@ -102,7 +102,7 @@ export interface MessageReaction {
   emoji: string;
 }
 
-/** OpenTeam-compatible toggle semantics: each actor may hold multiple emoji. */
+/** aiTeamOS-compatible toggle semantics: each actor may hold multiple emoji. */
 export const toggleMessageReaction = (
   reactions: readonly MessageReaction[],
   emoji: string,
@@ -1238,7 +1238,7 @@ export class AgentMessaging {
       .filter(Boolean)
       .join("\n");
     const content = [
-      "[OpenTeam first start]",
+      "[aiTeamOS first start]",
       "",
       "This is your first turn after creation. The user did not send a message.",
       "Open your direct conversation using SendToUser. Do not represent this wake as a user message.",
@@ -1979,7 +1979,7 @@ export class AgentMessaging {
       const executor = type === "executor";
       const instructions = mediaReviewPrompt(type) ?? [
         [
-          `You are OpenTeam running as the ${type} subagent.`,
+          `You are aiTeamOS running as the ${type} subagent.`,
           "Complete the delegated task autonomously, then end your turn with a concise final assistant message in plain text. Only that final assistant message is relayed back to the parent agent as your result; text from earlier assistant messages is not included. Put the outcome and any context the parent needs in that last message.",
           executor ? EXECUTOR_NO_USER_LINE : "You have no way to talk to the user directly; do not ask follow-up questions, just do the work and report what you found or did.",
           ...(bot.subagentIdentity.readOnly ? [WORKER_READONLY_LINE] : []),
@@ -2166,7 +2166,7 @@ export class AgentMessaging {
       disconnected.length > 0
         ? `Disconnected connector platforms: ${disconnected.map(({ platform }) => platform).join(", ")}`
         : "",
-      // OpenTeam's peer messages and rooms; the reference keeps its rules in SendToAgent and the room wake.
+      // aiTeamOS's peer messages and rooms; the reference keeps its rules in SendToAgent and the room wake.
       `${frozen.sections.agent_directory}\n\n${A2A_PLATFORM_INSTRUCTIONS}`,
       frozen.sections.mcp_instructions,
       renderMainBoxSection(bot.defaultDirectory),

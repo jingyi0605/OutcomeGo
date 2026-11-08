@@ -13,7 +13,7 @@
     "isolation": "Use compatible original schema/images, not a main checkout."
   },
   "models": {
-    "OpenTeam": "openai/gpt-6.1-sol low",
+    "aiTeamOS": "openai/gpt-6.1-sol low",
     "holder": "anthropic/claude-opus-5.5 minimal",
     "assistant": "anthropic/claude-opus-5.5 minimal",
     "support": "deepseek/deepseek-v4.1-flash low",

@@ -9,9 +9,9 @@ import { mkdtemp, open, readFile, rename, rm, unlink } from "node:fs/promises";
 import { hostname, tmpdir } from "node:os";
 import { extname, join } from "node:path";
 import {
-  compareOpenTeamVersions,
-} from "@openteam/contracts/version-compatibility";
-import { safeErrorMessage } from "@openteam/product-core/redaction";
+  compareAiTeamOSVersions,
+} from "@aiteamos/contracts/version-compatibility";
+import { safeErrorMessage } from "@aiteamos/product-core/redaction";
 import {
   app,
   BrowserWindow,
@@ -31,7 +31,7 @@ import {
 import type { AppUpdater } from "electron-updater";
 import { applicationMenuTemplate } from "./application-menu";
 import { desktopSignIn, desktopSignOut } from "./auth-client";
-import { createOpenTeamClient } from "@openteam/client-core";
+import { createAiTeamOSClient } from "@aiteamos/client-core";
 import { DesktopPluginOAuth } from "./plugin-oauth";
 import { ProviderSignInCallback } from "./provider-sign-in";
 import { DesktopAuthTokenStore } from "./auth-token-store";
@@ -70,11 +70,11 @@ import {
 
 let mainWindow: BrowserWindow | null = null;
 const isMainWindowVisible = () => Boolean(mainWindow && windowIsVisible(mainWindow));
-ipcMain.handle("openteam:window-visibility", (event) => {
+ipcMain.handle("aiteamos:window-visibility", (event) => {
   if (!mainWindow || event.sender !== mainWindow.webContents) throw new Error("Window is unavailable");
   return isMainWindowVisible();
 });
-ipcMain.handle("openteam:window-activity", (event) => {
+ipcMain.handle("aiteamos:window-activity", (event) => {
   if (!mainWindow || event.sender !== mainWindow.webContents) throw new Error("Window is unavailable");
   return windowIsActive(mainWindow);
 });
@@ -90,17 +90,17 @@ let machineEnrollment: DesktopMachineEnrollment | null = null;
 let browserNetwork: DesktopBrowserNetwork | null = null;
 // Messages is macOS-only: other platforms report no Messages support at all.
 const messagesAccess = process.platform === "darwin"
-  ? new MessagesAccess(undefined, undefined, [...new Set([process.env.__CFBundleIdentifier, "dev.openteam.desktop"].filter((id): id is string => !!id))])
+  ? new MessagesAccess(undefined, undefined, [...new Set([process.env.__CFBundleIdentifier, "dev.aiteamos.desktop"].filter((id): id is string => !!id))])
   : null;
 let enrollmentServerUrl: string | null = null;
 const windowBackground = () => (nativeTheme.shouldUseDarkColors ? "#080808" : "#fbfbfb");
-const releasePage = "https://github.com/raghavpillai/openteam/releases/latest";
+const releasePage = "https://github.com/jingyi0605/ai-TeamOS/releases/latest";
 // Builds without an update feed check the latest release and link to its download instead.
 const desktopSelfUpdates = app.isPackaged && hasDesktopUpdateFeed(process.resourcesPath);
 
 protocol.registerSchemesAsPrivileged([
   {
-    scheme: "openteam-staged",
+    scheme: "aiteamos-staged",
     privileges: { standard: true, secure: true, supportFetchAPI: true },
   },
 ]);
@@ -121,7 +121,7 @@ let desktopUpdaterPromise: Promise<AppUpdater> | null = null;
 let desktopUpdateTimer: ReturnType<typeof setInterval> | null = null;
 const publishDesktopUpdate = (next: Partial<DesktopUpdateSnapshot>) => {
   desktopUpdateSnapshot = { ...desktopUpdateSnapshot, ...next };
-  mainWindow?.webContents.send("openteam:desktop-update-progress", desktopUpdateSnapshot);
+  mainWindow?.webContents.send("aiteamos:desktop-update-progress", desktopUpdateSnapshot);
 };
 
 const loadDesktopUpdater = () => {
@@ -171,7 +171,7 @@ const configureDesktopUpdater = async (): Promise<AppUpdater | null> => {
       status: "downloaded",
       latestVersion: info.version,
       progress: 100,
-      message: "Restart OpenTeam to finish installing the update",
+      message: "Restart aiTeamOS to finish installing the update",
       failureKind: null,
     })
   );
@@ -202,8 +202,8 @@ const scheduleDesktopUpdateChecks = () => {
 
 const tailscaleManager = new TailscaleManager({
   cliPath: app.isPackaged
-    ? join(process.resourcesPath, "app.asar.unpacked", "dist-electron", "openteam-cli.js")
-    : join(import.meta.dirname, "openteam-cli.js"),
+    ? join(process.resourcesPath, "app.asar.unpacked", "dist-electron", "aiteamos-cli.js")
+    : join(import.meta.dirname, "aiteamos-cli.js"),
   executablePath: process.execPath,
 });
 
@@ -230,10 +230,10 @@ const checkForDesktopUpdate = async (): Promise<DesktopUpdateSnapshot> => {
       return desktopUpdateSnapshot;
     }
     const manifestUrl =
-      process.env.OPENTEAM_UPDATE_MANIFEST_URL ??
-      "https://api.github.com/repos/raghavpillai/openteam/releases/latest";
+      process.env.AITEAMOS_UPDATE_MANIFEST_URL ??
+      "https://api.github.com/repos/jingyi0605/ai-TeamOS/releases/latest";
     const response = await net.fetch(manifestUrl, {
-      headers: { accept: "application/vnd.github+json", "user-agent": "OpenTeam-Desktop" },
+      headers: { accept: "application/vnd.github+json", "user-agent": "aiTeamOS-Desktop" },
     });
     if (response.status === 404) {
       desktopUpdateSnapshot = {
@@ -248,7 +248,7 @@ const checkForDesktopUpdate = async (): Promise<DesktopUpdateSnapshot> => {
     }
     if (!response.ok) throw new Error(`Update service returned ${response.status}`);
     const release = parseDesktopReleaseManifest(await response.json(), releasePage);
-    const updateAvailable = (compareOpenTeamVersions(release.version, app.getVersion()) ?? 0) > 0;
+    const updateAvailable = (compareAiTeamOSVersions(release.version, app.getVersion()) ?? 0) > 0;
     desktopUpdateSnapshot = {
       currentVersion: app.getVersion(),
       latestVersion: release.version,
@@ -358,7 +358,7 @@ const saveImageTo = async (window: BrowserWindow, sourceUrl: string, destination
     });
     return;
   }
-  const temporary = `${destination}.openteam-${crypto.randomUUID()}.tmp`;
+  const temporary = `${destination}.aiteamos-${crypto.randomUUID()}.tmp`;
   const url = new URL(sourceUrl);
   const loopbackHttp =
     url.protocol === "http:" && ["127.0.0.1", "localhost", "[::1]"].includes(url.hostname);
@@ -436,7 +436,7 @@ const safeDownloadName = (value: string) => {
 const trustedDownloadOrigins = () => {
   const origins = new Set<string>();
   for (const candidate of [
-    process.env.OPENTEAM_SERVER_URL ?? "http://127.0.0.1:8787",
+    process.env.AITEAMOS_SERVER_URL ?? "http://127.0.0.1:8787",
     mainWindow?.webContents.getURL(),
   ]) {
     if (!candidate) continue;
@@ -507,7 +507,7 @@ const writeUniqueDownload = async (directory: string, name: string, url: string)
   throw new Error(`Could not choose an unused filename for ${name}`);
 };
 
-ipcMain.handle("openteam:files:download-all", async (event, value: unknown) => {
+ipcMain.handle("aiteamos:files:download-all", async (event, value: unknown) => {
   if (!mainWindow || event.sender !== mainWindow.webContents) {
     throw new Error("Downloads are unavailable");
   }
@@ -551,7 +551,7 @@ const requireDeliveryStageSender = (event: Electron.IpcMainInvokeEvent) => {
   }
 };
 
-ipcMain.handle("openteam:files:stage-delivery", async (event, value: unknown) => {
+ipcMain.handle("aiteamos:files:stage-delivery", async (event, value: unknown) => {
   requireDeliveryStageSender(event);
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     throw new Error("Delivery staging request is invalid");
@@ -573,13 +573,13 @@ ipcMain.handle("openteam:files:stage-delivery", async (event, value: unknown) =>
   });
 });
 
-ipcMain.handle("openteam:files:read-delivery-stage", async (event, stagingId: unknown) => {
+ipcMain.handle("aiteamos:files:read-delivery-stage", async (event, stagingId: unknown) => {
   requireDeliveryStageSender(event);
   if (typeof stagingId !== "string") throw new Error("Delivery staging ID is invalid");
   return readDeliveryFile(deliveryStageDirectory(), stagingId);
 });
 
-ipcMain.handle("openteam:files:discard-delivery-stages", async (event, stagingIds: unknown) => {
+ipcMain.handle("aiteamos:files:discard-delivery-stages", async (event, stagingIds: unknown) => {
   requireDeliveryStageSender(event);
   if (
     !Array.isArray(stagingIds) ||
@@ -599,12 +599,12 @@ const requireDurableSendJournals = (event: Electron.IpcMainInvokeEvent) => {
   return durableSendJournals;
 };
 
-ipcMain.handle("openteam:delivery-journal:read", (event, scope: unknown) => {
+ipcMain.handle("aiteamos:delivery-journal:read", (event, scope: unknown) => {
   if (typeof scope !== "string") throw new Error("Delivery journal scope is invalid");
   return requireDurableSendJournals(event).read(scope);
 });
 
-ipcMain.handle("openteam:delivery-journal:write", (event, value: unknown) => {
+ipcMain.handle("aiteamos:delivery-journal:write", (event, value: unknown) => {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     throw new Error("Delivery journal write is invalid");
   }
@@ -613,7 +613,7 @@ ipcMain.handle("openteam:delivery-journal:write", (event, value: unknown) => {
   return requireDurableSendJournals(event).write(request.scope, request.journal);
 });
 
-ipcMain.handle("openteam:updates:status", (event) => {
+ipcMain.handle("aiteamos:updates:status", (event) => {
   if (!mainWindow || event.sender !== mainWindow.webContents) {
     throw new Error("Update status is unavailable");
   }
@@ -627,8 +627,8 @@ const requireAuthTokenStore = (event: Electron.IpcMainInvokeEvent) => {
   return authTokenStore;
 };
 
-ipcMain.handle("openteam:auth-token:read", (event) => requireAuthTokenStore(event).read());
-ipcMain.handle("openteam:auth-token:write", (event, value: unknown) => {
+ipcMain.handle("aiteamos:auth-token:read", (event) => requireAuthTokenStore(event).read());
+ipcMain.handle("aiteamos:auth-token:write", (event, value: unknown) => {
   if (typeof value !== "string" || !value.trim() || value.length > 16 * 1024) {
     throw new Error("Authentication token is invalid");
   }
@@ -636,7 +636,7 @@ ipcMain.handle("openteam:auth-token:write", (event, value: unknown) => {
   pluginOAuth.closeAll();
   return store.write(value);
 });
-ipcMain.handle("openteam:auth-token:clear", async (event) => {
+ipcMain.handle("aiteamos:auth-token:clear", async (event) => {
   const store = requireAuthTokenStore(event);
   pluginOAuth.closeAll();
   providerSignIn.cancel();
@@ -656,35 +656,35 @@ const requireAuthSender = (event: Electron.IpcMainInvokeEvent) => {
 };
 
 const pluginOAuth = new DesktopPluginOAuth(result => {
-  if (mainWindow && !mainWindow.webContents.isDestroyed()) mainWindow.webContents.send("openteam:plugin-oauth:result", result);
+  if (mainWindow && !mainWindow.webContents.isDestroyed()) mainWindow.webContents.send("aiteamos:plugin-oauth:result", result);
 });
-ipcMain.handle("openteam:plugin-oauth:start", async (event, connectionId: unknown, force: unknown) => {
+ipcMain.handle("aiteamos:plugin-oauth:start", async (event, connectionId: unknown, force: unknown) => {
   requireAuthSender(event);
   if (typeof connectionId !== "string" || !/^[a-zA-Z0-9-]{1,128}$/.test(connectionId) || typeof force !== "boolean") throw new Error("Invalid plugin sign-in request");
   const serverUrl = enrollmentServerUrl;
-  if (!serverUrl) throw new Error("Connect to your OpenTeam server before authorizing a plugin.");
+  if (!serverUrl) throw new Error("Connect to your aiTeamOS server before authorizing a plugin.");
   const generation = pluginOAuth.sessionGeneration;
   const token = (await requireAuthTokenStore(event).read()).token;
   if (enrollmentServerUrl !== serverUrl || generation !== pluginOAuth.sessionGeneration) throw new Error("The server or sign-in session changed. Try again.");
-  const client = createOpenTeamClient({ baseUrl: serverUrl, getAuthToken: () => token,
+  const client = createAiTeamOSClient({ baseUrl: serverUrl, getAuthToken: () => token,
     fetch: (input, init) => net.fetch(input instanceof Request ? input.url : String(input), {
       ...init, signal: AbortSignal.timeout(45_000), redirect: "error",
     }),
   });
   return pluginOAuth.start(`${serverUrl}:${token ?? ""}`, connectionId, client, force);
 });
-ipcMain.handle("openteam:plugin-oauth:cancel", (event, connectionId: unknown, state: unknown) => {
+ipcMain.handle("aiteamos:plugin-oauth:cancel", (event, connectionId: unknown, state: unknown) => {
   requireAuthSender(event);
   if (typeof connectionId !== "string" || connectionId.length > 128 || typeof state !== "string" || state.length > 4096) throw new Error("Invalid plugin cancellation");
   return pluginOAuth.cancel(connectionId, state);
 });
-ipcMain.handle("openteam:plugin-oauth:close", event => {
+ipcMain.handle("aiteamos:plugin-oauth:close", event => {
   requireAuthSender(event);
   pluginOAuth.closeAll();
 });
 
 // A server installed on this computer can be offered without typing its address.
-ipcMain.handle("openteam:local-server:detect", (event) => {
+ipcMain.handle("aiteamos:local-server:detect", (event) => {
   requireAuthSender(event);
   const installation = readManagedInstallation();
   return installation
@@ -697,7 +697,7 @@ ipcMain.handle("openteam:local-server:detect", (event) => {
 
 const providerSignIn = new ProviderSignInCallback();
 ipcMain.handle(
-  "openteam:provider-sign-in:capture",
+  "aiteamos:provider-sign-in:capture",
   (event, authorizationUrl: unknown, redirectUri: unknown) => {
     requireAuthSender(event);
     if (
@@ -710,12 +710,12 @@ ipcMain.handle(
     return providerSignIn.capture(authorizationUrl, redirectUri, (url) => shell.openExternal(url));
   }
 );
-ipcMain.handle("openteam:provider-sign-in:cancel", (event) => {
+ipcMain.handle("aiteamos:provider-sign-in:cancel", (event) => {
   requireAuthSender(event);
   providerSignIn.cancel();
 });
 
-ipcMain.handle("openteam:machine:connect", (event, serverUrl: unknown) => {
+ipcMain.handle("aiteamos:machine:connect", (event, serverUrl: unknown) => {
   requireAuthSender(event);
   if (typeof serverUrl !== "string" || serverUrl.length > 8192) throw new Error("Invalid server URL");
   const url = new URL(serverUrl);
@@ -730,28 +730,28 @@ ipcMain.handle("openteam:machine:connect", (event, serverUrl: unknown) => {
   return { machineId: localMachine.machineId };
 });
 
-ipcMain.handle("openteam:machine:status", event => {
+ipcMain.handle("aiteamos:machine:status", event => {
   requireAuthSender(event);
   return { machineId: localMachine.machineId, ...(machineEnrollment?.status() ?? { connected: false, configured: false, error: null }) };
 });
 
-ipcMain.handle("openteam:auth:sign-in", (event, serverUrl, username, password) => {
+ipcMain.handle("aiteamos:auth:sign-in", (event, serverUrl, username, password) => {
   requireAuthSender(event);
   return desktopSignIn(serverUrl, username, password);
 });
-ipcMain.handle("openteam:auth:sign-out", (event, serverUrl, token) => {
+ipcMain.handle("aiteamos:auth:sign-out", (event, serverUrl, token) => {
   requireAuthSender(event);
   return desktopSignOut(serverUrl, token);
 });
 
-ipcMain.handle("openteam:updates:check", async (event) => {
+ipcMain.handle("aiteamos:updates:check", async (event) => {
   if (!mainWindow || event.sender !== mainWindow.webContents) {
     throw new Error("Update status is unavailable");
   }
   return checkForDesktopUpdate();
 });
 
-ipcMain.handle("openteam:updates:open-download", async (event) => {
+ipcMain.handle("aiteamos:updates:open-download", async (event) => {
   if (!mainWindow || event.sender !== mainWindow.webContents) {
     throw new Error("Update status is unavailable");
   }
@@ -773,7 +773,7 @@ ipcMain.handle("openteam:updates:open-download", async (event) => {
   await shell.openExternal(desktopUpdateSnapshot.downloadUrl || releasePage);
 });
 
-ipcMain.handle("openteam:updates:install-client", async (event) => {
+ipcMain.handle("aiteamos:updates:install-client", async (event) => {
   if (!mainWindow || event.sender !== mainWindow.webContents) {
     throw new Error("Desktop update installation is unavailable");
   }
@@ -790,11 +790,11 @@ ipcMain.handle("openteam:updates:install-client", async (event) => {
   // quitAndInstall closes every window without emitting before-quit. Without this, the macOS
   // close-to-hide handler cancels the close, so the app neither quits nor installs.
   isQuitting = true;
-  mainWindow?.webContents.send("openteam:notifications:activity-changed");
+  mainWindow?.webContents.send("aiteamos:notifications:activity-changed");
   autoUpdater.quitAndInstall(false, true);
 });
 
-ipcMain.handle("openteam:tailscale", async (event, value) => {
+ipcMain.handle("aiteamos:tailscale", async (event, value) => {
   if (!mainWindow || event.sender !== mainWindow.webContents) throw new Error("Tailscale management is unavailable");
   return tailscaleManager.request(value);
 });
@@ -814,17 +814,17 @@ const desktopNotificationSnapshot = (value: unknown): DesktopNotificationSnapsho
   return { channels, ...(candidate.cursor ? { cursor: candidate.cursor } : {}) };
 };
 
-ipcMain.on("openteam:notifications:sync", (event, request: unknown) => {
+ipcMain.on("aiteamos:notifications:sync", (event, request: unknown) => {
   if (!mainWindow || event.sender !== mainWindow.webContents) return;
   const snapshot = desktopNotificationSnapshot(request);
   if (snapshot) desktopNotifications?.sync(snapshot);
 });
 
-ipcMain.on("openteam:notifications:clear", (event) => {
+ipcMain.on("aiteamos:notifications:clear", (event) => {
   if (mainWindow && event.sender === mainWindow.webContents) desktopNotifications?.clear();
 });
 
-ipcMain.on("openteam:notifications:visible-channel", (event, channelId: unknown) => {
+ipcMain.on("aiteamos:notifications:visible-channel", (event, channelId: unknown) => {
   if (!mainWindow || event.sender !== mainWindow.webContents) return;
   if (
     channelId !== null &&
@@ -838,7 +838,7 @@ ipcMain.on("openteam:notifications:visible-channel", (event, channelId: unknown)
 let notificationScreenLocked = false;
 let notificationSuspended = false;
 let notificationDeliveryFailed = false;
-ipcMain.handle("openteam:notifications:activity", (event) => {
+ipcMain.handle("aiteamos:notifications:activity", (event) => {
   if (!mainWindow || event.sender !== mainWindow.webContents) throw new Error("Activity is unavailable");
   const idleSeconds = powerMonitor.getSystemIdleTime();
   return { idleSeconds, active: process.platform === "darwin" && !isQuitting &&
@@ -846,7 +846,7 @@ ipcMain.handle("openteam:notifications:activity", (event) => {
     powerMonitor.getSystemIdleState(300) !== "locked" && Notification.isSupported() && idleSeconds < 300 };
 });
 
-ipcMain.handle("openteam:notifications:status", async (event) => {
+ipcMain.handle("aiteamos:notifications:status", async (event) => {
   if (!mainWindow || event.sender !== mainWindow.webContents) {
     throw new Error("Notification status is unavailable");
   }
@@ -866,7 +866,7 @@ ipcMain.handle("openteam:notifications:status", async (event) => {
   return { supported, platform: process.platform, delivered };
 });
 
-ipcMain.handle("openteam:notifications:open-settings", async (event) => {
+ipcMain.handle("aiteamos:notifications:open-settings", async (event) => {
   if (!mainWindow || event.sender !== mainWindow.webContents) {
     throw new Error("Notification settings are unavailable");
   }
@@ -885,7 +885,7 @@ const requireMicrophoneWindow = (event: Electron.IpcMainInvokeEvent) => {
   }
 };
 
-ipcMain.handle("openteam:microphone:status", (event) => {
+ipcMain.handle("aiteamos:microphone:status", (event) => {
   requireMicrophoneWindow(event);
   const supported = process.platform === "darwin" || process.platform === "win32";
   return {
@@ -895,7 +895,7 @@ ipcMain.handle("openteam:microphone:status", (event) => {
   };
 });
 
-ipcMain.handle("openteam:microphone:request-permission", (event) => {
+ipcMain.handle("aiteamos:microphone:request-permission", (event) => {
   requireMicrophoneWindow(event);
   if (process.platform !== "darwin") {
     throw new Error("Use system settings to allow microphone access.");
@@ -903,7 +903,7 @@ ipcMain.handle("openteam:microphone:request-permission", (event) => {
   return systemPreferences.askForMediaAccess("microphone");
 });
 
-ipcMain.handle("openteam:microphone:open-settings", async (event) => {
+ipcMain.handle("aiteamos:microphone:open-settings", async (event) => {
   requireMicrophoneWindow(event);
   if (process.platform === "darwin") {
     await shell.openExternal(
@@ -927,30 +927,30 @@ const computerSettingsView = (settings: ComputerSettings) => ({
   ...settings, machine: { ...localMachine, label: settings.machineLabel ?? localMachine.label }, messagesSupported: !!messagesAccess,
 });
 let computerClipboardActive = false;
-ipcMain.on("openteam:computer-clipboard-active", (event, active: unknown) => {
+ipcMain.on("aiteamos:computer-clipboard-active", (event, active: unknown) => {
   if (event.sender === mainWindow?.webContents && typeof active === "boolean") computerClipboardActive = active;
 });
-ipcMain.handle("openteam:computer-clipboard-read", event => {
+ipcMain.handle("aiteamos:computer-clipboard-read", event => {
   requireAuthSender(event);
   if (!computerClipboardActive) throw new Error("Focus the computer before using its clipboard.");
   const text = clipboard.readText();
   if (Buffer.byteLength(text, "utf8") > 4_000_000) throw new Error("Clipboard text is too large.");
   return text;
 });
-ipcMain.handle("openteam:computer-clipboard-write", (event, text: unknown) => {
+ipcMain.handle("aiteamos:computer-clipboard-write", (event, text: unknown) => {
   requireAuthSender(event);
   if (!computerClipboardActive) throw new Error("Focus the computer before using its clipboard.");
   if (typeof text !== "string" || Buffer.byteLength(text, "utf8") > 4_000_000) throw new Error("Clipboard text is too large.");
   clipboard.writeText(text);
 });
-ipcMain.handle("openteam:computer:get", async event => computerSettingsView(await requireComputerSettings(event).read()));
-ipcMain.handle("openteam:network:get", event => { requireAuthSender(event); return browserNetwork?.status() ?? null; });
-ipcMain.handle("openteam:network:share", async (event, enabled: unknown) => {
+ipcMain.handle("aiteamos:computer:get", async event => computerSettingsView(await requireComputerSettings(event).read()));
+ipcMain.handle("aiteamos:network:get", event => { requireAuthSender(event); return browserNetwork?.status() ?? null; });
+ipcMain.handle("aiteamos:network:share", async (event, enabled: unknown) => {
   requireAuthSender(event);
   if (typeof enabled !== "boolean" || !browserNetwork) throw new Error("Invalid browser network permission");
   return browserNetwork.setAllowed(enabled);
 });
-ipcMain.handle("openteam:computer:update", async (event, input: unknown) => {
+ipcMain.handle("aiteamos:computer:update", async (event, input: unknown) => {
   const record = input && typeof input === "object" && !Array.isArray(input) ? input as Record<string, unknown> : null;
   if (!record || !Object.keys(record).length || Object.keys(record).some(key => key !== "machineLabel" && key !== "messagesEnabled")) throw new Error("Invalid computer settings");
   if ("machineLabel" in record && (typeof record.machineLabel !== "string" || !record.machineLabel.trim())) throw new Error("A computer label is required");
@@ -965,11 +965,11 @@ ipcMain.handle("openteam:computer:update", async (event, input: unknown) => {
 // app.getFileIcon crashes the main process on macOS 26 (a SIGTRAP in Chromium's thread pool),
 // so the Messages icon is converted once with sips instead.
 let messagesIconRequest: Promise<string | null> | undefined;
-ipcMain.handle("openteam:computer:messages-icon", async (event) => {
+ipcMain.handle("aiteamos:computer:messages-icon", async (event) => {
   requireAuthSender(event);
   if (!messagesAccess) return null;
   messagesIconRequest ??= (async () => {
-    const directory = await mkdtemp(join(tmpdir(), "openteam-messages-icon-"));
+    const directory = await mkdtemp(join(tmpdir(), "aiteamos-messages-icon-"));
     try {
       const target = join(directory, "messages.png");
       await nativeCommand("/usr/bin/sips", ["-s", "format", "png", "-Z", "80", "/System/Applications/Messages.app/Contents/Resources/AppIcon.icns", "--out", target]);
@@ -982,7 +982,7 @@ ipcMain.handle("openteam:computer:messages-icon", async (event) => {
   })();
   return messagesIconRequest;
 });
-ipcMain.handle("openteam:computer:messages-permissions", async (event, request: unknown) => {
+ipcMain.handle("aiteamos:computer:messages-permissions", async (event, request: unknown) => {
   requireAuthSender(event);
   if (!messagesAccess) return null;
   if (request === "fullDiskAccess") {
@@ -1003,7 +1003,7 @@ ipcMain.handle("openteam:computer:messages-permissions", async (event, request: 
   return messagesAccess.permissions(0);
 });
 
-ipcMain.handle("openteam:performance-snapshot", async (event) => {
+ipcMain.handle("aiteamos:performance-snapshot", async (event) => {
   if (!mainWindow || event.sender !== mainWindow.webContents) {
     throw new Error("Performance metrics are only available to the main window");
   }
@@ -1026,7 +1026,7 @@ const createWindow = async () => {
     titleBarStyle: process.platform === "darwin" ? "hiddenInset" : "default",
     trafficLightPosition: { x: 16, y: 15 },
     webPreferences: {
-      additionalArguments: [`--openteam-app-version=${encodeURIComponent(app.getVersion())}`],
+      additionalArguments: [`--aiteamos-app-version=${encodeURIComponent(app.getVersion())}`],
       preload: join(import.meta.dirname, "preload.cjs"),
       // Native completion and needs-input notifications depend on the renderer's
       // product-event stream even while the window is minimized.
@@ -1071,14 +1071,14 @@ const createWindow = async () => {
     });
   });
   mainWindow.webContents.on("unresponsive", () =>
-    console.warn("OpenTeam renderer became unresponsive")
+    console.warn("aiTeamOS renderer became unresponsive")
   );
   mainWindow.webContents.on("render-process-gone", (_event, details) =>
-    console.error("OpenTeam renderer process exited", details)
+    console.error("aiTeamOS renderer process exited", details)
   );
   // Never expose the packaged preload bridge to an environment-selected page.
   // Development retains explicit remote/Tailscale renderer support by design.
-  const rendererUrl = app.isPackaged ? undefined : process.env.OPENTEAM_RENDERER_URL;
+  const rendererUrl = app.isPackaged ? undefined : process.env.AITEAMOS_RENDERER_URL;
   if (rendererUrl) await mainWindow.loadURL(rendererUrl);
   else await mainWindow.loadFile(join(import.meta.dirname, "..", "dist", "index.html"));
 };
@@ -1099,7 +1099,7 @@ const hasSingleInstanceLock = !app.isPackaged || app.requestSingleInstanceLock()
 
 app.on("second-instance", focusMainWindow);
 app.on("child-process-gone", (_event, details) =>
-  console.error("OpenTeam child process exited", details)
+  console.error("aiTeamOS child process exited", details)
 );
 
 if (!hasSingleInstanceLock) {
@@ -1112,7 +1112,7 @@ if (!hasSingleInstanceLock) {
         Menu.buildFromTemplate(
           applicationMenuTemplate(process.platform, (action) => {
             focusMainWindow();
-            mainWindow?.webContents.send("openteam:app-menu", action);
+            mainWindow?.webContents.send("aiteamos:app-menu", action);
             if (
               action === "updates" &&
               !["checking", "downloading", "downloaded", "installing"].includes(
@@ -1123,7 +1123,7 @@ if (!hasSingleInstanceLock) {
             }
           }, (action, window) => {
             if (!computerClipboardActive || window !== mainWindow) return false;
-            mainWindow?.webContents.send("openteam:computer-clipboard", action);
+            mainWindow?.webContents.send("aiteamos:computer-clipboard", action);
             return true;
           })
         )
@@ -1133,7 +1133,7 @@ if (!hasSingleInstanceLock) {
         join(app.getPath("userData"), "auth-session.json")
       );
       const authStorageWarmup = authTokenStore.read().catch(() => null);
-      await protocol.handle("openteam-staged", async (request) => {
+      await protocol.handle("aiteamos-staged", async (request) => {
         try {
           const url = new URL(request.url);
           if (url.hostname !== "file") return new Response("Not found", { status: 404 });
@@ -1151,7 +1151,7 @@ if (!hasSingleInstanceLock) {
       computerSettings = createComputerSettingsStore(
         join(app.getPath("userData"), "computer-settings.json")
       );
-      const activityChanged = () => mainWindow?.webContents.send("openteam:notifications:activity-changed");
+      const activityChanged = () => mainWindow?.webContents.send("aiteamos:notifications:activity-changed");
       powerMonitor.on("lock-screen", () => { notificationScreenLocked = true; activityChanged(); });
       powerMonitor.on("unlock-screen", () => { notificationScreenLocked = false; notificationDeliveryFailed = false; activityChanged(); });
       // A sleeping computer goes offline at once, so bots move Messages and other work to one that's awake.
@@ -1168,7 +1168,7 @@ if (!hasSingleInstanceLock) {
           activityNotifications.delete(id);
         },
         deliver: (notificationEvent) => {
-          const debugNotifications = process.env.OPENTEAM_NOTIFICATION_DEBUG === "1";
+          const debugNotifications = process.env.AITEAMOS_NOTIFICATION_DEBUG === "1";
           const notification = new Notification({
             id: notificationEvent.notificationId,
             groupId: notificationEvent.channelId,
@@ -1190,7 +1190,7 @@ if (!hasSingleInstanceLock) {
             notificationDeliveryFailed = false;
             if (debugNotifications) {
               console.info(
-                "OpenTeam native notification shown",
+                "aiTeamOS native notification shown",
                 notificationEvent.kind,
                 notificationEvent.title
               );
@@ -1198,22 +1198,22 @@ if (!hasSingleInstanceLock) {
           });
           notification.once("failed", (_event, error) => {
             notificationDeliveryFailed = true;
-            mainWindow?.webContents.send("openteam:notifications:activity-changed");
-            console.error("OpenTeam native notification failed", error);
+            mainWindow?.webContents.send("aiteamos:notifications:activity-changed");
+            console.error("aiTeamOS native notification failed", error);
             release();
           });
           notification.on("click", () => {
             focusMainWindow();
-            mainWindow?.webContents.send("openteam:notification-click", parseNotificationTarget(notificationEvent));
+            mainWindow?.webContents.send("aiteamos:notification-click", parseNotificationTarget(notificationEvent));
           });
           notification.show();
         },
       });
       await Promise.all([createWindow(), authStorageWarmup]);
       scheduleDesktopUpdateChecks();
-      const port = Number(process.env.OPENTEAM_HOST_BRIDGE_PORT ?? 8791);
+      const port = Number(process.env.AITEAMOS_HOST_BRIDGE_PORT ?? 8791);
       const token = resolveControlToken({
-        environmentToken: process.env.OPENTEAM_CONTROL_TOKEN,
+        environmentToken: process.env.AITEAMOS_CONTROL_TOKEN,
         cwd: process.cwd(),
         appPath: app.getAppPath(),
         executablePath: process.execPath,
@@ -1234,7 +1234,7 @@ if (!hasSingleInstanceLock) {
             enabled: async () => (await computerSettings!.read()).messagesEnabled,
             access: messagesAccess ?? undefined,
             onGrantMissing: () => {
-              mainWindow?.webContents.send("openteam:messages-grants-needed");
+              mainWindow?.webContents.send("aiteamos:messages-grants-needed");
               if (process.platform === "darwin" && !mainWindow?.isFocused()) app.dock?.bounce("informational");
             },
           }),
@@ -1272,7 +1272,7 @@ if (!hasSingleInstanceLock) {
       });
     })
     .catch((error) => {
-      console.error("Failed to start OpenTeam desktop", safeErrorMessage(error));
+      console.error("Failed to start aiTeamOS desktop", safeErrorMessage(error));
       app.quit();
     });
 }
@@ -1280,7 +1280,7 @@ if (!hasSingleInstanceLock) {
 app.on("before-quit", () => {
   pluginOAuth.closeAll();
   isQuitting = true;
-  mainWindow?.webContents.send("openteam:notifications:activity-changed");
+  mainWindow?.webContents.send("aiteamos:notifications:activity-changed");
   if (desktopUpdateTimer) clearInterval(desktopUpdateTimer);
   desktopUpdateTimer = null;
   desktopNotifications?.clear();

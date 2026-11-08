@@ -10,8 +10,8 @@ app.on("window-all-closed", () => {});
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
 const assert = (condition, message) => { if (!condition) throw Error(message); };
 app.whenReady().then(async () => {
-  ipcMain.handle("openteam:window-visibility", () => true);
-  ipcMain.handle("openteam:window-activity", () => true);
+  ipcMain.handle("aiteamos:window-visibility", () => true);
+  ipcMain.handle("aiteamos:window-activity", () => true);
   const reports = [];
   const rendererErrors = [];
   try {
@@ -39,9 +39,9 @@ app.whenReady().then(async () => {
           await pause(100);
           const draft = await evaluate("window.foregroundFixture.state()");
           assert(draft.text === "Unsent foreground draft", `${arm}: composer editing failed`);
-          win.webContents.send("openteam:window-activity-changed", false);
+          win.webContents.send("aiteamos:window-activity-changed", false);
           await pause(100);
-          win.webContents.send("openteam:window-activity-changed", true);
+          win.webContents.send("aiteamos:window-activity-changed", true);
           await pause(100);
           const resumed = await evaluate("window.foregroundFixture.state()");
           assert(resumed.text === draft.text && resumed.editorFocused === draft.editorFocused && JSON.stringify(resumed.selection) === JSON.stringify(draft.selection), `${arm}: pause/resume changed draft, caret selection, or focus`);

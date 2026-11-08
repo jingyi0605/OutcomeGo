@@ -109,7 +109,7 @@ const notificationProjection = ({
   };
 };
 
-describe("OpenTeam-compatible notification transitions", () => {
+describe("aiTeamOS-compatible notification transitions", () => {
 
   test("a cancelled run still notifies when it produced a new bot message", async () => {
     const harness = notificationProjection({ initialStatus: "cancelled" });

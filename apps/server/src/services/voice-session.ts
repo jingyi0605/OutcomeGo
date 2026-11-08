@@ -6,7 +6,7 @@ import {
   VOICE_FRAME_MS,
   VOICE_MAX_FRAME_BYTES,
   type VoiceControlMessage,
-} from "@openteam/contracts";
+} from "@aiteamos/contracts";
 import { VoiceMediaQueue } from "./voice-media";
 
 export interface VoiceConnectionData {

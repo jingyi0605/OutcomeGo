@@ -106,12 +106,12 @@ afterEach(() => {
 });
 
 const fixture = () => {
-  const directory = mkdtempSync(join(tmpdir(), "openteam-provider-test-"));
+  const directory = mkdtempSync(join(tmpdir(), "aiteamos-provider-test-"));
   directories.push(directory);
   const paths = installationPaths(directory);
   writeFileAtomic(
     paths.compose,
-    "name: openteam\nservices:\n  computer:\n    image: example/computer\n"
+    "name: aiteamos\nservices:\n  computer:\n    image: example/computer\n"
   );
   writeFileAtomic(paths.environment, createEnvironment({ version: "1.2.3" }));
   const now = new Date().toISOString();
@@ -119,7 +119,7 @@ const fixture = () => {
     schemaVersion: 1,
     repository: "owner/repo",
     version: "1.2.3",
-    composeUrl: "https://example.test/openteam-compose.yaml",
+    composeUrl: "https://example.test/aiteamos-compose.yaml",
     installedAt: now,
     updatedAt: now,
   });
@@ -196,7 +196,7 @@ describe("provider management", () => {
       new SecretPrompter("anthropic-test-secret")
     );
     const login = runner.calls.find(
-      (call) => call.args.includes("openteam-pi-auth") && call.args.includes("login")
+      (call) => call.args.includes("aiteamos-pi-auth") && call.args.includes("login")
     );
     expect(login?.args.join(" ")).not.toContain("anthropic-test-secret");
     expect(login?.options?.input).toBe("anthropic-test-secret\n");

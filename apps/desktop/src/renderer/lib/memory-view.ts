@@ -1,4 +1,4 @@
-import type { BotMemoryList } from "@openteam/contracts";
+import type { BotMemoryList } from "@aiteamos/contracts";
 
 export interface MemoryViewState {
   data: BotMemoryList | null;

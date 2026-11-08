@@ -1,10 +1,10 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import { api } from '../../src/renderer/client/openteam-api';
-import { UserFormCard } from '../../src/renderer/components/openteam/user-form-card';
-import { ExternalDraftCard } from '../../src/renderer/components/openteam/external-draft-card';
-import { SharedTemplateCard } from '../../src/renderer/components/openteam/shared-template-card';
-import type { ChannelMessageView, UserForm, ExternalDraft } from '@openteam/contracts';
+import { api } from '../../src/renderer/client/aiteamos-api';
+import { UserFormCard } from '../../src/renderer/components/aiteamos/user-form-card';
+import { ExternalDraftCard } from '../../src/renderer/components/aiteamos/external-draft-card';
+import { SharedTemplateCard } from '../../src/renderer/components/aiteamos/shared-template-card';
+import type { ChannelMessageView, UserForm, ExternalDraft } from '@aiteamos/contracts';
 const wait = (ms = 30) => new Promise((resolve) => setTimeout(resolve, ms));
 const assert = (condition: unknown, message: string) => { if (!condition) throw new Error(message); };
 const base = (id: string, metadata: unknown) => ({ id, content: '', metadata }) as ChannelMessageView;

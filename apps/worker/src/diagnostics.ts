@@ -5,9 +5,9 @@ import { hostname } from "node:os";
 import type { PgBoss } from "pg-boss";
 import { WorkerDependencyError } from "./readiness";
 
-export const DOCTOR_QUEUE = "openteam-doctor";
-export const DOCTOR_SOCKET = "/tmp/openteam-worker-doctor.sock";
-export const DOCTOR_HEARTBEAT = "/tmp/openteam-worker-heartbeat.json";
+export const DOCTOR_QUEUE = "aiteamos-doctor";
+export const DOCTOR_SOCKET = "/tmp/aiteamos-worker-doctor.sock";
+export const DOCTOR_HEARTBEAT = "/tmp/aiteamos-worker-heartbeat.json";
 
 // Each replica must consume its own probe. Reuse its queue across process restarts,
 // and share concurrent Docker/doctor probes so they cannot make each other fail.
@@ -69,7 +69,7 @@ export const startWorkerDiagnostics = async (
           dependencyInFlight = null;
         });
       await bounded(dependencyInFlight);
-      stage = "Queue round trip failed or timed out; inspect openteam logs worker";
+      stage = "Queue round trip failed or timed out; inspect aiteamos logs worker";
       const nonce = randomUUID();
       id = await bounded(
         boss.send(queue, { nonce }, { retryLimit: 0, expireInSeconds: 10, retentionSeconds: 60 })

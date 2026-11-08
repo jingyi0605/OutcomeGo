@@ -7,12 +7,12 @@ import {
   verifyReleaseSignature,
 } from "../src/release";
 
-const compose = `name: openteam
+const compose = `name: aiteamos
 services:
   server:
-    image: example/openteam-server:\${OPENTEAM_VERSION}
+    image: example/aiteamos-server:\${AITEAMOS_VERSION}
 volumes:
-  openteam_workspace:
+  aiteamos_workspace:
 `;
 
 const servers: Array<{ stop(force?: boolean): void }> = [];
@@ -24,7 +24,7 @@ afterEach(() => {
 describe("release downloads", () => {
   test("builds a version-pinned GitHub release URL", () => {
     expect(releaseComposeUrl("owner/repo", "1.2.3")).toBe(
-      "https://github.com/owner/repo/releases/download/v1.2.3/openteam-compose.yaml"
+      "https://github.com/owner/repo/releases/download/v1.2.3/aiteamos-compose.yaml"
     );
   });
 
@@ -34,9 +34,9 @@ describe("release downloads", () => {
       port: 0,
       fetch(request) {
         const pathname = new URL(request.url).pathname;
-        if (pathname === "/openteam-compose.yaml") return new Response(compose);
+        if (pathname === "/aiteamos-compose.yaml") return new Response(compose);
         if (pathname === "/SHA256SUMS") {
-          return new Response(`${digest}  openteam-compose.yaml\n`);
+          return new Response(`${digest}  aiteamos-compose.yaml\n`);
         }
         return new Response("not found", { status: 404 });
       },
@@ -46,7 +46,7 @@ describe("release downloads", () => {
     const release = await downloadRelease({
       repository: "owner/repo",
       version: "1.2.3",
-      composeUrl: `${origin}/openteam-compose.yaml`,
+      composeUrl: `${origin}/aiteamos-compose.yaml`,
       checksumUrl: `${origin}/SHA256SUMS`,
       allowUnsigned: true,
     });
@@ -61,7 +61,7 @@ describe("release downloads", () => {
       port: 0,
       socket: {
         data(socket) {
-          socket.write("HTTP/1.1 200 OK\r\nContent-Length: 4096\r\n\r\nname: openteam\n");
+          socket.write("HTTP/1.1 200 OK\r\nContent-Length: 4096\r\n\r\nname: aiteamos\n");
           setTimeout(() => socket.end(), 100);
         },
       },
@@ -72,20 +72,20 @@ describe("release downloads", () => {
       downloadRelease({
         repository: "owner/repo",
         version: "1.2.3",
-        composeUrl: `${origin}/openteam-compose.yaml`,
+        composeUrl: `${origin}/aiteamos-compose.yaml`,
         checksumUrl: `${origin}/SHA256SUMS`,
         allowUnsigned: true,
       })
-    ).rejects.toThrow(`Could not download ${origin}/openteam-compose.yaml: `);
+    ).rejects.toThrow(`Could not download ${origin}/aiteamos-compose.yaml: `);
   });
 
   test("rejects a checksum mismatch", async () => {
     const server = Bun.serve({
       port: 0,
       fetch(request) {
-        return new URL(request.url).pathname === "/openteam-compose.yaml"
+        return new URL(request.url).pathname === "/aiteamos-compose.yaml"
           ? new Response(compose)
-          : new Response(`${"0".repeat(64)}  openteam-compose.yaml\n`);
+          : new Response(`${"0".repeat(64)}  aiteamos-compose.yaml\n`);
       },
     });
     servers.push(server);
@@ -94,7 +94,7 @@ describe("release downloads", () => {
       downloadRelease({
         repository: "owner/repo",
         version: "1.2.3",
-        composeUrl: `${origin}/openteam-compose.yaml`,
+        composeUrl: `${origin}/aiteamos-compose.yaml`,
         checksumUrl: `${origin}/SHA256SUMS`,
         allowUnsigned: true,
       })

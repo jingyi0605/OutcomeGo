@@ -1,4 +1,4 @@
-import type { Snapshot } from "@openteam/contracts";
+import type { Snapshot } from "@aiteamos/contracts";
 
 type StoredAttempt = {
   id: string;

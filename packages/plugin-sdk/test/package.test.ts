@@ -61,7 +61,7 @@ describe("portable plugin packages", () => {
     expect(imported.definition.connections).toHaveLength(1);
     expect(imported.definition.connections[0]?.endpoint).toBe("https://example.com/mcp");
     expect(imported.warnings).toContain(
-      "MCP server meetings: this package does not declare authentication. If the service requires sign-in, configure OAuth in the plugin definition before installing, or use its OpenTeam registry package."
+      "MCP server meetings: this package does not declare authentication. If the service requires sign-in, configure OAuth in the plugin definition before installing, or use its aiTeamOS registry package."
     );
     const roundtrip = importPackageArchive(exportPackageArchive(imported.definition));
     expect(roundtrip.definition.components).toEqual([
@@ -330,7 +330,7 @@ test("local MCP processes cannot inherit server or unrelated provider secrets", 
         HOME: "/home/bot",
         DATABASE_URL: "private-db",
         OPENAI_API_KEY: "private-key",
-        OPENTEAM_CONTROL_TOKEN: "control",
+        AITEAMOS_CONTROL_TOKEN: "control",
       },
       { PLUGIN_KEY: "configured" }
     )

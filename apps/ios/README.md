@@ -7,7 +7,7 @@ sources, QA fixtures, asset generators, and the Xcode project are all owned here
 Debug installs as **OpenTeam Swift** (`dev.openteam.mobile.swift`) with an isolated
 Keychain and `openteam-swift://` links. Release installs as **OpenTeam**
 (`dev.openbot.mobile`), retaining the existing TestFlight app, notification and
-Keychain identity, and `openteam://` links. Version, build number, bundle ID and
+Keychain identity, and `aiteamos://` links. Version, build number, bundle ID and
 signing team are configured in `release.json`.
 
 ## Build and run
@@ -25,7 +25,7 @@ From the repository root:
 
 ```sh
 bun install --frozen-lockfile
-bun --filter @openteam/ios generate
+bun --filter @aiteamos/ios generate
 xcodebuild -project apps/ios/OpenTeamNative.xcodeproj \
   -scheme OpenTeamNative -destination 'generic/platform=iOS Simulator' \
   -derivedDataPath apps/ios/.build-ios CODE_SIGNING_ALLOWED=NO build
@@ -80,8 +80,8 @@ python3 apps/ios/scripts/check-siri-skills.py <path-to-OpenTeamNative.app>
 The opt-in `SiriSkills` scheme compiles device-only `SiriEvaluations` tests for
 server search, named-group drafting and a conversational follow-up. Use an
 isolated QA account with a group named `Release review`. Enable
-`OPENTEAM_LIVE_SIRI_TESTS=1` in the test runner's environment and provide
-`OPENTEAM_SIRI_QA_CONVERSATION_ID` with that group's full account-scoped entity ID
+`AITEAMOS_LIVE_SIRI_TESTS=1` in the test runner's environment and provide
+`AITEAMOS_SIRI_QA_CONVERSATION_ID` with that group's full account-scoped entity ID
 (the `TeamConversationEntity` ID, not the raw server channel ID). Without opt-in,
 the tests skip. These cases open drafts; review and clear the QA drafts between
 runs. Also verify on device that "this conversation" follows the visible chat,
@@ -272,7 +272,7 @@ fields cannot break the Bot picker. Sending and exporting still validate against
 the server. Device unlock, Shortcuts dispatch, app startup, and microphone
 permission can still add delay.
 
-The `openteam://chat/<channel-id>` URL scheme (`openteam-swift://` in Debug)
+The `aiteamos://chat/<channel-id>` URL scheme (`openteam-swift://` in Debug)
 also resumes a link received before the saved account finishes restoring.
 
 On iOS 27, the Messages App Schemas additionally expose drafting and sending

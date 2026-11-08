@@ -183,4 +183,4 @@ export function sheetsTools(api = new GoogleApi('https://sheets.googleapis.com')
     ref('unprotect_range', a => batch(a, { deleteProtectedRange: { protectedRangeId: a.protectedRangeId } }), 'destructive'),
   ];
 }
-if (import.meta.main) await servePlugin('openteam-google-sheets', sheetsTools());
+if (import.meta.main) await servePlugin('aiteamos-google-sheets', sheetsTools());

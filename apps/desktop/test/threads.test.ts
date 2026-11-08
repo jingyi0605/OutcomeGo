@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { ChannelMessageView } from "@openteam/contracts";
+import type { ChannelMessageView } from "@aiteamos/contracts";
 import { deriveThreads, isBranchedMessage } from "../src/renderer/lib/threads";
 
 const message = (
@@ -20,7 +20,7 @@ const message = (
     createdAt: new Date(sequence * 1_000).toISOString(),
   }) as ChannelMessageView;
 
-describe("OpenTeam-compatible branched threads", () => {
+describe("aiTeamOS-compatible branched threads", () => {
   test("keeps ordinary replies in the main transcript and branches out forked replies", () => {
     const root = message("root", 1);
     const ordinary = message("ordinary", 2, "root");

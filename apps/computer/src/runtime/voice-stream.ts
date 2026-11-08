@@ -73,7 +73,7 @@ export function sendToUserSpeechExtension(speech: SendToUserSpeech): {
   factory: import("@earendil-works/pi-coding-agent").ExtensionFactory;
 } {
   return {
-    name: "openteam-send-to-user-speech",
+    name: "aiteamos-send-to-user-speech",
     hidden: true,
     factory(pi) {
       pi.on("message_update", (event) => {

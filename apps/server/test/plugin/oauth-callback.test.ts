@@ -9,7 +9,7 @@ import {
   connectionSetupPhase,
   connectionCallbackMode,
 } from "../../src/services/plugin/values";
-import { pluginCatalog } from "@openteam/plugins";
+import { pluginCatalog } from "@aiteamos/plugins";
 
 test("automatic callback follows the deployment URL and preserves explicit settings", () => {
   expect(oauthCallbackMode("https://bot.tail123.ts.net", {})).toBe("server");

@@ -52,7 +52,7 @@ export class HostJobManager {
   private ensureChild() {
     if (this.child) return this.child;
     const child = utilityProcess.fork(join(import.meta.dirname, "host-utility.js"), [], {
-      serviceName: "OpenTeam Host Jobs",
+      serviceName: "aiTeamOS Host Jobs",
       stdio: "pipe",
     });
     child.on("message", (message: unknown) => this.onMessage(message));

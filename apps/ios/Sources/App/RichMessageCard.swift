@@ -365,7 +365,7 @@ struct RichMessageCard: View {
     text.split(separator: ",").map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
       .filter { !$0.isEmpty }
   }
-  /// Mirrors externalDraftApprovalMode in @openteam/contracts.
+  /// Mirrors externalDraftApprovalMode in @aiteamos/contracts.
   private var draftMode: String {
     guard let bot = draftBot else { return "needs-approval" }
     if bot.draftingDisabled == true { return "disable-drafts" }

@@ -1,6 +1,6 @@
 {
-  "name": "@openteam/messaging",
-  "version": "0.0.15",
+  "name": "@aiteamos/messaging",
+  "version": "0.1.0-beta.1",
   "license": "GPL-3.0-only",
   "private": true,
   "type": "module",
@@ -13,14 +13,14 @@
     "test": "bun test --pass-with-no-tests"
   },
   "dependencies": {
-    "@openteam/contracts": "workspace:*",
-    "@openteam/db": "workspace:*",
+    "@aiteamos/contracts": "workspace:*",
+    "@aiteamos/db": "workspace:*",
     "chokidar": "5.0.0",
     "cron-parser": "5.10.0",
     "pg-boss": "12.28.0",
     "yaml": "2.9.0",
-    "@openteam/plugin-sdk": "workspace:*",
+    "@aiteamos/plugin-sdk": "workspace:*",
     "re2js": "2.8.6",
-    "@openteam/product-core": "workspace:*"
+    "@aiteamos/product-core": "workspace:*"
   }
 }

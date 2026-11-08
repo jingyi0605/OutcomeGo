@@ -1,8 +1,8 @@
-import { ApnsSettingsStore } from "@openteam/db/apns-settings";
+import { ApnsSettingsStore } from "@aiteamos/db/apns-settings";
 import { MachineService } from "./services/machine-service";
 import { AutomationWebhooksService } from "./services/automation-webhooks";
-import { ApiError, type UpdateUserTimeZoneInput, type UploadAssetInput } from "@openteam/contracts";
-import { createPrismaClient, Prisma, type PrismaClient } from "@openteam/db";
+import { ApiError, type UpdateUserTimeZoneInput, type UploadAssetInput } from "@aiteamos/contracts";
+import { createPrismaClient, Prisma, type PrismaClient } from "@aiteamos/db";
 import {
   AgentDataStore,
   AgentMessaging,
@@ -11,7 +11,7 @@ import {
   type RoutineMutationInput,
   RoutineService,
   userTimeZoneView,
-} from "@openteam/messaging";
+} from "@aiteamos/messaging";
 import { Effect } from "effect";
 import { join, resolve } from "node:path";
 import { TranscriptionService } from "./transcription/service";
@@ -102,17 +102,17 @@ export class AppService {
     });
     this.machines = new MachineService(
       this.prisma,
-      process.env.OPENTEAM_CONTROL_TOKEN ?? "local-compose-only-change-me",
+      process.env.AITEAMOS_CONTROL_TOKEN ?? "local-compose-only-change-me",
       undefined,
       undefined,
       authMode === "disabled"
     );
     this.boss = new PgBoss(databaseUrl ?? "");
     this.eventWakeup = new EventWakeup(databaseUrl ?? "");
-    this.computerUrl = process.env.OPENTEAM_COMPUTER_URL ?? "http://127.0.0.1:8790";
-    this.controlToken = process.env.OPENTEAM_CONTROL_TOKEN ?? "local-compose-only-change-me";
-    this.workspaceRoot = resolve(process.env.OPENTEAM_WORKSPACE_ROOT ?? "/workspace");
-    this.screenViewerHost = process.env.OPENTEAM_SCREEN_VIEWER_HOST ?? "127.0.0.1";
+    this.computerUrl = process.env.AITEAMOS_COMPUTER_URL ?? "http://127.0.0.1:8790";
+    this.controlToken = process.env.AITEAMOS_CONTROL_TOKEN ?? "local-compose-only-change-me";
+    this.workspaceRoot = resolve(process.env.AITEAMOS_WORKSPACE_ROOT ?? "/workspace");
+    this.screenViewerHost = process.env.AITEAMOS_SCREEN_VIEWER_HOST ?? "127.0.0.1";
     this.agentData = new AgentDataStore(this.prisma, {
       workspaceRoot: this.workspaceRoot,
     });
@@ -372,7 +372,7 @@ export class AppService {
 
   createBot = forwardServiceMethod(() => this.bots.create);
 
-  broadcast = (input: import("@openteam/contracts").AdminBroadcastInput) =>
+  broadcast = (input: import("@aiteamos/contracts").AdminBroadcastInput) =>
     serviceEffect(() => this.messaging.broadcast(input));
 
   listBots = (includeHidden = false) => this.bots.list(includeHidden);
@@ -663,13 +663,13 @@ export class AppService {
   async browserNetworkQuality() {
     const response = await this.computerFetch("/v1/browser-network/quality", { method: "POST", body: "{}", signal: AbortSignal.timeout(24_000) });
     if (!response.ok) throw new ApiError(503, "network_quality_unavailable", "Could not test the active browser connection");
-    return await response.json() as import("@openteam/contracts/browser-network").NetworkQuality;
+    return await response.json() as import("@aiteamos/contracts/browser-network").NetworkQuality;
   }
 
   async browserNetworkEgress() {
     const response = await this.computerFetch("/v1/browser-network/egress", { method: "POST", body: "{}" });
     if (!response.ok) throw new ApiError(503, "network_egress_unavailable", "Could not check browser exit connection");
-    return await response.json() as import("@openteam/contracts/browser-network").NetworkEgress;
+    return await response.json() as import("@aiteamos/contracts/browser-network").NetworkEgress;
   }
 
   private computerFetch(path: string, init: RequestInit): Promise<Response> {

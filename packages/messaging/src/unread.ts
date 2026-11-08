@@ -1,4 +1,4 @@
-import { Prisma } from "@openteam/db";
+import { Prisma } from "@aiteamos/db";
 
 type QueryClient = Pick<Prisma.TransactionClient, "$queryRaw">;
 

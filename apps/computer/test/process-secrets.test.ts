@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { NativeToolExecutor } from "../src/native-tool-executor";
 test("named secrets enter the real shell without appearing in results, logs or persisted environment", async () => {
-  const root = await mkdtemp(join(tmpdir(), "openteam-process-secret-"));
+  const root = await mkdtemp(join(tmpdir(), "aiteamos-process-secret-"));
   try {
     const executor = new NativeToolExecutor({ agentDir: root, controlToken: "unused-fixture" });
     const secret = "fixture-secrét-密-private";

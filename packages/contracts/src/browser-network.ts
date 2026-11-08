@@ -6,7 +6,7 @@ export type {
   NetworkSettingsUpdate,
   NetworkEgress,
   NetworkQuality,
-} from "@openteam/plugin-sdk/browser-network/protocol";
+} from "@aiteamos/plugin-sdk/browser-network/protocol";
 export interface NetworkSharingStatus {
   supported: boolean;
   connected: boolean;

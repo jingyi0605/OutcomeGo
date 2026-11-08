@@ -1,5 +1,5 @@
 interface Window {
-  openteam?: {
+  aiteamos?: {
     platform: string;
     clipboard?: {
       readText(): Promise<string>;
@@ -19,11 +19,11 @@ interface Window {
         serverUrl: string,
         username: string,
         password: string
-      ) => Promise<import("@openteam/client-core").OpenTeamSignInResult>;
+      ) => Promise<import("@aiteamos/client-core").AiTeamOSSignInResult>;
       signOut: (serverUrl: string, token: string) => Promise<void>;
-      readToken: () => Promise<OpenTeamAuthTokenStorageResult>;
-      writeToken: (token: string) => Promise<OpenTeamAuthTokenStorageResult>;
-      clearToken: () => Promise<OpenTeamAuthTokenStorageResult>;
+      readToken: () => Promise<AiTeamOSAuthTokenStorageResult>;
+      writeToken: (token: string) => Promise<AiTeamOSAuthTokenStorageResult>;
+      clearToken: () => Promise<AiTeamOSAuthTokenStorageResult>;
     };
     pluginOAuth?: {
       start(connectionId: string, force?: boolean): Promise<{ authorizationUrl: string; status: string }>;
@@ -31,7 +31,7 @@ interface Window {
       close(): Promise<void>;
       onResult(callback: (result: { connectionId: string; status: "ready" | "cancelled" | "error"; message?: string }) => void): () => void;
     };
-    /** An OpenTeam server installed on this computer by the CLI, if any. */
+    /** An aiTeamOS server installed on this computer by the CLI, if any. */
     localServer?: {
       detect(): Promise<{ url: string; username?: string } | null>;
     };
@@ -48,11 +48,11 @@ interface Window {
       cancel(): Promise<void>;
     };
     computer: {
-      network: () => Promise<import("@openteam/contracts/browser-network").NetworkSharingStatus | null>;
-      shareNetwork: (enabled: boolean) => Promise<import("@openteam/contracts/browser-network").NetworkSharingStatus>;
-      get: () => Promise<OpenTeamComputerSettings>;
-      update: (request: { machineLabel?: string; messagesEnabled?: boolean }) => Promise<OpenTeamComputerSettings>;
-      messagesPermissions: (request?: "fullDiskAccess" | "automation" | "contacts") => Promise<OpenTeamMessagesPermissions | null>;
+      network: () => Promise<import("@aiteamos/contracts/browser-network").NetworkSharingStatus | null>;
+      shareNetwork: (enabled: boolean) => Promise<import("@aiteamos/contracts/browser-network").NetworkSharingStatus>;
+      get: () => Promise<AiTeamOSComputerSettings>;
+      update: (request: { machineLabel?: string; messagesEnabled?: boolean }) => Promise<AiTeamOSComputerSettings>;
+      messagesPermissions: (request?: "fullDiskAccess" | "automation" | "contacts") => Promise<AiTeamOSMessagesPermissions | null>;
       messagesIcon?: () => Promise<string | null>;
       onMessagesGrantsNeeded?: (listener: () => void) => () => void;
     };
@@ -69,14 +69,14 @@ interface Window {
       write: (scope: string, journal: unknown) => Promise<void>;
     };
     tailscale: {
-      request: (request: { serverUrl: string; action: "status" | "enable" | "disable"; httpsPort?: string }) => Promise<import("@openteam/contracts/tailscale").DesktopTailscaleStatus>;
+      request: (request: { serverUrl: string; action: "status" | "enable" | "disable"; httpsPort?: string }) => Promise<import("@aiteamos/contracts/tailscale").DesktopTailscaleStatus>;
     };
     updates: {
-      status: () => Promise<OpenTeamUpdateStatus>;
-      check: () => Promise<OpenTeamUpdateStatus>;
+      status: () => Promise<AiTeamOSUpdateStatus>;
+      check: () => Promise<AiTeamOSUpdateStatus>;
       openDownload: () => Promise<void>;
       installClient: () => Promise<void>;
-      onClientProgress: (listener: (status: OpenTeamUpdateStatus) => void) => () => void;
+      onClientProgress: (listener: (status: AiTeamOSUpdateStatus) => void) => () => void;
 
     };
     microphone: {
@@ -95,7 +95,7 @@ interface Window {
       sync: (snapshot: {
         cursor?: string;
         channels: Array<
-          import("@openteam/contracts/notification-content").ChannelNotificationState & {
+          import("@aiteamos/contracts/notification-content").ChannelNotificationState & {
             unreadCount: number;
           }
         >;
@@ -115,19 +115,19 @@ interface Window {
       gpu: Electron.GPUFeatureStatus;
     }>;
     onNotificationClick: (
-      listener: (target: import("@openteam/contracts/notification-content").DesktopNotificationTarget) => void
+      listener: (target: import("@aiteamos/contracts/notification-content").DesktopNotificationTarget) => void
     ) => () => void;
     versions: Readonly<{ app: string; electron: string; chrome: string }>;
   };
 }
 
-interface OpenTeamAuthTokenStorageResult {
+interface AiTeamOSAuthTokenStorageResult {
   token: string | null;
   persistence: "disk";
   backend: string;
 }
 
-interface OpenTeamComputerSettings {
+interface AiTeamOSComputerSettings {
   version: 1;
   machine: {
     machineId: string;
@@ -137,13 +137,13 @@ interface OpenTeamComputerSettings {
   messagesSupported: boolean;
 }
 
-interface OpenTeamMessagesPermissions {
+interface AiTeamOSMessagesPermissions {
   fullDiskAccess: boolean;
   automation: "granted" | "denied" | "notAsked" | "unknown";
   contacts: "granted" | "denied" | "notAsked" | "unknown";
 }
 
-interface OpenTeamUpdateStatus {
+interface AiTeamOSUpdateStatus {
   currentVersion: string;
   latestVersion: string | null;
   downloadUrl: string;
@@ -171,7 +171,7 @@ interface OpenTeamUpdateStatus {
   track: "stable";
 }
 
-type OpenTeamServerUpdateStatus = import("@openteam/contracts").ServerUpdateView & {
+type AiTeamOSServerUpdateStatus = import("@aiteamos/contracts").ServerUpdateView & {
   serverUrl: string;
   currentVersion: string | null;
   apiProtocolVersion: number | null;

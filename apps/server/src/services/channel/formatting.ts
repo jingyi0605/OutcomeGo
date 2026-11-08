@@ -1,4 +1,4 @@
-import { parseGroupMentions } from "@openteam/messaging";
+import { parseGroupMentions } from "@aiteamos/messaging";
 import { metadataRecord } from "../service-utils";
 
 export type ReplyTarget = {

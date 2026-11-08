@@ -92,7 +92,7 @@ afterEach(async () => {
 });
 
 const setup = async () => {
-  const home = await mkdtemp(join(tmpdir(), "openteam-broker-stall-"));
+  const home = await mkdtemp(join(tmpdir(), "aiteamos-broker-stall-"));
   const first = fakeBrowser();
   const second = fakeBrowser();
   const broker: any = new BrowserBroker(home);

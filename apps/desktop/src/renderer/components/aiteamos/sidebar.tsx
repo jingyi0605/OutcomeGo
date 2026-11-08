@@ -1,0 +1,3359 @@
+import { PointerActivationConstraints } from "@dnd-kit/dom";
+import {
+  DragDropProvider,
+  DragOverlay,
+  KeyboardSensor,
+  PointerSensor,
+  useDraggable,
+  useDroppable,
+} from "@dnd-kit/react";
+import { isSortable, useSortable } from "@dnd-kit/react/sortable";
+import type { BotView, ChannelMessageView, ChannelView, RunItemView, RunView } from "@aiteamos/contracts";
+import {
+  ArrowDown,
+  ArrowUp,
+  BellDot,
+  Check,
+  ChevronDown,
+  ChevronRight,
+  Clock3,
+  Copy,
+  Folder,
+  FolderPlus,
+  LogOut,
+  Pencil,
+  Pin,
+  PinOff,
+  Plus,
+  RotateCw,
+  Search,
+  Settings,
+  Smartphone,
+  Trash2,
+  UserRound,
+} from "lucide-react";
+import { Collapsible } from "radix-ui";
+import { memo, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { flushSync } from "react-dom";
+import calendarLogo from "../../assets/apps/google-calendar.svg?url";
+import notionLogo from "../../assets/apps/notion.svg?url";
+import slackLogo from "../../assets/apps/slack.svg?url";
+import { signOut } from "../../client/auth";
+import { useAuthSession } from "../../hooks/use-auth-session";
+import type {
+  SidebarPreferencesController,
+  SidebarSection,
+} from "../../hooks/use-sidebar-preferences";
+import { PINNED_GROUP_ID, UNASSIGNED_GROUP_ID } from "../../hooks/use-sidebar-preferences";
+import { useVirtualWindow } from "../../hooks/use-virtual-window";
+import { accountPresentation } from "../../lib/account";
+import { channelMessageSummary } from "../../lib/channel-events";
+import { cn } from "../../lib/cn";
+import { desktopUpdateProgress, requestDesktopUpdateRestart } from "../../lib/desktop-update";
+import { showsGroupLabel } from "../../lib/group-chat-presentation";
+import {
+  COMPACT_SIDEBAR_WIDTH,
+  MIN_EXPANDED_SIDEBAR_WIDTH,
+  moveSnappedSidebar,
+  type SnappedSidebarResizeState,
+} from "../../lib/panel-resize";
+import {
+  type SidebarChannelRow as ChannelRowData,
+  groupSidebarRows,
+  reconcileSidebarRows,
+  type SidebarUnreadJumpTarget,
+  type SidebarUnreadJumpTargets,
+  sidebarRowIsWorking,
+  sidebarUnreadJumpTargets,
+} from "../../lib/sidebar-rows";
+import {
+  chunkPinnedRows,
+  EXPANDED_SIDEBAR_MAX_MOUNTED_ITEMS,
+  EXPANDED_SIDEBAR_OVERSCAN,
+  estimateSidebarSectionSize,
+  pinnedGridColumnCount,
+  SIDEBAR_CHANNEL_ROW_SIZE,
+  SIDEBAR_PINNED_GRID_ROW_SIZE,
+  SIDEBAR_PINNED_MAX_MOUNTED_GRID_ROWS,
+  shouldVirtualizeExpandedSidebar,
+} from "../../lib/sidebar-virtual-layout";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "../ui/alert-dialog";
+import { Button } from "../ui/button";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuSub,
+  ContextMenuSubContent,
+  ContextMenuSubTrigger,
+  ContextMenuTrigger,
+} from "../ui/context-menu";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "../ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "../ui/dropdown-menu";
+import { Input } from "../ui/input";
+import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
+import { BotAvatar, ChannelAvatar } from "./avatar";
+import { BotName, BotRenameContext } from "./bot-name";
+import { DesktopUpdateCard } from "./desktop-update-card";
+import { SidebarCollapseMotion, SidebarMotion } from "./sidebar-motion";
+import { SidebarActivityProvider, useSidebarComposing } from "./sidebar-activity";
+import { SidebarUnreadAvatar, SidebarUnreadDot } from "./sidebar-unread";
+
+const EMPTY_PINNED_IDS: ReadonlySet<string> = new Set();
+
+function WorkingAvatar({
+  active,
+  channelId,
+  children,
+  ringColor,
+  size,
+}: {
+  active: boolean;
+  channelId?: string;
+  children: React.ReactNode;
+  ringColor: string;
+  size: "sm" | "md" | "pin";
+}) {
+  const composing = useSidebarComposing(channelId);
+  return (
+    <span
+      className="relative grid shrink-0"
+      style={{ "--working-dot-ring": ringColor } as React.CSSProperties}
+    >
+      {children}
+      {active ? (
+        <span
+          aria-hidden="true"
+          className={cn(
+            "sidebar-status-reveal sidebar-working-dot pointer-events-none absolute z-10 rounded-full bg-[#5bc67a]",
+            size === "sm" &&
+              "bottom-0 right-0 size-1.5 shadow-[0_0_0_2.5px_var(--working-dot-ring,var(--sidebar))]",
+            size === "md" &&
+              "bottom-0.5 right-0.5 size-2 shadow-[0_0_0_2px_var(--working-dot-ring,var(--sidebar))]",
+            size === "pin" &&
+              "bottom-0.5 right-0.5 size-2.5 shadow-[0_0_0_3.333px_var(--working-dot-ring,var(--sidebar))]"
+          )}
+          data-composing={composing || undefined}
+          data-working-indicator=""
+        />
+      ) : null}
+    </span>
+  );
+}
+
+function UnreadJumpPill({
+  compact = false,
+  direction,
+  target,
+  onJump,
+}: {
+  compact?: boolean;
+  direction: "above" | "below";
+  target: SidebarUnreadJumpTarget;
+  onJump: (target: SidebarUnreadJumpTarget) => void;
+}) {
+  return (
+    <button
+      aria-label={`More unreads ${direction}`}
+      className={cn(
+        "sidebar-unread-pill absolute left-1/2 z-[12] inline-flex -translate-x-1/2 cursor-pointer items-center gap-0.5 whitespace-nowrap rounded-full border-0 py-1 pl-1 pr-2 font-[inherit] text-[13px] font-normal leading-[18px] text-[#fcfcfc] outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        direction === "above" ? "top-2" : "bottom-2",
+        compact && "size-8 justify-center gap-0 p-0"
+      )}
+      data-more-unreads={direction}
+      onClick={() => onJump(target)}
+      title={`${target.count} unread message${target.count === 1 ? "" : "s"}`}
+      type="button"
+    >
+      <span className="inline-flex size-5 shrink-0 items-center justify-center">
+        {direction === "above" ? (
+          <ArrowUp className="size-4" strokeWidth={1.7} />
+        ) : (
+          <ArrowDown className="size-4" strokeWidth={1.7} />
+        )}
+      </span>
+      <span className={compact ? "sr-only" : "inline pr-0.5"}>More unreads</span>
+    </button>
+  );
+}
+
+function sameUnreadJumpTargets(left: SidebarUnreadJumpTargets, right: SidebarUnreadJumpTargets) {
+  return (
+    left.above?.channelId === right.above?.channelId &&
+    left.above?.count === right.above?.count &&
+    left.below?.channelId === right.below?.channelId &&
+    left.below?.count === right.below?.count
+  );
+}
+
+type SidebarVirtualJumpHandler = (id: string) => boolean;
+const VIRTUAL_SECTIONS_JUMP_KEY = "virtual-sections";
+
+export function AccountMenu({
+  children,
+  compact = false,
+  onOpenSettings,
+}: {
+  children: React.ReactNode;
+  compact?: boolean;
+  onOpenSettings: () => void;
+}) {
+  const auth = useAuthSession();
+  const [signOutOpen, setSignOutOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const openingUpdateDialog = useRef(false);
+  const [updateError, setUpdateError] = useState<string | null>(null);
+  const [update, setUpdate] = useState<AiTeamOSUpdateStatus | null>(null);
+  const [startingDownload, setStartingDownload] = useState(false);
+  const startingDownloadRef = useRef(false);
+  const updateDescriptionId = useId();
+  useEffect(() => {
+    let active = true;
+    let receivedProgress = false;
+    const unsubscribe = window.aiteamos?.updates.onClientProgress((next) => {
+      receivedProgress = true;
+      if (!active) return;
+      setUpdate(next);
+      if (next.status === "downloaded") {
+        openingUpdateDialog.current = true;
+        setMenuOpen(false);
+      }
+    });
+    // The badge must be visible before the account menu has ever been opened.
+    void window.aiteamos?.updates
+      .status()
+      .then((next) => {
+        if (active && !receivedProgress) setUpdate(next);
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+      unsubscribe?.();
+    };
+  }, []);
+  const hasUpdate = ["available", "downloading", "downloaded", "installing"].includes(
+    update?.status ?? ""
+  );
+  const progress = update ? desktopUpdateProgress(update) : null;
+  const updateLabel =
+    update?.status === "downloaded"
+      ? "Restart"
+      : update?.status === "downloading"
+        ? progress === null
+          ? "Updating"
+          : `${progress}%`
+        : update?.status === "installing"
+          ? "Restarting"
+          : "Update";
+  const updateDescription =
+    update?.status === "downloaded"
+      ? "Update ready. Restart to update aiTeamOS."
+      : update?.status === "downloading"
+        ? `Downloading aiTeamOS update${progress === null ? "" : `, ${progress}%`}.`
+        : update?.status === "installing"
+          ? "Restarting aiTeamOS to install the update."
+          : "An aiTeamOS update is available.";
+  const downloadUpdate = async () => {
+    if (!update || startingDownloadRef.current) return;
+    setUpdateError(null);
+    if (update.status === "downloaded") {
+      openingUpdateDialog.current = true;
+      setMenuOpen(false);
+      requestDesktopUpdateRestart(update);
+      return;
+    }
+    if (update.status !== "available") return;
+    startingDownloadRef.current = true;
+    setStartingDownload(true);
+    try {
+      await window.aiteamos?.updates.openDownload();
+    } catch {
+      setUpdateError("Could not download the update. Try again from update settings.");
+    } finally {
+      startingDownloadRef.current = false;
+      setStartingDownload(false);
+    }
+  };
+  const menuItem = "h-[34px] gap-2.5 rounded-[8px] px-2.5 text-[13px] font-normal leading-[19.5px]";
+  const openExternal = (url: string) => window.open(url, "_blank", "noopener,noreferrer");
+
+  return (
+    <>
+      <DropdownMenu
+        open={menuOpen}
+        onOpenChange={(open) => {
+          setMenuOpen(open);
+          if (!open) return;
+          openingUpdateDialog.current = false;
+          setUpdateError(null);
+          void window.aiteamos?.updates
+            .status()
+            .then((value) => {
+              setUpdate(value);
+              if (value.status === "idle") return window.aiteamos?.updates.check().then(setUpdate);
+            })
+            .catch(() => setUpdateError("Could not check for updates. Try again from Settings."));
+        }}
+      >
+        <div className="relative min-w-0" data-account-update={hasUpdate || undefined}>
+          <DropdownMenuTrigger aria-describedby={hasUpdate ? updateDescriptionId : undefined} asChild>
+            {children}
+          </DropdownMenuTrigger>
+          {hasUpdate ? (
+            <>
+              <span
+                aria-hidden="true"
+                className={cn(
+                  "pointer-events-none absolute flex items-center justify-center gap-1 rounded-full bg-blue-600 font-medium text-white shadow-[0_0_0_2px_var(--sidebar)] dark:bg-blue-400 dark:text-[#10243a]",
+                  compact
+                    ? "right-1 top-1 size-4"
+                    : "right-2 top-1/2 h-5 -translate-y-1/2 px-1.5 text-[10px]"
+                )}
+                data-desktop-update-badge={update?.status}
+              >
+                {update?.status === "downloaded" ? (
+                  <RotateCw className="size-2.5" strokeWidth={2.5} />
+                ) : (
+                  <ArrowUp className="size-2.5" strokeWidth={2.5} />
+                )}
+                {!compact ? updateLabel : null}
+              </span>
+              <span className="sr-only" id={updateDescriptionId} role="status">
+                {updateDescription}
+              </span>
+            </>
+          ) : null}
+        </div>
+        <DropdownMenuContent
+          align={compact ? "end" : "start"}
+          aria-label="Account"
+          onCloseAutoFocus={(event) => {
+            if (!openingUpdateDialog.current) return;
+            event.preventDefault();
+            openingUpdateDialog.current = false;
+          }}
+          className="w-[264px] max-w-[calc(100vw-16px)] rounded-[16px] border-0 bg-[#fcfcfc] p-2 antialiased shadow-[inset_0_0_0_0.5px_#d9d9d9,0_8px_22px_rgba(0,0,0,0.10),0_2px_6px_rgba(0,0,0,0.04)] dark:bg-popover dark:shadow-[inset_0_0_0_0.5px_#3a3a3a,0_8px_22px_rgba(0,0,0,0.10),0_2px_6px_rgba(0,0,0,0.04)]"
+          side={compact ? "right" : "top"}
+          sideOffset={8}
+        >
+          {hasUpdate && update ? (
+            <DesktopUpdateCard
+              onUpdate={() => void downloadUpdate()}
+              startingDownload={startingDownload}
+              update={update}
+            />
+          ) : null}
+          {updateError ? (
+            <p className="px-2 py-1 text-[12px] text-destructive" role="alert">
+              {updateError}
+            </p>
+          ) : null}
+          <DropdownMenuItem
+            className={menuItem}
+            onSelect={() =>
+              openExternal("https://github.com/jingyi0605/ai-TeamOS/tree/ai-TeamOS/apps/ios")
+            }
+          >
+            <Smartphone className="size-4" strokeWidth={1.85} />
+            Get aiTeamOS for iOS
+          </DropdownMenuItem>
+          <DropdownMenuItem className={menuItem} onSelect={onOpenSettings}><Settings className="size-4" strokeWidth={1.85} />Settings</DropdownMenuItem>
+          <DropdownMenuSeparator className="mx-1 my-1.5" />
+          <DropdownMenuItem className={menuItem} onSelect={() => setSignOutOpen(true)}>
+            <LogOut className="size-4" strokeWidth={1.85} />
+            Log out
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <AlertDialog onOpenChange={setSignOutOpen} open={signOutOpen}>
+        <AlertDialogContent className="max-w-[430px] rounded-[16px]">
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {auth.mode === "required" ? "Log out?" : "Authentication is off"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {auth.mode === "required"
+                ? "You can sign back in with your aiTeamOS username and password. Your Bots and chats stay on this server."
+                : "This server is running in trusted no-auth mode, so there is no account session to remove."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setSignOutOpen(false);
+                if (auth.mode === "required") void signOut();
+              }}
+            >
+              {auth.mode === "required" ? "Log out" : "Done"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  );
+}
+
+export type BotRowAction =
+  | "togglePin"
+  | "toggleUnread"
+  | "editProfile"
+  | "copyConversationId"
+  | "showAsyncTasks"
+  | "retry"
+  | "delete";
+
+export type GroupRowAction =
+  | "togglePin"
+  | "toggleUnread"
+  | "editProfile"
+  | "copyConversationId"
+  | "delete";
+
+const SHOW_INTERNAL_ASYNC_TASKS = import.meta.env.VITE_AITEAMOS_INTERNAL_ASYNC_TASKS === "true";
+
+function isPinnableChannel(channel: ChannelView | undefined) {
+  return channel?.kind === "bot_dm" || channel?.kind === "group";
+}
+
+const sidebarSensors = [
+  PointerSensor.configure({
+    activationConstraints: (event) =>
+      event.pointerType === "touch"
+        ? [
+            new PointerActivationConstraints.Delay({
+              value: 250,
+              tolerance: 5,
+            }),
+          ]
+        : [new PointerActivationConstraints.Distance({ value: 6 })],
+  }),
+  // Enter activates the chat button; Space remains available for keyboard dragging.
+  KeyboardSensor.configure({ keyboardCodes: { ...KeyboardSensor.defaults.keyboardCodes, start: ["Space"] } }),
+];
+
+function latestMessagePreview(row: ChannelRowData, botById: ReadonlyMap<string, BotView>) {
+  const { channel, latest } = row;
+  if (!latest) return "";
+  const summary = channelMessageSummary(latest);
+  const author = latest.senderBotId ? botById.get(latest.senderBotId)?.name : null;
+  return summary && author && channel.kind !== "bot_dm" ? `${author}: ${summary}` : summary;
+}
+
+function ChannelPreviewTooltipContent({
+  row,
+  botById,
+}: {
+  row: ChannelRowData;
+  botById: ReadonlyMap<string, BotView>;
+}) {
+  const { channel, latest } = row;
+  const working = sidebarRowIsWorking(row);
+  const bot = channel.kind === "bot_dm" ? botById.get(channel.members[0]?.botId ?? "") : undefined;
+  const description = working
+    ? "Working…"
+    : bot?.status === "provisioning"
+      ? "Starting up…"
+      : bot?.status === "failed"
+        ? "Setup needs attention"
+        : latestMessagePreview(row, botById) ||
+          (channel.kind === "agent_dm" ? "Private bot exchange" : latest ? "" : "No messages yet");
+
+  return (
+    <TooltipContent
+      align="center"
+      className="w-[260px] rounded-[12px] border-[0.5px] border-border bg-popover p-2.5 text-popover-foreground shadow-[0_10px_28px_rgba(0,0,0,0.16)]"
+      collisionPadding={8}
+      side="right"
+      sideOffset={8}
+    >
+      <div className="flex min-w-0 items-center gap-2">
+        <WorkingAvatar channelId={row.channel.id} active={working} ringColor="var(--popover)" size="sm">
+          <ChannelAvatar botById={botById} channel={channel} size="sm" />
+        </WorkingAvatar>
+        <span className="min-w-0 flex-1 truncate text-[13px] font-medium">{channel.name}</span>
+      </div>
+      {description ? (
+        <p className="mt-1 line-clamp-2 text-[13px] font-normal leading-[18px] text-foreground-secondary">
+          {description}
+        </p>
+      ) : null}
+    </TooltipContent>
+  );
+}
+
+function SidebarDragPreview({
+  row,
+  botById,
+}: {
+  row: ChannelRowData;
+  botById: ReadonlyMap<string, BotView>;
+}) {
+  const { channel } = row;
+  const working = sidebarRowIsWorking(row);
+  const bot = channel.kind === "bot_dm" ? botById.get(channel.members[0]?.botId ?? "") : undefined;
+  const groupBots =
+    channel.kind === "bot_dm"
+      ? []
+      : channel.members.slice(0, 2).map((member) => botById.get(member.botId));
+
+  return (
+    <div
+      aria-hidden="true"
+      className={cn(
+        "flex -translate-y-2 flex-col items-center rounded-[10px] bg-popover/90 px-1.5 py-1.5 text-popover-foreground shadow-[0_7px_20px_rgba(0,0,0,0.14),0_1px_4px_rgba(0,0,0,0.06)] ring-1 ring-foreground/[0.05] backdrop-blur-xl",
+        bot ? "h-[94px] w-[84px] gap-0.5" : "min-h-[112px] w-[116px] justify-center gap-2"
+      )}
+      data-sidebar-drag-preview=""
+    >
+      <WorkingAvatar channelId={row.channel.id} active={working} ringColor="var(--popover)" size="pin">
+        {bot ? (
+          <BotAvatar bot={bot} channelId={channel.id} size="lg" />
+        ) : (
+          <div className="relative h-[68px] w-[86px] shrink-0">
+            {groupBots.map((groupBot, index) => (
+              <div
+                className={cn("absolute", index === 0 ? "left-0 top-0" : "bottom-0 right-0")}
+                key={groupBot?.id ?? index}
+              >
+                <BotAvatar bot={groupBot} channelId={channel.id} size="lg" />
+              </div>
+            ))}
+          </div>
+        )}
+      </WorkingAvatar>
+      <span
+        className={cn(
+          "w-full truncate text-center font-medium leading-4",
+          bot ? "px-0.5 text-[12px]" : "px-1 text-[13px]"
+        )}
+      >
+        {channel.name}
+      </span>
+    </div>
+  );
+}
+
+function MoveMenu({
+  channelId,
+  currentSectionId,
+  sections,
+  onCreateSection,
+  onMoveToSection,
+}: {
+  channelId: string;
+  currentSectionId: string | null;
+  sections: SidebarSection[];
+  onCreateSection: (channelId: string) => void;
+  onMoveToSection: (channelId: string, sectionId: string | null) => void;
+}) {
+  if (sections.length === 0) {
+    return (
+      <ContextMenuItem onSelect={() => onCreateSection(channelId)}>
+        <FolderPlus className="size-4" /> Move to new section
+      </ContextMenuItem>
+    );
+  }
+
+  return (
+    <ContextMenuSub>
+      <ContextMenuSubTrigger>
+        <Folder className="size-4" /> Move to
+        <ChevronRight className="ml-auto size-3.5" />
+      </ContextMenuSubTrigger>
+      <ContextMenuSubContent className="w-[180px]">
+        {sections.map((section) => (
+          <ContextMenuItem key={section.id} onSelect={() => onMoveToSection(channelId, section.id)}>
+            <Check
+              className={cn(
+                "size-4",
+                currentSectionId === section.id ? "opacity-100" : "opacity-0"
+              )}
+            />
+            <span className="truncate">{section.name}</span>
+          </ContextMenuItem>
+        ))}
+        <ContextMenuItem onSelect={() => onMoveToSection(channelId, null)}>
+          <Check
+            className={cn("size-4", currentSectionId === null ? "opacity-100" : "opacity-0")}
+          />
+          Unassigned
+        </ContextMenuItem>
+        <ContextMenuSeparator />
+        <ContextMenuItem onSelect={() => onCreateSection(channelId)}>
+          <FolderPlus className="size-4" /> New section
+        </ContextMenuItem>
+      </ContextMenuSubContent>
+    </ContextMenuSub>
+  );
+}
+
+function BotContextMenu({
+  bot,
+  channelId,
+  currentSectionId,
+  pinned,
+  unread,
+  sections,
+  showMove = true,
+  onBotAction,
+  onCreateSection,
+  onMoveToSection,
+  tooltipContent,
+  children,
+}: {
+  bot: BotView;
+  channelId: string;
+  currentSectionId: string | null;
+  pinned: boolean;
+  unread: boolean;
+  sections: SidebarSection[];
+  showMove?: boolean;
+  onBotAction: (bot: BotView, action: BotRowAction) => void;
+  onCreateSection: (channelId: string) => void;
+  onMoveToSection: (channelId: string, sectionId: string | null) => void;
+  tooltipContent?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  const [renaming, setRenaming] = useState(false);
+  const menuContent = (
+    <ContextMenuContent className="w-[202px]" onCloseAutoFocus={(event) => { if (renaming) event.preventDefault(); }}>
+      <ContextMenuItem onSelect={() => onBotAction(bot, "togglePin")}>
+        {pinned ? <PinOff className="size-4" /> : <Pin className="size-4" />}
+        {pinned ? "Unpin" : "Pin"}
+      </ContextMenuItem>
+      {showMove && (
+        <MoveMenu
+          channelId={channelId}
+          currentSectionId={currentSectionId}
+          onCreateSection={onCreateSection}
+          onMoveToSection={onMoveToSection}
+          sections={sections}
+        />
+      )}
+      <ContextMenuItem onSelect={() => onBotAction(bot, "toggleUnread")}>
+        <BellDot className="size-4" /> {unread ? "Mark as Read" : "Mark as Unread"}
+      </ContextMenuItem>
+      {bot.status === "failed" && (
+        <ContextMenuItem onSelect={() => onBotAction(bot, "retry")}>
+          <RotateCw className="size-4" /> Retry setup
+        </ContextMenuItem>
+      )}
+      <ContextMenuSeparator />
+      <ContextMenuItem onSelect={() => setRenaming(true)}>
+        <Pencil className="size-4" /> Rename Bot
+      </ContextMenuItem>
+      <ContextMenuItem onSelect={() => onBotAction(bot, "editProfile")}>
+        <Pencil className="size-4" /> Edit Profile
+      </ContextMenuItem>
+      <ContextMenuSeparator />
+      <ContextMenuItem onSelect={() => onBotAction(bot, "copyConversationId")}>
+        <Copy className="size-4" /> Copy conversation ID
+      </ContextMenuItem>
+      {SHOW_INTERNAL_ASYNC_TASKS && (
+        <ContextMenuItem onSelect={() => onBotAction(bot, "showAsyncTasks")}>
+          <Clock3 className="size-4" /> Show async tasks
+        </ContextMenuItem>
+      )}
+      <ContextMenuSeparator />
+      <ContextMenuItem
+        className="text-destructive data-[highlighted]:text-destructive [&_svg]:text-destructive"
+        onSelect={() => onBotAction(bot, "delete")}
+      >
+        <Trash2 className="size-4" /> Delete
+      </ContextMenuItem>
+    </ContextMenuContent>
+  );
+
+  const content = tooltipContent ? (
+    <Tooltip>
+      <ContextMenu>
+        <TooltipTrigger asChild><ContextMenuTrigger asChild>{children}</ContextMenuTrigger></TooltipTrigger>
+        {menuContent}
+      </ContextMenu>
+      {tooltipContent}
+    </Tooltip>
+  ) : (
+    <ContextMenu><ContextMenuTrigger asChild>{children}</ContextMenuTrigger>{menuContent}</ContextMenu>
+  );
+  return <BotRenameContext.Provider value={{ bot, active: renaming, finish: () => setRenaming(false) }}>{content}</BotRenameContext.Provider>;
+}
+
+function GroupContextMenu({
+  channel,
+  currentSectionId,
+  pinned,
+  unread,
+  sections,
+  showMove = true,
+  onGroupAction,
+  onCreateSection,
+  onMoveToSection,
+  tooltipContent,
+  children,
+}: {
+  channel: ChannelView;
+  currentSectionId: string | null;
+  pinned: boolean;
+  unread: boolean;
+  sections: SidebarSection[];
+  showMove?: boolean;
+  onGroupAction: (channel: ChannelView, action: GroupRowAction) => void;
+  onCreateSection: (channelId: string) => void;
+  onMoveToSection: (channelId: string, sectionId: string | null) => void;
+  tooltipContent?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  const menuContent = (
+    <ContextMenuContent className="w-[202px]">
+      <ContextMenuItem onSelect={() => onGroupAction(channel, "togglePin")}>
+        {pinned ? <PinOff className="size-4" /> : <Pin className="size-4" />}
+        {pinned ? "Unpin" : "Pin"}
+      </ContextMenuItem>
+      {showMove && (
+        <MoveMenu
+          channelId={channel.id}
+          currentSectionId={currentSectionId}
+          onCreateSection={onCreateSection}
+          onMoveToSection={onMoveToSection}
+          sections={sections}
+        />
+      )}
+      <ContextMenuItem onSelect={() => onGroupAction(channel, "toggleUnread")}>
+        <BellDot className="size-4" /> {unread ? "Mark as Read" : "Mark as Unread"}
+      </ContextMenuItem>
+      <ContextMenuSeparator />
+      <ContextMenuItem onSelect={() => onGroupAction(channel, "editProfile")}>
+        <Pencil className="size-4" /> Edit Profile
+      </ContextMenuItem>
+      <ContextMenuItem onSelect={() => onGroupAction(channel, "copyConversationId")}>
+        <Copy className="size-4" /> Copy conversation ID
+      </ContextMenuItem>
+      <ContextMenuSeparator />
+      <ContextMenuItem
+        className="text-destructive data-[highlighted]:text-destructive [&_svg]:text-destructive"
+        onSelect={() => onGroupAction(channel, "delete")}
+      >
+        <Trash2 className="size-4" /> Delete
+      </ContextMenuItem>
+    </ContextMenuContent>
+  );
+
+  if (tooltipContent) {
+    return (
+      <Tooltip>
+        <ContextMenu>
+          <TooltipTrigger asChild>
+            <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
+          </TooltipTrigger>
+          {menuContent}
+        </ContextMenu>
+        {tooltipContent}
+      </Tooltip>
+    );
+  }
+
+  return (
+    <ContextMenu>
+      <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
+      {menuContent}
+    </ContextMenu>
+  );
+}
+
+const ChannelRow = memo(function ChannelRow({
+  row,
+  botById,
+  selected,
+  pinned,
+  unread,
+  sections,
+  currentSectionId,
+  onSelect,
+  onBotAction,
+  onGroupAction,
+  onCreateSection,
+  onMoveToSection,
+  dragHandleRef,
+}: {
+  row: ChannelRowData;
+  botById: ReadonlyMap<string, BotView>;
+  selected: boolean;
+  pinned: boolean;
+  unread: boolean;
+  sections: SidebarSection[];
+  currentSectionId: string | null;
+  onSelect: (id: string, focusComposer?: boolean) => void;
+  onBotAction: (bot: BotView, action: BotRowAction) => void;
+  onGroupAction: (channel: ChannelView, action: GroupRowAction) => void;
+  onCreateSection: (channelId: string) => void;
+  onMoveToSection: (channelId: string, sectionId: string | null) => void;
+  dragHandleRef?: (element: HTMLButtonElement | null) => void;
+}) {
+  const { channel, running } = row;
+  const needsAttention = false;
+  const working = sidebarRowIsWorking(row);
+  const bot = channel.kind === "bot_dm" ? botById.get(channel.members[0]?.botId ?? "") : undefined;
+  const onboardingInProgress = Boolean(
+    bot && ["pending", "queued", "running"].includes(bot.onboardingStatus)
+  );
+  const latestPreview = latestMessagePreview(row, botById);
+  const preview = onboardingInProgress
+    ? latestPreview
+    : needsAttention
+      ? "Needs your input"
+      : bot?.status === "provisioning"
+          ? "Starting up…"
+          : bot?.status === "failed"
+            ? "Setup needs attention"
+            : latestPreview ||
+              (channel.kind === "agent_dm" ? "Private bot exchange" : "");
+  const content = (
+    <Button
+      className={cn(
+        "group flex h-[54px] w-full items-center gap-2 rounded-[10px] px-2 text-left font-normal outline-none transition-[transform,width,padding] duration-200 ease-[var(--ease-pane)] focus-visible:ring-2 focus-visible:ring-ring/30",
+        selected ? "bg-selected hover:bg-selected" : "hover:bg-hover"
+      )}
+      onClick={(event) => onSelect(channel.id, event.detail > 0)}
+      ref={dragHandleRef}
+      type="button"
+      variant="ghost"
+    >
+      <WorkingAvatar
+        channelId={row.channel.id}
+        active={working}
+        ringColor={selected ? "var(--selected)" : "var(--sidebar)"}
+        size="md"
+      >
+        <ChannelAvatar botById={botById} channel={channel} roster />
+      </WorkingAvatar>
+      <span className="min-w-0 flex-1 -translate-y-[0.5px]">
+        <span className="flex items-center gap-2">
+          <span className="flex min-w-0 flex-1 items-center gap-1.5">
+            <span className="min-w-0 truncate text-[14px] font-medium">
+              <BotName name={channel.name} />
+            </span>
+            {bot?.title || showsGroupLabel(channel) ? (
+              <span className="max-w-24 shrink-0 truncate rounded-[4px] bg-black/[0.07] px-1.5 py-px text-[11px] font-normal leading-[15px] text-foreground-secondary dark:bg-white/[0.1] dark:text-[#ababab]">
+                {bot?.title || "Group"}
+              </span>
+            ) : null}
+            {pinned && (
+              <Pin aria-label="Pinned" className="size-2.5 shrink-0 text-foreground-tertiary" />
+            )}
+          </span>
+        </span>
+        <span className="mt-px flex min-w-0 items-center gap-1.5">
+          {needsAttention ? (
+            <span
+              aria-label="Needs your input"
+              className="sidebar-status-reveal size-1.5 shrink-0 rounded-full bg-amber-500"
+              role="img"
+            />
+          ) : null}
+          {preview && (
+            <span
+              className={cn(
+                "block min-w-0 truncate text-[13px] font-normal leading-4 text-foreground-secondary",
+                selected && "dark:text-[#ababab]"
+              )}
+            >
+              {preview}
+            </span>
+          )}
+        </span>
+      </span>
+      {unread && !needsAttention ? (
+        <SidebarUnreadDot />
+      ) : null}
+    </Button>
+  );
+
+  if (bot) {
+    return (
+      <BotContextMenu
+        bot={bot}
+        channelId={channel.id}
+        currentSectionId={currentSectionId}
+        onBotAction={onBotAction}
+        onCreateSection={onCreateSection}
+        onMoveToSection={onMoveToSection}
+        pinned={pinned}
+        sections={sections}
+        unread={unread}
+      >
+        {content}
+      </BotContextMenu>
+    );
+  }
+  if (channel.kind === "group") {
+    return (
+      <GroupContextMenu
+        channel={channel}
+        currentSectionId={currentSectionId}
+        onCreateSection={onCreateSection}
+        onGroupAction={onGroupAction}
+        onMoveToSection={onMoveToSection}
+        pinned={pinned}
+        sections={sections}
+        unread={unread}
+      >
+        {content}
+      </GroupContextMenu>
+    );
+  }
+  return content;
+});
+
+const DraggableChannelRow = memo(function DraggableChannelRow({
+  row,
+  group,
+  disabled,
+  ...props
+}: {
+  row: ChannelRowData;
+  group: string;
+  disabled: boolean;
+} & Omit<React.ComponentProps<typeof ChannelRow>, "row">) {
+  const { ref, handleRef, isDragging } = useDraggable({
+    id: `channel:${row.channel.id}`,
+    type: "channel",
+    disabled,
+    data: { kind: "channel", channelId: row.channel.id, group },
+  });
+  return (
+    <div
+      className={cn("touch-none", isDragging && "relative z-10 opacity-0")}
+      data-channel-id={row.channel.id}
+      data-selected={props.selected || undefined}
+      ref={ref}
+    >
+      <ChannelRow {...props} dragHandleRef={handleRef} row={row} />
+    </div>
+  );
+});
+
+function VirtualizedChannelRows({
+  activeChannelId,
+  group,
+  rows,
+  scrollRef,
+  renderRow,
+  onRegisterJumpHandler,
+}: {
+  activeChannelId?: string | null;
+  group: string;
+  rows: ChannelRowData[];
+  scrollRef: React.RefObject<HTMLElement | null>;
+  renderRow: (row: ChannelRowData, index: number, group: string) => React.ReactNode;
+  onRegisterJumpHandler?: (key: string, handler: SidebarVirtualJumpHandler | null) => void;
+}) {
+  const [focusChannelId, setFocusChannelId] = useState<string | null>(null);
+  const scopeRef = useRef<HTMLDivElement>(null);
+  const activeIndex = useMemo(() => {
+    const channelId = activeChannelId ?? focusChannelId;
+    if (!channelId) return undefined;
+    const index = rows.findIndex((row) => row.channel.id === channelId);
+    return index >= 0 ? index : undefined;
+  }, [activeChannelId, focusChannelId, rows]);
+  const estimateSize = useCallback(() => SIDEBAR_CHANNEL_ROW_SIZE, []);
+  const getKey = useCallback(
+    (index: number) => rows[index]?.channel.id ?? `missing:${index}`,
+    [rows]
+  );
+  const { measureElement, scrollToIndex, totalSize, virtualItems } = useVirtualWindow({
+    activeIndex,
+    count: rows.length,
+    estimateSize,
+    getKey,
+    initialViewportSize: 900,
+    maxItems: EXPANDED_SIDEBAR_MAX_MOUNTED_ITEMS,
+    overscan: EXPANDED_SIDEBAR_OVERSCAN,
+    scopeRef,
+    scrollRef,
+    suspendOutsideViewport: true,
+  });
+
+  useEffect(() => {
+    if (!onRegisterJumpHandler) return;
+    const handler: SidebarVirtualJumpHandler = (channelId) => {
+      const index = rows.findIndex((row) => row.channel.id === channelId);
+      if (index < 0) return false;
+      scrollToIndex(index, { align: "center" });
+      return true;
+    };
+    onRegisterJumpHandler(group, handler);
+    return () => onRegisterJumpHandler(group, null);
+  }, [group, onRegisterJumpHandler, rows, scrollToIndex]);
+
+  useEffect(() => {
+    const channelId = focusChannelId;
+    if (!channelId) return;
+    const frame = window.requestAnimationFrame(() => {
+      document
+        .querySelector<HTMLElement>(`[data-channel-id="${CSS.escape(channelId)}"] button`)
+        ?.focus();
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [focusChannelId]);
+
+  return (
+    <div
+      aria-label={`${rows.length} chats`}
+      className="relative w-full"
+      data-virtual-sidebar-count={rows.length}
+      onKeyDownCapture={(event) => {
+        if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
+        const channelElement = (event.target as HTMLElement).closest<HTMLElement>(
+          "[data-channel-id]"
+        );
+        const current = channelElement?.dataset.channelId;
+        const index = current ? rows.findIndex((row) => row.channel.id === current) : -1;
+        if (index < 0) return;
+        const next =
+          event.key === "Home"
+            ? 0
+            : event.key === "End"
+              ? rows.length - 1
+              : Math.max(
+                  0,
+                  Math.min(rows.length - 1, index + (event.key === "ArrowDown" ? 1 : -1))
+                );
+        if (next === index) return;
+        event.preventDefault();
+        scrollToIndex(next, { align: "center" });
+        setFocusChannelId(rows[next]?.channel.id ?? null);
+      }}
+      ref={scopeRef}
+      role="list"
+      style={{ height: totalSize }}
+    >
+      {virtualItems.map((virtualItem) => {
+        const row = rows[virtualItem.index];
+        if (!row) return null;
+        return (
+          <div
+            aria-posinset={virtualItem.index + 1}
+            aria-setsize={rows.length}
+            className="absolute inset-x-0 top-0 pb-1"
+            key={virtualItem.key}
+            ref={(node) => measureElement(virtualItem.index, virtualItem.key, node)}
+            role="listitem"
+            style={{ transform: `translateY(${virtualItem.start}px)` }}
+          >
+            {renderRow(row, virtualItem.index, group)}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function DraggablePinnedTile({
+  row,
+  botById,
+  selected,
+  unread,
+  sections,
+  onSelect,
+  onBotAction,
+  onGroupAction,
+  onCreateSection,
+  onMoveToSection,
+}: {
+  row: ChannelRowData;
+  botById: ReadonlyMap<string, BotView>;
+  selected: boolean;
+  unread: boolean;
+  sections: SidebarSection[];
+  onSelect: (id: string, focusComposer?: boolean) => void;
+  onBotAction: (bot: BotView, action: BotRowAction) => void;
+  onGroupAction: (channel: ChannelView, action: GroupRowAction) => void;
+  onCreateSection: (channelId: string) => void;
+  onMoveToSection: (channelId: string, sectionId: string | null) => void;
+}) {
+  const { channel } = row;
+  const needsAttention = false;
+  const working = sidebarRowIsWorking(row);
+  const bot = channel.kind === "bot_dm" ? botById.get(channel.members[0]?.botId ?? "") : undefined;
+  const { ref, handleRef, isDragging } = useDraggable({
+    id: `channel:${channel.id}`,
+    type: "channel",
+    data: { kind: "channel", channelId: channel.id, group: PINNED_GROUP_ID },
+  });
+  const tile = (
+    <Button
+      aria-label={`Open pinned ${channel.name}`}
+      className={cn(
+        "flex h-[106px] w-full touch-none flex-col justify-start gap-1 rounded-[10px] px-1 pt-2 text-center font-normal transition-[background-color,transform]",
+        selected ? "bg-selected hover:bg-selected" : "hover:bg-hover"
+      )}
+      onClick={(event) => onSelect(channel.id, event.detail > 0)}
+      ref={(element) => handleRef(element)}
+      type="button"
+      variant="ghost"
+    >
+      <SidebarUnreadAvatar pinned unread={unread && !needsAttention}>
+        <WorkingAvatar
+          channelId={row.channel.id}
+          active={working && !(needsAttention || unread)}
+          ringColor={selected ? "var(--selected)" : "var(--sidebar)"}
+          size="pin"
+        >
+          {bot ? (
+            <BotAvatar bot={bot} channelId={channel.id} size="lg" />
+          ) : (
+            <ChannelAvatar botById={botById} channel={channel} size="lg" />
+          )}
+        </WorkingAvatar>
+      </SidebarUnreadAvatar>
+      <span className="mt-0.5 flex w-full min-w-0 items-center justify-center gap-1 px-1 text-[12px]">
+        {needsAttention ? (
+          <span
+            aria-label="Needs your input"
+            className="sidebar-status-reveal size-1.5 shrink-0 rounded-full bg-amber-500"
+          />
+        ) : null}
+        <span className="min-w-0 truncate"><BotName name={channel.name} /></span>
+      </span>
+    </Button>
+  );
+
+  return (
+    <div
+      className={cn(
+        "min-w-0",
+        isDragging && "relative z-20 opacity-0"
+      )}
+      data-pinned-channel-id={channel.id}
+      ref={ref}
+    >
+      {bot ? (
+        <BotContextMenu
+          bot={bot}
+          channelId={channel.id}
+          currentSectionId={null}
+          onBotAction={onBotAction}
+          onCreateSection={onCreateSection}
+          onMoveToSection={onMoveToSection}
+          pinned
+          sections={sections}
+          showMove={false}
+          tooltipContent={<ChannelPreviewTooltipContent botById={botById} row={row} />}
+          unread={unread}
+        >
+          {tile}
+        </BotContextMenu>
+      ) : channel.kind === "group" ? (
+        <GroupContextMenu
+          channel={channel}
+          currentSectionId={null}
+          onCreateSection={onCreateSection}
+          onGroupAction={onGroupAction}
+          onMoveToSection={onMoveToSection}
+          pinned
+          sections={sections}
+          showMove={false}
+          tooltipContent={<ChannelPreviewTooltipContent botById={botById} row={row} />}
+          unread={unread}
+        >
+          {tile}
+        </GroupContextMenu>
+      ) : (
+        tile
+      )}
+    </div>
+  );
+}
+
+function VirtualizedPinnedTiles({
+  activeChannelId,
+  botById,
+  onBotAction,
+  onGroupAction,
+  onCreateSection,
+  onMoveToSection,
+  onSelect,
+  rows,
+  scrollRef,
+  sections,
+  selectedId,
+  sidebarWidth,
+  unreadIds,
+  onRegisterJumpHandler,
+}: {
+  activeChannelId?: string | null;
+  botById: ReadonlyMap<string, BotView>;
+  onBotAction: (bot: BotView, action: BotRowAction) => void;
+  onGroupAction: (channel: ChannelView, action: GroupRowAction) => void;
+  onCreateSection: (channelId: string) => void;
+  onMoveToSection: (channelId: string, sectionId: string | null) => void;
+  onSelect: (id: string, focusComposer?: boolean) => void;
+  rows: ChannelRowData[];
+  scrollRef: React.RefObject<HTMLElement | null>;
+  sections: SidebarSection[];
+  selectedId: string | null;
+  sidebarWidth: number;
+  unreadIds: ReadonlySet<string>;
+  onRegisterJumpHandler?: (key: string, handler: SidebarVirtualJumpHandler | null) => void;
+}) {
+  const [responsiveColumns, setResponsiveColumns] = useState(() =>
+    pinnedGridColumnCount(sidebarWidth)
+  );
+  const columns = Math.max(1, Math.min(rows.length, responsiveColumns));
+  const gridRows = useMemo(() => chunkPinnedRows(rows, columns), [columns, rows]);
+  const [focusChannelId, setFocusChannelId] = useState<string | null>(null);
+  const scopeRef = useRef<HTMLDivElement>(null);
+  const activeGridRow = useMemo(() => {
+    const channelId = activeChannelId ?? focusChannelId;
+    if (!channelId) return undefined;
+    const channelIndex = rows.findIndex((row) => row.channel.id === channelId);
+    return channelIndex >= 0 ? Math.floor(channelIndex / Math.max(1, columns)) : undefined;
+  }, [activeChannelId, columns, focusChannelId, rows]);
+  const estimateSize = useCallback(() => SIDEBAR_PINNED_GRID_ROW_SIZE, []);
+  const getKey = useCallback(
+    (index: number) => gridRows[index]?.[0]?.channel.id ?? `missing:${index}`,
+    [gridRows]
+  );
+  const { measureElement, scrollToIndex, totalSize, virtualItems } = useVirtualWindow({
+    activeIndex: activeGridRow,
+    count: gridRows.length,
+    estimateSize,
+    getKey,
+    maxItems: SIDEBAR_PINNED_MAX_MOUNTED_GRID_ROWS,
+    overscan: EXPANDED_SIDEBAR_OVERSCAN,
+    scopeRef,
+    scrollRef,
+    suspendOutsideViewport: true,
+  });
+
+  useEffect(() => {
+    if (!onRegisterJumpHandler) return;
+    const handler: SidebarVirtualJumpHandler = (channelId) => {
+      const index = rows.findIndex((row) => row.channel.id === channelId);
+      if (index < 0) return false;
+      scrollToIndex(Math.floor(index / Math.max(1, columns)), {
+        align: "center",
+      });
+      return true;
+    };
+    onRegisterJumpHandler(PINNED_GROUP_ID, handler);
+    return () => onRegisterJumpHandler(PINNED_GROUP_ID, null);
+  }, [columns, onRegisterJumpHandler, rows, scrollToIndex]);
+
+  useEffect(() => {
+    const element = scopeRef.current;
+    if (!element) return;
+    let frame: number | null = null;
+    const observer = new ResizeObserver((entries) => {
+      const width = entries[0]?.contentRect.width;
+      if (!width || frame !== null) return;
+      frame = window.requestAnimationFrame(() => {
+        frame = null;
+        const next = pinnedGridColumnCount(width + 24);
+        setResponsiveColumns((current) => (current === next ? current : next));
+      });
+    });
+    observer.observe(element);
+    return () => {
+      observer.disconnect();
+      if (frame !== null) window.cancelAnimationFrame(frame);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!focusChannelId) return;
+    const frame = window.requestAnimationFrame(() => {
+      document
+        .querySelector<HTMLElement>(
+          `[data-pinned-channel-id="${CSS.escape(focusChannelId)}"] button`
+        )
+        ?.focus();
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [focusChannelId]);
+
+  return (
+    <div
+      aria-label={`${rows.length} pinned chats`}
+      className="relative w-full rounded-[12px] p-[6px]"
+      data-pinned-grid=""
+      data-virtual-pinned-sidebar-count={rows.length}
+      onKeyDownCapture={(event) => {
+        if (
+          !["ArrowDown", "ArrowLeft", "ArrowRight", "ArrowUp", "Home", "End"].includes(event.key)
+        ) {
+          return;
+        }
+        const tile = (event.target as HTMLElement).closest<HTMLElement>("[data-pinned-channel-id]");
+        const currentId = tile?.dataset.pinnedChannelId;
+        const index = currentId ? rows.findIndex((row) => row.channel.id === currentId) : -1;
+        if (index < 0) return;
+        const delta =
+          event.key === "ArrowDown"
+            ? columns
+            : event.key === "ArrowUp"
+              ? -columns
+              : event.key === "ArrowRight"
+                ? 1
+                : -1;
+        const next =
+          event.key === "Home"
+            ? 0
+            : event.key === "End"
+              ? rows.length - 1
+              : Math.max(0, Math.min(rows.length - 1, index + delta));
+        if (next === index) return;
+        event.preventDefault();
+        scrollToIndex(Math.floor(next / Math.max(1, columns)), {
+          align: "center",
+        });
+        setFocusChannelId(rows[next]?.channel.id ?? null);
+      }}
+      ref={scopeRef}
+      role="list"
+      style={{ height: totalSize }}
+    >
+      {virtualItems.map((virtualItem) => {
+        const gridRow = gridRows[virtualItem.index];
+        if (!gridRow) return null;
+        return (
+          <div
+            className="absolute inset-x-[6px] top-[6px] grid justify-center gap-x-2"
+            key={virtualItem.key}
+            ref={(node) => measureElement(virtualItem.index, virtualItem.key, node)}
+            role="presentation"
+            style={{
+              gridTemplateColumns: `repeat(${Math.max(1, columns)}, minmax(80px, max-content))`,
+              transform: `translateY(${virtualItem.start}px)`,
+            }}
+          >
+            {gridRow.map((row, rowOffset) => {
+              const itemIndex = virtualItem.index * Math.max(1, columns) + rowOffset;
+              return (
+                <div
+                  aria-posinset={itemIndex + 1}
+                  aria-setsize={rows.length}
+                  key={row.channel.id}
+                  role="listitem"
+                >
+                  <DraggablePinnedTile
+                    botById={botById}
+                    onBotAction={onBotAction}
+                    onGroupAction={onGroupAction}
+                    onCreateSection={onCreateSection}
+                    onMoveToSection={onMoveToSection}
+                    onSelect={onSelect}
+                    row={row}
+                    sections={sections}
+                    selected={row.channel.id === selectedId}
+                    unread={unreadIds.has(row.channel.id)}
+                  />
+                </div>
+              );
+            })}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function TransitionDropZone({
+  visible,
+  settling,
+  group,
+  label,
+}: {
+  visible: boolean;
+  settling: boolean;
+  group: string;
+  label: string;
+}) {
+  const { ref, isDropTarget } = useDroppable({
+    id: `channel-transition-drop:${group}`,
+    type: "channel-drop",
+    accept: "channel",
+    disabled: !visible || settling,
+    data: { kind: "channel-drop", group },
+  });
+
+  return (
+    <div
+      aria-hidden={!visible}
+      className={cn(
+        "col-start-1 row-start-1 grid transition-[grid-template-rows,opacity,padding] duration-200 ease-out motion-reduce:transition-none",
+        visible
+          ? "grid-rows-[1fr] pb-2 opacity-100"
+          : "pointer-events-none grid-rows-[0fr] opacity-0"
+      )}
+      data-channel-transition-drop-zone={group}
+      data-visible={visible ? "true" : "false"}
+    >
+      <div className="min-h-0 overflow-hidden">
+        <div
+          className={cn(
+            "flex h-[102px] items-center justify-center rounded-[12px] border border-dashed border-foreground/25 bg-foreground/[0.018] text-[13px] font-medium text-foreground-secondary transition-[border-color,background-color,color,opacity] duration-180",
+            isDropTarget && "border-foreground/35 bg-foreground/[0.04]",
+            settling && "border-transparent bg-transparent text-transparent opacity-0"
+          )}
+          data-hovered={isDropTarget ? "true" : "false"}
+          data-settling={settling ? "true" : "false"}
+          ref={ref}
+        >
+          {label}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ChannelGroupSurface({
+  group,
+  active,
+  disabled = false,
+  className,
+  children,
+}: {
+  group: string;
+  active: boolean;
+  disabled?: boolean;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  const { ref } = useDroppable({
+    id: `channel-group-surface:${group}`,
+    type: "channel-drop",
+    accept: "channel",
+    disabled,
+    data: { kind: "channel-drop", group },
+  });
+
+  return (
+    <div
+      className={cn(
+        "rounded-[12px] transition-colors duration-150 ease-out",
+        active && "bg-foreground/[0.045] dark:bg-hover",
+        className
+      )}
+      data-channel-group={group}
+      data-drop-target={active ? "true" : "false"}
+      ref={ref}
+    >
+      {children}
+    </div>
+  );
+}
+
+function SectionDisclosure({ collapsed, count }: { collapsed: boolean; count: number }) {
+  return (
+    <span className="relative grid size-4 shrink-0 place-items-center text-[12px] font-normal">
+      {collapsed && (
+        <span className="transition-opacity duration-[120ms] ease-out group-hover:opacity-0 group-focus-visible:opacity-0 motion-reduce:transition-none">
+          {count}
+        </span>
+      )}
+      <ChevronDown
+        aria-hidden="true"
+        className={cn(
+          "absolute size-3 opacity-0 transition-opacity duration-[120ms] ease-out group-hover:opacity-100 group-focus-visible:opacity-100 motion-reduce:transition-none",
+          collapsed && "-rotate-90"
+        )}
+      />
+    </span>
+  );
+}
+
+function SidebarCollapsibleContent({
+  children,
+  className,
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <Collapsible.Content
+      className={cn(
+        "overflow-hidden data-[state=closed]:animate-[sidebar-collapsible-close_200ms_cubic-bezier(0.165,0.84,0.44,1)] data-[state=open]:animate-[sidebar-collapsible-open_200ms_cubic-bezier(0.165,0.84,0.44,1)] motion-reduce:animate-none",
+        className
+      )}
+    >
+      {children}
+    </Collapsible.Content>
+  );
+}
+
+function SectionGroup({
+  activeChannelId,
+  section,
+  sectionIndex,
+  sectionCount,
+  rows,
+  editing,
+  draft,
+  dndDisabled,
+  dropHighlighted,
+  dropEdge,
+  renderRow,
+  scrollRef,
+  virtualizeRows,
+  onRegisterJumpHandler,
+  onDraftChange,
+  onFinishEditing,
+  onRename,
+  onMove,
+  onDelete,
+  onToggle,
+}: {
+  activeChannelId?: string | null;
+  section: SidebarSection;
+  sectionIndex: number;
+  sectionCount: number;
+  rows: ChannelRowData[];
+  editing: boolean;
+  draft: string;
+  dndDisabled: boolean;
+  dropHighlighted: boolean;
+  dropEdge: "before" | "after" | null;
+  renderRow: (row: ChannelRowData, index: number, group: string) => React.ReactNode;
+  scrollRef: React.RefObject<HTMLElement | null>;
+  virtualizeRows: boolean;
+  onRegisterJumpHandler?: (key: string, handler: SidebarVirtualJumpHandler | null) => void;
+  onDraftChange: (value: string) => void;
+  onFinishEditing: (save: boolean) => void;
+  onRename: () => void;
+  onMove: (direction: -1 | 1) => void;
+  onDelete: () => void;
+  onToggle: () => void;
+}) {
+  const { ref, isDragging } = useSortable({
+    id: `section:${section.id}`,
+    index: sectionIndex,
+    group: "section-order",
+    type: "section",
+    accept: "section",
+    disabled: dndDisabled || editing,
+    data: { kind: "section", sectionId: section.id, index: sectionIndex },
+  });
+
+  return (
+    <ChannelGroupSurface
+      active={dropHighlighted}
+      className={cn("relative", isDragging && "opacity-40")}
+      disabled={dndDisabled}
+      group={section.id}
+    >
+      {dropEdge && (
+        <div
+          aria-hidden="true"
+          className={cn(
+            "pointer-events-none absolute inset-x-0 z-10 h-px bg-foreground/30",
+            dropEdge === "before" ? "top-0" : "bottom-0"
+          )}
+          data-section-drop-edge={dropEdge}
+        />
+      )}
+      <Collapsible.Root
+        onOpenChange={(open) => {
+          if (open === section.collapsed) onToggle();
+        }}
+        open={!section.collapsed}
+      >
+        <div>
+          {editing ? (
+            <div
+              className="group flex h-[30px] items-center rounded-md px-2 transition-colors duration-[170ms] ease-out hover:bg-foreground/[0.045] motion-reduce:transition-none dark:hover:bg-hover"
+              data-section-id={section.id}
+            >
+              <Input
+                aria-label="Section name"
+                autoFocus
+                className="h-[30px] flex-1 -translate-y-[1.5px] rounded-none border-0 bg-transparent p-0 text-[12px] font-normal text-foreground-tertiary shadow-none selection:bg-[#afd3f5] selection:text-foreground-tertiary focus-visible:border-transparent focus-visible:ring-0 dark:text-foreground-secondary"
+                maxLength={48}
+                onBlur={() => onFinishEditing(true)}
+                onChange={(event) => onDraftChange(event.target.value)}
+                onFocus={(event) => event.currentTarget.select()}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") onFinishEditing(true);
+                  if (event.key === "Escape") onFinishEditing(false);
+                }}
+                value={draft}
+              />
+              <SectionDisclosure collapsed={section.collapsed} count={rows.length} />
+            </div>
+          ) : (
+            <ContextMenu>
+              <ContextMenuTrigger asChild>
+                <Collapsible.Trigger asChild>
+                  <button
+                    className="group flex h-[30px] w-full touch-none items-center rounded-md px-2 text-[12px] font-normal text-foreground-tertiary outline-none transition-colors duration-[170ms] ease-out hover:bg-foreground/[0.045] focus-visible:ring-2 focus-visible:ring-ring/30 motion-reduce:transition-none dark:text-foreground-secondary dark:hover:bg-hover"
+                    data-section-id={section.id}
+                    ref={ref}
+                    type="button"
+                  >
+                    <span className="min-w-0 flex-1 -translate-y-[1.5px] truncate text-left">
+                      {section.name}
+                    </span>
+                    <SectionDisclosure collapsed={section.collapsed} count={rows.length} />
+                  </button>
+                </Collapsible.Trigger>
+              </ContextMenuTrigger>
+              <ContextMenuContent className="w-[180px]">
+                <ContextMenuItem onSelect={onRename}>
+                  <Pencil className="size-4" /> Rename
+                </ContextMenuItem>
+                <ContextMenuItem disabled={sectionIndex === 0} onSelect={() => onMove(-1)}>
+                  <ArrowUp className="size-4" /> Move up
+                </ContextMenuItem>
+                <ContextMenuItem
+                  disabled={sectionIndex === sectionCount - 1}
+                  onSelect={() => onMove(1)}
+                >
+                  <ArrowDown className="size-4" /> Move down
+                </ContextMenuItem>
+                <ContextMenuSeparator />
+                <ContextMenuItem
+                  className="text-destructive data-[highlighted]:text-destructive [&_svg]:text-destructive"
+                  onSelect={onDelete}
+                >
+                  <Trash2 className="size-4" /> Delete
+                </ContextMenuItem>
+              </ContextMenuContent>
+            </ContextMenu>
+          )}
+        </div>
+        <SidebarCollapsibleContent className="pt-1">
+          <div className={rows.length > 0 && !virtualizeRows ? "flex flex-col gap-1" : undefined}>
+            {rows.length > 0 ? (
+              virtualizeRows ? (
+                <VirtualizedChannelRows
+                  activeChannelId={activeChannelId}
+                  group={section.id}
+                  onRegisterJumpHandler={onRegisterJumpHandler}
+                  renderRow={renderRow}
+                  rows={rows}
+                  scrollRef={scrollRef}
+                />
+              ) : (
+                rows.map((row, index) => renderRow(row, index, section.id))
+              )
+            ) : (
+              <div
+                className="flex h-7 items-center px-2 text-[12px] font-normal text-foreground-tertiary"
+                data-empty-section={section.id}
+              >
+                Drag chats here
+              </div>
+            )}
+          </div>
+        </SidebarCollapsibleContent>
+      </Collapsible.Root>
+    </ChannelGroupSurface>
+  );
+}
+
+function VirtualizedSections({
+  activeSectionId,
+  renderSection,
+  rowsBySection,
+  scrollRef,
+  sections,
+  onRegisterJumpHandler,
+}: {
+  activeSectionId?: string | null;
+  renderSection: (section: SidebarSection, index: number) => React.ReactNode;
+  rowsBySection: Readonly<Record<string, ChannelRowData[]>>;
+  scrollRef: React.RefObject<HTMLElement | null>;
+  sections: SidebarSection[];
+  onRegisterJumpHandler?: (key: string, handler: SidebarVirtualJumpHandler | null) => void;
+}) {
+  const [focusSectionId, setFocusSectionId] = useState<string | null>(null);
+  const scopeRef = useRef<HTMLDivElement>(null);
+  const activeIndex = useMemo(() => {
+    const sectionId = activeSectionId ?? focusSectionId;
+    if (!sectionId) return undefined;
+    const index = sections.findIndex((section) => section.id === sectionId);
+    return index >= 0 ? index : undefined;
+  }, [activeSectionId, focusSectionId, sections]);
+  const estimateSize = useCallback(
+    (index: number) => {
+      const section = sections[index];
+      return section
+        ? estimateSidebarSectionSize(section, rowsBySection[section.id]?.length ?? 0)
+        : 40;
+    },
+    [rowsBySection, sections]
+  );
+  const getKey = useCallback(
+    (index: number) => {
+      const section = sections[index];
+      return section
+        ? `${section.id}:${rowsBySection[section.id]?.length ?? 0}`
+        : `missing:${index}`;
+    },
+    [rowsBySection, sections]
+  );
+  const { measureElement, scrollToIndex, totalSize, virtualItems } = useVirtualWindow({
+    activeIndex,
+    count: sections.length,
+    estimateSize,
+    getKey,
+    maxItems: EXPANDED_SIDEBAR_MAX_MOUNTED_ITEMS,
+    overscan: EXPANDED_SIDEBAR_OVERSCAN,
+    scopeRef,
+    scrollRef,
+    suspendOutsideViewport: true,
+  });
+
+  useEffect(() => {
+    if (!onRegisterJumpHandler) return;
+    const handler: SidebarVirtualJumpHandler = (sectionId) => {
+      const index = sections.findIndex((section) => section.id === sectionId);
+      if (index < 0) return false;
+      scrollToIndex(index, { align: "center" });
+      return true;
+    };
+    onRegisterJumpHandler(VIRTUAL_SECTIONS_JUMP_KEY, handler);
+    return () => onRegisterJumpHandler(VIRTUAL_SECTIONS_JUMP_KEY, null);
+  }, [onRegisterJumpHandler, scrollToIndex, sections]);
+
+  useEffect(() => {
+    if (!focusSectionId) return;
+    const frame = window.requestAnimationFrame(() => {
+      document
+        .querySelector<HTMLElement>(`[data-section-id="${CSS.escape(focusSectionId)}"]`)
+        ?.focus();
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [focusSectionId]);
+
+  return (
+    <div
+      aria-label={`${sections.length} chat sections`}
+      className="relative w-full shrink-0"
+      data-virtual-sidebar-sections={sections.length}
+      onKeyDownCapture={(event) => {
+        if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
+        const sectionHeader = (event.target as HTMLElement).closest<HTMLElement>(
+          "[data-section-id]"
+        );
+        const currentId = sectionHeader?.dataset.sectionId;
+        const index = currentId ? sections.findIndex((section) => section.id === currentId) : -1;
+        if (index < 0) return;
+        const next =
+          event.key === "Home"
+            ? 0
+            : event.key === "End"
+              ? sections.length - 1
+              : Math.max(
+                  0,
+                  Math.min(sections.length - 1, index + (event.key === "ArrowDown" ? 1 : -1))
+                );
+        if (next === index) return;
+        event.preventDefault();
+        scrollToIndex(next, { align: "center" });
+        setFocusSectionId(sections[next]?.id ?? null);
+      }}
+      ref={scopeRef}
+      role="list"
+      style={{ height: totalSize }}
+    >
+      {virtualItems.map((virtualItem) => {
+        const section = sections[virtualItem.index];
+        if (!section) return null;
+        return (
+          <div
+            aria-posinset={virtualItem.index + 1}
+            aria-setsize={sections.length}
+            className="absolute inset-x-0 top-0 pb-[10px]"
+            key={section.id}
+            ref={(node) => measureElement(virtualItem.index, virtualItem.key, node)}
+            role="listitem"
+            style={{ transform: `translateY(${virtualItem.start}px)` }}
+          >
+            {renderSection(section, virtualItem.index)}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function CompactChannelTile({
+  row,
+  botById,
+  selected,
+  unread,
+  onSelect,
+  onFocus,
+  tabIndex,
+}: {
+  row: ChannelRowData;
+  botById: ReadonlyMap<string, BotView>;
+  selected: boolean;
+  unread: boolean;
+  onSelect: (id: string, focusComposer?: boolean) => void;
+  onFocus?: () => void;
+  tabIndex?: number;
+}) {
+  const { channel } = row;
+  const needsAttention = false;
+  const working = sidebarRowIsWorking(row);
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          aria-label={`Open ${channel.name}${needsAttention ? ", needs your input" : unread ? ", unread" : ""}`}
+          className={cn(
+            "relative flex size-[54px] shrink-0 items-center justify-center rounded-[11px] p-0 transition-colors",
+            selected ? "bg-selected hover:bg-selected" : "hover:bg-hover"
+          )}
+          data-compact-channel-id={channel.id}
+          onClick={(event) => onSelect(channel.id, event.detail > 0)}
+          onFocus={onFocus}
+          tabIndex={tabIndex}
+          type="button"
+          variant="ghost"
+        >
+          <SidebarUnreadAvatar unread={unread && !needsAttention}>
+            <WorkingAvatar
+              channelId={row.channel.id}
+              active={working && !(needsAttention || unread)}
+              ringColor={selected ? "var(--selected)" : "var(--sidebar)"}
+              size="md"
+            >
+              <ChannelAvatar botById={botById} channel={channel} />
+            </WorkingAvatar>
+          </SidebarUnreadAvatar>
+          {needsAttention && (
+            <span
+              aria-hidden="true"
+              className={cn(
+                "sidebar-status-reveal pointer-events-none absolute bottom-[7px] right-[7px] z-20 size-2 rounded-full border-2",
+                selected ? "border-selected" : "border-sidebar",
+                "bg-amber-500"
+              )}
+            />
+          )}
+        </Button>
+      </TooltipTrigger>
+      <ChannelPreviewTooltipContent botById={botById} row={row} />
+    </Tooltip>
+  );
+}
+
+type CompactVirtualEntry =
+  | { type: "separator"; id: string }
+  | { type: "channel"; id: string; row: ChannelRowData };
+
+function VirtualizedCompactChannels({
+  groups,
+  botById,
+  unreadIds,
+  selectedId,
+  onSelect,
+  scrollRef,
+}: {
+  groups: Array<{ id: string; rows: ChannelRowData[] }>;
+  botById: ReadonlyMap<string, BotView>;
+  unreadIds: ReadonlySet<string>;
+  selectedId: string | null;
+  onSelect: (id: string, focusComposer?: boolean) => void;
+  scrollRef: React.RefObject<HTMLElement | null>;
+}) {
+  const entries = useMemo<CompactVirtualEntry[]>(
+    () =>
+      groups.flatMap((group, groupIndex) => [
+        ...(groupIndex > 0 ? [{ type: "separator" as const, id: `separator:${group.id}` }] : []),
+        ...group.rows.map((row) => ({
+          type: "channel" as const,
+          id: row.channel.id,
+          row,
+        })),
+      ]),
+    [groups]
+  );
+  const estimateSize = useCallback(
+    (index: number) => (entries[index]?.type === "separator" ? 17 : 58),
+    [entries]
+  );
+  const getKey = useCallback(
+    (index: number) => entries[index]?.id ?? `missing:${index}`,
+    [entries]
+  );
+  const channelIds = useMemo(
+    () => entries.flatMap((entry) => (entry.type === "channel" ? [entry.row.channel.id] : [])),
+    [entries]
+  );
+  const channelOrderById = useMemo(
+    () => new Map(channelIds.map((channelId, index) => [channelId, index])),
+    [channelIds]
+  );
+  const entryIndexByChannelId = useMemo(() => {
+    const indexes = new Map<string, number>();
+    entries.forEach((entry, index) => {
+      if (entry.type === "channel") indexes.set(entry.row.channel.id, index);
+    });
+    return indexes;
+  }, [entries]);
+  const [focusChannelId, setFocusChannelId] = useState<string | null>(null);
+  const pendingKeyboardFocus = useRef<string | null>(null);
+  const previousSelectedId = useRef(selectedId);
+  const scopeRef = useRef<HTMLUListElement>(null);
+  const rovingChannelId =
+    (focusChannelId && entryIndexByChannelId.has(focusChannelId) ? focusChannelId : null) ??
+    (selectedId && entryIndexByChannelId.has(selectedId) ? selectedId : null) ??
+    channelIds[0] ??
+    null;
+  const activeIndex = rovingChannelId ? entryIndexByChannelId.get(rovingChannelId) : undefined;
+  const { measureElement, scrollToIndex, totalSize, virtualItems } = useVirtualWindow({
+    activeIndex,
+    count: entries.length,
+    // Collapsing the pane preserves its scroll position. Reveal a tile only
+    // after keyboard navigation or a new selection, not on the layout handoff.
+    revealActiveItem: focusChannelId !== null,
+    estimateSize,
+    getKey,
+    initialViewportSize: 900,
+    maxItems: 48,
+    overscan: 220,
+    scrollRef,
+  });
+
+  useEffect(() => {
+    if (previousSelectedId.current === selectedId) return;
+    previousSelectedId.current = selectedId;
+    if (selectedId && entryIndexByChannelId.has(selectedId)) setFocusChannelId(selectedId);
+  }, [entryIndexByChannelId, selectedId]);
+
+  useEffect(() => {
+    const channelId = pendingKeyboardFocus.current;
+    if (!channelId || channelId !== rovingChannelId) return;
+    const frame = window.requestAnimationFrame(() => {
+      scopeRef.current
+        ?.querySelector<HTMLElement>(`[data-compact-channel-id="${CSS.escape(channelId)}"]`)
+        ?.focus();
+      pendingKeyboardFocus.current = null;
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [rovingChannelId]);
+
+  return (
+    <ul
+      aria-label={`${channelIds.length} chats`}
+      className="relative w-full"
+      data-virtual-compact-sidebar-count={entries.length}
+      onKeyDownCapture={(event) => {
+        if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
+        const tile = (event.target as HTMLElement).closest<HTMLElement>(
+          "[data-compact-channel-id]"
+        );
+        const currentId = tile?.dataset.compactChannelId;
+        const currentIndex = currentId ? channelOrderById.get(currentId) : undefined;
+        if (currentIndex === undefined) return;
+        event.preventDefault();
+        const nextIndex =
+          event.key === "Home"
+            ? 0
+            : event.key === "End"
+              ? channelIds.length - 1
+              : Math.max(
+                  0,
+                  Math.min(
+                    channelIds.length - 1,
+                    currentIndex + (event.key === "ArrowDown" ? 1 : -1)
+                  )
+                );
+        if (nextIndex === currentIndex) return;
+        const nextId = channelIds[nextIndex];
+        const nextEntryIndex = nextId ? entryIndexByChannelId.get(nextId) : undefined;
+        if (!nextId || nextEntryIndex === undefined) return;
+        pendingKeyboardFocus.current = nextId;
+        scrollToIndex(nextEntryIndex, { align: "center" });
+        setFocusChannelId(nextId);
+      }}
+      ref={scopeRef}
+      style={{ height: totalSize }}
+    >
+      {virtualItems.map((virtualItem) => {
+        const entry = entries[virtualItem.index];
+        if (!entry) return null;
+        return (
+          <li
+            aria-hidden={entry.type === "separator" ? "true" : undefined}
+            aria-posinset={
+              entry.type === "channel"
+                ? (channelOrderById.get(entry.row.channel.id) ?? 0) + 1
+                : undefined
+            }
+            aria-setsize={entry.type === "channel" ? channelIds.length : undefined}
+            className="absolute inset-x-0 top-0"
+            key={virtualItem.key}
+            ref={(node) => measureElement(virtualItem.index, virtualItem.key, node)}
+            style={{ transform: `translateY(${virtualItem.start}px)` }}
+          >
+            {entry.type === "separator" ? (
+              <div aria-hidden="true" className="mx-auto my-2 h-px w-[54px] bg-border" />
+            ) : (
+              <div className="flex justify-center pb-1">
+                <CompactChannelTile
+                  botById={botById}
+                  onFocus={() => setFocusChannelId(entry.row.channel.id)}
+                  onSelect={onSelect}
+                  row={entry.row}
+                  selected={entry.row.channel.id === selectedId}
+                  tabIndex={entry.row.channel.id === rovingChannelId ? 0 : -1}
+                  unread={unreadIds.has(entry.row.channel.id)}
+                />
+              </div>
+            )}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+function MarketplaceIcon() {
+  return (
+                <svg
+                  aria-hidden="true"
+                  className="size-3.5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeLinejoin="round"
+                  strokeWidth="1.8"
+                  viewBox="0 0 24 24"
+                >
+                  <rect x="3" y="3" width="7" height="7" rx="1" />
+                  <rect x="14" y="3" width="7" height="7" rx="1" />
+                  <rect x="3" y="14" width="7" height="7" rx="1" />
+                  <path d="m18 13 4.5 4.5L18 22l-4.5-4.5Z" />
+                </svg>
+  );
+}
+
+function CompactSidebarContent({
+  groups,
+  botById,
+  unreadIds,
+  selectedId,
+  onSelect,
+  onNewBot,
+  onOpenPlugins,
+}: {
+  groups: Array<{ id: string; rows: ChannelRowData[] }>;
+  botById: ReadonlyMap<string, BotView>;
+  unreadIds: ReadonlySet<string>;
+  selectedId: string | null;
+  onSelect: (id: string, focusComposer?: boolean) => void;
+  onNewBot: () => void;
+  onOpenPlugins: () => void;
+}) {
+  const scrollRef = useRef<HTMLElement>(null);
+  const channelCount = groups.reduce((count, group) => count + group.rows.length, 0);
+  const metrics = useMemo(() => {
+    let top = 4;
+    return groups.flatMap((group, index) => {
+      if (index > 0) top += 17;
+      return group.rows.map((row) => {
+        const metric = {
+          channelId: row.channel.id,
+          unread: unreadIds.has(row.channel.id),
+          unreadCount: row.channel.unreadCount,
+          top,
+          bottom: top + 54,
+        };
+        top += 58;
+        return metric;
+      });
+    });
+  }, [groups, unreadIds]);
+  const [scrollState, setScrollState] = useState({
+    top: false,
+    bottom: false,
+    jumps: { above: null, below: null } as SidebarUnreadJumpTargets,
+  });
+  const measureScroll = useCallback(() => {
+    const viewport = scrollRef.current;
+    if (!viewport) return;
+    const top = viewport.scrollTop > 5;
+    const bottom = viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight > 5;
+    const jumps = sidebarUnreadJumpTargets(
+      metrics,
+      viewport.scrollTop,
+      viewport.scrollTop + viewport.clientHeight
+    );
+    setScrollState((current) =>
+      current.top === top &&
+      current.bottom === bottom &&
+      sameUnreadJumpTargets(current.jumps, jumps)
+        ? current
+        : { top, bottom, jumps }
+    );
+  }, [metrics]);
+  useEffect(() => {
+    const viewport = scrollRef.current;
+    if (!viewport) return;
+    const observer = new ResizeObserver(measureScroll);
+    observer.observe(viewport);
+    measureScroll();
+    return () => observer.disconnect();
+  }, [measureScroll]);
+  const jumpToUnread = (target: SidebarUnreadJumpTarget) => {
+    const viewport = scrollRef.current;
+    const metric = metrics.find((row) => row.channelId === target.channelId);
+    if (viewport && metric)
+      viewport.scrollTo({
+        top: Math.max(0, (metric.top + metric.bottom - viewport.clientHeight) / 2),
+      });
+  };
+  return (
+    <>
+      <div className="electron-drag h-11 shrink-0" />
+      <div className="relative flex min-h-0 flex-1">
+        <nav
+          className="relative sidebar-roster bot-scrollbar flex min-h-0 flex-1 flex-col items-center overflow-y-auto pl-3 pr-1 pt-1"
+          ref={scrollRef}
+          onScroll={measureScroll}
+          data-scroll-fade-top={scrollState.top}
+          data-scroll-fade-bottom={scrollState.bottom}
+          style={{
+            maskImage: `linear-gradient(to bottom, ${scrollState.top ? "transparent 0px, black 28px" : "black 0px"}, ${scrollState.bottom ? "black calc(100% - 28px), transparent 100%" : "black 100%"})`,
+          }}
+        >
+          <SidebarMotion pinnedIds={EMPTY_PINNED_IDS}>
+          {channelCount > 180 ? (
+            <VirtualizedCompactChannels
+              botById={botById}
+              groups={groups}
+              onSelect={onSelect}
+              scrollRef={scrollRef}
+              selectedId={selectedId}
+              unreadIds={unreadIds}
+            />
+          ) : (
+            groups.map((group, groupIndex) => (
+              <div className="w-full" data-compact-group={group.id} key={group.id}>
+                {groupIndex > 0 && (
+                  <div aria-hidden="true" className="mx-auto my-2 h-px w-[54px] bg-border" />
+                )}
+                {group.rows.map((row) => (
+                  <div className="flex justify-center pb-1" key={row.channel.id}>
+                    <CompactChannelTile
+                      botById={botById}
+                      onSelect={onSelect}
+                      row={row}
+                      selected={row.channel.id === selectedId}
+                      unread={unreadIds.has(row.channel.id)}
+                    />
+                  </div>
+                ))}
+              </div>
+            ))
+          )}
+          </SidebarMotion>
+        </nav>
+        {scrollState.jumps.above && (
+          <UnreadJumpPill
+            compact
+            direction="above"
+            target={scrollState.jumps.above}
+            onJump={jumpToUnread}
+          />
+        )}
+        {scrollState.jumps.below && (
+          <UnreadJumpPill
+            compact
+            direction="below"
+            target={scrollState.jumps.below}
+            onJump={jumpToUnread}
+          />
+        )}
+      </div>
+      <div className="flex shrink-0 flex-col items-center gap-0 pt-2">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              aria-label="New chat"
+              className="size-7 rounded-[7px] p-0 text-foreground-tertiary hover:bg-subtle hover:text-foreground-secondary"
+              onClick={onNewBot}
+              variant="ghost"
+            >
+              <Plus className="size-5" strokeWidth={1.8} />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="top">New chat</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button aria-label="Marketplace" data-marketplace-trigger="" className="size-7 rounded-[7px] p-0 text-foreground-tertiary hover:bg-hover" onClick={onOpenPlugins} variant="ghost">
+              <MarketplaceIcon />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="right">Marketplace</TooltipContent>
+        </Tooltip>
+      </div>
+    </>
+  );
+}
+
+const SIDEBAR_WIDTH_KEY = "aiteamos:sidebar-width";
+const COMPACT_SIDEBAR_CONTENT_WIDTH = 130;
+const DEFAULT_SIDEBAR_WIDTH = 280;
+const MAX_SIDEBAR_WIDTH = 400;
+const maxSidebarWidth = () =>
+  Math.max(
+    DEFAULT_SIDEBAR_WIDTH,
+    Math.min(MAX_SIDEBAR_WIDTH, Math.round(window.innerWidth * 0.45))
+  );
+const clampSidebarWidth = (width: number) =>
+  Math.min(maxSidebarWidth(), Math.max(COMPACT_SIDEBAR_WIDTH, width));
+const normalizeSidebarWidth = (width: number) =>
+  width < MIN_EXPANDED_SIDEBAR_WIDTH ? COMPACT_SIDEBAR_WIDTH : clampSidebarWidth(width);
+const readSidebarWidth = () => {
+  const stored = Number(localStorage.getItem(SIDEBAR_WIDTH_KEY));
+  return normalizeSidebarWidth(
+    Number.isFinite(stored) && stored > 0 ? stored : DEFAULT_SIDEBAR_WIDTH
+  );
+};
+
+export const Sidebar = memo(function Sidebar({
+  channels,
+  botById,
+  latestMessageByChannel,
+  activeRunByChannel,
+  activeTaskChannelIds,
+  itemsByRun,
+  selectedId,
+  creating,
+  onPreloadSearch,
+  onSearch,
+  onSelect,
+  onNewBot,
+  onNewGroup,
+  onOpenPlugins,
+  onOpenSettings,
+  onBotAction,
+  onDeleteChannel,
+  onEditChannel,
+  forcedCompact = false,
+  maxExpandedWidth = MAX_SIDEBAR_WIDTH,
+  onLayoutChange,
+  pendingBot,
+  preferences,
+}: {
+  channels: ChannelView[];
+  botById: ReadonlyMap<string, BotView>;
+  latestMessageByChannel: ReadonlyMap<string, ChannelMessageView>;
+  activeRunByChannel: ReadonlyMap<string, RunView>;
+  activeTaskChannelIds: ReadonlySet<string>;
+  itemsByRun?: ReadonlyMap<string, RunItemView[]>;
+  selectedId: string | null;
+  creating?: boolean;
+  onPreloadSearch: () => void;
+  onSearch: () => void;
+  onSelect: (id: string, focusComposer?: boolean) => void;
+  onNewBot: () => void;
+  onNewGroup: () => void;
+  onOpenPlugins: () => void;
+  onOpenSettings: () => void;
+  onBotAction: (bot: BotView, action: BotRowAction) => void;
+  onDeleteChannel: (channel: ChannelView) => void;
+  onEditChannel: (channelId: string) => void;
+  forcedCompact?: boolean;
+  maxExpandedWidth?: number;
+  onLayoutChange?: (layout: { compact: boolean; width: number }) => void;
+  pendingBot?: { name: string } | null;
+  preferences: SidebarPreferencesController;
+}) {
+  const auth = useAuthSession();
+  const account = accountPresentation(auth.user, auth.mode);
+  const [editingSectionId, setEditingSectionId] = useState<string | null>(null);
+  const [sectionDraft, setSectionDraft] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<SidebarSection | null>(null);
+  const deleteTargetRef = useRef<SidebarSection | null>(null);
+  const [pinTargetVisible, setPinTargetVisible] = useState(false);
+  const [activeDropGroup, setActiveDropGroup] = useState<string | null>(null);
+  const [dragSourceGroup, setDragSourceGroup] = useState<string | null>(null);
+  const [dragSourceChannelId, setDragSourceChannelId] = useState<string | null>(null);
+  const [dragSourceSectionId, setDragSourceSectionId] = useState<string | null>(null);
+  const [overSectionId, setOverSectionId] = useState<string | null>(null);
+  const [sidebarWidth, setSidebarWidth] = useState(readSidebarWidth);
+  const [sidebarResizing, setSidebarResizing] = useState(false);
+  const [sidebarSnapping, setSidebarSnapping] = useState(false);
+  const sidebarRef = useRef<HTMLElement | null>(null);
+  const sidebarScrollRef = useRef<HTMLElement | null>(null);
+  const unreadMeasureFrameRef = useRef<number | null>(null);
+  const virtualJumpHandlersRef = useRef(new Map<string, SidebarVirtualJumpHandler>());
+  const [unreadJumps, setUnreadJumps] = useState<SidebarUnreadJumpTargets>({
+    above: null,
+    below: null,
+  });
+  const [sidebarTopFade, setSidebarTopFade] = useState(false);
+  const [sidebarBottomFade, setSidebarBottomFade] = useState(false);
+  const sidebarResizerRef = useRef<HTMLDivElement | null>(null);
+  const sidebarWidthRef = useRef(sidebarWidth);
+  const lastExpandedWidthRef = useRef(
+    sidebarWidth >= MIN_EXPANDED_SIDEBAR_WIDTH ? sidebarWidth : DEFAULT_SIDEBAR_WIDTH
+  );
+  const sidebarSnapTimerRef = useRef<number | null>(null);
+  const rowCacheRef = useRef<Map<string, ChannelRowData>>(new Map());
+  const resizeSessionRef = useRef<
+    | (SnappedSidebarResizeState & {
+        pointerId: number;
+        cursor: string;
+        userSelect: string;
+      })
+    | null
+  >(null);
+  const dndDisabled = false;
+  if (deleteTarget) deleteTargetRef.current = deleteTarget;
+  const deleteDialogTarget = deleteTarget ?? deleteTargetRef.current;
+  const { rows, rowByChannelId, channelById } = useMemo(() => {
+    const reconciled = reconcileSidebarRows(
+      rowCacheRef.current,
+      channels,
+      latestMessageByChannel,
+      activeRunByChannel,
+      activeTaskChannelIds
+    );
+    rowCacheRef.current = reconciled.rowByChannelId;
+    return reconciled;
+  }, [activeRunByChannel, activeTaskChannelIds, channels, latestMessageByChannel]);
+
+  const groups = useMemo(
+    () =>
+      groupSidebarRows(
+        rows,
+        preferences.pinnedIds,
+        preferences.sections,
+        preferences.sectionByChannel
+      ),
+    [preferences.pinnedIds, preferences.sectionByChannel, preferences.sections, rows]
+  );
+  const compactGroups = useMemo(() => {
+    const seen = new Set<string>();
+    return [
+      { id: PINNED_GROUP_ID, rows: groups.pinned },
+      ...preferences.sections.map((section) => ({
+        id: section.id,
+        rows: groups.bySection[section.id] ?? [],
+      })),
+      { id: UNASSIGNED_GROUP_ID, rows: groups.unassigned },
+    ]
+      .map((group) => ({
+        ...group,
+        rows: group.rows.filter((row) => {
+          if (seen.has(row.channel.id)) return false;
+          seen.add(row.channel.id);
+          return true;
+        }),
+      }))
+      .filter((group) => group.rows.length > 0);
+  }, [groups, preferences.sections]);
+  const storedCompact = sidebarWidth === COMPACT_SIDEBAR_WIDTH;
+  const targetCompact = forcedCompact || storedCompact;
+  const [compact, setCompact] = useState(targetCompact);
+  useEffect(() => {
+    onLayoutChange?.({ compact: storedCompact, width: sidebarWidth });
+  }, [onLayoutChange, sidebarWidth, storedCompact]);
+  useEffect(() => {
+    const sidebar = sidebarRef.current;
+    const resizer = sidebarResizerRef.current;
+    if (!sidebar || !resizer) return;
+    let previousCompact: boolean | undefined;
+    const syncVisibleWidth = (beforePaint = false) => {
+      const visibleWidth = Math.round(sidebar.getBoundingClientRect().width);
+      // Keep the expanded search field shrinking with the pane until its rendered
+      // width reaches the compact layout threshold, including interrupted snaps.
+      const nextCompact = sidebar.clientWidth <= COMPACT_SIDEBAR_CONTENT_WIDTH;
+      if (nextCompact !== previousCompact) {
+        previousCompact = nextCompact;
+        // ResizeObserver runs before paint. Commit the layout handoff in that
+        // frame so search neither lingers below nor appears late above 130px.
+        if (beforePaint) flushSync(() => setCompact(nextCompact));
+        else setCompact(nextCompact);
+      }
+      resizer.setAttribute("aria-valuenow", String(visibleWidth));
+      resizer.setAttribute(
+        "aria-valuetext",
+        visibleWidth === COMPACT_SIDEBAR_WIDTH ? "Compact" : `${visibleWidth} pixels`
+      );
+    };
+    const observer = new ResizeObserver(() => syncVisibleWidth(true));
+    observer.observe(sidebar);
+    syncVisibleWidth();
+    return () => observer.disconnect();
+  }, []);
+  const virtualizeExpanded = shouldVirtualizeExpandedSidebar(
+    rows.length,
+    preferences.sections.length
+  );
+  const channelGroupById = useMemo(() => {
+    const groupsByChannel = new Map<string, string>();
+    for (const row of groups.pinned) groupsByChannel.set(row.channel.id, PINNED_GROUP_ID);
+    for (const section of preferences.sections) {
+      for (const row of groups.bySection[section.id] ?? []) {
+        groupsByChannel.set(row.channel.id, section.id);
+      }
+    }
+    for (const row of groups.unassigned) {
+      groupsByChannel.set(row.channel.id, UNASSIGNED_GROUP_ID);
+    }
+    return groupsByChannel;
+  }, [groups, preferences.sections]);
+  const unreadMetrics = useMemo(() => {
+    const metrics: Array<{
+      channelId: string;
+      unread: boolean;
+      unreadCount?: number;
+      top: number;
+      bottom: number;
+    }> = [];
+    const appendRow = (row: ChannelRowData, top: number, height: number) => {
+      metrics.push({
+        channelId: row.channel.id,
+        unread: preferences.unreadIds.has(row.channel.id),
+        unreadCount: row.channel.unreadCount,
+        top,
+        bottom: top + height,
+      });
+    };
+    let top = 0;
+    if (groups.pinned.length > 0) {
+      const columns = Math.max(1, pinnedGridColumnCount(sidebarWidth));
+      const pinnedTop = top + 14;
+      groups.pinned.forEach((row, index) => {
+        appendRow(row, pinnedTop + Math.floor(index / columns) * SIDEBAR_PINNED_GRID_ROW_SIZE, 106);
+      });
+      top += 20 + Math.ceil(groups.pinned.length / columns) * SIDEBAR_PINNED_GRID_ROW_SIZE;
+    }
+    if (creating) top += 53;
+    if (pendingBot) top += 54;
+    for (const section of preferences.sections) {
+      top += 30;
+      if (!section.collapsed) {
+        top += 4;
+        for (const row of groups.bySection[section.id] ?? []) {
+          appendRow(row, top, 54);
+          top += SIDEBAR_CHANNEL_ROW_SIZE;
+        }
+        if ((groups.bySection[section.id]?.length ?? 0) === 0) top += 28;
+      }
+      top += 10;
+    }
+    if (preferences.sections.length > 0) top += 30;
+    if (!preferences.unassignedCollapsed || preferences.sections.length === 0) {
+      top += preferences.sections.length > 0 ? 4 : 0;
+      for (const row of groups.unassigned) {
+        appendRow(row, top, 54);
+        top += SIDEBAR_CHANNEL_ROW_SIZE;
+      }
+    }
+    return metrics;
+  }, [
+    creating,
+    groups,
+    pendingBot,
+    preferences.sections,
+    preferences.unassignedCollapsed,
+    preferences.unreadIds,
+    sidebarWidth,
+  ]);
+  const registerVirtualJumpHandler = useCallback(
+    (key: string, handler: SidebarVirtualJumpHandler | null) => {
+      if (handler) virtualJumpHandlersRef.current.set(key, handler);
+      else virtualJumpHandlersRef.current.delete(key);
+    },
+    []
+  );
+  const measureUnreadJumps = useCallback(() => {
+    const viewport = sidebarScrollRef.current;
+    if (compact || !viewport) {
+      setSidebarTopFade(false);
+      setSidebarBottomFade(false);
+      setUnreadJumps((current) => {
+        const next = { above: null, below: null };
+        return sameUnreadJumpTargets(current, next) ? current : next;
+      });
+      return;
+    }
+    setSidebarTopFade(viewport.scrollTop > 5);
+    setSidebarBottomFade(viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight > 5);
+    const metrics = unreadMetrics;
+    const viewportTop = viewport.scrollTop;
+    const viewportBottom = viewportTop + viewport.clientHeight;
+    const next = sidebarUnreadJumpTargets(metrics, viewportTop, viewportBottom);
+    setUnreadJumps((current) => (sameUnreadJumpTargets(current, next) ? current : next));
+  }, [compact, unreadMetrics]);
+  const scheduleUnreadJumpMeasure = useCallback(() => {
+    if (unreadMeasureFrameRef.current !== null) return;
+    unreadMeasureFrameRef.current = window.requestAnimationFrame(() => {
+      unreadMeasureFrameRef.current = null;
+      measureUnreadJumps();
+    });
+  }, [measureUnreadJumps]);
+  const jumpToUnread = useCallback(
+    (target: SidebarUnreadJumpTarget) => {
+      const viewport = sidebarScrollRef.current;
+      if (!viewport) return;
+      const group = channelGroupById.get(target.channelId);
+      if (group && virtualJumpHandlersRef.current.get(group)?.(target.channelId)) return;
+
+      const metric = unreadMetrics.find((candidate) => candidate.channelId === target.channelId);
+      const jumpToEstimatedPosition = () => {
+        if (!metric) return;
+        // Keep the target clear of the fades and match virtual-row jumps.
+        const top = Math.max(0, (metric.top + metric.bottom - viewport.clientHeight) / 2);
+        viewport.scrollTo({ top });
+      };
+
+      if (group && group !== PINNED_GROUP_ID && group !== UNASSIGNED_GROUP_ID) {
+        const sectionJump = virtualJumpHandlersRef.current.get(VIRTUAL_SECTIONS_JUMP_KEY);
+        if (sectionJump?.(group)) {
+          let attempts = 0;
+          const finishVirtualJump = () => {
+            if (virtualJumpHandlersRef.current.get(group)?.(target.channelId)) return;
+            attempts += 1;
+            if (attempts < 3) window.requestAnimationFrame(finishVirtualJump);
+            else jumpToEstimatedPosition();
+          };
+          window.requestAnimationFrame(finishVirtualJump);
+          return;
+        }
+      }
+      jumpToEstimatedPosition();
+    },
+    [channelGroupById, unreadMetrics]
+  );
+  const activeSectionDragIndex = dragSourceSectionId
+    ? preferences.sections.findIndex((section) => section.id === dragSourceSectionId)
+    : -1;
+  const overSectionIndex = overSectionId
+    ? preferences.sections.findIndex((section) => section.id === overSectionId)
+    : -1;
+  const sectionDropEdge =
+    activeSectionDragIndex >= 0 &&
+    overSectionIndex >= 0 &&
+    activeSectionDragIndex !== overSectionIndex
+      ? activeSectionDragIndex < overSectionIndex
+        ? "after"
+        : "before"
+      : null;
+  const beginRename = (section: SidebarSection) => {
+    setSectionDraft(section.name);
+    setEditingSectionId(section.id);
+  };
+  const finishRename = (save: boolean) => {
+    if (save && editingSectionId) preferences.renameSection(editingSectionId, sectionDraft);
+    setEditingSectionId(null);
+  };
+  const createSection = useCallback(
+    (channelId: string) => {
+      const sectionId = preferences.createSection(channelId);
+      setSectionDraft("New section");
+      setEditingSectionId(sectionId);
+    },
+    [preferences.createSection]
+  );
+  const applySidebarWidth = useCallback((width: number) => {
+    const next = Math.min(maxExpandedWidth, clampSidebarWidth(width));
+    if (resizeSessionRef.current) resizeSessionRef.current.width = next;
+    sidebarWidthRef.current = next;
+    if (next >= MIN_EXPANDED_SIDEBAR_WIDTH) lastExpandedWidthRef.current = next;
+    if (sidebarRef.current) sidebarRef.current.style.width = `${next}px`;
+    if (sidebarResizerRef.current) {
+      sidebarResizerRef.current.setAttribute("aria-valuenow", String(next));
+      sidebarResizerRef.current.setAttribute(
+        "aria-valuetext",
+        next === COMPACT_SIDEBAR_WIDTH ? "Compact" : `${Math.round(next)} pixels`
+      );
+    }
+    return next;
+  }, [maxExpandedWidth]);
+  const updateSidebarWidth = useCallback(
+    (width: number) => {
+      const next = applySidebarWidth(width);
+      setSidebarWidth(next);
+    },
+    [applySidebarWidth]
+  );
+  const animateSidebarWidth = useCallback(
+    (width: number) => {
+      // Commit the transition before changing the inline width during a drag.
+      flushSync(() => setSidebarSnapping(true));
+      sidebarRef.current?.getBoundingClientRect();
+      updateSidebarWidth(width);
+      if (sidebarSnapTimerRef.current !== null) {
+        window.clearTimeout(sidebarSnapTimerRef.current);
+      }
+      sidebarSnapTimerRef.current = window.setTimeout(() => {
+        sidebarSnapTimerRef.current = null;
+        setSidebarSnapping(false);
+      }, 200);
+    },
+    [updateSidebarWidth]
+  );
+  const toggleCompactSidebar = useCallback(() => {
+    const current = sidebarWidthRef.current;
+    const next =
+      current === COMPACT_SIDEBAR_WIDTH ? lastExpandedWidthRef.current : COMPACT_SIDEBAR_WIDTH;
+    if (current >= MIN_EXPANDED_SIDEBAR_WIDTH) {
+      lastExpandedWidthRef.current = current;
+    }
+    animateSidebarWidth(next);
+    localStorage.setItem(SIDEBAR_WIDTH_KEY, String(next));
+  }, [animateSidebarWidth]);
+  const finishSidebarResize = useCallback(
+    (element: HTMLDivElement) => {
+      const session = resizeSessionRef.current;
+      if (!session) return;
+      if (element.hasPointerCapture(session.pointerId)) {
+        element.releasePointerCapture(session.pointerId);
+      }
+      const next = applySidebarWidth(session.width);
+      setSidebarWidth(next);
+      localStorage.setItem(SIDEBAR_WIDTH_KEY, String(next));
+      document.body.style.cursor = session.cursor;
+      document.body.style.userSelect = session.userSelect;
+      resizeSessionRef.current = null;
+      setSidebarResizing(false);
+    },
+    [applySidebarWidth]
+  );
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (!event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
+      if (event.key.toLowerCase() !== "b") return;
+      event.preventDefault();
+      toggleCompactSidebar();
+    };
+    const handleResize = () => {
+      const next = normalizeSidebarWidth(sidebarWidthRef.current);
+      updateSidebarWidth(next);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("resize", handleResize);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("resize", handleResize);
+      if (sidebarSnapTimerRef.current !== null) {
+        window.clearTimeout(sidebarSnapTimerRef.current);
+      }
+    };
+  }, [toggleCompactSidebar, updateSidebarWidth]);
+
+  useEffect(() => {
+    scheduleUnreadJumpMeasure();
+    const viewport = sidebarScrollRef.current;
+    if (!viewport) return;
+    const observer = new ResizeObserver(scheduleUnreadJumpMeasure);
+    observer.observe(viewport);
+    return () => observer.disconnect();
+  }, [scheduleUnreadJumpMeasure]);
+
+  useEffect(
+    () => () => {
+      if (unreadMeasureFrameRef.current !== null) {
+        window.cancelAnimationFrame(unreadMeasureFrameRef.current);
+        unreadMeasureFrameRef.current = null;
+      }
+    },
+    []
+  );
+
+  const handleSidebarGroupAction = useCallback(
+    (channel: ChannelView, action: GroupRowAction) => {
+      if (action === "togglePin") {
+        preferences.togglePinned(channel.id);
+        return;
+      }
+      if (action === "toggleUnread") {
+        preferences.toggleUnread(channel.id);
+        return;
+      }
+      if (action === "editProfile") {
+        onEditChannel(channel.id);
+        return;
+      }
+      if (action === "delete") {
+        onDeleteChannel(channel);
+        return;
+      }
+      void navigator.clipboard.writeText(channel.id);
+    },
+    [
+      onDeleteChannel,
+      onEditChannel,
+      preferences.togglePinned,
+      preferences.toggleUnread,
+    ]
+  );
+
+  const renderRow = useCallback(
+    (row: ChannelRowData, _index: number, group: string) => (
+      <DraggableChannelRow
+        botById={botById}
+        currentSectionId={preferences.sectionByChannel[row.channel.id] ?? null}
+        disabled={dndDisabled}
+        group={group}
+        key={row.channel.id}
+        onBotAction={onBotAction}
+        onGroupAction={handleSidebarGroupAction}
+        onCreateSection={createSection}
+        onMoveToSection={preferences.moveToSection}
+        onSelect={onSelect}
+        pinned={preferences.pinnedIds.has(row.channel.id)}
+        row={row}
+        sections={preferences.sections}
+        selected={row.channel.id === selectedId}
+        unread={preferences.unreadIds.has(row.channel.id)}
+      />
+    ),
+    [
+      botById,
+      createSection,
+      onBotAction,
+      handleSidebarGroupAction,
+      onSelect,
+      preferences.moveToSection,
+      preferences.pinnedIds,
+      preferences.sectionByChannel,
+      preferences.sections,
+      preferences.unreadIds,
+      selectedId,
+    ]
+  );
+  const activeVirtualSectionId =
+    editingSectionId ??
+    dragSourceSectionId ??
+    (dragSourceGroup &&
+    dragSourceGroup !== PINNED_GROUP_ID &&
+    dragSourceGroup !== UNASSIGNED_GROUP_ID
+      ? dragSourceGroup
+      : null);
+  const renderSection = (section: SidebarSection, index: number) => {
+    const sectionRows = groups.bySection[section.id] ?? [];
+    return (
+      <SectionGroup
+        activeChannelId={dragSourceChannelId}
+        dndDisabled={dndDisabled || dragSourceGroup === section.id}
+        dropHighlighted={activeDropGroup === section.id}
+        dropEdge={overSectionIndex === index ? sectionDropEdge : null}
+        draft={sectionDraft}
+        editing={editingSectionId === section.id}
+        key={section.id}
+        onDelete={() => setDeleteTarget(section)}
+        onDraftChange={setSectionDraft}
+        onFinishEditing={finishRename}
+        onMove={(direction) => preferences.moveSection(section.id, direction)}
+        onRegisterJumpHandler={registerVirtualJumpHandler}
+        onRename={() => beginRename(section)}
+        onToggle={() => preferences.toggleSection(section.id)}
+        renderRow={renderRow}
+        rows={sectionRows}
+        scrollRef={sidebarScrollRef}
+        section={section}
+        sectionCount={preferences.sections.length}
+        sectionIndex={index}
+        virtualizeRows={
+          virtualizeExpanded && sectionRows.length > EXPANDED_SIDEBAR_MAX_MOUNTED_ITEMS
+        }
+      />
+    );
+  };
+
+  return (
+    <SidebarActivityProvider runs={activeRunByChannel} items={itemsByRun}>
+    <aside
+      className={cn(
+        "relative flex min-w-0 shrink-0 flex-col overflow-hidden bg-sidebar",
+        (!sidebarResizing || sidebarSnapping) && "transition-[width] duration-[var(--motion-pane)] ease-[var(--ease-pane)]",
+        forcedCompact && "!w-[88px]"
+      )}
+      data-sidebar=""
+      data-sidebar-compact={compact ? "true" : "false"}
+      data-sidebar-forced-compact={forcedCompact ? "true" : "false"}
+      data-sidebar-snapping={sidebarSnapping ? "true" : "false"}
+      data-sidebar-virtualized={virtualizeExpanded ? "true" : "false"}
+      onKeyDown={(event) => {
+        // Virtualized lists handle their own offscreen navigation in capture.
+        if (event.defaultPrevented || dragSourceChannelId || dragSourceSectionId) return;
+        if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
+        if (!(event.target instanceof HTMLElement) || event.target.closest("input, textarea, [contenteditable=true]")) return;
+        const selector = "[data-channel-id] button, [data-pinned-channel-id] button, button[data-compact-channel-id]";
+        const current = event.target.closest("button");
+        const rows = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>(selector))
+          .filter((button) => !button.disabled && button.getClientRects().length > 0);
+        const index = rows.findIndex((button) => button === current);
+        if (index < 0) return;
+        const next = event.key === "Home" ? 0 : event.key === "End" ? rows.length - 1
+          : Math.max(0, Math.min(rows.length - 1, index + (event.key === "ArrowDown" ? 1 : -1)));
+        event.preventDefault();
+        rows[next]?.focus({ preventScroll: true });
+        rows[next]?.scrollIntoView({ block: "nearest" });
+      }}
+      ref={sidebarRef}
+      style={{ width: targetCompact ? COMPACT_SIDEBAR_WIDTH : Math.min(sidebarWidth, maxExpandedWidth) }}
+    >
+      <SidebarCollapseMotion compact={compact}>
+      {compact ? (
+        <CompactSidebarContent
+          botById={botById}
+          groups={compactGroups}
+          onNewBot={onNewBot}
+          onOpenPlugins={onOpenPlugins}
+          onSelect={onSelect}
+          selectedId={selectedId}
+          unreadIds={preferences.unreadIds}
+        />
+      ) : (
+        <>
+          <div className="electron-drag flex h-[47px] shrink-0 items-center justify-end gap-0.5 px-[13px] pt-0.5">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button aria-label="New chat" className="electron-no-drag size-7 rounded-[7px] text-foreground-tertiary hover:bg-subtle hover:text-foreground dark:text-foreground-secondary" onClick={onNewBot} size="icon-sm" variant="ghost">
+                  <Plus className="size-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">New chat</TooltipContent>
+            </Tooltip>
+          </div>
+          <div className="relative px-[12px] pb-[9px]">
+            <Search className="pointer-events-none absolute left-5 top-[10px] z-10 size-[14px] text-foreground-secondary" />
+            <button
+              aria-label="Search"
+              className="relative top-px flex h-[32px] w-full items-center rounded-[8px] bg-field pl-[26.5px] pr-2 text-left text-[13.5px] text-foreground-secondary shadow-[inset_0_0_0_0.5px_var(--input)] outline-none focus-visible:shadow-[inset_0_0_0_0.5px_var(--ring)]"
+              onClick={onSearch}
+              onFocus={onPreloadSearch}
+              onPointerEnter={onPreloadSearch}
+              type="button"
+            >
+              Search
+            </button>
+          </div>
+          <DragDropProvider
+            sensors={sidebarSensors}
+            onDragStart={(event) => {
+              setActiveDropGroup(null);
+              setOverSectionId(null);
+              const sourceData = event.operation.source?.data as
+                | {
+                    kind?: string;
+                    channelId?: string;
+                    group?: string;
+                    sectionId?: string;
+                  }
+                | undefined;
+              const sourceChannel = sourceData?.channelId
+                ? channelById.get(sourceData.channelId)
+                : undefined;
+              setDragSourceGroup(
+                sourceData?.kind === "channel" ? (sourceData.group ?? null) : null
+              );
+              setDragSourceChannelId(
+                sourceData?.kind === "channel" ? (sourceData.channelId ?? null) : null
+              );
+              setDragSourceSectionId(
+                sourceData?.kind === "section"
+                  ? (sourceData.sectionId ?? null)
+                  : sourceData?.kind === "channel" &&
+                      sourceData.group !== PINNED_GROUP_ID &&
+                      sourceData.group !== UNASSIGNED_GROUP_ID
+                    ? (sourceData.group ?? null)
+                    : null
+              );
+              setPinTargetVisible(
+                sourceData?.kind === "channel" &&
+                  sourceData.group !== PINNED_GROUP_ID &&
+                  isPinnableChannel(sourceChannel)
+              );
+            }}
+            onDragOver={(event) => {
+              event.preventDefault();
+              const targetData = event.operation.target?.data as
+                | { kind?: string; group?: string; sectionId?: string }
+                | undefined;
+              const sourceData = event.operation.source?.data as { group?: string } | undefined;
+              const group =
+                targetData?.kind === "channel-drop" && targetData.group !== sourceData?.group
+                  ? (targetData.group ?? null)
+                  : null;
+              setActiveDropGroup((current) => (current === group ? current : group));
+              const nextOverSectionId =
+                targetData?.kind === "section" ? (targetData.sectionId ?? null) : null;
+              setOverSectionId((current) =>
+                current === nextOverSectionId ? current : nextOverSectionId
+              );
+            }}
+            onDragEnd={(event) => {
+              setPinTargetVisible(false);
+              setActiveDropGroup(null);
+              setDragSourceGroup(null);
+              setDragSourceChannelId(null);
+              setDragSourceSectionId(null);
+              setOverSectionId(null);
+              if (event.canceled) return;
+              const { source, target } = event.operation;
+              if (!source || !target) return;
+              const sourceData = source.data as {
+                kind?: string;
+                channelId?: string;
+                group?: string;
+                index?: number;
+              };
+              const targetData = target.data as {
+                kind?: string;
+                group?: string;
+                index?: number;
+              };
+              if (
+                sourceData.kind === "section" &&
+                targetData.kind === "section" &&
+                isSortable(source) &&
+                typeof sourceData.index === "number" &&
+                typeof targetData.index === "number"
+              ) {
+                preferences.reorderSection(sourceData.index, targetData.index);
+                return;
+              }
+              if (
+                sourceData.kind !== "channel" ||
+                !sourceData.channelId ||
+                !sourceData.group ||
+                targetData.kind !== "channel-drop" ||
+                !targetData.group ||
+                targetData.group === sourceData.group
+              ) {
+                return;
+              }
+              const sourceChannel = channelById.get(sourceData.channelId);
+              if (targetData.group === PINNED_GROUP_ID && !isPinnableChannel(sourceChannel)) {
+                return;
+              }
+              preferences.moveChannel({
+                channelId: sourceData.channelId,
+                group: targetData.group,
+              });
+            }}
+          >
+            <div className="relative flex min-h-0 flex-1">
+              <nav
+                className="relative sidebar-roster bot-scrollbar flex min-h-0 w-full flex-1 flex-col overflow-y-auto pl-[12px] pr-1"
+                onScroll={scheduleUnreadJumpMeasure}
+                ref={sidebarScrollRef}
+                data-scroll-fade-top={sidebarTopFade}
+                data-scroll-fade-bottom={sidebarBottomFade}
+                style={{
+                  maskImage: `linear-gradient(to bottom, ${sidebarTopFade ? "transparent 0px, black 28px" : "black 0px"}, ${sidebarBottomFade ? "black calc(100% - 48px), transparent 100%" : "black 100%"})`,
+                }}
+              >
+                <SidebarMotion pinnedIds={preferences.pinnedIds} disabled={Boolean(dragSourceChannelId || dragSourceSectionId || sidebarResizing)}>
+                {!creating && (
+                  <div className="grid">
+                    <TransitionDropZone
+                      group={PINNED_GROUP_ID}
+                      label="Drag here to pin"
+                      settling={false}
+                      visible={pinTargetVisible && groups.pinned.length === 0}
+                    />
+                    <div className="col-start-1 row-start-1 relative overflow-x-visible overflow-y-clip [overflow-clip-margin:16px]" data-pinned-shell="">
+                    {groups.pinned.length > 0 && (
+                      <ChannelGroupSurface
+                        active={activeDropGroup === PINNED_GROUP_ID}
+                        className="col-start-1 row-start-1 pb-3 pt-2"
+                        disabled={dndDisabled || dragSourceGroup === PINNED_GROUP_ID}
+                        group={PINNED_GROUP_ID}
+                      >
+                        {groups.pinned.length > EXPANDED_SIDEBAR_MAX_MOUNTED_ITEMS ? (
+                          <VirtualizedPinnedTiles
+                            activeChannelId={dragSourceChannelId}
+                            botById={botById}
+                            onBotAction={onBotAction}
+                            onGroupAction={handleSidebarGroupAction}
+                            onCreateSection={createSection}
+                            onMoveToSection={preferences.moveToSection}
+                            onRegisterJumpHandler={registerVirtualJumpHandler}
+                            onSelect={onSelect}
+                            rows={groups.pinned}
+                            scrollRef={sidebarScrollRef}
+                            sections={preferences.sections}
+                            selectedId={selectedId}
+                            sidebarWidth={sidebarWidth}
+                            unreadIds={preferences.unreadIds}
+                          />
+                        ) : (
+                          <div
+                            className="grid w-full justify-center gap-x-2 gap-y-3 rounded-[12px] p-[6px]"
+                            data-pinned-grid=""
+                            style={{
+                              gridTemplateColumns:
+                                "repeat(auto-fit, minmax(80px, max-content))",
+                            }}
+                          >
+                            {groups.pinned.map((row) => (
+                              <DraggablePinnedTile
+                                botById={botById}
+                                key={row.channel.id}
+                                onBotAction={onBotAction}
+                                onGroupAction={handleSidebarGroupAction}
+                                onCreateSection={createSection}
+                                onMoveToSection={preferences.moveToSection}
+                                onSelect={onSelect}
+                                row={row}
+                                sections={preferences.sections}
+                                selected={row.channel.id === selectedId}
+                                unread={preferences.unreadIds.has(row.channel.id)}
+                              />
+                            ))}
+                          </div>
+                        )}
+                      </ChannelGroupSurface>
+                    )}
+                    </div>
+                  </div>
+                )}
+                {pendingBot && (
+                  <div
+                    aria-current="page"
+                    className="flex h-[54px] w-full items-center gap-2 rounded-[10px] bg-selected px-2 text-left"
+                    data-pending-bot-row=""
+                  >
+                    <span className="grid size-9 shrink-0 place-items-center rounded-full border border-border bg-subtle text-foreground-tertiary">
+                      <UserRound className="size-4 opacity-60" />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[14px] font-medium">
+                        {pendingBot.name}
+                      </span>
+                      <span className="mt-px block text-[13px] leading-4 text-foreground-secondary">
+                        Creating…
+                      </span>
+                    </span>
+                  </div>
+                )}
+                {virtualizeExpanded && preferences.sections.length > 0 ? (
+                  <VirtualizedSections
+                    activeSectionId={activeVirtualSectionId}
+                    renderSection={renderSection}
+                    onRegisterJumpHandler={registerVirtualJumpHandler}
+                    rowsBySection={groups.bySection}
+                    scrollRef={sidebarScrollRef}
+                    sections={preferences.sections}
+                  />
+                ) : (
+                  <div
+                    className={cn(
+                      "flex min-h-0 flex-col",
+                      preferences.sections.length > 0 && "gap-[10px]"
+                    )}
+                  >
+                    {preferences.sections.map(renderSection)}
+                  </div>
+                )}
+                <ChannelGroupSurface
+                  active={activeDropGroup === UNASSIGNED_GROUP_ID}
+                  className={cn(
+                    "flex min-h-[36px] flex-1 flex-col",
+                    preferences.sections.length > 0 && "pt-[10px]"
+                  )}
+                  disabled={dndDisabled || dragSourceGroup === UNASSIGNED_GROUP_ID}
+                  group={UNASSIGNED_GROUP_ID}
+                >
+                  <Collapsible.Root
+                    onOpenChange={(open) => {
+                      if (preferences.sections.length === 0) return;
+                      if (open === preferences.unassignedCollapsed) {
+                        preferences.toggleUnassigned();
+                      }
+                    }}
+                    open={
+                      preferences.sections.length === 0 || !preferences.unassignedCollapsed
+                    }
+                  >
+                    {preferences.sections.length > 0 && (
+                      <Collapsible.Trigger asChild>
+                        <button
+                          className="group flex h-[30px] w-full items-center rounded-md px-2 text-[12px] font-normal text-foreground-tertiary outline-none transition-colors duration-[170ms] ease-out hover:bg-foreground/[0.045] focus-visible:ring-2 focus-visible:ring-ring/30 motion-reduce:transition-none dark:text-foreground-secondary dark:hover:bg-hover"
+                          type="button"
+                        >
+                          <span className="min-w-0 flex-1 -translate-y-[1.5px] truncate text-left">
+                            Unassigned
+                          </span>
+                          <SectionDisclosure
+                            collapsed={preferences.unassignedCollapsed}
+                            count={groups.unassigned.length}
+                          />
+                        </button>
+                      </Collapsible.Trigger>
+                    )}
+                    <SidebarCollapsibleContent
+                      className={preferences.sections.length > 0 ? "pt-1" : undefined}
+                    >
+                      {groups.unassigned.length > EXPANDED_SIDEBAR_MAX_MOUNTED_ITEMS ? (
+                        <VirtualizedChannelRows
+                          activeChannelId={dragSourceChannelId}
+                          group={UNASSIGNED_GROUP_ID}
+                          onRegisterJumpHandler={registerVirtualJumpHandler}
+                          renderRow={renderRow}
+                          rows={groups.unassigned}
+                          scrollRef={sidebarScrollRef}
+                        />
+                      ) : (
+                        <div className="flex flex-col gap-1">
+                          {groups.unassigned.map((row, index) =>
+                            renderRow(row, index, UNASSIGNED_GROUP_ID)
+                          )}
+                        </div>
+                      )}
+                    </SidebarCollapsibleContent>
+                  </Collapsible.Root>
+                </ChannelGroupSurface>
+                </SidebarMotion>
+              </nav>
+              {unreadJumps.above ? (
+                <UnreadJumpPill
+                  direction="above"
+                  onJump={jumpToUnread}
+                  target={unreadJumps.above}
+                />
+              ) : null}
+              {unreadJumps.below ? (
+                <UnreadJumpPill
+                  direction="below"
+                  onJump={jumpToUnread}
+                  target={unreadJumps.below}
+                />
+              ) : null}
+            </div>
+
+            <DragOverlay
+              className="pointer-events-none z-[100] flex justify-center overflow-visible"
+              dropAnimation={{
+                duration: 300,
+                easing: "cubic-bezier(0.25, 1.15, 0.4, 1)",
+              }}
+            >
+              {(source) => {
+                const sourceData = source.data as {
+                  kind?: string;
+                  channelId?: string;
+                  sectionId?: string;
+                };
+                if (sourceData.kind === "section" && sourceData.sectionId) {
+                  const section = preferences.sections.find(
+                    (candidate) => candidate.id === sourceData.sectionId
+                  );
+                  return section ? (
+                    <div className="flex h-[30px] max-w-[220px] items-center overflow-hidden text-ellipsis whitespace-nowrap rounded-[8px] border-[0.5px] border-foreground/10 bg-popover px-2 pb-1.5 pt-2 text-[12px] leading-4 text-foreground-secondary shadow-lg">
+                      {section.name}
+                    </div>
+                  ) : null;
+                }
+                if (sourceData.kind !== "channel" || !sourceData.channelId) return null;
+                const row = rowByChannelId.get(sourceData.channelId);
+                return row ? <SidebarDragPreview botById={botById} row={row} /> : null;
+              }}
+            </DragOverlay>
+          </DragDropProvider>
+        </>
+      )}
+
+      </SidebarCollapseMotion>
+      <div className="sidebar-account-footer">
+        <AccountMenu compact={compact} onOpenSettings={onOpenSettings}>
+          <button
+            aria-label={`Account: ${account.name}`}
+            data-sidebar-account-trigger=""
+            className="sidebar-account-button"
+            title={account.name}
+            type="button"
+          >
+            <span
+              className="sidebar-account-avatar"
+              data-sidebar-account-avatar=""
+              aria-hidden="true"
+            >
+              {account.initials}
+            </span>
+            <span className="sidebar-account-name">{account.name}</span>
+          </button>
+        </AccountMenu>
+        <button
+          aria-label="Connect apps"
+          className="sidebar-connect-apps"
+          data-marketplace-trigger=""
+          data-sidebar-connect-apps=""
+          onClick={onOpenPlugins}
+          type="button"
+        >
+          <span className="sidebar-connect-glyph" aria-hidden="true">
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.7"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <rect x="3" y="3" width="7" height="7" rx="1" />
+              <rect x="14" y="3" width="7" height="7" rx="1" />
+              <rect x="3" y="14" width="7" height="7" rx="1" />
+              <path d="M17.5 14v7M14 17.5h7" />
+            </svg>
+          </span>
+          <span className="sidebar-connect-content" aria-hidden="true">
+            <span>Connect apps</span>
+            <span className="sidebar-connect-logos">
+              {[calendarLogo, notionLogo, slackLogo].map((logo, index) => (
+                <span
+                  className="sidebar-connect-logo"
+                  key={logo}
+                  style={{ "--logo-index": index } as React.CSSProperties}
+                >
+                  <span className="sidebar-connect-logo-face">
+                    <img alt="" draggable={false} height="16" src={logo} width="16" />
+                  </span>
+                </span>
+              ))}
+            </span>
+          </span>
+        </button>
+      </div>
+
+      <div
+        aria-label="Resize sidebar"
+        aria-orientation="vertical"
+        aria-valuemax={Math.min(maxSidebarWidth(), maxExpandedWidth)}
+        aria-valuemin={COMPACT_SIDEBAR_WIDTH}
+        className={cn(
+          "electron-no-drag group absolute inset-y-0 right-0 z-40 w-2 cursor-col-resize touch-none outline-none"
+        )}
+        data-sidebar-resizer=""
+        data-resizing={sidebarResizing ? "true" : "false"}
+        ref={sidebarResizerRef}
+        onDoubleClick={() => {
+          animateSidebarWidth(DEFAULT_SIDEBAR_WIDTH);
+          localStorage.setItem(SIDEBAR_WIDTH_KEY, String(DEFAULT_SIDEBAR_WIDTH));
+        }}
+        onKeyDown={(event) => {
+          let next = sidebarWidth;
+          if (event.key === "ArrowLeft") {
+            next =
+              sidebarWidth <= MIN_EXPANDED_SIDEBAR_WIDTH
+                ? COMPACT_SIDEBAR_WIDTH
+                : Math.max(MIN_EXPANDED_SIDEBAR_WIDTH, sidebarWidth - 16);
+          } else if (event.key === "ArrowRight") {
+            next =
+              sidebarWidth === COMPACT_SIDEBAR_WIDTH
+                ? MIN_EXPANDED_SIDEBAR_WIDTH
+                : sidebarWidth + 16;
+          } else if (event.key === "Home") next = COMPACT_SIDEBAR_WIDTH;
+          else if (event.key === "End") next = Math.min(maxSidebarWidth(), maxExpandedWidth);
+          else return;
+          event.preventDefault();
+          if (next === COMPACT_SIDEBAR_WIDTH || sidebarWidth === COMPACT_SIDEBAR_WIDTH) {
+            animateSidebarWidth(next);
+          } else {
+            updateSidebarWidth(next);
+          }
+          localStorage.setItem(SIDEBAR_WIDTH_KEY, String(clampSidebarWidth(next)));
+        }}
+        onPointerCancel={(event) => finishSidebarResize(event.currentTarget)}
+        onPointerDown={(event) => {
+          if (event.button !== 0) return;
+          event.preventDefault();
+          event.currentTarget.setPointerCapture(event.pointerId);
+          resizeSessionRef.current = {
+            pointerId: event.pointerId,
+            startX: event.clientX,
+            startWidth: Math.min(sidebarWidthRef.current, maxExpandedWidth),
+            width: sidebarWidthRef.current,
+            mode: targetCompact ? "compact" : "expanded",
+            cursor: document.body.style.cursor,
+            userSelect: document.body.style.userSelect,
+          };
+          setSidebarResizing(true);
+          document.body.style.cursor = "col-resize";
+          document.body.style.userSelect = "none";
+        }}
+        onPointerMove={(event) => {
+          const session = resizeSessionRef.current;
+          if (!session || session.pointerId !== event.pointerId) return;
+          const next = moveSnappedSidebar(session, event.clientX);
+          const snapped = next.mode !== session.mode;
+          Object.assign(session, next);
+          // Collapse snaps animate; outward dragging follows the pointer without
+          // a spring lag (keyboard/button toggles still animate both ways).
+          if (snapped && next.mode === "compact") animateSidebarWidth(next.width);
+          else {
+            if (next.mode === "expanded" && sidebarSnapTimerRef.current !== null) {
+              window.clearTimeout(sidebarSnapTimerRef.current);
+              sidebarSnapTimerRef.current = null;
+              flushSync(() => setSidebarSnapping(false));
+            }
+            const appliedWidth = applySidebarWidth(next.width);
+            if (snapped) setSidebarWidth(appliedWidth);
+          }
+        }}
+        onPointerUp={(event) => finishSidebarResize(event.currentTarget)}
+        role="separator"
+        tabIndex={0}
+      >
+        <span
+          className={cn(
+            "absolute inset-y-0 right-0 w-[0.5px] bg-divider transition-colors duration-150 ease-out group-hover:bg-divider-hover group-focus-visible:bg-divider-hover motion-reduce:transition-none",
+            sidebarResizing && "!bg-divider-active"
+          )}
+        />
+      </div>
+
+      <AlertDialog
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        open={Boolean(deleteTarget)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete “{deleteDialogTarget?.name}”</AlertDialogTitle>
+            <AlertDialogDescription>
+              Its Bots move to Unassigned. No Bots are deleted.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (deleteDialogTarget) preferences.deleteSection(deleteDialogTarget.id);
+              }}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </aside>
+    </SidebarActivityProvider>
+  );
+});

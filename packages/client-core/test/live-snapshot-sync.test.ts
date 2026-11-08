@@ -3,7 +3,7 @@ import type {
   ChannelClientState,
   ChannelHistoryPage,
   ClientBootstrapView,
-} from "@openteam/contracts";
+} from "@aiteamos/contracts";
 import {
   clientReadCoversCursor,
   type LiveSnapshotSyncOptions,

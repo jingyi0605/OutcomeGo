@@ -1,9 +1,9 @@
 import { createHash } from "node:crypto";
 import { matchesAutomationEvent, parseAutomationEvent, type AutomationEvent } from "./automation-events";
-import { ApiError, type RoutineExecutionView, type RoutineView } from "@openteam/contracts";
-import { Prisma, type PrismaClient } from "@openteam/db";
+import { ApiError, type RoutineExecutionView, type RoutineView } from "@aiteamos/contracts";
+import { Prisma, type PrismaClient } from "@aiteamos/db";
 import { CronExpressionParser } from "cron-parser";
-import { describeTrigger } from "@openteam/contracts/reference-main-parsers";
+import { describeTrigger } from "@aiteamos/contracts/reference-main-parsers";
 import {
   cronSchedules,
   firstCronSchedule,
@@ -62,7 +62,7 @@ export interface RoutineMutationInput {
   source?: "agent" | "ui";
 }
 
-export type { RoutineExecutionView, RoutineView } from "@openteam/contracts";
+export type { RoutineExecutionView, RoutineView } from "@aiteamos/contracts";
 
 export interface NormalizedSchedule {
   scheduleText: string;
@@ -504,7 +504,7 @@ export const normalizeRoutineMutationTrigger = (
 
   const cronSchedule = firstCronSchedule(trigger);
   if (cronSchedule !== null) {
-    const enforceMinimum = process.env.OPENTEAM_ENFORCE_AUTOMATION_MINIMUM !== "false";
+    const enforceMinimum = process.env.AITEAMOS_ENFORCE_AUTOMATION_MINIMUM !== "false";
     const normalizedSchedules = cronSchedules(trigger).map((candidate) =>
       normalizeRoutineSchedule(required(candidate, "trigger.schedule"), userZone, {
         enforceMinimum,

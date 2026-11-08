@@ -36,4 +36,4 @@ export type HostUtilityRequest = HostJobRequest | HostJobCancel | HostUtilityShu
 export type HostJobResponse =
   | { type: "result"; id: string; ok: true; value: unknown }
   | { type: "result"; id: string; ok: false; error: string };
-import type { ShellAwaitRequest } from "@openteam/contracts/service-protocol";
+import type { ShellAwaitRequest } from "@aiteamos/contracts/service-protocol";

@@ -1,13 +1,13 @@
 import { randomUUID } from "node:crypto";
-import { ApiError } from "@openteam/contracts";
-import type { PrismaClient } from "@openteam/db";
+import { ApiError } from "@aiteamos/contracts";
+import type { PrismaClient } from "@aiteamos/db";
 import {
   AUTOMATION_WEBHOOK_PROVIDERS,
   type AutomationWebhookInput,
   type AutomationWebhookView,
-} from "@openteam/contracts/automation-webhooks";
+} from "@aiteamos/contracts/automation-webhooks";
 import { receiveAutomationWebhook, type AutomationWebhookBinding } from "../automation-webhooks";
-import type { AutomationEvent } from "@openteam/messaging";
+import type { AutomationEvent } from "@aiteamos/messaging";
 import { toJson } from "./service-utils";
 const uuid = /^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/i;
 const configurationKeys: Record<string, string[]> = {

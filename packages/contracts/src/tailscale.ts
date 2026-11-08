@@ -6,7 +6,7 @@ export interface TailscaleStatus {
   httpsPort: string;
   hostname: string | null;
   route: "matching" | "missing" | "conflict" | "unavailable" | "disabled";
-  ownership: "openteam" | "external" | "none";
+  ownership: "aiteamos" | "external" | "none";
   issue: string | null;
   verified: boolean;
   managedRoutes: number;

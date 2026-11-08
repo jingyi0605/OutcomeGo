@@ -240,7 +240,7 @@ test("summary requests retain original system authority, transform Pi custom mes
         ...request.messagesToSummarize,
         {
           role: "custom",
-          customType: "openteam-ambient",
+          customType: "aiteamos-ambient",
           content: "Background job completed",
           display: false,
         },

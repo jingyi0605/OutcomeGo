@@ -3,7 +3,7 @@ import { startTimeZoneReporting } from "./lib/time-zone";
 import { authHeaders } from "./client/auth";
 import { API_BASE } from "./client/http";
 import type { PromptDraft } from "./components/ai-elements/prompt-input";
-import { BotAvatarActivityProvider } from "./components/openteam/bot-avatar-activity";
+import { BotAvatarActivityProvider } from "./components/aiteamos/bot-avatar-activity";
 import type {
   BotView,
   ChannelMessageView,
@@ -11,26 +11,26 @@ import type {
   CreateBotInput,
   SearchResultView,
   UpdateBotInput,
-} from "@openteam/contracts";
-import { createReadReceiptController } from "@openteam/product-core/read-receipts";
-import type { DesktopNotificationTarget } from "@openteam/contracts/notification-content";
+} from "@aiteamos/contracts";
+import { createReadReceiptController } from "@aiteamos/product-core/read-receipts";
+import type { DesktopNotificationTarget } from "@aiteamos/contracts/notification-content";
 import { CircleAlert, LoaderCircle, RefreshCw } from "lucide-react";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { api } from "./client/openteam-api";
+import { api } from "./client/aiteamos-api";
 import { preloadMessageRenderers } from "./components/ai-elements/message";
-import { ChatPane } from "./components/openteam/chat-pane";
-import { DesktopHeader } from "./components/openteam/desktop-header";
-import type { SearchAction } from "./components/openteam/search-dialog";
-import { Sidebar } from "./components/openteam/sidebar";
-import { FirstRunShell } from "./components/openteam/first-run-shell";
+import { ChatPane } from "./components/aiteamos/chat-pane";
+import { DesktopHeader } from "./components/aiteamos/desktop-header";
+import type { SearchAction } from "./components/aiteamos/search-dialog";
+import { Sidebar } from "./components/aiteamos/sidebar";
+import { FirstRunShell } from "./components/aiteamos/first-run-shell";
 import {
   clearLandingRow,
   LANDING_HOLD_MS,
   landingStep,
   markLandingRow,
-} from "./components/openteam/landing";
-import { ModelStatusBanner } from "./components/openteam/model-status-banner";
-import { VersionMismatchBanner } from "./components/openteam/version-mismatch-banner";
+} from "./components/aiteamos/landing";
+import { ModelStatusBanner } from "./components/aiteamos/model-status-banner";
+import { VersionMismatchBanner } from "./components/aiteamos/version-mismatch-banner";
 import { Button } from "./components/ui/button";
 import { LoadingOrb } from "./components/ui/loading-orb";
 import { TooltipProvider } from "./components/ui/tooltip";
@@ -46,8 +46,8 @@ import {
   startA2AExchange,
 } from "./lib/a2a-exchange";
 import {
-  OPENTEAM_DEEP_LINK_EVENT,
-  parseOpenTeamDeepLink,
+  AITEAMOS_DEEP_LINK_EVENT,
+  parseAiTeamOSDeepLink,
   type SettingsAnchor,
 } from "./lib/app-deep-links";
 import { activeAsyncTaskChannelIds, activeAsyncTasksForBot } from "./lib/async-tasks";
@@ -82,60 +82,60 @@ import { useSnapshotIndex } from "./lib/snapshot-index";
 import { SidebarBotOrderContext } from "./lib/sidebar-bot-order";
 import { sidebarChannelOrder } from "./lib/sidebar-rows";
 import { readThemePreference, setThemePreference, THEME_CHANGE_EVENT } from "./lib/theme";
-import { useOpenTeam } from "./state/use-openteam";
-import { MessagesGrantsPrompt } from "./components/openteam/settings/messages-permissions-dialog";
+import { useAiTeamOS } from "./state/use-aiteamos";
+import { MessagesGrantsPrompt } from "./components/aiteamos/settings/messages-permissions-dialog";
 
 const Onboarding = lazy(() =>
-  import("./components/openteam/onboarding").then((module) => ({ default: module.Onboarding }))
+  import("./components/aiteamos/onboarding").then((module) => ({ default: module.Onboarding }))
 );
 const A2AExchangeSheet = lazy(() =>
-  import("./components/openteam/a2a-exchange-sheet").then((module) => ({
+  import("./components/aiteamos/a2a-exchange-sheet").then((module) => ({
     default: module.A2AExchangeSheet,
   }))
 );
 const AsyncTasksPanel = lazy(() =>
-  import("./components/openteam/async-tasks-panel").then((module) => ({
+  import("./components/aiteamos/async-tasks-panel").then((module) => ({
     default: module.AsyncTasksPanel,
   }))
 );
 const DesktopDialogs = lazy(() =>
-  import("./components/openteam/desktop-dialogs").then((module) => ({
+  import("./components/aiteamos/desktop-dialogs").then((module) => ({
     default: module.DesktopDialogs,
   }))
 );
 const Inspector = lazy(() =>
-  import("./components/openteam/inspector").then((module) => ({ default: module.Inspector }))
+  import("./components/aiteamos/inspector").then((module) => ({ default: module.Inspector }))
 );
 const NewBotScreen = lazy(() =>
-  import("./components/openteam/new-bot-screen").then((module) => ({
+  import("./components/aiteamos/new-bot-screen").then((module) => ({
     default: module.NewBotScreen,
   }))
 );
 const PluginDialog = lazy(() =>
-  import("./components/openteam/plugin-settings").then((module) => ({
+  import("./components/aiteamos/plugin-settings").then((module) => ({
     default: module.PluginDialog,
   }))
 );
 const EMPTY_MESSAGES: ChannelMessageView[] = [];
-const loadSearchDialog = () => import("./components/openteam/search-dialog");
+const loadSearchDialog = () => import("./components/aiteamos/search-dialog");
 const preloadSearchDialog = () => void loadSearchDialog();
 const SearchDialog = lazy(() =>
   loadSearchDialog().then((module) => ({
     default: module.SearchDialog,
   }))
 );
-const AboutPanel = lazy(() => import("./components/openteam/settings/about"));
+const AboutPanel = lazy(() => import("./components/aiteamos/settings/about"));
 const SettingsPanel = lazy(async () => {
   const [module] = await Promise.all([
-    import("./components/openteam/settings/panel"),
-    import("./components/openteam/settings/general"),
+    import("./components/aiteamos/settings/panel"),
+    import("./components/aiteamos/settings/general"),
   ]);
   return {
     default: module.SettingsPanel,
   };
 });
 
-const INSPECTOR_WIDTH_KEY = "openteam:inspector-width";
+const INSPECTOR_WIDTH_KEY = "aiteamos:inspector-width";
 const DEFAULT_INSPECTOR_WIDTH = 320;
 const DEFAULT_SIDEBAR_WIDTH = 280;
 const clampInspectorWidth = (width: number, windowWidth: number, sidebarWidth: number) =>
@@ -171,7 +171,7 @@ export default function App() {
     setHistoryViewport,
     threadContextMessageIdsByChannel,
     searchContextMessageIdsByChannel,
-  } = useOpenTeam();
+  } = useAiTeamOS();
   const index = useSnapshotIndex(snapshot);
   // Previews and unread state include each channel's newest message from
   // bootstrap. Transcripts wait until a history read places it in order.
@@ -199,7 +199,7 @@ export default function App() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const onboardingKey = `openteam:onboarding-finished:${API_BASE}`;
+  const onboardingKey = `aiteamos:onboarding-finished:${API_BASE}`;
   const [onboardingFinished, setOnboardingFinished] = useState(
     () => localStorage.getItem(onboardingKey) === "1"
   );
@@ -225,7 +225,7 @@ export default function App() {
   const channelByIdRef = useRef(index.channelById);
   channelByIdRef.current = index.channelById;
   const [themePreference, setThemePreferenceState] = useState(readThemePreference);
-  const [paletteUpdateStatus, setPaletteUpdateStatus] = useState<OpenTeamUpdateStatus | null>(null);
+  const [paletteUpdateStatus, setPaletteUpdateStatus] = useState<AiTeamOSUpdateStatus | null>(null);
   const [pluginsOpen, setPluginsOpen] = useState(false);
   const [settingsTarget, setSettingsTarget] = useState<{
     anchor: SettingsAnchor;
@@ -382,13 +382,13 @@ export default function App() {
   useEffect(
     () => () => {
       // Cancel avatar work and reset native presence/cursors across sign-out or server changes.
-      syncDesktopNotificationSnapshot(window.openteam?.notifications, null);
+      syncDesktopNotificationSnapshot(window.aiteamos?.notifications, null);
     },
     []
   );
 
   useEffect(() => {
-    const native = window.openteam;
+    const native = window.aiteamos;
     if (!appReady || native?.platform !== "darwin" || !native.notifications?.activity) return;
     const headers = { "content-type": "application/json", ...authHeaders() };
     const stop = startNotificationPresence({
@@ -426,7 +426,7 @@ export default function App() {
     const handleDeepLink = (event: Event) => {
       const url = (event as CustomEvent<{ url?: string }>).detail?.url;
       if (!url) return;
-      const target = parseOpenTeamDeepLink(url);
+      const target = parseAiTeamOSDeepLink(url);
       if (target?.kind === "settings") {
         setSettingsTarget({ anchor: target.anchor, nonce: Date.now() });
         setSettingsOpen(true);
@@ -436,8 +436,8 @@ export default function App() {
         setPluginsOpen(true);
       }
     };
-    window.addEventListener(OPENTEAM_DEEP_LINK_EVENT, handleDeepLink);
-    return () => window.removeEventListener(OPENTEAM_DEEP_LINK_EVENT, handleDeepLink);
+    window.addEventListener(AITEAMOS_DEEP_LINK_EVENT, handleDeepLink);
+    return () => window.removeEventListener(AITEAMOS_DEEP_LINK_EVENT, handleDeepLink);
   }, []);
   const openDesktopNotification = useCallback((target: DesktopNotificationTarget) => {
     const { channelId } = target;
@@ -486,18 +486,18 @@ export default function App() {
     setSelectedId,
     snapshot,
   ]);
-  useEffect(() => window.openteam?.onNotificationClick(openDesktopNotification), [openDesktopNotification]);
+  useEffect(() => window.aiteamos?.onNotificationClick(openDesktopNotification), [openDesktopNotification]);
   useEffect(() => {
     if (selectedId && notificationOpening?.target.channelId !== selectedId
       && searchMessageTarget?.channelId !== selectedId) void loadChannel(selectedId).catch(() => undefined);
   }, [loadChannel, notificationOpening, searchMessageTarget?.channelId, selectedId]);
   useEffect(() => {
-    syncDesktopNotificationSnapshot(window.openteam?.notifications, snapshot);
+    syncDesktopNotificationSnapshot(window.aiteamos?.notifications, snapshot);
   }, [snapshot]);
   useEffect(() => {
     const publishVisibleChannel = () => {
       const focused = document.hasFocus();
-      window.openteam?.notifications.setVisibleChannel(focused ? selectedId : null);
+      window.aiteamos?.notifications.setVisibleChannel(focused ? selectedId : null);
       if (focused && selectedId) markChannelRead(selectedId);
     };
     publishVisibleChannel();
@@ -564,13 +564,13 @@ export default function App() {
     return () => window.removeEventListener(THEME_CHANGE_EVENT, syncThemePreference);
   }, []);
   useEffect(() => {
-    if (!searchOpen || !window.openteam) return;
+    if (!searchOpen || !window.aiteamos) return;
     let active = true;
-    void window.openteam.updates
+    void window.aiteamos.updates
       .status()
       .then((status) => active && setPaletteUpdateStatus(status))
       .catch(() => undefined);
-    const unsubscribe = window.openteam.updates.onClientProgress((status) => {
+    const unsubscribe = window.aiteamos.updates.onClientProgress((status) => {
       if (active) setPaletteUpdateStatus(status);
     });
     return () => {
@@ -811,7 +811,7 @@ export default function App() {
   const openSettings = useCallback(() => openSettingsTarget(null), [openSettingsTarget]);
   useEffect(
     () =>
-      window.openteam?.onMenuAction?.((action) => {
+      window.aiteamos?.onMenuAction?.((action) => {
         if (action === "about") openAbout();
         else if (action === "updates") openSettingsTarget("update-status");
         else openSettings();
@@ -1169,7 +1169,7 @@ export default function App() {
         current: themePreference === theme.preference,
         run: () => setThemePreference(theme.preference),
       })),
-      ...(window.openteam
+      ...(window.aiteamos
         ? [
             {
               id: "update:app",
@@ -1187,7 +1187,7 @@ export default function App() {
                   !paletteUpdateStatus ||
                   ["idle", "up-to-date", "error"].includes(paletteUpdateStatus.status)
                 ) {
-                  void window.openteam?.updates
+                  void window.aiteamos?.updates
                     .check()
                     .then(setPaletteUpdateStatus)
                     .catch(() => undefined);
@@ -1261,7 +1261,7 @@ export default function App() {
       <main className="grid h-screen place-items-center bg-background text-foreground">
         <div className="text-center">
           <LoadingOrb aria-hidden className="mx-auto" size={28} />
-          <p className="mt-3 text-sm">Connecting to OpenTeam…</p>
+          <p className="mt-3 text-sm">Connecting to aiTeamOS…</p>
           {problem && <p className="mt-2 max-w-sm text-xs text-destructive">{problem}</p>}
         </div>
       </main>
@@ -1677,7 +1677,7 @@ export default function App() {
                                 setRoutineReturnMode(inspectorMode === "settings" ? "settings" : "summary");
                               setInspectorMode(mode);
                             }}
-                            onOpenTeam={openInspectorBot}
+                            onAiTeamOS={openInspectorBot}
                             onRetryBot={retryInspectorBot}
                             onSetGroupAvatar={setChannelAvatar}
                             onSetMembers={setChannelMembers}
@@ -1700,7 +1700,7 @@ export default function App() {
               <div className="grid flex-1 place-items-center text-sm text-muted-foreground">
                 {snapshot.bots.length === 0 ? (
                   <div className="flex flex-col items-center gap-3">
-                    <span>Bots do the work in OpenTeam. Create one to get started.</span>
+                    <span>Bots do the work in aiTeamOS. Create one to get started.</span>
                     <Button onClick={() => void createNewBot()} size="sm">
                       Create a bot
                     </Button>

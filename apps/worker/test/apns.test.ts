@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { generateKeyPairSync, verify } from "node:crypto";
-import type { AgentNotificationPayload } from "@openteam/contracts";
+import type { AgentNotificationPayload } from "@aiteamos/contracts";
 import { ApnsClient, apnsPayload, type ApnsTransport } from "../src/apns";
 
 const keys = generateKeyPairSync("ec", { namedCurve: "prime256v1" });

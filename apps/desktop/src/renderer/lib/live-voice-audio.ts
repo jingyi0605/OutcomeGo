@@ -1,6 +1,6 @@
 import { Application, createDecoder, createEncoder, Signal, type OpusDecoderHandle, type OpusEncoderHandle } from "libopus-wasm";
 import { openMicrophone } from "./microphone";
-import { decodeVoiceFrame, encodeVoiceFrame, VOICE_FRAME_MS, VOICE_INPUT_SAMPLE_RATE, VOICE_OUTPUT_SAMPLE_RATE } from "@openteam/contracts/voice";
+import { decodeVoiceFrame, encodeVoiceFrame, VOICE_FRAME_MS, VOICE_INPUT_SAMPLE_RATE, VOICE_OUTPUT_SAMPLE_RATE } from "@aiteamos/contracts/voice";
 
 const CAPTURE_WORKLET_URL = new URL("../worklets/live-voice-capture.ts", import.meta.url);
 
@@ -151,7 +151,7 @@ export class LiveVoiceAudio {
     const audioWorklet = audioWorkletFor(context);
     if (!source || !sink || !audioWorklet) throw new Error("Voice capture graph is unavailable");
     await audioWorklet.addModule(CAPTURE_WORKLET_URL);
-    const node = new AudioWorkletNode(context, "openteam-voice-capture", { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [1] });
+    const node = new AudioWorkletNode(context, "aiteamos-voice-capture", { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [1] });
     node.port.onmessage = (event: MessageEvent<Float32Array>) => this.pushSamples(event.data, context.sampleRate);
     source.connect(node);
     node.connect(sink);

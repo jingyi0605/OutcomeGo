@@ -3,16 +3,16 @@ import {
   PUSH_DELIVERY_ADVISORY_LOCK,
   type PushDeviceView,
   type RegisterPushDeviceInput,
-} from "@openteam/contracts";
-import type { Prisma, PrismaClient } from "@openteam/db";
+} from "@aiteamos/contracts";
+import type { Prisma, PrismaClient } from "@aiteamos/db";
 import {
   unreadBadgeCount,
   unreadChannelCount,
   channelNotificationStates,
   notificationRouting,
-} from "@openteam/messaging";
+} from "@aiteamos/messaging";
 import { appendEvent, serviceEffect } from "./service-utils";
-import { notificationPresenceLifetime, type NotificationPresenceInput } from "@openteam/contracts/notification-presence";
+import { notificationPresenceLifetime, type NotificationPresenceInput } from "@aiteamos/contracts/notification-presence";
 
 const PUSH_DELIVERY_LOCK_TIMEOUT_MS = 20_000;
 
@@ -69,7 +69,7 @@ export class NotificationService {
       const sessionId = authentication.mode === "required" ? authentication.sessionId : null;
       if (sessionId) {
         const session = await tx.session.findUnique({ where: { id: sessionId } });
-        if (!session || session.expiresAt <= now) throw new ApiError(401, "unauthorized", "Sign in to OpenTeam to continue");
+        if (!session || session.expiresAt <= now) throw new ApiError(401, "unauthorized", "Sign in to aiTeamOS to continue");
       }
       const expiresAt = new Date(now.getTime() + notificationPresenceLifetime(input));
       const required = authentication.mode === "required";

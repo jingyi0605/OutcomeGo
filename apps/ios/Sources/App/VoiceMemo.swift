@@ -555,7 +555,7 @@ final class VoiceRecorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
         && ProcessInfo.processInfo.arguments.contains("--qa-synthetic-voice"))
       {
         var sourceURL: URL?
-        if let raw = ProcessInfo.processInfo.environment["OPENTEAM_QA_VOICE_SOURCE"] {
+        if let raw = ProcessInfo.processInfo.environment["AITEAMOS_QA_VOICE_SOURCE"] {
           guard let source = URL(string: raw), source.scheme == "http",
             source.host == "127.0.0.1"
           else { throw APIError("QA speech source must be on loopback.") }

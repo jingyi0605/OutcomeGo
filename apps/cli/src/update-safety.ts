@@ -157,7 +157,7 @@ export const acquireUpdateLock = (paths: InstallationPaths): (() => void) => {
     }
     if (typeof owner?.pid === "number" && processIsAlive(owner.pid)) {
       throw new CliError(
-        `Another OpenTeam setup or update is already running (process ${owner.pid}). Wait for it to finish, then try again.`
+        `Another aiTeamOS setup or update is already running (process ${owner.pid}). Wait for it to finish, then try again.`
       );
     }
     rmSync(paths.updateLock, { recursive: true, force: true });
@@ -176,7 +176,7 @@ export const assertUpdatePreflight = (
   const available = Number(filesystem.bavail) * Number(filesystem.bsize);
   if (available < MINIMUM_UPDATE_DISK_BYTES) {
     throw new CliError(
-      `OpenTeam needs at least 4 GiB free to update safely; only ${(available / 1024 ** 3).toFixed(1)} GiB is available.`
+      `aiTeamOS needs at least 4 GiB free to update safely; only ${(available / 1024 ** 3).toFixed(1)} GiB is available.`
     );
   }
   const daemon = dockerDaemon(runner);
@@ -211,9 +211,9 @@ export const createDatabaseBackup = (
       "postgres",
       "pg_dump",
       "-U",
-      "openteam",
+      "aiteamos",
       "-d",
-      "openteam",
+      "aiteamos",
       "--format=plain",
       "--no-owner",
       "--no-privileges",
@@ -240,14 +240,14 @@ export const restoreDatabaseBackup = (project: ComposeProject, backupPath: strin
     "postgres",
     "dropdb",
     "-U",
-    "openteam",
+    "aiteamos",
     "--force",
     "--if-exists",
-    "openteam",
+    "aiteamos",
   ]);
-  project.runOrThrow(["exec", "-T", "postgres", "createdb", "-U", "openteam", "openteam"]);
+  project.runOrThrow(["exec", "-T", "postgres", "createdb", "-U", "aiteamos", "aiteamos"]);
   project.runOrThrow(
-    ["exec", "-T", "postgres", "psql", "-U", "openteam", "-d", "openteam", "-v", "ON_ERROR_STOP=1"],
+    ["exec", "-T", "postgres", "psql", "-U", "aiteamos", "-d", "aiteamos", "-v", "ON_ERROR_STOP=1"],
     { inputFile: backupPath }
   );
 };

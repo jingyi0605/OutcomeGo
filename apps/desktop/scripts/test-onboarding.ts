@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { createServer } from "vite";
 import { chromium } from "../../computer/node_modules/playwright-core";
-import type { WebProvidersInput, WebProvidersView } from "@openteam/contracts/web-search";
+import type { WebProvidersInput, WebProvidersView } from "@aiteamos/contracts/web-search";
 import { ServerSetupFixture } from "../../ios/scripts/server-setup-fixture";
 
 const repo = resolve(import.meta.dir, "../../..");
@@ -82,7 +82,7 @@ const fixture = Bun.serve({
 });
 const vite = await createServer({
   root: join(repo, "apps/desktop"),
-  cacheDir: join(await mkdtemp(join(tmpdir(), "openteam-onboarding-")), "vite"),
+  cacheDir: join(await mkdtemp(join(tmpdir(), "aiteamos-onboarding-")), "vite"),
   server: { host: "127.0.0.1", port: 0, proxy: { "/api": { target: fixture.url.origin } } },
 });
 let browser: Awaited<ReturnType<typeof chromium.launch>> | undefined;
@@ -172,7 +172,7 @@ try {
       .filter({ hasText: "The server couldn't create the bot." })
       .waitFor();
     await page.evaluate(() => {
-      (window as unknown as { openteamQA: { addBot: (name: string) => void } }).openteamQA.addBot(
+      (window as unknown as { aiteamosQA: { addBot: (name: string) => void } }).aiteamosQA.addBot(
         "Other QA bot"
       );
     });

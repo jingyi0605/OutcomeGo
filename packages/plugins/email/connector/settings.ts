@@ -193,7 +193,7 @@ export function parseOwnerAddresses(value: string | undefined): string[] {
   return owners;
 }
 
-/** Reads the account fields OpenTeam passes as environment variables. */
+/** Reads the account fields aiTeamOS passes as environment variables. */
 export async function loadSettings(
   env: Record<string, string | undefined> = process.env,
   lookup?: Lookup

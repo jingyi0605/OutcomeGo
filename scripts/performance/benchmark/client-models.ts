@@ -1,19 +1,19 @@
 import { resolve } from "node:path";
-import type { ChannelMessageView, ClientSnapshot } from "@openteam/contracts";
+import type { ChannelMessageView, ClientSnapshot } from "@aiteamos/contracts";
 import { mobileFixture } from "../../../apps/ios/scripts/fixtures/snapshot";
 
 // This benchmark measures renderer-neutral work, not UI frame times. Point it
 // at a frozen bundle to compare worktree arms without switching source files.
 const modulePath =
-  process.env.OPENTEAM_PERF_CORE_MODULE ??
+  process.env.AITEAMOS_PERF_CORE_MODULE ??
   resolve(import.meta.dir, "../../../packages/product-core/src/index.ts");
 const core: typeof import("../../../packages/product-core/src") = await import(modulePath);
 const notificationPath =
-  process.env.OPENTEAM_PERF_NOTIFICATION_MODULE ??
+  process.env.AITEAMOS_PERF_NOTIFICATION_MODULE ??
   resolve(import.meta.dir, "../../../packages/contracts/src/notification-content.ts");
 const notifications: typeof import("../../../packages/contracts/src/notification-content") =
   await import(notificationPath);
-const samples = Math.max(10, Number(process.env.OPENTEAM_MODEL_SAMPLES ?? 80));
+const samples = Math.max(10, Number(process.env.AITEAMOS_MODEL_SAMPLES ?? 80));
 const warmups = 10;
 let sink = 0;
 const measure = (name: string, operation: () => number) => {
@@ -214,5 +214,5 @@ const result = {
   sink,
 };
 const output = `${JSON.stringify(result, null, 2)}\n`;
-if (process.env.OPENTEAM_AUDIT_OUTPUT) await Bun.write(process.env.OPENTEAM_AUDIT_OUTPUT, output);
+if (process.env.AITEAMOS_AUDIT_OUTPUT) await Bun.write(process.env.AITEAMOS_AUDIT_OUTPUT, output);
 console.log(output);

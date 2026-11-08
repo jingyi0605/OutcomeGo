@@ -6,7 +6,7 @@ import {
   wakeResetsSelfSummaryCount,
 } from "../src/worker";
 
-describe("OpenTeam-style runtime context routing", () => {
+describe("aiTeamOS-style runtime context routing", () => {
   test("isolates each room for groups, DM, A2A, bootstrap, and events", () => {
     const conversationId = crypto.randomUUID();
     const groupId = crypto.randomUUID();

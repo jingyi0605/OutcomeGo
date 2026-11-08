@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import { mkdtemp, mkdir, writeFile, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createPluginTemplate, pluginIconUrl } from "@openteam/plugin-sdk";
+import { createPluginTemplate, pluginIconUrl } from "@aiteamos/plugin-sdk";
 import { discoverPackages } from "../scripts/generate";
 import { pluginCatalog } from "../src";
 

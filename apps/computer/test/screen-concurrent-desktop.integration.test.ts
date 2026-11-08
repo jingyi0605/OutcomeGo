@@ -6,7 +6,7 @@ import { run } from "../src/screen/processes";
 import { ScreenBroker } from "../src/screen-broker";
 
 // Opt in inside a disposable computer container: starts two full Linux desktops.
-test.skipIf(process.env.OPENTEAM_CUA_DESKTOP_TESTS !== "1")(
+test.skipIf(process.env.AITEAMOS_CUA_DESKTOP_TESTS !== "1")(
   "concurrent desktops, shared input, interruption and multiple VNC viewers",
   async () => {
     const home = await mkdtemp("/tmp/cua-concurrent-");
@@ -26,7 +26,7 @@ test.skipIf(process.env.OPENTEAM_CUA_DESKTOP_TESTS !== "1")(
       for (const id of ids) {
         const env = await broker.commandEnvironment(id, "/workspace");
         const browser = await chromium.launch({
-          executablePath: "/usr/lib/openteam/bin/google-chrome",
+          executablePath: "/usr/lib/aiteamos/bin/google-chrome",
           headless: false,
           env: env as Record<string, string>,
           args: ["--no-sandbox", "--disable-dev-shm-usage", "--window-size=1280,800"],
@@ -142,11 +142,11 @@ test.skipIf(process.env.OPENTEAM_CUA_DESKTOP_TESTS !== "1")(
       console.info("Pause interrupts a native Unicode input batch; the X11 keymap is unchanged");
 
       const viewerBrowser = await chromium.launch({
-        executablePath: "/usr/lib/openteam/bin/google-chrome",
+        executablePath: "/usr/lib/aiteamos/bin/google-chrome",
         args: ["--no-sandbox"],
       });
       browsers.push(viewerBrowser);
-      const viewerUrl = `http://127.0.0.1:${statuses[0]!.viewerPort}/openteam.html#password=${statuses[0]!.viewerPassword}`;
+      const viewerUrl = `http://127.0.0.1:${statuses[0]!.viewerPort}/aiteamos.html#password=${statuses[0]!.viewerPassword}`;
       const viewers = await Promise.all([
         viewerBrowser.newPage({ viewport: { width: 1280, height: 800 } }),
         viewerBrowser.newPage({ viewport: { width: 1280, height: 800 } }),

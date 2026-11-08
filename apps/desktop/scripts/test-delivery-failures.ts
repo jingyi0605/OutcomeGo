@@ -115,8 +115,8 @@ const address = server.address();
 if (!address || typeof address === "string") throw new Error("Missing fixture server address");
 const serverOrigin = `http://127.0.0.1:${address.port}`;
 const electronDirectory =
-  process.env.OPENTEAM_TEST_ELECTRON === "1"
-    ? await mkdtemp(join(tmpdir(), "openteam-delivery-electron-"))
+  process.env.AITEAMOS_TEST_ELECTRON === "1"
+    ? await mkdtemp(join(tmpdir(), "aiteamos-delivery-electron-"))
     : null;
 if (electronDirectory)
   await writeFile(

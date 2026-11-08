@@ -1,4 +1,4 @@
-import type { PrismaClient } from "@openteam/db";
+import type { PrismaClient } from "@aiteamos/db";
 import { definitionFromManifest } from "./plugin/values";
 
 /** The reference's connectorDraftCard reminder, appended to the connector result. */

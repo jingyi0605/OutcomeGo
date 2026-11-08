@@ -1,8 +1,8 @@
-import type { PrismaClient } from "@openteam/db";
-import { type AgentMessaging, renderSubagentRevivalPrompt, subagentRevivalBlock, recoverTaskInterruption, TASK_RECOVERY_LOCK } from "@openteam/messaging";
-import { COMPUTER_API_PATHS } from "@openteam/contracts/service-protocol";
-import type { AssetRef } from "@openteam/contracts";
-import { subagentTitle } from "@openteam/contracts/subagent-dispatch";
+import type { PrismaClient } from "@aiteamos/db";
+import { type AgentMessaging, renderSubagentRevivalPrompt, subagentRevivalBlock, recoverTaskInterruption, TASK_RECOVERY_LOCK } from "@aiteamos/messaging";
+import { COMPUTER_API_PATHS } from "@aiteamos/contracts/service-protocol";
+import type { AssetRef } from "@aiteamos/contracts";
+import { subagentTitle } from "@aiteamos/contracts/subagent-dispatch";
 import type { PgBoss } from "pg-boss";
 import type { ComputerFetch } from "./service-utils";
 import { appendEvent } from "./service-utils";
@@ -256,7 +256,7 @@ export async function recover(
       await tx.botRunLease.deleteMany({ where: { runId: run.id } });
       if (attempts >= 3) continue;
       await messaging.enqueueWake(tx, { botId: run.botId, channelId: run.channelId!, origin: "handoff_resume", type: "runtime.reconcile", clientId: `${prefix}${attempts + 1}`, priority: 300, taskContextRunId: context, interruptedRunId: run.id, attachments: payload.attachments,
-        content: `OpenTeam restarted during this user's pending request (for example, for an update) and cut off your previous turn. If you mention the interruption, call it a restart. Continue from the current transcript and authoritative state. Check existing delegated tasks before launching work; do not duplicate sends, submissions or completed actions, and respect newer cancellations and scope.\nOriginal pending request:\n${payload.content}` });
+        content: `aiTeamOS restarted during this user's pending request (for example, for an update) and cut off your previous turn. If you mention the interruption, call it a restart. Continue from the current transcript and authoritative state. Check existing delegated tasks before launching work; do not duplicate sends, submissions or completed actions, and respect newer cancellations and scope.\nOriginal pending request:\n${payload.content}` });
       reconciledRunIds.add(run.id);
     }
     // Ask for a resend only when no saved continuation will recover this turn.

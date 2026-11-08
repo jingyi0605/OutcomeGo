@@ -35,7 +35,7 @@ describe("APNs configuration import", () => {
     );
   });
   test("resolves a JSON key path against the configuration file, and supports direct flags", () => {
-    const directory = mkdtempSync(join(tmpdir(), "openteam-apns-import-"));
+    const directory = mkdtempSync(join(tmpdir(), "aiteamos-apns-import-"));
     try {
       writeFileSync(join(directory, "key.p8"), privateKey, { mode: 0o600 });
       writeFileSync(
@@ -68,7 +68,7 @@ describe("APNs configuration import", () => {
     }
   });
   test("rejects ambiguous imports, unknown fields, malformed JSON and oversized files without exposing contents", () => {
-    const directory = mkdtempSync(join(tmpdir(), "openteam-apns-invalid-"));
+    const directory = mkdtempSync(join(tmpdir(), "aiteamos-apns-invalid-"));
     const path = join(directory, "apns.json");
     const options = parseArguments(["notifications", "configure", "--config", path]);
     try {

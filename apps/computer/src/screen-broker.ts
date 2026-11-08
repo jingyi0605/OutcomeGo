@@ -4,7 +4,7 @@ import { managedBrowserNetworkArguments } from "./browser-network";
 import { randomBytes } from "node:crypto";
 import { chmod, chown, cp, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { basename, join } from "node:path";
-import type { ComputerUseActionInput, ScreenActionInput, ScreenClipboardInput, ScreenClipboardView } from "@openteam/contracts";
+import type { ComputerUseActionInput, ScreenActionInput, ScreenClipboardInput, ScreenClipboardView } from "@aiteamos/contracts";
 import { performClipboardOperation } from "./screen/clipboard";
 import { spawnAgentProcess as spawn, agentProcessIdentity, AGENT_SEARCH_PATHS, assignAgentOwnership } from "./agent-process";
 import { clearStoppedBrowserCaches } from "./browser/cache-maintenance";
@@ -49,7 +49,7 @@ const COMPUTER_SETTLE_MS = 500;
 
 const ENDPOINT_STARTUP_TIMEOUT_MS = 10_000;
 
-const DESKTOP_CONFIG_ROOT = "/usr/share/openteam-desktop/config";
+const DESKTOP_CONFIG_ROOT = "/usr/share/aiteamos-desktop/config";
 
 // Classic VNC authentication uses only the first eight password characters.
 // Six random bytes encode to eight base64url characters, preserving all 48 bits.
@@ -85,7 +85,7 @@ export class ScreenBroker {
       height: number;
     }> = async () => ({ width: WIDTH, height: HEIGHT })
   ) {
-    this.stateRoot = join(home, ".openteam");
+    this.stateRoot = join(home, ".aiteamos");
     this.mappingPath = join(home, ".sand-window-assignments.json");
     this.browserBroker = new BrowserBroker(home);
     this.profileAuthority = new BrowserProfileAuthority(home);
@@ -123,7 +123,7 @@ export class ScreenBroker {
             profileSlot === 0
               ? join(this.home, "chrome-profile")
               : join(this.home, `chrome-profile-${profileSlot + 1}`),
-          runtimeDirectory: join("/tmp", `openteam-screen-${slot}`),
+          runtimeDirectory: join("/tmp", `aiteamos-screen-${slot}`),
           state: "starting",
           error: null,
           humanTakeoverUntil: 0,
@@ -858,7 +858,7 @@ export class ScreenBroker {
       for (let slot = 0; slot < MAX_SCREENS; slot += 1) {
         if (!used.has(slot)) { allocated = slot; break; }
       }
-      if (allocated < 0) throw new Error(`OpenTeam supports at most ${MAX_SCREENS} live screens`);
+      if (allocated < 0) throw new Error(`aiTeamOS supports at most ${MAX_SCREENS} live screens`);
       this.liveSlotByBot.set(botId, allocated);
       if (profileSlot === undefined) {
         const profiles = new Set(this.slotByBot.values());

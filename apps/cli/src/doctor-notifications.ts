@@ -7,7 +7,7 @@ export const NOTIFICATION_STATE_PROBE = String.raw`
 const sql = new Bun.SQL(process.env.DATABASE_URL, { max: 1, connectionTimeout: 4 });
 try {
   await sql.unsafe("SET statement_timeout = '4000ms'");
-  const auth = process.env.OPENTEAM_AUTH_MODE?.trim().toLowerCase() === "disabled"
+  const auth = process.env.AITEAMOS_AUTH_MODE?.trim().toLowerCase() === "disabled"
     ? 'NOT d."authRequired"' : 'd."authRequired" AND s."expiresAt" > now()';
   const [devices] = await sql.unsafe('WITH devices AS (SELECT d.*, (d.enabled AND (' + auth + ')) IS TRUE AS eligible FROM "PushDevice" d LEFT JOIN "session" s ON s.id = d."authSessionId" WHERE d.provider = \'apns\' AND d.platform = \'ios\') SELECT count(*)::int AS total, count(*) FILTER (WHERE eligible)::int AS eligible, count(*) FILTER (WHERE eligible AND ("apnsTopic" IS NULL OR "apnsEnvironment" IS NULL OR "apnsEnvironment" NOT IN (\'production\', \'development\') OR "notificationScope" IS NULL OR "notificationScope" = \'\' OR "pushToken" !~ \'^([a-fA-F0-9]{2}){32,100}$\'))::int AS invalid, coalesce(json_agg(DISTINCT "apnsTopic") FILTER (WHERE eligible AND "apnsTopic" IS NOT NULL), \'[]\') AS topics FROM devices');
   const [delivery] = await sql.unsafe('SELECT count(*) FILTER (WHERE (o.status = \'failed\' OR o.error IS NOT NULL) AND o."updatedAt" > now() - interval \'24 hours\')::int AS failed, count(*) FILTER (WHERE o.status = \'pending\' AND o."availableAt" < now() - interval \'5 minutes\')::int AS waiting FROM "OutboxDelivery" o JOIN "PushDevice" d ON d.id::text = o.target WHERE o.topic = \'push.notification\' AND d.provider = \'apns\'');
@@ -18,7 +18,7 @@ try {
 export const APNS_CONFIGURATION_PROBE = String.raw`
 // The worker reports its effective APNs setting through its diagnostics socket.
 const status = await new Promise((resolve, reject) => {
-  const request = require("node:http").get({ socketPath: "/tmp/openteam-worker-doctor.sock", path: "/notifications", timeout: 5000 }, (response) => {
+  const request = require("node:http").get({ socketPath: "/tmp/aiteamos-worker-doctor.sock", path: "/notifications", timeout: 5000 }, (response) => {
     let body = "";
     response.on("data", (chunk) => { if (body.length < 16384) body += chunk; });
     response.on("end", () => {
@@ -47,7 +47,7 @@ interface ApnsConfiguration {
   topic: string;
 }
 
-const missingKeys = ["OPENTEAM_APNS_KEY_ID", "OPENTEAM_APNS_TEAM_ID", "OPENTEAM_APNS_PRIVATE_KEY"];
+const missingKeys = ["AITEAMOS_APNS_KEY_ID", "AITEAMOS_APNS_TEAM_ID", "AITEAMOS_APNS_PRIVATE_KEY"];
 const issues = ["key-file", "identifiers", "topic", "signing-key", "runtime-settings"];
 const stateIsValid = (value: NotificationState): boolean =>
   value != null &&
@@ -95,7 +95,7 @@ export const notificationChecks = (
           : config.issue === "identifiers"
             ? "APNs key ID and team ID must each contain 10 uppercase letters or digits."
             : config.issue === "topic"
-              ? "OPENTEAM_APNS_TOPIC is not a valid app bundle ID."
+              ? "AITEAMOS_APNS_TOPIC is not a valid app bundle ID."
               : config.issue === "signing-key"
                 ? "The APNs signing key must be a valid P-256 .p8 private key."
                 : state?.topics.some((topic) => topic !== config.topic)
@@ -118,7 +118,7 @@ export const notificationChecks = (
     detail: !state
       ? "Could not inspect push delivery records; check database access and schema setup."
       : state.failed
-        ? `${state.failed} iOS push delivery error(s) recorded in the last 24 hours; inspect openteam logs worker.`
+        ? `${state.failed} iOS push delivery error(s) recorded in the last 24 hours; inspect aiteamos logs worker.`
         : state.waiting
           ? `${state.waiting} pending iOS push(es) are overdue by more than 5 minutes.`
           : "No recent recorded iOS push errors or overdue pending pushes. A delivered outbox status can include skipped alerts; it does not prove phone delivery.",

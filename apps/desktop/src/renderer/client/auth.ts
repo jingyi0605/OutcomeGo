@@ -1,35 +1,35 @@
 import {
-  assessOpenTeamAuthSession,
+  assessAiTeamOSAuthSession,
   createAuthSnapshotStore,
-  createOpenTeamAuthClient,
+  createAiTeamOSAuthClient,
   normalizeBaseUrl,
-  type OpenTeamAuthSnapshot,
-  type OpenTeamAuthUser,
-  OpenTeamClientError,
+  type AiTeamOSAuthSnapshot,
+  type AiTeamOSAuthUser,
+  AiTeamOSClientError,
   parseAuthUser,
-} from "@openteam/client-core";
-import { authErrorMessage } from "@openteam/product-core/auth-feedback";
+} from "@aiteamos/client-core";
+import { authErrorMessage } from "@aiteamos/product-core/auth-feedback";
 import { resolveConfiguredApiBase } from "./runtime-url";
 import { readNativeAuthWithDeadline } from "./native-auth-deadline";
 
 export type {
-  OpenTeamAuthConnection,
-  OpenTeamAuthMode,
-  OpenTeamAuthSnapshot,
-  OpenTeamAuthStatus,
-  OpenTeamAuthUser,
-} from "@openteam/client-core";
-export { parseAuthUser } from "@openteam/client-core";
+  AiTeamOSAuthConnection,
+  AiTeamOSAuthMode,
+  AiTeamOSAuthSnapshot,
+  AiTeamOSAuthStatus,
+  AiTeamOSAuthUser,
+} from "@aiteamos/client-core";
+export { parseAuthUser } from "@aiteamos/client-core";
 
 const API_BASE = resolveConfiguredApiBase(
   window.location.href,
   localStorage,
-  import.meta.env.VITE_OPENTEAM_API_URL
+  import.meta.env.VITE_AITEAMOS_API_URL
 );
-const USER_KEY = "openteam:auth-user";
-export const AUTH_REQUIRED_EVENT = "openteam:auth-required";
+const USER_KEY = "aiteamos:auth-user";
+export const AUTH_REQUIRED_EVENT = "aiteamos:auth-required";
 
-const readCachedUser = (): OpenTeamAuthUser | null => {
+const readCachedUser = (): AiTeamOSAuthUser | null => {
   try {
     return parseAuthUser(JSON.parse(localStorage.getItem(USER_KEY) ?? "null"));
   } catch {
@@ -37,7 +37,7 @@ const readCachedUser = (): OpenTeamAuthUser | null => {
   }
 };
 
-const cacheUser = (user: OpenTeamAuthUser | null): void => {
+const cacheUser = (user: AiTeamOSAuthUser | null): void => {
   if (user) localStorage.setItem(USER_KEY, JSON.stringify(user));
   else localStorage.removeItem(USER_KEY);
 };
@@ -59,10 +59,10 @@ export const getDesktopMachineId = () => desktopMachineId;
 let credentialGeneration = 0;
 export const getAuthCredentialGeneration = () => credentialGeneration;
 let tokenReadRequest: Promise<string | null> | null = null;
-let refreshRequest: Promise<OpenTeamAuthSnapshot> | null = null;
+let refreshRequest: Promise<AiTeamOSAuthSnapshot> | null = null;
 
-const authClient = (baseUrl = API_BASE) => createOpenTeamAuthClient({ baseUrl });
-const authBridge = () => window.openteam?.auth;
+const authClient = (baseUrl = API_BASE) => createAiTeamOSAuthClient({ baseUrl });
+const authBridge = () => window.aiteamos?.auth;
 
 const requestSignIn = (baseUrl: string, username: string, password: string) => {
   const bridge = authBridge();
@@ -151,11 +151,11 @@ export const authHeaders = (): HeadersInit => {
   return currentToken ? { authorization: `Bearer ${currentToken}` } : {};
 };
 
-export const refreshAuthSession = (): Promise<OpenTeamAuthSnapshot> => {
+export const refreshAuthSession = (): Promise<AiTeamOSAuthSnapshot> => {
   if (refreshRequest) return refreshRequest;
   authStore.publish({ ...authStore.getSnapshot(), status: "checking", error: null });
   refreshRequest = (async () => {
-    const assessment = await assessOpenTeamAuthSession({
+    const assessment = await assessAiTeamOSAuthSession({
       client: authClient(),
       loadToken: loadAuthToken,
     });
@@ -193,7 +193,7 @@ export const refreshAuthSession = (): Promise<OpenTeamAuthSnapshot> => {
   return refreshRequest;
 };
 
-export const signIn = async (username: string, password: string): Promise<OpenTeamAuthSnapshot> => {
+export const signIn = async (username: string, password: string): Promise<AiTeamOSAuthSnapshot> => {
   const result = await requestSignIn(API_BASE, username, password);
   await persistAuthToken(result.token);
   cacheUser(result.user);
@@ -204,21 +204,21 @@ export const signIn = async (username: string, password: string): Promise<OpenTe
   return session;
 };
 
-export interface OpenTeamServerConnection {
+export interface AiTeamOSServerConnection {
   baseUrl: string;
   mode: "required" | "disabled";
 }
 
 export const testServerConnection = async (
   serverUrl: string
-): Promise<OpenTeamServerConnection> => {
+): Promise<AiTeamOSServerConnection> => {
   const baseUrl = normalizeBaseUrl(serverUrl);
   try {
     return { baseUrl, mode: await authClient(baseUrl).validateServer() };
   } catch (cause) {
-    if (cause instanceof OpenTeamClientError && cause.code === "offline" && cause.status === 0) {
+    if (cause instanceof AiTeamOSClientError && cause.code === "offline" && cause.status === 0) {
       throw new Error(
-        "Could not reach this OpenTeam server. Check the endpoint and your connection."
+        "Could not reach this aiTeamOS server. Check the endpoint and your connection."
       );
     }
     throw cause;

@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
-import { exportPackageArchive, importPackageArchive } from "@openteam/plugin-sdk/archive";
+import { exportPackageArchive, importPackageArchive } from "@aiteamos/plugin-sdk/archive";
 import { pluginCatalog } from "../src";
 
 test("every registry package declares its origin and shipped provider files survive export byte for byte", async () => {
@@ -30,6 +30,6 @@ test("every registry package declares its origin and shipped provider files surv
         : Buffer.from(roundtrip.files?.[key] ?? "");
       expect(exported).toEqual(local);
     }
-    expect(plugin.files?.["OPENTEAM.md"]).toBeUndefined();
+    expect(plugin.files?.["AITEAMOS.md"]).toBeUndefined();
   }
 });

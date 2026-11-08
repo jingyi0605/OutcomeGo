@@ -31,7 +31,7 @@ afterEach(() => {
 
 describe("update transaction safety", () => {
   test("rejects concurrent updates and releases the installation lock", () => {
-    const directory = mkdtempSync(join(tmpdir(), "openteam-update-lock-"));
+    const directory = mkdtempSync(join(tmpdir(), "aiteamos-update-lock-"));
     temporaryDirectories.push(directory);
     const paths = installationPaths(directory);
     const release = acquireUpdateLock(paths);
@@ -43,7 +43,7 @@ describe("update transaction safety", () => {
   });
 
   test("persists update jobs atomically for reconnecting clients", () => {
-    const directory = mkdtempSync(join(tmpdir(), "openteam-update-state-"));
+    const directory = mkdtempSync(join(tmpdir(), "aiteamos-update-state-"));
     temporaryDirectories.push(directory);
     const paths = installationPaths(directory);
     const initial = writeUpdateState(paths, {
@@ -73,7 +73,7 @@ describe("update transaction safety", () => {
   });
 
   test("treats the detached CLI bootstrap as active before it takes the server lock", () => {
-    const directory = mkdtempSync(join(tmpdir(), "openteam-update-bootstrap-"));
+    const directory = mkdtempSync(join(tmpdir(), "aiteamos-update-bootstrap-"));
     temporaryDirectories.push(directory);
     const paths = installationPaths(directory);
     writeUpdateState(paths, {
@@ -92,7 +92,7 @@ describe("update transaction safety", () => {
   });
 
   test("keeps the newest update backups and the current one, and nothing else is touched", () => {
-    const directory = realpathSync(mkdtempSync(join(tmpdir(), "openteam-update-backups-")));
+    const directory = realpathSync(mkdtempSync(join(tmpdir(), "aiteamos-update-backups-")));
     temporaryDirectories.push(directory);
     const paths = installationPaths(directory);
     writeFileSync(paths.environment, "");
@@ -114,7 +114,7 @@ describe("update transaction safety", () => {
     const current = join(paths.backups, names[0]!);
     retainDatabaseBackups(paths, current);
     expect(readdirSync(paths.backups).sort()).toEqual([names[0]!, ...names.slice(2)].sort());
-    writeFileSync(paths.environment, "OPENTEAM_BACKUP_RETENTION_COUNT=1\n");
+    writeFileSync(paths.environment, "AITEAMOS_BACKUP_RETENTION_COUNT=1\n");
     retainDatabaseBackups(paths, null);
     expect(readdirSync(paths.backups).sort()).toEqual(
       [names[4]!, "my-own-dump.sql", "postgres-notes.txt"].sort()

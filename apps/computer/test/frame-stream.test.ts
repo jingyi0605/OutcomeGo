@@ -19,12 +19,12 @@ afterEach(async () => {
 });
 
 const fixture = async () => {
-  root = await mkdtemp(join(tmpdir(), "openteam-shared-video-"));
+  root = await mkdtemp(join(tmpdir(), "aiteamos-shared-video-"));
   const writer = join(root, "writer.ts");
   // Transport fixture only; actual JPEG decoding is covered by the desktop integration test.
   await writeFile(
     writer,
-    `const frame=Buffer.concat([Buffer.from('--openteam-frame\\r\\nContent-type: image/jpeg\\r\\nContent-length: 4\\r\\n\\r\\n'),Buffer.from([255,216,255,217]),Buffer.from('\\r\\n')]);setTimeout(()=>{setInterval(()=>process.stdout.write(frame),25)},150);`
+    `const frame=Buffer.concat([Buffer.from('--aiteamos-frame\\r\\nContent-type: image/jpeg\\r\\nContent-length: 4\\r\\n\\r\\n'),Buffer.from([255,216,255,217]),Buffer.from('\\r\\n')]);setTimeout(()=>{setInterval(()=>process.stdout.write(frame),25)},150);`
   );
   await writeFile(join(root, "ffmpeg"), `#!/bin/sh\nexec '${process.execPath}' '${writer}'\n`);
   await chmod(join(root, "ffmpeg"), 0o755);

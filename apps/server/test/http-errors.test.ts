@@ -1,6 +1,6 @@
 import { test, expect } from "bun:test";
 import { Effect } from "effect";
-import { ApiError } from "@openteam/contracts";
+import { ApiError } from "@aiteamos/contracts";
 import { errorResponse } from "../src/http";
 import { serviceEffect } from "../src/services/service-utils";
 

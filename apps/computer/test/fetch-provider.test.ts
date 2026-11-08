@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import type { FetchProvider } from "@openteam/contracts/web-search";
+import type { FetchProvider } from "@aiteamos/contracts/web-search";
 import { FetchProviderClient } from "../src/fetch-provider";
 import { publicWebUrl } from "../src/public-web-url";
 import { WebTools } from "../src/web-tools";

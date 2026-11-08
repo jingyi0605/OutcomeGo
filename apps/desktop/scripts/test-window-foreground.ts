@@ -7,7 +7,7 @@ import { createServer } from "vite";
 const baseline = process.argv[2];
 if (!baseline) throw Error("Usage: bun scripts/test-window-foreground.ts /absolute/path/to/baseline-checkout");
 const candidate = resolve(import.meta.dir, "../../..");
-const directory = await mkdtemp(join(tmpdir(), "openteam-foreground-parity-"));
+const directory = await mkdtemp(join(tmpdir(), "aiteamos-foreground-parity-"));
 const output = join(candidate, "output/window-foreground");
 await mkdir(output, { recursive: true });
 const fixtureHtml = (await readFile(resolve(import.meta.dir, "../test/browser/window-foreground.html"), "utf8")).replace("./window-foreground.tsx", "/test/browser/__foreground-parity.tsx");

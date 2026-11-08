@@ -14,7 +14,7 @@ const manifest = {
   key: "fixture",
   name: "Fixture",
   version: "1",
-  publisher: "OpenTeam",
+  publisher: "aiTeamOS",
   files: { "skills/main-only/reference.md": "Reference notes." },
   skills: [
     { name: "main-only", description: "Main", body: "Main agent workflow.", path: "skills/main-only" },
@@ -33,7 +33,7 @@ const privateSkill = { id: "private", name: "Private", description: "Private", b
 
 let root = "";
 beforeEach(async () => {
-  root = await mkdtemp(join(tmpdir(), "openteam-skill-catalog-"));
+  root = await mkdtemp(join(tmpdir(), "aiteamos-skill-catalog-"));
 });
 afterEach(async () => {
   await rm(root, { recursive: true, force: true });

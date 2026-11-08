@@ -6,9 +6,9 @@ import {
   type CreateBotInput,
   resolveBotAvatarMark,
   type UpdateBotInput,
-} from "@openteam/contracts";
-import { COMPUTER_API_PATHS } from "@openteam/contracts/service-protocol";
-import { Prisma, type PrismaClient } from "@openteam/db";
+} from "@aiteamos/contracts";
+import { COMPUTER_API_PATHS } from "@aiteamos/contracts/service-protocol";
+import { Prisma, type PrismaClient } from "@aiteamos/db";
 import {
   type AgentDataStore,
   type AgentMessaging,
@@ -16,7 +16,7 @@ import {
   stopRequestProgress,
   type BotFileTarget,
   buildSafeTranscript,
-} from "@openteam/messaging";
+} from "@aiteamos/messaging";
 import { fromPrisma, type PgBoss } from "pg-boss";
 import {
   appendEvent,

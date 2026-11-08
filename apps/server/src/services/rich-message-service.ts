@@ -12,14 +12,14 @@ import {
   parseUserFormReceipt,
   formatUserFormReceipt,
   type UserFormReceipt,
-} from "@openteam/contracts";
+} from "@aiteamos/contracts";
 import { createHash, randomUUID } from "node:crypto";
-import { Prisma, type PrismaClient } from "@openteam/db";
-import { type AgentMessaging, type ToolContext, PRIORITY } from "@openteam/messaging";
+import { Prisma, type PrismaClient } from "@aiteamos/db";
+import { type AgentMessaging, type ToolContext, PRIORITY } from "@aiteamos/messaging";
 import { Effect } from "effect";
 import type { PluginService } from "./plugin-service";
 import { UserFormRefusal, type ScreenService } from "./screen-service";
-import { buildUserFormUnsupportedTurnResult } from "@openteam/contracts/reference-form-results";
+import { buildUserFormUnsupportedTurnResult } from "@aiteamos/contracts/reference-form-results";
 import { appendEvent, metadataRecord, serviceEffect, toJson } from "./service-utils";
 import { toChannelMessageView as messageView } from "./view-mappers";
 

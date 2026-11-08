@@ -12,7 +12,7 @@ afterEach(() => {
 });
 
 const runProviderCli = async (args: string[], slowReader = false) => {
-  const directory = mkdtempSync(join(tmpdir(), "openteam-provider-cli-"));
+  const directory = mkdtempSync(join(tmpdir(), "aiteamos-provider-cli-"));
   directories.push(directory);
   writeFileSync(join(directory, "auth.json"), "{}");
   writeFileSync(join(directory, "models-store.json"), "{}");
@@ -36,7 +36,7 @@ const runProviderCli = async (args: string[], slowReader = false) => {
           "output-test": {
             baseUrl: `${server.url.origin}/v1`,
             api: "openai-completions",
-            apiKey: "openteam-no-auth",
+            apiKey: "aiteamos-no-auth",
             models: Array.from({ length: 2_000 }, (_, index) => ({
               id: `model-${index}`,
               name: `Output test ${index} ${"x".repeat(1_024)}`,
@@ -64,8 +64,8 @@ const runProviderCli = async (args: string[], slowReader = false) => {
       PATH: process.env.PATH,
       HOME: directory,
       PI_OFFLINE: "1",
-      OPENTEAM_PI_AGENT_DIR: directory,
-      OPENTEAM_AGENT_DATA_ROOT: directory,
+      AITEAMOS_PI_AGENT_DIR: directory,
+      AITEAMOS_AGENT_DATA_ROOT: directory,
     },
     stdin: "ignore",
     stdout: "pipe",

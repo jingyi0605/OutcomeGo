@@ -6,7 +6,7 @@ import {
   readFileSync,
   statfsSync,
 } from "node:fs";
-import { redactSensitiveText } from "@openteam/product-core/redaction";
+import { redactSensitiveText } from "@aiteamos/product-core/redaction";
 import { arch, freemem, totalmem } from "node:os";
 import { dirname } from "node:path";
 import type { InstallationPaths } from "./config";
@@ -112,7 +112,7 @@ export const runDoctor = async (
       : {
           level: "fail",
           label: "Platform",
-          detail: `${process.platform}/${machineArchitecture} is not supported by OpenTeam images`,
+          detail: `${process.platform}/${machineArchitecture} is not supported by aiTeamOS images`,
         }
   );
 
@@ -182,7 +182,7 @@ export const runDoctor = async (
           level: compose?.supported ? "pass" : "fail",
           label: "Docker Compose",
           detail: compose
-            ? `${compose.version}${compose.supported ? "" : `; OpenTeam requires ${MINIMUM_COMPOSE_VERSION}+`}`
+            ? `${compose.version}${compose.supported ? "" : `; aiTeamOS requires ${MINIMUM_COMPOSE_VERSION}+`}`
             : "Neither the Docker Compose plugin nor the standalone command could run.",
           ...(!compose
             ? {
@@ -211,7 +211,7 @@ export const runDoctor = async (
       label: "Installation",
       detail: [paths.manifest, paths.environment, paths.compose].some(existsSync)
         ? `Installation files are missing at ${paths.directory}; setup is incomplete.`
-        : `First-time setup: the OpenTeam server has not been configured at ${paths.directory} yet.`,
+        : `First-time setup: the aiTeamOS server has not been configured at ${paths.directory} yet.`,
     });
     const checkInstallPorts = options.checkInstallPorts ?? true;
     const unavailablePort = checkInstallPorts
@@ -235,7 +235,7 @@ export const runDoctor = async (
       checks.push({
         level: "fail",
         label: "Installation",
-        detail: `Invalid installation manifest at ${paths.manifest}; repair it before starting OpenTeam`,
+        detail: `Invalid installation manifest at ${paths.manifest}; repair it before starting aiTeamOS`,
       });
       return {
         ok: false,
@@ -249,7 +249,7 @@ export const runDoctor = async (
     checks.push({
       level: manifest ? "pass" : "fail",
       label: "Installation",
-      detail: manifest ? `OpenTeam ${manifest.version} at ${paths.directory}` : "manifest missing",
+      detail: manifest ? `aiTeamOS ${manifest.version} at ${paths.directory}` : "manifest missing",
     });
     checks.push({
       level: environmentModeIsPrivate(paths) ? "pass" : "fail",
@@ -288,10 +288,10 @@ export const runDoctor = async (
       const values = parseEnvironment(readFileSync(paths.environment, "utf8"));
       environmentValues = values;
       const requiredSecrets = [
-        "OPENTEAM_POSTGRES_PASSWORD",
-        "OPENTEAM_CONTROL_TOKEN",
-        "OPENTEAM_AUTH_SECRET",
-        "OPENTEAM_PROXY_SECRET",
+        "AITEAMOS_POSTGRES_PASSWORD",
+        "AITEAMOS_CONTROL_TOKEN",
+        "AITEAMOS_AUTH_SECRET",
+        "AITEAMOS_PROXY_SECRET",
       ];
       const missingSecrets = requiredSecrets.filter((key) => (values.get(key)?.length ?? 0) < 32);
       checks.push({
@@ -307,13 +307,13 @@ export const runDoctor = async (
         label: "Owner account",
         detail: manifest?.ownerUsername
           ? `configured for ${manifest.ownerUsername}`
-          : "not configured; run openteam setup",
+          : "not configured; run aiteamos setup",
       });
-      const accessMode = values.get("OPENTEAM_ACCESS_MODE") || "local";
-      const publicUrl = values.get("OPENTEAM_PUBLIC_URL") || "";
-      const apiIsLoopback = values.get("OPENTEAM_BIND_HOST") === "127.0.0.1";
+      const accessMode = values.get("AITEAMOS_ACCESS_MODE") || "local";
+      const publicUrl = values.get("AITEAMOS_PUBLIC_URL") || "";
+      const apiIsLoopback = values.get("AITEAMOS_BIND_HOST") === "127.0.0.1";
       const viewersAreLoopback =
-        (values.get("OPENTEAM_VIEWER_BIND_HOST") || values.get("OPENTEAM_BIND_HOST")) ===
+        (values.get("AITEAMOS_VIEWER_BIND_HOST") || values.get("AITEAMOS_BIND_HOST")) ===
         "127.0.0.1";
       let exposure: DoctorCheck;
       if (accessMode === "https" || accessMode === "proxy" || accessMode === "tailscale") {
@@ -326,8 +326,8 @@ export const runDoctor = async (
                   accessMode === "https"
                     ? `public HTTPS through bundled Caddy at ${publicUrl}; internal ports are loopback-only`
                     : accessMode === "tailscale"
-                      ? `private Tailscale HTTPS at ${publicUrl}; OpenTeam ports are loopback-only`
-                      : `public HTTPS through an external proxy at ${publicUrl}; OpenTeam ports are loopback-only`,
+                      ? `private Tailscale HTTPS at ${publicUrl}; aiTeamOS ports are loopback-only`
+                      : `public HTTPS through an external proxy at ${publicUrl}; aiTeamOS ports are loopback-only`,
               }
             : {
                 level: "fail",
@@ -397,7 +397,7 @@ export const runDoctor = async (
           label: "Tailscale Serve",
           detail:
             status.issue || `${status.publicUrl} → ${status.backendUrl} (${status.ownership})`,
-          action: "Run openteam tailscale status on the server host.",
+          action: "Run aiteamos tailscale status on the server host.",
         });
       }
       if (["https", "proxy", "http", "tailscale"].includes(accessMode) && publicUrl) {
@@ -471,13 +471,13 @@ export const runDoctor = async (
     if (foreignServer && environmentValues) {
       checks.push({
         level: "fail",
-        label: "OpenTeam health",
+        label: "aiTeamOS health",
         detail: foreignServerMessage(runner, probe, environmentValues),
       });
     } else {
       checks.push({
         level: health.ok ? "pass" : "fail",
-        label: "OpenTeam health",
+        label: "aiTeamOS health",
         detail: health.ok ? `${health.detail} at ${health.url}` : `${health.url}: ${health.detail}`,
       });
     }
@@ -520,7 +520,7 @@ export const runDoctor = async (
         checks.push({
           level: "warn",
           label: "AI connection",
-          detail: "not tested; no model is connected. Connect one in the OpenTeam app",
+          detail: "not tested; no model is connected. Connect one in the aiTeamOS app",
         });
       } else {
         try {

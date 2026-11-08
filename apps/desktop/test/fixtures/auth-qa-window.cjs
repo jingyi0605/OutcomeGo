@@ -4,10 +4,10 @@ const { mkdtempSync } = require("node:fs");
 const { tmpdir } = require("node:os");
 const { join } = require("node:path");
 
-app.setPath("userData", mkdtempSync(join(tmpdir(), "openteam-auth-qa-")));
+app.setPath("userData", mkdtempSync(join(tmpdir(), "aiteamos-auth-qa-")));
 app.whenReady().then(() => {
   const window = new BrowserWindow({
-    title: "OpenTeam Onboarding QA",
+    title: "aiTeamOS Onboarding QA",
     width: 900,
     height: 740,
     minWidth: 320,
@@ -23,7 +23,7 @@ app.whenReady().then(() => {
       { role: "windowMenu" },
     ])
   );
-  const suffix = process.env.OPENTEAM_AUTH_QA_STORAGE_ERROR === "1" ? "?storage-error" : "";
+  const suffix = process.env.AITEAMOS_AUTH_QA_STORAGE_ERROR === "1" ? "?storage-error" : "";
   void window.loadURL(`http://127.0.0.1:5196/test/browser/auth-onboarding.html${suffix}`);
 });
 app.on("window-all-closed", () => app.quit());

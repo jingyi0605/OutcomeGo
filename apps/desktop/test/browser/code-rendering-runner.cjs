@@ -75,16 +75,16 @@ app.whenReady().then(async () => {
       window.Worker=OriginalWorker;window.renderCode(null);await wait(20);assert(CSS.highlights.size===0,'Fallback leaked highlights');
       reports.push({name:'worker failure keeps full content readable'});
       const fence=String.fromCharCode(96).repeat(3);
-      window.renderMarkdown('# Mixed content\\n\\n日本語 and **bold** with '+String.fromCharCode(96)+'inline'+String.fromCharCode(96)+' and [settings](openteam://app/v1/settings?id=theme).\\n\\n| A | B |\\n|---|---|\\n| one | two |\\n\\n$$\\nx^2 + y^2\\n$$\\n\\n'+fence+'mermaid\\ngraph TD; A-->B\\n'+fence+'\\n\\n'+fence+'typescript\\nconst short = 42;\\n'+fence);
+      window.renderMarkdown('# Mixed content\\n\\n日本語 and **bold** with '+String.fromCharCode(96)+'inline'+String.fromCharCode(96)+' and [settings](aiteamos://app/v1/settings?id=theme).\\n\\n| A | B |\\n|---|---|\\n| one | two |\\n\\n$$\\nx^2 + y^2\\n$$\\n\\n'+fence+'mermaid\\ngraph TD; A-->B\\n'+fence+'\\n\\n'+fence+'typescript\\nconst short = 42;\\n'+fence);
       await settle('[data-streamdown="mermaid"] svg');await settle('.katex');await settle('[data-streamdown="code-block"]');
       assert(document.querySelector('[data-streamdown="inline-code"]').textContent==='inline','Inline code changed');
       assert(document.querySelectorAll('[data-streamdown="table-cell"]').length===2,'Table cells disappeared');
       assert(document.querySelector('[data-streamdown="table"]').getBoundingClientRect().height>0,'Table rendered but hidden');
       assert(document.body.textContent.includes('日本語'),'CJK content disappeared');
-      let deepLink;const follow=e=>{deepLink=e.detail.url};window.addEventListener('openteam:deep-link',follow);
+      let deepLink;const follow=e=>{deepLink=e.detail.url};window.addEventListener('aiteamos:deep-link',follow);
       document.querySelector('button[aria-label="Open settings"]').click();
-      window.removeEventListener('openteam:deep-link',follow);
-      assert(deepLink==='openteam://app/v1/settings?id=theme','Application link changed');
+      window.removeEventListener('aiteamos:deep-link',follow);
+      assert(deepLink==='aiteamos://app/v1/settings?id=theme','Application link changed');
       assert(document.querySelector('[data-streamdown="mermaid-block-actions"]').querySelectorAll('button').length>=2,'Mermaid controls disappeared');
       reports.push({name:'mixed code, inline code, tables, CJK, math, Mermaid controls and app links'});
       for (const [source,mathCount] of [

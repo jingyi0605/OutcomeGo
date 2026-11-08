@@ -1,10 +1,10 @@
-import type { ChannelView, ClientSnapshot } from "@openteam/contracts";
+import type { ChannelView, ClientSnapshot } from "@aiteamos/contracts";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { api } from "../client/openteam-api";
+import { api } from "../client/aiteamos-api";
 import { activeAgentIdForChannel, restoredActiveChannelId } from "../lib/channel-selection";
 import { measureUntilNextPaint } from "../lib/performance";
 
-const SELECTED_CHANNEL_KEY = "openteam:selected-channel";
+const SELECTED_CHANNEL_KEY = "aiteamos:selected-channel";
 
 export function useChannelSelection(
   snapshot: ClientSnapshot | null,

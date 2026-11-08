@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { renderAutomationHandoffPrompt, renderQuietRevivalBatchPrompt, renderRevivalBatchPrompt } from "@openteam/messaging";
+import { renderAutomationHandoffPrompt, renderQuietRevivalBatchPrompt, renderRevivalBatchPrompt } from "@aiteamos/messaging";
 import { groupRoomRevivalNote, revivalBatch, WakeWorker } from "../src/worker";
 
 test("background subagent completion revives the parent with Bot's dedicated source", async () => {

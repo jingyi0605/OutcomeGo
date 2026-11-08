@@ -1,4 +1,4 @@
-import type { Snapshot, ChannelNotificationState } from "@openteam/contracts";
+import type { Snapshot, ChannelNotificationState } from "@aiteamos/contracts";
 import { resolve } from "node:path";
 import { toChannelMessageView } from "../view-mappers";
 

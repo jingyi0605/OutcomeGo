@@ -5,7 +5,7 @@ import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 
 test("the Node network worker shuts down when its parent pipe closes and never prints its credential", async () => {
-  const directory = await mkdtemp(join(tmpdir(), "openteam-network-worker-"));
+  const directory = await mkdtemp(join(tmpdir(), "aiteamos-network-worker-"));
   const output = join(directory, "worker.mjs");
   let child: ReturnType<typeof spawn> | undefined;
   try {
@@ -49,7 +49,7 @@ test("the Node network worker shuts down when its parent pipe closes and never p
 }, 10000);
 
 test("chaos: diagnostic admission uses live worker state rather than its last status snapshot", async () => {
-  const directory = await mkdtemp(join(tmpdir(), "openteam-network-supervisor-"));
+  const directory = await mkdtemp(join(tmpdir(), "aiteamos-network-supervisor-"));
   let network:
     | Awaited<ReturnType<typeof import("../src/browser-network").startBrowserNetwork>>
     | undefined;

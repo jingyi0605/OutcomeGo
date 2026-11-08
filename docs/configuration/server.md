@@ -6,24 +6,24 @@ Guided setup covers most installations. This page shows where to change each set
 
 | Setting | Where to change it |
 | --- | --- |
-| Model provider | **Settings → Model** on desktop or iPhone, or `openteam model` (sign in first with `openteam provider login`) |
-| Model and reasoning level | **Settings → Model** on desktop or iPhone, or `openteam model` |
+| Model provider | **Settings → Model** on desktop or iPhone, or `aiteamos model` (sign in first with `aiteamos provider login`) |
+| Model and reasoning level | **Settings → Model** on desktop or iPhone, or `aiteamos model` |
 | Web search and page fetching | **Settings → Providers** on desktop or iPhone |
-| Voice transcription | **Settings → Voice notes** on desktop or iPhone, or `openteam model` |
-| Connection mode, including Tailscale HTTPS | `openteam setup` |
-| Tailscale HTTPS enable, status, disable | `openteam tailscale` or desktop Settings → Server → Remote access |
-| API port, time zone, and tasks at once | `openteam setup --advanced` |
-| Username and password | `openteam account update` |
+| Voice transcription | **Settings → Voice notes** on desktop or iPhone, or `aiteamos model` |
+| Connection mode, including Tailscale HTTPS | `aiteamos setup` |
+| Tailscale HTTPS enable, status, disable | `aiteamos tailscale` or desktop Settings → Server → Remote access |
+| API port, time zone, and tasks at once | `aiteamos setup --advanced` |
+| Username and password | `aiteamos account update` |
 | Accounts your bots use | **Marketplace** in the desktop app |
 
-Model changes apply to new messages; a task that's already running keeps its settings. Search, fetch, and transcription changes apply to the next search, fetch, or voice note. Changes made with `openteam setup --advanced` restart the services they affect, which interrupts running tasks.
+Model changes apply to new messages; a task that's already running keeps its settings. Search, fetch, and transcription changes apply to the next search, fetch, or voice note. Changes made with `aiteamos setup --advanced` restart the services they affect, which interrupts running tasks.
 
 ## Change setup options
 
 Run this on the server host:
 
 ```sh
-openteam setup --advanced
+aiteamos setup --advanced
 ```
 
 Advanced setup lets you change the [connection mode](remote-access.md), **API port** (default `8787`), time zone, and tasks at once. Running setup again keeps your account, data, and model settings.
@@ -34,13 +34,13 @@ Advanced setup lets you change the [connection mode](remote-access.md), **API po
 
 ## Configuration files
 
-The [install directory](../getting-started/installation.md#where-openteam-is-installed) holds, among other files:
+The [install directory](../getting-started/installation.md#where-aiteamos-is-installed) holds, among other files:
 
 - `.env`: generated secrets and settings
 - `compose.yaml`: the Docker services for your version
 - `installation.json`: a record of how the server was installed
 
-Setup and updates maintain these files, so change settings with the CLI instead of editing them. Don't put model API keys in `.env`; connect providers in the app or with `openteam provider login`. Include this directory in your [backups](../manage/backups.md).
+Setup and updates maintain these files, so change settings with the CLI instead of editing them. Don't put model API keys in `.env`; connect providers in the app or with `aiteamos provider login`. Include this directory in your [backups](../manage/backups.md).
 
 
 ## Desktop memory limits
@@ -61,8 +61,8 @@ may kill the shared runtime and restart the computer container.
 
 Compose overrides in the install environment:
 
-- `OPENTEAM_DESKTOP_MEMORY_LIMIT=10g`: each desktop's ceiling.
-- `OPENTEAM_COMPUTER_MEMORY_LIMIT=12g`: the combined computer ceiling, also bounded
+- `AITEAMOS_DESKTOP_MEMORY_LIMIT=10g`: each desktop's ceiling.
+- `AITEAMOS_COMPUTER_MEMORY_LIMIT=12g`: the combined computer ceiling, also bounded
   by the 75% host rule. Use a smaller value to leave more room for other services.
 
 Sizes use binary units: `10g` is 10 × 1024³ bytes. Recreate the computer and its

@@ -86,19 +86,21 @@ export {
 
 /** Where to get the apps after setup; they connect a model and create the first bot. */
 export const APP_DOWNLOADS = [
-  { label: "Desktop", value: "https://openteam.so/download" },
-  { label: "iPhone", value: "https://testflight.apple.com/join/KFBFPkjP" },
+  {
+    label: "Desktop and Android",
+    value: "https://github.com/jingyi0605/ai-TeamOS/releases/latest",
+  },
 ] as const;
 
 const SETUP_KEYS = [
-  "OPENTEAM_WORKER_CONCURRENCY",
-  "OPENTEAM_API_PORT",
-  "OPENTEAM_ACCESS_MODE",
-  "OPENTEAM_BIND_HOST",
-  "OPENTEAM_VIEWER_BIND_HOST",
-  "OPENTEAM_PUBLIC_HOST",
-  "OPENTEAM_PUBLIC_URL",
-  "OPENTEAM_AUTH_URL",
+  "AITEAMOS_WORKER_CONCURRENCY",
+  "AITEAMOS_API_PORT",
+  "AITEAMOS_ACCESS_MODE",
+  "AITEAMOS_BIND_HOST",
+  "AITEAMOS_VIEWER_BIND_HOST",
+  "AITEAMOS_PUBLIC_HOST",
+  "AITEAMOS_PUBLIC_URL",
+  "AITEAMOS_AUTH_URL",
   "COMPOSE_PROFILES",
 ] as const;
 
@@ -152,18 +154,18 @@ const sentence = (error: unknown): string => {
 const requireInstallation = (paths: InstallationPaths): InstallationManifest => {
   if (!installationExists(paths)) {
     throw new CliError(
-      `OpenTeam is not installed at ${paths.directory}. Run openteam install first.`
+      `aiTeamOS is not installed at ${paths.directory}. Run aiteamos install first.`
     );
   }
   const manifest = readManifest(paths);
   if (!manifest)
-    throw new CliError(`OpenTeam installation manifest is missing at ${paths.manifest}`);
+    throw new CliError(`aiTeamOS installation manifest is missing at ${paths.manifest}`);
   return manifest;
 };
 
 export const createTerminalPrompter = (): SetupPrompter => {
   if (!process.stdin.isTTY || !process.stdout.isTTY) {
-    throw new CliError("This OpenTeam command is interactive and requires a terminal.");
+    throw new CliError("This aiTeamOS command is interactive and requires a terminal.");
   }
   const question = async (message: string, secret = false): Promise<string> => {
     const output = secret
@@ -314,18 +316,18 @@ const terminalSelect = <Value extends string>(
 
 // A new account has no default name; changing one offers the current name.
 export const collectOwnerUsername = (prompter: SetupPrompter, current: string): Promise<string> =>
-  askRequired(prompter, "OpenTeam username", current || null, validateOwnerUsername);
+  askRequired(prompter, "aiTeamOS username", current || null, validateOwnerUsername);
 
 export const collectConfirmedPassword = async (prompter: SetupPrompter): Promise<string> => {
   while (true) {
-    const password = await prompter.secret("OpenTeam password: ");
+    const password = await prompter.secret("aiTeamOS password: ");
     try {
       validateOwnerPassword(password);
     } catch (error) {
       console.log(`  ${error instanceof Error ? error.message : String(error)}`);
       continue;
     }
-    const confirmation = await prompter.secret("Confirm OpenTeam password: ");
+    const confirmation = await prompter.secret("Confirm aiTeamOS password: ");
     if (password === confirmation) return password;
     console.log("  Passwords do not match. Try again.");
   }
@@ -496,8 +498,8 @@ export const collectSetupConfiguration = async (
     for (const note of accessModeNotes(selectedAccess)) presentation?.message(note.text, note.tone);
   }
 
-  let apiPort = current.get("OPENTEAM_API_PORT") || String(API_PORT);
-  let workerConcurrency = current.get("OPENTEAM_WORKER_CONCURRENCY") || "8";
+  let apiPort = current.get("AITEAMOS_API_PORT") || String(API_PORT);
+  let workerConcurrency = current.get("AITEAMOS_WORKER_CONCURRENCY") || "8";
   if (advanced) {
     apiPort = await ask(
       prompter,
@@ -521,7 +523,7 @@ export const collectSetupConfiguration = async (
       `Your existing account (${currentOwnerUsername}) will stay signed in.`,
       "success"
     );
-    presentation?.message("Run openteam account update if you want to change it.", "muted");
+    presentation?.message("Run aiteamos account update if you want to change it.", "muted");
   } else {
     ownerUsername = await collectOwnerUsername(prompter, currentOwnerUsername);
     ownerPassword = await collectConfirmedPassword(prompter);
@@ -540,14 +542,14 @@ export const collectSetupConfiguration = async (
 
 const updateEnvironment = (contents: string, configuration: SetupConfiguration): string => {
   const values: Record<(typeof SETUP_KEYS)[number], string> = {
-    OPENTEAM_WORKER_CONCURRENCY: configuration.workerConcurrency,
-    OPENTEAM_API_PORT: configuration.apiPort,
-    OPENTEAM_ACCESS_MODE: configuration.accessMode,
-    OPENTEAM_BIND_HOST: configuration.bindHost,
-    OPENTEAM_VIEWER_BIND_HOST: configuration.viewerBindHost,
-    OPENTEAM_PUBLIC_HOST: configuration.publicHost,
-    OPENTEAM_PUBLIC_URL: configuration.publicUrl,
-    OPENTEAM_AUTH_URL: configuration.publicUrl,
+    AITEAMOS_WORKER_CONCURRENCY: configuration.workerConcurrency,
+    AITEAMOS_API_PORT: configuration.apiPort,
+    AITEAMOS_ACCESS_MODE: configuration.accessMode,
+    AITEAMOS_BIND_HOST: configuration.bindHost,
+    AITEAMOS_VIEWER_BIND_HOST: configuration.viewerBindHost,
+    AITEAMOS_PUBLIC_HOST: configuration.publicHost,
+    AITEAMOS_PUBLIC_URL: configuration.publicUrl,
+    AITEAMOS_AUTH_URL: configuration.publicUrl,
     COMPOSE_PROFILES: configuration.composeProfiles,
   };
   let updated = contents;
@@ -597,7 +599,7 @@ const collectThroughPrompts = async (
         ? await prompter.select(
             "Apply this configuration?",
             [
-              { label: "Start OpenTeam", value: "yes", shortcut: "y" },
+              { label: "Start aiTeamOS", value: "yes", shortcut: "y" },
               { label: "Go back", value: "back", shortcut: "b" },
               { label: "Cancel without changes", value: "no", shortcut: "n" },
             ] as const,
@@ -664,7 +666,7 @@ const setupCommandUnlocked = async (
   const initialHealth = await checkHealth(paths);
   const running = runningServices(project);
   const fresh = options.fresh ?? !manifest.ownerUsername;
-  // A new installation can take another port when a different OpenTeam already answers
+  // A new installation can take another port when a different aiTeamOS already answers
   // on this one; an existing installation must not move without the owner choosing it.
   const foreignServer = foreignServerDetected(initialHealth, running);
   if (!fresh) assertOwnServer(runner, initialHealth, running, current);
@@ -676,20 +678,20 @@ const setupCommandUnlocked = async (
     options.detectedPrivateHost === undefined
       ? detectPrivateNetworkHost()
       : options.detectedPrivateHost;
-  const previousApiPort = current.get("OPENTEAM_API_PORT");
+  const previousApiPort = current.get("AITEAMOS_API_PORT");
   const notes: Array<{ text: string; tone: MessageTone }> = [];
   if (manifest.version !== CLI_VERSION) {
     notes.push({ text: `Installed server release: v${manifest.version}.`, tone: "muted" });
   }
   if (fresh && !ownServerHealthy) {
-    const configured = Number(current.get("OPENTEAM_API_PORT") || API_PORT);
+    const configured = Number(current.get("AITEAMOS_API_PORT") || API_PORT);
     // The other server holds the configured port even where a loopback probe can still bind.
     const suggested = await suggestApiPort(
       "127.0.0.1",
       foreignServer ? configured + 1 : configured
     );
     if (suggested !== configured) {
-      current.set("OPENTEAM_API_PORT", String(suggested));
+      current.set("AITEAMOS_API_PORT", String(suggested));
       notes.push({
         text: `Port ${configured} is already in use; using ${suggested} as the local API default.`,
         tone: "info",
@@ -699,7 +701,7 @@ const setupCommandUnlocked = async (
   const tailscaleInspection = inspectTailscale(runner);
   const tailscale = detectTailscaleHttps(
     runner,
-    current.get("OPENTEAM_API_PORT") || String(API_PORT)
+    current.get("AITEAMOS_API_PORT") || String(API_PORT)
   );
   const accessMode = configuredAccessMode(current, fresh);
   const privateHost = (fresh ? null : existingReachableHost(current)) ?? detectedPrivateHost;
@@ -710,12 +712,12 @@ const setupCommandUnlocked = async (
         privateHost === tailscale.host ||
         tailscale.addresses.includes(privateHost))) ||
       (accessMode === "proxy" &&
-        current.get("OPENTEAM_PUBLIC_URL") === `https://${tailscaleHttpsHost(tailscale)}`))
+        current.get("AITEAMOS_PUBLIC_URL") === `https://${tailscaleHttpsHost(tailscale)}`))
       ? tailscaleHttpsHost(tailscale)
       : undefined;
   if (preferredHttpsHost)
     notes.push({
-      text: `Tailscale HTTPS is available at https://${preferredHttpsHost}. If you choose it, setup adds a private Serve route for OpenTeam; keep Tailscale connected on your devices.`,
+      text: `Tailscale HTTPS is available at https://${preferredHttpsHost}. If you choose it, setup adds a private Serve route for aiTeamOS; keep Tailscale connected on your devices.`,
       tone: "info",
     });
   const collectOptions: SetupCommandOptions = {
@@ -727,7 +729,7 @@ const setupCommandUnlocked = async (
     tailscaleHost: tailscaleInspection.node?.host,
     tailscalePort:
       accessMode === "tailscale"
-        ? new URL(current.get("OPENTEAM_PUBLIC_URL")!).port || "443"
+        ? new URL(current.get("AITEAMOS_PUBLIC_URL")!).port || "443"
         : tailscale?.port,
     tailscaleIssue: tailscaleInspection.issue,
     presentation,
@@ -808,7 +810,7 @@ const setupCommandUnlocked = async (
     presentation.message("Setup cancelled; no configuration was changed.", "muted");
     if (fresh) {
       presentation.message(
-        `Run ${installationCommand(paths, "setup")} when you're ready to finish setting up OpenTeam.`,
+        `Run ${installationCommand(paths, "setup")} when you're ready to finish setting up aiTeamOS.`,
         "muted"
       );
     }
@@ -850,7 +852,7 @@ const setupCommandUnlocked = async (
   if (options.pullImages ?? fresh) {
     // All questions are answered; the long download needs no further input.
     presentation.message(
-      "Downloading OpenTeam (about 1.5 GB). This can take a few minutes; no more input is needed.",
+      "Downloading aiTeamOS (about 1.5 GB). This can take a few minutes; no more input is needed.",
       "info"
     );
     try {
@@ -860,13 +862,13 @@ const setupCommandUnlocked = async (
       if (interrupted(error)) throw error;
       if (changed) writeFileAtomic(paths.environment, previousEnvironment, 0o600);
       throw new CliError(
-        `Could not download OpenTeam: ${sentence(error)} Check your internet connection, then run ${installationCommand(paths, "setup")} again.`
+        `Could not download aiTeamOS: ${sentence(error)} Check your internet connection, then run ${installationCommand(paths, "setup")} again.`
       );
     }
   }
 
   if (changed || !ownServerHealthy || manifest.uninstalledAt) {
-    presentation.message(changed ? "Applying configuration…" : "Starting OpenTeam…", "info");
+    presentation.message(changed ? "Applying configuration…" : "Starting aiTeamOS…", "info");
     try {
       if (configuration.accessMode !== "https") {
         // A profile-disabled service is not guaranteed to be removed by `up --remove-orphans`.
@@ -880,9 +882,9 @@ const setupCommandUnlocked = async (
         ["up", "--detach", "--remove-orphans", ...(fresh ? ["--force-recreate"] : [])],
         { inherit: true }
       );
-      process.stdout.write("Waiting for OpenTeam");
+      process.stdout.write("Waiting for aiTeamOS");
       const health = await waitForStartup(project, paths);
-      if (!health.ok) throw new CliError(`OpenTeam did not become healthy: ${health.detail}`);
+      if (!health.ok) throw new CliError(`aiTeamOS did not become healthy: ${health.detail}`);
       presentation.message(
         `Core services are ready at ${health.url.replace(/\/api\/v0\/health$/, "")}`,
         "success"
@@ -900,7 +902,7 @@ const setupCommandUnlocked = async (
         // A first setup has no earlier server to bring back, only the installer's placeholders.
         if (changed) writeFileAtomic(paths.environment, previousEnvironment, 0o600);
         throw new CliError(
-          `OpenTeam did not start: ${sentence(error)} Fix the problem, then run ${installationCommand(paths, "setup")} again.`
+          `aiTeamOS did not start: ${sentence(error)} Fix the problem, then run ${installationCommand(paths, "setup")} again.`
         );
       }
       if (changed) {
@@ -937,7 +939,7 @@ const setupCommandUnlocked = async (
       writeFileAtomic(paths.environment, previousEnvironment, 0o600);
       const recovery = project.run(["up", "--detach", "--remove-orphans"]);
       throw new CliError(
-        `${error instanceof Error ? error.message : error} Previous configuration restored${recovery.status === 0 ? " and restarted" : "; restart failed, run openteam start"}. HTTPS was not enabled.${cleanupErrors.length ? ` Route cleanup needs attention: ${cleanupErrors.join("; ")}` : ""}`,
+        `${error instanceof Error ? error.message : error} Previous configuration restored${recovery.status === 0 ? " and restarted" : "; restart failed, run aiteamos start"}. HTTPS was not enabled.${cleanupErrors.length ? ` Route cleanup needs attention: ${cleanupErrors.join("; ")}` : ""}`,
         2
       );
     }
@@ -955,7 +957,7 @@ const setupCommandUnlocked = async (
   );
 
   if (configuration.ownerPassword) {
-    presentation.message("Setting the OpenTeam owner credentials…", "info");
+    presentation.message("Setting the aiTeamOS owner credentials…", "info");
     project.runOrThrow(["exec", "--no-TTY", "server", "bun", "main.js", "owner-credentials"], {
       input: JSON.stringify({
         operation: "setup",
@@ -969,7 +971,7 @@ const setupCommandUnlocked = async (
       uninstalledAt: undefined,
     });
     presentation.message(
-      `OpenTeam sign-in is ready for ${configuration.ownerUsername}.`,
+      `aiTeamOS sign-in is ready for ${configuration.ownerUsername}.`,
       "success"
     );
   }
@@ -997,10 +999,10 @@ const setupCommandUnlocked = async (
       throw new CliError(
         `The local stack is healthy, but the configured public endpoint ${configuration.publicUrl} could not be verified: ${publicFailure}. ${
           configuration.accessMode === "https"
-            ? "Confirm DNS points here and inbound TCP ports 80 and 443 are open, then run openteam doctor."
+            ? "Confirm DNS points here and inbound TCP ports 80 and 443 are open, then run aiteamos doctor."
             : configuration.accessMode === "proxy"
-              ? `Confirm your proxy forwards HTTPS and WebSockets to http://127.0.0.1:${configuration.apiPort}, then run openteam doctor.`
-              : "Confirm the host, port, and cloud firewall rules, then run openteam doctor."
+              ? `Confirm your proxy forwards HTTPS and WebSockets to http://127.0.0.1:${configuration.apiPort}, then run aiteamos doctor.`
+              : "Confirm the host, port, and cloud firewall rules, then run aiteamos doctor."
         }`,
         2
       );
@@ -1008,12 +1010,12 @@ const setupCommandUnlocked = async (
       presentation.message(`Public endpoint verified at ${configuration.publicUrl}.`, "success");
     }
   }
-  presentation.summary("OpenTeam is ready", [
+  presentation.summary("aiTeamOS is ready", [
     { label: "Server", value: configuration.publicUrl },
     { label: "Username", value: configuration.ownerUsername },
   ]);
   presentation.next(
-    "Next: open the OpenTeam app and sign in with this server and username.",
+    "Next: open the aiTeamOS app and sign in with this server and username.",
     APP_DOWNLOADS,
     "The app will help you connect a model and create your first bot."
   );
@@ -1027,7 +1029,7 @@ export const setupCommand = async (
 ): Promise<void> => {
   const release = acquireUpdateLock(paths);
   const stopped = new CliError(
-    `Setup was interrupted. Run ${installationCommand(paths, "setup")} to finish setting up OpenTeam.`,
+    `Setup was interrupted. Run ${installationCommand(paths, "setup")} to finish setting up aiTeamOS.`,
     130
   );
   // Ctrl-C while setup waits between Docker commands stops here. During a command, Docker

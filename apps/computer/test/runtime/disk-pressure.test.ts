@@ -49,7 +49,7 @@ test("like the reference, the worst of the workspace, agent data and temp volume
 });
 
 test("a restarted computer keeps the episode and who already heard about it, as the reference's ledger does", async () => {
-  const root = await mkdtemp(join(tmpdir(), "openteam-disk-ledger-"));
+  const root = await mkdtemp(join(tmpdir(), "aiteamos-disk-ledger-"));
   try {
     const ledger = join(root, "disk-pressure-reminders.json");
     let available = 5 * GIB;
@@ -72,7 +72,7 @@ test("a restarted computer keeps the episode and who already heard about it, as 
 });
 
 test("the reminder is spent once a model step after it was saved, even if the turn is then interrupted", () => {
-  const reminder = { role: "custom", customType: "openteam-disk-pressure" };
+  const reminder = { role: "custom", customType: "aiteamos-disk-pressure" };
   expect(reminderStepPersisted([reminder])).toBe(false);
   expect(reminderStepPersisted([reminder, { role: "assistant", stopReason: "aborted" }])).toBe(false);
   expect(reminderStepPersisted([{ role: "assistant", stopReason: "toolUse" }, reminder])).toBe(false);
@@ -100,7 +100,7 @@ test("a main-agent turn on a low disk gets the reminder before its first request
     .factory({ on: (name: string, handler: any) => { handlers[name] = handler; } } as never);
   await handlers.context!({ messages: [...messages] });
   await handlers.context!({ messages: [...messages] });
-  expect(sent.map((message) => message.customType)).toEqual(["openteam-disk-pressure"]);
+  expect(sent.map((message) => message.customType)).toEqual(["aiteamos-disk-pressure"]);
   expect(sent[0].content).toBe(DISK_PRESSURE_REMINDER);
   expect(active.diskPressureReminded).toBe(true);
 });

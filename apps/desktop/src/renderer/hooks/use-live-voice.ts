@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { api } from "../client/openteam-api";
+import { api } from "../client/aiteamos-api";
 import { LiveVoiceAudio } from "../lib/live-voice-audio";
 import { LiveVoiceTransport } from "../lib/live-voice-transport";
 

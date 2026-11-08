@@ -1,9 +1,9 @@
 import React, { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import type { BotView, ChannelMessageView, ChannelView } from "@openteam/contracts";
-import { CLIENT_CAPABILITIES } from "@openteam/contracts/capabilities";
-import { api } from "../../src/renderer/client/openteam-api";
-import { ChatPane } from "../../src/renderer/components/openteam/chat-pane";
+import type { BotView, ChannelMessageView, ChannelView } from "@aiteamos/contracts";
+import { CLIENT_CAPABILITIES } from "@aiteamos/contracts/capabilities";
+import { api } from "../../src/renderer/client/aiteamos-api";
+import { ChatPane } from "../../src/renderer/components/aiteamos/chat-pane";
 import { TooltipProvider } from "../../src/renderer/components/ui/tooltip";
 import "../../src/renderer/styles.css";
 const pause = (ms = 50) => new Promise<void>((resolve) => setTimeout(resolve, ms));

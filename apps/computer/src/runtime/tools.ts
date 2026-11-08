@@ -1,37 +1,37 @@
-import { replaceTaskProgressContext } from "@openteam/contracts/task-progress";
-import { applyArgumentAliases, normalizeMainToolArguments } from "@openteam/contracts/reference-main-parsers";
+import { replaceTaskProgressContext } from "@aiteamos/contracts/task-progress";
+import { applyArgumentAliases, normalizeMainToolArguments } from "@aiteamos/contracts/reference-main-parsers";
 import { onlyPendingBackgroundWork } from "./background-status";
 import { markDelivered } from "./events";
-import { spoolFile } from "@openteam/plugin-sdk/file-spool";
+import { spoolFile } from "@aiteamos/plugin-sdk/file-spool";
 import { agentReadStream, agentWriteStream } from "../agent-file-stream";
 import { stageAttachment } from "../attachment-staging";
-import { buildUserFormRemapReceipt } from "@openteam/contracts/reference-form-results";
-import { renderDesktopResult, renderControlResult, sendToUserFailure, todoCleanupReminder, toolErrorDetail } from "@openteam/contracts/tool-results";
-import { coerceArgumentsToJsonSchema, invalidArgumentsMessage } from "@openteam/contracts/tool-arguments";
+import { buildUserFormRemapReceipt } from "@aiteamos/contracts/reference-form-results";
+import { renderDesktopResult, renderControlResult, sendToUserFailure, todoCleanupReminder, toolErrorDetail } from "@aiteamos/contracts/tool-results";
+import { coerceArgumentsToJsonSchema, invalidArgumentsMessage } from "@aiteamos/contracts/tool-arguments";
 import { normalizeMcpArgumentsToInputSchema } from "../mcp-argument-normalization";
 import {
   describeUploadFileOutcome,
   describeDownloadFileOutcome,
   formatChromeCookieImportOutcome,
-} from "@openteam/contracts/reference-formatters";
-import { parseReferenceArguments } from "@openteam/contracts/reference-parsers";
-import { parseDraftExternalMessage } from "@openteam/contracts/external-draft-body";
+} from "@aiteamos/contracts/reference-formatters";
+import { parseReferenceArguments } from "@aiteamos/contracts/reference-parsers";
+import { parseDraftExternalMessage } from "@aiteamos/contracts/external-draft-body";
 import { HostShellCompletions } from "../host-shell-completions";
 import { expandPluginAgent } from "./plugin-components";
 import { isReadonlyConnectorRead } from "./readonly-connectors";
-import { computerArgumentsWithAliases } from "@openteam/contracts/computer-action-aliases";
+import { computerArgumentsWithAliases } from "@aiteamos/contracts/computer-action-aliases";
 import {
   CONNECTOR_TRANSFER_TOOLS,
   CONNECTOR_TRANSFER_MAX_BYTES,
   parseConnectorTransfer,
-} from "@openteam/contracts/connector-transfers";
+} from "@aiteamos/contracts/connector-transfers";
 import { createHash } from "node:crypto";
-import { DESKTOP_CAPABILITY_TOOLS, DESKTOP_MESSAGES_TOOLS } from "@openteam/contracts/desktop-capabilities";
+import { DESKTOP_CAPABILITY_TOOLS, DESKTOP_MESSAGES_TOOLS } from "@aiteamos/contracts/desktop-capabilities";
 import { agentFileIO } from "../agent-file-io";
 import { connectorResultParts, spillConnectorText } from "./connector-results";
 import { boundToolImage } from "./image-input";
-import { redactSecrets } from "@openteam/shell-jobs";
-import { validateProcessSecretName, WAKE_PARENT_TOOL } from "@openteam/contracts";
+import { redactSecrets } from "@aiteamos/shell-jobs";
+import { validateProcessSecretName, WAKE_PARENT_TOOL } from "@aiteamos/contracts";
 import { type AgentToolResult, defineTool } from "@earendil-works/pi-coding-agent";
 import {
   AwaitShellInput,
@@ -64,9 +64,9 @@ import {
   TODO_WRITE_TOOL,
   UPDATE_MEMORY_TOOL,
   UPDATE_ROUTINE_TOOL,
-} from "@openteam/contracts";
+} from "@aiteamos/contracts";
 import { Schema } from "effect";
-import { parseHostAwaitShellRequest, type ShellAwaitResponse } from "@openteam/contracts/service-protocol";
+import { parseHostAwaitShellRequest, type ShellAwaitResponse } from "@aiteamos/contracts/service-protocol";
 import { mkdir, writeFile, realpath } from "node:fs/promises";
 import { join, basename, resolve, dirname, sep } from "node:path";
 import { Type } from "typebox";
@@ -87,8 +87,8 @@ import {
 import type { ScreenBroker } from "../screen-broker";
 import { dynamicCatalog } from "./dynamic-catalog";
 import { PRELOADED_TOOL_NAMES } from "./prompt-context";
-import { firstPartyNamespaceDescription, taskToolContract } from "@openteam/contracts/tool-contracts";
-import { subagentUsesParentConnectors, taskToolEnabled } from "@openteam/contracts/task-configuration";
+import { firstPartyNamespaceDescription, taskToolContract } from "@aiteamos/contracts/tool-contracts";
+import { subagentUsesParentConnectors, taskToolEnabled } from "@aiteamos/contracts/task-configuration";
 import { WebTools } from "../web-tools";
 import { SearchProviderClient } from "../search-provider";
 import { FetchProviderClient } from "../fetch-provider";
@@ -96,7 +96,7 @@ import { serverSearchConfiguration, serverFetchConfiguration } from "../search-s
 import { UserFormHost, type FormBrowser, type FormPageBinding } from "../user-form-host";
 import { boxHelpPage } from "../box-help-page";
 import type { ActiveTurn, RuntimeDynamicTool } from "./types";
-import { renderShellAwaitResult } from "@openteam/shell-jobs";
+import { renderShellAwaitResult } from "@aiteamos/shell-jobs";
 
 export const GRAPHICAL_WORKER_SHELL_DESCRIPTION = [
   "Executes a given command in a shell session with optional foreground timeout.",
@@ -140,7 +140,7 @@ const controlPlaneError = (status: number, body: unknown): ControlPlaneError => 
   const message = typeof error?.message === "string" && error.message.trim() ? error.message : undefined;
   if (!message ? status >= 500 : status >= 500 && (!code || code === "internal_error") && INFRASTRUCTURE_FAILURE.test(message))
     return new ControlPlaneError("Couldn't finish due to a temporary server issue.", code, status);
-  return new ControlPlaneError(message ?? `OpenTeam tool host rejected the call (${status})`, code, status);
+  return new ControlPlaneError(message ?? `aiTeamOS tool host rejected the call (${status})`, code, status);
 };
 
 const CONNECTOR_AUTH_FAILURES = new Set(["plugin_auth_required", "plugin_auth_failed"]);
@@ -369,7 +369,7 @@ export class RuntimeTools {
       this.formBrowser(botId)
     );
     const deliverShellCompletion = async (
-      completion: import("@openteam/contracts").ShellCompletionInput
+      completion: import("@aiteamos/contracts").ShellCompletionInput
     ) => {
       if (!completion.scope) return;
       if (!this.canDeliverShellCompletion(completion.scope, completion.channelId))
@@ -399,7 +399,7 @@ export class RuntimeTools {
           shell_id: job.shellId,
           block_until_ms: 0,
         });
-        return result.details as unknown as import("@openteam/contracts/service-protocol").ShellAwaitResponse;
+        return result.details as unknown as import("@aiteamos/contracts/service-protocol").ShellAwaitResponse;
       },
       deliverShellCompletion
     );
@@ -433,7 +433,7 @@ export class RuntimeTools {
       )
         await active.session.sendCustomMessage(
           {
-            customType: "openteam-card-outcome",
+            customType: "aiteamos-card-outcome",
             content: formatUserFormReceipt(receipt),
             display: false,
             details: { messageId: key, origin: "host", cardOutcome },
@@ -537,7 +537,7 @@ export class RuntimeTools {
         // Every call starts as soon as the response ends, as in the reference; sends keep call order (below).
         executionMode: "parallel",
         execute: (callId: string, args: unknown, signal?: AbortSignal) =>
-          this.executeOpenTeamTool(active, callId, tool.name, args, signal),
+          this.executeAiTeamOSTool(active, callId, tool.name, args, signal),
       });
     };
     const workerNativeTools = NATIVE_TOOLS.filter(
@@ -581,7 +581,7 @@ export class RuntimeTools {
         // WakeParent ends the run, so nothing runs beside it.
         executionMode: [WAKE_PARENT_TOOL.name, "ReportTaskProgress", "ReportRequestProgress"].includes(name) ? "sequential" : "parallel",
         execute: (callId: string, args: unknown, signal?: AbortSignal) =>
-          this.executeOpenTeamTool(active, callId, name, args, signal),
+          this.executeAiTeamOSTool(active, callId, name, args, signal),
       })];
       });
     };
@@ -620,7 +620,7 @@ export class RuntimeTools {
     ].sort((a, b) => directToolRank(a.name) - directToolRank(b.name));
   }
 
-  private async executeOpenTeamTool(
+  private async executeAiTeamOSTool(
     active: ActiveTurn,
     callId: string,
     tool: string,
@@ -812,7 +812,7 @@ export class RuntimeTools {
       // A first-party tool this agent already has directly runs natively, as in the reference.
       if (input.namespace === "cursor" && input.toolName !== GET_DYNAMIC_TOOLS_TOOL.name && input.toolName !== CALL_DYNAMIC_TOOL_TOOL.name &&
           this.directToolNames(active).includes(input.toolName))
-        return this.executeOpenTeamTool(active, callId, input.toolName, decodeDynamicArguments(input.arguments), signal).catch(referenceError);
+        return this.executeAiTeamOSTool(active, callId, input.toolName, decodeDynamicArguments(input.arguments), signal).catch(referenceError);
       return this.callDynamicTool(active, callId, input, signal, afterEndTurn).catch(referenceError);
     }
 
@@ -1248,7 +1248,7 @@ export class RuntimeTools {
         headers: {
           authorization: `Bearer ${this.controlToken}`,
           "content-type": "application/octet-stream",
-          "x-openteam-transfer": Buffer.from(JSON.stringify(envelope)).toString("base64url"),
+          "x-aiteamos-transfer": Buffer.from(JSON.stringify(envelope)).toString("base64url"),
         },
         body: file ? Bun.file(file.path) : undefined,
         signal,
@@ -1279,7 +1279,7 @@ export class RuntimeTools {
         try {
           output = JSON.parse(
             Buffer.from(
-              response.headers.get("x-openteam-transfer-result") ?? "",
+              response.headers.get("x-aiteamos-transfer-result") ?? "",
               "base64url"
             ).toString()
           );
@@ -1331,8 +1331,8 @@ export class RuntimeTools {
         const input = args as Record<string, any>;
         const stage = async (url: string) => {
           const file = await stageAttachment(url, {
-            workspace: process.env.OPENTEAM_WORKSPACE_ROOT ?? "/workspace",
-            agentData: process.env.OPENTEAM_AGENT_DATA_CANONICAL_ROOT ?? "/home/box/sand-data",
+            workspace: process.env.AITEAMOS_WORKSPACE_ROOT ?? "/workspace",
+            agentData: process.env.AITEAMOS_AGENT_DATA_CANONICAL_ROOT ?? "/home/box/sand-data",
           }, signal);
           cleanup.push(file.cleanup);
           return file.url;
@@ -1405,7 +1405,7 @@ export class RuntimeTools {
         timeout: false,
       } as RequestInit);
       const text = await response.text();
-      try { body = JSON.parse(text) as unknown; } catch { if (response.ok) throw new Error("OpenTeam tool host returned an unreadable result"); }
+      try { body = JSON.parse(text) as unknown; } catch { if (response.ok) throw new Error("aiTeamOS tool host returned an unreadable result"); }
     } catch (error) {
       if (timeout.aborted && !signal?.aborted) {
         const name = NATIVE_TOOLS.some((native) => native.name === tool) ? tool : CALL_DYNAMIC_TOOL_TOOL.name;

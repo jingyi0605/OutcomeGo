@@ -1,4 +1,4 @@
-import { assertComputerMcpRuntime } from "@openteam/plugin-sdk";
+import { assertComputerMcpRuntime } from "@aiteamos/plugin-sdk";
 import { StdioMcpManager } from "./mcp-manager";
 
 /** Packaged MCPs run on the bot computer; retired desktop configs fail closed. */

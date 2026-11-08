@@ -4,10 +4,10 @@ import {
   type CreateChannelInput,
   type UpdateAgentInput,
   type UpdateChannelInput,
-} from "@openteam/contracts";
-import { COMPUTER_API_PATHS } from "@openteam/contracts/service-protocol";
-import type { Prisma, PrismaClient } from "@openteam/db";
-import { type AgentDataStore, type AgentMessaging, GROUP_MAX_MEMBERS } from "@openteam/messaging";
+} from "@aiteamos/contracts";
+import { COMPUTER_API_PATHS } from "@aiteamos/contracts/service-protocol";
+import type { Prisma, PrismaClient } from "@aiteamos/db";
+import { type AgentDataStore, type AgentMessaging, GROUP_MAX_MEMBERS } from "@aiteamos/messaging";
 import { Effect } from "effect";
 import type { BotService } from "./bot-service";
 import { appendEvent, type ComputerFetch, hashRequest, toJson } from "./service-utils";

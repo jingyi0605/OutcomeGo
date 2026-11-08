@@ -20,7 +20,7 @@ apps/desktop/release-local/
 /output/
 /launch/
 apps/landing/.generated/
-/.agents/skills/openteam-macos-release/
+/.agents/skills/aiteamos-macos-release/
 packages/plugins/_generated/
 **/.cxx/
 data
@@ -30,3 +30,10 @@ data
 **/build/
 local.properties
 /specs/
+
+# Signing material never belongs in the repository
+*.jks
+*.keystore
+*.p8
+*.p12
+*.mobileprovision

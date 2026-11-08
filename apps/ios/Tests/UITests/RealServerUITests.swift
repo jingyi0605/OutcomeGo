@@ -50,7 +50,7 @@ import XCTest
     ]
     if let voiceSource {
       app.launchArguments += ["--qa-synthetic-voice"]
-      app.launchEnvironment["OPENTEAM_QA_VOICE_SOURCE"] = control + voiceSource
+      app.launchEnvironment["AITEAMOS_QA_VOICE_SOURCE"] = control + voiceSource
     }
     if notifications {
       app.launchArguments += [

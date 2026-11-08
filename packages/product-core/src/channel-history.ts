@@ -2,7 +2,7 @@ import type {
   ChannelHistoryPage,
   ChannelMessageContextView,
   ChannelMessageView,
-} from "@openteam/contracts";
+} from "@aiteamos/contracts";
 import type { LoadedChannelHistory } from "./history";
 import {
   clearLoadedChannelSearchContext,

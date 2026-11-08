@@ -1,11 +1,11 @@
-import type { RoutineExecutionView, RoutineView } from "@openteam/contracts";
+import type { RoutineExecutionView, RoutineView } from "@aiteamos/contracts";
 import {
   formatRoutineExecutionCalendarTime,
   routineOrdinalLabel,
-} from "@openteam/product-core/routines";
-import { isTransientRoutineExecutionStatus } from "@openteam/product-core/statuses";
+} from "@aiteamos/product-core/routines";
+import { isTransientRoutineExecutionStatus } from "@aiteamos/product-core/statuses";
 
-export type { RoutineExecutionView, RoutineView } from "@openteam/contracts";
+export type { RoutineExecutionView, RoutineView } from "@aiteamos/contracts";
 
 /**
  * The routine summary refreshes while it is visible. Preserve the current

@@ -1,6 +1,6 @@
-import { ApiError } from "@openteam/contracts";
-import { attachmentLimitForName } from "@openteam/contracts/media-input";
-import { VIDEO_ASSET_LIMIT } from "@openteam/messaging";
+import { ApiError } from "@aiteamos/contracts";
+import { attachmentLimitForName } from "@aiteamos/contracts/media-input";
+import { VIDEO_ASSET_LIMIT } from "@aiteamos/messaging";
 
 export const MAX_ASSET_BYTES = VIDEO_ASSET_LIMIT;
 

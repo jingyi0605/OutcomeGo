@@ -1,6 +1,6 @@
 {
-  "name": "@openteam/product-core",
-  "version": "0.0.15",
+  "name": "@aiteamos/product-core",
+  "version": "0.1.0-beta.1",
   "license": "GPL-3.0-only",
   "private": true,
   "type": "module",
@@ -37,6 +37,6 @@
     "test": "bun test --pass-with-no-tests"
   },
   "dependencies": {
-    "@openteam/contracts": "workspace:*"
+    "@aiteamos/contracts": "workspace:*"
   }
 }

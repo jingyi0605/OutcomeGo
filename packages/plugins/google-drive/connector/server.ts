@@ -87,7 +87,7 @@ export function driveTools(api = new GoogleApi('https://www.googleapis.com')): T
       if (target.origin !== 'https://www.googleapis.com' || !target.pathname.startsWith('/upload/drive/v3/files')) throw new Error('Google returned an unexpected upload URL');
       return api.request(target.pathname + target.search, {}, 'PUT', undefined, { rawBody: bytes, contentType });
     }
-    const boundary = `openteam-${crypto.randomUUID()}`;
+    const boundary = `aiteamos-${crypto.randomUUID()}`;
     const body = Buffer.concat([Buffer.from(`--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(meta)}\r\n--${boundary}\r\nContent-Type: ${contentType}\r\n\r\n`), bytes, Buffer.from(`\r\n--${boundary}--\r\n`)]);
     return api.request(path, { ...query, uploadType: 'multipart' }, method, undefined, { rawBody: body, contentType: `multipart/related; boundary=${boundary}` });
   };
@@ -267,4 +267,4 @@ export function driveTools(api = new GoogleApi('https://www.googleapis.com')): T
     }),
   ];
 }
-if (import.meta.main) await servePlugin('openteam-google-drive', driveTools());
+if (import.meta.main) await servePlugin('aiteamos-google-drive', driveTools());

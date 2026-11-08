@@ -51,7 +51,7 @@ const REF_ENGINE = String.raw`(frames => {
  const documentOf = root => root.nodeType === 9 ? root : root.ownerDocument;
  const tagged = (scope, ref) => {
   for (const element of scope.querySelectorAll('iframe,frame'))
-   if (element.__openteamRefFrames && typeof element.__openteamRefFrames.has === 'function' && element.__openteamRefFrames.has(ref)) return element;
+   if (element.__aiteamosRefFrames && typeof element.__aiteamosRefFrames.has === 'function' && element.__aiteamosRefFrames.has(ref)) return element;
   for (const host of scope.querySelectorAll('*')) if (host.shadowRoot) { const found = tagged(host.shadowRoot, ref); if (found) return found; }
   return null;
  };
@@ -120,9 +120,9 @@ process.stdin.on('end', async () => {
  const deadline=(promise,ms)=>{let timer;return Promise.race([promise,new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error('Timed out')),ms);})]).finally(()=>clearTimeout(timer));};
  // Rewritten ref selectors read as the aria-ref selectors the script wrote.
  const publicMessage=message=>String(message)
-  .replace(/locator\('openteam-ref-frame=[^']*'\)\.contentFrame\(\)\./g,'')
-  .replace(/openteam-ref-frame=\S+ >> internal:control=enter-frame >> /g,'')
-  .replace(/openteam-ref(?:-frame)?=/g,'aria-ref=');
+  .replace(/locator\('aiteamos-ref-frame=[^']*'\)\.contentFrame\(\)\./g,'')
+  .replace(/aiteamos-ref-frame=\S+ >> internal:control=enter-frame >> /g,'')
+  .replace(/aiteamos-ref(?:-frame)?=/g,'aria-ref=');
  const within=(root,path)=>{const part=nodePath.relative(root,path);return part==='' || (part!=='..'&&!part.startsWith('..'+nodePath.sep)&&!nodePath.isAbsolute(part));};
  try {
   const {modulePath, endpoint, targets, selected, code, maxBytes, maxImages, imageBytes, pdfBytes, refEngine, workspace, downloads, refPages, chooser} = JSON.parse(input);
@@ -130,8 +130,8 @@ process.stdin.on('end', async () => {
   browser = await playwright.chromium.connectOverCDP(endpoint);
   const context = browser.contexts()[0];
   if (!context) throw new Error('Chromium did not provide a default browser context');
-  await playwright.selectors.register('openteam-ref',{content:refEngine+'(false)'},{contentScript:false});
-  await playwright.selectors.register('openteam-ref-frame',{content:refEngine+'(true)'},{contentScript:false});
+  await playwright.selectors.register('aiteamos-ref',{content:refEngine+'(false)'},{contentScript:false});
+  await playwright.selectors.register('aiteamos-ref-frame',{content:refEngine+'(true)'},{contentScript:false});
   // Playwright names downloads after GUIDs in a folder it deletes when this
   // connection closes. Keep Chrome's own folder and names, as other tools do.
   const downloadSession=await browser.newBrowserCDPSession();
@@ -219,9 +219,9 @@ process.stdin.on('end', async () => {
    return {token:state&&typeof state.frameToken==='string'?state.frameToken:null,depths};
   };
   const TAG_FRAME=(element,refs)=>{
-   if(!element.__openteamRefFrames||typeof element.__openteamRefFrames.add!=='function')
-    Object.defineProperty(element,'__openteamRefFrames',{value:new Set(),configurable:true});
-   for(const ref of refs)element.__openteamRefFrames.add(ref);
+   if(!element.__aiteamosRefFrames||typeof element.__aiteamosRefFrames.add!=='function')
+    Object.defineProperty(element,'__aiteamosRefFrames',{value:new Set(),configurable:true});
+   for(const ref of refs)element.__aiteamosRefFrames.add(ref);
   };
   const mapRefs=async(p,frames)=>{
    const depths=new Map();refDepths.set(p,depths);
@@ -279,7 +279,7 @@ process.stdin.on('end', async () => {
     const ref=(match[1]??match[2]??match[3]).trim();
     const hops=Math.max(0,(depths&&depths.get(ref)||0)-entered);
     entered+=hops;
-    return ' '+[...Array(hops).fill('openteam-ref-frame='+ref+' >> internal:control=enter-frame'),'openteam-ref='+ref].join(' >> ')+' ';
+    return ' '+[...Array(hops).fill('aiteamos-ref-frame='+ref+' >> internal:control=enter-frame'),'aiteamos-ref='+ref].join(' >> ')+' ';
    }).join('>>');
   };
   const snapshotOf=async(p,scope)=>{
@@ -515,7 +515,7 @@ process.stdin.on('end', async () => {
   const tabs = state ? await state().catch(()=>({})) : {};
   const raw=error && typeof error.message==='string' ? error.message : String(error);
   let message=publicMessage(raw);
-  if(/openteam-ref/.test(raw)&&/Timeout \d+ms exceeded/.test(raw))
+  if(/aiteamos-ref/.test(raw)&&/Timeout \d+ms exceeded/.test(raw))
    message+="\nThe ref may be stale: the page navigated or re-rendered that element. Take a fresh await page.ariaSnapshot({ mode: 'ai' }) and use a ref from it.";
   const code=policyErrors.has(error)?'policy_denied'
    :!started || workerErrors.has(error) || (browser && !browser.isConnected()) || /Target crashed|Page crashed/i.test(raw)?'worker_failed'

@@ -1,5 +1,5 @@
 import { extname } from "node:path";
-import type { AgentDataStore, AssetStore } from "@openteam/messaging";
+import type { AgentDataStore, AssetStore } from "@aiteamos/messaging";
 import { corsHeaders } from "./http";
 
 const assetFileName = (value: string | null): string => {

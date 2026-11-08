@@ -3,18 +3,18 @@ export function pluginOAuthPage(
   status = 200
 ): Response {
   const [title, message] = {
-    connected: ["Plugin connected", "You can close this tab and return to OpenTeam."],
+    connected: ["Plugin connected", "You can close this tab and return to aiTeamOS."],
     cancelled: [
       "Authorization cancelled",
-      "Your setup is saved. Return to OpenTeam to try again when you’re ready.",
+      "Your setup is saved. Return to aiTeamOS to try again when you’re ready.",
     ],
     failed: [
       "Could not finish sign-in",
-      "Return to OpenTeam for connection details and try again. Your setup is saved.",
+      "Return to aiTeamOS for connection details and try again. Your setup is saved.",
     ],
     stale: [
       "This sign-in is no longer active",
-      "It expired, was cancelled, or was replaced. Return to OpenTeam and start a new sign-in.",
+      "It expired, was cancelled, or was replaced. Return to aiTeamOS and start a new sign-in.",
     ],
   }[outcome];
   const nonce = crypto.randomUUID();

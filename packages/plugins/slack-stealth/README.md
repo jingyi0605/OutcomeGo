@@ -1,7 +1,7 @@
 # Slack (stealth)
 
 Connect a signed-in Slack browser session without creating or installing a Slack app.
-This OpenTeam package runs the MIT-licensed [korotovsky/slack-mcp-server](https://github.com/korotovsky/slack-mcp-server)
+This aiTeamOS package runs the MIT-licensed [korotovsky/slack-mcp-server](https://github.com/korotovsky/slack-mcp-server)
 v1.3.0 on the Bot computer. It is a community integration, not an official Slack product.
 The precompiled server includes the original copyright and MIT license notice.
 See [NOTICE.md](NOTICE.md).
@@ -20,7 +20,7 @@ The two plugins have independent accounts and can be installed together.
 4. Test `channels_me` or `channels_list` and verify the intended workspace.
 5. Use the account's tool settings to control the operations available to bots.
 
-OpenTeam stores these values as account secrets and passes them to the process in
+aiTeamOS stores these values as account secrets and passes them to the process in
 memory. They are not included in plugin exports or written to the package.
 Installed plugins and their connected accounts are available to all bots.
 Use **Add Another Account** for another workspace or user; credentials are independent.
@@ -33,21 +33,21 @@ Use **Add Another Account** for another workspace or user; credentials are indep
 
 The package explicitly registers these nine upstream tools. It does not claim
 the managed plugin's canvas, list, or file-upload coverage. Workspace access
-remains limited to the signed-in user's access. OpenTeam discovers tool schemas
+remains limited to the signed-in user's access. aiTeamOS discovers tool schemas
 and applies its normal account and tool controls.
 
 ## Runtime and provenance
 
 The package includes compressed, precompiled Linux x64 and arm64 executables.
 The generated catalog and exported ZIP carry these executables for offline
-installation. OpenTeam's Linux Bot computers run them with a bundled Bun launcher;
+installation. aiTeamOS's Linux Bot computers run them with a bundled Bun launcher;
 no Go compiler, Docker build, npm install, first-run download, Slack CLI, app ID,
-OAuth callback, or HTTPS OpenTeam address is needed. A native macOS or Windows
+OAuth callback, or HTTPS aiTeamOS address is needed. A native macOS or Windows
 computer runtime is not supported by this package.
 
 The launcher verifies both the compressed archive and extracted executable with
 SHA-256, then runs in a disposable private directory under
-`~/.cache/openteam/slack-stealth/` so it works when `/tmp` is mounted `noexec`.
+`~/.cache/aiteamos/slack-stealth/` so it works when `/tmp` is mounted `noexec`.
 Each connection has its own
 executable and user/channel caches; these are removed when the process exits.
 Reconnects refresh upstream caches. Credentials are never supplied as command arguments.
@@ -73,7 +73,7 @@ The precompiled executables were built twice from the pinned upstream source
 using Go 1.25.9; executable and compressed-archive digests matched across builds.
 Source and test fixtures are not included in this package.
 
-The exported package ran in an offline Linux arm64 OpenTeam computer container
+The exported package ran in an offline Linux arm64 aiTeamOS computer container
 with `/tmp` mounted `noexec`.
 The smoke fixture used upstream's demo authentication to exercise the actual
 launcher, stdio initialization, discovery of all nine tools, write annotations,
@@ -81,7 +81,7 @@ invalid-argument rejection, shutdown, and private-directory cleanup. Linux x64
 integrity was checked; execution on x64 was not tested.
 
 A prior live browser-session test of the same upstream version, using its release
-binaries, in YC W2024 on the OpenTeam computer discovered all
+binaries, in YC W2024 on the aiTeamOS computer discovered all
 nine tools and returned channel data through `channels_list`. The subsequent
 `channels_me` read failed, and the browser session was logged out. This Enterprise
 workspace did not sustain the session for further testing. Message search,

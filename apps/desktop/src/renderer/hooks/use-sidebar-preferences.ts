@@ -7,18 +7,18 @@ import {
   toggleSidebarUnread,
   type SidebarPreferences,
   type SidebarSectionPreference,
-} from "@openteam/contracts/client-preferences";
+} from "@aiteamos/contracts/client-preferences";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { api } from "../client/openteam-api";
+import { api } from "../client/aiteamos-api";
 
-const STORAGE_KEY = "openteam:sidebar-preferences";
+const STORAGE_KEY = "aiteamos:sidebar-preferences";
 const REMOTE_SAVE_DELAY_MS = 250;
 
 export const PINNED_GROUP_ID = "__pinned";
 export const UNASSIGNED_GROUP_ID = "__unassigned";
 
 export type SidebarSection = SidebarSectionPreference;
-export type { SidebarPreferences } from "@openteam/contracts/client-preferences";
+export type { SidebarPreferences } from "@aiteamos/contracts/client-preferences";
 
 const EMPTY_PREFERENCES = emptySidebarPreferences();
 

@@ -44,7 +44,9 @@ Because the `applicationId` differs, the fork installs next to an official OpenT
 and does not upgrade it. Push, app-link and Firebase configuration must be created for
 `com.teambots.android`.
 
-Release versions follow `<upstream version>-cn.<n>`, for example `0.0.15-cn.1`.
+This fork has its own version line, starting at `0.1.0-beta.1`, independent of upstream's
+version numbers. Tags are `v<version>` and every package, `bun.lock` and the iOS `release.json`
+must match (`bun scripts/release/version.ts check`). See `.github/RELEASING.md`.
 
 ## Modifications relative to upstream
 

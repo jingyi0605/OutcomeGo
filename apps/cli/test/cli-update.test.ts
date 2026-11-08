@@ -35,7 +35,7 @@ const artifactServer = (options: {
   signature?: string;
   corruptRawChecksum?: boolean;
 }) => {
-  const filename = options.filename ?? "openteam-darwin-arm64";
+  const filename = options.filename ?? "aiteamos-darwin-arm64";
   const compressed = gzipSync(options.raw);
   const checksums = [
     `${options.corruptRawChecksum ? "0".repeat(64) : digest(options.raw)}  apps/cli/release/${filename}`,
@@ -66,13 +66,13 @@ const artifactServer = (options: {
 describe("CLI self-update", () => {
   test("detects Bun's virtual executable entrypoint on Unix and Windows", () => {
     expect(
-      isBunStandaloneExecutable(["/usr/local/bin/openteam", "/$bunfs/root/openteam", "update"], {
+      isBunStandaloneExecutable(["/usr/local/bin/aiteamos", "/$bunfs/root/aiteamos", "update"], {
         bun: "1.3.8",
       })
     ).toBe(true);
     expect(
       isBunStandaloneExecutable(
-        ["C:\\OpenTeam\\openteam.exe", "B:\\~BUN\\root\\openteam.exe", "update"],
+        ["C:\\aiTeamOS\\aiteamos.exe", "B:\\~BUN\\root\\aiteamos.exe", "update"],
         { bun: "1.3.8" }
       )
     ).toBe(true);
@@ -81,8 +81,8 @@ describe("CLI self-update", () => {
   test("detects native standalone launches without treating Desktop as installable CLI", () => {
     expect(
       isStandaloneCliExecutable(
-        ["/usr/local/bin/openteam", "/$bunfs/root/openteam", "update"],
-        "/usr/local/bin/openteam",
+        ["/usr/local/bin/aiteamos", "/$bunfs/root/aiteamos", "update"],
+        "/usr/local/bin/aiteamos",
         { bun: "1.3.8" },
         "darwin",
         true
@@ -90,15 +90,15 @@ describe("CLI self-update", () => {
     ).toBe(true);
     expect(
       isStandaloneCliExecutable(
-        ["/Applications/OpenTeam", "/resources/openteam-cli.js", "update"],
-        "/Applications/OpenTeam",
+        ["/Applications/aiTeamOS", "/resources/aiteamos-cli.js", "update"],
+        "/Applications/aiTeamOS",
         { electron: "43.4.1" },
         "darwin"
       )
     ).toBe(false);
     expect(
       isStandaloneCliExecutable(
-        ["/usr/bin/node", "/app/openteam.js", "update"],
+        ["/usr/bin/node", "/app/aiteamos.js", "update"],
         "/usr/bin/node",
         { node: "24.0.0" },
         "linux"
@@ -107,22 +107,22 @@ describe("CLI self-update", () => {
   });
 
   test("selects each published host asset", () => {
-    expect(cliAssetName("darwin", "arm64")).toBe("openteam-darwin-arm64");
-    expect(cliAssetName("linux", "x64")).toBe("openteam-linux-x64");
-    expect(cliAssetName("win32", "arm64")).toBe("openteam-windows-x64.exe");
+    expect(cliAssetName("darwin", "arm64")).toBe("aiteamos-darwin-arm64");
+    expect(cliAssetName("linux", "x64")).toBe("aiteamos-linux-x64");
+    expect(cliAssetName("win32", "arm64")).toBe("aiteamos-windows-x64.exe");
     expect(() => cliAssetName("freebsd", "x64")).toThrow("does not publish");
   });
 
   test("removes a standalone Unix CLI without deleting a shared runtime", () => {
-    const directory = mkdtempSync(join(tmpdir(), "openteam-cli-remove-"));
+    const directory = mkdtempSync(join(tmpdir(), "aiteamos-cli-remove-"));
     temporaryDirectories.push(directory);
-    const executable = join(directory, "openteam");
+    const executable = join(directory, "aiteamos");
     writeFileSync(executable, "standalone executable", { mode: 0o755 });
     writeFileSync(`${executable}.previous`, "previous standalone executable", { mode: 0o755 });
     expect(
       removeCurrentCli({
         executable,
-        argv: [executable, "/$bunfs/root/openteam", "uninstall"],
+        argv: [executable, "/$bunfs/root/aiteamos", "uninstall"],
         versions: { bun: "1.3.8" },
         platform: "linux",
         standaloneExecutable: true,
@@ -181,9 +181,9 @@ describe("CLI self-update", () => {
   });
 
   test("stages a runnable CLI beside the installed binary and promotes it with rollback copy", async () => {
-    const directory = mkdtempSync(join(tmpdir(), "openteam-cli-update-"));
+    const directory = mkdtempSync(join(tmpdir(), "aiteamos-cli-update-"));
     temporaryDirectories.push(directory);
-    const target = join(directory, "openteam");
+    const target = join(directory, "aiteamos");
     writeFileSync(target, "#!/bin/sh\necho 1.1.0\n", { mode: 0o755 });
     chmodSync(target, 0o755);
     const nextContents = new TextEncoder().encode("#!/bin/sh\necho 1.2.3\n");
@@ -211,10 +211,10 @@ describe("CLI self-update", () => {
   });
 
   test("uses a non-running copy for the Windows swap and retains the prior executable", () => {
-    const directory = mkdtempSync(join(tmpdir(), "openteam-cli-update-windows-"));
+    const directory = mkdtempSync(join(tmpdir(), "aiteamos-cli-update-windows-"));
     temporaryDirectories.push(directory);
-    const target = join(directory, "openteam.exe");
-    const source = join(directory, ".openteam.exe.update-1.2.3-test");
+    const target = join(directory, "aiteamos.exe");
+    const source = join(directory, ".aiteamos.exe.update-1.2.3-test");
     writeFileSync(target, "old executable");
     writeFileSync(source, "new executable");
     const backup = promoteStagedCli(

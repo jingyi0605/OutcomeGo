@@ -58,7 +58,7 @@ public enum UserFacingError {
         "$1[REDACTED]$3"
       ),
       (
-        #"(?i)\b((?:OPENTEAM_[A-Z0-9_]*(?:PASSWORD|SECRET|TOKEN|KEY)|PASSWORD|PASSWD|API_KEY|AUTH_TOKEN)\s*[=:]\s*)(\"[^\"\r\n]*\"|'[^'\r\n]*'|[^\s,;]+)"#,
+        #"(?i)\b((?:AITEAMOS_[A-Z0-9_]*(?:PASSWORD|SECRET|TOKEN|KEY)|PASSWORD|PASSWD|API_KEY|AUTH_TOKEN)\s*[=:]\s*)(\"[^\"\r\n]*\"|'[^'\r\n]*'|[^\s,;]+)"#,
         "$1[REDACTED]"
       ),
       (#"(?i)(https?://[^\s:/@]+:)([^\s@/]+)(@)"#, "$1[REDACTED]$3"),

@@ -1,10 +1,10 @@
 # FAQ
 
-Quick answers to common questions about OpenTeam.
+Quick answers to common questions about aiTeamOS.
 
 ## Do I have to host it myself?
 
-Yes. OpenTeam runs on a machine you control, such as your own computer, a home server, or a cloud VM. The [quickstart](../getting-started/quickstart.md) walks you through it.
+Yes. aiTeamOS runs on a machine you control, such as your own computer, a home server, or a cloud VM. The [quickstart](../getting-started/quickstart.md) walks you through it.
 
 ## Does it keep working when I close the app?
 
@@ -12,7 +12,7 @@ Yes. Bots and routines run on the server, so you can close the app and check bac
 
 ## What does it cost?
 
-OpenTeam is open source under the GPL-3.0 license, and its code is on [GitHub](https://github.com/raghavpillai/openteam). You pay for the machine it runs on and for the services you connect, such as your model provider, web search, and transcription. Routines and `openteam doctor` also use your model provider.
+aiTeamOS is open source under the GPL-3.0 license, and its code is on [GitHub](https://github.com/raghavpillai/aiteamos). You pay for the machine it runs on and for the services you connect, such as your model provider, web search, and transcription. Routines and `aiteamos doctor` also use your model provider.
 
 ## Can several bots work at the same time?
 
@@ -48,4 +48,4 @@ There's an iPhone app in [public beta on TestFlight](https://testflight.apple.co
 
 ## Do updates back up my data?
 
-Only partly. `openteam update` backs up the database so it can roll back a failed update. It doesn't back up files, sign-ins, or attachments. See [backups and restore](backups.md).
+Only partly. `aiteamos update` backs up the database so it can roll back a failed update. It doesn't back up files, sign-ins, or attachments. See [backups and restore](backups.md).

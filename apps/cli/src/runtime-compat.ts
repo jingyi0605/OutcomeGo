@@ -35,12 +35,12 @@ type VerifyArgs = [
   signature: NodeJS.ArrayBufferView,
   callback?: (error: Error | null, result: boolean) => void,
 ];
-type PatchedVerify = typeof crypto.verify & { openteamPatched?: boolean };
+type PatchedVerify = typeof crypto.verify & { aiteamosPatched?: boolean };
 
 export const installCryptoVerifyDefaults = (): boolean => {
   if (!needsCryptoVerifyCompatibility()) return false;
   const current = crypto.verify as PatchedVerify;
-  if (current.openteamPatched) return true;
+  if (current.aiteamosPatched) return true;
   const original = current as unknown as (...args: VerifyArgs) => unknown;
   const patched = ((...args: VerifyArgs) => {
     const [algorithm, data, key, signature, callback] = args;
@@ -49,7 +49,7 @@ export const installCryptoVerifyDefaults = (): boolean => {
       ? original(resolved, data, key, signature, callback)
       : original(resolved, data, key, signature);
   }) as unknown as PatchedVerify;
-  patched.openteamPatched = true;
+  patched.aiteamosPatched = true;
   (crypto as { verify: typeof crypto.verify }).verify = patched;
   return true;
 };

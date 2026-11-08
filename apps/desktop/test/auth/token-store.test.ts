@@ -7,7 +7,7 @@ import { DesktopAuthTokenStore } from "../../src/main/auth-token-store";
 const directories: string[] = [];
 afterEach(() => { for (const directory of directories.splice(0)) rmSync(directory, { recursive: true, force: true }); });
 const fixture = () => {
-  const directory = mkdtempSync(join(tmpdir(), "openteam-session-"));
+  const directory = mkdtempSync(join(tmpdir(), "aiteamos-session-"));
   directories.push(directory);
   const path = join(directory, "profile", "auth-session.json");
   return { directory, path, store: new DesktopAuthTokenStore(path) };

@@ -15,7 +15,7 @@ class SystemIntentFixture: XCTestCase {
 
   override func setUp() async throws {
     continueAfterFailure = true
-    XCTAssertEqual(ProcessInfo.processInfo.environment["OPENTEAM_SYSTEM_TEST_HOST"], "1")
+    XCTAssertEqual(ProcessInfo.processInfo.environment["AITEAMOS_SYSTEM_TEST_HOST"], "1")
     _ = try await API(server: server).request("/__qa/reset", method: "POST", body: .object([:]))
     UserDefaults.standard.removeObject(forKey: LocalDataReset.pendingKey)
     UserDefaults.standard.set(false, forKey: "system-discovery-" + scope)

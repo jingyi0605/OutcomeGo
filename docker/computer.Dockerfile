@@ -20,31 +20,31 @@ COPY packages/plugin-sdk/package.json packages/plugin-sdk/package.json
 COPY packages/plugins/package.json packages/plugins/package.json
 COPY patches ./patches
 COPY vendor/sheetjs/xlsx-0.20.3.tgz vendor/sheetjs/xlsx-0.20.3.tgz
-RUN bun install --frozen-lockfile --production --filter @openteam/computer
+RUN bun install --frozen-lockfile --production --filter @aiteamos/computer
 COPY apps/computer ./apps/computer
 COPY packages/contracts ./packages/contracts
 COPY packages/shell-jobs ./packages/shell-jobs
 COPY packages/plugin-sdk ./packages/plugin-sdk
 COPY packages/plugins ./packages/plugins
-RUN bun --filter @openteam/computer build
+RUN bun --filter @aiteamos/computer build
 
 FROM debian:bookworm-slim@sha256:88200866dfff7ea7f5cbcb6ec7c8a701889efe6fe859fe64d6990e4b07ea4171 AS desktop-assets
 
 RUN apt-get update \
   && apt-get install -y --no-install-recommends imagemagick \
   && rm -rf /var/lib/apt/lists/* \
-  && convert -size 1280x800 'gradient:#35383c-#151719' /tmp/openteam-wallpaper-base.png \
+  && convert -size 1280x800 'gradient:#35383c-#151719' /tmp/aiteamos-wallpaper-base.png \
   && convert -size 1280x800 xc:none \
     -fill none \
     -stroke 'rgba(220,222,224,0.20)' \
     -strokewidth 150 \
     -draw "path 'M -180,930 C 260,610 600,770 760,470 C 900,205 1040,130 1430,-80'" \
     -blur 0x22 \
-    /tmp/openteam-wallpaper-ribbon.png \
+    /tmp/aiteamos-wallpaper-ribbon.png \
   && composite \
-    /tmp/openteam-wallpaper-ribbon.png \
-    /tmp/openteam-wallpaper-base.png \
-    /openteam-wallpaper.png
+    /tmp/aiteamos-wallpaper-ribbon.png \
+    /tmp/aiteamos-wallpaper-base.png \
+    /aiteamos-wallpaper.png
 
 FROM --platform=$BUILDPLATFORM golang:1.25.4-bookworm@sha256:e17419604b6d1f9bc245694425f0ec9b1b53685c80850900a376fb10cb0f70cb AS network-tools
 ARG TARGETARCH
@@ -55,14 +55,14 @@ RUN set -eu; CGO_ENABLED=0 GOOS=linux GOARCH=$TARGETARCH go install -trimpath gi
 
 FROM debian:bookworm-slim@sha256:88200866dfff7ea7f5cbcb6ec7c8a701889efe6fe859fe64d6990e4b07ea4171 AS memory-tools
 RUN apt-get update && apt-get install -y --no-install-recommends gcc libc6-dev && rm -rf /var/lib/apt/lists/*
-COPY docker/openteam-memory-init.c docker/openteam-desktop-exec.c docker/openteam-network-mark.c /tmp/
-RUN gcc -static -O2 -Wall -Wextra -Werror /tmp/openteam-memory-init.c -o /openteam-memory-init \
-  && gcc -static -O2 -Wall -Wextra -Werror /tmp/openteam-desktop-exec.c -o /openteam-desktop-exec \
-  && gcc -shared -fPIC -O2 -Wall -Wextra -Werror /tmp/openteam-network-mark.c -o /network-mark.so
+COPY docker/aiteamos-memory-init.c docker/aiteamos-desktop-exec.c docker/aiteamos-network-mark.c /tmp/
+RUN gcc -static -O2 -Wall -Wextra -Werror /tmp/aiteamos-memory-init.c -o /aiteamos-memory-init \
+  && gcc -static -O2 -Wall -Wextra -Werror /tmp/aiteamos-desktop-exec.c -o /aiteamos-desktop-exec \
+  && gcc -shared -fPIC -O2 -Wall -Wextra -Werror /tmp/aiteamos-network-mark.c -o /network-mark.so
 
 FROM oven/bun:1.4.2-slim@sha256:cb3bbbb08e13a4a2ff400f24c7a2a1d5efa83f6ef8544d52d95a519631e2fc61 AS runtime
 
-ENV OPENTEAM_COMPUTER_NETWORK=1
+ENV AITEAMOS_COMPUTER_NETWORK=1
 
 RUN apt-get update \
   && apt-get install -y --no-install-recommends \
@@ -129,16 +129,16 @@ RUN apt-get update \
   && usermod --login box --home /home/box --move-home --shell /bin/bash bun \
   && groupadd --gid 998 orbitd \
   && usermod --append --groups orbitd box \
-  && mkdir -p /app/apps/computer/dist /workspace /home/box/.pi/agent /usr/lib/openteam/bin \
-  && mv /usr/bin/chromium /usr/lib/openteam/bin/google-chrome \
-  && mv /usr/local/bin/bun /usr/lib/openteam/bin/bun \
-  && ln -s bun /usr/lib/openteam/bin/bunx \
+  && mkdir -p /app/apps/computer/dist /workspace /home/box/.pi/agent /usr/lib/aiteamos/bin \
+  && mv /usr/bin/chromium /usr/lib/aiteamos/bin/google-chrome \
+  && mv /usr/local/bin/bun /usr/lib/aiteamos/bin/bun \
+  && ln -s bun /usr/lib/aiteamos/bin/bunx \
   && rm -rf /usr/local/bin/bunx /usr/local/bin/docker-entrypoint.sh /usr/local/bun-node-fallback-bin \
   && chown -R box:box /app /workspace /home/box
 
-# OpenTeam's own tools and libraries live in /usr/lib/openteam. /usr/local is
+# aiTeamOS's own tools and libraries live in /usr/lib/aiteamos. /usr/local is
 # a volume the bots install into, so the image ships nothing there.
-COPY --from=ghcr.io/astral-sh/uv:0.8.14 /uv /uvx /usr/lib/openteam/bin/
+COPY --from=ghcr.io/astral-sh/uv:0.8.14 /uv /uvx /usr/lib/aiteamos/bin/
 
 # Office toolkit for the knowledgeWork worker's deck skills, at the path those
 # skills name, with the libraries they expect. docker/officekit-ts is a copy
@@ -146,16 +146,16 @@ COPY --from=ghcr.io/astral-sh/uv:0.8.14 /uv /uvx /usr/lib/openteam/bin/
 # files and that change.
 COPY docker/officekit-ts /opt/sand/sand-host/officekit-ts
 # Every Python finds the image's packages ahead of /usr/local and ~/.local
-# (openteam.pth), so an update's versions are the ones skills get.
-RUN npm install --global --prefix /usr/lib/openteam/node --no-audit --no-fund pptxgenjs@4.0.1 docx@9.8.1 \
+# (aiteamos.pth), so an update's versions are the ones skills get.
+RUN npm install --global --prefix /usr/lib/aiteamos/node --no-audit --no-fund pptxgenjs@4.0.1 docx@9.8.1 \
   && npm install --prefix /opt/sand/sand-host/officekit-ts --no-audit --no-fund --omit=dev sharp@0.35.5 libxml2-wasm@0.7.2 \
   && chmod 0755 /opt/sand/sand-host/officekit-ts/bin/office \
-  && pip install --break-system-packages --no-cache-dir --target /usr/lib/openteam/python \
+  && pip install --break-system-packages --no-cache-dir --target /usr/lib/aiteamos/python \
     python-pptx==1.0.2 python-docx==1.2.0 openpyxl==3.1.5 xlsxwriter==3.2.9 \
     "markitdown[pptx,docx,xlsx]==0.1.7" pandas==3.0.6 pillow==12.3.0 lxml==6.1.3 \
-  && ln -s /usr/lib/openteam/python/bin/* /usr/lib/openteam/bin/ \
-  && printf '%s\n' 'import sys; sys.path.insert(min([i for i, d in enumerate(sys.path) if d.startswith("/usr/local/lib/python") or d == sys.modules["site"].USER_SITE] + [len(sys.path)]), "/usr/lib/openteam/python")' \
-    > /usr/lib/python3/dist-packages/openteam.pth \
+  && ln -s /usr/lib/aiteamos/python/bin/* /usr/lib/aiteamos/bin/ \
+  && printf '%s\n' 'import sys; sys.path.insert(min([i for i, d in enumerate(sys.path) if d.startswith("/usr/local/lib/python") or d == sys.modules["site"].USER_SITE] + [len(sys.path)]), "/usr/lib/aiteamos/python")' \
+    > /usr/lib/python3/dist-packages/aiteamos.pth \
   && rm -rf /root/.npm /root/.cache
 
 COPY --from=build --chown=box:box /app/node_modules /app/node_modules
@@ -164,38 +164,38 @@ COPY --from=build --chown=box:box /app/apps/computer/dist/main.js /app/apps/comp
 COPY --from=build --chown=box:box /app/apps/computer/dist/provider-cli.js /app/apps/computer/dist/provider-cli.js
 COPY --from=build --chown=box:box /app/apps/computer/dist/browser-network-worker.mjs /app/apps/computer/dist/browser-network-worker.mjs
 COPY --from=build --chown=box:box /app/apps/computer/dist/installs-cli.js /app/apps/computer/dist/installs-cli.js
-COPY --from=memory-tools /openteam-memory-init /openteam-desktop-exec /usr/lib/openteam/bin/
-COPY --from=memory-tools /network-mark.so /usr/lib/openteam/lib/network-mark.so
-COPY --from=network-tools /tun2socks /usr/lib/openteam/bin/tun2socks
-COPY docker/openteam-computer-network.py /usr/lib/openteam/bin/openteam-computer-network.py
-COPY docker/openteam-memory-setup.py /usr/lib/openteam/bin/openteam-memory-setup.py
-COPY --chown=box:box docker/computer-entrypoint.sh /usr/lib/openteam/bin/openteam-computer-entrypoint
-COPY --chown=box:box docker/openteam-pi-auth /usr/lib/openteam/bin/openteam-pi-auth
-COPY docker/openteam-installs /usr/lib/openteam/bin/openteam-installs
-COPY docker/openteam-box-timezone /usr/lib/openteam/bin/openteam-box-timezone
-COPY --chown=box:box docker/desktop /usr/share/openteam-desktop
-COPY --chown=box:box docker/openteam-screen-launch /usr/lib/openteam/bin/openteam-screen-launch
-COPY --chown=box:box docker/openteam-browser /usr/bin/chromium
-COPY --chown=box:box docker/openteam-vnc.html /usr/share/novnc/openteam.html
-COPY --from=desktop-assets /openteam-wallpaper.png /usr/share/openteam-desktop/wallpaper.png
+COPY --from=memory-tools /aiteamos-memory-init /aiteamos-desktop-exec /usr/lib/aiteamos/bin/
+COPY --from=memory-tools /network-mark.so /usr/lib/aiteamos/lib/network-mark.so
+COPY --from=network-tools /tun2socks /usr/lib/aiteamos/bin/tun2socks
+COPY docker/aiteamos-computer-network.py /usr/lib/aiteamos/bin/aiteamos-computer-network.py
+COPY docker/aiteamos-memory-setup.py /usr/lib/aiteamos/bin/aiteamos-memory-setup.py
+COPY --chown=box:box docker/computer-entrypoint.sh /usr/lib/aiteamos/bin/aiteamos-computer-entrypoint
+COPY --chown=box:box docker/aiteamos-pi-auth /usr/lib/aiteamos/bin/aiteamos-pi-auth
+COPY docker/aiteamos-installs /usr/lib/aiteamos/bin/aiteamos-installs
+COPY docker/aiteamos-box-timezone /usr/lib/aiteamos/bin/aiteamos-box-timezone
+COPY --chown=box:box docker/desktop /usr/share/aiteamos-desktop
+COPY --chown=box:box docker/aiteamos-screen-launch /usr/lib/aiteamos/bin/aiteamos-screen-launch
+COPY --chown=box:box docker/aiteamos-browser /usr/bin/chromium
+COPY --chown=box:box docker/aiteamos-vnc.html /usr/share/novnc/aiteamos.html
+COPY --from=desktop-assets /aiteamos-wallpaper.png /usr/share/aiteamos-desktop/wallpaper.png
 RUN chmod 0755 \
     /usr/bin/chromium \
-    /usr/lib/openteam/bin/openteam-computer-entrypoint \
-    /usr/lib/openteam/bin/openteam-pi-auth \
-    /usr/lib/openteam/bin/openteam-installs \
-    /usr/lib/openteam/bin/openteam-box-timezone \
-    /usr/lib/openteam/bin/openteam-screen-launch
+    /usr/lib/aiteamos/bin/aiteamos-computer-entrypoint \
+    /usr/lib/aiteamos/bin/aiteamos-pi-auth \
+    /usr/lib/aiteamos/bin/aiteamos-installs \
+    /usr/lib/aiteamos/bin/aiteamos-box-timezone \
+    /usr/lib/aiteamos/bin/aiteamos-screen-launch
 
 # Bots find the image's tools by name through /usr/bin. Everything they
 # install outside the home folder goes to the /usr/local volume, except apt
 # packages, which are recorded and reinstalled at start (apps/computer/src/apt-packages.ts).
-COPY docker/apt-keep-installs.conf /etc/apt/apt.conf.d/90openteam-keep-installs
-COPY docker/dpkg-keep-installs.cfg /etc/dpkg/dpkg.cfg.d/openteam-keep-installs
+COPY docker/apt-keep-installs.conf /etc/apt/apt.conf.d/90aiteamos-keep-installs
+COPY docker/dpkg-keep-installs.cfg /etc/dpkg/dpkg.cfg.d/aiteamos-keep-installs
 # Like bot shells (apps/computer/src/agent-process.ts), sudo finds the image's tools before a
 # same-named copy in /usr/local.
 # Login shells (sudo -i, su -, bash -l) take PATH from /etc/profile and su's from login.defs.
-RUN printf 'Defaults secure_path="/usr/sbin:/usr/bin:/sbin:/bin:/usr/local/sbin:/usr/local/bin"\n' > /etc/sudoers.d/openteam-paths \
-  && chmod 0440 /etc/sudoers.d/openteam-paths \
+RUN printf 'Defaults secure_path="/usr/sbin:/usr/bin:/sbin:/bin:/usr/local/sbin:/usr/local/bin"\n' > /etc/sudoers.d/aiteamos-paths \
+  && chmod 0440 /etc/sudoers.d/aiteamos-paths \
   && sed -i \
     -e 's#PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"#PATH="/usr/sbin:/usr/bin:/sbin:/bin:/usr/local/sbin:/usr/local/bin"#' \
     -e 's#PATH="/usr/local/bin:/usr/bin:/bin:/usr/local/games:/usr/games"#PATH="/usr/bin:/bin:/usr/local/bin:/usr/local/games:/usr/games"#' \
@@ -207,8 +207,8 @@ RUN printf 'Defaults secure_path="/usr/sbin:/usr/bin:/sbin:/bin:/usr/local/sbin:
   && for shell in "su - root" "su - box"; do \
     case ":$($shell -c 'echo $PATH'):" in *:/usr/local/bin:*:/usr/bin:*|*:/usr/local/sbin:*:/usr/sbin:*) echo "$shell searches /usr/local first" >&2; exit 1 ;; esac; \
   done
-ENV PATH=/usr/lib/openteam/bin:/usr/sbin:/usr/bin:/sbin:/bin
-ENV NODE_PATH=/usr/lib/openteam/node/lib/node_modules
+ENV PATH=/usr/lib/aiteamos/bin:/usr/sbin:/usr/bin:/sbin:/bin
+ENV NODE_PATH=/usr/lib/aiteamos/node/lib/node_modules
 ENV BUN_INSTALL_BIN=/home/box/.bun/bin
 
 # GTK/Chromium must decode native chooser filenames as UTF-8. Without a
@@ -216,18 +216,18 @@ ENV BUN_INSTALL_BIN=/home/box/.bun/bin
 # LANG or LC_* override still takes precedence over this image default.
 ENV LANG=C.UTF-8
 ENV HOME=/home/box
-ENV OPENTEAM_PI_AGENT_DIR=/home/box/.pi/agent
+ENV AITEAMOS_PI_AGENT_DIR=/home/box/.pi/agent
 WORKDIR /workspace
 USER root:box
 EXPOSE 8790 6200-6299
 # Keep this last: the baselines describe the finished image, and the build id
 # changes whenever anything above does.
-RUN for tool in /usr/lib/openteam/bin/*; do [ -e "/usr/bin/${tool##*/}" ] || ln -s "$tool" /usr/bin/; done \
-  && mkdir -p /usr/share/openteam \
-  && dpkg-query -W -f='${Package}\n' | sort > /usr/share/openteam/apt-baseline \
+RUN for tool in /usr/lib/aiteamos/bin/*; do [ -e "/usr/bin/${tool##*/}" ] || ln -s "$tool" /usr/bin/; done \
+  && mkdir -p /usr/share/aiteamos \
+  && dpkg-query -W -f='${Package}\n' | sort > /usr/share/aiteamos/apt-baseline \
   && find /etc/apt/sources.list /etc/apt/sources.list.d /etc/apt/keyrings /etc/apt/trusted.gpg /etc/apt/trusted.gpg.d \
-    /etc/apt/preferences.d /usr/share/keyrings -type f 2>/dev/null | sort > /usr/share/openteam/apt-sources-baseline \
+    /etc/apt/preferences.d /usr/share/keyrings -type f 2>/dev/null | sort > /usr/share/aiteamos/apt-sources-baseline \
   && if find /usr/local -mindepth 1 ! -type d ! -path /usr/local/man | grep .; then echo "the image must ship no files in /usr/local" >&2; exit 1; fi \
-  && cat /proc/sys/kernel/random/uuid > /usr/lib/openteam/build-id
-ENTRYPOINT ["tini", "--", "/usr/lib/openteam/bin/openteam-computer-entrypoint"]
-CMD ["/usr/lib/openteam/bin/bun", "/app/apps/computer/dist/main.js"]
+  && cat /proc/sys/kernel/random/uuid > /usr/lib/aiteamos/build-id
+ENTRYPOINT ["tini", "--", "/usr/lib/aiteamos/bin/aiteamos-computer-entrypoint"]
+CMD ["/usr/lib/aiteamos/bin/bun", "/app/apps/computer/dist/main.js"]

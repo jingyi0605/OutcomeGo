@@ -39,7 +39,7 @@ export function managedTailscaleRoutes(paths: InstallationPaths): ManagedTailsca
     return data.routes;
   } catch {
     throw new CliError(
-      "OpenTeam's tailscale-routes.json is invalid. Restore it from backup before managing Serve; existing routes were preserved."
+      "aiTeamOS's tailscale-routes.json is invalid. Restore it from backup before managing Serve; existing routes were preserved."
     );
   }
 }

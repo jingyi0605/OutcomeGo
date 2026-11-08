@@ -1,4 +1,4 @@
-import { editExternalDraft, type ExternalDraft } from "@openteam/contracts/external-draft";
+import { editExternalDraft, type ExternalDraft } from "@aiteamos/contracts/external-draft";
 
 export type ExternalDraftReviewAction = "send" | "cancel" | "refresh" | "approval";
 

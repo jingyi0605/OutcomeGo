@@ -16,7 +16,7 @@ type Boundary = NonNullable<BotArchiveBlob["piBoundary"]>;
 const detailsId = (entry: SessionEntry): string | undefined => {
   if (entry.type !== "compaction" || !entry.details || typeof entry.details !== "object") return;
   const details = entry.details as Record<string, unknown>;
-  return details.openteamBotCompaction === true && typeof details.id === "string"
+  return details.aiteamosBotCompaction === true && typeof details.id === "string"
     ? details.id
     : undefined;
 };
@@ -60,7 +60,7 @@ function legacyBoundary(branch: SessionEntry[], archive: BotArchiveBlob, id: str
   const receiptIndex = branch.findIndex(
     (entry) =>
       entry.type === "custom" &&
-      entry.customType === "openteam-compaction-usage" &&
+      entry.customType === "aiteamos-compaction-usage" &&
       (entry.data as { compactionId?: string } | undefined)?.compactionId === archive.id
   );
   if (receiptIndex < 0) return olderContext(id);

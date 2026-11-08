@@ -14,7 +14,7 @@ describe.skipIf(process.platform === "win32" || !python)(
       { columns: 40, term: "xterm-256color", noColor: true },
       { columns: 80, term: "dumb", noColor: false },
     ])("$columns columns, TERM=$term, NO_COLOR=$noColor", async ({ columns, term, noColor }) => {
-      const directory = mkdtempSync(join(tmpdir(), "openteam-doctor-pty-"));
+      const directory = mkdtempSync(join(tmpdir(), "aiteamos-doctor-pty-"));
       try {
         const env: NodeJS.ProcessEnv = { ...process.env, PATH: directory, TERM: term };
         if (noColor) env.NO_COLOR = "1";

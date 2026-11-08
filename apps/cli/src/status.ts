@@ -57,10 +57,10 @@ export const collectStatus = async (
   if (!files.some(existsSync)) {
     report.issue = {
       label: "Installation",
-      detail: "OpenTeam has not been installed in this directory.",
+      detail: "aiTeamOS has not been installed in this directory.",
       notInstalled: true,
     };
-    report.nextDetail = "Install OpenTeam, or use --dir to select an existing installation.";
+    report.nextDetail = "Install aiTeamOS, or use --dir to select an existing installation.";
     report.next = command("install");
     return report;
   }
@@ -82,22 +82,22 @@ export const collectStatus = async (
     owner = manifest.ownerUsername;
     report.username = owner?.trim() || undefined;
     environment = parseEnvironment(readFileSync(paths.environment, "utf8"));
-    const access = environment.get("OPENTEAM_ACCESS_MODE") || "local";
+    const access = environment.get("AITEAMOS_ACCESS_MODE") || "local";
     report.connection = ACCESS_MODES.includes(access as AccessMode)
       ? accessLabel(access as AccessMode)
       : access;
-    report.server = environment.get("OPENTEAM_PUBLIC_URL") || "Not configured";
+    report.server = environment.get("AITEAMOS_PUBLIC_URL") || "Not configured";
     report.expected = expectedServices(environment);
   } catch (error) {
     return blocked(
       "Configuration",
-      "OpenTeam's installation configuration could not be read.",
+      "aiTeamOS's installation configuration could not be read.",
       `Check file access and restore damaged configuration from a known-good backup. Run ${command("doctor")} for details.`,
       error instanceof Error ? error.message : String(error)
     );
   }
 
-  if (environment.get("OPENTEAM_ACCESS_MODE") === "tailscale") {
+  if (environment.get("AITEAMOS_ACCESS_MODE") === "tailscale") {
     const status = await tailscaleStatus(paths, runner);
     if (status.issue) return blocked("Tailscale HTTPS", status.issue, `Run ${command("tailscale status")} on the server host.`);
   }
@@ -129,7 +129,7 @@ export const collectStatus = async (
   } catch (error) {
     return blocked(
       "Containers",
-      "OpenTeam could not read its container states.",
+      "aiTeamOS could not read its container states.",
       `Run docker info to check the engine, then ${command("doctor")} to inspect Compose and configuration errors.`,
       error instanceof Error ? error.message : String(error)
     );
@@ -172,7 +172,7 @@ export const collectStatus = async (
     report.nextDetail = `Setup or health checks are still in progress. Wait a moment and check again. If this persists, run ${command("doctor")}.`;
     report.next = command("status");
   } else if (!owner?.trim()) {
-    report.nextDetail = "Finish account setup before using OpenTeam:";
+    report.nextDetail = "Finish account setup before using aiTeamOS:";
     report.next = command("setup");
   } else if (
     state === "STOPPED" ||
@@ -198,7 +198,7 @@ export const collectStatus = async (
     }
   } else if (report.health.inference !== "ready") {
     report.nextDetail =
-      "Containers and server are ready. Connect a model in the OpenTeam app under Settings → Server before starting AI tasks. On a server without the app, run:";
+      "Containers and server are ready. Connect a model in the aiTeamOS app under Settings → Server before starting AI tasks. On a server without the app, run:";
     report.next = command("model");
   } else {
     report.nextDetail = "For deeper database, queue, storage, and model checks:";
@@ -216,8 +216,8 @@ export const statusCommand = async (
     throw new CliError(
       report.issue?.detail ||
         (report.health && !report.health.ok
-          ? `OpenTeam is not healthy: ${report.health.detail}`
-          : "OpenTeam services need attention."),
+          ? `aiTeamOS is not healthy: ${report.health.detail}`
+          : "aiTeamOS services need attention."),
       2,
       true
     );

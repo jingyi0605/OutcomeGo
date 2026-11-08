@@ -1,4 +1,4 @@
-import type { PluginCatalogItemView, PluginConnectionView } from "@openteam/contracts";
+import type { PluginCatalogItemView, PluginConnectionView } from "@aiteamos/contracts";
 
 /** First-party Google plugins share one Google Cloud OAuth client and its setup guidance. */
 export const GOOGLE_PLUGIN_KEYS: readonly string[] = ["gmail", "google-calendar", "google-drive", "google-docs", "google-sheets", "google-slides"];
@@ -17,10 +17,10 @@ export function pluginProviderSetupSteps(pluginKey: string, callbackMode: string
     "Google apps in External / Testing mode require sign-in again after seven days. For ongoing use, configure the app for production and sign in again; Google can still revoke access for other reasons.",
     callbackMode === "server"
       ? "Create a Web application OAuth client in Google Cloud. Add the exact callback address shown in Sign-in setup as an authorized redirect URI."
-      : "Create a Desktop app OAuth client in Google Cloud. That is Google’s client type name; it does not require the OpenTeam desktop app unless you choose the desktop listener method.",
-    "Copy the client ID and client secret into OpenTeam’s setup fields and save. These come from Google Cloud; they are not your Google password.",
+      : "Create a Desktop app OAuth client in Google Cloud. That is Google’s client type name; it does not require the aiTeamOS desktop app unless you choose the desktop listener method.",
+    "Copy the client ID and client secret into aiTeamOS’s setup fields and save. These come from Google Cloud; they are not your Google password.",
     callbackMode === "desktop"
-      ? "Finish signing in in the OpenTeam desktop app. The connected account will then work on your iPhone too."
+      ? "Finish signing in in the aiTeamOS desktop app. The connected account will then work on your iPhone too."
       : "Sign in on this device and follow the on-screen steps. When the account says Connected, choose which bots may use it.",
   ];
 }

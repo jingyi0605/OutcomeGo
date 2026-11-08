@@ -1,7 +1,7 @@
 export const ELECTRON_BUNDLE_ARTIFACTS = [
   "main.js",
   "host-utility.js",
-  "openteam-cli.js",
+  "aiteamos-cli.js",
   "preload.cjs",
 ] as const;
 
@@ -12,7 +12,7 @@ export interface DevElectronEnvironment {
 }
 
 type DevEnvironmentInput = Partial<
-  Record<"OPENTEAM_DEV_HOST" | "OPENTEAM_RENDERER_URL", string | undefined>
+  Record<"AITEAMOS_DEV_HOST" | "AITEAMOS_RENDERER_URL", string | undefined>
 >;
 
 const nonEmpty = (value: string | undefined) => value?.trim() || undefined;
@@ -23,9 +23,9 @@ const rendererHost = (host: string) =>
 export const resolveDevElectronEnvironment = (
   environment: DevEnvironmentInput
 ): DevElectronEnvironment => {
-  const host = nonEmpty(environment.OPENTEAM_DEV_HOST) ?? "127.0.0.1";
+  const host = nonEmpty(environment.AITEAMOS_DEV_HOST) ?? "127.0.0.1";
   const rendererUrl =
-    nonEmpty(environment.OPENTEAM_RENDERER_URL) ?? `http://${rendererHost(host)}:5173`;
+    nonEmpty(environment.AITEAMOS_RENDERER_URL) ?? `http://${rendererHost(host)}:5173`;
 
   return {
     host,

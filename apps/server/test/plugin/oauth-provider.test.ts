@@ -1,10 +1,10 @@
 import { expect, test } from "bun:test";
 import type { OAuthTokens } from "@modelcontextprotocol/sdk/shared/auth.js";
-import { OpenTeamOAuthProvider, type StoredOAuthState } from "../../src/plugins/oauth-provider";
+import { AiTeamOSOAuthProvider, type StoredOAuthState } from "../../src/plugins/oauth-provider";
 
 test("OAuth redirects preserve configured scopes and protected parameters while requesting offline access", async () => {
   let stored: StoredOAuthState = {};
-  const provider = new OpenTeamOAuthProvider({
+  const provider = new AiTeamOSOAuthProvider({
     redirectUrl: "http://127.0.0.1/callback",
     scope: "mail.read mail.compose",
     initial: {},
@@ -34,7 +34,7 @@ test("OAuth redirects preserve configured scopes and protected parameters while 
 
 test("OAuth provider persists state, dynamic registration, verifier, redirect, and tokens", async () => {
   let stored: StoredOAuthState = { state: "expected-state" };
-  const provider = new OpenTeamOAuthProvider({
+  const provider = new AiTeamOSOAuthProvider({
     redirectUrl: "http://127.0.0.1:8787/api/v0/plugin-oauth/callback?connectionId=test",
     scope: "mail.read",
     initial: stored,

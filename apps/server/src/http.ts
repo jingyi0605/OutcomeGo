@@ -1,4 +1,4 @@
-import { ApiError } from "@openteam/contracts";
+import { ApiError } from "@aiteamos/contracts";
 import { Cause, Option, Runtime, Schema } from "effect";
 
 export const corsHeaders = {

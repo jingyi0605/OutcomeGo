@@ -14,14 +14,14 @@ describe("runtime URLs", () => {
   });
 
   test("keeps the loopback API for packaged Electron", () => {
-    expect(resolveApiBase("file:///Applications/OpenTeam.app/index.html")).toBe(
+    expect(resolveApiBase("file:///Applications/aiTeamOS.app/index.html")).toBe(
       "http://127.0.0.1:8787"
     );
   });
 
   test("honors an explicitly configured API", () => {
-    expect(resolveApiBase("http://127.0.0.1:5173", "http://openteam.example:8787/")).toBe(
-      "http://openteam.example:8787"
+    expect(resolveApiBase("http://127.0.0.1:5173", "http://aiteamos.example:8787/")).toBe(
+      "http://aiteamos.example:8787"
     );
   });
 
@@ -31,7 +31,7 @@ describe("runtime URLs", () => {
 
     expect(
       resolveConfiguredApiBase(
-        "file:///Applications/OpenTeam.app/index.html",
+        "file:///Applications/aiTeamOS.app/index.html",
         storage,
         "https://build.example.test"
       )
@@ -49,11 +49,11 @@ describe("runtime URLs", () => {
   });
 
   test("ignores a corrupt saved API instead of breaking desktop launch", () => {
-    const storage = { getItem: () => "file:///tmp/not-an-openteam-server" };
+    const storage = { getItem: () => "file:///tmp/not-an-aiteamos-server" };
 
     expect(
       resolveConfiguredApiBase(
-        "file:///Applications/OpenTeam.app/index.html",
+        "file:///Applications/aiTeamOS.app/index.html",
         storage,
         "https://build.example.test"
       )

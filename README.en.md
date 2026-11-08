@@ -263,13 +263,13 @@ Run this on the machine that will host your bots.
 **macOS / Linux**
 
 ```sh
-curl -fsSL https://openteam.so/install | sh
+curl -fsSL https://github.com/jingyi0605/ai-TeamOS/releases/latest/download/install.sh | sh
 ```
 
 **Windows PowerShell**
 
 ```powershell
-irm https://openteam.so/install.ps1 | iex
+irm https://github.com/jingyi0605/ai-TeamOS/releases/latest/download/install.ps1 | iex
 ```
 
 The installer downloads the CLI, adds it to your `PATH`, and starts guided setup. Node.js and Bun are not required.

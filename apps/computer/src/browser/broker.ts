@@ -79,10 +79,10 @@ export class BrowserBroker {
   private savedDigest: string | null = null;
 
   constructor(
-    home = process.env.HOME ?? "/home/openteam",
+    home = process.env.HOME ?? "/home/aiteamos",
     private readonly detachSyncTimeoutMs = 5_000
   ) {
-    this.stateDirectory = join(home, ".openteam");
+    this.stateDirectory = join(home, ".aiteamos");
     this.keyPath = join(this.stateDirectory, "browser-authority.key");
     this.storePath = join(this.stateDirectory, "browser-authority.json.enc");
     this.partsDirectory = join(this.stateDirectory, "browser-authority.parts");

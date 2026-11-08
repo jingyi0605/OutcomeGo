@@ -176,7 +176,7 @@ export async function tcpPortAccepts(port: number): Promise<boolean> {
 
 export async function viewerHttpResponds(port: number): Promise<boolean> {
   try {
-    const response = await fetch(`http://127.0.0.1:${port}/openteam.html`, {
+    const response = await fetch(`http://127.0.0.1:${port}/aiteamos.html`, {
       method: "HEAD",
       signal: AbortSignal.timeout(ENDPOINT_PROBE_TIMEOUT_MS),
     });
@@ -186,16 +186,16 @@ export async function viewerHttpResponds(port: number): Promise<boolean> {
   }
 }
 
-/** The desktop's own programs keep the computer's fixed PATH; its terminal gets the bots' (OPENTEAM_AGENT_PATH). */
+/** The desktop's own programs keep the computer's fixed PATH; its terminal gets the bots' (AITEAMOS_AGENT_PATH). */
 export function environment(home: string, session: ScreenSession): NodeJS.ProcessEnv {
   const environment = sanitizedAgentEnvironment(process.env);
   return {
     ...environment,
     NODE_PATH: AGENT_SEARCH_PATHS.NODE_PATH,
     BUN_INSTALL_BIN: AGENT_SEARCH_PATHS.BUN_INSTALL_BIN,
-    OPENTEAM_AGENT_PATH: AGENT_SEARCH_PATHS.PATH,
+    AITEAMOS_AGENT_PATH: AGENT_SEARCH_PATHS.PATH,
     HOME: home,
-    OPENTEAM_DESKTOP_ID: session.botId,
+    AITEAMOS_DESKTOP_ID: session.botId,
     DISPLAY: `:${session.display}`,
     XDG_RUNTIME_DIR: session.runtimeDirectory,
     DBUS_SESSION_BUS_ADDRESS: `unix:path=${join(session.runtimeDirectory, "bus")}`,
@@ -208,8 +208,8 @@ export function environment(home: string, session: ScreenSession): NodeJS.Proces
     XDG_SESSION_TYPE: "x11",
     GDK_BACKEND: "x11",
     GTK_THEME: "Adwaita",
-    OPENTEAM_SCREEN_CWD: session.cwd,
-    OPENTEAM_BROWSER_PROFILE: session.profileDirectory,
-    OPENTEAM_BROWSER_DEBUG_PORT: String(session.browserDebugPort),
+    AITEAMOS_SCREEN_CWD: session.cwd,
+    AITEAMOS_BROWSER_PROFILE: session.profileDirectory,
+    AITEAMOS_BROWSER_DEBUG_PORT: String(session.browserDebugPort),
   };
 }

@@ -148,7 +148,7 @@ export function untrustedResultsExtension(): {
   factory: ExtensionFactory;
 } {
   return {
-    name: "openteam-untrusted-results",
+    name: "aiteamos-untrusted-results",
     hidden: true,
     factory(pi) {
       pi.on("context", async (event) => ({ messages: fenceToolResults(settleInterruptedToolCalls(await repairImageHistory(event.messages))) }));

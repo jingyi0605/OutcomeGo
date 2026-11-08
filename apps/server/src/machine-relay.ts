@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
-import { ApiError } from "@openteam/contracts";
-import { HOST_BRIDGE_PATHS, HOST_TRANSFER_MAX_BYTES } from "@openteam/contracts/service-protocol";
-import { spoolFile, type StagedFile } from "@openteam/plugin-sdk/file-spool";
+import { ApiError } from "@aiteamos/contracts";
+import { HOST_BRIDGE_PATHS, HOST_TRANSFER_MAX_BYTES } from "@aiteamos/contracts/service-protocol";
+import { spoolFile, type StagedFile } from "@aiteamos/plugin-sdk/file-spool";
 
 export interface MachineRequest {
   id: string;
@@ -189,7 +189,7 @@ export class MachineRelay {
   async respond(machineId: string, connectionId: string, id: string, request: Request) {
     const pending = this.pending(machineId, connectionId, id);
     if (pending.responseClaimed) throw new ApiError(409, "machine_response_claimed", "Response was already delivered");
-    const status = Number(request.headers.get("x-openteam-status"));
+    const status = Number(request.headers.get("x-aiteamos-status"));
     if (!Number.isInteger(status) || status < 200 || status > 599) throw new ApiError(400, "machine_response_invalid", "Invalid response status");
     pending.responseClaimed = true;
     const reader = request.body?.getReader();

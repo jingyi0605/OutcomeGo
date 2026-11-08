@@ -30,7 +30,7 @@ const model = (provider: string, id: string) => ({
   maxTokens: 8192,
 });
 async function fixture(custom: Record<string, unknown> = {}) {
-  const directory = await mkdtemp(join(tmpdir(), "openteam-chat-registry-"));
+  const directory = await mkdtemp(join(tmpdir(), "aiteamos-chat-registry-"));
   dirs.push(directory);
   const path = join(directory, "models.json");
   await writeFile(path, JSON.stringify({ providers: custom }));

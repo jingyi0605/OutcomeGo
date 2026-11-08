@@ -182,7 +182,7 @@ export const retainStackImages = (
         : [...new Set([...(raw?.current ?? []), ...before])],
     owned: [...new Set([...(raw?.owned ?? []), ...before, ...after])],
   };
-  const tag = (id: string) => `openteam-retention-${ledger.owner}:${id.slice(7)}`;
+  const tag = (id: string) => `aiteamos-retention-${ledger.owner}:${id.slice(7)}`;
   const keep = new Set([...ledger.rollback, ...after]);
   for (const id of keep) {
     const result = runner.run("docker", ["image", "tag", id, tag(id)]);
@@ -264,11 +264,11 @@ export const retainDatabaseBackups = (
 ): void => {
   const setting =
     parseEnvironment(readFileSync(paths.environment, "utf8"))
-      .get("OPENTEAM_BACKUP_RETENTION_COUNT")
+      .get("AITEAMOS_BACKUP_RETENTION_COUNT")
       ?.trim() || String(DATABASE_BACKUPS_TO_KEEP);
   if (!/^(0|[1-9][0-9]*)$/.test(setting) || !Number.isSafeInteger(Number(setting))) {
     throw new Error(
-      "OPENTEAM_BACKUP_RETENTION_COUNT must be a non-negative whole number; backups preserved"
+      "AITEAMOS_BACKUP_RETENTION_COUNT must be a non-negative whole number; backups preserved"
     );
   }
   const count = Number(setting);
@@ -316,7 +316,7 @@ export const maintenanceWarning = (action: string, operation: () => void): void 
     operation();
   } catch (error) {
     console.warn(
-      `OpenTeam disk maintenance skipped (${action}): ${error instanceof Error ? error.message : String(error)}`
+      `aiTeamOS disk maintenance skipped (${action}): ${error instanceof Error ? error.message : String(error)}`
     );
   }
 };

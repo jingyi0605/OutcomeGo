@@ -1,9 +1,9 @@
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import { networkInterfaces } from "node:os";
-import { BrowserNetworkClient } from "@openteam/plugin-sdk/browser-network/client";
+import { BrowserNetworkClient } from "@aiteamos/plugin-sdk/browser-network/client";
 import type { DesktopEnrollmentConnection } from "./host/machine-enrollment";
-import type { NetworkSharingStatus } from "@openteam/contracts/browser-network";
+import type { NetworkSharingStatus } from "@aiteamos/contracts/browser-network";
 export class NetworkConsentStore {
   private writes: Promise<unknown> = Promise.resolve();
   constructor(private readonly path: string) {}
@@ -157,8 +157,8 @@ export class DesktopBrowserNetwork {
   private headers(connection: DesktopEnrollmentConnection) {
     return {
       authorization: `Bearer ${connection.credential}`,
-      "x-openteam-machine-id": this.machineId,
-      "x-openteam-connection-id": connection.connectionId,
+      "x-aiteamos-machine-id": this.machineId,
+      "x-aiteamos-connection-id": connection.connectionId,
     };
   }
   private refreshConnection() {
@@ -191,7 +191,7 @@ export class DesktopBrowserNetwork {
       deploymentId = this.deploymentId,
       generation = this.generation;
     if (!connection || !deploymentId || !this.supported())
-      throw new Error("Connect this computer to an updated OpenTeam server first.");
+      throw new Error("Connect this computer to an updated aiTeamOS server first.");
     if (!enabled) {
       this.allowed = false;
       this.client?.stop();

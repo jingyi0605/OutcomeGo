@@ -2,7 +2,7 @@ import { Agent, request } from "node:https";
 import { connect } from "node:tls";
 import { isIP } from "node:net";
 import type { Duplex } from "node:stream";
-import type { NetworkEgress, NetworkRoute } from "@openteam/plugin-sdk/browser-network/protocol";
+import type { NetworkEgress, NetworkRoute } from "@aiteamos/plugin-sdk/browser-network/protocol";
 
 const HOST = "ipwho.is";
 const FAILURE = "Could not check browser exit connection";
@@ -55,7 +55,7 @@ export function createEgressProbe(client: {
                 path: "/?fields=success,ip,city,country",
                 method: "GET",
                 agent,
-                headers: { accept: "application/json", "user-agent": "OpenTeam/egress-check" },
+                headers: { accept: "application/json", "user-agent": "aiTeamOS/egress-check" },
               },
               (response) => {
                 if (

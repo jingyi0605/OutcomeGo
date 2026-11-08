@@ -1,11 +1,11 @@
-import { normalizeRobotAvatarShape } from "@openteam/contracts/robot-avatar";
-import type { NotificationSender } from "@openteam/contracts/notification-content";
+import { normalizeRobotAvatarShape } from "@aiteamos/contracts/robot-avatar";
+import type { NotificationSender } from "@aiteamos/contracts/notification-content";
 import {
   ROBOT_AVATAR_ARTWORK,
   ROBOT_AVATAR_VIEW_BOX,
   robotAvatarFaceColor,
   type RobotAvatarNode,
-} from "@openteam/design-tokens/robot-avatar-artwork";
+} from "@aiteamos/design-tokens/robot-avatar-artwork";
 
 const cache = new Map<string, Promise<string | undefined>>();
 const escape = (value: string) =>

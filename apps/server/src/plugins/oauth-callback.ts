@@ -1,5 +1,5 @@
 import { timingSafeEqual } from "node:crypto";
-import { ApiError } from "@openteam/contracts";
+import { ApiError } from "@aiteamos/contracts";
 
 export interface PluginOAuthDesktopContext {
   redirectUrl: string;

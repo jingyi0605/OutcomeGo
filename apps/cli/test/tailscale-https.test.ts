@@ -83,9 +83,9 @@ test("a re-run keeps the connection already in use instead of suggesting Tailsca
     version: "test",
     stages: SETUP_STAGES,
     current: new Map([
-      ["OPENTEAM_ACCESS_MODE", "private"],
-      ["OPENTEAM_PUBLIC_URL", `http://${host}:8788`],
-      ["OPENTEAM_API_PORT", "8788"],
+      ["AITEAMOS_ACCESS_MODE", "private"],
+      ["AITEAMOS_PUBLIC_URL", `http://${host}:8788`],
+      ["AITEAMOS_API_PORT", "8788"],
     ]),
     fresh: false,
     ownerConfigured: true,
@@ -169,7 +169,7 @@ test("setup reuses an existing private HTTPS port without replacing another app 
     preferredHttpsHost: address,
   });
   expect(setup.configuration().publicUrl).toBe(`https://${host}:10000`);
-  expect(existingReachableHost(new Map([["OPENTEAM_PUBLIC_URL", `https://${address}`]]))).toBe(
+  expect(existingReachableHost(new Map([["AITEAMOS_PUBLIC_URL", `https://${address}`]]))).toBe(
     address
   );
   expect(configureTailscaleRoute(f.runner, candidate, "8787")).toBe(false);

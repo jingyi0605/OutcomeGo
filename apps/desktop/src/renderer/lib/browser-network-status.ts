@@ -1,4 +1,4 @@
-import type { BrowserNetworkView } from "@openteam/contracts/browser-network";
+import type { BrowserNetworkView } from "@aiteamos/contracts/browser-network";
 
 export function browserNetworkLabel(view: BrowserNetworkView) {
   const name =

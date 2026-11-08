@@ -5,21 +5,21 @@ describe("desktop release mapping", () => {
   test("maps native installers and leaves missing alternatives unavailable", () => {
     const release = mapDesktopRelease({
       tag_name: "v0.1.0",
-      html_url: "https://github.com/raghavpillai/openteam/releases/tag/v0.1.0",
+      html_url: "https://github.com/jingyi0605/ai-TeamOS/releases/tag/v0.1.0",
       published_at: "2026-09-03T00:00:00Z",
       assets: [
         {
-          name: "OpenTeam-0.1.0-mac-arm64.dmg",
+          name: "aiTeamOS-0.1.0-mac-arm64.dmg",
           browser_download_url: "https://example.com/mac.dmg",
           size: 42,
         },
         {
-          name: "OpenTeam-0.1.0-win-x64.exe",
+          name: "aiTeamOS-0.1.0-win-x64.exe",
           browser_download_url: "https://example.com/windows.exe",
           size: 84,
         },
         {
-          name: "OpenTeam-0.1.0-linux-x86_64.AppImage",
+          name: "aiTeamOS-0.1.0-linux-x86_64.AppImage",
           browser_download_url: "https://example.com/linux.AppImage",
           size: 126,
         },

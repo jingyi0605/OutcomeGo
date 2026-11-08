@@ -1,10 +1,10 @@
 import { expect, test } from "bun:test";
 import { randomUUID } from "node:crypto";
-import { createPrismaClient } from "@openteam/db";
+import { createPrismaClient } from "@aiteamos/db";
 import { AgentMessaging } from "../src";
 import { nextRoutineRun, RoutineService } from "../src/routines";
 
-const databaseUrl = process.env.OPENTEAM_TEST_DATABASE_URL;
+const databaseUrl = process.env.AITEAMOS_TEST_DATABASE_URL;
 
 /** The wall-clock hour and minute of an instant in a zone, as "HH:MM". */
 const wallClock = (at: Date | null, timeZone: string) =>

@@ -1,17 +1,17 @@
 import { describe, expect, test } from "bun:test";
 import {
-  assessOpenTeamAuthSession,
+  assessAiTeamOSAuthSession,
   authHeadersForUrl,
   createAuthSnapshotStore,
-  createOpenTeamAuthClient,
+  createAiTeamOSAuthClient,
   parseAuthUser,
 } from "../src/auth";
 
 describe("shared authentication protocol", () => {
   test("signs in with the canonical request and parses the owner", async () => {
     const requests: Array<{ url: string; init?: RequestInit }> = [];
-    const client = createOpenTeamAuthClient({
-      baseUrl: "https://openteam.test/",
+    const client = createAiTeamOSAuthClient({
+      baseUrl: "https://aiteamos.test/",
       fetch: async (input, init) => {
         requests.push({ url: String(input), init });
         return Response.json(
@@ -32,7 +32,7 @@ describe("shared authentication protocol", () => {
     const result = await client.signIn("  owner  ", "secret");
 
     const request = requests[0];
-    expect(request?.url).toBe("https://openteam.test/api/auth/login");
+    expect(request?.url).toBe("https://aiteamos.test/api/auth/login");
     expect(request?.init?.method).toBe("POST");
     expect(new Headers(request?.init?.headers).get("content-type")).toBe("application/json");
     expect(JSON.parse(String(request?.init?.body))).toEqual({
@@ -57,8 +57,8 @@ describe("shared authentication protocol", () => {
       Response.json({ mode: "off" }),
       Response.json({ session: { id: "session" }, user: { id: "missing-name" } }),
     ];
-    const client = createOpenTeamAuthClient({
-      baseUrl: "https://openteam.test",
+    const client = createAiTeamOSAuthClient({
+      baseUrl: "https://aiteamos.test",
       fetch: async () => responses.shift() as Response,
     });
 
@@ -66,8 +66,8 @@ describe("shared authentication protocol", () => {
     expect(await client.getSession("session-token")).toBeNull();
   });
 
-  test("rejects a reachable website that does not expose the OpenTeam auth protocol", async () => {
-    const client = createOpenTeamAuthClient({
+  test("rejects a reachable website that does not expose the aiTeamOS auth protocol", async () => {
+    const client = createAiTeamOSAuthClient({
       baseUrl: "https://example.test",
       fetch: async () => new Response("Not found", { status: 404 }),
     });
@@ -79,7 +79,7 @@ describe("shared authentication protocol", () => {
   });
 
   test("treats a development proxy upstream failure as an unavailable server", async () => {
-    const client = createOpenTeamAuthClient({
+    const client = createAiTeamOSAuthClient({
       baseUrl: "http://127.0.0.1:5173",
       fetch: async () => new Response("Proxy upstream unavailable", { status: 500 }),
     });
@@ -100,8 +100,8 @@ describe("shared authentication protocol", () => {
           },
         })
       );
-    const client = createOpenTeamAuthClient({
-      baseUrl: "https://openteam.test",
+    const client = createAiTeamOSAuthClient({
+      baseUrl: "https://aiteamos.test",
       fetch: async () => cutOff(),
     });
 
@@ -113,8 +113,8 @@ describe("shared authentication protocol", () => {
     expect(await client.discoverMode()).toBe("required");
   });
 
-  test("still rejects a server whose complete answer isn't OpenTeam's", async () => {
-    const client = createOpenTeamAuthClient({
+  test("still rejects a server whose complete answer isn't aiTeamOS's", async () => {
+    const client = createAiTeamOSAuthClient({
       baseUrl: "https://example.test",
       fetch: async () => new Response("<html>Welcome</html>"),
     });
@@ -123,8 +123,8 @@ describe("shared authentication protocol", () => {
   });
 
   test("surfaces the server's nested authentication error", async () => {
-    const client = createOpenTeamAuthClient({
-      baseUrl: "https://openteam.test",
+    const client = createAiTeamOSAuthClient({
+      baseUrl: "https://aiteamos.test",
       fetch: async () =>
         Response.json({ error: { message: "Wrong username or password" } }, { status: 401 }),
     });
@@ -133,13 +133,13 @@ describe("shared authentication protocol", () => {
   });
 
   test("only attaches a bearer to same-origin API resources", () => {
-    expect(authHeadersForUrl("https://openteam.test", "token", "/api/v0/assets/1")).toEqual({
+    expect(authHeadersForUrl("https://aiteamos.test", "token", "/api/v0/assets/1")).toEqual({
       authorization: "Bearer token",
     });
     expect(
-      authHeadersForUrl("https://openteam.test", "token", "https://evil.test/api/v0/assets/1")
+      authHeadersForUrl("https://aiteamos.test", "token", "https://evil.test/api/v0/assets/1")
     ).toBeUndefined();
-    expect(authHeadersForUrl("https://openteam.test", "token", "/public/file")).toBeUndefined();
+    expect(authHeadersForUrl("https://aiteamos.test", "token", "/public/file")).toBeUndefined();
   });
 
   test("shares one observable auth snapshot vocabulary across platforms", () => {
@@ -178,8 +178,8 @@ describe("shared authentication protocol", () => {
   });
 
   test("shares required-session validation and secure-storage outcomes", async () => {
-    const client = createOpenTeamAuthClient({
-      baseUrl: "https://openteam.test",
+    const client = createAiTeamOSAuthClient({
+      baseUrl: "https://aiteamos.test",
       fetch: async (input) =>
         String(input).endsWith("/api/auth/config")
           ? Response.json({ mode: "required" })
@@ -193,7 +193,7 @@ describe("shared authentication protocol", () => {
             }),
     });
 
-    const assessment = await assessOpenTeamAuthSession({
+    const assessment = await assessAiTeamOSAuthSession({
       client,
       loadToken: async () => "session-token",
     });
@@ -210,8 +210,8 @@ describe("shared authentication protocol", () => {
 
   test("keeps the credential when session lookup hits a server or proxy error", async () => {
     for (const status of [500, 502, 503, 504]) {
-      const client = createOpenTeamAuthClient({
-        baseUrl: "https://openteam.test",
+      const client = createAiTeamOSAuthClient({
+        baseUrl: "https://aiteamos.test",
         fetch: async (input) =>
           String(input).endsWith("/api/auth/config")
             ? Response.json({ mode: "required" })
@@ -222,7 +222,7 @@ describe("shared authentication protocol", () => {
         code: "offline",
         status,
       });
-      const assessment = await assessOpenTeamAuthSession({
+      const assessment = await assessAiTeamOSAuthSession({
         client,
         loadToken: async () => "session-token",
       });
@@ -235,8 +235,8 @@ describe("shared authentication protocol", () => {
   });
 
   test("clears the credential when the server rejects the session", async () => {
-    const client = createOpenTeamAuthClient({
-      baseUrl: "https://openteam.test",
+    const client = createAiTeamOSAuthClient({
+      baseUrl: "https://aiteamos.test",
       fetch: async (input) =>
         String(input).endsWith("/api/auth/config")
           ? Response.json({ mode: "required" })
@@ -245,19 +245,19 @@ describe("shared authentication protocol", () => {
 
     expect(await client.getSession("session-token")).toBeNull();
     expect(
-      await assessOpenTeamAuthSession({ client, loadToken: async () => "session-token" })
+      await assessAiTeamOSAuthSession({ client, loadToken: async () => "session-token" })
     ).toMatchObject({ status: "signed-out", clearCredentials: true });
   });
 
   test("only trusts an explicitly cached disabled mode during offline discovery", async () => {
-    const client = createOpenTeamAuthClient({
-      baseUrl: "https://openteam.test",
+    const client = createAiTeamOSAuthClient({
+      baseUrl: "https://aiteamos.test",
       fetch: async () => {
         throw new Error("offline");
       },
     });
     let tokenReads = 0;
-    const assessment = await assessOpenTeamAuthSession({
+    const assessment = await assessAiTeamOSAuthSession({
       client,
       loadCachedMode: async () => "disabled",
       loadToken: async () => {

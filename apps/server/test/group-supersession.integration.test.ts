@@ -1,13 +1,13 @@
 import { afterAll, expect, test } from "bun:test";
 import { randomUUID } from "node:crypto";
 import { Effect } from "effect";
-import { createPrismaClient } from "@openteam/db";
-import { AgentDataStore, AgentMessaging, type ToolContext } from "@openteam/messaging";
+import { createPrismaClient } from "@aiteamos/db";
+import { AgentDataStore, AgentMessaging, type ToolContext } from "@aiteamos/messaging";
 import { ChannelService } from "../src/services/channel-service";
 import { WakeWorker } from "../../worker/src/worker";
 
-const db = process.env.OPENTEAM_TEST_DATABASE_URL
-  ? createPrismaClient(process.env.OPENTEAM_TEST_DATABASE_URL)
+const db = process.env.AITEAMOS_TEST_DATABASE_URL
+  ? createPrismaClient(process.env.AITEAMOS_TEST_DATABASE_URL)
   : null;
 afterAll(() => db?.$disconnect());
 

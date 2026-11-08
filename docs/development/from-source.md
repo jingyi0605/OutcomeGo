@@ -1,6 +1,6 @@
 # Development from source
 
-Run OpenTeam from a source checkout to change it or try unreleased code. For everyday use, the [installer](../getting-started/installation.md) is simpler.
+Run aiTeamOS from a source checkout to change it or try unreleased code. For everyday use, the [installer](../getting-started/installation.md) is simpler.
 
 ## Prerequisites
 
@@ -14,15 +14,15 @@ The development server uses the same ports as a released installation. If both r
 ## Get the source
 
 ```sh
-git clone https://github.com/raghavpillai/openteam.git
-cd openteam
+git clone https://github.com/raghavpillai/aiteamos.git
+cd aiteamos
 bun install --frozen-lockfile
 bun run db:generate
 bun run prepare:plugins
 cp .env.example .env
 ```
 
-In `.env`, replace `OPENTEAM_CONTROL_TOKEN` and `OPENTEAM_AUTH_SECRET` with different random values. Generate each with `openssl rand -hex 32`. Don't commit `.env`.
+In `.env`, replace `AITEAMOS_CONTROL_TOKEN` and `AITEAMOS_AUTH_SECRET` with different random values. Generate each with `openssl rand -hex 32`. Don't commit `.env`.
 
 ## Start the server
 
@@ -37,7 +37,7 @@ Wait until `server`, `worker`, `computer`, and `postgres` are healthy. Setup con
 
 ```sh
 bun run auth:setup
-bash scripts/compose.sh exec computer openteam-pi-auth login openai-codex oauth
+bash scripts/compose.sh exec computer aiteamos-pi-auth login openai-codex oauth
 ```
 
 The first command creates your account. The second signs in with ChatGPT. For other providers, see [model providers](../configuration/models.md).

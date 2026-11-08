@@ -8,7 +8,7 @@ import { TranscriptionStore } from "../../server/src/transcription/store";
 
 const root = resolve(import.meta.dir, "..");
 const output = resolve(root, "../../output/transcription-saved-key");
-const directory = await mkdtemp(join(tmpdir(), "openteam-key-ui-"));
+const directory = await mkdtemp(join(tmpdir(), "aiteamos-key-ui-"));
 const store = new TranscriptionStore(join(directory, "transcription.json"), () =>
   "fixture-encryption-secret".repeat(2)
 );

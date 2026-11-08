@@ -1,7 +1,7 @@
-import { normalizeBaseUrl } from "@openteam/client-core";
+import { normalizeBaseUrl } from "@aiteamos/client-core";
 
 const LOCAL_API_BASE = "http://127.0.0.1:8787";
-export const CONFIGURED_API_BASE_KEY = "openteam:server-url";
+export const CONFIGURED_API_BASE_KEY = "aiteamos:server-url";
 
 type StorageReader = Pick<Storage, "getItem">;
 type StorageWriter = Pick<Storage, "setItem">;

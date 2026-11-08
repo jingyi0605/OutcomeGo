@@ -1,5 +1,5 @@
-import { ApiError, type SearchCategory } from "@openteam/contracts";
-import type { RoutineMutationInput } from "@openteam/messaging";
+import { ApiError, type SearchCategory } from "@aiteamos/contracts";
+import type { RoutineMutationInput } from "@aiteamos/messaging";
 
 export const searchCategories = new Set<SearchCategory>([
   "all",

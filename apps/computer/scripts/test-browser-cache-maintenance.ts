@@ -17,9 +17,9 @@ import { join } from "node:path";
 import { chromium } from "playwright-core";
 import { clearStoppedBrowserCaches } from "../src/browser/cache-maintenance";
 
-const executable = process.env.OPENTEAM_TEST_CHROMIUM_EXECUTABLE;
-if (!executable) throw new Error("Set OPENTEAM_TEST_CHROMIUM_EXECUTABLE to a Chromium executable");
-const root = realpathSync(mkdtempSync(join(tmpdir(), "openteam-browser-preservation-")));
+const executable = process.env.AITEAMOS_TEST_CHROMIUM_EXECUTABLE;
+if (!executable) throw new Error("Set AITEAMOS_TEST_CHROMIUM_EXECUTABLE to a Chromium executable");
+const root = realpathSync(mkdtempSync(join(tmpdir(), "aiteamos-browser-preservation-")));
 const profile = join(root, "profile");
 const server = createServer((request, response) => {
   if (request.url === "/login")

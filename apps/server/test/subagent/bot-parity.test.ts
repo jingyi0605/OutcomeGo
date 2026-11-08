@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { TaskInput } from "@openteam/contracts";
+import type { TaskInput } from "@aiteamos/contracts";
 import {
   assertSubagentCapacity,
   SubagentService,
@@ -9,7 +9,7 @@ import {
   subagentTaskWake,
 } from "../../src/services/subagent/service";
 
-describe("OpenTeam-compatible subagent launch semantics", () => {
+describe("aiTeamOS-compatible subagent launch semantics", () => {
   test("passes the Task prompt through as the worker's exact job", () => {
     const input: TaskInput = {
       description: "Check a page",

@@ -10,11 +10,11 @@ import {
   writeFileSync,
 } from "node:fs";
 import { basename, delimiter, isAbsolute, join } from "node:path";
-import type { ServerUpdateHeartbeat, ServerUpdateRequest } from "@openteam/contracts";
+import type { ServerUpdateHeartbeat, ServerUpdateRequest } from "@aiteamos/contracts";
 import {
-  compareOpenTeamVersions,
-  normalizeOpenTeamVersion,
-} from "@openteam/contracts/version-compatibility";
+  compareAiTeamOSVersions,
+  normalizeAiTeamOSVersion,
+} from "@aiteamos/contracts/version-compatibility";
 import { type InstallationPaths, parseEnvironment, readManifest, writeFileAtomic } from "./config";
 import { updateWorkerArguments } from "./durable-update";
 import { healthUrl } from "./health";
@@ -29,8 +29,8 @@ import {
   type UpdateAgentCommand,
 } from "./update-agent-service";
 
-export const UPDATE_AGENT_ENV = "OPENTEAM_UPDATE_AGENT";
-export const UPDATE_AGENT_CLI_ENV = "OPENTEAM_UPDATE_AGENT_CLI";
+export const UPDATE_AGENT_ENV = "AITEAMOS_UPDATE_AGENT";
+export const UPDATE_AGENT_CLI_ENV = "AITEAMOS_UPDATE_AGENT_CLI";
 /**
  * The same runtime by a path that outlives an upgrade of it. Homebrew's versioned Cellar path
  * disappears on `brew upgrade`, while its `opt` link and the copy on PATH follow the upgrade.
@@ -73,11 +73,11 @@ const workerEnvironment = (): NodeJS.ProcessEnv => {
   for (const name of [
     UPDATE_AGENT_ENV,
     UPDATE_AGENT_CLI_ENV,
-    "OPENTEAM_UPDATE_WORKER_JOB",
-    "OPENTEAM_CLI_UPDATE_SOURCE",
-    "OPENTEAM_CLI_UPDATE_TARGET",
-    "OPENTEAM_CLI_UPDATE_VERSION",
-    "OPENTEAM_CLI_UPDATE_FOLLOWER_PID",
+    "AITEAMOS_UPDATE_WORKER_JOB",
+    "AITEAMOS_CLI_UPDATE_SOURCE",
+    "AITEAMOS_CLI_UPDATE_TARGET",
+    "AITEAMOS_CLI_UPDATE_VERSION",
+    "AITEAMOS_CLI_UPDATE_FOLLOWER_PID",
   ])
     delete environment[name];
   return environment;
@@ -193,11 +193,11 @@ export const ensureUpdateAgent = (
     }
     if (service.warning)
       console.warn(
-        `Server updates will stay off after a reboot until you run openteam start (${service.warning}).${service.linger ? ` To start them at boot, run: ${service.linger}, then openteam start.` : ""}`
+        `Server updates will stay off after a reboot until you run aiteamos start (${service.warning}).${service.linger ? ` To start them at boot, run: ${service.linger}, then aiteamos start.` : ""}`
       );
   } catch (error) {
     console.warn(
-      `Server updates will stay off after a reboot until you run openteam start (${error instanceof Error ? error.message : error}).`
+      `Server updates will stay off after a reboot until you run aiteamos start (${error instanceof Error ? error.message : error}).`
     );
   }
   if (running) return;
@@ -225,7 +225,7 @@ export const ensureUpdateAgent = (
   child.unref();
 };
 
-/** `openteam stop` and `uninstall`: stop the agent and keep it from starting at the next boot. */
+/** `aiteamos stop` and `uninstall`: stop the agent and keep it from starting at the next boot. */
 export const stopUpdateAgent = (
   paths: InstallationPaths,
   host: ServiceHost = systemServiceHost()
@@ -252,12 +252,20 @@ export const updateAgentArguments = (
   request: ServerUpdateRequest
 ): string[] => {
   const current = readManifest(paths)?.version;
-  const version = normalizeOpenTeamVersion(request.targetVersion);
+  let allowPrerelease = false;
+  try {
+    allowPrerelease =
+      parseEnvironment(readFileSync(paths.environment, "utf8")).get("AITEAMOS_UPDATE_CHANNEL") ===
+      "beta";
+  } catch {
+    // The current-version check below still rejects malformed or unavailable installations.
+  }
+  const version = normalizeAiTeamOSVersion(request.targetVersion);
   if (
     !current ||
     !version ||
-    version.includes("-") ||
-    (compareOpenTeamVersions(version, current) ?? 0) <= 0
+    (version.includes("-") && !allowPrerelease) ||
+    (compareAiTeamOSVersions(version, current) ?? 0) <= 0
   )
     throw new Error("The server requested an invalid update version.");
   return updateWorkerArguments([
@@ -302,7 +310,7 @@ export class UpdateAgent {
 
   async tick(): Promise<void> {
     const environment = parseEnvironment(readFileSync(this.paths.environment, "utf8"));
-    const token = environment.get("OPENTEAM_CONTROL_TOKEN");
+    const token = environment.get("AITEAMOS_CONTROL_TOKEN");
     if (!token) throw new Error("Installation control token is missing.");
     const progress = readUpdateState(this.paths);
     const accepted = this.accepted;
@@ -358,7 +366,7 @@ export class UpdateAgent {
       this.child = this.launch(updateAgentExecutable(), updateAgentArguments(this.paths, request), {
         stdio: "ignore",
         windowsHide: true,
-        env: { ...workerEnvironment(), OPENTEAM_UPDATE_WHEN_IDLE: "1" },
+        env: { ...workerEnvironment(), AITEAMOS_UPDATE_WHEN_IDLE: "1" },
       });
       events(this.child).on("error", (error) => {
         this.accepted!.error = error.message;

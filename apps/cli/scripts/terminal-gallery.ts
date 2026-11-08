@@ -28,7 +28,7 @@ export const writeTerminalGallery = (
     path,
     `<!doctype html>
 <html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>OpenTeam ${label} — CLI preview</title>
+<title>aiTeamOS ${label} — CLI preview</title>
 <style>
 *{box-sizing:border-box} body{margin:0;background:#f2f4f7;color:#17202b;font:14px system-ui,sans-serif}
 header{padding:24px 32px 16px;border-bottom:1px solid #d9dee7;background:white}h1{font-size:22px;margin:0 0 6px}p{margin:0;color:#586477}
@@ -40,7 +40,7 @@ pre{color:#dce3ec;font:13px/1.55 Menlo,Consolas,monospace;margin:0;tab-size:4;wh
 .light .screen{background:#fff}.light pre{color:#17202b}.light .c31{color:#af1c30}.light .c32{color:#176c36}.light .c33{color:#805a00}.light .c36{color:#116679}.light .c90{color:#536477}
 .plain pre span{color:inherit;font-weight:normal}footer{padding:16px 32px;color:#586477;font-size:12px}
 </style>
-<header><h1>OpenTeam ${label} · CLI preview</h1><p>Simulated scenarios rendered by the CLI. No Docker commands, service changes, or network probes run in this viewer.</p></header>
+<header><h1>aiTeamOS ${label} · CLI preview</h1><p>Simulated scenarios rendered by the CLI. No Docker commands, service changes, or network probes run in this viewer.</p></header>
 <nav>
 <label>Scenario<select id="scenario"></select></label>
 <label>Report<select id="mode">${Object.entries(modes)

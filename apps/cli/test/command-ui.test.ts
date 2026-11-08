@@ -66,7 +66,7 @@ const status = {
     { Service: "worker", State: "running" },
   ],
   health: { ok: true, detail: "ready", inference: "ready" },
-  next: "openteam doctor",
+  next: "aiteamos doctor",
 };
 const plain = (value: string) => value.replace(/\x1b\[[0-9;]*m/g, "");
 
@@ -90,7 +90,7 @@ describe("CLI presentation", () => {
           options
         ),
         renderCommandError(
-          "Unknown model. Run openteam model list to see available models.",
+          "Unknown model. Run aiteamos model list to see available models.",
           options
         ),
         renderUpdateEvent(
@@ -159,7 +159,7 @@ describe("CLI presentation", () => {
     expect(text).toContain("accessible chat models");
     expect(text).toContain("Reconnect Anthropic");
     expect(text).toContain("openai-codex");
-    expect(text).toContain("openteam provider list");
+    expect(text).toContain("aiteamos provider list");
   });
   test("shows stopped, missing, unhealthy and failed-initialization states accurately", () => {
     expect(
@@ -216,46 +216,46 @@ describe("CLI name in hints", () => {
   });
 
   test("uses the absolute path until the installed directory is on PATH", () => {
-    const root = mkdtempSync(join(tmpdir(), "openteam-cli-name-"));
+    const root = mkdtempSync(join(tmpdir(), "aiteamos-cli-name-"));
     directories.push(root);
     const bin = join(root, "bin");
     const linked = join(root, "linked");
     mkdirSync(bin);
     mkdirSync(linked);
-    const executable = join(bin, "openteam");
+    const executable = join(bin, "aiteamos");
     writeFileSync(executable, "", { mode: 0o755 });
-    symlinkSync(executable, join(linked, "openteam"));
+    symlinkSync(executable, join(linked, "aiteamos"));
     const program = (path: string) =>
       cliProgram({ executable, standalone: true, path, platform: "linux" });
 
     expect(program("/usr/bin:/bin")).toBe(executable);
-    expect(program(`/usr/bin:${bin}`)).toBe("openteam");
-    expect(program(`${linked}:/usr/bin`)).toBe("openteam");
+    expect(program(`/usr/bin:${bin}`)).toBe("aiteamos");
+    expect(program(`${linked}:/usr/bin`)).toBe("aiteamos");
     // Another name for the same file, like a Windows short name (RUNNER~1), still counts.
     const aliased = join(root, "aliased");
     mkdirSync(aliased);
-    linkSync(executable, join(aliased, "openteam"));
-    expect(program(`/usr/bin:${aliased}`)).toBe("openteam");
+    linkSync(executable, join(aliased, "aiteamos"));
+    expect(program(`/usr/bin:${aliased}`)).toBe("aiteamos");
     // Running from source, or bundled in the desktop app, keeps the short name.
-    expect(cliProgram({ executable, standalone: false, path: "" })).toBe("openteam");
+    expect(cliProgram({ executable, standalone: false, path: "" })).toBe("aiteamos");
   });
 
   test("quotes paths the shell would split", () => {
     expect(
       cliProgram({
-        executable: "/home/Jane Doe/.local/bin/openteam",
+        executable: "/home/Jane Doe/.local/bin/aiteamos",
         standalone: true,
         path: "",
         platform: "linux",
       })
-    ).toBe("'/home/Jane Doe/.local/bin/openteam'");
+    ).toBe("'/home/Jane Doe/.local/bin/aiteamos'");
     expect(
       cliProgram({
-        executable: "C:\\Users\\Jane Doe\\AppData\\Local\\OpenTeam\\bin\\openteam.exe",
+        executable: "C:\\Users\\Jane Doe\\AppData\\Local\\aiTeamOS\\bin\\aiteamos.exe",
         standalone: true,
         path: "",
         platform: "win32",
       })
-    ).toBe("& 'C:\\Users\\Jane Doe\\AppData\\Local\\OpenTeam\\bin\\openteam.exe'");
+    ).toBe("& 'C:\\Users\\Jane Doe\\AppData\\Local\\aiTeamOS\\bin\\aiteamos.exe'");
   });
 });

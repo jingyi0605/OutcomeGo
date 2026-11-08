@@ -8,11 +8,11 @@ const directories: string[] = [];
 afterEach(() => {
   for (const dir of directories.splice(0)) rmSync(dir, { recursive: true, force: true });
 });
-const fixture = () => {
-  const directory = mkdtempSync(join(tmpdir(), "openteam-server-updates-"));
+const fixture = (allowPrerelease = false) => {
+  const directory = mkdtempSync(join(tmpdir(), "aiteamos-server-updates-"));
   directories.push(directory);
   let now = 1_000;
-  const updates = new ServerUpdates(directory, "1.2.3", () => now);
+  const updates = new ServerUpdates(directory, "1.2.3", () => now, allowPrerelease);
   return {
     updates,
     directory,
@@ -24,7 +24,7 @@ const fixture = () => {
 
 test("requires a live host updater and accepts only a newer stable version, never a destination", () => {
   const { updates, advance } = fixture();
-  expect(() => updates.start({ targetVersion: "1.3.0" })).toThrow("openteam start");
+  expect(() => updates.start({ targetVersion: "1.3.0" })).toThrow("aiteamos start");
   updates.heartbeat({});
   for (const targetVersion of [null, "", "1.2.3", "1.0.0", "1.3.0-beta.1", "1.3.0; reboot"])
     expect(() => updates.start({ targetVersion })).toThrow("newer stable");
@@ -36,7 +36,7 @@ test("requires a live host updater and accepts only a newer stable version, neve
     expect(() => updates.start({ targetVersion: "1.5.0", ...extra })).toThrow("Only targetVersion");
   advance();
   expect(updates.view().updaterAvailable).toBe(false);
-  expect(() => updates.start({ targetVersion: "1.5.0" })).toThrow("openteam start");
+  expect(() => updates.start({ targetVersion: "1.5.0" })).toThrow("aiteamos start");
 });
 
 test("deduplicates submissions, persists through server restart, and reports completion", () => {
@@ -86,6 +86,16 @@ test("keeps an updater failure visible and allows a deliberate retry", () => {
   });
   expect(updates.view()).toMatchObject({ status: "error", message: "Rollback completed" });
   expect(updates.start({ targetVersion: "1.3.0" }).jobId).not.toBe(first.jobId);
+});
+
+test("allows newer prerelease versions only on the beta channel", () => {
+  const stable = fixture();
+  stable.updates.heartbeat({});
+  expect(() => stable.updates.start({ targetVersion: "1.3.0-beta.1" })).toThrow("newer stable");
+
+  const beta = fixture(true);
+  beta.updates.heartbeat({});
+  expect(beta.updates.start({ targetVersion: "1.3.0-beta.1" }).status).toBe("updating");
 });
 
 test("requires an owner session and explicit bearer credential to start maintenance", async () => {

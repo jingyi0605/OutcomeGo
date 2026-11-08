@@ -1,14 +1,14 @@
 import { useEffect } from "react";
-import { CLIENT_CAPABILITIES } from "@openteam/contracts/capabilities";
-import { ROBOT_AVATAR_SHAPES } from "@openteam/contracts/robot-avatar";
+import { CLIENT_CAPABILITIES } from "@aiteamos/contracts/capabilities";
+import { ROBOT_AVATAR_SHAPES } from "@aiteamos/contracts/robot-avatar";
 import { createRoot } from "react-dom/client";
-import { ChatPane } from "../../src/renderer/components/openteam/chat-pane";
-import { BotAvatarGlyph } from "../../src/renderer/components/openteam/avatar-picker-icons";
-import VoiceMemoLayer from "../../src/renderer/components/openteam/voice-memo/voice-memo-layer";
+import { ChatPane } from "../../src/renderer/components/aiteamos/chat-pane";
+import { BotAvatarGlyph } from "../../src/renderer/components/aiteamos/avatar-picker-icons";
+import VoiceMemoLayer from "../../src/renderer/components/aiteamos/voice-memo/voice-memo-layer";
 import { LoadingOrb, preloadLoadingOrb } from "../../src/renderer/components/ui/loading-orb";
 import { TooltipProvider } from "../../src/renderer/components/ui/tooltip";
 import { installWindowVisibility } from "../../src/renderer/lib/window-visibility";
-import { api } from "../../src/renderer/client/openteam-api";
+import { api } from "../../src/renderer/client/aiteamos-api";
 import "../../src/renderer/styles.css";
 
 // Both arms use the same fixture and deterministic animation clock. These

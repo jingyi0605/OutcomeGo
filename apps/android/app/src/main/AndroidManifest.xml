@@ -12,8 +12,8 @@
         android:enableOnBackInvokedCallback="true"
         android:usesCleartextTraffic="true">
         <meta-data
-            android:name="com.openteam.android.APP_LINK_HOST"
-            android:value="${openteamAppLinkHost}" />
+            android:name="com.aiteamos.android.APP_LINK_HOST"
+            android:value="${aiteamosAppLinkHost}" />
         <meta-data
             android:name="android.app.shortcuts"
             android:resource="@xml/shortcuts" />
@@ -30,19 +30,19 @@
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="openteam" />
+                <data android:scheme="aiteamos" />
             </intent-filter>
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="https" android:host="${openteamAppLinkHost}" />
+                <data android:scheme="https" android:host="${aiteamosAppLinkHost}" />
             </intent-filter>
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="http" android:host="${openteamAppLinkHost}" />
+                <data android:scheme="http" android:host="${aiteamosAppLinkHost}" />
             </intent-filter>
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />
@@ -58,17 +58,17 @@
                 <data android:mimeType="*/*" />
             </intent-filter>
             <intent-filter>
-                <action android:name="com.openteam.android.action.RECORD_VOICE" />
-                <action android:name="com.openteam.android.action.OPEN_CONVERSATION" />
-                <action android:name="com.openteam.android.action.OPEN_BOT" />
-                <action android:name="com.openteam.android.action.SEND_BOT_TASK" />
-                <action android:name="com.openteam.android.action.FIND_MESSAGES" />
-                <action android:name="com.openteam.android.action.RUN_ROUTINE" />
+                <action android:name="com.aiteamos.android.action.RECORD_VOICE" />
+                <action android:name="com.aiteamos.android.action.OPEN_CONVERSATION" />
+                <action android:name="com.aiteamos.android.action.OPEN_BOT" />
+                <action android:name="com.aiteamos.android.action.SEND_BOT_TASK" />
+                <action android:name="com.aiteamos.android.action.FIND_MESSAGES" />
+                <action android:name="com.aiteamos.android.action.RUN_ROUTINE" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
         <service
-            android:name=".platform.OpenTeamFirebaseMessagingService"
+            android:name=".platform.AiTeamOSFirebaseMessagingService"
             android:exported="false">
             <intent-filter>
                 <action android:name="com.google.firebase.MESSAGING_EVENT" />

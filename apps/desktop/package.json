@@ -1,20 +1,20 @@
 {
-  "name": "@openteam/desktop",
-  "version": "0.0.15",
+  "name": "@aiteamos/desktop",
+  "version": "0.1.0-beta.1",
   "license": "GPL-3.0-only",
-  "author": "OpenTeam contributors",
+  "author": "ai-TeamOS contributors",
   "main": "dist-electron/main.js",
   "devDependencies": {
     "@dnd-kit/dom": "^0.5.0",
     "@dnd-kit/react": "^0.5.0",
     "@modelcontextprotocol/sdk": "1.30.0",
     "@novnc/novnc": "1.7.0",
-    "@openteam/client-core": "workspace:*",
-    "@openteam/contracts": "workspace:*",
-    "@openteam/design-tokens": "workspace:*",
-    "@openteam/plugin-sdk": "workspace:*",
-    "@openteam/product-core": "workspace:*",
-    "@openteam/shell-jobs": "workspace:*",
+    "@aiteamos/client-core": "workspace:*",
+    "@aiteamos/contracts": "workspace:*",
+    "@aiteamos/design-tokens": "workspace:*",
+    "@aiteamos/plugin-sdk": "workspace:*",
+    "@aiteamos/product-core": "workspace:*",
+    "@aiteamos/shell-jobs": "workspace:*",
     "@shikijs/themes": "3.23.0",
     "@streamdown/cjk": "1.0.3",
     "@streamdown/math": "1.0.2",
@@ -54,12 +54,12 @@
     "xlsx": "file:../../vendor/sheetjs/xlsx-0.20.3.tgz"
   },
   "build": {
-    "appId": "dev.openteam.desktop",
-    "productName": "OpenTeam",
-    "executableName": "openteam",
+    "appId": "dev.aiteamos.desktop",
+    "productName": "aiTeamOS",
+    "executableName": "aiteamos",
     "asar": true,
     "asarUnpack": [
-      "dist-electron/openteam-cli.js"
+      "dist-electron/aiteamos-cli.js"
     ],
     "npmRebuild": false,
     "directories": {
@@ -72,13 +72,13 @@
       "package.json"
     ],
     "mac": {
-      "icon": "../../packages/design-tokens/assets/OpenTeam.icon",
+      "icon": "../../packages/design-tokens/assets/aiTeamOS.icon",
       "identity": "-",
       "hardenedRuntime": false,
       "extendInfo": {
-        "NSMicrophoneUsageDescription": "OpenTeam uses the microphone when you record a voice note or test your input. Only voice notes are sent to your server for transcription.",
-        "NSContactsUsageDescription": "OpenTeam searches Contacts to find a person when needed for your task.",
-        "NSAppleEventsUsageDescription": "OpenTeam reads and sends Messages to carry out your tasks."
+        "NSMicrophoneUsageDescription": "aiTeamOS uses the microphone when you record a voice note or test your input. Only voice notes are sent to your server for transcription.",
+        "NSContactsUsageDescription": "aiTeamOS searches Contacts to find a person when needed for your task.",
+        "NSAppleEventsUsageDescription": "aiTeamOS reads and sends Messages to carry out your tasks."
       },
       "category": "public.app-category.productivity",
       "target": [
@@ -87,7 +87,7 @@
       ]
     },
     "linux": {
-      "icon": "../../packages/design-tokens/assets/openteam-desktop-light.png",
+      "icon": "../../packages/design-tokens/assets/aiteamos-desktop-light.png",
       "target": [
         "AppImage"
       ]
@@ -101,11 +101,11 @@
     "dmg": {
       "icon": "../../packages/design-tokens/assets/icon.icns"
     },
-    "artifactName": "OpenTeam-${version}-${os}-${arch}.${ext}",
+    "artifactName": "aiTeamOS-${version}-${os}-${arch}.${ext}",
     "publish": {
       "provider": "github",
-      "owner": "raghavpillai",
-      "repo": "openteam"
+      "owner": "jingyi0605",
+      "repo": "ai-TeamOS"
     }
   },
   "description": "A self-hosted desktop for durable Pi agents with configurable inference providers.",
@@ -115,7 +115,7 @@
     "clean:release": "bun run scripts/clean-release.ts",
     "build:main": "bun build src/main/index.ts --outdir dist-electron --entry-naming main.js --chunk-naming 'chunks/[name]-[hash].[ext]' --splitting --target node --format esm --external electron --minify --keep-names",
     "build:utility": "bun build src/main/host/utility.ts --outfile dist-electron/host-utility.js --target node --format esm --external electron --minify",
-    "build:server-updater": "bun build ../cli/src/main.ts --outfile dist-electron/openteam-cli.js --target node --format esm --minify",
+    "build:server-updater": "bun build ../cli/src/main.ts --outfile dist-electron/aiteamos-cli.js --target node --format esm --minify",
     "build:preload": "bun build src/preload/index.ts --outfile dist-electron/preload.cjs --target node --format cjs --external electron --minify --keep-names",
     "build:electron": "bun run build:main && bun run build:utility && bun run build:server-updater && bun run build:preload",
     "build": "bun run clean && vite build && bun run build:electron",

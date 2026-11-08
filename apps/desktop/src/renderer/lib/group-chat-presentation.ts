@@ -4,12 +4,12 @@ import type {
   ChannelView,
   RunItemView,
   RunView,
-} from "@openteam/contracts";
+} from "@aiteamos/contracts";
 import {
   BOT_AVATAR_COLORS,
   BOT_AVATAR_COLOR_NAMES,
   resolveBotAvatarColorName,
-} from "@openteam/contracts/bot-avatar";
+} from "@aiteamos/contracts/bot-avatar";
 import { thinkingActivity } from "./thinking-activity";
 
 // Grok's text palette, rather than its brighter avatar fills.

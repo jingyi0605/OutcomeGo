@@ -84,7 +84,7 @@ try {
         connected: true,
         sharingAllowed: false,
         providing: false,
-        serverUrl: "https://openteam.example",
+        serverUrl: "https://aiteamos.example",
         deploymentId: "test-deployment",
         activeConnections: 0,
       },

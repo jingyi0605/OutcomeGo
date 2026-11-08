@@ -1,4 +1,4 @@
-import type { VoiceProviderId } from "@openteam/contracts";
+import type { VoiceProviderId } from "@aiteamos/contracts";
 import type { SttEvent, StreamingStt, StreamingTts, VoiceProvider } from "../voice-provider";
 
 interface VolcengineOptions {
@@ -77,7 +77,7 @@ class VolcengineStt implements StreamingStt {
     await this.open();
     if (!this.started) {
       this.socket.send(volcengineFrame(1, 0, 1, new TextEncoder().encode(JSON.stringify({
-        user: { uid: "openteam-voice" },
+        user: { uid: "aiteamos-voice" },
         audio: { format: "pcm", codec: "raw", rate: 16_000, bits: 16, channel: 1 },
         request: {
           model_name: "bigmodel",
@@ -171,7 +171,7 @@ class VolcengineTts implements StreamingTts {
   async end(): Promise<void> {
     await this.open();
     const payload = new TextEncoder().encode(JSON.stringify({
-      user: { uid: "openteam-voice" },
+      user: { uid: "aiteamos-voice" },
       req_params: {
         text: this.text,
         speaker: this.voice,

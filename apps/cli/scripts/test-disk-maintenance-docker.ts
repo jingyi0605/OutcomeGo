@@ -10,9 +10,9 @@ import { captureStackImages, retainStackImages } from "../src/disk-maintenance";
 import { SystemCommandRunner } from "../src/process";
 import type { CommandRunner, RunOptions } from "../src/process";
 
-const context = process.env.OPENTEAM_TEST_DOCKER_CONTEXT;
+const context = process.env.AITEAMOS_TEST_DOCKER_CONTEXT;
 if (!context || context === "default" || context === "desktop-linux") {
-  throw new Error("Set OPENTEAM_TEST_DOCKER_CONTEXT to an isolated throwaway Docker context");
+  throw new Error("Set AITEAMOS_TEST_DOCKER_CONTEXT to an isolated throwaway Docker context");
 }
 const system = new SystemCommandRunner();
 const runner: CommandRunner = {
@@ -28,8 +28,8 @@ const run = (args: string[], options?: RunOptions) => {
   assert.equal(result.status, 0, `${args.join(" ")}: ${result.stderr || result.stdout}`);
   return result.stdout.trim();
 };
-const root = realpathSync(mkdtempSync(join(tmpdir(), "openteam-retention-docker-")));
-const prefix = `openteam-retention-test-${randomUUID()}`;
+const root = realpathSync(mkdtempSync(join(tmpdir(), "aiteamos-retention-docker-")));
+const prefix = `aiteamos-retention-test-${randomUUID()}`;
 const created: string[] = [];
 const containers: string[] = [];
 const exists = (id: string) => runner.run("docker", ["image", "inspect", id]).status === 0;
@@ -136,7 +136,7 @@ try {
   );
   writeFileSync(
     rendered.paths.environment,
-    createEnvironment({ version: "0.0.13", imagePrefix: "fixture/openteam" })
+    createEnvironment({ version: "0.0.13", imagePrefix: "fixture/aiteamos" })
   );
   const compose = () => {
     const result = rendered.project.run(["--profile", "*", "config", "--format", "json"]);
@@ -150,7 +150,7 @@ try {
     });
   writeFileSync(
     rendered.paths.environment,
-    `${readFileSync(rendered.paths.environment, "utf8")}\nOPENTEAM_LOG_MAX_SIZE=-1\nOPENTEAM_LOG_MAX_FILES=5\n`
+    `${readFileSync(rendered.paths.environment, "utf8")}\nAITEAMOS_LOG_MAX_SIZE=-1\nAITEAMOS_LOG_MAX_FILES=5\n`
   );
   for (const service of Object.values(compose().services))
     assert.deepEqual(service.logging, {

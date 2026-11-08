@@ -5,7 +5,7 @@ import { createRequire } from "node:module";
 import { createServer } from "vite";
 
 const directory =
-  process.env.COMPOSER_CARET_DIR ?? (await mkdtemp(join(tmpdir(), "openteam-caret-")));
+  process.env.COMPOSER_CARET_DIR ?? (await mkdtemp(join(tmpdir(), "aiteamos-caret-")));
 const server = await createServer({
   root: resolve(import.meta.dir, ".."),
   configFile: resolve(import.meta.dir, "../vite.config.ts"),

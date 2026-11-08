@@ -13,7 +13,7 @@ const option = (name: string) => {
   return args[index + 1];
 };
 const root = resolve(option("--root") ?? join(import.meta.dir, "../.."));
-const source = join(root, "packages/design-tokens/assets/OpenTeam.icon");
+const source = join(root, "packages/design-tokens/assets/aiTeamOS.icon");
 const output = resolve(option("--output") ?? join(root, "packages/design-tokens/assets"));
 if (process.platform !== "darwin") throw new Error("Native icon export requires macOS and Xcode 26 or later.");
 
@@ -25,20 +25,20 @@ function run(command: string, commandArgs: string[]) {
 }
 const developerDirectory = run("xcode-select", ["--print-path"]);
 const ictool = join(dirname(developerDirectory), "Applications/Icon Composer.app/Contents/Executables/ictool");
-const work = await mkdtemp(join(tmpdir(), "openteam-icon-export-"));
+const work = await mkdtemp(join(tmpdir(), "aiteamos-icon-export-"));
 await mkdir(output, { recursive: true });
 
 try {
   for (const [platform, stem] of [["iOS", "ios"], ["macOS", "desktop"]] as const) {
     for (const [rendition, appearance] of [["Default", "light"], ["Dark", "dark"]] as const) {
-      run(ictool, [source, "--export-image", "--output-file", join(output, `openteam-${stem}-${appearance}.png`),
+      run(ictool, [source, "--export-image", "--output-file", join(output, `aiteamos-${stem}-${appearance}.png`),
         "--platform", platform, "--rendition", rendition, "--width", "1024", "--height", "1024", "--scale", "1"]);
     }
   }
 
   // macOS legacy ICNS uses an 824px rounded tile inside a 1024px canvas.
   // Icon Composer PNG exports are full bleed; applying the native inset prevents oversized Dock icons.
-  const iconset = join(work, "OpenTeam.iconset");
+  const iconset = join(work, "aiTeamOS.iconset");
   await mkdir(iconset);
   const compositor = join(work, "mac-icon-inset.swift");
   await writeFile(compositor, `
@@ -68,7 +68,7 @@ for points in [16, 32, 128, 256, 512] {
   }
 }
 `);
-  run("xcrun", ["swift", compositor, join(output, "openteam-desktop-light.png"), iconset]);
+  run("xcrun", ["swift", compositor, join(output, "aiteamos-desktop-light.png"), iconset]);
   run("iconutil", ["--convert", "icns", iconset, "--output", join(output, "icon.icns")]);
 
   // Use the project's existing electron-builder converter; no extra dependencies or online service.
@@ -77,7 +77,7 @@ for points in [16, 32, 128, 256, 512] {
   const { convertIcon } = builderRequire("app-builder-lib/out/util/iconConverter.js") as {
     convertIcon(options: { sources: string[]; fallbackSources: string[]; roots: string[]; format: string; outDir: string }): Promise<{ icons: { file: string; size: number }[] }>;
   };
-  const converted = await convertIcon({ sources: [join(output, "openteam-desktop-light.png")], fallbackSources: [], roots: [output], format: "ico", outDir: output });
+  const converted = await convertIcon({ sources: [join(output, "aiteamos-desktop-light.png")], fallbackSources: [], roots: [output], format: "ico", outDir: output });
   if (!converted.icons.some((icon) => icon.size >= 256)) throw new Error("Windows ICO is missing its 256px rendition.");
 
   const manifest = JSON.parse(await readFile(join(source, "icon.json"), "utf8"));

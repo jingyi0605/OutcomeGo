@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { normalizeRepository, normalizeVersion } from "./config";
 
-/** Public trust anchor for locally built OpenTeam releases. Private material stays outside Git. */
+/** Public trust anchor for locally built aiTeamOS releases. Private material stays outside Git. */
 export const LOCAL_RELEASE_KEY_ID = "openteam-local-release-2026-10-03";
 export const LOCAL_RELEASE_PUBLIC_KEY = `-----BEGIN PUBLIC KEY-----
 MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEP7SK+uMfd3oYi3ccEoQo2ZeJ7DdW

@@ -63,7 +63,7 @@ if (process.argv[2] === "discovery") {
     "http://future-server:8787",
     () => writeFileSync("/run/discovery-started", "ready"),
     {
-      helper: "/fixture/openteam-computer-network.py",
+      helper: "/fixture/aiteamos-computer-network.py",
       intervalMs: 100,
     }
   );

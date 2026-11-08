@@ -4,11 +4,11 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {BrowserUseSession} from '../../src/browser/use';
 import {outOfProcessPlaywright} from '../../src/browser/playwright-driver';
-test.skipIf(!process.env.OPENTEAM_BROWSER_TEST_EXECUTABLE)('batch fills text and checkbox states, and stops after unavailable targets',async()=>{
+test.skipIf(!process.env.AITEAMOS_BROWSER_TEST_EXECUTABLE)('batch fills text and checkbox states, and stops after unavailable targets',async()=>{
  const root=await mkdtemp(join(tmpdir(),'batch-form-'));
  const server=Bun.serve({port:0,fetch:()=>new Response('<html><title>Batch</title><input aria-label="Name"><textarea aria-label="Notes"></textarea><input type="checkbox" aria-label="Checked" checked><input type="checkbox" aria-label="Unchecked"><input type="password" aria-label="Password"><button>Submit</button></html>',{headers:{'content-type':'text/html'}})});
  const driver=await outOfProcessPlaywright();
- const browser=await driver.playwright.chromium.launch({headless:true,executablePath:process.env.OPENTEAM_BROWSER_TEST_EXECUTABLE});
+ const browser=await driver.playwright.chromium.launch({headless:true,executablePath:process.env.AITEAMOS_BROWSER_TEST_EXECUTABLE});
  const context=await browser.newContext();
  const session=new (BrowserUseSession as any)(browser,context,root) as BrowserUseSession;
  try {

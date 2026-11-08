@@ -1,5 +1,5 @@
-import type { UserTimeZoneView } from "@openteam/contracts";
-import type { Prisma, PrismaClient } from "@openteam/db";
+import type { UserTimeZoneView } from "@aiteamos/contracts";
+import type { Prisma, PrismaClient } from "@aiteamos/db";
 import { resolveTimeZone } from "./timestamps";
 
 type TimeZoneDb = Pick<PrismaClient | Prisma.TransactionClient, "userTimeZoneSettings">;

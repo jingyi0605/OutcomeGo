@@ -1,7 +1,7 @@
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
-import { ApiError } from "@openteam/contracts";
-import { HOST_BRIDGE_PATHS, parseHostMachinesResponse } from "@openteam/contracts/service-protocol";
-import { Prisma, type PrismaClient } from "@openteam/db";
+import { ApiError } from "@aiteamos/contracts";
+import { HOST_BRIDGE_PATHS, parseHostMachinesResponse } from "@aiteamos/contracts/service-protocol";
+import { Prisma, type PrismaClient } from "@aiteamos/db";
 import { MachineRelay } from "../machine-relay";
 
 const hash = (value: string) => createHash("sha256").update(value).digest("hex");
@@ -46,17 +46,17 @@ export class MachineService {
       const machine = machines.find(row => row.machineId === requested);
       if (!machine) throw new ApiError(404, "messages_machine_unknown", `No computer has machineId ${requested}. Call ListMachines and use one of its machine IDs.${roster()}`);
       if (!machine.enabled) throw new ApiError(409, "messages_machine_disabled", `${machine.label} is disabled in Settings → Computer, so Messages can't be used there.${roster()}`);
-      if (!machine.connected) throw new ApiError(409, "messages_machine_offline", `${machine.label} is offline: its OpenTeam desktop app must be open and the Mac awake.${roster()}`);
-      if (machine.messages === "unavailable") throw new ApiError(409, "messages_machine_unsupported", `${machine.label} can't use Messages: it isn't a Mac, or its OpenTeam app needs an update.`);
-      if (machine.messages === "off") throw new ApiError(409, "messages_machine_off", `Messages is turned off on ${machine.label}. Only the user can turn it on, in that Mac's OpenTeam Settings → Computer → Messages. Do not retry while it stays off.`);
+      if (!machine.connected) throw new ApiError(409, "messages_machine_offline", `${machine.label} is offline: its aiTeamOS desktop app must be open and the Mac awake.${roster()}`);
+      if (machine.messages === "unavailable") throw new ApiError(409, "messages_machine_unsupported", `${machine.label} can't use Messages: it isn't a Mac, or its aiTeamOS app needs an update.`);
+      if (machine.messages === "off") throw new ApiError(409, "messages_machine_off", `Messages is turned off on ${machine.label}. Only the user can turn it on, in that Mac's aiTeamOS Settings → Computer → Messages. Do not retry while it stays off.`);
       return { machineId: machine.machineId, label: machine.label };
     }
     const { machineId: preferred } = await this.preferred(botId, channelId);
     const chosen = usable.find(machine => machine.machineId === preferred) ?? (usable.length === 1 ? usable[0] : undefined);
     if (chosen) return { machineId: chosen.machineId, label: chosen.label };
     if (usable.length > 1) throw new ApiError(409, "messages_machine_ambiguous", `Messages is on for more than one connected Mac. Pass machineId to choose one, or ask the user which Mac to use.${roster()}`);
-    if (machines.some(machine => machine.connected && machine.messages === "off")) throw new ApiError(409, "messages_machine_off", `Messages is turned off on every connected Mac. Only the user can turn it on, in that Mac's OpenTeam Settings → Computer → Messages. Do not retry while it stays off.${roster()}`);
-    throw new ApiError(409, "messages_machine_offline", `No Mac with Messages turned on is connected: the OpenTeam desktop app must be open on a Mac that is awake and online.${roster()}`);
+    if (machines.some(machine => machine.connected && machine.messages === "off")) throw new ApiError(409, "messages_machine_off", `Messages is turned off on every connected Mac. Only the user can turn it on, in that Mac's aiTeamOS Settings → Computer → Messages. Do not retry while it stays off.${roster()}`);
+    throw new ApiError(409, "messages_machine_offline", `No Mac with Messages turned on is connected: the aiTeamOS desktop app must be open on a Mac that is awake and online.${roster()}`);
   }
 
   /** Grants a Mac reports; turning Messages on or off there withdraws every send permission. */
@@ -176,7 +176,7 @@ export class MachineService {
   }
 
   async authenticate(request: Request) {
-    const machineId = request.headers.get("x-openteam-machine-id") ?? "";
+    const machineId = request.headers.get("x-aiteamos-machine-id") ?? "";
     const credential = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ?? "";
     const row = machineId.length <= 128 ? await this.db.hostMachine.findUnique({ where: { machineId } }) : null;
     if (!row?.enabled || row.transport !== "relay" || !row.credentialHash || !credential || !timingSafeEqual(Buffer.from(hash(credential)), Buffer.from(row.credentialHash)) || !await this.sessionValid(row.authSessionId)) {

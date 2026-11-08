@@ -1,4 +1,4 @@
-import type { VoiceSessionTicketView, VoiceServerMessage } from "@openteam/contracts/voice";
+import type { VoiceSessionTicketView, VoiceServerMessage } from "@aiteamos/contracts/voice";
 import { API_BASE } from "../client/http";
 import { resolveVoiceSocketUrl } from "../client/runtime-url";
 

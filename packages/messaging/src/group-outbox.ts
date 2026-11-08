@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
-import { ApiError } from "@openteam/contracts";
-import type { Prisma } from "@openteam/db";
+import { ApiError } from "@aiteamos/contracts";
+import type { Prisma } from "@aiteamos/db";
 import { GROUP_MAX_MEMBER_TURNS, GROUP_MAX_MESSAGES_PER_TURN } from "./group-routing";
 import { nextMessageAddress } from "./message-address";
 import { publishMessageNotification } from "./notifications";

@@ -1,12 +1,12 @@
-import { isOpenTeamVersion } from "@openteam/contracts/version-compatibility";
+import { isAiTeamOSVersion } from "@aiteamos/contracts/version-compatibility";
 
 type CacheStorage = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 export interface ServerUpdateSnapshot {
-  status: OpenTeamServerUpdateStatus;
+  status: AiTeamOSServerUpdateStatus;
   observedAt: number;
   startedAt: number | null;
 }
-const key = (server: string) => `openteam:server-update:${server}`;
+const key = (server: string) => `aiteamos:server-update:${server}`;
 const MAX_AGE = 24 * 60 * 60 * 1000;
 
 /** A last-known active job, never evidence that a server is currently healthy. */
@@ -28,7 +28,7 @@ export function readServerUpdateSnapshot(
     if (
       status?.serverUrl !== server ||
       status.status !== "updating" ||
-      !isOpenTeamVersion(status.targetVersion ?? "")
+      !isAiTeamOSVersion(status.targetVersion ?? "")
     )
       return null;
     if (

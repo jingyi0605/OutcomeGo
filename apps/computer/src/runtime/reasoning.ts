@@ -5,7 +5,7 @@ import {
   type SimpleStreamOptions,
 } from "@earendil-works/pi-ai";
 import type { ExtensionFactory } from "@earendil-works/pi-coding-agent";
-import type { PiReasoningLevel } from "@openteam/contracts";
+import type { PiReasoningLevel } from "@aiteamos/contracts";
 
 export function inferenceReasoningOptions(
   model: Model<Api>,
@@ -38,7 +38,7 @@ export function reasoningExtension(
 ): { name: string; hidden: boolean; factory: ExtensionFactory } {
   const { onPayload } = inferenceReasoningOptions(model, requested);
   return {
-    name: "openteam-reasoning",
+    name: "aiteamos-reasoning",
     hidden: true,
     factory(pi) {
       if (onPayload) pi.on("before_provider_request", (event) => onPayload(event.payload, model));

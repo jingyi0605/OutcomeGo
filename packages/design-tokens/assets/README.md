@@ -1,10 +1,10 @@
-# OpenTeam app icons
+# ai-TeamOS app icons
 
-`OpenTeam.icon` is the shared, editable Icon Composer source for iOS and macOS.
+`aiTeamOS.icon` is the shared, editable Icon Composer source for iOS and macOS.
 It holds one layer, `Assets/logo.png`, the ai-TeamOS prism mark (trimmed from
 `apps/landing/public/ai-teamOS-concept-02-prism.png`), on a charcoal gradient
 background. Colors are defined in `icon.json`. The robot artwork that upstream
-OpenTeam ships here was removed in this fork.
+aiTeamOS ships here was removed in this fork.
 
 ## Build integration
 
@@ -14,7 +14,7 @@ OpenTeam ships here was removed in this fork.
   ICNS, and writes the native icon keys into Info.plist. Do not replace it with
   `app.dock.setIcon`, which bypasses the system's appearance selection.
 - Windows: `icon.ico` includes 16, 24, 32, 48, 64, 128 and 256px representations.
-- Linux: `openteam-desktop-light.png` is the packaged icon. Windows and Linux use
+- Linux: `aiteamos-desktop-light.png` is the packaged icon. Windows and Linux use
   static icons; light and dark PNG exports are available for both.
 
 The native PNGs here are flattened previews with platform masking. Do not use them

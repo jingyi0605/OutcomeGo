@@ -7,8 +7,8 @@ import managed from '../src/prompts/managed-skills.json';
 import { AgentDataStore } from '../src/agent-data';
 import { buildGroupTurnPrompt } from '../src/index';
 import { normalizeMemoryContent } from '../src/memory-facts';
-import { referenceTool } from '@openteam/contracts/tool-contracts';
-import { AUTOMATION_TRIGGER_SHAPE_LINES } from '@openteam/contracts/reference-main-parsers';
+import { referenceTool } from '@aiteamos/contracts/tool-contracts';
+import { AUTOMATION_TRIGGER_SHAPE_LINES } from '@aiteamos/contracts/reference-main-parsers';
 
 const skill = (id: string) => managed.skills.find(s => s.id === id)!.content;
 const description = (id: string): string => yaml(skill(id).split('---')[1]!).description;
@@ -47,7 +47,7 @@ test('managed workflows omit categorical authentication and transaction handover
 });
 
 test('connector skills install without asking and promise no connect card', () => {
-  // OpenTeam has no connect cards: InstallPlugin installs, AuthenticateMcpServer starts sign-in.
+  // aiTeamOS has no connect cards: InstallPlugin installs, AuthenticateMcpServer starts sign-in.
   for (const item of managed.skills) {
     expect(item.content).not.toMatch(/connect card (is the ask|appears|handles|is shown)/);
     expect(item.content).not.toContain('once the user agrees, install it');
@@ -95,7 +95,7 @@ test('purchases takes the user\'s own card and keeps no card', () => {
     'call RequestUserForm with reason "checkout"',
     'use them as given for this checkout, without asking them to re-enter the card in the Secure Form',
     "Never tell the user you can't take their card",
-    'OpenTeam does not keep cards',
+    'aiTeamOS does not keep cards',
     'verify whether the order went through (confirmation page, order history, email) before retrying',
   ]) expect(purchases).toContain(rule);
   // The form host reaches card inputs embedded from a payment provider, so those get the form too.
@@ -119,7 +119,7 @@ test('commerce skills pay in the purchases order and confirm with the reference 
     }
     expect(item.content).not.toMatch(/site playbook|RequestVirtualCard|Stripe Link|Outlook|GetMcpTools|`order` card|tapping Pay/i);
     if (item.content.includes('When the site wants payment')) {
-      expect(item.content).toContain('as the OpenTeam-managed `purchases` skill says');
+      expect(item.content).toContain('as the aiTeamOS-managed `purchases` skill says');
       expect(item.content).toContain("First, a payment method already saved on the site's own account. Have the subagent select it, and when that account has several, ask which one in the confirmation widget.");
       expect(item.content).toContain("never tell them you can't take their card, and never predict that the form can't reach card inputs embedded from a payment provider. Last, when the host refuses the form");
     }
@@ -231,7 +231,7 @@ test('every tool a managed skill names exists under that name', async () => {
   const tool = (name: string) => { try { return referenceTool(name); } catch { return undefined; } };
   const argumentNames = new Set(managed.skills.flatMap(s => [...s.content.matchAll(/\b[A-Z][A-Za-z]+\b/g)].flatMap(([name]) => Object.keys(tool(name)?.inputSchema.properties ?? {}))));
   const words = new Set([
-    'AgentMail', 'ContentType', 'DejaVu', 'DevTools', 'DoorDash', 'GitHub', 'GitLab', 'LibreOffice', 'LinkedIn', 'OpenTable', 'OpenTeam',
+    'AgentMail', 'ContentType', 'DejaVu', 'DevTools', 'DoorDash', 'GitHub', 'GitLab', 'LibreOffice', 'LinkedIn', 'OpenTable', 'aiTeamOS',
     'PagerDuty', 'PartName', 'PowerPoint', 'PptxGenJS', 'SaaS', 'TheFork', 'WhatsApp', 'YouTube',
     // Prompt blocks, stock states and routine wake blocks, not tools.
     'user_info', 'agent_skills', 'automation_status', 'in_stock', 'out_of_stock', 'made_to_order', 'github_event', 'linear_event', 'microsoft_teams_message',
@@ -270,8 +270,8 @@ test.each(['cached', 'missing', 'disabled'] as const)('retires cached skills wit
   const root = await mkdtemp(join(tmpdir(), 'retired-skills-'));
   const data = join(root, 'data');
   const store = new AgentDataStore({} as never, { root: data, workspaceRoot: join(root, 'workspace') });
-  const previous = process.env.OPENTEAM_MANAGED_SKILLS;
-  delete process.env.OPENTEAM_MANAGED_SKILLS;
+  const previous = process.env.AITEAMOS_MANAGED_SKILLS;
+  delete process.env.AITEAMOS_MANAGED_SKILLS;
   try {
     if (state === 'cached') await store.syncPluginSkillCache([]);
     const retired = ['sign-in', 'site-playbooks-airbnb', 'site-playbooks-google-flights', 'learn-from-demonstration', 'removed-custom-workflow'];
@@ -286,7 +286,7 @@ test.each(['cached', 'missing', 'disabled'] as const)('retires cached skills wit
       await mkdir(join(file, '..'), { recursive: true });
       await writeFile(file, 'user-owned skill');
     }
-    if (state === 'disabled') process.env.OPENTEAM_MANAGED_SKILLS = 'false';
+    if (state === 'disabled') process.env.AITEAMOS_MANAGED_SKILLS = 'false';
     await store.syncPluginSkillCache([]);
     for (const id of retired) {
       await expect(access(join(data, 'managed-skills', id))).rejects.toThrow();
@@ -298,8 +298,8 @@ test.each(['cached', 'missing', 'disabled'] as const)('retires cached skills wit
     expect(rendered).not.toContain('/sign-in/SKILL.md');
     expect(rendered).not.toContain('site-playbooks-');
   } finally {
-    if (previous === undefined) delete process.env.OPENTEAM_MANAGED_SKILLS;
-    else process.env.OPENTEAM_MANAGED_SKILLS = previous;
+    if (previous === undefined) delete process.env.AITEAMOS_MANAGED_SKILLS;
+    else process.env.AITEAMOS_MANAGED_SKILLS = previous;
     await rm(root, { recursive: true, force: true });
   }
 });

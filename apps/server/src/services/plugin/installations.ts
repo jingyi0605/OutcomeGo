@@ -1,4 +1,4 @@
-import { ApiError } from "@openteam/contracts";
+import { ApiError } from "@aiteamos/contracts";
 import {
   environmentFields,
   fieldsForConnector,
@@ -6,8 +6,8 @@ import {
   validateValues,
   type ConfigValue,
   type PluginDefinition,
-} from "@openteam/plugin-sdk";
-import type { PrismaClient } from "@openteam/db";
+} from "@aiteamos/plugin-sdk";
+import type { PrismaClient } from "@aiteamos/db";
 import { appendEvent, serviceEffect, toJson } from "../service-utils";
 import { definitionFromManifest, hasPlaceholder, manifestJson } from "./values";
 import { resolveUpstreamPlugin } from "../../plugins/upstream-package";

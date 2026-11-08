@@ -1,16 +1,16 @@
 import { createHash } from "node:crypto";
 import { equalOAuthState, validateDesktopCallback, parseManualCallback, oauthCallbackMode, MANUAL_OAUTH_REDIRECT, type PluginOAuthDesktopContext } from "../plugins/oauth-callback";
-import type { PluginOAuthCallbackInput } from "@openteam/contracts/plugin-management";
+import type { PluginOAuthCallbackInput } from "@aiteamos/contracts/plugin-management";
 import { normalizeAccountLabel, pluginToolArguments } from "./plugin/tool-arguments";
-import { connectionNamespaces } from "@openteam/plugin-sdk";
-import type { ConfigurePluginConnectionInput, PluginTestInput, RunOrigin } from "@openteam/contracts";
-import { ApiError } from "@openteam/contracts";
-import type { Prisma, PrismaClient } from "@openteam/db";
-import type { AgentDataStore } from "@openteam/messaging";
+import { connectionNamespaces } from "@aiteamos/plugin-sdk";
+import type { ConfigurePluginConnectionInput, PluginTestInput, RunOrigin } from "@aiteamos/contracts";
+import { ApiError } from "@aiteamos/contracts";
+import type { Prisma, PrismaClient } from "@aiteamos/db";
+import type { AgentDataStore } from "@aiteamos/messaging";
 import { Effect, Either } from "effect";
 import { McpHttpClientManager } from "../plugins/mcp-client-manager";
 import { OAuthReauthorizationRequiredError } from "../plugins/packaged-oauth";
-import { OpenTeamMarketplaceSource } from "../plugins/openteam-marketplace";
+import { AiTeamOSMarketplaceSource } from "../plugins/aiteamos-marketplace";
 import { PluginManagement } from "./plugin/management";
 import { PluginConfiguration } from "./plugin/configuration";
 import {
@@ -20,7 +20,7 @@ import {
   type ConfigValue,
   type PluginDefinition,
   type PluginToolDefinition,
-} from "@openteam/plugin-sdk";
+} from "@aiteamos/plugin-sdk";
 import { PluginConnectors } from "./plugin/connectors";
 import type { PollableConnection } from "./plugin/events";
 import { PluginInstallations } from "./plugin/installations";
@@ -65,8 +65,8 @@ const USER_STARTED_RUN_ORIGINS: ReadonlySet<RunOrigin> = new Set(["user"]);
 export const describeInstallNotUserTurn = (displayName: string, origin?: RunOrigin) =>
   origin === "group"
     // Adapted: a user can start a room turn, so the reference's "did not start this turn" would be false there.
-    ? `Nothing was installed: this is a group-room turn, and installing adds ${displayName} to your user's account, which happens only when they ask for it in their own 1:1 chat with you. If your user wants ${displayName}, ask them to continue in your 1:1 chat (pass "to":"dm" on SendToUser to reach it) or to add it themselves in OpenTeam.`
-    : `Nothing was installed: the user did not start this turn, and installing adds ${displayName} to their account. Only install when the user asks for it in their own chat with you, never on a turn a routine, another agent, or a Slack or Teams message started. Tell the user this needs ${displayName}, which they can add themselves in OpenTeam.`;
+    ? `Nothing was installed: this is a group-room turn, and installing adds ${displayName} to your user's account, which happens only when they ask for it in their own 1:1 chat with you. If your user wants ${displayName}, ask them to continue in your 1:1 chat (pass "to":"dm" on SendToUser to reach it) or to add it themselves in aiTeamOS.`
+    : `Nothing was installed: the user did not start this turn, and installing adds ${displayName} to their account. Only install when the user asks for it in their own chat with you, never on a turn a routine, another agent, or a Slack or Teams message started. Tell the user this needs ${displayName}, which they can add themselves in aiTeamOS.`;
 
 export class PluginService {
   readonly fileTransfers: ConnectorFileTransfers;
@@ -87,10 +87,10 @@ export class PluginService {
   private healthTimer?: ReturnType<typeof setInterval>;
   private healthCheckRunning = false;
 
-  private readonly marketplace = new OpenTeamMarketplaceSource();
+  private readonly marketplace = new AiTeamOSMarketplaceSource();
   private readonly publicUrl =
-    process.env.OPENTEAM_PUBLIC_URL ?? `http://127.0.0.1:${process.env.OPENTEAM_PORT ?? "8787"}`;
-  private readonly authMode = parseAuthMode(process.env.OPENTEAM_AUTH_MODE);
+    process.env.AITEAMOS_PUBLIC_URL ?? `http://127.0.0.1:${process.env.AITEAMOS_PORT ?? "8787"}`;
+  private readonly authMode = parseAuthMode(process.env.AITEAMOS_AUTH_MODE);
 
   constructor(
     private readonly prisma: PrismaClient,
@@ -489,8 +489,8 @@ export class PluginService {
         requiresUserAction: true,
         pluginId: connection.installation.pluginKey,
         accountLabel: connection.alias,
-        setupUrl: `openteam://app/v1/plugin/add?id=${encodeURIComponent(connection.installation.pluginKey)}`,
-        instructions: `Open this plugin in OpenTeam and start sign-in for account ${JSON.stringify(connection.alias)}${force ? " (use Reauthorize in account settings for an already connected account)" : ""}. If an older sign-in is pending, select Start again. Complete sign-in there; do not paste the callback into chat.`,
+        setupUrl: `aiteamos://app/v1/plugin/add?id=${encodeURIComponent(connection.installation.pluginKey)}`,
+        instructions: `Open this plugin in aiTeamOS and start sign-in for account ${JSON.stringify(connection.alias)}${force ? " (use Reauthorize in account settings for an already connected account)" : ""}. If an older sign-in is pending, select Start again. Complete sign-in there; do not paste the callback into chat.`,
       };
     }
     return runAuthentication(this.authenticate(connectionId, force));
@@ -505,7 +505,7 @@ export class PluginService {
         desktop = { redirectUrl: MANUAL_OAUTH_REDIRECT, sessionId, mode: "manual" };
     }
     if (desktop && this.authMode === "required" && !desktop.sessionId)
-      throw new ApiError(409, "plugin_oauth_session_required", "Open this connection in OpenTeam and start sign-in from your signed-in session.");
+      throw new ApiError(409, "plugin_oauth_session_required", "Open this connection in aiTeamOS and start sign-in from your signed-in session.");
     if (desktop) validateDesktopCallback(desktop.redirectUrl);
     const existing = this.authenticationStarts.get(connectionId);
     if (existing) {
@@ -568,7 +568,7 @@ export class PluginService {
           credentials: toJson(next),
           runtimeGeneration: { increment: 1 },
           status: "needs_auth",
-          statusMessage: desktop?.mode === "manual" ? "Approve access in your browser, then paste the complete callback URL into OpenTeam." : "Waiting for authorization in your browser.",
+          statusMessage: desktop?.mode === "manual" ? "Approve access in your browser, then paste the complete callback URL into aiTeamOS." : "Waiting for authorization in your browser.",
           lastCheckedAt: new Date(),
         },
       });
@@ -1078,7 +1078,7 @@ export class PluginService {
   updateReleasedPlugins = async (): Promise<string[]> => {
     const updated = await Effect.runPromise(this.management.updateReleased());
     for (const plugin of updated)
-      console.log(`Updated plugin ${plugin.key} ${plugin.from} -> ${plugin.to} with this OpenTeam release`);
+      console.log(`Updated plugin ${plugin.key} ${plugin.from} -> ${plugin.to} with this aiTeamOS release`);
     return updated.flatMap((plugin) => plugin.reconnect);
   };
 

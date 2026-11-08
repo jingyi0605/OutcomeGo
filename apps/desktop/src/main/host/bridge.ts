@@ -7,7 +7,7 @@ import {
   parseHostReadRequest,
   parseHostShellRequest,
   parseHostTransferRequest,
-} from "@openteam/contracts/service-protocol";
+} from "@aiteamos/contracts/service-protocol";
 import { listenForHostBridge } from "./bridge-listener";
 import { HostFileTransfers } from "./file-transfer";
 import type { HostCapabilities } from "./capabilities";

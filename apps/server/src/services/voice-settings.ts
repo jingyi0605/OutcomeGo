@@ -1,5 +1,5 @@
-import { ApiError, type VoiceProviderId, type VoiceSettingsInput, type VoiceSettingsView } from "@openteam/contracts";
-import type { PrismaClient } from "@openteam/db";
+import { ApiError, type VoiceProviderId, type VoiceSettingsInput, type VoiceSettingsView } from "@aiteamos/contracts";
+import type { PrismaClient } from "@aiteamos/db";
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
 
 const ID = "global";
@@ -162,7 +162,7 @@ export class VoiceSettingsService {
 
   constructor(
     private readonly prisma: Pick<PrismaClient, "voiceSettings">,
-    private readonly secret: () => string | undefined = () => process.env.OPENTEAM_AUTH_SECRET,
+    private readonly secret: () => string | undefined = () => process.env.AITEAMOS_AUTH_SECRET,
   ) {}
 
   private key(): Buffer {

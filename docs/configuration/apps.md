@@ -32,10 +32,10 @@ state visible in dark mode.
 
 To get notified when a bot messages you:
 
-1. Allow OpenTeam to send notifications in your device's system settings.
+1. Allow aiTeamOS to send notifications in your device's system settings.
 2. Every bot notifies you by default. To mute a bot, open **Settings → Bot notifications** in the iPhone app; the setting applies on every device.
 
-On desktop, banners appear only while OpenTeam isn't the window you're using. Each conversation shows at most one banner every 5 seconds, so a burst of replies produces a single banner; replies inside that window don't get one later. Banners are silent, show the message's first line as plain text, and disappear once you read the chat on your Mac or iPhone. Reactions don't notify. On iPhone, you get an alert for each message except in the conversation you have open.
+On desktop, banners appear only while aiTeamOS isn't the window you're using. Each conversation shows at most one banner every 5 seconds, so a burst of replies produces a single banner; replies inside that window don't get one later. Banners are silent, show the message's first line as plain text, and disappear once you read the chat on your Mac or iPhone. Reactions don't notify. On iPhone, you get an alert for each message except in the conversation you have open.
 
 Group chats don't have their own setting; you're notified when a bot posts in a group if that bot's **Notifications** setting is on. On the Mac, a group's banner is titled with the group's name.
 
@@ -45,12 +45,12 @@ for a reply inside a thread opens that thread. On iPhone, the destination messag
 briefly highlights after opening. Opening an older notification leaves newer unseen
 messages unread. If loading fails, check the connection and try again.
 
-On iPhone, turn on **Notifications** in Settings, and choose which bots notify you under **Bot notifications**. Push notifications also need Apple push credentials on your server, which you can import with `openteam notifications configure`. Changes apply live without a restart. Follow the [mobile notification setup guide](mobile-notifications.md) for Apple credentials, CLI configuration, and delivery checks.
+On iPhone, turn on **Notifications** in Settings, and choose which bots notify you under **Bot notifications**. Push notifications also need Apple push credentials on your server, which you can import with `aiteamos notifications configure`. Changes apply live without a restart. Follow the [mobile notification setup guide](mobile-notifications.md) for Apple credentials, CLI configuration, and delivery checks.
 
 ### If notifications don't arrive
 
 1. Check that the bot isn't muted under **Settings → Bot notifications** in the iPhone app.
-2. Check that OpenTeam is allowed to send notifications in your system settings.
+2. Check that aiTeamOS is allowed to send notifications in your system settings.
 3. Check that Focus or Do Not Disturb isn't silencing it.
 4. On iPhone, check that your server is set up for push notifications.
 

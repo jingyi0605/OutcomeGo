@@ -11,7 +11,7 @@ import type { BrowserContext } from "playwright-core";
 const html = (body: string, headers: Record<string, string> = {}) =>
   new Response(body, { headers: { "content-type": "text/html", ...headers } });
 
-describe.skipIf(!process.env.OPENTEAM_BROWSER_TEST_EXECUTABLE)("browser_run_code contract on real Chromium", () => {
+describe.skipIf(!process.env.AITEAMOS_BROWSER_TEST_EXECUTABLE)("browser_run_code contract on real Chromium", () => {
   let root: string, workspace: string, downloads: string, origin: string, endpoint: string;
   let server: ReturnType<typeof Bun.serve>, driver: OutOfProcessPlaywright, chrome: BrowserContext, session: BrowserUseSession;
   const raw = (code: string) => session.execute("browser_run_code", { code });
@@ -59,7 +59,7 @@ describe.skipIf(!process.env.OPENTEAM_BROWSER_TEST_EXECUTABLE)("browser_run_code
     const profile = join(root, "profile");
     await prepareDownloadPreferences(profile, root);
     chrome = await driver.playwright.chromium.launchPersistentContext(profile, {
-      executablePath: process.env.OPENTEAM_BROWSER_TEST_EXECUTABLE, headless: true, args: ["--remote-debugging-port=0"],
+      executablePath: process.env.AITEAMOS_BROWSER_TEST_EXECUTABLE, headless: true, args: ["--remote-debugging-port=0"],
     });
     chrome.on("dialog", () => {});
     endpoint = `http://127.0.0.1:${(await readFile(join(profile, "DevToolsActivePort"), "utf8")).split("\n")[0]}`;
@@ -86,7 +86,7 @@ describe.skipIf(!process.env.OPENTEAM_BROWSER_TEST_EXECUTABLE)("browser_run_code
       return [await page.frameLocator('iframe').first().getByRole('button').innerText(), await page.frameLocator('iframe').last().getByRole('button').innerText(), await page.locator('aria-ref=${cross}').count()]; }`)).result).toEqual(["Inner clicked", "Cross clicked", 0]);
     const staleFrame = await run(`async (page) => page.locator('aria-ref=${cross}').click({ timeout: 300 })`);
     expect(staleFrame.error.message).toContain(`locator('aria-ref=${cross}')`);
-    expect(staleFrame.error.message).not.toContain("openteam-ref");
+    expect(staleFrame.error.message).not.toContain("aiteamos-ref");
     // A later call, and the parent's own ref tools, still accept the same refs.
     expect((await run(`async (page) => page.locator('aria-ref=${save}').innerText()`)).result).toBe("Save");
     expect(JSON.stringify(await session.execute("browser_click", { target: save, element: "Save" }))).toContain("Saved Grace");
@@ -94,7 +94,7 @@ describe.skipIf(!process.env.OPENTEAM_BROWSER_TEST_EXECUTABLE)("browser_run_code
     const stale = await run(`async (page) => page.locator('aria-ref=${save}').click({ timeout: 300 })`);
     expect(stale.error.code).toBe("job_failed");
     expect(stale.error.message).toContain(`aria-ref=${save}`);
-    expect(stale.error.message).not.toContain("openteam-ref");
+    expect(stale.error.message).not.toContain("aiteamos-ref");
     expect(stale.error.message).toContain("fresh await page.ariaSnapshot");
     await expect(session.execute("browser_click", { target: save, element: "Save" })).rejects.toThrow();
   }, 60_000);

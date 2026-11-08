@@ -22,7 +22,7 @@ const state = {
   waiting: 0,
 };
 const config = { missing: [], issue: null, topic: "dev.openbot.mobile" };
-const missing = ["OPENTEAM_APNS_KEY_ID", "OPENTEAM_APNS_TEAM_ID", "OPENTEAM_APNS_PRIVATE_KEY"];
+const missing = ["AITEAMOS_APNS_KEY_ID", "AITEAMOS_APNS_TEAM_ID", "AITEAMOS_APNS_PRIVATE_KEY"];
 const check = (checks: ReturnType<typeof notificationChecks>, label: string) =>
   checks.find((c) => c.label === label)!;
 
@@ -137,7 +137,7 @@ describe("Doctor notification readiness", () => {
 });
 
 const runConfig = async (socketPath: string) => {
-  const script = APNS_CONFIGURATION_PROBE.replace("/tmp/openteam-worker-doctor.sock", socketPath);
+  const script = APNS_CONFIGURATION_PROBE.replace("/tmp/aiteamos-worker-doctor.sock", socketPath);
   const child = Bun.spawn(
     ["node", "-e", `(async () => {${script}})().catch(() => process.exitCode = 1)`],
     { env: { PATH: process.env.PATH }, stdout: "pipe", stderr: "pipe" }
@@ -148,7 +148,7 @@ const runConfig = async (socketPath: string) => {
 
 describe("real APNs worker configuration probe", () => {
   test("reads the worker's live APNs setting from its diagnostics socket", async () => {
-    const directory = mkdtempSync(join(tmpdir(), "openteam-apns-socket-"));
+    const directory = mkdtempSync(join(tmpdir(), "aiteamos-apns-socket-"));
     const socket = join(directory, "doctor.sock");
     let issue: string | null = null;
     let status = 200;
@@ -178,7 +178,7 @@ describe("real APNs worker configuration probe", () => {
   });
 
   test("fails without a diagnostics socket", async () => {
-    const directory = mkdtempSync(join(tmpdir(), "openteam-apns-socket-"));
+    const directory = mkdtempSync(join(tmpdir(), "aiteamos-apns-socket-"));
     try {
       expect(await runConfig(join(directory, "missing.sock"))).toEqual({ exitCode: 1, output: "" });
     } finally {

@@ -2,7 +2,7 @@ import { afterEach, expect, test } from "bun:test";
 import { mkdtemp, readFile, readdir, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { formatUserFormReceipt, parseUserForm } from "@openteam/contracts";
+import { formatUserFormReceipt, parseUserForm } from "@aiteamos/contracts";
 import { FormPreparationError, UserFormHost, formVaultKey, type FormBrowser } from "../src/user-form-host";
 
 const roots: string[] = [];

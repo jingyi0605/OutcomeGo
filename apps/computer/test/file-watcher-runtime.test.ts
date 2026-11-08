@@ -7,7 +7,7 @@ import { join } from "node:path";
 // Linux inotify regression: Bun 1.3.8 replays a stale buffered suffix forever.
 // SIGSTOP targets only this test's fresh child to queue a deterministic burst.
 test.skipIf(process.platform !== "linux")("file watcher drains a burst and receives later changes without spinning", async () => {
-  const root = await mkdtemp(join(tmpdir(), "openteam-watcher-regression-"));
+  const root = await mkdtemp(join(tmpdir(), "aiteamos-watcher-regression-"));
   const source = `const fs=require('node:fs');const seen=new Set();
     fs.watch(process.argv[1],(_event,file)=>seen.add(String(file)));
     process.stdin.on('data',()=>console.log(JSON.stringify({seen:[...seen]})));

@@ -76,7 +76,7 @@ try:
             draw.line((21, 70, width - 21, 70), fill='#353941')
             for x, dot in [(42, '#f27d78'), (63, '#e6bd60'), (84, '#73c992')]:
                 draw.ellipse((x, 42, x + 10, 52), fill=dot)
-            draw.text((116, 35), 'OpenTeam / install', font=small, fill='#d6dae3')
+            draw.text((116, 35), 'aiTeamOS / install', font=small, fill='#d6dae3')
             draw.text((width - 42, 35), title, font=small, fill='#939dac', anchor='ra')
             for y in range(header['height']):
                 for x in range(header['width']):

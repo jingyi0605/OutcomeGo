@@ -8,7 +8,7 @@ import { fileDigest } from "../src/box-store/file-stream";
 let root: string | undefined;
 afterEach(async () => { if (root) await rm(root, { recursive: true, force: true }); root = undefined; });
 const fixture = async () => {
-  root = await realpath(await mkdtemp(join(tmpdir(), "openteam-streamed-store-")));
+  root = await realpath(await mkdtemp(join(tmpdir(), "aiteamos-streamed-store-")));
   const options = { home: join(root, "home"), sandRoot: join(root, "sand"), workspaceRoot: join(root, "workspace"), storeRoot: join(root, "store") };
   await mkdir(options.workspaceRoot, { recursive: true });
   return { ...options, file: join(options.workspaceRoot, "large.bin"), sync: new BoxStoreSync(options) };

@@ -1,1 +1,1 @@
-export * from "@openteam/product-core/channel-history";
+export * from "@aiteamos/product-core/channel-history";

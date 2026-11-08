@@ -1,17 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { api } from "../client/openteam-api";
+import { api } from "../client/aiteamos-api";
 import { API_BASE } from "../client/http";
 import { readServerUpdateSnapshot, saveServerUpdateSnapshot } from "../lib/server-update-cache";
-import { isOpenTeamVersion } from "@openteam/contracts/version-compatibility";
+import { isAiTeamOSVersion } from "@aiteamos/contracts/version-compatibility";
 import { isWindowActive } from "../lib/window-visibility";
 import { useWindowActive } from "./use-window-active";
 
 const manualCommand = (targetVersion: string | null) =>
-  targetVersion && isOpenTeamVersion(targetVersion)
-    ? `openteam update --version ${targetVersion}`
-    : "openteam update";
+  targetVersion && isAiTeamOSVersion(targetVersion)
+    ? `aiteamos update --version ${targetVersion}`
+    : "aiteamos update";
 
-const unavailableStatus = (targetVersion: string | null): OpenTeamServerUpdateStatus => ({
+const unavailableStatus = (targetVersion: string | null): AiTeamOSServerUpdateStatus => ({
   serverUrl: API_BASE,
   currentVersion: null,
   targetVersion,
@@ -22,7 +22,7 @@ const unavailableStatus = (targetVersion: string | null): OpenTeamServerUpdateSt
   updaterAvailable: false,
   status: "unavailable",
   phase: null,
-  message: "Run openteam update once on this server to enable updates from the app.",
+  message: "Run aiteamos update once on this server to enable updates from the app.",
   manualCommand: manualCommand(targetVersion),
   jobId: null,
   safeToCloseDesktop: false,
@@ -33,7 +33,7 @@ export function useServerUpdateStatus(targetVersion: string | null) {
   const [view, setView] = useState(() => {
     const cached = readServerUpdateSnapshot(API_BASE, localStorage);
     return {
-      status: cached?.status ?? (null as OpenTeamServerUpdateStatus | null),
+      status: cached?.status ?? (null as AiTeamOSServerUpdateStatus | null),
       loading: !cached,
       reconnecting: Boolean(cached),
       startedAt: cached?.startedAt ?? null,

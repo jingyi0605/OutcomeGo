@@ -11,9 +11,9 @@ import "../monochrome.css";
 import "./blog.css";
 
 const metadataBase = pageMetadata({
-  title: "Blog | OpenTeam, self-hosted AI agents",
+  title: "Blog | aiTeamOS, self-hosted AI agents",
   description:
-    "Comparisons, guides, and engineering notes from the team building OpenTeam, an open-source, self-hosted team of AI agents.",
+    "Comparisons, guides, and engineering notes from the team building aiTeamOS, an open-source, self-hosted team of AI agents.",
   path: "/blog",
 });
 
@@ -31,7 +31,7 @@ export default function BlogIndex() {
         <header className="blog-index-header">
           <h1>Blog</h1>
           <p>
-            Comparisons, guides, and engineering notes from building OpenTeam, an open-source team of
+            Comparisons, guides, and engineering notes from building aiTeamOS, an open-source team of
             AI agents that runs on your own hardware.
           </p>
         </header>

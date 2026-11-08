@@ -1,21 +1,21 @@
 import { describe, expect, test } from "bun:test";
 import {
-  parseOpenTeamDeepLink,
+  parseAiTeamOSDeepLink,
   SETTINGS_ANCHORS,
   settingsViewForAnchor,
 } from "../src/renderer/lib/app-deep-links";
 
-describe("OpenTeam deep-link routing parity", () => {
+describe("aiTeamOS deep-link routing parity", () => {
   test("accepts every documented settings anchor and resolves its exact panel", () => {
     for (const anchor of SETTINGS_ANCHORS) {
-      const parsed = parseOpenTeamDeepLink(`openteam://app/v1/settings?id=${anchor}`);
+      const parsed = parseAiTeamOSDeepLink(`aiteamos://app/v1/settings?id=${anchor}`);
       expect(parsed).toEqual({ kind: "settings", anchor });
       if (parsed?.kind === "settings") expect(settingsViewForAnchor(parsed.anchor)).toBeString();
     }
     expect(settingsViewForAnchor("update-status")).toBe("updates");
     expect(settingsViewForAnchor("server-update")).toBe("updates");
     expect(settingsViewForAnchor("browser-network")).toBe("server");
-    expect(parseOpenTeamDeepLink("openteam://app/v1/settings?id=local-execution")).toBeNull();
+    expect(parseAiTeamOSDeepLink("aiteamos://app/v1/settings?id=local-execution")).toBeNull();
     for (const anchor of ["inference-provider", "inference-model", "inference-reasoning"] as const) {
       expect(settingsViewForAnchor(anchor)).toBe("model");
     }
@@ -24,16 +24,16 @@ describe("OpenTeam deep-link routing parity", () => {
   });
 
   test("preserves the stable plugin id and rejects malformed or unsupported links", () => {
-    expect(parseOpenTeamDeepLink("openteam://app/v1/plugin/add?id=google-calendar")).toEqual({
+    expect(parseAiTeamOSDeepLink("aiteamos://app/v1/plugin/add?id=google-calendar")).toEqual({
       kind: "plugin",
       pluginId: "google-calendar",
     });
-    expect(parseOpenTeamDeepLink("openteam://app/v1/settings?id=not-a-real-anchor")).toBeNull();
-    expect(parseOpenTeamDeepLink("openteam://app/v1/settings?id=plan")).toBeNull();
-    expect(parseOpenTeamDeepLink("openteam://app/v1/settings?id=language")).toBeNull();
-    expect(parseOpenTeamDeepLink("openteam://app/v1/settings?id=update-channel")).toBeNull();
-    expect(parseOpenTeamDeepLink("https://app/v1/settings?id=theme")).toBeNull();
-    expect(parseOpenTeamDeepLink("openteam://app/v1/plugin/add?id=")).toBeNull();
+    expect(parseAiTeamOSDeepLink("aiteamos://app/v1/settings?id=not-a-real-anchor")).toBeNull();
+    expect(parseAiTeamOSDeepLink("aiteamos://app/v1/settings?id=plan")).toBeNull();
+    expect(parseAiTeamOSDeepLink("aiteamos://app/v1/settings?id=language")).toBeNull();
+    expect(parseAiTeamOSDeepLink("aiteamos://app/v1/settings?id=update-channel")).toBeNull();
+    expect(parseAiTeamOSDeepLink("https://app/v1/settings?id=theme")).toBeNull();
+    expect(parseAiTeamOSDeepLink("aiteamos://app/v1/plugin/add?id=")).toBeNull();
   });
 
   test("rejects retired shared bot template links", () => {
@@ -48,10 +48,10 @@ describe("OpenTeam deep-link routing parity", () => {
     };
 
     const data = Buffer.from(
-      JSON.stringify({ format: "openteam.bot-template", version: 1, bot: template })
+      JSON.stringify({ format: "aiteamos.bot-template", version: 1, bot: template })
     ).toString("base64url");
 
-    expect(parseOpenTeamDeepLink(`openteam://app/v1/template/add?data=${data}`)).toBeNull();
-    expect(parseOpenTeamDeepLink("openteam://app/v1/template/add?data=broken")).toBeNull();
+    expect(parseAiTeamOSDeepLink(`aiteamos://app/v1/template/add?data=${data}`)).toBeNull();
+    expect(parseAiTeamOSDeepLink("aiteamos://app/v1/template/add?data=broken")).toBeNull();
   });
 });

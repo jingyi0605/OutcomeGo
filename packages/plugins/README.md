@@ -12,7 +12,7 @@ Every plugin belongs in `packages/plugins/<plugin-name>/`. The same structure ap
 4. Validate and save, then install for testing. In **Installed**, configure each account, connect it, and use **Test tool**. Use a connected account to verify normal Bot calls.
 5. Test another account, a restart, disabled tools, changed requirements, and removal. Check skills and their supporting files separately from connector authentication.
 6. Export the ZIP. Imports and exports retain text and binary assets. Saved account values, headers, environment values, OAuth sessions and activity are stored separately and are not exported.
-7. Use GitHub’s web editor to add the package directory and open a pull request. Include its purpose, provider setup documentation, required scopes, supported account types, and the tests you ran. No OpenTeam command-line workflow is needed.
+7. Use GitHub’s web editor to add the package directory and open a pull request. Include its purpose, provider setup documentation, required scopes, supported account types, and the tests you ran. No aiTeamOS command-line workflow is needed.
 
 ## Package structure
 
@@ -22,7 +22,7 @@ An executable MCP connector keeps source, tests, assets and dependencies under i
 
 For remote MCP, declare HTTP(S), authentication (`none`, `token`, or `oauth`), and provider setup instructions. OAuth supports dynamic registration, public clients, and manually configured confidential clients with either Basic or request-body client authentication. Use the callback URL shown for that account. Set `oauth.shareClientCredentials` only when accounts intentionally share a provider application; access/refresh tokens and account headers/environment are never copied.
 
-If a provider requires OAuth authorization extensions, set `configuration.oauthAuthorizationParameters`. The supported parameters are `access_type` and `prompt`; security parameters such as state, callback, and PKCE remain controlled by OpenTeam. The Google packages request `access_type: "offline"` and `prompt: "consent select_account"` to obtain refresh tokens and explicitly choose an account. Configured scopes take precedence over the provider's advertised scope inventory.
+If a provider requires OAuth authorization extensions, set `configuration.oauthAuthorizationParameters`. The supported parameters are `access_type` and `prompt`; security parameters such as state, callback, and PKCE remain controlled by aiTeamOS. The Google packages request `access_type: "offline"` and `prompt: "consent select_account"` to obtain refresh tokens and explicitly choose an account. Configured scopes take precedence over the provider's advertised scope inventory.
 
 `${FIELD_NAME}` substitutes a typed setup value. Declare credential fields with `secret: true`, no default, and use placeholders in the manifest. Configure actual secrets in Installed. Keep, replace and clear are distinct operations. Never include `.env`, credentials files, `node_modules`, or a real token in a contribution.
 
@@ -52,12 +52,12 @@ MCP declarations can use `mcp.json`, `.mcp.json`, or an explicit manifest path.
 Cursor manifest-relative paths may resolve inside the package but cannot escape
 it. Imports with an upstream OAuth client identity require configuration of the
 deployment's own application. Packages that omit authentication metadata show
-a warning; use the provider's OpenTeam registry package for its configured OAuth
+a warning; use the provider's aiTeamOS registry package for its configured OAuth
 flow, or declare the required authentication method in the plugin definition before installing.
 
 Account IDs define runtime namespaces, so renaming an account does not change routing. Installed packages provide tools and runtime components to all bots. Connected tools execute directly. Updates review changed components and setup; compatible account IDs, credentials survive. Removing a source leaves installed snapshots available.
 
-Repository CI and the UI use `@openteam/plugin-sdk` validation. The SDK is portable and contains no database, provider, app or runtime dependency. Runtime implementation remains in the computer/server adapters; client screens use shared contracts.
+Repository CI and the UI use `@aiteamos/plugin-sdk` validation. The SDK is portable and contains no database, provider, app or runtime dependency. Runtime implementation remains in the computer/server adapters; client screens use shared contracts.
 
 ## Preserve upstream packages
 
@@ -71,9 +71,9 @@ Pin only provider files the package actually uses. When `plugin.json` already
 declares the connection and the provider package adds no workflows, don't copy it.
 Copied MIT-licensed skills or commands go in the package's own `skills/` or
 `commands/` with the notice in `LICENSE`; `upstream.json` then declares
-`"origin": "openteam"` and names the source, as Slack does.
+`"origin": "aiteamos"` and names the source, as Slack does.
 
-The outer `plugin.json` is OpenTeam's setup overlay: stable package and connection
+The outer `plugin.json` is aiTeamOS's setup overlay: stable package and connection
 IDs, authentication, typed fields, and platform requirements. Shared host code
 maps tool names, account namespaces, and command invocation. Original OAuth
 client identities are retained as source, never adopted as our application.
@@ -99,7 +99,7 @@ checks must compare the original bytes, including unknown frontmatter.
 To repeat the real-source checks from the repository root, run:
 
 ```sh
-OPENTEAM_TEST_UPSTREAM_SOURCES=1 bun test ./apps/server/test/plugin/upstream-source.integration.test.ts ./apps/computer/test/runtime/collaboration-plugins.test.ts
+AITEAMOS_TEST_UPSTREAM_SOURCES=1 bun test ./apps/server/test/plugin/upstream-source.integration.test.ts ./apps/computer/test/runtime/collaboration-plugins.test.ts
 ```
 
 These checks download and verify originals, compare exported and materialized

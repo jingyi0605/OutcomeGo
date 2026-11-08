@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { Server, ServerWebSocket, WebSocketHandler } from "bun";
-import { ApiError } from "@openteam/contracts";
+import { ApiError } from "@aiteamos/contracts";
 import {
   decodeFrame,
   encodeFrame,
@@ -20,8 +20,8 @@ import {
   type NetworkEgress,
   type NetworkSettings,
   type NetworkMode,
-} from "@openteam/plugin-sdk/browser-network/protocol";
-import type { PrismaClient } from "@openteam/db";
+} from "@aiteamos/plugin-sdk/browser-network/protocol";
+import type { PrismaClient } from "@aiteamos/db";
 import type { MachineService } from "./machine-service";
 
 function validSourceOrder(value: unknown, ranked: boolean): value is string[] {
@@ -303,7 +303,7 @@ export class BrowserNetworkService {
       role,
       machineId,
       request,
-      connectionId: request.headers.get("x-openteam-connection-id") ?? undefined,
+      connectionId: request.headers.get("x-aiteamos-connection-id") ?? undefined,
       sent: 0,
       received: 0,
       applied: null,

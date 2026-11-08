@@ -44,7 +44,7 @@
       "command": {
         "type": "string",
         "minLength": 1,
-        "description": "For a local (stdio) server: the executable to run on OpenTeam's computer, e.g. \"npx\". Provide command OR url, not both."
+        "description": "For a local (stdio) server: the executable to run on aiTeamOS's computer, e.g. \"npx\". Provide command OR url, not both."
       },
       "args": {
         "type": "array",

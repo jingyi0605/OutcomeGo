@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { ClientSnapshot } from "@openteam/contracts";
+import type { ClientSnapshot } from "@aiteamos/contracts";
 import { createSnapshotIndex } from "../src/renderer/lib/snapshot-index";
 import { activeAsyncTaskChannelIds, activeAsyncTasksForBot } from "../src/renderer/lib/async-tasks";
 import { reconcileSidebarRows, sidebarRowIsWorking } from "../src/renderer/lib/sidebar-rows";

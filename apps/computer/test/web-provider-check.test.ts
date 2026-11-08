@@ -21,7 +21,7 @@ test("a search check passes with results and fails with the provider's reason", 
   const passed = await checkWebProvider(
     { tool: "search", provider: "exa", apiKey: "k" },
     undefined,
-    respond(Response.json({ results: [{ title: "OpenTeam", url: "https://example.com/a", highlights: ["x"] }, { url: "https://example.com/b" }] }))
+    respond(Response.json({ results: [{ title: "aiTeamOS", url: "https://example.com/a", highlights: ["x"] }, { url: "https://example.com/b" }] }))
   );
   expect(passed).toEqual({ ok: true, message: "Search works: 2 results for a test query." });
   const empty = await checkWebProvider({ tool: "search", provider: "exa", apiKey: "k" }, undefined, respond(Response.json({ results: [] })));

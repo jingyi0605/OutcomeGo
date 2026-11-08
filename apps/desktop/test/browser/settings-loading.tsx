@@ -1,13 +1,13 @@
 import { createRoot } from "react-dom/client";
 import { useState } from "react";
-import { defaultTranscriptionSettings } from "@openteam/contracts/transcription";
-import { WEB_PROVIDER_LISTS } from "@openteam/contracts/web-search";
-import { api } from "../../src/renderer/client/openteam-api";
-import { SettingsPanel } from "../../src/renderer/components/openteam/settings/panel";
+import { defaultTranscriptionSettings } from "@aiteamos/contracts/transcription";
+import { WEB_PROVIDER_LISTS } from "@aiteamos/contracts/web-search";
+import { api } from "../../src/renderer/client/aiteamos-api";
+import { SettingsPanel } from "../../src/renderer/components/aiteamos/settings/panel";
 import { TooltipProvider } from "../../src/renderer/components/ui/tooltip";
 import "../../src/renderer/styles.css";
 
-if (window.openteam) throw new Error("Settings QA requires an isolated fixture");
+if (window.aiteamos) throw new Error("Settings QA requires an isolated fixture");
 window.fetch = async () => { throw new Error("External network disabled in settings fixture"); };
 const calls: unknown[] = [];
 let computer = {
@@ -16,7 +16,7 @@ let computer = {
 let transcription = { ...defaultTranscriptionSettings(), hasApiKey: false, configured: false };
 const providerStates = (tool: "search" | "fetch") => Object.fromEntries(WEB_PROVIDER_LISTS[tool].map((provider) => [provider.id, { secretSaved: false, ready: !provider.fields.some((field) => field.required), check: null }]));
 let providers: any = { search: { selected: null, providers: providerStates("search") }, fetch: { selected: "builtin", providers: providerStates("fetch") } };
-Object.assign(window, { settingsQACalls: calls, openteam: {
+Object.assign(window, { settingsQACalls: calls, aiteamos: {
   auth: { machineStatus: async () => ({ machineId: "qa", connected: true, configured: true, error: null }) },
   computer: {
     get: async () => computer,

@@ -1,41 +1,41 @@
-import type { SystemVersionView } from "@openteam/contracts";
+import type { SystemVersionView } from "@aiteamos/contracts";
 import {
-  defaultOpenTeamCompatibilityWindow,
-  isOpenTeamVersion,
-  OPENTEAM_API_PROTOCOL_VERSION,
-} from "@openteam/contracts/version-compatibility";
+  defaultAiTeamOSCompatibilityWindow,
+  isAiTeamOSVersion,
+  AITEAMOS_API_PROTOCOL_VERSION,
+} from "@aiteamos/contracts/version-compatibility";
 
-export { OPENTEAM_API_PROTOCOL_VERSION };
+export { AITEAMOS_API_PROTOCOL_VERSION };
 const FALLBACK_RELEASE_VERSION = "0.0.0";
 
 const releaseVersionFrom = (environment: NodeJS.ProcessEnv): string => {
-  const candidate = environment.OPENTEAM_VERSION?.trim();
-  return candidate && isOpenTeamVersion(candidate) ? candidate : FALLBACK_RELEASE_VERSION;
+  const candidate = environment.AITEAMOS_VERSION?.trim();
+  return candidate && isAiTeamOSVersion(candidate) ? candidate : FALLBACK_RELEASE_VERSION;
 };
 
 export const systemVersion = (environment: NodeJS.ProcessEnv = process.env): SystemVersionView => {
   const releaseVersion = releaseVersionFrom(environment);
-  const compatibilityWindow = defaultOpenTeamCompatibilityWindow(releaseVersion) ?? {
+  const compatibilityWindow = defaultAiTeamOSCompatibilityWindow(releaseVersion) ?? {
     minimum: releaseVersion,
     maximumExclusive: releaseVersion,
   };
-  const minimumClientVersion = environment.OPENTEAM_MIN_CLIENT_VERSION?.trim();
-  const maximumClientVersionExclusive = environment.OPENTEAM_MAX_CLIENT_VERSION_EXCLUSIVE?.trim();
-  const recommendedClientVersion = environment.OPENTEAM_RECOMMENDED_CLIENT_VERSION?.trim();
-  const updateChannel = environment.OPENTEAM_UPDATE_CHANNEL === "beta" ? "beta" : "stable";
+  const minimumClientVersion = environment.AITEAMOS_MIN_CLIENT_VERSION?.trim();
+  const maximumClientVersionExclusive = environment.AITEAMOS_MAX_CLIENT_VERSION_EXCLUSIVE?.trim();
+  const recommendedClientVersion = environment.AITEAMOS_RECOMMENDED_CLIENT_VERSION?.trim();
+  const updateChannel = environment.AITEAMOS_UPDATE_CHANNEL === "beta" ? "beta" : "stable";
   return {
     releaseVersion,
-    apiProtocolVersion: OPENTEAM_API_PROTOCOL_VERSION,
+    apiProtocolVersion: AITEAMOS_API_PROTOCOL_VERSION,
     minimumClientVersion:
-      minimumClientVersion && isOpenTeamVersion(minimumClientVersion)
+      minimumClientVersion && isAiTeamOSVersion(minimumClientVersion)
         ? minimumClientVersion
         : compatibilityWindow.minimum,
     maximumClientVersionExclusive:
-      maximumClientVersionExclusive && isOpenTeamVersion(maximumClientVersionExclusive)
+      maximumClientVersionExclusive && isAiTeamOSVersion(maximumClientVersionExclusive)
         ? maximumClientVersionExclusive
         : compatibilityWindow.maximumExclusive,
     recommendedClientVersion:
-      recommendedClientVersion && isOpenTeamVersion(recommendedClientVersion)
+      recommendedClientVersion && isAiTeamOSVersion(recommendedClientVersion)
         ? recommendedClientVersion
         : releaseVersion,
     updateChannel,

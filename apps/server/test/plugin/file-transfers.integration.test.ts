@@ -1,9 +1,9 @@
 import { test, expect } from "bun:test";
-import { createPrismaClient } from "@openteam/db";
+import { createPrismaClient } from "@aiteamos/db";
 import { ConnectorFileTransfers } from "../../src/services/plugin/file-transfers";
-import { describeUploadFileOutcome } from "@openteam/contracts/reference-formatters";
+import { describeUploadFileOutcome } from "@aiteamos/contracts/reference-formatters";
 import { createHash } from "node:crypto";
-const databaseUrl = process.env.OPENTEAM_TEST_DATABASE_URL;
+const databaseUrl = process.env.AITEAMOS_TEST_DATABASE_URL;
 test.skipIf(!databaseUrl)(
   "file transfers pin account, hash and call identity and do not replay writes after restart",
   async () => {
@@ -30,7 +30,7 @@ test.skipIf(!databaseUrl)(
           pluginKey: "google-drive",
           name: "File fixture",
           version: "fixture",
-          publisher: "OpenTeam",
+          publisher: "aiTeamOS",
           description: "Fixture",
           manifest: {},
           status: "installed",

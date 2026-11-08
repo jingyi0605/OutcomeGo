@@ -1,4 +1,4 @@
-import { describeTrigger } from "@openteam/contracts/reference-main-parsers";
+import { describeTrigger } from "@aiteamos/contracts/reference-main-parsers";
 
 /** A routine as the prompt sees it: its saved definition plus the run ledger. */
 export interface RoutineStatusSource {

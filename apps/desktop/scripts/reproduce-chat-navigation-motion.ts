@@ -9,7 +9,7 @@ const options = new URLSearchParams();
 for (const flag of ["group", "dark", "no-strict"]) {
   if (process.argv.includes(`--${flag}`)) options.set(flag, "");
 }
-const directory = await mkdtemp(join(tmpdir(), "openteam-navigation-motion-"));
+const directory = await mkdtemp(join(tmpdir(), "aiteamos-navigation-motion-"));
 const server = await createServer({
   root: resolve(import.meta.dir, ".."),
   configFile: resolve(import.meta.dir, "../vite.config.ts"),

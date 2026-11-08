@@ -1,8 +1,8 @@
 import { useEffect } from "react";
 import { createRoot } from "react-dom/client";
-import { CLIENT_CAPABILITIES } from "@openteam/contracts/capabilities";
-import { api, openTeamClient } from "../../src/renderer/client/openteam-api";
-import { useOpenTeam } from "../../src/renderer/state/use-openteam";
+import { CLIENT_CAPABILITIES } from "@aiteamos/contracts/capabilities";
+import { api, aiTeamOSClient } from "../../src/renderer/client/aiteamos-api";
+import { useAiTeamOS } from "../../src/renderer/state/use-aiteamos";
 import { installWindowVisibility, isWindowActive } from "../../src/renderer/lib/window-visibility";
 import { syncDesktopNotificationSnapshot } from "../../src/renderer/lib/notifications";
 import { desktopDurableSendController } from "../../src/renderer/lib/durable-sends";
@@ -52,7 +52,7 @@ let bootstrap = {
 } as any;
 api.bootstrap = async () => { bootstraps++; return structuredClone(bootstrap); };
 api.runtime = async () => { runtimeReads++; return { runtime } as never; };
-openTeamClient.listenForEvents = async (cursor, handlers, signal) => {
+aiTeamOSClient.listenForEvents = async (cursor, handlers, signal) => {
   connections++; cursors.push(cursor); eventHandlers = handlers;
   handlers.onOpen?.();
   return new Promise<void>(resolve => {
@@ -68,10 +68,10 @@ api.sendChannelMessage = async (channelId, content, _attachments, _reply, option
   return { message: acceptedMessage } as never;
 };
 installWindowVisibility();
-let state: ReturnType<typeof useOpenTeam>;
+let state: ReturnType<typeof useAiTeamOS>;
 function Probe() {
-  state = useOpenTeam();
-  useEffect(() => { syncDesktopNotificationSnapshot(window.openteam?.notifications, state.snapshot); }, [state.snapshot]);
+  state = useAiTeamOS();
+  useEffect(() => { syncDesktopNotificationSnapshot(window.aiteamos?.notifications, state.snapshot); }, [state.snapshot]);
   return <div>Background sync fixture</div>;
 }
 const root = createRoot(document.getElementById("root")!);

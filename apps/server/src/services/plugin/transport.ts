@@ -1,10 +1,10 @@
 import type { OAuthClientInformationMixed } from "@modelcontextprotocol/sdk/shared/auth.js";
 import { auth } from "@modelcontextprotocol/sdk/client/auth.js";
-import { ApiError } from "@openteam/contracts";
-import { connectorHostTools, MCP_TOOL_CALL_TIMEOUT_MS, type PluginToolDefinition } from "@openteam/plugin-sdk";
-import type { Prisma, PrismaClient } from "@openteam/db";
+import { ApiError } from "@aiteamos/contracts";
+import { connectorHostTools, MCP_TOOL_CALL_TIMEOUT_MS, type PluginToolDefinition } from "@aiteamos/plugin-sdk";
+import type { Prisma, PrismaClient } from "@aiteamos/db";
 import type { McpHttpClientManager } from "../../plugins/mcp-client-manager";
-import { OpenTeamOAuthProvider, type StoredOAuthState } from "../../plugins/oauth-provider";
+import { AiTeamOSOAuthProvider, type StoredOAuthState } from "../../plugins/oauth-provider";
 import {
   beginPackagedOAuth,
   finishPackagedOAuth,
@@ -27,7 +27,7 @@ import {
 } from "./values";
 
 /** MCP tool `_meta` key marking a tool the host calls and Bots must not see. */
-export const HOST_ONLY_TOOL_META = "openteam/hostOnly";
+export const HOST_ONLY_TOOL_META = "aiteamos/hostOnly";
 
 type OAuthConnection = {
   id: string;
@@ -174,19 +174,19 @@ export class PluginTransport {
       typeof configuration.clientId === "string"
         ? configuration.clientId
         : (process.env[
-            `OPENTEAM_${connection.connectorKey.toUpperCase().replaceAll("-", "_")}_OAUTH_CLIENT_ID`
-          ] ?? process.env.OPENTEAM_MCP_OAUTH_CLIENT_ID);
+            `AITEAMOS_${connection.connectorKey.toUpperCase().replaceAll("-", "_")}_OAUTH_CLIENT_ID`
+          ] ?? process.env.AITEAMOS_MCP_OAUTH_CLIENT_ID);
     const clientSecret =
       typeof configuration.clientSecret === "string"
         ? configuration.clientSecret
         : (process.env[
-            `OPENTEAM_${connection.connectorKey.toUpperCase().replaceAll("-", "_")}_OAUTH_CLIENT_SECRET`
-          ] ?? process.env.OPENTEAM_MCP_OAUTH_CLIENT_SECRET);
+            `AITEAMOS_${connection.connectorKey.toUpperCase().replaceAll("-", "_")}_OAUTH_CLIENT_SECRET`
+          ] ?? process.env.AITEAMOS_MCP_OAUTH_CLIENT_SECRET);
     const clientInformation: OAuthClientInformationMixed | undefined = clientId
       ? { client_id: clientId, ...(clientSecret ? { client_secret: clientSecret } : {}) }
       : undefined;
     const callbackUrl = oauth.redirectUrl ?? oauthRedirectUrl(this.publicUrl, connection.id);
-    const provider = new OpenTeamOAuthProvider({
+    const provider = new AiTeamOSOAuthProvider({
       redirectUrl: callbackUrl,
       scope: typeof configuration.scope === "string" ? configuration.scope : undefined,
       authorizationParameters: stringRecord(configuration.oauthAuthorizationParameters),
@@ -436,7 +436,7 @@ export class PluginTransport {
           command: configuration.command,
           args: configuration.args,
           cwd: configuration.cwd,
-          env: { ...env, OPENTEAM_PLUGIN_ACCOUNT_ID: current.id },
+          env: { ...env, AITEAMOS_PLUGIN_ACCOUNT_ID: current.id },
           packageFiles: definition?.files ?? {},
           packageBinaryFiles: definition?.binaryFiles ?? {},
         } };
@@ -489,7 +489,7 @@ export class PluginTransport {
         : { runtimeGeneration: generation };
       await this.computerFetch(`/v1/mcp/connections/${connectionId}`, {
         method: "DELETE",
-        headers: connection ? { "x-openteam-mcp-generation": String(connection.runtimeGeneration) } : undefined,
+        headers: connection ? { "x-aiteamos-mcp-generation": String(connection.runtimeGeneration) } : undefined,
       }).catch(
         () => undefined
       );

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { parseBotRecipe } from "@openteam/contracts/bot-recipe";
+import { parseBotRecipe } from "@aiteamos/contracts/bot-recipe";
 import { botTemplateRecipe } from "../src/renderer/lib/bot-template";
 import type { RoutineView } from "../src/renderer/lib/routines";
 

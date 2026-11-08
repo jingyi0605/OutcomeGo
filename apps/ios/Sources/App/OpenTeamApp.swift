@@ -64,7 +64,7 @@ struct OpenTeamApp: App {
   }
   private static var systemTestHost: Bool {
     #if DEBUG
-      ProcessInfo.processInfo.environment["OPENTEAM_SYSTEM_TEST_HOST"] == "1"
+      ProcessInfo.processInfo.environment["AITEAMOS_SYSTEM_TEST_HOST"] == "1"
     #else
       false
     #endif

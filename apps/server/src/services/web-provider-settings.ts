@@ -1,4 +1,4 @@
-import { ApiError } from "@openteam/contracts";
+import { ApiError } from "@aiteamos/contracts";
 import {
   DEFAULT_FETCH_PROVIDER,
   WEB_PROVIDER_LISTS,
@@ -14,8 +14,8 @@ import {
   type WebToolCredentials,
   type WebToolInput,
   webProviderInfo,
-} from "@openteam/contracts/web-search";
-import type { PrismaClient } from "@openteam/db";
+} from "@aiteamos/contracts/web-search";
+import type { PrismaClient } from "@aiteamos/db";
 
 const invalid = (message: string) => new ApiError(400, "invalid_web_provider_settings", message);
 const ID = "global";
@@ -212,7 +212,7 @@ export class WebProviderSettingsService {
     try {
       result = await this.checker({ tool: tool as WebTool, provider: info.id, apiKey: before?.secret ?? null });
     } catch {
-      throw new ApiError(503, "web_provider_check_unavailable", "Couldn't reach the OpenTeam computer to run the check. Try again shortly.");
+      throw new ApiError(503, "web_provider_check_unavailable", "Couldn't reach the aiTeamOS computer to run the check. Try again shortly.");
     }
     await this.prisma.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT pg_advisory_xact_lock(742310, 1)::text`;

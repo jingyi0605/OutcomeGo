@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { OpenTeamClientError } from "@openteam/client-core";
+import { AiTeamOSClientError } from "@aiteamos/client-core";
 import {
   keyCheckMessage,
   keyRejected,
@@ -36,7 +36,7 @@ describe("setup request deadlines", () => {
   test("a request that fails in time keeps its own error", async () => {
     await expect(
       withDeadline(async () => {
-        throw new OpenTeamClientError("Choose a model before testing it.", "conflict", 409);
+        throw new AiTeamOSClientError("Choose a model before testing it.", "conflict", 409);
       }, 20)
     ).rejects.toThrow("Choose a model before testing it.");
   });
@@ -44,17 +44,17 @@ describe("setup request deadlines", () => {
 
 describe("request failures in plain words", () => {
   test.each([
-    new OpenTeamClientError("Failed to fetch", "offline"),
-    new OpenTeamClientError("fetch failed", "offline"),
+    new AiTeamOSClientError("Failed to fetch", "offline"),
+    new AiTeamOSClientError("fetch failed", "offline"),
     new TypeError("Failed to fetch"),
     new Error("Load failed"),
-    new Error("Error invoking remote method 'openteam:x': OpenTeamClientError: fetch failed"),
+    new Error("Error invoking remote method 'aiteamos:x': AiTeamOSClientError: fetch failed"),
   ])("a lost connection: %p", (cause) => {
     expect(requestErrorMessage(cause, "Could not create the bot")).toBe(OFFLINE_MESSAGE);
   });
 
   test("a deadline or engine timeout", () => {
-    expect(requestErrorMessage(new OpenTeamClientError("x", "timeout"), "x")).toBe(TIMEOUT_MESSAGE);
+    expect(requestErrorMessage(new AiTeamOSClientError("x", "timeout"), "x")).toBe(TIMEOUT_MESSAGE);
     expect(requestErrorMessage(new DOMException("signal timed out", "TimeoutError"), "x")).toBe(
       TIMEOUT_MESSAGE
     );
@@ -65,20 +65,20 @@ describe("request failures in plain words", () => {
   test("keeps the server's own sentence and replaces raw or empty ones", () => {
     expect(
       requestErrorMessage(
-        new OpenTeamClientError("The OpenTeam server is temporarily unavailable.", "offline", 503),
+        new AiTeamOSClientError("The aiTeamOS server is temporarily unavailable.", "offline", 503),
         "x"
       )
-    ).toBe("The OpenTeam server is temporarily unavailable.");
+    ).toBe("The aiTeamOS server is temporarily unavailable.");
     expect(
-      requestErrorMessage(new OpenTeamClientError("Request failed (502)", undefined, 502), "x")
+      requestErrorMessage(new AiTeamOSClientError("Request failed (502)", undefined, 502), "x")
     ).toBe("Your server ran into a problem. Try again in a moment.");
     expect(
       requestErrorMessage(
-        new OpenTeamClientError('{"error":"Cannot delete an active context session"}', "x", 503),
+        new AiTeamOSClientError('{"error":"Cannot delete an active context session"}', "x", 503),
         "x"
       )
     ).toBe("Your server ran into a problem. Try again in a moment.");
-    expect(requestErrorMessage(new OpenTeamClientError("", "rate_limited", 429), "x")).toBe(
+    expect(requestErrorMessage(new AiTeamOSClientError("", "rate_limited", 429), "x")).toBe(
       "Your server is busy. Wait a moment and try again."
     );
     expect(requestErrorMessage(null, "Could not create the bot")).toBe("Could not create the bot");

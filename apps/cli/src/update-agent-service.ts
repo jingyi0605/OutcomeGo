@@ -51,7 +51,7 @@ export const updateAgentService = (
       ? ""
       : `-${createHash("sha256").update(directory).digest("hex").slice(0, 10)}`;
   if (host.platform === "darwin") {
-    const name = `so.openteam.update-agent${suffix.replace("-", ".")}`;
+    const name = `so.aiteamos.update-agent${suffix.replace("-", ".")}`;
     return {
       kind: "launchd",
       name,
@@ -59,7 +59,7 @@ export const updateAgentService = (
     };
   }
   if (host.platform === "linux" && host.systemd) {
-    const name = `openteam-update-agent${suffix}.service`;
+    const name = `aiteamos-update-agent${suffix}.service`;
     const config = host.environment.XDG_CONFIG_HOME?.trim() || join(host.home, ".config");
     return { kind: "systemd", name, file: join(config, "systemd", "user", name) };
   }
@@ -76,7 +76,7 @@ const systemdQuote = (value: string, command: boolean) =>
 export const systemdUnit = (paths: InstallationPaths, command: UpdateAgentCommand): string =>
   [
     "[Unit]",
-    `Description=OpenTeam server updater for ${paths.directory.replace(/%/g, "%%")}`,
+    `Description=aiTeamOS server updater for ${paths.directory.replace(/%/g, "%%")}`,
     "",
     "[Service]",
     `ExecStart=${[command.executable, ...command.args].map((value) => systemdQuote(value, true)).join(" ")}`,

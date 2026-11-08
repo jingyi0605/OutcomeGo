@@ -15,9 +15,9 @@
     "description": "Register an internal or Marketplace Slack app, then authorize a workspace.",
     "documentationUrl": "https://docs.slack.dev/ai/slack-mcp-server",
     "steps": [
-      "Configure an HTTPS OpenTeam address using Tailscale Serve or your own domain. This integration uses a Web application callback; manual callback paste is not available.",
+      "Configure an HTTPS aiTeamOS address using Tailscale Serve or your own domain. This integration uses a Web application callback; manual callback paste is not available.",
       "Create an internal Slack app in your workspace. In Create New App, choose From a manifest; the package includes a reusable Slack app manifest.",
-      "Replace the manifest redirect URL with this account's exact OpenTeam callback URL. Its user-token scopes cover the tools in Slack's MCP server; remove scopes and disable tools you do not need.",
+      "Replace the manifest redirect URL with this account's exact aiTeamOS callback URL. Its user-token scopes cover the tools in Slack's MCP server; remove scopes and disable tools you do not need.",
       "In the Slack app dashboard, open Agents and turn on Enable Slack MCP Server. This separate switch is required even after OAuth succeeds.",
       "Create the app, then copy its client ID and client secret from Basic Information into this form. Save and authorize, choose your workspace, and allow the requested access.",
       "Run a small read test before granting the account to a Bot. Keep the app internal; unlisted distributed apps cannot use Slack MCP."
@@ -37,7 +37,7 @@
         "placeholder": "Paste the client secret",
         "required": true,
         "secret": true,
-        "helpText": "Stored by your self-hosted OpenTeam server and never returned to the desktop app."
+        "helpText": "Stored by your self-hosted aiTeamOS server and never returned to the desktop app."
       }
     ],
     "requiredScopes": [

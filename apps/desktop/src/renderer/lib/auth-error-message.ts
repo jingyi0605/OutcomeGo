@@ -1,1 +1,1 @@
-export { authErrorMessage } from "@openteam/product-core/auth-feedback";
+export { authErrorMessage } from "@aiteamos/product-core/auth-feedback";

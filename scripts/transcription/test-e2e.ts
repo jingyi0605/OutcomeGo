@@ -1,5 +1,5 @@
 /** Disposable PostgreSQL + real app server + native Chromium capture + configured STT service.
- * macOS example: bun scripts/transcription/test-e2e.ts --api-key-file ~/.local/share/openteam/transcription/api-key
+ * macOS example: bun scripts/transcription/test-e2e.ts --api-key-file ~/.local/share/aiteamos/transcription/api-key
  * Sends synthetic messages only to disposable QA bots; never accesses the physical microphone.
  */
 import { strict as assert } from "node:assert";
@@ -8,8 +8,8 @@ import { mkdtemp, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promis
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { createRequire } from "node:module";
-import { createOpenTeamClient } from "../../packages/client-core/src/client";
-import { createOpenTeamAuthClient } from "../../packages/client-core/src/auth";
+import { createAiTeamOSClient } from "../../packages/client-core/src/client";
+import { createAiTeamOSAuthClient } from "../../packages/client-core/src/auth";
 import { checkTranscription } from "../../apps/cli/src/transcription-check";
 import { installationPaths } from "../../apps/cli/src/config";
 import type { TranscriptionSettings } from "../../packages/contracts/src/transcription";
@@ -61,8 +61,8 @@ const apiKey = keyFile
     : undefined;
 assert(!keyEnv || apiKey, "The selected API key environment variable is empty");
 assert(provider === "openai-compatible" || apiKey, "A cloud provider API key is required");
-const directory = await mkdtemp(join(tmpdir(), "openteam-transcription-e2e-"));
-const name = `openteam-transcription-qa-${randomUUID().slice(0, 8)}`;
+const directory = await mkdtemp(join(tmpdir(), "aiteamos-transcription-e2e-"));
+const name = `aiteamos-transcription-qa-${randomUUID().slice(0, 8)}`;
 const secret = () => randomBytes(32).toString("hex");
 const dbPassword = secret(),
   controlToken = secret(),
@@ -88,17 +88,17 @@ await reserved.stop(true);
 const baseUrl = `http://127.0.0.1:${port}`;
 const env: Record<string, string | undefined> = {
   ...process.env,
-  OPENTEAM_PORT: String(port),
-  OPENTEAM_SERVER_HOST: "127.0.0.1",
-  OPENTEAM_AUTH_MODE: "required",
-  OPENTEAM_AUTH_URL: baseUrl,
-  OPENTEAM_AUTH_SECRET: authSecret,
-  OPENTEAM_CONTROL_TOKEN: controlToken,
-  OPENTEAM_AGENT_DATA_ROOT: join(directory, "agent-data"),
-  OPENTEAM_WORKSPACE_ROOT: join(directory, "workspace"),
-  OPENTEAM_ASSET_ROOT: join(directory, "assets"),
-  OPENTEAM_COMPUTER_URL: computer.url.origin,
-  OPENTEAM_SERVER_URL: baseUrl,
+  AITEAMOS_PORT: String(port),
+  AITEAMOS_SERVER_HOST: "127.0.0.1",
+  AITEAMOS_AUTH_MODE: "required",
+  AITEAMOS_AUTH_URL: baseUrl,
+  AITEAMOS_AUTH_SECRET: authSecret,
+  AITEAMOS_CONTROL_TOKEN: controlToken,
+  AITEAMOS_AGENT_DATA_ROOT: join(directory, "agent-data"),
+  AITEAMOS_WORKSPACE_ROOT: join(directory, "workspace"),
+  AITEAMOS_ASSET_ROOT: join(directory, "assets"),
+  AITEAMOS_COMPUTER_URL: computer.url.origin,
+  AITEAMOS_SERVER_URL: baseUrl,
 };
 const run = async (command: string[], options: { env?: typeof env; input?: string } = {}) => {
   const child = Bun.spawn(command, {
@@ -146,7 +146,7 @@ try {
       "-D",
       join(directory, "postgres"),
       "-U",
-      "openteam_qa",
+      "aiteamos_qa",
       "--auth=scram-sha-256",
       `--pwfile=${passwordFile}`,
       "--no-locale",
@@ -165,10 +165,10 @@ try {
     ]);
     nativeDatabase = true;
     await run(
-      ["createdb", "-h", "127.0.0.1", "-p", String(dbPort), "-U", "openteam_qa", "openteam_qa"],
+      ["createdb", "-h", "127.0.0.1", "-p", String(dbPort), "-U", "aiteamos_qa", "aiteamos_qa"],
       { env: { ...env, PGPASSWORD: dbPassword } }
     );
-    env.DATABASE_URL = `postgresql://openteam_qa:${dbPassword}@127.0.0.1:${dbPort}/openteam_qa`;
+    env.DATABASE_URL = `postgresql://aiteamos_qa:${dbPassword}@127.0.0.1:${dbPort}/aiteamos_qa`;
   } else {
     await run(
       [
@@ -180,9 +180,9 @@ try {
         "--env",
         "POSTGRES_PASSWORD",
         "--env",
-        "POSTGRES_USER=openteam_qa",
+        "POSTGRES_USER=aiteamos_qa",
         "--env",
-        "POSTGRES_DB=openteam_qa",
+        "POSTGRES_DB=aiteamos_qa",
         "--publish",
         "127.0.0.1::5432",
         "postgres:17-alpine",
@@ -199,9 +199,9 @@ try {
         '{{json (index .NetworkSettings.Ports "5432/tcp")}}',
       ])
     )[0].HostPort;
-    env.DATABASE_URL = `postgresql://openteam_qa:${dbPassword}@127.0.0.1:${dbPort}/openteam_qa`;
+    env.DATABASE_URL = `postgresql://aiteamos_qa:${dbPassword}@127.0.0.1:${dbPort}/aiteamos_qa`;
     await waitFor(async () => {
-      await run(["docker", "exec", name, "pg_isready", "-h", "127.0.0.1", "-U", "openteam_qa"]);
+      await run(["docker", "exec", name, "pg_isready", "-h", "127.0.0.1", "-U", "aiteamos_qa"]);
       return true;
     }, "test database");
   }
@@ -230,8 +230,8 @@ try {
     );
   }
   record("audio, settings, and internal doctor endpoints reject unauthenticated requests");
-  const { token } = await createOpenTeamAuthClient({ baseUrl }).signIn("voice.qa", ownerPassword);
-  const client = createOpenTeamClient({ baseUrl, getAuthToken: () => token });
+  const { token } = await createAiTeamOSAuthClient({ baseUrl }).signIn("voice.qa", ownerPassword);
+  const client = createAiTeamOSClient({ baseUrl, getAuthToken: () => token });
   assert.equal((await client.transcriptionSettings()).configured, false);
   assert.equal((await client.runtime()).runtime.transcription, "missing");
   await assert.rejects(
@@ -257,7 +257,7 @@ try {
   }
   await writeFile(
     installationPaths(directory).environment,
-    `OPENTEAM_CONTROL_TOKEN=${controlToken}\nOPENTEAM_BIND_HOST=127.0.0.1\nOPENTEAM_API_PORT=${port}\n`,
+    `AITEAMOS_CONTROL_TOKEN=${controlToken}\nAITEAMOS_BIND_HOST=127.0.0.1\nAITEAMOS_API_PORT=${port}\n`,
     { mode: 0o600 }
   );
   assert.equal((await checkTranscription(installationPaths(directory))).level, "pass");
@@ -354,7 +354,7 @@ try {
     format: "esm",
     define: {
       "process.env.NODE_ENV": '"development"',
-      "import.meta.env.VITE_OPENTEAM_API_URL": JSON.stringify(baseUrl),
+      "import.meta.env.VITE_AITEAMOS_API_URL": JSON.stringify(baseUrl),
     },
   });
   assert(build.success, build.logs.join("\n"));

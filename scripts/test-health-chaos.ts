@@ -14,13 +14,13 @@ import { composeProcessEnvironment } from "../apps/cli/src/docker";
 // Never accept an existing project/directory as input to a destructive chaos run.
 const root = resolve(import.meta.dir, "..");
 const id = `${Date.now()}-${randomBytes(3).toString("hex")}`;
-const project = `openteam-chaos-${id}`;
+const project = `aiteamos-chaos-${id}`;
 const output = join(root, "output/health-chaos", id);
 const context = join(output, "context");
 mkdirSync(context, { recursive: true });
 const paths = installationPaths(join(output, "installation"));
 mkdirSync(paths.directory);
-const cli = join(root, "apps/cli/dist/openteam.js");
+const cli = join(root, "apps/cli/dist/aiteamos.js");
 const results: object[] = [];
 const tags: string[] = [];
 let config: any;
@@ -151,7 +151,7 @@ const fault = async (
 const canaryTurn = async (label: string) => {
   console.log(`[canary] ${label}`);
   const origin = parseEnvironment(readFileSync(paths.environment, "utf8")).get(
-    "OPENTEAM_PUBLIC_URL"
+    "AITEAMOS_PUBLIC_URL"
   )!;
   const api = async (path: string, body?: unknown) => {
     const response = await fetch(origin + "/api/v0" + path, {
@@ -169,11 +169,11 @@ const canaryTurn = async (label: string) => {
   const bot = await api("/bots", {
     clientRequestId: randomUUID(),
     name: `Health chaos ${label}`,
-    instructions: "Reply with OPENTEAM_CHAOS_OK using SendToUser.",
+    instructions: "Reply with AITEAMOS_CHAOS_OK using SendToUser.",
   });
   assert(typeof bot.conversationId === "string", "Canary bot was not created");
   await api(`/conversations/${bot.conversationId}/messages`, {
-    content: "Send me OPENTEAM_CHAOS_OK",
+    content: "Send me AITEAMOS_CHAOS_OK",
     attachments: [],
     clientId: randomUUID(),
     timeZone: "UTC",
@@ -189,7 +189,7 @@ const canaryTurn = async (label: string) => {
     if (
       (snapshot.messages ?? []).some(
         (message: any) =>
-          completed.has(message.sourceRunId) && message.content?.includes("OPENTEAM_CHAOS_OK")
+          completed.has(message.sourceRunId) && message.content?.includes("AITEAMOS_CHAOS_OK")
       )
     ) {
       record({
@@ -233,8 +233,8 @@ try {
       'FROM node:22-bookworm-slim\nWORKDIR /app\nCOPY worker.js main.js\nCOPY healthcheck.js healthcheck.js\nUSER 1000:1000\nCMD ["node","main.js"]\n',
     server:
       'FROM oven/bun:1.4.2-slim\nWORKDIR /app\nCOPY server.js main.js\nUSER 1000:1000\nCMD ["bun","main.js"]\n',
-    computer: `FROM ${process.env.OPENTEAM_CHAOS_COMPUTER_BASE || "ghcr.io/raghavpillai/openteam-computer:0.0.1"}\nCOPY computer.js /app/apps/computer/dist/main.js\nCOPY provider-cli.js /app/apps/computer/dist/provider-cli.js\n`,
-    migrate: `FROM ${process.env.OPENTEAM_CHAOS_MIGRATE_BASE || "openteam-migrate:latest"}\nCOPY prisma /app/packages/db/prisma\nCOPY db-scripts /app/packages/db/scripts\n`,
+    computer: `FROM ${process.env.AITEAMOS_CHAOS_COMPUTER_BASE || "ghcr.io/jingyi0605/ai-teamos-computer:0.1.0-beta.1"}\nCOPY computer.js /app/apps/computer/dist/main.js\nCOPY provider-cli.js /app/apps/computer/dist/provider-cli.js\n`,
+    migrate: `FROM ${process.env.AITEAMOS_CHAOS_MIGRATE_BASE || "aiteamos-migrate:latest"}\nCOPY prisma /app/packages/db/prisma\nCOPY db-scripts /app/packages/db/scripts\n`,
   };
   for (const [service, dockerfile] of Object.entries(sources)) {
     console.log(`[image] ${service}`);
@@ -253,11 +253,11 @@ try {
   portProbe.stop(true);
   let env = createEnvironment({ version: "0.0.0-chaos" });
   for (const [key, value] of Object.entries({
-    OPENTEAM_API_PORT: String(port),
-    OPENTEAM_PUBLIC_URL: `http://127.0.0.1:${port}`,
-    OPENTEAM_AUTH_URL: `http://127.0.0.1:${port}`,
-    OPENTEAM_AUTH_MODE: "required",
-    OPENTEAM_IMAGE_PREFIX: project,
+    AITEAMOS_API_PORT: String(port),
+    AITEAMOS_PUBLIC_URL: `http://127.0.0.1:${port}`,
+    AITEAMOS_AUTH_URL: `http://127.0.0.1:${port}`,
+    AITEAMOS_AUTH_MODE: "required",
+    AITEAMOS_IMAGE_PREFIX: project,
   }))
     env = replaceEnvironmentValue(env, key, value);
   writeFileSync(paths.environment, env, { mode: 0o600 });
@@ -276,7 +276,7 @@ try {
   delete config.services.caddy;
   config.services.computer.ports = [];
   for (const [name, service] of Object.entries<any>(config.services)) {
-    service.labels = { "com.openteam.chaos": project };
+    service.labels = { "com.aiteamos.chaos": project };
     service.restart = "no";
     if (sources[name]) service.image = `${project}-${name}:test`;
     if (service.healthcheck)
@@ -286,7 +286,7 @@ try {
     image: "oven/bun:1.4.2-slim",
     command: ["bun", "/provider.ts"],
     volumes: [`${context}/provider.ts:/provider.ts:ro`],
-    labels: { "com.openteam.chaos": project },
+    labels: { "com.aiteamos.chaos": project },
   };
   saveConfig();
   started = true;
@@ -295,7 +295,7 @@ try {
     log: "startup.txt",
     timeout: 240_000,
   });
-  await compose(["exec", "--no-TTY", "computer", "openteam-pi-auth", "add-custom"], {
+  await compose(["exec", "--no-TTY", "computer", "aiteamos-pi-auth", "add-custom"], {
     input: JSON.stringify({
       id: "chaos",
       name: "Local chaos fixture",
@@ -306,7 +306,7 @@ try {
     }),
     log: "provider-setup.txt",
   });
-  await compose(["exec", "--no-TTY", "computer", "openteam-pi-auth", "login", "chaos", "api_key"], {
+  await compose(["exec", "--no-TTY", "computer", "aiteamos-pi-auth", "login", "chaos", "api_key"], {
     input: "synthetic-test-key\n",
     log: "provider-login.txt",
   });
@@ -332,7 +332,7 @@ try {
   assert(baseline.code === 0, `Baseline doctor failed: ${baseline.text}`);
   record({ name: "healthy-baseline", detected: true });
   const origin = parseEnvironment(readFileSync(paths.environment, "utf8")).get(
-    "OPENTEAM_PUBLIC_URL"
+    "AITEAMOS_PUBLIC_URL"
   )!;
   const username = "chaos.fixture";
   const password = randomBytes(24).toString("hex");
@@ -361,9 +361,9 @@ try {
     exec("postgres", [
       "psql",
       "-U",
-      "openteam",
+      "aiteamos",
       "-d",
-      "openteam",
+      "aiteamos",
       "-v",
       "ON_ERROR_STOP=1",
       "-c",
@@ -383,8 +383,8 @@ try {
   );
   await fault(
     "worker-socket-missing",
-    () => exec("worker", ["mv", "/tmp/openteam-worker-doctor.sock", "/tmp/chaos-socket"]),
-    () => exec("worker", ["mv", "/tmp/chaos-socket", "/tmp/openteam-worker-doctor.sock"]),
+    () => exec("worker", ["mv", "/tmp/aiteamos-worker-doctor.sock", "/tmp/chaos-socket"]),
+    () => exec("worker", ["mv", "/tmp/chaos-socket", "/tmp/aiteamos-worker-doctor.sock"]),
     /Queue round trip/
   );
   await fault(
@@ -423,17 +423,17 @@ try {
     () => startService("computer"),
     /Computer API|not running: computer/
   );
-  const token = config.services.computer.environment.OPENTEAM_CONTROL_TOKEN;
+  const token = config.services.computer.environment.AITEAMOS_CONTROL_TOKEN;
   await fault(
     "computer-token-mismatch",
     async () => {
-      config.services.computer.environment.OPENTEAM_CONTROL_TOKEN =
+      config.services.computer.environment.AITEAMOS_CONTROL_TOKEN =
         "intentional-chaos-token-mismatch";
       saveConfig();
       await compose(["up", "--detach", "--no-deps", "computer"]);
     },
     async () => {
-      config.services.computer.environment.OPENTEAM_CONTROL_TOKEN = token;
+      config.services.computer.environment.AITEAMOS_CONTROL_TOKEN = token;
       saveConfig();
       await compose(["up", "--detach", "--no-deps", "computer"]);
     },

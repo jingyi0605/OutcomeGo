@@ -55,11 +55,11 @@ const importsFor = async (file: string): Promise<SourceImport[]> => {
 
 const failures: string[] = [];
 const serverOnlyPackages = new Set([
-  "@openteam/computer",
-  "@openteam/db",
-  "@openteam/messaging",
-  "@openteam/server",
-  "@openteam/worker",
+  "@aiteamos/computer",
+  "@aiteamos/db",
+  "@aiteamos/messaging",
+  "@aiteamos/server",
+  "@aiteamos/worker",
 ]);
 const clientSourceDirectories = new Map<string, string[]>([
   ["desktop", [resolve(root, "apps", "desktop", "src")]],
@@ -79,19 +79,19 @@ for (const directories of clientSourceDirectories.values()) {
 }
 
 const neutralPackageImports = new Map<string, ReadonlySet<string>>([
-  ["contracts", new Set(["@openteam/plugin-sdk"])],
+  ["contracts", new Set(["@aiteamos/plugin-sdk"])],
   ["plugin-sdk", new Set()],
-  ["plugins", new Set(["@openteam/plugin-sdk"])],
-  ["client-core", new Set(["@openteam/contracts"])],
-  ["product-core", new Set(["@openteam/contracts"])],
-  ["design-tokens", new Set(["@openteam/contracts"])],
+  ["plugins", new Set(["@aiteamos/plugin-sdk"])],
+  ["client-core", new Set(["@aiteamos/contracts"])],
+  ["product-core", new Set(["@aiteamos/contracts"])],
+  ["design-tokens", new Set(["@aiteamos/contracts"])],
 ]);
 const platformImportPrefixes = ["electron", "react"];
 for (const [packageName, allowedWorkspaceImports] of neutralPackageImports) {
   for (const file of await walk(resolve(root, "packages", packageName, "src"))) {
     for (const imported of await importsFor(file)) {
       if (
-        imported.specifier.startsWith("@openteam/") &&
+        imported.specifier.startsWith("@aiteamos/") &&
         ![...allowedWorkspaceImports].some(
           (allowed) =>
             imported.specifier === allowed || imported.specifier.startsWith(`${allowed}/`)
@@ -122,9 +122,9 @@ for (const [packageName, allowedWorkspaceImports] of neutralPackageImports) {
 }
 
 const clientLayerPackages = new Set([
-  "@openteam/client-core",
-  "@openteam/design-tokens",
-  "@openteam/product-core",
+  "@aiteamos/client-core",
+  "@aiteamos/design-tokens",
+  "@aiteamos/product-core",
 ]);
 for (const owner of ["computer", "server", "worker"] as const) {
   for (const file of await walk(resolve(root, "apps", owner, "src"))) {
@@ -166,7 +166,7 @@ for (const file of (await walk(resolve(root, "apps"))).filter((candidate) => {
 
 for (const file of await walk(resolve(root, "apps", "ios", "scripts"))) {
   for (const imported of await importsFor(file)) {
-    if (imported.specifier === "@openteam/contracts" && imported.runtimeNames.length > 0) {
+    if (imported.specifier === "@aiteamos/contracts" && imported.runtimeNames.length > 0) {
       failures.push(
         `${relative(root, file)} imports root runtime values: ${imported.runtimeNames.join(", ")}`
       );

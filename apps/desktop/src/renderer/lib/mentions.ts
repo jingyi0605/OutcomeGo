@@ -1,7 +1,7 @@
 export {
   mentionHandleFor,
   type MentionOption,
-} from "@openteam/product-core/mentions";
+} from "@aiteamos/product-core/mentions";
 
 export type MentionSegment =
   | { type: "text"; text: string }

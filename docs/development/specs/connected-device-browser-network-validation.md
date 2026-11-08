@@ -24,7 +24,7 @@ One exploratory server invocation also discovered the generated bundled `.test.j
 
 Final evidence is `output/browser-network-recovery/linux-final/`, `linux-final-run.log` and `summary.json`. The final computer image is `2e28da550f0643dc7fca46f479100793c4dd4df6685bc76ed8eb6fb7e6439209`; the server image is `6c62a0c219faff9690e38898b83eb24cdb28cdc76c5214adc013ca0626b29e35`. The repeatable focused command now passes **44 cases locally**, including both TLS diagnostics and the worker supervisor. The 42 scoped Linux cases above use pinned Bun 1.4.2; their Node subprocesses exercise the image's Node runtime.
 
-The exploratory `linux/` run exposed the expired display-cache dependency. An early diagnostic failure in `linux-verified/` prompted the controlled supervisor-race regression; its sanitized response alone did not identify the cause. `linux-debug/` passed 52 checks before the final diagnostic changes. `linux-pre-epoch-fix/` reproduced the cross-exit speed cooldown failure; `driver-before.log` retains a corrected test-variable naming collision. None replaces the final-image evidence. The harness removed its fixture containers/networks/volumes; the debug run's retained resources were removed separately, and the dedicated `openteam-network-recovery` Colima VM/data were deleted afterward. Docker Desktop remained selected.
+The exploratory `linux/` run exposed the expired display-cache dependency. An early diagnostic failure in `linux-verified/` prompted the controlled supervisor-race regression; its sanitized response alone did not identify the cause. `linux-debug/` passed 52 checks before the final diagnostic changes. `linux-pre-epoch-fix/` reproduced the cross-exit speed cooldown failure; `driver-before.log` retains a corrected test-variable naming collision. None replaces the final-image evidence. The harness removed its fixture containers/networks/volumes; the debug run's retained resources were removed separately, and the dedicated `aiteamos-network-recovery` Colima VM/data were deleted afterward. Docker Desktop remained selected.
 
 ## Chaos engineering and hardening — November 2, 2026
 
@@ -47,15 +47,15 @@ Final evidence is under `output/browser-network-chaos/linux-verified/` (includin
 Repeat the focused suite with `bun run test:browser-network:chaos`. Reproduce a longer chosen sequence with:
 
 ```sh
-OPENTEAM_NETWORK_CHAOS_SEED=24301 OPENTEAM_NETWORK_CHAOS_STEPS=64 bun run test:browser-network:chaos
+AITEAMOS_NETWORK_CHAOS_SEED=24301 AITEAMOS_NETWORK_CHAOS_STEPS=64 bun run test:browser-network:chaos
 ```
 
 The production Linux runner accepts `--chaos` in addition to the normal 43 checks. It adds 80 ms delay / 20 ms jitter / seeded 2% loss to the selected device's network namespace, verifies byte-exact single-delivery uploads from both actual browsers, checks recovery after clearing the fault, freezes the relay to check lease expiry and fail-closed behavior, and freezes both providers to check server fallback and stable return. It requires an explicit disposable Docker context and records the actual kernel drop counters; packet-loss validation must observe at least one dropped packet. The helper tooling has NET_ADMIN only inside the fixture device's namespace, and the runner cleans its named resources in `finally`.
 
 ```sh
-colima start openteam-network-chaos --activate=false --ssh-config=false --cpu 4 --memory 7 --disk 22 --mount none
-OPENTEAM_TEST_DOCKER_CONTEXT=colima-openteam-network-chaos OPENTEAM_TEST_OUTPUT_DIR=output/browser-network-chaos/linux bun run test:browser-network:linux --chaos
-colima delete --force --data openteam-network-chaos
+colima start aiteamos-network-chaos --activate=false --ssh-config=false --cpu 4 --memory 7 --disk 22 --mount none
+AITEAMOS_TEST_DOCKER_CONTEXT=colima-aiteamos-network-chaos AITEAMOS_TEST_OUTPUT_DIR=output/browser-network-chaos/linux bun run test:browser-network:linux --chaos
+colima delete --force --data aiteamos-network-chaos
 ```
 
 Physical Mac lid/Wi-Fi/VPN, IPv6-only Internet, signed installers and a long WAN soak remain release-environment coverage. Controlled kernel faults do not replace those checks.
@@ -118,7 +118,7 @@ Validation on November 1, 2026:
 - A **live provider compatibility check passed** against ipwho.is with normal TLS verification. The public address was not logged. This checks provider response compatibility from the development host; controlled end-to-end tests separately verify device routing.
 - Desktop/server/computer typechecks, desktop production build, bundle budgets and architecture boundaries passed. Server responses inherit `Cache-Control: no-store`.
 
-Current full-app recordings: [desktop MP4](../../../output/browser-network-compact/desktop-full-app.mp4), [native iOS MP4](../../../output/browser-network-compact/ios-full-app.mp4). They show the actual OpenTeam renderer/native application without test captions or side panels. Device events, addresses and locations in these UI recordings are inert fixtures using documentation IPs; real routing is validated separately above. Logs, screenshots and the passing native result bundle are in `output/browser-network-compact/`.
+Current full-app recordings: [desktop MP4](../../../output/browser-network-compact/desktop-full-app.mp4), [native iOS MP4](../../../output/browser-network-compact/ios-full-app.mp4). They show the actual aiTeamOS renderer/native application without test captions or side panels. Device events, addresses and locations in these UI recordings are inert fixtures using documentation IPs; real routing is validated separately above. Logs, screenshots and the passing native result bundle are in `output/browser-network-compact/`.
 
 The disposable Linux production-image validation below remains valid for the network transport baseline. This compact UI/diagnostic revision was tested locally with real Node transport and native iOS; it was not rerun in Colima. Physical Mac sleep/VPN/WAN and signed-installer checks remain release-environment coverage.
 
@@ -156,7 +156,7 @@ The **38** Linux checks comprise 21 existing browser/network cases, **12** ranki
 
 The production owner API also rejected an attempt to stage an unapproved computer through manual-mode settings, closing a validation bypass before the final run. Individual website failures do not trigger route hopping or request replay. A 256 MiB TLS transfer checked every byte, and a 60-second two-browser soak completed 542 requests on the final run. These are isolated VM results, not WAN throughput or availability promises.
 
-Latest logs, image identities and per-phase results are under `output/browser-network-ranking/`; settings screenshots are under `output/browser-network-ui/`. The dedicated `openteam-network-ranking-test` Colima profile and its data were deleted after testing. Packaged desktop installers, physical WAN/VPN and IPv6-only release checks remain as listed below.
+Latest logs, image identities and per-phase results are under `output/browser-network-ranking/`; settings screenshots are under `output/browser-network-ui/`. The dedicated `aiteamos-network-ranking-test` Colima profile and its data were deleted after testing. Packaged desktop installers, physical WAN/VPN and IPv6-only release checks remain as listed below.
 
 The sections below retain the earlier manual-routing baseline, including its full 144-file computer regression run. They do not replace the ranked-mode results above.
 
@@ -217,31 +217,31 @@ The transfer tests also exposed TCP half-close data loss with this older Bun ver
 
 ```sh
 bun install --frozen-lockfile
-bun --filter @openteam/db db:generate
+bun --filter @aiteamos/db db:generate
 bun packages/plugins/scripts/generate.ts
 bun test apps/server/test
 bun test apps/desktop/test packages/client-core/test packages/contracts/test packages/plugin-sdk/test
 bun test apps/computer/test/browser-network-worker.test.ts
-bun --filter @openteam/desktop test:browser-network
-bun --filter @openteam/desktop typecheck
-bun --filter @openteam/computer typecheck
-bun --filter @openteam/server typecheck
-bun --filter @openteam/desktop build
-bun --filter @openteam/computer build
-bun --filter @openteam/server build
+bun --filter @aiteamos/desktop test:browser-network
+bun --filter @aiteamos/desktop typecheck
+bun --filter @aiteamos/computer typecheck
+bun --filter @aiteamos/server typecheck
+bun --filter @aiteamos/desktop build
+bun --filter @aiteamos/computer build
+bun --filter @aiteamos/server build
 bun scripts/performance/check-desktop-budgets.ts
 bun run check:architecture
 git diff --check
 ```
 
-Use an installed Chromium path via `CHROME_PATH` where needed. The server browser test skips explicitly if no supported browser executable is installed. For the complete computer regression suite on the older local runner, execute each `apps/computer/test/**/*.test.ts` file in its own `bun test` process; local per-file results are retained in `output/browser-network-tests/summary.json`. Database integration requires `OPENTEAM_TEST_DATABASE_URL` pointing to a disposable schema prepared with `db:deploy`.
+Use an installed Chromium path via `CHROME_PATH` where needed. The server browser test skips explicitly if no supported browser executable is installed. For the complete computer regression suite on the older local runner, execute each `apps/computer/test/**/*.test.ts` file in its own `bun test` process; local per-file results are retained in `output/browser-network-tests/summary.json`. Database integration requires `AITEAMOS_TEST_DATABASE_URL` pointing to a disposable schema prepared with `db:deploy`.
 
 To repeat the production-image Linux checks on a dedicated Colima profile:
 
 ```sh
-colima start openteam-network-test --activate=false --ssh-config=false --cpu 4 --memory 7 --disk 24 --mount none
-OPENTEAM_TEST_DOCKER_CONTEXT=colima-openteam-network-test OPENTEAM_TEST_OUTPUT_DIR=output/browser-network-ranking bun run test:browser-network:linux
-colima delete openteam-network-test --force --data
+colima start aiteamos-network-test --activate=false --ssh-config=false --cpu 4 --memory 7 --disk 24 --mount none
+AITEAMOS_TEST_DOCKER_CONTEXT=colima-aiteamos-network-test AITEAMOS_TEST_OUTPUT_DIR=output/browser-network-ranking bun run test:browser-network:linux
+colima delete aiteamos-network-test --force --data
 ```
 
 This requires Docker CLI/build support, Colima, host Bun dependencies and OpenSSL. `--skip-build` reuses the three previously built production images; `--keep` retains only the harness's named test resources for debugging. Run without `--keep` for automatic container/volume/network cleanup. The Colima profile is explicitly temporary and should be deleted when finished.

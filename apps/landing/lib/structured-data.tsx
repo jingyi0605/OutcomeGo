@@ -10,7 +10,7 @@ const SOFTWARE_ID = `${SITE_URL}/#software`;
 const organization = {
   "@type": "Organization",
   "@id": ORGANIZATION_ID,
-  name: "OpenTeam",
+  name: "aiTeamOS",
   url: SITE_URL,
   logo: { "@type": "ImageObject", url: `${SITE_URL}/ai-teamOS-app-icon.png` },
   sameAs: [GITHUB_URL],
@@ -19,18 +19,18 @@ const organization = {
 const website = {
   "@type": "WebSite",
   "@id": WEBSITE_ID,
-  name: "OpenTeam",
+  name: "aiTeamOS",
   url: SITE_URL,
   inLanguage: "en",
   publisher: { "@id": ORGANIZATION_ID },
 };
 
 // Names the product category and its facts so search and answer engines can tell
-// OpenTeam apart from similarly named companies.
+// aiTeamOS apart from similarly named companies.
 const software = {
   "@type": "SoftwareApplication",
   "@id": SOFTWARE_ID,
-  name: "OpenTeam",
+  name: "aiTeamOS",
   description: SITE_DESCRIPTION,
   url: SITE_URL,
   downloadUrl: `${SITE_URL}/download`,
@@ -41,7 +41,7 @@ const software = {
   isAccessibleForFree: true,
   offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
   license: "https://www.gnu.org/licenses/gpl-3.0.html",
-  image: `${SITE_URL}/social/openteam-2026-09-13.png`,
+  image: `${SITE_URL}/social/aiteamos-2026-09-13.png`,
   sameAs: [GITHUB_URL],
   publisher: { "@id": ORGANIZATION_ID },
 };
@@ -68,14 +68,14 @@ export function docStructuredData(page: DocPage) {
         ...(page.updated ? { dateModified: page.updated } : {}),
         inLanguage: "en",
         articleSection: page.group,
-        about: { "@type": "SoftwareApplication", "@id": SOFTWARE_ID, name: "OpenTeam" },
+        about: { "@type": "SoftwareApplication", "@id": SOFTWARE_ID, name: "aiTeamOS" },
         isPartOf: { "@id": WEBSITE_ID },
         publisher: { "@id": ORGANIZATION_ID },
       },
       {
         "@type": "BreadcrumbList",
         itemListElement: [
-          { "@type": "ListItem", position: 1, name: "OpenTeam", item: SITE_URL },
+          { "@type": "ListItem", position: 1, name: "aiTeamOS", item: SITE_URL },
           { "@type": "ListItem", position: 2, name: "Docs", item: docsUrl },
           ...(url === docsUrl
             ? []
@@ -93,7 +93,7 @@ export const downloadStructuredData = {
     {
       "@type": "WebPage",
       "@id": `${SITE_URL}/download#page`,
-      name: "Download OpenTeam",
+      name: "Download aiTeamOS",
       url: `${SITE_URL}/download`,
       about: { "@id": SOFTWARE_ID },
       isPartOf: { "@id": WEBSITE_ID },
@@ -102,7 +102,7 @@ export const downloadStructuredData = {
     {
       "@type": "BreadcrumbList",
       itemListElement: [
-        { "@type": "ListItem", position: 1, name: "OpenTeam", item: SITE_URL },
+        { "@type": "ListItem", position: 1, name: "aiTeamOS", item: SITE_URL },
         { "@type": "ListItem", position: 2, name: "Download", item: `${SITE_URL}/download` },
       ],
     },
@@ -118,7 +118,7 @@ export function blogIndexStructuredData(posts: BlogPost[]) {
       {
         "@type": "Blog",
         "@id": `${url}#blog`,
-        name: "OpenTeam blog",
+        name: "aiTeamOS blog",
         url,
         inLanguage: "en",
         publisher: { "@id": ORGANIZATION_ID },
@@ -160,7 +160,7 @@ export function blogPostStructuredData(post: BlogPost) {
       {
         "@type": "BreadcrumbList",
         itemListElement: [
-          { "@type": "ListItem", position: 1, name: "OpenTeam", item: SITE_URL },
+          { "@type": "ListItem", position: 1, name: "aiTeamOS", item: SITE_URL },
           { "@type": "ListItem", position: 2, name: "Blog", item: `${SITE_URL}/blog` },
           { "@type": "ListItem", position: 3, name: post.title, item: url },
         ],

@@ -1,17 +1,17 @@
 import { expect, test } from "bun:test";
 import { Effect } from "effect";
-import { createPrismaClient } from "@openteam/db";
-import { notificationRouting, publishMessageNotification } from "@openteam/messaging";
+import { createPrismaClient } from "@aiteamos/db";
+import { notificationRouting, publishMessageNotification } from "@aiteamos/messaging";
 import {
   suppressMobileNotification,
   type NotificationPresenceInput,
-} from "@openteam/contracts/notification-presence";
+} from "@aiteamos/contracts/notification-presence";
 import { NotificationService } from "../../server/src/services/notification-service";
 import { PushNotificationDispatcher } from "../src/push-notifications";
 import type { ApnsClient } from "../src/apns";
 import { SnapshotService } from "../../server/src/services/snapshot-service";
 
-const url = process.env.OPENTEAM_TEST_DATABASE_URL;
+const url = process.env.AITEAMOS_TEST_DATABASE_URL;
 
 test.skipIf(!url)(
   "PostgreSQL presence gates every iPhone, preserves badge sync, and never replays suppressed activity",
@@ -19,8 +19,8 @@ test.skipIf(!url)(
     const db = createPrismaClient(url!);
     const workerDb = createPrismaClient(url!); // independent process/connection state
     const service = new NotificationService(db, "disabled");
-    const previousAuth = process.env.OPENTEAM_AUTH_MODE;
-    process.env.OPENTEAM_AUTH_MODE = "disabled";
+    const previousAuth = process.env.AITEAMOS_AUTH_MODE;
+    process.env.AITEAMOS_AUTH_MODE = "disabled";
     const mac = crypto.randomUUID(),
       phone = crypto.randomUUID();
     const deviceIds = [crypto.randomUUID(), crypto.randomUUID()];
@@ -166,8 +166,8 @@ test.skipIf(!url)(
       await drain();
       expect(firstPhone).toHaveLength(5); // no backlog replay on handoff
     } finally {
-      if (previousAuth === undefined) delete process.env.OPENTEAM_AUTH_MODE;
-      else process.env.OPENTEAM_AUTH_MODE = previousAuth;
+      if (previousAuth === undefined) delete process.env.AITEAMOS_AUTH_MODE;
+      else process.env.AITEAMOS_AUTH_MODE = previousAuth;
       await db.notificationPresence.deleteMany({ where: { clientId: { in: [mac, phone] } } });
       await db.notificationPreferences.deleteMany({ where: { id: "global" } });
       await db.outboxDelivery.deleteMany({ where: { target: { in: deviceIds } } });

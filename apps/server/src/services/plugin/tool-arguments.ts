@@ -1,4 +1,4 @@
-import { ApiError } from "@openteam/contracts";
+import { ApiError } from "@aiteamos/contracts";
 
 /** Account labels match case-insensitively, and new ones are stored lowercase, as in the reference. */
 export const normalizeAccountLabel = (label: string): string => label.trim().toLowerCase();

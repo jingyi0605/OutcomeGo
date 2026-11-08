@@ -1,9 +1,9 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
 import { PromptInput } from "../../src/renderer/components/ai-elements/prompt-input";
-import { api } from "../../src/renderer/client/openteam-api";
-import ServerSettings from "../../src/renderer/components/openteam/settings/server";
-import { ThreadTray } from "../../src/renderer/components/openteam/thread-tray";
+import { api } from "../../src/renderer/client/aiteamos-api";
+import ServerSettings from "../../src/renderer/components/aiteamos/settings/server";
+import { ThreadTray } from "../../src/renderer/components/aiteamos/thread-tray";
 
 const renderErrors: string[] = [];
 const root = createRoot(document.getElementById("root")!, {

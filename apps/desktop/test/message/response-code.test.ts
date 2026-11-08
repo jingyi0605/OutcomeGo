@@ -26,7 +26,7 @@ afterEach(() => {
   clearCodeHighlighterCaches();
 });
 
-describe("OpenTeam code highlighter", () => {
+describe("aiTeamOS code highlighter", () => {
   test("renderer metadata covers the installed worker grammars and aliases", () => {
     expect(languages).toEqual(bundledLanguagesInfo.map(({ id, aliases }) => ({ id, ...(aliases ? { aliases } : {}) })));
   });

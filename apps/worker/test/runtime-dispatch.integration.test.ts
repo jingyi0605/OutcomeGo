@@ -1,9 +1,9 @@
 import { expect, test } from "bun:test";
-import { createPrismaClient } from "@openteam/db";
-import { TASK_RECOVERY_LOCK } from "@openteam/messaging";
+import { createPrismaClient } from "@aiteamos/db";
+import { TASK_RECOVERY_LOCK } from "@aiteamos/messaging";
 import { dispatchComputerTurn } from "../src/runtime-dispatch";
 
-const url = process.env.OPENTEAM_RECOVERY_TEST_DATABASE_URL;
+const url = process.env.AITEAMOS_RECOVERY_TEST_DATABASE_URL;
 const deferred = () => {
   let resolve!: () => void;
   const promise = new Promise<void>((r) => (resolve = r));

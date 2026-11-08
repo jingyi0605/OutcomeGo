@@ -7,7 +7,7 @@ import {
   MAX_SHELL_LOG_BYTES,
 } from "../../../apps/desktop/src/main/host/jobs";
 
-const directory = await mkdtemp(join(tmpdir(), "openteam-host-shell-benchmark-"));
+const directory = await mkdtemp(join(tmpdir(), "aiteamos-host-shell-benchmark-"));
 let peakRss = process.memoryUsage.rss();
 const sample = setInterval(() => {
   peakRss = Math.max(peakRss, process.memoryUsage.rss());

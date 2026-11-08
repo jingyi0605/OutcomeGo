@@ -35,7 +35,7 @@ import {
 } from "../src/lifecycle";
 import type { CommandRunner, RunOptions, RunResult } from "../src/process";
 import type { SetupPrompter } from "../src/setup";
-import { updateBusyMessage } from "@openteam/contracts/server-updates";
+import { updateBusyMessage } from "@aiteamos/contracts/server-updates";
 import { registerDatabaseBackup } from "../src/disk-maintenance";
 import { readUpdateState } from "../src/update-safety";
 
@@ -62,7 +62,7 @@ class HealthyDockerRunner implements CommandRunner {
     this.calls.push({ command, args, options });
     if (args.includes("config") && args.includes("--format")) {
       const version = parseEnvironment(readFileSync(join(options!.cwd!, ".env"), "utf8")).get(
-        "OPENTEAM_VERSION"
+        "AITEAMOS_VERSION"
       );
       return {
         status: 0,
@@ -140,7 +140,7 @@ class HealthyDockerRunner implements CommandRunner {
     }
     if (args.includes("up")) this.onStart?.();
     if (args.includes("pg_dump") && options?.outputFile) {
-      writeFileSync(options.outputFile, "-- OpenTeam test database backup\nSELECT 1;\n", {
+      writeFileSync(options.outputFile, "-- aiTeamOS test database backup\nSELECT 1;\n", {
         mode: 0o600,
       });
     }
@@ -159,7 +159,7 @@ afterEach(() => {
 });
 
 const fixture = (inference = "missing", activity?: (request: Request) => Response) => {
-  const directory = realpathSync(mkdtempSync(join(tmpdir(), "openteam-cli-lifecycle-")));
+  const directory = realpathSync(mkdtempSync(join(tmpdir(), "aiteamos-cli-lifecycle-")));
   temporaryDirectories.push(directory);
   const paths = installationPaths(directory);
   const server = Bun.serve({
@@ -168,7 +168,7 @@ const fixture = (inference = "missing", activity?: (request: Request) => Respons
       if (activity && new URL(request.url).pathname === "/api/v0/internal/busy-bots")
         return activity(request);
       const version = parseEnvironment(readFileSync(paths.environment, "utf8")).get(
-        "OPENTEAM_VERSION"
+        "AITEAMOS_VERSION"
       );
       return Response.json({
         status: "ready",
@@ -180,12 +180,12 @@ const fixture = (inference = "missing", activity?: (request: Request) => Respons
   servers.push(server);
   const environment = replaceEnvironmentValue(
     createEnvironment({ version: "1.2.3" }),
-    "OPENTEAM_API_PORT",
+    "AITEAMOS_API_PORT",
     String(server.port)
   );
   writeFileAtomic(
     paths.compose,
-    `name: openteam\nservices:\n  server:\n    image: example/openteam-server:\${OPENTEAM_VERSION}\nvolumes:\n  openteam_workspace:\n`
+    `name: aiteamos\nservices:\n  server:\n    image: example/aiteamos-server:\${AITEAMOS_VERSION}\nvolumes:\n  aiteamos_workspace:\n`
   );
   writeFileAtomic(paths.environment, environment);
   const now = new Date().toISOString();
@@ -193,25 +193,25 @@ const fixture = (inference = "missing", activity?: (request: Request) => Respons
     schemaVersion: 1,
     repository: "owner/repo",
     version: "1.2.3",
-    composeUrl: "https://example.com/openteam-compose.yaml",
+    composeUrl: "https://example.com/aiteamos-compose.yaml",
     installedAt: now,
     updatedAt: now,
-    ownerUsername: "openteam",
+    ownerUsername: "aiteamos",
   });
   return { directory, paths };
 };
 
 const releaseFixture = () => {
   const compose =
-    "name: openteam\nservices:\n  server:\n    image: example/openteam-server:${OPENTEAM_VERSION}\nvolumes:\n  openteam_workspace:\n";
+    "name: aiteamos\nservices:\n  server:\n    image: example/aiteamos-server:${AITEAMOS_VERSION}\nvolumes:\n  aiteamos_workspace:\n";
   const checksum = createHash("sha256").update(compose).digest("hex");
   const server = Bun.serve({
     port: 0,
     fetch(request) {
       const path = new URL(request.url).pathname;
-      if (path.endsWith("/openteam-compose.yaml")) return new Response(compose);
+      if (path.endsWith("/aiteamos-compose.yaml")) return new Response(compose);
       if (path.endsWith("/SHA256SUMS")) {
-        return new Response(`${checksum}  openteam-compose.yaml\n`);
+        return new Response(`${checksum}  aiteamos-compose.yaml\n`);
       }
       return new Response("not found", { status: 404 });
     },
@@ -220,7 +220,7 @@ const releaseFixture = () => {
   const base = `http://127.0.0.1:${server.port}`;
   return [
     `--compose-url`,
-    `${base}/openteam-compose.yaml`,
+    `${base}/aiteamos-compose.yaml`,
     "--checksum-url",
     `${base}/SHA256SUMS`,
     "--allow-unsigned",
@@ -229,14 +229,14 @@ const releaseFixture = () => {
 
 describe("fresh install", () => {
   test("asks every setup question before pulling images, then starts and points to the apps", async () => {
-    const directory = mkdtempSync(join(tmpdir(), "openteam-cli-fresh-install-"));
+    const directory = mkdtempSync(join(tmpdir(), "aiteamos-cli-fresh-install-"));
     temporaryDirectories.push(directory);
     const paths = installationPaths(join(directory, "installation"));
     const health = Bun.serve({
       port: 0,
       fetch() {
         const version = parseEnvironment(readFileSync(paths.environment, "utf8")).get(
-          "OPENTEAM_VERSION"
+          "AITEAMOS_VERSION"
         );
         return Response.json({
           status: "ready",
@@ -249,7 +249,7 @@ describe("fresh install", () => {
     // Keep the new installation's health checks on the fixture instead of port 8787.
     const original = config.createEnvironment;
     const environment = spyOn(config, "createEnvironment").mockImplementation((options) =>
-      replaceEnvironmentValue(original(options), "OPENTEAM_API_PORT", String(health.port))
+      replaceEnvironmentValue(original(options), "AITEAMOS_API_PORT", String(health.port))
     );
     const runner = new HealthyDockerRunner();
     const answers = [
@@ -292,15 +292,14 @@ describe("fresh install", () => {
     const up = runner.calls.findIndex((call) => call.args.includes("up"));
     expect(pull).toBeGreaterThanOrEqual(answered);
     expect(up).toBeGreaterThan(pull);
-    expect(runner.calls.some((call) => call.args.includes("openteam-pi-auth"))).toBe(false);
+    expect(runner.calls.some((call) => call.args.includes("aiteamos-pi-auth"))).toBe(false);
     expect(readManifest(paths)?.ownerUsername).toBe("Raghav-P");
     const printed = output.join("\n");
-    expect(printed).toContain("OpenTeam is ready");
+    expect(printed).toContain("aiTeamOS is ready");
     expect(printed).toContain(
-      "Next: open the OpenTeam app and sign in with this server and username."
+      "Next: open the aiTeamOS app and sign in with this server and username."
     );
-    expect(printed).toContain("https://openteam.so/download");
-    expect(printed).toContain("https://testflight.apple.com/join/KFBFPkjP");
+    expect(printed).toContain("https://github.com/jingyi0605/ai-TeamOS/releases/latest");
     expect(printed).toContain("The app will help you connect a model and create your first bot.");
     expect(printed).not.toContain("Inference");
   });
@@ -308,7 +307,7 @@ describe("fresh install", () => {
 
 describe("interrupted first install", () => {
   test("a first install that cannot save its files leaves none behind, so it can be retried", async () => {
-    const directory = mkdtempSync(join(tmpdir(), "openteam-cli-partial-install-"));
+    const directory = mkdtempSync(join(tmpdir(), "aiteamos-cli-partial-install-"));
     temporaryDirectories.push(directory);
     const paths = installationPaths(join(directory, "installation"));
     const original = config.writeFileAtomic;
@@ -332,7 +331,7 @@ describe("interrupted first install", () => {
           prompter
         )
       ).rejects.toThrow(
-        `Could not save the OpenTeam configuration in ${paths.directory}: ENOSPC: no space left on device, write.`
+        `Could not save the aiTeamOS configuration in ${paths.directory}: ENOSPC: no space left on device, write.`
       );
     } finally {
       write.mockRestore();
@@ -343,7 +342,7 @@ describe("interrupted first install", () => {
     for (const file of [paths.compose, paths.environment, paths.manifest]) {
       expect(existsSync(file)).toBe(false);
     }
-    const diagnosis = await runDoctor(paths, new HealthyDockerRunner(), "openteam", {
+    const diagnosis = await runDoctor(paths, new HealthyDockerRunner(), "aiteamos", {
       checkInstallPorts: false,
     });
     expect(diagnosis.checks.find((check) => check.label === "Installation")?.level).toBe("warn");
@@ -362,7 +361,7 @@ describe("installed lifecycle", () => {
       parseArguments(["install", ...releaseFixture()]),
       new HealthyDockerRunner()
     );
-    expect(readFileSync(paths.compose, "utf8")).toContain("example/openteam-server");
+    expect(readFileSync(paths.compose, "utf8")).toContain("example/aiteamos-server");
     expect(readFileSync(paths.environment, "utf8")).toBe(environment);
     expect(readManifest(paths)?.ownerUsername).toBe(manifest.ownerUsername);
     expect(readManifest(paths)?.uninstalledAt).toBeUndefined();
@@ -374,7 +373,7 @@ describe("installed lifecycle", () => {
       writeManifest(paths, { ...readManifest(paths)!, ownerUsername });
       const runner = new HealthyDockerRunner();
       await expect(startCommand(paths, runner)).rejects.toThrow(
-        "account setup is incomplete. Run openteam setup"
+        "account setup is incomplete. Run aiteamos setup"
       );
       expect(runner.calls).toHaveLength(0);
     }
@@ -404,7 +403,7 @@ describe("installed lifecycle", () => {
       expect(output.join("\n").includes("No model is connected yet")).toBe(inference === "missing");
       if (inference === "missing")
         expect(output.join(" ").replace(/\s+/g, " ")).toContain(
-          "Connect one in the OpenTeam app under Settings → Server, or run openteam model"
+          "Connect one in the aiTeamOS app under Settings → Server, or run aiteamos model"
         );
     }
   });
@@ -412,12 +411,12 @@ describe("installed lifecycle", () => {
   test("start reports the Tailscale conflict before running Compose up", async () => {
     const { paths } = fixture();
     const environment = parseEnvironment(readFileSync(paths.environment, "utf8"));
-    const port = environment.get("OPENTEAM_API_PORT")!;
+    const port = environment.get("AITEAMOS_API_PORT")!;
     writeFileAtomic(
       paths.environment,
       replaceEnvironmentValue(
         readFileSync(paths.environment, "utf8"),
-        "OPENTEAM_BIND_HOST",
+        "AITEAMOS_BIND_HOST",
         "0.0.0.0"
       )
     );
@@ -458,7 +457,7 @@ describe("installed lifecycle", () => {
       paths.environment,
       replaceEnvironmentValue(
         readFileSync(paths.environment, "utf8"),
-        "OPENTEAM_PUBLIC_URL",
+        "AITEAMOS_PUBLIC_URL",
         "http://100.64.0.5:8787"
       )
     );
@@ -477,7 +476,7 @@ describe("installed lifecycle", () => {
     const summaries = output.filter((line) => line.includes("ALREADY RUNNING"));
     expect(summaries).toHaveLength(2);
     for (const summary of summaries) {
-      expect(summary).toContain("OpenTeam is already running");
+      expect(summary).toContain("aiTeamOS is already running");
       expect(summary).toContain("http://127.0.0.1:");
       expect(summary).toContain("Network address");
       expect(summary).toContain("http://100.64.0.5:8787");
@@ -519,7 +518,7 @@ describe("installed lifecycle", () => {
             paths.environment,
             replaceEnvironmentValue(
               readFileSync(paths.environment, "utf8"),
-              "OPENTEAM_VERSION",
+              "AITEAMOS_VERSION",
               "1.2.4"
             )
           );
@@ -532,7 +531,7 @@ describe("installed lifecycle", () => {
   test("reports a stopped installation and starts it", async () => {
     const { paths } = fixture();
     const port = Number(
-      parseEnvironment(readFileSync(paths.environment, "utf8")).get("OPENTEAM_API_PORT")
+      parseEnvironment(readFileSync(paths.environment, "utf8")).get("AITEAMOS_API_PORT")
     );
     servers.at(-1)!.stop(true);
     const runner = new HealthyDockerRunner();
@@ -558,7 +557,7 @@ describe("installed lifecycle", () => {
       available.mockRestore();
       log.mockRestore();
     }
-    expect(output.join("\n")).toContain("OpenTeam is stopped. Starting services…");
+    expect(output.join("\n")).toContain("aiTeamOS is stopped. Starting services…");
     expect(runner.calls.filter((call) => call.args.includes("up"))).toHaveLength(1);
   });
 
@@ -595,21 +594,21 @@ describe("installed lifecycle", () => {
     });
   });
 
-  test("start refuses to race another OpenTeam stack that already answers on the API port", async () => {
+  test("start refuses to race another aiTeamOS stack that already answers on the API port", async () => {
     const { paths } = fixture();
     const runner = new HealthyDockerRunner();
     runner.running = ["postgres"];
-    const port = parseEnvironment(readFileSync(paths.environment, "utf8")).get("OPENTEAM_API_PORT");
+    const port = parseEnvironment(readFileSync(paths.environment, "utf8")).get("AITEAMOS_API_PORT");
     runner.publishedBy = { [String(port)]: "openteam-dev-server-1\topenteam-dev" };
 
     await expect(startCommand(paths, runner)).rejects.toThrow(
-      "Another OpenTeam server is answering at http://127.0.0.1:" +
+      "Another aiTeamOS server is answering at http://127.0.0.1:" +
         `${port}, but this installation's server is not running. It is container openteam-dev-server-1 (Compose project openteam-dev). Stop that stack with \`docker compose -p openteam-dev down\``
     );
     expect(runner.calls.some((call) => call.args.includes("up"))).toBe(false);
 
     await expect(statusCommand(paths, runner)).rejects.toThrow(
-      "Another OpenTeam server is answering"
+      "Another aiTeamOS server is answering"
     );
   });
 
@@ -656,10 +655,10 @@ describe("installed lifecycle", () => {
     await uninstallCommand(paths, parseArguments(["uninstall", "--yes"]), runner, {
       removeCli: () => {
         removedCli = true;
-        return "/usr/local/bin/openteam";
+        return "/usr/local/bin/aiteamos";
       },
     });
-    expect(readFileSync(paths.environment, "utf8")).toContain("OPENTEAM_CONTROL_TOKEN=");
+    expect(readFileSync(paths.environment, "utf8")).toContain("AITEAMOS_CONTROL_TOKEN=");
     expect(readManifest(paths)?.uninstalledAt).toBeString();
     expect(removedCli).toBe(true);
     expect(directory).toBe(paths.directory);
@@ -674,7 +673,7 @@ describe("installed lifecycle", () => {
     await uninstallCommand(paths, parseArguments(["uninstall", "--purge", "--yes"]), runner, {
       removeCli: () => {
         removedCli = true;
-        return "/usr/local/bin/openteam";
+        return "/usr/local/bin/aiteamos";
       },
     });
     expect(readManifest(paths)).toBeNull();
@@ -701,7 +700,7 @@ describe("installed lifecycle", () => {
     }
 
     expect(readManifest(paths)?.version).toBe("1.3.0");
-    expect(readFileSync(paths.environment, "utf8")).toContain("OPENTEAM_VERSION=1.3.0");
+    expect(readFileSync(paths.environment, "utf8")).toContain("AITEAMOS_VERSION=1.3.0");
     expect(readUpdateState(paths)).toMatchObject({
       status: "complete",
       phase: "complete",
@@ -842,7 +841,7 @@ describe("installed lifecycle", () => {
       log.mockRestore();
     }
     const token = parseEnvironment(readFileSync(paths.environment, "utf8")).get(
-      "OPENTEAM_CONTROL_TOKEN"
+      "AITEAMOS_CONTROL_TOKEN"
     );
     expect(String(authorization)).toBe(`Bearer ${token}`);
     expect(runner.calls.some((call) => call.args.includes("pull"))).toBe(false);

@@ -1,4 +1,4 @@
-import { skillIsForAgent, type PluginSkillAgent } from "@openteam/plugin-sdk";
+import { skillIsForAgent, type PluginSkillAgent } from "@aiteamos/plugin-sdk";
 import { digest } from "./file-state";
 import { agentSkillItem } from "./skill-catalog";
 

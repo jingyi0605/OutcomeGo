@@ -8,8 +8,8 @@ import { BrowserUseSession } from "../src/browser/use";
 import { outOfProcessPlaywright } from "../src/browser/playwright-driver";
 
 // Disposable browser integration fixtures, never an existing bot's desktop.
-const executable = process.env.OPENTEAM_BROWSER_TEST_EXECUTABLE;
-if (!executable) throw new Error("Set OPENTEAM_BROWSER_TEST_EXECUTABLE");
+const executable = process.env.AITEAMOS_BROWSER_TEST_EXECUTABLE;
+if (!executable) throw new Error("Set AITEAMOS_BROWSER_TEST_EXECUTABLE");
 const server = Bun.serve({ hostname: "127.0.0.1", port: 0, fetch: () => new Response(
   `<!doctype html><title>Agent reliability</title><input aria-label="Draft"><p id="result"></p><div contenteditable="true" aria-label="Editor">Start</div>
   <button onclick="const a=prompt('First');const b=prompt('Second');document.querySelector('#result').textContent=JSON.stringify([a,b])">Two prompts</button>

@@ -5,7 +5,7 @@ import type {
   ChannelView,
   RunItemView,
   RunView,
-} from "@openteam/contracts";
+} from "@aiteamos/contracts";
 import {
   firstUnreadMessageId,
   groupChatActivity,

@@ -1,10 +1,10 @@
-import { createOpenTeamAuthClient, normalizeBaseUrl } from "@openteam/client-core";
+import { createAiTeamOSAuthClient, normalizeBaseUrl } from "@aiteamos/client-core";
 
 const authClient = (serverUrl: unknown) => {
   if (typeof serverUrl !== "string" || serverUrl.length > 8_192) {
-    throw new Error("OpenTeam server URL is invalid");
+    throw new Error("aiTeamOS server URL is invalid");
   }
-  return createOpenTeamAuthClient({
+  return createAiTeamOSAuthClient({
     baseUrl: normalizeBaseUrl(serverUrl),
     // Node fetch has no renderer Origin or cookie jar. Never forward login
     // credentials or a bearer token through an HTTP redirect.

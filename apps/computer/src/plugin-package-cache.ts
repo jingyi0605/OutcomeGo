@@ -6,7 +6,7 @@ import {
   safePackagePath,
   substituteConfiguration,
   validatePackageFiles,
-} from "@openteam/plugin-sdk";
+} from "@aiteamos/plugin-sdk";
 
 /** Versioned executable assets contain package files only; connection secrets stay in memory. */
 export class PluginPackageCache {

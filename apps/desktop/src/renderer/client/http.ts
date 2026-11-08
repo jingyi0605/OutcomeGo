@@ -1,9 +1,9 @@
 import {
   createJsonTransport,
-  OpenTeamClientError,
-  type OpenTeamFetch,
-  type OpenTeamTransportOptions,
-} from "@openteam/client-core";
+  AiTeamOSClientError,
+  type AiTeamOSFetch,
+  type AiTeamOSTransportOptions,
+} from "@aiteamos/client-core";
 import { recordPerformance } from "../lib/performance";
 import { expireAuthToken, getAuthToken } from "./auth";
 import { resolveConfiguredApiBase } from "./runtime-url";
@@ -11,10 +11,10 @@ import { resolveConfiguredApiBase } from "./runtime-url";
 export const API_BASE = resolveConfiguredApiBase(
   window.location.href,
   localStorage,
-  import.meta.env.VITE_OPENTEAM_API_URL
+  import.meta.env.VITE_AITEAMOS_API_URL
 );
 
-const instrumentedFetch: OpenTeamFetch = async (input, init) => {
+const instrumentedFetch: AiTeamOSFetch = async (input, init) => {
   const startedAt = performance.now();
   try {
     const response = await fetch(input, init);
@@ -42,7 +42,7 @@ const instrumentedFetch: OpenTeamFetch = async (input, init) => {
   }
 };
 
-export const desktopTransportOptions: OpenTeamTransportOptions = {
+export const desktopTransportOptions: AiTeamOSTransportOptions = {
   baseUrl: API_BASE,
   fetch: instrumentedFetch,
   getAuthToken,
@@ -52,4 +52,4 @@ export const desktopTransportOptions: OpenTeamTransportOptions = {
 const transport = createJsonTransport(desktopTransportOptions);
 
 export const request = transport.request;
-export { OpenTeamClientError as ClientError };
+export { AiTeamOSClientError as ClientError };

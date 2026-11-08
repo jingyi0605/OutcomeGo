@@ -50,7 +50,7 @@ test("expired, future, corrupt and unavailable storage cannot invent active prog
   saveServerUpdateSnapshot(server, snapshot, disk);
   expect(readServerUpdateSnapshot(server, disk, 1000 + 86400001)).toBeNull();
   expect(readServerUpdateSnapshot(server, disk, 999)).toBeNull();
-  disk.setItem("openteam:server-update:" + server, "{");
+  disk.setItem("aiteamos:server-update:" + server, "{");
   expect(readServerUpdateSnapshot(server, disk, 2000)).toBeNull();
   const blocked = {
     ...disk,

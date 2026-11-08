@@ -1,7 +1,7 @@
 import type {
   AgentDirectoryRecord,
   AgentDirectorySnapshot,
-} from "@openteam/contracts/service-protocol";
+} from "@aiteamos/contracts/service-protocol";
 import type { Database } from "bun:sqlite";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { chmod, mkdir, rm, stat } from "node:fs/promises";
@@ -35,7 +35,7 @@ import type {
 export type {
   AgentDirectoryRecord,
   AgentDirectorySnapshot,
-} from "@openteam/contracts/service-protocol";
+} from "@aiteamos/contracts/service-protocol";
 export {
   AGENT_DIRECTORY_FULL_SCAN_INTERVAL_MS,
   type AgentDirectoryDiscoveryMetrics,
@@ -62,7 +62,7 @@ const ensureSharedAgentDirectory = async (directory: string): Promise<void> => {
 };
 
 /**
- * OpenTeam-compatible per-agent SQLite stores. PostgreSQL and Pi remain product
+ * aiTeamOS-compatible per-agent SQLite stores. PostgreSQL and Pi remain product
  * projections while these files hold the same durable, content-addressed
  * conversation envelopes and prompt snapshots exposed by the bot host.
  */
@@ -100,20 +100,20 @@ export class BotAgentStore {
   };
 
   constructor(
-    root = process.env.OPENTEAM_AGENT_DATA_ROOT ?? "/home/box/agent-data",
+    root = process.env.AITEAMOS_AGENT_DATA_ROOT ?? "/home/box/agent-data",
     orphanRoot?: string,
     options: BotAgentStoreOptions = {}
   ) {
     this.root = resolve(root);
     this.orphanRoot = resolve(
-      orphanRoot ?? join(dirname(this.root), ".openteam-orphaned-agent-data")
+      orphanRoot ?? join(dirname(this.root), ".aiteamos-orphaned-agent-data")
     );
     const configuredMax =
       options.maxOpenAgents ??
-      Number(process.env.OPENTEAM_MAX_OPEN_AGENT_STORES ?? BOT_AGENT_STORE_MAX_OPEN_AGENTS);
+      Number(process.env.AITEAMOS_MAX_OPEN_AGENT_STORES ?? BOT_AGENT_STORE_MAX_OPEN_AGENTS);
     const configuredIdleMs =
       options.idleCloseMs ??
-      Number(process.env.OPENTEAM_AGENT_STORE_IDLE_CLOSE_MS ?? BOT_AGENT_STORE_IDLE_CLOSE_MS);
+      Number(process.env.AITEAMOS_AGENT_STORE_IDLE_CLOSE_MS ?? BOT_AGENT_STORE_IDLE_CLOSE_MS);
     if (!Number.isFinite(configuredMax) || configuredMax < 1) {
       throw new Error("max open agent stores must be a positive number");
     }

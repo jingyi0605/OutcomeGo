@@ -3,7 +3,7 @@ import type { OpusCodec } from "./voice-media";
 
 const OPUS_APPLICATION_VOIP = 2048;
 const candidates = () => [
-  process.env.OPENTEAM_OPUS_LIBRARY,
+  process.env.AITEAMOS_OPUS_LIBRARY,
   process.platform === "darwin" ? "libopus.dylib" : "libopus.so.0",
   process.platform === "darwin" ? "/opt/homebrew/lib/libopus.dylib" : "/usr/lib/libopus.so.0",
 ].filter((value): value is string => Boolean(value));
@@ -30,7 +30,7 @@ const loadSymbols = () => {
       }).symbols as unknown as OpusSymbols;
     } catch { /* Try the next platform/library location. */ }
   }
-  throw new Error("libopus is not installed; set OPENTEAM_OPUS_LIBRARY to a compatible library");
+  throw new Error("libopus is not installed; set AITEAMOS_OPUS_LIBRARY to a compatible library");
 };
 
 export class NativeOpusCodec implements OpusCodec {

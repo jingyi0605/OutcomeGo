@@ -1,7 +1,7 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
 import { PromptInput } from "../../src/renderer/components/ai-elements/prompt-input";
-import { api } from "../../src/renderer/client/openteam-api";
+import { api } from "../../src/renderer/client/aiteamos-api";
 import { signIn } from "../../src/renderer/client/auth";
 import { desktopDurableSendController } from "../../src/renderer/lib/durable-sends";
 

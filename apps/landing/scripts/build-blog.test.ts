@@ -20,7 +20,7 @@ function post(fields: Record<string, string>, body = "Lead paragraph.\n\n## Firs
 }
 
 function fixture(files: Record<string, string>) {
-  const root = mkdtempSync(path.join(tmpdir(), "openteam-blog-"));
+  const root = mkdtempSync(path.join(tmpdir(), "aiteamos-blog-"));
   temporaryDirectories.push(root);
   const directory = path.join(root, "blog");
   const publicDir = path.join(root, "public");
@@ -44,7 +44,7 @@ describe("blog build", () => {
     const options = fixture({
       "first-post.md": post(
         { ...base, image: "/blog/images/shot.png", imageAlt: "A screenshot" },
-        'Intro with [memory](/docs/usage/memory) and [the next post](/blog/second-post).\n\n![Bot desktop](/blog/images/shot.png "Image: OpenTeam")\n\n## Why it matters\n\n```sh\necho "<hi>"\n```\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n'
+        'Intro with [memory](/docs/usage/memory) and [the next post](/blog/second-post).\n\n![Bot desktop](/blog/images/shot.png "Image: aiTeamOS")\n\n## Why it matters\n\n```sh\necho "<hi>"\n```\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n'
       ),
       "second-post.md": post({ ...base, title: "Second post", date: "2026-10-07", related: "first-post", seoTitle: "Second post for search" }),
     });
@@ -57,7 +57,7 @@ describe("blog build", () => {
     expect([first.imageWidth, first.imageHeight]).toEqual([2, 1]);
     expect(first.html).toContain('<figure><img src="/blog/images/shot.png" alt="Bot desktop" width="2" height="1"');
     expect(first.html).not.toContain("srcset");
-    expect(first.html).toContain("<figcaption>Image: OpenTeam</figcaption></figure>");
+    expect(first.html).toContain("<figcaption>Image: aiTeamOS</figcaption></figure>");
     expect(first.html).not.toContain("<p><figure>");
     expect(first.html).toContain('<h2 id="why-it-matters">');
     expect(first.html).toContain("echo &quot;&lt;hi&gt;&quot;");
@@ -112,7 +112,7 @@ describe("blog build", () => {
 
 describe("blog images", () => {
   test("wide images get optimizer sources for each screen size", () => {
-    const root = mkdtempSync(path.join(tmpdir(), "openteam-blog-wide-"));
+    const root = mkdtempSync(path.join(tmpdir(), "aiteamos-blog-wide-"));
     temporaryDirectories.push(root);
     const wide = Buffer.from(png);
     wide.writeUInt32BE(1600, 16);

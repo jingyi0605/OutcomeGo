@@ -1,4 +1,4 @@
-import type { VoiceProviderId } from "@openteam/contracts";
+import type { VoiceProviderId } from "@aiteamos/contracts";
 
 export interface SttResult { text: string; language?: string; providerMetadata?: Record<string, string | number | boolean> }
 export interface SttEvent { text: string; isFinal: boolean; language?: string }

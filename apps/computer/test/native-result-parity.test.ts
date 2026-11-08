@@ -3,7 +3,7 @@ import { mkdtemp, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { NativeToolExecutor } from "../src/native-tool-executor";
-import { renderShellAwaitResult } from "@openteam/shell-jobs";
+import { renderShellAwaitResult } from "@aiteamos/shell-jobs";
 
 test("real box Shell and Read operations emit the captured success and missing-file formats", async () => {
   const root = await mkdtemp(join(tmpdir(), "tool-native-reference-"));

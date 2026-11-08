@@ -14,21 +14,21 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
 const repositoryRoot = resolve(import.meta.dirname, "..");
-const cliPath = join(repositoryRoot, "apps/cli/dist/openteam.js");
+const cliPath = join(repositoryRoot, "apps/cli/dist/aiteamos.js");
 const developmentCompose = join(repositoryRoot, "scripts/compose.sh");
 const releaseCompose = join(repositoryRoot, "deploy/compose.yaml");
 const testRunId = `${process.pid}-${randomBytes(3).toString("hex")}`;
-const projectName = `openteam-e2e-${testRunId}`;
-const temporaryRoot = mkdtempSync(join(tmpdir(), "openteam-cli-e2e-"));
+const projectName = `aiteamos-e2e-${testRunId}`;
+const temporaryRoot = mkdtempSync(join(tmpdir(), "aiteamos-cli-e2e-"));
 const installationDirectory = join(temporaryRoot, "installation");
 const releaseDirectory = join(temporaryRoot, "release");
 const firstVersion = `0.0.0-e2e.${testRunId}.1`;
 const secondVersion = `0.0.0-e2e.${testRunId}.2`;
 const sourceImages = [
-  "openteam-server:latest",
-  "openteam-worker:latest",
-  "openteam-migrate:latest",
-  "openteam-computer:latest",
+  "aiteamos-server:latest",
+  "aiteamos-worker:latest",
+  "aiteamos-migrate:latest",
+  "aiteamos-computer:latest",
 ] as const;
 const createdImageTags: string[] = [];
 let developmentStopped = false;
@@ -36,11 +36,11 @@ let authToken: string | null = null;
 
 const ownerUsername = "cli.e2e.owner";
 const ownerPassword = "CLI E2E owner password";
-const canaryProviderId = "openteam-e2e";
-const canaryProviderName = "OpenTeam E2E provider";
-const canaryModelId = "openteam-e2e-model";
-const canaryResponseText = "OPENTEAM_PROVIDER_CANARY_OK";
-const canarySecret = `openteam-e2e-${randomBytes(24).toString("hex")}`;
+const canaryProviderId = "aiteamos-e2e";
+const canaryProviderName = "aiTeamOS E2E provider";
+const canaryModelId = "aiteamos-e2e-model";
+const canaryResponseText = "AITEAMOS_PROVIDER_CANARY_OK";
+const canarySecret = `aiteamos-e2e-${randomBytes(24).toString("hex")}`;
 
 const resultText = (value: ReturnType<typeof spawnSync>): string =>
   [value.stdout, value.stderr]
@@ -184,7 +184,7 @@ const waitForHealth = async (timeoutMs = 180_000): Promise<void> => {
     }
     await Bun.sleep(1_000);
   }
-  throw new Error("Timed out waiting for the development OpenTeam stack to recover");
+  throw new Error("Timed out waiting for the development aiTeamOS stack to recover");
 };
 
 const developmentDatabaseCount = (sql: string): number => {
@@ -197,9 +197,9 @@ const developmentDatabaseCount = (sql: string): number => {
       "postgres",
       "psql",
       "--username",
-      "openteam",
+      "aiteamos",
       "--dbname",
-      "openteam",
+      "aiteamos",
       "--tuples-only",
       "--no-align",
       "--command",
@@ -238,10 +238,10 @@ const releaseChecksum = createHash("sha256").update(releaseAsset).digest("hex");
 for (const version of [firstVersion, secondVersion]) {
   const versionDirectory = join(releaseDirectory, `v${version}`);
   mkdirSync(versionDirectory, { recursive: true });
-  writeFileSync(join(versionDirectory, "openteam-compose.yaml"), releaseAsset);
+  writeFileSync(join(versionDirectory, "aiteamos-compose.yaml"), releaseAsset);
   writeFileSync(
     join(versionDirectory, "SHA256SUMS"),
-    `${releaseChecksum}  openteam-compose.yaml\n`
+    `${releaseChecksum}  aiteamos-compose.yaml\n`
   );
 }
 
@@ -337,7 +337,7 @@ const canaryServer = Bun.serve({
       return Response.json({ error: { message: "invalid request" } }, { status: 400 });
     }
     canaryRequestCount += 1;
-    const id = `chatcmpl-openteam-e2e-${canaryRequestCount}`;
+    const id = `chatcmpl-aiteamos-e2e-${canaryRequestCount}`;
     const created = Math.floor(Date.now() / 1_000);
     const messages = body.messages as Array<Record<string, unknown>>;
     const tools = Array.isArray(body.tools) ? body.tools : [];
@@ -354,7 +354,7 @@ const canaryServer = Bun.serve({
             tool_calls: [
               {
                 index: 0,
-                id: `call-openteam-e2e-${canaryVisibleDeliveryCount}`,
+                id: `call-aiteamos-e2e-${canaryVisibleDeliveryCount}`,
                 type: "function",
                 function: {
                   name: "SendToUser",
@@ -397,7 +397,7 @@ const canaryBaseUrl = `http://host.docker.internal:${canaryPort}/v1`;
 
 const releaseUrls = (version: string) => {
   const base = `http://127.0.0.1:${releasePort}/v${version}`;
-  return ["--compose-url", `${base}/openteam-compose.yaml`, "--checksum-url", `${base}/SHA256SUMS`];
+  return ["--compose-url", `${base}/aiteamos-compose.yaml`, "--checksum-url", `${base}/SHA256SUMS`];
 };
 
 const tagImages = (): void => {
@@ -585,7 +585,7 @@ const runningServiceContainer = (service: string): string => {
 const assertProviderConfiguration = (thinking: string): void => {
   const environmentPath = join(installationDirectory, ".env");
   const environment = readFileSync(environmentPath, "utf8");
-  const runtimeKeys = ["OPENTEAM_PI_PROVIDER", "OPENTEAM_PI_MODEL", "OPENTEAM_PI_THINKING"];
+  const runtimeKeys = ["AITEAMOS_PI_PROVIDER", "AITEAMOS_PI_MODEL", "AITEAMOS_PI_THINKING"];
   for (const key of runtimeKeys) {
     if (environmentValue(environment, key) !== undefined) {
       throw new Error(`${key} must not be persisted in the installation environment`);
@@ -616,7 +616,7 @@ const assertProviderConfiguration = (thinking: string): void => {
 
   const computer = runningServiceContainer("computer");
   const selection = JSON.parse(
-    resultText(docker(["exec", computer, "openteam-pi-auth", "selection"]))
+    resultText(docker(["exec", computer, "aiteamos-pi-auth", "selection"]))
   ) as Record<string, unknown>;
   if (
     selection.providerId !== canaryProviderId ||
@@ -703,7 +703,7 @@ const cleanupProject = (): void => {
 const main = async (): Promise<void> => {
   writeFileSync(join(temporaryRoot, "test-started"), new Date().toISOString());
   await assertNoActiveWork();
-  run("bun", ["--filter", "@openteam/cli", "build"]);
+  run("bun", ["--filter", "@aiteamos/cli", "build"]);
   tagImages();
 
   console.log("\n[E2E] Stopping the idle development stack to release loopback ports…");
@@ -720,7 +720,7 @@ const main = async (): Promise<void> => {
       "--project-name",
       projectName,
       "--image-prefix",
-      "openteam",
+      "aiteamos",
       "--version",
       firstVersion,
       "--allow-prerelease",
@@ -756,7 +756,7 @@ const main = async (): Promise<void> => {
   ]);
   assertProviderConfiguration("low");
   const selectedInference = resultText(
-    docker(["exec", runningServiceContainer("computer"), "openteam-pi-auth", "selection"])
+    docker(["exec", runningServiceContainer("computer"), "aiteamos-pi-auth", "selection"])
   );
   const invalidSelection = resultText(
     cliCapture(
@@ -768,7 +768,7 @@ const main = async (): Promise<void> => {
     throw new Error(`Invalid model selection failed unclearly:\n${invalidSelection}`);
   }
   const inferenceAfterRejection = resultText(
-    docker(["exec", runningServiceContainer("computer"), "openteam-pi-auth", "selection"])
+    docker(["exec", runningServiceContainer("computer"), "aiteamos-pi-auth", "selection"])
   );
   if (inferenceAfterRejection !== selectedInference) {
     throw new Error("A rejected model selection changed the durable inference settings");
@@ -836,7 +836,7 @@ const main = async (): Promise<void> => {
 
   console.log("\n[E2E] Verifying safe uninstall, recovery, and persisted data…");
   cli(["uninstall", "--dir", installationDirectory, "--yes"]);
-  docker(["volume", "inspect", `${projectName}_openteam_postgres`]);
+  docker(["volume", "inspect", `${projectName}_aiteamos_postgres`]);
   cli(["start", "--dir", installationDirectory]);
   assertProviderConfiguration("low");
   await assertPersistenceMarker(markerId);
@@ -859,7 +859,7 @@ const main = async (): Promise<void> => {
   console.log("\n[E2E] Verifying explicit purge…");
   cli(["uninstall", "--dir", installationDirectory, "--purge", "--yes"]);
   if (existsSync(installationDirectory)) throw new Error("Purge left the installation directory");
-  docker(["volume", "inspect", `${projectName}_openteam_postgres`], 1);
+  docker(["volume", "inspect", `${projectName}_aiteamos_postgres`], 1);
 
   console.log("\nCLI end-to-end release lifecycle passed.");
 };
@@ -885,7 +885,7 @@ try {
   for (const tag of createdImageTags) docker(["image", "rm", tag]);
   rmSync(temporaryRoot, { recursive: true, force: true });
   if (developmentStopped) {
-    console.log("\n[E2E] Restoring the development OpenTeam stack…");
+    console.log("\n[E2E] Restoring the development aiTeamOS stack…");
     run("bash", [developmentCompose, "up", "--detach"]);
     await waitForHealth();
     console.log("[E2E] Development stack restored and healthy.");

@@ -114,8 +114,8 @@ export function renderPluginResult(name: string, r: Row, args: Row): string | un
   if (name === "RenameMcpAccount")
     return `Renamed account "${args.account_label}" to "${args.new_account_label}" on MCP server ${args.server_id}.\n${listing()}`;
   if (name === "AuthenticateMcpServer" && outcome.requiresUserAction === true) {
-    // Only expose the OpenTeam setup link, never a provider authorization URL.
-    const setupUrl = `openteam://app/v1/plugin/add?id=${encodeURIComponent(outcome.pluginId)}`;
+    // Only expose the aiTeamOS setup link, never a provider authorization URL.
+    const setupUrl = `aiteamos://app/v1/plugin/add?id=${encodeURIComponent(outcome.pluginId)}`;
     return [
       `Sign-in requires user action for account ${JSON.stringify(outcome.accountLabel)} on MCP server ${args.server_id}. No new provider sign-in has been started.`,
       `Share this link with the user: [Open connection settings](${setupUrl}).`,

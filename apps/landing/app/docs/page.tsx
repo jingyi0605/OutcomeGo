@@ -5,7 +5,7 @@ import { pageMetadata } from "@/lib/page-metadata";
 const page = getDocPage(docsConfig.home)!;
 
 export const metadata = pageMetadata({
-  title: `${page.title} | OpenTeam ${docsConfig.title}`,
+  title: `${page.title} | aiTeamOS ${docsConfig.title}`,
   description: page.metaDescription,
   path: "/docs",
 });

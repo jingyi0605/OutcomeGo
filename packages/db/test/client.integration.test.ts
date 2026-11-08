@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import { Client } from "pg";
 import { createPrismaClient } from "../src/client";
 
-const url = process.env.OPENTEAM_TEST_DATABASE_URL;
+const url = process.env.AITEAMOS_TEST_DATABASE_URL;
 
 test("dropped Postgres connections fail one query at most and the client reconnects", async () => {
   if (!url) return;

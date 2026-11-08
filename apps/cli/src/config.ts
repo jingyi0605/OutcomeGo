@@ -54,14 +54,14 @@ export const defaultInstallDirectory = (
   platform = process.platform,
   home = homedir()
 ): string => {
-  if (environment.OPENTEAM_HOME?.trim()) return resolve(environment.OPENTEAM_HOME.trim());
+  if (environment.AITEAMOS_HOME?.trim()) return resolve(environment.AITEAMOS_HOME.trim());
   if (platform === "win32") {
-    return resolve(environment.LOCALAPPDATA?.trim() || join(home, "AppData", "Local"), "OpenTeam");
+    return resolve(environment.LOCALAPPDATA?.trim() || join(home, "AppData", "Local"), "aiTeamOS");
   }
   if (environment.XDG_CONFIG_HOME?.trim()) {
-    return resolve(environment.XDG_CONFIG_HOME.trim(), "openteam");
+    return resolve(environment.XDG_CONFIG_HOME.trim(), "aiteamos");
   }
-  return resolve(home, ".openteam");
+  return resolve(home, ".aiteamos");
 };
 
 export const installationPaths = (directory: string): InstallationPaths => ({
@@ -84,7 +84,7 @@ const assertSingleLine = (name: string, value: string): string => {
 export const normalizeVersion = (value: string): string => {
   const version = value.trim().replace(/^v/, "");
   if (!/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(version)) {
-    throw new CliError(`Invalid OpenTeam version: ${value}`);
+    throw new CliError(`Invalid aiTeamOS version: ${value}`);
   }
   return version;
 };
@@ -125,22 +125,23 @@ export const createEnvironment = (options: {
     throw new CliError("worker concurrency must be between 1 and 64");
   }
   return [
-    `OPENTEAM_VERSION=${version}`,
-    `OPENTEAM_IMAGE_PREFIX=${imagePrefix}`,
-    `OPENTEAM_POSTGRES_PASSWORD=${randomBytes(32).toString("hex")}`,
-    `OPENTEAM_CONTROL_TOKEN=${randomBytes(32).toString("hex")}`,
-    `OPENTEAM_AUTH_SECRET=${randomBytes(32).toString("hex")}`,
-    `OPENTEAM_PROXY_SECRET=${randomBytes(32).toString("hex")}`,
-    "OPENTEAM_AUTH_MODE=required",
-    "OPENTEAM_ACCESS_MODE=local",
-    "OPENTEAM_BIND_HOST=127.0.0.1",
-    "OPENTEAM_VIEWER_BIND_HOST=127.0.0.1",
-    "OPENTEAM_PUBLIC_HOST=127.0.0.1",
-    "OPENTEAM_PUBLIC_URL=http://127.0.0.1:8787",
-    "OPENTEAM_AUTH_URL=http://127.0.0.1:8787",
-    "OPENTEAM_API_PORT=8787",
+    `AITEAMOS_VERSION=${version}`,
+    `AITEAMOS_IMAGE_PREFIX=${imagePrefix}`,
+    `AITEAMOS_POSTGRES_PASSWORD=${randomBytes(32).toString("hex")}`,
+    `AITEAMOS_CONTROL_TOKEN=${randomBytes(32).toString("hex")}`,
+    `AITEAMOS_AUTH_SECRET=${randomBytes(32).toString("hex")}`,
+    `AITEAMOS_PROXY_SECRET=${randomBytes(32).toString("hex")}`,
+    "AITEAMOS_AUTH_MODE=required",
+    "AITEAMOS_ACCESS_MODE=local",
+    "AITEAMOS_BIND_HOST=127.0.0.1",
+    "AITEAMOS_VIEWER_BIND_HOST=127.0.0.1",
+    "AITEAMOS_PUBLIC_HOST=127.0.0.1",
+    "AITEAMOS_PUBLIC_URL=http://127.0.0.1:8787",
+    "AITEAMOS_AUTH_URL=http://127.0.0.1:8787",
+    "AITEAMOS_API_PORT=8787",
+    `AITEAMOS_UPDATE_CHANNEL=${version.includes("-") ? "beta" : "stable"}`,
     "COMPOSE_PROFILES=direct",
-    `OPENTEAM_WORKER_CONCURRENCY=${workerConcurrency}`,
+    `AITEAMOS_WORKER_CONCURRENCY=${workerConcurrency}`,
     "",
   ].join("\n");
 };
@@ -171,17 +172,17 @@ export const replaceEnvironmentValue = (contents: string, key: string, value: st
 export const ensureAuthenticationSecret = (contents: string): string => {
   let updated = contents;
   const current = parseEnvironment(updated);
-  if ((current.get("OPENTEAM_AUTH_SECRET")?.length ?? 0) < 32) {
+  if ((current.get("AITEAMOS_AUTH_SECRET")?.length ?? 0) < 32) {
     updated = replaceEnvironmentValue(
       updated,
-      "OPENTEAM_AUTH_SECRET",
+      "AITEAMOS_AUTH_SECRET",
       randomBytes(32).toString("hex")
     );
   }
-  if ((current.get("OPENTEAM_PROXY_SECRET")?.length ?? 0) < 32) {
+  if ((current.get("AITEAMOS_PROXY_SECRET")?.length ?? 0) < 32) {
     updated = replaceEnvironmentValue(
       updated,
-      "OPENTEAM_PROXY_SECRET",
+      "AITEAMOS_PROXY_SECRET",
       randomBytes(32).toString("hex")
     );
   }

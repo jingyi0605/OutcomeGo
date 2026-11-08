@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { NativeToolExecutor } from "../src/native-tool-executor";
 
 for (const command of ["echo READY; sleep 3; echo UNEXPECTED", "trap '' TERM; echo READY; sleep 3; echo UNEXPECTED", "(trap '' TERM; sleep 3) & wait; echo UNEXPECTED"]) test(`foreground cancellation stops descendants: ${command}`, async () => {
-  const root = await mkdtemp(join(tmpdir(), "openteam-shell-cancel-"));
+  const root = await mkdtemp(join(tmpdir(), "aiteamos-shell-cancel-"));
   await chmod(root, 0o755);
   const executor = new NativeToolExecutor({agentDir: root, controlToken: "fixture"});
   const controller = new AbortController();
@@ -22,7 +22,7 @@ for (const command of ["echo READY; sleep 3; echo UNEXPECTED", "trap '' TERM; ec
 });
 
 test("a stopped command returns promptly even when a descendant left the process group holding its output", async () => {
-  const root = await mkdtemp(join(tmpdir(), "openteam-shell-cancel-setsid-"));
+  const root = await mkdtemp(join(tmpdir(), "aiteamos-shell-cancel-setsid-"));
   await chmod(root, 0o755);
   const executor = new NativeToolExecutor({agentDir: root, controlToken: "fixture"});
   const controller = new AbortController();
@@ -44,7 +44,7 @@ test("a stopped command returns promptly even when a descendant left the process
 });
 
 test("a routine handoff stops the background commands its runs started, and only those", async () => {
-  const root = await mkdtemp(join(tmpdir(), "openteam-shell-handoff-"));
+  const root = await mkdtemp(join(tmpdir(), "aiteamos-shell-handoff-"));
   await chmod(root, 0o755);
   const executor = new NativeToolExecutor({agentDir: root, controlToken: "fixture"});
   const started: string[] = [];
@@ -68,7 +68,7 @@ test("a routine handoff stops the background commands its runs started, and only
 });
 
 test("a routine handoff ends TERM-trapping background commands and records them as aborted", async () => {
-  const root = await mkdtemp(join(tmpdir(), "openteam-shell-handoff-trap-"));
+  const root = await mkdtemp(join(tmpdir(), "aiteamos-shell-handoff-trap-"));
   await chmod(root, 0o755);
   const executor = new NativeToolExecutor({agentDir: root, controlToken: "fixture"});
   const result = await executor.shell({command: "trap '' TERM; echo READY; sleep 30 & wait", block_until_ms: 0}, root, undefined, undefined, "scope", {automationRunId: "routine-run"});
@@ -86,7 +86,7 @@ test("a routine handoff ends TERM-trapping background commands and records them 
 });
 
 test("stopping a subagent ends its background commands, TERM-trapping ones too, and leaves other agents' running", async () => {
-  const root = await mkdtemp(join(tmpdir(), "openteam-shell-subagent-stop-"));
+  const root = await mkdtemp(join(tmpdir(), "aiteamos-shell-subagent-stop-"));
   await chmod(root, 0o755);
   const executor = new NativeToolExecutor({agentDir: root, controlToken: "fixture"});
   const alive = (pid: number) => { try { process.kill(pid, 0); return true; } catch (error) { return (error as NodeJS.ErrnoException).code !== "ESRCH"; } };

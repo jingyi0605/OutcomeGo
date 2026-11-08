@@ -2,8 +2,8 @@ import {
   createLiveSyncController,
   type LiveSyncControllerOptions,
   shouldRefreshForEvent,
-} from "@openteam/client-core";
-import { openTeamClient } from "./openteam-api";
+} from "@aiteamos/client-core";
+import { aiTeamOSClient } from "./aiteamos-api";
 import { refreshMemoryViews } from "../lib/memory-events";
 
 export { shouldRefreshForEvent };
@@ -14,11 +14,11 @@ export const createDesktopLiveSyncController = (
   createLiveSyncController({
     ...options,
     listen: (cursor, eventHandlers, signal) =>
-      openTeamClient.listenForEvents(cursor, {
+      aiTeamOSClient.listenForEvents(cursor, {
         ...eventHandlers,
         onOpen: () => { eventHandlers.onOpen?.(); refreshMemoryViews(); },
         onEvent: (event) => {
-          if (event.topic === "notification.presence.changed") window.dispatchEvent(new Event("openteam:notification-preferences-changed"));
+          if (event.topic === "notification.presence.changed") window.dispatchEvent(new Event("aiteamos:notification-preferences-changed"));
           eventHandlers.onEvent(event); refreshMemoryViews(event);
         },
       }, signal),

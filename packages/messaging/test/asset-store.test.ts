@@ -14,13 +14,13 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { MAX_TURN_INLINE_IMAGE_BYTES, MAX_TURN_INLINE_IMAGES } from "@openteam/contracts";
+import { MAX_TURN_INLINE_IMAGE_BYTES, MAX_TURN_INLINE_IMAGES } from "@aiteamos/contracts";
 import { AssetStore } from "../src";
 
 const roots: string[] = [];
 
 const temporaryRoot = async () => {
-  const root = await mkdtemp(join(tmpdir(), "openteam-assets-"));
+  const root = await mkdtemp(join(tmpdir(), "aiteamos-assets-"));
   roots.push(root);
   return root;
 };

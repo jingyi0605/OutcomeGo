@@ -150,11 +150,11 @@ export function importPackage(files: Record<string, string>): PackagePreview {
       );
       if (fixedClient)
         warnings.push(
-          `MCP server ${key}: configure your own OAuth client in OpenTeam. The upstream client identity and callback settings were not adopted.`
+          `MCP server ${key}: configure your own OAuth client in aiTeamOS. The upstream client identity and callback settings were not adopted.`
         );
       if (http && !hasOAuth && !Object.keys(objectValue(server.headers)).length)
         warnings.push(
-          `MCP server ${key}: this package does not declare authentication. If the service requires sign-in, configure OAuth in the plugin definition before installing, or use its OpenTeam registry package.`
+          `MCP server ${key}: this package does not declare authentication. If the service requires sign-in, configure OAuth in the plugin definition before installing, or use its aiTeamOS registry package.`
         );
       connections.push({
         key,

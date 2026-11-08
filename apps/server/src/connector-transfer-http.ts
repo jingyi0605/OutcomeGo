@@ -1,10 +1,10 @@
-import { DynamicToolCallRequest } from "@openteam/contracts";
+import { DynamicToolCallRequest } from "@aiteamos/contracts";
 import { Schema, Effect } from "effect";
-import { spoolFile, type StagedFile } from "@openteam/plugin-sdk/file-spool";
+import { spoolFile, type StagedFile } from "@aiteamos/plugin-sdk/file-spool";
 import type { InternalToolService } from "./services/internal-tool-service";
 
 export async function connectorTransferResponse(request: Request, tools: InternalToolService) {
-  const header=request.headers.get("x-openteam-transfer") ?? "";
+  const header=request.headers.get("x-aiteamos-transfer") ?? "";
   if(header.length>32_768)throw new Error("Transfer metadata exceeds the header limit");
   const call=Schema.decodeUnknownSync(DynamicToolCallRequest)(JSON.parse(Buffer.from(header,"base64url").toString()));
   if(call.tool!=="ExecuteConnectorTransfer")throw new Error("Invalid transfer operation");
@@ -23,7 +23,7 @@ export async function connectorTransferResponse(request: Request, tools: Interna
       async pull(controller){try{const next=await reader.read();if(next.done){controller.close();await file.cleanup();}else controller.enqueue(next.value);}catch(error){controller.error(error);await file.cleanup();}},
       async cancel(){await reader.cancel();await file.cleanup();},
     });
-    return new Response(body,{headers:{"content-type":"application/octet-stream","content-length":String(file.sizeBytes),"x-openteam-transfer-result":Buffer.from(JSON.stringify(metadata)).toString("base64url")}});
+    return new Response(body,{headers:{"content-type":"application/octet-stream","content-length":String(file.sizeBytes),"x-aiteamos-transfer-result":Buffer.from(JSON.stringify(metadata)).toString("base64url")}});
   } finally {await upload?.cleanup();}
 }
 

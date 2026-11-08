@@ -7,7 +7,7 @@ import type {
   SessionManager,
 } from "@earendil-works/pi-coding-agent";
 import { convertToLlm } from "@earendil-works/pi-coding-agent";
-import type { PiModelRef } from "@openteam/contracts";
+import type { PiModelRef } from "@aiteamos/contracts";
 import type { BotCompactionEvent } from "../bot-compaction";
 import {
   type BotCompactionCoordinator,
@@ -122,7 +122,7 @@ export function compactionExtension(
   let deferredAutomatic = false;
   let restoredMeasurement = false;
   return {
-    name: "openteam-bot-compaction",
+    name: "aiteamos-bot-compaction",
     hidden: true,
     factory: (pi) => {
       pi.on("before_agent_start", async () => ({ systemPrompt: taskProgressBaseInstructions(active.instructions) }));
@@ -137,7 +137,7 @@ export function compactionExtension(
               .some(
                 (entry) =>
                   entry.type === "custom" &&
-                  entry.customType === "openteam-compaction-usage" &&
+                  entry.customType === "aiteamos-compaction-usage" &&
                   (entry.data as { compactionId?: string } | undefined)?.compactionId ===
                     latest.compactionId
               )
@@ -152,7 +152,7 @@ export function compactionExtension(
         if (active.diskPressureEpisode != null && !active.diskPressureReminded && active.session) {
           active.diskPressureReminded = true;
           await active.session.sendCustomMessage(
-            { customType: "openteam-disk-pressure", content: DISK_PRESSURE_REMINDER, display: false, details: { episode: active.diskPressureEpisode, origin: "host" } },
+            { customType: "aiteamos-disk-pressure", content: DISK_PRESSURE_REMINDER, display: false, details: { episode: active.diskPressureEpisode, origin: "host" } },
             { triggerTurn: false }
           );
           event.messages = [...event.messages, active.session.messages.at(-1)!];
@@ -177,7 +177,7 @@ export function compactionExtension(
         if (owesOutputLimitReminder(readPiMessages(), active) && active.session) {
           active.outputLimitReminded = true;
           await active.session.sendCustomMessage(
-            { customType: "openteam-output-limit", content: OUTPUT_LIMIT_REMINDER, display: false, details: { origin: "host" } },
+            { customType: "aiteamos-output-limit", content: OUTPUT_LIMIT_REMINDER, display: false, details: { origin: "host" } },
             { triggerTurn: false }
           );
           event.messages = [...event.messages, active.session.messages.at(-1)!];
@@ -186,7 +186,7 @@ export function compactionExtension(
         if (reminder && active.session) {
           await active.session.sendCustomMessage(
             {
-              customType: "openteam-communication-reminder",
+              customType: "aiteamos-communication-reminder",
               content: reminder.content,
               display: false,
               details: { kind: reminder.kind, origin: "host" },
@@ -253,10 +253,10 @@ export function compactionExtension(
         if (active.session && progressStart >= 0 && active.instructions.indexOf(TASK_PROGRESS_END, progressStart) >= 0) {
           const content = `Latest host task record (observations only):\n${active.instructions.slice(progressStart)}`;
           const previous = messages.findLast(message =>
-            message.role === "custom" && message.customType === "openteam-task-progress");
+            message.role === "custom" && message.customType === "aiteamos-task-progress");
           if (previous?.content !== content) {
             await active.session.sendCustomMessage({
-              customType: "openteam-task-progress", content, display: false,
+              customType: "aiteamos-task-progress", content, display: false,
               details: { origin: "host" },
             }, { triggerTurn: false });
             messages = [...messages, active.session.messages.at(-1)! as BotMessage];
@@ -316,7 +316,7 @@ export function compactionExtension(
             inputTokens: measuredInputTokens,
             source: "provider",
           };
-          sessionManager.appendCustomEntry("openteam-compaction-usage", measurement);
+          sessionManager.appendCustomEntry("aiteamos-compaction-usage", measurement);
           console.info(JSON.stringify({ event: "compaction.first_request", ...measurement }));
           active.pendingCompactionMeasurement = undefined;
         }
@@ -361,7 +361,7 @@ export function compactionExtension(
         } catch (error) {
           // Pi swallows hook exceptions and then runs its native summarizer.
           // Explicit cancellation keeps the durable archive coordinate intact.
-          console.error("OpenTeam compaction preparation failed; cancelling Pi compaction", error);
+          console.error("aiTeamOS compaction preparation failed; cancelling Pi compaction", error);
           return { cancel: true };
         }
       });
@@ -370,15 +370,15 @@ export function compactionExtension(
         // The durable leaf, and its archive ID, identify the new checkpoint.
         const checkpoint = sessionManager.getLeafEntry();
         const details = checkpoint?.type === "compaction"
-          ? checkpoint.details as { openteamBotCompaction?: boolean; id?: string } | undefined
+          ? checkpoint.details as { aiteamosBotCompaction?: boolean; id?: string } | undefined
           : undefined;
         const staged = await compaction.stagedId(active.contextSessionId);
         if (checkpoint?.type !== "compaction" || !event.fromExtension ||
-          details?.openteamBotCompaction !== true || details.id !== staged) {
+          details?.aiteamosBotCompaction !== true || details.id !== staged) {
           // An unowned native checkpoint must not change the archive's view.
           // The reader preserves its accepted basis and all later entries.
           readPiMessages();
-          console.error("Ignoring unowned Pi compaction for OpenTeam archive", checkpoint?.id);
+          console.error("Ignoring unowned Pi compaction for aiTeamOS archive", checkpoint?.id);
           return;
         }
         // Counts always describe the durable transcript, including retry errors.
@@ -545,4 +545,4 @@ export function publishCompaction(active: ActiveTurn, adopted: BotCompactionEven
     completedAt: adopted.completedAt,
   });
 }
-import { TASK_PROGRESS_START, TASK_PROGRESS_END, taskProgressBaseInstructions } from "@openteam/contracts/task-progress";
+import { TASK_PROGRESS_START, TASK_PROGRESS_END, taskProgressBaseInstructions } from "@aiteamos/contracts/task-progress";

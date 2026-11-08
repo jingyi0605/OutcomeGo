@@ -1,7 +1,7 @@
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
-import { createToolValidator } from "@openteam/plugin-sdk/json-schema";
+import { createToolValidator } from "@aiteamos/plugin-sdk/json-schema";
 import { Mailbox, type Cursor, type SearchMode } from "./mailbox";
 import { loadSettings, type MailSettings } from "./settings";
 
@@ -17,8 +17,8 @@ export type Tool = {
   run: (context: Context, args: Args) => Promise<unknown>;
 };
 
-/** Matches the server's HOST_ONLY_TOOL_META: OpenTeam calls the tool, Bots never see it. */
-const HOST_ONLY = { "openteam/hostOnly": true };
+/** Matches the server's HOST_ONLY_TOOL_META: aiTeamOS calls the tool, Bots never see it. */
+const HOST_ONLY = { "aiteamos/hostOnly": true };
 
 const read = (
   definition: Pick<Tool, "name" | "description" | "inputSchema">,
@@ -173,7 +173,7 @@ export const tools = (accountId: string): Tool[] => [
   {
     name: "send_reviewed_email",
     description:
-      "OpenTeam calls this to verify a DraftExternalMessage card and, after the user presses Send, to send it.",
+      "aiTeamOS calls this to verify a DraftExternalMessage card and, after the user presses Send, to send it.",
     inputSchema: {
       type: "object",
       properties: {
@@ -233,7 +233,7 @@ export const tools = (accountId: string): Tool[] => [
   },
   {
     name: "poll_new_mail",
-    description: "OpenTeam calls this to collect new INBOX mail for email routine triggers.",
+    description: "aiTeamOS calls this to collect new INBOX mail for email routine triggers.",
     inputSchema: {
       type: "object",
       properties: {
@@ -247,7 +247,7 @@ export const tools = (accountId: string): Tool[] => [
 ];
 
 export async function serveEmail(env: Record<string, string | undefined> = process.env) {
-  const accountId = env.OPENTEAM_PLUGIN_ACCOUNT_ID ?? "this account's id from GetMcpServerStatus";
+  const accountId = env.AITEAMOS_PLUGIN_ACCOUNT_ID ?? "this account's id from GetMcpServerStatus";
   const definitions = tools(accountId);
   let ready: Promise<{ settings: MailSettings; mailbox: Mailbox }> | undefined;
   const connect = () =>
@@ -271,7 +271,7 @@ export async function serveEmail(env: Record<string, string | undefined> = proce
     ])
   );
   const server = new Server(
-    { name: "openteam-email", version: "2.0.0" },
+    { name: "aiteamos-email", version: "2.0.0" },
     { capabilities: { tools: {} } }
   );
   server.setRequestHandler(ListToolsRequestSchema, async () => {

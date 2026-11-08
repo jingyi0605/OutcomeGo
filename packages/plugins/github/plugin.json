@@ -16,8 +16,8 @@
     "documentationUrl": "https://github.com/github/github-mcp-server/blob/main/docs/host-integration.md",
     "steps": [
       "Create a fine-grained personal access token in GitHub settings.",
-      "Choose only the repositories and permissions you want OpenTeam to use.",
-      "Paste the token below. OpenTeam stores it on your self-hosted server."
+      "Choose only the repositories and permissions you want aiTeamOS to use.",
+      "Paste the token below. aiTeamOS stores it on your self-hosted server."
     ],
     "fields": [
       {

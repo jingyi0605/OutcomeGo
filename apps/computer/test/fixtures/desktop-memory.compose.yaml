@@ -1,9 +1,9 @@
 services:
   computer:
-    image: ${OPENTEAM_MEMORY_TEST_IMAGE:-openteam-memory-test:local}
+    image: ${AITEAMOS_MEMORY_TEST_IMAGE:-aiteamos-memory-test:local}
     environment:
-      OPENTEAM_DESKTOP_MEMORY_LIMIT: 10g
-      OPENTEAM_BOX_STORE_ROOT: /tmp/box-store
+      AITEAMOS_DESKTOP_MEMORY_LIMIT: 10g
+      AITEAMOS_BOX_STORE_ROOT: /tmp/box-store
     network_mode: none
     cgroup: private
     # Tests read back 10 GiB desktop limits and exercise OOM at scaled limits.
@@ -18,11 +18,11 @@ services:
       - /home/box:rw,nosuid,size=256m
       - /workspace:rw,nosuid,size=128m
     volumes:
-      - ${OPENTEAM_MEMORY_TEST_OUTPUT:?set by test script}/bundles:/app/apps/computer/test-bundles:ro
-      - ${OPENTEAM_MEMORY_TEST_OUTPUT:?set by test script}/artifacts:/artifacts
+      - ${AITEAMOS_MEMORY_TEST_OUTPUT:?set by test script}/bundles:/app/apps/computer/test-bundles:ro
+      - ${AITEAMOS_MEMORY_TEST_OUTPUT:?set by test script}/artifacts:/artifacts
   computer-memory-init:
-    image: ${OPENTEAM_MEMORY_TEST_IMAGE:-openteam-memory-test:local}
-    entrypoint: [/usr/lib/openteam/bin/openteam-memory-init]
+    image: ${AITEAMOS_MEMORY_TEST_IMAGE:-aiteamos-memory-test:local}
+    entrypoint: [/usr/lib/aiteamos/bin/aiteamos-memory-init]
     pid: service:computer
     network_mode: none
     depends_on:

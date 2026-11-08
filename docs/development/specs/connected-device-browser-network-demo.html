@@ -54,7 +54,7 @@
   <div id="network-route" class="route" role="group" aria-label="Browser connection path">
     <div class="node"><strong>Bot browser</strong><small>Runs on your server</small></div>
     <div class="node"><strong>Browser proxy</strong><small id="proxy-detail">Forwards through tunnel</small></div>
-    <div class="node" id="relay-node"><strong>OpenTeam relay</strong><small>Authenticated WebSocket</small></div>
+    <div class="node" id="relay-node"><strong>aiTeamOS relay</strong><small>Authenticated WebSocket</small></div>
     <div class="node active" id="device-node"><strong id="device-label">Home laptop</strong><small id="device-detail">DNS + TCP connection</small></div>
     <div class="node" id="website-node"><strong>Website</strong><small id="website-detail">Sees the laptop's public IP</small></div>
   </div>
@@ -88,7 +88,7 @@
     get('website-detail').textContent = local ? "Sees the server's public IP" : connected ? "Sees the device's public IP" : 'No connection';
     get('route-state').textContent = local ? 'Using the server connection' : connected ? 'Using ' + name : 'Waiting for ' + name;
     get('route-detail').textContent = local ? 'Browser traffic leaves through your server. No connected device is needed.' : connected ? 'The browser stays on your server. Its website connections leave through the selected device.' : 'Browser networking pauses. It never switches to the server automatically.';
-    get('network-route').setAttribute('aria-label', local ? 'Bot browser, browser proxy, website via server connection' : connected ? 'Bot browser, browser proxy, OpenTeam relay, ' + name + ', website' : 'Bot browser connection blocked because ' + name + ' is offline');
+    get('network-route').setAttribute('aria-label', local ? 'Bot browser, browser proxy, website via server connection' : connected ? 'Bot browser, browser proxy, aiTeamOS relay, ' + name + ', website' : 'Bot browser connection blocked because ' + name + ' is offline');
   };
   const changed = () => {
     draw();

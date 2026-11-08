@@ -1,5 +1,5 @@
 import { test, expect } from "bun:test";
-import type { AssetRef } from "@openteam/contracts";
+import type { AssetRef } from "@aiteamos/contracts";
 import { attachedFilesContext, attachmentStorageName, formatAttachedFileSize } from "../src/attachment-context";
 
 const ref = (id: string, fileName: string, extra: Partial<AssetRef> = {}): AssetRef =>

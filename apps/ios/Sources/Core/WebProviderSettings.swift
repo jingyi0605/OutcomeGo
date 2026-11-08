@@ -73,7 +73,7 @@ public enum WebProviderCatalog {
   ]
   public static let fetch: [WebProviderInfo] = [
     .init(
-      "builtin", "Built-in", brand: "openteam",
+      "builtin", "Built-in", brand: "aiteamos",
       "Reads public pages from your server. Can't run JavaScript.", keyURL: nil),
     .init(
       "exa", "Exa", brand: "exa", "Live-crawled page text.",

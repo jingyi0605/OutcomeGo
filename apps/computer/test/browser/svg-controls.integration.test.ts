@@ -5,10 +5,10 @@ import {join} from 'node:path';
 import {BrowserUseSession} from '../../src/browser/use';
 import {outOfProcessPlaywright} from '../../src/browser/playwright-driver';
 
-test.skipIf(!process.env.OPENTEAM_BROWSER_TEST_EXECUTABLE)('SVG controls remain discoverable and actionable', async () => {
+test.skipIf(!process.env.AITEAMOS_BROWSER_TEST_EXECUTABLE)('SVG controls remain discoverable and actionable', async () => {
  const root=await mkdtemp(join(tmpdir(),'svg-controls-'));
  const driver=await outOfProcessPlaywright();
- const browser=await driver.playwright.chromium.launch({headless:true,executablePath:process.env.OPENTEAM_BROWSER_TEST_EXECUTABLE,args:process.platform==='linux'?['--no-sandbox']:[]});
+ const browser=await driver.playwright.chromium.launch({headless:true,executablePath:process.env.AITEAMOS_BROWSER_TEST_EXECUTABLE,args:process.platform==='linux'?['--no-sandbox']:[]});
  const session=new (BrowserUseSession as any)(browser,await browser.newContext(),root) as BrowserUseSession;
  const text=(r:any):string=>r.content.filter((c:any)=>c.type==='text').map((c:any)=>c.text).join('\n');
  try {

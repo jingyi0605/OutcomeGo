@@ -1,6 +1,6 @@
-import { ApiError } from "@openteam/contracts";
-import { createPrismaClient } from "@openteam/db";
-import { createPluginTemplate } from "@openteam/plugin-sdk";
+import { ApiError } from "@aiteamos/contracts";
+import { createPrismaClient } from "@aiteamos/db";
+import { createPluginTemplate } from "@aiteamos/plugin-sdk";
 import type { AppService } from "../../../src/app-service";
 import { pluginMutationRoutes } from "../../../src/routes/plugin-mutation";
 import { pluginQueryRoutes } from "../../../src/routes/plugin-query";
@@ -71,7 +71,7 @@ export async function createPluginFlowFixture(databaseUrl: string, options: { pu
         const session = request.headers.get("authorization")?.replace(/^Bearer /, "") ?? null;
         const authenticatedSessionId = session && options.authSessions?.includes(session) ? session : null;
         if (options.authSessions && !authenticatedSessionId && path !== "/api/plugin-oauth/callback")
-          return Response.json({ error: { code: "unauthorized", message: "Sign in to OpenTeam to continue" } }, { status: 401, headers });
+          return Response.json({ error: { code: "unauthorized", message: "Sign in to aiTeamOS to continue" } }, { status: 401, headers });
         const context = {
           app,
           request,
@@ -99,10 +99,10 @@ export async function createPluginFlowFixture(databaseUrl: string, options: { pu
       }
     },
   });
-  const previousPublicUrl = process.env.OPENTEAM_PUBLIC_URL;
-  const previousAuthMode = process.env.OPENTEAM_AUTH_MODE;
-  process.env.OPENTEAM_PUBLIC_URL = options.publicUrl ?? server.url.origin;
-  process.env.OPENTEAM_AUTH_MODE = options.authSessions ? "required" : "disabled";
+  const previousPublicUrl = process.env.AITEAMOS_PUBLIC_URL;
+  const previousAuthMode = process.env.AITEAMOS_AUTH_MODE;
+  process.env.AITEAMOS_PUBLIC_URL = options.publicUrl ?? server.url.origin;
+  process.env.AITEAMOS_AUTH_MODE = options.authSessions ? "required" : "disabled";
   const runtimes = new Map<string, "ready" | "stopped">();
   const computerRequests: string[] = [];
   const service = new PluginService(db, options.packaged ? async (path, init) => {
@@ -121,10 +121,10 @@ export async function createPluginFlowFixture(databaseUrl: string, options: { pu
     const result = await response.json() as { result: unknown };
     return Response.json({ result: result.result });
   } : undefined);
-  if (previousPublicUrl === undefined) delete process.env.OPENTEAM_PUBLIC_URL;
-  else process.env.OPENTEAM_PUBLIC_URL = previousPublicUrl;
-  if (previousAuthMode === undefined) delete process.env.OPENTEAM_AUTH_MODE;
-  else process.env.OPENTEAM_AUTH_MODE = previousAuthMode;
+  if (previousPublicUrl === undefined) delete process.env.AITEAMOS_PUBLIC_URL;
+  else process.env.AITEAMOS_PUBLIC_URL = previousPublicUrl;
+  if (previousAuthMode === undefined) delete process.env.AITEAMOS_AUTH_MODE;
+  else process.env.AITEAMOS_AUTH_MODE = previousAuthMode;
   Object.assign(service, {
     catalog: async () => definitions,
     definition: async (key: string) => definitions.find((row) => row.key === key),

@@ -1,9 +1,9 @@
-import type { SearchCategory, SearchResultKind } from "@openteam/contracts";
+import type { SearchCategory, SearchResultKind } from "@aiteamos/contracts";
 import {
   normalizeSearchQuery,
   SEARCH_CATEGORIES,
   searchTextMatches,
-} from "@openteam/product-core/search";
+} from "@aiteamos/product-core/search";
 
 export type SearchSection = SearchCategory | "actions";
 
@@ -62,7 +62,7 @@ interface NormalizedPaletteText {
   sourceIndices: number[];
 }
 
-/** Match OpenTeam's command-palette normalization, including accent and punctuation folding. */
+/** Match aiTeamOS's command-palette normalization, including accent and punctuation folding. */
 const normalizePaletteTextWithIndices = (value: string): NormalizedPaletteText => {
   let normalized = "";
   const sourceIndices: number[] = [];

@@ -2,12 +2,12 @@ import { expect, test } from "bun:test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { createPrismaClient } from "@openteam/db";
+import { createPrismaClient } from "@aiteamos/db";
 import { AgentDataStore } from "../../src/agent-data";
 import { atomicWrite, jsonFile } from "../../src/file-state";
 import { renderSkillFile } from "../../src/skill-files";
 
-const url = process.env.OPENTEAM_TEST_DATABASE_URL;
+const url = process.env.AITEAMOS_TEST_DATABASE_URL;
 test.skipIf(!url)("watching observes edits made immediately after startup resolves", async () => {
   const db = createPrismaClient(url!);
   const root = await mkdtemp(join(tmpdir(), "watcher-startup-"));

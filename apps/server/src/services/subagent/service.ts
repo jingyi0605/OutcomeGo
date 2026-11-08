@@ -1,4 +1,4 @@
-import { initialTaskProgress, taskProgress, taskScopeUpdates, ensureRequestForTask, stopRequestProgress } from "@openteam/messaging";
+import { initialTaskProgress, taskProgress, taskScopeUpdates, ensureRequestForTask, stopRequestProgress } from "@aiteamos/messaging";
 import {
   ApiError,
   formatPiModelRef,
@@ -10,16 +10,16 @@ import {
   SubagentType,
   type BusyBotsView,
   type TaskInput,
-} from "@openteam/contracts";
-import { COMPUTER_API_PATHS } from "@openteam/contracts/service-protocol";
-import { Prisma, type PrismaClient } from "@openteam/db";
-import { type AgentDataStore, type AgentMessaging, PRIORITY, type ToolContext } from "@openteam/messaging";
+} from "@aiteamos/contracts";
+import { COMPUTER_API_PATHS } from "@aiteamos/contracts/service-protocol";
+import { Prisma, type PrismaClient } from "@aiteamos/db";
+import { type AgentDataStore, type AgentMessaging, PRIORITY, type ToolContext } from "@aiteamos/messaging";
 import { Effect, Schema } from "effect";
 import { fromPrisma } from "pg-boss";
 import type { RunService } from "../run-service";
 import { appendEvent, type ComputerFetch, hashRequest, serviceEffect, stopSubagentShells, toJson } from "../service-utils";
-import { taskInference, parseTaskConfiguration } from "@openteam/contracts/task-configuration";
-import { normalizeSubagentTypeName, parentOnlyDispatchNotice, subagentTitle, withSiteDispatchNotes } from "@openteam/contracts/subagent-dispatch";
+import { taskInference, parseTaskConfiguration } from "@aiteamos/contracts/task-configuration";
+import { normalizeSubagentTypeName, parentOnlyDispatchNotice, subagentTitle, withSiteDispatchNotes } from "@aiteamos/contracts/subagent-dispatch";
 
 const ACTIVE_STATUSES = ["provisioning", "queued", "running"] as const;
 const OPEN_STATUSES = [...ACTIVE_STATUSES, "waiting"] as const;
@@ -73,7 +73,7 @@ const withoutLatestSteer = (content: string): string => {
 export const botSubagentId = (id: string): string =>
   id.startsWith("sand-subagent-") ? id : `sand-subagent-${id}`;
 
-export const openteamSubagentId = (id: string): string => id.replace(/^sand-subagent-/, "");
+export const aiteamosSubagentId = (id: string): string => id.replace(/^sand-subagent-/, "");
 
 const agentIdLine = (id: string) =>
   `Agent ID: ${botSubagentId(id)} (can be used with the \`resume\` parameter to send a follow-up after it completes)`;
@@ -579,7 +579,7 @@ export class SubagentService {
     const outputPath = `/home/box/agent-data/agent-transcripts/${childBotId}/${childBotId}.jsonl`;
     const avatar = resolveBotAvatarMark({ agentId: childBotId });
     return this.prisma.$transaction(async (tx) => {
-      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('openteam-subagent-capacity'))`;
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('aiteamos-subagent-capacity'))`;
       await assertSubagentCapacity(context.botId, type, tx);
       const requestRunId = await ensureRequestForTask(tx, context.botId, context.runId, input.request_run_id);
       await tx.bot.create({
@@ -679,7 +679,7 @@ export class SubagentService {
 
   private async resume(context: ToolContext, input: TaskInput) {
     if (!input.resume) throw new ApiError(400, "resume_id_required", "resume is required");
-    const restoredId = openteamSubagentId(input.resume);
+    const restoredId = aiteamosSubagentId(input.resume);
     const subagent = await this.prisma.subagent.findFirst({
       where: { id: restoredId, parentBotId: context.botId },
     });
@@ -702,7 +702,7 @@ export class SubagentService {
       );
     }
     return this.prisma.$transaction(async (tx) => {
-      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('openteam-subagent-capacity'))`;
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('aiteamos-subagent-capacity'))`;
       await assertSubagentCapacity(context.botId, type, tx);
       const priorRequest = subagent.requestRunId ? await tx.run.findUnique({ where: { id: subagent.requestRunId } }) : null;
       const inheritedRequestId = priorRequest && priorRequest.channelId === context.channelId && !priorRequest.requestStoppedAt && priorRequest.status !== "cancelled" && taskProgress(priorRequest.requestProgress)?.state !== "complete" ? priorRequest.id : undefined;
@@ -798,7 +798,7 @@ export class SubagentService {
 
   private async owned(parentBotId: string, id: string) {
     const subagent = await this.prisma.subagent.findFirst({
-      where: { id: openteamSubagentId(id), parentBotId },
+      where: { id: aiteamosSubagentId(id), parentBotId },
     });
     if (!subagent) throw new ApiError(404, "subagent_not_found", "Subagent not found");
     return subagent;
@@ -808,7 +808,7 @@ export class SubagentService {
   private async runningOwned(parentBotId: string, id: string) {
     const subagent = await this.prisma.subagent.findFirst({
       where: {
-        id: openteamSubagentId(id),
+        id: aiteamosSubagentId(id),
         parentBotId,
         status: { in: [...OPEN_STATUSES] },
       },
@@ -825,7 +825,7 @@ export class SubagentService {
     const suffix = running.length
       ? ` Currently running: ${running.map(({ id: candidate }) => botSubagentId(candidate)).join(", ")}.`
       : " No subagents are running right now.";
-    return `No subagent "${botSubagentId(openteamSubagentId(id))}" is currently running. It may have already finished (you're revived automatically with a finished subagent's result), or the id is wrong.${suffix}`;
+    return `No subagent "${botSubagentId(aiteamosSubagentId(id))}" is currently running. It may have already finished (you're revived automatically with a finished subagent's result), or the id is wrong.${suffix}`;
   }
 
   private attemptForCall(parentBotId: string, parentToolCallId: string) {

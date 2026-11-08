@@ -1,8 +1,8 @@
-import { formPreparationFailureMessage, userFormPreparationRefusal, type UserForm } from "@openteam/contracts";
+import { formPreparationFailureMessage, userFormPreparationRefusal, type UserForm } from "@aiteamos/contracts";
 import { lstat, readFile, realpath } from "node:fs/promises";
 import { extname, join, relative, sep } from "node:path";
-import { ApiError, type ScreenActionInput, type ScreenClipboardInput, type ScreenClipboardView, type ScreenStatusView } from "@openteam/contracts";
-import type { PrismaClient } from "@openteam/db";
+import { ApiError, type ScreenActionInput, type ScreenClipboardInput, type ScreenClipboardView, type ScreenStatusView } from "@aiteamos/contracts";
+import type { PrismaClient } from "@aiteamos/db";
 import { Effect } from "effect";
 
 interface ComputerScreenStatus {
@@ -38,7 +38,7 @@ export const screenViewerUrl = (
     path: "websockify",
   });
   const credential = new URLSearchParams({ password: viewerPassword });
-  return `http://${host}:${viewerPort}/openteam.html?${query}#${credential}`;
+  return `http://${host}:${viewerPort}/aiteamos.html?${query}#${credential}`;
 };
 
 /** The host refused to show a form; the message is the model-facing, status-only result. */
@@ -246,7 +246,7 @@ export class ScreenService {
         });
         if (!response.ok) {
           throw new ApiError(response.status === 404 ? 501 : 409, "screen_clipboard_rejected",
-            response.status === 404 ? "Update your OpenTeam server to use clipboard sharing." : "The computer clipboard operation failed. Check the screen before trying again.");
+            response.status === 404 ? "Update your aiTeamOS server to use clipboard sharing." : "The computer clipboard operation failed. Check the screen before trying again.");
         }
         return await response.json() as ScreenClipboardView;
       },

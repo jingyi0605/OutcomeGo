@@ -3,4 +3,4 @@ export {
   isBranchedMessage,
   replyTargetId,
   type ThreadView,
-} from "@openteam/product-core/messages";
+} from "@aiteamos/product-core/messages";

@@ -1,4 +1,4 @@
-import { taskProgressBaseInstructions } from "@openteam/contracts/task-progress";
+import { taskProgressBaseInstructions } from "@aiteamos/contracts/task-progress";
 import { preparePromptSections } from "../src/prompt-sections";
 import { describe, expect, test } from "bun:test";
 import { AgentMessaging, validateSendToUserInput } from "../src";
@@ -15,8 +15,8 @@ import {
 } from "../src/platform-system-prompt";
 import { renderMainBoxSection, renderWorkerBoxSection, renderWorkerTimeSection } from "../src/worker-prompts";
 import { combinedGraphicalWorkerPrompt } from "../src/graphical-worker-prompts";
-import { REQUEST_BOX_HELP_TOOL, SEND_TO_USER_TOOL } from "@openteam/contracts";
-import { referenceTool } from "@openteam/contracts/tool-contracts";
+import { REQUEST_BOX_HELP_TOOL, SEND_TO_USER_TOOL } from "@aiteamos/contracts";
+import { referenceTool } from "@aiteamos/contracts/tool-contracts";
 import managedSkills from "../src/prompts/managed-skills.json";
 import { AUTOMATION_RUN_INSTRUCTIONS } from "../src/automation-results";
 
@@ -93,7 +93,7 @@ describe("platform prompt integration", () => {
   test("the inline workflows promise no connect card and draft by default", () => {
     const prompt = renderPlatformBaseSystemPrompt({ managedSkills: false });
     expect(prompt).not.toMatch(/install\/connect card|Let the card handle authentication|connection in the card|should use the authorized service's send path/);
-    expect(prompt).toContain("OpenTeam shows no connect card: AuthenticateMcpServer starts sign-in, and when its result hands you a connection-settings link, send that link to the user.");
+    expect(prompt).toContain("aiTeamOS shows no connect card: AuthenticateMcpServer starts sign-in, and when its result hands you a connection-settings link, send that link to the user.");
     expect(prompt).toContain('Outgoing email and messages follow the "Never send email or messages unasked" section: asking you to send is not asking you to skip the draft.');
   });
 
@@ -185,8 +185,8 @@ describe("platform prompt integration", () => {
     expect(prompt.instructions).not.toContain("computerUse: browser and desktop work");
   });
   test("deployment-disabled template sharing is omitted from inline workflows", () => {
-    const previous = process.env.OPENTEAM_TEMPLATE_SHARING;
-    process.env.OPENTEAM_TEMPLATE_SHARING = "false";
+    const previous = process.env.AITEAMOS_TEMPLATE_SHARING;
+    process.env.AITEAMOS_TEMPLATE_SHARING = "false";
     try {
       expect(renderPlatformBaseSystemPrompt({ managedSkills: false })).not.toContain(
         "CreateBotShareJson"
@@ -195,8 +195,8 @@ describe("platform prompt integration", () => {
         "CreateBotShareJson"
       );
     } finally {
-      if (previous === undefined) delete process.env.OPENTEAM_TEMPLATE_SHARING;
-      else process.env.OPENTEAM_TEMPLATE_SHARING = previous;
+      if (previous === undefined) delete process.env.AITEAMOS_TEMPLATE_SHARING;
+      else process.env.AITEAMOS_TEMPLATE_SHARING = previous;
     }
   });
 
@@ -345,7 +345,7 @@ describe("platform prompt integration", () => {
 
   test("an automation run gets its own section after the identity and none of the chat-turn sections", () => {
     const prompt = renderPlatformBaseSystemPrompt({ automationRun: AUTOMATION_RUN_INSTRUCTIONS });
-    expect(prompt).toStartWith(`You are OpenTeam, a warm, concise desktop assistant.\n\n${AUTOMATION_RUN_INSTRUCTIONS}\n\n## User communication style`);
+    expect(prompt).toStartWith(`You are aiTeamOS, a warm, concise desktop assistant.\n\n${AUTOMATION_RUN_INSTRUCTIONS}\n\n## User communication style`);
     for (const heading of ["## How a turn works", "## Files and visuals", "## Asking for decisions", "## Threaded replies"]) expect(prompt).not.toContain(heading);
     expect(prompt).not.toContain("You can pay for the user's purchases");
     expect(AUTOMATION_RUN_INSTRUCTIONS).toContain("surface a form, handoff, connector, draft, or share card.\n");
@@ -370,7 +370,7 @@ describe("platform prompt integration", () => {
     expect(combinedGraphicalWorkerPrompt("/workspace")).toContain("Restarts keep your home folder, /workspace, /usr/local and apt packages (reinstalled at start), but not /tmp, /etc edits or files elsewhere.");
   });
 
-  test("the copied question-widget example passes OpenTeam's real send validation", () => {
+  test("the copied question-widget example passes aiTeamOS's real send validation", () => {
     const example = PLATFORM_BASE_SYSTEM_PROMPT.match(
       /send a question widget instead of prose: (\{.+\})\./
     )?.[1];
@@ -381,18 +381,18 @@ describe("platform prompt integration", () => {
 
   test("deployment context resolves timezone and paths without captured account defaults", () => {
     const prompt = [
-      renderAgentProfileFiles({ agentDataRoot: "/var/lib/openteam/", botId: "current-bot" }),
+      renderAgentProfileFiles({ agentDataRoot: "/var/lib/aiteamos/", botId: "current-bot" }),
       renderWorkerTimeSection("not-a-timezone"),
       ROUTINES_SECTION,
-      renderSkillsSection("/var/lib/openteam/"),
+      renderSkillsSection("/var/lib/aiteamos/"),
       renderMainBoxSection("/work/current-project"),
     ].join("\n\n");
-    expect(prompt).toContain("/var/lib/openteam/agents/current-bot/profile.json");
-    expect(prompt).toContain("User-created skills live as files at /var/lib/openteam/workflows: one subfolder per skill");
+    expect(prompt).toContain("/var/lib/aiteamos/agents/current-bot/profile.json");
+    expect(prompt).toContain("User-created skills live as files at /var/lib/aiteamos/workflows: one subfolder per skill");
     expect(prompt).toContain("The user lives in UTC (currently UTC+0), and the box clock is set to that zone, so `date`, file mtimes, and other box-local times already read in the user's time.");
     // Skills are files on the box, so the catalog text is the on-disk one.
     expect(prompt).toContain("It is still on disk, readable, and invocable immediately.");
-    expect(prompt).toContain("Managed skills are supplied by OpenTeam, do NOT live in those folders");
+    expect(prompt).toContain("Managed skills are supplied by aiTeamOS, do NOT live in those folders");
     expect(prompt).toContain("A skill's name is the name field in its SKILL.md frontmatter");
     // The reference's Time section, then its box section with the registered-computer file moves.
     expect(prompt).toContain("A timestamp that carries its own zone is not box-local.");

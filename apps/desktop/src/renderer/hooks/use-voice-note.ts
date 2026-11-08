@@ -2,9 +2,9 @@ import {
   MAX_VOICE_NOTE_BYTES,
   MAX_VOICE_NOTE_MS,
   MIN_VOICE_NOTE_MS,
-} from "@openteam/contracts/transcription";
+} from "@aiteamos/contracts/transcription";
 import { useEffect, useRef, useState } from "react";
-import { api } from "../client/openteam-api";
+import { api } from "../client/aiteamos-api";
 import {
   MICROPHONE_DISCONNECTED,
   MICROPHONE_FALLBACK,

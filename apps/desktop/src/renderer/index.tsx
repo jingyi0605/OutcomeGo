@@ -1,9 +1,9 @@
 import { StrictMode, useEffect, useState, type ComponentType } from "react";
 import { createRoot } from "react-dom/client";
 import { Toaster } from "sonner";
-import { AuthGate } from "./components/openteam/auth-gate";
-import { DesktopUpdateDialog } from "./components/openteam/desktop-update-dialog";
-import { FirstRunShell, isFirstRun } from "./components/openteam/first-run-shell";
+import { AuthGate } from "./components/aiteamos/auth-gate";
+import { DesktopUpdateDialog } from "./components/aiteamos/desktop-update-dialog";
+import { FirstRunShell, isFirstRun } from "./components/aiteamos/first-run-shell";
 import { installPerformanceMonitoring } from "./lib/performance";
 import { initializeTheme } from "./lib/theme";
 import { installWindowVisibility } from "./lib/window-visibility";
@@ -38,7 +38,7 @@ const disposeVisibility = installWindowVisibility();
 if (import.meta.hot) import.meta.hot.dispose(disposeVisibility);
 
 const root = document.getElementById("root");
-if (!root) throw new Error("OpenTeam renderer root is missing");
+if (!root) throw new Error("aiTeamOS renderer root is missing");
 
 createRoot(root).render(
   <StrictMode>

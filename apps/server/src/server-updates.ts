@@ -6,11 +6,11 @@ import {
   type ServerUpdateHeartbeat,
   type ServerUpdateRequest,
   type ServerUpdateView,
-} from "@openteam/contracts";
+} from "@aiteamos/contracts";
 import {
-  compareOpenTeamVersions,
-  normalizeOpenTeamVersion,
-} from "@openteam/contracts/version-compatibility";
+  compareAiTeamOSVersions,
+  normalizeAiTeamOSVersion,
+} from "@aiteamos/contracts/version-compatibility";
 import { json } from "./http";
 
 const AGENT_TIMEOUT = 30_000;
@@ -24,7 +24,8 @@ export class ServerUpdates {
   constructor(
     private readonly directory: string,
     private readonly currentVersion: string,
-    private readonly now = Date.now
+    private readonly now = Date.now,
+    private readonly allowPrerelease = false
   ) {
     this.file = join(directory, "server-update.json");
     try {
@@ -65,7 +66,7 @@ export class ServerUpdates {
         : (request?.message ??
           (available
             ? "Updates this connected server"
-            : "Run openteam start on the server to enable updates from the app.")),
+            : "Run aiteamos start on the server to enable updates from the app.")),
       jobId: request?.jobId ?? request?.id ?? null,
       safeToCloseDesktop: Boolean(active),
     };
@@ -74,13 +75,17 @@ export class ServerUpdates {
   start(input: unknown): ServerUpdateView {
     const body = input as Record<string, unknown> | null;
     const version =
-      typeof body?.targetVersion === "string" ? normalizeOpenTeamVersion(body.targetVersion) : null;
+      typeof body?.targetVersion === "string" ? normalizeAiTeamOSVersion(body.targetVersion) : null;
     if (
       !version ||
-      version.includes("-") ||
-      (compareOpenTeamVersions(version, this.currentVersion) ?? 0) <= 0
+      (version.includes("-") && !this.allowPrerelease) ||
+      (compareAiTeamOSVersions(version, this.currentVersion) ?? 0) <= 0
     )
-      throw new ApiError(400, "invalid_update_version", "Choose a newer stable server release.");
+      throw new ApiError(
+        400,
+        "invalid_update_version",
+        this.allowPrerelease ? "Choose a newer server release." : "Choose a newer stable server release."
+      );
     // No destination, executable, repository, or flags can be supplied by clients.
     if (Object.keys(body!).some((key) => key !== "targetVersion"))
       throw new ApiError(400, "invalid_update_request", "Only targetVersion is accepted.");
@@ -93,7 +98,7 @@ export class ServerUpdates {
       throw new ApiError(
         503,
         "updater_unavailable",
-        "Run openteam start on the server to enable updates from the app."
+        "Run aiteamos start on the server to enable updates from the app."
       );
     this.request = {
       id: randomUUID(),

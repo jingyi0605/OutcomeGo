@@ -1,9 +1,9 @@
-import type { BotView, ChannelMessageView, ChannelView, ClientSnapshot } from "@openteam/contracts";
-import { CLIENT_CAPABILITIES } from "@openteam/contracts/capabilities";
+import type { BotView, ChannelMessageView, ChannelView, ClientSnapshot } from "@aiteamos/contracts";
+import { CLIENT_CAPABILITIES } from "@aiteamos/contracts/capabilities";
 import { Fragment, StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { api } from "../../src/renderer/client/openteam-api";
-import { ChatPane } from "../../src/renderer/components/openteam/chat-pane";
+import { api } from "../../src/renderer/client/aiteamos-api";
+import { ChatPane } from "../../src/renderer/components/aiteamos/chat-pane";
 import { TooltipProvider } from "../../src/renderer/components/ui/tooltip";
 import "../../src/renderer/styles.css";
 import { desktopDurableSendController } from "../../src/renderer/lib/durable-sends";

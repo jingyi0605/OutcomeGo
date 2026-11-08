@@ -1,8 +1,8 @@
 import React, { useState } from "react";
-import { createOpenTeamAuthClient } from "@openteam/client-core/auth";
+import { createAiTeamOSAuthClient } from "@aiteamos/client-core/auth";
 import { createRoot } from "react-dom/client";
 import "../../src/renderer/styles.css";
-import { AuthGate } from "../../src/renderer/components/openteam/auth-gate";
+import { AuthGate } from "../../src/renderer/components/aiteamos/auth-gate";
 import { signOut } from "../../src/renderer/client/auth";
 
 // Optional startup-only bridge failure. A later attempt uses synthetic in-memory storage.
@@ -11,7 +11,7 @@ if (storageScenario.has("storage-error") || storageScenario.has("storage-hang"))
   let failRead = true;
   let token: string | null = null;
   const stored = () => ({ token, persistence: "memory", backend: "qa" });
-  window.openteam = {
+  window.aiteamos = {
     versions: { app: "0.0.0" },
     updates: {
       status: async () => null,
@@ -37,11 +37,11 @@ if (storageScenario.has("storage-error") || storageScenario.has("storage-hang"))
         return stored();
       },
       signIn: (baseUrl: string, username: string, password: string) =>
-        createOpenTeamAuthClient({ baseUrl }).signIn(username, password),
+        createAiTeamOSAuthClient({ baseUrl }).signIn(username, password),
       signOut: (baseUrl: string, currentToken: string) =>
-        createOpenTeamAuthClient({ baseUrl }).signOut(currentToken),
+        createAiTeamOSAuthClient({ baseUrl }).signOut(currentToken),
     },
-  } as unknown as typeof window.openteam;
+  } as unknown as typeof window.aiteamos;
 }
 
 function QA() {

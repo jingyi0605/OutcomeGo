@@ -1,4 +1,4 @@
-import { VoiceSessionCreateInput, VoiceSettingsInput } from "@openteam/contracts";
+import { VoiceSessionCreateInput, VoiceSettingsInput } from "@aiteamos/contracts";
 import { json, parseBody } from "../http";
 import type { RouteContext } from "./context";
 

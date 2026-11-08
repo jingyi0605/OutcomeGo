@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
-import { createPrismaClient } from "@openteam/db";
-import { FETCH_PROVIDER_LIST, SEARCH_PROVIDER_LIST } from "@openteam/contracts/web-search";
+import { createPrismaClient } from "@aiteamos/db";
+import { FETCH_PROVIDER_LIST, SEARCH_PROVIDER_LIST } from "@aiteamos/contracts/web-search";
 import {
   parseWebProviderSettings,
   WebProviderSettingsService,
@@ -45,7 +45,7 @@ test("provider settings validate tools, providers and fields without echoing the
   });
 });
 
-const databaseUrl = process.env.OPENTEAM_TEST_DATABASE_URL;
+const databaseUrl = process.env.AITEAMOS_TEST_DATABASE_URL;
 const reset = async (prisma: ReturnType<typeof createPrismaClient>) => {
   await prisma.webSearchSettings.deleteMany();
   await prisma.webFetchSettings.deleteMany();

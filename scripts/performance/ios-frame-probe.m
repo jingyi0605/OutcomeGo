@@ -6,10 +6,10 @@
 #import <mach/mach.h>
 #import <sys/resource.h>
 
-static CFTimeInterval OpenTeamProbeLoadedAt;
-static double OpenTeamFirstContentMs = -1;
+static CFTimeInterval AiTeamOSProbeLoadedAt;
+static double AiTeamOSFirstContentMs = -1;
 
-@interface OpenTeamFrameProbe : NSObject {
+@interface AiTeamOSFrameProbe : NSObject {
   CADisplayLink *_displayLink;
   double _frames[36000];
   NSUInteger _count;
@@ -24,16 +24,16 @@ static double OpenTeamFirstContentMs = -1;
 - (void)finish;
 @end
 
-@implementation OpenTeamFrameProbe
+@implementation AiTeamOSFrameProbe
 - (void)start {
   if (_running) return;
   _running = YES;
-  _label = NSProcessInfo.processInfo.environment[@"OPENTEAM_FRAME_PROBE_LABEL"] ?: @"capture";
+  _label = NSProcessInfo.processInfo.environment[@"AITEAMOS_FRAME_PROBE_LABEL"] ?: @"capture";
   _started = CACurrentMediaTime();
   getrusage(RUSAGE_SELF, &_usage);
   _displayLink = [CADisplayLink displayLinkWithTarget:self selector:@selector(tick:)];
   [_displayLink addToRunLoop:NSRunLoop.mainRunLoop forMode:NSRunLoopCommonModes];
-  double seconds = [NSProcessInfo.processInfo.environment[@"OPENTEAM_FRAME_PROBE_SECONDS"] doubleValue];
+  double seconds = [NSProcessInfo.processInfo.environment[@"AITEAMOS_FRAME_PROBE_SECONDS"] doubleValue];
   seconds = seconds > 0 ? MIN(seconds, 180) : 60;
   dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(seconds * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{ [self finish]; });
 }
@@ -59,30 +59,30 @@ static double OpenTeamFirstContentMs = -1;
     @"measurementClass": @"release iOS Simulator CADisplayLink main-run-loop cadence; not physical-device FPS",
     @"durationSeconds": @(CACurrentMediaTime() - _started), @"frameDeltasMs": frames,
     @"cpuUserSeconds": @(userSeconds), @"cpuSystemSeconds": @(systemSeconds),
-    @"firstReactContentAfterProbeLoadMs": OpenTeamFirstContentMs >= 0 ? @(OpenTeamFirstContentMs) : NSNull.null,
+    @"firstReactContentAfterProbeLoadMs": AiTeamOSFirstContentMs >= 0 ? @(AiTeamOSFirstContentMs) : NSNull.null,
     @"physicalFootprintBytes": result == KERN_SUCCESS ? @(memory.phys_footprint) : @0,
     @"residentBytes": result == KERN_SUCCESS ? @(memory.resident_size) : @0,
     @"capturedAt": [[NSISO8601DateFormatter new] stringFromDate:NSDate.date]
   };
   NSData *data = [NSJSONSerialization dataWithJSONObject:capture options:0 error:nil];
-  NSString *name = [NSString stringWithFormat:@"openteam-frame-probe-%@.json", _label];
+  NSString *name = [NSString stringWithFormat:@"aiteamos-frame-probe-%@.json", _label];
   NSString *path = [[NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) firstObject] stringByAppendingPathComponent:name];
   [data writeToFile:path atomically:YES];
-  NSLog(@"OPENTEAM_FRAME_PROBE_SAVED %@", path);
+  NSLog(@"AITEAMOS_FRAME_PROBE_SAVED %@", path);
 }
 @end
 
-__attribute__((constructor)) static void OpenTeamInstallFrameProbe(void) {
+__attribute__((constructor)) static void AiTeamOSInstallFrameProbe(void) {
   @autoreleasepool {
-    if (!getenv("OPENTEAM_FRAME_PROBE_LABEL")) return;
-    OpenTeamProbeLoadedAt = CACurrentMediaTime();
-    static OpenTeamFrameProbe *probe;
+    if (!getenv("AITEAMOS_FRAME_PROBE_LABEL")) return;
+    AiTeamOSProbeLoadedAt = CACurrentMediaTime();
+    static AiTeamOSFrameProbe *probe;
     dispatch_async(dispatch_get_main_queue(), ^{
       [NSNotificationCenter.defaultCenter addObserverForName:@"RCTContentDidAppearNotification" object:nil queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification *note) {
-        if (OpenTeamFirstContentMs < 0) OpenTeamFirstContentMs = (CACurrentMediaTime() - OpenTeamProbeLoadedAt) * 1000;
+        if (AiTeamOSFirstContentMs < 0) AiTeamOSFirstContentMs = (CACurrentMediaTime() - AiTeamOSProbeLoadedAt) * 1000;
       }];
-      probe = [OpenTeamFrameProbe new];
-      double delay = [NSProcessInfo.processInfo.environment[@"OPENTEAM_FRAME_PROBE_DELAY"] doubleValue];
+      probe = [AiTeamOSFrameProbe new];
+      double delay = [NSProcessInfo.processInfo.environment[@"AITEAMOS_FRAME_PROBE_DELAY"] doubleValue];
       delay = delay > 0 ? delay : 5;
       dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(delay * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{ [probe start]; });
     });

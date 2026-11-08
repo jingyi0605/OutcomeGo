@@ -14,7 +14,7 @@ export async function generateMetadata({ params }: Props) {
   const page = getDocPage(slug.join("/"));
   if (!page) return {};
   return pageMetadata({
-    title: `${page.title} | OpenTeam ${docsConfig.title}`,
+    title: `${page.title} | aiTeamOS ${docsConfig.title}`,
     description: page.metaDescription,
     path: page.href,
   });

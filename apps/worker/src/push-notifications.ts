@@ -1,13 +1,13 @@
-import { suppressMobileNotification } from "@openteam/contracts/notification-presence";
-import { notificationRouting, unreadBadgeCount } from "@openteam/messaging";
-import { ApnsSettingsStore } from "@openteam/db/apns-settings";
+import { suppressMobileNotification } from "@aiteamos/contracts/notification-presence";
+import { notificationRouting, unreadBadgeCount } from "@aiteamos/messaging";
+import { ApnsSettingsStore } from "@aiteamos/db/apns-settings";
 import {
   PUSH_DELIVERY_ADVISORY_LOCK,
   type PushNotificationPayload,
   isAgentNotificationKind,
   notificationIsRead,
-} from "@openteam/contracts";
-import { Prisma, type PrismaClient } from "@openteam/db";
+} from "@aiteamos/contracts";
+import { Prisma, type PrismaClient } from "@aiteamos/db";
 import { ApnsClient } from "./apns";
 import { FcmClient } from "./fcm";
 
@@ -34,7 +34,7 @@ const errorMessage = (error: unknown): string =>
 export type PushAuthenticationMode = "disabled" | "required";
 
 export const pushAuthenticationModeFromEnvironment = (
-  value = process.env.OPENTEAM_AUTH_MODE
+  value = process.env.AITEAMOS_AUTH_MODE
 ): PushAuthenticationMode => (value?.trim().toLowerCase() === "disabled" ? "disabled" : "required");
 
 export const deliverablePushDeviceWhere = (

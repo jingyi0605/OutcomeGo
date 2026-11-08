@@ -856,7 +856,7 @@ textarea,
   animation: settings-anchor-pulse 1.8s ease-out;
 }
 
-.openteam-document-preview {
+.aiteamos-document-preview {
   font:
     14px / 1.55 -apple-system,
     BlinkMacSystemFont,
@@ -865,58 +865,58 @@ textarea,
     sans-serif;
 }
 
-.openteam-document-preview h1,
-.openteam-document-preview h2,
-.openteam-document-preview h3 {
+.aiteamos-document-preview h1,
+.aiteamos-document-preview h2,
+.aiteamos-document-preview h3 {
   margin: 1.3em 0 0.55em;
   font-weight: 650;
   line-height: 1.25;
 }
 
-.openteam-document-preview h1 {
+.aiteamos-document-preview h1 {
   font-size: 24px;
 }
 
-.openteam-document-preview h2 {
+.aiteamos-document-preview h2 {
   font-size: 19px;
 }
 
-.openteam-document-preview h3 {
+.aiteamos-document-preview h3 {
   font-size: 16px;
 }
 
-.openteam-document-preview p,
-.openteam-document-preview ul,
-.openteam-document-preview ol,
-.openteam-document-preview table {
+.aiteamos-document-preview p,
+.aiteamos-document-preview ul,
+.aiteamos-document-preview ol,
+.aiteamos-document-preview table {
   margin: 0 0 0.85em;
 }
 
-.openteam-document-preview ul,
-.openteam-document-preview ol {
+.aiteamos-document-preview ul,
+.aiteamos-document-preview ol {
   padding-left: 1.5em;
 }
 
-.openteam-document-preview table {
+.aiteamos-document-preview table {
   width: 100%;
   border-collapse: collapse;
   font-size: 12px;
 }
 
-.openteam-document-preview th,
-.openteam-document-preview td {
+.aiteamos-document-preview th,
+.aiteamos-document-preview td {
   border: 1px solid #d9d9d9;
   padding: 6px 8px;
   text-align: left;
   vertical-align: top;
 }
 
-.openteam-document-preview th {
+.aiteamos-document-preview th {
   background: #f3f3f3;
   font-weight: 600;
 }
 
-.openteam-document-preview img {
+.aiteamos-document-preview img {
   max-width: 100%;
   height: auto;
 }

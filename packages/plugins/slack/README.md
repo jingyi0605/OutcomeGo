@@ -5,19 +5,19 @@ This package connects to Slack's official MCP server using a Slack application o
 For browser-session access without a Slack app, use [Slack (stealth)](../slack-stealth/README.md).
 The managed plugin retains the `slack` package and connection keys, so the name update preserves existing accounts and authorization.
 
-Your OpenTeam server stores the app credentials and account authorization and connects directly to Slack's hosted MCP server. Create the internal app once for your workspace, then use it for the OpenTeam accounts in that workspace.
+Your aiTeamOS server stores the app credentials and account authorization and connects directly to Slack's hosted MCP server. Create the internal app once for your workspace, then use it for the aiTeamOS accounts in that workspace.
 
-Before connecting, configure an HTTPS address for your OpenTeam server. Tailscale Serve works for a private deployment; keep Tailscale connected on the devices used to sign in. This package uses a server callback, so callback paste is not available.
+Before connecting, configure an HTTPS address for your aiTeamOS server. Tailscale Serve works for a private deployment; keep Tailscale connected on the devices used to sign in. This package uses a server callback, so callback paste is not available.
 
 1. Install **Slack (managed)** from **Marketplace**, then open the plugin's account settings. Copy the displayed OAuth callback URL.
-2. Open [Your Apps](https://api.slack.com/apps), select **Create New App → From a manifest**, and paste [slack-app-manifest.json](slack-app-manifest.json). Replace its example redirect URL with the exact OpenTeam callback URL. Choose your workspace, review, and create the app.
+2. Open [Your Apps](https://api.slack.com/apps), select **Create New App → From a manifest**, and paste [slack-app-manifest.json](slack-app-manifest.json). Replace its example redirect URL with the exact aiTeamOS callback URL. Choose your workspace, review, and create the app.
 3. In the Slack app dashboard, open **Agents** and turn on **Enable Slack MCP Server**. OAuth can succeed while discovery fails if this switch is off.
-4. From **Basic Information**, copy the client ID and client secret into OpenTeam. Choose **Save and authorize**, select the workspace, and approve access.
+4. From **Basic Information**, copy the client ID and client secret into aiTeamOS. Choose **Save and authorize**, select the workspace, and approve access.
 5. Run a small read test, such as searching for your own user or listing your channels. Check the actual tool result before using the account.
 
-The manifest requests the user-token scopes in [Slack's MCP tool reference](https://docs.slack.dev/ai/slack-mcp-server/#oauth-scopes-needed-on-user-token-for-different-tools), including search, files, channel history, users, messages, canvases, and lists. You may remove capabilities you do not need: reduce scopes in both Slack and OpenTeam, reauthorize, and disable the corresponding tools. Workspace policy or Slack plan restrictions can still limit individual tools.
+The manifest requests the user-token scopes in [Slack's MCP tool reference](https://docs.slack.dev/ai/slack-mcp-server/#oauth-scopes-needed-on-user-token-for-different-tools), including search, files, channel history, users, messages, canvases, and lists. You may remove capabilities you do not need: reduce scopes in both Slack and aiTeamOS, reauthorize, and disable the corresponding tools. Workspace policy or Slack plan restrictions can still limit individual tools.
 
-For multiple accounts or workspaces, add an OpenTeam account, register its callback URL in the Slack app, and authorize it separately. An internal app belongs to its workspace; a different workspace may require its own internal app credentials.
+For multiple accounts or workspaces, add an aiTeamOS account, register its callback URL in the Slack app, and authorize it separately. An internal app belongs to its workspace; a different workspace may require its own internal app credentials.
 
 Use the [plugin guide](../../../docs/usage/plugins.md) for account management, secrets, development, and troubleshooting. No Slack CLI is required.
 
@@ -47,7 +47,7 @@ come unchanged from
 [slackapi/slack-skills-plugin](https://github.com/slackapi/slack-skills-plugin/tree/8044341769fa84f85ee952dceddb67ef165ab110)
 under the MIT license in `LICENSE`. Account setup is in `plugin.json`; shared
 runtime code maps provider tool names to connected accounts. There are no
-OpenTeam instruction files inserted into the original workflows.
+aiTeamOS instruction files inserted into the original workflows.
 Both the original flat commands (such as `/standup`) and the namespaced forms
 above work; a flat name is available only when it is unambiguous.
 
@@ -66,7 +66,7 @@ account policies, and independent Bot instruction/account access. These checks
 do not claim live Slack message delivery or developer CLI app creation.
 
 Live verification on September 24, 2026 also completed OAuth with an internal
-Slack app and a private Tailscale HTTPS callback. OpenTeam discovered 26 tools;
+Slack app and a private Tailscale HTTPS callback. aiTeamOS discovered 26 tools;
 `slack_read_user_profile`, `slack_list_user_channels`, and
-`slack_search_channels` returned successful results through OpenTeam. These
+`slack_search_channels` returned successful results through aiTeamOS. These
 were read tests; message delivery and every individual tool remain untested.

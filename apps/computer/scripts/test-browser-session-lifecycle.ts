@@ -9,8 +9,8 @@ import { outOfProcessPlaywright } from "../src/browser/playwright-driver";
 import { performComputerUseAction } from "../src/screen/actions";
 import { run } from "../src/screen/processes";
 
-const executable = process.env.OPENTEAM_BROWSER_TEST_EXECUTABLE;
-if (!executable) throw new Error("Set OPENTEAM_BROWSER_TEST_EXECUTABLE");
+const executable = process.env.AITEAMOS_BROWSER_TEST_EXECUTABLE;
+if (!executable) throw new Error("Set AITEAMOS_BROWSER_TEST_EXECUTABLE");
 const html = (body: string) => new Response(`<!doctype html><title>Session lifecycle</title>${body}`, { headers: { "content-type": "text/html" } });
 const server = Bun.serve({ hostname: "127.0.0.1", port: 0, fetch(request) {
   switch (new URL(request.url).pathname) {
@@ -43,7 +43,7 @@ async function ref(session: BrowserUseSession, label: string) {
 let failures = 0;
 async function check(name: string, fn: (session: any, endpoint: string, root: string) => Promise<void>) {
   if (process.env.CASE_FILTER && !name.includes(process.env.CASE_FILTER)) return;
-  const root = await mkdtemp(join(tmpdir(), "openteam-session-test-"));
+  const root = await mkdtemp(join(tmpdir(), "aiteamos-session-test-"));
   const chrome = spawn(executable!, [...(process.env.DISPLAY ? [] : ["--headless=new"]), "--no-sandbox", "--no-first-run", "--remote-debugging-port=0", `--user-data-dir=${root}`], { stdio: "ignore" });
   let driver: any;
   try {

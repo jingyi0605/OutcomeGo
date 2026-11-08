@@ -14,14 +14,14 @@ import {
 } from "./memory-rendering";
 import managedSkills from "./prompts/managed-skills.json";
 import { managedSkillAgents } from "./managed-skill-agents";
-import { safePackagePath } from "@openteam/plugin-sdk";
-import { originalSkillMarkdown } from "@openteam/plugin-sdk/skill-markdown";
+import { safePackagePath } from "@aiteamos/plugin-sdk";
+import { originalSkillMarkdown } from "@aiteamos/plugin-sdk/skill-markdown";
 import { pluginSkillsForAgent, renderPluginSkillCatalog, type PluginSkillCache } from "./plugin-skill-catalog";
 import { agentSkillItem, type CatalogItem, omittedSkillDirectories, omittedSkillsNotice, renderSkillCatalog } from "./skill-catalog";
 import { createHash, randomUUID } from "node:crypto";
 import { constants, createReadStream } from "node:fs";
 import type { FileHandle } from "node:fs/promises";
-import { defaultTaskConfiguration, parseTaskConfiguration, type TaskConfiguration } from "@openteam/contracts/task-configuration";
+import { defaultTaskConfiguration, parseTaskConfiguration, type TaskConfiguration } from "@aiteamos/contracts/task-configuration";
 import {
   appendFile,
   chmod,
@@ -45,14 +45,14 @@ import {
   serverInferenceSettings,
   type AssetRef,
   type ServerInferenceSettings,
-} from "@openteam/contracts";
+} from "@aiteamos/contracts";
 import {
   emptySidebarPreferences,
   parseSidebarPreferences,
   type SidebarPreferences,
-} from "@openteam/contracts/client-preferences";
-import type { ComputerInferenceRequest } from "@openteam/contracts/service-protocol";
-import { Prisma, type PrismaClient } from "@openteam/db";
+} from "@aiteamos/contracts/client-preferences";
+import type { ComputerInferenceRequest } from "@aiteamos/contracts/service-protocol";
+import { Prisma, type PrismaClient } from "@aiteamos/db";
 import { type FSWatcher, watch } from "chokidar";
 import { attachmentStorageName } from "./attachment-context";
 import { snapshotWatchedFiles } from "./file-watch-snapshot";
@@ -118,7 +118,7 @@ const AVATAR_SIZE_REFUSAL = "the image must be under 5 MB and non-empty.";
 const AVATAR_EXTENSIONS = [".png", ".jpg", ".jpeg", ".webp", ".gif", ".svg"] as const;
 const MEMORY_INFERENCE_DEADLINE_MS = 90_000;
 const MAX_HELD_MEMORY_EXCHANGES = 5;
-const AGENT_LOCK = "openteam-agent-data";
+const AGENT_LOCK = "aiteamos-agent-data";
 const ROOT_SETTINGS_VERSION = 1;
 const MAX_FILE_WARNINGS = 20;
 const MAX_SAVED_SKILLS = 100;
@@ -763,15 +763,15 @@ export class AgentDataStore {
     options: AgentDataStoreOptions = {}
   ) {
     this.root = resolve(
-      options.root ?? process.env.OPENTEAM_AGENT_DATA_ROOT ?? "/home/box/agent-data"
+      options.root ?? process.env.AITEAMOS_AGENT_DATA_ROOT ?? "/home/box/agent-data"
     );
     this.workspaceRoot = resolve(
-      options.workspaceRoot ?? process.env.OPENTEAM_WORKSPACE_ROOT ?? "/workspace"
+      options.workspaceRoot ?? process.env.AITEAMOS_WORKSPACE_ROOT ?? "/workspace"
     );
     this.assetRoot = resolve(
       options.assetRoot ??
-        process.env.OPENTEAM_ASSET_ROOT ??
-        join(resolve(this.root, ".."), ".openteam-assets")
+        process.env.AITEAMOS_ASSET_ROOT ??
+        join(resolve(this.root, ".."), ".aiteamos-assets")
     );
     this.memoryInference = options.memoryInference ?? null;
   }
@@ -883,7 +883,7 @@ export class AgentDataStore {
 
   private async syncManagedSkills(): Promise<void> {
     const directory = this.managedSkillsDirectory();
-    const enabled = process.env.OPENTEAM_MANAGED_SKILLS !== "false";
+    const enabled = process.env.AITEAMOS_MANAGED_SKILLS !== "false";
     const activeIds = new Set(enabled ? managedSkills.skills.map((skill) => skill.id) : []);
     // This directory is owned by the managed catalog. Retire removed workflows
     // before checking the cache, including when its metadata is missing or stale.
@@ -923,7 +923,7 @@ export class AgentDataStore {
       files?: Record<string, string>;
       binaryFiles?: Record<string, string>;
     }[],
-    currentUserId = "openteam"
+    currentUserId = "aiteamos"
   ): Promise<void> {
     await this.ensureRuntimeDirectories();
     const fetchedAt = Date.now();
@@ -942,7 +942,7 @@ export class AgentDataStore {
       const installPath = join(
         this.pluginsDirectory(),
         "cache",
-        slugify(plugin.publisher || "openteam", "publisher"),
+        slugify(plugin.publisher || "aiteamos", "publisher"),
         pluginId,
         revision
       );
@@ -1349,11 +1349,11 @@ export class AgentDataStore {
         migrated.automations += 1;
       }
 
-      const legacyManifest = join(this.botDirectory(botId), ".openteam-projection.json");
+      const legacyManifest = join(this.botDirectory(botId), ".aiteamos-projection.json");
       await Promise.all([
         rm(join(this.botDirectory(botId), "instructions.md"), { force: true }),
         rm(legacyManifest, { force: true }),
-        rm(join(this.botDirectory(botId), ".openteam-projection.legacy.json"), { force: true }),
+        rm(join(this.botDirectory(botId), ".aiteamos-projection.legacy.json"), { force: true }),
       ]);
       await tx.agentFileState.upsert({
         where: { path: migrationKey },
@@ -1567,7 +1567,7 @@ export class AgentDataStore {
           return;
         }
         const botId = normalized.match(/^agents\/([^/]+)\//)?.[1];
-        if (!botId || normalized.includes("/.openteam") || normalized.endsWith(".part")) return;
+        if (!botId || normalized.includes("/.aiteamos") || normalized.endsWith(".part")) return;
         const previous = this.watcherTimers.get(botId);
         if (previous) clearTimeout(previous);
         this.watcherTimers.set(
@@ -2443,7 +2443,7 @@ export class AgentDataStore {
     });
     const epoch = contextSession.compactionEpoch;
     const announcementKey = `${botId}:${contextSessionId}`;
-    // The reference titles the profile with the name; OpenTeam's own title takes that line when set.
+    // The reference titles the profile with the name; aiTeamOS's own title takes that line when set.
     const liveProfile = [
       "Agent profile:",
       `Title: ${bot.title || bot.name}`,
@@ -2737,7 +2737,7 @@ export class AgentDataStore {
   }
 
   private async renderManagedSkills(): Promise<string> {
-    if (process.env.OPENTEAM_MANAGED_SKILLS === "false") return "";
+    if (process.env.AITEAMOS_MANAGED_SKILLS === "false") return "";
     const text = await readText(join(this.managedSkillsDirectory(), "cache.json"));
     if (!text) return "";
     try {
@@ -2779,7 +2779,7 @@ export class AgentDataStore {
 
   /** The agent_skills catalog of a worker type that carries managed skills of its own. */
   async renderWorkerSkillCatalog(agent: string): Promise<string> {
-    if (process.env.OPENTEAM_MANAGED_SKILLS === "false") return "";
+    if (process.env.AITEAMOS_MANAGED_SKILLS === "false") return "";
     const text = await readText(join(this.managedSkillsDirectory(), "cache.json"));
     if (!text) return "";
     let records: unknown[];

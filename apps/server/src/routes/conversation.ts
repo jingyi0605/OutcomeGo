@@ -2,7 +2,7 @@ import {
   ApiError,
   SendMessageInput,
   UpdateBotInput,
-} from "@openteam/contracts";
+} from "@aiteamos/contracts";
 import { json } from "../http";
 import { type RouteContext, run } from "./context";
 import { bodyRoute, dispatchRoutes, effectRoute } from "./dispatch";

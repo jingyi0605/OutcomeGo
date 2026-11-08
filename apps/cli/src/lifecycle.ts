@@ -69,7 +69,7 @@ import {
 } from "./disk-maintenance";
 import { assertNoAgentWorking, UpdateBusyError, updateWaitsForIdle } from "./update-gate";
 
-export const UPDATE_PROGRESS_PREFIX = "@@OPENTEAM_UPDATE@@";
+export const UPDATE_PROGRESS_PREFIX = "@@AITEAMOS_UPDATE@@";
 export type UpdateProgressPhase =
   | "checking"
   | "downloading"
@@ -97,12 +97,12 @@ const reportUpdateProgress = (
 const requireInstallation = (paths: InstallationPaths): InstallationManifest => {
   if (!installationExists(paths)) {
     throw new CliError(
-      `OpenTeam is not installed at ${paths.directory}. Run openteam install first.`
+      `aiTeamOS is not installed at ${paths.directory}. Run aiteamos install first.`
     );
   }
   const manifest = readManifest(paths);
   if (!manifest)
-    throw new CliError(`OpenTeam installation manifest is missing at ${paths.manifest}`);
+    throw new CliError(`aiTeamOS installation manifest is missing at ${paths.manifest}`);
   return manifest;
 };
 
@@ -116,7 +116,7 @@ const printStartupReady = (
   alreadyRunning = false
 ): void => {
   const localUrl = health.url.replace(/\/api\/v0\/health$/, "");
-  const publicUrl = environment.get("OPENTEAM_PUBLIC_URL")?.trim().replace(/\/+$/, "");
+  const publicUrl = environment.get("AITEAMOS_PUBLIC_URL")?.trim().replace(/\/+$/, "");
   console.log(
     renderSummary(
       "start",
@@ -129,19 +129,19 @@ const printStartupReady = (
         ...(health.version ? [{ label: "Version", value: health.version }] : []),
       ],
       [
-        { text: `OpenTeam is ${alreadyRunning ? "already running" : "ready"}.`, tone: "success" },
+        { text: `aiTeamOS is ${alreadyRunning ? "already running" : "ready"}.`, tone: "success" },
         ...(health.inference && health.inference !== "ready"
           ? [
               {
                 text:
                   health.inference === "missing"
-                    ? `No model is connected yet. Connect one in the OpenTeam app under Settings → Server, or run ${installationCommand(paths, "model")} on this server.`
-                    : `AI is not ready (${health.inference}). Check the model connection in the OpenTeam app under Settings → Server, or run ${installationCommand(paths, "doctor")}.`,
+                    ? `No model is connected yet. Connect one in the aiTeamOS app under Settings → Server, or run ${installationCommand(paths, "model")} on this server.`
+                    : `AI is not ready (${health.inference}). Check the model connection in the aiTeamOS app under Settings → Server, or run ${installationCommand(paths, "doctor")}.`,
                 tone: "warning" as const,
               },
             ]
           : []),
-        { text: `To stop OpenTeam, run: ${installationCommand(paths, "stop")}`, tone: "info" },
+        { text: `To stop aiTeamOS, run: ${installationCommand(paths, "stop")}`, tone: "info" },
       ]
     )
   );
@@ -169,20 +169,20 @@ const startProject = async (
       printStartupReady(paths, environment, health, true);
       return;
     }
-    if (state.stopped) printMessage("OpenTeam is stopped. Starting services…");
+    if (state.stopped) printMessage("aiTeamOS is stopped. Starting services…");
     else if (state.notReady.length) {
       printMessage(
-        `OpenTeam is partially running. Starting or checking: ${state.notReady.join(", ")}…`
+        `aiTeamOS is partially running. Starting or checking: ${state.notReady.join(", ")}…`
       );
-    } else printMessage(`OpenTeam is running but not ready (${health.detail}). Checking services…`);
+    } else printMessage(`aiTeamOS is running but not ready (${health.detail}). Checking services…`);
   }
   printMessage(SETUP_JOBS_NOTE, "muted");
   project.runOrThrow(["up", "--detach", "--remove-orphans", "--wait", "--wait-timeout", "180"], {
     inherit: true,
   });
-  printMessage("Waiting for OpenTeam…");
+  printMessage("Waiting for aiTeamOS…");
   const health = await waitForStartup(project, paths, expectedVersion);
-  if (!health.ok) throw new CliError(`OpenTeam did not become healthy: ${health.detail}`);
+  if (!health.ok) throw new CliError(`aiTeamOS did not become healthy: ${health.detail}`);
   printStartupReady(paths, environment, health);
 };
 
@@ -196,11 +196,11 @@ export const installCommand = async (
     const existing = requireInstallation(paths);
     if (options.version && normalizeVersion(options.version) !== existing.version) {
       throw new CliError(
-        `OpenTeam ${existing.version} is already installed. Use openteam update --version ${normalizeVersion(options.version)}.`
+        `aiTeamOS ${existing.version} is already installed. Use aiteamos update --version ${normalizeVersion(options.version)}.`
       );
     }
     if (existing.uninstalledAt) {
-      printMessage(`Reinstalling OpenTeam ${existing.version}; refreshing release configuration…`);
+      printMessage(`Reinstalling aiTeamOS ${existing.version}; refreshing release configuration…`);
       const release = await downloadRelease({
         repository: existing.repository,
         version: existing.version,
@@ -218,7 +218,7 @@ export const installCommand = async (
     }
     if (!existing.ownerUsername && !options.noSetup) {
       console.log(
-        `OpenTeam ${existing.version} is installed but setup is incomplete; resuming setup.`
+        `aiTeamOS ${existing.version} is installed but setup is incomplete; resuming setup.`
       );
       await setupCommand(
         paths,
@@ -232,7 +232,7 @@ export const installCommand = async (
         suppliedPrompter
       );
     } else {
-      printMessage(`OpenTeam ${existing.version} is already installed; starting it.`);
+      printMessage(`aiTeamOS ${existing.version} is already installed; starting it.`);
       await startCommand(paths, runner, { allowIncompleteSetup: options.noSetup });
     }
     return;
@@ -287,7 +287,7 @@ export const installCommand = async (
 
   const version = normalizeVersion(options.version || CLI_VERSION);
   const repository = normalizeRepository(options.repository || DEFAULT_REPOSITORY);
-  printMessage(`Downloading OpenTeam ${version} release configuration…`);
+  printMessage(`Downloading aiTeamOS ${version} release configuration…`);
   const release = await downloadRelease({
     repository,
     version,
@@ -317,13 +317,13 @@ export const installCommand = async (
       rmSync(file, { force: true });
     }
     throw new CliError(
-      `Could not save the OpenTeam configuration in ${paths.directory}: ${error instanceof Error ? error.message : error}. Free up disk space or fix the folder's permissions, then run ${installationCommand(paths, "setup")} again.`
+      `Could not save the aiTeamOS configuration in ${paths.directory}: ${error instanceof Error ? error.message : error}. Free up disk space or fix the folder's permissions, then run ${installationCommand(paths, "setup")} again.`
     );
   }
 
   if (options.noSetup) {
     const project = requireComposeProject(paths, runner, projectName);
-    printMessage("Pulling OpenTeam container images…");
+    printMessage("Pulling aiTeamOS container images…");
     project.runOrThrow(["pull"], { inherit: true });
     await startProject(project, paths, runner, version);
     printMessage(`Installation configuration: ${paths.directory}`, "muted");
@@ -375,7 +375,7 @@ export const stopCommand = (paths: InstallationPaths, runner: CommandRunner): vo
       "STOPPED",
       [{ label: "Installation", value: paths.directory }],
       [
-        { text: "OpenTeam is stopped. Its data and containers are preserved.", tone: "success" },
+        { text: "aiTeamOS is stopped. Its data and containers are preserved.", tone: "success" },
         { text: installationCommand(paths, "start"), tone: "info" },
       ]
     )
@@ -390,7 +390,7 @@ export const startCommand = async (
   const manifest = requireInstallation(paths);
   if (!manifest.ownerUsername?.trim() && !options.allowIncompleteSetup) {
     throw new CliError(
-      "OpenTeam is installed, but account setup is incomplete. Run openteam setup to create your sign-in, then retry openteam start.",
+      "aiTeamOS is installed, but account setup is incomplete. Run aiteamos setup to create your sign-in, then retry aiteamos start.",
       2
     );
   }
@@ -458,27 +458,27 @@ const updateCommandUnlocked = async (
       targetVersion: version ?? persisted.targetVersion,
     });
   };
-  report("checking", "Checking the latest OpenTeam release");
+  report("checking", "Checking the latest aiTeamOS release");
   const target = await resolveUpdateTarget(manifest.version, options, repository);
   const cliPromotion = readCliPromotion(process.env, process.execPath, CLI_VERSION);
   persisted = writeUpdateState(paths, { ...persisted, targetVersion: target });
   if (target === manifest.version && !options.force) {
     if (cliPromotion) {
-      report("updating-cli", `Installing OpenTeam ${target} command-line tools`, target);
+      report("updating-cli", `Installing aiTeamOS ${target} command-line tools`, target);
       await waitForCliFollowerToExit(cliPromotion);
       promoteStagedCli(cliPromotion);
     }
     const message = cliPromotion
-      ? `OpenTeam ${target} and its command-line tools are up to date`
-      : `OpenTeam ${target} is already installed`;
+      ? `aiTeamOS ${target} and its command-line tools are up to date`
+      : `aiTeamOS ${target} is already installed`;
     report("complete", message, target);
     console.log(`${message}.`);
     return;
   }
   const whenIdle = updateWaitsForIdle(options);
   if (whenIdle) await assertNoAgentWorking(paths);
-  console.log(`Updating OpenTeam ${manifest.version} → ${target}…`);
-  report("downloading", `Downloading and verifying OpenTeam ${target}`, target);
+  console.log(`Updating aiTeamOS ${manifest.version} → ${target}…`);
+  report("downloading", `Downloading and verifying aiTeamOS ${target}`, target);
   const release = await downloadRelease({
     repository,
     version: target,
@@ -490,7 +490,7 @@ const updateCommandUnlocked = async (
   const previousCompose = readFileSync(paths.compose, "utf8");
   const previousEnvironment = readFileSync(paths.environment, "utf8");
   const nextEnvironment = ensureAuthenticationSecret(
-    replaceEnvironmentValue(previousEnvironment, "OPENTEAM_VERSION", target)
+    replaceEnvironmentValue(previousEnvironment, "AITEAMOS_VERSION", target)
   );
   const nextCompose = `${paths.compose}.next`;
   const project = requireComposeProject(paths, runner, manifestProjectName(manifest));
@@ -505,7 +505,7 @@ const updateCommandUnlocked = async (
     maintenanceWarning("capture pre-update images", () => {
       previousImages = captureStackImages(paths, project, runner);
     });
-    report("pulling", `Pulling OpenTeam ${target} container images`, target);
+    report("pulling", `Pulling aiTeamOS ${target} container images`, target);
     project.runOrThrow(["pull"], { inherit: true, composeFile: nextCompose });
     // Work may have started during the download; this is the last moment nothing has stopped.
     if (whenIdle) await assertNoAgentWorking(paths);
@@ -522,7 +522,7 @@ const updateCommandUnlocked = async (
       ],
       { inherit: true }
     );
-    report("backing-up", `Backing up the OpenTeam database before ${target}`, target);
+    report("backing-up", `Backing up the aiTeamOS database before ${target}`, target);
     backupPath = createDatabaseBackup(paths, project, manifest.version, target);
     maintenanceWarning("record database backup", () => registerDatabaseBackup(paths, backupPath!));
     persisted = writeUpdateState(paths, { ...persisted, backupPath });
@@ -532,7 +532,7 @@ const updateCommandUnlocked = async (
     report("restarting", "Restarting the server, worker, and computer", target);
     newStackStarted = true;
     await startProject(project, paths, runner, target);
-    report("verifying", `OpenTeam ${target} passed its readiness checks`, target);
+    report("verifying", `aiTeamOS ${target} passed its readiness checks`, target);
     writeManifest(paths, {
       ...manifest,
       repository,
@@ -543,7 +543,7 @@ const updateCommandUnlocked = async (
     });
     manifestUpdated = true;
     if (cliPromotion) {
-      report("updating-cli", `Installing OpenTeam ${target} command-line tools`, target);
+      report("updating-cli", `Installing aiTeamOS ${target} command-line tools`, target);
       await waitForCliFollowerToExit(cliPromotion);
       promoteStagedCli(cliPromotion);
     }
@@ -554,7 +554,7 @@ const updateCommandUnlocked = async (
     }
     report(
       "rolling-back",
-      "The update failed; restoring the previous OpenTeam configuration",
+      "The update failed; restoring the previous aiTeamOS configuration",
       manifest.version
     );
     writeFileAtomic(paths.compose, previousCompose, 0o600);
@@ -614,8 +614,8 @@ const updateCommandUnlocked = async (
   }
   maintenanceWarning("retain database backups", () => retainDatabaseBackups(paths, backupPath));
   const completion = cliPromotion
-    ? `OpenTeam and its command-line tools are now running ${target}`
-    : `OpenTeam is now running ${target}`;
+    ? `aiTeamOS and its command-line tools are now running ${target}`
+    : `aiTeamOS is now running ${target}`;
   report("complete", completion, target);
   console.log(`${completion}.`);
 };
@@ -630,7 +630,7 @@ export const resolveUpdateTarget = async (
     : await latestReleaseVersion(repository);
   if (semver.lt(target, currentVersion) && !options.allowDowngrade) {
     throw new CliError(
-      `Refusing to downgrade OpenTeam ${currentVersion} to ${target}. Use --allow-downgrade only for an intentional recovery.`
+      `Refusing to downgrade aiTeamOS ${currentVersion} to ${target}. Use --allow-downgrade only for an intentional recovery.`
     );
   }
   if (semver.prerelease(target) && !options.allowPrerelease) {
@@ -688,8 +688,8 @@ export const uninstallCommand = async (
 ): Promise<void> => {
   const manifest = requireInstallation(paths);
   const question = options.purge
-    ? "Permanently delete all OpenTeam containers, volumes, configuration, sessions, and workspace data?"
-    : "Remove the OpenTeam containers while preserving configuration and data?";
+    ? "Permanently delete all aiTeamOS containers, volumes, configuration, sessions, and workspace data?"
+    : "Remove the aiTeamOS containers while preserving configuration and data?";
   if (!options.yes && !(await confirmation(question))) {
     printMessage("Uninstall cancelled.", "muted");
     return;
@@ -707,7 +707,7 @@ export const uninstallCommand = async (
         "uninstall",
         "REMOVED",
         cliPath ? [{ label: "CLI removed", value: cliPath }] : [],
-        [{ text: "OpenTeam and its local Docker data were permanently removed.", tone: "success" }]
+        [{ text: "aiTeamOS and its local Docker data were permanently removed.", tone: "success" }]
       )
     );
     return;
@@ -724,7 +724,7 @@ export const uninstallCommand = async (
       ],
       [
         {
-          text: "Run the OpenTeam installer again to restore the CLI and recreate the containers with the preserved data.",
+          text: "Run the aiTeamOS installer again to restore the CLI and recreate the containers with the preserved data.",
           tone: "info",
         },
       ]

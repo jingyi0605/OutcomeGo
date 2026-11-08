@@ -1,5 +1,5 @@
-import { OpenTeamClientError } from "@openteam/client-core";
-import { clientErrorMessage, redactSensitiveText } from "@openteam/product-core/redaction";
+import { AiTeamOSClientError } from "@aiteamos/client-core";
+import { clientErrorMessage, redactSensitiveText } from "@aiteamos/product-core/redaction";
 
 /** How long setup waits for an ordinary request before saying so and offering a retry. */
 export const REQUEST_DEADLINE_MS = 20_000;
@@ -25,7 +25,7 @@ export function withDeadline<T>(
   let timer: ReturnType<typeof setTimeout> | undefined;
   const deadline = new Promise<never>((_, reject) => {
     timer = setTimeout(() => {
-      reject(new OpenTeamClientError(TIMEOUT_MESSAGE, "timeout"));
+      reject(new AiTeamOSClientError(TIMEOUT_MESSAGE, "timeout"));
       controller.abort();
     }, ms);
   });
@@ -51,7 +51,7 @@ const readable = (text: string | null | undefined): text is string =>
   text.length > 0 &&
   !/[{}[\]]/.test(text) &&
   !/^Request failed \(\d+\)$/.test(text) &&
-  text !== "OpenTeam returned an invalid response";
+  text !== "aiTeamOS returned an invalid response";
 
 const plainMessage = (cause: unknown) =>
   clientErrorMessage(cause, "")

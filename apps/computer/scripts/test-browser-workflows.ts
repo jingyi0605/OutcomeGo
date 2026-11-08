@@ -8,9 +8,9 @@ import { outOfProcessPlaywright } from "../src/browser/playwright-driver";
 
 // Run outside bun:test: Playwright's Node IPC driver cannot start in that runner.
 // This browser/profile and HTTP fixture are isolated from signed-in user tabs.
-const executablePath = process.env.OPENTEAM_BROWSER_TEST_EXECUTABLE;
+const executablePath = process.env.AITEAMOS_BROWSER_TEST_EXECUTABLE;
 if (!executablePath)
-  throw new Error("Set OPENTEAM_BROWSER_TEST_EXECUTABLE to a local Chromium executable");
+  throw new Error("Set AITEAMOS_BROWSER_TEST_EXECUTABLE to a local Chromium executable");
 const root = await mkdtemp(join(tmpdir(), "browser-workflows-"));
 const downloads = join(root, "Downloads");
 const profile = join(root, "profile");

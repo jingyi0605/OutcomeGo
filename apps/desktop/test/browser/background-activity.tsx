@@ -7,9 +7,9 @@ import type {
   RunItemView,
   RunView,
   SubagentActivityView,
-} from "@openteam/contracts";
-import { CLIENT_CAPABILITIES } from "@openteam/contracts/capabilities";
-import { ChatPane } from "../../src/renderer/components/openteam/chat-pane";
+} from "@aiteamos/contracts";
+import { CLIENT_CAPABILITIES } from "@aiteamos/contracts/capabilities";
+import { ChatPane } from "../../src/renderer/components/aiteamos/chat-pane";
 import { TooltipProvider } from "../../src/renderer/components/ui/tooltip";
 import "../../src/renderer/styles.css";
 

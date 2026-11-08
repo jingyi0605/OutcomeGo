@@ -97,7 +97,7 @@ export class ProviderConnectionSession implements InteractiveSession<ConnectionR
               {
                 id: "import",
                 label: "Use " + this.localName + " login",
-                detail: "Import the login saved on this computer into this OpenTeam server.",
+                detail: "Import the login saved on this computer into this aiTeamOS server.",
               },
             ]
           : []),
@@ -138,7 +138,7 @@ export class ProviderConnectionSession implements InteractiveSession<ConnectionR
                 this.session.prompt.type === "secret"
                   ? "Enter API key"
                   : "Paste code or redirect URL",
-              detail: "Use this if the browser cannot return to OpenTeam.",
+              detail: "Use this if the browser cannot return to aiTeamOS.",
             },
           ]
         : []),
@@ -150,7 +150,7 @@ export class ProviderConnectionSession implements InteractiveSession<ConnectionR
   }
   frame(width: number | undefined, color: boolean): SetupSessionFrame {
     const header = new TerminalReport({ width, color });
-    header.text("OPENTEAM / " + this.context, "info");
+    header.text("AITEAMOS / " + this.context, "info");
     header.section("Connect " + this.name);
     header.text(
       this.authType === "oauth" ? "Subscription access" : "API access · billed by your provider"

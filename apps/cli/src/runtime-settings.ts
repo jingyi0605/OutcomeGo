@@ -15,7 +15,7 @@ const internalSettingsUrl = (paths: InstallationPaths, suffix = ""): URL =>
 
 const controlToken = (paths: InstallationPaths): string => {
   const environment = parseEnvironment(readFileSync(paths.environment, "utf8"));
-  const token = environment.get("OPENTEAM_CONTROL_TOKEN");
+  const token = environment.get("AITEAMOS_CONTROL_TOKEN");
   if (!token) throw new CliError("The installation control token is missing");
   return token;
 };
@@ -42,7 +42,7 @@ const request = async (paths: InstallationPaths, url: URL, init: RequestInit = {
   } | null;
   if (response.status === 401 || response.status === 403) {
     throw new CliError(
-      `The OpenTeam server at ${url.origin} rejected this installation's control token. Another OpenTeam instance is probably listening on that port; run openteam doctor to see which containers hold it.`
+      `The aiTeamOS server at ${url.origin} rejected this installation's control token. Another aiTeamOS instance is probably listening on that port; run aiteamos doctor to see which containers hold it.`
     );
   }
   if (!response.ok) {

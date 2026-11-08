@@ -1,13 +1,13 @@
 # Updates
 
-Update the server and the `openteam` CLI with one command, or manage server updates from **Settings → Updates** on desktop, iPhone, or iPad. The desktop and iOS apps have their own updates.
+Update the server and the `aiteamos` CLI with one command, or manage server updates from **Settings → Updates** on desktop, iPhone, or iPad. The desktop and iOS apps have their own updates.
 
 ## Update the server
 
 On the server host, run:
 
 ```sh
-openteam update
+aiteamos update
 ```
 
 The updater:
@@ -15,9 +15,9 @@ The updater:
 1. Downloads the new version and checks its signature.
 2. Backs up the database.
 3. Restarts the server on the new version.
-4. Updates the `openteam` CLI once the new server is healthy.
+4. Updates the `aiteamos` CLI once the new server is healthy.
 
-Bots pause briefly while the server restarts. Accounts that run on the bot computer, such as Gmail, Google Calendar and Google Drive, start again the next time a bot uses them; you don't need to reconnect them. You need at least 4 GB free on the drive that holds your install directory. Closing the terminal doesn't stop an update; run `openteam update` again to check on it.
+Bots pause briefly while the server restarts. Accounts that run on the bot computer, such as Gmail, Google Calendar and Google Drive, start again the next time a bot uses them; you don't need to reconnect them. You need at least 4 GB free on the drive that holds your install directory. Closing the terminal doesn't stop an update; run `aiteamos update` again to check on it.
 
 If the new version doesn't start, the updater rolls back to the previous version and restores the database. That backup covers the database only, not workspace files, browser sign-ins, or attachments. After success, the updater normally keeps the three newest registered [update backups](backups.md#update-backups), plus the current rollback dump if needed, and deletes older registered dumps. Keep your own [backups](backups.md).
 
@@ -30,8 +30,8 @@ cleanup does not prune Docker volumes, networks or build caches.
 
 Release containers rotate their logs at 10 MiB per file with three files per
 container when recreated. Older diagnostic history is discarded. In your install
-directory's `.env`, set `OPENTEAM_LOG_MAX_SIZE` and `OPENTEAM_LOG_MAX_FILES` to change
-these limits, or `OPENTEAM_LOG_MAX_SIZE=-1` to disable rotation. Export logs before
+directory's `.env`, set `AITEAMOS_LOG_MAX_SIZE` and `AITEAMOS_LOG_MAX_FILES` to change
+these limits, or `AITEAMOS_LOG_MAX_SIZE=-1` to disable rotation. Export logs before
 updating if you need to retain them. Backup deletion has separate
 [preservation controls](backups.md#update-backups).
 
@@ -55,14 +55,14 @@ The server saves the update job independently of either app. Reopen **Settings �
 
 Both apps show the host's progress through preparation, download, backup, restart, and health checks. Completed stages have checkmarks; the current stage shows the server's live message. If the connection drops during restart, progress stays visible while the app reconnects. Recovery has its own status when the updater restores the previous version.
 
-The CLI starts a background updater after `openteam install`, `openteam setup`, `openteam start`, or `openteam update`. On macOS and on Linux with systemd, it also sets the updater to start again after a reboot, so in-app updates keep working:
+The CLI starts a background updater after `aiteamos install`, `aiteamos setup`, `aiteamos start`, or `aiteamos update`. On macOS and on Linux with systemd, it also sets the updater to start again after a reboot, so in-app updates keep working:
 
 - **macOS:** a LaunchAgent in `~/Library/LaunchAgents` starts it when you sign in.
 - **Linux:** a systemd user service starts it at boot. The CLI turns on lingering for your user so the service doesn't wait for you to sign in. If your system doesn't allow that, the CLI prints the `sudo loginctl enable-linger` command to run once.
 
-`openteam stop` and `openteam uninstall` stop the updater and remove its startup entry; `openteam start` adds it back. On Windows, and on Linux without systemd, run `openteam start` after rebooting the host to re-enable in-app updates.
+`aiteamos stop` and `aiteamos uninstall` stop the updater and remove its startup entry; `aiteamos start` adds it back. On Windows, and on Linux without systemd, run `aiteamos start` after rebooting the host to re-enable in-app updates.
 
-If the updater is unavailable, Settings shows the command to run on that server. Servers installed before this feature need one update with `openteam update` on the host first.
+If the updater is unavailable, Settings shows the command to run on that server. Servers installed before this feature need one update with `aiteamos update` on the host first.
 
 The desktop app and the server have separate versions. If the app reports that it's incompatible with the server, update both.
 
@@ -76,18 +76,18 @@ Choose the **iOS app** row on the Updates page to open TestFlight for app update
 
 ## After updating
 
-Run `openteam status`, then open the app and check that a bot's conversation and files are still there.
+Run `aiteamos status`, then open the app and check that a bot's conversation and files are still there.
 
 ## Install a specific version
 
 ```sh
-openteam update --version <version>
+aiteamos update --version <version>
 ```
 
-Downgrading, installing a prerelease, or reinstalling the current version need an extra flag. See `openteam update --help`.
+Downgrading, installing a prerelease, or reinstalling the current version need an extra flag. See `aiteamos update --help`.
 
 ## If an update fails
 
-Read the error first. The usual causes are low disk space, a failed download, or a service that didn't start. Run `openteam doctor` to find the problem, fix it, and run the update again.
+Read the error first. The usual causes are low disk space, a failed download, or a service that didn't start. Run `aiteamos doctor` to find the problem, fix it, and run the update again.
 
-If `openteam --version` still shows the old version after an update, run the [installer](../getting-started/installation.md#install) again to replace the CLI.
+If `aiteamos --version` still shows the old version after an update, run the [installer](../getting-started/installation.md#install) again to replace the CLI.

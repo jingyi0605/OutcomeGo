@@ -1,4 +1,4 @@
-import type { ProductEvent } from "@openteam/contracts";
+import type { ProductEvent } from "@aiteamos/contracts";
 
 const listeners = new Set<(botId: string | null) => void>();
 const changedBots = new Set<string>();

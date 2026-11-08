@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { MessageDeliveryStatusView } from "@openteam/contracts";
+import type { MessageDeliveryStatusView } from "@aiteamos/contracts";
 import { Effect } from "effect";
 import { ChannelService } from "../src/services/channel-service";
 

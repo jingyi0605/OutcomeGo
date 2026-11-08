@@ -3,7 +3,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { ScreenBroker } from "../src/screen-broker";
 import type { ScreenSession } from "../src/screen/types";
 
-test.skipIf(process.env.OPENTEAM_CUA_DESKTOP_TESTS !== "1")(
+test.skipIf(process.env.AITEAMOS_CUA_DESKTOP_TESTS !== "1")(
   "live computer video produces continuous JPEGs and releases encoders on cancel",
   async () => {
     const home = await mkdtemp("/tmp/cua-stream-");

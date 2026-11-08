@@ -1,4 +1,4 @@
-import { DESKTOP_MESSAGES_TOOLS } from "@openteam/contracts/desktop-capability-names";
+import { DESKTOP_MESSAGES_TOOLS } from "@aiteamos/contracts/desktop-capability-names";
 import type { MacMessages } from "./messages";
 import { ChromeCookies } from "./chrome-cookies";
 import type { NativeActionReceipts } from "./action-receipts";
@@ -6,7 +6,7 @@ import type { MessagesAccess } from "./messages-access";
 import { NativeCommandError } from "./native-command";
 
 const missingGrant = (grant: string) =>
-  `The user's Mac has not granted OpenTeam ${grant}, so this cannot run. Ask the user to grant it to OpenTeam in System Settings under Privacy & Security, then try again.`;
+  `The user's Mac has not granted aiTeamOS ${grant}, so this cannot run. Ask the user to grant it to aiTeamOS in System Settings under Privacy & Security, then try again.`;
 export class HostCapabilities {
   private readonly cookies: ChromeCookies;
   constructor(
@@ -36,7 +36,7 @@ export class HostCapabilities {
     if (tool === "FindContacts") {
       if (permissions.contacts === "denied") throw new Error(missingGrant("Contacts"));
       if (permissions.contacts === "notAsked")
-        throw new Error("The user's Mac hasn't been asked for Contacts access yet, so this cannot run. A window asking for it is now open on that Mac; ask the user to choose Allow next to Contacts there (or in OpenTeam Settings → Computer → Messages → macOS permissions), then try again. Handles still work without names.");
+        throw new Error("The user's Mac hasn't been asked for Contacts access yet, so this cannot run. A window asking for it is now open on that Mac; ask the user to choose Allow next to Contacts there (or in aiTeamOS Settings → Computer → Messages → macOS permissions), then try again. Handles still work without names.");
     } else if (tool === "SendIMessage") {
       if (permissions.automation === "denied") throw new Error(missingGrant("Automation for Messages"));
     } else if (tool !== "CheckIMessagePermissions" && !permissions.fullDiskAccess) throw new Error(missingGrant("Full Disk Access"));
@@ -50,7 +50,7 @@ export class HostCapabilities {
     if (!value || typeof value !== "object" || Array.isArray(value))
       throw new Error("Invalid desktop request");
     const { tool, botId, callId, arguments: rawArgs = {} } = value as Record<string, any>;
-    const { parseReferenceArguments } = await import("@openteam/contracts/reference-parsers");
+    const { parseReferenceArguments } = await import("@aiteamos/contracts/reference-parsers");
     const args = ["RequestCookieOriginApproval", ...DESKTOP_MESSAGES_TOOLS].includes(tool) ? parseReferenceArguments(tool, rawArgs) : rawArgs;
     if (
       typeof botId !== "string" ||
@@ -67,10 +67,10 @@ export class HostCapabilities {
     if (!(DESKTOP_MESSAGES_TOOLS as readonly string[]).includes(tool))
       throw new Error("Unknown desktop capability");
     if (this.messagesGate && !await this.messagesGate.enabled())
-      throw new Error("Messages is turned off in the user's settings on this Mac, so their Messages cannot be read or sent from here. Do not retry while it stays off. If the user wants this, ask them to turn it back on in OpenTeam Settings → Computer → Messages on that Mac.");
+      throw new Error("Messages is turned off in the user's settings on this Mac, so their Messages cannot be read or sent from here. Do not retry while it stays off. If the user wants this, ask them to turn it back on in aiTeamOS Settings → Computer → Messages on that Mac.");
     await this.requireGrant(tool);
     const { MacMessages } = await import("./messages");
-    const { validateMessageSend } = await import("@openteam/contracts/messages-send");
+    const { validateMessageSend } = await import("@aiteamos/contracts/messages-send");
     const messages = this.messages ??= new MacMessages();
     if (tool === "SendIMessage") {
       const send = validateMessageSend(args);

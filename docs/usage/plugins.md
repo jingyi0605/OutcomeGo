@@ -22,7 +22,7 @@ Plugins connect your bots to services such as Gmail, GitHub, Slack, and Notion. 
 
 Slack, Granola, Notion, Google Drive, Google Docs, Google Sheets, and Google Slides include provider skills alongside their tools. See [the included skills and how to enable them](skills.md#skills-from-plugins). Gmail and Google Calendar provide tools without bundled skills.
 
-Plaid is a skills-only integration. After adding it, ask a Bot to set up Plaid on the computer that should hold your credentials. It installs the CLI and prepares Python helpers, asks for missing API keys, then sends a Hosted Link URL you can open on your laptop or phone. After bank login, tell the Bot “done” so it saves and verifies the connection. Bank connections live in that computer's CLI configuration rather than OpenTeam's Accounts section. See the [Plaid guide](../../packages/plugins/plaid/README.md).
+Plaid is a skills-only integration. After adding it, ask a Bot to set up Plaid on the computer that should hold your credentials. It installs the CLI and prepares Python helpers, asks for missing API keys, then sends a Hosted Link URL you can open on your laptop or phone. After bank login, tell the Bot “done” so it saves and verifies the connection. Bank connections live in that computer's CLI configuration rather than aiTeamOS's Accounts section. See the [Plaid guide](../../packages/plugins/plaid/README.md).
 
 ## Add a plugin
 
@@ -44,9 +44,9 @@ Gmail, Google Calendar, Google Drive, Google Docs, Google Sheets, and Google Sli
 
 ## Connect Slack to a self-hosted server
 
-Create an internal Slack app in your workspace and enter its client ID and client secret in OpenTeam. Your OpenTeam server keeps the authorization and connects directly to Slack's official MCP server. You can reuse the internal app for additional OpenTeam accounts in the same workspace.
+Create an internal Slack app in your workspace and enter its client ID and client secret in aiTeamOS. Your aiTeamOS server keeps the authorization and connects directly to Slack's official MCP server. You can reuse the internal app for additional aiTeamOS accounts in the same workspace.
 
-The Slack connection needs an HTTPS OpenTeam address. For a private deployment, use Tailscale Serve and keep Tailscale connected on your devices. Copy the exact callback URL from OpenTeam's account settings into the Slack app, enable **Agents → Enable Slack MCP Server**, then save the credentials in OpenTeam and authorize the workspace. The [Slack setup guide](../../packages/plugins/slack/README.md) includes a ready-to-use app manifest.
+The Slack connection needs an HTTPS aiTeamOS address. For a private deployment, use Tailscale Serve and keep Tailscale connected on your devices. Copy the exact callback URL from aiTeamOS's account settings into the Slack app, enable **Agents → Enable Slack MCP Server**, then save the credentials in aiTeamOS and authorize the workspace. The [Slack setup guide](../../packages/plugins/slack/README.md) includes a ready-to-use app manifest.
 
 ## Connected tools
 
@@ -62,10 +62,10 @@ Open **Marketplace → Manage → Accounts and settings** and choose the plugin 
 | **Reauthorize** | Signs in again, for accounts that sign in through the browser |
 | **Disconnect** | Stops the connection. The sign-in is kept. |
 | **Remove account** | Deletes the account. If it's the plugin's only account, it's reset instead. |
-| **Apply reviewed update** | Installs a new version after you review the changes. Plugins that ship with OpenTeam update on their own when OpenTeam updates, and their connected accounts reconnect. |
+| **Apply reviewed update** | Installs a new version after you review the changes. Plugins that ship with aiTeamOS update on their own when aiTeamOS updates, and their connected accounts reconnect. |
 | **Uninstall** | Removes the plugin and all its accounts |
 
-Removing an account in OpenTeam doesn't revoke access on the service's side. To do that, remove OpenTeam from the service's security or connected apps settings.
+Removing an account in aiTeamOS doesn't revoke access on the service's side. To do that, remove aiTeamOS from the service's security or connected apps settings.
 
 ## Add your own tools
 

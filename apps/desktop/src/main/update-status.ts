@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { isOpenTeamVersion } from "@openteam/contracts/version-compatibility";
-import { safeErrorMessage } from "@openteam/product-core/redaction";
+import { isAiTeamOSVersion } from "@aiteamos/contracts/version-compatibility";
+import { safeErrorMessage } from "@aiteamos/product-core/redaction";
 
 export type DesktopUpdateFailureKind =
   | "service-unavailable"
@@ -72,7 +72,7 @@ export const parseDesktopReleaseManifest = (
   }
   const record = value as Record<string, unknown>;
   const version = String(record.tag_name ?? record.version ?? "").replace(/^v/i, "");
-  if (!isOpenTeamVersion(version)) {
+  if (!isAiTeamOSVersion(version)) {
     throw new Error("Update service returned an invalid release version");
   }
   const candidateUrl = String(record.html_url ?? record.url ?? fallbackUrl);

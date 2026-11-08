@@ -5,10 +5,10 @@ import {
   serverInferenceSettings,
   type ServerInferenceSettings,
   type ServerSettingsView,
-} from "@openteam/contracts";
-import type { AgentDataStore } from "@openteam/messaging";
-import { COMPUTER_API_PATHS } from "@openteam/contracts/service-protocol";
-import { parseTaskConfiguration } from "@openteam/contracts/task-configuration";
+} from "@aiteamos/contracts";
+import type { AgentDataStore } from "@aiteamos/messaging";
+import { COMPUTER_API_PATHS } from "@aiteamos/contracts/service-protocol";
+import { parseTaskConfiguration } from "@aiteamos/contracts/task-configuration";
 import { serviceEffect } from "./service-utils";
 const CONNECTION_CHECK_TIMEOUT_MS = 60_000;
 

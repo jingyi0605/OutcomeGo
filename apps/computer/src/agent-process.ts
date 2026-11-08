@@ -19,8 +19,8 @@ export interface AgentProcessIdentity {
 export const agentProcessIdentity = (): AgentProcessIdentity => {
   if (process.getuid?.() !== 0) return {};
   return {
-    uid: numericIdentity(process.env.OPENTEAM_AGENT_UID, DEFAULT_AGENT_UID),
-    gid: numericIdentity(process.env.OPENTEAM_AGENT_GID, DEFAULT_AGENT_GID),
+    uid: numericIdentity(process.env.AITEAMOS_AGENT_UID, DEFAULT_AGENT_UID),
+    gid: numericIdentity(process.env.AITEAMOS_AGENT_GID, DEFAULT_AGENT_GID),
   };
 };
 
@@ -56,7 +56,7 @@ export function agentProcessGroupSignaler(child: ChildProcess): (signal: NodeJS.
 /** Initialize supplementary groups as well as the ordinary account's UID/GID. */
 export const spawnAgentProcess: typeof spawn = ((command: string, args: readonly string[], options: SpawnOptions) => {
   const identity = agentProcessIdentity();
-  const desktopId = options.env?.OPENTEAM_DESKTOP_ID;
+  const desktopId = options.env?.AITEAMOS_DESKTOP_ID;
   const group = desktopId ? desktopMemoryForSpawn(desktopId) : undefined;
   if (identity.uid === undefined) return spawn(command, args, options);
   if (group && options.shell) throw new Error("A capped desktop command must not use a supervisor shell");
@@ -65,7 +65,7 @@ export const spawnAgentProcess: typeof spawn = ((command: string, args: readonly
   // Join before setpriv/exec so ordinary commands and sudo descendants inherit
   // the budget while retaining the computer's administrator-access behavior.
   return group
-    ? spawn("/usr/lib/openteam/bin/openteam-desktop-exec", [group, "/usr/bin/setpriv", ...identityArgs], rest)
+    ? spawn("/usr/lib/aiteamos/bin/aiteamos-desktop-exec", [group, "/usr/bin/setpriv", ...identityArgs], rest)
     : spawn("/usr/bin/setpriv", identityArgs, rest);
 }) as typeof spawn;
 
@@ -73,13 +73,13 @@ export const spawnAgentProcess: typeof spawn = ((command: string, args: readonly
  * Bots' commands search the image's system folders first, then /usr/local, then the home folder's
  * tool folders. A tool a bot adds is found by name wherever it goes, but a copy that shares a
  * system tool's name never replaces it for the other bots, and every update's version wins. The
- * image's own tools are linked from /usr/bin. OpenTeam's own processes keep the computer's fixed
+ * image's own tools are linked from /usr/bin. aiTeamOS's own processes keep the computer's fixed
  * PATH (docker/computer-entrypoint.sh), which has neither /usr/local nor the home folder.
  */
 export const AGENT_SEARCH_PATHS = {
   PATH: "/usr/sbin:/usr/bin:/sbin:/bin:/usr/local/sbin:/usr/local/bin:/usr/games:/home/box/.local/bin:/home/box/.bun/bin:/home/box/.cargo/bin:/home/box/go/bin",
   // The image's Node libraries come first, so require("pptxgenjs") gets the version an update shipped.
-  NODE_PATH: "/usr/lib/openteam/node/lib/node_modules:/usr/local/lib/node_modules",
+  NODE_PATH: "/usr/lib/aiteamos/node/lib/node_modules:/usr/local/lib/node_modules",
   BUN_INSTALL_BIN: "/home/box/.bun/bin",
 };
 
@@ -109,7 +109,7 @@ const ALWAYS_PRIVATE_ENVIRONMENT_KEYS = new Set([
   "DATABASE_URL",
   "ENV",
   "NODE_OPTIONS",
-  "OPENTEAM_PI_AGENT_DIR",
+  "AITEAMOS_PI_AGENT_DIR",
   "PYTHONSTARTUP",
   "RUBYOPT",
 ]);

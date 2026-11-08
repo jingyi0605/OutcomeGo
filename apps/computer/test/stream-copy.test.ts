@@ -6,7 +6,7 @@ import {join} from "node:path";
 import {Readable} from "node:stream";
 import {HostFileTransfers} from "../../desktop/src/main/host/file-transfer";
 import {agentReadStream,agentWriteStream} from "../src/agent-file-stream";
-import {spoolFile} from "@openteam/plugin-sdk/file-spool";
+import {spoolFile} from "@aiteamos/plugin-sdk/file-spool";
 
 test("host and box stream a file above 256 MiB, with single-use permits and atomic failure",async()=>{
  const root=await mkdtemp(join(tmpdir(),"stream-copy-fixture-"));
@@ -33,6 +33,6 @@ test("host and box stream a file above 256 MiB, with single-use permits and atom
   const incomplete=await transfers.prepare({direction:"write",path:destination,bytes:20,machineId:"fixture"});
   expect((await fetch(`${base}/${incomplete.transferId}`,{method:"PUT",body:"short"})).status).toBe(400);
   expect(await readFile(destination,"utf8")).toBe("preserved");
-  expect((await readdir(root)).filter(name=>name.startsWith(".openteam-transfer"))).toEqual([]);
+  expect((await readdir(root)).filter(name=>name.startsWith(".aiteamos-transfer"))).toEqual([]);
  }finally{await new Promise<void>(resolve=>server.close(()=>resolve()));await rm(root,{recursive:true,force:true});}
 },60_000);

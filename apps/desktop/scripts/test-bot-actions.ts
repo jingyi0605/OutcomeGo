@@ -5,8 +5,8 @@ import { createRequire } from "node:module";
 import { createServer } from "vite";
 
 const require = createRequire(import.meta.url);
-const directory = await mkdtemp(join(tmpdir(), "openteam-bot-actions-"));
-const screenshot = join(tmpdir(), "openteam-bot-actions.png");
+const directory = await mkdtemp(join(tmpdir(), "aiteamos-bot-actions-"));
+const screenshot = join(tmpdir(), "aiteamos-bot-actions.png");
 const server = await createServer({
   root: resolve(import.meta.dir, ".."),
   configFile: resolve(import.meta.dir, "../vite.config.ts"),

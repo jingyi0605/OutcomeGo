@@ -185,7 +185,7 @@
       "id": "rich-content-and-attachments",
       "area": "Message features",
       "iosSchemes": ["MessageParity", "QAAudit"],
-      "androidChecks": ["com.openteam.features message tests"],
+      "androidChecks": ["com.aiteamos.features message tests"],
       "status": "scaffolded",
       "owner": "features",
       "risk": "high",

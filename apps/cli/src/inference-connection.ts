@@ -1,4 +1,4 @@
-import { redactSensitiveText } from "@openteam/product-core/redaction";
+import { redactSensitiveText } from "@aiteamos/product-core/redaction";
 import type { ComposeProject } from "./docker";
 import type { RuntimeInferenceSettings } from "./runtime-settings";
 
@@ -10,9 +10,9 @@ const PROBE_SCRIPT = String.raw`
 let result;
 try {
   const input = JSON.parse(await Bun.stdin.text());
-  const token = process.env.OPENTEAM_CONTROL_TOKEN;
+  const token = process.env.AITEAMOS_CONTROL_TOKEN;
   if (!token) throw new Error("The server control token is missing");
-  const url = new URL("/v1/infer", process.env.OPENTEAM_COMPUTER_URL ?? "http://127.0.0.1:8790");
+  const url = new URL("/v1/infer", process.env.AITEAMOS_COMPUTER_URL ?? "http://127.0.0.1:8790");
   const response = await fetch(url, {
     method: "POST",
     headers: { authorization: "Bearer " + token, "content-type": "application/json" },

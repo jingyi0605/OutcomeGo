@@ -2,18 +2,18 @@ import type { Metadata } from "next";
 
 export const SITE_URL = "https://openteam.so";
 // Search results show the title and description, so both lead with the terms people search for.
-export const SITE_TITLE = "OpenTeam: Run your own team of self-hosted AI agents";
+export const SITE_TITLE = "aiTeamOS: Run your own team of self-hosted AI agents";
 export const SITE_DESCRIPTION =
   "Open-source AI agents that run on your hardware. Each gets its own computer and browser, works in your apps, remembers how you work, and delegates to teammates.";
-export const GITHUB_URL = "https://github.com/raghavpillai/openteam";
+export const GITHUB_URL = "https://github.com/jingyi0605/ai-TeamOS";
 
 // Change the image URL when the artwork changes so share crawlers fetch it again.
 const SOCIAL_IMAGE = {
-  url: `${SITE_URL}/social/openteam-2026-09-13.png`,
+  url: `${SITE_URL}/social/aiteamos-2026-09-13.png`,
   width: 1200,
   height: 630,
   type: "image/png",
-  alt: "OpenTeam — Run your own AI team. Digital workers on your compute. Open source and self-hosted, with the teal 2D OpenTeam bot.",
+  alt: "aiTeamOS — Run your own AI team. Digital workers on your compute. Open source and self-hosted, with the teal 2D aiTeamOS bot.",
 };
 
 export type ArticleMetadata = {
@@ -49,7 +49,7 @@ export function pageMetadata({
       title,
       description,
       url,
-      siteName: "OpenTeam",
+      siteName: "aiTeamOS",
       locale: "en_US",
       images: [{ ...social, secureUrl: social.url }],
       ...(article ? { type: "article" as const, ...article } : { type: "website" as const }),

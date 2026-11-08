@@ -34,7 +34,7 @@ def configs(name, settings):
     for mode in ['Debug', 'Release']:
         build = dict(settings)
         if name == 'app':
-            build.update(APP_DISPLAY_NAME='OpenTeam Swift' if mode == 'Debug' else 'OpenTeam', APP_URL_SCHEME='openteam-swift' if mode == 'Debug' else 'openteam')
+            build.update(APP_DISPLAY_NAME='OpenTeam Swift' if mode == 'Debug' else 'OpenTeam', APP_URL_SCHEME='aiteamos-swift' if mode == 'Debug' else 'aiteamos')
             build['ENABLE_TESTABILITY'] = 'YES' if mode == 'Debug' else 'NO'
         if name == 'share':
             build.update(APP_DISPLAY_NAME='OpenTeam Swift' if mode == 'Debug' else 'OpenTeam', APP_BUNDLE_IDENTIFIER='dev.openteam.mobile.swift' if mode == 'Debug' else release['bundleIdentifier'])
@@ -148,7 +148,7 @@ system_ref = reference(system_target, 'OpenTeamSystemTests.xctest')
 system_scheme = (schemes / 'OpenTeamNative.xcscheme').read_text()
 system_scheme = system_scheme.replace(f'{test_ref}<SkippedTests>', f'{system_ref}<SkippedTests>')
 system_scheme = system_scheme.replace('shouldUseLaunchSchemeArgsEnv="YES"', 'shouldUseLaunchSchemeArgsEnv="NO"', 1)
-system_scheme = system_scheme.replace('</Testables></TestAction>', '</Testables><EnvironmentVariables><EnvironmentVariable key="OPENTEAM_SYSTEM_TEST_HOST" value="1" isEnabled="YES"/></EnvironmentVariables></TestAction>')
+system_scheme = system_scheme.replace('</Testables></TestAction>', '</Testables><EnvironmentVariables><EnvironmentVariable key="AITEAMOS_SYSTEM_TEST_HOST" value="1" isEnabled="YES"/></EnvironmentVariables></TestAction>')
 (schemes / 'SystemIntents.xcscheme').write_text(system_scheme)
 
 visual_scheme = (schemes / 'OpenTeamNative.xcscheme').read_text().replace('<SkippedTests><Test Identifier="LiveBackendUITests"/><Test Identifier="QAAuditUITests"/><Test Identifier="SettingsPluginAuditUITests"/><Test Identifier="NativePushUITests"/></SkippedTests>', '<SelectedTests><Test Identifier="SelectedUITests"/></SelectedTests>')

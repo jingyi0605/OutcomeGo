@@ -3,17 +3,17 @@ import { createHash } from "node:crypto";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { AgentDataStore } from "@openteam/messaging";
-import { parsePluginRuntimeComponents } from "@openteam/plugin-sdk";
-import { exportPackageArchive, importPackageArchive } from "@openteam/plugin-sdk/archive";
-import { pluginCatalog } from "@openteam/plugins";
+import { AgentDataStore } from "@aiteamos/messaging";
+import { parsePluginRuntimeComponents } from "@aiteamos/plugin-sdk";
+import { exportPackageArchive, importPackageArchive } from "@aiteamos/plugin-sdk/archive";
+import { pluginCatalog } from "@aiteamos/plugins";
 import { resolveUpstreamPlugin } from "../../src/plugins/upstream-package";
 
 // Opt-in network QA: no provider text is copied into the repository and no account tools are called.
-test.skipIf(process.env.OPENTEAM_TEST_UPSTREAM_SOURCES !== "1")(
+test.skipIf(process.env.AITEAMOS_TEST_UPSTREAM_SOURCES !== "1")(
   "pinned provider originals install, export, and materialize with exact source bytes",
   async () => {
-    const root = await mkdtemp(join(tmpdir(), "openteam-original-source-"));
+    const root = await mkdtemp(join(tmpdir(), "aiteamos-original-source-"));
     try {
       const store = new AgentDataStore({} as never, {
         root,

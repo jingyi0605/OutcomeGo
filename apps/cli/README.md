@@ -1,17 +1,17 @@
-# OpenTeam CLI
+# aiTeamOS CLI
 
 ## Private HTTPS and plugin sign-in
 
-Setup always shows the Connection step, including a dedicated **Tailscale HTTPS** choice with HTTPS port selection. Eligible detected routes are recommended and existing matching private routes can be reused, including custom ports. `openteam tailscale enable [--https-port 14443]`, `openteam tailscale status`, and `openteam tailscale disable` provide explicit management after setup; all accept `--dir` and `--json`. Desktop **Settings → Server → Remote access** provides local controls and host-side instructions for remote installations.
+Setup always shows the Connection step, including a dedicated **Tailscale HTTPS** choice with HTTPS port selection. Eligible detected routes are recommended and existing matching private routes can be reused, including custom ports. `aiteamos tailscale enable [--https-port 14443]`, `aiteamos tailscale status`, and `aiteamos tailscale disable` provide explicit management after setup; all accept `--dir` and `--json`. Desktop **Settings → Server → Remote access** provides local controls and host-side instructions for remote installations.
 
-The resulting `tailscale` access mode uses loopback backend ports and a persistent private Serve mapping. Enable restarts the stack and verifies DNS, endpoint health, and TLS. Failure restores the previous configuration with an actionable error, without silently falling back to HTTP. Disable switches to local access and removes only unchanged mappings recorded as OpenTeam-owned in `tailscale-routes.json`; reused user-managed mappings and other routes/Funnel settings are preserved. Keep Tailscale running and signed in, with MagicDNS and HTTPS certificates enabled. Reconnect apps after URL changes. A custom HTTPS domain remains available. Plugin sign-in follows `OPENTEAM_PUBLIC_URL`: HTTPS uses one stable server callback, HTTP uses manual loopback callback paste for compatible providers. Neither requires an OpenTeam-hosted service. Google registration differs by method; see [Google setup](../../docs/integrations/google.md).
+The resulting `tailscale` access mode uses loopback backend ports and a persistent private Serve mapping. Enable restarts the stack and verifies DNS, endpoint health, and TLS. Failure restores the previous configuration with an actionable error, without silently falling back to HTTP. Disable switches to local access and removes only unchanged mappings recorded as aiTeamOS-owned in `tailscale-routes.json`; reused user-managed mappings and other routes/Funnel settings are preserved. Keep Tailscale running and signed in, with MagicDNS and HTTPS certificates enabled. Reconnect apps after URL changes. A custom HTTPS domain remains available. Plugin sign-in follows `AITEAMOS_PUBLIC_URL`: HTTPS uses one stable server callback, HTTP uses manual loopback callback paste for compatible providers. Neither requires an aiTeamOS-hosted service. Google registration differs by method; see [Google setup](../../docs/integrations/google.md).
 
 ## First installation and prerequisites
 
 The shell and PowerShell installers install and verify the CLI before starting server setup.
 The shell installer adds its directory (`~/.local/bin` by default) to `PATH` in the startup file
 for `$SHELL`: `~/.zshrc` (or `$ZDOTDIR/.zshrc`), `~/.bashrc` plus the login profile on macOS,
-`~/.config/fish/conf.d/openteam.fish`, or `~/.profile`. Set `OPENTEAM_NO_MODIFY_PATH=1` to skip
+`~/.config/fish/conf.d/aiteamos.fish`, or `~/.profile`. Set `AITEAMOS_NO_MODIFY_PATH=1` to skip
 this. Until a new terminal opens, CLI hints name the installed binary by its absolute path.
 
 Docker is required for the server. If the docker command is missing, setup prints where to get
@@ -19,19 +19,19 @@ Docker and the command to run afterwards. In an interactive macOS terminal, setu
 installed Docker Desktop whose engine is stopped and waits up to two minutes for it. If the
 engine is still unavailable or inaccessible, or Compose is missing or older than 2.20.0, setup
 stops with an explanation and recovery steps. The CLI stays installed, and preflight does not
-create server configuration or start containers. After fixing the problem, run `openteam setup`;
-it installs the server if necessary or resumes an existing installation. `openteam doctor` can
+create server configuration or start containers. After fixing the problem, run `aiteamos setup`;
+it installs the server if necessary or resumes an existing installation. `aiteamos doctor` can
 also check prerequisites before installation.
 
 Automatic setup starts after a five-second countdown once preflight passes. Press Enter to start
 now, or Esc, q, or Ctrl+C to cancel; other keys are ignored. After cancelling, the CLI stays
 installed and prints the command to continue later. Cancellation happens before downloading
-server configuration or images. Explicit `openteam setup` starts immediately. `--no-setup` skips
+server configuration or images. Explicit `aiteamos setup` starts immediately. `--no-setup` skips
 both the countdown and guided setup.
 
 In a noninteractive shell, prerequisite errors still appear. Once preflight passes, guided
 installation asks you to continue in a terminal before downloading server configuration.
-The explicit `openteam install --no-setup` automation path remains available.
+The explicit `aiteamos install --no-setup` automation path remains available.
 
 ```sh
 bun run test:install
@@ -70,7 +70,7 @@ under `output/installer-demo` at the repository root.
 
 ## Status and health
 
-`openteam status` and `openteam health` are aliases. Both show the containers for the selected
+`aiteamos status` and `aiteamos health` are aliases. Both show the containers for the selected
 installation, Docker health checks, setup job results, and the local server's readiness and release.
 Use `--dir <path>` to check another installation. Commands shown in the report keep that directory.
 
@@ -82,18 +82,18 @@ shown as completed. Containers without a Docker health check are labeled explici
 Neither command changes configuration or starts services, and neither sends a model request.
 The services' bounded self-tests create and clean up diagnostic queue jobs and temporary workspace files. Exit code `0` means the required services
 and server are ready; `2` means they are not ready or could not be checked. Provider setup is shown
-separately and does not make healthy containers fail. Use `openteam doctor` for deeper diagnostics.
+separately and does not make healthy containers fail. Use `aiteamos doctor` for deeper diagnostics.
 The existing `status --json-progress` behavior for desktop-managed updates also works with `health`.
 
 ```sh
-openteam status
-openteam health --dir /path/to/installation
+aiteamos status
+aiteamos health --dir /path/to/installation
 bun run test:status
 bun run preview:status --list
 bun run preview:status --scenario unhealthy --width 40
 bun run preview:status --scenario docker-stopped --no-color
-bun run preview:status --scenario all --output /tmp/openteam-status-reports
-bun run preview:status --gallery /tmp/openteam-status-gallery
+bun run preview:status --scenario all --output /tmp/aiteamos-status-reports
+bun run preview:status --gallery /tmp/aiteamos-status-gallery
 ```
 
 Status tests cover 41 scenarios through the collector and both CLI entry points, including Docker
@@ -150,8 +150,8 @@ bun run preview:doctor --list
 bun run preview:doctor --scenario docker-missing
 bun run preview:doctor --scenario docker-stopped --width 40 --compact
 bun run preview:doctor --scenario provider-quota --no-color
-bun run preview:doctor --scenario all --output /tmp/openteam-doctor-reports
-bun run preview:doctor --gallery /tmp/openteam-doctor-gallery
+bun run preview:doctor --scenario all --output /tmp/aiteamos-doctor-reports
+bun run preview:doctor --gallery /tmp/aiteamos-doctor-gallery
 ```
 
 Open the generated gallery's `index.html` to switch between scenarios, widths, full/compact
@@ -159,7 +159,7 @@ reports, and light/dark palettes. It displays the renderer's actual ANSI text; i
 shell connection. Review deliberate layout changes before updating snapshots with
 `bun test ./test/doctor-matrix-ui.test.ts --update-snapshots`.
 
-Install and manage the self-hosted OpenTeam server stack. It requires a running Docker Engine for
+Install and manage the self-hosted aiTeamOS server stack. It requires a running Docker Engine for
 Linux containers, the Docker CLI, and Compose 2.20 or newer. The supported installer downloads a
 native CLI, so Node.js and Bun are not required.
 
@@ -175,27 +175,27 @@ curl -fsSL https://openteam.so/install | sh
 ## Commands
 
 ```text
-openteam install
-openteam setup
-openteam doctor
-openteam status
-openteam update
-openteam stop
-openteam start
-openteam logs
-openteam provider <list|login|logout|add|remove>
-openteam model [list|use]
-openteam account update
-openteam uninstall
+aiteamos install
+aiteamos setup
+aiteamos doctor
+aiteamos status
+aiteamos update
+aiteamos stop
+aiteamos start
+aiteamos logs
+aiteamos provider <list|login|logout|add|remove>
+aiteamos model [list|use]
+aiteamos account update
+aiteamos uninstall
 ```
 
-Run `openteam <command> --help` or `openteam help <command>` for command-specific usage and
+Run `aiteamos <command> --help` or `aiteamos help <command>` for command-specific usage and
 options. Provider and model subcommands have their own help pages as well.
 
 `start` and setup check for port conflicts before starting containers, including Tailscale Serve
 listeners that can block Docker's host port forwarding even when Docker reports a running server.
 Loopback servers behind Tailscale Serve are allowed. Conflicts report the affected port and how to
-inspect or change the listener; setup only creates the reviewed OpenTeam HTTPS route. While waiting
+inspect or change the listener; setup only creates the reviewed aiTeamOS HTTPS route. While waiting
 for readiness, the CLI prints the health URL, current failure, and elapsed time. If the server is
 ready inside Docker but remains unreachable from the host, startup reports a forwarding error
 instead of waiting the full three minutes.
@@ -205,10 +205,10 @@ Storage initialization and database migrations run as one-time jobs. Docker disp
 they finish; exit code `0` means they completed successfully. The server, worker, database, and
 computer services keep running.
 Repeating `start` still runs preflight. If all required services and the expected server release are
-ready, it prints `OpenTeam is already running` with the connection addresses and leaves the services
-and completed setup jobs alone. Otherwise it reports whether OpenTeam is stopped, partially running,
+ready, it prints `aiTeamOS is already running` with the connection addresses and leaves the services
+and completed setup jobs alone. Otherwise it reports whether aiTeamOS is stopped, partially running,
 or not ready before starting or checking the services.
-`start` requires completed account setup and directs unfinished installations to `openteam setup`.
+`start` requires completed account setup and directs unfinished installations to `aiteamos setup`.
 
 Connecting an AI provider can be skipped during setup; services can still run, but startup explicitly
 reports that AI tasks need a provider connection. `install --no-setup` remains an explicit automation
@@ -225,9 +225,9 @@ Missing APNs credentials warn for installations without an eligible iPhone and f
 iPhone needs push delivery. Import APNs credentials with:
 
 ```sh
-openteam notifications configure --config ./apns.json
-openteam notifications status
-openteam doctor
+aiteamos notifications configure --config ./apns.json
+aiteamos notifications status
+aiteamos doctor
 ```
 
 `apns.json` contains `keyId`, `teamId`, `topic` (the distributed app uses
@@ -239,7 +239,7 @@ by the status API. Back up the database and installation `.env` together, and re
 so you can import it again if the installation control token changes.
 Workers read this setting before each push and refresh their Apple authentication token and connections
 when it changes. Neither the deployment nor the worker needs to restart. The database setting takes
-precedence over legacy `OPENTEAM_APNS_*` environment credentials; editing those environment values
+precedence over legacy `AITEAMOS_APNS_*` environment credentials; editing those environment values
 still requires worker recreation. Older releases need one update to gain this command and runtime support.
 
 These server-side checks run on Linux and macOS, do not send test alerts, and do not prove Apple
@@ -248,13 +248,13 @@ Output wraps to the terminal width and respects `NO_COLOR` and `TERM=dumb`. Redi
 no color escapes; `--version`, update JSON progress, and raw Docker log streams keep their existing
 formats. Human update progress shows each phase as it happens.
 
-`openteam install` enters staged setup in the same command. The standalone `openteam setup` command
+`aiteamos install` enters staged setup in the same command. The standalone `aiteamos setup` command
 reconfigures an existing installation without changing its owner or signing out active sessions.
 Fresh installs automatically use a detected Tailscale, WireGuard, or LAN address for private-network
-access and create the OpenTeam username and password. Setup asks every question before it downloads
+access and create the aiTeamOS username and password. Setup asks every question before it downloads
 the server images, then starts the server and points to the desktop and iPhone apps, which connect a
-model. Setup never reads or changes model settings; on a server without the apps, use `openteam model`
-and `openteam provider`. `openteam setup` reviews connection modes; `--advanced` also exposes the API
+model. Setup never reads or changes model settings; on a server without the apps, use `aiteamos model`
+and `aiteamos provider`. `aiteamos setup` reviews connection modes; `--advanced` also exposes the API
 port, time zone, and tasks at once. Public HTTPS uses a bundled Caddy service:
 point a domain's A/AAAA record at the VM and open inbound TCP ports 80 and 443, and Caddy obtains and
 renews the certificate automatically. No certificate needs to exist on the VM beforehand.
@@ -272,14 +272,14 @@ acknowledgement. Internet-facing modes keep the raw screen-viewer range on loopb
 may expose it only within the trusted LAN or VPN.
 
 Passwords are hidden, confirmed, and sent to the server over stdin; they are never stored in `.env`.
-Use `openteam account update` to interactively replace both credentials. Pass `--username <name>`
+Use `aiteamos account update` to interactively replace both credentials. Pass `--username <name>`
 for a username-only update, `--password` for a hidden password-only prompt, or combine the flags.
-Every credential update revokes all current sessions. Use `openteam setup --advanced` to override
+Every credential update revokes all current sessions. Use `aiteamos setup --advanced` to override
 the connection mode, hostname, local API port, time zone, or number of tasks that can run at once.
 The time zone, private-network address, free API port, and initial task limit are detected when possible.
 The setup header shows the CLI version; the installed server release is labeled separately.
 
-Run `openteam model` to open the interactive model editor for an installed, running server. Left/Right
+Run `aiteamos model` to open the interactive model editor for an installed, running server. Left/Right
 switch between **Inference** and **Transcription**; Up/Down moves the highlight and Enter selects or
 edits a field. Each tab has its own **Save** action. Esc goes back and asks before discarding unsaved
 edits. Add `--dir /path/to/installation` to select another installation.
@@ -296,7 +296,7 @@ URLs out of the main flow. Codes and API keys are masked.
 macOS Keychain. `CLAUDE_CONFIG_DIR` selects a custom credentials file; a missing custom file
 never falls back to another account's default Keychain entry. **Use Codex login** reads
 `~/.codex/auth.json` (or `CODEX_HOME`). Importing is an explicit action: credentials travel over
-stdin to this OpenTeam server and never appear in command arguments. Missing, expired, or
+stdin to this aiTeamOS server and never appear in command arguments. Missing, expired, or
 unreadable credentials leave Browser sign-in and Back available. A completed connection opens
 that provider's model picker; the active model changes only when you save.
 
@@ -310,11 +310,11 @@ key or explicit deletion and never transfers a stored key.
 **Test saved connection** checks the provider and model catalog; send a voice note to verify actual
 audio transcription. Transcription needs its own API credentials, separate from ChatGPT sign-in.
 
-`openteam model list` and `openteam model use <provider> <model>` remain available for scripts.
+`aiteamos model list` and `aiteamos model use <provider> <model>` remain available for scripts.
 To inspect UI states without changing server settings, run `bun run preview:model --gallery
 ../../output/model-ui` from `apps/cli`, or run `bun run test:model` for keyboard, HTTP, and terminal tests.
 
-Use `openteam provider login [provider]` to configure OAuth/subscription or API-key authentication without repeating server setup. `provider list` shows Anthropic, the two OpenAI authentication modes, and custom endpoints you have added. Anthropic offers Claude Pro/Max OAuth or an API key; OpenAI API access uses `openai`, while ChatGPT/Codex OAuth uses `openai-codex` and its separate subscription catalog.
+Use `aiteamos provider login [provider]` to configure OAuth/subscription or API-key authentication without repeating server setup. `provider list` shows Anthropic, the two OpenAI authentication modes, and custom endpoints you have added. Anthropic offers Claude Pro/Max OAuth or an API key; OpenAI API access uses `openai`, while ChatGPT/Codex OAuth uses `openai-codex` and its separate subscription catalog.
 
 `model list` lists chat models reported by connected providers, grouped by provider. Use `model list
 anthropic` to narrow it. Missing credentials, rejected requests, or unavailable discovery produce
@@ -324,11 +324,11 @@ model metadata; it does not grant access or supply a fallback list. Selection ch
 Custom endpoints can use Pi's `openai-completions`, `openai-responses`, `anthropic-messages`, or `google-generative-ai` adapters. For example:
 
 ```sh
-openteam provider add local --name "Local models" \
+aiteamos provider add local --name "Local models" \
   --base-url http://host.docker.internal:11434/v1 \
   --api openai-completions --no-auth
-openteam model list local
-openteam model
+aiteamos model list local
+aiteamos model
 ```
 
 Use an endpoint reachable from the **computer container**. Its `localhost` is the container itself.
@@ -343,12 +343,12 @@ Anthropic uses `/v1/models`, and Google-compatible endpoints use `/v1beta/models
 base URL. Discovery support is required for selectable chat models. Provider catalogs do not always
 declare model types: capability metadata takes priority, followed by known model families. Opaque
 IDs on a custom chat endpoint are treated as chat models. A listed model is not a guarantee of
-quota, billing, or tool support; `openteam doctor` tests a real inference request.
+quota, billing, or tool support; `aiteamos doctor` tests a real inference request.
 See [model provider setup](../../docs/configuration/models.md).
 
-`openteam logs`
+`aiteamos logs`
 shows the most recent 200 lines; add `--follow`, `--tail <lines>`, or `--service <name>` to narrow a
-diagnostic session. Existing-proxy mode keeps OpenTeam on loopback and prints the HTTP upstream; the
+diagnostic session. Existing-proxy mode keeps aiTeamOS on loopback and prints the HTTP upstream; the
 external proxy must forward HTTPS and WebSocket upgrades to it and replace inbound
 `X-Forwarded-*` headers with values derived from its own connection.
 
@@ -362,10 +362,10 @@ the retained database backup before restarting the prior release. The latest job
 `update-state.json`; backups are retained under `backups/` for operator recovery.
 
 The Electron client can run this command locally or over non-interactive SSH. Remote use requires a
-working SSH agent, an existing host-key entry, and `openteam` on the remote command path. Password and
+working SSH agent, an existing host-key entry, and `aiteamos` on the remote command path. Password and
 host-key prompts are intentionally rejected.
 
-`openteam update` remains the only update command an operator needs. When a newer standalone CLI is
+`aiteamos update` remains the only update command an operator needs. When a newer standalone CLI is
 part of the target release, the current CLI downloads and verifies it, then hands the transaction
 to that staged executable. The worker follows a replayable high-level progress journal and performs
 the server-stack restart only after release verification, image download, and backup finish. It
@@ -377,10 +377,10 @@ reattaches to the active job. Detailed worker output is retained in `update.log`
 events are retained in `update-events.jsonl` beside `update-state.json`.
 
 An installation whose CLI predates self-update support must re-run the installer once. After that
-bootstrap, normal releases require only `openteam update`.
+bootstrap, normal releases require only `aiteamos update`.
 
 `uninstall` removes the containers but preserves the installation configuration and Docker volumes.
-Use `openteam uninstall --purge` to permanently delete the installation data.
+Use `aiteamos uninstall --purge` to permanently delete the installation data.
 
 ### Disk maintenance
 
@@ -394,7 +394,7 @@ The 4 GiB free-space preflight still applies: retention does not make a nearly f
 
 - **Images:** `image-retention.json` records exact image IDs for this installation, including all
   Compose services/profiles and its actual containers before mutable tags are pulled. Current and
-  immediately prior good stacks receive durable `openteam-retention-<installation UUID>:<image ID>`
+  immediately prior good stacks receive durable `aiteamos-retention-<installation UUID>:<image ID>`
   tags. On later successful updates, an older image can be removed only if its recorded retention
   tag is its sole tag and no running **or stopped** container on the host references it. Other
   installations' retention tags, manually tagged images, and untracked images are preserved.
@@ -412,7 +412,7 @@ The 4 GiB free-space preflight still applies: retention does not make a nearly f
   dumps, matching but unregistered filenames, and backup directories remain untouched. Failed-update
   dumps stay until a later successful update applies retention. Traversal, symlinked paths, and
   multiply linked files are refused or preserved. **Older owned restore points are deleted** by this
-  policy. Set `OPENTEAM_BACKUP_RETENTION_COUNT=0` in the installation's `.env` before updating to
+  policy. Set `AITEAMOS_BACKUP_RETENTION_COUNT=0` in the installation's `.env` before updating to
   disable backup deletion, or use a larger positive count. Invalid values skip deletion. To preserve
   a particular dump indefinitely, copy it to private off-host storage or a manual subdirectory under
   `backups/` before the next successful update; only its registered top-level copy is eligible for
@@ -430,9 +430,9 @@ The 4 GiB free-space preflight still applies: retention does not make a nearly f
 - **Container logs:** every release Compose service uses Docker `json-file` rotation with **10 MiB ×
   3 files per container** (about 30 MiB). The release renderer preserves these source settings. They
   take effect when containers are recreated. **Oldest container log files are discarded**; these
-  logs are diagnostic history, not disposable cache. Set `OPENTEAM_LOG_MAX_SIZE` and
-  `OPENTEAM_LOG_MAX_FILES` in the installation's `.env` to increase the limits, or set
-  `OPENTEAM_LOG_MAX_SIZE=-1` to disable rotation (unbounded disk use). Export logs before updating
+  logs are diagnostic history, not disposable cache. Set `AITEAMOS_LOG_MAX_SIZE` and
+  `AITEAMOS_LOG_MAX_FILES` in the installation's `.env` to increase the limits, or set
+  `AITEAMOS_LOG_MAX_SIZE=-1` to disable rotation (unbounded disk use). Export logs before updating
   or recreating containers, for example with `docker logs --timestamps <container> > private-log.txt`,
   and use a log collector for durable history. Host journals and application data are unaffected.
 
@@ -443,14 +443,14 @@ On a shared host, select the builder used for those experiments with `docker bui
 `docker buildx prune --builder <experiment-builder> --filter 'until=168h' --max-used-space 4gb`.
 This interactively removes eligible old unused cache only from that selected builder toward a
 4 GB cache target; shared layers still used by images may remain. The builder may serve other projects,
-so coordinate with its owners. Avoid global `docker system prune`/volume pruning as routine OpenTeam
+so coordinate with its owners. Avoid global `docker system prune`/volume pruning as routine aiTeamOS
 maintenance. Review legacy images by exact ID and all container references before removing any.
 
 The preservation regressions run in installer CI on Linux, macOS, and Windows. For real-daemon
 validation, select an isolated throwaway Docker context and run
-`OPENTEAM_TEST_DOCKER_CONTEXT=<test-context> bun apps/cli/scripts/test-disk-maintenance-docker.ts`.
+`AITEAMOS_TEST_DOCKER_CONTEXT=<test-context> bun apps/cli/scripts/test-disk-maintenance-docker.ts`.
 The harness removes only its exact fixture resources and never prunes the daemon. Linux CI also
-runs this harness. For a real browser restart check, set `OPENTEAM_TEST_CHROMIUM_EXECUTABLE` to a
+runs this harness. For a real browser restart check, set `AITEAMOS_TEST_CHROMIUM_EXECUTABLE` to a
 Chromium executable and run `bun apps/computer/scripts/test-browser-cache-maintenance.ts`. This
 uses a temporary profile and loopback fixture login; it verifies authentication and persistent
 site storage after actual cache removal and a browser restart, without opening user profiles.

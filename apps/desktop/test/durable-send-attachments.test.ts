@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { AssetRef, ChannelMessageView } from "@openteam/contracts";
+import type { AssetRef, ChannelMessageView } from "@aiteamos/contracts";
 import {
   createDurableSendController,
   parseDurableSendJournal,
@@ -10,7 +10,7 @@ import {
   type DurableSendPayload,
   type DurableSendRecord,
   type DurableStagedAttachment,
-} from "@openteam/product-core/durable-delivery";
+} from "@aiteamos/product-core/durable-delivery";
 import { DurableSendJournalStore } from "../src/main/durable-send-journal-store";
 
 const assets = (count: number): AssetRef[] => Array.from({ length: count }, (_, index) => ({
@@ -32,7 +32,7 @@ const payload = (count: number, mode: "uploaded" | "staged" | "mixed"): DurableS
 };
 
 const fixture = async () => {
-  const directory = await mkdtemp(join(tmpdir(), "openteam-attachment-restart-"));
+  const directory = await mkdtemp(join(tmpdir(), "aiteamos-attachment-restart-"));
   const scope = "attachment-restart", target = { channelId: "channel-1", conversationId: null };
   let offline = true, nonce = 0, clock = 1000;
   const dispatches: DurableSendRecord[] = [], commits: DurableStagedAttachment[][] = [];

@@ -7,7 +7,7 @@ const electron = createRequire(import.meta.url)("electron") as string;
 const fixture = process.argv.includes("--microphone") ? "microphone" : "voice-note";
 const outputIndex = process.argv.indexOf("--output");
 const output = outputIndex === -1 ? null : resolve(process.argv[outputIndex + 1]!);
-const directory = await mkdtemp(join(tmpdir(), "openteam-voice-note-browser-"));
+const directory = await mkdtemp(join(tmpdir(), "aiteamos-voice-note-browser-"));
 try {
   const build = await Bun.build({
     entrypoints: [resolve(import.meta.dir, `../test/browser/${fixture}.tsx`)],
@@ -32,7 +32,7 @@ try {
     ],
     define: {
       "process.env.NODE_ENV": '"development"',
-      "import.meta.env.VITE_OPENTEAM_API_URL": '"http://localhost:8787"',
+      "import.meta.env.VITE_AITEAMOS_API_URL": '"http://localhost:8787"',
     },
   });
   if (!build.success) throw new Error(build.logs.join("\n"));

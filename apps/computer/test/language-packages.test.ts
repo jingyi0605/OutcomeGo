@@ -13,7 +13,7 @@ async function distribution(sitePackages: string, name: string, requested: boole
 }
 
 async function scratch() {
-  const root = await mkdtemp(join(tmpdir(), "openteam-languages-"));
+  const root = await mkdtemp(join(tmpdir(), "aiteamos-languages-"));
   const home = join(root, "home");
   await distribution(join(root, "usr/local/lib/python3.12/dist-packages"), "Rich", true);
   await distribution(join(root, "usr/local/lib/python3.12/dist-packages"), "markdown-it-py", false);
@@ -49,7 +49,7 @@ test("a Python or Node version change reinstalls and rebuilds the bots' packages
   expect(calls).toEqual([
     "/usr/bin/python3 -I -m pip install --break-system-packages --no-input --disable-pip-version-check --root-user-action=ignore Rich",
     "/usr/bin/setpriv --reuid=1000 --regid=1000 --init-groups -- /usr/bin/python3 -m pip install --break-system-packages --no-input --disable-pip-version-check --user humanize",
-    "/usr/bin/setpriv --reuid=1000 --regid=1000 --init-groups -- /usr/lib/openteam/bin/uv tool install --reinstall --python /usr/bin/python3 ruff",
+    "/usr/bin/setpriv --reuid=1000 --regid=1000 --init-groups -- /usr/lib/aiteamos/bin/uv tool install --reinstall --python /usr/bin/python3 ruff",
     "/usr/bin/npm rebuild --global",
   ]);
   // Same versions, or no versions recorded before this start: nothing to do.

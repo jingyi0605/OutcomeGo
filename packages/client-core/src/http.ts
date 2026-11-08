@@ -1,35 +1,35 @@
 /** Minimal cross-platform fetch surface; avoids Bun/browser-specific static properties. */
-export type OpenTeamFetch = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+export type AiTeamOSFetch = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 
-export interface OpenTeamTransportOptions {
+export interface AiTeamOSTransportOptions {
   baseUrl: string;
-  fetch?: OpenTeamFetch;
+  fetch?: AiTeamOSFetch;
   getAuthToken?: () => string | null | Promise<string | null>;
   onUnauthorized?: (authToken: string | null) => void;
 }
 
-export class OpenTeamClientError extends Error {
+export class AiTeamOSClientError extends Error {
   constructor(
     message: string,
     readonly code = "request_failed",
     readonly status = 0
   ) {
     super(message);
-    this.name = "OpenTeamClientError";
+    this.name = "AiTeamOSClientError";
   }
 }
 
 export const normalizeBaseUrl = (value: string): string => {
   const trimmed = value.trim();
-  if (!trimmed) throw new Error("OpenTeam server URL is required");
+  if (!trimmed) throw new Error("aiTeamOS server URL is required");
   let parsed: URL;
   try {
     parsed = new URL(trimmed);
   } catch {
-    throw new Error("Enter a valid OpenTeam server URL.");
+    throw new Error("Enter a valid aiTeamOS server URL.");
   }
   if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-    throw new Error("The OpenTeam server URL must use HTTP or HTTPS.");
+    throw new Error("The aiTeamOS server URL must use HTTP or HTTPS.");
   }
   if (parsed.username || parsed.password) {
     throw new Error("Enter the server endpoint without a username or password.");
@@ -77,7 +77,7 @@ export const createJsonTransport = ({
   fetch: fetchOverride,
   getAuthToken,
   onUnauthorized,
-}: OpenTeamTransportOptions) => {
+}: AiTeamOSTransportOptions) => {
   const origin = normalizeBaseUrl(baseUrl);
   const fetchImpl = fetchOverride ?? globalThis.fetch;
   if (!fetchImpl) throw new Error("This platform does not provide fetch");
@@ -99,8 +99,8 @@ export const createJsonTransport = ({
       response = await fetchImpl(`${origin}${path}`, { ...init, headers });
     } catch (error) {
       if (init?.signal?.aborted) throw error;
-      throw new OpenTeamClientError(
-        error instanceof Error ? error.message : "OpenTeam server is unreachable",
+      throw new AiTeamOSClientError(
+        error instanceof Error ? error.message : "aiTeamOS server is unreachable",
         "offline"
       );
     }
@@ -118,16 +118,16 @@ export const createJsonTransport = ({
       body = (text ? JSON.parse(text) : {}) as typeof body;
     } catch {
       if (!response.ok) {
-        throw new OpenTeamClientError(
+        throw new AiTeamOSClientError(
           `Request failed (${response.status})`,
           undefined,
           response.status
         );
       }
-      throw new OpenTeamClientError("OpenTeam returned an invalid response", "invalid_response");
+      throw new AiTeamOSClientError("aiTeamOS returned an invalid response", "invalid_response");
     }
     if (!response.ok) {
-      throw new OpenTeamClientError(
+      throw new AiTeamOSClientError(
         body.error?.message ?? `Request failed (${response.status})`,
         body.error?.code,
         response.status

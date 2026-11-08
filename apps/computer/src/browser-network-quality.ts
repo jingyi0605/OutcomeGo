@@ -2,7 +2,7 @@ import { Agent, request } from "node:https";
 import { connect } from "node:tls";
 import { randomBytes, randomUUID } from "node:crypto";
 import type { Duplex } from "node:stream";
-import type { NetworkQuality, NetworkRoute } from "@openteam/plugin-sdk/browser-network/protocol";
+import type { NetworkQuality, NetworkRoute } from "@aiteamos/plugin-sdk/browser-network/protocol";
 
 const HOST = "speed.cloudflare.com";
 const DOWNLOAD_BYTES = 1024 * 1024;
@@ -64,7 +64,7 @@ export function createQualityProbe(client: {
               port: 443,
               agent,
               method: upload ? "POST" : "GET",
-              path: upload ? "/__up" : `/__down?bytes=${bytes}&openteam=${randomUUID()}`,
+              path: upload ? "/__up" : `/__down?bytes=${bytes}&aiteamos=${randomUUID()}`,
               headers: {
                 accept: "*/*",
                 "accept-encoding": "identity",

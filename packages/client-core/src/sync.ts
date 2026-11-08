@@ -3,7 +3,7 @@ import type {
   ChannelHistoryPage,
   ClientBootstrapView,
   ProductEvent,
-} from "@openteam/contracts";
+} from "@aiteamos/contracts";
 import type { ProductEventHandlers } from "./events";
 
 export const LIVE_SYNC_DEBOUNCE_MS = 50;

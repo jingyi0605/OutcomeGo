@@ -1,9 +1,9 @@
 import { open, readdir, readFile, rename, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
-export const PROCESS_NOTICE_TYPE = "openteam-stopped-processes";
+export const PROCESS_NOTICE_TYPE = "aiteamos-stopped-processes";
 /** Every Shell command's processes carry their shell id, so programs it leaves running can be traced back to it. */
-export const SHELL_ID_VARIABLE = "OPENTEAM_SHELL_ID";
+export const SHELL_ID_VARIABLE = "AITEAMOS_SHELL_ID";
 
 const MAX_LISTED = 5;
 const SHELLS = new Set(["bash", "sh", "dash", "zsh", "nohup", "setsid"]);

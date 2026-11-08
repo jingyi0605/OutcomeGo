@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import type { ExternalDraft } from "@openteam/contracts/external-draft";
+import type { ExternalDraft } from "@aiteamos/contracts/external-draft";
 import { externalDraftReviewEdits } from "../src/external-draft";
 
 test("review edits normalize recipients while preserving the verified account and route", () => {

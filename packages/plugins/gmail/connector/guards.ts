@@ -1,6 +1,6 @@
 // Guards the reference wraps around Gmail tools: inline attachment integrity, search coverage
 // and id-not-found notes. Texts are the reference's, verbatim.
-import { emailBodyHtmlTag, unwrapHardWrappedEmailBody } from '@openteam/plugin-sdk/email-body';
+import { emailBodyHtmlTag, unwrapHardWrappedEmailBody } from '@aiteamos/plugin-sdk/email-body';
 import type { Args, Tool } from '../../_shared/google';
 
 type Kind = 'pdf' | 'png' | 'jpeg' | 'gif' | 'webp' | 'other';

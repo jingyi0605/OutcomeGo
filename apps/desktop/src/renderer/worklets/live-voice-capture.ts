@@ -7,7 +7,7 @@ declare function registerProcessor(
   processor: new (...args: never[]) => AudioWorkletProcessor,
 ): void;
 
-class OpenTeamVoiceCapture extends AudioWorkletProcessor {
+class AiTeamOSVoiceCapture extends AudioWorkletProcessor {
   process(inputs: Float32Array[][]): boolean {
     const input = inputs[0]?.[0];
     if (input) this.port.postMessage(new Float32Array(input));
@@ -15,4 +15,4 @@ class OpenTeamVoiceCapture extends AudioWorkletProcessor {
   }
 }
 
-registerProcessor("openteam-voice-capture", OpenTeamVoiceCapture);
+registerProcessor("aiteamos-voice-capture", AiTeamOSVoiceCapture);

@@ -1,7 +1,7 @@
 import { createInterface } from "node:readline";
 import { verify } from "node:crypto";
-import { createPrismaClient } from "@openteam/db";
-import { ApnsSettingsStore } from "@openteam/db/apns-settings";
+import { createPrismaClient } from "@aiteamos/db";
+import { ApnsSettingsStore } from "@aiteamos/db/apns-settings";
 import { ApnsClient } from "../../src/apns";
 
 const prisma = createPrismaClient();

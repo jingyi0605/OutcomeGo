@@ -12,15 +12,15 @@ payload Run credential-free FCM payload and transport tests.
 all     Run payload tests, then validate configuration when credentials are present.
 
 Required for real sends:
-  OPENTEAM_FCM_PROJECT_ID
-  OPENTEAM_FCM_CLIENT_EMAIL
-  OPENTEAM_FCM_PRIVATE_KEY
+  AITEAMOS_FCM_PROJECT_ID
+  AITEAMOS_FCM_CLIENT_EMAIL
+  AITEAMOS_FCM_PRIVATE_KEY
 EOF
 }
 
 config_check() {
   local missing=0
-  for name in OPENTEAM_FCM_PROJECT_ID OPENTEAM_FCM_CLIENT_EMAIL OPENTEAM_FCM_PRIVATE_KEY; do
+  for name in AITEAMOS_FCM_PROJECT_ID AITEAMOS_FCM_CLIENT_EMAIL AITEAMOS_FCM_PRIVATE_KEY; do
     if [[ -z "${!name:-}" ]]; then
       echo "missing: $name"
       missing=1

@@ -1,13 +1,13 @@
 import { createUtilityPluginFixture } from "./fixtures/utility-plugin";
 import { expect, test } from "bun:test";
-import { createPrismaClient } from "@openteam/db";
+import { createPrismaClient } from "@aiteamos/db";
 import { Effect } from "effect";
-import { importPackageArchive } from "@openteam/plugin-sdk/archive";
-import { createPluginTemplate } from "@openteam/plugin-sdk";
+import { importPackageArchive } from "@aiteamos/plugin-sdk/archive";
+import { createPluginTemplate } from "@aiteamos/plugin-sdk";
 import { PluginService } from "../../src/services/plugin-service";
 import { pluginRuntimeContext } from "../../../worker/src/plugins";
 
-const databaseUrl = process.env.OPENTEAM_TEST_DATABASE_URL;
+const databaseUrl = process.env.AITEAMOS_TEST_DATABASE_URL;
 const integration = test.skipIf(!databaseUrl);
 
 integration(

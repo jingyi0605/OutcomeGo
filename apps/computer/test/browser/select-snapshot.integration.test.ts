@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { BrowserUseSession } from "../../src/browser/use";
 import { outOfProcessPlaywright } from "../../src/browser/playwright-driver";
 
-test.skipIf(!process.env.OPENTEAM_BROWSER_TEST_EXECUTABLE)("snapshots expose native dropdown choices and current selections without JavaScript inspection", async () => {
+test.skipIf(!process.env.AITEAMOS_BROWSER_TEST_EXECUTABLE)("snapshots expose native dropdown choices and current selections without JavaScript inspection", async () => {
   const root = await mkdtemp(join(tmpdir(), "select-snapshot-"));
   const server = Bun.serve({ hostname: "127.0.0.1", port: 0, fetch: () => new Response(`<!doctype html>
     <label>Priority <select id="priority"><option>One</option><option selected>Two</option><option disabled>Three</option><option hidden>Hidden choice</option></select></label>
@@ -14,7 +14,7 @@ test.skipIf(!process.env.OPENTEAM_BROWSER_TEST_EXECUTABLE)("snapshots expose nat
     <select aria-label="Private choice" data-sand-secret-filled><option selected>private-value</option></select>
     <button>Submit</button>`, { headers: { "content-type": "text/html; charset=utf-8" } }) });
   const driver = await outOfProcessPlaywright();
-  const browser = await driver.playwright.chromium.launch({ headless: true, executablePath: process.env.OPENTEAM_BROWSER_TEST_EXECUTABLE, args: process.platform === "linux" ? ["--no-sandbox"] : [] });
+  const browser = await driver.playwright.chromium.launch({ headless: true, executablePath: process.env.AITEAMOS_BROWSER_TEST_EXECUTABLE, args: process.platform === "linux" ? ["--no-sandbox"] : [] });
   const session = new (BrowserUseSession as any)(browser, await browser.newContext(), root) as BrowserUseSession;
   const text = (result: any): string => result.content.filter((p: any) => p.type === "text").map((p: any) => p.text).join("\n");
   try {

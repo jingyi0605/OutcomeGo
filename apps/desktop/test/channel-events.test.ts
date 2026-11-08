@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { ChannelMessageView } from "@openteam/contracts";
+import type { ChannelMessageView } from "@aiteamos/contracts";
 import {
   channelMessageSummary,
   channelNameChangedEventFor,
@@ -38,7 +38,7 @@ describe("channel timeline events", () => {
     expect(channelNameChangedEventFor(message({ type: "status" }))).toBeNull();
   });
 
-  test("projects durable OpenTeam-compatible routine lifecycle events", () => {
+  test("projects durable aiTeamOS-compatible routine lifecycle events", () => {
     const value = message({
       type: "event",
       event: {

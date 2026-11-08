@@ -183,7 +183,7 @@ const isBrowser = (headers: Record<string, string>) => headers["user-agent"]!.in
 test("an honest request that succeeds is not retried", async () => {
   const { get, calls } = fakeGet(() => ({ bytes: html(article) }));
   const page = await builtinFetch(url, undefined, get);
-  expect(calls).toEqual(["OpenTeam-WebFetch/1.0"]);
+  expect(calls).toEqual(["aiTeamOS-WebFetch/1.0"]);
   expect(page).toMatchObject({ url, retriedWithBrowserHeaders: false });
   expect(page.note).toBeUndefined();
   expect(page.text).toContain("Useful paragraph");

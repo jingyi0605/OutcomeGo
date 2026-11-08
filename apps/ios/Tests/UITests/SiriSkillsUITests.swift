@@ -11,7 +11,7 @@ import SiriEvaluations
 @MainActor
 final class SiriSkillsUITests: XCTestCase {
   override func setUpWithError() throws {
-    guard ProcessInfo.processInfo.environment["OPENTEAM_LIVE_SIRI_TESTS"] == "1" else {
+    guard ProcessInfo.processInfo.environment["AITEAMOS_LIVE_SIRI_TESTS"] == "1" else {
       throw XCTSkip("Opt-in only: use a development-signed iPhone with Siri AI preview and an isolated QA account")
     }
   }
@@ -66,7 +66,7 @@ final class SiriSkillsUITests: XCTestCase {
   }
 
   private func qaConversationID() throws -> String {
-    guard let id = ProcessInfo.processInfo.environment["OPENTEAM_SIRI_QA_CONVERSATION_ID"], !id.isEmpty else {
+    guard let id = ProcessInfo.processInfo.environment["AITEAMOS_SIRI_QA_CONVERSATION_ID"], !id.isEmpty else {
       throw XCTSkip("Supply the scoped entity ID for the isolated Release review QA conversation")
     }
     return id

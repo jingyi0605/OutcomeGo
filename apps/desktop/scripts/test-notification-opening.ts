@@ -5,7 +5,7 @@ import { join, resolve } from "node:path";
 import { createServer } from "vite";
 
 const root = resolve(import.meta.dir, "..");
-const directory = await mkdtemp(join(tmpdir(), "openteam-notification-opening-"));
+const directory = await mkdtemp(join(tmpdir(), "aiteamos-notification-opening-"));
 const server = await createServer({
   root,
   cacheDir: join(directory, "vite-cache"),

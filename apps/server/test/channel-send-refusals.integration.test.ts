@@ -1,11 +1,11 @@
 import { expect, test } from "bun:test";
 import { Effect } from "effect";
-import { ApiError } from "@openteam/contracts";
-import { renderControlResult } from "@openteam/contracts/tool-results";
-import { createPrismaClient } from "@openteam/db";
+import { ApiError } from "@aiteamos/contracts";
+import { renderControlResult } from "@aiteamos/contracts/tool-results";
+import { createPrismaClient } from "@aiteamos/db";
 import { InternalToolService } from "../src/services/internal-tool-service";
 
-const databaseUrl = process.env.OPENTEAM_TEST_DATABASE_URL;
+const databaseUrl = process.env.AITEAMOS_TEST_DATABASE_URL;
 
 test.skipIf(!databaseUrl)("a channel send that cannot leave refuses at once; a failed delivery says why", async () => {
   const prisma = createPrismaClient(databaseUrl!);

@@ -1,4 +1,4 @@
-import { normalizeBaseUrl, withDefaultScheme } from "@openteam/client-core/http";
+import { normalizeBaseUrl, withDefaultScheme } from "@aiteamos/client-core/http";
 
 const EXAMPLE = "192.168.1.20:8787";
 

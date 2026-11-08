@@ -134,16 +134,16 @@ describe("Docker required", () => {
           "Install Docker Engine and the Compose plugin: https://docs.docker.com/engine/install/",
         ],
       ] as const) {
-        const block = renderDockerRequired("openteam setup", { platform, width, color: false });
+        const block = renderDockerRequired("aiteamos setup", { platform, width, color: false });
         expect(block.split("\n").every((line) => terminalTextWidth(line) <= width)).toBe(true);
         const text = block.replace(/\s+/g, " ").trim();
         if (width === 80) {
-          expect(text).toBe(`✗ Docker is required. ${link} Then run: openteam setup`);
+          expect(text).toBe(`✗ Docker is required. ${link} Then run: aiteamos setup`);
         }
       }
     }
     expect(
-      renderDockerRequired("/Users/me/.local/bin/openteam setup", {
+      renderDockerRequired("/Users/me/.local/bin/aiteamos setup", {
         platform: "darwin",
         desktopStarting: true,
         color: false,
@@ -152,7 +152,7 @@ describe("Docker required", () => {
         .replace(/\s+/g, " ")
         .trim()
     ).toBe(
-      "✗ Docker Desktop is installed but not ready. Open Docker Desktop and finish its setup. Then run: /Users/me/.local/bin/openteam setup"
+      "✗ Docker Desktop is installed but not ready. Open Docker Desktop and finish its setup. Then run: /Users/me/.local/bin/aiteamos setup"
     );
   });
 
@@ -165,7 +165,7 @@ describe("Docker required", () => {
     expect(dockerMissing(result(DOCKER_CLI_MISSING), "/nonexistent")).toBe(true);
     expect(dockerMissing(result("The docker command could not run."), "/nonexistent")).toBe(false);
     // A docker file that cannot run gets the full report about its permissions instead.
-    const bin = mkdtempSync(join(tmpdir(), "openteam-docker-path-"));
+    const bin = mkdtempSync(join(tmpdir(), "aiteamos-docker-path-"));
     try {
       writeFileSync(join(bin, "docker"), "", { mode: 0o644 });
       expect(dockerMissing(result(DOCKER_CLI_MISSING), `/nonexistent${delimiter}${bin}`)).toBe(

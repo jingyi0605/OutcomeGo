@@ -237,7 +237,7 @@ enum VoiceTurnStatus {
 
 model Computer {
   id           String         @id @default(uuid()) @db.Uuid
-  name         String         @default("OpenTeam computer")
+  name         String         @default("aiTeamOS computer")
   status       ComputerStatus @default(starting)
   capabilities Json           @default("{}")
   lastSeenAt   DateTime?
@@ -1159,7 +1159,7 @@ model SearchDocument {
   @@ignore
 }
 
-// Better Auth owns these four tables. OpenTeam deliberately provisions only
+// Better Auth owns these four tables. aiTeamOS deliberately provisions only
 // one credential account through the server CLI command.
 model ProcessSecret {
   ownerKey String

@@ -1,8 +1,8 @@
 import { expect, test } from "bun:test";
-import type { PrismaClient } from "@openteam/db";
+import type { PrismaClient } from "@aiteamos/db";
 import { ScreenService, UserFormRefusal } from "../src/services/screen-service";
 import { RichMessageService } from "../src/services/rich-message-service";
-import { formPreparationFailureMessage } from "@openteam/contracts";
+import { formPreparationFailureMessage } from "@aiteamos/contracts";
 
 const prisma = (channelKind = "bot_dm") => ({
   bot: { findUnique: async () => ({ id: "bot", status: "active", defaultDirectory: "/workspace" }) },

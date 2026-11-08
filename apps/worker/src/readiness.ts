@@ -1,7 +1,7 @@
 import { constants } from "node:fs";
 import { access } from "node:fs/promises";
 import type { PgBoss } from "pg-boss";
-import type { PrismaClient } from "@openteam/db";
+import type { PrismaClient } from "@aiteamos/db";
 
 export const WORKER_QUEUES = [
   "bot-wake",

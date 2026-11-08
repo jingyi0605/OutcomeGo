@@ -4,7 +4,7 @@ import {
   validateApnsConfiguration,
   type ApnsConfiguration,
   type ApnsStatus,
-} from "@openteam/db/apns-settings";
+} from "@aiteamos/db/apns-settings";
 import type { CliOptions } from "./arguments";
 import type { InstallationPaths } from "./config";
 import { CliError } from "./errors";
@@ -88,7 +88,7 @@ export async function notificationsCommand(
     !(status.issue === null || typeof status.issue === "string")
   )
     throw new CliError(
-      "The server returned invalid APNs status. Update OpenTeam to a release supporting live notification configuration."
+      "The server returned invalid APNs status. Update aiTeamOS to a release supporting live notification configuration."
     );
   // Only known metadata is printed. Never serialize a server response wholesale.
   console.log(
@@ -105,6 +105,6 @@ export async function notificationsCommand(
         : "Signing key and configuration are valid locally."
   );
   console.log(
-    "Run openteam doctor to check worker configuration and registrations. Apple acceptance and phone delivery require a real notification."
+    "Run aiteamos doctor to check worker configuration and registrations. Apple acceptance and phone delivery require a real notification."
   );
 }

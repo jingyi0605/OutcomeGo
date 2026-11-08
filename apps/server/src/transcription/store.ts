@@ -1,10 +1,10 @@
-import { ApiError } from "@openteam/contracts";
+import { ApiError } from "@aiteamos/contracts";
 import {
   defaultTranscriptionSettings,
   type TranscriptionSettings,
   type TranscriptionSettingsInput,
   type TranscriptionSettingsView,
-} from "@openteam/contracts/transcription";
+} from "@aiteamos/contracts/transcription";
 import { createCipheriv, createDecipheriv, createHash, randomBytes, randomUUID } from "node:crypto";
 import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
@@ -96,13 +96,13 @@ export class TranscriptionStore {
   private pendingWrite: Promise<unknown> = Promise.resolve();
   constructor(
     readonly path: string,
-    private readonly secret: () => string | undefined = () => process.env.OPENTEAM_AUTH_SECRET
+    private readonly secret: () => string | undefined = () => process.env.AITEAMOS_AUTH_SECRET
   ) {}
 
   private key(): Buffer {
     const secret = this.secret();
     if (!secret || secret.length < 32)
-      throw invalid("Configure OPENTEAM_AUTH_SECRET before saving a transcription API key.");
+      throw invalid("Configure AITEAMOS_AUTH_SECRET before saving a transcription API key.");
     return createHash("sha256").update(`openteam-transcription-v1:${secret}`).digest();
   }
 

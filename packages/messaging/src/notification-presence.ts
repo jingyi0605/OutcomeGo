@@ -1,7 +1,7 @@
-import type { NotificationRouting } from "@openteam/contracts/notification-presence";
-import type { Prisma } from "@openteam/db";
+import type { NotificationRouting } from "@aiteamos/contracts/notification-presence";
+import type { Prisma } from "@aiteamos/db";
 
-/** OpenTeam provisions one owner per deployment, as do channel reads and bot preferences. */
+/** aiTeamOS provisions one owner per deployment, as do channel reads and bot preferences. */
 export async function notificationRouting(
   db: Pick<Prisma.TransactionClient, "notificationPresence" | "notificationPreferences">,
   authMode: "required" | "disabled",

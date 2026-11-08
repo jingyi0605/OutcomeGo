@@ -1,13 +1,13 @@
 import { expect, test } from "bun:test";
 import { Effect } from "effect";
-import { createOpenTeamClient } from "../../../../packages/client-core/src";
+import { createAiTeamOSClient } from "../../../../packages/client-core/src";
 import { createPluginFlowFixture } from "./fixtures/plugin-flow";
-import { renderControlResult } from "@openteam/contracts/tool-results";
+import { renderControlResult } from "@aiteamos/contracts/tool-results";
 
-const databaseUrl = process.env.OPENTEAM_TEST_DATABASE_URL;
+const databaseUrl = process.env.AITEAMOS_TEST_DATABASE_URL;
 const sessions = ["fixture-phone", "fixture-laptop"];
 const clientFor = (f: Awaited<ReturnType<typeof createPluginFlowFixture>>, session = sessions[0]!) =>
-  createOpenTeamClient({ baseUrl: f.server.url.origin, getAuthToken: () => session });
+  createAiTeamOSClient({ baseUrl: f.server.url.origin, getAuthToken: () => session });
 const rowFor = (f: Awaited<ReturnType<typeof createPluginFlowFixture>>, id: string) =>
   f.db.pluginConnection.findUniqueOrThrow({ where: { id } });
 const oauth = (row: Awaited<ReturnType<typeof rowFor>>) => (row.credentials as any).oauth;
@@ -31,14 +31,14 @@ test.skipIf(!databaseUrl)("agent manual OAuth hands off without creating or repl
   try {
     const connection = await install(f);
     const client = clientFor(f);
-    const anonymous = createOpenTeamClient({ baseUrl: f.server.url.origin });
+    const anonymous = createAiTeamOSClient({ baseUrl: f.server.url.origin });
     await expect(anonymous.authenticatePlugin(connection.id)).rejects.toMatchObject({ code: "unauthorized" });
     await expect(Effect.runPromise(f.service.authenticate(connection.id))).rejects.toThrow("signed-in session");
     const request = { callId, botId: crypto.randomUUID(), runId: crypto.randomUUID(), action: "AuthenticateMcpServer", arguments: { connectionId: connection.id, forceReauth: true }, origin: "user" as const };
     const before = await rowFor(f, connection.id);
     const result = await f.service.requestAction(request) as any;
     expect(result.actionResult).toMatchObject({ connectionId: connection.id, status: "awaiting_user", requiresUserAction: true, accountLabel: "default", pluginId: connection.pluginKey });
-    expect(result.actionResult.setupUrl).toBe(`openteam://app/v1/plugin/add?id=${encodeURIComponent(connection.pluginKey)}`);
+    expect(result.actionResult.setupUrl).toBe(`aiteamos://app/v1/plugin/add?id=${encodeURIComponent(connection.pluginKey)}`);
     expect(result.actionResult.authorizationUrl).toBeUndefined();
     expect(renderControlResult("AuthenticateMcpServer", result, request.arguments)).toContain(result.actionResult.setupUrl);
     expect(await rowFor(f, connection.id)).toEqual(before);
@@ -80,7 +80,7 @@ test.skipIf(!databaseUrl)("signed-in UI cancels its own attempt but not another 
     const state = new URL(callback).searchParams.get("state")!;
     await expect(clientFor(f, sessions[1]).cancelPluginAuthentication(connection.id, state)).rejects.toMatchObject({ code: "plugin_oauth_session_changed" });
     expect(await rowFor(f, connection.id)).toEqual(pending);
-    await expect(createOpenTeamClient({ baseUrl: f.server.url.origin }).cancelPluginAuthentication(connection.id, state)).rejects.toMatchObject({ code: "unauthorized" });
+    await expect(createAiTeamOSClient({ baseUrl: f.server.url.origin }).cancelPluginAuthentication(connection.id, state)).rejects.toMatchObject({ code: "unauthorized" });
     await expect(client.cancelPluginAuthentication(connection.id, "wrong-state")).rejects.toMatchObject({ code: "plugin_oauth_state_invalid" });
     await client.cancelPluginAuthentication(connection.id, state);
     const cleared = await rowFor(f, connection.id);

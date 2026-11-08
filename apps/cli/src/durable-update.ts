@@ -34,7 +34,7 @@ import {
   writeUpdateState,
 } from "./update-safety";
 
-export const UPDATE_WORKER_JOB_ENV = "OPENTEAM_UPDATE_WORKER_JOB";
+export const UPDATE_WORKER_JOB_ENV = "AITEAMOS_UPDATE_WORKER_JOB";
 const WORKER_START_GRACE_MS = 10_000;
 const FOLLOW_INTERVAL_MS = 150;
 const MAX_LOG_ERROR_BYTES = 12_000;
@@ -128,7 +128,7 @@ export const updateLogFailure = (contents: string): string | null => {
       lines
         .findLast((line) => line.trim())
         ?.trim()
-        .replace(/^openteam:\s*/, "") || null
+        .replace(/^aiteamos:\s*/, "") || null
     );
   }
   const message = [lines[start]?.trimStart().slice(2) ?? ""];
@@ -219,7 +219,7 @@ export const followUpdateJob = async (
     if (Date.now() - started >= WORKER_START_GRACE_MS && activePid === null && !spawnedIsAlive) {
       throw new CliError(
         logFailure(paths) ??
-          "The durable update worker stopped unexpectedly. Run openteam update again to recover."
+          "The durable update worker stopped unexpectedly. Run aiteamos update again to recover."
       );
     }
     await sleep(FOLLOW_INTERVAL_MS);
@@ -324,7 +324,7 @@ const runUpdateWorkerSteps = async (
 
   const manifest = readManifest(paths);
   if (!manifest)
-    throw new CliError(`OpenTeam installation manifest is missing at ${paths.manifest}`);
+    throw new CliError(`aiTeamOS installation manifest is missing at ${paths.manifest}`);
   const repository = normalizeRepository(options.repository || manifest.repository);
   const target = await resolveUpdateTarget(manifest.version, options, repository);
   if (!semver.gt(target, CLI_VERSION)) {
@@ -332,7 +332,7 @@ const runUpdateWorkerSteps = async (
     return;
   }
 
-  const message = `Downloading and verifying OpenTeam ${target} command-line tools`;
+  const message = `Downloading and verifying aiTeamOS ${target} command-line tools`;
   writeUpdateState(paths, {
     schemaVersion: 1,
     jobId,
@@ -408,7 +408,7 @@ export const durableUpdateCommand = async (
   if (current?.status === "running" && activeUpdateProcess(paths) !== null) {
     if (!updateTargetMatches(current, options)) {
       throw new CliError(
-        `OpenTeam is already updating to ${current.targetVersion ?? "the latest release"}.`
+        `aiTeamOS is already updating to ${current.targetVersion ?? "the latest release"}.`
       );
     }
     await followUpdateJob(paths, options, current.jobId, undefined, platform === "win32");

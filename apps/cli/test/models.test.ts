@@ -49,10 +49,10 @@ afterEach(() => {
 });
 
 const fixture = () => {
-  const directory = mkdtempSync(join(tmpdir(), "openteam-model-test-"));
+  const directory = mkdtempSync(join(tmpdir(), "aiteamos-model-test-"));
   const paths = installationPaths(directory);
   const environment = createEnvironment({ version: "1.2.3" });
-  const controlToken = parseEnvironment(environment).get("OPENTEAM_CONTROL_TOKEN");
+  const controlToken = parseEnvironment(environment).get("AITEAMOS_CONTROL_TOKEN");
   const state = {
     selected: {
       providerId: "openai-codex",
@@ -107,11 +107,11 @@ const fixture = () => {
   });
   writeFileAtomic(
     paths.environment,
-    replaceEnvironmentValue(environment, "OPENTEAM_API_PORT", String(server.port))
+    replaceEnvironmentValue(environment, "AITEAMOS_API_PORT", String(server.port))
   );
   writeFileAtomic(
     paths.compose,
-    "name: openteam\nservices:\n  computer:\n    image: example/computer\n"
+    "name: aiteamos\nservices:\n  computer:\n    image: example/computer\n"
   );
   const now = new Date().toISOString();
   writeManifest(paths, {

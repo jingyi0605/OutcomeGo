@@ -2,4 +2,4 @@ export {
   createSnapshotCaches,
   reconcileClientSnapshot,
   type SnapshotCaches,
-} from "@openteam/product-core/snapshot-reconcile";
+} from "@aiteamos/product-core/snapshot-reconcile";

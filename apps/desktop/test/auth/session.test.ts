@@ -25,7 +25,7 @@ Object.defineProperty(globalThis, "window", {
   value: {
     dispatchEvent: () => true,
     location: { href: "http://127.0.0.1:8787" },
-    openteam: {
+    aiteamos: {
       auth: {
         signIn: async (serverUrl: string, username: string, password: string) => {
           nativeCalls.push({ method: "signIn", serverUrl, username, password });
@@ -62,7 +62,7 @@ const user = {
   username: "owner",
 };
 
-const openTeamFetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+const aiTeamOSFetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
   const url = String(input);
   const method = init?.method ?? "GET";
   calls.push({ method, url });
@@ -76,7 +76,7 @@ const openTeamFetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
   if (url.endsWith("/api/auth/sign-out")) return new Response(null, { status: 204 });
   return new Response(null, { status: 404 });
 }) as typeof fetch;
-globalThis.fetch = openTeamFetch;
+globalThis.fetch = aiTeamOSFetch;
 
 const auth = await import("../../src/renderer/client/auth");
 
@@ -97,7 +97,7 @@ describe("desktop authenticated session", () => {
       expect(auth.getAuthToken()).toBeNull();
       expect(secureToken).toBeNull();
       expect(auth.getAuthSnapshot().status).toBe("signed-out");
-      expect(localStorage.getItem("openteam:auth-user")).toBeNull();
+      expect(localStorage.getItem("aiteamos:auth-user")).toBeNull();
     } finally {
       failTokenWrite = false;
     }
@@ -118,7 +118,7 @@ describe("desktop authenticated session", () => {
     });
     expect(auth.getAuthToken()).toBe("test-session-token");
     expect(secureToken).toBe("test-session-token");
-    expect(localStorage.getItem("openteam:auth-token")).toBeNull();
+    expect(localStorage.getItem("aiteamos:auth-token")).toBeNull();
     expect(nativeCalls.at(-1)).toMatchObject({
       method: "signIn",
       username: "owner",
@@ -151,14 +151,14 @@ describe("desktop authenticated session", () => {
     await auth.clearAuthCredentialsForServerChange();
   });
 
-  test("rejects a reachable website that is not an OpenTeam server", async () => {
+  test("rejects a reachable website that is not an aiTeamOS server", async () => {
     globalThis.fetch = (async () => new Response("Not found", { status: 404 })) as typeof fetch;
     try {
       await expect(auth.testServerConnection("https://google.example.test")).rejects.toThrow(
-        "not a compatible OpenTeam server"
+        "not a compatible aiTeamOS server"
       );
     } finally {
-      globalThis.fetch = openTeamFetch;
+      globalThis.fetch = aiTeamOSFetch;
     }
   });
 
@@ -170,7 +170,7 @@ describe("desktop authenticated session", () => {
       expect(snapshot.status).toBe("signed-out");
       expect(snapshot.user).toBeNull();
       expect(snapshot.error).toBe(
-        "OpenTeam could not access your saved sign-in. Restart the app and try again."
+        "aiTeamOS could not access your saved sign-in. Restart the app and try again."
       );
     } finally {
       failTokenRead = false;
@@ -184,7 +184,7 @@ describe("desktop authenticated session", () => {
     globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) =>
       String(input).endsWith("/api/auth/get-session")
         ? new Response(null, { status: 401 })
-        : openTeamFetch(input, init)) as typeof fetch;
+        : aiTeamOSFetch(input, init)) as typeof fetch;
     try {
       await expect(auth.signIn("owner", "secret")).rejects.toThrow(
         "The server could not verify your sign-in. Please try again."
@@ -192,7 +192,7 @@ describe("desktop authenticated session", () => {
       expect(auth.getAuthToken()).toBeNull();
       expect(auth.getAuthSnapshot().status).toBe("signed-out");
     } finally {
-      globalThis.fetch = openTeamFetch;
+      globalThis.fetch = aiTeamOSFetch;
     }
   });
 });

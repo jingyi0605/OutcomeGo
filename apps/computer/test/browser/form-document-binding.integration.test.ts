@@ -5,15 +5,15 @@ import { tmpdir } from "node:os";
 import { BrowserUseSession } from "../../src/browser/use";
 import { outOfProcessPlaywright } from "../../src/browser/playwright-driver";
 import { UserFormHost, type FormBrowser } from "../../src/user-form-host";
-import type { UserForm } from "@openteam/contracts";
+import type { UserForm } from "@aiteamos/contracts";
 
-test.skipIf(!process.env.OPENTEAM_BROWSER_TEST_EXECUTABLE)("reviewed form documents survive host restart, refuse reload, and explicitly remap without submit", async () => {
+test.skipIf(!process.env.AITEAMOS_BROWSER_TEST_EXECUTABLE)("reviewed form documents survive host restart, refuse reload, and explicitly remap without submit", async () => {
   const root = await mkdtemp(join(tmpdir(), "form-document-binding-"));
   const server = Bun.serve({ hostname: "127.0.0.1", port: 0, fetch: () => new Response(
     '<!doctype html><label for="otp">Verification code</label><input id="otp" autocomplete="one-time-code"><output id="submitted">0</output><script>document.querySelector("input").onkeydown=e=>{if(e.key==="Enter")document.querySelector("output").textContent="1"}</script>',
     { headers: { "content-type": "text/html" } }) });
   const driver = await outOfProcessPlaywright();
-  const browser = await driver.playwright.chromium.launch({ headless: true, executablePath: process.env.OPENTEAM_BROWSER_TEST_EXECUTABLE, args: ["--no-sandbox"] });
+  const browser = await driver.playwright.chromium.launch({ headless: true, executablePath: process.env.AITEAMOS_BROWSER_TEST_EXECUTABLE, args: ["--no-sandbox"] });
   const context = await browser.newContext();
   const session = new (BrowserUseSession as any)(browser, context, root) as BrowserUseSession;
   const internal = session as any;
@@ -39,7 +39,7 @@ test.skipIf(!process.env.OPENTEAM_BROWSER_TEST_EXECUTABLE)("reviewed form docume
     expect(await page.locator("#submitted").textContent()).toBe("1");
     expect(JSON.stringify(receipt)).not.toContain("246810");
     expect(await session.formSnapshot((await session.formPages(form.domain!))[0]!)).not.toContain("246810");
-    expect(await page.locator("#otp").getAttribute("data-openteam-private")).toBe("true");
+    expect(await page.locator("#otp").getAttribute("data-aiteamos-private")).toBe("true");
 
     await page.reload();
     await host.prepare("bot", "reload", form);

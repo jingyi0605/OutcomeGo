@@ -1,6 +1,6 @@
-import { ApiError } from "@openteam/contracts";
-import { connectorHostTools } from "@openteam/plugin-sdk";
-import type { PrismaClient } from "@openteam/db";
+import { ApiError } from "@aiteamos/contracts";
+import { connectorHostTools } from "@aiteamos/plugin-sdk";
+import type { PrismaClient } from "@aiteamos/db";
 import { appendEvent, toJson } from "../service-utils";
 import { loadConnectionNamespaces } from "./namespaces";
 import type { PluginTransport } from "./transport";

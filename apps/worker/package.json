@@ -1,6 +1,6 @@
 {
-  "name": "@openteam/worker",
-  "version": "0.0.15",
+  "name": "@aiteamos/worker",
+  "version": "0.1.0-beta.1",
   "license": "GPL-3.0-only",
   "private": true,
   "type": "module",
@@ -12,11 +12,11 @@
     "test": "bun test --pass-with-no-tests"
   },
   "dependencies": {
-    "@openteam/contracts": "workspace:*",
-    "@openteam/db": "workspace:*",
-    "@openteam/messaging": "workspace:*",
+    "@aiteamos/contracts": "workspace:*",
+    "@aiteamos/db": "workspace:*",
+    "@aiteamos/messaging": "workspace:*",
     "effect": "3.22.1",
     "pg-boss": "12.28.0",
-    "@openteam/plugin-sdk": "workspace:*"
+    "@aiteamos/plugin-sdk": "workspace:*"
   }
 }

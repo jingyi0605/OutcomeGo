@@ -55,7 +55,7 @@ test("a Google Slides deck lands in Drive once and is checked as Google draws it
 });
 
 test("the main agent's catalog and workflow list include the skills knowledgeWork carries", async () => {
-  const root = await mkdtemp(join(tmpdir(), "openteam-kw-skills-"));
+  const root = await mkdtemp(join(tmpdir(), "aiteamos-kw-skills-"));
   try {
     const store = new AgentDataStore({} as never, { root: join(root, "data"), workspaceRoot: join(root, "workspace") });
     await store.syncPluginSkillCache([]);

@@ -5,7 +5,7 @@ import {
   ScreenClipboardInput,
   ScreenPauseInput,
   ScreenTakeoverInput,
-} from "@openteam/contracts";
+} from "@aiteamos/contracts";
 import { corsHeaders, json } from "../http";
 import { type RouteContext, run } from "./context";
 import { bodyRoute, dispatchRoutes, effectRoute } from "./dispatch";
@@ -28,7 +28,7 @@ export async function botRoutes(context: RouteContext): Promise<Response | undef
     return new Response(stream, {
       headers: {
         ...corsHeaders,
-        "content-type": "multipart/x-mixed-replace; boundary=openteam-frame",
+        "content-type": "multipart/x-mixed-replace; boundary=aiteamos-frame",
         "cache-control": "no-store",
         "x-accel-buffering": "no",
       },

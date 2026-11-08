@@ -112,7 +112,7 @@ function formatChromeCookieImportOutcome(outcome) {
   if (outcome.kind === "failed") {
     if (outcome.injected > 0) return `Imported cookies for ${describeGrants(outcome.grants)}. Injected ${outcome.injected} cookie(s), but injection stopped before ${outcome.failed} remaining cookie(s). Some logins may already be active. Do not retry unless the user asks.`;
     if (outcome.errorClass === "ChromeCookieImportPermissionError" || outcome.errorClass === "ChromeSafeStoragePermissionError") {
-      return `Cookie import for ${describeGrants(outcome.grants)} failed because ${COOKIE_IMPORT_FAILURE_BY_STAGE[outcome.stage]} (${outcome.errorClass}). No cookies were injected. Ask the user to turn on OpenTeam in System Settings \u2192 Privacy & Security \u2192 Full Disk Access and Automation (Finder), click Always Allow on Chrome Safe Storage, then retry.`;
+      return `Cookie import for ${describeGrants(outcome.grants)} failed because ${COOKIE_IMPORT_FAILURE_BY_STAGE[outcome.stage]} (${outcome.errorClass}). No cookies were injected. Ask the user to turn on aiTeamOS in System Settings \u2192 Privacy & Security \u2192 Full Disk Access and Automation (Finder), click Always Allow on Chrome Safe Storage, then retry.`;
     }
     return `Cookie import for ${describeGrants(outcome.grants)} failed because ${COOKIE_IMPORT_FAILURE_BY_STAGE[outcome.stage]} (${outcome.errorClass}). No cookies were injected. Tell the user Chrome cookie import failed; do not retry unless they ask.`;
   }
@@ -200,7 +200,7 @@ function describePluginIncludes(plugin) {
 function describePluginSignIn(plugin, installed) {
   if (!plugin.isInstalled) return null;
   const rows = installed.filter((server) => server.pluginId === plugin.pluginId);
-  // OpenTeam lists a signed-in account as ready where the reference says connected.
+  // aiTeamOS lists a signed-in account as ready where the reference says connected.
   const connectedServerIds = new Set(
     rows.filter((server) => server.status === "connected" || server.status === "ready").map((server) => server.serverIdentifier)
   );

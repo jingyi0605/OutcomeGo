@@ -1,12 +1,12 @@
 import { createHash } from "node:crypto";
-import { ApiError } from "@openteam/contracts";
+import { ApiError } from "@aiteamos/contracts";
 import {
   renderTaskProgressContext,
   validateTaskProgress,
   type TaskProgress,
   type TaskProgressInput,
-} from "@openteam/contracts/task-progress";
-import { Prisma, type PrismaClient } from "@openteam/db";
+} from "@aiteamos/contracts/task-progress";
+import { Prisma, type PrismaClient } from "@aiteamos/db";
 import type { AgentMessaging, ToolContext } from "./index";
 import { automationContinuationRoute } from "./automation-results";
 
@@ -48,7 +48,7 @@ export const taskScopeContext = (value: unknown, originalTask?: string): string 
 
 /** Shared with queue claims so server startup cannot invalidate a freshly
  * claimed turn while it is reconciling the old runtime's work. */
-export const TASK_RECOVERY_LOCK = "openteam-runtime-recovery";
+export const TASK_RECOVERY_LOCK = "aiteamos-runtime-recovery";
 
 async function parentCancelled(
   tx: Prisma.TransactionClient,
@@ -347,7 +347,7 @@ export async function dispatchTaskContinuations(
     dispatched += await prisma.$transaction(async (tx) => {
       // Same capacity lock as Task launches, so a parked graphical task releases
       // its desktop but cannot resume on top of another graphical task.
-      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('openteam-subagent-capacity'))`;
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('aiteamos-subagent-capacity'))`;
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`task-continuation:${id}`}))`;
       await tx.$queryRaw`SELECT id FROM "Subagent" WHERE id = ${id}::uuid FOR UPDATE`;
       const sub = await tx.subagent.findUnique({ where: { id } });

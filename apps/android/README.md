@@ -1,4 +1,4 @@
-# OpenTeam Android QA and release foundation
+# aiTeamOS Android QA and release foundation
 
 The Android app is being brought to parity with the native iOS client in stages. The QA surface is deliberately split by execution environment:
 
@@ -54,7 +54,7 @@ calling Android notifications complete.
 
 Android Studio ships a committed run configuration named **Xiaomi Debug** that targets the Xiaomi `M154FF` device (`serial=a657db70`) and deploys the debug APK without a device chooser:
 
-- `.idea/runConfigurations/Xiaomi_Debug.xml` — Android App configuration for `:mobile:androidApp` (`openteam-mobile.mobile.androidApp.main`)
+- `.idea/runConfigurations/Xiaomi_Debug.xml` — Android App configuration for `:mobile:androidApp` (`aiteamos-mobile.mobile.androidApp.main`)
 - `.idea/deploymentTargetSelector.xml` — pins the deployment target to that device
 
 After the first successful Gradle sync, select **Xiaomi Debug** in the run widget and press Run (or Debug). If the configuration shows `<no module>` or `Error: Module not specified`, restart Android Studio, choose `GRADLE_LOCAL_JAVA_HOME` under the Gradle settings, then run **Sync Project with Gradle Files**. The project uses `GRADLE_LOCAL_JAVA_HOME`, configured in `.gradle/config.properties` to use the installed OpenJDK 21, because Gradle 8.14.3 cannot compile this Kotlin DSL project on the bundled JBR 25. From a terminal the equivalent is:

@@ -1,25 +1,25 @@
 import { describe, expect, test } from "bun:test";
 import {
   consumeProductEventStream,
-  createOpenTeamClient,
+  createAiTeamOSClient,
   normalizeBaseUrl,
   sidebarPreferencesFromRootSettings,
   withDefaultScheme,
 } from "../src";
 
-describe("mobile-safe OpenTeam client", () => {
+describe("mobile-safe aiTeamOS client", () => {
   test("normalizes a configured server origin", () => {
-    expect(normalizeBaseUrl(" https://openteam.example.test/// ")).toBe(
-      "https://openteam.example.test"
+    expect(normalizeBaseUrl(" https://aiteamos.example.test/// ")).toBe(
+      "https://aiteamos.example.test"
     );
   });
 
   test("rejects unsafe configured server URLs in every client", () => {
-    expect(() => normalizeBaseUrl("file:///tmp/openteam")).toThrow("HTTP or HTTPS");
-    expect(() => normalizeBaseUrl("https://owner:secret@openteam.test")).toThrow(
+    expect(() => normalizeBaseUrl("file:///tmp/aiteamos")).toThrow("HTTP or HTTPS");
+    expect(() => normalizeBaseUrl("https://owner:secret@aiteamos.test")).toThrow(
       "username or password"
     );
-    expect(() => normalizeBaseUrl("https://openteam.test?token=secret")).toThrow(
+    expect(() => normalizeBaseUrl("https://aiteamos.test?token=secret")).toThrow(
       "query or fragment"
     );
   });
@@ -30,8 +30,8 @@ describe("mobile-safe OpenTeam client", () => {
       calls.push({ url: String(url), init });
       return new Response("{}", { status: 200, headers: { "content-type": "application/json" } });
     }) as unknown as typeof globalThis.fetch;
-    const client = createOpenTeamClient({
-      baseUrl: "http://openteam.test/",
+    const client = createAiTeamOSClient({
+      baseUrl: "http://aiteamos.test/",
       fetch,
       createId: () => "mobile-request-1",
       timeZone: () => "Asia/Jerusalem",
@@ -39,7 +39,7 @@ describe("mobile-safe OpenTeam client", () => {
 
     await client.sendChannelMessage("channel/1", "hello");
 
-    expect(calls[0]?.url).toBe("http://openteam.test/api/v0/channels/channel%2F1/messages");
+    expect(calls[0]?.url).toBe("http://aiteamos.test/api/v0/channels/channel%2F1/messages");
     expect(JSON.parse(String(calls[0]?.init?.body))).toEqual({
       content: "hello",
       attachments: [],
@@ -54,7 +54,7 @@ describe("mobile-safe OpenTeam client", () => {
       calls.push({ url: String(url), init });
       return Response.json({});
     }) as unknown as typeof globalThis.fetch;
-    const client = createOpenTeamClient({ baseUrl: "http://openteam.test", fetch });
+    const client = createAiTeamOSClient({ baseUrl: "http://aiteamos.test", fetch });
 
     await client.sendChannelMessage("channel/1", "hello", [], undefined, {
       clientId: "durable-nonce-0001",
@@ -65,14 +65,14 @@ describe("mobile-safe OpenTeam client", () => {
       clientId: "durable-nonce-0001",
     });
     expect(calls[1]?.url).toBe(
-      "http://openteam.test/api/v0/channels/channel%2F1/message-deliveries/durable-nonce-0001"
+      "http://aiteamos.test/api/v0/channels/channel%2F1/message-deliveries/durable-nonce-0001"
     );
   });
 
   test("desktop sends its source machine on both direct and group messages", async () => {
     const bodies: unknown[]=[];
     const machineId=crypto.randomUUID();
-    const client=createOpenTeamClient({baseUrl:"http://fixture",sourceMachineId:()=>machineId,fetch:(async(_url,init)=>{bodies.push(JSON.parse(String(init?.body)));return Response.json({});}) as typeof fetch});
+    const client=createAiTeamOSClient({baseUrl:"http://fixture",sourceMachineId:()=>machineId,fetch:(async(_url,init)=>{bodies.push(JSON.parse(String(init?.body)));return Response.json({});}) as typeof fetch});
     await client.sendDirectMessage("conversation","hello");await client.sendChannelMessage("channel","hello");
     for(const body of bodies)expect(body).toMatchObject({sourceMachineId:machineId,content:"hello"});
   });
@@ -84,8 +84,8 @@ describe("mobile-safe OpenTeam client", () => {
       calls.push({ url: String(url), init });
       return Response.json({ accepted: true, message: {}, runId: null }, { status: 202 });
     }) as unknown as typeof globalThis.fetch;
-    const client = createOpenTeamClient({
-      baseUrl: "http://openteam.test",
+    const client = createAiTeamOSClient({
+      baseUrl: "http://aiteamos.test",
       fetch,
       createId: () => `rich-client-${++nextId}`,
     });
@@ -100,27 +100,27 @@ describe("mobile-safe OpenTeam client", () => {
       calls.map((call) => [call.url, call.init?.method, JSON.parse(String(call.init?.body))])
     ).toEqual([
       [
-        "http://openteam.test/api/v0/channel-messages/message%2F1/widget-response",
+        "http://aiteamos.test/api/v0/channel-messages/message%2F1/widget-response",
         "POST",
         { value: "Deploy", clientId: "rich-client-1" },
       ],
       [
-        "http://openteam.test/api/v0/channel-messages/message%2F2/widget-dismiss",
+        "http://aiteamos.test/api/v0/channel-messages/message%2F2/widget-dismiss",
         "POST",
         { clientId: "rich-client-2" },
       ],
       [
-        "http://openteam.test/api/v0/channel-messages/message%2F3/secret",
+        "http://aiteamos.test/api/v0/channel-messages/message%2F3/secret",
         "POST",
         { value: "  preserve-whitespace  ", clientId: "rich-client-3" },
       ],
       [
-        "http://openteam.test/api/v0/channel-messages/message%2F4/computer-handoff",
+        "http://aiteamos.test/api/v0/channel-messages/message%2F4/computer-handoff",
         "POST",
         { action: "start", clientId: "rich-client-4" },
       ],
       [
-        "http://openteam.test/api/v0/channel-messages/message%2F4/computer-handoff",
+        "http://aiteamos.test/api/v0/channel-messages/message%2F4/computer-handoff",
         "POST",
         { action: "complete", clientId: "rich-client-5" },
       ],
@@ -133,7 +133,7 @@ describe("mobile-safe OpenTeam client", () => {
       calls.push(String(url));
       return new Response("{}", { status: 200, headers: { "content-type": "application/json" } });
     }) as unknown as typeof globalThis.fetch;
-    const client = createOpenTeamClient({ baseUrl: "http://openteam.test", fetch });
+    const client = createAiTeamOSClient({ baseUrl: "http://aiteamos.test", fetch });
 
     await client.bootstrap();
     await client.runtime();
@@ -144,13 +144,13 @@ describe("mobile-safe OpenTeam client", () => {
     await client.messageContext("newer/edge", { direction: "after", limit: 30 });
 
     expect(calls).toEqual([
-      "http://openteam.test/api/v0/client-bootstrap",
-      "http://openteam.test/api/v0/client-runtime",
-      "http://openteam.test/api/v0/channels/channel%2F1/history?before=900&limit=50",
-      "http://openteam.test/api/v0/channels/channel%2F1/client-state",
-      "http://openteam.test/api/v0/channel-messages/message%2F1/context?before=20&after=10",
-      "http://openteam.test/api/v0/channel-messages/older%2Fedge/context?direction=before&limit=25",
-      "http://openteam.test/api/v0/channel-messages/newer%2Fedge/context?direction=after&limit=30",
+      "http://aiteamos.test/api/v0/client-bootstrap",
+      "http://aiteamos.test/api/v0/client-runtime",
+      "http://aiteamos.test/api/v0/channels/channel%2F1/history?before=900&limit=50",
+      "http://aiteamos.test/api/v0/channels/channel%2F1/client-state",
+      "http://aiteamos.test/api/v0/channel-messages/message%2F1/context?before=20&after=10",
+      "http://aiteamos.test/api/v0/channel-messages/older%2Fedge/context?direction=before&limit=25",
+      "http://aiteamos.test/api/v0/channel-messages/newer%2Fedge/context?direction=after&limit=30",
     ]);
   });
 
@@ -178,8 +178,8 @@ describe("mobile-safe OpenTeam client", () => {
         { status: 200, headers: { "content-type": "text/event-stream" } }
       );
     }) as unknown as typeof globalThis.fetch;
-    const client = createOpenTeamClient({
-      baseUrl: "http://openteam.test",
+    const client = createAiTeamOSClient({
+      baseUrl: "http://aiteamos.test",
       fetch,
       getAuthToken: () => "mobile-session",
     });
@@ -191,7 +191,7 @@ describe("mobile-safe OpenTeam client", () => {
 
     expect(calls).toEqual([
       {
-        url: "http://openteam.test/api/v0/events?after=40",
+        url: "http://aiteamos.test/api/v0/events?after=40",
         authorization: "Bearer mobile-session",
         accept: "text/event-stream",
       },
@@ -235,8 +235,8 @@ describe("mobile-safe OpenTeam client", () => {
       });
       return Response.json(responses.shift());
     }) as unknown as typeof globalThis.fetch;
-    const client = createOpenTeamClient({
-      baseUrl: "http://openteam.test",
+    const client = createAiTeamOSClient({
+      baseUrl: "http://aiteamos.test",
       fetch,
       getAuthToken: () => "mobile-session",
       eventTransport: "long-poll",
@@ -261,12 +261,12 @@ describe("mobile-safe OpenTeam client", () => {
     expect(opens).toBe(1);
     expect(calls).toEqual([
       {
-        url: "http://openteam.test/api/v0/events/poll?after=40&waitMs=0",
+        url: "http://aiteamos.test/api/v0/events/poll?after=40&waitMs=0",
         authorization: "Bearer mobile-session",
         accept: "application/json",
       },
       {
-        url: "http://openteam.test/api/v0/events/poll?after=41&waitMs=25000",
+        url: "http://aiteamos.test/api/v0/events/poll?after=41&waitMs=25000",
         authorization: "Bearer mobile-session",
         accept: "application/json",
       },
@@ -360,8 +360,8 @@ describe("mobile-safe OpenTeam client", () => {
       calls.push({ url: String(url), init });
       return new Response("{}", { status: 200, headers: { "content-type": "application/json" } });
     }) as unknown as typeof globalThis.fetch;
-    const client = createOpenTeamClient({
-      baseUrl: "http://openteam.test",
+    const client = createAiTeamOSClient({
+      baseUrl: "http://aiteamos.test",
       fetch,
       createId: () => "mobile-mutation-1",
       timeZone: () => "America/New_York",
@@ -385,18 +385,18 @@ describe("mobile-safe OpenTeam client", () => {
       ])
     ).toEqual([
       [
-        "http://openteam.test/api/v0/bots",
+        "http://aiteamos.test/api/v0/bots",
         "POST",
         { clientRequestId: "create-bot-1", name: "Research" },
       ],
-      ["http://openteam.test/api/v0/channels", "POST", { name: "Launch", botIds: ["bot/1"] }],
+      ["http://aiteamos.test/api/v0/channels", "POST", { name: "Launch", botIds: ["bot/1"] }],
       [
-        "http://openteam.test/api/v0/channels/channel%2F1/name",
+        "http://aiteamos.test/api/v0/channels/channel%2F1/name",
         "PATCH",
         { name: "Launch room", clientId: "mobile-mutation-1", timeZone: "America/New_York" },
       ],
       [
-        "http://openteam.test/api/v0/channels/channel%2F1/profile",
+        "http://aiteamos.test/api/v0/channels/channel%2F1/profile",
         "PATCH",
         {
           name: "Launch room",
@@ -405,18 +405,18 @@ describe("mobile-safe OpenTeam client", () => {
         },
       ],
       [
-        "http://openteam.test/api/v0/channels/channel%2F1/members",
+        "http://aiteamos.test/api/v0/channels/channel%2F1/members",
         "PUT",
         { botIds: ["bot/1", "bot/2"], clientId: "mobile-mutation-1" },
       ],
       [
-        "http://openteam.test/api/v0/channels/channel%2F1/hidden",
+        "http://aiteamos.test/api/v0/channels/channel%2F1/hidden",
         "PATCH",
         { hidden: true, clientId: "mobile-mutation-1" },
       ],
-      ["http://openteam.test/api/v0/groups?includeHidden=1", undefined, null],
-      ["http://openteam.test/api/v0/channels/channel%2F1", "DELETE", null],
-      ["http://openteam.test/api/v0/bots/bot%2F1", "DELETE", null],
+      ["http://aiteamos.test/api/v0/groups?includeHidden=1", undefined, null],
+      ["http://aiteamos.test/api/v0/channels/channel%2F1", "DELETE", null],
+      ["http://aiteamos.test/api/v0/bots/bot%2F1", "DELETE", null],
     ]);
   });
 
@@ -436,17 +436,17 @@ describe("mobile-safe OpenTeam client", () => {
         headers: { "content-type": "application/json" },
       });
     }) as unknown as typeof globalThis.fetch;
-    const client = createOpenTeamClient({ baseUrl: "http://openteam.test", fetch });
+    const client = createAiTeamOSClient({ baseUrl: "http://aiteamos.test", fetch });
     const image = new Blob([new Uint8Array([1, 2, 3])], { type: "image/png" });
 
     await expect(client.uploadAsset(image, "截图.png")).resolves.toEqual(asset);
 
-    expect(calls[0]?.url).toBe("http://openteam.test/api/v0/assets");
+    expect(calls[0]?.url).toBe("http://aiteamos.test/api/v0/assets");
     expect(calls[0]?.init?.body).toBe(image);
     expect(new Headers(calls[0]?.init?.headers).get("content-type")).toBe("image/png");
     expect(new Headers(calls[0]?.init?.headers).get("x-file-name")).toBe("%E6%88%AA%E5%9B%BE.png");
     expect(client.assetUrl(asset)).toBe(
-      `http://openteam.test/api/v0/assets/${asset.assetId}?name=${encodeURIComponent(asset.fileName)}`
+      `http://aiteamos.test/api/v0/assets/${asset.assetId}?name=${encodeURIComponent(asset.fileName)}`
     );
   });
 
@@ -463,7 +463,7 @@ describe("mobile-safe OpenTeam client", () => {
       calls.push({ url: String(url), init });
       return Response.json(asset, { status: 201 });
     }) as unknown as typeof globalThis.fetch;
-    const client = createOpenTeamClient({ baseUrl: "http://openteam.test", fetch });
+    const client = createAiTeamOSClient({ baseUrl: "http://aiteamos.test", fetch });
     const input = {
       fileName: "notes.txt",
       mimeType: "text/plain",
@@ -480,8 +480,8 @@ describe("mobile-safe OpenTeam client", () => {
       calls.push({ url: String(url), init });
       return new Response("{}", { status: 200, headers: { "content-type": "application/json" } });
     }) as unknown as typeof globalThis.fetch;
-    const client = createOpenTeamClient({
-      baseUrl: "http://openteam.test",
+    const client = createAiTeamOSClient({
+      baseUrl: "http://aiteamos.test",
       fetch,
       createId: () => "mobile-image-request-1",
       timeZone: () => "Asia/Jerusalem",
@@ -498,7 +498,7 @@ describe("mobile-safe OpenTeam client", () => {
     await client.sendDirectMessage("conversation/1", "", [attachment], "message/1");
 
     expect(calls[0]?.url).toBe(
-      "http://openteam.test/api/v0/conversations/conversation%2F1/messages"
+      "http://aiteamos.test/api/v0/conversations/conversation%2F1/messages"
     );
     expect(JSON.parse(String(calls[0]?.init?.body))).toEqual({
       content: "",
@@ -514,10 +514,10 @@ describe("mobile-safe OpenTeam client", () => {
       new Response(JSON.stringify({ error: { code: "stale", message: "Already resolved" } }), {
         status: 409,
       })) as unknown as typeof globalThis.fetch;
-    const client = createOpenTeamClient({ baseUrl: "http://openteam.test", fetch });
+    const client = createAiTeamOSClient({ baseUrl: "http://aiteamos.test", fetch });
 
     await expect(client.cancelRun("run-1")).rejects.toMatchObject({
-      name: "OpenTeamClientError",
+      name: "AiTeamOSClientError",
       code: "stale",
       status: 409,
       message: "Already resolved",
@@ -531,8 +531,8 @@ describe("mobile-safe OpenTeam client", () => {
       calls.push(init ?? {});
       return new Response(JSON.stringify({ error: { code: "unauthorized" } }), { status: 401 });
     }) as unknown as typeof globalThis.fetch;
-    const client = createOpenTeamClient({
-      baseUrl: "http://openteam.test",
+    const client = createAiTeamOSClient({
+      baseUrl: "http://aiteamos.test",
       fetch,
       getAuthToken: async () => "signed-session",
       onUnauthorized: (usedToken) => {
@@ -551,16 +551,16 @@ describe("mobile-safe OpenTeam client", () => {
       calls.push({ url: String(url), init });
       return new Response("{}", { status: 200, headers: { "content-type": "application/json" } });
     }) as unknown as typeof globalThis.fetch;
-    const client = createOpenTeamClient({ baseUrl: "http://openteam.test", fetch });
+    const client = createAiTeamOSClient({ baseUrl: "http://aiteamos.test", fetch });
 
     await client.screenStatus("bot/1");
     await client.screenAction("bot/1", { action: "click", x: 640, y: 400 });
     await client.setScreenTakeover("bot/1", true);
 
     expect(calls.map((call) => [call.url, call.init?.method ?? "GET"])).toEqual([
-      ["http://openteam.test/api/v0/bots/bot%2F1/screen", "GET"],
-      ["http://openteam.test/api/v0/bots/bot%2F1/screen/actions", "POST"],
-      ["http://openteam.test/api/v0/bots/bot%2F1/screen/takeover", "POST"],
+      ["http://aiteamos.test/api/v0/bots/bot%2F1/screen", "GET"],
+      ["http://aiteamos.test/api/v0/bots/bot%2F1/screen/actions", "POST"],
+      ["http://aiteamos.test/api/v0/bots/bot%2F1/screen/takeover", "POST"],
     ]);
     expect(JSON.parse(String(calls[1]?.init?.body))).toEqual({
       action: "click",
@@ -569,7 +569,7 @@ describe("mobile-safe OpenTeam client", () => {
     });
     expect(JSON.parse(String(calls[2]?.init?.body))).toEqual({ active: true });
     expect(client.screenFrameUrl("bot/1", 42)).toBe(
-      "http://openteam.test/api/v0/bots/bot%2F1/screen/frame?v=42"
+      "http://aiteamos.test/api/v0/bots/bot%2F1/screen/frame?v=42"
     );
   });
 });
@@ -580,12 +580,12 @@ test("adds the scheme people leave off server addresses", () => {
   expect(withDefaultScheme("mac-mini.local:8787")).toBe("http://mac-mini.local:8787");
   expect(withDefaultScheme("mac-mini:8787")).toBe("http://mac-mini:8787");
   expect(withDefaultScheme("[::1]:8787")).toBe("http://[::1]:8787");
-  expect(withDefaultScheme("openteam.example.com")).toBe("https://openteam.example.com");
+  expect(withDefaultScheme("aiteamos.example.com")).toBe("https://aiteamos.example.com");
   expect(withDefaultScheme("box.tail1234.ts.net")).toBe("https://box.tail1234.ts.net");
   expect(withDefaultScheme("box.tail1234.ts.net:8788")).toBe("http://box.tail1234.ts.net:8788");
-  expect(withDefaultScheme("openteam.example.com:443")).toBe("https://openteam.example.com:443");
+  expect(withDefaultScheme("aiteamos.example.com:443")).toBe("https://aiteamos.example.com:443");
   expect(withDefaultScheme("203.0.113.9:8787/")).toBe("http://203.0.113.9:8787/");
-  expect(withDefaultScheme("http://openteam.example.com")).toBe("http://openteam.example.com");
+  expect(withDefaultScheme("http://aiteamos.example.com")).toBe("http://aiteamos.example.com");
   expect(withDefaultScheme("")).toBe("");
 });
 
@@ -595,7 +595,7 @@ test("first-run requests can be given up on without waiting for the server", asy
     signals.push(init?.signal);
     return Response.json({});
   }) as unknown as typeof globalThis.fetch;
-  const client = createOpenTeamClient({ baseUrl: "http://openteam.test", fetch });
+  const client = createAiTeamOSClient({ baseUrl: "http://aiteamos.test", fetch });
   const signal = new AbortController().signal;
 
   await client.bootstrap(signal);

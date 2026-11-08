@@ -1,5 +1,5 @@
-import { ApiError, type WakeParentInput } from "@openteam/contracts";
-import { Prisma } from "@openteam/db";
+import { ApiError, type WakeParentInput } from "@aiteamos/contracts";
+import { Prisma } from "@aiteamos/db";
 import { renderAutomationHandoffPrompt, type AgentMessaging, type ToolContext, type WakeInput } from "./index";
 
 export function automationContextRunId(runId: string, payload: unknown): string {

@@ -1,15 +1,15 @@
 import { contextBridge, ipcRenderer } from "electron";
 import { parseNotificationTarget } from "../main/notifications";
-import type { DesktopNotificationTarget } from "@openteam/contracts/notification-content";
+import type { DesktopNotificationTarget } from "@aiteamos/contracts/notification-content";
 import type { ApplicationMenuAction } from "../main/application-menu";
 
 const appVersionArgument = process.argv.find((argument) =>
-  argument.startsWith("--openteam-app-version=")
+  argument.startsWith("--aiteamos-app-version=")
 );
 const appVersion = (() => {
   if (!appVersionArgument) return "0.0.0";
   try {
-    return decodeURIComponent(appVersionArgument.slice("--openteam-app-version=".length));
+    return decodeURIComponent(appVersionArgument.slice("--aiteamos-app-version=".length));
   } catch {
     return "0.0.0";
   }
@@ -106,28 +106,28 @@ const notificationSnapshot = (value: unknown) => {
   return value;
 };
 
-contextBridge.exposeInMainWorld("openteam", {
+contextBridge.exposeInMainWorld("aiteamos", {
   platform: process.platform,
   clipboard: {
-    readText: (): Promise<string> => ipcRenderer.invoke("openteam:computer-clipboard-read"),
-    writeText: (text: string): Promise<void> => ipcRenderer.invoke("openteam:computer-clipboard-write", text),
+    readText: (): Promise<string> => ipcRenderer.invoke("aiteamos:computer-clipboard-read"),
+    writeText: (text: string): Promise<void> => ipcRenderer.invoke("aiteamos:computer-clipboard-write", text),
     setComputerActive: (active: boolean) => {
-      if (typeof active === "boolean") ipcRenderer.send("openteam:computer-clipboard-active", active);
+      if (typeof active === "boolean") ipcRenderer.send("aiteamos:computer-clipboard-active", active);
     },
     onComputerAction: (callback: (action: "copy" | "cut" | "paste") => void) => {
       const listener = (_event: Electron.IpcRendererEvent, action: unknown) => {
         if (action === "copy" || action === "cut" || action === "paste") callback(action);
       };
-      ipcRenderer.on("openteam:computer-clipboard", listener);
-      return () => ipcRenderer.removeListener("openteam:computer-clipboard", listener);
+      ipcRenderer.on("aiteamos:computer-clipboard", listener);
+      return () => ipcRenderer.removeListener("aiteamos:computer-clipboard", listener);
     },
   },
   onMenuAction: (callback: (action: ApplicationMenuAction) => void) => {
     const listener = (_event: Electron.IpcRendererEvent, action: unknown) => {
       if (action === "about" || action === "updates" || action === "settings") callback(action);
     };
-    ipcRenderer.on("openteam:app-menu", listener);
-    return () => ipcRenderer.removeListener("openteam:app-menu", listener);
+    ipcRenderer.on("aiteamos:app-menu", listener);
+    return () => ipcRenderer.removeListener("aiteamos:app-menu", listener);
   },
   visibility: {
     subscribeActivity: (callback: (active: boolean) => void) => {
@@ -138,11 +138,11 @@ contextBridge.exposeInMainWorld("openteam", {
         receivedEvent = true;
         if (subscribed) callback(active);
       };
-      ipcRenderer.on("openteam:window-activity-changed", listener);
-      void ipcRenderer.invoke("openteam:window-activity").then((active) => {
+      ipcRenderer.on("aiteamos:window-activity-changed", listener);
+      void ipcRenderer.invoke("aiteamos:window-activity").then((active) => {
         if (subscribed && !receivedEvent && typeof active === "boolean") callback(active);
       }).catch(() => { /* Browser focus remains the fallback during shutdown. */ });
-      return () => { subscribed = false; ipcRenderer.removeListener("openteam:window-activity-changed", listener); };
+      return () => { subscribed = false; ipcRenderer.removeListener("aiteamos:window-activity-changed", listener); };
     },
     subscribe: (callback: (visible: boolean) => void) => {
       let active = true;
@@ -152,113 +152,113 @@ contextBridge.exposeInMainWorld("openteam", {
         receivedEvent = true;
         if (active) callback(visible);
       };
-      ipcRenderer.on("openteam:window-visibility-changed", listener);
-      void ipcRenderer.invoke("openteam:window-visibility").then((visible) => {
+      ipcRenderer.on("aiteamos:window-visibility-changed", listener);
+      void ipcRenderer.invoke("aiteamos:window-visibility").then((visible) => {
         if (active && !receivedEvent && typeof visible === "boolean") callback(visible);
       }).catch(() => { /* Browser visibility remains the fallback during shutdown. */ });
-      return () => { active = false; ipcRenderer.removeListener("openteam:window-visibility-changed", listener); };
+      return () => { active = false; ipcRenderer.removeListener("aiteamos:window-visibility-changed", listener); };
     },
   },
   auth: {
-    connectMachine: (serverUrl: string) => ipcRenderer.invoke("openteam:machine:connect", serverUrl),
-    machineStatus: () => ipcRenderer.invoke("openteam:machine:status"),
+    connectMachine: (serverUrl: string) => ipcRenderer.invoke("aiteamos:machine:connect", serverUrl),
+    machineStatus: () => ipcRenderer.invoke("aiteamos:machine:status"),
     signIn: (serverUrl: string, username: string, password: string) =>
-      ipcRenderer.invoke("openteam:auth:sign-in", serverUrl, username, password),
+      ipcRenderer.invoke("aiteamos:auth:sign-in", serverUrl, username, password),
     signOut: (serverUrl: string, token: string) =>
-      ipcRenderer.invoke("openteam:auth:sign-out", serverUrl, token),
+      ipcRenderer.invoke("aiteamos:auth:sign-out", serverUrl, token),
     readToken: async () =>
-      authTokenStorageResult(await ipcRenderer.invoke("openteam:auth-token:read")),
+      authTokenStorageResult(await ipcRenderer.invoke("aiteamos:auth-token:read")),
     writeToken: async (token: string) => {
       if (typeof token !== "string" || !token.trim() || token.length > 16 * 1024) {
         throw new Error("Authentication token is invalid");
       }
-      return authTokenStorageResult(await ipcRenderer.invoke("openteam:auth-token:write", token));
+      return authTokenStorageResult(await ipcRenderer.invoke("aiteamos:auth-token:write", token));
     },
     clearToken: async () =>
-      authTokenStorageResult(await ipcRenderer.invoke("openteam:auth-token:clear")),
+      authTokenStorageResult(await ipcRenderer.invoke("aiteamos:auth-token:clear")),
   },
   pluginOAuth: {
-    start: (connectionId: string, force = false) => ipcRenderer.invoke("openteam:plugin-oauth:start", connectionId, force),
-    cancel: (connectionId: string, state: string) => ipcRenderer.invoke("openteam:plugin-oauth:cancel", connectionId, state),
-    close: () => ipcRenderer.invoke("openteam:plugin-oauth:close"),
+    start: (connectionId: string, force = false) => ipcRenderer.invoke("aiteamos:plugin-oauth:start", connectionId, force),
+    cancel: (connectionId: string, state: string) => ipcRenderer.invoke("aiteamos:plugin-oauth:cancel", connectionId, state),
+    close: () => ipcRenderer.invoke("aiteamos:plugin-oauth:close"),
     onResult: (callback: (result: { connectionId: string; status: "ready" | "cancelled" | "error"; message?: string }) => void) => {
       const listener = (_event: Electron.IpcRendererEvent, result: Parameters<typeof callback>[0]) => callback(result);
-      ipcRenderer.on("openteam:plugin-oauth:result", listener);
-      return () => ipcRenderer.removeListener("openteam:plugin-oauth:result", listener);
+      ipcRenderer.on("aiteamos:plugin-oauth:result", listener);
+      return () => ipcRenderer.removeListener("aiteamos:plugin-oauth:result", listener);
     },
   },
   localServer: {
-    detect: () => ipcRenderer.invoke("openteam:local-server:detect"),
+    detect: () => ipcRenderer.invoke("aiteamos:local-server:detect"),
   },
   providerSignIn: {
     capture: (authorizationUrl: string, redirectUri: string) =>
-      ipcRenderer.invoke("openteam:provider-sign-in:capture", authorizationUrl, redirectUri),
-    cancel: () => ipcRenderer.invoke("openteam:provider-sign-in:cancel"),
+      ipcRenderer.invoke("aiteamos:provider-sign-in:capture", authorizationUrl, redirectUri),
+    cancel: () => ipcRenderer.invoke("aiteamos:provider-sign-in:cancel"),
   },
   computer: {
-    network: () => ipcRenderer.invoke("openteam:network:get"),
-    shareNetwork: (enabled: boolean) => ipcRenderer.invoke("openteam:network:share", enabled),
-    get: () => ipcRenderer.invoke("openteam:computer:get"),
-    update: (request: { machineLabel?: string; messagesEnabled?: boolean }) => ipcRenderer.invoke("openteam:computer:update", request),
-    messagesPermissions: (request?: "fullDiskAccess" | "automation" | "contacts") => ipcRenderer.invoke("openteam:computer:messages-permissions", request ?? null),
-    messagesIcon: (): Promise<string | null> => ipcRenderer.invoke("openteam:computer:messages-icon"),
+    network: () => ipcRenderer.invoke("aiteamos:network:get"),
+    shareNetwork: (enabled: boolean) => ipcRenderer.invoke("aiteamos:network:share", enabled),
+    get: () => ipcRenderer.invoke("aiteamos:computer:get"),
+    update: (request: { machineLabel?: string; messagesEnabled?: boolean }) => ipcRenderer.invoke("aiteamos:computer:update", request),
+    messagesPermissions: (request?: "fullDiskAccess" | "automation" | "contacts") => ipcRenderer.invoke("aiteamos:computer:messages-permissions", request ?? null),
+    messagesIcon: (): Promise<string | null> => ipcRenderer.invoke("aiteamos:computer:messages-icon"),
     onMessagesGrantsNeeded: (listener: () => void) => {
       const handler = () => listener();
-      ipcRenderer.on("openteam:messages-grants-needed", handler);
-      return () => { ipcRenderer.removeListener("openteam:messages-grants-needed", handler); };
+      ipcRenderer.on("aiteamos:messages-grants-needed", handler);
+      return () => { ipcRenderer.removeListener("aiteamos:messages-grants-needed", handler); };
     },
   },
   files: {
     downloadAll: (files: Array<{ fileName: string; url: string }>) =>
-      ipcRenderer.invoke("openteam:files:download-all", downloadRequests(files)),
+      ipcRenderer.invoke("aiteamos:files:download-all", downloadRequests(files)),
     stageDelivery: (request: { stagingId: string; bytes: ArrayBuffer }) =>
-      ipcRenderer.invoke("openteam:files:stage-delivery", deliveryStageRequest(request)),
+      ipcRenderer.invoke("aiteamos:files:stage-delivery", deliveryStageRequest(request)),
     readDeliveryStage: (id: string) =>
       ipcRenderer.invoke(
-        "openteam:files:read-delivery-stage",
+        "aiteamos:files:read-delivery-stage",
         stagingId(id)
       ) as Promise<Uint8Array>,
     discardDeliveryStages: (ids: string[]) =>
-      ipcRenderer.invoke("openteam:files:discard-delivery-stages", deliveryStageIds(ids)),
+      ipcRenderer.invoke("aiteamos:files:discard-delivery-stages", deliveryStageIds(ids)),
   },
   deliveryJournal: {
     read: (scope: string) =>
-      ipcRenderer.invoke("openteam:delivery-journal:read", deliveryJournalScope(scope)),
+      ipcRenderer.invoke("aiteamos:delivery-journal:read", deliveryJournalScope(scope)),
     write: (scope: string, journal: unknown) =>
-      ipcRenderer.invoke("openteam:delivery-journal:write", {
+      ipcRenderer.invoke("aiteamos:delivery-journal:write", {
         scope: deliveryJournalScope(scope),
         journal: deliveryJournal(journal),
       }),
   },
   tailscale: {
-    request: (request: { serverUrl: string; action: "status" | "enable" | "disable"; httpsPort?: string }) => ipcRenderer.invoke("openteam:tailscale", request),
+    request: (request: { serverUrl: string; action: "status" | "enable" | "disable"; httpsPort?: string }) => ipcRenderer.invoke("aiteamos:tailscale", request),
   },
   updates: {
-    status: () => ipcRenderer.invoke("openteam:updates:status"),
-    check: () => ipcRenderer.invoke("openteam:updates:check"),
-    openDownload: () => ipcRenderer.invoke("openteam:updates:open-download"),
-    installClient: () => ipcRenderer.invoke("openteam:updates:install-client"),
+    status: () => ipcRenderer.invoke("aiteamos:updates:status"),
+    check: () => ipcRenderer.invoke("aiteamos:updates:check"),
+    openDownload: () => ipcRenderer.invoke("aiteamos:updates:open-download"),
+    installClient: () => ipcRenderer.invoke("aiteamos:updates:install-client"),
     onClientProgress: (listener: (status: unknown) => void) => {
       const handler = (_event: Electron.IpcRendererEvent, status: unknown) => listener(status);
-      ipcRenderer.on("openteam:desktop-update-progress", handler);
-      return () => ipcRenderer.removeListener("openteam:desktop-update-progress", handler);
+      ipcRenderer.on("aiteamos:desktop-update-progress", handler);
+      return () => ipcRenderer.removeListener("aiteamos:desktop-update-progress", handler);
     },
 
   },
   microphone: {
-    status: () => ipcRenderer.invoke("openteam:microphone:status"),
-    requestPermission: () => ipcRenderer.invoke("openteam:microphone:request-permission"),
-    openSettings: () => ipcRenderer.invoke("openteam:microphone:open-settings"),
+    status: () => ipcRenderer.invoke("aiteamos:microphone:status"),
+    requestPermission: () => ipcRenderer.invoke("aiteamos:microphone:request-permission"),
+    openSettings: () => ipcRenderer.invoke("aiteamos:microphone:open-settings"),
   },
   notifications: {
-    clear: () => ipcRenderer.send("openteam:notifications:clear"),
-    activity: () => ipcRenderer.invoke("openteam:notifications:activity"),
+    clear: () => ipcRenderer.send("aiteamos:notifications:clear"),
+    activity: () => ipcRenderer.invoke("aiteamos:notifications:activity"),
     onActivityChange: (callback: () => void) => {
-      ipcRenderer.on("openteam:notifications:activity-changed", callback);
-      return () => ipcRenderer.removeListener("openteam:notifications:activity-changed", callback);
+      ipcRenderer.on("aiteamos:notifications:activity-changed", callback);
+      return () => ipcRenderer.removeListener("aiteamos:notifications:activity-changed", callback);
     },
     sync: (snapshot: unknown) =>
-      ipcRenderer.send("openteam:notifications:sync", notificationSnapshot(snapshot)),
+      ipcRenderer.send("aiteamos:notifications:sync", notificationSnapshot(snapshot)),
     setVisibleChannel: (channelId: string | null) => {
       if (
         channelId !== null &&
@@ -266,12 +266,12 @@ contextBridge.exposeInMainWorld("openteam", {
       ) {
         throw new Error("Visible notification channel is invalid");
       }
-      ipcRenderer.send("openteam:notifications:visible-channel", channelId);
+      ipcRenderer.send("aiteamos:notifications:visible-channel", channelId);
     },
-    status: () => ipcRenderer.invoke("openteam:notifications:status"),
-    openSettings: () => ipcRenderer.invoke("openteam:notifications:open-settings"),
+    status: () => ipcRenderer.invoke("aiteamos:notifications:status"),
+    openSettings: () => ipcRenderer.invoke("aiteamos:notifications:open-settings"),
   },
-  getProcessMetrics: () => ipcRenderer.invoke("openteam:performance-snapshot"),
+  getProcessMetrics: () => ipcRenderer.invoke("aiteamos:performance-snapshot"),
   onNotificationClick: (
     listener: (target: DesktopNotificationTarget) => void
   ) => {
@@ -279,8 +279,8 @@ contextBridge.exposeInMainWorld("openteam", {
       const parsed = parseNotificationTarget(target);
       if (parsed) listener(parsed);
     };
-    ipcRenderer.on("openteam:notification-click", handler);
-    return () => ipcRenderer.removeListener("openteam:notification-click", handler);
+    ipcRenderer.on("aiteamos:notification-click", handler);
+    return () => ipcRenderer.removeListener("aiteamos:notification-click", handler);
   },
   versions: Object.freeze({
     app: appVersion,

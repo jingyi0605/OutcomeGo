@@ -24,11 +24,11 @@ describe("install script", () => {
   });
 
   test("preserves version overrides and an interactive terminal", () => {
-    expect(installScript).toContain("printenv OPENTEAM_VERSION");
+    expect(installScript).toContain("printenv AITEAMOS_VERSION");
     expect(installScript).toContain("releases/latest");
-    expect(installScript).toContain('asset_name="openteam-$binary_os-$architecture"');
+    expect(installScript).toContain('asset_name="aiteamos-$binary_os-$architecture"');
     expect(installScript).toContain("SHA256SUMS");
-    expect(installScript).toContain('installed_binary="$bin_directory/openteam"');
+    expect(installScript).toContain('installed_binary="$bin_directory/aiteamos"');
     expect(installScript).toContain('"$installed_binary" install "$@" </dev/tty');
   });
 
@@ -41,9 +41,9 @@ describe("install script", () => {
   });
 
   test("ships a checksum-verified Windows installer", () => {
-    expect(powerShellInstallScript).toContain('"openteam-windows-x64.exe"');
+    expect(powerShellInstallScript).toContain('"aiteamos-windows-x64.exe"');
     expect(powerShellInstallScript).toContain("Get-FileHash -Algorithm SHA256");
-    expect(powerShellInstallScript).toContain('Join-Path $env:LOCALAPPDATA "OpenTeam\\bin"');
+    expect(powerShellInstallScript).toContain('Join-Path $env:LOCALAPPDATA "aiTeamOS\\bin"');
     expect(powerShellInstallScript).toContain("& $installedBinary install @args");
   });
 
@@ -62,7 +62,7 @@ describe("install script", () => {
     expect(downloads).toHaveLength(4);
     for (const line of downloads) expect(line).toContain("--speed-limit 1 --speed-time 20");
     expect(installScript).toContain(
-      'fail "could not look up the latest OpenTeam release on GitHub. Check your internet connection and try again, or set OPENTEAM_VERSION to install a specific version."'
+      'fail "could not look up the latest aiTeamOS release on GitHub. Check your internet connection and try again, or set AITEAMOS_VERSION to install a specific version."'
     );
   });
 
@@ -79,7 +79,7 @@ describe("install script", () => {
       '[Environment]::SetEnvironmentVariable("Path", $newPath, "User")'
     );
     expect(powerShellInstallScript).toContain("$env:Path =");
-    expect(powerShellInstallScript).toContain('$env:OPENTEAM_NO_MODIFY_PATH -ne "1"');
+    expect(powerShellInstallScript).toContain('$env:AITEAMOS_NO_MODIFY_PATH -ne "1"');
   });
 });
 
@@ -103,7 +103,7 @@ const runInstaller = async (
     onPath?: boolean;
   } = {}
 ) => {
-  const root = mkdtempSync(join(tmpdir(), "openteam-installer-"));
+  const root = mkdtempSync(join(tmpdir(), "aiteamos-installer-"));
   temporaryDirectories.push(root);
   const home = join(root, "home");
   const tools = join(root, "tools");
@@ -112,7 +112,7 @@ const runInstaller = async (
   const cli = "#!/bin/sh\nprintf 'handoff %s\\n' \"$*\"\n";
   const checksum = createHash("sha256").update(cli).digest("hex");
   const names = ["darwin", "linux"].flatMap((os) =>
-    ["x64", "arm64"].map((arch) => `openteam-${os}-${arch}`)
+    ["x64", "arm64"].map((arch) => `aiteamos-${os}-${arch}`)
   );
   // Like a real release: each binary and its gzip copy.
   for (const name of names) {
@@ -152,11 +152,11 @@ cp "$source" "$output"
   const env: Record<string, string> = {
     HOME: home,
     PATH: `${tools}:/usr/bin:/bin${options.onPath ? `:${binDirectory}` : ""}`,
-    OPENTEAM_VERSION: "0.0.1",
+    AITEAMOS_VERSION: "0.0.1",
     NO_COLOR: "1",
     TERM: "dumb",
     ...(options.shell ? { SHELL: options.shell } : {}),
-    ...(options.binDirectory ? { OPENTEAM_BIN_DIR: binDirectory } : {}),
+    ...(options.binDirectory ? { AITEAMOS_BIN_DIR: binDirectory } : {}),
     ...options.env?.(home),
   };
   const run = async () => {
@@ -178,8 +178,8 @@ cp "$source" "$output"
   return { home, binDirectory, run, read };
 };
 
-const resolvesOpenTeam = async (shell: string, profile: string, home: string) => {
-  const child = Bun.spawn([shell, "-c", `. '${profile}'; command -v openteam`], {
+const resolvesAiTeamOS = async (shell: string, profile: string, home: string) => {
+  const child = Bun.spawn([shell, "-c", `. '${profile}'; command -v aiteamos`], {
     env: { HOME: home, PATH: "/usr/bin:/bin" },
     stdout: "pipe",
     stderr: "pipe",
@@ -198,15 +198,15 @@ describe.skipIf(process.platform === "win32")("installer PATH setup", () => {
     const first = await installer.run();
     expect(first.code).toBe(0);
     expect(first.output).toContain(
-      "Added ~/.local/bin to your PATH in ~/.zshrc. Open a new terminal to use openteam."
+      "Added ~/.local/bin to your PATH in ~/.zshrc. Open a new terminal to use aiteamos."
     );
     expect(first.output).toContain("handoff install --dir");
     const profile = installer.read(".zshrc");
     expect(profile).toBe(
-      `# Added by the OpenTeam installer\nexport PATH='${installer.binDirectory}':"$PATH"\n`
+      `# Added by the aiTeamOS installer\nexport PATH='${installer.binDirectory}':"$PATH"\n`
     );
     const second = await installer.run();
-    expect(second.output).toContain("Open a new terminal to use openteam.");
+    expect(second.output).toContain("Open a new terminal to use aiteamos.");
     expect(second.output).not.toContain("Added ~/.local/bin");
     expect(installer.read(".zshrc")).toBe(profile);
 
@@ -217,7 +217,7 @@ describe.skipIf(process.platform === "win32")("installer PATH setup", () => {
     });
     expect((await custom.run()).output).toContain("in ~/zsh-config/.zshrc.");
     expect(custom.read("zsh-config/.zshrc")).toStartWith(
-      "alias ll='ls -l'\n# Added by the OpenTeam installer\nexport PATH="
+      "alias ll='ls -l'\n# Added by the aiTeamOS installer\nexport PATH="
     );
     expect(custom.read(".zshrc")).toBeNull();
   });
@@ -227,7 +227,7 @@ describe.skipIf(process.platform === "win32")("installer PATH setup", () => {
     expect((await fresh.run()).output).toContain(
       "Added ~/.local/bin to your PATH in ~/.bashrc and ~/.bash_profile."
     );
-    expect(fresh.read(".bash_profile")).toContain("# Added by the OpenTeam installer");
+    expect(fresh.read(".bash_profile")).toContain("# Added by the aiTeamOS installer");
 
     // Creating .bash_profile would stop bash from reading an existing .profile.
     const existing = await runInstaller({
@@ -238,7 +238,7 @@ describe.skipIf(process.platform === "win32")("installer PATH setup", () => {
     expect((await existing.run()).output).toContain("in ~/.bashrc and ~/.profile.");
     expect(existing.read(".bash_profile")).toBeNull();
     expect(existing.read(".profile")).toStartWith(
-      "export EDITOR=vi\n\n# Added by the OpenTeam installer\n"
+      "export EDITOR=vi\n\n# Added by the aiTeamOS installer\n"
     );
   });
 
@@ -258,14 +258,14 @@ describe.skipIf(process.platform === "win32")("installer PATH setup", () => {
   test("fish gets a conf.d snippet using fish_add_path", async () => {
     const fish = await runInstaller({ shell: "/opt/homebrew/bin/fish" });
     expect((await fish.run()).output).toContain(
-      "Added ~/.local/bin to your PATH in ~/.config/fish/conf.d/openteam.fish."
+      "Added ~/.local/bin to your PATH in ~/.config/fish/conf.d/aiteamos.fish."
     );
-    expect(fish.read(".config/fish/conf.d/openteam.fish")).toBe(
-      `# Added by the OpenTeam installer\nfish_add_path -g '${fish.binDirectory}'\n`
+    expect(fish.read(".config/fish/conf.d/aiteamos.fish")).toBe(
+      `# Added by the aiTeamOS installer\nfish_add_path -g '${fish.binDirectory}'\n`
     );
   });
 
-  test("the written line resolves openteam, even for a directory with spaces and quotes", async () => {
+  test("the written line resolves aiteamos, even for a directory with spaces and quotes", async () => {
     const installer = await runInstaller({
       shell: "/bin/sh",
       binDirectory: (home) => join(home, "tools dir", "it's here"),
@@ -273,22 +273,22 @@ describe.skipIf(process.platform === "win32")("installer PATH setup", () => {
     const { output, code } = await installer.run();
     expect(code).toBe(0);
     expect(output).toContain("~/tools dir/it's here to your PATH in ~/.profile.");
-    const resolved = await resolvesOpenTeam(
+    const resolved = await resolvesAiTeamOS(
       "/bin/sh",
       join(installer.home, ".profile"),
       installer.home
     );
-    expect(realpathSync(resolved)).toBe(realpathSync(join(installer.binDirectory, "openteam")));
+    expect(realpathSync(resolved)).toBe(realpathSync(join(installer.binDirectory, "aiteamos")));
   });
 
   test("leaves profiles alone when opted out or already on PATH", async () => {
     const optedOut = await runInstaller({
       shell: "/bin/zsh",
-      env: () => ({ OPENTEAM_NO_MODIFY_PATH: "1" }),
+      env: () => ({ AITEAMOS_NO_MODIFY_PATH: "1" }),
     });
     const skipped = await optedOut.run();
     expect(skipped.output).toContain(
-      `Add ${optedOut.binDirectory} to PATH to run openteam from new terminals.`
+      `Add ${optedOut.binDirectory} to PATH to run aiteamos from new terminals.`
     );
     expect(optedOut.read(".zshrc")).toBeNull();
 

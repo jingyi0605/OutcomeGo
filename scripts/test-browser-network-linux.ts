@@ -5,13 +5,13 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import assert from "node:assert/strict";
 
-const context = process.env.OPENTEAM_TEST_DOCKER_CONTEXT;
-if (!context) throw Error("Set OPENTEAM_TEST_DOCKER_CONTEXT to a disposable Linux Docker context.");
-const out = resolve(process.env.OPENTEAM_TEST_OUTPUT_DIR ?? "output/browser-network-linux");
+const context = process.env.AITEAMOS_TEST_DOCKER_CONTEXT;
+if (!context) throw Error("Set AITEAMOS_TEST_DOCKER_CONTEXT to a disposable Linux Docker context.");
+const out = resolve(process.env.AITEAMOS_TEST_OUTPUT_DIR ?? "output/browser-network-linux");
 await mkdir(out, { recursive: true });
 await writeFile(join(out, "result.json"), JSON.stringify({ passed: false, state: "running" }));
-const temp = await mkdtemp(join(tmpdir(), "openteam-network-linux-"));
-const prefix = `openteam-network-test-${process.pid}`;
+const temp = await mkdtemp(join(tmpdir(), "aiteamos-network-linux-"));
+const prefix = `aiteamos-network-test-${process.pid}`;
 const controlNet = `${prefix}-control`,
   targetNet = `${prefix}-target`;
 const containers: string[] = [],
@@ -35,9 +35,9 @@ const names = Object.fromEntries(components.map((name) => [name, `${prefix}-${na
   string
 >;
 const images = {
-  computer: "openteam-network-computer:test",
-  server: "openteam-network-server:test",
-  migrate: "openteam-network-migrate:test",
+  computer: "aiteamos-network-computer:test",
+  server: "aiteamos-network-server:test",
+  migrate: "aiteamos-network-migrate:test",
 };
 const config = {
   a: crypto.randomUUID(),
@@ -99,19 +99,19 @@ async function run(name: Component, args: string[]) {
 }
 const env = [
   "-e",
-  `OPENTEAM_CONTROL_TOKEN=${config.control}`,
+  `AITEAMOS_CONTROL_TOKEN=${config.control}`,
   "-e",
-  "OPENTEAM_AUTH_SECRET=isolated-network-test-auth-secret-123456789",
+  "AITEAMOS_AUTH_SECRET=isolated-network-test-auth-secret-123456789",
   "-e",
-  "OPENTEAM_AUTH_URL=http://server:8787",
+  "AITEAMOS_AUTH_URL=http://server:8787",
   "-e",
-  "OPENTEAM_AUTH_MODE=required",
+  "AITEAMOS_AUTH_MODE=required",
   "-e",
   "DATABASE_URL=postgresql://test:test@postgres:5432/network_test",
   "-e",
-  "OPENTEAM_COMPUTER_URL=http://computer:8790",
+  "AITEAMOS_COMPUTER_URL=http://computer:8790",
   "-e",
-  "OPENTEAM_ASSET_ROOT=/home/box/agent-data/.openteam-assets",
+  "AITEAMOS_ASSET_ROOT=/home/box/agent-data/.aiteamos-assets",
 ];
 const phases = [
   "initial",
@@ -170,7 +170,7 @@ try {
       "-f",
       "scripts/browser-network-linux/cert-tools.Dockerfile",
       "-t",
-      "openteam-network-cert-tools:test",
+      "aiteamos-network-cert-tools:test",
       "."
     ),
     { log: "cert-tools-build.log" }
@@ -183,7 +183,7 @@ try {
       names["cert-tools"],
       "--network",
       "none",
-      "openteam-network-cert-tools:test",
+      "aiteamos-network-cert-tools:test",
       "sleep",
       "600"
     )
@@ -241,7 +241,7 @@ try {
         "--subnet",
         subnet,
         "--label",
-        "com.openteam.test=browser-network",
+        "com.aiteamos.test=browser-network",
         name
       )
     );
@@ -333,7 +333,7 @@ try {
   );
   await run("computer", [
     "-e",
-    "OPENTEAM_NODE_BINARY=/tmp/node-with-test-ca",
+    "AITEAMOS_NODE_BINARY=/tmp/node-with-test-ca",
     "--shm-size=512m",
     // Match main's computer namespace/bootstrap requirements in this disposable VM.
     "--cap-add=ALL",
@@ -350,9 +350,9 @@ try {
     "-v",
     `${dataVolume}:/home/box/sand-data`,
     "-e",
-    `OPENTEAM_CONTROL_TOKEN=${config.control}`,
+    `AITEAMOS_CONTROL_TOKEN=${config.control}`,
     "-e",
-    "OPENTEAM_SERVER_URL=http://server:8787",
+    "AITEAMOS_SERVER_URL=http://server:8787",
     images.computer,
   ]);
   await command(
@@ -464,7 +464,7 @@ try {
           "--cap-add=NET_ADMIN",
           "--entrypoint",
           "sleep",
-          "openteam-network-cert-tools:test",
+          "aiteamos-network-cert-tools:test",
           "600"
         )
       );

@@ -2,12 +2,12 @@ import { test, expect } from 'bun:test';
 import { mkdtemp, readFile, readdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { createPrismaClient } from '@openteam/db';
-import { parseBotRecipe } from '@openteam/contracts';
-import { AgentDataStore } from '@openteam/messaging';
+import { createPrismaClient } from '@aiteamos/db';
+import { parseBotRecipe } from '@aiteamos/contracts';
+import { AgentDataStore } from '@aiteamos/messaging';
 import { Effect } from 'effect';
 import { BotService } from '../src/services/bot-service';
-const url = process.env.OPENTEAM_TEST_DATABASE_URL;
+const url = process.env.AITEAMOS_TEST_DATABASE_URL;
 test('template import materializes memories, skills and setup workflows once, across provisioning retry', async () => {
  if (!url) return;
  const prisma = createPrismaClient(url), root = await mkdtemp(join(tmpdir(), 'template-import-'));

@@ -1,5 +1,5 @@
 import {expect, test} from "bun:test";
-import {parseReadTranscriptInput} from "@openteam/contracts/read-transcript";
+import {parseReadTranscriptInput} from "@aiteamos/contracts/read-transcript";
 import {boundTranscriptValue, transcriptToolProjection} from "../src/read-transcript";
 test("strict bounded selectors and cursors", () => {
   expect(parseReadTranscriptInput({})).toEqual({in:"session", limit:30, before:undefined});

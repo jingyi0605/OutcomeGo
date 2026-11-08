@@ -12,15 +12,15 @@ import {
   UpdateRoutineToolInput,
   UpdateSkillToolInput,
   type UpdateStateInput,
-} from "@openteam/contracts";
-import type { Prisma, PrismaClient } from "@openteam/db";
+} from "@aiteamos/contracts";
+import type { Prisma, PrismaClient } from "@aiteamos/db";
 import {
   appendAgentTimelineEvent,
   automationContextRunId,
   type AgentDataStore,
   type RoutineService,
   type TimelineEventWakeHost,
-} from "@openteam/messaging";
+} from "@aiteamos/messaging";
 
 const requiredText = (
   value: string | undefined,

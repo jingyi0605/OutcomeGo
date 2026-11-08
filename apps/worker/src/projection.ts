@@ -1,11 +1,11 @@
-import { agentNotificationPresentation, type ComputerEvent } from "@openteam/contracts";
-import type { Prisma, PrismaClient, RunItemKind, RunItemStatus } from "@openteam/db";
+import { agentNotificationPresentation, type ComputerEvent } from "@aiteamos/contracts";
+import type { Prisma, PrismaClient, RunItemKind, RunItemStatus } from "@aiteamos/db";
 import {
   type AgentDataStore,
   saveSilentAutomationResult,
   publishChannelNotification,
   publishMessageNotification,
-} from "@openteam/messaging";
+} from "@aiteamos/messaging";
 import { postgresJson } from "./postgres-json";
 
 const json = (value: unknown): Prisma.InputJsonValue =>

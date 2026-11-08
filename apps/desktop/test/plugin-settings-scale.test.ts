@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { PluginConnectionView, PluginSettingsView } from "@openteam/contracts";
+import type { PluginConnectionView, PluginSettingsView } from "@aiteamos/contracts";
 import {
   createCoalescedRefresh,
   mergePluginConnectionStatuses,

@@ -1,4 +1,4 @@
-import type { PrismaClient } from "@openteam/db";
+import type { PrismaClient } from "@aiteamos/db";
 
 /** Recently active conversations, newest first, that ReadTranscript can open by their session_id. */
 const ACTIVE_CONVERSATION_MAX_AGE_MS = 14 * 24 * 60 * 60 * 1_000;

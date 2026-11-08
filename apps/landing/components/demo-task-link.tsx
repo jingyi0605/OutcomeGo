@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 
-export const DEMO_TASK_EVENT = "openteam:demo-task";
+export const DEMO_TASK_EVENT = "aiteamos:demo-task";
 
 export type DemoTask = "research" | "operations" | "engineering";
 export type DemoTaskEventDetail = { task: DemoTask };

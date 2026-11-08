@@ -48,11 +48,11 @@ test("completed, spilled and interrupted results use the reference wording", () 
     formatShellCompletedResult({
       exitCode: 0,
       elapsedMs: 5,
-      outputLocation: { filePath: "/workspace/.openteam/agent-tools/uuid.txt", sizeBytes: 51_200, lineCount: 1200 },
+      outputLocation: { filePath: "/workspace/.aiteamos/agent-tools/uuid.txt", sizeBytes: 51_200, lineCount: 1200 },
       workingDirectory: "/workspace/sub",
     })
   ).toBe(
-    "Exit code: 0\n\nCommand output has been written to: /workspace/.openteam/agent-tools/uuid.txt (50.0 KB, 1200 lines)\n\nCommand completed in 5 ms.\n\nShell state (cwd, env vars) persists for subsequent calls. Current directory: /workspace/sub"
+    "Exit code: 0\n\nCommand output has been written to: /workspace/.aiteamos/agent-tools/uuid.txt (50.0 KB, 1200 lines)\n\nCommand completed in 5 ms.\n\nShell state (cwd, env vars) persists for subsequent calls. Current directory: /workspace/sub"
   );
   expect(formatShellCompletedResult({ exitCode: 0, elapsedMs: 1, output: truncateShellOutput("x".repeat(20_001)) })).toContain(
     "Command output (truncated to 20000 characters):\n\n```\n"

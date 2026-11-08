@@ -7,7 +7,7 @@ import { GithubMark, Wordmark } from "./brand";
 import { Button } from "./ui/button";
 import "./site-header.css";
 
-const GITHUB = "https://github.com/raghavpillai/openteam";
+const GITHUB = "https://github.com/jingyi0605/ai-TeamOS";
 const links = [
   ["Computer", "capabilities"],
   ["Apps", "plugins"],
@@ -94,7 +94,7 @@ export function SiteHeader({ home = false }: { home?: boolean }) {
   return (
     <header className="ot-header ot-site-header">
       <div className="ot-container ot-nav">
-        <a href={home ? "#top" : "/"} aria-label="OpenTeam home" className="ot-wordmark">
+        <a href={home ? "#top" : "/"} aria-label="aiTeamOS home" className="ot-wordmark">
           <Wordmark size={36} textSize={24} animated />
         </a>
         <nav aria-label="Main navigation" className="ot-nav-links">
@@ -107,7 +107,7 @@ export function SiteHeader({ home = false }: { home?: boolean }) {
           <Link href="/blog">Blog</Link>
         </nav>
         <div className="ot-nav-actions">
-          <a className="ot-github" href={GITHUB} aria-label="OpenTeam on GitHub">
+          <a className="ot-github" href={GITHUB} aria-label="aiTeamOS on GitHub">
             <GithubMark />
             <span>GitHub</span>
           </a>

@@ -1,6 +1,6 @@
 # Email
 
-Gives Bots a mailbox over standard IMAP and SMTP, and lets routines run when new mail arrives. It needs no OpenTeam-hosted service: the Bot computer signs in to the mailbox provider directly.
+Gives Bots a mailbox over standard IMAP and SMTP, and lets routines run when new mail arrives. It needs no aiTeamOS-hosted service: the Bot computer signs in to the mailbox provider directly.
 
 ## Accounts
 
@@ -19,7 +19,7 @@ A dedicated mailbox for the Bot keeps personal mail out of its reach.
 
 ## Routines
 
-The connector declares an event poll (`poll_new_mail`, every 60 seconds). OpenTeam calls it for each connected account and runs every routine whose trigger matches:
+The connector declares an event poll (`poll_new_mail`, every 60 seconds). aiTeamOS calls it for each connected account and runs every routine whose trigger matches:
 
 ```json
 { "type": "email", "inbox": "bot@example.com", "from": ["me@example.com"], "requireAuthPass": true }
@@ -49,5 +49,5 @@ Unit tests run with `bun test email/connector/test`. The IMAP/SMTP round trip ne
 docker run -d --name greenmail -p 3025:3025 -p 3143:3143 \
   -e GREENMAIL_OPTS='-Dgreenmail.setup.test.all -Dgreenmail.hostname=0.0.0.0 -Dgreenmail.auth.disabled' \
   greenmail/standalone:2.1.3
-OPENTEAM_TEST_GREENMAIL=127.0.0.1 bun test email/connector/test/greenmail.test.ts
+AITEAMOS_TEST_GREENMAIL=127.0.0.1 bun test email/connector/test/greenmail.test.ts
 ```

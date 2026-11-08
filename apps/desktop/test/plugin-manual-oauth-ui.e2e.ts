@@ -3,15 +3,15 @@ import { mkdir } from "node:fs/promises";
 import { resolve } from "node:path";
 import { chromium } from "../../computer/node_modules/playwright-core";
 import { createPluginFlowFixture } from "../../server/test/plugin/fixtures/plugin-flow";
-import { createOpenTeamClient } from "../../../packages/client-core/src";
+import { createAiTeamOSClient } from "../../../packages/client-core/src";
 
-if (!process.env.OPENTEAM_TEST_DATABASE_URL)
+if (!process.env.AITEAMOS_TEST_DATABASE_URL)
   throw new Error("A disposable test database is required");
-const fixture = await createPluginFlowFixture(process.env.OPENTEAM_TEST_DATABASE_URL, {
+const fixture = await createPluginFlowFixture(process.env.AITEAMOS_TEST_DATABASE_URL, {
   callbackMode: "auto",
   authSessions: ["fixture-browser-session"],
 });
-const client = createOpenTeamClient({ baseUrl: fixture.server.url.origin, getAuthToken: () => "fixture-browser-session" });
+const client = createAiTeamOSClient({ baseUrl: fixture.server.url.origin, getAuthToken: () => "fixture-browser-session" });
 const output = resolve(import.meta.dirname, "../../../findings/oauth-agent-handoff");
 await mkdir(output, { recursive: true });
 const browser = await chromium.launch({
@@ -51,7 +51,7 @@ try {
     `http://127.0.0.1:63387/test/browser/plugin-lifecycle.html?server=${encodeURIComponent(fixture.server.url.origin)}&authSession=fixture-browser-session&reviewPlugin=${encodeURIComponent(pluginKey)}`
   );
   await page.getByRole("button", { name: "Open plugin setup", exact: true }).waitFor();
-  await page.evaluate(url => window.dispatchEvent(new CustomEvent("openteam:deep-link", { detail: { url } })), handoff.actionResult.setupUrl);
+  await page.evaluate(url => window.dispatchEvent(new CustomEvent("aiteamos:deep-link", { detail: { url } })), handoff.actionResult.setupUrl);
   await page.getByText("Installation steps", { exact: true }).click();
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await page.getByText("Before you sign in", { exact: true }).waitFor();
@@ -140,9 +140,9 @@ try {
     "Polling must preserve Automatic rather than persisting the resolved mode"
   );
   await page.screenshot({ path: resolve(output, "manual-connected.png"), fullPage: true });
-  const automatic = await createPluginFlowFixture(process.env.OPENTEAM_TEST_DATABASE_URL, {
+  const automatic = await createPluginFlowFixture(process.env.AITEAMOS_TEST_DATABASE_URL, {
     callbackMode: "auto",
-    publicUrl: "https://openteam.fixture.test",
+    publicUrl: "https://aiteamos.fixture.test",
   });
   try {
     await page.goto(
@@ -154,7 +154,7 @@ try {
     const automaticProvider = await automaticallyOpened;
     await automaticProvider.getByRole("heading", { name: "Authorize test provider" }).waitFor();
     assert(
-      new URL(automaticProvider.url()).searchParams.get("redirect_uri")?.startsWith("https://openteam.fixture.test/"),
+      new URL(automaticProvider.url()).searchParams.get("redirect_uri")?.startsWith("https://aiteamos.fixture.test/"),
       "Automatic HTTPS must retain its server callback"
     );
     assert(

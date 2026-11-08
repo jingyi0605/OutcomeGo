@@ -7,13 +7,13 @@ describe("shared onboarding error copy", () => {
     "Keychain unavailable",
   ])("hides native storage diagnostics: %s", (message) => {
     expect(authErrorMessage(new Error(message), "Could not sign in")).toBe(
-      "OpenTeam could not access your saved sign-in. Restart the app and try again."
+      "aiTeamOS could not access your saved sign-in. Restart the app and try again."
     );
   });
   test.each([
-    "Enter a valid OpenTeam server URL.",
-    "The OpenTeam server URL must use HTTP or HTTPS.",
-    "OpenTeam server URL is required",
+    "Enter a valid aiTeamOS server URL.",
+    "The aiTeamOS server URL must use HTTP or HTTPS.",
+    "aiTeamOS server URL is required",
   ])("gives an example for an invalid address: %s", (message) => {
     expect(authErrorMessage(new Error(message), "Invalid address")).toContain(
       "starting with http:// or https://"
@@ -45,13 +45,13 @@ describe("shared onboarding error copy", () => {
   });
   test("hides the error class Electron keeps from a main-process sign-in", () => {
     const remote = (message: string) =>
-      new Error(`Error invoking remote method 'openteam:auth:sign-in': ${message}`);
-    expect(authErrorMessage(remote("OpenTeamClientError: fetch failed"), "Could not sign in")).toBe(
-      "Could not reach this OpenTeam server. Check the address and your connection."
+      new Error(`Error invoking remote method 'aiteamos:auth:sign-in': ${message}`);
+    expect(authErrorMessage(remote("AiTeamOSClientError: fetch failed"), "Could not sign in")).toBe(
+      "Could not reach this aiTeamOS server. Check the address and your connection."
     );
     expect(
       authErrorMessage(
-        remote("OpenTeamClientError: The server took too long to respond. Please try again."),
+        remote("AiTeamOSClientError: The server took too long to respond. Please try again."),
         "Could not sign in"
       )
     ).toBe("The server took too long to respond. Please try again.");
@@ -59,7 +59,7 @@ describe("shared onboarding error copy", () => {
   test("turns a malformed sign-in success into a recovery action", () => {
     expect(
       authErrorMessage(
-        new Error("The server did not return an OpenTeam session token"),
+        new Error("The server did not return an aiTeamOS session token"),
         "Could not sign in"
       )
     ).toContain("contact your server administrator");

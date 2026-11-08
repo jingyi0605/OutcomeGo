@@ -3,7 +3,7 @@ import { Client } from "pg";
 import { applyRawSchema } from "./apply-raw-schema";
 
 const connectionString =
-  process.env.DATABASE_URL ?? "postgresql://openteam:openteam@127.0.0.1:5432/openteam";
+  process.env.DATABASE_URL ?? "postgresql://aiteamos:aiteamos@127.0.0.1:5432/aiteamos";
 
 const prepareSearchProjection = async (): Promise<boolean> => {
   const client = new Client({ connectionString });

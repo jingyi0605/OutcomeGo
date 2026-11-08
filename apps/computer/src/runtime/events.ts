@@ -94,7 +94,7 @@ export function routeEvent(
     };
     if (message.role === "user") {
       if (!active.initialUserStarted) {
-        if (active.initialUserClientId) active.session?.sessionManager.appendCustomEntry("openteam-input-receipt", { messageId: `input:${active.initialUserClientId}` });
+        if (active.initialUserClientId) active.session?.sessionManager.appendCustomEntry("aiteamos-input-receipt", { messageId: `input:${active.initialUserClientId}` });
         active.initialUserStarted = true;
         active.queue.push({ type: "prompt.delivered", turnId: active.turnId });
       }

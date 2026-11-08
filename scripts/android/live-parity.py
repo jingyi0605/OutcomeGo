@@ -22,8 +22,8 @@ from urllib.request import Request, urlopen
 
 
 API_PREFIX = "/api/v0"
-PARITY_CONTENT = "OpenTeam parity harness message"
-PARITY_ATTACHMENT = b"OpenTeam parity attachment\n"
+PARITY_CONTENT = "aiTeamOS parity harness message"
+PARITY_ATTACHMENT = b"aiTeamOS parity attachment\n"
 SENSITIVE_KEY = re.compile(
     r"(authorization|credential|password|passwd|secret|token|cookie|api.?key)",
     re.IGNORECASE,
@@ -291,7 +291,7 @@ class ContractClient(Client):
             return self._json(
                 {
                     "assetId": self.asset_id,
-                    "fileName": "openteam-parity.txt",
+                    "fileName": "aiteamos-parity.txt",
                     "mimeType": "text/plain",
                     "byteSize": len(PARITY_ATTACHMENT),
                     "kind": "file",
@@ -324,8 +324,8 @@ def run_harness(client: Client, *, live: bool, server: str) -> list[str]:
     results.append(f"PASS auth config ({mode})")
 
     if live and mode == "required":
-        username = os.environ.get("OPENTEAM_PARITY_USERNAME", "")
-        credential = os.environ.get("OPENTEAM_PARITY_CREDENTIAL", "")
+        username = os.environ.get("AITEAMOS_PARITY_USERNAME", "")
+        credential = os.environ.get("AITEAMOS_PARITY_CREDENTIAL", "")
         login = require_status(
             "authenticated login",
             client.request(
@@ -359,7 +359,7 @@ def run_harness(client: Client, *, live: bool, server: str) -> list[str]:
     channels = require_list("client bootstrap", bootstrap, "channels")
     if not channels:
         raise HarnessFailure("client bootstrap", "server returned no channels")
-    requested_channel = os.environ.get("OPENTEAM_PARITY_CHANNEL_ID", "")
+    requested_channel = os.environ.get("AITEAMOS_PARITY_CHANNEL_ID", "")
     candidates = [item for item in channels if isinstance(item, Mapping) and item.get("id")]
     channel = next((item for item in candidates if item.get("id") == requested_channel), None) if requested_channel else None
     channel = channel or sorted(candidates, key=lambda item: str(item["id"]))[0]
@@ -376,17 +376,17 @@ def run_harness(client: Client, *, live: bool, server: str) -> list[str]:
     ]
     results.append(f"PASS history pagination ({len(messages)} messages)")
 
-    client_id = os.environ.get("OPENTEAM_PARITY_CLIENT_ID")
+    client_id = os.environ.get("AITEAMOS_PARITY_CLIENT_ID")
     if not client_id:
         digest = hashlib.sha256(f"{server}|{channel_id}".encode("utf-8")).hexdigest()[:24]
-        client_id = f"openteam-parity-{digest}"
+        client_id = f"aiteamos-parity-{digest}"
     attachment_response = require_status(
         "attachment upload",
         client.request(
             "POST",
             f"{API_PREFIX}/assets",
             PARITY_ATTACHMENT,
-            headers={"Content-Type": "text/plain", "X-File-Name": "openteam-parity.txt"},
+            headers={"Content-Type": "text/plain", "X-File-Name": "aiteamos-parity.txt"},
         ),
         {201},
     )
@@ -416,7 +416,7 @@ def run_harness(client: Client, *, live: bool, server: str) -> list[str]:
                 "attachments": [
                     {
                         "assetId": asset_id,
-                        "fileName": "openteam-parity.txt",
+                        "fileName": "aiteamos-parity.txt",
                         "mimeType": "text/plain",
                         "byteSize": len(PARITY_ATTACHMENT),
                         "kind": "file",
@@ -470,7 +470,7 @@ def run_harness(client: Client, *, live: bool, server: str) -> list[str]:
         raise HarnessFailure("delivery reconciliation", "sent clientId was not found by delivery lookup")
     results.append(f"PASS delivery reconciliation ({status})")
 
-    callback_url = os.environ.get("OPENTEAM_PARITY_OAUTH_CALLBACK_URL", "").strip()
+    callback_url = os.environ.get("AITEAMOS_PARITY_OAUTH_CALLBACK_URL", "").strip()
     if live and callback_url:
         callback = urlsplit(callback_url)
         server_origin = urlsplit(server)
@@ -482,7 +482,7 @@ def run_harness(client: Client, *, live: bool, server: str) -> list[str]:
         ):
             raise HarnessFailure(
                 "OAuth callback",
-                "OPENTEAM_PARITY_OAUTH_CALLBACK_URL must target the configured server callback path",
+                "AITEAMOS_PARITY_OAUTH_CALLBACK_URL must target the configured server callback path",
             )
         oauth = require_status(
             "OAuth callback",
@@ -518,13 +518,13 @@ def run_harness(client: Client, *, live: bool, server: str) -> list[str]:
 
 
 def live_configuration() -> tuple[str, str, str]:
-    server = os.environ.get("OPENTEAM_PARITY_SERVER", "").strip().rstrip("/")
-    username = os.environ.get("OPENTEAM_PARITY_USERNAME", "")
-    credential = os.environ.get("OPENTEAM_PARITY_CREDENTIAL", "")
+    server = os.environ.get("AITEAMOS_PARITY_SERVER", "").strip().rstrip("/")
+    username = os.environ.get("AITEAMOS_PARITY_USERNAME", "")
+    credential = os.environ.get("AITEAMOS_PARITY_CREDENTIAL", "")
     if not server or not username or not credential:
         raise HarnessFailure(
             "live configuration",
-            "set OPENTEAM_PARITY_SERVER, OPENTEAM_PARITY_USERNAME, and OPENTEAM_PARITY_CREDENTIAL",
+            "set AITEAMOS_PARITY_SERVER, AITEAMOS_PARITY_USERNAME, and AITEAMOS_PARITY_CREDENTIAL",
         )
     parsed = urlsplit(server)
     if parsed.scheme not in {"http", "https"} or not parsed.netloc or parsed.username or parsed.password or parsed.query or parsed.fragment:
@@ -537,7 +537,7 @@ def main() -> int:
     parser.add_argument(
         "--mode",
         choices=("contract", "live"),
-        default=os.environ.get("OPENTEAM_PARITY_MODE", "contract"),
+        default=os.environ.get("AITEAMOS_PARITY_MODE", "contract"),
         help="contract performs no network I/O; live uses environment-provided credentials",
     )
     parser.add_argument("--contract", action="store_true", help="alias for --mode contract")
@@ -557,7 +557,7 @@ def main() -> int:
         print(f"FAIL {error}", file=sys.stderr)
         return 1
 
-    print(f"OpenTeam live parity harness: {args.mode}")
+    print(f"aiTeamOS live parity harness: {args.mode}")
     for result in results:
         print(result)
     print(f"PASS all checks ({len(results)})")

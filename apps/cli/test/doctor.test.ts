@@ -53,10 +53,10 @@ afterEach(() => {
 });
 
 const installedFixture = () => {
-  const directory = mkdtempSync(join(tmpdir(), "openteam-doctor-connection-"));
+  const directory = mkdtempSync(join(tmpdir(), "aiteamos-doctor-connection-"));
   const paths = installationPaths(directory);
   const environment = createEnvironment({ version: "1.2.3" });
-  const token = parseEnvironment(environment).get("OPENTEAM_CONTROL_TOKEN");
+  const token = parseEnvironment(environment).get("AITEAMOS_CONTROL_TOKEN");
   const state = {
     inference: "ready",
     health: "ready",
@@ -106,11 +106,11 @@ const installedFixture = () => {
   });
   writeFileAtomic(
     paths.environment,
-    replaceEnvironmentValue(environment, "OPENTEAM_API_PORT", String(server.port))
+    replaceEnvironmentValue(environment, "AITEAMOS_API_PORT", String(server.port))
   );
   writeFileAtomic(
     paths.compose,
-    "name: openteam\nservices:\n  server:\n    image: example/server\n"
+    "name: aiteamos\nservices:\n  server:\n    image: example/server\n"
   );
   const now = new Date().toISOString();
   writeManifest(paths, {
@@ -120,7 +120,7 @@ const installedFixture = () => {
     composeUrl: "https://example.test/compose.yaml",
     installedAt: now,
     updatedAt: now,
-    ownerUsername: "openteam",
+    ownerUsername: "aiteamos",
   });
   class DoctorRunner implements CommandRunner {
     running = ["postgres", "server", "worker", "computer"];
@@ -175,9 +175,9 @@ const installedFixture = () => {
             status: 0,
             stdout: JSON.stringify({
               missing: [
-                "OPENTEAM_APNS_KEY_ID",
-                "OPENTEAM_APNS_TEAM_ID",
-                "OPENTEAM_APNS_PRIVATE_KEY",
+                "AITEAMOS_APNS_KEY_ID",
+                "AITEAMOS_APNS_TEAM_ID",
+                "AITEAMOS_APNS_PRIVATE_KEY",
               ],
               issue: null,
               topic: "dev.openteam.mobile.swift",
@@ -222,7 +222,7 @@ describe("doctor model API connection", () => {
       failed: 87,
       waiting: 0,
     };
-    const result = await runDoctor(paths, runner, "openteam", { deepChecks: true });
+    const result = await runDoctor(paths, runner, "aiteamos", { deepChecks: true });
     expect(result.ok).toBe(false);
     expect(result.checks.find((c) => c.label === "Compose services")?.level).toBe("pass");
     expect(result.checks.find((c) => c.label === "iOS push registration")?.level).toBe("pass");
@@ -231,7 +231,7 @@ describe("doctor model API connection", () => {
   });
   test("optional transcription setup warns while provider failure makes doctor fail", async () => {
     const { paths, state, runner } = installedFixture();
-    const missing = await runDoctor(paths, runner, "openteam", { deepChecks: true });
+    const missing = await runDoctor(paths, runner, "aiteamos", { deepChecks: true });
     expect(missing.ok).toBe(true);
     expect(missing.checks).toContainEqual({
       label: "Transcription",
@@ -239,7 +239,7 @@ describe("doctor model API connection", () => {
       detail: "Transcription diagnostic",
     });
     state.transcriptionLevel = "fail";
-    const unavailable = await runDoctor(paths, runner, "openteam", { deepChecks: true });
+    const unavailable = await runDoctor(paths, runner, "aiteamos", { deepChecks: true });
     expect(unavailable.ok).toBe(false);
     expect(unavailable.checks.find((check) => check.label === "Transcription")?.level).toBe("fail");
     expect(state.requests.some((request) => request.path.endsWith("/audio/transcriptions"))).toBe(
@@ -304,7 +304,7 @@ describe("doctor model API connection", () => {
   ])("reports %s as a blocking problem", async (error) => {
     const { paths, runner } = installedFixture();
     runner.result.stdout = JSON.stringify({ ok: false, error });
-    const result = await runDoctor(paths, runner, "openteam", { testInference: true });
+    const result = await runDoctor(paths, runner, "aiteamos", { testInference: true });
     expect(result.ok).toBe(false);
     expect(result.checks).toContainEqual({
       level: "fail",
@@ -316,12 +316,12 @@ describe("doctor model API connection", () => {
   test("marks unconfigured inference as not tested instead of passing it", async () => {
     const { paths, state, runner } = installedFixture();
     state.inference = "missing";
-    const result = await runDoctor(paths, runner, "openteam", { testInference: true });
+    const result = await runDoctor(paths, runner, "aiteamos", { testInference: true });
     expect(result.ok).toBe(true);
     expect(result.checks).toContainEqual({
       level: "warn",
       label: "AI connection",
-      detail: "not tested; no model is connected. Connect one in the OpenTeam app",
+      detail: "not tested; no model is connected. Connect one in the aiTeamOS app",
     });
     expect(runner.probes).toHaveLength(0);
     expect(
@@ -340,7 +340,7 @@ describe("doctor model API connection", () => {
     if (condition === "foreign server") runner.running = ["postgres", "computer"];
     if (condition === "stopped computer") runner.running = ["postgres", "server", "worker"];
     if (condition === "wrong release") state.version = "9.9.9";
-    const result = await runDoctor(paths, runner, "openteam", { testInference: true });
+    const result = await runDoctor(paths, runner, "aiteamos", { testInference: true });
     expect(result.ok).toBe(false);
     expect(result.checks.find((check) => check.label === "AI connection")?.detail).toContain(
       "not tested"
@@ -354,7 +354,7 @@ describe("doctor model API connection", () => {
   test("does not send inference when the settings API rejects this installation's control token", async () => {
     const { paths, state, runner } = installedFixture();
     state.settingsStatus = 401;
-    const result = await runDoctor(paths, runner, "openteam", { testInference: true });
+    const result = await runDoctor(paths, runner, "aiteamos", { testInference: true });
     expect(result.ok).toBe(false);
     expect(result.checks.find((check) => check.label === "AI connection")?.detail).toContain(
       "rejected this installation's control token"
@@ -365,7 +365,7 @@ describe("doctor model API connection", () => {
   test("does not invent a model when runtime settings are missing", async () => {
     const { paths, state, runner } = installedFixture();
     state.invalidSettings = true;
-    const result = await runDoctor(paths, runner, "openteam", { testInference: true });
+    const result = await runDoctor(paths, runner, "aiteamos", { testInference: true });
     expect(result.ok).toBe(false);
     expect(result.checks.find((check) => check.label === "AI connection")?.detail).toContain(
       "invalid runtime settings"
@@ -392,7 +392,7 @@ describe("doctor model API connection", () => {
         return original(command, args, options);
       },
     };
-    const result = await runDoctor(paths, recording, "openteam", {
+    const result = await runDoctor(paths, recording, "aiteamos", {
       deepChecks: true,
       testInference: true,
     });
@@ -408,7 +408,7 @@ describe("doctor model API connection", () => {
   test("an invalid manifest is included in the report instead of throwing before rendering", async () => {
     const { paths, runner } = installedFixture();
     writeFileSync(paths.manifest, "{broken");
-    const result = await runDoctor(paths, runner, "openteam", { deepChecks: true });
+    const result = await runDoctor(paths, runner, "aiteamos", { deepChecks: true });
     expect(result.ok).toBe(false);
     expect(result.checks.find((c) => c.label === "Installation")?.detail).toContain(
       "Invalid installation manifest"
@@ -418,13 +418,13 @@ describe("doctor model API connection", () => {
   test("distinguishes an incomplete installation from a fresh machine", async () => {
     const { paths, runner } = installedFixture();
     rmSync(paths.compose);
-    expect(await runDoctor(paths, runner, "openteam", { checkInstallPorts: false })).toMatchObject({
+    expect(await runDoctor(paths, runner, "aiteamos", { checkInstallPorts: false })).toMatchObject({
       ok: false,
       installed: false,
     });
     rmSync(paths.environment);
     rmSync(paths.manifest);
-    expect(await runDoctor(paths, runner, "openteam", { checkInstallPorts: false })).toMatchObject({
+    expect(await runDoctor(paths, runner, "aiteamos", { checkInstallPorts: false })).toMatchObject({
       ok: true,
       installed: false,
     });

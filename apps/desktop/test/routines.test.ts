@@ -14,7 +14,7 @@ import {
   routineTriggerValue,
 } from "../src/renderer/lib/routines";
 
-describe("OpenTeam-compatible routine schedule editor", () => {
+describe("aiTeamOS-compatible routine schedule editor", () => {
   test("round-trips every visible preset", () => {
     expect(routineScheduleValue(parseRoutineSchedule("0 * * * *"))).toBe("0 * * * *");
     expect(routineScheduleValue(parseRoutineSchedule("15 9 * * *"))).toBe("15 9 * * *");
@@ -24,7 +24,7 @@ describe("OpenTeam-compatible routine schedule editor", () => {
     expect(routineScheduleValue(parseRoutineSchedule("@every 30m"))).toBe("@every 30m");
   });
 
-  test("builds one cron listener or an OpenTeam-style trigger group", () => {
+  test("builds one cron listener or an aiTeamOS-style trigger group", () => {
     const weekdays = parseRoutineSchedule("0 9 * * 1-5");
     const daily = parseRoutineSchedule("0 17 * * *");
     expect(routineTriggerValue([weekdays])).toEqual({ type: "cron", schedule: "0 9 * * 1-5" });

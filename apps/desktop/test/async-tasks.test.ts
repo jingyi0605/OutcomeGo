@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { SubagentActivityView } from "@openteam/contracts";
+import type { SubagentActivityView } from "@aiteamos/contracts";
 import { activeAsyncTaskChannelIds, activeAsyncTasksForBot, asyncTaskElapsed } from "../src/renderer/lib/async-tasks";
 
 const attempt = (overrides: Partial<SubagentActivityView> = {}): SubagentActivityView => ({
@@ -23,7 +23,7 @@ const attempt = (overrides: Partial<SubagentActivityView> = {}): SubagentActivit
   ...overrides,
 });
 
-describe("OpenTeam-compatible async-task overlay", () => {
+describe("aiTeamOS-compatible async-task overlay", () => {
   test("parked children retain inspector ownership without animating their channel", () => {
     const parked = attempt({ status: "waiting" });
     expect(activeAsyncTasksForBot([parked], "parent-1")).toEqual([parked]);

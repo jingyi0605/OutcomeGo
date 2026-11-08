@@ -2,7 +2,7 @@ import { createHash, createPrivateKey, sign } from "node:crypto";
 import {
   truncateNotificationText,
   type PushNotificationPayload,
-} from "@openteam/contracts";
+} from "@aiteamos/contracts";
 
 export interface FcmDevice {
   pushToken: string;
@@ -71,17 +71,17 @@ export function fcmPayload(
 export const fcmAuthenticationModeFromEnvironment = (
   environment: NodeJS.ProcessEnv = process.env
 ): FcmConfiguration | undefined => {
-  const projectId = environment.OPENTEAM_FCM_PROJECT_ID?.trim();
-  const clientEmail = environment.OPENTEAM_FCM_CLIENT_EMAIL?.trim();
-  const privateKey = environment.OPENTEAM_FCM_PRIVATE_KEY?.replace(/\\n/g, "\n").trim();
+  const projectId = environment.AITEAMOS_FCM_PROJECT_ID?.trim();
+  const clientEmail = environment.AITEAMOS_FCM_CLIENT_EMAIL?.trim();
+  const privateKey = environment.AITEAMOS_FCM_PRIVATE_KEY?.replace(/\\n/g, "\n").trim();
   return projectId && clientEmail && privateKey ? { projectId, clientEmail, privateKey } : undefined;
 };
 
 export const fcmConfigurationIssues = (configuration: FcmConfiguration | undefined): string[] => {
   if (!configuration) return [
-    "OPENTEAM_FCM_PROJECT_ID is missing",
-    "OPENTEAM_FCM_CLIENT_EMAIL is missing",
-    "OPENTEAM_FCM_PRIVATE_KEY is missing",
+    "AITEAMOS_FCM_PROJECT_ID is missing",
+    "AITEAMOS_FCM_CLIENT_EMAIL is missing",
+    "AITEAMOS_FCM_PRIVATE_KEY is missing",
   ];
   const issues: string[] = [];
   if (!/^[a-z][a-z0-9-]{4,29}$/.test(configuration.projectId)) issues.push("project ID format is invalid");
@@ -98,14 +98,14 @@ export const fcmConfigurationStatus = (
   environment: NodeJS.ProcessEnv = process.env
 ) => {
   const raw = {
-    projectId: environment.OPENTEAM_FCM_PROJECT_ID?.trim(),
-    clientEmail: environment.OPENTEAM_FCM_CLIENT_EMAIL?.trim(),
-    privateKey: environment.OPENTEAM_FCM_PRIVATE_KEY?.replace(/\\n/g, "\n").trim(),
+    projectId: environment.AITEAMOS_FCM_PROJECT_ID?.trim(),
+    clientEmail: environment.AITEAMOS_FCM_CLIENT_EMAIL?.trim(),
+    privateKey: environment.AITEAMOS_FCM_PRIVATE_KEY?.replace(/\\n/g, "\n").trim(),
   };
   const missing = [
-    !raw.projectId ? "OPENTEAM_FCM_PROJECT_ID is missing" : null,
-    !raw.clientEmail ? "OPENTEAM_FCM_CLIENT_EMAIL is missing" : null,
-    !raw.privateKey ? "OPENTEAM_FCM_PRIVATE_KEY is missing" : null,
+    !raw.projectId ? "AITEAMOS_FCM_PROJECT_ID is missing" : null,
+    !raw.clientEmail ? "AITEAMOS_FCM_CLIENT_EMAIL is missing" : null,
+    !raw.privateKey ? "AITEAMOS_FCM_PRIVATE_KEY is missing" : null,
   ].filter((issue): issue is string => issue !== null);
   const configuration = missing.length === 0 ? raw as FcmConfiguration : undefined;
   const issues = configuration ? fcmConfigurationIssues(configuration) : missing;

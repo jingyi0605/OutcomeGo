@@ -14,7 +14,9 @@ entitlements = plistlib.loads((root / 'Resources/OpenTeam.entitlements').read_by
 extension = plistlib.loads((root / 'NotificationService/Info.plist').read_bytes())
 share = plistlib.loads((root / 'ShareExtension/Info.plist').read_bytes())
 share_entitlements = plistlib.loads((root / 'ShareExtension/ShareExtension.entitlements').read_bytes())
-assert package['version'] == release['version'], 'iOS package and release versions differ'
+# CFBundleShortVersionString only allows numeric components, so a prerelease such as
+# 0.1.0-beta.1 in package.json ships as 0.1.0 and the build number tells builds apart.
+assert package['version'].split('-')[0] == release['version'], 'iOS package and release versions differ'
 assert release['buildNumber'].isdigit(), 'Release build number must be numeric'
 for value in [release['bundleIdentifier'], release['bundleIdentifier'] + '.notifications', release['bundleIdentifier'] + '.share', release['teamIdentifier']]:
     assert value in project, f'Missing signing identity: {value}'

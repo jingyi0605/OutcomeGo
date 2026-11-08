@@ -12,7 +12,7 @@ test("box shell executes directly without classifier calls or approval events", 
   const active: any = { botId: crypto.randomUUID(), runId: crypto.randomUUID(), screenBotId: crypto.randomUUID(), cwd: root, queue: { push: (event: unknown) => events.push(event) }, requestSource: "user", runtimeProfile: "main" };
   try {
     const file = join(root, "result.txt");
-    await tools.executeOpenTeamTool(active, "shell", "Shell", { command: `printf done > '${file}'`, block_until_ms: 1000 });
+    await tools.executeAiTeamOSTool(active, "shell", "Shell", { command: `printf done > '${file}'`, block_until_ms: 1000 });
     expect(await readFile(file, "utf8")).toBe("done");
     expect(requests.some(path => path.includes("permissions"))).toBe(false);
     expect(events).toEqual([]);

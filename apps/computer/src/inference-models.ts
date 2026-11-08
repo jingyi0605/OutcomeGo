@@ -1,5 +1,5 @@
 import type { ModelRuntime } from "@earendil-works/pi-coding-agent";
-import { formatPiModelRef, type PiModelRef, type SubagentType } from "@openteam/contracts";
+import { formatPiModelRef, type PiModelRef, type SubagentType } from "@aiteamos/contracts";
 import type { Api, Model } from "@earendil-works/pi-ai";
 
 export const assertGraphicalModel = (model: Model<Api>, subagentType: SubagentType | null): void => {

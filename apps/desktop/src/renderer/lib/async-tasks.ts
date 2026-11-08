@@ -4,4 +4,4 @@ export {
   activeAsyncTaskChannelIds,
   activeAsyncTasksForBot,
   asyncTaskElapsed,
-} from "@openteam/product-core/activity";
+} from "@aiteamos/product-core/activity";

@@ -1,10 +1,10 @@
 import { createModelRuntime } from "./model-runtime";
 import { providerIdleFetch } from "./runtime/provider-idle-fetch";
 import { prepareCompactionHistory, recoverStagedPiCompaction } from "./runtime/compaction-history";
-import type { ComputerInferenceRequest } from "@openteam/contracts/service-protocol";
+import type { ComputerInferenceRequest } from "@aiteamos/contracts/service-protocol";
 import { prepareUserImages } from "./runtime/image-input";
 import { clampThinkingLevel } from "@earendil-works/pi-ai";
-import { taskProgressBaseInstructions } from "@openteam/contracts/task-progress";
+import { taskProgressBaseInstructions } from "@aiteamos/contracts/task-progress";
 import {
   type AgentSession,
   type AgentSessionEvent,
@@ -26,7 +26,7 @@ import {
   type PiReasoningLevel,
   SEND_TO_USER_REPLY_NUDGE_PROMPT,
   type ServerInferenceSettings,
-} from "@openteam/contracts";
+} from "@aiteamos/contracts";
 import { mkdir, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -70,7 +70,7 @@ import { DiskPressureMonitor, reminderStepPersisted } from "./runtime/disk-press
 import { INSTALL_NOTICE_TYPE, InstallNotice } from "./runtime/install-notice";
 import { PROCESS_NOTICE_TYPE, ProcessNotice } from "./runtime/process-notice";
 
-import { defaultTaskConfiguration, parseTaskConfiguration } from "@openteam/contracts/task-configuration";
+import { defaultTaskConfiguration, parseTaskConfiguration } from "@aiteamos/contracts/task-configuration";
 import { assertSessionPath, existingContextSessionPath } from "./runtime/session-path";
 import { RuntimeTools } from "./runtime/tools";
 import { pluginComponentsExtension } from "./runtime/plugin-components";
@@ -95,18 +95,18 @@ export class ComputerRuntime {
   private readonly activeByContext = new Map<string, ActiveTurn>();
   private readonly providerConnections = new IdleProviderConnections();
   private readonly inferenceConnections = new InferenceProviderConnections();
-  private readonly serverUrl = process.env.OPENTEAM_SERVER_URL ?? "http://127.0.0.1:8787";
+  private readonly serverUrl = process.env.AITEAMOS_SERVER_URL ?? "http://127.0.0.1:8787";
   private readonly controlToken =
-    process.env.OPENTEAM_CONTROL_TOKEN ?? "local-compose-only-change-me";
-  private readonly agentDir = resolve(process.env.OPENTEAM_PI_AGENT_DIR ?? "/home/box/.pi/agent");
-  private readonly sessionsDir = join(this.agentDir, "sessions", "openteam");
+    process.env.AITEAMOS_CONTROL_TOKEN ?? "local-compose-only-change-me";
+  private readonly agentDir = resolve(process.env.AITEAMOS_PI_AGENT_DIR ?? "/home/box/.pi/agent");
+  private readonly sessionsDir = join(this.agentDir, "sessions", "aiteamos");
   private readonly contextSessionsDir = join(this.agentDir, "context-sessions");
   private readonly settingsPath = join(
-    process.env.OPENTEAM_AGENT_DATA_ROOT ?? "/home/box/agent-data",
+    process.env.AITEAMOS_AGENT_DATA_ROOT ?? "/home/box/agent-data",
     "settings.json"
   );
   private inferenceSettings = defaultServerInferenceSettings();
-  private readonly workspaceRoot = resolve(process.env.OPENTEAM_WORKSPACE_ROOT ?? "/workspace");
+  private readonly workspaceRoot = resolve(process.env.AITEAMOS_WORKSPACE_ROOT ?? "/workspace");
   // The reference watches its workspace, data and temp volumes and keeps its ledger in its data root.
   private readonly diskPressure = new DiskPressureMonitor([this.workspaceRoot, this.agentDir, tmpdir()], join(this.agentDir, "disk-pressure-reminders.json"));
   private readonly installNotice = new InstallNotice(join(this.agentDir, "install-reminders.json"));
@@ -315,7 +315,7 @@ export class ComputerRuntime {
       initialUserStarted: false,
       initialUserClientId: request.clientMessageId,
       pluginNamespaces: request.dynamicNamespaces ?? [],
-      pluginRuntimePackages: request.pluginRuntimePackages as import("@openteam/plugin-sdk").PluginRuntimePackage[] | undefined,
+      pluginRuntimePackages: request.pluginRuntimePackages as import("@aiteamos/plugin-sdk").PluginRuntimePackage[] | undefined,
       pluginAbortController: new AbortController(),
       readOnly: request.readOnly ?? false,
       attachmentTempDirectories: [],
@@ -403,11 +403,11 @@ export class ComputerRuntime {
           subagent: Boolean(active.subagentType),
         }), request.userInfoEpoch ?? 0);
         if (pinned.update) await session.sendCustomMessage({
-          customType: "openteam-catalog-update", content: pinned.update, display: false, details: { origin: "host" },
+          customType: "aiteamos-catalog-update", content: pinned.update, display: false, details: { origin: "host" },
         }, { triggerTurn: false });
       }
       active.unsubscribe = session.subscribe((event) => this.routeEvent(active, event));
-      const recordedInputIds = new Set(session.sessionManager.getEntries().flatMap((entry) => entry.type === "custom" && entry.customType === "openteam-input-receipt" && typeof (entry.data as { messageId?: unknown })?.messageId === "string" ? [(entry.data as { messageId: string }).messageId] : []));
+      const recordedInputIds = new Set(session.sessionManager.getEntries().flatMap((entry) => entry.type === "custom" && entry.customType === "aiteamos-input-receipt" && typeof (entry.data as { messageId?: unknown })?.messageId === "string" ? [(entry.data as { messageId: string }).messageId] : []));
       for (const message of request.prependMessages ?? []) {
         if (recordedInputIds.has(message.id)) continue;
         const present = session.messages.some((entry) =>
@@ -417,12 +417,12 @@ export class ComputerRuntime {
         const ambient = await prepareUserImages(decodeInlineImages(message.images ?? []));
         const ambientText = [message.content, ambient.notice].filter(Boolean).join("\n");
         if (!present) await session.sendCustomMessage({
-          customType: "openteam-ambient",
+          customType: "aiteamos-ambient",
           content: ambient.images.length ? [{ type: "text", text: ambientText }, ...ambient.images] : ambientText,
           display: false,
           details: { messageId: message.id, origin: "host" },
         }, { triggerTurn: false });
-        if (message.id.startsWith("input:")) session.sessionManager.appendCustomEntry("openteam-input-receipt", { messageId: message.id });
+        if (message.id.startsWith("input:")) session.sessionManager.appendCustomEntry("aiteamos-input-receipt", { messageId: message.id });
       }
       await this.tools.recoverFormOutcomes(active);
       await this.compactionArchive.enforceSizeLimit(active.contextSessionId, active.sessionPath);

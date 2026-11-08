@@ -15,7 +15,7 @@ const HOP_TIMEOUT_MS = 20_000;
 const FETCH_DEADLINE_MS = 60_000;
 
 const HONEST_HEADERS = {
-  "user-agent": "OpenTeam-WebFetch/1.0",
+  "user-agent": "aiTeamOS-WebFetch/1.0",
   accept: "text/html,application/xhtml+xml,application/xml;q=0.9,application/json;q=0.9,text/plain;q=0.8,*/*;q=0.5",
   "accept-language": "en-US,en;q=0.9",
   "accept-encoding": "gzip, deflate, br",

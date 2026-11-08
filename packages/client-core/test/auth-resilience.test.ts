@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { authResponseError, createOpenTeamAuthClient } from "../src/auth";
+import { authResponseError, createAiTeamOSAuthClient } from "../src/auth";
 
 const baseUrl = "https://auth-qa.test";
 describe("session revocation", () => {
   test("sign-out uses its explicit token without native cookie credentials", async () => {
-    const client = createOpenTeamAuthClient({
+    const client = createAiTeamOSAuthClient({
       baseUrl,
       fetch: async (url, init) => {
         expect(url).toBe(`${baseUrl}/api/auth/sign-out`);
@@ -21,7 +21,7 @@ describe("session revocation", () => {
     await expect(client.signOut("test-token")).resolves.toBeUndefined();
   });
   test("a rejected sign-out cannot silently claim session revocation", async () => {
-    const client = createOpenTeamAuthClient({
+    const client = createAiTeamOSAuthClient({
       baseUrl,
       fetch: async () => new Response(null, { status: 503 }),
     });
@@ -41,7 +41,7 @@ describe("bounded authentication requests", () => {
   ] as const) {
     test(`${operation} times out and aborts even when fetch ignores cancellation`, async () => {
       let signal: AbortSignal | null | undefined;
-      const client = createOpenTeamAuthClient({
+      const client = createAiTeamOSAuthClient({
         baseUrl,
         timeoutMs: 20,
         fetch: async (_, init) => {
@@ -64,7 +64,7 @@ describe("bounded authentication requests", () => {
   }
   test("bounds an incomplete response body and allows the next attempt to succeed", async () => {
     let stalled = true;
-    const client = createOpenTeamAuthClient({
+    const client = createAiTeamOSAuthClient({
       baseUrl,
       timeoutMs: 20,
       fetch: async () => {
@@ -85,7 +85,7 @@ describe("bounded authentication requests", () => {
   });
   test("clears the deadline after a fast response", async () => {
     let signal: AbortSignal | null | undefined;
-    const client = createOpenTeamAuthClient({
+    const client = createAiTeamOSAuthClient({
       baseUrl,
       timeoutMs: 20,
       fetch: async (_, init) => {
@@ -100,7 +100,7 @@ describe("bounded authentication requests", () => {
   test("ignores a successful login that arrives after its deadline", async () => {
     let finishLate!: (response: Response) => void;
     let settled = "pending";
-    const client = createOpenTeamAuthClient({
+    const client = createAiTeamOSAuthClient({
       baseUrl,
       timeoutMs: 20,
       fetch: async () =>

@@ -1,11 +1,11 @@
 import { expect, test } from "bun:test";
-import { createPrismaClient } from "@openteam/db";
-import { createPluginTemplate } from "@openteam/plugin-sdk";
+import { createPrismaClient } from "@aiteamos/db";
+import { createPluginTemplate } from "@aiteamos/plugin-sdk";
 import { Effect } from "effect";
 import { PluginService } from "../../src/services/plugin-service";
 import { createOAuthMcpFixture } from "./fixtures/oauth-mcp";
 
-const databaseUrl = process.env.OPENTEAM_TEST_DATABASE_URL;
+const databaseUrl = process.env.AITEAMOS_TEST_DATABASE_URL;
 test.skipIf(!databaseUrl)(
   "packaged OAuth keeps account tokens isolated, serializes refresh, and passes only access tokens to the computer",
   async () => {
@@ -59,8 +59,8 @@ test.skipIf(!databaseUrl)(
         "packageBinaryFiles",
         "packageFiles",
       ]);
-      expect(Object.keys(configuration.env)).toEqual(["PROVIDER_ACCESS_TOKEN", "OPENTEAM_PLUGIN_ACCOUNT_ID"]);
-      expect(configuration.env.OPENTEAM_PLUGIN_ACCOUNT_ID).toBeTruthy();
+      expect(Object.keys(configuration.env)).toEqual(["PROVIDER_ACCESS_TOKEN", "AITEAMOS_PLUGIN_ACCOUNT_ID"]);
+      expect(configuration.env.AITEAMOS_PLUGIN_ACCOUNT_ID).toBeTruthy();
       expect(JSON.stringify(configuration)).not.toContain("fixture-client-secret");
       if (path.endsWith("/discover") && discoveryFailure)
         throw new Error("Enable provider MCP access. fixture-client-secret");

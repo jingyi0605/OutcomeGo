@@ -1,7 +1,7 @@
 import {
-  compareOpenTeamVersions,
-  openTeamCompatibility,
-} from "@openteam/contracts/version-compatibility";
+  compareAiTeamOSVersions,
+  aiTeamOSCompatibility,
+} from "@aiteamos/contracts/version-compatibility";
 import { useEffect, useState } from "react";
 import { useServerUpdateStatus } from "./use-server-update-status";
 
@@ -10,8 +10,8 @@ import { useServerUpdateStatus } from "./use-server-update-status";
  * desktop release updates first and the server then updates to that version.
  */
 export function useServerUpdate() {
-  const clientVersion = window.openteam?.versions.app ?? "0.0.0";
-  const [clientUpdate, setClientUpdate] = useState<OpenTeamUpdateStatus | null>(null);
+  const clientVersion = window.aiteamos?.versions.app ?? "0.0.0";
+  const [clientUpdate, setClientUpdate] = useState<AiTeamOSUpdateStatus | null>(null);
   const {
     status: server,
     loading: serverLoading,
@@ -24,7 +24,7 @@ export function useServerUpdate() {
 
   useEffect(() => {
     let active = true;
-    window.openteam?.updates
+    window.aiteamos?.updates
       .status()
       .then((value) => active && setClientUpdate(value))
       .catch(() => undefined);
@@ -33,9 +33,9 @@ export function useServerUpdate() {
     };
   }, []);
 
-  useEffect(() => window.openteam?.updates.onClientProgress(setClientUpdate), []);
+  useEffect(() => window.aiteamos?.updates.onClientProgress(setClientUpdate), []);
 
-  const compatibility = openTeamCompatibility(
+  const compatibility = aiTeamOSCompatibility(
     clientVersion,
     server?.currentVersion ?? null,
     server?.apiProtocolVersion ?? null,
@@ -51,7 +51,7 @@ export function useServerUpdate() {
     compatibility === "server-update-required" ||
     (compatibility === "update-recommended" &&
       server?.currentVersion &&
-      (compareOpenTeamVersions(clientVersion, server.currentVersion) ?? 0) > 0)
+      (compareAiTeamOSVersions(clientVersion, server.currentVersion) ?? 0) > 0)
       ? clientVersion
       : null;
   const serverNeedsUpdate =

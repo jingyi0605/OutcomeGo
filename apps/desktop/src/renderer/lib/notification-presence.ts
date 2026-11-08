@@ -1,7 +1,7 @@
 import {
   NOTIFICATION_HEARTBEAT_MS,
   type NotificationPresenceInput,
-} from "@openteam/contracts/notification-presence";
+} from "@aiteamos/contracts/notification-presence";
 
 export interface DesktopActivity {
   active: boolean;

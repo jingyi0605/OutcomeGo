@@ -13,9 +13,9 @@ const root = resolve(import.meta.dir, "..");
 const baseline = process.argv.find((arg) => arg.startsWith("--baseline="))?.slice(11);
 if (!baseline) throw Error("Supply --baseline=<directory with the saved pre-fix modules>");
 const originals = {
-  "src/renderer/components/openteam/virtualized-timeline.tsx": "virtualized-timeline-before.tsx",
-  "src/renderer/components/openteam/thread-tray.tsx": "thread-tray-before.tsx",
-  "src/renderer/components/openteam/chat-pane.tsx": "chat-pane-before.tsx",
+  "src/renderer/components/aiteamos/virtualized-timeline.tsx": "virtualized-timeline-before.tsx",
+  "src/renderer/components/aiteamos/thread-tray.tsx": "thread-tray-before.tsx",
+  "src/renderer/components/aiteamos/chat-pane.tsx": "chat-pane-before.tsx",
   "src/renderer/lib/thread-pin.ts": "thread-pin-before.ts",
 };
 await mkdir(output, { recursive: true });

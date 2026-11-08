@@ -14,18 +14,18 @@ have separate accounts. The instructions below apply to **Slack (managed)**.
 
 ## 1. Create a Slack app
 
-1. In OpenTeam, choose **Add** on **Slack (managed)** in **Marketplace**, and copy the **Authorized redirect URI** from the plugin's page.
+1. In aiTeamOS, choose **Add** on **Slack (managed)** in **Marketplace**, and copy the **Authorized redirect URI** from the plugin's page.
 2. Open [Slack's app dashboard](https://api.slack.com/apps), choose **Create New App → From a manifest**, and pick your workspace.
-3. Paste OpenTeam's [Slack app manifest](../../packages/plugins/slack/slack-app-manifest.json). Replace its example redirect URL with the URI you copied from OpenTeam.
+3. Paste aiTeamOS's [Slack app manifest](../../packages/plugins/slack/slack-app-manifest.json). Replace its example redirect URL with the URI you copied from aiTeamOS.
 4. Review the permissions and create the app.
 5. In the app's **Agents** settings, turn on **Enable Slack MCP Server**. Sign-in will seem to work without this, but no tools will load.
-6. From **Basic Information**, copy the **Client ID** and **Client Secret** into OpenTeam. Use the client secret, not the signing secret.
+6. From **Basic Information**, copy the **Client ID** and **Client Secret** into aiTeamOS. Use the client secret, not the signing secret.
 
 Keep the app internal to your workspace. Slack doesn't allow unlisted public apps to use its MCP server.
 
 ## 2. Connect and test
 
-1. In OpenTeam, choose **Save credentials and continue**, pick your workspace, and approve access.
+1. In aiTeamOS, choose **Save credentials and continue**, pick your workspace, and approve access.
 2. To check the connection, open **Manage → Accounts and settings**, choose the Slack account, and run a small read under **Test a tool**.
 Installed plugins and their connected accounts are available to all bots.
 
@@ -45,8 +45,8 @@ Choose **Add Another Account** on the plugin's page, give the account a name, an
 | Problem | What to do |
 | --- | --- |
 | App isn't enabled for Slack MCP Server | Turn on **Enable Slack MCP Server** under **Agents**, then choose **Restart / refresh tools** |
-| Redirect mismatch | Check that the app's redirect URL exactly matches the **Authorized redirect URI** in OpenTeam |
+| Redirect mismatch | Check that the app's redirect URL exactly matches the **Authorized redirect URI** in aiTeamOS |
 | A channel is missing or a tool fails with a permission error | Check your own access to the channel, the app's scopes, and the bot's access |
 | Administrator approval required | Finish your workspace's app approval process, then try again |
 
-Keep all the scopes from the manifest in your Slack app. OpenTeam requests all of them when you sign in, so removing one can make sign-in fail.
+Keep all the scopes from the manifest in your Slack app. aiTeamOS requests all of them when you sign in, so removing one can make sign-in fail.

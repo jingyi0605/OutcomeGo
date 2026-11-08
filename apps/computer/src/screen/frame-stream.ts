@@ -2,7 +2,7 @@ import { spawnAgentProcess as spawn, agentProcessIdentity } from "../agent-proce
 import { environment, removeProcess } from "./processes";
 import type { ScreenSession } from "./types";
 
-export const FRAME_STREAM_CONTENT_TYPE = "multipart/x-mixed-replace; boundary=openteam-frame";
+export const FRAME_STREAM_CONTENT_TYPE = "multipart/x-mixed-replace; boundary=aiteamos-frame";
 type Subscriber = { next?: Buffer; wake?: () => void; closed: boolean; error?: Error };
 type Feed = { subscribers: Set<Subscriber>; latest?: Buffer; stopped: boolean; stop: () => void };
 const feeds = new WeakMap<ScreenSession, Feed>();
@@ -104,7 +104,7 @@ function startFeed(home: string, session: ScreenSession): Feed {
       "-f",
       "mpjpeg",
       "-boundary_tag",
-      "openteam-frame",
+      "aiteamos-frame",
       "pipe:1",
     ],
     {
@@ -169,7 +169,7 @@ function startFeed(home: string, session: ScreenSession): Feed {
             throw new Error("Invalid computer video JPEG");
           const frame = Buffer.concat([
             Buffer.from(
-              `--openteam-frame\r\nContent-type: image/jpeg\r\nContent-length: ${length}\r\n\r\n`
+              `--aiteamos-frame\r\nContent-type: image/jpeg\r\nContent-length: ${length}\r\n\r\n`
             ),
             jpeg,
             Buffer.from("\r\n"),

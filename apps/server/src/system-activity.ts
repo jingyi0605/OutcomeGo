@@ -1,6 +1,6 @@
 import { readFile, statfs } from "node:fs/promises";
 import { cpus, freemem, platform, totalmem } from "node:os";
-import type { SystemActivityView } from "@openteam/contracts";
+import type { SystemActivityView } from "@aiteamos/contracts";
 
 export const usagePercent = (used: number, total: number): number | null =>
   Number.isFinite(used) && Number.isFinite(total) && total > 0
@@ -40,7 +40,7 @@ async function memoryPercent() {
 
 async function diskPercent() {
   // The production asset volume shares the Docker data disk. Do not scan files.
-  const disk = await statfs(process.env.OPENTEAM_ASSET_ROOT || process.cwd());
+  const disk = await statfs(process.env.AITEAMOS_ASSET_ROOT || process.cwd());
   return usagePercent(disk.blocks - disk.bfree, disk.blocks);
 }
 

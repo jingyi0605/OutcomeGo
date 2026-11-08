@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import type { ChannelMessageView, ClientBootstrapView } from "@openteam/contracts";
-import type { LoadedChannelHistory } from "@openteam/product-core/history";
-import type { ChannelClientState } from "../../src/renderer/client/openteam-api";
+import type { ChannelMessageView, ClientBootstrapView } from "@aiteamos/contracts";
+import type { LoadedChannelHistory } from "@aiteamos/product-core/history";
+import type { ChannelClientState } from "../../src/renderer/client/aiteamos-api";
 import {
   backgroundHistoryNeed,
   bootstrapSnapshot,

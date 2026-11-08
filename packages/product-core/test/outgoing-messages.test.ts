@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { ChannelMessageView } from "@openteam/contracts";
+import type { ChannelMessageView } from "@aiteamos/contracts";
 import { type DurableSendRecord, durableSendPromptDigest } from "../src/durable-delivery";
 import { sortedUniqueMessages } from "../src/history";
 import { projectOutgoingMessages } from "../src/outgoing-messages";

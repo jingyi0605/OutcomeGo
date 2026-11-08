@@ -1,31 +1,31 @@
-export interface OpenTeamPerformanceEntry {
+export interface AiTeamOSPerformanceEntry {
   name: string;
   duration: number;
   at: number;
   detail?: Record<string, number | string | boolean>;
 }
 
-export type OpenTeamPerformanceScenario = Record<string, number | string | boolean>;
+export type AiTeamOSPerformanceScenario = Record<string, number | string | boolean>;
 
-export interface OpenTeamPerformanceExport {
+export interface AiTeamOSPerformanceExport {
   exportedAt: number;
-  scenario: OpenTeamPerformanceScenario;
-  entries: OpenTeamPerformanceEntry[];
+  scenario: AiTeamOSPerformanceScenario;
+  entries: AiTeamOSPerformanceEntry[];
   summary: Record<string, { count: number; average: number; p95: number; max: number }>;
-  processes: Awaited<ReturnType<NonNullable<Window["openteam"]>["getProcessMetrics"]>> | null;
+  processes: Awaited<ReturnType<NonNullable<Window["aiteamos"]>["getProcessMetrics"]>> | null;
 }
 
 const MAX_ENTRIES = 200;
-const fallbackEntries: OpenTeamPerformanceEntry[] = [];
+const fallbackEntries: AiTeamOSPerformanceEntry[] = [];
 
 interface PerformanceStore {
-  entries: OpenTeamPerformanceEntry[];
+  entries: AiTeamOSPerformanceEntry[];
   installed: boolean;
   revision: number;
-  scenario: OpenTeamPerformanceScenario;
+  scenario: AiTeamOSPerformanceScenario;
 }
 
-const currentScenario = (): OpenTeamPerformanceScenario => {
+const currentScenario = (): AiTeamOSPerformanceScenario => {
   const parameters = new URLSearchParams(window.location.search);
   return {
     name: parameters.get("scenario") ?? "interactive",
@@ -37,29 +37,29 @@ const currentScenario = (): OpenTeamPerformanceScenario => {
     viewportWidth: window.innerWidth,
     viewportHeight: window.innerHeight,
     devicePixelRatio: window.devicePixelRatio,
-    platform: window.openteam?.platform ?? navigator.platform,
-    electron: window.openteam?.versions.electron ?? "browser",
-    chrome: window.openteam?.versions.chrome ?? "browser",
+    platform: window.aiteamos?.platform ?? navigator.platform,
+    electron: window.aiteamos?.versions.electron ?? "browser",
+    chrome: window.aiteamos?.versions.chrome ?? "browser",
   };
 };
 
 const getStore = (): PerformanceStore | null => {
   if (typeof window === "undefined") return null;
-  if (!window.__openteamPerformanceStore) {
-    window.__openteamPerformanceStore = {
+  if (!window.__aiteamosPerformanceStore) {
+    window.__aiteamosPerformanceStore = {
       entries: [],
       installed: false,
       revision: 0,
       scenario: currentScenario(),
     };
   }
-  return window.__openteamPerformanceStore;
+  return window.__aiteamosPerformanceStore;
 };
 
 export function recordPerformance(
   name: string,
   duration: number,
-  detail?: OpenTeamPerformanceEntry["detail"]
+  detail?: AiTeamOSPerformanceEntry["detail"]
 ) {
   const store = getStore();
   const entries = store?.entries ?? fallbackEntries;
@@ -68,7 +68,7 @@ export function recordPerformance(
   if (store) store.revision += 1;
 }
 
-export function measureUntilNextPaint(name: string, detail?: OpenTeamPerformanceEntry["detail"]) {
+export function measureUntilNextPaint(name: string, detail?: AiTeamOSPerformanceEntry["detail"]) {
   const startedAt = performance.now();
   requestAnimationFrame(() => {
     window.setTimeout(() => recordPerformance(name, performance.now() - startedAt, detail), 0);
@@ -86,7 +86,7 @@ export function installPerformanceMonitoring() {
       store.revision += 1;
     },
     metadata: () => ({ ...store.scenario }),
-    setScenario: (metadata: OpenTeamPerformanceScenario) => {
+    setScenario: (metadata: AiTeamOSPerformanceScenario) => {
       store.scenario = { ...store.scenario, ...metadata };
       store.revision += 1;
     },
@@ -112,17 +112,17 @@ export function installPerformanceMonitoring() {
         })
       );
     },
-    export: async (): Promise<OpenTeamPerformanceExport> => ({
+    export: async (): Promise<AiTeamOSPerformanceExport> => ({
       exportedAt: Date.now(),
       scenario: { ...store.scenario },
       entries: store.entries.slice(),
       summary: debug.summary(),
-      processes: window.openteam?.getProcessMetrics
-        ? await window.openteam.getProcessMetrics().catch(() => null)
+      processes: window.aiteamos?.getProcessMetrics
+        ? await window.aiteamos.getProcessMetrics().catch(() => null)
         : null,
     }),
   };
-  Object.defineProperty(window, "openteamPerformance", {
+  Object.defineProperty(window, "aiteamosPerformance", {
     configurable: true,
     value: debug,
   });
@@ -132,11 +132,11 @@ export function installPerformanceMonitoring() {
     const publish = () => {
       if (publishedRevision === store.revision) return;
       publishedRevision = store.revision;
-      document.documentElement.dataset.openteamPerformance = JSON.stringify(debug.summary());
-      document.documentElement.dataset.openteamPerformanceRecent = JSON.stringify(
+      document.documentElement.dataset.aiteamosPerformance = JSON.stringify(debug.summary());
+      document.documentElement.dataset.aiteamosPerformanceRecent = JSON.stringify(
         store.entries.slice(-50)
       );
-      document.documentElement.dataset.openteamPerformanceScenario = JSON.stringify(
+      document.documentElement.dataset.aiteamosPerformanceScenario = JSON.stringify(
         debug.metadata()
       );
     };
@@ -187,14 +187,14 @@ export function installPerformanceMonitoring() {
 
 declare global {
   interface Window {
-    __openteamPerformanceStore?: PerformanceStore;
-    openteamPerformance?: {
-      snapshot: () => OpenTeamPerformanceEntry[];
+    __aiteamosPerformanceStore?: PerformanceStore;
+    aiteamosPerformance?: {
+      snapshot: () => AiTeamOSPerformanceEntry[];
       clear: () => void;
-      metadata: () => OpenTeamPerformanceScenario;
-      setScenario: (metadata: OpenTeamPerformanceScenario) => void;
+      metadata: () => AiTeamOSPerformanceScenario;
+      setScenario: (metadata: AiTeamOSPerformanceScenario) => void;
       summary: () => Record<string, { count: number; average: number; p95: number; max: number }>;
-      export: () => Promise<OpenTeamPerformanceExport>;
+      export: () => Promise<AiTeamOSPerformanceExport>;
     };
   }
 }

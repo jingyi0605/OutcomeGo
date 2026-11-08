@@ -1,4 +1,4 @@
-import type { ChannelMessageView, ChannelView, RunView } from "@openteam/contracts";
+import type { ChannelMessageView, ChannelView, RunView } from "@aiteamos/contracts";
 
 export type SidebarChannelRow = {
   channel: ChannelView;

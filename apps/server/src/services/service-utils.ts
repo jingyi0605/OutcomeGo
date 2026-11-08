@@ -1,6 +1,6 @@
-import { ApiError } from "@openteam/contracts";
-import { COMPUTER_API_PATHS } from "@openteam/contracts/service-protocol";
-import type { Prisma } from "@openteam/db";
+import { ApiError } from "@aiteamos/contracts";
+import { COMPUTER_API_PATHS } from "@aiteamos/contracts/service-protocol";
+import type { Prisma } from "@aiteamos/db";
 import { Effect } from "effect";
 import { createHash } from "node:crypto";
 

@@ -4,7 +4,7 @@
   "version": "1.0.1",
   "name": "Slack (stealth)",
   "description": "Search Slack, read channels and threads, send messages, and add reactions using your browser session.",
-  "publisher": "OpenTeam",
+  "publisher": "aiTeamOS",
   "category": "Inbox & Collaboration",
   "featured": true,
   "components": ["mcp"],
@@ -31,7 +31,7 @@
         "placeholder": "xoxc-…",
         "required": true,
         "secret": true,
-        "helpText": "The browser token for this workspace, stored in your OpenTeam account settings."
+        "helpText": "The browser token for this workspace, stored in your aiTeamOS account settings."
       },
       {
         "key": "SLACK_SESSION_COOKIE",

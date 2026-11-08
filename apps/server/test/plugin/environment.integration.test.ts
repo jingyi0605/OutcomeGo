@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { Effect } from "effect";
-import { createPrismaClient } from "@openteam/db";
-import { pluginCatalog } from "@openteam/plugins";
+import { createPrismaClient } from "@aiteamos/db";
+import { pluginCatalog } from "@aiteamos/plugins";
 import { PluginInstallations } from "../../src/services/plugin/installations";
 import {
   processEnvironment,
@@ -9,7 +9,7 @@ import {
   storeProcessSecret,
 } from "../../src/services/process-secrets";
 
-const databaseUrl = process.env.OPENTEAM_TEST_DATABASE_URL;
+const databaseUrl = process.env.AITEAMOS_TEST_DATABASE_URL;
 
 test.skipIf(!databaseUrl)(
   "plugin setup secrets reach every Bot's processes, rotate, and leave with the plugin",

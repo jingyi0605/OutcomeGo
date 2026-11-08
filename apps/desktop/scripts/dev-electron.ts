@@ -21,8 +21,8 @@ const require = createRequire(import.meta.url);
 const electronPath = require("electron") as string;
 const waitOn = require("wait-on") as WaitOn;
 const environment = resolveDevElectronEnvironment({
-  OPENTEAM_DEV_HOST: process.env.OPENTEAM_DEV_HOST,
-  OPENTEAM_RENDERER_URL: process.env.OPENTEAM_RENDERER_URL,
+  AITEAMOS_DEV_HOST: process.env.AITEAMOS_DEV_HOST,
+  AITEAMOS_RENDERER_URL: process.env.AITEAMOS_RENDERER_URL,
 });
 
 const bundleCommands = [
@@ -59,7 +59,7 @@ const bundleCommands = [
     "build",
     "../cli/src/main.ts",
     "--outfile",
-    "dist-electron/openteam-cli.js",
+    "dist-electron/aiteamos-cli.js",
     "--target",
     "node",
     "--format",
@@ -156,7 +156,7 @@ const spawnElectron = () => {
     cwd: desktopRoot,
     env: {
       ...process.env,
-      OPENTEAM_RENDERER_URL: environment.rendererUrl,
+      AITEAMOS_RENDERER_URL: environment.rendererUrl,
     },
     stdin: "inherit",
     stdout: "inherit",

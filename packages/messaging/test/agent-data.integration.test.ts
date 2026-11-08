@@ -3,17 +3,17 @@ import { createHash } from "node:crypto";
 import { access, mkdir, mkdtemp, readFile, realpath, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createPrismaClient } from "@openteam/db";
+import { createPrismaClient } from "@aiteamos/db";
 import { AgentDataStore, type MemoryInferenceRequest } from "../src/agent-data";
 import { MEMORY_EXTRACTION_SYSTEM_PROMPT } from "../src/memory-prompts";
 import { parseSkillFile } from "../src/skill-files";
 import managedCatalog from "../src/prompts/managed-skills.json";
 
-const databaseUrl = process.env.OPENTEAM_TEST_DATABASE_URL;
+const databaseUrl = process.env.AITEAMOS_TEST_DATABASE_URL;
 const hash = (value: string) => createHash("sha256").update(value).digest("hex");
 
 test("plugin and managed skill caches use the Bot filesystem contract", async () => {
-  const temporary = await mkdtemp(join(tmpdir(), "openteam-skill-caches-"));
+  const temporary = await mkdtemp(join(tmpdir(), "aiteamos-skill-caches-"));
   const root = join(temporary, "agent-data");
   const store = new AgentDataStore({} as never, {
     root,
@@ -25,7 +25,7 @@ test("plugin and managed skill caches use the Bot filesystem contract", async ()
         id: "skill-cache-fixture",
         name: "Skill cache fixture",
         version: "1.0.0",
-        publisher: "OpenTeam",
+        publisher: "aiTeamOS",
         files: { "skills/research/references/check.md": "Supporting reference" },
         binaryFiles: { "skills/research/reference.bin": Buffer.from([0, 255, 128, 1]).toString("base64") },
         skills: [
@@ -52,7 +52,7 @@ test("plugin and managed skill caches use the Bot filesystem contract", async ()
       authBlocked: unknown[];
       skills: Array<{ id: string; filePath: string; installPath: string }>;
     };
-    expect(plugin.currentUserId).toBe("openteam");
+    expect(plugin.currentUserId).toBe("aiteamos");
     expect(plugin.authBlocked).toEqual([]);
     expect(plugin.skills).toHaveLength(1);
     expect((await stat(join(root, "plugin-skills", "cache.json"))).mode & 0o444).toBe(0o444);
@@ -76,7 +76,7 @@ test("turn memory extracts facts from memorable turns", async () => {
   if (!databaseUrl) return;
 
   const prisma = createPrismaClient(databaseUrl);
-  const temporary = await mkdtemp(join(tmpdir(), "openteam-memory-lifecycle-"));
+  const temporary = await mkdtemp(join(tmpdir(), "aiteamos-memory-lifecycle-"));
   const root = join(temporary, "agent-data");
   const workspace = join(temporary, "workspace");
   const botId = crypto.randomUUID();
@@ -166,7 +166,7 @@ test("a review takes over only exchanges no running review holds", async () => {
   if (!databaseUrl) return;
 
   const prisma = createPrismaClient(databaseUrl);
-  const temporary = await mkdtemp(join(tmpdir(), "openteam-memory-overlap-"));
+  const temporary = await mkdtemp(join(tmpdir(), "aiteamos-memory-overlap-"));
   const workspace = join(temporary, "workspace");
   const botId = crypto.randomUUID();
   const prompts: string[] = [];
@@ -221,7 +221,7 @@ test("agent-data files are authoritative and preserve malformed settings", async
   if (!databaseUrl) return;
 
   const prisma = createPrismaClient(databaseUrl);
-  const temporary = await mkdtemp(join(tmpdir(), "openteam-agent-data-"));
+  const temporary = await mkdtemp(join(tmpdir(), "aiteamos-agent-data-"));
   const root = join(temporary, "agent-data");
   const workspace = join(temporary, "workspace");
   await mkdir(workspace, { recursive: true });
@@ -440,7 +440,7 @@ test("subagent actors stay hidden and outside agent-data projection", async () =
   if (!databaseUrl) return;
 
   const prisma = createPrismaClient(databaseUrl);
-  const temporary = await mkdtemp(join(tmpdir(), "openteam-subagent-state-"));
+  const temporary = await mkdtemp(join(tmpdir(), "aiteamos-subagent-state-"));
   const root = join(temporary, "agent-data");
   const workspace = join(temporary, "workspace");
   const store = new AgentDataStore(prisma, { root, workspaceRoot: workspace });

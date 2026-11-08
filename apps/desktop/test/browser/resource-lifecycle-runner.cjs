@@ -5,10 +5,10 @@ const directory = process.env.RESOURCE_LIFECYCLE_DIR;
 app.setPath("userData", path.join(directory, "profile"));
 let visible = true;
 let active = true;
-ipcMain.handle("openteam:window-visibility", () => visible);
-ipcMain.handle("openteam:window-activity", () => active);
-ipcMain.handle("openteam:delivery-journal:read", () => null);
-ipcMain.handle("openteam:delivery-journal:write", () => {});
+ipcMain.handle("aiteamos:window-visibility", () => visible);
+ipcMain.handle("aiteamos:window-activity", () => active);
+ipcMain.handle("aiteamos:delivery-journal:read", () => null);
+ipcMain.handle("aiteamos:delivery-journal:write", () => {});
 app.whenReady().then(async () => {
   const win = new BrowserWindow({
     show: false,
@@ -45,8 +45,8 @@ app.whenReady().then(async () => {
   const signal = async (shown, focused) => {
     visible = shown;
     active = shown && focused;
-    win.webContents.send("openteam:window-visibility-changed", visible);
-    win.webContents.send("openteam:window-activity-changed", active);
+    win.webContents.send("aiteamos:window-visibility-changed", visible);
+    win.webContents.send("aiteamos:window-activity-changed", active);
     await waitFor((value) => value.visible === visible && value.active === active);
     await pause();
   };

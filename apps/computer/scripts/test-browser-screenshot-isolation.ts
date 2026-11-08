@@ -10,12 +10,12 @@ import { BrowserUseSession } from "../src/browser/use";
 import { outOfProcessPlaywright } from "../src/browser/playwright-driver";
 
 // Independent headless process/profile, never the user's browser. Run on Linux
-// and macOS with OPENTEAM_BROWSER_TEST_EXECUTABLE pointing to Chromium/Chrome.
-const executable = process.env.OPENTEAM_BROWSER_TEST_EXECUTABLE;
-if (!executable) throw new Error("Set OPENTEAM_BROWSER_TEST_EXECUTABLE");
+// and macOS with AITEAMOS_BROWSER_TEST_EXECUTABLE pointing to Chromium/Chrome.
+const executable = process.env.AITEAMOS_BROWSER_TEST_EXECUTABLE;
+if (!executable) throw new Error("Set AITEAMOS_BROWSER_TEST_EXECUTABLE");
 const root = await mkdtemp(join(tmpdir(), "screenshot-isolation-"));
 const fixture = Bun.serve({ hostname: "127.0.0.1", port: 0, fetch() {
-  return new Response(`<!doctype html><style>body{margin:0;height:1200px;background:white}.block{position:absolute;left:20px;width:120px;height:60px}#marker{top:20px;background:rgb(0,0,255)}.secret{background:red;top:100px}#bottom{top:1100px}button{position:absolute;top:200px}</style><div class="block" id="marker"></div><div class="block secret" data-openteam-private="true">PRIVATE</div><div class="block secret" id="bottom" data-openteam-private="true">PRIVATE BELOW FOLD</div><button onclick="document.body.dataset.answer=confirm('Screenshot confirmation')?'yes':'no'">Confirm</button>`, { headers: { "content-type": "text/html" } });
+  return new Response(`<!doctype html><style>body{margin:0;height:1200px;background:white}.block{position:absolute;left:20px;width:120px;height:60px}#marker{top:20px;background:rgb(0,0,255)}.secret{background:red;top:100px}#bottom{top:1100px}button{position:absolute;top:200px}</style><div class="block" id="marker"></div><div class="block secret" data-aiteamos-private="true">PRIVATE</div><div class="block secret" id="bottom" data-aiteamos-private="true">PRIVATE BELOW FOLD</div><button onclick="document.body.dataset.answer=confirm('Screenshot confirmation')?'yes':'no'">Confirm</button>`, { headers: { "content-type": "text/html" } });
 } });
 const chrome = spawn(executable, ["--headless=new", "--no-sandbox", "--disable-dev-shm-usage", "--no-first-run", "--remote-debugging-port=0", `--user-data-dir=${root}`], { stdio: "ignore" });
 const Jimp = createJimp({ formats: [png] });

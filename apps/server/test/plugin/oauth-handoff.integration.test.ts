@@ -1,12 +1,12 @@
 import { expect, test } from "bun:test";
-import { createOpenTeamClient } from "../../../../packages/client-core/src";
+import { createAiTeamOSClient } from "../../../../packages/client-core/src";
 import { createPluginFlowFixture } from "./fixtures/plugin-flow";
 
-test.skipIf(!process.env.OPENTEAM_TEST_DATABASE_URL)(
+test.skipIf(!process.env.AITEAMOS_TEST_DATABASE_URL)(
   "plugin HTTP handoff resumes, cancels, expires and rejects stale callbacks without leaking provider errors",
   async () => {
-    const fixture = await createPluginFlowFixture(process.env.OPENTEAM_TEST_DATABASE_URL!);
-    const client = createOpenTeamClient({ baseUrl: fixture.server.url.origin });
+    const fixture = await createPluginFlowFixture(process.env.AITEAMOS_TEST_DATABASE_URL!);
+    const client = createAiTeamOSClient({ baseUrl: fixture.server.url.origin });
     try {
       const key = fixture.definitions[0]!.key;
       await client.installPlugin(key);

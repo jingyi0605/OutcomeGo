@@ -1,15 +1,15 @@
 import {
   createJsonTransport,
   normalizeBaseUrl,
-  OpenTeamClientError,
-  type OpenTeamFetch,
+  AiTeamOSClientError,
+  type AiTeamOSFetch,
 } from "./http";
 
-export type OpenTeamAuthMode = "required" | "disabled";
-export type OpenTeamAuthStatus = "checking" | "authenticated" | "signed-out";
-export type OpenTeamAuthConnection = "unknown" | "online" | "offline";
+export type AiTeamOSAuthMode = "required" | "disabled";
+export type AiTeamOSAuthStatus = "checking" | "authenticated" | "signed-out";
+export type AiTeamOSAuthConnection = "unknown" | "online" | "offline";
 
-export interface OpenTeamAuthUser {
+export interface AiTeamOSAuthUser {
   id: string;
   name: string;
   email: string;
@@ -17,28 +17,28 @@ export interface OpenTeamAuthUser {
   image: string | null;
 }
 
-export interface OpenTeamAuthSnapshot {
-  status: OpenTeamAuthStatus;
-  mode: OpenTeamAuthMode;
-  connection: OpenTeamAuthConnection;
+export interface AiTeamOSAuthSnapshot {
+  status: AiTeamOSAuthStatus;
+  mode: AiTeamOSAuthMode;
+  connection: AiTeamOSAuthConnection;
   error: string | null;
-  user: OpenTeamAuthUser | null;
+  user: AiTeamOSAuthUser | null;
 }
 
-export interface OpenTeamAuthSession {
+export interface AiTeamOSAuthSession {
   session: unknown;
-  user: OpenTeamAuthUser;
+  user: AiTeamOSAuthUser;
 }
 
-export interface OpenTeamSignInResult {
+export interface AiTeamOSSignInResult {
   token: string;
-  user: OpenTeamAuthUser | null;
+  user: AiTeamOSAuthUser | null;
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value);
 
-export const parseAuthUser = (value: unknown): OpenTeamAuthUser | null => {
+export const parseAuthUser = (value: unknown): AiTeamOSAuthUser | null => {
   if (!isRecord(value)) return null;
   const id = typeof value.id === "string" ? value.id : "";
   const name = typeof value.name === "string" ? value.name.trim() : "";
@@ -77,25 +77,25 @@ export const authResponseError = async (response: Response): Promise<string> => 
   );
 };
 
-export interface OpenTeamAuthClientOptions {
+export interface AiTeamOSAuthClientOptions {
   baseUrl: string;
-  fetch?: OpenTeamFetch;
+  fetch?: AiTeamOSFetch;
   /** Includes receiving and parsing the response body, not just connecting. */
   timeoutMs?: number;
 }
 
-const invalidOpenTeamServer = (status: number): OpenTeamClientError =>
-  new OpenTeamClientError(
-    "This endpoint is reachable, but it is not a compatible OpenTeam server.",
+const invalidAiTeamOSServer = (status: number): AiTeamOSClientError =>
+  new AiTeamOSClientError(
+    "This endpoint is reachable, but it is not a compatible aiTeamOS server.",
     "invalid_server",
     status
   );
 
-const unavailableOpenTeamServer = (status: number): OpenTeamClientError =>
-  new OpenTeamClientError("The OpenTeam server is temporarily unavailable.", "offline", status);
+const unavailableAiTeamOSServer = (status: number): AiTeamOSClientError =>
+  new AiTeamOSClientError("The aiTeamOS server is temporarily unavailable.", "offline", status);
 
-const interruptedOpenTeamServer = (status: number): OpenTeamClientError =>
-  new OpenTeamClientError(
+const interruptedAiTeamOSServer = (status: number): AiTeamOSClientError =>
+  new AiTeamOSClientError(
     "The connection dropped while checking this server. Try again.",
     "offline",
     status
@@ -104,7 +104,7 @@ const interruptedOpenTeamServer = (status: number): OpenTeamClientError =>
 /**
  * Reads a JSON object body. Unlike responseBody, a body that can't be read (the connection
  * dropped partway through the answer) throws, so it isn't mistaken for a body without
- * OpenTeam's fields.
+ * aiTeamOS's fields.
  */
 const readResponseBody = async (response: Response): Promise<Record<string, unknown> | null> => {
   const text = await response.text();
@@ -120,7 +120,7 @@ const readResponseBody = async (response: Response): Promise<Record<string, unkn
  * Platform-neutral authentication protocol. Persistence and lifecycle policy stay
  * in the desktop/mobile adapters so secrets never cross into an unsafe storage API.
  */
-export const createOpenTeamAuthClient = (options: OpenTeamAuthClientOptions) => {
+export const createAiTeamOSAuthClient = (options: AiTeamOSAuthClientOptions) => {
   const transport = createJsonTransport(options);
 
   // A silent server (or stalled response body) must not leave onboarding permanently busy.
@@ -130,7 +130,7 @@ export const createOpenTeamAuthClient = (options: OpenTeamAuthClientOptions) => 
     const deadline = new Promise<never>((_, reject) => {
       timer = setTimeout(() => {
         reject(
-          new OpenTeamClientError(
+          new AiTeamOSClientError(
             "The server took too long to respond. Please try again.",
             "timeout"
           )
@@ -145,14 +145,14 @@ export const createOpenTeamAuthClient = (options: OpenTeamAuthClientOptions) => 
     }
   };
 
-  const requestMode = (strict: boolean): Promise<OpenTeamAuthMode> =>
+  const requestMode = (strict: boolean): Promise<AiTeamOSAuthMode> =>
     withDeadline(async (signal) => {
       const response = await transport.open("/api/auth/config", { signal });
       if (!response.ok) {
         if (strict) {
           throw response.status >= 500
-            ? unavailableOpenTeamServer(response.status)
-            : invalidOpenTeamServer(response.status);
+            ? unavailableAiTeamOSServer(response.status)
+            : invalidAiTeamOSServer(response.status);
         }
         return "required";
       }
@@ -163,18 +163,18 @@ export const createOpenTeamAuthClient = (options: OpenTeamAuthClientOptions) => 
         // The deadline cut it off and has already answered.
         if (signal.aborted) throw cause;
         // A cut-off answer is a connection problem, not proof of a different server.
-        if (strict) throw interruptedOpenTeamServer(response.status);
+        if (strict) throw interruptedAiTeamOSServer(response.status);
         body = null;
       }
       if (body?.mode === "required" || body?.mode === "disabled") return body.mode;
-      if (strict) throw invalidOpenTeamServer(response.status);
+      if (strict) throw invalidAiTeamOSServer(response.status);
       return "required";
     });
 
-  const discoverMode = (): Promise<OpenTeamAuthMode> => requestMode(false);
-  const validateServer = (): Promise<OpenTeamAuthMode> => requestMode(true);
+  const discoverMode = (): Promise<AiTeamOSAuthMode> => requestMode(false);
+  const validateServer = (): Promise<AiTeamOSAuthMode> => requestMode(true);
 
-  const signIn = (username: string, password: string): Promise<OpenTeamSignInResult> =>
+  const signIn = (username: string, password: string): Promise<AiTeamOSSignInResult> =>
     withDeadline(async (signal) => {
       const response = await transport.open("/api/auth/login", {
         method: "POST",
@@ -183,22 +183,22 @@ export const createOpenTeamAuthClient = (options: OpenTeamAuthClientOptions) => 
       });
       if (!response.ok) throw new Error(await authResponseError(response));
       const token = response.headers.get("set-auth-token")?.trim() ?? "";
-      if (!token) throw new Error("The server did not return an OpenTeam session token");
+      if (!token) throw new Error("The server did not return an aiTeamOS session token");
       const body = await responseBody(response);
       return { token, user: parseAuthUser(body?.user) };
     });
 
-  const getSession = (token: string): Promise<OpenTeamAuthSession | null> =>
+  const getSession = (token: string): Promise<AiTeamOSAuthSession | null> =>
     withDeadline(async (signal) => {
       const response = await transport.open("/api/auth/get-session", {
         signal,
         headers: { authorization: `Bearer ${token}` },
       });
-      // A proxy or server error (e.g. while OpenTeam restarts for an update)
+      // A proxy or server error (e.g. while aiTeamOS restarts for an update)
       // says nothing about the credential. Report it as unavailable so callers
       // keep the session instead of signing the device out.
       if (response.status >= 500 || response.status === 408 || response.status === 429) {
-        throw unavailableOpenTeamServer(response.status);
+        throw unavailableAiTeamOSServer(response.status);
       }
       if (!response.ok) return null;
       const body = await responseBody(response);
@@ -219,7 +219,7 @@ export const createOpenTeamAuthClient = (options: OpenTeamAuthClientOptions) => 
         body: "{}",
       });
       if (!response.ok)
-        throw new OpenTeamClientError(
+        throw new AiTeamOSClientError(
           "The server could not complete sign-out. Please try again.",
           "sign_out_failed",
           response.status
@@ -229,47 +229,47 @@ export const createOpenTeamAuthClient = (options: OpenTeamAuthClientOptions) => 
   return { baseUrl: transport.baseUrl, discoverMode, getSession, signIn, signOut, validateServer };
 };
 
-export type OpenTeamAuthClient = ReturnType<typeof createOpenTeamAuthClient>;
+export type AiTeamOSAuthClient = ReturnType<typeof createAiTeamOSAuthClient>;
 
-export interface OpenTeamAuthAssessment {
-  status: Exclude<OpenTeamAuthStatus, "checking">;
-  mode: OpenTeamAuthMode;
-  connection: Exclude<OpenTeamAuthConnection, "unknown">;
-  user: OpenTeamAuthUser | null;
+export interface AiTeamOSAuthAssessment {
+  status: Exclude<AiTeamOSAuthStatus, "checking">;
+  mode: AiTeamOSAuthMode;
+  connection: Exclude<AiTeamOSAuthConnection, "unknown">;
+  user: AiTeamOSAuthUser | null;
   /** The server explicitly reported this mode, so a platform may cache it for offline starts. */
-  observedMode: OpenTeamAuthMode | null;
+  observedMode: AiTeamOSAuthMode | null;
   /** Invalid and auth-disabled sessions must be removed from platform-secure storage. */
   clearCredentials: boolean;
 }
 
-export interface AssessOpenTeamAuthSessionOptions {
-  client: OpenTeamAuthClient;
+export interface AssessAiTeamOSAuthSessionOptions {
+  client: AiTeamOSAuthClient;
   loadToken: () => Promise<string | null>;
-  loadCachedMode?: () => Promise<OpenTeamAuthMode | null>;
+  loadCachedMode?: () => Promise<AiTeamOSAuthMode | null>;
   isCurrent?: () => boolean;
 }
 
 export class AuthSessionSupersededError extends Error {
   constructor() {
-    super("The OpenTeam server changed while authentication was in progress.");
+    super("The aiTeamOS server changed while authentication was in progress.");
     this.name = "AuthSessionSupersededError";
   }
 }
 
 /** Shared fail-closed session policy; platforms retain ownership of secure persistence. */
-export const assessOpenTeamAuthSession = async ({
+export const assessAiTeamOSAuthSession = async ({
   client,
   loadToken,
   loadCachedMode = async () => null,
   isCurrent = () => true,
-}: AssessOpenTeamAuthSessionOptions): Promise<OpenTeamAuthAssessment> => {
+}: AssessAiTeamOSAuthSessionOptions): Promise<AiTeamOSAuthAssessment> => {
   const ensureCurrent = () => {
     if (!isCurrent()) throw new AuthSessionSupersededError();
   };
 
-  let mode: OpenTeamAuthMode = "required";
-  let connection: Exclude<OpenTeamAuthConnection, "unknown"> = "online";
-  let observedMode: OpenTeamAuthMode | null = null;
+  let mode: AiTeamOSAuthMode = "required";
+  let connection: Exclude<AiTeamOSAuthConnection, "unknown"> = "online";
+  let observedMode: AiTeamOSAuthMode | null = null;
   try {
     mode = await client.discoverMode();
     ensureCurrent();
@@ -342,12 +342,12 @@ export const assessOpenTeamAuthSession = async ({
   }
 };
 
-export const createAuthSnapshotStore = (initial: OpenTeamAuthSnapshot) => {
+export const createAuthSnapshotStore = (initial: AiTeamOSAuthSnapshot) => {
   let snapshot = initial;
   const listeners = new Set<() => void>();
   return {
-    getSnapshot: (): OpenTeamAuthSnapshot => snapshot,
-    publish: (next: OpenTeamAuthSnapshot): OpenTeamAuthSnapshot => {
+    getSnapshot: (): AiTeamOSAuthSnapshot => snapshot,
+    publish: (next: AiTeamOSAuthSnapshot): AiTeamOSAuthSnapshot => {
       snapshot = next;
       for (const listener of listeners) listener();
       return snapshot;

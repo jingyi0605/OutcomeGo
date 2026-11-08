@@ -14,7 +14,7 @@ describe("server authentication mode", () => {
   test("rejects empty, misspelled, or ambiguous values", () => {
     for (const value of ["", "off", "false", "DISABLED", " disabled "]) {
       expect(() => parseAuthMode(value)).toThrow(
-        'OPENTEAM_AUTH_MODE must be either "required" or "disabled"'
+        'AITEAMOS_AUTH_MODE must be either "required" or "disabled"'
       );
     }
   });

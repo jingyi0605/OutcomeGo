@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# One-command build + install + launch of the OpenTeam Android debug app on the
+# One-command build + install + launch of the aiTeamOS Android debug app on the
 # Xiaomi phone. This is the terminal equivalent of the "Xiaomi Debug" Android
 # Studio run configuration, and is useful for CI shells, agents, and when the
 # IDE run widget cannot resolve the device.
@@ -7,7 +7,7 @@ set -euo pipefail
 
 ROOT_DIR=$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)
 APP_ID="com.teambots.android"
-LAUNCH_COMPONENT="${APP_ID}/com.openteam.android.MainActivity"
+LAUNCH_COMPONENT="${APP_ID}/com.aiteamos.android.MainActivity"
 XIAOMI_MODEL_MARKER="M154FF"
 
 ADB="${ADB:-}"

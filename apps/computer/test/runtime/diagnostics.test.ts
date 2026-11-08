@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { ComputerRuntime } from "../../src/runtime";
 
 test("diagnostics use the saved selection and leave new installs unconfigured", async () => {
-  const root = await mkdtemp(join(tmpdir(), "openteam-diagnostics-"));
+  const root = await mkdtemp(join(tmpdir(), "aiteamos-diagnostics-"));
   try {
     const runtime = new ComputerRuntime();
     const internals = runtime as unknown as {

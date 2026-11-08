@@ -1,6 +1,6 @@
-import { PLUGIN_EVENT_POLL_DEFAULT_SECONDS } from "@openteam/plugin-sdk";
-import { Prisma, type PrismaClient } from "@openteam/db";
-import { parseAutomationEvent, type AutomationEvent } from "@openteam/messaging";
+import { PLUGIN_EVENT_POLL_DEFAULT_SECONDS } from "@aiteamos/plugin-sdk";
+import { Prisma, type PrismaClient } from "@aiteamos/db";
+import { parseAutomationEvent, type AutomationEvent } from "@aiteamos/messaging";
 import { toJson } from "../service-utils";
 import { definitionFromManifest, jsonObject } from "./values";
 

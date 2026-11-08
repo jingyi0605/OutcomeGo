@@ -100,7 +100,7 @@ def call(env, client, secret, endpoint, payload):
 
 def create(path, env, client, secret, products, lifetime):
     session_id = str(uuid.uuid4())
-    payload = {"client_name": "OpenTeam", "language": "en", "country_codes": ["US"],
+    payload = {"client_name": "aiTeamOS", "language": "en", "country_codes": ["US"],
                "user": {"client_user_id": user_id(path, env, client)}, "products": products,
                "hosted_link": {"url_lifetime_seconds": lifetime}}
     if "transactions" in products:

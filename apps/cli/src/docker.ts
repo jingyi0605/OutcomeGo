@@ -32,7 +32,7 @@ export const ADDRESS_POOLS_EXHAUSTED_ADVICE =
 
 // Inherited Compose output is not captured, so probe for subnet exhaustion directly.
 const addressPoolsExhausted = (runner: CommandRunner): boolean => {
-  const name = `openteam-subnet-probe-${process.pid}`;
+  const name = `aiteamos-subnet-probe-${process.pid}`;
   const probe = runner.run("docker", ["network", "create", name]);
   if (probe.status === 0) {
     runner.run("docker", ["network", "rm", name]);
@@ -173,7 +173,7 @@ export const requireComposeProject = (
   }
   if (!compose.supported) {
     throw new CliError(
-      `OpenTeam requires Docker Compose ${MINIMUM_COMPOSE_VERSION} or newer; found ${compose.version || "an unknown version"}. Update Docker Desktop or the Compose plugin first.`
+      `aiTeamOS requires Docker Compose ${MINIMUM_COMPOSE_VERSION} or newer; found ${compose.version || "an unknown version"}. Update Docker Desktop or the Compose plugin first.`
     );
   }
   return new ComposeProject(paths, compose, runner, projectName);

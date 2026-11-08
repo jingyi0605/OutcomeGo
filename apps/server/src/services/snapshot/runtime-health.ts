@@ -1,5 +1,5 @@
-import { formatPiModelRef, type ServerInferenceSettings, type Snapshot } from "@openteam/contracts";
-import type { PrismaClient } from "@openteam/db";
+import { formatPiModelRef, type ServerInferenceSettings, type Snapshot } from "@aiteamos/contracts";
+import type { PrismaClient } from "@aiteamos/db";
 
 export const COMPUTER_ID = "00000000-0000-0000-0000-000000000001";
 
@@ -108,7 +108,7 @@ export class RuntimeHealth {
     const response = await fetch(healthUrl, {
       signal,
       headers: {
-        authorization: `Bearer ${process.env.OPENTEAM_CONTROL_TOKEN ?? "local-compose-only-change-me"}`,
+        authorization: `Bearer ${process.env.AITEAMOS_CONTROL_TOKEN ?? "local-compose-only-change-me"}`,
       },
     });
     const body = (await response.json()) as {

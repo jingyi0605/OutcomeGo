@@ -2,9 +2,9 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
 // Instrumentation only. All clicks, typing and scrolling are performed through CUA.
-const endpoint = process.env.OPENTEAM_AUDIT_CDP_URL ?? "http://127.0.0.1:9334";
-const output = resolve(process.env.OPENTEAM_AUDIT_OUTPUT ?? "/tmp/openteam-desktop-profile");
-const durationMs = Number(process.env.OPENTEAM_AUDIT_PROFILE_MS ?? 30_000);
+const endpoint = process.env.AITEAMOS_AUDIT_CDP_URL ?? "http://127.0.0.1:9334";
+const output = resolve(process.env.AITEAMOS_AUDIT_OUTPUT ?? "/tmp/aiteamos-desktop-profile");
+const durationMs = Number(process.env.AITEAMOS_AUDIT_PROFILE_MS ?? 30_000);
 if (!Number.isFinite(durationMs) || durationMs < 1000 || durationMs > 180_000)
   throw new Error("Invalid profile duration");
 await mkdir(output, { recursive: true });
@@ -57,7 +57,7 @@ try {
   await command("HeapProfiler.collectGarbage");
   const beforeHeap = await command("Runtime.getHeapUsage");
   await evaluate(`(() => {
-    window.openteamPerformance?.clear();
+    window.aiteamosPerformance?.clear();
     const startedAt = performance.now();
     const frames = [], longTasks = [], interactions = [], observers = [];
     let previous = null, raf = 0;
@@ -66,16 +66,16 @@ try {
     for (const [type, values] of [['longtask', longTasks], ['event', interactions]]) {
       try { const observer = new PerformanceObserver(list => { for (const e of list.getEntries()) values.push({ name:e.name, startTime:e.startTime, duration:e.duration, processingStart:e.processingStart, processingEnd:e.processingEnd, interactionId:e.interactionId }); }); observer.observe({ type, buffered: false, durationThreshold: 16 }); observers.push(observer); } catch {}
     }
-    globalThis.__openteamRuntimeProfile = { finish: async () => {
+    globalThis.__aiteamosRuntimeProfile = { finish: async () => {
       cancelAnimationFrame(raf); for (const observer of observers) observer.disconnect();
       const result = { startedAt, endedAt:performance.now(), frames, longTasks, interactions,
-        app: await window.openteamPerformance?.export(),
+        app: await window.aiteamosPerformance?.export(),
         navigation: performance.getEntriesByType('navigation').map(e=>e.toJSON()),
         paints: performance.getEntriesByType('paint').map(e=>e.toJSON()),
         resources: performance.getEntriesByType('resource').filter(e=>e.startTime>=startedAt).map(e=>({name:e.name, duration:e.duration, transferSize:e.transferSize, decodedBodySize:e.decodedBodySize})),
         dom: { elements:document.querySelectorAll('*').length, messageRows:document.querySelectorAll('.message-row').length },
         viewport:{width:innerWidth,height:innerHeight,dpr:devicePixelRatio}, location:location.href };
-      delete globalThis.__openteamRuntimeProfile; return result;
+      delete globalThis.__aiteamosRuntimeProfile; return result;
     }};
   })()`);
   await command("Profiler.enable");
@@ -89,7 +89,7 @@ try {
   await Bun.sleep(durationMs);
   const { profile } = await command("Profiler.stop");
   await command("Tracing.end");
-  const capture = await evaluate("globalThis.__openteamRuntimeProfile.finish()");
+  const capture = await evaluate("globalThis.__aiteamosRuntimeProfile.finish()");
   const afterHeap = await command("Runtime.getHeapUsage");
   await command("HeapProfiler.collectGarbage");
   const afterGcHeap = await command("Runtime.getHeapUsage");

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { ChannelView } from "@openteam/contracts";
+import type { ChannelView } from "@aiteamos/contracts";
 import {
   activeAgentIdForChannel,
   restoredActiveChannelId,

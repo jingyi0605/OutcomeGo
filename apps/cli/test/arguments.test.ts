@@ -10,10 +10,10 @@ describe("CLI arguments", () => {
   });
 
   test("recognizes the interactive setup command", () => {
-    expect(parseArguments(["setup", "--advanced", "--dir", "/tmp/openteam"])).toMatchObject({
+    expect(parseArguments(["setup", "--advanced", "--dir", "/tmp/aiteamos"])).toMatchObject({
       command: "setup",
       advanced: true,
-      directory: "/tmp/openteam",
+      directory: "/tmp/aiteamos",
     });
   });
 
@@ -141,7 +141,7 @@ describe("CLI arguments", () => {
 
   test("points the removed password reset alias to account update", () => {
     expect(() => parseArguments(["password", "reset"])).toThrow(
-      "use openteam account update --password"
+      "use aiteamos account update --password"
     );
   });
 
@@ -172,7 +172,7 @@ describe("CLI arguments", () => {
         "--version",
         "1.2.3",
         "--dir",
-        "/tmp/openteam",
+        "/tmp/aiteamos",
         "--repository",
         "owner/repo",
         "--allow-prerelease",
@@ -180,7 +180,7 @@ describe("CLI arguments", () => {
     ).toMatchObject({
       command: "install",
       version: "1.2.3",
-      directory: "/tmp/openteam",
+      directory: "/tmp/aiteamos",
       repository: "owner/repo",
       allowPrerelease: true,
     });

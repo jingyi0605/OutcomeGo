@@ -1,11 +1,11 @@
 import { MachineDirectory } from "./machine-directory";
-import { DESKTOP_MESSAGES_TOOLS } from "@openteam/contracts/desktop-capability-names";
-import type { TaskConfiguration } from "@openteam/contracts/task-configuration";
+import { DESKTOP_MESSAGES_TOOLS } from "@aiteamos/contracts/desktop-capability-names";
+import type { TaskConfiguration } from "@aiteamos/contracts/task-configuration";
 import type { ChildProcess } from "node:child_process";
 import { Readable } from "node:stream";
 import { agentReadStream, agentWriteStream } from "./agent-file-stream";
-import { formatBytes2 } from "@openteam/contracts/reference-formatters";
-import { READ_CHAR_LIMIT, ReadWindowText, formatNotebookForModel, readLineWindow, renderReadText, renderPdfReadText } from "@openteam/contracts/read-output";
+import { formatBytes2 } from "@aiteamos/contracts/reference-formatters";
+import { READ_CHAR_LIMIT, ReadWindowText, formatNotebookForModel, readLineWindow, renderReadText, renderPdfReadText } from "@aiteamos/contracts/read-output";
 import { boundToolImage, resizeImageForModel } from "./runtime/image-input";
 import { SHELL_ID_VARIABLE } from "./runtime/process-notice";
 import { decodeReadableText, readableTextEncoding, sniffImageMimeType } from "./read-text";
@@ -19,9 +19,9 @@ import type {
   ReadToolInput,
   ShellToolInput,
   TaskInput,
-} from "@openteam/contracts";
-import { ShellJobRegistry, SecretRedactor, redactSecrets, validateShellWait, renderShellAwaitResult, type ShellCompletion } from "@openteam/shell-jobs";
-import { createShellEnvironmentCapture, loadShellEnvironment, SHELL_ENVIRONMENT_CAPTURE } from "@openteam/shell-jobs";
+} from "@aiteamos/contracts";
+import { ShellJobRegistry, SecretRedactor, redactSecrets, validateShellWait, renderShellAwaitResult, type ShellCompletion } from "@aiteamos/shell-jobs";
+import { createShellEnvironmentCapture, loadShellEnvironment, SHELL_ENVIRONMENT_CAPTURE } from "@aiteamos/shell-jobs";
 import {
   SHELL_FILE_OUTPUT_THRESHOLD_BYTES,
   SHELL_OOM_NOTE,
@@ -35,7 +35,7 @@ import {
   terminalFrontmatter,
   truncateShellOutput,
   type TerminalStatus,
-} from "@openteam/shell-jobs";
+} from "@aiteamos/shell-jobs";
 import {
   HOST_BRIDGE_PATHS,
   HOST_INLINE_OUTPUT_MAX_BYTES,
@@ -48,10 +48,10 @@ import {
   parseHostReadResponse,
   parseHostShellResponse,
   parseShellAwaitResponse,
-} from "@openteam/contracts/service-protocol";
+} from "@aiteamos/contracts/service-protocol";
 import { spawnAgentProcess as spawn, agentProcessIdentity, agentProcessGroupSignaler, AGENT_SEARCH_PATHS, sanitizedAgentEnvironment, withAgentSearchPaths } from "./agent-process";
 import { agentFileIO } from "./agent-file-io";
-import { protectedAgentDataPath } from "@openteam/contracts/agent-file-access";
+import { protectedAgentDataPath } from "@aiteamos/contracts/agent-file-access";
 
 const DEFAULT_BLOCK_MS = 30_000;
 // How long a stopped command may keep its output open after the group kill (SIGKILL follows at 500 ms).
@@ -110,7 +110,7 @@ export class NativeToolExecutor {
     }
     // Messages runs only on a Mac that turned it on; the server picks one when the call names none.
     const { machineId: requested, ...rest } = (args ?? {}) as Record<string, unknown>;
-    if (!this.machines) throw new Error("Messages needs the OpenTeam server's computer directory");
+    if (!this.machines) throw new Error("Messages needs the aiTeamOS server's computer directory");
     const machineId = await this.machines.messagesMachine(botId, channelId, typeof requested === "string" ? requested : undefined, signal);
     return this.hostFetch(HOST_BRIDGE_PATHS.capabilities, { tool, botId, arguments: rest, callId, machineId }, signal, undefined, 15 * 60_000);
   }
@@ -145,12 +145,12 @@ export class NativeToolExecutor {
     this.serverUrl = options.serverUrl;
     this.hostBridgeUrl =
       options.hostBridgeUrl ??
-      process.env.OPENTEAM_HOST_BRIDGE_URL ??
+      process.env.AITEAMOS_HOST_BRIDGE_URL ??
       "http://host.docker.internal:8791";
     if(options.serverUrl)this.machines = new MachineDirectory(options.serverUrl,this.controlToken,this.hostBridgeUrl);
     this.agentDataCanonicalRoot = resolve(
       options.agentDataCanonicalRoot ??
-        process.env.OPENTEAM_AGENT_DATA_CANONICAL_ROOT ??
+        process.env.AITEAMOS_AGENT_DATA_CANONICAL_ROOT ??
         "/home/box/sand-data"
     );
   }
@@ -224,7 +224,7 @@ export class NativeToolExecutor {
     const environmentCapture = createShellEnvironmentCapture(dirname(savedEnvironment.path));
     const child = spawn("/bin/bash", ["--noprofile", "--norc", "-c", `${SHELL_ENVIRONMENT_CAPTURE}\n${input.command}`], {
       cwd: workingDirectory,
-      env: { ...sanitizedShellEnvironment(withAgentSearchPaths(savedEnvironment.environment), workingDirectory), ...routing.secretEnvironment, OPENTEAM_DESKTOP_ID: environment?.OPENTEAM_DESKTOP_ID, [SHELL_ID_VARIABLE]: shellId },
+      env: { ...sanitizedShellEnvironment(withAgentSearchPaths(savedEnvironment.environment), workingDirectory), ...routing.secretEnvironment, AITEAMOS_DESKTOP_ID: environment?.AITEAMOS_DESKTOP_ID, [SHELL_ID_VARIABLE]: shellId },
       ...agentProcessIdentity(),
       detached: true,
       stdio: ["ignore", "pipe", "pipe", environmentCapture.fd],
@@ -378,7 +378,7 @@ export class NativeToolExecutor {
     if (output.bytes > SHELL_FILE_OUTPUT_THRESHOLD_BYTES) {
       // The terminal log is supervisor-private, so the complete output also goes
       // to a file the agent can search with Shell, as the reference does.
-      const path = resolve(cwd, ".openteam", "agent-tools", `${randomUUID()}.txt`);
+      const path = resolve(cwd, ".aiteamos", "agent-tools", `${randomUUID()}.txt`);
       try {
         await agentWriteStream(path, createReadStream(outputPath, { start: headerBytes, end: headerBytes + output.bytes - 1 }));
         spillPath = path;
@@ -768,7 +768,7 @@ export class NativeToolExecutor {
       signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
     }).catch((error) => {
       throw new Error(
-        `The physical-host bridge is offline. Open the OpenTeam desktop and verify its bridge token. ${error instanceof Error ? error.message : String(error)}`
+        `The physical-host bridge is offline. Open the aiTeamOS desktop and verify its bridge token. ${error instanceof Error ? error.message : String(error)}`
       );
     });
     const value: unknown = await response.json().catch(() => ({}));

@@ -3,9 +3,9 @@ import { resolve } from "node:path";
 
 // Cold Electron processes and Chromium profiles, warm OS/filesystem/server caches.
 // This launches only the supplied audit app; it does not drive or mutate the UI.
-const root = resolve(process.env.OPENTEAM_STARTUP_AUDIT_ROOT ?? "");
-if (!process.env.OPENTEAM_STARTUP_AUDIT_ROOT)
-  throw new Error("OPENTEAM_STARTUP_AUDIT_ROOT is required");
+const root = resolve(process.env.AITEAMOS_STARTUP_AUDIT_ROOT ?? "");
+if (!process.env.AITEAMOS_STARTUP_AUDIT_ROOT)
+  throw new Error("AITEAMOS_STARTUP_AUDIT_ROOT is required");
 const electron = resolve(import.meta.dir, "../../../apps/desktop/node_modules/.bin/electron");
 const results: unknown[] = [];
 const runTag = Date.now().toString(36);
@@ -17,7 +17,7 @@ for (let index = 0; index < order.length; index += 1) {
   await writeFile(
     resolve(app, "package.json"),
     JSON.stringify({
-      name: `openteam-perf-${arm}`,
+      name: `aiteamos-perf-${arm}`,
       version: "0.0.1",
       main: "../dist-electron/main.js",
       type: "module",
@@ -35,8 +35,8 @@ for (let index = 0; index < order.length; index += 1) {
     {
       env: {
         ...process.env,
-        OPENTEAM_RENDERER_URL: `http://127.0.0.1:${arm === "baseline" ? 5175 : 5176}/?scenario=startup-${arm}-${index}`,
-        OPENTEAM_HOST_BRIDGE_PORT: String(8950 + index),
+        AITEAMOS_RENDERER_URL: `http://127.0.0.1:${arm === "baseline" ? 5175 : 5176}/?scenario=startup-${arm}-${index}`,
+        AITEAMOS_HOST_BRIDGE_PORT: String(8950 + index),
       },
       stdout: "ignore",
       stderr: "ignore",
@@ -82,7 +82,7 @@ for (let index = 0; index < order.length; index += 1) {
     let capture: any = null;
     while (performance.now() - started < 25_000) {
       const response = await command("Runtime.evaluate", {
-        expression: `(() => { const entries=window.openteamPerformance?.snapshot()??[]; const paints=performance.getEntriesByType('paint').map(e=>e.toJSON()); return {ready:paints.some(e=>e.name==='first-contentful-paint')&&entries.some(e=>e.name==='history.page.merge')&&document.querySelectorAll('.message-row').length>0,now:performance.now(),paints,entries}; })()`,
+        expression: `(() => { const entries=window.aiteamosPerformance?.snapshot()??[]; const paints=performance.getEntriesByType('paint').map(e=>e.toJSON()); return {ready:paints.some(e=>e.name==='first-contentful-paint')&&entries.some(e=>e.name==='history.page.merge')&&document.querySelectorAll('.message-row').length>0,now:performance.now(),paints,entries}; })()`,
         returnByValue: true,
       });
       capture = response.result?.result?.value;

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { ChannelNotificationView } from "@openteam/contracts/notification-content";
+import type { ChannelNotificationView } from "@aiteamos/contracts/notification-content";
 import {
   type DesktopNotificationEvent,
   DesktopNotificationManager,

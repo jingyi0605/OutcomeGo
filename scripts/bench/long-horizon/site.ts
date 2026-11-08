@@ -223,7 +223,7 @@ export function startSite(options: { root: string; port?: number; now?: () => nu
 }
 if (import.meta.main) {
   const server = startSite({
-    root: process.env.BENCH_DATA ?? "/tmp/openteam-long-horizon-site",
+    root: process.env.BENCH_DATA ?? "/tmp/aiteamos-long-horizon-site",
     port: Number(process.env.PORT ?? 7462),
   });
   console.log(`Long-horizon fixture listening on ${server.url}`);

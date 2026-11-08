@@ -1,5 +1,5 @@
 import type { ExtensionFactory } from "@earendil-works/pi-coding-agent";
-import type { PiReasoningLevel } from "@openteam/contracts";
+import type { PiReasoningLevel } from "@aiteamos/contracts";
 import type { ActiveTurn } from "./types";
 
 /** Silence the user may sit through before the narrator speaks. */
@@ -253,7 +253,7 @@ export function voiceNarrationExtension(
   active: Pick<ActiveTurn, "session">
 ): { name: string; hidden: boolean; factory: ExtensionFactory } {
   return {
-    name: "openteam-voice-narration",
+    name: "aiteamos-voice-narration",
     hidden: true,
     factory(pi) {
       let injectedVersion = 0;
@@ -266,7 +266,7 @@ export function voiceNarrationExtension(
         // Appended after the user's message, so the request the agent works from is untouched.
         await active.session.sendCustomMessage(
           {
-            customType: "openteam-voice-said",
+            customType: "aiteamos-voice-said",
             content: reminder,
             display: false,
             details: { origin: "host" },

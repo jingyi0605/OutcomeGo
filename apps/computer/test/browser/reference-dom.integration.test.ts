@@ -5,7 +5,7 @@ import {join} from "node:path";
 import {BrowserUseSession} from "../../src/browser/use";
 import {outOfProcessPlaywright} from "../../src/browser/playwright-driver";
 
-test.skipIf(!process.env.OPENTEAM_BROWSER_TEST_EXECUTABLE)("reference snapshots and fills handle shadow DOM, cross-origin frames, controlled inputs, OTP and remaps",async()=>{
+test.skipIf(!process.env.AITEAMOS_BROWSER_TEST_EXECUTABLE)("reference snapshots and fills handle shadow DOM, cross-origin frames, controlled inputs, OTP and remaps",async()=>{
  const root=await mkdtemp(join(tmpdir(),"reference-dom-"));
  const child=Bun.serve({hostname:"127.0.0.1",port:0,fetch:()=>new Response('<label>Frame field <input></label>',{headers:{"content-type":"text/html"}})});
  const server=Bun.serve({hostname:"127.0.0.1",port:0,fetch:()=>new Response(`<!doctype html><title>DOM fixture</title><h1>Visible heading</h1><fixture-login id="shadow" style="display:block"></fixture-login><label>Masked number <input id="masked"></label><label>Replaceable <input id="replaceable"></label><form id="otp">${Array.from({length:6},(_,i)=>`<input aria-label="Code ${i+1}" maxlength="1" inputmode="numeric" style="width:25px">`).join('')}</form><iframe src="http://localhost:${child.port}/"></iframe><script>
@@ -13,7 +13,7 @@ test.skipIf(!process.env.OPENTEAM_BROWSER_TEST_EXECUTABLE)("reference snapshots 
  masked.addEventListener('input',e=>{if(!e.isTrusted)masked.value='';});
  for(const input of otp.querySelectorAll('input'))input.addEventListener('input',()=>{if(input.value.length===1)input.nextElementSibling?.focus()});
  </script>`,{headers:{"content-type":"text/html"}})});
- const driver=await outOfProcessPlaywright();const browser=await driver.playwright.chromium.launch({headless:true,executablePath:process.env.OPENTEAM_BROWSER_TEST_EXECUTABLE});const context=await browser.newContext();const session=new (BrowserUseSession as any)(browser,context,root) as BrowserUseSession;
+ const driver=await outOfProcessPlaywright();const browser=await driver.playwright.chromium.launch({headless:true,executablePath:process.env.AITEAMOS_BROWSER_TEST_EXECUTABLE});const context=await browser.newContext();const session=new (BrowserUseSession as any)(browser,context,root) as BrowserUseSession;
  const text=(result:any):string=>result.content.filter((item:any)=>item.type==="text").map((item:any)=>item.text).join('\n');
  try {
   await session.execute("browser_navigate",{url:server.url.origin});

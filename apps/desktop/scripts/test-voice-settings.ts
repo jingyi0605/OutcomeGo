@@ -52,7 +52,7 @@ const fixture = Bun.serve({
     return setup.handle(path, request.method, input, url) ?? Response.json({}, { status: 404 });
   },
 });
-const viteCache = await mkdtemp(join(tmpdir(), "openteam-voice-settings-"));
+const viteCache = await mkdtemp(join(tmpdir(), "aiteamos-voice-settings-"));
 const vite = await createServer({
   root: join(repo, "apps/desktop"),
   cacheDir: join(viteCache, "vite"),

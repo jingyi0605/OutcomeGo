@@ -1,6 +1,6 @@
-import { ApiError, type RenameChannelInput } from "@openteam/contracts";
-import type { PrismaClient } from "@openteam/db";
-import { type AgentDataStore, type AgentMessaging, PRIORITY } from "@openteam/messaging";
+import { ApiError, type RenameChannelInput } from "@aiteamos/contracts";
+import type { PrismaClient } from "@aiteamos/db";
+import { type AgentDataStore, type AgentMessaging, PRIORITY } from "@aiteamos/messaging";
 import {
   appendEvent,
   type ComputerFetch,

@@ -1,6 +1,6 @@
 {
-  "name": "@openteam/contracts",
-  "version": "0.0.15",
+  "name": "@aiteamos/contracts",
+  "version": "0.1.0-beta.1",
   "license": "GPL-3.0-only",
   "private": true,
   "type": "module",
@@ -64,7 +64,7 @@
   "dependencies": {
     "effect": "3.22.1",
     "semver": "7.8.5",
-    "@openteam/plugin-sdk": "workspace:*",
+    "@aiteamos/plugin-sdk": "workspace:*",
     "zod": "3.25.76"
   },
   "devDependencies": {

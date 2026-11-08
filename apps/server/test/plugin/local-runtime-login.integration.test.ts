@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { createPrismaClient } from "@openteam/db";
+import { createPrismaClient } from "@aiteamos/db";
 import { Effect } from "effect";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -7,7 +7,7 @@ import { join } from "node:path";
 import { StdioMcpManager } from "../../../computer/src/mcp-manager";
 import { PluginService } from "../../src/services/plugin-service";
 
-const databaseUrl = process.env.OPENTEAM_TEST_DATABASE_URL;
+const databaseUrl = process.env.AITEAMOS_TEST_DATABASE_URL;
 test.skipIf(!databaseUrl)(
   "real database and child process preserve one pending login through caller timeout, health probes and retries",
   async () => {

@@ -3,13 +3,13 @@ import { mkdir } from "node:fs/promises";
 import { resolve } from "node:path";
 import { chromium } from "../../computer/node_modules/playwright-core";
 import { createPluginFlowFixture } from "../../server/test/plugin/fixtures/plugin-flow";
-import { createOpenTeamClient } from "../../../packages/client-core/src";
+import { createAiTeamOSClient } from "../../../packages/client-core/src";
 import { DesktopPluginOAuth } from "../src/main/plugin-oauth";
 
-if (!process.env.OPENTEAM_TEST_DATABASE_URL)
+if (!process.env.AITEAMOS_TEST_DATABASE_URL)
   throw new Error("A disposable test database is required");
-const fixture = await createPluginFlowFixture(process.env.OPENTEAM_TEST_DATABASE_URL, { callbackMode: "desktop" });
-const client = createOpenTeamClient({ baseUrl: fixture.server.url.origin });
+const fixture = await createPluginFlowFixture(process.env.AITEAMOS_TEST_DATABASE_URL, { callbackMode: "desktop" });
+const client = createAiTeamOSClient({ baseUrl: fixture.server.url.origin });
 const output = resolve("findings/oauth-desktop-implementation-2026-09-20/native-ui");
 await mkdir(output, { recursive: true });
 const browser = await chromium.launch({
@@ -44,7 +44,7 @@ await context.route("**/*", (route) => {
 });
 await page.addInitScript(() => {
   const target = window as any;
-  target.openteam = {
+  target.aiteamos = {
     computer: {
       get: async () => ({ messagesSupported: false }),
       messagesPermissions: async () => null,
@@ -102,7 +102,7 @@ try {
   );
   await provider.getByRole("button", { name: "Authorize Account A" }).click();
   await provider
-    .getByText("Authorization received. Return to OpenTeam to see the result.")
+    .getByText("Authorization received. Return to aiTeamOS to see the result.")
     .waitFor();
   await page.getByText("Connected", { exact: true }).first().waitFor();
   await page.screenshot({ path: resolve(output, "connected.png"), fullPage: true });

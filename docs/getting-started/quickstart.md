@@ -33,7 +33,7 @@ curl -fsSL https://openteam.so/install | sh
 irm https://openteam.so/install.ps1 | iex
 ```
 
-The installer downloads the `openteam` command-line tool, adds it to your `PATH`, and opens guided setup. If Docker isn't installed, it tells you where to get it; install it, then run `openteam setup`.
+The installer downloads the `aiteamos` command-line tool, adds it to your `PATH`, and opens guided setup. If Docker isn't installed, it tells you where to get it; install it, then run `aiteamos setup`.
 
 ## 2. Finish setup
 
@@ -42,7 +42,7 @@ Setup asks two things:
 1. **How you'll connect.** The default is your private network. If setup can't find a private network address, it asks for the address your devices will use to reach the server.
 2. **Your account.** Choose a username and password. You'll use them to sign in from the apps.
 
-When you choose **Start OpenTeam**, setup downloads the server, starts it, and prints your **server URL** and username. You'll need them in the next step. By default, the server is reachable from your local network or private VPN. To use it from anywhere, see [remote access](../configuration/remote-access.md).
+When you choose **Start aiTeamOS**, setup downloads the server, starts it, and prints your **server URL** and username. You'll need them in the next step. By default, the server is reachable from your local network or private VPN. To use it from anywhere, see [remote access](../configuration/remote-access.md).
 
 ## 3. Connect the desktop app and a model
 
@@ -65,7 +65,7 @@ Follow its progress in the chat. When it finishes, open the attached file.
 
 To create more bots later, choose **New chat** (the **+** in the sidebar), then **Create new Bot**.
 
-If the bot doesn't respond, run `openteam doctor` on the server and see [troubleshooting](../manage/troubleshooting.md).
+If the bot doesn't respond, run `aiteamos doctor` on the server and see [troubleshooting](../manage/troubleshooting.md).
 
 ## Next steps
 

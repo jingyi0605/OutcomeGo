@@ -1,13 +1,13 @@
-import { normalizeRobotAvatarShape } from "@openteam/contracts/robot-avatar";
+import { normalizeRobotAvatarShape } from "@aiteamos/contracts/robot-avatar";
 import {
   type AgentNotificationPayload,
   type ChannelNotificationState,
   type ChannelNotificationView,
   agentNotificationPresentation,
   truncateNotificationText,
-} from "@openteam/contracts";
-import { channelMessageSummary } from "@openteam/product-core/channel-events";
-import { Prisma } from "@openteam/db";
+} from "@aiteamos/contracts";
+import { channelMessageSummary } from "@aiteamos/product-core/channel-events";
+import { Prisma } from "@aiteamos/db";
 
 type NotificationInput = Omit<AgentNotificationPayload, "badgeCount" | "notificationSequence">;
 
@@ -76,7 +76,7 @@ export const publishChannelNotification = async (
       payload: payload as unknown as Prisma.InputJsonValue,
     },
   });
-  const disabledAuth = process.env.OPENTEAM_AUTH_MODE?.trim().toLowerCase() === "disabled";
+  const disabledAuth = process.env.AITEAMOS_AUTH_MODE?.trim().toLowerCase() === "disabled";
   const devices = await tx.pushDevice.findMany({
     where: disabledAuth
       ? { enabled: true, authRequired: false }

@@ -16,7 +16,7 @@ function fixture() {
     } finally { globalThis.fetch = originalFetch; }
   };
   const batch = (parts: any[]) => routeEvent(undefined, active, {type: "message_end", message: {role: "assistant", content: parts, stopReason: "toolUse"}} as any);
-  const call = (id: string, args: any, name = "SendToUser", signal?: AbortSignal) => tools.executeOpenTeamTool(active, id, name, args, signal);
+  const call = (id: string, args: any, name = "SendToUser", signal?: AbortSignal) => tools.executeAiTeamOSTool(active, id, name, args, signal);
   batch([{type: "toolCall", name: "SendToUser", id: "zip", arguments: attachment}]);
   return {active, calls, call, batch, tools};
 }
@@ -257,9 +257,9 @@ test("an ack goes out at once beside other calls, and sends of one response keep
     order.push(`end:${id}`);
     return {content: [{type: "text", text: "ok"}], details: {}};
   };
-  const ack = tools.executeOpenTeamTool(active, "ack", "SendToUser", {type: "text", content: "On it"});
-  const second = tools.executeOpenTeamTool(active, "second", "SendToUser", {type: "text", content: "Found it"});
-  const work = tools.executeOpenTeamTool(active, "work", "RecallMemory", {query: "tea"});
+  const ack = tools.executeAiTeamOSTool(active, "ack", "SendToUser", {type: "text", content: "On it"});
+  const second = tools.executeAiTeamOSTool(active, "second", "SendToUser", {type: "text", content: "Found it"});
+  const work = tools.executeAiTeamOSTool(active, "work", "RecallMemory", {query: "tea"});
   await new Promise((resolve) => setTimeout(resolve, 0));
   // Both run at once; the second send waits for the first.
   expect([...order].sort()).toEqual(["start:ack", "start:work"]);

@@ -131,13 +131,13 @@ const workloads: WorkloadDefinition[] = [
 
 const iterations = Math.max(
   1,
-  Number.parseInt(process.env.OPENTEAM_PAGINATION_ITERATIONS ?? `${DEFAULT_ITERATIONS}`, 10) ||
+  Number.parseInt(process.env.AITEAMOS_PAGINATION_ITERATIONS ?? `${DEFAULT_ITERATIONS}`, 10) ||
     DEFAULT_ITERATIONS
 );
 const pointSamples = Math.max(
   5,
   Number.parseInt(
-    process.env.OPENTEAM_PAGINATION_POINT_SAMPLES ?? `${DEFAULT_POINT_SAMPLES}`,
+    process.env.AITEAMOS_PAGINATION_POINT_SAMPLES ?? `${DEFAULT_POINT_SAMPLES}`,
     10
   ) || DEFAULT_POINT_SAMPLES
 );
@@ -1061,7 +1061,7 @@ const output = {
     fixedFixtureEpoch: new Date(FIXED_EPOCH_MS).toISOString(),
   },
   methodology: {
-    actualOpenTeamHelpers: [
+    actualAiTeamOSHelpers: [
       "mergeLoadedChannelHistoryPage",
       "mergeLoadedChannelMessageContext",
       "loadedChannelHistoryMessages",

@@ -45,7 +45,7 @@ export function validateApnsConfiguration(input: unknown): ApnsConfiguration {
     const key = createPrivateKey(value.privateKey);
     if (key.asymmetricKeyType !== "ec" || key.asymmetricKeyDetails?.namedCurve !== "prime256v1")
       throw new Error();
-    sign("sha256", Buffer.from("OpenTeam APNs configuration check"), {
+    sign("sha256", Buffer.from("aiTeamOS APNs configuration check"), {
       key,
       dsaEncoding: "ieee-p1363",
     });
@@ -56,13 +56,13 @@ export function validateApnsConfiguration(input: unknown): ApnsConfiguration {
 }
 
 export function apnsEnvironmentConfiguration(): ApnsConfiguration {
-  const keyId = process.env.OPENTEAM_APNS_KEY_ID?.trim() ?? "";
-  const teamId = process.env.OPENTEAM_APNS_TEAM_ID?.trim() ?? "";
-  const topic = process.env.OPENTEAM_APNS_TOPIC?.trim() || "dev.openteam.mobile.swift";
-  let privateKey = process.env.OPENTEAM_APNS_PRIVATE_KEY?.replace(/\\n/g, "\n") ?? "";
-  if (!privateKey && process.env.OPENTEAM_APNS_PRIVATE_KEY_FILE) {
+  const keyId = process.env.AITEAMOS_APNS_KEY_ID?.trim() ?? "";
+  const teamId = process.env.AITEAMOS_APNS_TEAM_ID?.trim() ?? "";
+  const topic = process.env.AITEAMOS_APNS_TOPIC?.trim() || "dev.openteam.mobile.swift";
+  let privateKey = process.env.AITEAMOS_APNS_PRIVATE_KEY?.replace(/\\n/g, "\n") ?? "";
+  if (!privateKey && process.env.AITEAMOS_APNS_PRIVATE_KEY_FILE) {
     try {
-      privateKey = readFileSync(process.env.OPENTEAM_APNS_PRIVATE_KEY_FILE, "utf8");
+      privateKey = readFileSync(process.env.AITEAMOS_APNS_PRIVATE_KEY_FILE, "utf8");
     } catch {
       throw new Error("The APNs signing-key file could not be read");
     }
@@ -74,7 +74,7 @@ export function apnsEnvironmentConfiguration(): ApnsConfiguration {
 export class ApnsSettingsStore {
   constructor(
     private readonly prisma: Pick<PrismaClient, "apnsSettings">,
-    private readonly secret: () => string | undefined = () => process.env.OPENTEAM_CONTROL_TOKEN,
+    private readonly secret: () => string | undefined = () => process.env.AITEAMOS_CONTROL_TOKEN,
     private readonly environment = apnsEnvironmentConfiguration
   ) {}
   private key() {
@@ -83,7 +83,7 @@ export class ApnsSettingsStore {
       throw new Error(
         "APNs configuration requires an installation control token of at least 32 characters."
       );
-    return createHash("sha256").update(`openteam-apns-v1:${secret}`).digest();
+    return createHash("sha256").update(`aiteamos-apns-v1:${secret}`).digest();
   }
   private aad(config: Pick<ApnsConfiguration, "keyId" | "teamId" | "topic">) {
     return Buffer.from(JSON.stringify(["global", config.keyId, config.teamId, config.topic]));
@@ -145,7 +145,7 @@ export class ApnsSettingsStore {
       };
     } catch {
       throw new Error(
-        "Saved APNs configuration could not be decrypted or validated; import it again with openteam notifications configure."
+        "Saved APNs configuration could not be decrypted or validated; import it again with aiteamos notifications configure."
       );
     }
   }
@@ -153,9 +153,9 @@ export class ApnsSettingsStore {
     try {
       const { config, source, updatedAt } = await this.load();
       const missing = [
-        !config.keyId && "OPENTEAM_APNS_KEY_ID",
-        !config.teamId && "OPENTEAM_APNS_TEAM_ID",
-        !config.privateKey && "OPENTEAM_APNS_PRIVATE_KEY",
+        !config.keyId && "AITEAMOS_APNS_KEY_ID",
+        !config.teamId && "AITEAMOS_APNS_TEAM_ID",
+        !config.privateKey && "AITEAMOS_APNS_PRIVATE_KEY",
       ].filter((key): key is string => Boolean(key));
       let issue: string | null = null;
       if (!missing.length) {
@@ -185,7 +185,7 @@ export class ApnsSettingsStore {
           source: "environment",
           missing: [],
           issue: "key-file",
-          topic: process.env.OPENTEAM_APNS_TOPIC?.trim() || "dev.openteam.mobile.swift",
+          topic: process.env.AITEAMOS_APNS_TOPIC?.trim() || "dev.openteam.mobile.swift",
         };
       return { source: "database", missing: [], issue: "runtime-settings", topic: "" };
     }

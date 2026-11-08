@@ -1,12 +1,12 @@
-# OpenTeam documentation
+# aiTeamOS documentation
 
 [Read the docs](https://openteam.so/docs) · [Back to the repository](../README.md)
 
-OpenTeam runs a team of AI bots on hardware you control. Start with the [introduction](overview/introduction.md), or pick a task below.
+aiTeamOS runs a team of AI bots on hardware you control. Start with the [introduction](overview/introduction.md), or pick a task below.
 
 | I want to… | Start here |
 | --- | --- |
-| Install OpenTeam and try a task | [Quickstart](getting-started/quickstart.md) |
+| Install aiTeamOS and try a task | [Quickstart](getting-started/quickstart.md) |
 | Check requirements or choose a host | [Installation](getting-started/installation.md) · [How hosting works](overview/architecture.md) |
 | Connect my desktop or phone | [Desktop and mobile](getting-started/apps.md) · [Remote access](configuration/remote-access.md) |
 | Create a bot and work with it | [Create and manage bots](getting-started/first-bot.md) · [Chat and teamwork](usage/conversations.md) |
@@ -15,4 +15,4 @@ OpenTeam runs a team of AI bots on hardware you control. Start with the [introdu
 | Connect another service | [Plugins](usage/plugins.md) · [Connecting accounts](integrations/accounts.md) |
 | Change the model, search, or voice settings | [Model providers](configuration/models.md) · [Server settings](configuration/server.md) |
 | Update, back up, or fix my server | [Server commands](manage/server.md) · [Backups](manage/backups.md) · [Troubleshooting](manage/troubleshooting.md) |
-| Work on OpenTeam itself | [Development from source](development/from-source.md) · [Build a plugin](development/plugins.md) |
+| Work on aiTeamOS itself | [Development from source](development/from-source.md) · [Build a plugin](development/plugins.md) |

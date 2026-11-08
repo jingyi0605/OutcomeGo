@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import type { PrismaClient } from "@openteam/db";
+import type { PrismaClient } from "@aiteamos/db";
 import { PluginService } from "../../src/services/plugin-service";
 
 test("background MCP health observes processes and resumes stopped connections on next use", async () => {

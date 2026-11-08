@@ -1,4 +1,4 @@
-/** Settings rows the apps open from an openteam://app/v1/settings?id=<anchor> link. */
+/** Settings rows the apps open from an aiteamos://app/v1/settings?id=<anchor> link. */
 export const APP_SETTINGS_ANCHORS = [
   "theme",
   "microphone",

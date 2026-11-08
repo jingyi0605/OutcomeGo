@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { ChannelMessageView } from "@openteam/contracts";
+import type { ChannelMessageView } from "@aiteamos/contracts";
 import {
   mergeThreadTrayPin,
   THREAD_TRAY_PIN_MAX_MESSAGES,

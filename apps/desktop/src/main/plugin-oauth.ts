@@ -1,10 +1,10 @@
 import { createServer, type Server } from "node:http";
 import { timingSafeEqual } from "node:crypto";
 import type { AddressInfo } from "node:net";
-import type { createOpenTeamClient } from "@openteam/client-core";
+import type { createAiTeamOSClient } from "@aiteamos/client-core";
 
 type Client = Pick<
-  ReturnType<typeof createOpenTeamClient>,
+  ReturnType<typeof createAiTeamOSClient>,
   | "pluginConfiguration"
   | "authenticatePlugin"
   | "finishPluginAuthentication"
@@ -88,7 +88,7 @@ export class DesktopPluginOAuth {
       response.setHeader("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'");
       const reject = () => {
         response.writeHead(400);
-        response.end("This sign-in callback is not valid. Return to OpenTeam.");
+        response.end("This sign-in callback is not valid. Return to aiTeamOS.");
       };
       if (
         !attempt ||
@@ -119,7 +119,7 @@ export class DesktopPluginOAuth {
       )
         return reject();
       response.end(
-        "<!doctype html><title>OpenTeam sign-in</title><p>Authorization received. Return to OpenTeam to see the result.</p>"
+        "<!doctype html><title>aiTeamOS sign-in</title><p>Authorization received. Return to aiTeamOS to see the result.</p>"
       );
       this.stop(attempt);
       void client

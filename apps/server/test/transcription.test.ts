@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { TranscriptionStore } from "../src/transcription/store";
 import { TranscriptionService } from "../src/transcription/service";
-import { MAX_VOICE_NOTE_BYTES } from "@openteam/contracts/transcription";
+import { MAX_VOICE_NOTE_BYTES } from "@aiteamos/contracts/transcription";
 
 const directories: string[] = [];
 afterEach(async () => {
@@ -19,12 +19,12 @@ const settings = {
   language: "en",
 };
 async function store() {
-  const root = await mkdtemp(join(tmpdir(), "openteam-transcription-"));
+  const root = await mkdtemp(join(tmpdir(), "aiteamos-transcription-"));
   directories.push(root);
   return new TranscriptionStore(join(root, "transcription.json"), () => "a".repeat(40));
 }
 const audio = (signal?: AbortSignal) =>
-  new Request("http://openteam/api/transcriptions", {
+  new Request("http://aiteamos/api/transcriptions", {
     method: "POST",
     body: new Uint8Array(128),
     headers: { "content-type": "audio/wav" },

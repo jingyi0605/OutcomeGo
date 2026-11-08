@@ -1,4 +1,4 @@
-import type { Prisma } from "@openteam/db";
+import type { Prisma } from "@aiteamos/db";
 import { settleGroupOutbox } from "./group-outbox";
 
 // Use the same lock before advancing, publishing, or accepting a new room turn.

@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { BrowserUseSession } from "../../src/browser/use";
 import { outOfProcessPlaywright } from "../../src/browser/playwright-driver";
 import { FormPreparationError, UserFormHost, type FormBrowser } from "../../src/user-form-host";
-import type { UserForm } from "@openteam/contracts";
+import type { UserForm } from "@aiteamos/contracts";
 
 const html = (body: string) => new Response(`<!doctype html>${body}`, { headers: { "content-type": "text/html" } });
 const months = Array.from({ length: 12 }, (_, i) => `<option value="${String(i + 1).padStart(2, "0")}">${String(i + 1).padStart(2, "0")}</option>`).join("");
@@ -15,13 +15,13 @@ const cardFrame = `<label for="cc">Card number</label><input id="cc" autocomplet
 <label for="cvc">Security code</label><input id="cvc" autocomplete="cc-csc">
 <script>document.getElementById("cvc").addEventListener("beforeinput", e => { if (e.data && e.data.length > 1) e.preventDefault(); });</script>`;
 
-test.skipIf(!process.env.OPENTEAM_BROWSER_TEST_EXECUTABLE)("form values fill a cross-origin card frame and refuse an insecure foreign frame", async () => {
+test.skipIf(!process.env.AITEAMOS_BROWSER_TEST_EXECUTABLE)("form values fill a cross-origin card frame and refuse an insecure foreign frame", async () => {
   const root = await mkdtemp(join(tmpdir(), "cross-origin-form-"));
   const payments = Bun.serve({ hostname: "127.0.0.1", port: 0, fetch: () => html(cardFrame) });
   const shop = Bun.serve({ hostname: "127.0.0.1", port: 0, fetch: (request) => html(`<label for="email">Email</label><input id="email">
     <iframe title="Secure card payment" style="width:420px;height:260px" src="http://${new URL(request.url).pathname === "/foreign" ? "pay.example" : "localhost"}:${payments.port}/card"></iframe>`) });
   const driver = await outOfProcessPlaywright();
-  const browser = await driver.playwright.chromium.launch({ headless: true, executablePath: process.env.OPENTEAM_BROWSER_TEST_EXECUTABLE,
+  const browser = await driver.playwright.chromium.launch({ headless: true, executablePath: process.env.AITEAMOS_BROWSER_TEST_EXECUTABLE,
     args: ["--no-sandbox", "--site-per-process", `--host-resolver-rules=MAP pay.example 127.0.0.1`] });
   const session = new (BrowserUseSession as any)(browser, await browser.newContext(), root) as BrowserUseSession;
   const adapter: FormBrowser = {

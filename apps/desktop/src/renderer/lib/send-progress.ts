@@ -1,4 +1,4 @@
-import type { DurableSendRecord } from "@openteam/product-core/durable-delivery";
+import type { DurableSendRecord } from "@aiteamos/product-core/durable-delivery";
 
 export const SEND_PROGRESS_DELAY_MS = 2_000;
 

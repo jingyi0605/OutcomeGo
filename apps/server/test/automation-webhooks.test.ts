@@ -3,7 +3,7 @@ import { createHmac } from 'node:crypto';
 import { receiveAutomationWebhook, type AutomationWebhookBinding } from '../src/automation-webhooks';
 const secret = 'synthetic-signing-secret-only';
 const owner = { kind: 'bot' as const, id: crypto.randomUUID() };
-const binding: AutomationWebhookBinding = { id: 'fixture', owner, source: 'slack', secretEnv: 'OPENTEAM_EVENT_FIXTURE', teamId: 'T1234', selfUserId: 'U1234', channelNames: { C1234: 'engineering' } };
+const binding: AutomationWebhookBinding = { id: 'fixture', owner, source: 'slack', secretEnv: 'AITEAMOS_EVENT_FIXTURE', teamId: 'T1234', selfUserId: 'U1234', channelNames: { C1234: 'engineering' } };
 const now = Date.now();
 const slack = (body: unknown, timestamp = String(Math.floor(now / 1000))) => { const raw = JSON.stringify(body); return new Request('http://localhost/fixture', { method: 'POST', body: raw, headers: { 'x-slack-request-timestamp': timestamp, 'x-slack-signature': `v0=${createHmac('sha256', secret).update(`v0:${timestamp}:${raw}`).digest('hex')}` } }); };
 test('signed Slack challenges and deliveries enforce age, workspace and fixed owner', async () => {

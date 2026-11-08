@@ -5,9 +5,9 @@ import { join } from "node:path";
 import { attachmentRoots, loadAttachmentImages } from "../../src/runtime/attachments";
 
 test("attachment overflow is reported instead of silently dropping the 65th file", async () => {
-  const previous = process.env.OPENTEAM_AGENT_DATA_ROOT;
+  const previous = process.env.AITEAMOS_AGENT_DATA_ROOT;
   const dir = await realpath(await mkdtemp(join(tmpdir(), "attachment-count-")));
-  process.env.OPENTEAM_AGENT_DATA_ROOT = dir;
+  process.env.AITEAMOS_AGENT_DATA_ROOT = dir;
   const owner = "11111111-1111-4111-8111-111111111111";
   try {
     const root = attachmentRoots(owner)[1]!;
@@ -23,8 +23,8 @@ test("attachment overflow is reported instead of silently dropping the 65th file
     await expect(loadAttachmentImages(root, paths, owner)).rejects.toThrow("A subagent can take at most 64 images in file_attachments. Attach fewer and try again.");
     await expect(loadAttachmentImages(root, [join(root, "missing.png")], owner)).rejects.toThrow(`Couldn't read the attached image ${join(root, "missing.png")}: it was not found or is over 25 MB.`);
   } finally {
-    if (previous === undefined) delete process.env.OPENTEAM_AGENT_DATA_ROOT;
-    else process.env.OPENTEAM_AGENT_DATA_ROOT = previous;
+    if (previous === undefined) delete process.env.AITEAMOS_AGENT_DATA_ROOT;
+    else process.env.AITEAMOS_AGENT_DATA_ROOT = previous;
     await rm(dir, { recursive: true, force: true });
   }
 });
@@ -32,9 +32,9 @@ test("attachment overflow is reported instead of silently dropping the 65th file
 test.skipIf(!Bun.which("ffmpeg"))(
   "video frames cannot crowd later image attachments out of the model input",
   async () => {
-    const previous = process.env.OPENTEAM_AGENT_DATA_ROOT;
+    const previous = process.env.AITEAMOS_AGENT_DATA_ROOT;
     const dir = await realpath(await mkdtemp(join(tmpdir(), "attachment-video-count-")));
-    process.env.OPENTEAM_AGENT_DATA_ROOT = dir;
+    process.env.AITEAMOS_AGENT_DATA_ROOT = dir;
     const owner = "11111111-1111-4111-8111-111111111111";
     try {
       const root = attachmentRoots(owner)[1]!;
@@ -96,8 +96,8 @@ test.skipIf(!Bun.which("ffmpeg"))(
         }
       }
     } finally {
-      if (previous === undefined) delete process.env.OPENTEAM_AGENT_DATA_ROOT;
-      else process.env.OPENTEAM_AGENT_DATA_ROOT = previous;
+      if (previous === undefined) delete process.env.AITEAMOS_AGENT_DATA_ROOT;
+      else process.env.AITEAMOS_AGENT_DATA_ROOT = previous;
       await rm(dir, { recursive: true, force: true });
     }
   },

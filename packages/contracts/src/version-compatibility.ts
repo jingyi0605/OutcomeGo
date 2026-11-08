@@ -1,13 +1,13 @@
-export const OPENTEAM_API_PROTOCOL_VERSION = 2;
+export const AITEAMOS_API_PROTOCOL_VERSION = 2;
 
-export interface OpenTeamClientCompatibilityPolicy {
+export interface AiTeamOSClientCompatibilityPolicy {
   minimumClientVersion?: string | null;
   maximumClientVersionExclusive?: string | null;
   recommendedClientVersion?: string | null;
   minimumServerVersion?: string | null;
 }
 
-interface ParsedOpenTeamVersion {
+interface ParsedAiTeamOSVersion {
   major: number;
   minor: number;
   patch: number;
@@ -18,7 +18,7 @@ interface ParsedOpenTeamVersion {
 const VERSION_PATTERN =
   /^v?(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*))*))?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
 
-const parseOpenTeamVersion = (value: string | null | undefined): ParsedOpenTeamVersion | null => {
+const parseAiTeamOSVersion = (value: string | null | undefined): ParsedAiTeamOSVersion | null => {
   if (!value) return null;
   const match = value.trim().match(VERSION_PATTERN);
   if (!match) return null;
@@ -43,8 +43,8 @@ const compareNumericIdentifiers = (left: string, right: string) =>
   left.length === right.length ? (left < right ? -1 : 1) : left.length - right.length;
 
 const compareParsedVersions = (
-  left: ParsedOpenTeamVersion,
-  right: ParsedOpenTeamVersion
+  left: ParsedAiTeamOSVersion,
+  right: ParsedAiTeamOSVersion
 ): number => {
   for (const key of ["major", "minor", "patch"] as const) {
     if (left[key] !== right[key]) return left[key] - right[key];
@@ -71,23 +71,23 @@ const compareParsedVersions = (
   return 0;
 };
 
-export const normalizeOpenTeamVersion = (value: string): string | null =>
-  parseOpenTeamVersion(value)?.normalized ?? null;
+export const normalizeAiTeamOSVersion = (value: string): string | null =>
+  parseAiTeamOSVersion(value)?.normalized ?? null;
 
-export const isOpenTeamVersion = (value: string): boolean =>
-  normalizeOpenTeamVersion(value) !== null;
+export const isAiTeamOSVersion = (value: string): boolean =>
+  normalizeAiTeamOSVersion(value) !== null;
 
-export const compareOpenTeamVersions = (left: string, right: string): number | null => {
-  const a = parseOpenTeamVersion(left);
-  const b = parseOpenTeamVersion(right);
+export const compareAiTeamOSVersions = (left: string, right: string): number | null => {
+  const a = parseAiTeamOSVersion(left);
+  const b = parseAiTeamOSVersion(right);
   return a && b ? compareParsedVersions(a, b) : null;
 };
 
 /** Patch releases in the same minor line are compatible unless a release widens the window. */
-export const defaultOpenTeamCompatibilityWindow = (
+export const defaultAiTeamOSCompatibilityWindow = (
   releaseVersion: string
 ): { minimum: string; maximumExclusive: string } | null => {
-  const parsed = parseOpenTeamVersion(releaseVersion);
+  const parsed = parseAiTeamOSVersion(releaseVersion);
   if (!parsed) return null;
   return {
     minimum: `${parsed.major}.${parsed.minor}.0`,
@@ -95,39 +95,39 @@ export const defaultOpenTeamCompatibilityWindow = (
   };
 };
 
-export type OpenTeamCompatibilityState =
+export type AiTeamOSCompatibilityState =
   | "compatible"
   | "update-recommended"
   | "client-update-required"
   | "server-update-required"
   | "unknown";
 
-export const openTeamCompatibility = (
+export const aiTeamOSCompatibility = (
   clientVersion: string,
   serverVersion: string | null,
-  serverProtocolVersion: number | null = OPENTEAM_API_PROTOCOL_VERSION,
-  policy: OpenTeamClientCompatibilityPolicy = {}
-): OpenTeamCompatibilityState => {
-  const client = parseOpenTeamVersion(clientVersion);
-  const server = parseOpenTeamVersion(serverVersion);
+  serverProtocolVersion: number | null = AITEAMOS_API_PROTOCOL_VERSION,
+  policy: AiTeamOSClientCompatibilityPolicy = {}
+): AiTeamOSCompatibilityState => {
+  const client = parseAiTeamOSVersion(clientVersion);
+  const server = parseAiTeamOSVersion(serverVersion);
   if (!client || !server || !Number.isInteger(serverProtocolVersion)) return "unknown";
 
-  if ((serverProtocolVersion as number) > OPENTEAM_API_PROTOCOL_VERSION) {
+  if ((serverProtocolVersion as number) > AITEAMOS_API_PROTOCOL_VERSION) {
     return "client-update-required";
   }
-  if ((serverProtocolVersion as number) < OPENTEAM_API_PROTOCOL_VERSION) {
+  if ((serverProtocolVersion as number) < AITEAMOS_API_PROTOCOL_VERSION) {
     return "server-update-required";
   }
 
-  const serverWindow = defaultOpenTeamCompatibilityWindow(server.normalized);
-  const clientWindow = defaultOpenTeamCompatibilityWindow(client.normalized);
-  const minimumClient = parseOpenTeamVersion(
+  const serverWindow = defaultAiTeamOSCompatibilityWindow(server.normalized);
+  const clientWindow = defaultAiTeamOSCompatibilityWindow(client.normalized);
+  const minimumClient = parseAiTeamOSVersion(
     policy.minimumClientVersion ?? serverWindow?.minimum ?? ""
   );
-  const maximumClient = parseOpenTeamVersion(
+  const maximumClient = parseAiTeamOSVersion(
     policy.maximumClientVersionExclusive ?? serverWindow?.maximumExclusive ?? ""
   );
-  const minimumServer = parseOpenTeamVersion(
+  const minimumServer = parseAiTeamOSVersion(
     policy.minimumServerVersion ?? clientWindow?.minimum ?? ""
   );
   if (!minimumClient || !maximumClient || !minimumServer) return "unknown";

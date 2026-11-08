@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { PrismaClient } from "@openteam/db";
+import type { PrismaClient } from "@aiteamos/db";
 import { Effect } from "effect";
 import {
   deliverablePushDeviceWhere,

@@ -1,4 +1,4 @@
-/** Drive the real Providers settings UI in Chrome against a real OpenTeam server, database and
+/** Drive the real Providers settings UI in Chrome against a real aiTeamOS server, database and
  * computer (connection checks run real requests).
  * Usage: PROVIDERS_QA_BASE_URL=http://127.0.0.1:8787 [PROVIDERS_QA_TOKEN=…] [EXA_API_KEY=…] bun scripts/test-provider-settings.ts
  * With EXA_API_KEY the Exa checks must pass; without it they must fail cleanly.
@@ -8,8 +8,8 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { chromium, type Page } from "../../computer/node_modules/playwright-core";
 import { createServer } from "vite";
-import { createOpenTeamClient } from "@openteam/client-core";
-import { WEB_PROVIDER_LISTS, type WebProvidersInput } from "@openteam/contracts/web-search";
+import { createAiTeamOSClient } from "@aiteamos/client-core";
+import { WEB_PROVIDER_LISTS, type WebProvidersInput } from "@aiteamos/contracts/web-search";
 
 const repo = resolve(import.meta.dir, "../../..");
 const baseUrl = process.env.PROVIDERS_QA_BASE_URL ?? "http://127.0.0.1:8787";
@@ -17,7 +17,7 @@ const token = process.env.PROVIDERS_QA_TOKEN;
 const exaKey = process.env.EXA_API_KEY;
 const output = resolve(repo, process.env.PROVIDERS_QA_OUTPUT ?? "output/provider-settings-ui");
 await mkdir(output, { recursive: true });
-const client = createOpenTeamClient({ baseUrl, getAuthToken: () => token });
+const client = createAiTeamOSClient({ baseUrl, getAuthToken: () => token });
 const syntheticKey = "qa-synthetic-brave-key-never-shown";
 const checks: string[] = [];
 const assert = (value: unknown, message: string) => {
@@ -61,7 +61,7 @@ async function check(page: Page, tool: Tool, id: string, name: string) {
 }
 
 await reset();
-const buildDir = await mkdtemp(join(tmpdir(), "openteam-provider-ui-"));
+const buildDir = await mkdtemp(join(tmpdir(), "aiteamos-provider-ui-"));
 const vite = await createServer({
   root: join(repo, "apps/desktop"),
   cacheDir: join(buildDir, "desktop-cache"),

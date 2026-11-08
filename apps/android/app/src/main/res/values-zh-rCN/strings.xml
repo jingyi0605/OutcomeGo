@@ -17,7 +17,7 @@
     <string name="login_clear_server">清除服务器地址</string>
     <string name="login_connecting">正在连接…</string>
     <string name="login_server_found">已找到服务器：%1$s</string>
-    <string name="login_server_hint">找不到地址？在服务器上运行 `openteam status`。</string>
+    <string name="login_server_hint">找不到地址？在服务器上运行 `aiteamos status`。</string>
     <string name="login_http_warning">HTTP 未加密。请只通过你信任的网络或 VPN 连接。</string>
     <string name="login_connect">连接</string>
     <string name="login_connection_successful">连接成功</string>
@@ -29,7 +29,7 @@
     <string name="login_credential">密码</string>
     <string name="login_show">显示</string>
     <string name="login_hide">隐藏</string>
-    <string name="login_forgot">忘记密码？在服务器上运行 `openteam account update --password`。</string>
+    <string name="login_forgot">忘记密码？在服务器上运行 `aiteamos account update --password`。</string>
     <string name="login_credential_http_warning">你的密码将不会通过 HTTPS 保护传输。</string>
     <string name="login_signing_in">正在登录…</string>
     <string name="login_sign_in">登录</string>

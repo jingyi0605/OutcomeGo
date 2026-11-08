@@ -230,13 +230,13 @@ Agent 可以自行读取已授权的数据、做调研、写草稿、更新内�
 **macOS / Linux**
 
 ```sh
-curl -fsSL https://openteam.so/install | sh
+curl -fsSL https://github.com/jingyi0605/ai-TeamOS/releases/latest/download/install.sh | sh
 ```
 
 **Windows PowerShell**
 
 ```powershell
-irm https://openteam.so/install.ps1 | iex
+irm https://github.com/jingyi0605/ai-TeamOS/releases/latest/download/install.ps1 | iex
 ```
 
 安装器会下载 CLI，把它加入 `PATH`，并启动引导式设置。不需要 Node.js 和 Bun。

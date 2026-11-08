@@ -22,12 +22,12 @@ export interface AccountUpdateOptions {
 const requireInstallation = (paths: InstallationPaths): InstallationManifest => {
   if (!installationExists(paths)) {
     throw new CliError(
-      `OpenTeam is not installed at ${paths.directory}. Run openteam install first.`
+      `aiTeamOS is not installed at ${paths.directory}. Run aiteamos install first.`
     );
   }
   const manifest = readManifest(paths);
   if (!manifest)
-    throw new CliError(`OpenTeam installation manifest is missing at ${paths.manifest}`);
+    throw new CliError(`aiTeamOS installation manifest is missing at ${paths.manifest}`);
   return manifest;
 };
 
@@ -47,7 +47,7 @@ export const accountUpdateCommand = async (
   let password: string | undefined;
   try {
     printMessage(
-      `Change the OpenTeam sign-in${
+      `Change the aiTeamOS sign-in${
         manifest.ownerUsername ? ` for ${manifest.ownerUsername}` : ""
       }.`
     );

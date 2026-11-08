@@ -1,10 +1,10 @@
 import { StrictMode, useState } from "react";
 import { createRoot } from "react-dom/client";
-import type { BotMemoryEntry, BotView } from "@openteam/contracts";
+import type { BotMemoryEntry, BotView } from "@aiteamos/contracts";
 import "../../src/renderer/styles.css";
 import { refreshMemoryViews } from "../../src/renderer/lib/memory-events";
 
-if (window.openteam) throw new Error("Use an isolated synthetic fixture window");
+if (window.aiteamos) throw new Error("Use an isolated synthetic fixture window");
 let offline = false;
 let delayReadsUntil = 0;
 let failNextDelete = false;
@@ -44,7 +44,7 @@ window.fetch = async (input, init) => {
     facts[id] = match[2] ? facts[id]!.filter((fact) => fact.id !== match[2]) : [];
   return Response.json({ botId: id, memories: facts[id], total: facts[id]!.length, limit: 1000 });
 };
-const { BotMemoryButton } = await import("../../src/renderer/components/openteam/bot-memory");
+const { BotMemoryButton } = await import("../../src/renderer/components/aiteamos/bot-memory");
 
 function Fixture() {
   const [id, setId] = useState("a");

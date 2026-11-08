@@ -2,16 +2,16 @@ import { expect, test } from "bun:test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { quietRoutineOriginNote, renderQuietRevivalBatchPrompt, RoutineService } from "@openteam/messaging";
+import { quietRoutineOriginNote, renderQuietRevivalBatchPrompt, RoutineService } from "@aiteamos/messaging";
 import { WakeWorker } from "../src/worker";
 
-const databaseUrl = process.env.OPENTEAM_TEST_DATABASE_URL;
+const databaseUrl = process.env.AITEAMOS_TEST_DATABASE_URL;
 
 test.skipIf(!databaseUrl)("a routine hears from its background work once none is running, in one quiet revival", async () => {
   const root = await mkdtemp(join(tmpdir(), "routine-revival-batch-"));
-  const keys = ["DATABASE_URL", "OPENTEAM_WORKSPACE_ROOT", "OPENTEAM_AGENT_DATA_ROOT"] as const;
+  const keys = ["DATABASE_URL", "AITEAMOS_WORKSPACE_ROOT", "AITEAMOS_AGENT_DATA_ROOT"] as const;
   const previous = Object.fromEntries(keys.map((key) => [key, process.env[key]]));
-  Object.assign(process.env, { DATABASE_URL: databaseUrl, OPENTEAM_WORKSPACE_ROOT: root, OPENTEAM_AGENT_DATA_ROOT: join(root, "data") });
+  Object.assign(process.env, { DATABASE_URL: databaseUrl, AITEAMOS_WORKSPACE_ROOT: root, AITEAMOS_AGENT_DATA_ROOT: join(root, "data") });
   const worker = new WakeWorker();
   // Wakes are claimed directly below; nothing needs the queue.
   (worker.messaging as unknown as { boss: unknown }).boss = { send: async () => "job" };

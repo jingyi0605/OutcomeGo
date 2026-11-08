@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import type { ChannelView, RunView } from "@openteam/contracts";
+import type { ChannelView, RunView } from "@aiteamos/contracts";
 import { renderToStaticMarkup } from "react-dom/server";
 import {
   BotAvatarActivityProvider,
   useBotAvatarMode,
-} from "../src/renderer/components/openteam/bot-avatar-activity";
+} from "../src/renderer/components/aiteamos/bot-avatar-activity";
 
 const channel = { id: "group", members: [{ botId: "one" }, { botId: "two" }] } as ChannelView;
 function Probe({ botId, channelId }: { botId: string; channelId?: string }) {

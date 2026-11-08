@@ -12,7 +12,7 @@ import type { ServiceState } from "../../src/startup";
 import type { StatusReport } from "../../src/status-ui";
 
 export const statusScenarios = [
-  ["healthy", "All containers healthy", "RUNNING", "openteam doctor"],
+  ["healthy", "All containers healthy", "RUNNING", "aiteamos doctor"],
   ["live-ready", "Live dependencies healthy", "RUNNING", "Queue database"],
   ["database-unavailable", "Database is unreachable", "NEEDS ATTENTION", "database: unavailable"],
   [
@@ -28,9 +28,9 @@ export const statusScenarios = [
     "computer: unavailable",
   ],
   ["no-healthcheck", "Running without a Docker health check", "RUNNING", "no Docker health check"],
-  ["provider-missing", "Server ready; model provider not connected", "RUNNING", "openteam model"],
-  ["setup-incomplete", "Account setup incomplete", "RUNNING", "openteam setup"],
-  ["not-installed", "OpenTeam not installed", "NOT INSTALLED", "openteam install"],
+  ["provider-missing", "Server ready; model provider not connected", "RUNNING", "aiteamos model"],
+  ["setup-incomplete", "Account setup incomplete", "RUNNING", "aiteamos setup"],
+  ["not-installed", "aiTeamOS not installed", "NOT INSTALLED", "aiteamos install"],
   ["partial-install", "Missing installation files", "STATUS UNKNOWN", "known-good backup"],
   [
     "invalid-manifest",
@@ -69,19 +69,19 @@ export const statusScenarios = [
     "STATUS UNKNOWN",
     "invalid service state",
   ],
-  ["no-containers", "No containers created", "STOPPED", "openteam start"],
+  ["no-containers", "No containers created", "STOPPED", "aiteamos start"],
   ["stopped", "All containers stopped cleanly", "STOPPED", "Stopped · exit 0"],
   ["missing-worker", "Worker missing while server is ready", "NEEDS ATTENTION", "Not created"],
   ["missing-caddy", "HTTPS proxy missing", "NEEDS ATTENTION", "caddy"],
   ["starting", "Container health checks starting", "STARTING", "Wait a moment"],
-  ["restarting", "Worker restart loop", "NEEDS ATTENTION", "openteam logs worker"],
+  ["restarting", "Worker restart loop", "NEEDS ATTENTION", "aiteamos logs worker"],
   ["unhealthy", "Worker health check failing", "NEEDS ATTENTION", "health check failing"],
   ["paused", "Worker paused", "NEEDS ATTENTION", "Paused"],
   ["dead", "Worker dead", "NEEDS ATTENTION", "Dead"],
   ["exited", "Worker exited with an error", "NEEDS ATTENTION", "exit 137"],
   ["replica-failed", "One worker replica stopped", "NEEDS ATTENTION", "worker (2/2)"],
   ["job-complete", "Successful setup jobs", "RUNNING", "Completed · exit 0"],
-  ["job-failed", "Database migration failed", "NEEDS ATTENTION", "openteam logs migrate"],
+  ["job-failed", "Database migration failed", "NEEDS ATTENTION", "aiteamos logs migrate"],
   ["job-running", "Database migration in progress", "STARTING", "setup in progress"],
   ["health-503", "Server readiness returns HTTP 503", "NEEDS ATTENTION", "HTTP 503"],
   [
@@ -101,7 +101,7 @@ export const statusScenarios = [
     "foreign-server",
     "Another installation answers on this port",
     "NEEDS ATTENTION",
-    "Another OpenTeam server",
+    "Another aiTeamOS server",
   ],
 ] as const;
 export type StatusScenarioId = (typeof statusScenarios)[number][0];
@@ -183,7 +183,7 @@ export class StatusScenarioRunner implements CommandRunner {
 }
 
 export const statusFixture = (id: StatusScenarioId) => {
-  const directory = mkdtempSync(join(tmpdir(), "openteam-status-"));
+  const directory = mkdtempSync(join(tmpdir(), "aiteamos-status-"));
   const paths = installationPaths(join(directory, "installation's space"));
   const requests: string[] = [];
   const server = Bun.serve({
@@ -226,7 +226,7 @@ export const statusFixture = (id: StatusScenarioId) => {
     mkdirSync(paths.directory);
     let env = replaceEnvironmentValue(
       createEnvironment({ version: "1.2.3" }),
-      "OPENTEAM_API_PORT",
+      "AITEAMOS_API_PORT",
       String(port)
     );
     if (id === "missing-caddy") env = replaceEnvironmentValue(env, "COMPOSE_PROFILES", "https");

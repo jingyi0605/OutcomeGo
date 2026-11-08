@@ -6,7 +6,7 @@ import { Effect } from "effect";
 import { AppService } from "../../server/src/app-service";
 import { WakeWorker } from "../src/worker";
 
-const databaseUrl = process.env.OPENTEAM_TEST_DATABASE_URL;
+const databaseUrl = process.env.AITEAMOS_TEST_DATABASE_URL;
 const databaseTest = databaseUrl ? test : test.skip;
 interface TurnInput {
   runId: string;
@@ -106,7 +106,7 @@ databaseTest(
             inferenceProvider: "openai-codex",
             contextSessionId: input.contextSessionId,
             sessionPath:
-              input.sessionPath ?? `/var/lib/openteam/pi/${input.contextSessionId}.jsonl`,
+              input.sessionPath ?? `/var/lib/aiteamos/pi/${input.contextSessionId}.jsonl`,
             sessionId: input.contextSessionId,
             model: "fake",
           },
@@ -127,10 +127,10 @@ databaseTest(
     });
     const keys = [
       "DATABASE_URL",
-      "OPENTEAM_COMPUTER_URL",
-      "OPENTEAM_CONTROL_TOKEN",
-      "OPENTEAM_WORKSPACE_ROOT",
-      "OPENTEAM_AGENT_DATA_ROOT",
+      "AITEAMOS_COMPUTER_URL",
+      "AITEAMOS_CONTROL_TOKEN",
+      "AITEAMOS_WORKSPACE_ROOT",
+      "AITEAMOS_AGENT_DATA_ROOT",
     ] as const;
     const previous = Object.fromEntries(keys.map((key) => [key, process.env[key]]));
     const until = async (check: () => Promise<boolean>) => {
@@ -143,10 +143,10 @@ databaseTest(
     try {
       Object.assign(process.env, {
         DATABASE_URL: databaseUrl,
-        OPENTEAM_COMPUTER_URL: fake.url.origin,
-        OPENTEAM_CONTROL_TOKEN: "synthetic-control",
-        OPENTEAM_WORKSPACE_ROOT: root,
-        OPENTEAM_AGENT_DATA_ROOT: join(root, "data"),
+        AITEAMOS_COMPUTER_URL: fake.url.origin,
+        AITEAMOS_CONTROL_TOKEN: "synthetic-control",
+        AITEAMOS_WORKSPACE_ROOT: root,
+        AITEAMOS_AGENT_DATA_ROOT: join(root, "data"),
       });
       app = new AppService();
       await Effect.runPromise(app.boot());

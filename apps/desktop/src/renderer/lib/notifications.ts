@@ -1,6 +1,6 @@
 import { notificationAvatarDataUrl } from "./notification-avatar";
-import type { ChannelHistoryPage, ChannelMessageView, ClientSnapshot } from "@openteam/contracts";
-import type { ChannelNotificationState, DesktopNotificationTarget } from "@openteam/contracts/notification-content";
+import type { ChannelHistoryPage, ChannelMessageView, ClientSnapshot } from "@aiteamos/contracts";
+import type { ChannelNotificationState, DesktopNotificationTarget } from "@aiteamos/contracts/notification-content";
 
 /** Resolve legacy banners by sequence without downloading a channel's history. */
 export async function resolveNotificationMessage(

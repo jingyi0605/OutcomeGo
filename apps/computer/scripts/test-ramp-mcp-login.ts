@@ -1,5 +1,5 @@
 /** Live regression for the installed mcp-remote bridge. Run inside the local
- * computer with a disposable OPENTEAM_TEST_DATABASE_URL. Leaves existing
+ * computer with a disposable AITEAMOS_TEST_DATABASE_URL. Leaves existing
  * connector accounts, cached credentials, and browser tabs intact. */
 import assert from "node:assert/strict";
 import { mkdtemp, rm } from "node:fs/promises";
@@ -10,11 +10,11 @@ import { PluginService } from "../../server/src/services/plugin-service";
 import { StdioMcpManager } from "../src/mcp-manager";
 import { CdpConnection } from "../src/browser/cdp-connection";
 
-assert(process.env.OPENTEAM_TEST_DATABASE_URL, "Use a disposable test database");
-const db = createPrismaClient(process.env.OPENTEAM_TEST_DATABASE_URL!);
+assert(process.env.AITEAMOS_TEST_DATABASE_URL, "Use a disposable test database");
+const db = createPrismaClient(process.env.AITEAMOS_TEST_DATABASE_URL!);
 const directory = await mkdtemp("/workspace/.ramp-login-qa-");
 const manager = new StdioMcpManager(join(directory, "packages"));
-const cdpEndpoint = process.env.OPENTEAM_TEST_CDP_URL ?? "http://127.0.0.1:9300";
+const cdpEndpoint = process.env.AITEAMOS_TEST_CDP_URL ?? "http://127.0.0.1:9300";
 const tabs = async (): Promise<Array<{ id: string; type: string; url: string }>> => {
   const response = await fetch(`${cdpEndpoint}/json/list`);
   assert(response.ok, "The bot browser must be running");

@@ -2,9 +2,9 @@ import { test, expect } from 'bun:test';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { createPrismaClient } from '@openteam/db';
-import { AgentDataStore, AgentMessaging, RoutineService, reconcileRoutineExecution } from '@openteam/messaging';
-const url = process.env.OPENTEAM_TEST_DATABASE_URL;
+import { createPrismaClient } from '@aiteamos/db';
+import { AgentDataStore, AgentMessaging, RoutineService, reconcileRoutineExecution } from '@aiteamos/messaging';
+const url = process.env.AITEAMOS_TEST_DATABASE_URL;
 test('event routines persist deduplication, fold overlapping events into the queued wake, respect pause, and preserve event provenance', async () => {
  if (!url) return;
  const prisma = createPrismaClient(url); const root = await mkdtemp(join(tmpdir(), 'event-e2e-')); const botId = crypto.randomUUID(), channelId = crypto.randomUUID();

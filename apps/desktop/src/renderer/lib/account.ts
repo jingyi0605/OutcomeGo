@@ -1,5 +1,5 @@
-import type { OpenTeamAuthMode, OpenTeamAuthUser } from "../client/auth";
-import { accountInitials, accountName } from "@openteam/client-core/account";
+import type { AiTeamOSAuthMode, AiTeamOSAuthUser } from "../client/auth";
+import { accountInitials, accountName } from "@aiteamos/client-core/account";
 
 export interface AccountPresentation {
   name: string;
@@ -9,8 +9,8 @@ export interface AccountPresentation {
 }
 
 export const accountPresentation = (
-  user: OpenTeamAuthUser | null,
-  mode: OpenTeamAuthMode
+  user: AiTeamOSAuthUser | null,
+  mode: AiTeamOSAuthMode
 ): AccountPresentation => {
   if (!user) {
     return {

@@ -11,13 +11,13 @@ import {
 
 const scopedCommands = (text: string, result: DoctorResult): string => {
   const program = cliCommand();
-  if (!result.commandDirectory && program === "openteam") return text;
+  if (!result.commandDirectory && program === "aiteamos") return text;
   const path = result.commandDirectory
     ? ` --dir '${result.commandDirectory.replace(/'/g, result.platform === "win32" ? "''" : "'\\''")}'`
     : "";
   return text.replace(
-    // Skip names inside a path the hint already resolved, such as /home/me/.local/bin/openteam.
-    /(?<![\w./\\'-])openteam (provider list|model list|install|setup|start|status|doctor|logs|update)\b(?! --dir\b)/g,
+    // Skip names inside a path the hint already resolved, such as /home/me/.local/bin/aiteamos.
+    /(?<![\w./\\'-])aiteamos (provider list|model list|install|setup|start|status|doctor|logs|update)\b(?! --dir\b)/g,
     (_command, name: string) => `${program} ${name}${path}`
   );
 };
@@ -26,13 +26,13 @@ const checkAction = (check: DoctorCheck): string | undefined => {
   if (check.action) return check.action;
   switch (check.label) {
     case "Platform":
-      return "Install the OpenTeam server on an x64 or arm64 host.";
+      return "Install the aiTeamOS server on an x64 or arm64 host.";
     case "Memory":
-      return "Use a host with at least 8 GiB of RAM for the OpenTeam server.";
+      return "Use a host with at least 8 GiB of RAM for the aiTeamOS server.";
     case "Disk":
-      return "Free space on the installation disk. For a new installation, choose a disk with more space using openteam install --dir <path>.";
+      return "Free space on the installation disk. For a new installation, choose a disk with more space using aiteamos install --dir <path>.";
     case "Installation directory":
-      return "Check that your user can write to the reported directory, or choose a writable directory with openteam install --dir <path>.";
+      return "Check that your user can write to the reported directory, or choose a writable directory with aiteamos install --dir <path>.";
     case "Docker CLI":
       return "Install or repair Docker, then open a new terminal and run docker --version.";
     case "Docker daemon":
@@ -41,94 +41,94 @@ const checkAction = (check: DoctorCheck): string | undefined => {
       return `Install or update Docker Desktop or the Compose plugin to ${MINIMUM_COMPOSE_VERSION} or newer. Verify with docker compose version (or docker-compose version).`;
     case "Installation":
       return check.level === "fail"
-        ? "Restore the missing or invalid installation files from a known-good backup, or use openteam install --dir <path> for a separate new installation."
+        ? "Restore the missing or invalid installation files from a known-good backup, or use aiteamos install --dir <path> for a separate new installation."
         : undefined;
     case "Local ports":
       return check.level === "fail"
-        ? "Identify which application is using the reported port. Stop it if appropriate, or choose another API port during guided installation or openteam setup; the screen-viewer ports must be available."
+        ? "Identify which application is using the reported port. Stop it if appropriate, or choose another API port during guided installation or aiteamos setup; the screen-viewer ports must be available."
         : undefined;
     case "Secrets":
-      return "Restrict the reported configuration file to owner-only access before starting OpenTeam.";
+      return "Restrict the reported configuration file to owner-only access before starting aiTeamOS.";
     case "Secret values":
       return "Restore the missing or invalid secrets from a known-good installation backup; the database and service credentials must remain consistent.";
     case "Configuration":
     case "Compose configuration":
-      return "Correct the reported error in the installation's configuration files, or restore them from a known-good backup before starting OpenTeam.";
+      return "Correct the reported error in the installation's configuration files, or restore them from a known-good backup before starting aiTeamOS.";
     case "Owner account":
-      return "Run openteam setup to create your account.";
+      return "Run aiteamos setup to create your account.";
     case "Network exposure":
       return check.level === "fail"
-        ? "Run openteam setup to repair the access mode, public URL, and bind addresses."
-        : "Keep plain HTTP on a trusted LAN or VPN. For access from anywhere, choose an HTTPS connection with openteam setup.";
+        ? "Run aiteamos setup to repair the access mode, public URL, and bind addresses."
+        : "Keep plain HTTP on a trusted LAN or VPN. For access from anywhere, choose an HTTPS connection with aiteamos setup.";
     case "Compose services":
       if (!/^not running:/i.test(check.detail))
-        return "Docker could not list the services. Run docker info, then inspect the reported Compose error before trying openteam status again.";
-      return "Run openteam start to start the missing services. If startup fails, inspect openteam logs.";
+        return "Docker could not list the services. Run docker info, then inspect the reported Compose error before trying aiteamos status again.";
+      return "Run aiteamos start to start the missing services. If startup fails, inspect aiteamos logs.";
     case "Container health":
-    case "OpenTeam health":
+    case "aiTeamOS health":
       if (/expected release|was not reported/i.test(check.detail))
-        return "Run openteam status to check which server release is running. Verify the API port belongs to this installation before using openteam update to align its release.";
+        return "Run aiteamos status to check which server release is running. Verify the API port belongs to this installation before using aiteamos update to align its release.";
       if (/another.*(?:server|instance)|different.*instance|foreign/i.test(check.detail))
-        return "Identify the OpenTeam instance using the reported API port. Use the intended installation's --dir path, or choose an unused API port in openteam setup.";
-      return "Run openteam status and inspect openteam logs for unhealthy or stopped services; resolve the reported startup or connection error.";
+        return "Identify the aiTeamOS instance using the reported API port. Use the intended installation's --dir path, or choose an unused API port in aiteamos setup.";
+      return "Run aiteamos status and inspect aiteamos logs for unhealthy or stopped services; resolve the reported startup or connection error.";
     case "Schema setup":
     case "Database":
-      return "Inspect openteam logs migrate and openteam logs postgres for database startup or migration errors.";
+      return "Inspect aiteamos logs migrate and aiteamos logs postgres for database startup or migration errors.";
     case "Pending jobs":
     case "Run leases":
     case "Worker heartbeat":
     case "Queue round trip":
       if (/authenticated computer API/i.test(check.detail))
-        return "Inspect openteam logs computer and confirm the worker and computer use the same installation control token.";
+        return "Inspect aiteamos logs computer and confirm the worker and computer use the same installation control token.";
       if (/storage access/i.test(check.detail))
         return "Check the worker's agent and asset volume permissions. The worker must be able to read and write both volumes.";
       if (/database\/schema/i.test(check.detail))
-        return "Inspect openteam logs postgres and openteam logs migrate; the worker needs the application tables and job queues.";
-      return "Inspect openteam logs worker for stalled jobs, expired leases, or database connection errors.";
+        return "Inspect aiteamos logs postgres and aiteamos logs migrate; the worker needs the application tables and job queues.";
+      return "Inspect aiteamos logs worker for stalled jobs, expired leases, or database connection errors.";
     case "Computer API":
       if (/HTTP (401|403)/i.test(check.detail))
-        return "The computer rejected the server's credentials. Check that both services use the installation's OPENTEAM_CONTROL_TOKEN, then recreate the affected service with the corrected configuration.";
-      return "Inspect openteam logs computer for startup or connection errors.";
+        return "The computer rejected the server's credentials. Check that both services use the installation's AITEAMOS_CONTROL_TOKEN, then recreate the affected service with the corrected configuration.";
+      return "Inspect aiteamos logs computer for startup or connection errors.";
     case "Public DNS":
       return "Check that the public hostname resolves to this server's reachable address, then retry after the DNS change has propagated.";
     case "TLS certificate":
-      return "Check the public hostname and certificate on your HTTPS proxy. For bundled HTTPS, inspect openteam logs caddy and verify inbound ports 80 and 443 are reachable.";
+      return "Check the public hostname and certificate on your HTTPS proxy. For bundled HTTPS, inspect aiteamos logs caddy and verify inbound ports 80 and 443 are reachable.";
     case "Public endpoint":
-      return "Check the public URL, firewall, and reverse proxy; verify the proxy forwards HTTP and WebSocket traffic to OpenTeam's configured API port.";
+      return "Check the public URL, firewall, and reverse proxy; verify the proxy forwards HTTP and WebSocket traffic to aiTeamOS's configured API port.";
     case "Inference":
     case "AI connection":
       // Models are managed in the apps; the model command covers servers without one.
       if (/429|quota|billing|rate.?limit/i.test(check.detail))
-        return "Check the model provider's quota or billing, or wait for its rate limit to reset. To switch models, use Settings → Server in the OpenTeam app, or run openteam model.";
+        return "Check the model provider's quota or billing, or wait for its rate limit to reset. To switch models, use Settings → Server in the aiTeamOS app, or run aiteamos model.";
       if (/401|403|invalid.*(?:key|token)|unauthorized|authentication/i.test(check.detail))
-        return "Reconnect the provider in the OpenTeam app under Settings → Server. On a server without the app, run openteam model.";
+        return "Reconnect the provider in the aiTeamOS app under Settings → Server. On a server without the app, run aiteamos model.";
       if (/timed out|timeout|ECONNREFUSED|ENOTFOUND|network|connection refused/i.test(check.detail))
-        return "Check network access from the server and computer services to the model provider, including proxy or VPN settings. Inspect openteam logs computer and retry openteam doctor.";
+        return "Check network access from the server and computer services to the model provider, including proxy or VPN settings. Inspect aiteamos logs computer and retry aiteamos doctor.";
       if (/model.*(?:unavailable|not found|does not exist|not supported)/i.test(check.detail))
-        return "Choose an available model in the OpenTeam app under Settings → Server. On a server without the app, run openteam model list to see the models this account can use.";
+        return "Choose an available model in the aiTeamOS app under Settings → Server. On a server without the app, run aiteamos model list to see the models this account can use.";
       if (/\bmissing\b/i.test(check.detail))
-        return "Connect a model in the OpenTeam app under Settings → Server. On a server without the app, run openteam model.";
-      return "Check the model connection in the OpenTeam app under Settings → Server. On a server without the app, run openteam provider list and openteam model list.";
+        return "Connect a model in the aiTeamOS app under Settings → Server. On a server without the app, run aiteamos model.";
+      return "Check the model connection in the aiTeamOS app under Settings → Server. On a server without the app, run aiteamos provider list and aiteamos model list.";
     case "Transcription":
       if (/server connection|installation credentials/i.test(check.detail))
-        return "Run openteam status and check the server connection and installation control token. Inspect openteam logs server before testing transcription again.";
+        return "Run aiteamos status and check the server connection and installation control token. Inspect aiteamos logs server before testing transcription again.";
       return "Open Settings → Server → Transcription, check the provider URL, model and key, then use Test connection.";
     case "iOS push registration":
       return "Open the iPhone app connected to this server, sign in, and check Settings → Notifications. Retry notifications or turn them off and on to register again.";
     case "iOS push credentials":
-      return "Run openteam notifications configure --config ./apns.json to import the APNs key and apply it live. The topic must match the iOS app bundle ID (dev.openbot.mobile for the distributed app). Then run openteam notifications status and openteam doctor.";
+      return "Run aiteamos notifications configure --config ./apns.json to import the APNs key and apply it live. The topic must match the iOS app bundle ID (dev.openbot.mobile for the distributed app). Then run aiteamos notifications status and aiteamos doctor.";
     case "iOS push delivery":
-      return "Inspect openteam logs worker for APNs delivery errors and check the push credentials and device registration. Verify a real alert on the iPhone with the conversation closed and Focus allowing OpenTeam.";
+      return "Inspect aiteamos logs worker for APNs delivery errors and check the push credentials and device registration. Verify a real alert on the iPhone with the conversation closed and Focus allowing aiTeamOS.";
   }
   if (check.label.includes("storage"))
-    return "Check that the reported volume is writable by the service's user and has free space. Inspect openteam logs for storage errors.";
+    return "Check that the reported volume is writable by the service's user and has free space. Inspect aiteamos logs for storage errors.";
   if (check.label.endsWith(" container")) {
     const service = check.label.slice(0, -" container".length);
     if (["postgres", "server", "worker", "computer", "caddy"].includes(service))
-      return `Inspect openteam logs ${service} to identify why the container stopped or became unhealthy.`;
+      return `Inspect aiteamos logs ${service} to identify why the container stopped or became unhealthy.`;
   }
   return check.level === "fail"
-    ? `Review the reported ${check.label} error and inspect openteam logs for further details.`
+    ? `Review the reported ${check.label} error and inspect aiteamos logs for further details.`
     : undefined;
 };
 
@@ -163,7 +163,7 @@ export const doctorNextSteps = (
     if (failed("Owner account") && check.label === "Compose services") continue;
     if (
       ["Inference", "AI connection"].includes(check.label) &&
-      (failed("OpenTeam health") || failed("Owner account"))
+      (failed("aiTeamOS health") || failed("Owner account"))
     )
       continue;
     if (isSkippedDoctorCheck(check)) continue;
@@ -173,10 +173,10 @@ export const doctorNextSteps = (
   if (!result.installed && (!options.installInProgress || !result.ok))
     steps.push(
       result.ok
-        ? "Run openteam install to complete the installation."
-        : "After resolving the failed checks, run openteam install again."
+        ? "Run aiteamos install to complete the installation."
+        : "After resolving the failed checks, run aiteamos install again."
     );
-  else if (!result.ok) steps.push("After completing these steps, run openteam doctor again.");
+  else if (!result.ok) steps.push("After completing these steps, run aiteamos doctor again.");
   return [...new Set(steps)].map((step) => clean(scopedCommands(step, result)));
 };
 
@@ -228,7 +228,7 @@ const group = ({ label }: DoctorCheck): string => {
     [
       "Container health",
       "Compose services",
-      "OpenTeam health",
+      "aiTeamOS health",
       "Computer API",
       "Database",
       "Pending jobs",
@@ -273,7 +273,7 @@ export const renderDoctor = (
   const lines = [
     "",
     `  ${paint("╭" + "─".repeat(width - 4) + "╮", 36)}`,
-    frame(paint("OPENTEAM", 1) + paint(width < 30 ? " / doctor" : "  /  doctor", 90)),
+    frame(paint("AITEAMOS", 1) + paint(width < 30 ? " / doctor" : "  /  doctor", 90)),
     frame(paint(state, tone)),
     `  ${paint("╰" + "─".repeat(width - 4) + "╯", 36)}`,
   ];

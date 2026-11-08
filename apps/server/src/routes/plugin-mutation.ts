@@ -1,5 +1,5 @@
 import { pluginManagementRoutes } from "./plugin-management";
-import { PluginOAuthStartInput, PluginOAuthCallbackInput, PluginOAuthManualInput } from "@openteam/contracts/plugin-management";
+import { PluginOAuthStartInput, PluginOAuthCallbackInput, PluginOAuthManualInput } from "@aiteamos/contracts/plugin-management";
 import { pluginOAuthPage } from "./plugin-oauth-page";
 import {
   AddCustomMcpInput,
@@ -10,7 +10,7 @@ import {
   UpdatePluginEnvironmentInput,
   RenamePluginAccountInput,
   SetMcpInstructionsInput,
-} from "@openteam/contracts";
+} from "@aiteamos/contracts";
 import { json, parseBody } from "../http";
 import { type RouteContext, run } from "./context";
 import { bodyRoute, dispatchRoutes, effectRoute } from "./dispatch";

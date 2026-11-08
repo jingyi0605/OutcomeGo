@@ -1,23 +1,23 @@
 {
-  "name": "@openteam/cli",
-  "version": "0.0.15",
+  "name": "@aiteamos/cli",
+  "version": "0.1.0-beta.1",
   "license": "GPL-3.0-only",
-  "description": "Install and manage the self-hosted OpenTeam server stack",
+  "description": "Install and manage the self-hosted aiTeamOS server stack",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/raghavpillai/openteam.git",
+    "url": "git+https://github.com/jingyi0605/ai-TeamOS.git",
     "directory": "apps/cli"
   },
   "type": "module",
   "bin": {
-    "openteam": "dist/openteam.js"
+    "aiteamos": "dist/aiteamos.js"
   },
   "files": [
     "dist",
     "README.md"
   ],
   "scripts": {
-    "build": "bun build src/main.ts --outfile dist/openteam.js --target=node --format=esm --minify",
+    "build": "bun build src/main.ts --outfile dist/aiteamos.js --target=node --format=esm --minify",
     "build:release": "bun run scripts/build-release-binaries.ts",
     "typecheck": "tsc -p tsconfig.json",
     "test": "bun test",
@@ -43,14 +43,14 @@
     "string-width": "7.2.0"
   },
   "devDependencies": {
-    "@openteam/product-core": "workspace:*",
+    "@aiteamos/product-core": "workspace:*",
     "@sigstore/bundle": "4.0.0",
     "@sigstore/protobuf-specs": "0.5.2",
     "@sigstore/verify": "3.1.1",
     "@tufjs/models": "4.1.0",
     "@types/semver": "7.7.1",
     "@sigstore/sign": "4.1.1",
-    "@openteam/db": "workspace:*",
-    "@openteam/contracts": "workspace:*"
+    "@aiteamos/db": "workspace:*",
+    "@aiteamos/contracts": "workspace:*"
   }
 }

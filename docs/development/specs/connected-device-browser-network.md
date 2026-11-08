@@ -8,7 +8,7 @@ Date: October 31, 2026.
 
 This change supersedes the browser-only scope in the historical design below. The source selection and ranked fallback policy now apply to the entire bot computer container: every desktop, dock launcher, shell, installed application, and root/sudo command. The Azure host and the server/database containers retain their own networks. Administrators inside the computer can still deliberately change kernel networking; this is a routing default, not an administrator isolation boundary.
 
-The production computer image enables `OPENTEAM_COMPUTER_NETWORK=1`. Before starting applications, the entrypoint installs an atomic nftables policy and creates a persistent `openteam0` TUN. Both IPv4 and IPv6 use a separate routing table with an unreachable default behind the TUN route, so losing the process or interface cannot expose the Docker default route. Applications receive no special proxy environment or browser flags. A pinned tun2socks v2.6.0 binary translates TCP to the existing loopback SOCKS gateway and leased, epoch-fenced relay. Public TCP ports are supported; private destinations remain blocked at the device. Updating the provider desktop is necessary to enable ports beyond 80/443 on older providers.
+The production computer image enables `AITEAMOS_COMPUTER_NETWORK=1`. Before starting applications, the entrypoint installs an atomic nftables policy and creates a persistent `aiteamos0` TUN. Both IPv4 and IPv6 use a separate routing table with an unreachable default behind the TUN route, so losing the process or interface cannot expose the Docker default route. Applications receive no special proxy environment or browser flags. A pinned tun2socks v2.6.0 binary translates TCP to the existing loopback SOCKS gateway and leased, epoch-fenced relay. Public TCP ports are supported; private destinations remain blocked at the device. Updating the provider desktop is necessary to enable ports beyond 80/443 on older providers.
 
 Only the relay worker loads the socket-mark library. Its transport sockets use the original underlay; UID alone never grants an exemption. Supervisor and application traffic, including root commands, use the TUN. The exact management destination/port and replies to incoming management/VNC connections retain underlay routes, keeping the UI and reconnect path reachable. Management discovery runs asynchronously through marked underlay DNS, before a route lease exists. Startup does not depend on the server already running, and hostname/address changes refresh the hosts entry, firewall sets, and source-selection rules. This preserves Compose's server-after-computer startup order. The supervisor waits for TUN carrier before starting the relay and withdraws the channel if the TUN process dies. Routing/firewall rules persist through all process failures.
 
@@ -24,7 +24,7 @@ Reconnects retain exponential backoff across flapping transports, capped at four
 
 Exit IP and connection quality probes run in a child without the relay socket mark, using ordinary DNS/TCP just like applications. In-flight results are fenced on route changes. Settings call this **Computer network**, and the sharing consent describes all applications and public TCP connections. Existing API paths retain their `browser-network` names for compatibility. In a source-only development runtime without container enforcement, the previous managed-browser proxy remains available; that mode does not claim computer-wide routing.
 
-Run `OPENTEAM_TEST_DOCKER_CONTEXT=<disposable-context> bun run test:computer-network:linux` for isolated Linux checks of fresh startup before server/DNS availability, changing server addresses, startup blocking, root/user/sudo routing, ordinary and hardcoded UDP/TCP DNS, IPv6, physical-interface bypass, unsupported UDP, process death, interface removal, and surviving management connectivity. It creates no published ports or host mounts, uses no app credentials, and removes its containers and networks after the run.
+Run `AITEAMOS_TEST_DOCKER_CONTEXT=<disposable-context> bun run test:computer-network:linux` for isolated Linux checks of fresh startup before server/DNS availability, changing server addresses, startup blocking, root/user/sudo routing, ordinary and hardcoded UDP/TCP DNS, IPv6, physical-interface bypass, unsupported UDP, process death, interface removal, and surviving management connectivity. It creates no published ports or host mounts, uses no app credentials, and removes its containers and networks after the run.
 
 WAN validation on the Azure testing computer measured 30.6–31.6 Mbps download (three 10 MB responses, median 31.4 Mbps) and 29.2–33.0 Mbps upload (three 8 MiB bodies, median 30.4 Mbps). A 603-second mixed-load run completed 366/366 stability probes without an IP change; independent IP checks and Chromium reported the selected Comcast exit in Washington, DC. The larger 16 MiB download requests were rejected with HTTP 403 and are excluded from throughput measurements; valid 10 MB downloads succeeded. WhatIsMyIPAddress returned 403 through both the kernel route and the SOCKS path; Chromium/IPinfo and IPify confirmed identity. This is a ten-minute check, not a long-term WAN reliability guarantee. TUN crash/recovery and direct-interface bypass were verified separately.
 
@@ -60,7 +60,7 @@ The worker publishes route/disconnect status immediately in addition to periodic
 
 Speed-test success/failure caching and cooldowns are scoped to the measured route epoch. A check on the previous exit cannot block testing a new exit for a minute; repeated requests for the same current epoch still coalesce and retain their cooldown. Old in-flight results remain fenced.
 
-`bun run test:browser-network:chaos` exercises seeded enrollment/disconnect/reorder/broker-restart/concurrent-edit sequences, simultaneous reconnects, late dial completions, missing acknowledgments, transient database failures, single-destination failures without replay, clock jumps, transport-write failure and desktop consent/lifecycle races. Set `OPENTEAM_NETWORK_CHAOS_SEED` and `OPENTEAM_NETWORK_CHAOS_STEPS` (1–200) to reproduce a fault sequence. `bun run test:browser-network:linux --chaos` adds actual kernel delay/jitter/seeded loss, interface down/up, identity bootstrap failure, relay freeze/recovery and simultaneous provider freeze/recovery to the normal production-image harness. It requires an explicit disposable Docker context. Faults affect only fixture namespaces; loss statistics must show actual dropped packets. See the validation report for measured results and remaining physical-device coverage.
+`bun run test:browser-network:chaos` exercises seeded enrollment/disconnect/reorder/broker-restart/concurrent-edit sequences, simultaneous reconnects, late dial completions, missing acknowledgments, transient database failures, single-destination failures without replay, clock jumps, transport-write failure and desktop consent/lifecycle races. Set `AITEAMOS_NETWORK_CHAOS_SEED` and `AITEAMOS_NETWORK_CHAOS_STEPS` (1–200) to reproduce a fault sequence. `bun run test:browser-network:linux --chaos` adds actual kernel delay/jitter/seeded loss, interface down/up, identity bootstrap failure, relay freeze/recovery and simultaneous provider freeze/recovery to the normal production-image harness. It requires an explicit disposable Docker context. Faults affect only fixture namespaces; loss statistics must show actual dropped packets. See the validation report for measured results and remaining physical-device coverage.
 
 ## Faster failover and active-exit quality checks — November 2, 2026
 
@@ -98,9 +98,9 @@ Linux production-image validation has also been completed for the original flow;
 
 ## 1. Outcome and decisions
 
-An owner can select an enrolled desktop as the network connection for OpenTeam's managed bot browsers. Browsers continue running on the Linux computer; website connections and destination DNS resolution originate on the selected desktop. Browser profiles, cookies, files, rendering, and automation stay on the computer service.
+An owner can select an enrolled desktop as the network connection for aiTeamOS's managed bot browsers. Browsers continue running on the Linux computer; website connections and destination DNS resolution originate on the selected desktop. Browser profiles, cookies, files, rendering, and automation stay on the computer service.
 
-For example, OpenTeam can run on a cloud server while its browsers connect to a public website through an owner's Mac at home. The website observes the Mac's connection. This does not import the Mac's browser session or make the website treat the bot as a human.
+For example, aiTeamOS can run on a cloud server while its browsers connect to a public website through an owner's Mac at home. The website observes the Mac's connection. This does not import the Mac's browser session or make the website treat the bot as a human.
 
 The first release makes these decisions:
 
@@ -126,14 +126,14 @@ These observations come from the current checkout, including its uncommitted wor
 | `apps/server/src/services/machine-service.ts` | Credentials are hashed and enrollment is tied to an authenticated session. Disabled machines and revoked sessions become unroutable. | Network sockets must participate in the same revocation lifecycle. |
 | `packages/db/prisma/schema.prisma`, `HostMachine` | One deployment owner's roster; direct and relay transports. | Add network capabilities to relay enrollment. Manually registered direct bridges are not exit providers in v1. |
 | `apps/computer/src/screen-broker.ts`, `openApp()` | Starts each managed Chromium process and owns its profile and CDP attachment. | Configure the proxy here for every screen, including browsers opened through MIME handlers. |
-| `docker/openteam-browser` | Routes normal browser launches through the screen launcher. | Preserve this path and test it; do not create a second unmanaged launch path. |
+| `docker/aiteamos-browser` | Routes normal browser launches through the screen launcher. | Preserve this path and test it; do not create a second unmanaged launch path. |
 | `apps/computer/src/browser/use.ts` and `browser/run-code.ts` | Browser tools attach to the managed browser over CDP. | Proxy the browser process, not individual automation calls. |
 | `apps/server/src/main.ts`, `screen-vnc.ts` | Bun already hosts an authenticated VNC WebSocket endpoint. | Add a tagged WebSocket dispatcher; assigning a second global handler would break VNC. |
 | `apps/desktop/src/main/computer-settings.ts`, preload, Computer settings UI | Local settings currently contain a machine label. | Add deployment-scoped local sharing permission and a guarded IPC surface. |
 | `packages/client-core/src/client.ts` | Shared client methods expose machines and computer display settings. | Add shared network contracts/client calls; renderer and future mobile controls consume the same server view. |
 | `apps/computer/src/builtin-fetch.ts` and `public-web-url.ts` | WebFetch has a separate HTTP client and public-address validation. | It is not browser traffic. Preserve its existing route; reuse audited address classification in a runtime-neutral package. |
 
-The inspected Grok Bot desktop used authenticated WebSocket multiplexing and local TCP dialing. That confirms the general approach is practical. OpenTeam's protocol, consent model, names, ports, and state machines below are independently specified; do not copy proprietary bundled code.
+The inspected Grok Bot desktop used authenticated WebSocket multiplexing and local TCP dialing. That confirms the general approach is practical. aiTeamOS's protocol, consent model, names, ports, and state machines below are independently specified; do not copy proprietary bundled code.
 
 ## 3. User experience
 
@@ -147,7 +147,7 @@ Status describes the active connection, not the first draft entry. All bot brows
 
 ### 3.2 On the provider desktop
 
-Add a separate local switch: **Use this computer as network**. Default off. Turning it on shows the target OpenTeam server's origin and explains that all managed bot browsers on that deployment may connect to public sites through this device while its desktop app is running.
+Add a separate local switch: **Use this computer as network**. Default off. Turning it on shows the target aiTeamOS server's origin and explains that all managed bot browsers on that deployment may connect to public sites through this device while its desktop app is running.
 
 Enabling sharing opens the authenticated provider channel; its first validated lease automatically adds it to the saved ranking pool. No second selection action is required. The switch is editable only in the local desktop UI through validated main-process IPC. Remote settings can withdraw permission by disabling the machine but cannot grant it.
 
@@ -188,11 +188,11 @@ Managed Chromium navigation, subresources, redirects, XHR/fetch, service-worker 
 
 Model APIs; WebSearch and WebFetch providers; plugin/MCP network requests; terminal commands; package installs; the desktop UI's own requests; the server/computer control link; CDP and VNC; file transfers through the machine bridge; arbitrary browsers started by a shell; and phone background routing. Do not set global `HTTP_PROXY`, `HTTPS_PROXY`, or `ALL_PROXY` variables.
 
-Browser cookies and user agent remain those of OpenTeam's browser. Website identity checks, CAPTCHAs, account restrictions, and TLS policies still apply. No claim is made that this feature makes automation undetectable.
+Browser cookies and user agent remain those of aiTeamOS's browser. Website identity checks, CAPTCHAs, account restrictions, and TLS policies still apply. No claim is made that this feature makes automation undetectable.
 
 ### Network boundary
 
-This feature controls the configured path used by managed browser processes. It does not create an operating-system isolation boundary between a browser and a terminal running under the same agent identity. An agent with shell access can deliberately use an accessible local proxy or start another browser. The consent wording must accurately authorize the OpenTeam deployment, rather than promise that hostile agent code cannot use the shared path. Public-address checks, local revocation, authentication, and resource limits apply to every stream regardless of its initiating process.
+This feature controls the configured path used by managed browser processes. It does not create an operating-system isolation boundary between a browser and a terminal running under the same agent identity. An agent with shell access can deliberately use an accessible local proxy or start another browser. The consent wording must accurately authorize the aiTeamOS deployment, rather than promise that hostile agent code cannot use the shared path. Public-address checks, local revocation, authentication, and resource limits apply to every stream regardless of its initiating process.
 
 A future guarantee that only designated processes can use an exit requires separate browser network namespaces/cgroups and a protected gateway; it is not a v1 claim. Direct WebRTC/UDP and unexpected managed-browser bypasses are nevertheless release-blocking functional defects.
 
@@ -206,7 +206,7 @@ Do not promise “everything your browser can reach” on the provider device. R
 
 The data path is:
 
-`Managed Chromium → computer loopback SOCKS5 broker → computer WSS → OpenTeam server relay → desktop WSS → desktop TCP socket → website`.
+`Managed Chromium → computer loopback SOCKS5 broker → computer WSS → aiTeamOS server relay → desktop WSS → desktop TCP socket → website`.
 
 The control path is independent:
 
@@ -216,7 +216,7 @@ In server mode the loopback broker opens destination TCP connections from the co
 
 ### 5.1 Computer broker
 
-New modules under `apps/computer/src/browser-network/` own a loopback-only SOCKS5 listener, a route controller, the computer-side multiplexed transport, and status reporting. Default listener: `127.0.0.1:18791`, deliberately distinct from OpenTeam's existing computer API on port 8790. Port configuration must be validated and private; Compose publishes no new ports.
+New modules under `apps/computer/src/browser-network/` own a loopback-only SOCKS5 listener, a route controller, the computer-side multiplexed transport, and status reporting. Default listener: `127.0.0.1:18791`, deliberately distinct from aiTeamOS's existing computer API on port 8790. Port configuration must be validated and private; Compose publishes no new ports.
 
 Start the broker before any managed Chromium process. Set `--proxy-server=socks5://127.0.0.1:18791` with a single proxy and no DIRECT fallback. Set `--proxy-bypass-list=<-loopback>` to remove Chromium's implicit local-address bypass. Set resolver rules preventing Chromium from issuing destination DNS outside the proxy, with the numeric proxy address excluded. Disable QUIC and non-proxied WebRTC UDP. Verify the actual flags/policies against the packaged Chromium, not only unit tests. Reject conflicting launcher flags or profile policies rather than starting a browser whose route is ambiguous.
 
@@ -325,7 +325,7 @@ The current mutation body is `{ "expectedRevision": 1, "mode": "ranked", "machin
 
 - Desktop: `GET /api/v0/machines/channel/browser-network` with WebSocket upgrade, machineId, enrollment bearer, and current connectionId headers. Authenticate with `MachineService.authenticate()` and verify the connection generation before upgrade. Only accept the configured native/main-process channel; reject unexpected browser Origins. Do not accept a machine bearer from a URL or cookie.
 - Computer: `GET /api/v0/internal/browser-network/channel` with WebSocket upgrade and the existing internal service authentication. It identifies a fresh broker instance UUID. Only one computer session is active; replacing it fences and closes the previous session and all streams.
-- Subprotocol: `openteam-browser-network.v1`. A missing/unsupported version fails explicitly before data flows. Neither peer supplies a destination or arbitrary peer ID in a handshake URL.
+- Subprotocol: `aiteamos-browser-network.v1`. A missing/unsupported version fails explicitly before data flows. Neither peer supplies a destination or arbitrary peer ID in a handshake URL.
 
 These routes must be dispatched before generic JSON body wrapping and before inappropriate owner-cookie handling. Native clients can send authorization headers. Authentication secrets never appear in query strings, product events, diagnostics, or ordinary logs. The shared deployment control token stays on trusted services and is never delivered to a desktop.
 
@@ -347,7 +347,7 @@ The server revalidates active enrollment/session authorization at least every 15
 2. The coordinator sends PREPARE for the new revision. The broker pauses new SOCKS opens, destroys sockets from the previous epoch, and acknowledges PREPARED only after cleanup. Old desktop sockets are also closed/reset. No connection migrates between devices.
 3. If the selected device is online, approved, authorized, and compatible, pair it with the broker, issue a new epoch/lease, and send ACTIVATE. If absent, apply the desired revision in a blocked/waiting state. Server mode activates broker-local dialing under its own epoch.
 4. Mark the revision applied only after the broker acknowledges its new state and, in device mode, the matching device acknowledges activation. Expose ready only after both are paired and leases are current.
-5. Resume new opens. Existing pages remain open and may issue their own fresh requests. OpenTeam itself never replays a request.
+5. Resume new opens. Existing pages remain open and may issue their own fresh requests. aiTeamOS itself never replays a request.
 
 During a healthy connected change, old sockets should close within one second and the transition should complete within five seconds. These are measured acceptance targets, not atomic distributed-system guarantees. A partitioned old broker can continue only until its last six-second lease expires; UI remains applying/unavailable until acknowledgement. On an in-process device revoke the desktop closes locally without waiting for any acknowledgement.
 
@@ -438,7 +438,7 @@ Use Chromium's supported proxy setup with destination DNS disabled outside the p
 
 The proxy routes network bytes but does not clear page caches, service-worker storage, cookies, or browser identity. A cache hit is not evidence that the new exit works. Existing TCP pools are invalidated by closing every broker stream, including server-mode streams, during the route barrier.
 
-The default **Check connection** performs a local protocol round trip and reports paired peer/lease health without contacting a third party. An explicit public-IP test can make a fresh, cache-busted browser request through the same managed path to an operator-configured, fixed HTTPS diagnostic endpoint. It must not accept an arbitrary target from the model, must use no browser account cookies for the diagnostic origin, must have a five-second limit and 16 KiB response limit, and must not submit the reported IP to OpenTeam telemetry. A failed diagnostic endpoint is distinct from a broken tunnel. Development acceptance tests use controlled echo endpoints rather than a production user's signed-in browser.
+The default **Check connection** performs a local protocol round trip and reports paired peer/lease health without contacting a third party. An explicit public-IP test can make a fresh, cache-busted browser request through the same managed path to an operator-configured, fixed HTTPS diagnostic endpoint. It must not accept an arbitrary target from the model, must use no browser account cookies for the diagnostic origin, must have a five-second limit and 16 KiB response limit, and must not submit the reported IP to aiTeamOS telemetry. A failed diagnostic endpoint is distinct from a broken tunnel. Development acceptance tests use controlled echo endpoints rather than a production user's signed-in browser.
 
 Integrate structured network status with `browser/reference-driver.ts` errors. Avoid treating every website timeout as device disconnection. Surface `destination_blocked` and `port_blocked` specifically, without exposing another device's private DNS results. The host enrollment channel, VNC, and chat remain usable while device egress is blocked, enabling recovery.
 
@@ -457,7 +457,7 @@ These are logical implementation/PR boundaries, in dependency order. Each packag
 ### B. Loopback broker and managed browser configuration
 
 - Add `apps/computer/src/browser-network/{socks-server,controller,transport}.ts` and lifecycle wiring in `main.ts`.
-- Integrate proxy arguments and profile/network policy through `screen-broker.ts`; preserve `docker/openteam-browser` routing.
+- Integrate proxy arguments and profile/network policy through `screen-broker.ts`; preserve `docker/aiteamos-browser` routing.
 - Implement server-mode TCP forwarding through the broker so the stable proxy is exercised before enabling remote exits.
 - Add runtime compatibility/readiness reporting and safe upgrade behavior for existing browsers.
 
@@ -558,4 +558,4 @@ None is required to ship public website traffic through an enrolled desktop. Pri
 - [Chromium SOCKS configuration](https://www.chromium.org/developers/design-documents/network-stack/socks-proxy/): proxy-side destination resolution and resolver rules needed to prevent independent DNS traffic.
 - [RFC 1928](https://www.rfc-editor.org/rfc/rfc1928): SOCKS5 negotiation, CONNECT request/reply, and address representations. This design intentionally omits BIND and UDP ASSOCIATE.
 - [Node TCP sockets](https://nodejs.org/api/net.html): raw TCP dialing, half-close, write backpressure, timeouts, and explicit shutdown. Use the Node version embedded in packaged Electron when checking actual API support.
-- [Grok Bot routing documentation](https://docs.x.ai/grok-bot/settings-and-notifications#route-traffic-through-your-desktop): comparison context only; OpenTeam's local consent and explicit manual/ranked policy are independent product decisions.
+- [Grok Bot routing documentation](https://docs.x.ai/grok-bot/settings-and-notifications#route-traffic-through-your-desktop): comparison context only; aiTeamOS's local consent and explicit manual/ranked policy are independent product decisions.

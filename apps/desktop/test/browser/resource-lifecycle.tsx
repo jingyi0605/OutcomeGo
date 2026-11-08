@@ -1,9 +1,9 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { flushSync } from "react-dom";
-import { CLIENT_CAPABILITIES } from "@openteam/contracts/capabilities";
-import type { BotView } from "@openteam/contracts";
-import { api } from "../../src/renderer/client/openteam-api";
+import { CLIENT_CAPABILITIES } from "@aiteamos/contracts/capabilities";
+import type { BotView } from "@aiteamos/contracts";
+import { api } from "../../src/renderer/client/aiteamos-api";
 import { clearAuthToken } from "../../src/renderer/client/auth";
 import { useAuthenticatedResource } from "../../src/renderer/hooks/use-authenticated-resource";
 import {
@@ -23,8 +23,8 @@ import {
   getCodeHighlighterCacheStats,
 } from "../../src/renderer/components/ai-elements/message-response/code";
 import { botShikiTheme } from "../../src/renderer/components/ai-elements/message-response/code-theme";
-import { BotScreen } from "../../src/renderer/components/openteam/bot-screen";
-import { GroupActivityContent } from "../../src/renderer/components/openteam/group-activity";
+import { BotScreen } from "../../src/renderer/components/aiteamos/bot-screen";
+import { GroupActivityContent } from "../../src/renderer/components/aiteamos/group-activity";
 import { LoadingOrb, preloadLoadingOrb } from "../../src/renderer/components/ui/loading-orb";
 import { TooltipProvider } from "../../src/renderer/components/ui/tooltip";
 import "../../src/renderer/styles.css";
@@ -162,7 +162,7 @@ const secondBot = {
 } as BotView;
 const root = createRoot(document.getElementById("root")!);
 let ChatPane:
-  | typeof import("../../src/renderer/components/openteam/chat-pane").ChatPane
+  | typeof import("../../src/renderer/components/aiteamos/chat-pane").ChatPane
   | undefined;
 let MessageResponse:
   | typeof import("../../src/renderer/components/ai-elements/message").MessageResponse
@@ -275,7 +275,7 @@ Object.assign(window, {
     });
   },
   renderResourceChat: async () => {
-    ChatPane ??= (await import("../../src/renderer/components/openteam/chat-pane")).ChatPane;
+    ChatPane ??= (await import("../../src/renderer/components/aiteamos/chat-pane")).ChatPane;
     render({ chat: true, sources: ["/api/fixture/image"] });
   },
   renderResources: render,

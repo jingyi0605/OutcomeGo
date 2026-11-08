@@ -9,7 +9,7 @@ import { assertServerReachable, inspectStartupState } from "../src/startup";
 
 describe("startup forwarding diagnosis", () => {
   test("requires the bundled HTTPS proxy only when its profile is enabled", () => {
-    const directory = mkdtempSync(join(tmpdir(), "openteam-cli-startup-"));
+    const directory = mkdtempSync(join(tmpdir(), "aiteamos-cli-startup-"));
     const paths = installationPaths(directory);
     writeFileSync(paths.compose, "services: {}\n");
     const services = ["postgres", "server", "worker", "computer"].map((Service) => ({
@@ -42,7 +42,7 @@ describe("startup forwarding diagnosis", () => {
   });
 
   test("requires evidence of both a failed host connection and a ready container", () => {
-    const directory = mkdtempSync(join(tmpdir(), "openteam-cli-startup-"));
+    const directory = mkdtempSync(join(tmpdir(), "aiteamos-cli-startup-"));
     const paths = installationPaths(directory);
     writeFileSync(paths.compose, "services: {}\n");
     const calls: RunOptions[] = [];

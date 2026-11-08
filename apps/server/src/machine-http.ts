@@ -1,4 +1,4 @@
-import { ApiError } from "@openteam/contracts";
+import { ApiError } from "@aiteamos/contracts";
 import type { MachineService } from "./services/machine-service";
 
 /** Device credentials authorize only this machine's channel, never general API access. */
@@ -7,7 +7,7 @@ export async function machineChannelResponse(
 ) {
   const machine = await machines.authenticate(request);
   const prefix = "/api/machines/channel";
-  const connectionId = request.headers.get("x-openteam-connection-id") ?? "";
+  const connectionId = request.headers.get("x-aiteamos-connection-id") ?? "";
   const readJson = async () => {
     const reader = request.body?.getReader();
     const chunks: Uint8Array[] = [];

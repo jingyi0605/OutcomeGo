@@ -1,7 +1,7 @@
 import { FormPreparationError } from "./user-form-host";
 import { startBrowserNetwork } from "./browser-network";
 import { ComputerDisplaySettings } from "./display-settings";
-import { FORM_PREPARATION_FAILURE_MESSAGES } from "@openteam/contracts";
+import { FORM_PREPARATION_FAILURE_MESSAGES } from "@aiteamos/contracts";
 import { timingSafeEqual } from "node:crypto";
 import { mkdir, realpath } from "node:fs/promises";
 import { resolve } from "node:path";
@@ -14,11 +14,11 @@ import {
   ScreenTakeoverInput,
   serverInferenceSettings,
   type TranscriptEventView,
-} from "@openteam/contracts";
+} from "@aiteamos/contracts";
 import {
   COMPUTER_API_PATHS,
   parseComputerInferenceRequest,
-} from "@openteam/contracts/service-protocol";
+} from "@aiteamos/contracts/service-protocol";
 import { Schema } from "effect";
 import { keepSources } from "./apt-packages";
 import { createBoxClock } from "./box-clock";
@@ -36,15 +36,15 @@ import { checkAgentWorkspace, checkDesktopAvailable, ComputerReadiness } from ".
 import { ScreenBroker } from "./screen-broker";
 import { TranscriptMirror } from "./transcript-mirror";
 
-const port = Number(process.env.OPENTEAM_COMPUTER_PORT ?? 8790);
-const controlToken = process.env.OPENTEAM_CONTROL_TOKEN ?? "local-compose-only-change-me";
-const workspaceRoot = resolve(process.env.OPENTEAM_WORKSPACE_ROOT ?? "/workspace");
-const browserNetwork = await startBrowserNetwork(process.env.OPENTEAM_SERVER_URL ?? "http://127.0.0.1:8787", controlToken);
+const port = Number(process.env.AITEAMOS_COMPUTER_PORT ?? 8790);
+const controlToken = process.env.AITEAMOS_CONTROL_TOKEN ?? "local-compose-only-change-me";
+const workspaceRoot = resolve(process.env.AITEAMOS_WORKSPACE_ROOT ?? "/workspace");
+const browserNetwork = await startBrowserNetwork(process.env.AITEAMOS_SERVER_URL ?? "http://127.0.0.1:8787", controlToken);
 const readiness = new ComputerReadiness(() => checkAgentWorkspace(workspaceRoot));
 const setBoxClock = createBoxClock();
 const displaySettings = new ComputerDisplaySettings(async () => {
   const response = await fetch(
-    `${process.env.OPENTEAM_SERVER_URL ?? "http://127.0.0.1:8787"}/api/v0/internal/computer-display`,
+    `${process.env.AITEAMOS_SERVER_URL ?? "http://127.0.0.1:8787"}/api/v0/internal/computer-display`,
     { headers: { authorization: `Bearer ${controlToken}` }, signal: AbortSignal.timeout(5_000) }
   );
   if (!response.ok) throw new Error("Computer display settings are unavailable");
@@ -507,7 +507,7 @@ const server = Bun.serve({
         const cwd = safePath(url.searchParams.get("cwd") ?? workspaceRoot);
         return new Response(await screens.stream(streamMatch[1], cwd, request.signal), {
           headers: {
-            "content-type": "multipart/x-mixed-replace; boundary=openteam-frame",
+            "content-type": "multipart/x-mixed-replace; boundary=aiteamos-frame",
             "cache-control": "no-store",
             "x-accel-buffering": "no",
           },
@@ -594,7 +594,7 @@ const server = Bun.serve({
         return json(stdioMcp.status(mcpConnectionMatch[1]));
       }
       if (request.method === "DELETE" && mcpConnectionMatch?.[1]) {
-        const generation = request.headers.get("x-openteam-mcp-generation");
+        const generation = request.headers.get("x-aiteamos-mcp-generation");
         await stdioMcp.close(mcpConnectionMatch[1], generation === null ? undefined : Number(generation));
         return json({ ok: true });
       }
@@ -688,7 +688,7 @@ const shutdown = (): Promise<void> => {
     runtime.recordLeftRunningProcesses().catch((error) => console.warn(`Left-running process record failed: ${String(error)}`)),
     stdioMcp.closeAll(),
     // A source a bot removed without running apt since must not come back at the next start.
-    keepSources().catch((error) => console.error(`openteam installs: keeping apt sources failed: ${String(error)}`)),
+    keepSources().catch((error) => console.error(`aiteamos installs: keeping apt sources failed: ${String(error)}`)),
     (async () => {
       await Promise.all([agentStores.closeAll(), screens.shutdown()]);
       // Include browser profiles: periodic snapshots defer a running browser's profile.
@@ -705,11 +705,11 @@ for (const signal of ["SIGINT", "SIGTERM"] as const) {
     // alive until Docker kills the container.
     void shutdown()
       .catch((error) => {
-        console.error(`OpenTeam computer gateway shutdown failed: ${String(error)}`);
+        console.error(`aiTeamOS computer gateway shutdown failed: ${String(error)}`);
         process.exitCode = 1;
       })
       .finally(() => process.exit());
   });
 }
 
-console.log(`OpenTeam computer gateway listening on ${server.url}`);
+console.log(`aiTeamOS computer gateway listening on ${server.url}`);

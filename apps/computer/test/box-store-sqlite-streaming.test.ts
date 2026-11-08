@@ -15,7 +15,7 @@ afterEach(async () => {
   root = undefined;
 });
 const fixture = async () => {
-  root = await mkdtemp(join(tmpdir(), "openteam-sqlite-streaming-"));
+  root = await mkdtemp(join(tmpdir(), "aiteamos-sqlite-streaming-"));
   const workspaceRoot = join(root, "workspace");
   const storeRoot = join(root, "store");
   await mkdir(workspaceRoot);

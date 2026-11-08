@@ -5,7 +5,7 @@ import {
   ConversationContent,
 } from "../../src/renderer/components/ai-elements/conversation";
 import { MessageResponse } from "../../src/renderer/components/ai-elements/message";
-import { MessageImageGallery } from "../../src/renderer/components/openteam/image-attachment";
+import { MessageImageGallery } from "../../src/renderer/components/aiteamos/image-attachment";
 import "../../src/renderer/styles.css";
 const originalFetch = window.fetch;
 window.fetch = (input, init) =>

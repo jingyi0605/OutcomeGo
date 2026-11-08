@@ -1,11 +1,11 @@
-import { isTranscriptionModel } from "@openteam/contracts/model-kind";
-import { ApiError } from "@openteam/contracts";
+import { isTranscriptionModel } from "@aiteamos/contracts/model-kind";
+import { ApiError } from "@aiteamos/contracts";
 import {
   MAX_VOICE_NOTE_BYTES,
   type TranscriptionCheck,
   type TranscriptionResult,
   type TranscriptionSettings,
-} from "@openteam/contracts/transcription";
+} from "@aiteamos/contracts/transcription";
 import type { TranscriptionStore } from "./store";
 
 const AUDIO_FORMATS: Record<string, string> = {
@@ -243,7 +243,7 @@ export class TranscriptionService {
       return {
         level: "pass",
         status: "ready",
-        detail: `${settings.model} is listed and reachable from the OpenTeam server. No audio was sent.`,
+        detail: `${settings.model} is listed and reachable from the aiTeamOS server. No audio was sent.`,
       };
     } catch (error) {
       return {

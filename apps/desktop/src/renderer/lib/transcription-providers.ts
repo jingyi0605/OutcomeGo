@@ -1,4 +1,4 @@
-import type { TranscriptionSettings } from "@openteam/contracts/transcription";
+import type { TranscriptionSettings } from "@aiteamos/contracts/transcription";
 
 /** Hosted services fill in their own address and default model. */
 export const HOSTED_TRANSCRIPTION_ENDPOINTS: Partial<

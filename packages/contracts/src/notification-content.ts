@@ -146,7 +146,7 @@ export interface AgentNotificationPresentation {
 
 /** Shared presentation contract for native macOS and iOS notifications. */
 const agentNotificationTypeCatalog = {
-  message: { fallbackBody: "Open OpenTeam to see what it did.", sound: "default" },
+  message: { fallbackBody: "Open aiTeamOS to see what it did.", sound: "default" },
   reaction: { fallbackBody: "Reacted to your message.", sound: "default" },
 } as const satisfies Record<AgentNotificationKind, { fallbackBody: string; sound: "default" }>;
 
@@ -166,7 +166,7 @@ export const agentNotificationPresentation = (input: {
 }): AgentNotificationPresentation => {
   const definition = agentNotificationTypeCatalog[input.kind];
   return {
-    title: normalizeNotificationText(input.botName) || "OpenTeam",
+    title: normalizeNotificationText(input.botName) || "aiTeamOS",
     body: truncateNotificationText(input.body?.trim() ? input.body : definition.fallbackBody),
     ...agentNotificationDeliveryPolicy(input.kind),
   };

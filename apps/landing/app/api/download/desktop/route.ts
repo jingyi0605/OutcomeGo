@@ -15,14 +15,14 @@ export async function GET(request: Request) {
     const asset = release.downloads[target];
     if (!asset) {
       return Response.json(
-        { error: `The ${target} build is not available in OpenTeam ${release.version}.` },
+        { error: `The ${target} build is not available in aiTeamOS ${release.version}.` },
         { status: 404 }
       );
     }
     return Response.redirect(asset.url, 307);
   } catch {
     return Response.json(
-      { error: "No public OpenTeam desktop release is available yet." },
+      { error: "No public aiTeamOS desktop release is available yet." },
       { status: 404 }
     );
   }

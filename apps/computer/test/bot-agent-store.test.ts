@@ -25,9 +25,9 @@ afterEach(async () => {
   root = null;
 });
 
-describe("OpenTeam-compatible agent SQLite stores", () => {
+describe("aiTeamOS-compatible agent SQLite stores", () => {
   test("first wake leaves shared agent directories writable by the server group", async () => {
-    root = await mkdtemp(join(tmpdir(), "openteam-agent-permissions-"));
+    root = await mkdtemp(join(tmpdir(), "aiteamos-agent-permissions-"));
     store = new BotAgentStore(root);
     await store.openForWake(agentId);
 
@@ -43,7 +43,7 @@ describe("OpenTeam-compatible agent SQLite stores", () => {
   });
 
   test("bounds idle handles with LRU eviction and deterministic idle close", async () => {
-    root = await mkdtemp(join(tmpdir(), "openteam-bot-handle-lru-"));
+    root = await mkdtemp(join(tmpdir(), "aiteamos-bot-handle-lru-"));
     let now = 1_000;
     store = new BotAgentStore(root, undefined, {
       maxOpenAgents: 2,
@@ -75,7 +75,7 @@ describe("OpenTeam-compatible agent SQLite stores", () => {
   });
 
   test("queues over-capacity opens and never closes a leased store", async () => {
-    root = await mkdtemp(join(tmpdir(), "openteam-bot-handle-lease-"));
+    root = await mkdtemp(join(tmpdir(), "aiteamos-bot-handle-lease-"));
     store = new BotAgentStore(root, undefined, {
       maxOpenAgents: 1,
       idleCloseMs: 60_000,
@@ -120,7 +120,7 @@ describe("OpenTeam-compatible agent SQLite stores", () => {
   });
 
   test("closeAll waits for leases, permits their nested work, and rejects new work", async () => {
-    root = await mkdtemp(join(tmpdir(), "openteam-bot-handle-shutdown-"));
+    root = await mkdtemp(join(tmpdir(), "aiteamos-bot-handle-shutdown-"));
     store = new BotAgentStore(root, undefined, {
       maxOpenAgents: 2,
       idleCloseMs: 60_000,
@@ -170,7 +170,7 @@ describe("OpenTeam-compatible agent SQLite stores", () => {
   });
 
   test("bulk envelope publication is atomic and byte-identical to ordered appends", async () => {
-    root = await mkdtemp(join(tmpdir(), "openteam-bot-envelope-bulk-"));
+    root = await mkdtemp(join(tmpdir(), "aiteamos-bot-envelope-bulk-"));
     const fixedNow = 1_788_000_000_000;
     const sequential = new BotAgentStore(join(root, "sequential"), undefined, {
       now: () => fixedNow,
@@ -268,7 +268,7 @@ describe("OpenTeam-compatible agent SQLite stores", () => {
   });
 
   test("partial-directory retries remain bounded and rotate through the recovery set", async () => {
-    root = await mkdtemp(join(tmpdir(), "openteam-bot-pending-inventory-"));
+    root = await mkdtemp(join(tmpdir(), "aiteamos-bot-pending-inventory-"));
     store = new BotAgentStore(root);
     const ids = Array.from(
       { length: 40 },
@@ -297,7 +297,7 @@ describe("OpenTeam-compatible agent SQLite stores", () => {
   });
 
   test("directory discovery caches steady rosters and incrementally retries partial stores", async () => {
-    root = await mkdtemp(join(tmpdir(), "openteam-bot-inventory-"));
+    root = await mkdtemp(join(tmpdir(), "aiteamos-bot-inventory-"));
     store = new BotAgentStore(root);
     const agentsRoot = join(root, "agents");
     const firstDirectory = store.agentDirectory(agentId);
@@ -339,7 +339,7 @@ describe("OpenTeam-compatible agent SQLite stores", () => {
   });
 
   test("creation exposes exactly profile-external store.db state", async () => {
-    root = await mkdtemp(join(tmpdir(), "openteam-bot-store-"));
+    root = await mkdtemp(join(tmpdir(), "aiteamos-bot-store-"));
     store = new BotAgentStore(root);
     await store.initializeAgent(agentId, 1_788_000_000_000);
     const directory = store.agentDirectory(agentId);
@@ -385,7 +385,7 @@ describe("OpenTeam-compatible agent SQLite stores", () => {
   });
 
   test("first wake creates WAL stores, repair keys, snapshots, and plaintext envelopes", async () => {
-    root = await mkdtemp(join(tmpdir(), "openteam-bot-store-"));
+    root = await mkdtemp(join(tmpdir(), "aiteamos-bot-store-"));
     store = new BotAgentStore(root);
     await store.initializeAgent(agentId);
     await Promise.all([
@@ -461,7 +461,7 @@ describe("OpenTeam-compatible agent SQLite stores", () => {
   });
 
   test("unknown durable agent directories are adopted into the local roster", async () => {
-    root = await mkdtemp(join(tmpdir(), "openteam-bot-store-"));
+    root = await mkdtemp(join(tmpdir(), "aiteamos-bot-store-"));
     const orphanRoot = join(root, "quarantine");
     store = new BotAgentStore(join(root, "sand-data"), orphanRoot);
     await store.initializeAgent(agentId);
@@ -483,7 +483,7 @@ describe("OpenTeam-compatible agent SQLite stores", () => {
   });
 
   test("corrupt stores are quarantined and rebuilt while blob recovery finishes pending markers", async () => {
-    root = await mkdtemp(join(tmpdir(), "openteam-bot-store-recovery-"));
+    root = await mkdtemp(join(tmpdir(), "aiteamos-bot-store-recovery-"));
     store = new BotAgentStore(root);
     await store.initializeAgent(agentId);
     await store.openForWake(agentId);
@@ -512,7 +512,7 @@ describe("OpenTeam-compatible agent SQLite stores", () => {
   });
 
   test("turn metadata, transcript projections, and search indexes rebuild from store.db", async () => {
-    root = await mkdtemp(join(tmpdir(), "openteam-bot-projections-"));
+    root = await mkdtemp(join(tmpdir(), "aiteamos-bot-projections-"));
     store = new BotAgentStore(root);
     await store.initializeAgent(agentId);
     await writeFile(

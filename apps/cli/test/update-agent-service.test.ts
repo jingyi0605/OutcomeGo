@@ -34,11 +34,11 @@ afterEach(() => {
 });
 
 const fixture = () => {
-  const root = mkdtempSync(join(tmpdir(), "openteam-agent-service-"));
+  const root = mkdtempSync(join(tmpdir(), "aiteamos-agent-service-"));
   directories.push(root);
   const paths = installationPaths(join(root, "install dir"));
   mkdirSync(paths.directory);
-  writeFileSync(paths.environment, "OPENTEAM_CONTROL_TOKEN=t\nOPENTEAM_API_PORT=1\n");
+  writeFileSync(paths.environment, "AITEAMOS_CONTROL_TOKEN=t\nAITEAMOS_API_PORT=1\n");
   writeManifest(paths, {
     schemaVersion: 1,
     repository: "raghavpillai/openteam",
@@ -78,26 +78,26 @@ const host = (
 });
 
 const command = {
-  executable: "/opt/open team/openteam",
+  executable: "/opt/open team/aiteamos",
   args: ["status", "--dir", "/srv/50% $HOME"],
-  environment: { OPENTEAM_UPDATE_AGENT: "1", PATH: "/usr/bin:/bin" },
+  environment: { AITEAMOS_UPDATE_AGENT: "1", PATH: "/usr/bin:/bin" },
 };
 
 test("each installation gets its own service, and only where a service manager exists", () => {
   const { paths, home } = fixture();
   const runner = new FakeRunner();
   const mac = updateAgentService(paths, host("darwin", home, runner))!;
-  expect(mac.name).toMatch(/^so\.openteam\.update-agent\.[0-9a-f]{10}$/);
+  expect(mac.name).toMatch(/^so\.aiteamos\.update-agent\.[0-9a-f]{10}$/);
   expect(mac.file).toBe(join(home, "Library", "LaunchAgents", `${mac.name}.plist`));
   const linux = updateAgentService(paths, host("linux", home, runner))!;
-  expect(linux.name).toMatch(/^openteam-update-agent-[0-9a-f]{10}\.service$/);
+  expect(linux.name).toMatch(/^aiteamos-update-agent-[0-9a-f]{10}\.service$/);
   expect(linux.file).toBe(join(home, ".config", "systemd", "user", linux.name));
-  const standard = installationPaths(join(home, ".openteam"));
+  const standard = installationPaths(join(home, ".aiteamos"));
   expect(updateAgentService(standard, host("linux", home, runner))!.name).toBe(
-    "openteam-update-agent.service"
+    "aiteamos-update-agent.service"
   );
   expect(updateAgentService(standard, host("darwin", home, runner))!.name).toBe(
-    "so.openteam.update-agent"
+    "so.aiteamos.update-agent"
   );
   expect(updateAgentService(paths, host("linux", home, runner, { systemd: false }))).toBeNull();
   expect(updateAgentService(paths, host("win32", home, runner))).toBeNull();
@@ -106,8 +106,8 @@ test("each installation gets its own service, and only where a service manager e
 test("the systemd unit escapes its arguments and never stops an update the agent started", () => {
   const { paths } = fixture();
   const unit = systemdUnit(paths, command);
-  expect(unit).toContain('ExecStart="/opt/open team/openteam" "status" "--dir" "/srv/50%% $$HOME"');
-  expect(unit).toContain('Environment="OPENTEAM_UPDATE_AGENT=1"');
+  expect(unit).toContain('ExecStart="/opt/open team/aiteamos" "status" "--dir" "/srv/50%% $$HOME"');
+  expect(unit).toContain('Environment="AITEAMOS_UPDATE_AGENT=1"');
   expect(unit).toContain(`\nWorkingDirectory=${paths.directory}\n`);
   expect(unit).toContain("KillMode=process");
   expect(unit).toContain("Restart=on-failure");
@@ -116,7 +116,7 @@ test("the systemd unit escapes its arguments and never stops an update the agent
 
 test("the LaunchAgent starts at load, restarts only after a crash, and leaves updates running", () => {
   const { paths } = fixture();
-  const plist = launchAgent(paths, "so.openteam.update-agent", {
+  const plist = launchAgent(paths, "so.aiteamos.update-agent", {
     ...command,
     args: ["status", "--dir", "/a&b<c>"],
   });
@@ -249,7 +249,7 @@ test("start registers the agent with the service manager instead of spawning a d
   const service = updateAgentService(paths, linux)!;
   const unit = readFileSync(service.file, "utf8");
   expect(unit).toContain(`"status" "--dir" "${paths.directory}"`);
-  expect(unit).toContain('Environment="OPENTEAM_UPDATE_AGENT=1"');
+  expect(unit).toContain('Environment="AITEAMOS_UPDATE_AGENT=1"');
   expect(runner.calls.at(-1)).toBe(`systemctl --user enable --now ${service.name}`);
   // The service manager owns the agent: nothing was spawned to claim the lock.
   expect(existsSync(join(paths.directory, "update-agent.lock"))).toBe(false);

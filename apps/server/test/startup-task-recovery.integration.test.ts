@@ -2,19 +2,19 @@ import { expect, test } from "bun:test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createPrismaClient } from "@openteam/db";
+import { createPrismaClient } from "@aiteamos/db";
 import {
   AgentDataStore,
   AgentMessaging,
   initialTaskProgress,
   dispatchTaskContinuations,
   TASK_RECOVERY_LOCK,
-} from "@openteam/messaging";
+} from "@aiteamos/messaging";
 import { Effect } from "effect";
 import { recover } from "../src/services/startup-recovery";
 import { SubagentService } from "../src/services/subagent/service";
 
-const url = process.env.OPENTEAM_RECOVERY_TEST_DATABASE_URL;
+const url = process.env.AITEAMOS_RECOVERY_TEST_DATABASE_URL;
 async function fixture(body: (f: Awaited<ReturnType<typeof setup>>) => Promise<void>) {
   const f = await setup();
   try {
@@ -178,7 +178,7 @@ test.skipIf(!url)(
       });
       expect(reconcile).toHaveLength(1);
       // The resumed turn tells the person it was a restart, not a failed connection.
-      expect(JSON.stringify(reconcile[0]!.payload)).toContain("OpenTeam restarted");
+      expect(JSON.stringify(reconcile[0]!.payload)).toContain("aiTeamOS restarted");
       // A saved continuation owns the interrupted request. Asking the person
       // to send it again would compete with that recovery and risk duplicates.
       expect(await f.db.channelMessage.count({

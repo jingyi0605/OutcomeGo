@@ -1,18 +1,18 @@
 /** Shipping UI + controller + HTTP client; only the remote service is synthetic. */
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { createRoot } from "react-dom/client";
-import { createOpenTeamClient } from "@openteam/client-core";
+import { createAiTeamOSClient } from "@aiteamos/client-core";
 import {
   createDurableSendController,
   classifyDurableSendError,
   messageDeliveryAcceptance,
   type DurableSendPayload,
-} from "@openteam/product-core/durable-delivery";
+} from "@aiteamos/product-core/durable-delivery";
 import { PromptInput } from "../../src/renderer/components/ai-elements/prompt-input";
-import { DeliveryFooter } from "../../src/renderer/components/openteam/delivery-footer";
-import { ExternalDraftCard } from "../../src/renderer/components/openteam/external-draft-card";
+import { DeliveryFooter } from "../../src/renderer/components/aiteamos/delivery-footer";
+import { ExternalDraftCard } from "../../src/renderer/components/aiteamos/external-draft-card";
 import { TooltipProvider } from "../../src/renderer/components/ui/tooltip";
-import { api } from "../../src/renderer/client/openteam-api";
+import { api } from "../../src/renderer/client/aiteamos-api";
 import "../../src/renderer/styles.css";
 
 const params = new URLSearchParams(location.search);
@@ -22,9 +22,9 @@ if (params.has("reset")) {
   params.delete("reset");
   history.replaceState(null, "", `${location.pathname}?${params}`);
 }
-if (!server || new URL(server).hostname !== "127.0.0.1" || window.openteam)
+if (!server || new URL(server).hostname !== "127.0.0.1" || window.aiteamos)
   throw new Error("Use a disposable loopback fixture in a browser");
-const client = createOpenTeamClient({ baseUrl: server });
+const client = createAiTeamOSClient({ baseUrl: server });
 Object.assign(api, client);
 let clock = Date.now();
 let storageFailure = false;

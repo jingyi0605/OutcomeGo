@@ -1,7 +1,7 @@
 import { expect, test } from 'bun:test';
 import { referenceTools } from '../../../_shared/reference';
 import { ToolContent } from '../../../_shared/google';
-import { createToolValidator } from '@openteam/plugin-sdk/json-schema';
+import { createToolValidator } from '@aiteamos/plugin-sdk/json-schema';
 import { slidesTools } from '../server';
 import { harness } from '../../../test/parity-harness';
 import { box, color, element, emu, fill, pageSize, rgb, size, text } from './fixtures';

@@ -4,7 +4,7 @@ import { platform, release } from "node:os";
 import { join } from "node:path";
 import type { BotMessage } from "../bot-compaction";
 import type { ActiveTurn } from "./types";
-import { taskUserInfo, type TaskConfiguration } from "@openteam/contracts/task-configuration";
+import { taskUserInfo, type TaskConfiguration } from "@aiteamos/contracts/task-configuration";
 import { isWallClockCut } from "./stream-deadlines";
 
 const hash = (value: unknown) =>
@@ -132,7 +132,7 @@ const cursorFlag = (message: BotMessage, flag: string) =>
   (message.providerOptions?.cursor as Record<string, unknown> | undefined)?.[flag] === true;
 
 const isCommunicationReminder = (message: BotMessage) =>
-  message.customType === "openteam-communication-reminder" ||
+  message.customType === "aiteamos-communication-reminder" ||
   ["sandSendMessageReminder", "sandStartOfTurnAckReminder"].some((flag) => cursorFlag(message, flag));
 
 const messageText = (message: BotMessage) =>

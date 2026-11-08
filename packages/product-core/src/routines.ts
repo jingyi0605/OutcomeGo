@@ -1,4 +1,4 @@
-import type { RoutineExecutionView, RoutineView, UpdateRoutineInput } from "@openteam/contracts";
+import type { RoutineExecutionView, RoutineView, UpdateRoutineInput } from "@aiteamos/contracts";
 
 export type RoutineScheduleEditMode = "editable" | "event" | "composite";
 

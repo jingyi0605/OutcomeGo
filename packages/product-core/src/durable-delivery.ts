@@ -1,10 +1,10 @@
-import { CLIENT_CAPABILITIES } from "@openteam/contracts/capabilities";
+import { CLIENT_CAPABILITIES } from "@aiteamos/contracts/capabilities";
 import type {
   AssetKind,
   AssetRef,
   ChannelMessageView,
   MessageDeliveryStatusView,
-} from "@openteam/contracts";
+} from "@aiteamos/contracts";
 import { clientErrorMessage } from "./redaction";
 
 export const DURABLE_SEND_SCHEMA_VERSION = 2;

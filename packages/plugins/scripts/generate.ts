@@ -6,7 +6,7 @@ import {
   importPackage,
   validatePluginCatalog,
   type PluginDefinition,
-} from "@openteam/plugin-sdk";
+} from "@aiteamos/plugin-sdk";
 
 const root = join(import.meta.dir, "..");
 export async function discoverPackages(directory = root): Promise<PluginDefinition[]> {

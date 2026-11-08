@@ -6,11 +6,11 @@ import {outOfProcessPlaywright} from '../src/browser/playwright-driver';
 
 const destination=process.env.SCREENSHOT_TEST_OUTPUT||'/qa-artifacts';
 const prefix='card-'+crypto.randomUUID();
-const inner='<body style="margin:0"><button aria-label="Frame detail" style="position:relative;width:140px;height:80px;border:0;padding:0;background:cyan"><span data-openteam-private="true" style="position:absolute;left:10px;top:10px;width:25px;height:25px;background:red">private</span>Frame detail</button>';
-const server=Bun.serve({hostname:'127.0.0.1',port:0,fetch:()=>new Response(`<html><title>Independent element capture</title><body style="margin:0;height:2000px;background:white"><section id="${prefix}" style="position:relative;width:240px;height:160px;background:rgb(0,170,17)"><div data-openteam-private="true" style="position:absolute;left:16px;top:16px;width:30px;height:30px;background:red">private</div><p style="margin:0;position:absolute;top:80px">Regional schedule</p></section><iframe title="Embedded schedule" style="position:absolute;top:250px;left:0;width:200px;height:120px;border:0" srcdoc="${inner.replaceAll('&','&amp;').replaceAll('"','&quot;')}"></iframe><button aria-label="Offscreen detail" style="position:absolute;left:0;top:1600px;width:130px;height:40px;border:0;padding:0" onclick="window.clicked=true">Offscreen detail</button></body></html>`,{headers:{'content-type':'text/html'}})});
+const inner='<body style="margin:0"><button aria-label="Frame detail" style="position:relative;width:140px;height:80px;border:0;padding:0;background:cyan"><span data-aiteamos-private="true" style="position:absolute;left:10px;top:10px;width:25px;height:25px;background:red">private</span>Frame detail</button>';
+const server=Bun.serve({hostname:'127.0.0.1',port:0,fetch:()=>new Response(`<html><title>Independent element capture</title><body style="margin:0;height:2000px;background:white"><section id="${prefix}" style="position:relative;width:240px;height:160px;background:rgb(0,170,17)"><div data-aiteamos-private="true" style="position:absolute;left:16px;top:16px;width:30px;height:30px;background:red">private</div><p style="margin:0;position:absolute;top:80px">Regional schedule</p></section><iframe title="Embedded schedule" style="position:absolute;top:250px;left:0;width:200px;height:120px;border:0" srcdoc="${inner.replaceAll('&','&amp;').replaceAll('"','&quot;')}"></iframe><button aria-label="Offscreen detail" style="position:absolute;left:0;top:1600px;width:130px;height:40px;border:0;padding:0" onclick="window.clicked=true">Offscreen detail</button></body></html>`,{headers:{'content-type':'text/html'}})});
 const crossOrigin=Bun.serve({hostname:'127.0.0.1',port:0,fetch:()=>new Response(inner,{headers:{'content-type':'text/html'}})});
 const driver=await outOfProcessPlaywright();
-const browser=await driver.playwright.chromium.launch({headless:true,executablePath:process.env.OPENTEAM_BROWSER_TEST_EXECUTABLE||'/usr/lib/openteam/bin/google-chrome',args:['--no-sandbox']});
+const browser=await driver.playwright.chromium.launch({headless:true,executablePath:process.env.AITEAMOS_BROWSER_TEST_EXECUTABLE||'/usr/lib/aiteamos/bin/google-chrome',args:['--no-sandbox']});
 const records:any[]=[];
 try{
  const context=await browser.newContext({viewport:{width:900,height:600}});
@@ -45,7 +45,7 @@ try{
  await assert.rejects(()=>session.execute('browser_take_screenshot',{target:stale}),/stale|unknown|detached/i);
  await capture('viewport-after-errors',{},[900,600],[20,20]);
  await page.evaluate(()=>{
-  const holder=document.createElement('div');holder.setAttribute('data-openteam-private','true');
+  const holder=document.createElement('div');holder.setAttribute('data-aiteamos-private','true');
   holder.innerHTML='<span id="private-descendant" style="display:inline-block;width:80px;height:40px;background:red">private</span>';
   document.body.append(holder);
  });

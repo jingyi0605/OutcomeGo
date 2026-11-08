@@ -9,7 +9,7 @@ import {
 
 describe("native computer tools", () => {
   test("Read returns numbered lines with positive and negative paging", async () => {
-    const root = await mkdtemp(join(tmpdir(), "openteam-native-read-"));
+    const root = await mkdtemp(join(tmpdir(), "aiteamos-native-read-"));
     const path = join(root, "notes.txt");
     await writeFile(path, "alpha\nbeta\ngamma\n", "utf8");
     const executor = new NativeToolExecutor({ agentDir: root, controlToken: "test-token" });
@@ -21,7 +21,7 @@ describe("native computer tools", () => {
   });
 
   test("Read failures use the reference error texts and are failed calls", async () => {
-    const root = await mkdtemp(join(tmpdir(), "openteam-native-read-errors-"));
+    const root = await mkdtemp(join(tmpdir(), "aiteamos-native-read-errors-"));
     const executor = new NativeToolExecutor({ agentDir: root, controlToken: "test-token" });
     await mkdir(join(root, "folder"));
     await writeFile(join(root, "data.raw"), Buffer.from([0, 1, 2, 3]));
@@ -38,7 +38,7 @@ describe("native computer tools", () => {
   });
 
   test("Read recognizes images by content, labels them, and refuses undecodable ones", async () => {
-    const root = await mkdtemp(join(tmpdir(), "openteam-native-read-image-"));
+    const root = await mkdtemp(join(tmpdir(), "aiteamos-native-read-image-"));
     const executor = new NativeToolExecutor({ agentDir: root, controlToken: "test-token" });
     const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4AWP4////fwAJ+wP92PZgeAAAAABJRU5ErkJggg==", "base64");
     await writeFile(join(root, "chart"), png);
@@ -52,7 +52,7 @@ describe("native computer tools", () => {
   });
 
   test("Read renders a Jupyter notebook as cells and outputs", async () => {
-    const root = await mkdtemp(join(tmpdir(), "openteam-native-read-notebook-"));
+    const root = await mkdtemp(join(tmpdir(), "aiteamos-native-read-notebook-"));
     const executor = new NativeToolExecutor({ agentDir: root, controlToken: "test-token" });
     const path = join(root, "analysis.ipynb");
     await writeFile(path, JSON.stringify({
@@ -71,7 +71,7 @@ describe("native computer tools", () => {
   });
 
   test("Read streams large text files and keeps only the requested lines", async () => {
-    const root = await mkdtemp(join(tmpdir(), "openteam-native-read-large-"));
+    const root = await mkdtemp(join(tmpdir(), "aiteamos-native-read-large-"));
     const executor = new NativeToolExecutor({ agentDir: root, controlToken: "test-token" });
     const path = join(root, "server.log");
     const line = "x".repeat(99);
@@ -90,10 +90,10 @@ describe("native computer tools", () => {
   });
 
   test("Read exposes supported agent files while fencing stores and host metadata", async () => {
-    const root = await mkdtemp(join(tmpdir(), "openteam-native-protected-read-"));
+    const root = await mkdtemp(join(tmpdir(), "aiteamos-native-protected-read-"));
     const sandRoot = join(root, "sand-data");
     const agentRoot = join(sandRoot, "agents", "probe");
-    await mkdir(join(sandRoot, ".openteam"), { recursive: true });
+    await mkdir(join(sandRoot, ".aiteamos"), { recursive: true });
     await mkdir(agentRoot, { recursive: true });
     await mkdir(join(sandRoot, "plugin-skills"), { recursive: true });
     await writeFile(join(sandRoot, "plugin-skills", "cache.json"), '{"skills":[]}\n');
@@ -104,7 +104,7 @@ describe("native computer tools", () => {
     await writeFile(join(agentRoot, "deliverables", "store.db"), "harmless nested file");
     await writeFile(join(sandRoot, "custom-folder", "public.txt"), "harmless public file");
     await writeFile(join(sandRoot, "settings.json"), "private fixture");
-    await writeFile(join(sandRoot, ".openteam", "marker.json"), "{}\n");
+    await writeFile(join(sandRoot, ".aiteamos", "marker.json"), "{}\n");
     const executor = new NativeToolExecutor({
       agentDir: root,
       controlToken: "test-token",
@@ -125,7 +125,7 @@ describe("native computer tools", () => {
       "Read does not expose live agent SQLite files"
     );
     await expect(
-      executor.read({ path: join(sandRoot, ".openteam", "marker.json") }, root)
+      executor.read({ path: join(sandRoot, ".aiteamos", "marker.json") }, root)
     ).rejects.toThrow("Read is not allowed for protected agent-data path");
   });
 
@@ -133,12 +133,12 @@ describe("native computer tools", () => {
     const environment = sanitizedShellEnvironment(
       {
         HOME: "/home/box",
-        OPENTEAM_CONTROL_TOKEN: "secret",
+        AITEAMOS_CONTROL_TOKEN: "secret",
         OPENAI_API_KEY: "secret",
         ANTHROPIC_API_KEY: "secret",
         GENERIC_PROVIDER_PASSWORD: "secret",
         AWS_ACCESS_KEY_ID: "secret",
-        OPENTEAM_PI_AGENT_DIR: "/home/box/.pi/agent",
+        AITEAMOS_PI_AGENT_DIR: "/home/box/.pi/agent",
         DATABASE_URL: "postgres://secret",
         BASH_ENV: "/tmp/inject",
         ENV: "/tmp/inject",
@@ -152,7 +152,7 @@ describe("native computer tools", () => {
   const shellTest = process.env.CI === "true" && process.platform === "darwin" ? test.skip : test;
 
   shellTest("Shell executes foreground commands and records a terminal log", async () => {
-    const root = await mkdtemp(join(tmpdir(), "openteam-native-shell-"));
+    const root = await mkdtemp(join(tmpdir(), "aiteamos-native-shell-"));
     const executor = new NativeToolExecutor({ agentDir: root, controlToken: "test-token" });
     const result = await executor.shell(
       { command: "printf 'native-shell-ok'", working_directory: root, block_until_ms: 5_000 },
@@ -165,7 +165,7 @@ describe("native computer tools", () => {
   });
 
   shellTest("Shell keeps the head and tail of long output and spills large output to a file", async () => {
-    const root = await mkdtemp(join(tmpdir(), "openteam-native-large-"));
+    const root = await mkdtemp(join(tmpdir(), "aiteamos-native-large-"));
     const executor = new NativeToolExecutor({ agentDir: root, controlToken: "test-token" });
     const medium = await executor.shell(
       { command: "printf 'START'; head -c 30000 /dev/zero | tr '\\0' m; printf 'END'", block_until_ms: 5_000 },
@@ -177,7 +177,7 @@ describe("native computer tools", () => {
 
     const large = await executor.shell({ command: "seq 1 50000", block_until_ms: 5_000 }, root);
     const spillPath = (large.details as { spillPath: string }).spillPath;
-    expect(spillPath).toStartWith(join(root, ".openteam", "agent-tools"));
+    expect(spillPath).toStartWith(join(root, ".aiteamos", "agent-tools"));
     expect((large.content[0] as { text: string }).text).toMatch(
       /^Exit code: 0\n\nCommand output has been written to: \S+\.txt \(282\.1 KB, 50000 lines\)\n\nCommand completed in \d+ ms\.\n\nShell state \(cwd, env vars\) persists for subsequent calls\.$/
     );
@@ -187,10 +187,10 @@ describe("native computer tools", () => {
   });
 
   shellTest("each Shell command's processes carry its own shell id, which is never saved as shell state", async () => {
-    const root = await mkdtemp(join(tmpdir(), "openteam-native-shell-id-"));
+    const root = await mkdtemp(join(tmpdir(), "aiteamos-native-shell-id-"));
     const executor = new NativeToolExecutor({ agentDir: root, controlToken: "test-token" });
     const run = async () => {
-      const result = await executor.shell({ command: "echo \"id=$OPENTEAM_SHELL_ID\"; export OPENTEAM_SHELL_ID=stale", working_directory: root }, root, undefined, undefined, "bot-a");
+      const result = await executor.shell({ command: "echo \"id=$AITEAMOS_SHELL_ID\"; export AITEAMOS_SHELL_ID=stale", working_directory: root }, root, undefined, undefined, "bot-a");
       const log = await readFile((result.details as { outputPath: string }).outputPath, "utf8");
       return { id: /id=(\d+)/.exec(log)?.[1], logName: (result.details as { outputPath: string }).outputPath.split("/").at(-1) };
     };
@@ -202,7 +202,7 @@ describe("native computer tools", () => {
   });
 
   shellTest("Shell reports the final directory, signal kills and the terminal header", async () => {
-    const root = await mkdtemp(join(tmpdir(), "openteam-native-cwd-"));
+    const root = await mkdtemp(join(tmpdir(), "aiteamos-native-cwd-"));
     await mkdir(join(root, "sub"));
     const executor = new NativeToolExecutor({ agentDir: root, controlToken: "test-token" });
     const moved = await executor.shell({ command: "cd sub", working_directory: root, description: "Enter sub" }, root);
@@ -220,7 +220,7 @@ describe("native computer tools", () => {
   });
 
   shellTest("a command that outlives block_until_ms keeps its early output and a live header", async () => {
-    const root = await mkdtemp(join(tmpdir(), "openteam-native-timeout-"));
+    const root = await mkdtemp(join(tmpdir(), "aiteamos-native-timeout-"));
     const executor = new NativeToolExecutor({ agentDir: root, controlToken: "test-token" });
     const result = await executor.shell({ command: "echo starting; sleep 6; echo done", block_until_ms: 300 }, root);
     const { shellId, outputPath } = result.details as { shellId: string; outputPath: string };
@@ -239,7 +239,7 @@ describe("native computer tools", () => {
   }, 15_000);
 
   shellTest("a background completion carries the call's description, else its command", async () => {
-    const root = await mkdtemp(join(tmpdir(), "openteam-native-title-"));
+    const root = await mkdtemp(join(tmpdir(), "aiteamos-native-title-"));
     const completions: Array<{ title?: string; exitCode: number | null }> = [];
     const executor = new NativeToolExecutor({ agentDir: root, controlToken: "test-token", onShellComplete: async (job) => { completions.push(job); } });
     await executor.shell({ command: "exit 2", description: "Run the suite", block_until_ms: 0 }, root);
@@ -252,7 +252,7 @@ describe("native computer tools", () => {
   });
 
   shellTest("a background command is stopped once it reaches the hard time limit", async () => {
-    const root = await mkdtemp(join(tmpdir(), "openteam-native-expire-"));
+    const root = await mkdtemp(join(tmpdir(), "aiteamos-native-expire-"));
     const executor = new NativeToolExecutor({ agentDir: root, controlToken: "test-token", shellHardTimeoutMs: 300 });
     const started = await executor.shell({ command: "sleep 30", block_until_ms: 0 }, root);
     const done = await executor.awaitShell({ shell_id: String(started.details.shellId), block_until_ms: 5_000 });
@@ -261,7 +261,7 @@ describe("native computer tools", () => {
   });
 
   test("Shell backgrounds long commands and exposes their log path", async () => {
-    const root = await mkdtemp(join(tmpdir(), "openteam-native-background-"));
+    const root = await mkdtemp(join(tmpdir(), "aiteamos-native-background-"));
     const executor = new NativeToolExecutor({ agentDir: root, controlToken: "test-token" });
     const result = await executor.shell(
       { command: "sleep 0.1; printf done", working_directory: root, block_until_ms: 0 },
@@ -301,7 +301,7 @@ describe("native computer tools", () => {
       },
     });
     try {
-      const root = await mkdtemp(join(tmpdir(), "openteam-native-external-"));
+      const root = await mkdtemp(join(tmpdir(), "aiteamos-native-external-"));
       const executor = new NativeToolExecutor({
         agentDir: root,
         controlToken: "bridge-token",

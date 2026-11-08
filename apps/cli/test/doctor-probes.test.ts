@@ -117,22 +117,22 @@ describe("doctor service probes", () => {
     runServiceProbe(project, "computer", STORAGE_PROBE, ["storage"], true);
     expect(calls[0]?.args).toContain("node");
     expect(calls[1]?.args).toContain("bun");
-    expect(calls[1]?.args).toContain("OPENTEAM_DOCTOR_STORAGE=computer");
+    expect(calls[1]?.args).toContain("AITEAMOS_DOCTOR_STORAGE=computer");
     expect(calls.every((c) => c.options?.timeoutMs === 15_000)).toBe(true);
   });
   test.each([
     { name: "default bot identity", initialUid: 0, env: {}, expectedUid: 1000, expectedGid: 1000 },
-    { name: "configured bot identity", initialUid: 0, env: { OPENTEAM_AGENT_UID: "2001", OPENTEAM_AGENT_GID: "2002" }, expectedUid: 2001, expectedGid: 2002 },
-    { name: "invalid identity fallback", initialUid: 0, env: { OPENTEAM_AGENT_UID: "invalid", OPENTEAM_AGENT_GID: "0" }, expectedUid: 1000, expectedGid: 1000 },
+    { name: "configured bot identity", initialUid: 0, env: { AITEAMOS_AGENT_UID: "2001", AITEAMOS_AGENT_GID: "2002" }, expectedUid: 2001, expectedGid: 2002 },
+    { name: "invalid identity fallback", initialUid: 0, env: { AITEAMOS_AGENT_UID: "invalid", AITEAMOS_AGENT_GID: "0" }, expectedUid: 1000, expectedGid: 1000 },
     { name: "non-root computer", initialUid: 2003, env: {}, expectedUid: 2003, expectedGid: undefined },
   ])("workspace probe uses $name", async ({ initialUid, env, expectedUid, expectedGid }) => {
-    const directory = mkdtempSync(join(tmpdir(), "openteam-storage-"));
+    const directory = mkdtempSync(join(tmpdir(), "aiteamos-storage-"));
     let uid: number = initialUid;
     const identities: unknown[] = [];
     let output = "";
     // Exercise the embedded probe without requiring root on the test host.
     const probeProcess = {
-      env: { ...env, OPENTEAM_DOCTOR_STORAGE: "computer", OPENTEAM_WORKSPACE_ROOT: directory },
+      env: { ...env, AITEAMOS_DOCTOR_STORAGE: "computer", AITEAMOS_WORKSPACE_ROOT: directory },
       getuid: () => uid,
       setgroups: (groups: number[]) => identities.push(groups),
       setgid: (gid: number) => identities.push(gid),
@@ -155,7 +155,7 @@ describe("doctor service probes", () => {
     "future",
     "malformed",
   ])("%s worker heartbeat is a failure rather than a false pass", async (state) => {
-    const directory = mkdtempSync(join(tmpdir(), "openteam-heartbeat-"));
+    const directory = mkdtempSync(join(tmpdir(), "aiteamos-heartbeat-"));
     const path = join(directory, "heartbeat");
     if (state !== "missing")
       writeFileSync(
@@ -169,7 +169,7 @@ describe("doctor service probes", () => {
       );
     try {
       const script = WORKER_PROBE.replace(
-        '"/tmp/openteam-worker-heartbeat.json"',
+        '"/tmp/aiteamos-worker-heartbeat.json"',
         JSON.stringify(path)
       );
       const process = Bun.spawn(["node", "-e", `(async () => {${script}})()`], {
@@ -217,10 +217,10 @@ describe.skipIf(process.platform === "win32")("actual worker diagnostic socket p
     try {
       await new Promise<void>((resolve) => server.listen(socket, resolve));
       const script = WORKER_PROBE.replaceAll(
-        '"/tmp/openteam-worker-heartbeat.json"',
+        '"/tmp/aiteamos-worker-heartbeat.json"',
         JSON.stringify(heartbeat)
       )
-        .replaceAll('"/tmp/openteam-worker-doctor.sock"', JSON.stringify(socket))
+        .replaceAll('"/tmp/aiteamos-worker-doctor.sock"', JSON.stringify(socket))
         .replace("}, 10000)", "}, 150)");
       const child = Bun.spawn(["node", "-e", `(async () => {${script}})()`], {
         stdout: "pipe",

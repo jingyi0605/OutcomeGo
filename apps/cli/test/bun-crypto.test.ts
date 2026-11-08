@@ -7,7 +7,7 @@ describe("Bun signature verification compatibility", () => {
     const { privateKey, publicKey } = crypto.generateKeyPairSync("ec", {
       namedCurve: "prime256v1",
     });
-    const payload = Buffer.from("OpenTeam release metadata");
+    const payload = Buffer.from("aiTeamOS release metadata");
     const signature = crypto.sign("sha256", payload, privateKey);
 
     expect(

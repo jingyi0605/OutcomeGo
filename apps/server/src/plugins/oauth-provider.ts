@@ -32,7 +32,7 @@ export interface OAuthProviderOptions {
 }
 
 /** Persists the SDK's OAuth session in the owning PluginConnection record. */
-export class OpenTeamOAuthProvider implements OAuthClientProvider {
+export class AiTeamOSOAuthProvider implements OAuthClientProvider {
   private value: StoredOAuthState;
 
   constructor(private readonly options: OAuthProviderOptions) {
@@ -51,9 +51,9 @@ export class OpenTeamOAuthProvider implements OAuthClientProvider {
         (this.options.clientInformation?.client_secret ? "client_secret_post" : "none"),
       grant_types: ["authorization_code", "refresh_token"],
       response_types: ["code"],
-      client_name: "OpenTeam",
+      client_name: "aiTeamOS",
       scope: this.options.scope,
-      software_id: "openteam",
+      software_id: "aiteamos",
       software_version: "0.0.0",
     };
   }

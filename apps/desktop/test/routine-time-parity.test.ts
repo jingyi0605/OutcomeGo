@@ -19,7 +19,7 @@ const executionAt = (when: Date): RoutineExecutionView => ({
   createdAt: when.toISOString(),
 });
 
-describe("OpenTeam-compatible routine execution times", () => {
+describe("aiTeamOS-compatible routine execution times", () => {
   const now = new Date(2026, 7, 31, 12, 50, 0);
 
   test("uses Bot's recent relative labels", () => {

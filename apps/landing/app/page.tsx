@@ -26,9 +26,9 @@ import "./polish.css";
 import "./mobile-polish.css";
 import { WorkerProfiles } from "@/components/worker-showcase";
 
-const GITHUB = "https://github.com/raghavpillai/openteam";
+const GITHUB = "https://github.com/jingyi0605/ai-TeamOS";
 function GetStarted({
-  children = "Install OpenTeam",
+  children = "Install aiTeamOS",
   className = "",
 }: {
   children?: React.ReactNode;
@@ -90,7 +90,7 @@ export default function Home() {
           </div>
           <SectionBot bot="research" />
         </section>
-        <nav className="ot-proof-strip ot-container" aria-label="Why run OpenTeam">
+        <nav className="ot-proof-strip ot-container" aria-label="Why run aiTeamOS">
           <a href="#get-started">
             <Server size={19} />
             <span>

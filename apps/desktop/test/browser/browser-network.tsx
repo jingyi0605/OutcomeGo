@@ -1,7 +1,7 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
-import { api } from "../../src/renderer/client/openteam-api";
-import { BrowserNetworkSettings } from "../../src/renderer/components/openteam/settings/browser-network";
+import { api } from "../../src/renderer/client/aiteamos-api";
+import { BrowserNetworkSettings } from "../../src/renderer/components/aiteamos/settings/browser-network";
 import "../../src/renderer/styles.css";
 const fixture = (window as any).networkFixture;
 (window as any).refreshNetworkFixture = refreshRoute;
@@ -78,7 +78,7 @@ api.updateBrowserNetwork = async (input) => {
   return structuredClone(fixture.view);
 };
 api.retryBrowserNetwork = async () => structuredClone(fixture.view);
-(window as any).openteam = {
+(window as any).aiteamos = {
   auth: {
     machineStatus: async () => ({
       machineId: "home",

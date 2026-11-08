@@ -1,4 +1,4 @@
-import { notificationRouting, channelNotificationStates } from "@openteam/messaging";
+import { notificationRouting, channelNotificationStates } from "@aiteamos/messaging";
 import {
   ApiError,
   type ChannelClientState,
@@ -10,8 +10,8 @@ import {
   type ClientSnapshot,
   type ServerInferenceSettings,
   type Snapshot,
-} from "@openteam/contracts";
-import { Prisma, type PrismaClient } from "@openteam/db";
+} from "@aiteamos/contracts";
+import { Prisma, type PrismaClient } from "@aiteamos/db";
 import { serviceEffect } from "./service-utils";
 import {
   channelUnreadCounts,

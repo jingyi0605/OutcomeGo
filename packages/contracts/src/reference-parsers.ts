@@ -133,7 +133,7 @@ const downloadFileParameters = external_exports.object({
   }).default({}).describe("Where the file lands on your computer.")
 });
 // A call shaped for another tool gets the reference's redirect beside the field issues.
-// OpenTeam transfers with Google Drive and Gmail only, and downloads by fileId.
+// aiTeamOS transfers with Google Drive and Gmail only, and downloads by fileId.
 const isRecordValue = (value) => typeof value === "object" && value !== null && !Array.isArray(value);
 const DOWNLOAD_FILE_URL_KEYS = ["url", "href"];
 const DOWNLOAD_FILE_BOX_PATH_KEYS = ["file_path", "filePath", "path", "targetPath"];

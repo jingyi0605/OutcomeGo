@@ -1,7 +1,7 @@
 import { createCipheriv, createDecipheriv, randomBytes, randomUUID } from "node:crypto";
 import { chmod, mkdir, readFile, rename, writeFile, access, open, rm } from "node:fs/promises";
 import { join } from "node:path";
-import { buildUserFormDriverUnavailableResult } from "@openteam/contracts/reference-form-results";
+import { buildUserFormDriverUnavailableResult } from "@aiteamos/contracts/reference-form-results";
 import {
   formFieldIsPayment,
   formFieldIsSecret,
@@ -17,7 +17,7 @@ import {
   type UserFormField,
   type UserFormReceipt,
   type UserFormValues,
-} from "@openteam/contracts";
+} from "@aiteamos/contracts";
 
 /** A refused preparation. The message is the model-facing result; body is the status-only
  * form the server rebuilds it from. */

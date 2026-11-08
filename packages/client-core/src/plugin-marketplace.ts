@@ -1,4 +1,4 @@
-import type { PluginCatalogItemView } from "@openteam/contracts";
+import type { PluginCatalogItemView } from "@aiteamos/contracts";
 
 export const PLUGIN_MARKETPLACE_CATEGORIES = [
   "All",

@@ -23,7 +23,7 @@ describe("crypto.verify default digest under BoringSSL runtimes", () => {
 
   test("the shim is installed once", () => {
     expect(installCryptoVerifyDefaults()).toBe(true);
-    expect((crypto.verify as { openteamPatched?: boolean }).openteamPatched).toBe(true);
+    expect((crypto.verify as { aiteamosPatched?: boolean }).aiteamosPatched).toBe(true);
   });
 
   test("verifies EC and RSA signatures without an explicit digest, like Node", () => {

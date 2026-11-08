@@ -110,7 +110,7 @@
       "usage": {
         "modelResponses": 84,
         "estimatedAgentUsd": 0.8408855999999999,
-        "scope": "Provider-estimated OpenTeam responses only, not full invoice or simulator/native cost"
+        "scope": "Provider-estimated aiTeamOS responses only, not full invoice or simulator/native cost"
       },
       "limits": [
         "One source-specific real-hour observation; no reliability-rate or vendor-superiority claim.",
@@ -183,9 +183,9 @@
       "savedNextCheckAt": "2026-10-29T09:46:37",
       "intentionalFaultAt": 1793266847841,
       "faultTargets": [
-        "openteam-support-hill-worker-1",
-        "openteam-support-hill-server-1",
-        "openteam-support-hill-computer-1"
+        "aiteamos-support-hill-worker-1",
+        "aiteamos-support-hill-server-1",
+        "aiteamos-support-hill-computer-1"
       ],
       "reusedExistingProviderRequest": true,
       "providerActions": [

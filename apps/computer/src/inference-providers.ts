@@ -11,7 +11,7 @@ import {
   type InferenceProviderAuthSessionView,
   normalizeInferenceProviderId,
   type ServerInferenceSettings,
-} from "@openteam/contracts";
+} from "@aiteamos/contracts";
 import { ChatProviderRegistry } from "./chat-provider-registry";
 
 interface AuthSessionState extends InferenceProviderAuthSessionView {

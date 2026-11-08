@@ -1,11 +1,11 @@
-import type { ChannelMessageView, ClientSnapshot } from "@openteam/contracts";
+import type { ChannelMessageView, ClientSnapshot } from "@aiteamos/contracts";
 import {
   compareEntitySequence as compareSequence,
   type LoadedChannelHistory,
   mergeBootstrapActivityStates,
   uniqueEntitiesById as mergeEntities,
-} from "@openteam/product-core/history";
-import type { ChannelClientState, ClientBootstrapView } from "../client/openteam-api";
+} from "@aiteamos/product-core/history";
+import type { ChannelClientState, ClientBootstrapView } from "../client/aiteamos-api";
 import {
   type ChannelMessageWindowState,
   emptyChannelMessageWindow,

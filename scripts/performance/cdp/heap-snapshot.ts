@@ -1,7 +1,7 @@
-const endpoint = process.env.OPENTEAM_AUDIT_CDP_URL ?? "http://127.0.0.1:9333";
-const output = process.env.OPENTEAM_AUDIT_OUTPUT;
+const endpoint = process.env.AITEAMOS_AUDIT_CDP_URL ?? "http://127.0.0.1:9333";
+const output = process.env.AITEAMOS_AUDIT_OUTPUT;
 
-if (!output) throw new Error("OPENTEAM_AUDIT_OUTPUT is required");
+if (!output) throw new Error("AITEAMOS_AUDIT_OUTPUT is required");
 
 interface Target {
   type: string;

@@ -1,8 +1,8 @@
 import packageJson from "../package.json";
 
 export const CLI_VERSION = packageJson.version;
-export const DEFAULT_REPOSITORY = "raghavpillai/openteam";
-export const DEFAULT_IMAGE_PREFIX = "ghcr.io/raghavpillai/openteam";
+export const DEFAULT_REPOSITORY = "jingyi0605/ai-TeamOS";
+export const DEFAULT_IMAGE_PREFIX = "ghcr.io/jingyi0605/ai-teamos";
 export const COMPOSE_FILENAME = "compose.yaml";
 export const ENV_FILENAME = ".env";
 export const INSTALLATION_FILENAME = "installation.json";
@@ -11,7 +11,7 @@ export const UPDATE_EVENTS_FILENAME = "update-events.jsonl";
 export const UPDATE_LOG_FILENAME = "update.log";
 export const UPDATE_LOCK_DIRECTORY = "update.lock";
 export const BACKUP_DIRECTORY = "backups";
-export const PROJECT_NAME = "openteam";
+export const PROJECT_NAME = "aiteamos";
 export const API_PORT = 8787;
 export const VIEWER_PORT_START = 6200;
 export const VIEWER_PORT_END = 6299;

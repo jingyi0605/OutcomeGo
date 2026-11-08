@@ -12,7 +12,7 @@ import type { CommandRunner, RunOptions, RunResult } from "../src/process";
 
 const homes: string[] = [];
 const home = () => {
-  const directory = mkdtempSync(join(tmpdir(), "openteam-login-home-"));
+  const directory = mkdtempSync(join(tmpdir(), "aiteamos-login-home-"));
   homes.push(directory);
   return directory;
 };

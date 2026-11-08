@@ -27,7 +27,7 @@ describe("CLI help", () => {
 
   test("shows only relevant options on command help pages", () => {
     const logs = helpFor("logs");
-    expect(logs).toContain("openteam logs [service] [options]");
+    expect(logs).toContain("aiteamos logs [service] [options]");
     expect(logs).toContain("--follow, -f");
     expect(logs).not.toContain("--allow-prerelease");
 

@@ -7,20 +7,20 @@ import {
   tailscaleRequest,
   TailscaleManager,
 } from "../src/main/tailscale-manager";
-import type { TailscaleStatus } from "@openteam/contracts/tailscale";
+import type { TailscaleStatus } from "@aiteamos/contracts/tailscale";
 
 const dirs: string[] = [];
 afterEach(() => {
   for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true });
 });
 function fixture() {
-  const directory = mkdtempSync(join(tmpdir(), "openteam-desktop-ts-"));
+  const directory = mkdtempSync(join(tmpdir(), "aiteamos-desktop-ts-"));
   dirs.push(directory);
   writeFileSync(join(directory, "installation.json"), JSON.stringify({ version: "1.2.3" }));
   writeFileSync(join(directory, "compose.yaml"), "services: {}\n");
   writeFileSync(
     join(directory, ".env"),
-    "OPENTEAM_API_PORT=8787\nOPENTEAM_ACCESS_MODE=tailscale\nOPENTEAM_PUBLIC_URL=https://bot.tail123.ts.net:14443\n"
+    "AITEAMOS_API_PORT=8787\nAITEAMOS_ACCESS_MODE=tailscale\nAITEAMOS_PUBLIC_URL=https://bot.tail123.ts.net:14443\n"
   );
   const status: TailscaleStatus = {
     enabled: true,
@@ -29,12 +29,12 @@ function fixture() {
     httpsPort: "14443",
     hostname: "bot.tail123.ts.net",
     route: "matching",
-    ownership: "openteam",
+    ownership: "aiteamos",
     verified: true,
     issue: null,
     managedRoutes: 1,
   };
-  return { directory, status, environment: { OPENTEAM_HOME: directory, PATH: "/fixture/bin" } };
+  return { directory, status, environment: { AITEAMOS_HOME: directory, PATH: "/fixture/bin" } };
 }
 test("only loopback or this installation's configured Tailscale URL is manageable", () => {
   const f = fixture();

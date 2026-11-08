@@ -89,7 +89,7 @@ app
       "Available update card missing"
     );
     await assert(
-      `document.querySelector('[data-desktop-update-card]')?.textContent.includes('OpenTeam 0.47.0')`,
+      `document.querySelector('[data-desktop-update-card]')?.textContent.includes('aiTeamOS 0.47.0')`,
       "Update card must identify the available release"
     );
     await assert(
@@ -136,7 +136,7 @@ app
     await delay(300);
     await settleAnimations();
     await assert(
-      `document.querySelector('[role=alertdialog]')?.textContent.includes('OpenTeam 0.47.0')`,
+      `document.querySelector('[role=alertdialog]')?.textContent.includes('aiTeamOS 0.47.0')`,
       "Versioned ready dialog missing"
     );
     await assert(
@@ -263,7 +263,7 @@ app
     await js(`fixture.emit({latestVersion:null,status:'downloaded'})`);
     await delay(200);
     await assert(
-      `document.querySelector('[role=alertdialog]')?.textContent.includes('installing OpenTeam. Your Bots')`,
+      `document.querySelector('[role=alertdialog]')?.textContent.includes('installing aiTeamOS. Your Bots')`,
       "Missing version must read naturally"
     );
     if (errors.length) throw new Error(errors.join("\n"));

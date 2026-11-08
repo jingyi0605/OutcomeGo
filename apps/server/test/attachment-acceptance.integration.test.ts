@@ -3,11 +3,11 @@ import { Effect } from "effect";
 import { mkdtemp, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { createPrismaClient } from "@openteam/db";
-import { AgentDataStore, AgentMessaging } from "@openteam/messaging";
+import { createPrismaClient } from "@aiteamos/db";
+import { AgentDataStore, AgentMessaging } from "@aiteamos/messaging";
 import { ChannelService } from "../src/services/channel-service";
 
-const databaseUrl = process.env.OPENTEAM_TEST_DATABASE_URL;
+const databaseUrl = process.env.AITEAMOS_TEST_DATABASE_URL;
 
 for (const mode of ["queued", "active"] as const) {
 test.skipIf(!databaseUrl)(`${mode} attachment acceptance permits concurrent profile reconciliation and remains idempotent`, async () => {

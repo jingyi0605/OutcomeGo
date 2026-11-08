@@ -7,7 +7,7 @@ import {
 
 const prompter = createTerminalPrompter();
 try {
-  const answer = (await prompter.question("OpenTeam username [openteam]: ")).trim() || "openteam";
+  const answer = (await prompter.question("aiTeamOS username [aiteamos]: ")).trim() || "aiteamos";
   const username = validateOwnerUsername(answer);
   const password = await collectConfirmedPassword(prompter);
   const result = spawnSync(

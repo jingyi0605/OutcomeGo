@@ -1,5 +1,5 @@
-import type { AssetKind, AssetRef, ClientCapabilities } from "@openteam/contracts";
-import { attachmentLimitForName, attachmentSizeRejection, attachmentRejectionMessage, videoMimeForName } from "@openteam/contracts/media-input";
+import type { AssetKind, AssetRef, ClientCapabilities } from "@aiteamos/contracts";
+import { attachmentLimitForName, attachmentSizeRejection, attachmentRejectionMessage, videoMimeForName } from "@aiteamos/contracts/media-input";
 
 export type AttachmentPreviewKind =
   | "video"

@@ -1,6 +1,6 @@
 # How hosting works
 
-OpenTeam is self-hosted. You run the server on a machine you control, and the apps connect to it. This page explains what runs where, so you can pick a good host.
+aiTeamOS is self-hosted. You run the server on a machine you control, and the apps connect to it. This page explains what runs where, so you can pick a good host.
 
 ## The server
 
@@ -16,7 +16,7 @@ This environment is separate from your own computer. Bots can't see your desktop
 
 ## What Docker runs
 
-OpenTeam runs as a set of Docker containers, so you don't need to install its dependencies yourself.
+aiTeamOS runs as a set of Docker containers, so you don't need to install its dependencies yourself.
 
 | Container | What it does |
 | --- | --- |
@@ -25,7 +25,7 @@ OpenTeam runs as a set of Docker containers, so you don't need to install its de
 | Computer | The bots' Linux environment |
 | PostgreSQL | The database |
 
-Each time you start OpenTeam, a few short setup jobs also run and then exit; `openteam status` lists them under **Setup jobs**. If you choose **Public domain with automatic HTTPS** in `openteam setup --advanced`, a small proxy also runs on ports 80 and 443 to manage the certificate.
+Each time you start aiTeamOS, a few short setup jobs also run and then exit; `aiteamos status` lists them under **Setup jobs**. If you choose **Public domain with automatic HTTPS** in `aiteamos setup --advanced`, a small proxy also runs on ports 80 and 443 to manage the certificate.
 
 ## What needs to stay running
 

@@ -6,12 +6,12 @@ import { Effect } from "effect";
 import { AppService } from "../../server/src/app-service";
 import { WakeWorker } from "../src/worker";
 
-const databaseUrl = process.env.OPENTEAM_TEST_DATABASE_URL;
+const databaseUrl = process.env.AITEAMOS_TEST_DATABASE_URL;
 
 test("durable bot mailboxes preserve Pi sessions, agent DMs, and ordered group rounds", async () => {
   if (!databaseUrl) return;
 
-  const workspace = join(tmpdir(), `openteam-integration-${crypto.randomUUID()}`);
+  const workspace = join(tmpdir(), `aiteamos-integration-${crypto.randomUUID()}`);
   await mkdir(workspace, { recursive: true });
   interface TurnInput {
     runId: string;
@@ -114,7 +114,7 @@ test("durable bot mailboxes preserve Pi sessions, agent DMs, and ordered group r
         await onTurn(input);
         turnNumber += 1;
         const sessionPath =
-          input.sessionPath ?? `/var/lib/openteam/pi/${input.contextSessionId}.jsonl`;
+          input.sessionPath ?? `/var/lib/aiteamos/pi/${input.contextSessionId}.jsonl`;
         const turnId = `turn-${turnNumber}`;
         const itemId = `agent-${turnNumber}`;
         const text = `durable answer ${turnNumber}`;
@@ -174,13 +174,13 @@ test("durable bot mailboxes preserve Pi sessions, agent DMs, and ordered group r
     },
   });
 
-  const envKeys = ["DATABASE_URL", "OPENTEAM_COMPUTER_URL", "OPENTEAM_CONTROL_TOKEN", "OPENTEAM_WORKSPACE_ROOT", "OPENTEAM_AGENT_DATA_ROOT"] as const;
+  const envKeys = ["DATABASE_URL", "AITEAMOS_COMPUTER_URL", "AITEAMOS_CONTROL_TOKEN", "AITEAMOS_WORKSPACE_ROOT", "AITEAMOS_AGENT_DATA_ROOT"] as const;
   const previousEnv = Object.fromEntries(envKeys.map((key) => [key, process.env[key]]));
   process.env.DATABASE_URL = databaseUrl;
-  process.env.OPENTEAM_COMPUTER_URL = `http://127.0.0.1:${fakeComputer.port}`;
-  process.env.OPENTEAM_CONTROL_TOKEN = "integration-control-token";
-  process.env.OPENTEAM_WORKSPACE_ROOT = workspace;
-  process.env.OPENTEAM_AGENT_DATA_ROOT = join(workspace, "agent-data");
+  process.env.AITEAMOS_COMPUTER_URL = `http://127.0.0.1:${fakeComputer.port}`;
+  process.env.AITEAMOS_CONTROL_TOKEN = "integration-control-token";
+  process.env.AITEAMOS_WORKSPACE_ROOT = workspace;
+  process.env.AITEAMOS_AGENT_DATA_ROOT = join(workspace, "agent-data");
 
   let app: AppService | null = null;
   let restoreTimeZone = async () => {};
@@ -355,7 +355,7 @@ test("durable bot mailboxes preserve Pi sessions, agent DMs, and ordered group r
     const secondSnapshot = await waitFor(second.run.id);
     expect(seenTurns.map((turn) => ({ sessionPath: turn.sessionPath, content: turnBody(turn.content) }))).toEqual([
       { sessionPath: null, content: "first" },
-      { sessionPath: `/var/lib/openteam/pi/${firstSeenTurn.contextSessionId}.jsonl`, content: "second" },
+      { sessionPath: `/var/lib/aiteamos/pi/${firstSeenTurn.contextSessionId}.jsonl`, content: "second" },
     ]);
     expect(preflightContexts).toEqual(seenTurns.map((turn) => turn.contextSessionId));
     expect(seenTurns[1]?.cwd).toBe(bot.defaultDirectory);
@@ -407,7 +407,7 @@ test("durable bot mailboxes preserve Pi sessions, agent DMs, and ordered group r
 
     let peerId = "";
     onTurn = async (input) => {
-      if (input.content.includes("[OpenTeam first start]")) {
+      if (input.content.includes("[aiTeamOS first start]")) {
         await Effect.runPromise(
           app!.handleDynamicTool({
             runId: input.runId,
@@ -752,7 +752,7 @@ test("durable bot mailboxes preserve Pi sessions, agent DMs, and ordered group r
     ).toBe(true);
     expect(
       groupTurns.every(
-        (turn, index) => turn.sessionPath === (groupTurns.findIndex((candidate) => candidate.contextSessionId === turn.contextSessionId) === index ? null : `/var/lib/openteam/pi/${turn.contextSessionId}.jsonl`)
+        (turn, index) => turn.sessionPath === (groupTurns.findIndex((candidate) => candidate.contextSessionId === turn.contextSessionId) === index ? null : `/var/lib/aiteamos/pi/${turn.contextSessionId}.jsonl`)
       )
     ).toBe(true);
     expect(new Set(groupTurns.map((turn) => turn.contextSessionId)).size).toBe(3);

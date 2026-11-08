@@ -392,7 +392,7 @@ export const parseArguments = (argv: readonly string[]): CliOptions => {
   if (!commands.has(command as CommandName)) {
     if (rawCommand === "password") {
       throw new CliError(
-        "openteam password reset was removed; use openteam account update --password"
+        "aiteamos password reset was removed; use aiteamos account update --password"
       );
     }
     if (rawCommand === "account") {
@@ -429,7 +429,7 @@ export const parseArguments = (argv: readonly string[]): CliOptions => {
       "uninstall",
     ]);
     throw new CliError(
-      `Unknown command: ${rawCommand}.${suggestion ? ` Did you mean "${suggestion}"?` : " Run openteam --help to see available commands."}`
+      `Unknown command: ${rawCommand}.${suggestion ? ` Did you mean "${suggestion}"?` : " Run aiteamos --help to see available commands."}`
     );
   }
 
@@ -441,21 +441,21 @@ export const parseArguments = (argv: readonly string[]): CliOptions => {
   }
   if (command === "provider-login" || command === "provider-logout") {
     if (positional.length > 1)
-      throw new CliError(`openteam provider ${providerAction} accepts one provider`);
+      throw new CliError(`aiteamos provider ${providerAction} accepts one provider`);
     options.providerId = positional[0];
   } else if (command === "provider-add" || command === "provider-remove") {
     if (positional.length !== 1)
-      throw new CliError(`openteam provider ${providerAction} requires a provider id`);
+      throw new CliError(`aiteamos provider ${providerAction} requires a provider id`);
     options.providerId = positional[0];
   } else if (command === "model-list") {
-    if (positional.length > 1) throw new CliError("openteam model list accepts one provider");
+    if (positional.length > 1) throw new CliError("aiteamos model list accepts one provider");
     options.providerId = positional[0];
   } else if (command === "model-use") {
     if (positional.length !== 2)
-      throw new CliError("openteam model use requires a provider and model");
+      throw new CliError("aiteamos model use requires a provider and model");
     [options.providerId, options.modelId] = positional;
   } else if (command === "logs") {
-    if (positional.length > 1) throw new CliError("openteam logs accepts one service name");
+    if (positional.length > 1) throw new CliError("aiteamos logs accepts one service name");
     options.service = positional[0];
   } else if (positional.length > 0) {
     throw new CliError(`Unexpected argument for ${rawCommand}: ${positional[0]}`);
@@ -520,7 +520,7 @@ export const parseArguments = (argv: readonly string[]): CliOptions => {
       const next = rest[index + 1];
       if (next && !next.startsWith("--")) {
         throw new CliError(
-          "--password does not accept a value; OpenTeam prompts securely so the password is not saved in shell history"
+          "--password does not accept a value; aiTeamOS prompts securely so the password is not saved in shell history"
         );
       }
       options.password = true;

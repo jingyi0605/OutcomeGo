@@ -1,7 +1,7 @@
 {
   "title": "Documentation",
-  "description": "Get started with OpenTeam, work with bots, and manage your own server.",
-  "repository": "https://github.com/raghavpillai/openteam",
+  "description": "Get started with aiTeamOS, work with bots, and manage your own server.",
+  "repository": "https://github.com/raghavpillai/aiteamos",
   "branch": "main",
   "home": "overview/introduction",
   "groups": [

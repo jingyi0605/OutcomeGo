@@ -3,18 +3,18 @@ import { mkdir } from "node:fs/promises";
 import { resolve } from "node:path";
 import { chromium } from "../../computer/node_modules/playwright-core";
 import { createPluginFlowFixture } from "../../server/test/plugin/fixtures/plugin-flow";
-import { createOpenTeamClient } from "../../../packages/client-core/src";
+import { createAiTeamOSClient } from "../../../packages/client-core/src";
 
-if (!process.env.OPENTEAM_TEST_DATABASE_URL) throw new Error("A disposable test database is required");
-const uiOrigin = process.env.OPENTEAM_TEST_UI_ORIGIN ?? "http://127.0.0.1:63387";
+if (!process.env.AITEAMOS_TEST_DATABASE_URL) throw new Error("A disposable test database is required");
+const uiOrigin = process.env.AITEAMOS_TEST_UI_ORIGIN ?? "http://127.0.0.1:63387";
 const output = resolve(import.meta.dirname, "../../../findings/oauth-recovery");
 await mkdir(output, { recursive: true });
 const browser = await chromium.launch({ executablePath: "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", headless: true });
 const assert = (value: unknown, message: string) => { if (!value) throw new Error(message); };
 try {
   for (const packaged of [true, false]) {
-    const fixture = await createPluginFlowFixture(process.env.OPENTEAM_TEST_DATABASE_URL, { packaged, authSessions: ["browser-owner"], callbackMode: "manual" });
-    const client = createOpenTeamClient({ baseUrl: fixture.server.url.origin, getAuthToken: () => "browser-owner" });
+    const fixture = await createPluginFlowFixture(process.env.AITEAMOS_TEST_DATABASE_URL, { packaged, authSessions: ["browser-owner"], callbackMode: "manual" });
+    const client = createAiTeamOSClient({ baseUrl: fixture.server.url.origin, getAuthToken: () => "browser-owner" });
     const context = await browser.newContext({ viewport: { width: 1050, height: 900 } });
     context.setDefaultTimeout(15_000);
     const page = await context.newPage();

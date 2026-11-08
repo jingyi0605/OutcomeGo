@@ -1,4 +1,4 @@
-import type { RunItemView } from "@openteam/contracts";
+import type { RunItemView } from "@aiteamos/contracts";
 
 /** Project only active runtime items; never display tool arguments or reasoning text. */
 export function thinkingActivity(items: readonly RunItemView[] = []): string {

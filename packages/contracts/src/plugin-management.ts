@@ -5,7 +5,7 @@ import type {
   PluginDefinition,
   PluginField,
   PluginSetup,
-} from "@openteam/plugin-sdk";
+} from "@aiteamos/plugin-sdk";
 
 const Scalar = Schema.Union(
   Schema.String.pipe(Schema.maxLength(20_000)),

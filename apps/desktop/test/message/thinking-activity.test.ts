@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import type { RunItemView } from "@openteam/contracts";
+import type { RunItemView } from "@aiteamos/contracts";
 import {
   thinkingActivity,
   advanceActivity,

@@ -11,7 +11,7 @@ test("Google setup instructions match the selected client type even for old inst
     const server = pluginProviderSetupSteps(key, "server", old);
     expect(server.join(" ")).toContain("Web application OAuth client");
     expect(server.join(" ")).not.toContain("Desktop app OAuth client");
-    expect(pluginProviderSetupSteps(key, "desktop", old).at(-1)).toContain("OpenTeam desktop app");
+    expect(pluginProviderSetupSteps(key, "desktop", old).at(-1)).toContain("aiTeamOS desktop app");
   }
   expect(pluginProviderSetupSteps("custom-plugin", "manual", old)).toEqual(old);
 });

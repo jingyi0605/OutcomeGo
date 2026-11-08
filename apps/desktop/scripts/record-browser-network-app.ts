@@ -1,4 +1,4 @@
-/** Records the actual full OpenTeam renderer against inert, loopback-only UI fixtures. */
+/** Records the actual full aiTeamOS renderer against inert, loopback-only UI fixtures. */
 import { createServer } from "vite";
 import { chromium } from "../../computer/node_modules/playwright-core";
 import { resolve } from "node:path";
@@ -43,7 +43,7 @@ const errors: string[] = [];
 page.on("pageerror", (error) => errors.push(error.message));
 page.on("dialog", (dialog) => void dialog.accept());
 await page.addInitScript(() => {
-  localStorage.setItem("openteam:theme", "light");
+  localStorage.setItem("aiteamos:theme", "light");
   const sharing = async () => {
     const value = await (
       await fetch("/__qa/browser-network", {
@@ -57,12 +57,12 @@ await page.addInitScript(() => {
       connected: true,
       sharingAllowed: value.devices[0].sharingAllowed,
       providing: value.runtime.activeMachineId === "air",
-      serverUrl: "https://my.openteam.app",
+      serverUrl: "https://my.aiteamos.app",
       deploymentId: value.settings.deploymentId,
       activeConnections: 0,
     };
   };
-  (window as any).openteam = {
+  (window as any).aiteamos = {
     platform: "darwin",
     auth: {
       readToken: async () => ({ token: null, durable: true, warning: null }),

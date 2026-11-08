@@ -1,4 +1,4 @@
-import { Prisma, type PrismaClient } from "@openteam/db";
+import { Prisma, type PrismaClient } from "@aiteamos/db";
 
 export const MAX_THREAD_CONTEXT_MESSAGES = 100;
 

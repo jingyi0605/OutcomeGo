@@ -3,4 +3,4 @@ export {
   shouldLoadScreenStatus,
   shouldPollScreenStatus,
   shouldRefreshScreenFrame,
-} from "@openteam/client-core";
+} from "@aiteamos/client-core";

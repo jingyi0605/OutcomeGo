@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { createToolValidator } from '@openteam/plugin-sdk/json-schema';
+import { createToolValidator } from '@aiteamos/plugin-sdk/json-schema';
 import { GoogleApi } from '../../../_shared/google';
 import { referenceTools } from '../../../_shared/reference';
 import { harness } from '../../../test/parity-harness';

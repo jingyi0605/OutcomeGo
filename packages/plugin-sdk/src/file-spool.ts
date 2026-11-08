@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 /** Private immutable staging keeps file bytes outside JSON/tool history and bounds memory. */
 export async function spoolFile(source: AsyncIterable<Uint8Array> | ReadableStream<Uint8Array>, options: {signal?:AbortSignal; sizeBytes?:number; sha256?:string; maxBytes?:number} = {}) {
   options.signal?.throwIfAborted();
-  const directory = await mkdtemp(join(tmpdir(), "openteam-transfer-"));
+  const directory = await mkdtemp(join(tmpdir(), "aiteamos-transfer-"));
   const path = join(directory,"bytes");
   const cleanup = () => rm(directory,{recursive:true,force:true});
   let file: Awaited<ReturnType<typeof open>> | undefined;

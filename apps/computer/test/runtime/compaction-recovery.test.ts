@@ -93,7 +93,7 @@ async function fixture(kind: "owned" | "projected" | "anchored" = "owned", grow 
       "Original archive: keep the current request",
       entries[109]!,
       500_944,
-      { openteamBotCompaction: true, id: archiveId },
+      { aiteamosBotCompaction: true, id: archiveId },
       true
     );
   expect(manager.buildSessionContext().messages).toHaveLength(1493);
@@ -103,7 +103,7 @@ async function fixture(kind: "owned" | "projected" | "anchored" = "owned", grow 
       ? { piBoundary: { leafId: checkpoint, compactionEntryId: basis } }
       : {}),
   });
-  manager.appendCustomEntry("openteam-compaction-usage", {
+  manager.appendCustomEntry("aiteamos-compaction-usage", {
     compactionId: archiveId,
     epoch: 1,
     inputTokens: 100,
@@ -385,7 +385,7 @@ test("staged restart adopts at the matching compaction, preserving later tool re
     "Staged summary",
     kept,
     500_000,
-    { openteamBotCompaction: true, id: staged },
+    { aiteamosBotCompaction: true, id: staged },
     true
   );
   manager.appendMessage({

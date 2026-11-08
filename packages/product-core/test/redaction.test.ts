@@ -5,9 +5,9 @@ describe("diagnostic credential redaction", () => {
   test("removes bearer, environment, JSON, CLI, URL, and provider secrets", () => {
     const input = [
       "Authorization: Bearer abc.def.ghi",
-      "OPENTEAM_AUTH_SECRET=super-secret-value",
+      "AITEAMOS_AUTH_SECRET=super-secret-value",
       '\"password\":\"hunter2\"',
-      "openteam command --token ghp_abcdefghijklmnopqrstuvwxyz123456",
+      "aiteamos command --token ghp_abcdefghijklmnopqrstuvwxyz123456",
       "https://owner:password@example.com/path",
       "sk-proj-abcdefghijklmnopqrstuvwxyz",
     ].join("\n");
@@ -27,8 +27,8 @@ describe("diagnostic credential redaction", () => {
   });
 
   test("redacts errors while preserving useful context", () => {
-    expect(safeErrorMessage(new Error("Docker failed: OPENTEAM_CONTROL_TOKEN=topsecret"))).toBe(
-      "Docker failed: OPENTEAM_CONTROL_TOKEN=[REDACTED]"
+    expect(safeErrorMessage(new Error("Docker failed: AITEAMOS_CONTROL_TOKEN=topsecret"))).toBe(
+      "Docker failed: AITEAMOS_CONTROL_TOKEN=[REDACTED]"
     );
   });
 
@@ -36,7 +36,7 @@ describe("diagnostic credential redaction", () => {
     expect(
       clientErrorMessage(
         new Error(
-          "Error invoking remote method 'openteam:updates:update-server': Error: Update failed"
+          "Error invoking remote method 'aiteamos:updates:update-server': Error: Update failed"
         ),
         "Fallback"
       )
@@ -44,7 +44,7 @@ describe("diagnostic credential redaction", () => {
     expect(
       clientErrorMessage(
         new Error(
-          "Error invoking remote method 'openteam:auth:sign-in': OpenTeamClientError: fetch failed"
+          "Error invoking remote method 'aiteamos:auth:sign-in': AiTeamOSClientError: fetch failed"
         ),
         "Fallback"
       )
@@ -59,11 +59,11 @@ describe("diagnostic credential redaction", () => {
 
   test("fully removes quoted secrets that contain spaces", () => {
     const output = redactSensitiveText(
-      `OPENTEAM_AUTH_PASSWORD="correct horse battery staple" openteam auth-reset --password 'another secret phrase'`
+      `AITEAMOS_AUTH_PASSWORD="correct horse battery staple" aiteamos auth-reset --password 'another secret phrase'`
     );
 
     expect(output).toBe(
-      "OPENTEAM_AUTH_PASSWORD=[REDACTED] openteam auth-reset --password [REDACTED]"
+      "AITEAMOS_AUTH_PASSWORD=[REDACTED] aiteamos auth-reset --password [REDACTED]"
     );
     expect(output).not.toContain("battery staple");
     expect(output).not.toContain("secret phrase");

@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { parseReadAgentActivityInput } from "@openteam/contracts/read-agent-activity";
+import { parseReadAgentActivityInput } from "@aiteamos/contracts/read-agent-activity";
 import { renderAgentActivity } from "../src/read-agent-activity";
 
 const now = new Date("2026-10-15T12:00:00Z");

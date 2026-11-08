@@ -1,5 +1,5 @@
 import { expect, setSystemTime, test } from 'bun:test';
-import { createToolValidator } from '@openteam/plugin-sdk/json-schema';
+import { createToolValidator } from '@aiteamos/plugin-sdk/json-schema';
 import { referenceTools } from '../../../_shared/reference';
 import { calendarTools } from '../server';
 import { availableSlots, instant } from '../time';

@@ -1,7 +1,7 @@
-import { ApiError } from "@openteam/contracts";
-import { parseReadTranscriptInput } from "@openteam/contracts/read-transcript";
-import { Prisma, type PrismaClient } from "@openteam/db";
-import { redactSensitiveText } from "@openteam/product-core/redaction";
+import { ApiError } from "@aiteamos/contracts";
+import { parseReadTranscriptInput } from "@aiteamos/contracts/read-transcript";
+import { Prisma, type PrismaClient } from "@aiteamos/db";
+import { redactSensitiveText } from "@aiteamos/product-core/redaction";
 
 const uuid = /^[\da-f]{8}(-[\da-f]{4}){3}-[\da-f]{12}$/i;
 const unavailable = () => new ApiError(404, "transcript_unavailable", "Transcript is not available to this agent");

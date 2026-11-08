@@ -6,7 +6,7 @@ import {
   springCss,
   springDuration,
   springEasing,
-} from "../src/renderer/components/openteam/setup/springs";
+} from "../src/renderer/components/aiteamos/setup/springs";
 
 const peak = (spring: { response: number; damping: number }) => {
   let highest = 0;
@@ -48,7 +48,7 @@ test("the easing is a CSS linear() that runs from 0 to 1", () => {
 
 test("setup.css carries the generated springs", () => {
   const css = readFileSync(
-    new URL("../src/renderer/components/openteam/setup/setup.css", import.meta.url),
+    new URL("../src/renderer/components/aiteamos/setup/setup.css", import.meta.url),
     "utf8"
   );
   const block = css.match(/\/\* springs:start[^*]*\*\/([\s\S]*?)\/\* springs:end \*\//)?.[1];

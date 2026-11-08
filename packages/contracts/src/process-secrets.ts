@@ -1,4 +1,4 @@
-import { isAllowedEnvironmentName } from "@openteam/plugin-sdk/environment";
+import { isAllowedEnvironmentName } from "@aiteamos/plugin-sdk/environment";
 
 export function validateProcessSecretName(name: unknown): string {
   if (!isAllowedEnvironmentName(name))

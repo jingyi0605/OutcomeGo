@@ -8,7 +8,7 @@ python3 <setup-skill>/scripts/plaid-link.py status --session <session-id>
 python3 <setup-skill>/scripts/plaid-link.py complete --session <session-id>
 ```
 
-`create` returns a session ID, Plaid URL and expiration. Send the URL to the user in OpenTeam; they can open it on any device. Default lifetime is one hour (`--lifetime <seconds>` changes it). No localhost server, tunnel, webhook endpoint, or Plaid SMS/email delivery is needed. Products supported: transactions, investments, liabilities, auth; request only the user's desired products. Transactions requests 180 days of history. This helper currently targets US institutions.
+`create` returns a session ID, Plaid URL and expiration. Send the URL to the user in aiTeamOS; they can open it on any device. Default lifetime is one hour (`--lifetime <seconds>` changes it). No localhost server, tunnel, webhook endpoint, or Plaid SMS/email delivery is needed. Products supported: transactions, investments, liabilities, auth; request only the user's desired products. Transactions requests 180 days of history. This helper currently targets US institutions.
 
 Keep the session ID in the conversation with its computer/environment. When the user says “done,” call `complete` for that session. If multiple unfinished sessions are ambiguous, resolve which one they used. If pending, check again after a short interval or the user's next message. An exited/expired session has not connected a bank; a new URL is needed after expiration. Completed session details are available from Plaid for six hours; finish promptly.
 

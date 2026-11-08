@@ -1,11 +1,11 @@
 import { createUtilityPluginFixture } from "./fixtures/utility-plugin";
 import { expect, test } from "bun:test";
-import { createPrismaClient } from "@openteam/db";
+import { createPrismaClient } from "@aiteamos/db";
 import { Effect } from "effect";
-import type { PluginDefinition } from "@openteam/plugin-sdk";
+import type { PluginDefinition } from "@aiteamos/plugin-sdk";
 import { PluginService } from "../../src/services/plugin-service";
 
-const databaseUrl = process.env.OPENTEAM_TEST_DATABASE_URL;
+const databaseUrl = process.env.AITEAMOS_TEST_DATABASE_URL;
 const integration = test.skipIf(!databaseUrl);
 
 integration(
@@ -48,7 +48,7 @@ integration(
         where: { installation: { pluginKey: key }, kind: "plugin.updated" },
         orderBy: { createdAt: "desc" },
       });
-      expect(activity?.summary).toContain("1.1.0 with OpenTeam");
+      expect(activity?.summary).toContain("1.1.0 with aiTeamOS");
       // An uploaded draft of the same plugin is the administrator's choice: no automatic update.
       const draft = await prisma.pluginDraft.create({
         data: { name: "Uploaded copy", definition: JSON.parse(JSON.stringify(release("1.1.0"))) },

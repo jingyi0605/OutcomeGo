@@ -1,5 +1,5 @@
-import type { CallDynamicToolInput, GetDynamicToolsInput } from "@openteam/contracts";
-import { compileToolSearchPattern } from "@openteam/shell-jobs";
+import type { CallDynamicToolInput, GetDynamicToolsInput } from "@aiteamos/contracts";
+import { compileToolSearchPattern } from "@aiteamos/shell-jobs";
 import { parseArgumentsLeniently } from "./dynamic-tool-argument-repair.js";
 
 export type DynamicNamespaceStatus = "ready" | "needsAuth" | "error" | "loading";

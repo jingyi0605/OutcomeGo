@@ -14,7 +14,7 @@ const views = [
     label: "Choose agent access",
     icon: ShieldCheck,
     src: "/screenshots/plugins-access.png",
-    alt: "OpenTeam's actual GitHub plugin settings with separate access controls for each agent",
+    alt: "aiTeamOS's actual GitHub plugin settings with separate access controls for each agent",
     description: "Connect an account, then choose which agents can use it.",
   },
   {

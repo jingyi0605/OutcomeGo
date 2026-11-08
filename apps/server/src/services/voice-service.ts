@@ -15,8 +15,8 @@ import {
   type VoiceSessionTicketView,
   type VoiceSessionView,
   type VoiceTurnView,
-} from "@openteam/contracts";
-import type { PrismaClient } from "@openteam/db";
+} from "@aiteamos/contracts";
+import type { PrismaClient } from "@aiteamos/db";
 import { Effect } from "effect";
 import type { ChannelService } from "./channel-service";
 import type { RunService } from "./run-service";
@@ -33,7 +33,7 @@ import type { StreamingStt, StreamingTts } from "./voice-provider";
 
 type Ticket = { sessionId: string; ownerSessionId: string | null; origin: string | null; expiresAt: number };
 
-const nativeOrigin = (value: string | null) => value === "null" || value === "file://" || value === "http://openteam-vnc.invalid" ? null : value;
+const nativeOrigin = (value: string | null) => value === "null" || value === "file://" || value === "http://aiteamos-vnc.invalid" ? null : value;
 const providerId = (value: string): VoiceProviderId => value === "deepgram" ? "deepgram" : "volcengine";
 
 /** Sessions that have already been greeted, so a reconnect does not greet again. */

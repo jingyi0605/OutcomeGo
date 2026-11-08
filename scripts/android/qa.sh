@@ -16,7 +16,7 @@ instrumentation Run connectedDebugAndroidTest; requires an attached emulator/dev
 all             Run check, unit, and assemble; instrumentation runs when
                 ANDROID_RUN_INSTRUMENTATION=1.
 live-parity     Run the credential-free contract harness; use
-                OPENTEAM_PARITY_MODE=live with the required environment values
+                AITEAMOS_PARITY_MODE=live with the required environment values
                 for an authenticated disposable-server run.
 release-gate    Run credential-free release checks and report external artifact,
                 signing, device, and Play evidence as pending when unavailable.

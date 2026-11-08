@@ -1,18 +1,18 @@
-import { nextMessageAddress, lockGroupExecution, supersedeGroupUserTurns } from "@openteam/messaging";
+import { nextMessageAddress, lockGroupExecution, supersedeGroupUserTurns } from "@aiteamos/messaging";
 import {
   ApiError,
   type ReactToChannelMessageInput,
   type RenameChannelInput,
   type SendMessageInput,
-} from "@openteam/contracts";
-import { COMPUTER_API_PATHS } from "@openteam/contracts/service-protocol";
-import type { PrismaClient } from "@openteam/db";
+} from "@aiteamos/contracts";
+import { COMPUTER_API_PATHS } from "@aiteamos/contracts/service-protocol";
+import type { PrismaClient } from "@aiteamos/db";
 import {
   type AgentDataStore,
   type AgentMessaging,
   type AssetStore,
   PRIORITY,
-} from "@openteam/messaging";
+} from "@aiteamos/messaging";
 import { cancelSkippedBootstrap } from "./channel/delivery";
 import { renameDirectChannel } from "./channel/direct-profile";
 import {

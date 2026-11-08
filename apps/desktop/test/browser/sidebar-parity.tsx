@@ -1,10 +1,10 @@
-import type { BotView, ChannelMessageView, ChannelView } from "@openteam/contracts";
-import { emptySidebarPreferences } from "@openteam/contracts/client-preferences";
+import type { BotView, ChannelMessageView, ChannelView } from "@aiteamos/contracts";
+import { emptySidebarPreferences } from "@aiteamos/contracts/client-preferences";
 import { createRoot } from "react-dom/client";
 import "../../src/renderer/styles.css";
-import { Inspector } from "../../src/renderer/components/openteam/inspector";
-import { api } from "../../src/renderer/client/openteam-api";
-import { Sidebar } from "../../src/renderer/components/openteam/sidebar";
+import { Inspector } from "../../src/renderer/components/aiteamos/inspector";
+import { api } from "../../src/renderer/client/aiteamos-api";
+import { Sidebar } from "../../src/renderer/components/aiteamos/sidebar";
 import { TooltipProvider } from "../../src/renderer/components/ui/tooltip";
 import { useSidebarPreferences } from "../../src/renderer/hooks/use-sidebar-preferences";
 
@@ -16,7 +16,7 @@ Object.assign(api, { routines: async () => [] });
 const params = new URLSearchParams(location.search);
 const count = Number(params.get("count") ?? 40);
 localStorage.setItem(
-  "openteam:sidebar-preferences",
+  "aiteamos:sidebar-preferences",
   JSON.stringify({
     ...emptySidebarPreferences(),
     unreadIds: params.has("read") ? [] : ["channel-2", `channel-${count - 2}`],
@@ -78,7 +78,7 @@ function Fixture() {
       <div style={{ width: 420, height: "100vh" }}>
         <Inspector channel={channels[0]!} botById={bots} active screenEnabled={false} mode="settings"
           onEnableScreen={noop} onModeChange={noop} onUpdateBot={async () => bots.get("bot-0")!}
-          onRetryBot={async () => {}} onOpenTeam={noop} onSetGroupAvatar={async () => {}}
+          onRetryBot={async () => {}} onAiTeamOS={noop} onSetGroupAvatar={async () => {}}
           onSetMembers={async () => {}} onUpdateGroupProfile={async () => channels[0]!}
           onBotAction={noop} />
       </div>

@@ -1,4 +1,4 @@
-import type { Prisma } from "@openteam/db";
+import type { Prisma } from "@aiteamos/db";
 
 export type AutomationChangedAction = "created" | "updated" | "enabled" | "disabled" | "deleted";
 
@@ -54,7 +54,7 @@ export const buildTimelineEventWakePrompt = (event: AgentTimelineEvent): string 
   ].join("\n");
 
 /**
- * OpenTeam-compatible timeline mutation delivery. The visible event is durable, but
+ * aiTeamOS-compatible timeline mutation delivery. The visible event is durable, but
  * the hidden background tap is deliberately lossy while the agent is running.
  * Group sessions never use this path.
  */

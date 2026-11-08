@@ -8,28 +8,59 @@ plugins {
 }
 
 android {
-    namespace = "com.openteam.android"
+    namespace = "com.aiteamos.android"
     compileSdk = 36
 
-    val appLinkHost = (project.findProperty("openteamAppLinkHost") as String?)
+    val appLinkHost = (project.findProperty("aiteamosAppLinkHost") as String?)
         ?.trim()
         ?.lowercase()
         ?.removeSuffix(".")
         ?.takeIf(String::isNotEmpty)
-        ?: "openteam.example.com"
+        ?: "aiteamos.example.com"
     require(Regex("^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z]{2,63}$").matches(appLinkHost)) {
-        "openteamAppLinkHost must be a public DNS host without a scheme, path, port, or credentials"
+        "aiteamosAppLinkHost must be a public DNS host without a scheme, path, port, or credentials"
+    }
+
+    // The root package.json is the single release version (see scripts/release/version.ts).
+    val releaseVersion = Regex("\"version\"\\s*:\\s*\"([^\"]+)\"")
+        .find(rootProject.file("package.json").readText())?.groupValues?.get(1)
+        ?: error("Cannot read the release version from the root package.json")
+    val versionMatch = Regex("^(\\d+)\\.(\\d+)\\.(\\d+)(?:-[A-Za-z]+\\.(\\d+))?").find(releaseVersion)
+        ?: error("Unsupported release version: $releaseVersion")
+    // Play needs a strictly increasing integer: 0.1.0-beta.1 -> 10001, 0.1.0 -> 10099.
+    val computedVersionCode = versionMatch.groupValues.let { (_, major, minor, patch, pre) ->
+        (major.toInt() * 10_000 + minor.toInt() * 100 + patch.toInt()) * 100 +
+            (if (pre.isEmpty()) 99 else pre.toInt().coerceIn(0, 98))
     }
 
     defaultConfig {
         applicationId = "com.teambots.android"
         minSdk = 26
         targetSdk = 35
-        versionCode = 2
-        versionName = "0.1.1"
+        versionCode = (project.findProperty("aiteamosVersionCode") as String?)?.toInt() ?: computedVersionCode
+        versionName = releaseVersion
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        manifestPlaceholders["openteamAppLinkHost"] = appLinkHost
+        manifestPlaceholders["aiteamosAppLinkHost"] = appLinkHost
         ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64") }
+    }
+
+    // Release signing comes only from the environment, never from the repository. Without
+    // these variables the release build is left unsigned, and CI refuses to publish it.
+    val keystorePath = System.getenv("ANDROID_KEYSTORE_PATH")?.takeIf(String::isNotBlank)
+    signingConfigs {
+        if (keystorePath != null) {
+            create("release") {
+                storeFile = file(keystorePath)
+                storePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("ANDROID_KEY_ALIAS")
+                keyPassword = System.getenv("ANDROID_KEY_PASSWORD")
+            }
+        }
+    }
+    buildTypes {
+        release {
+            if (keystorePath != null) signingConfig = signingConfigs.getByName("release")
+        }
     }
 
     buildFeatures { compose = true }

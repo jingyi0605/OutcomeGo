@@ -1,0 +1,64 @@
+name: CI
+
+# Repository-wide gate: version consistency, architecture boundaries, typecheck, tests, build.
+# Android and the CLI installer keep their own path-filtered workflows. The release workflow
+# calls this one first, so a tag cannot publish code that fails these checks.
+
+on:
+  push:
+    branches: [ai-TeamOS]
+  pull_request:
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: 1.4.2
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+          restore-keys: bun-${{ runner.os }}-
+      - name: Release versions agree
+        run: bun scripts/release/version.ts check
+      - run: bun install --frozen-lockfile --ignore-scripts
+      - name: Architecture boundaries
+        run: bun run check:architecture
+      - run: bun run typecheck
+      - run: bun run test
+      - run: bun run build
+
+  docker:
+    # Builds the server, worker and migrate images for one architecture without pushing. The
+    # larger computer image is built by the release workflow.
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [server, worker, migrate]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          file: docker/app.Dockerfile
+          target: ${{ matrix.target }}
+          platforms: linux/amd64
+          push: false
+          cache-from: type=gha,scope=app-${{ matrix.target }}-amd64
+          cache-to: type=gha,mode=max,scope=app-${{ matrix.target }}-amd64

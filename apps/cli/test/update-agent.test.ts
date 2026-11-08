@@ -22,16 +22,16 @@ afterEach(() => {
   for (const dir of directories.splice(0)) rmSync(dir, { recursive: true, force: true });
 });
 const fixture = () => {
-  const directory = mkdtempSync(join(tmpdir(), "openteam-update-agent-"));
+  const directory = mkdtempSync(join(tmpdir(), "aiteamos-update-agent-"));
   directories.push(directory);
   const paths = installationPaths(directory);
   writeFileSync(
     paths.environment,
-    "OPENTEAM_CONTROL_TOKEN=fixture-private-token\nOPENTEAM_API_PORT=9787\n"
+    "AITEAMOS_CONTROL_TOKEN=fixture-private-token\nAITEAMOS_API_PORT=9787\nAITEAMOS_UPDATE_CHANNEL=beta\n"
   );
   writeManifest(paths, {
     schemaVersion: 1,
-    repository: "raghavpillai/openteam",
+    repository: "jingyi0605/ai-TeamOS",
     version: "1.2.3",
     composeUrl: "https://example.invalid/compose.yaml",
     installedAt: "now",
@@ -72,7 +72,7 @@ test("connected server request reaches only its own host updater, survives API r
     "--json-progress",
   ]);
   expect(f.launches[0]!.env[UPDATE_AGENT_ENV]).toBeUndefined();
-  expect(f.launches[0]!.env.OPENTEAM_UPDATE_WHEN_IDLE).toBe("1");
+  expect(f.launches[0]!.env.AITEAMOS_UPDATE_WHEN_IDLE).toBe("1");
   await agent.tick();
   expect(f.launches).toHaveLength(1);
   writeUpdateState(f.paths, {
@@ -129,10 +129,18 @@ test("rejects unsafe versions again on the host and reports spawn failures", asy
   await new UpdateAgent(f.paths, f.request, f.launch).tick();
   f.updates.start({ targetVersion: "1.3.0" });
   const request = f.updates.heartbeat({}).request!;
-  for (const targetVersion of ["1.2.3", "1.0.0", "1.3.0-beta.1", "1.3.0; reboot"])
+  for (const targetVersion of ["1.2.3", "1.0.0", "1.3.0; reboot"])
     expect(() => updateAgentArguments(f.paths, { ...request, targetVersion })).toThrow(
       "invalid update version"
     );
+  expect(() => updateAgentArguments(f.paths, { ...request, targetVersion: "1.3.0-beta.1" })).not.toThrow();
+  writeFileSync(
+    f.paths.environment,
+    "AITEAMOS_CONTROL_TOKEN=fixture-private-token\nAITEAMOS_API_PORT=9787\nAITEAMOS_UPDATE_CHANNEL=stable\n"
+  );
+  expect(() => updateAgentArguments(f.paths, { ...request, targetVersion: "1.3.0-beta.2" })).toThrow(
+    "invalid update version"
+  );
   const agent = new UpdateAgent(f.paths, f.request, (() => {
     throw new Error("Cannot launch updater");
   }) as typeof spawn);
@@ -160,7 +168,7 @@ test("CLI daemon entrypoint authenticates to its installation without a desktop 
   });
   writeFileSync(
     f.paths.environment,
-    `OPENTEAM_CONTROL_TOKEN=fixture-private-token\nOPENTEAM_API_PORT=${server.port}\n`
+    `AITEAMOS_CONTROL_TOKEN=fixture-private-token\nAITEAMOS_API_PORT=${server.port}\n`
   );
   const child = Bun.spawn(
     [
@@ -189,14 +197,14 @@ test("CLI daemon entrypoint authenticates to its installation without a desktop 
 });
 
 test("a staged CLI starts its daemon from the promoted installation, and private daemons invoke that CLI", () => {
-  const target = "/tmp/openteam";
-  const source = `/tmp/.openteam.update-${CLI_VERSION}-fixture`;
+  const target = "/tmp/aiteamos";
+  const source = `/tmp/.aiteamos.update-${CLI_VERSION}-fixture`;
   expect(
     updateAgentExecutable(
       {
-        OPENTEAM_CLI_UPDATE_SOURCE: source,
-        OPENTEAM_CLI_UPDATE_TARGET: target,
-        OPENTEAM_CLI_UPDATE_VERSION: CLI_VERSION,
+        AITEAMOS_CLI_UPDATE_SOURCE: source,
+        AITEAMOS_CLI_UPDATE_TARGET: target,
+        AITEAMOS_CLI_UPDATE_VERSION: CLI_VERSION,
       },
       source
     )
@@ -207,7 +215,7 @@ test("a staged CLI starts its daemon from the promoted installation, and private
 });
 
 test("a Homebrew runtime starts the agent by a path that survives brew upgrade", () => {
-  const prefix = realpathSync(mkdtempSync(join(tmpdir(), "openteam-brew-")));
+  const prefix = realpathSync(mkdtempSync(join(tmpdir(), "aiteamos-brew-")));
   directories.push(prefix);
   const versioned = join(prefix, "Cellar", "node@24", "24.13.1", "bin", "node");
   mkdirSync(join(versioned, ".."), { recursive: true });

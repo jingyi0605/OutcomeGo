@@ -21,7 +21,7 @@ const validUsername = (value: unknown): { username: string; name: string } => {
 const currentUsername = (
   owner: { username: string | null; name: string } | null
 ): { username: string; name: string } => {
-  if (!owner?.username) throw new Error("OpenTeam owner credentials have not been set up yet");
+  if (!owner?.username) throw new Error("aiTeamOS owner credentials have not been set up yet");
   return { username: owner.username, name: owner.name };
 };
 
@@ -37,7 +37,7 @@ export const setOwnerCredentials = async (
 ): Promise<{ username: string }> => {
   const existing = await authPrisma.user.findFirst({ orderBy: { createdAt: "asc" } });
   if ((input.operation === "reset" || input.operation === "update") && !existing) {
-    throw new Error("OpenTeam owner credentials have not been set up yet");
+    throw new Error("aiTeamOS owner credentials have not been set up yet");
   }
   if (
     input.operation === "update" &&

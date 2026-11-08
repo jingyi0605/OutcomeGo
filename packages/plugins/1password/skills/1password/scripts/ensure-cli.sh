@@ -26,14 +26,14 @@ writable_parent() {
   done
   [[ -w "$candidate" && -x "$candidate" ]]
 }
-install_dir="${OPENTEAM_OP_CLI_DIR:-$HOME/.local/share/openteam/1password-cli/$version}"
-if [[ -z "${OPENTEAM_OP_CLI_DIR:-}" ]] && ! writable_parent "$install_dir"; then
+install_dir="${AITEAMOS_OP_CLI_DIR:-$HOME/.local/share/aiteamos/1password-cli/$version}"
+if [[ -z "${AITEAMOS_OP_CLI_DIR:-}" ]] && ! writable_parent "$install_dir"; then
   if [[ -d /workspace && -w /workspace ]]; then
-    install_dir="/workspace/.local/share/openteam/1password-cli/$version"
+    install_dir="/workspace/.local/share/aiteamos/1password-cli/$version"
   fi
 fi
 if [[ "$install_dir" != /* ]]; then
-  echo "OPENTEAM_OP_CLI_DIR must be an absolute path." >&2
+  echo "AITEAMOS_OP_CLI_DIR must be an absolute path." >&2
   exit 2
 fi
 executable="$install_dir/op"

@@ -4,13 +4,13 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { WakeWorker } from "../src/worker";
 
-const databaseUrl = process.env.OPENTEAM_TEST_DATABASE_URL;
+const databaseUrl = process.env.AITEAMOS_TEST_DATABASE_URL;
 for (const status of ["completed", "failed", "cancelled", "interrupted", "running"] as const) {
   test.skipIf(!databaseUrl)(`a ${status} run's unexpired lease ${["running"].includes(status) ? "protects active work" : "does not block the next message after a crash"}`, async () => {
     const root = await mkdtemp(join(tmpdir(), "terminal-lease-"));
-    const keys = ["DATABASE_URL", "OPENTEAM_WORKSPACE_ROOT", "OPENTEAM_AGENT_DATA_ROOT"] as const;
+    const keys = ["DATABASE_URL", "AITEAMOS_WORKSPACE_ROOT", "AITEAMOS_AGENT_DATA_ROOT"] as const;
     const previous = Object.fromEntries(keys.map(key => [key, process.env[key]]));
-    Object.assign(process.env, { DATABASE_URL: databaseUrl, OPENTEAM_WORKSPACE_ROOT: root, OPENTEAM_AGENT_DATA_ROOT: join(root, "data") });
+    Object.assign(process.env, { DATABASE_URL: databaseUrl, AITEAMOS_WORKSPACE_ROOT: root, AITEAMOS_AGENT_DATA_ROOT: join(root, "data") });
     const worker = new WakeWorker();
     const db = worker.prisma;
     const botId = crypto.randomUUID();

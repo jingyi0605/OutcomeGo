@@ -1,9 +1,9 @@
-import { REPORT_TASK_PROGRESS_TOOL, TaskProgressInput, REPORT_REQUEST_PROGRESS_TOOL, RequestProgressInput } from "@openteam/contracts/task-progress";
-import { READ_TRANSCRIPT_TOOL, parseReadTranscriptInput } from "@openteam/contracts/read-transcript";
-import { READ_AGENT_ACTIVITY_TOOL, parseReadAgentActivityInput } from "@openteam/contracts/read-agent-activity";
-import { normalizeMainToolArguments } from "@openteam/contracts/reference-main-parsers";
-import { withCanonicalSubagentType } from "@openteam/contracts/subagent-dispatch";
-import { withReferenceContract, taskToolContract, firstPartyNamespaceDescription } from "@openteam/contracts/tool-contracts";
+import { REPORT_TASK_PROGRESS_TOOL, TaskProgressInput, REPORT_REQUEST_PROGRESS_TOOL, RequestProgressInput } from "@aiteamos/contracts/task-progress";
+import { READ_TRANSCRIPT_TOOL, parseReadTranscriptInput } from "@aiteamos/contracts/read-transcript";
+import { READ_AGENT_ACTIVITY_TOOL, parseReadAgentActivityInput } from "@aiteamos/contracts/read-agent-activity";
+import { normalizeMainToolArguments } from "@aiteamos/contracts/reference-main-parsers";
+import { withCanonicalSubagentType } from "@aiteamos/contracts/subagent-dispatch";
+import { withReferenceContract, taskToolContract, firstPartyNamespaceDescription } from "@aiteamos/contracts/tool-contracts";
 import pluginToolSchemas from "../plugin-tool-schemas.json";
 import type { AgentToolResult } from "@earendil-works/pi-coding-agent";
 import {
@@ -42,9 +42,9 @@ import {
   UpdateChannelInput,
   UpdateProfileToolInput,
   UpdateSkillToolInput,
-} from "@openteam/contracts";
+} from "@aiteamos/contracts";
 import { Schema } from "effect";
-import { parseHostAwaitShellRequest } from "@openteam/contracts/service-protocol";
+import { parseHostAwaitShellRequest } from "@aiteamos/contracts/service-protocol";
 import type { DynamicNamespaceDefinition } from "../dynamic-tool-gateway";
 import { objectToolSchema } from "../tool-schema";
 import { connectorArguments } from "../mcp-argument-normalization";
@@ -102,7 +102,7 @@ export const PLUGIN_MANAGEMENT_TOOLS = [
   {
     name: "AuthenticateMcpServer",
     description:
-      "Request authentication for an installed MCP connection. Follow the returned setupUrl and instructions when requiresUserAction is true: the user must start sign-in in OpenTeam. Server-callback sign-in can start directly. Never request callback URLs or codes in chat.",
+      "Request authentication for an installed MCP connection. Follow the returned setupUrl and instructions when requiresUserAction is true: the user must start sign-in in aiTeamOS. Server-callback sign-in can start directly. Never request callback URLs or codes in chat.",
     inputSchema: objectToolSchema(
       {
         connectionId: { type: "string" },
@@ -223,7 +223,7 @@ export function dynamicCatalog(
           {
             name: "SearchPlugins",
             description:
-              "Search the OpenTeam plugin catalog. Omit query to browse. InstallPlugin requests installation through a review card.",
+              "Search the aiTeamOS plugin catalog. Omit query to browse. InstallPlugin requests installation through a review card.",
             inputSchema: pluginToolSchemas.SearchPlugins,
             source: "first-party" as const,
             decodeArguments: (args: unknown) => {

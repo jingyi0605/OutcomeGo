@@ -14,7 +14,7 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "openteam-mobile"
+rootProject.name = "aiteamos-mobile"
 include(":mobile:shared")
 include(":mobile:androidApp")
 project(":mobile:androidApp").projectDir = file("apps/android/app")

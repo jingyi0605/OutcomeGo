@@ -5,7 +5,7 @@ import {
   durableSendScope,
   durableSendScopeHash,
   nextDurableSendJournalGeneration,
-} from "@openteam/product-core/durable-delivery";
+} from "@aiteamos/product-core/durable-delivery";
 
 interface StoredJournal {
   generation: number;

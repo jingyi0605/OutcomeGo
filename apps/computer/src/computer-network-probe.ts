@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process";
 import { createConnection } from "node:net";
 import type { Duplex } from "node:stream";
-import type { NetworkRoute } from "@openteam/plugin-sdk/browser-network/protocol";
+import type { NetworkRoute } from "@aiteamos/plugin-sdk/browser-network/protocol";
 import { createEgressProbe } from "./browser-network-egress";
 import { createQualityProbe } from "./browser-network-quality";
 

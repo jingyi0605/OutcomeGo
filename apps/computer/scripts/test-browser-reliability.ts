@@ -9,8 +9,8 @@ import { outOfProcessPlaywright } from "../src/browser/playwright-driver";
 import { performComputerUseAction } from "../src/screen/actions";
 import { run } from "../src/screen/processes";
 
-const executablePath = process.env.OPENTEAM_BROWSER_TEST_EXECUTABLE;
-if (!executablePath) throw new Error("Set OPENTEAM_BROWSER_TEST_EXECUTABLE");
+const executablePath = process.env.AITEAMOS_BROWSER_TEST_EXECUTABLE;
+if (!executablePath) throw new Error("Set AITEAMOS_BROWSER_TEST_EXECUTABLE");
 const root = await mkdtemp(join(tmpdir(), "browser-reliability-"));
 const server = Bun.serve({ port: 0, hostname: "127.0.0.1", fetch: () => new Response(`<!doctype html>
   <title>Reliability fixture</title><button onclick="window.result=confirm('Approve synthetic action?')">Confirm</button>

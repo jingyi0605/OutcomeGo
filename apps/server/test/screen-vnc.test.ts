@@ -1,7 +1,7 @@
 import { afterEach, expect, test } from "bun:test";
 import { ScreenVncProxy, type VncConnection } from "../src/screen-vnc";
 import { ScreenService } from "../src/services/screen-service";
-import type { PrismaClient } from "@openteam/db";
+import type { PrismaClient } from "@aiteamos/db";
 
 const cleanups: (() => void)[] = [];
 afterEach(() => { for (const cleanup of cleanups.splice(0)) cleanup(); });
@@ -67,7 +67,7 @@ test("VNC grants relay binary bytes bidirectionally and close the upstream", asy
 
 test("missing, expired, wrong-bot, wrong-origin and revoked grants cannot connect", async () => {
   const f = fixture();
-  await denied(await connect(f, ["openteam-vnc"]));
+  await denied(await connect(f, ["aiteamos-vnc"]));
   let grant = await f.proxy.issue("bot-a", "session-a", null);
   await denied(await connect(f, grant.protocols, "bot-b"));
   grant = await f.proxy.issue("bot-a", "session-a", "https://desktop.test");
@@ -110,7 +110,7 @@ test("packaged Electron fetch and WebSocket share an opaque origin", async () =>
 test("Android's synthetic viewer origin shares the native opaque origin", async () => {
   const f = fixture();
   const grant = await f.proxy.issue("bot-a", "session-a", null);
-  const socket = await connect(f, grant.protocols, "bot-a", "http://openteam-vnc.invalid");
+  const socket = await connect(f, grant.protocols, "bot-a", "http://aiteamos-vnc.invalid");
   await event(socket, "message");
   expect(socket.readyState).toBe(WebSocket.OPEN);
 });

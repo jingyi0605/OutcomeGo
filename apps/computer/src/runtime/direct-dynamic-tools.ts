@@ -20,7 +20,7 @@ export function directDynamicToolsExtension(names: DirectToolNames): {
   factory: ExtensionFactory;
 } {
   return {
-    name: "openteam-direct-dynamic-tools",
+    name: "aiteamos-direct-dynamic-tools",
     hidden: true,
     factory(pi) {
       pi.on("message_end", async (event) => {

@@ -2,28 +2,28 @@ import { expect, test } from "bun:test";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { createPrismaClient } from "@openteam/db";
-import { AgentDataStore } from "@openteam/messaging";
-import { parsePluginRuntimeComponents, skillIsForAgent } from "@openteam/plugin-sdk";
-import { importPackageArchive } from "@openteam/plugin-sdk/archive";
-import { originalSkillMarkdown, parseSkillMarkdown } from "@openteam/plugin-sdk/skill-markdown";
+import { createPrismaClient } from "@aiteamos/db";
+import { AgentDataStore } from "@aiteamos/messaging";
+import { parsePluginRuntimeComponents, skillIsForAgent } from "@aiteamos/plugin-sdk";
+import { importPackageArchive } from "@aiteamos/plugin-sdk/archive";
+import { originalSkillMarkdown, parseSkillMarkdown } from "@aiteamos/plugin-sdk/skill-markdown";
 import { Effect } from "effect";
-import { pluginCatalog } from "@openteam/plugins";
+import { pluginCatalog } from "@aiteamos/plugins";
 import { PluginService } from "../../src/services/plugin-service";
 import { pluginRuntimeContext } from "../../../worker/src/plugins";
 
-const databaseUrl = process.env.OPENTEAM_TEST_DATABASE_URL;
+const databaseUrl = process.env.AITEAMOS_TEST_DATABASE_URL;
 for (const catalog of pluginCatalog) {
   test.skipIf(
     !databaseUrl ||
       (catalog.upstream?.delivery === "install" &&
-        process.env.OPENTEAM_TEST_UPSTREAM_SOURCES !== "1")
+        process.env.AITEAMOS_TEST_UPSTREAM_SOURCES !== "1")
   )(
     `${catalog.key}: actual catalog package installs, exports, loads workflows, isolates accounts, and uninstalls`,
     async () => {
-      const root = await mkdtemp(join(tmpdir(), `openteam-catalog-${catalog.key}-`));
-      const previousRoot = process.env.OPENTEAM_AGENT_DATA_ROOT;
-      process.env.OPENTEAM_AGENT_DATA_ROOT = root;
+      const root = await mkdtemp(join(tmpdir(), `aiteamos-catalog-${catalog.key}-`));
+      const previousRoot = process.env.AITEAMOS_AGENT_DATA_ROOT;
+      process.env.AITEAMOS_AGENT_DATA_ROOT = root;
       const prisma = createPrismaClient(databaseUrl!);
       const store = new AgentDataStore(prisma, { root, workspaceRoot: join(root, "workspace") });
       const service = new PluginService(prisma, undefined, store);
@@ -140,8 +140,8 @@ for (const catalog of pluginCatalog) {
         await prisma.pluginInstallation.deleteMany({ where: { pluginKey: catalog.key } });
         await prisma.bot.deleteMany({ where: { id: botId } });
         await prisma.$disconnect();
-        if (previousRoot === undefined) delete process.env.OPENTEAM_AGENT_DATA_ROOT;
-        else process.env.OPENTEAM_AGENT_DATA_ROOT = previousRoot;
+        if (previousRoot === undefined) delete process.env.AITEAMOS_AGENT_DATA_ROOT;
+        else process.env.AITEAMOS_AGENT_DATA_ROOT = previousRoot;
         await rm(root, { recursive: true, force: true });
       }
     },

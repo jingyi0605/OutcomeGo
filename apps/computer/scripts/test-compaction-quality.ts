@@ -10,12 +10,12 @@ import type { ActiveTurn } from "../src/runtime/types";
 
 // Opt-in live quality probe. Credentials stay in memory; only synthetic summaries
 // and scored recall are written. No tools are available or executed.
-const authPath = process.env.OPENTEAM_COMPACTION_QA_AUTH_PATH;
-if (!authPath) throw new Error("Set OPENTEAM_COMPACTION_QA_AUTH_PATH to an existing Pi auth file");
-const output = resolve(process.env.OPENTEAM_COMPACTION_QA_OUTPUT ?? "output/compaction-quality");
+const authPath = process.env.AITEAMOS_COMPACTION_QA_AUTH_PATH;
+if (!authPath) throw new Error("Set AITEAMOS_COMPACTION_QA_AUTH_PATH to an existing Pi auth file");
+const output = resolve(process.env.AITEAMOS_COMPACTION_QA_OUTPUT ?? "output/compaction-quality");
 await mkdir(output, { recursive: true });
-const provider = process.env.OPENTEAM_COMPACTION_QA_PROVIDER ?? "openai-codex";
-const modelId = process.env.OPENTEAM_COMPACTION_QA_MODEL ?? "gpt-5.6-sol";
+const provider = process.env.AITEAMOS_COMPACTION_QA_PROVIDER ?? "openai-codex";
+const modelId = process.env.AITEAMOS_COMPACTION_QA_MODEL ?? "gpt-5.6-sol";
 const credential = JSON.parse(await readFile(authPath, "utf8"))[provider] as OAuthCredential;
 if (!credential) throw new Error("Selected provider has no stored credential");
 const credentials = new InMemoryCredentialStore();

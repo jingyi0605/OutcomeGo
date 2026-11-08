@@ -114,8 +114,8 @@ test("held exchanges are bounded and malformed entries are dropped", () => {
   expect(parseHeldMemoryExchanges({})).toEqual([]);
 });
 
-test("the extraction prompt opens with OpenTeam's own marker", async () => {
+test("the extraction prompt opens with aiTeamOS's own marker", async () => {
   const { MEMORY_EXTRACTION_SYSTEM_PROMPT } = await import("../src/memory-prompts");
-  expect(MEMORY_EXTRACTION_SYSTEM_PROMPT).toStartWith("<<OPENTEAM_MEMORY_EXTRACTION>>\nYou maintain the long-term memory");
+  expect(MEMORY_EXTRACTION_SYSTEM_PROMPT).toStartWith("<<AITEAMOS_MEMORY_EXTRACTION>>\nYou maintain the long-term memory");
   expect(MEMORY_EXTRACTION_SYSTEM_PROMPT).not.toContain("SAND_MEMORY_EXTRACTION");
 });

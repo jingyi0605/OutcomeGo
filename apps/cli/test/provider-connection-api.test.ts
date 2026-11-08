@@ -22,7 +22,7 @@ const runner: CommandRunner = {
   run: () => ({ status: 0, stdout: "Docker Compose version v2.30.0", stderr: "" }),
 };
 const fixture = (run: AsyncProcess) => {
-  const directory = mkdtempSync(join(tmpdir(), "openteam-connect-"));
+  const directory = mkdtempSync(join(tmpdir(), "aiteamos-connect-"));
   directories.push(directory);
   const paths = installationPaths(directory);
   writeFileAtomic(paths.compose, "services:\n  computer:\n    image: example/computer\n");
@@ -187,8 +187,8 @@ describe("provider connection transport", () => {
           args: ["-e", AUTH_REQUEST_SCRIPT],
           env: {
             ...process.env,
-            OPENTEAM_COMPUTER_PORT: String(server.port),
-            OPENTEAM_CONTROL_TOKEN: "synthetic-control-token",
+            AITEAMOS_COMPUTER_PORT: String(server.port),
+            AITEAMOS_CONTROL_TOKEN: "synthetic-control-token",
           },
         },
         JSON.stringify({

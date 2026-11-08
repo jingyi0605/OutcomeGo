@@ -1,4 +1,4 @@
-import { ApiError } from "@openteam/contracts";
+import { ApiError } from "@aiteamos/contracts";
 import { json } from "../http";
 import { systemActivity } from "../system-activity";
 import { type RouteContext, run } from "./context";

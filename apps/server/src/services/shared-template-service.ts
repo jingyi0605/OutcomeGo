@@ -1,9 +1,9 @@
-import { pluginCatalog } from "@openteam/plugins";
-import { parseOpenTeamMarketplace } from "../plugins/openteam-marketplace";
+import { pluginCatalog } from "@aiteamos/plugins";
+import { parseAiTeamOSMarketplace } from "../plugins/aiteamos-marketplace";
 import { createHash } from "node:crypto";
-import { ApiError, parseBotRecipe, type BotRecipe } from "@openteam/contracts";
-import type { PrismaClient } from "@openteam/db";
-import { type AgentMessaging, type ToolContext, PRIORITY } from "@openteam/messaging";
+import { ApiError, parseBotRecipe, type BotRecipe } from "@aiteamos/contracts";
+import type { PrismaClient } from "@aiteamos/db";
+import { type AgentMessaging, type ToolContext, PRIORITY } from "@aiteamos/messaging";
 import { Effect } from "effect";
 import type { BotService } from "./bot-service";
 import { appendEvent, metadataRecord, serviceEffect, toJson } from "./service-utils";
@@ -18,7 +18,7 @@ export class SharedTemplateService {
     private readonly bots?: BotService
   ) {}
   async publish(context: ToolContext, raw: unknown) {
-    if (process.env.OPENTEAM_TEMPLATE_SHARING === "false")
+    if (process.env.AITEAMOS_TEMPLATE_SHARING === "false")
       return unavailable("Template sharing is disabled on this deployment");
     const channel =
       context.channelId &&
@@ -26,7 +26,7 @@ export class SharedTemplateService {
     if (!channel || channel.kind !== "bot_dm")
       return unavailable("Publish a template from the bot’s direct chat");
     const recipe = parseBotRecipe(raw);
-    if (recipe.visibility === "public" && process.env.OPENTEAM_PUBLIC_TEMPLATES !== "true")
+    if (recipe.visibility === "public" && process.env.AITEAMOS_PUBLIC_TEMPLATES !== "true")
       return unavailable("Public templates are disabled. Choose team visibility");
     const installations = await this.prisma.pluginInstallation.findMany({
       where: {
@@ -37,7 +37,7 @@ export class SharedTemplateService {
     const marketplaceKeys = new Set(pluginCatalog.map((plugin) => plugin.key));
     for (const source of await this.prisma.pluginSource.findMany({ select: { manifest: true } })) {
       try {
-        for (const plugin of parseOpenTeamMarketplace(source.manifest).plugins)
+        for (const plugin of parseAiTeamOSMarketplace(source.manifest).plugins)
           marketplaceKeys.add(plugin.key);
       } catch {
         /* Ignore invalid source snapshots. */
@@ -105,7 +105,7 @@ export class SharedTemplateService {
     return { ...metadataRecord(result.acknowledgement), message_id: messageId, staged: true, name: recipe.profile.name, version, digest };
   }
   /** The owner's Publish: this version replaces the published one. */
-  private async publishDraft(tx: import("@openteam/db").Prisma.TransactionClient, message: { id: string; channelId: string; senderBotId: string | null; metadata: unknown }) {
+  private async publishDraft(tx: import("@aiteamos/db").Prisma.TransactionClient, message: { id: string; channelId: string; senderBotId: string | null; metadata: unknown }) {
     const metadata = metadataRecord(message.metadata);
     const template = metadataRecord(metadata.template);
     const recipe = metadataRecord(template.recipe);
@@ -122,7 +122,7 @@ export class SharedTemplateService {
     }
     const updated = await tx.channelMessage.update({ where: { id: message.id }, data: { metadata: toJson({
       ...metadata, cardState: "published",
-      ...(recipe.visibility === "public" && process.env.OPENTEAM_PUBLIC_URL ? { shareUrl: `${process.env.OPENTEAM_PUBLIC_URL.replace(/\/$/, "")}/api/v0/templates/${message.id}` } : {}),
+      ...(recipe.visibility === "public" && process.env.AITEAMOS_PUBLIC_URL ? { shareUrl: `${process.env.AITEAMOS_PUBLIC_URL.replace(/\/$/, "")}/api/v0/templates/${message.id}` } : {}),
       outcomeId: crypto.randomUUID(), outcomeText: `The user published template version ${String(template.version)} with ${String(recipe.visibility)} visibility.`, outcomeEchoed: false,
     }) } });
     await appendEvent(tx, "channel.message.updated", message.id, { channelId: message.channelId, messageId: message.id });
@@ -143,7 +143,7 @@ export class SharedTemplateService {
       }
       if (input.action === "publish") {
         if (metadata.cardState !== "draft") return message;
-        if (process.env.OPENTEAM_TEMPLATE_SHARING === "false") return unavailable("Template sharing is disabled on this deployment");
+        if (process.env.AITEAMOS_TEMPLATE_SHARING === "false") return unavailable("Template sharing is disabled on this deployment");
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`template-publish:${message.senderBotId}`}))`;
         return this.publishDraft(tx, message);
       }
@@ -174,8 +174,8 @@ export class SharedTemplateService {
     if (
       metadata.type !== "bot-template" ||
       (publicOnly &&
-        (process.env.OPENTEAM_PUBLIC_TEMPLATES !== "true" ||
-          process.env.OPENTEAM_TEMPLATE_SHARING === "false")) ||
+        (process.env.AITEAMOS_PUBLIC_TEMPLATES !== "true" ||
+          process.env.AITEAMOS_TEMPLATE_SHARING === "false")) ||
       (publicOnly &&
         (metadata.cardState !== "published" ||
           metadataRecord(template.recipe).visibility !== "public"))
@@ -184,7 +184,7 @@ export class SharedTemplateService {
     return parseBotRecipe(template.recipe);
   }
   private async wake(
-    tx: import("@openteam/db").Prisma.TransactionClient,
+    tx: import("@aiteamos/db").Prisma.TransactionClient,
     botId: string,
     channelId: string,
     messageId: string

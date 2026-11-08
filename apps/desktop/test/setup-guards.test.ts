@@ -4,7 +4,7 @@ import {
   nextOptionIndex,
   SETTLE_MS,
   setupKeyAction,
-} from "../src/renderer/components/openteam/setup/setup-guards";
+} from "../src/renderer/components/aiteamos/setup/setup-guards";
 import { serverAddressProblem } from "../src/renderer/lib/server-address";
 
 // A stand-in for a DOM element: `matches` lists the selectors its closest() would find.
@@ -65,8 +65,8 @@ describe("server addresses", () => {
     for (const address of [
       "192.168.1.20:8787",
       "localhost:8787",
-      "openteam.example.com",
-      "https://openteam.example.com",
+      "aiteamos.example.com",
+      "https://aiteamos.example.com",
       "http://100.64.0.1:8787/",
       "[::1]:8787",
     ]) {

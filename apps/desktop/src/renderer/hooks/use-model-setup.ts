@@ -3,9 +3,9 @@ import type {
   InferenceTestResult,
   PiReasoningLevel,
   ServerSettingsView,
-} from "@openteam/contracts/inference";
+} from "@aiteamos/contracts/inference";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { api } from "../client/openteam-api";
+import { api } from "../client/aiteamos-api";
 import { providerName } from "../lib/provider-names";
 import {
   keyRejected,
@@ -153,10 +153,10 @@ export function useModelSetup() {
       prompt.options.some((option) => option.id === "device_code")
     ) {
       answeredPrompts.current.add(prompt.id);
-      void respond(prompt.id, window.openteam?.providerSignIn ? "browser" : "device_code");
+      void respond(prompt.id, window.aiteamos?.providerSignIn ? "browser" : "device_code");
     }
     const redirect = prompt?.type === "manual_code" ? localRedirect(prompt.placeholder) : null;
-    const bridge = window.openteam?.providerSignIn;
+    const bridge = window.aiteamos?.providerSignIn;
     if (
       prompt &&
       redirect &&
@@ -215,7 +215,7 @@ export function useModelSetup() {
   const finishedSession = authSession && terminal(authSession) ? authSession : null;
   useEffect(() => {
     if (!finishedSession) return;
-    void window.openteam?.providerSignIn?.cancel();
+    void window.aiteamos?.providerSignIn?.cancel();
     setCapture("idle");
     if (finishedSession.status === "connected") {
       load(finishedSession.providerId).catch((cause) =>
@@ -242,7 +242,7 @@ export function useModelSetup() {
   );
 
   const resetSignIn = () => {
-    void window.openteam?.providerSignIn?.cancel();
+    void window.aiteamos?.providerSignIn?.cancel();
     setCapture("idle");
     setCaptureMessage(null);
   };

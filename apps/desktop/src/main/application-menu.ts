@@ -9,7 +9,7 @@ export function applicationMenuTemplate(
   onClipboard?: (action: ClipboardMenuAction, window: BaseWindow | undefined) => boolean
 ): MenuItemConstructorOptions[] {
   const appItems: MenuItemConstructorOptions[] = [
-    { label: "About OpenTeam", click: () => onAction("about") },
+    { label: "About aiTeamOS", click: () => onAction("about") },
     { label: "Check for Updates…", click: () => onAction("updates") },
     { type: "separator" },
     {
@@ -22,17 +22,17 @@ export function applicationMenuTemplate(
   return [
     platform === "darwin"
       ? {
-          label: "OpenTeam",
+          label: "aiTeamOS",
           submenu: [
             ...appItems,
             { type: "separator" },
             { role: "services" },
             { type: "separator" },
-            { role: "hide", label: "Hide OpenTeam" },
+            { role: "hide", label: "Hide aiTeamOS" },
             { role: "hideOthers" },
             { role: "unhide" },
             { type: "separator" },
-            { role: "quit", label: "Quit OpenTeam" },
+            { role: "quit", label: "Quit aiTeamOS" },
           ],
         }
       : {

@@ -2,18 +2,18 @@ import { test, expect } from 'bun:test';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { createPrismaClient } from '@openteam/db';
-import { AgentDataStore, AgentMessaging } from '@openteam/messaging';
+import { createPrismaClient } from '@aiteamos/db';
+import { AgentDataStore, AgentMessaging } from '@aiteamos/messaging';
 import { Effect } from 'effect';
 import { SharedTemplateService } from '../src/services/shared-template-service';
-const url = process.env.OPENTEAM_TEST_DATABASE_URL;
+const url = process.env.AITEAMOS_TEST_DATABASE_URL;
 test('templates stage as drafts the owner publishes', async () => {
  if (!url) return;
  const prisma = createPrismaClient(url); const root = await mkdtemp(join(tmpdir(), 'review-e2e-')); const botId = crypto.randomUUID(), conversationId = crypto.randomUUID(), channelId = crypto.randomUUID(), runId = crypto.randomUUID();
  const data = new AgentDataStore(prisma, { root: join(root, 'data'), workspaceRoot: root });
  const messaging = new AgentMessaging(prisma, { send: async () => crypto.randomUUID(), sendDebounced: async () => crypto.randomUUID() } as never, data);
  const imported: unknown[] = []; const service = new SharedTemplateService(prisma, messaging, { create: (input: unknown, recipe: unknown) => { imported.push({ input, recipe }); return Effect.succeed({ id: 'imported-bot' }); } } as never);
- const keys = ['OPENTEAM_PUBLIC_TEMPLATES', 'OPENTEAM_TEMPLATE_SHARING'] as const; const saved = Object.fromEntries(keys.map((key) => [key, process.env[key]]));
+ const keys = ['AITEAMOS_PUBLIC_TEMPLATES', 'AITEAMOS_TEMPLATE_SHARING'] as const; const saved = Object.fromEntries(keys.map((key) => [key, process.env[key]]));
  try {
   await prisma.bot.create({ data: { id: botId, name: 'Review fixture', defaultDirectory: root, status: 'active', onboardingStatus: 'completed', conversation: { create: { id: conversationId } } } });
   await prisma.channel.create({ data: { id: channelId, kind: 'bot_dm', directKey: `bot:${botId}`, name: 'Review fixture', members: { create: { botId, ordinal: 0 } } } });
@@ -21,7 +21,7 @@ test('templates stage as drafts the owner publishes', async () => {
   await prisma.run.create({ data: { id: runId, botId, conversationId, channelId, userMessageId: user.id, status: 'running', origin: 'user' } });
   await data.initializeBot(botId); await data.writeRootSettings({});
   const context = { runId, botId, conversationId, channelId, deliveryId: null, origin: 'user' as const, callId: 'template-a', isFork: false, replyToMessageId: null };
-  process.env.OPENTEAM_PUBLIC_TEMPLATES = 'true'; process.env.OPENTEAM_TEMPLATE_SHARING = 'true';
+  process.env.AITEAMOS_PUBLIC_TEMPLATES = 'true'; process.env.AITEAMOS_TEMPLATE_SHARING = 'true';
   const recipe = { profile: { name: 'Researcher', description: 'Research from sources' }, memory: [{ content: '[note] exclude' }, { content: 'Cite sources' }], skills: [{ name: 'Research', content: 'Read primary sources' }, { name: 'Bad', content: '---\nname: Bad\n---\nWrong' }], routines: [], plugins: [{ pluginId: 'uninstalled-plugin' }], gettingStarted: { skill: 'Research' }, visibility: 'public' };
   const card = await service.publish(context, recipe) as { message_id: string; version: number; staged: boolean; name: string };
   expect(card).toMatchObject({ staged: true, name: 'Researcher', version: 1 });

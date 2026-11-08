@@ -1,15 +1,15 @@
 import { StrictMode, useEffect } from "react";
 import { createRoot } from "react-dom/client";
-import { useOpenTeam } from "../../src/renderer/state/use-openteam";
-import { api } from "../../src/renderer/client/openteam-api";
+import { useAiTeamOS } from "../../src/renderer/state/use-aiteamos";
+import { api } from "../../src/renderer/client/aiteamos-api";
 import { ClientError } from "../../src/renderer/client/http";
 import {
   Conversation,
   ConversationContent,
 } from "../../src/renderer/components/ai-elements/conversation";
-import { ChatPane } from "../../src/renderer/components/openteam/chat-pane";
+import { ChatPane } from "../../src/renderer/components/aiteamos/chat-pane";
 import { TooltipProvider } from "../../src/renderer/components/ui/tooltip";
-import { CLIENT_CAPABILITIES } from "@openteam/contracts/capabilities";
+import { CLIENT_CAPABILITIES } from "@aiteamos/contracts/capabilities";
 import { mobileFixture } from "../../../ios/scripts/fixtures/snapshot";
 import "../../src/renderer/styles.css";
 const root = createRoot(document.getElementById("root")!);
@@ -28,9 +28,9 @@ const bootstrap = {
   capabilities: CLIENT_CAPABILITIES,
 };
 const id = snapshot.channels[0]!.id;
-let state: ReturnType<typeof useOpenTeam>;
+let state: ReturnType<typeof useAiTeamOS>;
 function Fixture() {
-  state = useOpenTeam();
+  state = useAiTeamOS();
   useEffect(() => {
     if (state.snapshot) void state.loadChannel(id);
   }, [state.snapshot !== null]);

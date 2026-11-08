@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
 test("Node egress checks use routed TLS, fence stale results, bound responses and cache success/failure", async () => {
-  const directory = await mkdtemp(join(tmpdir(), "openteam-egress-test-"));
+  const directory = await mkdtemp(join(tmpdir(), "aiteamos-egress-test-"));
   try {
     const cert = join(directory, "cert.pem"),
       key = join(directory, "key.pem");

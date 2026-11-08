@@ -27,9 +27,9 @@ describe("native desktop activity", () => {
     state.focused = false; window.emit("blur");
     state.focused = true; window.emit("focus");
     expect(sent).toEqual([
-      ["openteam:window-activity-changed", false],
-      ["openteam:window-activity-changed", true],
-      ["openteam:window-visibility-changed", true],
+      ["aiteamos:window-activity-changed", false],
+      ["aiteamos:window-activity-changed", true],
+      ["aiteamos:window-visibility-changed", true],
     ]);
     stop();
   });
@@ -41,8 +41,8 @@ describe("native desktop activity", () => {
     state.focused = true;
     window.emit("focus");
     expect(sent.slice(-2)).toEqual([
-      ["openteam:window-activity-changed", true],
-      ["openteam:window-visibility-changed", true],
+      ["aiteamos:window-activity-changed", true],
+      ["aiteamos:window-visibility-changed", true],
     ]);
     stop();
   });
@@ -54,11 +54,11 @@ describe("native desktop activity", () => {
     state.focused = true; window.emit("show");
     window.webContents.emit("did-finish-load");
     expect(sent).toEqual([
-      ["openteam:window-activity-changed", false], ["openteam:window-visibility-changed", false],
-      ["openteam:window-activity-changed", false], ["openteam:window-visibility-changed", false],
-      ["openteam:window-activity-changed", false], ["openteam:window-visibility-changed", true],
-      ["openteam:window-activity-changed", true], ["openteam:window-visibility-changed", true],
-      ["openteam:window-activity-changed", true], ["openteam:window-visibility-changed", true],
+      ["aiteamos:window-activity-changed", false], ["aiteamos:window-visibility-changed", false],
+      ["aiteamos:window-activity-changed", false], ["aiteamos:window-visibility-changed", false],
+      ["aiteamos:window-activity-changed", false], ["aiteamos:window-visibility-changed", true],
+      ["aiteamos:window-activity-changed", true], ["aiteamos:window-visibility-changed", true],
+      ["aiteamos:window-activity-changed", true], ["aiteamos:window-visibility-changed", true],
     ]);
     stop();
   });
