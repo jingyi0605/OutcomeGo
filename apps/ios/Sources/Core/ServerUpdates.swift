@@ -123,10 +123,10 @@ public struct ServerUpdatePolicy: Sendable {
       let server = OpenTeamVersion(release.releaseVersion),
       let protocolVersion = release.apiProtocolVersion,
       let minimum = OpenTeamVersion(
-        release.minimumClientVersion ?? "\(server.major).\(server.minor).0"),
+        release.minimumClientVersion ?? "\(server.major).\(server.minor).0-0"),
       let maximum = OpenTeamVersion(
-        release.maximumClientVersionExclusive ?? "\(server.major).\(server.minor + 1).0"),
-      let minimumServer = OpenTeamVersion("\(client.major).\(client.minor).0")
+        release.maximumClientVersionExclusive ?? "\(server.major).\(server.minor + 1).0-0"),
+      let minimumServer = OpenTeamVersion("\(client.major).\(client.minor).0-0")
     else {
       compatibility = .unknown
       targetVersion = nil

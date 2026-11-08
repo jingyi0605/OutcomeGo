@@ -139,8 +139,11 @@ import { EmojiPanel, EmojiPicker, MoreEmojiIcon, QUICK_REACTIONS } from "./emoji
 import { MessageImageGallery } from "./image-attachment";
 import { RichMessage } from "./rich-message";
 import { ThreadTray } from "./thread-tray";
-import { LiveVoiceLayer } from "./live-voice/live-voice-layer";
 import { isWindowVisible } from "../../lib/window-visibility";
+
+const LiveVoiceLayer = lazy(() =>
+  import("./live-voice/live-voice-layer").then((module) => ({ default: module.LiveVoiceLayer }))
+);
 
 const MessageFileAttachments = lazy(() =>
   import("./file-attachment").then((module) => ({ default: module.MessageFileAttachments }))
@@ -1784,7 +1787,11 @@ export const ChatPane = memo(function ChatPane({
           data-composer-dock=""
           style={{ marginTop: "calc(-1 * var(--composer-overlap, 0px))" }}
         >
-            {channel.kind === "bot_dm" && selectedBot ? <LiveVoiceLayer bot={selectedBot} channelId={channel.id} /> : null}
+            {channel.kind === "bot_dm" && selectedBot ? (
+              <Suspense fallback={null}>
+                <LiveVoiceLayer bot={selectedBot} channelId={channel.id} />
+              </Suspense>
+            ) : null}
             <PromptInput
               focusRequest={composerFocusRequest}
               transcriptionConfigured={runtime.transcription === "configured" && !threadState?.open}

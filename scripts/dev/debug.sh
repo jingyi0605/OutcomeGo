@@ -25,6 +25,15 @@ load_env() {
   [[ -f $root/.env ]] || die "$root/.env is missing"
   set -a; . "$root/.env"; set +a
   case "${DATABASE_URL:-}" in *FILL_IN*|"") die "set the database password in DATABASE_URL (.env)" ;; esac
+  # The server reports whatever AITEAMOS_VERSION holds. Follow the code unless .env pins a value,
+  # so the debug stack never drifts from the installed desktop. "+dev" marks it as a source run
+  # and is ignored by version-compatibility checks (same convention as scripts/compose.sh).
+  if [[ -z "${AITEAMOS_VERSION:-}" ]]; then
+    local package_version
+    package_version=$(sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' "$root/apps/server/package.json" | head -n 1)
+    [[ -n $package_version ]] || die "cannot read the version from apps/server/package.json"
+    export AITEAMOS_VERSION="$package_version+dev"
+  fi
 }
 
 mount_share() {

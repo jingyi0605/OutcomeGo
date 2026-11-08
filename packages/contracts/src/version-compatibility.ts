@@ -83,15 +83,21 @@ export const compareAiTeamOSVersions = (left: string, right: string): number | n
   return a && b ? compareParsedVersions(a, b) : null;
 };
 
-/** Patch releases in the same minor line are compatible unless a release widens the window. */
+/**
+ * Patch releases in the same minor line are compatible unless a release widens the window.
+ *
+ * Prereleases of a line sort below its `.0` release (`0.1.0-beta.1 < 0.1.0`), so the lower bound
+ * is `X.Y.0-0`, the smallest prerelease of the line. A bound of plain `X.Y.0` would reject every
+ * beta of its own line, including a client and server on the identical version.
+ */
 export const defaultAiTeamOSCompatibilityWindow = (
   releaseVersion: string
 ): { minimum: string; maximumExclusive: string } | null => {
   const parsed = parseAiTeamOSVersion(releaseVersion);
   if (!parsed) return null;
   return {
-    minimum: `${parsed.major}.${parsed.minor}.0`,
-    maximumExclusive: `${parsed.major}.${parsed.minor + 1}.0`,
+    minimum: `${parsed.major}.${parsed.minor}.0-0`,
+    maximumExclusive: `${parsed.major}.${parsed.minor + 1}.0-0`,
   };
 };
 

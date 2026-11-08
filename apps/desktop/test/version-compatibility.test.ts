@@ -19,6 +19,20 @@ describe("aiTeamOS release compatibility", () => {
     expect(aiTeamOSCompatibility("1.3.0", "1.3.0", 0)).toBe("server-update-required");
   });
 
+  test("prereleases of one minor line are compatible with each other", () => {
+    // A bound of plain X.Y.0 sorts above X.Y.0-beta.N, which used to reject a client and server
+    // on the identical beta version as "client-update-required".
+    expect(aiTeamOSCompatibility("0.1.0-beta.1", "0.1.0-beta.1")).toBe("compatible");
+    expect(aiTeamOSCompatibility("0.1.0-beta.3", "0.1.0-beta.1")).toBe("update-recommended");
+    expect(aiTeamOSCompatibility("0.1.0-beta.1", "0.1.0-beta.3")).toBe("update-recommended");
+    expect(aiTeamOSCompatibility("0.1.0", "0.1.0-beta.1")).toBe("update-recommended");
+    expect(aiTeamOSCompatibility("0.1.0-beta.1", "0.1.0")).toBe("update-recommended");
+    // Other minor lines are still blocked, in the right direction.
+    expect(aiTeamOSCompatibility("0.2.0-beta.1", "0.1.0-beta.3")).toBe("server-update-required");
+    expect(aiTeamOSCompatibility("0.1.0-beta.3", "0.2.0-beta.1")).toBe("client-update-required");
+    expect(aiTeamOSCompatibility("0.0.15", "0.1.0-beta.1")).toBe("client-update-required");
+  });
+
   test("honors a server-provided overlapping compatibility window", () => {
     expect(
       aiTeamOSCompatibility("1.3.9", "1.4.0", 2, {
@@ -40,8 +54,8 @@ describe("aiTeamOS release compatibility", () => {
     expect(normalizeAiTeamOSVersion("01.2.3")).toBeNull();
     expect(normalizeAiTeamOSVersion("9007199254740992.0.0")).toBeNull();
     expect(defaultAiTeamOSCompatibilityWindow("2.9.4-rc.1")).toEqual({
-      minimum: "2.9.0",
-      maximumExclusive: "2.10.0",
+      minimum: "2.9.0-0",
+      maximumExclusive: "2.10.0-0",
     });
 
     const precedence = [

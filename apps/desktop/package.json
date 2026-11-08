@@ -1,6 +1,6 @@
 {
   "name": "@aiteamos/desktop",
-  "version": "0.1.0-beta.3",
+  "version": "0.1.0-beta.4",
   "license": "GPL-3.0-only",
   "author": "ai-TeamOS contributors",
   "main": "dist-electron/main.js",
@@ -162,6 +162,5 @@
     "test:chat-transition-motion": "bun scripts/analyze-chat-transitions.ts",
     "test:browser-network": "bun scripts/test-browser-network.ts"
   },
-  "type": "module",
-  "dependencies": {}
+  "type": "module"
 }

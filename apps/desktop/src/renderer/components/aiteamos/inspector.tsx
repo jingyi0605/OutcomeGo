@@ -22,7 +22,6 @@ import { Textarea } from "../ui/textarea";
 import { api } from "../../client/aiteamos-api";
 import { botTemplateRecipe, downloadBotTemplate } from "../../lib/bot-template";
 import { BotAvatar } from "./avatar";
-import { VolcengineVoiceSelect } from "./settings/volcengine-voice-select";
 
 const AvatarPicker = lazy(() =>
   import("./avatar-picker").then((module) => ({ default: module.AvatarPicker }))
@@ -42,6 +41,11 @@ const RoutinesSummary = lazy(() =>
 );
 const GroupAvatarEditor = lazy(() =>
   import("./group-avatar-editor").then((module) => ({ default: module.GroupAvatarEditor }))
+);
+const VolcengineVoiceSelect = lazy(() =>
+  import("./settings/volcengine-voice-select").then((module) => ({
+    default: module.VolcengineVoiceSelect,
+  }))
 );
 
 type InspectorMode = "summary" | "settings" | "routine";
@@ -237,13 +241,15 @@ function BotSettings({
             Realtime voice
           </Label>
           {voiceProvider === "volcengine" ? (
-            <VolcengineVoiceSelect
-              automaticLabel="Server default"
-              defaultVoiceId={serverVoice || "zh_female_vv_uranus_bigtts"}
-              onChange={(voice) => queue({ ...draft, voice }, true)}
-              triggerClassName="h-9 w-full rounded-[7px] border border-[#d9d9d9] px-2.5 text-[14px] shadow-none focus-visible:border-ring dark:border-[#292929]"
-              value={draft.voice}
-            />
+            <Suspense fallback={<div aria-label="Loading voice options" className="h-9" role="status" />}>
+              <VolcengineVoiceSelect
+                automaticLabel="Server default"
+                defaultVoiceId={serverVoice || "zh_female_vv_uranus_bigtts"}
+                onChange={(voice) => queue({ ...draft, voice }, true)}
+                triggerClassName="h-9 w-full rounded-[7px] border border-[#d9d9d9] px-2.5 text-[14px] shadow-none focus-visible:border-ring dark:border-[#292929]"
+                value={draft.voice}
+              />
+            </Suspense>
           ) : (
             <Input
               aria-label="Realtime voice"
