@@ -23,6 +23,7 @@ apps/landing/.generated/
 /.agents/skills/openteam-macos-release/
 packages/plugins/_generated/
 **/.cxx/
+data
 
 /.gradle/
 **/.gradle/
