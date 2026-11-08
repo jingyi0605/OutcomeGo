@@ -1,12 +1,31 @@
 <p align="center">
-  <img src="apps/landing/public/ai-teamOS-app-icon.png" alt="ai-TeamOS logo" width="120">
+  <img src="docs/images/ai-teamos-logo.png" alt="ai-TeamOS logo" height="180">
 </p>
 
-# ai-TeamOS
+<h1 align="center">ai-TeamOS</h1>
 
-**A cockpit for personal work, team collaboration and parallel AI agents, so your attention goes to the one thing that needs you most right now.**
+<p align="center">
+  <b>Keep your attention for what truly needs your judgment</b>
+</p>
 
-[中文](README.md) · English
+<p align="center">
+  <img src="https://img.shields.io/badge/License-GPL--3.0-blue" alt="License GPL-3.0">
+  <img src="https://img.shields.io/badge/Based%20on-OpenTeam%20v0.0.15-555555" alt="Based on OpenTeam v0.0.15">
+  <img src="https://img.shields.io/badge/Desktop-Electron%20%2B%20React-2b3137?logo=electron&logoColor=white" alt="Desktop Electron + React">
+  <img src="https://img.shields.io/badge/Server-Bun%20%2B%20TypeScript-f9f1e1?logo=bun&logoColor=black" alt="Server Bun + TypeScript">
+  <img src="https://img.shields.io/badge/PostgreSQL-17-336791?logo=postgresql&logoColor=white" alt="PostgreSQL 17">
+  <img src="https://img.shields.io/badge/Docker-Ready-2496ed?logo=docker&logoColor=white" alt="Docker Ready">
+  <img src="https://img.shields.io/badge/Android-8.0%2B-3ddc84?logo=android&logoColor=white" alt="Android 8.0+">
+  <img src="https://img.shields.io/badge/iOS-18%2B-000000?logo=apple&logoColor=white" alt="iOS 18+">
+</p>
+
+<p align="center">
+  A personal and team work operating system for the AI-agent era: agents run in parallel, you step in only at the moments that matter.
+</p>
+
+<p align="center">
+  <a href="README.md">中文</a> | English
+</p>
 
 ai-TeamOS is an independent, long-lived fork of [OpenTeam](https://github.com/raghavpillai/openteam).
 It is not affiliated with or endorsed by the upstream project. See [FORK.md](FORK.md) for

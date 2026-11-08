@@ -1,12 +1,31 @@
 <p align="center">
-  <img src="apps/landing/public/ai-teamOS-app-icon.png" alt="ai-TeamOS 标志" width="120">
+  <img src="docs/images/ai-teamos-logo.png" alt="ai-TeamOS 标志" height="180">
 </p>
 
-# ai-TeamOS
+<h1 align="center">ai-TeamOS</h1>
 
-**个人、团队协作与 Agent 并行任务的驾驶舱：让你的注意力集中在此刻最需要你处理的事情上。**
+<p align="center">
+  <b>把注意力留给真正需要你判断的事</b>
+</p>
 
-中文 · [English](README.en.md)
+<p align="center">
+  <img src="https://img.shields.io/badge/许可证-GPL--3.0-blue" alt="许可证 GPL-3.0">
+  <img src="https://img.shields.io/badge/基于-OpenTeam%20v0.0.15-555555" alt="基于 OpenTeam v0.0.15">
+  <img src="https://img.shields.io/badge/桌面端-Electron%20%2B%20React-2b3137?logo=electron&logoColor=white" alt="桌面端 Electron + React">
+  <img src="https://img.shields.io/badge/服务端-Bun%20%2B%20TypeScript-f9f1e1?logo=bun&logoColor=black" alt="服务端 Bun + TypeScript">
+  <img src="https://img.shields.io/badge/PostgreSQL-17-336791?logo=postgresql&logoColor=white" alt="PostgreSQL 17">
+  <img src="https://img.shields.io/badge/Docker-就绪-2496ed?logo=docker&logoColor=white" alt="Docker 就绪">
+  <img src="https://img.shields.io/badge/Android-8.0%2B-3ddc84?logo=android&logoColor=white" alt="Android 8.0+">
+  <img src="https://img.shields.io/badge/iOS-18%2B-000000?logo=apple&logoColor=white" alt="iOS 18+">
+</p>
+
+<p align="center">
+  面向 AI Agent 时代的个人与团队工作操作系统：让 Agent 并行执行，让你只在关键时刻介入。
+</p>
+
+<p align="center">
+  中文 | <a href="README.en.md">English</a>
+</p>
 
 ai-TeamOS 是 [OpenTeam](https://github.com/raghavpillai/openteam) 的独立长期分支，与上游项目没有隶属关系，
 也未获得其背书。署名、分支规则和改动清单见 [FORK.md](FORK.md)。
