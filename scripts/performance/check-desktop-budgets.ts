@@ -1,7 +1,14 @@
 import { expectedReleaseArtifactKinds } from "./desktop-build-measurement-utils";
 
+const workspaceRootUrl = new URL("../..", import.meta.url);
+const workspaceRoot =
+  process.platform === "win32"
+    ? decodeURIComponent(workspaceRootUrl.pathname)
+        .replace(/^\/([A-Za-z]:)/, "$1")
+        .replace(/\//g, "\\")
+    : decodeURIComponent(workspaceRootUrl.pathname);
 const output = await Bun.$`bun scripts/performance/measure-desktop-build.ts`
-  .cwd(new URL("../..", import.meta.url).pathname)
+  .cwd(workspaceRoot)
   .text();
 
 const result = JSON.parse(output) as {
