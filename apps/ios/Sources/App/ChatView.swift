@@ -9,6 +9,7 @@ struct ChatView: View {
   @Environment(AppStore.self) private var store
   @Environment(\.dismiss) private var dismiss
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
+  @Environment(\.scenePhase) private var scenePhase
   @Environment(\.chatLeadingControl) private var leadingControl
   @Environment(\.sideChrome) private var sideChrome
   @Environment(\.leadingChatTitle) private var leadingChatTitle
@@ -48,6 +49,20 @@ struct ChatView: View {
   private var showsLatestButton: Bool {
     didPositionHistory && (hasLater || (!bottomVisible && !followsLatest))
   }
+  private var readTarget: NotificationReadMarker? {
+    guard scenePhase == .active, didPositionHistory, bottomVisible, followsLatest, !hasLater,
+      store.activeChannel == channel.id, thread == nil, exchange == nil,
+      store.focusedMessage == nil else { return nil }
+    return NotificationReadMarker(json: .object([
+      "channelId": .string(channel.id),
+      "lastReadSequence": .string(store.messages(channel.id).last(where: {
+        !$0.metadata["branched"].bool
+      })?.sequence ?? "0"),
+      "lastReadNotificationSequence": .string(
+        NotificationReads.sequence(
+          store.channel(channel.id)?.notificationState?["notificationCursor"].string ?? "") ?? "0"),
+    ]))
+  }
   var body: some View {
     let timeline = timelineCache.project(store.visibleMessages(channel.id), includeBranched: true)
     let rows = timelineCache.present(timeline, pending: pendingMessages, animateNew: didPositionHistory)
@@ -64,10 +79,14 @@ struct ChatView: View {
           // page that just arrived still settles before it is shown.
           initialLayout: savedTranscriptAtOpen ? .nextLayout : .settled,
           request: scrollRequest,
+          earlierPage: store.histories[channel.id]?.hasMore == true
+            ? store.histories[channel.id]?.beforeSequence : nil,
+          laterPage: hasLater ? store.historyWindows[channel.id]?.lastSequence : nil,
+          onLoadEarlier: { Task { await store.loadHistory(channel.id, older: true) } },
+          onLoadLater: { Task { await store.loadLater(channel.id) } },
           onPositioned: {
             didPositionHistory = true
             if let id = store.focusedMessage { focus(id) }
-            else if !hasLater { Task { await store.markRead(channel.id) } }
           },
           onScroll: { bottom, following in
             bottomVisible = bottom
@@ -75,9 +94,9 @@ struct ChatView: View {
             if following && bottom {
               seenThroughSequence = nil
             } else if seenThroughSequence == nil {
-              seenThroughSequence = store.messages(channel.id).last?.sequence
+              // Adjacent history pages are already-known messages, not arrivals.
+              seenThroughSequence = store.latestMessage(channel.id)?.sequence
             }
-            if bottom && following && !hasLater { Task { await store.markRead(channel.id) } }
           },
           onDismissKeyboard: { dismissFocusRequest = UUID() }
         )
@@ -93,6 +112,16 @@ struct ChatView: View {
       }
     }
     .modifier(SystemConversationContext(channel: channel))
+    .task(id: readTarget) {
+      guard let target = readTarget else { return }
+      var retryDelay = 1
+      while !Task.isCancelled {
+        if await store.markRead(target.channelId, through: target.lastReadSequence,
+          throughNotificationSequence: target.lastReadNotificationSequence) { return }
+        do { try await Task.sleep(for: .seconds(retryDelay)) } catch { return }
+        retryDelay = min(retryDelay * 2, 8)
+      }
+    }
     .task(id: awaitingNewerPage) {
       guard awaitingNewerPage else { return }
       // A slow network still shows the saved transcript.
@@ -128,13 +157,15 @@ struct ChatView: View {
         // A transcript missing the newest known reply, or opened while the app is
         // still catching up after the background, waits briefly for its page
         // rather than showing without the reply and animating it in.
-        if store.transcriptBehind(channel.id) || store.catchingUp {
+        if store.focusedMessage == nil && (store.transcriptBehind(channel.id) || store.catchingUp) {
           awaitingNewerPage = true
         } else {
           historyAvailable = true
         }
       }
-      await store.loadHistory(channel.id)
+      // open(_:messageID:) already fetched an authoritative context page.
+      // Showing that result must not wait for an unrelated latest-page request.
+      if store.focusedMessage == nil { await store.loadHistory(channel.id) }
       guard !Task.isCancelled else { return }
       requestedInitialHistory = true
       resolveOpeningBoundary()
@@ -342,6 +373,8 @@ struct ChatView: View {
     scrollRequest = HistoryScrollRequest(id: "bottom")
   }
   private func focus(_ id: String) {
+    let fromNotification = store.focusedNotification == id
+    store.focusedNotification = nil
     followsLatest = false
     let message = store.messages(channel.id).first(where: { $0.id == id })
     if let message, var peer = BotExchangePeer(message.metadata) {
@@ -353,6 +386,10 @@ struct ChatView: View {
         branchesReplies = true
         thread = root
       } else { store.error = "The start of this thread is unavailable. Load earlier messages and try again." }
+    } else if fromNotification, !hasLater,
+      id == store.visibleMessages(channel.id).last(where: { !$0.metadata["branched"].bool })?.id {
+      followsLatest = true
+      scrollRequest = HistoryScrollRequest(id: "bottom", animated: false)
     } else { scrollRequest = HistoryScrollRequest(id: id, animated: false) }
     store.focusedMessage = nil
   }
@@ -381,9 +418,13 @@ struct ChatView: View {
   }
   private var sideControls: some View {
     VStack(spacing: 12) {
-      Spacer(minLength: 12)
+      if leadingControl?.external == true {
+        Color.clear.frame(width: 44, height: 44).accessibilityHidden(true)
+      } else if sideChrome?.holdsAllControls == true || leadingControl != nil {
+        leadingButton
+      }
       computerButton
-      if leadingControl?.external != true, sideChrome?.holdsAllControls == true || leadingControl != nil { leadingButton }
+      Spacer(minLength: 12)
     }.foregroundStyle(NativePalette.text)
   }
   @ViewBuilder private var computerButton: some View {
@@ -685,6 +726,10 @@ struct MessageRow: View {
           }
         }
       }.contentShape(Rectangle())
+        .overlay {
+          MessageJumpFlash(messageID: message.id, isUser: message.isUser)
+            .allowsHitTesting(false)
+        }
         .accessibilityAction(named: "Message actions") { openActions() }
         .accessibilityAction(named: "Reply") {
           NativeHaptics.play(.light, source: "message.reply-action")
@@ -784,12 +829,7 @@ struct MessageRow: View {
     }
   }
   func markUnread() async {
-    var next = store.sidebar
-    next["unreadIds"] = .array(
-      Array(Set(next["unreadIds"].array.map(\.string) + [channel.id])).map(JSON.string))
-    if let result = await store.mutate("/api/v0/settings/sidebar", method: "PATCH", body: next) {
-      store.sidebar = result
-    }
+    await store.markUnread(channel.id)
   }
 }
 
@@ -1110,9 +1150,11 @@ struct ThreadPage: View {
       dismiss()
     }.accessibilityIdentifier("thread-back").foregroundStyle(NativePalette.text)
   }
-  /// Folded, Back moves into the side region, as in the conversation.
-  @ViewBuilder private var sideControls: some View {
-    if sideChrome?.holdsAllControls == true { backButton }
+  private var sideControls: some View {
+    VStack {
+      backButton
+      Spacer(minLength: 12)
+    }
   }
   var body: some View {
     ZStack {
@@ -1135,7 +1177,7 @@ struct ThreadPage: View {
       .chatFloatingBars(top: {
         VStack(spacing: 0) {
           HStack {
-            if sideChrome?.holdsAllControls != true { backButton }
+            if sideChrome == nil { backButton }
             Spacer()
           }.padding(.horizontal, 18).modifier(TopBarClearance(SideChrome.topBarPadding)).padding(.bottom, 6)
           MessageRefreshStatus(channelID: channel.id).padding(.horizontal, 20)
@@ -1149,6 +1191,7 @@ struct ThreadPage: View {
       })
       .padding(.trailing, sideChrome?.contentInset ?? 0)
       .modifier(SideChromeBar(top: EmptyView?.none, side: sideControls))
+      .preference(key: ContextualSideControlsKey.self, value: sideChrome != nil)
       .navigationDestination(item: $exchange) { BotExchangeView(channel: channel, peer: $0) }
       .navigationDestination(isPresented: $details) { ConversationDetails(channelID: channel.id) }
       .background(NativeBackGesture().frame(width: 0, height: 0))

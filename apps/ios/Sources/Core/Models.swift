@@ -263,7 +263,6 @@ public struct SubagentActivity: Codable, Identifiable, Sendable {
   public var id: String
   public var parentBotId: String
   public var parentChannelId: String
-  public var runInBackground: Bool
   public var status: String
   public var isActive: Bool { ["provisioning", "queued", "running"].contains(status) }
 }

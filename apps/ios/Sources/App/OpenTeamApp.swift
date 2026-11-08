@@ -112,14 +112,16 @@ struct ChannelAvatar: View {
   @Environment(AppStore.self) private var store
   let channel: Channel
   var size: CGFloat = 48
+  var artworkScale: CGFloat = 1
   var groupStyle: GroupAvatarLayout.Style = .cluster
   var showsActivity = true
+  var animatesWhenInactive = false
   @State private var photo: UIImage?
   var body: some View {
     let bot = store.bot(for: channel)
     let runs = store.activeRuns(channel.id)
     func motion(_ botID: String?) -> RobotAvatarMode {
-      guard showsActivity, store.activeChannel == channel.id, let botID,
+      guard showsActivity, store.activeChannel == channel.id || animatesWhenInactive, let botID,
         channel.members.contains(where: { $0.botId == botID })
       else { return .still }
       return runs.contains { $0.botId == botID && ["running", "queued"].contains($0.status) }
@@ -136,6 +138,7 @@ struct ChannelAvatar: View {
         BotGlyph(
           color: Color(hex: bot?.color ?? "7C5CFC"), kind: bot?.icon ?? "chip", size: size,
           mode: motion(bot?.id))
+          .scaleEffect(artworkScale)
       }
     }.overlay(alignment: .bottomTrailing) {
       if showsActivity, size <= 30, !runs.isEmpty, !channel.isGroup {

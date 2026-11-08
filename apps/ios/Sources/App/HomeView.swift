@@ -35,9 +35,11 @@ struct HomeView: View {
   @State private var renamingSection: String?
   @State private var sectionName = ""
   @State private var deletingSection: JSON?
+  @State private var deletingBot: Bot?
   @State private var listHidden = false
   @State private var portraitLayout = false
   @State private var barRegions = BarRegions.none
+  @State private var contextualSideControls = false
   /// The conversation list's width beside a chat, as last dragged; 0 until then.
   @AppStorage("sidebarWidth") private var draggedSidebarWidth: Double = 0
   @State private var dragStartWidth: CGFloat?
@@ -82,6 +84,7 @@ struct HomeView: View {
         }
       }
       .modifier(SideChromeBar(top: EmptyView?.none, side: sideActions))
+      .onPreferenceChange(ContextualSideControlsKey.self) { contextualSideControls = $0 }
       .environment(\.sideChrome, chrome)
       // Use the space beside Duo's status cluster instead of its full top band.
       .environment(\.topBarClearance, split && barRegions.hasHinge
@@ -96,6 +99,12 @@ struct HomeView: View {
     .ignoresSafeArea(.container, edges: splitAvailable && barRegions.hasHinge
       ? (portraitLayout ? [.top, .trailing] : [.top]) : [])
     .background { NativePalette.sidebar.ignoresSafeArea() }
+    .overlay {
+      if store.openingNotification != nil {
+        LoadingOrb(label: "Opening message")
+          .accessibilityIdentifier("notification-opening").allowsHitTesting(false)
+      }
+    }
     .readingBarRegions { barRegions = $0 }
     .onChange(of: store.navigation) { _, path in
       // Once the zoomed chat has closed (and zoomed back into its row), later
@@ -111,6 +120,8 @@ struct HomeView: View {
     }
     .sheet(item: $settings) { sheet in
       SettingsView(initialRoute: sheet.route).referenceSheet()
+        .presentationDetents([.large])
+        .presentationBackground(SettingsStyle.background)
     }
     .alert(
       "Rename section",
@@ -140,6 +151,25 @@ struct HomeView: View {
       }
     } message: {
       Text("Its conversations will stay in your list.")
+    }
+    .alert(
+      "Delete \(deletingBot?.name ?? "bot")?",
+      isPresented: Binding(
+        get: { deletingBot != nil }, set: { if !$0 { deletingBot = nil } }
+      ), presenting: deletingBot
+    ) { bot in
+      Button("Delete bot", role: .destructive) {
+        Task {
+          if await store.mutate("/api/v0/bots/\(API.segment(bot.id))", method: "DELETE") != nil,
+            let index = store.navigation.firstIndex(of: bot.dmChannelId)
+          {
+            store.navigation.removeSubrange(index...)
+          }
+        }
+      }
+      Button("Cancel", role: .cancel) {}
+    } message: { _ in
+      Text("This removes the bot and its chat history. This cannot be undone.")
     }
     .sheet(item: $creation, onDismiss: openSelectedConversation) { kind in
       CreateConversationView(group: kind == .group) { id in
@@ -233,10 +263,7 @@ struct HomeView: View {
           .environment(\.conversationListVisible, showsList)
           .frame(maxWidth: .infinity)
       } else {
-        ContentUnavailableView(
-          "No conversation selected", systemImage: "bubble.left.and.bubble.right",
-          description: Text("Choose a conversation to start chatting.")
-        ).frame(maxWidth: .infinity, maxHeight: .infinity).nativeCanvas()
+        IdleConversationView()
       }
     }
     // Above both columns, so neither scroll view takes the drag.
@@ -291,6 +318,7 @@ struct HomeView: View {
                             .lineLimit(1)
                         }.frame(width: 100).contentShape(Rectangle())
                       }.accessibilityIdentifier("pinned-" + channel.id)
+                        .contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: 22))
                         .contextMenu {
                           conversationActions(channel)
                         } preview: {
@@ -329,7 +357,12 @@ struct HomeView: View {
                   .frame(maxWidth: .infinity, alignment: .leading).padding(.top, 8)
                   .accessibilityIdentifier("empty-conversations")
               }
-            }.padding(.horizontal, 20).padding(.bottom, isSidebar ? 94 : 30)
+            }
+            .padding(.leading, isSidebar ? SidebarMetrics.rowLeading : 20)
+            .padding(.trailing, isSidebar ? SidebarMetrics.rowTrailing : 20)
+            .padding(.top, isSidebar && barRegions.hasHinge && !portraitLayout
+              ? SidebarMetrics.landscapeTopClearance : 0)
+            .padding(.bottom, isSidebar ? 94 : 30)
           }.background(isSidebar ? SidebarFooterFade.canvas : NativePalette.background)
             .scrollIndicators(.hidden)
             .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { contentWidth = $0 }
@@ -504,17 +537,20 @@ struct HomeView: View {
       .padding(.bottom, 10)
   }
   /// Shared by the list and chat so Duo's sidebar toggle stays on the right.
-  private var sideActions: some View {
-    VStack(spacing: 12) {
-      if splitAvailable { sidebarToggle }
-      creationMenu().frame(width: 44, height: 44).nativeInboxGlass()
-      searchControl
-      Spacer(minLength: 12)
-      if !expandedReferenceSidebar, store.navigation.isEmpty {
-        MarketplaceShortcut { marketplace = true }
-        accountControl
+  @ViewBuilder private var sideActions: some View {
+    if !contextualSideControls {
+      VStack(spacing: 12) {
+        if splitAvailable { sidebarToggle }
+        Spacer(minLength: 12)
+        creationMenu().frame(width: 44, height: 44).nativeInboxGlass()
+        searchControl
+        if !expandedReferenceSidebar, store.navigation.isEmpty {
+          MarketplaceShortcut { marketplace = true }
+          accountControl
+        }
       }
-    }.foregroundStyle(NativePalette.text)
+      .foregroundStyle(NativePalette.text)
+    }
   }
   private func creationMenu(pointSize: CGFloat = 20) -> some View {
     NativeActionMenu(symbol: "plus", pointSize: pointSize, title: "New conversation",
@@ -571,10 +607,11 @@ struct HomeView: View {
             pinned: store.pins.contains(channel.id),
             pin: { Task { await store.togglePin(channel.id) } }
           ) {
-            ConversationLink(id: channel.id) {
+            ConversationLink(id: channel.id, isSidebar: isSidebar) {
               ChannelRow(channel: channel, isSidebar: isSidebar).modifier(ZoomSource(id: channel.id, namespace: zoom))
             }
               .accessibilityIdentifier("channel-" + channel.id)
+              .contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: 22))
               .contextMenu {
                 conversationActions(channel)
               } preview: {
@@ -611,7 +648,7 @@ struct HomeView: View {
     }
     Button(store.pins.contains(channel.id) ? "Unpin" : "Pin", systemImage: "pin") {
       Task { await store.togglePin(channel.id) }
-    }
+    }.accessibilityIdentifier("conversation-context-pin")
     Menu("Move to", systemImage: "folder") {
       Button("Unassigned") { Task { await move(channel.id, to: "") } }
       ForEach(sections, id: \.self) { section in
@@ -620,13 +657,15 @@ struct HomeView: View {
         }
       }
     }
+    if let bot = store.bot(for: channel) {
+      Button("Delete bot", systemImage: "trash", role: .destructive) {
+        deletingBot = bot
+      }
+    }
   }
   private func conversationPreview(_ channel: Channel) -> some View {
-    ChannelRow(channel: channel).padding(.horizontal, 18)
-      .frame(width: max(100, contentWidth - 40))
-      .background(NativePalette.background, in: RoundedRectangle(cornerRadius: 12))
+    ConversationPreview(channel: channel, width: min(300, max(100, contentWidth - 40)))
       .environment(store)
-      .onAppear { NativeHaptics.play(.medium, source: "conversation.long-press") }
   }
   func saveSidebar(_ next: JSON) async {
     if let value = await store.mutate("/api/v0/settings/sidebar", method: "PATCH", body: next) {
@@ -672,10 +711,70 @@ struct HomeView: View {
     await saveSidebar(next)
   }
   func markUnread(_ id: String) async {
-    var next = store.sidebar
-    next["unreadIds"] = .array(
-      Array(Set(next["unreadIds"].array.map(\.string) + [id])).map(JSON.string))
-    await saveSidebar(next)
+    await store.markUnread(id)
+  }
+}
+
+private struct ConversationPreview: View {
+  @Environment(AppStore.self) private var store
+  @Environment(\.accessibilityReduceMotion) private var reduceMotion
+  let channel: Channel
+  let width: CGFloat
+  @State private var revealed = false
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 0) {
+      HStack(spacing: 8) {
+        ChannelAvatar(channel: channel, size: 24, animatesWhenInactive: true)
+        Text(channel.name).font(.subheadline.weight(.semibold)).lineLimit(1)
+      }.padding(14)
+      Divider()
+      Text(store.latestMessage(channel.id)?.previewText
+        ?? store.bot(for: channel)?.description ?? channel.description)
+        .font(.subheadline).lineLimit(12).padding(12)
+        .background(NativePalette.assistant, in: RoundedRectangle(cornerRadius: 14))
+        .padding(12)
+    }
+      .foregroundStyle(NativePalette.text)
+      .frame(width: width, alignment: .leading)
+      .background(NativePalette.background, in: RoundedRectangle(cornerRadius: 12))
+      .mask(alignment: .top) {
+        GeometryReader { geometry in
+          RoundedRectangle(cornerRadius: 12)
+            .frame(height: reduceMotion || revealed ? geometry.size.height : 52)
+        }
+      }
+      .scaleEffect(reduceMotion || revealed ? 1 : 0.94, anchor: .topLeading)
+      .background {
+        PreviewPresentationObserver {
+          guard !revealed else { return }
+          NativeHaptics.play(.medium, source: "conversation.long-press")
+          withAnimation(reduceMotion ? nil : .spring(response: 0.32, dampingFraction: 0.82)) {
+            revealed = true
+          }
+        }.frame(width: 0, height: 0)
+      }
+      .onDisappear { revealed = false }
+  }
+}
+
+/// Previews are measured offscreen. Start their motion when UIKit attaches them to a window.
+private struct PreviewPresentationObserver: UIViewRepresentable {
+  var presented: () -> Void
+
+  func makeUIView(context: Context) -> PresentationView { PresentationView() }
+  func updateUIView(_ view: PresentationView, context: Context) { view.presented = presented }
+
+  final class PresentationView: UIView {
+    var presented: (() -> Void)?
+    override func didMoveToWindow() {
+      super.didMoveToWindow()
+      guard window != nil else { return }
+      DispatchQueue.main.async { [weak self] in
+        guard let self, self.window != nil else { return }
+        self.presented?()
+      }
+    }
   }
 }
 
@@ -889,6 +988,13 @@ struct SideChromeBar<Top: View, Side: View>: ViewModifier {
   }
 }
 
+struct ContextualSideControlsKey: PreferenceKey {
+  static let defaultValue = false
+  static func reduce(value: inout Bool, nextValue: () -> Bool) {
+    value = value || nextValue()
+  }
+}
+
 /// A row the first bot's chat zooms out of, drawn over the list's own color.
 private struct ZoomSource: ViewModifier {
   @Environment(\.canvasColor) private var canvas
@@ -939,9 +1045,12 @@ extension EnvironmentValues {
 private struct ConversationLink<Label: View>: View {
   @Environment(AppStore.self) private var store
   @Environment(\.opensConversationsInPlace) private var inPlace
+  @Environment(\.accessibilityReduceMotion) private var reduceMotion
   let id: String
+  var isSidebar = false
   var highlightsSelection = true
   @ViewBuilder var label: Label
+  private var selected: Bool { highlightsSelection && store.navigation.last == id }
   var body: some View {
     if inPlace {
       Button {
@@ -950,11 +1059,15 @@ private struct ConversationLink<Label: View>: View {
         Task { await store.open(id) }
       } label: {
         label.background {
-          if highlightsSelection, store.navigation.last == id {
-            RoundedRectangle(cornerRadius: 18).fill(NativePalette.sidebarSelection).padding(.horizontal, -10)
-          }
+          RoundedRectangle(cornerRadius: isSidebar ? SidebarMetrics.selectionRadius : 18)
+            .fill(NativePalette.sidebarSelection)
+            .padding(.horizontal, isSidebar
+              ? SidebarMetrics.selectionInset - SidebarMetrics.rowLeading : -10)
+            .padding(.vertical, isSidebar ? SidebarMetrics.selectionVerticalInset : 0)
+            .opacity(selected ? 1 : 0)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.16), value: selected)
         }
-      }.buttonStyle(.borderless)
+      }.buttonStyle(ConversationSelectionButtonStyle(isSidebar: isSidebar))
         .accessibilityAddTraits(store.navigation.last == id ? .isSelected : [])
     } else {
       NavigationLink(value: id) { label }.buttonStyle(.borderless)
@@ -965,6 +1078,38 @@ private struct ConversationLink<Label: View>: View {
   }
 }
 
+/// Contract the entire row on touch, then spring just past its resting size.
+/// Scale is visual only: the layout and other rows stay in place.
+private struct ConversationSelectionButtonStyle: ButtonStyle {
+  var isSidebar: Bool
+  func makeBody(configuration: Configuration) -> some View {
+    ConversationSelectionTouch(configuration: configuration, isSidebar: isSidebar)
+  }
+}
+
+private struct ConversationSelectionTouch: View {
+  @Environment(\.accessibilityReduceMotion) private var reduceMotion
+  var configuration: ButtonStyleConfiguration
+  var isSidebar: Bool
+  @State private var touching = false
+  private var pressed: Bool { configuration.isPressed || touching }
+  var body: some View {
+    configuration.label
+      .opacity(pressed ? 0.65 : 1)
+      .animation(reduceMotion || !isSidebar ? nil : .easeOut(duration: 0.18), value: pressed)
+      .scaleEffect(isSidebar && !reduceMotion && pressed ? SidebarMetrics.pressedScale : 1)
+      .animation(
+        reduceMotion || !isSidebar ? nil : pressed
+          ? .easeOut(duration: 0.04)
+          : .spring(response: 0.23, dampingFraction: 0.5),
+        value: pressed)
+      // Context-menu/swipe recognizers can delay the Button's pressed state.
+      // Observe the initial touch without recognizing an action or consuming a
+      // scroll; movement cancels the feedback and releasing resets the state.
+      .gesture(SidebarTouchObservation(isEnabled: isSidebar) { touching = $0 })
+  }
+}
+
 struct ChannelRow: View {
   @Environment(AppStore.self) private var store
   let channel: Channel
@@ -972,8 +1117,10 @@ struct ChannelRow: View {
   private var last: Message? { store.latestMessage(channel.id) }
   private var unread: Bool { store.isUnread(channel) }
   var body: some View {
-    HStack(spacing: 16) {
-      ChannelAvatar(channel: channel, size: 46)
+    HStack(spacing: isSidebar ? SidebarMetrics.avatarGap : 16) {
+      ChannelAvatar(
+        channel: channel, size: isSidebar ? SidebarMetrics.avatarSize : 46,
+        artworkScale: isSidebar ? SidebarMetrics.avatarArtworkScale : 1)
       VStack(alignment: .leading, spacing: 3) {
         HStack(alignment: .firstTextBaseline) {
           Text(channel.name).font(isSidebar ? .system(size: 18, weight: .medium) : .body.weight(.medium)).foregroundStyle(NativePalette.text)
@@ -1234,11 +1381,16 @@ struct SearchView: View {
   @State private var query = ""
   @State private var category = "all"
   @State private var results: [SearchResult] = []
+  @State private var resultsKey = ""
   @State private var loading = false
   @State private var failure: String?
   @State private var retryID = 0
+  @State private var submittedSearch: String?
+  // Scoped to this sheet, so results cannot leak across servers or accounts.
+  @State private var cachedResults: [String: [SearchResult]] = [:]
   @FocusState private var focused: Bool
   private var searchQuery: String { query.trimmingCharacters(in: .whitespacesAndNewlines) }
+  private var searchKey: String { category + "\n" + searchQuery }
   var body: some View {
     ScrollView {
       LazyVStack(spacing: 0) {
@@ -1271,7 +1423,7 @@ struct SearchView: View {
             }.buttonStyle(.plain)
           }
         }
-        ForEach(results) { result in
+        ForEach(resultsKey == searchKey ? results : []) { result in
           Button {
             if result.kind == "link", let raw = result.url, let url = URL(string: raw),
               ["https", "http", "mailto"].contains(url.scheme?.lowercased() ?? "")
@@ -1306,23 +1458,34 @@ struct SearchView: View {
       .floatingBar(edge: .top) { header }
       .nativeCanvas()
       .task { focused = true }
-      .task(id: query + "\n" + category + "\n" + String(retryID)) {
-        results = []
+      .task(id: searchKey + "\n" + String(retryID)) {
+        let key = searchKey
+        let text = searchQuery
+        let selectedCategory = category
+        let submitted = submittedSearch == key
+        submittedSearch = nil
+        results = cachedResults[key] ?? []
+        resultsKey = key
         failure = nil
         guard !searchQuery.isEmpty, store.api != nil else {
           loading = false
           return
         }
-        loading = true
+        loading = cachedResults[key] == nil
         do {
-          try await Task.sleep(for: .milliseconds(250))
+          // Coalesce keystrokes, but a submitted query runs immediately. Cached
+          // results appear at once when editing back to a previous query.
+          if !submitted { try await Task.sleep(for: .milliseconds(120)) }
           let response = try await store.fetch(
-            "/api/v0/search", as: SearchResponse.self, query: ["q": searchQuery, "category": category])
+            "/api/v0/search", as: SearchResponse.self, query: ["q": text, "category": selectedCategory])
           try Task.checkCancellation()
+          guard key == searchKey else { return }
+          if cachedResults.count >= 20 { cachedResults.removeAll() }
+          cachedResults[key] = response.results
           results = response.results
           loading = false
         } catch {
-          if !Task.isCancelled {
+          if !Task.isCancelled, key == searchKey {
             failure = "Search unavailable"
             loading = false
           }
@@ -1341,6 +1504,7 @@ struct SearchView: View {
         ).autocorrectionDisabled().focused($focused).submitLabel(
           .search
         ).tint(NativePalette.chatInsertion).accessibilityIdentifier("search-input")
+          .onSubmit { submittedSearch = searchKey; retryID += 1 }
         if !query.isEmpty {
           Button("Clear", systemImage: "xmark.circle.fill") { query = "" }.labelStyle(.iconOnly)
             .foregroundStyle(NativePalette.muted)
