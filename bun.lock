@@ -13,7 +13,7 @@
     },
     "apps/cli": {
       "name": "@aiteamos/cli",
-      "version": "0.1.0-beta.4",
+      "version": "0.1.0-beta.5",
       "bin": {
         "aiteamos": "dist/aiteamos.js",
       },
@@ -36,7 +36,7 @@
     },
     "apps/computer": {
       "name": "@aiteamos/computer",
-      "version": "0.1.0-beta.4",
+      "version": "0.1.0-beta.5",
       "dependencies": {
         "@aiteamos/contracts": "workspace:*",
         "@aiteamos/plugin-sdk": "workspace:*",
@@ -68,7 +68,7 @@
     },
     "apps/desktop": {
       "name": "@aiteamos/desktop",
-      "version": "0.1.0-beta.4",
+      "version": "0.1.0-beta.5",
       "devDependencies": {
         "@aiteamos/client-core": "workspace:*",
         "@aiteamos/contracts": "workspace:*",
@@ -121,7 +121,7 @@
     },
     "apps/ios": {
       "name": "@aiteamos/ios",
-      "version": "0.1.0-beta.4",
+      "version": "0.1.0-beta.5",
       "devDependencies": {
         "@aiteamos/contracts": "workspace:*",
         "@aiteamos/design-tokens": "workspace:*",
@@ -134,7 +134,7 @@
     },
     "apps/landing": {
       "name": "@aiteamos/landing",
-      "version": "0.1.0-beta.4",
+      "version": "0.1.0-beta.5",
       "dependencies": {
         "@aiteamos/contracts": "workspace:*",
         "@aiteamos/design-tokens": "workspace:*",
@@ -174,7 +174,7 @@
     },
     "apps/server": {
       "name": "@aiteamos/server",
-      "version": "0.1.0-beta.4",
+      "version": "0.1.0-beta.5",
       "dependencies": {
         "@aiteamos/contracts": "workspace:*",
         "@aiteamos/db": "workspace:*",
@@ -195,7 +195,7 @@
     },
     "apps/worker": {
       "name": "@aiteamos/worker",
-      "version": "0.1.0-beta.4",
+      "version": "0.1.0-beta.5",
       "dependencies": {
         "@aiteamos/contracts": "workspace:*",
         "@aiteamos/db": "workspace:*",
@@ -207,14 +207,14 @@
     },
     "packages/client-core": {
       "name": "@aiteamos/client-core",
-      "version": "0.1.0-beta.4",
+      "version": "0.1.0-beta.5",
       "dependencies": {
         "@aiteamos/contracts": "workspace:*",
       },
     },
     "packages/contracts": {
       "name": "@aiteamos/contracts",
-      "version": "0.1.0-beta.4",
+      "version": "0.1.0-beta.5",
       "dependencies": {
         "@aiteamos/plugin-sdk": "workspace:*",
         "effect": "3.22.1",
@@ -227,7 +227,7 @@
     },
     "packages/db": {
       "name": "@aiteamos/db",
-      "version": "0.1.0-beta.4",
+      "version": "0.1.0-beta.5",
       "dependencies": {
         "@prisma/adapter-pg": "7.10.0",
         "@prisma/client": "7.10.0",
@@ -242,14 +242,14 @@
     },
     "packages/design-tokens": {
       "name": "@aiteamos/design-tokens",
-      "version": "0.1.0-beta.4",
+      "version": "0.1.0-beta.5",
       "dependencies": {
         "@aiteamos/contracts": "workspace:*",
       },
     },
     "packages/messaging": {
       "name": "@aiteamos/messaging",
-      "version": "0.1.0-beta.4",
+      "version": "0.1.0-beta.5",
       "dependencies": {
         "@aiteamos/contracts": "workspace:*",
         "@aiteamos/db": "workspace:*",
@@ -264,7 +264,7 @@
     },
     "packages/plugin-sdk": {
       "name": "@aiteamos/plugin-sdk",
-      "version": "0.1.0-beta.4",
+      "version": "0.1.0-beta.5",
       "dependencies": {
         "ajv": "8.20.0",
         "ajv-formats": "3.0.1",
@@ -280,7 +280,7 @@
     },
     "packages/plugins": {
       "name": "@aiteamos/plugins",
-      "version": "0.1.0-beta.4",
+      "version": "0.1.0-beta.5",
       "dependencies": {
         "@aiteamos/plugin-sdk": "workspace:*",
         "@huggingface/tokenizers": "0.2.0",
@@ -300,14 +300,14 @@
     },
     "packages/product-core": {
       "name": "@aiteamos/product-core",
-      "version": "0.1.0-beta.4",
+      "version": "0.1.0-beta.5",
       "dependencies": {
         "@aiteamos/contracts": "workspace:*",
       },
     },
     "packages/shell-jobs": {
       "name": "@aiteamos/shell-jobs",
-      "version": "0.1.0-beta.4",
+      "version": "0.1.0-beta.5",
       "dependencies": {
         "@aiteamos/contracts": "workspace:*",
         "re2js": "2.8.6",
