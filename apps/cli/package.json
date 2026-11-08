@@ -1,6 +1,6 @@
 {
   "name": "@aiteamos/cli",
-  "version": "0.1.0-beta.7",
+  "version": "0.1.0-beta.8",
   "license": "GPL-3.0-only",
   "description": "Install and manage the self-hosted aiTeamOS server stack",
   "repository": {

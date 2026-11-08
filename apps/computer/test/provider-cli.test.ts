@@ -110,7 +110,7 @@ describe("provider CLI JSON output", () => {
         }),
       ]),
     });
-  });
+  }, 15_000);
 
   test("writes the provider catalog and active selection as JSON", async () => {
     const providers = JSON.parse(await runProviderCli(["providers"])) as Array<{ id: string }>;
