@@ -1,131 +1,197 @@
 <p align="center">
-  <img src="apps/landing/public/ai-teamOS-app-icon.png" alt="ai-TeamOS logo" width="120">
+  <img src="apps/landing/public/ai-teamOS-app-icon.png" alt="ai-TeamOS 标志" width="120">
 </p>
 
 # ai-TeamOS
 
-**An AI-native team operating system: spend your scarce attention directing a team of AI agents.**
+**个人、团队协作与 Agent 并行任务的驾驶舱：让你的注意力集中在此刻最需要你处理的事情上。**
 
-ai-TeamOS is an independent, long-lived fork of [OpenTeam](https://github.com/raghavpillai/openteam).
-It is not affiliated with or endorsed by the upstream project. See [FORK.md](FORK.md) for
-attribution, branch rules and the list of changes.
+中文 · [English](README.en.md)
 
-## Standing on excellent work
+ai-TeamOS 是 [OpenTeam](https://github.com/raghavpillai/openteam) 的独立长期分支，与上游项目没有隶属关系，
+也未获得其背书。署名、分支规则和改动清单见 [FORK.md](FORK.md)。
 
-ai-TeamOS exists because OpenTeam is an outstanding project, and we want to say so first.
-[Raghav Pillai](https://github.com/raghavpillai) built a complete, self-hosted way to work with
-AI agents: bots that own a real computer, keep their memory and logins between tasks, work
-together in group chats, run routines on a schedule, and reach you from desktop and mobile apps.
-The architecture is clean, the product is polished, and it ships at a remarkable pace.
-Everything in this repository sits on top of that work, and we merge upstream changes
-selectively and regularly so that we keep benefiting from it.
+## 致敬源项目
 
-## What this fork focuses on
+ai-TeamOS 之所以存在，是因为 OpenTeam 是一个非常出色的项目，我们想先说这一点。
+[Raghav Pillai](https://github.com/raghavpillai) 构建了一套完整的自托管 AI Agent 工作方式：
+每个 bot 拥有真实的电脑，在任务之间保留记忆和登录状态，能在群聊中协作，按计划运行例行任务，
+并通过桌面端和移动端随时找到你。架构清晰，产品打磨精细，迭代速度令人惊叹。
+本仓库的一切都建立在这项工作之上，我们会有选择地、定期合并上游的更新，持续从中受益。
 
-### 1. Compatibility with the mainland China ecosystem
+## 本分支的两个重点
 
-OpenTeam is built around services and networks that are often hard to reach or unsuitable from
-mainland China. This fork adapts it so that it works well there:
+### 一、OpenTeam 的中国大陆本地化生态兼容
 
-Available now:
+OpenTeam 依赖的许多服务和网络环境，在中国大陆难以访问或并不适用。本分支负责让它在国内好用。
 
-- Voice and speech providers usable in China, such as Volcengine.
-- A Chinese-language Android client.
+已有：
 
-Planned:
+- 国内可用的语音与语音识别服务，例如火山引擎。
+- 中文界面的 Android 客户端。
 
-- Model, push-notification and messaging integrations that do not rely on services that are
-  blocked or unreliable in the mainland. Firebase push, for example, generally does not reach
-  phones in China.
-- Defaults, documentation, update checks and release channels that do not depend on upstream
-  infrastructure.
+计划中：
 
-Generic fixes that benefit everyone are sent upstream as pull requests. Work that only makes
-sense for China stays in this fork.
+- 不依赖大陆被屏蔽或不稳定服务的模型、推送和消息渠道集成。例如 Firebase 推送在国内手机上通常收不到。
+- 不依赖上游基础设施的默认配置、文档、更新检查和发布渠道。
 
-### 2. Exploring an all-in-AI way of working
+对所有人都有益的通用修复，会以 pull request 的形式提交给上游；只对中国有意义的工作留在本分支。
 
-In the age of AI agents, each person's range of capability keeps growing: one person can now
-direct research, writing, coding, browsing and operations at the same time. **Attention is still
-scarce.** The limit is no longer what you can do, but how much you can notice, decide and
-verify.
+### 二、探索 All in AI 的新工作方式：注意力驾驶舱
 
-The question this fork explores is:
+AI 让每个人的能力边界不断扩展：一个人现在可以同时指挥研究、写作、编码、浏览和运维。
+**但注意力并没有随之增长。** 瓶颈已经不是你能做多少，而是你能留意、判断和验证多少。
 
-> How do we raise the value of each person's attention, and through it, their personal
-> productivity?
+关于注意力的研究也指向同一个方向。切换任务会留下“注意力残留”
+（[Leroy, 2009](https://doi.org/10.1016/j.obhdp.2009.04.002)）；有了 AI，知识工作的重心从直接执行转向核验与监督
+（[Microsoft Research 与 CMU，CHI 2025](https://doi.org/10.1145/3706598.3713778)）；彼此依赖的 Agent 反而可能增加人的监督负担。
+所以目标不是更多的 Agent，而是更少的打扰，以及每次介入时更低的理解成本。
 
-Directions we are working on:
+本分支探索的问题是：
 
-- **Direct, don't supervise.** Let agents run in the background and bring you only what needs a
-  human decision, with enough context to decide quickly.
-- **Make work easy to interrupt and resume.** Voice conversation with agents, so you can steer
-  them away from the keyboard, and native mobile clients so that nothing waits for you at a
-  desk.
-- **Protect focus.** Notifications, activity indicators and summaries that show the state of
-  the whole team at a glance instead of demanding that you read every message.
-- **Keep agents accountable.** Visible screens, transcripts and routines so that trust comes from
-  being able to check quickly, not from reading everything.
+> 如何提升每个人的注意力价值，从而进一步提升个人的工作效率？
 
-These are directions, not a finished design. Design notes and specifications live in
-[specs](specs) and [docs](docs).
+**一条原则：** 除非一件事必须由你来判断，否则它不应该持续占用你的注意力。
+执行可以并行，注意力应当串行地投入在一件事上。
 
-## What is in this fork today
+#### 一个系统，一份唯一的数据
 
-Compared with upstream OpenTeam v0.0.15, this branch adds:
+今天的工作散落在各个孤岛里：Agent 的对话、邮件、聊天软件、待办、笔记、自动化工具。
+你成了这些系统之间唯一的连接器，要亲手收集、关联、排序和跟进。
 
-- A native **Android client** with chat, bots, routines, push notifications, a share target and
-  a cloud computer viewer. Submitted upstream as
-  [#236](https://github.com/raghavpillai/openteam/pull/236).
-- **Realtime voice conversation** across the server, worker, desktop, iOS and Android, with VAD,
-  Opus transport, Volcengine and Deepgram providers, and narration of slow tool work.
-- Magpie multimodal model metadata
-  ([#198](https://github.com/raghavpillai/openteam/pull/198)) and network fixes
-  ([#250](https://github.com/raghavpillai/openteam/pull/250),
-  [#251](https://github.com/raghavpillai/openteam/pull/251)).
+ai-TeamOS 选择另一条路：**不是在 Agent 周围再添更多工具，而是把这些工具中真正有用的能力
+集成进本项目，并让本项目成为唯一的数据源**，承载项目、任务、Agent 运行、对话和决策。
+不再需要另一套工作流引擎，不再需要第二个任务数据库，也不用笔记软件充当任务库。
 
-The full list is in [FORK.md](FORK.md).
-
-## Branches
-
-| Branch | Purpose |
+| 通常要靠多个外部工具提供的能力 | ai-TeamOS 中的方向 |
 | --- | --- |
-| `ai-TeamOS` | Default branch and product line. Upstream is merged in regularly. |
-| `main` | Mirror of upstream `main`. Never receives local commits. Pull requests to upstream start here. |
+| 任务与项目数据库 | 内置项目、任务和决策，与 bot、对话在同一个数据库中 |
+| 工作流自动化与定时调度 | 内置例行任务（Routine）、事件触发和 Agent 运行 |
+| Agent 状态采集 | Agent 运行本身就是一等记录，不需要抓取日志 |
+| 邮件与聊天收件箱 | 邮件和渠道连接器汇入同一条事件流 |
+| 人工审批 | 决策卡片，由服务端在工具执行前强制拦截 |
+| 笔记与知识 | 内置记忆、文件和覆盖以上所有内容的搜索 |
+| 提醒与日程 | 桌面端、iOS 和 Android 上的例行任务与通知 |
 
-## What OpenTeam provides
+外部服务仍然可以通过插件、MCP 服务器和渠道接入。它们是信息的来源和去向，不保存状态。
 
-Everything below comes from upstream OpenTeam and works the same way in this fork.
+#### 驾驶舱
 
-- **Give bots a computer.** Each bot has its own screen and browser. All bots share a workspace
-  and website sign-ins, so they can build on each other's files and you only sign in once.
-- **Keep context.** Conversations resume after restarts. Bots remember what they learn about
-  themselves and you across conversations.
-- **Work as a team.** Bring multiple bots into a group chat, let them message each other, or delegate
-  tasks to subagents.
-- **Automate recurring work.** Save instructions as routines that run on a schedule or respond
-  to configured events.
-- **Connect your tools.** Add skills and plugins for services such as Gmail, GitHub, Slack, and
-  Notion, or connect a custom MCP server. Connected accounts are available to every bot.
+首页只回答一个问题：**“现在什么事情最值得我关注？”** 而不是一块堆满几十张卡片的看板。
 
-[![OpenTeam desktop and iPhone apps showing the same vendor comparison and weekday pricing check](docs/images/openteam-desktop-mobile.png)](docs/images/openteam-desktop-mobile.png)
+- **三种状态。** 我正在处理的（同一时刻只有一项）、他人和 Agent 正在处理的（可以多项并行）、
+  等待我处理的。
+- **决策卡片。** 每一次需要你介入的请求，都说明要你决定什么、推荐什么、依据和不确定性是什么、
+  不处理会有什么影响。你不需要读完一份长报告，才知道为什么有人找你。
+- **按影响程度和等待成本排序。** 紧急事故立即通知；阻塞关键交付的决策优先处理；常规审批在固定窗口批量处理；
+  探索性想法进入定期回顾。
+- **用自然语言提问。** “客户 A 的项目推进到哪一步？有什么需要我处理？”由任务、邮件、Agent 状态和历史记录
+  共同回答，不必再打开五个应用。
 
-## Get started
+#### 带质量门禁的委托
 
-You need an **x64 or arm64 machine** with a running **Docker Engine for Linux containers** and
-**Docker Compose 2.20+**. We recommend **8 GB RAM** and **8 GB free disk**. On macOS and Windows,
-Docker Desktop supplies the engine and Compose. See the [requirements](https://openteam.so/docs/getting-started/installation#requirements).
+对于非编程任务，代价最高的返工来自理解偏差。设计的重点是在你看到结果之前就把它拦住：
 
-> **The installer and apps below are upstream's.** The commands in this section download the
-> official OpenTeam CLI and server images, which do not include this fork's changes. To run
-> ai-TeamOS, build from this repository; see
-> [development from source](https://openteam.so/docs/development/from-source) and the Android
-> instructions in [apps/android/README.md](apps/android/README.md). This fork does not publish
-> releases yet.
+1. **意图确认。** 复杂任务开始前，Agent 先说明自己的理解，并区分已确认的事实、推断和未知信息。
+   它只问一个真正会改变结果的问题。
+2. **先写验收标准。** 开工前写明目标、交付物、完成标准和时间预算。
+3. **自动审查。** 审查者把成果与已批准的要求逐项对照，给出带证据的具体缺陷，而不只是一个分数。
+   自动修订最多两轮，之后把根本问题提交到决策队列。
+4. **规则沉淀。** 每次你的修改意见会被归类为项目级、任务类型级或个人偏好，只有经过确认的才成为长期规则。
 
-### 1. Install the server (upstream OpenTeam)
+#### 有边界的自主
 
-Run this on the machine that will host your bots.
+Agent 可以自行读取已授权的数据、做调研、写草稿、更新内部任务状态。
+向客户发送内容、调整正式工作安排、修改生产环境、删除数据，则必须在工具**执行之前**获得审批，
+并由服务端强制执行，而不是依靠提示词约束。来自邮件、网页和聊天的文字一律视为不可信输入，不当作指令。
+上下文按项目隔离。
+
+#### 专注的节奏
+
+通知被合并到少数几个固定窗口，只有紧急故障才允许打断深度工作。每个任务都保留恢复点，
+切换回来时只需几秒，而不是重新读一遍。
+
+#### 如何衡量
+
+我们不统计 Agent 的产出量、调用次数或工作了多少小时，只跟踪几个指标：
+
+- 每天的任务切换次数和非必要打断次数。
+- 深度工作的分钟数和完成的核心成果数。
+- 非编程交付物平均需要几轮修改。
+- 验收所花的时间。
+
+设计中出现的数值目标（例如并行上限、修订轮数）只是供试验的参数，不是研究得出的保证。
+
+#### 已有与计划
+
+| 方面 | 状态 |
+| --- | --- |
+| 拥有独立电脑的 bot、共享工作区、记忆、群聊、子 Agent | 上游已有 |
+| 按计划和事件运行的例行任务、邮件插件、Slack、Gmail 等、MCP | 上游已有 |
+| 对外发送消息前的审批步骤（外部草稿） | 上游已有 |
+| 桌面端、iOS，以及带推送通知的原生 Android 客户端 | 已有（Android 来自本分支） |
+| 跨端实时语音对话 | 本分支已有，规格草案见 [specs](specs) |
+| 项目、任务、决策作为一等对象 | 计划中 |
+| 带排序和批量窗口的决策收件箱 | 计划中 |
+| 意图确认、验收标准和审查门禁 | 计划中 |
+| 带去重、项目关联和幂等性的事件流水线 | 计划中 |
+| 按风险分级审批的策略引擎 | 计划中 |
+| 驾驶舱首页与自然语言项目查询 | 计划中 |
+
+个人微信没有稳定的官方接口可以读取聊天记录。我们不会把未经授权的数据库解密或客户端注入作为方案。
+企业微信和人工转发是现实的第一步，微信接入将作为单独的可行性研究。
+
+设计文档会随着各部分的规格化陆续加入 [specs](specs)。
+
+## 本分支目前已有的内容
+
+与上游 OpenTeam v0.0.15 相比，本分支增加了：
+
+- 原生 **Android 客户端**：聊天、bot、例行任务、推送通知、分享入口和云端电脑查看器。
+  已作为 [#236](https://github.com/raghavpillai/openteam/pull/236) 提交给上游。
+- 覆盖服务端、worker、桌面端、iOS 和 Android 的**实时语音对话**：包含语音活动检测、Opus 传输、
+  火山引擎和 Deepgram 服务商，以及对耗时工具操作的语音旁白。
+- Magpie 多模态模型元数据（[#198](https://github.com/raghavpillai/openteam/pull/198)）和网络修复
+  （[#250](https://github.com/raghavpillai/openteam/pull/250)、
+  [#251](https://github.com/raghavpillai/openteam/pull/251)）。
+
+完整清单见 [FORK.md](FORK.md)。
+
+## 分支
+
+| 分支 | 用途 |
+| --- | --- |
+| `ai-TeamOS` | 默认分支和产品主线，定期合并上游。 |
+| `main` | 上游 `main` 的镜像，不接收本地提交。向上游提交 PR 从这里开始。 |
+
+## OpenTeam 提供的能力
+
+以下能力来自上游 OpenTeam，在本分支中的用法相同。
+
+- **给 bot 一台电脑。** 每个 bot 有自己的屏幕和浏览器。所有 bot 共享工作区和网站登录状态，
+  可以在彼此的文件上继续工作，你只需登录一次。
+- **保留上下文。** 对话在重启后继续。bot 会跨对话记住关于自己和你的信息。
+- **像团队一样工作。** 把多个 bot 拉进群聊，让它们互相发消息，或把任务委派给子 Agent。
+- **自动化重复工作。** 把指令保存为例行任务，按计划运行，或响应配置好的事件。
+- **连接你的工具。** 为 Gmail、GitHub、Slack、Notion 等服务添加技能和插件，或接入自定义 MCP 服务器。
+  已连接的账号对每个 bot 都可用。
+
+[![OpenTeam 桌面端和 iPhone 应用显示同一份供应商对比和工作日价格检查](docs/images/openteam-desktop-mobile.png)](docs/images/openteam-desktop-mobile.png)
+
+## 快速开始
+
+你需要一台 **x64 或 arm64 机器**，运行 **面向 Linux 容器的 Docker Engine** 和 **Docker Compose 2.20+**。
+建议 **8 GB 内存**和 **8 GB 可用磁盘**。在 macOS 和 Windows 上，Docker Desktop 会提供引擎和 Compose。
+参见[环境要求](https://openteam.so/docs/getting-started/installation#requirements)（上游英文文档）。
+
+> **下面的安装器和应用来自上游。** 本节命令下载的是官方 OpenTeam CLI 和服务端镜像，
+> 不包含本分支的改动。要运行 ai-TeamOS，请从本仓库构建，参见
+> [从源码开发](https://openteam.so/docs/development/from-source)和
+> [apps/android/README.md](apps/android/README.md) 中的 Android 说明。本分支目前没有发布版本。
+
+### 1. 安装服务端（上游 OpenTeam）
+
+在将要托管 bot 的机器上运行。
 
 **macOS / Linux**
 
@@ -139,60 +205,59 @@ curl -fsSL https://openteam.so/install | sh
 irm https://openteam.so/install.ps1 | iex
 ```
 
-The installer downloads the CLI, adds it to your `PATH`, and starts guided setup. Node.js and Bun are not required.
+安装器会下载 CLI，把它加入 `PATH`，并启动引导式设置。不需要 Node.js 和 Bun。
 
-### 2. Finish setup
+### 2. 完成设置
 
-Choose how you'll connect, then create your OpenTeam username and password. Setup defaults to a
-private connection over your LAN or VPN, starts the server, and prints your **server URL**.
-Setup includes private Tailscale HTTPS, public HTTPS, and existing proxy options. Use `openteam setup --advanced` for additional server settings.
+选择连接方式，然后创建你的 OpenTeam 用户名和密码。设置默认使用局域网或 VPN 上的私有连接，
+启动服务端，并打印你的**服务器地址**。
+设置中包含私有 Tailscale HTTPS、公开 HTTPS 和已有代理等选项。使用 `openteam setup --advanced` 可调整更多服务端设置。
 
-### 3. Open the app
+### 3. 打开应用
 
-[Download the desktop app](https://openteam.so/download), enter the server URL from setup,
-and sign in with the account you just created. The app then helps you connect a model with a
-ChatGPT or Claude sign-in, or an OpenAI, Anthropic, or OpenRouter API key, and checks that it
-replies. Then create your first bot and send it a task. To use your own model server, add it on
-the host with `openteam provider add`; see [model providers](https://openteam.so/docs/configuration/models#use-your-own-model-server).
+[下载桌面端](https://openteam.so/download)，输入设置时得到的服务器地址，并用刚创建的账号登录。
+应用随后会帮你用 ChatGPT 或 Claude 登录，或用 OpenAI、Anthropic、OpenRouter 的 API 密钥连接模型，并检查它能否回复。
+然后创建你的第一个 bot 并发给它一个任务。要使用自己的模型服务，请在主机上执行 `openteam provider add`，
+参见[模型服务商](https://openteam.so/docs/configuration/models#use-your-own-model-server)。
 
-The host and Docker must stay running for bots and routines to work. Server-side work continues
-when you close the app. Keep the desktop app open when bots need access to your physical computer.
+主机和 Docker 必须保持运行，bot 和例行任务才能工作。关闭应用后，服务端的工作会继续。
+当 bot 需要访问你的物理电脑时，请保持桌面端打开。
 
-## Apps
+## 应用
 
-| App | Get it |
+| 应用 | 获取方式 |
 | --- | --- |
-| Desktop for macOS (Apple silicon) and Linux (x64) | Upstream [downloads](https://openteam.so/download) |
-| iPhone (beta) | Upstream [TestFlight](https://testflight.apple.com/join/KFBFPkjP) · [build from source](apps/ios/README.md) |
-| Android | [Build from source](apps/android/README.md) |
+| macOS（Apple 芯片）和 Linux（x64）桌面端 | 上游[下载页](https://openteam.so/download) |
+| iPhone（测试版） | 上游 [TestFlight](https://testflight.apple.com/join/KFBFPkjP) · [从源码构建](apps/ios/README.md) |
+| Android | [从源码构建](apps/android/README.md) |
 
-All apps connect to your server for chat and live screens. Most server settings, such as the model, are in the desktop app.
+所有应用都连接到你的服务端进行聊天和查看实时屏幕。大多数服务端设置（例如模型）都在桌面端里。
 
-## Useful commands
+## 常用命令
 
 ```sh
-openteam status    # Check the server and its version
-openteam doctor    # Diagnose setup or connection problems
-openteam setup     # Change the connection mode
-openteam update    # Update the CLI and server with backup and rollback
+openteam status    # 检查服务端及其版本
+openteam doctor    # 诊断设置或连接问题
+openteam setup     # 更改连接方式
+openteam update    # 更新 CLI 和服务端，带备份和回滚
 ```
 
-See [server commands](https://openteam.so/docs/manage/server), [remote access](https://openteam.so/docs/configuration/remote-access),
-[backups](https://openteam.so/docs/manage/backups), and [troubleshooting](https://openteam.so/docs/manage/troubleshooting) for ongoing operation.
+日常运维参见[服务端命令](https://openteam.so/docs/manage/server)、
+[远程访问](https://openteam.so/docs/configuration/remote-access)、
+[备份](https://openteam.so/docs/manage/backups)和[故障排查](https://openteam.so/docs/manage/troubleshooting)。
 
-## Documentation
+## 文档
 
-- [FORK.md](FORK.md): attribution, branch rules, identifiers and the list of changes in this fork.
-- [Server settings](https://openteam.so/docs/configuration/server): where to change each setting after setup.
-- [Plugins](https://openteam.so/docs/usage/plugins): connect accounts and control bot access.
-- [How hosting works](https://openteam.so/docs/overview/architecture): what runs where and what needs to stay on.
-- [Development from source](https://openteam.so/docs/development/from-source): run from source and run checks.
+- [FORK.md](FORK.md)：本分支的署名、分支规则、标识符和改动清单。
+- [服务端设置](https://openteam.so/docs/configuration/server)：设置完成后在哪里修改各项设置。
+- [插件](https://openteam.so/docs/usage/plugins)：连接账号并控制 bot 的访问权限。
+- [托管如何工作](https://openteam.so/docs/overview/architecture)：什么运行在哪里，什么必须保持开启。
+- [从源码开发](https://openteam.so/docs/development/from-source)：从源码运行并执行检查。
 
-Browse [all upstream documentation](https://openteam.so/docs) for feature guides and implementation notes.
+更多功能指南和实现说明见[上游全部文档](https://openteam.so/docs)（英文）。
 
-## License
+## 许可证
 
-ai-TeamOS is licensed under the [GNU General Public License v3.0](LICENSE), the same license as
-OpenTeam. Some bundled third-party components, such as noVNC, fonts, and a few plugins, keep their
-own licenses, which are included alongside them. "OpenTeam" and its logo belong to the upstream
-author.
+ai-TeamOS 采用 [GNU 通用公共许可证 v3.0](LICENSE)，与 OpenTeam 相同。部分捆绑的第三方组件，
+例如 noVNC、字体和少数插件，保留各自的许可证，许可证文件随组件一并提供。
+“OpenTeam”及其标志属于上游作者。
