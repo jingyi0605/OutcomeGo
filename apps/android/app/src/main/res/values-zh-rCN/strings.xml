@@ -1,6 +1,6 @@
 <resources>
-    <string name="app_name">OpenTeam</string>
-    <string name="login_welcome_title">欢迎使用 OpenTeam</string>
+    <string name="app_name">OpenTeamBots</string>
+    <string name="login_welcome_title">欢迎使用 OpenTeamBots</string>
     <string name="login_welcome_detail">连接到你的服务器并设置第一个机器人，整个过程大约需要两分钟。</string>
     <string name="login_install_server">安装服务器</string>
     <string name="login_install_command">curl -fsSL https://openteam.so/install | sh</string>
@@ -75,7 +75,7 @@
     <string name="directory_no_messages">还没有消息</string>
     <string name="directory_section_unassigned">未分组</string>
     <string name="shortcut_find_messages">查找消息</string>
-    <string name="shortcut_find_messages_long">搜索 OpenTeam 消息</string>
+    <string name="shortcut_find_messages_long">搜索 OpenTeamBots 消息</string>
     <string name="directory_pin">置顶</string>
     <string name="directory_unpin">取消置顶</string>
     <string name="directory_move_to_section">移动到「%1$s」</string>

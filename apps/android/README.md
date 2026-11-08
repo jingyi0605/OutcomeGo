@@ -45,7 +45,7 @@ cannot wake a process that Android has terminated, so it does not replace FCM
 for reliable background delivery.
 
 To enable FCM, add the Firebase Android app configuration through the deployment
-build process, typically as `google-services.json` for the `com.openteam.android`
+build process, typically as `google-services.json` for the `com.teambots.android`
 application, and keep the worker credentials outside the repository. Verify
 both the credential-free payload tests and a real device delivery test before
 calling Android notifications complete.

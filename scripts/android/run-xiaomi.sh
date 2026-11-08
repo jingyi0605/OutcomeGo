@@ -6,8 +6,8 @@
 set -euo pipefail
 
 ROOT_DIR=$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)
-APP_ID="com.openteam.android"
-LAUNCH_COMPONENT="${APP_ID}/.MainActivity"
+APP_ID="com.teambots.android"
+LAUNCH_COMPONENT="${APP_ID}/com.openteam.android.MainActivity"
 XIAOMI_MODEL_MARKER="M154FF"
 
 ADB="${ADB:-}"

@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT_DIR=$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)
 STRICT="${ANDROID_RELEASE_GATE_STRICT:-0}"
 APP_LINKS="$ROOT_DIR/docs/android/assetlinks.json.template"
-PACKAGE_NAME="${ANDROID_APPLICATION_ID:-com.openteam.android}"
+PACKAGE_NAME="${ANDROID_APPLICATION_ID:-com.teambots.android}"
 APP_LINK_HOST="${OPENTEAM_APP_LINK_HOST:-openteam.example.com}"
 APK_PATH="${ANDROID_APK:-}"
 AAB_PATH="${ANDROID_AAB:-}"

@@ -1,6 +1,6 @@
 <resources>
-    <string name="app_name">OpenTeam</string>
-    <string name="login_welcome_title">Welcome to OpenTeam</string>
+    <string name="app_name">OpenTeamBots</string>
+    <string name="login_welcome_title">Welcome to OpenTeamBots</string>
     <string name="login_welcome_detail">Connect to your server and set up your first bot. It takes about two minutes.</string>
     <string name="login_install_server">Install the server</string>
     <string name="login_install_command">curl -fsSL https://openteam.so/install | sh</string>
@@ -75,7 +75,7 @@
     <string name="directory_no_messages">No messages yet</string>
     <string name="directory_section_unassigned">Unassigned</string>
     <string name="shortcut_find_messages">Find messages</string>
-    <string name="shortcut_find_messages_long">Search OpenTeam messages</string>
+    <string name="shortcut_find_messages_long">Search OpenTeamBots messages</string>
     <string name="directory_pin">Pin to top</string>
     <string name="directory_unpin">Unpin</string>
     <string name="directory_move_to_section">Move to \"%1$s\"</string>

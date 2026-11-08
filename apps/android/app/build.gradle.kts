@@ -22,7 +22,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.openteam.android"
+        applicationId = "com.teambots.android"
         minSdk = 26
         targetSdk = 35
         versionCode = 2
