@@ -38,6 +38,10 @@ jobs:
       - name: Architecture boundaries
         run: bun run check:architecture
       - run: bun run typecheck
+      - name: Install native voice test dependency
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y libopus0
       - run: bun run test
       - run: bun run build
 
