@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="docs/images/ai-teamos-logo.png" alt="ai-TeamOS 标志" height="180">
+  <img src="docs/images/ai-teamos-logo.png" alt="aiTeamOS 标志" height="180">
 </p>
 
-<h1 align="center">ai-TeamOS</h1>
+<h1 align="center">aiTeamOS</h1>
 
 <p align="center">
   <b>把注意力留给真正需要你判断的事</b>
@@ -27,12 +27,12 @@
   中文 | <a href="README.en.md">English</a>
 </p>
 
-ai-TeamOS 是 [OpenTeam](https://github.com/raghavpillai/openteam) 的独立长期分支，与上游项目没有隶属关系，
+aiTeamOS 是 [OpenTeam](https://github.com/raghavpillai/openteam) 的独立长期分支，与上游项目没有隶属关系，
 也未获得其背书。署名、分支规则和改动清单见 [FORK.md](FORK.md)。
 
 ## 致敬源项目
 
-ai-TeamOS 之所以存在，是因为 OpenTeam 是一个非常出色的项目，我们想先说这一点。
+aiTeamOS 之所以存在，是因为 OpenTeam 是一个非常出色的项目，我们想先说这一点。
 [Raghav Pillai](https://github.com/raghavpillai) 构建了一套完整的自托管 AI Agent 工作方式：
 每个 bot 拥有真实的电脑，在任务之间保留记忆和登录状态，能在群聊中协作，按计划运行例行任务，
 并通过桌面端和移动端随时找到你。架构清晰，产品打磨精细，迭代速度令人惊叹。
@@ -80,11 +80,11 @@ AI 让每个人的能力边界不断扩展：一个人现在可以同时指挥�
 今天的工作散落在各个孤岛里：Agent 的对话、邮件、聊天软件、待办、笔记、自动化工具。
 你成了这些系统之间唯一的连接器，要亲手收集、关联、排序和跟进。
 
-ai-TeamOS 选择另一条路：**不是在 Agent 周围再添更多工具，而是把这些工具中真正有用的能力
+aiTeamOS 选择另一条路：**不是在 Agent 周围再添更多工具，而是把这些工具中真正有用的能力
 集成进本项目，并让本项目成为唯一的数据源**，承载项目、任务、Agent 运行、对话和决策。
 不再需要另一套工作流引擎，不再需要第二个任务数据库，也不用笔记软件充当任务库。
 
-| 通常要靠多个外部工具提供的能力 | ai-TeamOS 中的方向 |
+| 通常要靠多个外部工具提供的能力 | aiTeamOS 中的方向 |
 | --- | --- |
 | 任务与项目数据库 | 内置项目、任务和决策，与 bot、对话在同一个数据库中 |
 | 工作流自动化与定时调度 | 内置例行任务（Routine）、事件触发和 Agent 运行 |
@@ -96,9 +96,9 @@ ai-TeamOS 选择另一条路：**不是在 Agent 周围再添更多工具，而�
 
 外部服务仍然可以通过插件、MCP 服务器和渠道接入。它们是信息的来源和去向，不保存状态。
 
-![统一工作控制平面：Bot 与 Agent 运行、例行任务与事件、外部服务经过事件接入层，进入统一工作上下文引擎，再到驾驶舱和操作与调度层，全部在 ai-TeamOS 内](docs/images/attention/work-control-plane.zh.png)
+![统一工作控制平面：Bot 与 Agent 运行、例行任务与事件、外部服务经过事件接入层，进入统一工作上下文引擎，再到驾驶舱和操作与调度层，全部在 aiTeamOS 内](docs/images/attention/work-control-plane.zh.png)
 
-<sub>示意图，表达的是方向而不是现状。外部服务只作为来源接入，状态保存在 ai-TeamOS 中。</sub>
+<sub>示意图，表达的是方向而不是现状。外部服务只作为来源接入，状态保存在 aiTeamOS 中。</sub>
 
 #### 驾驶舱
 
@@ -219,7 +219,7 @@ Agent 可以自行读取已授权的数据、做调研、写草稿、更新内�
 参见[环境要求](https://openteam.so/docs/getting-started/installation#requirements)（上游英文文档）。
 
 > **下面的安装器和应用来自上游。** 本节命令下载的是官方 OpenTeam CLI 和服务端镜像，
-> 不包含本分支的改动。要运行 ai-TeamOS，请从本仓库构建，参见
+> 不包含本分支的改动。要运行 aiTeamOS，请从本仓库构建，参见
 > [从源码开发](https://openteam.so/docs/development/from-source)和
 > [apps/android/README.md](apps/android/README.md) 中的 Android 说明。本分支目前没有发布版本。
 
@@ -292,6 +292,6 @@ openteam update    # 更新 CLI 和服务端，带备份和回滚
 
 ## 许可证
 
-ai-TeamOS 采用 [GNU 通用公共许可证 v3.0](LICENSE)，与 OpenTeam 相同。部分捆绑的第三方组件，
+aiTeamOS 采用 [GNU 通用公共许可证 v3.0](LICENSE)，与 OpenTeam 相同。部分捆绑的第三方组件，
 例如 noVNC、字体和少数插件，保留各自的许可证，许可证文件随组件一并提供。
 “OpenTeam”及其标志属于上游作者。

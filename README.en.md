@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="docs/images/ai-teamos-logo.png" alt="ai-TeamOS logo" height="180">
+  <img src="docs/images/ai-teamos-logo.png" alt="aiTeamOS logo" height="180">
 </p>
 
-<h1 align="center">ai-TeamOS</h1>
+<h1 align="center">aiTeamOS</h1>
 
 <p align="center">
   <b>Keep your attention for what truly needs your judgment</b>
@@ -27,13 +27,13 @@
   <a href="README.md">中文</a> | English
 </p>
 
-ai-TeamOS is an independent, long-lived fork of [OpenTeam](https://github.com/raghavpillai/openteam).
+aiTeamOS is an independent, long-lived fork of [OpenTeam](https://github.com/raghavpillai/openteam).
 It is not affiliated with or endorsed by the upstream project. See [FORK.md](FORK.md) for
 attribution, branch rules and the list of changes.
 
 ## Standing on excellent work
 
-ai-TeamOS exists because OpenTeam is an outstanding project, and we want to say so first.
+aiTeamOS exists because OpenTeam is an outstanding project, and we want to say so first.
 [Raghav Pillai](https://github.com/raghavpillai) built a complete, self-hosted way to work with
 AI agents: bots that own a real computer, keep their memory and logins between tasks, work
 together in group chats, run routines on a schedule, and reach you from desktop and mobile apps.
@@ -92,12 +92,12 @@ Today work is scattered across islands: agent conversations, email, chat apps, t
 workflow tools. You become the only connector between them, collecting, matching, ranking and
 following up by hand.
 
-ai-TeamOS takes a different route. **It does not add more tools around the agents. It brings the
+aiTeamOS takes a different route. **It does not add more tools around the agents. It brings the
 parts of those tools that matter into one product, and makes that product the only source of
 truth** for projects, tasks, agent runs, conversations and decisions. No separate workflow engine,
 no second task database, no note-taking tool acting as a task store.
 
-| Capability people usually get from separate tools | Direction in ai-TeamOS |
+| Capability people usually get from separate tools | Direction in aiTeamOS |
 | --- | --- |
 | Task and project database | Built-in projects, tasks and decisions, in the same database as bots and conversations |
 | Workflow automation and scheduling | Built-in routines, event triggers and agent runs |
@@ -110,9 +110,9 @@ no second task database, no note-taking tool acting as a task store.
 External services still connect, as plugins, MCP servers and channels. They are sources and
 destinations. They do not hold the state.
 
-![Unified work control plane: bot and agent runs, routines and events, and external services flow through an event intake layer into a unified work-context engine, then the cockpit and an action and scheduling layer, all inside ai-TeamOS](docs/images/attention/work-control-plane.en.png)
+![Unified work control plane: bot and agent runs, routines and events, and external services flow through an event intake layer into a unified work-context engine, then the cockpit and an action and scheduling layer, all inside aiTeamOS](docs/images/attention/work-control-plane.en.png)
 
-<sub>Illustration of the direction, not of the current state. External services connect only as sources, and state lives in ai-TeamOS.</sub>
+<sub>Illustration of the direction, not of the current state. External services connect only as sources, and state lives in aiTeamOS.</sub>
 
 #### The cockpit
 
@@ -251,7 +251,7 @@ Docker Desktop supplies the engine and Compose. See the [requirements](https://o
 
 > **The installer and apps below are upstream's.** The commands in this section download the
 > official OpenTeam CLI and server images, which do not include this fork's changes. To run
-> ai-TeamOS, build from this repository; see
+> aiTeamOS, build from this repository; see
 > [development from source](https://openteam.so/docs/development/from-source) and the Android
 > instructions in [apps/android/README.md](apps/android/README.md). This fork does not publish
 > releases yet.
@@ -325,7 +325,7 @@ Browse [all upstream documentation](https://openteam.so/docs) for feature guides
 
 ## License
 
-ai-TeamOS is licensed under the [GNU General Public License v3.0](LICENSE), the same license as
+aiTeamOS is licensed under the [GNU General Public License v3.0](LICENSE), the same license as
 OpenTeam. Some bundled third-party components, such as noVNC, fonts, and a few plugins, keep their
 own licenses, which are included alongside them. "OpenTeam" and its logo belong to the upstream
 author.

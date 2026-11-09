@@ -559,6 +559,6 @@ jobs:
             --repo "$GITHUB_REPOSITORY" \
             --verify-tag \
             --latest \
-            --title "ai-TeamOS $VERSION" \
+            --title "aiTeamOS $VERSION" \
             --notes-file notes.md \
             --generate-notes
