@@ -70,6 +70,15 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.layout.offset
+import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.Movie
+import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.TextFields
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
@@ -514,7 +523,7 @@ fun rememberDecodedBitmap(path: String?, maxSizePx: Int): ImageBitmap? {
     return bitmap
 }
 
-private fun openBitmapStream(context: android.content.Context, path: String) =
+internal fun openBitmapStream(context: android.content.Context, path: String) =
     Uri.parse(path).let { uri ->
         if (uri.scheme == "content") {
             context.contentResolver.openInputStream(uri)
@@ -555,18 +564,149 @@ fun ChatAttachmentStrip(
                     }
                 }
             } else {
-                Card(Modifier.fillMaxWidth(), colors = featureCardColors()) {
-                    Row(Modifier.padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Column(Modifier.weight(1f)) {
-                            Text(attachment.name, fontWeight = FontWeight.Medium)
-                            Text("${attachment.mimeType} · ${formatBytes(attachment.sizeBytes)}", style = MaterialTheme.typography.bodySmall)
+                // As on macOS and iOS, the whole card opens the viewer; downloading starts from there.
+                FileAttachmentCard(attachment) { onPreview(attachment, AttachmentAction.Preview) }
+            }
+        }
+    }
+}
+
+/** A file's compact size as the other clients show it: "658B", "38kB", "1.2MB". */
+fun formatAttachmentSize(bytes: Long): String {
+    if (bytes < 0) return ""
+    val units = arrayOf("B", "kB", "MB", "GB")
+    var value = bytes.toDouble()
+    var unit = 0
+    while (value >= 1024 && unit < units.lastIndex) {
+        value /= 1024
+        unit += 1
+    }
+    val text = if (unit == 0 || value >= 10) "%.0f".format(java.util.Locale.ROOT, value) else "%.1f".format(java.util.Locale.ROOT, value)
+    return text + units[unit]
+}
+
+private enum class FileGlyphVariant { Pdf, Docx, Ppt, Spreadsheet, Generic, Zip, Image, Video, Audio, Font, Unknown }
+
+private val glyphExtensions: Map<String, FileGlyphVariant> = buildMap {
+    listOf("doc", "docx", "odt", "pages", "rtf").forEach { put(it, FileGlyphVariant.Docx) }
+    listOf("ppt", "pptx", "odp", "key").forEach { put(it, FileGlyphVariant.Ppt) }
+    listOf("xls", "xlsx", "csv", "tsv", "ods", "numbers").forEach { put(it, FileGlyphVariant.Spreadsheet) }
+    listOf("zip", "gz", "tgz", "tar", "7z", "rar").forEach { put(it, FileGlyphVariant.Zip) }
+    listOf("md", "markdown", "txt", "log", "html", "xml", "yaml", "yml", "json", "js", "ts", "py", "swift", "kt").forEach { put(it, FileGlyphVariant.Generic) }
+    listOf("png", "jpg", "jpeg", "gif", "webp", "heic", "svg").forEach { put(it, FileGlyphVariant.Image) }
+    listOf("mp4", "mov", "m4v", "webm", "mkv").forEach { put(it, FileGlyphVariant.Video) }
+    listOf("mp3", "m4a", "wav", "aac", "ogg", "flac").forEach { put(it, FileGlyphVariant.Audio) }
+    listOf("otf", "ttf", "woff", "woff2").forEach { put(it, FileGlyphVariant.Font) }
+    put("pdf", FileGlyphVariant.Pdf)
+}
+
+private fun glyphVariant(fileName: String): FileGlyphVariant {
+    val dot = fileName.lastIndexOf('.')
+    return glyphExtensions[if (dot > 0) fileName.substring(dot + 1).lowercase() else ""] ?: FileGlyphVariant.Unknown
+}
+
+@Composable
+private fun FileAttachmentCard(attachment: Attachment, onOpen: () -> Unit) {
+    val shape = RoundedCornerShape(20.dp)
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .background(MaterialTheme.colorScheme.background)
+            .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant, shape)
+            .clickable(onClickLabel = localizedText("Open ${attachment.name}", "打开 ${attachment.name}"), onClick = onOpen)
+            .padding(14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        FileGlyph(attachment.name)
+        Column(Modifier.weight(1f)) {
+            Text(
+                attachment.name,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onBackground,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                formatAttachmentSize(attachment.sizeBytes),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+            )
+        }
+        if (attachment.state == AttachmentState.Downloading) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+    }
+}
+
+/** A 32x40 paper icon: lines of ink and a colored band by file type, as on macOS. */
+@Composable
+fun FileGlyph(fileName: String, modifier: Modifier = Modifier) {
+    val variant = glyphVariant(fileName)
+    val dark = MaterialTheme.colorScheme.background.luminance() < .45f
+    val ink = if (dark) Color(0x3DF5F5F5) else Color(0x2E1C1C1C)
+    val mark = if (dark) Color(0x80F5F5F5) else Color(0x851C1C1C)
+    val stripe = when (variant) {
+        FileGlyphVariant.Pdf -> if (dark) Color(0xFFFC2C3E) else Color(0xFFFB2B3E)
+        FileGlyphVariant.Docx -> if (dark) Color(0xFF116DD2) else Color(0xFF1680F3)
+        FileGlyphVariant.Ppt -> if (dark) Color(0xFFCD5309) else Color(0xFFEE620D)
+        FileGlyphVariant.Spreadsheet -> if (dark) Color(0xFF0E9F5A) else Color(0xFF10AB61)
+        else -> null
+    }
+    val paper = RoundedCornerShape(6.dp)
+    fun Modifier.line(width: Int) = this.width(width.dp).height(4.dp).clip(RoundedCornerShape(2.dp)).background(ink)
+    Column(
+        modifier
+            .size(width = 32.dp, height = 40.dp)
+            .clip(paper)
+            .background(if (dark) Color(0xFF2C2C2C) else Color.White)
+            .border(0.5.dp, ink, paper),
+    ) {
+        val symbol = when (variant) {
+            FileGlyphVariant.Image -> Icons.Default.Image
+            FileGlyphVariant.Video -> Icons.Default.Movie
+            FileGlyphVariant.Audio -> Icons.Default.MusicNote
+            FileGlyphVariant.Font -> Icons.Default.TextFields
+            else -> null
+        }
+        when {
+            symbol != null -> Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                Icon(symbol, contentDescription = null, tint = mark, modifier = Modifier.size(16.dp))
+            }
+            variant == FileGlyphVariant.Unknown -> Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                Text("?", fontSize = 17.sp, color = mark)
+            }
+            variant == FileGlyphVariant.Zip -> Column(
+                Modifier.weight(1f).fillMaxWidth().padding(top = 4.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(3.dp),
+            ) {
+                repeat(5) { row ->
+                    Box(Modifier.offset(x = if (row % 2 == 0) (-2.5).dp else 2.5.dp).size(width = 5.dp, height = 3.dp).background(ink))
+                }
+            }
+            else -> Column(
+                Modifier.weight(1f).fillMaxWidth().padding(4.dp),
+                verticalArrangement = Arrangement.spacedBy(3.dp),
+            ) {
+                Box(Modifier.line(24))
+                if (stripe != null) {
+                    Row(Modifier.height(11.dp), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                            Box(Modifier.line(11))
+                            Box(Modifier.line(11))
                         }
-                        TextButton(onClick = { onPreview(attachment, AttachmentAction.Preview) }) { Text(if (localPath == null) localizedText("Preview", "预览") else localizedText("Open", "打开")) }
-                        if (localPath == null) TextButton(onClick = { onDownload(attachment, AttachmentAction.Download) }) { Text(localizedText("Download", "下载")) }
+                        Box(Modifier.size(11.dp).clip(RoundedCornerShape(2.dp)).background(ink))
                     }
+                } else {
+                    Box(Modifier.line(20))
+                    Box(Modifier.line(24))
+                    Box(Modifier.line(16))
                 }
             }
         }
+        if (stripe != null) Box(Modifier.fillMaxWidth().height(12.dp).background(stripe))
     }
 }
 

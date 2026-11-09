@@ -3437,7 +3437,10 @@ private fun MessageBubble(
                         )
                     }
                     // A question card already shows its prompt, so the body text would repeat it.
-                    message.displayBody?.takeUnless { message.richMessage?.isQuestion == true }?.let { body ->
+                    // As on macOS, a message whose text is just its one file's name shows only the file card.
+                    val repeatsFileName = message.attachments.singleOrNull()?.let { it.name == message.body } == true ||
+                        (message.attachments.isNotEmpty() && (message.metadata["type"] as? kotlinx.serialization.json.JsonPrimitive)?.content == "attachment")
+                    message.displayBody?.takeUnless { message.richMessage?.isQuestion == true || repeatsFileName }?.let { body ->
                         MarkdownMessage(
                             markdown = body,
                             contentColor = if (message.isMine) {
