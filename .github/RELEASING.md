@@ -58,7 +58,8 @@ non-pre-release releases.
 
 | Platform | Variable | Secrets |
 |---|---|---|
-| Android | `RELEASE_ANDROID=true`, `ANDROID_APP_LINK_HOST` | `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD` |
+| Android | `RELEASE_ANDROID=true`, `ANDROID_APP_LINK_HOST` | `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`, `ANDROID_UPDATE_SIGNING_PRIVATE_KEY_BASE64` |
+| Windows | Desktop release is built on `windows-latest`, with Authenticode verification | `WINDOWS_CERTIFICATE_BASE64`, `WINDOWS_CERTIFICATE_PASSWORD`, `WINDOWS_SIGNING_SUBJECT` repository variable |
 | macOS | `RELEASE_MACOS=true`, `MACOS_SIGNING_IDENTITY` (the certificate name without the `Developer ID Application:` prefix, for example `Your Name (TEAMID)`) | `MACOS_CERTIFICATE_BASE64`, `MACOS_CERTIFICATE_PASSWORD`, `APPLE_API_KEY_BASE64`, `APPLE_API_KEY_ID`, `APPLE_API_ISSUER` |
 | iOS | `RELEASE_IOS=true`, optional `IOS_RUNNER`, `IOS_XCODE` | `IOS_DISTRIBUTION_P12_BASE64`, `IOS_DISTRIBUTION_P12_PASSWORD`, `IOS_APP_PROFILE_BASE64`, `IOS_EXTENSION_PROFILE_BASE64`, `IOS_SHARE_PROFILE_BASE64`, `APP_STORE_CONNECT_KEY_ID`, `APP_STORE_CONNECT_ISSUER_ID`, `APP_STORE_CONNECT_PRIVATE_KEY` |
 
@@ -79,6 +80,13 @@ base64 < teamos-release.jks | pbcopy   # paste as ANDROID_KEYSTORE_BASE64
 Losing the keystore means existing installs can no longer be updated. The manifest still
 enables cleartext traffic for development, which `scripts/android/release-gate.sh` reports as
 pending. Decide before a public release.
+
+Android GitHub sideload releases also publish `android-update.json`. The app verifies the
+manifest signature, APK checksum, APK signing certificate digest, package ID, version code and
+HTTPS download URL before it opens the system `PackageInstaller`. Keep the private manifest
+signing key only in `ANDROID_UPDATE_SIGNING_PRIVATE_KEY_BASE64`; its matching public key is
+compiled into the app. A key rotation requires an app update that trusts the new public key
+before releases signed by it can be installed.
 
 ## iOS
 
@@ -102,5 +110,8 @@ The desktop app is `aiTeamOS` (bundle and app id `dev.aiteamos.desktop`, executa
 The local server data folder keeps the name `aiTeamOS`/`.aiteamos` because the CLI and desktop share it.
 
 Windows installers are unsigned until a code-signing certificate is added, so SmartScreen will
-warn. Linux builds are not signed. Siri and APNs behaviour needs a physical device and stays a
-manual check.
+warn. Published Windows releases now require `WINDOWS_CERTIFICATE_BASE64`,
+`WINDOWS_CERTIFICATE_PASSWORD`, and the expected `WINDOWS_SIGNING_SUBJECT`; the workflow
+verifies the generated installer with `Get-AuthenticodeSignature` before uploading it.
+Linux builds are not signed. Siri and APNs
+behaviour needs a physical device and stays a manual check.

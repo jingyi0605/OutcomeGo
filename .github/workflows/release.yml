@@ -296,6 +296,19 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bun run db:generate
       - run: bun run prepare:plugins
+      - name: Restore Windows Authenticode certificate
+        if: runner.os == 'Windows' && needs.meta.outputs.publish == 'true'
+        env:
+          WINDOWS_CERTIFICATE_BASE64: ${{ secrets.WINDOWS_CERTIFICATE_BASE64 }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$WINDOWS_CERTIFICATE_BASE64" || { echo "WINDOWS_CERTIFICATE_BASE64 is required for published Windows releases" >&2; exit 1; }
+          test -n "$WINDOWS_CERTIFICATE_PASSWORD" || { echo "WINDOWS_CERTIFICATE_PASSWORD is required for published Windows releases" >&2; exit 1; }
+          certificate="$RUNNER_TEMP/aiTeamOS-windows-signing.pfx"
+          printf '%s' "$WINDOWS_CERTIFICATE_BASE64" | base64 --decode > "$certificate"
+          echo "WIN_CSC_LINK=$certificate" >> "$GITHUB_ENV"
+          echo "WIN_CSC_KEY_PASSWORD=$WINDOWS_CERTIFICATE_PASSWORD" >> "$GITHUB_ENV"
       - name: Package and check size budgets
         run: |
           for attempt in 1 2 3; do
@@ -307,6 +320,18 @@ jobs:
           done
           exit 1
         working-directory: apps/desktop
+      - name: Verify Windows Authenticode signature
+        if: runner.os == 'Windows' && needs.meta.outputs.publish == 'true'
+        env:
+          WINDOWS_SIGNING_SUBJECT: ${{ vars.WINDOWS_SIGNING_SUBJECT }}
+        run: |
+          test -n "$WINDOWS_SIGNING_SUBJECT" || {
+            echo "WINDOWS_SIGNING_SUBJECT is required for published Windows releases" >&2
+            exit 1
+          }
+          pwsh -File scripts/windows/verify-authenticode.ps1 \
+            -Path apps/desktop/release \
+            -SubjectPattern "$WINDOWS_SIGNING_SUBJECT"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: desktop-${{ runner.os }}
@@ -415,16 +440,57 @@ jobs:
         env:
           ANDROID_APK: apps/android/app/build/outputs/apk/release/androidApp-release.apk
         run: bash scripts/android/release-gate.sh all
+      - name: Create signed Android update manifest
+        env:
+          ANDROID_UPDATE_SIGNING_PRIVATE_KEY_BASE64: ${{ secrets.ANDROID_UPDATE_SIGNING_PRIVATE_KEY_BASE64 }}
+          VERSION: ${{ needs.meta.outputs.version }}
+          REPOSITORY: ${{ github.repository }}
+          SERVER_URL: ${{ github.server_url }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          test -n "$ANDROID_UPDATE_SIGNING_PRIVATE_KEY_BASE64" || {
+            echo "ANDROID_UPDATE_SIGNING_PRIVATE_KEY_BASE64 is required for Android releases" >&2
+            exit 1
+          }
+          apk="apps/android/app/build/outputs/apk/release/androidApp-release.apk"
+          mkdir -p dist
+          private_key="$RUNNER_TEMP/android-update-signing-key.pem"
+          printf '%s' "$ANDROID_UPDATE_SIGNING_PRIVATE_KEY_BASE64" | base64 --decode > "$private_key"
+          sdk_root="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          apksigner_path="$(command -v apksigner || true)"
+          if [ -z "$apksigner_path" ] && [ -n "$sdk_root" ]; then
+            apksigner_path="$(find "$sdk_root/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
+          fi
+          test -x "$apksigner_path" || { echo "apksigner was not found" >&2; exit 1; }
+          certificate_sha256="$("$apksigner_path" verify --print-certs "$apk" | awk -F': ' '/Signer #1 certificate SHA-256 digest:/ {print $2; exit}')"
+          test -n "$certificate_sha256" || { echo "Could not read the APK certificate digest" >&2; exit 1; }
+          aapt2_path="$(find "$sdk_root/build-tools" -type f -name aapt2 | sort -V | tail -n 1)"
+          test -x "$aapt2_path" || { echo "aapt2 was not found" >&2; exit 1; }
+          version_code="$("$aapt2_path" dump badging "$apk" | sed -n "s/.*versionCode='\([^']*\)'.*/\1/p" | head -n 1)"
+          test -n "$version_code" || { echo "Could not read the APK version code" >&2; exit 1; }
+          python3 scripts/android/create-update-manifest.py \
+            --version "$VERSION" \
+            --version-code "$version_code" \
+            --application-id com.teambots.android \
+            --apk-url "$SERVER_URL/$REPOSITORY/releases/download/$REF_NAME/aiTeamOS-$VERSION-android.apk" \
+            --apk "$apk" \
+            --certificate-sha256 "$certificate_sha256" \
+            --private-key "$private_key" \
+            --output dist/android-update.json
       - name: Name the artifact
         env:
           VERSION: ${{ needs.meta.outputs.version }}
         run: |
           mkdir -p dist
           cp apps/android/app/build/outputs/apk/release/androidApp-release.apk "dist/aiTeamOS-$VERSION-android.apk"
+          test -s dist/android-update.json
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: android
-          path: dist/*.apk
+          path: |
+            dist/*.apk
+            dist/android-update.json
           if-no-files-found: error
 
   # ── iOS (TestFlight upload; no file is attached to the GitHub Release) ───────
@@ -499,6 +565,7 @@ jobs:
           pattern: desktop-*
           path: artifacts
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        if: needs.android.result == 'success'
         with:
           name: android
           path: artifacts/android
@@ -515,6 +582,12 @@ jobs:
           for required in aiteamos-compose.yaml aiteamos-compose.yaml.sigstore.json install.sh aiteamos-linux-x64.gz; do
             [ -f "$required" ] || { echo "Missing release file: $required" >&2; exit 1; }
           done
+          if [ "${{ needs.android.result }}" = "success" ]; then
+            [ -s android-update.json ] || {
+              echo "Missing release file: android-update.json" >&2
+              exit 1
+            }
+          fi
           desktop=(aiTeamOS-*-mac-* aiTeamOS-*-win-* aiTeamOS-*-linux-*)
           [ ${#desktop[@]} -gt 0 ] && sha256sum "${desktop[@]}" > DESKTOP_SHA256SUMS
           others=()
