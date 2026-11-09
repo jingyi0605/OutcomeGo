@@ -94,6 +94,7 @@ dependencies {
     implementation("com.google.firebase:firebase-messaging:24.1.1")
     implementation(project(":mobile:shared"))
 
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.3.0")
     androidTestImplementation("androidx.test:runner:1.7.0")

@@ -88,13 +88,18 @@ object AndroidNotificationTapIntent {
 }
 
 class NotificationChannels(context: Context) {
-    companion object { const val AGENT = "agent"; const val REACTION = "reaction" }
+    companion object {
+        const val AGENT = "agent"
+        const val REACTION = "reaction"
+        const val VOICE = "realtime-voice"
+    }
     private val manager = context.getSystemService(NotificationManager::class.java)
 
     fun create() {
         manager.createNotificationChannels(listOf(
             NotificationChannel(AGENT, "Agent messages", NotificationManager.IMPORTANCE_HIGH),
             NotificationChannel(REACTION, "Reactions", NotificationManager.IMPORTANCE_DEFAULT),
+            NotificationChannel(VOICE, "Realtime voice", NotificationManager.IMPORTANCE_LOW),
         ))
     }
 }
