@@ -1,4 +1,4 @@
-# Releasing ai-TeamOS
+# Releasing aiTeamOS
 
 Releases are built by `.github/workflows/release.yml`. Pushing a tag builds every artifact and
 publishes one GitHub Release. The workflow file must keep its name: the CLI only trusts
@@ -59,7 +59,7 @@ non-pre-release releases.
 | Platform | Variable | Secrets |
 |---|---|---|
 | Android | `RELEASE_ANDROID=true`, `ANDROID_APP_LINK_HOST` | `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD` |
-| macOS | `RELEASE_MACOS=true`, `MACOS_SIGNING_IDENTITY` (the Developer ID Application name) | `MACOS_CERTIFICATE_BASE64`, `MACOS_CERTIFICATE_PASSWORD`, `APPLE_API_KEY_BASE64`, `APPLE_API_KEY_ID`, `APPLE_API_ISSUER` |
+| macOS | `RELEASE_MACOS=true`, `MACOS_SIGNING_IDENTITY` (the certificate name without the `Developer ID Application:` prefix, for example `Your Name (TEAMID)`) | `MACOS_CERTIFICATE_BASE64`, `MACOS_CERTIFICATE_PASSWORD`, `APPLE_API_KEY_BASE64`, `APPLE_API_KEY_ID`, `APPLE_API_ISSUER` |
 | iOS | `RELEASE_IOS=true`, optional `IOS_RUNNER`, `IOS_XCODE` | `IOS_DISTRIBUTION_P12_BASE64`, `IOS_DISTRIBUTION_P12_PASSWORD`, `IOS_APP_PROFILE_BASE64`, `IOS_EXTENSION_PROFILE_BASE64`, `IOS_SHARE_PROFILE_BASE64`, `APP_STORE_CONNECT_KEY_ID`, `APP_STORE_CONNECT_ISSUER_ID`, `APP_STORE_CONNECT_PRIVATE_KEY` |
 
 Keep these in an Environment with required reviewers if you want a manual approval before
