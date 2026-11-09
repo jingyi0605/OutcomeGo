@@ -28,6 +28,7 @@ import { createPortal } from "react-dom";
 import { useVoiceNote } from "../../hooks/use-voice-note";
 import { useVoiceShortcuts } from "../../hooks/use-voice-shortcuts";
 import { cn } from "../../lib/cn";
+import { useI18n } from "../../lib/i18n";
 import { fileDragContainsFiles, filesFromClipboard } from "../../lib/file-drop";
 import type { MentionOption } from "../../lib/mentions";
 import { insertVoiceTranscript, voiceInsertionRange } from "../../lib/voice-insertion";
@@ -149,6 +150,7 @@ export function PromptInput({
     options?: { richText?: string; stagedAttachments?: DurableStagedAttachment[] }
   ) => Promise<unknown> | undefined;
 }) {
+  const { t } = useI18n();
   const [value, setValue] = useState("");
   const [richText, setRichText] = useState<string | undefined>();
   const [attachments, setAttachments] = useState<PendingAttachment[]>([]);
@@ -345,7 +347,9 @@ export function PromptInput({
     ]);
     setAttachmentError(
       recovery.message
-        ? `Message not sent: ${clientErrorMessage(recovery.message, "Try again.")}`
+        ? t("Message not sent: {error}", {
+            error: clientErrorMessage(recovery.message, t("Try again.")),
+          })
         : null
     );
     onRecoveryApplied?.();
@@ -452,7 +456,7 @@ export function PromptInput({
         uploadCapabilities
       );
       if (remaining <= 0) {
-        setAttachmentError(`You can attach up to ${maxAttachments} files.`);
+        setAttachmentError(t("You can attach up to {count} files.", { count: maxAttachments }));
         return;
       }
 
@@ -473,7 +477,9 @@ export function PromptInput({
             return { file, staged: await onStage(file, file.name) };
           } catch {
             if (mounted.current)
-              setAttachmentError(`"${file.name}" couldn't be attached. Try again.`);
+              setAttachmentError(
+                t('"{name}" couldn\'t be attached. Try again.', { name: file.name })
+              );
             return null;
           }
         });
@@ -506,14 +512,14 @@ export function PromptInput({
         }
         replaceAttachments([...attachmentsRef.current, ...accepted]);
         if (accepted.length < loaded.length) {
-          setAttachmentError(`You can attach up to ${maxAttachments} files.`);
+          setAttachmentError(t("You can attach up to {count} files.", { count: maxAttachments }));
         }
         textareaRef.current?.focus({ preventScroll: true });
       } catch (cause) {
         setAttachmentError(
           cause instanceof Error
-            ? `One of the files could not be retained: ${cause.message}`
-            : "One of the files could not be retained."
+            ? t("One of the files could not be retained: {error}", { error: cause.message })
+            : t("One of the files could not be retained.")
         );
       } finally {
         stagingInFlight.current = false;
@@ -696,7 +702,9 @@ export function PromptInput({
       setRichText(pendingRichText);
       replaceAttachments(recoverableAttachments);
       setAttachmentError(
-        `Message not sent: ${clientErrorMessage(error, "Try again. Your draft is still here.")}`
+        t("Message not sent: {error}", {
+          error: clientErrorMessage(error, t("Try again. Your draft is still here.")),
+        })
       );
     } finally {
       submitInFlight.current = false;
@@ -733,7 +741,7 @@ export function PromptInput({
       data-chat-drop-overlay=""
     >
       <div className="rounded-full bg-[#1084fe] px-3 py-1.5 text-[14px] font-normal leading-5 text-[#fcfcfc]">
-        Drop files to add to chat
+        {t("Drop files to add to chat")}
       </div>
     </div>
   ) : null;
@@ -775,7 +783,7 @@ export function PromptInput({
         ? createPortal(dropOverlay, dropTargetRef.current)
         : dropOverlay}
       <input
-        aria-label="Choose files"
+        aria-label={t("Choose files")}
         className="sr-only"
         disabled={blocked}
         multiple
@@ -821,7 +829,7 @@ export function PromptInput({
                 <BotReplyIcon className="size-3 shrink-0 text-[#777] dark:text-[rgba(240,240,240,0.60)]" />
                 <span className="min-w-0 flex-1 truncate">{reply.content}</span>
                 <button
-                  aria-label="Cancel reply"
+                  aria-label={t("Cancel reply")}
                   className="inline-flex size-5 shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent p-0 text-[#777] transition-[background-color,color] duration-[120ms] ease-linear hover:bg-[#dcdcdc] hover:text-[#141414] dark:text-[rgba(240,240,240,0.60)] dark:hover:bg-[rgba(240,240,240,0.14)] dark:hover:text-[#f0f0f0]"
                   onClick={onCancelReply}
                   type="button"
@@ -872,7 +880,7 @@ export function PromptInput({
                         </div>
                       </div>
                       <button
-                        aria-label={`Remove ${attachment.file.name}`}
+                        aria-label={t("Remove {name}", { name: attachment.file.name })}
                         className="absolute right-0.5 top-0.5 grid size-5 place-items-center rounded-full bg-[#1c1c1c] text-[#fcfcfc] opacity-0 transition focus-visible:opacity-100 group-hover/file:opacity-100 dark:bg-[#f5f5f5] dark:text-[#121212]"
                         onClick={remove}
                         type="button"
@@ -901,13 +909,13 @@ export function PromptInput({
                 </span>
                 {voice.canRetry ? (
                   <button type="button" onClick={voice.retry} className="shrink-0 underline">
-                    Retry transcription
+                    {t("Retry transcription")}
                   </button>
                 ) : null}
                 <button
                   type="button"
                   onClick={cancelVoice}
-                  aria-label="Dismiss voice note notice"
+                  aria-label={t("Dismiss voice note notice")}
                   className="shrink-0 p-1"
                 >
                   <X className="size-3" />
@@ -931,7 +939,7 @@ export function PromptInput({
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button
-                        aria-label="Composer actions"
+                        aria-label={t("Composer actions")}
                         className={SECONDARY_ACTION_CLASS}
                         disabled={blocked}
                         size="icon"
@@ -955,7 +963,7 @@ export function PromptInput({
                         <span className="grid size-[18px] shrink-0 place-items-center">
                           <Paperclip className="size-3.5" />
                         </span>
-                        Attach files
+                        {t("Attach files")}
                       </DropdownMenuItem>
                       {/* The reference's voice memo entry. As there, it starts a fresh memo, so it
                         waits while the draft has text or files, or a memo is under way. */}
@@ -967,13 +975,13 @@ export function PromptInput({
                         <span className="grid size-[18px] shrink-0 place-items-center">
                           <BotMicIcon className="size-3.5" />
                         </span>
-                        Record a voice memo
+                        {t("Record a voice memo")}
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 ) : (
                   <Button
-                    aria-label="Attach file"
+                    aria-label={t("Attach file")}
                     className={SECONDARY_ACTION_CLASS}
                     disabled={blocked || attachments.length >= maxAttachments}
                     onClick={() => fileInputRef.current?.click()}
@@ -1009,9 +1017,9 @@ export function PromptInput({
                   options={mentionOptions}
                   placeholder={
                     attachments.length > 0
-                      ? "Add a message, or hit send."
+                      ? t("Add a message, or hit send.")
                       : reply
-                        ? "Reply…"
+                        ? t("Reply…")
                         : placeholder
                   }
                   style={!expanded ? { paddingRight: `${trailingWidth + 12}px` } : undefined}
@@ -1041,13 +1049,15 @@ export function PromptInput({
                           !hasPayload
                             ? undefined
                             : voice.available
-                              ? "Record voice note"
-                              : "Set up transcription in Voice notes settings to use voice notes"
+                              ? t("Record voice note")
+                              : t("Set up transcription in Voice notes settings to use voice notes")
                         }
                         title={
                           voice.available
-                            ? `Click or hold ${/Mac/.test(navigator.platform) ? "⌘D" : "Ctrl+D"} to dictate`
-                            : "Set up transcription in Voice notes settings"
+                            ? t("Click or hold {shortcut} to dictate", {
+                                shortcut: /Mac/.test(navigator.platform) ? "⌘D" : "Ctrl+D",
+                              })
+                            : t("Set up transcription in Voice notes settings")
                         }
                         className={cn("composer-dictation-action", VOICE_ACTION_CLASS)}
                         disabled={!hasPayload || !voice.available || blocked}
@@ -1064,16 +1074,18 @@ export function PromptInput({
                     <Button
                       aria-label={
                         hasPayload
-                          ? "Send message"
+                          ? t("Send message")
                           : voice.available
-                            ? "Record voice note"
-                            : "Set up transcription in Voice notes settings to use voice notes"
+                            ? t("Record voice note")
+                            : t("Set up transcription in Voice notes settings to use voice notes")
                       }
                       title={
                         !hasPayload && !voice.available
-                          ? "Set up transcription in Voice notes settings"
+                          ? t("Set up transcription in Voice notes settings")
                           : !hasPayload
-                            ? `Click or hold ${/Mac/.test(navigator.platform) ? "⌘D" : "Ctrl+D"} to dictate`
+                            ? t("Click or hold {shortcut} to dictate", {
+                                shortcut: /Mac/.test(navigator.platform) ? "⌘D" : "Ctrl+D",
+                              })
                             : undefined
                       }
                       className={cn(

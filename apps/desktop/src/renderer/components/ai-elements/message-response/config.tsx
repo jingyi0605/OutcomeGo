@@ -4,12 +4,14 @@ import {
   type Components,
   type ControlsConfig,
   defaultUrlTransform,
+  type MermaidErrorComponentProps,
   type MermaidOptions,
   type UrlTransform,
 } from "streamdown";
 import { useAuthenticatedResource } from "../../../hooks/use-authenticated-resource";
 import { useResourceActive } from "../../../hooks/resource-activity";
 import { AITEAMOS_DEEP_LINK_EVENT } from "../../../lib/app-deep-links";
+import { useI18n } from "../../../lib/i18n";
 import { SANITIZED_MESSAGE_LINK_PREFIX, SANITIZED_AITEAMOS_LINK_PREFIX } from "./markdown-source";
 export { messageRemarkPlugins, prepareMessageMarkdown } from "./markdown-source";
 
@@ -24,14 +26,25 @@ export const streamdownControls: ControlsConfig = {
 
 export { botShikiTheme } from "./code-theme";
 
-export const botMermaidOptions: MermaidOptions = {
-  errorComponent: ({ chart, error, retry }) => (
+/**
+ * streamdown renders this through `jsx(component, props)`, so it is a real
+ * component and may use hooks.
+ */
+const MermaidError = ({ chart, error, retry }: MermaidErrorComponentProps) => {
+  const { t } = useI18n();
+  return (
     <div data-chat-diagram-error className="rounded-lg bg-muted p-3 text-sm">
       <p>{error}</p>
       <pre className="overflow-x-auto whitespace-pre-wrap">{chart}</pre>
-      <button onClick={retry} type="button">Retry diagram</button>
+      <button onClick={retry} type="button">
+        {t("Retry diagram")}
+      </button>
     </div>
-  ),
+  );
+};
+
+export const botMermaidOptions: MermaidOptions = {
+  errorComponent: MermaidError,
   config: {
     theme: "base",
     themeVariables: {
@@ -67,6 +80,7 @@ const jumpToMessage = (address: string) => {
 type MarkdownAnchorProps = ComponentProps<"a"> & { node?: unknown };
 
 function MessageLink({ children, className, href, node: _node, ...props }: MarkdownAnchorProps) {
+  const { t } = useI18n();
   const encodedAddress = href?.startsWith(SANITIZED_MESSAGE_LINK_PREFIX)
     ? href.slice(SANITIZED_MESSAGE_LINK_PREFIX.length)
     : null;
@@ -82,11 +96,11 @@ function MessageLink({ children, className, href, node: _node, ...props }: Markd
   if (address) {
     return (
       <button
-        aria-label={`Jump to referenced message ${address}`}
+        aria-label={t("Jump to referenced message {address}", { address })}
         className="message-jump-chip"
         data-message-jump={address}
         onClick={() => jumpToMessage(address)}
-        title="Jump to earlier message"
+        title={t("Jump to earlier message")}
         type="button"
       >
         <span aria-hidden="true">↪</span>
@@ -102,7 +116,7 @@ function MessageLink({ children, className, href, node: _node, ...props }: Markd
     const url = `aiteamos:${aiTeamOSPath}`;
     return (
       <button
-        aria-label={`Open ${String(children)}`}
+        aria-label={t("Open {name}", { name: String(children) })}
         className="message-jump-chip"
         onClick={() =>
           window.dispatchEvent(new CustomEvent(AITEAMOS_DEEP_LINK_EVENT, { detail: { url } }))
@@ -135,21 +149,31 @@ function MessageImage({
   ...props
 }: ComponentProps<"img"> & { node?: unknown }) {
   const resourcesActive = useResourceActive();
-  const source = useAuthenticatedResource(typeof src === "string" ? src : null, { enabled: resourcesActive });
+  const source = useAuthenticatedResource(typeof src === "string" ? src : null, {
+    enabled: resourcesActive,
+  });
   const width = Number(props.width);
   const height = Number(props.height);
   const knownSize = Number.isFinite(width) && width > 0 && Number.isFinite(height) && height > 0;
   const frameWidth = knownSize ? Math.min(width, 320, (width / height) * 300) : 320;
   return (
-    <span className="relative inline-block max-w-full overflow-hidden align-middle rounded-lg bg-muted"
-      style={{ width: frameWidth, aspectRatio: knownSize ? `${width} / ${height}` : "16 / 9" }}>
+    <span
+      className="relative inline-block max-w-full overflow-hidden align-middle rounded-lg bg-muted"
+      style={{ width: frameWidth, aspectRatio: knownSize ? `${width} / ${height}` : "16 / 9" }}
+    >
       <img
         {...props}
         alt={alt ?? ""}
         src={source ?? undefined}
         loading="lazy"
         data-streamdown="image"
-        style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "contain" }}
+        style={{
+          position: "absolute",
+          inset: 0,
+          width: "100%",
+          height: "100%",
+          objectFit: "contain",
+        }}
       />
     </span>
   );

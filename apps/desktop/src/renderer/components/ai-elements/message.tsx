@@ -12,6 +12,7 @@ import {
   useState,
 } from "react";
 import { cn } from "../../lib/cn";
+import { useI18n } from "../../lib/i18n";
 import { Button } from "../ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 import {
@@ -179,12 +180,13 @@ export function MessageAction({
   label,
   ...props
 }: ComponentProps<typeof Button> & { tooltip: string; label?: string }) {
+  const { t } = useI18n();
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <Button aria-label={label ?? tooltip} size="icon-sm" variant="ghost" {...props} />
+        <Button aria-label={t(label ?? tooltip)} size="icon-sm" variant="ghost" {...props} />
       </TooltipTrigger>
-      <TooltipContent>{tooltip}</TooltipContent>
+      <TooltipContent>{t(tooltip)}</TooltipContent>
     </Tooltip>
   );
 }

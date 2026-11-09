@@ -17,6 +17,7 @@ import {
 } from "use-stick-to-bottom";
 import { ScrollArea } from "radix-ui";
 import { cn } from "../../lib/cn";
+import { useI18n } from "../../lib/i18n";
 import { recordPerformance } from "../../lib/performance";
 import { Button } from "../ui/button";
 import { LoadingOrb } from "../ui/loading-orb";
@@ -206,6 +207,7 @@ export const ConversationContent = ({
   /** Rows were already measured here, so the first paint can show them. */
   warmLayout?: boolean;
 }) => {
+  const { t } = useI18n();
   const [viewportReady, setViewportReady] = useState(false);
   const context = useStickToBottomContext();
   // Decided when the transcript mounts; later rows never change the gate. Rows
@@ -221,7 +223,11 @@ export const ConversationContent = ({
     requiredStableFrames
   );
   const loading = !layoutReady && (
-    <div className="pointer-events-none absolute inset-0 grid place-items-center" role="status" aria-label="Loading messages">
+    <div
+      className="pointer-events-none absolute inset-0 grid place-items-center"
+      role="status"
+      aria-label={t("Loading messages")}
+    >
       <LoadingOrb aria-hidden />
     </div>
   );
@@ -241,9 +247,17 @@ export const ConversationContent = ({
       <ScrollArea.Root type="hover" className="relative h-full w-full overflow-hidden">
         <ScrollArea.Viewport
           ref={context.scrollRef}
-          className={cn("conversation-scroll conversation-overlay-scroll h-full w-full", scrollClassName)}
+          className={cn(
+            "conversation-scroll conversation-overlay-scroll h-full w-full",
+            scrollClassName
+          )}
         >
-          <div {...props} {...layoutProps} ref={context.contentRef} className={cn("mx-auto flex w-full max-w-4xl flex-col gap-6 py-8", className)}>
+          <div
+            {...props}
+            {...layoutProps}
+            ref={context.contentRef}
+            className={cn("mx-auto flex w-full max-w-4xl flex-col gap-6 py-8", className)}
+          >
             {viewportReady ? (typeof children === "function" ? children(context) : children) : null}
           </div>
         </ScrollArea.Viewport>
@@ -348,13 +362,16 @@ export const ConversationEmptyState = ({
   title?: string;
   description?: string;
   icon?: ReactNode;
-}) => (
-  <div className="flex h-full min-h-80 flex-col items-center justify-center gap-2 text-center">
-    {icon && <div className="mb-2 text-muted-foreground">{icon}</div>}
-    <div className="text-base font-medium">{title}</div>
-    <div className="max-w-sm text-sm text-muted-foreground">{description}</div>
-  </div>
-);
+}) => {
+  const { t } = useI18n();
+  return (
+    <div className="flex h-full min-h-80 flex-col items-center justify-center gap-2 text-center">
+      {icon && <div className="mb-2 text-muted-foreground">{icon}</div>}
+      <div className="text-base font-medium">{t(title)}</div>
+      <div className="max-w-sm text-sm text-muted-foreground">{t(description)}</div>
+    </div>
+  );
+};
 
 const ScrollDownIcon = ({ className }: { className: string }) => (
   <svg
@@ -487,6 +504,7 @@ export const ConversationScrollButton = ({
   onAtBottomChange?: (atBottom: boolean) => void;
   onScrollToNewest?: () => unknown;
 }) => {
+  const { t } = useI18n();
   const context = useStickToBottomContext();
   const { isAtBottom, scrollRef } = context;
   const gliding = useConversationGliding();
@@ -613,7 +631,10 @@ export const ConversationScrollButton = ({
   }, [context, forceLatest, onScrollToNewest, scrollRef]);
 
   if (visible && trackNewMessages && newMessageCount > 0 && !noticeDismissed) {
-    const label = `${newMessageCount} new ${newMessageCount === 1 ? "message" : "messages"}`;
+    const label =
+      newMessageCount === 1
+        ? t("{count} new message", { count: newMessageCount })
+        : t("{count} new messages", { count: newMessageCount });
     return (
       <div
         className="absolute bottom-2 left-1/2 z-10 flex h-7 min-w-36 -translate-x-1/2 transform-gpu overflow-hidden rounded-full border text-sm font-normal transition-[opacity,transform] duration-200 ease-out motion-reduce:transition-none"
@@ -625,7 +646,7 @@ export const ConversationScrollButton = ({
         }}
       >
         <button
-          aria-label={`Scroll to ${label}`}
+          aria-label={t("Scroll to {label}", { label })}
           className="flex h-full min-w-0 flex-1 items-center gap-1 rounded-l-full pl-1.5 text-[#fcfcfc] outline-none hover:bg-white/5 focus-visible:ring-2 focus-visible:ring-white/50"
           onClick={onClick}
           type="button"
@@ -634,7 +655,7 @@ export const ConversationScrollButton = ({
           <span className="whitespace-nowrap">{label}</span>
         </button>
         <button
-          aria-label="Dismiss new message notification"
+          aria-label={t("Dismiss new message notification")}
           className="flex size-7 shrink-0 items-center justify-center rounded-r-full text-[#c8d5ec] outline-none hover:bg-white/5 focus-visible:ring-2 focus-visible:ring-white/50"
           onClick={() => setNoticeDismissed(true)}
           type="button"
@@ -648,7 +669,7 @@ export const ConversationScrollButton = ({
   return (
     <Button
       aria-hidden={!visible}
-      aria-label={forceLatest ? "Jump to latest message" : "Scroll to newest message"}
+      aria-label={forceLatest ? t("Jump to latest message") : t("Scroll to newest message")}
       className={cn(
         "absolute bottom-2 left-1/2 z-10 size-8 -translate-x-1/2 transform-gpu rounded-full bg-[#fcfcfc] text-[#141414] transition-[opacity,transform] duration-200 ease-out will-change-[opacity,transform] hover:bg-[#fcfcfc] motion-reduce:transition-none dark:bg-[#2f2f2f] dark:text-[#fcfcfc] dark:hover:bg-[#2f2f2f]",
         visible ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-2 opacity-0"

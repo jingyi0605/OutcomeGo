@@ -3,6 +3,7 @@ import type { OrbSize, ThinkingOrbProps } from "thinking-orbs";
 import { cn } from "../../lib/cn";
 import { useWindowActive } from "../../hooks/use-window-active";
 import { useResourceActive } from "../../hooks/resource-activity";
+import { useI18n } from "../../lib/i18n";
 
 // Startup screens show orbs, so the library loads on first use instead of
 // joining the startup closure. Until it resolves, an empty box holds the space.
@@ -46,6 +47,7 @@ export function LoadingOrb({
   theme = "auto",
   ...props
 }: LoadingOrbProps) {
+  const { t } = useI18n();
   const active = useWindowActive();
   const resourcesActive = useResourceActive();
   const [loaded, setLoaded] = useState(orbModule);
@@ -69,7 +71,7 @@ export function LoadingOrb({
   return (
     <ThinkingOrb
       {...props}
-      aria-label={label}
+      aria-label={t(label)}
       className={cn("shrink-0", className)}
       dotSize={dotSizeFor(size)}
       paused={paused || !active}
