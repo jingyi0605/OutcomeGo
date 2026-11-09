@@ -294,7 +294,9 @@ export function ModelPicker({
       ref={root}
     >
       {variant === "settings" ? (
-        <Popover open={open} onOpenChange={(next) => (next ? openList() : close(false))}>
+        // Modal: the settings dialog's scroll lock cancels wheel events on anything portaled
+        // outside it, so the list needs its own scroll lock scope to be scrollable.
+        <Popover modal open={open} onOpenChange={(next) => (next ? openList() : close(false))}>
           <PopoverAnchor asChild>{triggerButton}</PopoverAnchor>
           {open ? (
             <PopoverContent
