@@ -103,8 +103,22 @@ class MainActivity : ComponentActivity() {
         }
         setContent {
             val state by viewModel.state.collectAsStateWithLifecycle()
-            AiTeamOSTheme(state.features.settings.appearance, state.features.settings.accent) { AiTeamOSApp(viewModel) }
+            val updateState by viewModel.androidUpdateState.collectAsStateWithLifecycle()
+            AiTeamOSTheme(state.features.settings.appearance, state.features.settings.accent) {
+                AiTeamOSApp(
+                    appViewModel = viewModel,
+                    androidUpdateState = updateState,
+                    onCheckForAndroidUpdate = viewModel::checkForAndroidUpdate,
+                    onDownloadAndroidUpdate = viewModel::downloadAndroidUpdate,
+                    onInstallAndroidUpdate = viewModel::installAndroidUpdate,
+                )
+            }
         }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        viewModel.checkForAndroidUpdateIfDue()
     }
 
     override fun onNewIntent(intent: Intent) {

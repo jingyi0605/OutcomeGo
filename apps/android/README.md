@@ -85,6 +85,24 @@ Build release artifacts from a clean, tagged checkout after the debug QA checks 
 
 Before Play submission, complete the security and performance rows in the parity matrix, run the connected smoke suite on the supported API range, check backup and cleartext settings, verify deep links from a cold launch, and confirm that release logs and resources contain no credentials. Store rollout should begin with an internal track and a reversible staged percentage.
 
+## GitHub sideload updates
+
+Published APK releases include a signed `android-update.json` beside the APK. The Android app
+checks that manifest against its embedded public key, compares the signed version code with the
+installed version, downloads the signed APK over HTTPS, checks its SHA-256 and signing
+certificate digest, then passes it to Android's system `PackageInstaller`. The app never installs
+an APK whose package ID, checksum or signing certificate differs from the signed manifest.
+
+The release workflow requires `ANDROID_UPDATE_SIGNING_PRIVATE_KEY_BASE64` in addition to the
+Android APK signing secrets. The private manifest key stays in GitHub Actions secrets. Generate
+the key once with an ECDSA P-256 key pair and keep the private key outside the repository; the
+public key is compiled into `AndroidUpdateManifest.kt`. Rotate it only with a coordinated app
+release, because older clients cannot verify manifests signed by a new key.
+
+Users can check and install the update from **Settings → Updates**. Android may ask the user to
+allow installs from aiTeamOS before the system installer can continue. The APK must keep the same
+`com.teambots.android` application ID and Android signing key across releases.
+
 The reproducible release gate is:
 
 ```sh

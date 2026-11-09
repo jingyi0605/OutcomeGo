@@ -46,6 +46,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -82,6 +83,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
+import com.aiteamos.platform.AndroidUpdateState
 
 @Composable
 internal fun featureTopBarColors() = TopAppBarDefaults.topAppBarColors(
@@ -783,6 +785,10 @@ fun SettingsScreen(
     settings: AppSettings,
     accountName: String,
     server: String,
+    androidUpdateState: AndroidUpdateState,
+    onCheckForAndroidUpdate: () -> Unit,
+    onDownloadAndroidUpdate: () -> Unit,
+    onInstallAndroidUpdate: () -> Unit,
     onChange: (AppSettings) -> Unit,
     onSignOut: () -> Unit,
     onBack: () -> Unit,
@@ -859,6 +865,19 @@ fun SettingsScreen(
                             Text(text("Connected", "已连接"), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.tertiary)
                         }
                     }
+                }
+            }
+
+            item { SettingsSectionTitle(text("Updates", "更新")) }
+            item {
+                SettingsGroup {
+                    AndroidUpdateRow(
+                        state = androidUpdateState,
+                        text = text,
+                        onCheck = onCheckForAndroidUpdate,
+                        onDownload = onDownloadAndroidUpdate,
+                        onInstall = onInstallAndroidUpdate,
+                    )
                 }
             }
 
@@ -993,6 +1012,108 @@ fun SettingsScreen(
         )
     }
 }
+
+@Composable
+private fun AndroidUpdateRow(
+    state: AndroidUpdateState,
+    text: (String, String) -> String,
+    onCheck: () -> Unit,
+    onDownload: () -> Unit,
+    onInstall: () -> Unit,
+) {
+    val (title, description, action, enabled, onClick) = when (state) {
+        AndroidUpdateState.Idle -> UpdateRowContent(
+            text("Android app", "Android 应用"),
+            text("Check GitHub for a signed update.", "检查 GitHub 上是否有已签名更新。"),
+            text("Check for updates", "检查更新"),
+            true,
+            onCheck,
+        )
+        AndroidUpdateState.Checking -> UpdateRowContent(
+            text("Checking for updates", "正在检查更新"),
+            text("Verifying the signed GitHub release manifest.", "正在验证 GitHub 已签名发布清单。"),
+            text("Checking…", "检查中…"),
+            false,
+            {},
+        )
+        is AndroidUpdateState.Available -> UpdateRowContent(
+            text("Update available", "有可用更新"),
+            text("aiTeamOS ${state.manifest.version} is ready to download.", "aiTeamOS ${state.manifest.version} 已准备下载。"),
+            text("Download", "下载"),
+            true,
+            onDownload,
+        )
+        is AndroidUpdateState.Downloading -> UpdateRowContent(
+            text("Downloading update", "正在下载更新"),
+            text("The APK is verified before it can be installed.", "APK 会在安装前完成验证。"),
+            state.progress?.let { "$it%" } ?: text("Downloading…", "下载中…"),
+            false,
+            {},
+        )
+        is AndroidUpdateState.Ready -> UpdateRowContent(
+            text("Update ready", "更新已准备好"),
+            text("Install aiTeamOS ${state.manifest.version}.", "安装 aiTeamOS ${state.manifest.version}。"),
+            text("Install", "安装"),
+            true,
+            onInstall,
+        )
+        is AndroidUpdateState.NeedsInstallPermission -> UpdateRowContent(
+            text("Allow APK installs", "允许安装 APK"),
+            text("Allow installs from aiTeamOS, then tap Install again.", "允许 aiTeamOS 安装应用，然后再次点击安装。"),
+            text("Allow installs", "允许安装"),
+            true,
+            onInstall,
+        )
+        is AndroidUpdateState.Installing -> UpdateRowContent(
+            text("Installing update", "正在安装更新"),
+            text("Android will finish the installation in its system installer.", "Android 将在系统安装器中完成安装。"),
+            text("Installing…", "安装中…"),
+            false,
+            {},
+        )
+        is AndroidUpdateState.UpToDate -> UpdateRowContent(
+            text("You're up to date", "已是最新版本"),
+            text("Installed version ${state.currentVersion}.", "当前版本 ${state.currentVersion}。"),
+            text("Check again", "再次检查"),
+            true,
+            onCheck,
+        )
+        is AndroidUpdateState.Error -> UpdateRowContent(
+            text("Update check failed", "更新检查失败"),
+            state.message,
+            text("Retry", "重试"),
+            true,
+            onCheck,
+        )
+    }
+
+    SettingsRow(title, description, inline = false) {
+        Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.End) {
+            if (state is AndroidUpdateState.Downloading) {
+                LinearProgressIndicator(
+                    progress = { (state.progress ?: 0) / 100f },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(8.dp))
+            }
+            Button(onClick = onClick, enabled = enabled) {
+                if (state is AndroidUpdateState.Checking || state is AndroidUpdateState.Installing) {
+                    CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
+                    Spacer(Modifier.width(8.dp))
+                }
+                Text(action)
+            }
+        }
+    }
+}
+
+private data class UpdateRowContent(
+    val title: String,
+    val description: String,
+    val action: String,
+    val enabled: Boolean,
+    val onClick: () -> Unit,
+)
 
 @Composable
 private fun SettingsSectionTitle(title: String) {

@@ -1,0 +1,79 @@
+package com.aiteamos.platform
+
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertThrows
+import org.junit.Test
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
+
+class AndroidUpdateManifestTest {
+    private val validManifest = AndroidUpdateManifest(
+        version = "1.2.3",
+        versionCode = 10203,
+        applicationId = "com.teambots.android",
+        apkUrl = "https://github.com/jingyi0605/ai-TeamOS/releases/download/v1.2.3/aiTeamOS-1.2.3-android.apk",
+        sizeBytes = 12345,
+        sha256 = "0000000000000000000000000000000000000000000000000000000000000000",
+        certificateSha256 = "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        signatureBase64 = "MEUCICnt3Il/t/P2DcRYk7FnqoP59IPIWqiQnCJu6dbvzrQUAiEAkXQfGLdwDWiiXNIahIkaBvbhzncKNAZITuCs6esmS/A=",
+    )
+
+    @Test
+    fun canonicalPayloadIsStableAndUsesLowercaseDigests() {
+        assertEquals(
+            "version=1.2.3\n" +
+                "versionCode=10203\n" +
+                "applicationId=com.teambots.android\n" +
+                "apkUrl=https://github.com/jingyi0605/ai-TeamOS/releases/download/v1.2.3/aiTeamOS-1.2.3-android.apk\n" +
+                "sizeBytes=12345\n" +
+                "sha256=0000000000000000000000000000000000000000000000000000000000000000\n" +
+                "certificateSha256=ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff\n",
+            AndroidUpdateManifestVerifier.canonicalPayload(validManifest),
+        )
+    }
+
+    @Test
+    fun validSignedManifestIsAccepted() {
+        val parsed = AndroidUpdateManifestVerifier.parseAndVerify(
+            Json.encodeToString(validManifest),
+            "com.teambots.android",
+        )
+        assertEquals(validManifest, parsed)
+    }
+
+    @Test
+    fun tamperedPayloadIsRejected() {
+        val tampered = validManifest.copy(version = "1.2.4")
+        assertThrows(IllegalArgumentException::class.java) {
+            AndroidUpdateManifestVerifier.parseAndVerify(
+                Json.encodeToString(tampered),
+                "com.teambots.android",
+            )
+        }
+    }
+
+    @Test
+    fun invalidTransportVersionAndChecksumAreRejected() {
+        val invalidUrl = validManifest.copy(apkUrl = "http://example.com/update.apk")
+        assertThrows(IllegalArgumentException::class.java) {
+            AndroidUpdateManifestVerifier.parseAndVerify(
+                Json.encodeToString(invalidUrl),
+                "com.teambots.android",
+            )
+        }
+        val invalidVersion = validManifest.copy(version = "1.2")
+        assertThrows(IllegalArgumentException::class.java) {
+            AndroidUpdateManifestVerifier.parseAndVerify(
+                Json.encodeToString(invalidVersion),
+                "com.teambots.android",
+            )
+        }
+        val invalidChecksum = validManifest.copy(sha256 = "not-a-checksum")
+        assertThrows(IllegalArgumentException::class.java) {
+            AndroidUpdateManifestVerifier.parseAndVerify(
+                Json.encodeToString(invalidChecksum),
+                "com.teambots.android",
+            )
+        }
+    }
+}

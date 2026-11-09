@@ -46,6 +46,8 @@ import com.aiteamos.platform.SharePayload
 import com.aiteamos.platform.AndroidPersistentSearchIndex
 import com.aiteamos.platform.AndroidAppSearchIndex
 import com.aiteamos.platform.AndroidLauncherShortcuts
+import com.aiteamos.platform.AndroidUpdateManager
+import com.aiteamos.platform.AndroidUpdateState
 import com.aiteamos.platform.SearchableItem
 import com.aiteamos.platform.AndroidVoiceCapture
 import com.aiteamos.platform.ComputerVncGrant
@@ -163,6 +165,16 @@ class AppViewModel @JvmOverloads constructor(
         viewModelScope,
     )
     val voiceState: StateFlow<VoiceRecordingState> = voiceController.state
+    private val androidUpdateManager = AndroidUpdateManager(application)
+    val androidUpdateState: StateFlow<AndroidUpdateState> = androidUpdateManager.state
+
+    fun checkForAndroidUpdateIfDue() = androidUpdateManager.checkIfDue()
+
+    fun checkForAndroidUpdate() = androidUpdateManager.checkNow()
+
+    fun downloadAndroidUpdate() = androidUpdateManager.download()
+
+    fun installAndroidUpdate() = androidUpdateManager.install()
 
     init {
         viewModelScope.launch {
@@ -1247,6 +1259,7 @@ class AppViewModel @JvmOverloads constructor(
         syncJob?.cancel()
         outboxJob?.cancel()
         voiceController.close()
+        androidUpdateManager.close()
         super.onCleared()
     }
 

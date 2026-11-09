@@ -210,6 +210,7 @@ import com.aiteamos.platform.AndroidVncWebViewRenderer
 import com.aiteamos.platform.ComputerVncGrant
 import com.aiteamos.platform.VncRendererState
 import com.aiteamos.platform.NativeAttachmentPreview
+import com.aiteamos.platform.AndroidUpdateState
 import java.net.URI
 import java.time.Instant
 import java.time.LocalDate
@@ -268,7 +269,13 @@ private fun AnimatedContentTransitionScope<NavBackStackEntry>.slideNavOut(forwar
 )
 
 @Composable
-fun AiTeamOSApp(appViewModel: AppViewModel = viewModel()) {
+fun AiTeamOSApp(
+    appViewModel: AppViewModel = viewModel(),
+    androidUpdateState: AndroidUpdateState = AndroidUpdateState.Idle,
+    onCheckForAndroidUpdate: () -> Unit = {},
+    onDownloadAndroidUpdate: () -> Unit = {},
+    onInstallAndroidUpdate: () -> Unit = {},
+) {
     val state by appViewModel.state.collectAsStateWithLifecycle()
     val voiceState by appViewModel.voiceState.collectAsStateWithLifecycle()
     val navController = rememberNavController()
@@ -592,6 +599,10 @@ fun AiTeamOSApp(appViewModel: AppViewModel = viewModel()) {
                 settings = state.features.settings,
                 accountName = state.session?.accountName.orEmpty(),
                 server = state.session?.server.orEmpty(),
+                androidUpdateState = androidUpdateState,
+                onCheckForAndroidUpdate = onCheckForAndroidUpdate,
+                onDownloadAndroidUpdate = onDownloadAndroidUpdate,
+                onInstallAndroidUpdate = onInstallAndroidUpdate,
                 onChange = appViewModel::saveSettings,
                 onSignOut = {
                     appViewModel.signOut()
