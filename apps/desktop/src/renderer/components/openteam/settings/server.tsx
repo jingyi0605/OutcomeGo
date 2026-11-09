@@ -4,6 +4,7 @@ import { useServerUpdateStatus } from "../../../hooks/use-server-update-status";
 import { AdvancedComputerSettings, MachineSettings } from "./machines";
 import { TailscaleSettings } from "./tailscale";
 import { ServerActivity } from "./server-activity";
+import { AutomationWebhookPublicUrlSettings } from "./automation-webhook-url";
 import { SectionLabel, SettingsGroup, SettingsLink, SettingsRow } from "./ui";
 
 const BrowserNetworkSettings = lazy(() => import("./browser-network"));
@@ -28,6 +29,7 @@ export default function ServerSettings() {
         </SettingsGroup>
       </section>
       <ServerActivity />
+      <AutomationWebhookPublicUrlSettings />
       <TailscaleSettings />
       <MachineSettings />
       <AdvancedComputerSettings />

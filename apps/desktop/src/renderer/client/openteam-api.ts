@@ -1,6 +1,10 @@
 import { createOpenTeamClient } from "@openteam/client-core";
 import { authHeaders, getDesktopMachineId } from "./auth";
-import { API_BASE, desktopTransportOptions } from "./http";
+import { API_BASE, desktopTransportOptions, request } from "./http";
+import type {
+  AutomationWebhookPublicUrlCheck,
+  AutomationWebhookPublicUrlView,
+} from "@openteam/contracts/automation-webhooks";
 
 const localTimeZone = () => Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
 
@@ -30,6 +34,18 @@ export const api = {
     return openTeamClient.cancelPluginAuthentication(connectionId, state, local ? redirect! : undefined);
   },
   sendMessage: openTeamClient.sendDirectMessage,
+  automationWebhookPublicUrl: () =>
+    request<AutomationWebhookPublicUrlView>("/api/server-settings/automation-webhook-public-url"),
+  updateAutomationWebhookPublicUrl: (publicUrl: string) =>
+    request<AutomationWebhookPublicUrlView & { updatedWebhooks: number }>(
+      "/api/server-settings/automation-webhook-public-url",
+      { method: "PATCH", body: JSON.stringify({ publicUrl }) }
+    ),
+  checkAutomationWebhookPublicUrl: (publicUrl: string) =>
+    request<AutomationWebhookPublicUrlCheck>(
+      "/api/server-settings/automation-webhook-public-url/check",
+      { method: "POST", body: JSON.stringify({ publicUrl }) }
+    ),
   screenTakeover: openTeamClient.setScreenTakeover,
   /** Best-effort unload path; keepalive is a browser lifecycle concern. */
   releaseScreenTakeover: (botId: string) => {
