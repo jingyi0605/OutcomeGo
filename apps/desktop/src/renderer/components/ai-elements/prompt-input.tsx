@@ -28,7 +28,7 @@ import { createPortal } from "react-dom";
 import { useVoiceNote } from "../../hooks/use-voice-note";
 import { useVoiceShortcuts } from "../../hooks/use-voice-shortcuts";
 import { cn } from "../../lib/cn";
-import { fileDragContainsFiles } from "../../lib/file-drop";
+import { fileDragContainsFiles, filesFromClipboard } from "../../lib/file-drop";
 import type { MentionOption } from "../../lib/mentions";
 import { insertVoiceTranscript, voiceInsertionRange } from "../../lib/voice-insertion";
 import { FileGlyph, fileGlyphVariant, formatAttachmentSize } from "../aiteamos/attachment-visuals";
@@ -705,9 +705,7 @@ export function PromptInput({
   };
 
   const onPaste = (event: ClipboardEvent<HTMLElement>) => {
-    const files = Array.from(event.clipboardData.files).filter((file) =>
-      file.type.startsWith("image/")
-    );
+    const files = filesFromClipboard(event.clipboardData);
     if (files.length === 0) return;
     event.preventDefault();
     void addFiles(files);
