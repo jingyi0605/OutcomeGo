@@ -1,4 +1,5 @@
 import type { HealthResult } from "./health";
+import { cliTranslate } from "./localization";
 import type { ServiceState } from "./startup";
 import { TerminalReport, type TerminalOptions, type TerminalTone } from "./terminal";
 
@@ -71,36 +72,39 @@ const serviceDescription = (
   service: ServiceState
 ): { text: string; tone: TerminalTone; mark: string } => {
   if (isSetupJob(service) && service.State === "exited" && service.ExitCode === 0)
-    return { text: "Completed · exit 0", tone: "muted", mark: "✓" };
+    return { text: cliTranslate("Completed · exit 0"), tone: "muted", mark: "✓" };
   const state =
     (
       {
-        running: "Running",
-        exited: "Stopped",
-        created: "Created; not started",
-        restarting: "Restarting",
-        paused: "Paused",
-        dead: "Dead",
-        removing: "Being removed",
+        running: cliTranslate("Running"),
+        exited: cliTranslate("Stopped"),
+        created: cliTranslate("Created; not started"),
+        restarting: cliTranslate("Restarting"),
+        paused: cliTranslate("Paused"),
+        dead: cliTranslate("Dead"),
+        removing: cliTranslate("Being removed"),
       } as Record<string, string>
-    )[service.State] || `Unknown state: ${service.State || "not reported"}`;
+    )[service.State] ||
+    cliTranslate("Unknown state: {state}", {
+      state: service.State || cliTranslate("not reported"),
+    });
   const detail =
     service.State === "running"
       ? isSetupJob(service)
-        ? "setup in progress"
+        ? cliTranslate("setup in progress")
         : service.Health === "healthy"
-          ? "healthy"
+          ? cliTranslate("healthy")
           : service.Health === "starting"
-            ? "health check starting"
+            ? cliTranslate("health check starting")
             : service.Health === "unhealthy"
-              ? "health check failing"
+              ? cliTranslate("health check failing")
               : !service.Health
-                ? "no Docker health check"
-                : `health: ${service.Health}`
+                ? cliTranslate("no Docker health check")
+                : cliTranslate("health: {health}", { health: service.Health })
       : service.State === "exited" || service.State === "dead" || service.State === "restarting"
         ? service.ExitCode === undefined
-          ? "exit code not reported"
-          : `exit ${service.ExitCode}`
+          ? cliTranslate("exit code not reported")
+          : cliTranslate("exit {code}", { code: service.ExitCode })
         : "";
   const ok =
     service.State === "running" &&
@@ -118,36 +122,48 @@ export const renderStatus = (input: StatusReport, options: TerminalOptions = {})
   const ready = state === "RUNNING";
   const view = new TerminalReport(options).header(
     "status",
-    state,
+    cliTranslate(state),
     ready ? "success" : state === "NEEDS ATTENTION" ? "error" : "warning"
   );
   const containers = input.services?.filter((s) => input.expected.includes(s.Service));
   const summary = input.issue
     ? input.issue.detail
     : containers
-      ? `${containers.filter((s) => s.State === "running").length}/${containers.length + input.expected.filter((name) => !containers.some((s) => s.Service === name)).length} containers running · ${containers.filter((s) => s.State === "running" && s.Health === "healthy").length} passing Docker health checks`
-      : "Container state could not be checked.";
+      ? cliTranslate(
+          "{running}/{total} containers running · {healthy} passing Docker health checks",
+          {
+            running: containers.filter((s) => s.State === "running").length,
+            total:
+              containers.length +
+              input.expected.filter((name) => !containers.some((s) => s.Service === name)).length,
+            healthy: containers.filter((s) => s.State === "running" && s.Health === "healthy")
+              .length,
+          }
+        )
+      : cliTranslate("Container state could not be checked.");
   view.lines.push("");
   view.text(summary, ready ? "success" : "warning");
   const next = () =>
     view
-      .section(ready ? "Next" : "Next steps")
-      .text(input.nextDetail || (ready ? "For a deeper check:" : "Recommended action:"))
+      .section(cliTranslate(ready ? "Next" : "Next steps"))
+      .text(input.nextDetail || cliTranslate(ready ? "For a deeper check:" : "Recommended action:"))
       .text(input.next, "info");
   if (!ready) next();
   if (input.issue) {
     view
-      .section("Check blocked")
+      .section(cliTranslate("Check blocked"))
+      // Labels are the same identifiers the doctor report groups and matches on.
       .row(input.issue.label, input.issue.detail, { mark: "✗", tone: "error" });
     if (input.issue.diagnostic) view.text(input.issue.diagnostic);
   }
-  view.section("Containers");
+  view.section(cliTranslate("Containers"));
   if (input.services === null)
-    view.text("Not checked. Resolve the issue above, then run status again.");
+    view.text(cliTranslate("Not checked. Resolve the issue above, then run status again."));
   else {
     for (const name of input.expected) {
       const instances = input.services.filter((s) => s.Service === name);
-      if (!instances.length) view.row(name, "Not created", { mark: "!", tone: "warning" });
+      if (!instances.length)
+        view.row(name, cliTranslate("Not created"), { mark: "!", tone: "warning" });
       instances.forEach((service, index) => {
         const { text, ...style } = serviceDescription(service);
         view.row(
@@ -159,35 +175,37 @@ export const renderStatus = (input: StatusReport, options: TerminalOptions = {})
     }
     const jobs = input.services.filter(isSetupJob);
     if (jobs.length) {
-      view.section("Setup jobs");
+      view.section(cliTranslate("Setup jobs"));
       for (const job of jobs) {
         const { text, ...style } = serviceDescription(job);
         view.row(job.Service, text, style);
       }
-      view.text("Setup jobs finish and stop normally; exit 0 means success.");
+      view.text(cliTranslate("Setup jobs finish and stop normally; exit 0 means success."));
     }
   }
   view
-    .section("Readiness")
+    .section(cliTranslate("Readiness"))
     .row(
-      "Server",
+      cliTranslate("Server"),
       input.health
         ? input.health.ok
-          ? "Ready · responding with the installed release"
+          ? cliTranslate("Ready · responding with the installed release")
           : input.health.connectionFailed
-            ? `Cannot reach the server: ${input.health.detail}`
+            ? cliTranslate("Cannot reach the server: {detail}", { detail: input.health.detail })
             : input.health.detail
-        : "Not checked",
+        : cliTranslate("Not checked"),
       {
         mark: input.health ? (input.health.ok ? "✓" : "✗") : "–",
         tone: input.health ? (input.health.ok ? "success" : "error") : "muted",
       }
     );
-  if (input.health?.url) view.row("Checked at", input.health.url);
+  if (input.health?.url) view.row(cliTranslate("Checked at"), input.health.url);
   for (const [name, value] of Object.entries(input.health?.components ?? {}))
     view.row(
-      name === "queue" ? "Queue database" : name === "database" ? "Database" : "Computer API",
-      value === "ready" ? "Ready" : value,
+      cliTranslate(
+        name === "queue" ? "Queue database" : name === "database" ? "Database" : "Computer API"
+      ),
+      value === "ready" ? cliTranslate("Ready") : value,
       {
         mark: value === "ready" ? "✓" : "✗",
         tone: value === "ready" ? "success" : "error",
@@ -195,19 +213,28 @@ export const renderStatus = (input: StatusReport, options: TerminalOptions = {})
     );
   if (input.health?.ok)
     view.row(
-      "AI model",
+      cliTranslate("AI model"),
       input.health.inference === "ready"
-        ? "Connected"
+        ? cliTranslate("Connected")
         : input.health.inference === "missing"
-          ? "Not connected · connect one in the aiTeamOS app"
-          : `Not ready (${input.health.inference}) · check it in the aiTeamOS app`,
+          ? cliTranslate("Not connected · connect one in the aiTeamOS app")
+          : cliTranslate("Not ready ({status}) · check it in the aiTeamOS app", {
+              status: input.health.inference ?? cliTranslate("Unknown"),
+            }),
       { tone: input.health.inference === "ready" ? "muted" : "warning" }
     );
-  view.section("Connection").row("Server", input.server, { tone: "info" });
-  if (input.username) view.row("Username", input.username);
-  view.row("Access", input.connection).row("Version", input.version);
-  if (input.project) view.row("Compose project", input.project);
-  view.row("Installation", input.directory);
+  view.section(cliTranslate("Connection")).row(cliTranslate("Server"), input.server, {
+    tone: "info",
+  });
+  if (input.username) view.row(cliTranslate("Username"), input.username);
+  view
+    .row(cliTranslate("Access"), input.connection)
+    .row(
+      cliTranslate("Version"),
+      input.version === "Unknown" ? cliTranslate("Unknown") : input.version
+    );
+  if (input.project) view.row(cliTranslate("Compose project"), input.project);
+  view.row(cliTranslate("Installation"), input.directory);
   if (ready) next();
   view.lines.push("");
   return view.toString();

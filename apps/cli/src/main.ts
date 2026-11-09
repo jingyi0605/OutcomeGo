@@ -53,6 +53,7 @@ import { setupCommand } from "./setup";
 
 const main = async (): Promise<void> => {
   const options = parseArguments(process.argv.slice(2));
+  if (options.language) process.env.AITEAMOS_LANGUAGE = options.language;
   if (options.command === "help") {
     console.log(renderHelp(helpFor(options.helpTopic)));
     return;

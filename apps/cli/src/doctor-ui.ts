@@ -1,6 +1,7 @@
 import { cliCommand } from "./command-ui";
 import type { DoctorCheck, DoctorResult } from "./doctor";
 import { MINIMUM_COMPOSE_VERSION } from "./docker";
+import { cliTranslate } from "./localization";
 import { colorEnabled } from "./ui";
 import {
   cleanTerminalText as clean,
@@ -26,109 +27,192 @@ const checkAction = (check: DoctorCheck): string | undefined => {
   if (check.action) return check.action;
   switch (check.label) {
     case "Platform":
-      return "Install the aiTeamOS server on an x64 or arm64 host.";
+      return cliTranslate("Install the aiTeamOS server on an x64 or arm64 host.");
     case "Memory":
-      return "Use a host with at least 8 GiB of RAM for the aiTeamOS server.";
+      return cliTranslate("Use a host with at least 8 GiB of RAM for the aiTeamOS server.");
     case "Disk":
-      return "Free space on the installation disk. For a new installation, choose a disk with more space using aiteamos install --dir <path>.";
+      return cliTranslate(
+        "Free space on the installation disk. For a new installation, choose a disk with more space using aiteamos install --dir <path>."
+      );
     case "Installation directory":
-      return "Check that your user can write to the reported directory, or choose a writable directory with aiteamos install --dir <path>.";
+      return cliTranslate(
+        "Check that your user can write to the reported directory, or choose a writable directory with aiteamos install --dir <path>."
+      );
     case "Docker CLI":
-      return "Install or repair Docker, then open a new terminal and run docker --version.";
+      return cliTranslate(
+        "Install or repair Docker, then open a new terminal and run docker --version."
+      );
     case "Docker daemon":
-      return "Start your Docker runtime and wait for its engine to be ready. Run docker info; if it fails, inspect docker context ls and any DOCKER_HOST or DOCKER_CONTEXT overrides.";
+      return cliTranslate(
+        "Start your Docker runtime and wait for its engine to be ready. Run docker info; if it fails, inspect docker context ls and any DOCKER_HOST or DOCKER_CONTEXT overrides."
+      );
     case "Docker Compose":
-      return `Install or update Docker Desktop or the Compose plugin to ${MINIMUM_COMPOSE_VERSION} or newer. Verify with docker compose version (or docker-compose version).`;
+      return cliTranslate(
+        "Install or update Docker Desktop or the Compose plugin to {version} or newer. Verify with docker compose version (or docker-compose version).",
+        { version: MINIMUM_COMPOSE_VERSION }
+      );
     case "Installation":
       return check.level === "fail"
-        ? "Restore the missing or invalid installation files from a known-good backup, or use aiteamos install --dir <path> for a separate new installation."
+        ? cliTranslate(
+            "Restore the missing or invalid installation files from a known-good backup, or use aiteamos install --dir <path> for a separate new installation."
+          )
         : undefined;
     case "Local ports":
       return check.level === "fail"
-        ? "Identify which application is using the reported port. Stop it if appropriate, or choose another API port during guided installation or aiteamos setup; the screen-viewer ports must be available."
+        ? cliTranslate(
+            "Identify which application is using the reported port. Stop it if appropriate, or choose another API port during guided installation or aiteamos setup; the screen-viewer ports must be available."
+          )
         : undefined;
     case "Secrets":
-      return "Restrict the reported configuration file to owner-only access before starting aiTeamOS.";
+      return cliTranslate(
+        "Restrict the reported configuration file to owner-only access before starting aiTeamOS."
+      );
     case "Secret values":
-      return "Restore the missing or invalid secrets from a known-good installation backup; the database and service credentials must remain consistent.";
+      return cliTranslate(
+        "Restore the missing or invalid secrets from a known-good installation backup; the database and service credentials must remain consistent."
+      );
     case "Configuration":
     case "Compose configuration":
-      return "Correct the reported error in the installation's configuration files, or restore them from a known-good backup before starting aiTeamOS.";
+      return cliTranslate(
+        "Correct the reported error in the installation's configuration files, or restore them from a known-good backup before starting aiTeamOS."
+      );
     case "Owner account":
-      return "Run aiteamos setup to create your account.";
+      return cliTranslate("Run aiteamos setup to create your account.");
     case "Network exposure":
       return check.level === "fail"
-        ? "Run aiteamos setup to repair the access mode, public URL, and bind addresses."
-        : "Keep plain HTTP on a trusted LAN or VPN. For access from anywhere, choose an HTTPS connection with aiteamos setup.";
+        ? cliTranslate(
+            "Run aiteamos setup to repair the access mode, public URL, and bind addresses."
+          )
+        : cliTranslate(
+            "Keep plain HTTP on a trusted LAN or VPN. For access from anywhere, choose an HTTPS connection with aiteamos setup."
+          );
     case "Compose services":
       if (!/^not running:/i.test(check.detail))
-        return "Docker could not list the services. Run docker info, then inspect the reported Compose error before trying aiteamos status again.";
-      return "Run aiteamos start to start the missing services. If startup fails, inspect aiteamos logs.";
+        return cliTranslate(
+          "Docker could not list the services. Run docker info, then inspect the reported Compose error before trying aiteamos status again."
+        );
+      return cliTranslate(
+        "Run aiteamos start to start the missing services. If startup fails, inspect aiteamos logs."
+      );
     case "Container health":
     case "aiTeamOS health":
       if (/expected release|was not reported/i.test(check.detail))
-        return "Run aiteamos status to check which server release is running. Verify the API port belongs to this installation before using aiteamos update to align its release.";
+        return cliTranslate(
+          "Run aiteamos status to check which server release is running. Verify the API port belongs to this installation before using aiteamos update to align its release."
+        );
       if (/another.*(?:server|instance)|different.*instance|foreign/i.test(check.detail))
-        return "Identify the aiTeamOS instance using the reported API port. Use the intended installation's --dir path, or choose an unused API port in aiteamos setup.";
-      return "Run aiteamos status and inspect aiteamos logs for unhealthy or stopped services; resolve the reported startup or connection error.";
+        return cliTranslate(
+          "Identify the aiTeamOS instance using the reported API port. Use the intended installation's --dir path, or choose an unused API port in aiteamos setup."
+        );
+      return cliTranslate(
+        "Run aiteamos status and inspect aiteamos logs for unhealthy or stopped services; resolve the reported startup or connection error."
+      );
     case "Schema setup":
     case "Database":
-      return "Inspect aiteamos logs migrate and aiteamos logs postgres for database startup or migration errors.";
+      return cliTranslate(
+        "Inspect aiteamos logs migrate and aiteamos logs postgres for database startup or migration errors."
+      );
     case "Pending jobs":
     case "Run leases":
     case "Worker heartbeat":
     case "Queue round trip":
       if (/authenticated computer API/i.test(check.detail))
-        return "Inspect aiteamos logs computer and confirm the worker and computer use the same installation control token.";
+        return cliTranslate(
+          "Inspect aiteamos logs computer and confirm the worker and computer use the same installation control token."
+        );
       if (/storage access/i.test(check.detail))
-        return "Check the worker's agent and asset volume permissions. The worker must be able to read and write both volumes.";
+        return cliTranslate(
+          "Check the worker's agent and asset volume permissions. The worker must be able to read and write both volumes."
+        );
       if (/database\/schema/i.test(check.detail))
-        return "Inspect aiteamos logs postgres and aiteamos logs migrate; the worker needs the application tables and job queues.";
-      return "Inspect aiteamos logs worker for stalled jobs, expired leases, or database connection errors.";
+        return cliTranslate(
+          "Inspect aiteamos logs postgres and aiteamos logs migrate; the worker needs the application tables and job queues."
+        );
+      return cliTranslate(
+        "Inspect aiteamos logs worker for stalled jobs, expired leases, or database connection errors."
+      );
     case "Computer API":
       if (/HTTP (401|403)/i.test(check.detail))
-        return "The computer rejected the server's credentials. Check that both services use the installation's AITEAMOS_CONTROL_TOKEN, then recreate the affected service with the corrected configuration.";
-      return "Inspect aiteamos logs computer for startup or connection errors.";
+        return cliTranslate(
+          "The computer rejected the server's credentials. Check that both services use the installation's AITEAMOS_CONTROL_TOKEN, then recreate the affected service with the corrected configuration."
+        );
+      return cliTranslate("Inspect aiteamos logs computer for startup or connection errors.");
     case "Public DNS":
-      return "Check that the public hostname resolves to this server's reachable address, then retry after the DNS change has propagated.";
+      return cliTranslate(
+        "Check that the public hostname resolves to this server's reachable address, then retry after the DNS change has propagated."
+      );
     case "TLS certificate":
-      return "Check the public hostname and certificate on your HTTPS proxy. For bundled HTTPS, inspect aiteamos logs caddy and verify inbound ports 80 and 443 are reachable.";
+      return cliTranslate(
+        "Check the public hostname and certificate on your HTTPS proxy. For bundled HTTPS, inspect aiteamos logs caddy and verify inbound ports 80 and 443 are reachable."
+      );
     case "Public endpoint":
-      return "Check the public URL, firewall, and reverse proxy; verify the proxy forwards HTTP and WebSocket traffic to aiTeamOS's configured API port.";
+      return cliTranslate(
+        "Check the public URL, firewall, and reverse proxy; verify the proxy forwards HTTP and WebSocket traffic to aiTeamOS's configured API port."
+      );
     case "Inference":
     case "AI connection":
       // Models are managed in the apps; the model command covers servers without one.
       if (/429|quota|billing|rate.?limit/i.test(check.detail))
-        return "Check the model provider's quota or billing, or wait for its rate limit to reset. To switch models, use Settings → Server in the aiTeamOS app, or run aiteamos model.";
+        return cliTranslate(
+          "Check the model provider's quota or billing, or wait for its rate limit to reset. To switch models, use Settings → Server in the aiTeamOS app, or run aiteamos model."
+        );
       if (/401|403|invalid.*(?:key|token)|unauthorized|authentication/i.test(check.detail))
-        return "Reconnect the provider in the aiTeamOS app under Settings → Server. On a server without the app, run aiteamos model.";
+        return cliTranslate(
+          "Reconnect the provider in the aiTeamOS app under Settings → Server. On a server without the app, run aiteamos model."
+        );
       if (/timed out|timeout|ECONNREFUSED|ENOTFOUND|network|connection refused/i.test(check.detail))
-        return "Check network access from the server and computer services to the model provider, including proxy or VPN settings. Inspect aiteamos logs computer and retry aiteamos doctor.";
+        return cliTranslate(
+          "Check network access from the server and computer services to the model provider, including proxy or VPN settings. Inspect aiteamos logs computer and retry aiteamos doctor."
+        );
       if (/model.*(?:unavailable|not found|does not exist|not supported)/i.test(check.detail))
-        return "Choose an available model in the aiTeamOS app under Settings → Server. On a server without the app, run aiteamos model list to see the models this account can use.";
+        return cliTranslate(
+          "Choose an available model in the aiTeamOS app under Settings → Server. On a server without the app, run aiteamos model list to see the models this account can use."
+        );
       if (/\bmissing\b/i.test(check.detail))
-        return "Connect a model in the aiTeamOS app under Settings → Server. On a server without the app, run aiteamos model.";
-      return "Check the model connection in the aiTeamOS app under Settings → Server. On a server without the app, run aiteamos provider list and aiteamos model list.";
+        return cliTranslate(
+          "Connect a model in the aiTeamOS app under Settings → Server. On a server without the app, run aiteamos model."
+        );
+      return cliTranslate(
+        "Check the model connection in the aiTeamOS app under Settings → Server. On a server without the app, run aiteamos provider list and aiteamos model list."
+      );
     case "Transcription":
       if (/server connection|installation credentials/i.test(check.detail))
-        return "Run aiteamos status and check the server connection and installation control token. Inspect aiteamos logs server before testing transcription again.";
-      return "Open Settings → Server → Transcription, check the provider URL, model and key, then use Test connection.";
+        return cliTranslate(
+          "Run aiteamos status and check the server connection and installation control token. Inspect aiteamos logs server before testing transcription again."
+        );
+      return cliTranslate(
+        "Open Settings → Server → Transcription, check the provider URL, model and key, then use Test connection."
+      );
     case "iOS push registration":
-      return "Open the iPhone app connected to this server, sign in, and check Settings → Notifications. Retry notifications or turn them off and on to register again.";
+      return cliTranslate(
+        "Open the iPhone app connected to this server, sign in, and check Settings → Notifications. Retry notifications or turn them off and on to register again."
+      );
     case "iOS push credentials":
-      return "Run aiteamos notifications configure --config ./apns.json to import the APNs key and apply it live. The topic must match the iOS app bundle ID (dev.aiteamos.mobile for the distributed app). Then run aiteamos notifications status and aiteamos doctor.";
+      return cliTranslate(
+        "Run aiteamos notifications configure --config ./apns.json to import the APNs key and apply it live. The topic must match the iOS app bundle ID (dev.aiteamos.mobile for the distributed app). Then run aiteamos notifications status and aiteamos doctor."
+      );
     case "iOS push delivery":
-      return "Inspect aiteamos logs worker for APNs delivery errors and check the push credentials and device registration. Verify a real alert on the iPhone with the conversation closed and Focus allowing aiTeamOS.";
+      return cliTranslate(
+        "Inspect aiteamos logs worker for APNs delivery errors and check the push credentials and device registration. Verify a real alert on the iPhone with the conversation closed and Focus allowing aiTeamOS."
+      );
   }
   if (check.label.includes("storage"))
-    return "Check that the reported volume is writable by the service's user and has free space. Inspect aiteamos logs for storage errors.";
+    return cliTranslate(
+      "Check that the reported volume is writable by the service's user and has free space. Inspect aiteamos logs for storage errors."
+    );
   if (check.label.endsWith(" container")) {
     const service = check.label.slice(0, -" container".length);
     if (["postgres", "server", "worker", "computer", "caddy"].includes(service))
-      return `Inspect aiteamos logs ${service} to identify why the container stopped or became unhealthy.`;
+      return cliTranslate(
+        "Inspect aiteamos logs {service} to identify why the container stopped or became unhealthy.",
+        { service }
+      );
   }
   return check.level === "fail"
-    ? `Review the reported ${check.label} error and inspect aiteamos logs for further details.`
+    ? cliTranslate(
+        "Review the reported {label} error and inspect aiteamos logs for further details.",
+        { label: check.label }
+      )
     : undefined;
 };
 
@@ -173,10 +257,11 @@ export const doctorNextSteps = (
   if (!result.installed && (!options.installInProgress || !result.ok))
     steps.push(
       result.ok
-        ? "Run aiteamos install to complete the installation."
-        : "After resolving the failed checks, run aiteamos install again."
+        ? cliTranslate("Run aiteamos install to complete the installation.")
+        : cliTranslate("After resolving the failed checks, run aiteamos install again.")
     );
-  else if (!result.ok) steps.push("After completing these steps, run aiteamos doctor again.");
+  else if (!result.ok)
+    steps.push(cliTranslate("After completing these steps, run aiteamos doctor again."));
   return [...new Set(steps)].map((step) => clean(scopedCommands(step, result)));
 };
 
@@ -195,24 +280,38 @@ export const renderCompactDoctor = (
       `${check.label}: ${scopedCommands(check.detail, result)}`,
       check.level === "fail" ? "error" : "warning"
     );
-    if (check.diagnostic) report.text(`Details: ${check.diagnostic}`, "muted", 4);
+    if (check.diagnostic)
+      report.text(cliTranslate("Details: {detail}", { detail: check.diagnostic }), "muted", 4);
   }
   const failures = visible.filter((check) => check.level === "fail").length;
   const skipped = visible.filter(isSkippedDoctorCheck).length;
   const warnings = visible.length - failures - skipped;
   report.notice(
     failures
-      ? `${failures} blocking ${failures === 1 ? "problem" : "problems"} found.`
+      ? cliTranslate(
+          failures === 1 ? "{count} blocking problem found." : "{count} blocking problems found.",
+          { count: failures }
+        )
       : warnings
-        ? `Checks passed with ${warnings} ${warnings === 1 ? "warning" : "warnings"}.`
+        ? cliTranslate(
+            warnings === 1
+              ? "Checks passed with {count} warning."
+              : "Checks passed with {count} warnings.",
+            { count: warnings }
+          )
         : skipped
-          ? `No blocking problems found; ${skipped} ${skipped === 1 ? "check was" : "checks were"} not completed.`
-          : "All checks passed.",
+          ? cliTranslate(
+              skipped === 1
+                ? "No blocking problems found; {count} check was not completed."
+                : "No blocking problems found; {count} checks were not completed.",
+              { count: skipped }
+            )
+          : cliTranslate("All checks passed."),
     failures ? "error" : skipped ? "info" : "success"
   );
   const steps = doctorNextSteps(result, { installInProgress: true });
   if (steps.length) {
-    report.section("Next steps");
+    report.section(cliTranslate("Next steps"));
     for (const [index, step] of steps.entries()) report.text(`${index + 1}. ${step}`, "info");
   }
   return report.toString();
@@ -267,27 +366,42 @@ export const renderDoctor = (
   const tone = failed ? 31 : warnings || skipped || !result.installed ? 33 : 32;
   const inside = width - 4;
   const frame = (text: string) => {
-    const visible = text.replace(/\x1b\[[0-9;]*m/g, "").length;
+    const visible = terminalTextWidth(text.replace(/\x1b\[[0-9;]*m/g, ""));
     return `  ${paint("│", 36)} ${text}${" ".repeat(Math.max(0, width - 6 - visible))} ${paint("│", 36)}`;
   };
   const lines = [
     "",
     `  ${paint("╭" + "─".repeat(width - 4) + "╮", 36)}`,
     frame(paint("AITEAMOS", 1) + paint(width < 30 ? " / doctor" : "  /  doctor", 90)),
-    frame(paint(state, tone)),
+    frame(paint(cliTranslate(state), tone)),
     `  ${paint("╰" + "─".repeat(width - 4) + "╯", 36)}`,
   ];
-  for (const line of wrap(
-    `${passed} passed   ${warnings} ${warnings === 1 ? "warning" : "warnings"}   ${failed} failed${skipped ? `   ${skipped} not checked` : ""}`,
-    inside
-  ))
-    lines.push(`  ${paint(line, 90)}`);
+  const counts = { passed, warnings, failed, skipped };
+  const summary = skipped
+    ? cliTranslate(
+        warnings === 1
+          ? "{passed} passed   {warnings} warning   {failed} failed   {skipped} not checked"
+          : "{passed} passed   {warnings} warnings   {failed} failed   {skipped} not checked",
+        counts
+      )
+    : cliTranslate(
+        warnings === 1
+          ? "{passed} passed   {warnings} warning   {failed} failed"
+          : "{passed} passed   {warnings} warnings   {failed} failed",
+        counts
+      );
+  for (const line of wrap(summary, inside)) lines.push(`  ${paint(line, 90)}`);
   if (result.elapsedMs !== undefined)
-    lines.push(`  ${paint(`Completed in ${(result.elapsedMs / 1000).toFixed(1)}s`, 90)}`);
+    lines.push(
+      `  ${paint(
+        cliTranslate("Completed in {seconds}s", { seconds: (result.elapsedMs / 1000).toFixed(1) }),
+        90
+      )}`
+    );
   const appendNextSteps = () => {
     const steps = doctorNextSteps(result);
     if (!steps.length) return;
-    lines.push("", `  ${paint("NEXT STEPS", 1)}`);
+    lines.push("", `  ${paint(cliTranslate("NEXT STEPS"), 1)}`);
     for (const [index, step] of steps.entries()) {
       const prefix = `${index + 1}. `;
       const parts = wrap(step, width - prefix.length - 2);
@@ -310,9 +424,10 @@ export const renderDoctor = (
       .filter((c) => group(c) === name)
       .sort((a, b) => priority[a.level] - priority[b.level]);
     if (!checks.length) continue;
+    const title = cliTranslate(name);
     lines.push(
       "",
-      `  ${paint(name, 1)} ${paint("─".repeat(Math.max(0, width - name.length - 4)), 90)}`
+      `  ${paint(title, 1)} ${paint("─".repeat(Math.max(0, width - terminalTextWidth(title) - 4)), 90)}`
     );
     for (const check of checks) {
       const tone = isSkippedDoctorCheck(check) ? 90 : tones[check.level];
@@ -335,7 +450,10 @@ export const renderDoctor = (
           lines.push(`      ${paint(line, check.level === "pass" ? 90 : tone)}`);
       }
       if (check.diagnostic)
-        for (const line of wrap(`Details: ${check.diagnostic}`, width - 6))
+        for (const line of wrap(
+          cliTranslate("Details: {detail}", { detail: check.diagnostic }),
+          width - 6
+        ))
           lines.push(`      ${paint(line, 90)}`);
     }
   }
@@ -345,9 +463,11 @@ export const renderDoctor = (
     ...wrap(
       result.ok
         ? skipped
-          ? "No blocking problems found. Some checks could not be completed; see the reasons above."
-          : "No blocking problems found. Doctor finished without starting services."
-        : "Doctor finished with blocking problems. Exit code 2.",
+          ? cliTranslate(
+              "No blocking problems found. Some checks could not be completed; see the reasons above."
+            )
+          : cliTranslate("No blocking problems found. Doctor finished without starting services.")
+        : cliTranslate("Doctor finished with blocking problems. Exit code 2."),
       width - 4
     ).map((line) => `  ${paint(line, failed ? 31 : 90)}`),
     ""

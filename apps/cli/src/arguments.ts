@@ -1,4 +1,5 @@
 import { CliError } from "./errors";
+import { normalizeLocale, type Locale } from "@aiteamos/contracts/localization";
 
 export type CommandName =
   | "tailscale-enable"
@@ -38,6 +39,7 @@ export interface CliOptions {
   command: CommandName | "help" | "version";
   helpTopic?: HelpTopic;
   directory?: string;
+  language?: Locale;
   version?: string;
   repository?: string;
   composeUrl?: string;
@@ -171,7 +173,7 @@ const commandFlags: Record<CommandName, ReadonlySet<string>> = {
   uninstall: new Set(["--yes", "-y", "--purge"]),
 };
 
-const commonFlags = new Set(["--dir"]);
+const commonFlags = new Set(["--dir", "--language"]);
 
 const commandLabel = (command: CommandName): string => command.replace("-", " ");
 
@@ -248,6 +250,7 @@ const helpTopicFromArguments = (parts: readonly string[]): HelpTopic => {
 const valueFlags = new Map<
   string,
   | "directory"
+  | "language"
   | "version"
   | "repository"
   | "composeUrl"
@@ -280,6 +283,7 @@ const valueFlags = new Map<
   ["--team-id", "apnsTeamId"],
   ["--topic", "apnsTopic"],
   ["--dir", "directory"],
+  ["--language", "language"],
   ["--version", "version"],
   ["--repository", "repository"],
   ["--compose-url", "composeUrl"],
@@ -541,7 +545,8 @@ export const parseArguments = (argv: readonly string[]): CliOptions => {
       if (property === "service" && options.service) {
         throw new CliError("Choose a log service either by name or with --service, not both");
       }
-      options[property] = value;
+      if (property === "language") options.language = normalizeLocale(value);
+      else options[property] = value;
       index += 1;
       continue;
     }

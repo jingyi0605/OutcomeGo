@@ -33,6 +33,7 @@ import {
   MINIMUM_COMPOSE_VERSION,
 } from "./docker";
 import { checkHealth, withExpectedVersion, type HealthResult } from "./health";
+import { cliTranslate } from "./localization";
 import { checkInferenceConnection } from "./inference-connection";
 import { checkTranscription } from "./transcription-check";
 import {
@@ -102,7 +103,7 @@ export const runDoctor = async (
   const runner = boundedDoctorRunner(suppliedRunner);
   const commandDirectory =
     paths.directory === defaultInstallDirectory() ? undefined : paths.directory;
-  options.onProgress?.("Checking host and Docker");
+  options.onProgress?.(cliTranslate("Checking host and Docker"));
   const checks: DoctorCheck[] = [];
   const installed = installationExists(paths);
   const machineArchitecture = arch();
@@ -227,7 +228,7 @@ export const runDoctor = async (
           : `port ${unavailablePort} is already in use`,
     });
   } else {
-    options.onProgress?.("Checking configuration and services");
+    options.onProgress?.(cliTranslate("Checking configuration and services"));
     let manifest;
     try {
       manifest = readManifest(paths);
@@ -397,7 +398,7 @@ export const runDoctor = async (
           label: "Tailscale Serve",
           detail:
             status.issue || `${status.publicUrl} → ${status.backendUrl} (${status.ownership})`,
-          action: "Run aiteamos tailscale status on the server host.",
+          action: cliTranslate("Run aiteamos tailscale status on the server host."),
         });
       }
       if (["https", "proxy", "http", "tailscale"].includes(accessMode) && publicUrl) {
@@ -428,7 +429,7 @@ export const runDoctor = async (
       });
     }
     if (options.deepChecks && project) {
-      options.onProgress?.("Testing database, computer, and worker");
+      options.onProgress?.(cliTranslate("Testing database, computer, and worker"));
       const probeService = (service: string, script: string, labels: string[], storage = false) => {
         checks.push(
           ...(runningServices?.has(service)
@@ -449,9 +450,9 @@ export const runDoctor = async (
         "Computer API",
       ]);
       probeService("worker", WORKER_PROBE, ["Worker heartbeat", "Queue round trip"]);
-      options.onProgress?.("Checking notification registrations and push delivery");
+      options.onProgress?.(cliTranslate("Checking notification registrations and push delivery"));
       checks.push(...runNotificationChecks(project, runningServices ?? new Set()));
-      options.onProgress?.("Verifying storage permissions");
+      options.onProgress?.(cliTranslate("Verifying storage permissions"));
       probeService("server", STORAGE_PROBE, ["Server agent storage", "Server asset storage"], true);
       probeService("worker", STORAGE_PROBE, ["Worker agent storage", "Worker asset storage"], true);
       probeService("computer", STORAGE_PROBE, ["Bot workspace storage"], true);
@@ -492,7 +493,7 @@ export const runDoctor = async (
       });
     }
     if (options.deepChecks || options.testInference) {
-      options.onProgress?.("Checking transcription from the server");
+      options.onProgress?.(cliTranslate("Checking transcription from the server"));
       checks.push(
         health.ok && !foreignServer
           ? await checkTranscription(paths)
@@ -524,7 +525,7 @@ export const runDoctor = async (
         });
       } else {
         try {
-          options.onProgress?.("Testing the saved AI model (up to 40s)");
+          options.onProgress?.(cliTranslate("Testing the saved AI model (up to 40s)"));
           const settings = await readRuntimeInferenceSettings(paths);
           const connection = checkInferenceConnection(project, settings);
           checks.push({

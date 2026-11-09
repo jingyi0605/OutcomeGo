@@ -3,6 +3,7 @@ import { delimiter, join } from "node:path";
 import { CLI_UPDATE_TARGET_ENV, isStandaloneCliExecutable } from "./cli-update";
 import type { InstallationPaths } from "./config";
 import { defaultInstallDirectory } from "./config";
+import { cliTranslate } from "./localization";
 import { providerDisplayName } from "./model-provider-options";
 import type { ProviderRow, ModelRow } from "./providers";
 export { renderStatus } from "./status-ui";
@@ -96,11 +97,14 @@ export const renderProviderCatalog = (
   const connected = providers.filter((p) => p.configured);
   const view = new TerminalReport(options).header(
     "providers",
-    `${connected.length} connected · ${providers.length} providers`
+    cliTranslate("{connected} connected · {total} providers", {
+      connected: connected.length,
+      total: providers.length,
+    })
   );
   for (const [title, rows] of [
-    ["Connected accounts", connected],
-    ["Available to connect", providers.filter((p) => !p.configured)],
+    [cliTranslate("Connected accounts"), connected],
+    [cliTranslate("Available to connect"), providers.filter((p) => !p.configured)],
   ] as const) {
     if (!rows.length) continue;
     view.section(title);
@@ -112,16 +116,22 @@ export const renderProviderCatalog = (
         provider.authType === "oauth"
           ? "OAuth"
           : provider.authType === "api_key"
-            ? "API key"
-            : "Configured credentials";
+            ? cliTranslate("API key")
+            : cliTranslate("Configured credentials");
       const auth = provider.configured
-        ? `Connected · ${method}`
+        ? cliTranslate("Connected · {method}", { method })
         : provider.authMethods
             .map((m) => m.label.replace(/\bBearer token\b/gi, "token"))
-            .join(" / ") || "Ambient credentials";
+            .join(" / ") || cliTranslate("Ambient credentials");
       view.row(
         provider.id,
-        `${providerDisplayName(provider)} · ${provider.models} chat models · ${auth}${provider.custom ? " · custom" : ""}${active ? " · selected" : ""}`,
+        [
+          providerDisplayName(provider),
+          cliTranslate("{count} chat models", { count: provider.models }),
+          auth,
+          ...(provider.custom ? [cliTranslate("custom")] : []),
+          ...(active ? [cliTranslate("selected")] : []),
+        ].join(" · "),
         {
           mark: active ? "●" : provider.configured ? "✓" : "·",
           tone: provider.configured ? "success" : "muted",
@@ -136,11 +146,11 @@ export const renderProviderCatalog = (
         );
     }
   }
-  if (!providers.length) view.notice("No providers are available.", "warning");
+  if (!providers.length) view.notice(cliTranslate("No providers are available."), "warning");
   else if (!connected.length)
-    view.notice("Connect a provider before starting AI tasks.", "warning");
+    view.notice(cliTranslate("Connect a provider before starting AI tasks."), "warning");
   view
-    .section("Next")
+    .section(cliTranslate("Next"))
     .text(installationCommand(paths, "provider login <provider>"), "info")
     .text(installationCommand(paths, "model list <provider>"), "info");
   view.lines.push("");
@@ -158,11 +168,16 @@ export const renderModelCatalog = (
   const activeModel = `${selected.providerId}/${selected.modelId}`;
   const view = new TerminalReport(options).header(
     "models",
-    `${models.length} accessible chat models${providerId ? ` · ${providerId}` : ""}`
+    providerId
+      ? cliTranslate("{count} accessible chat models · {provider}", {
+          count: models.length,
+          provider: providerId,
+        })
+      : cliTranslate("{count} accessible chat models", { count: models.length })
   );
   view.lines.push("");
-  view.row("Selected", activeModel, { mark: "●", tone: "info", active: true });
-  view.row("Thinking", selected.reasoning);
+  view.row(cliTranslate("Selected"), activeModel, { mark: "●", tone: "info", active: true });
+  view.row(cliTranslate("Thinking"), selected.reasoning);
   const providers = [...new Set(models.map((m) => m.providerId))].sort(
     (a, b) =>
       Number(b === selected.providerId) - Number(a === selected.providerId) || a.localeCompare(b)
@@ -173,18 +188,26 @@ export const renderModelCatalog = (
       44,
       group.reduce((width, model) => Math.max(width, `${provider}/${model.modelId}`.length), 0)
     );
-    view.section(`${provider} · ${group.length} models`);
+    view.section(cliTranslate("{provider} · {count} models", { provider, count: group.length }));
     for (const model of [...group].sort(
       (a, b) => Number(b.modelId === selected.modelId) - Number(a.modelId === selected.modelId)
     )) {
       const active = provider === selected.providerId && model.modelId === selected.modelId;
       const capabilities = [
-        model.reasoning ? `reasoning ${model.reasoningLevels.join("/")}` : "",
-        model.input.includes("image") ? "images" : "",
+        model.reasoning
+          ? cliTranslate("reasoning {levels}", { levels: model.reasoningLevels.join("/") })
+          : "",
+        model.input.includes("image") ? cliTranslate("images") : "",
       ].filter(Boolean);
       view.row(
         `${provider}/${model.modelId}`,
-        `${model.contextWindow.toLocaleString("en-US")} context${capabilities.length ? ` · ${capabilities.join(" · ")}` : ""}${active ? " · selected" : ""}`,
+        [
+          cliTranslate("{context} context", {
+            context: model.contextWindow.toLocaleString("en-US"),
+          }),
+          ...capabilities,
+          ...(active ? [cliTranslate("selected")] : []),
+        ].join(" · "),
         {
           mark: active ? "●" : "·",
           active,
@@ -198,19 +221,29 @@ export const renderModelCatalog = (
     (p) => (!providerId || p.id === providerId) && p.modelStatus === "unavailable"
   ))
     view.notice(
-      `${providerDisplayName(provider)}: ${provider.modelMessage ?? "Model discovery is unavailable. Reconnect the provider and retry."}`,
+      cliTranslate("{provider}: {message}", {
+        provider: providerDisplayName(provider),
+        message:
+          provider.modelMessage ??
+          cliTranslate("Model discovery is unavailable. Reconnect the provider and retry."),
+      }),
       "warning"
     );
   if (!models.length)
     view.notice(
-      `No models found${providerId ? ` for ${providerId}` : ""}. Connect a provider or check model discovery.`,
+      providerId
+        ? cliTranslate(
+            "No models found for {provider}. Connect a provider or check model discovery.",
+            { provider: providerId }
+          )
+        : cliTranslate("No models found. Connect a provider or check model discovery."),
       "warning"
     );
   view.text(installationCommand(paths, "provider list"), "info");
   view
-    .section("Switch model")
+    .section(cliTranslate("Switch model"))
     .text(installationCommand(paths, `model use ${providerId || "<provider>"} <model>`), "info")
-    .text("Add --thinking medium to choose a thinking level.");
+    .text(cliTranslate("Add --thinking medium to choose a thinking level."));
   view.lines.push("");
   return view.toString();
 };
@@ -220,16 +253,16 @@ export const renderUpdateEvent = (
   options: TerminalOptions = {}
 ): string => {
   const labels = {
-    checking: "CHECK",
-    downloading: "DOWNLOAD",
-    "backing-up": "BACKUP",
-    pulling: "IMAGES",
-    restarting: "RESTART",
-    verifying: "VERIFY",
-    "updating-cli": "CLI",
-    "rolling-back": "ROLLBACK",
-    complete: "COMPLETE",
-    error: "FAILED",
+    checking: cliTranslate("CHECK"),
+    downloading: cliTranslate("DOWNLOAD"),
+    "backing-up": cliTranslate("BACKUP"),
+    pulling: cliTranslate("IMAGES"),
+    restarting: cliTranslate("RESTART"),
+    verifying: cliTranslate("VERIFY"),
+    "updating-cli": cliTranslate("CLI"),
+    "rolling-back": cliTranslate("ROLLBACK"),
+    complete: cliTranslate("COMPLETE"),
+    error: cliTranslate("FAILED"),
   };
   const tone =
     state.status === "error"
@@ -253,7 +286,7 @@ export const renderHelp = (source: string, options: TerminalOptions = {}): strin
   const version = lines[0]?.match(/^aiTeamOS (.+)$/)?.[1];
   const view = new TerminalReport(options).header(
     "help",
-    version ? `VERSION ${version}` : undefined,
+    version ? cliTranslate("VERSION {version}", { version }) : undefined,
     "muted"
   );
   for (const line of version ? lines.slice(1) : lines) {
@@ -272,7 +305,7 @@ export const renderHelp = (source: string, options: TerminalOptions = {}): strin
 };
 
 export const renderCommandError = (message: string, options: TerminalOptions = {}): string => {
-  const view = new TerminalReport(options).header("error", "COMMAND FAILED", "error");
+  const view = new TerminalReport(options).header("error", cliTranslate("COMMAND FAILED"), "error");
   view.lines.push("");
   view.notice(message, "error");
   view.lines.push("");

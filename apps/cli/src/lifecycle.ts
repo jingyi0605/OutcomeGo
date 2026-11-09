@@ -34,6 +34,7 @@ import { dockerMissing, renderDockerRequired, startDockerDesktop } from "./docke
 import { doctorNextSteps } from "./doctor-ui";
 import { CliError } from "./errors";
 import { checkHealth, type HealthResult, withExpectedVersion } from "./health";
+import { cliTranslate } from "./localization";
 import type { CommandRunner } from "./process";
 import { downloadRelease, latestReleaseVersion } from "./release";
 import { setupCommand, type SetupPrompter } from "./setup";
@@ -97,12 +98,18 @@ const reportUpdateProgress = (
 const requireInstallation = (paths: InstallationPaths): InstallationManifest => {
   if (!installationExists(paths)) {
     throw new CliError(
-      `aiTeamOS is not installed at ${paths.directory}. Run aiteamos install first.`
+      cliTranslate("aiTeamOS is not installed at {directory}. Run aiteamos install first.", {
+        directory: paths.directory,
+      })
     );
   }
   const manifest = readManifest(paths);
   if (!manifest)
-    throw new CliError(`aiTeamOS installation manifest is missing at ${paths.manifest}`);
+    throw new CliError(
+      cliTranslate("aiTeamOS installation manifest is missing at {path}", {
+        path: paths.manifest,
+      })
+    );
   return manifest;
 };
 
@@ -120,28 +127,47 @@ const printStartupReady = (
   console.log(
     renderSummary(
       "start",
-      alreadyRunning ? "ALREADY RUNNING" : "READY",
+      cliTranslate(alreadyRunning ? "ALREADY RUNNING" : "READY"),
       [
-        { label: "Server", value: localUrl },
+        { label: cliTranslate("Server"), value: localUrl },
         ...(publicUrl && publicUrl !== localUrl
-          ? [{ label: "Network address", value: publicUrl }]
+          ? [{ label: cliTranslate("Network address"), value: publicUrl }]
           : []),
-        ...(health.version ? [{ label: "Version", value: health.version }] : []),
+        ...(health.version ? [{ label: cliTranslate("Version"), value: health.version }] : []),
       ],
       [
-        { text: `aiTeamOS is ${alreadyRunning ? "already running" : "ready"}.`, tone: "success" },
+        {
+          text: cliTranslate(
+            alreadyRunning ? "aiTeamOS is already running." : "aiTeamOS is ready."
+          ),
+          tone: "success",
+        },
         ...(health.inference && health.inference !== "ready"
           ? [
               {
                 text:
                   health.inference === "missing"
-                    ? `No model is connected yet. Connect one in the aiTeamOS app under Settings → Server, or run ${installationCommand(paths, "model")} on this server.`
-                    : `AI is not ready (${health.inference}). Check the model connection in the aiTeamOS app under Settings → Server, or run ${installationCommand(paths, "doctor")}.`,
+                    ? cliTranslate(
+                        "No model is connected yet. Connect one in the aiTeamOS app under Settings → Server, or run {command} on this server.",
+                        { command: installationCommand(paths, "model") }
+                      )
+                    : cliTranslate(
+                        "AI is not ready ({status}). Check the model connection in the aiTeamOS app under Settings → Server, or run {command}.",
+                        {
+                          status: health.inference,
+                          command: installationCommand(paths, "doctor"),
+                        }
+                      ),
                 tone: "warning" as const,
               },
             ]
           : []),
-        { text: `To stop aiTeamOS, run: ${installationCommand(paths, "stop")}`, tone: "info" },
+        {
+          text: cliTranslate("To stop aiTeamOS, run: {command}", {
+            command: installationCommand(paths, "stop"),
+          }),
+          tone: "info",
+        },
       ]
     )
   );
@@ -157,7 +183,7 @@ const startProject = async (
   // Refuse to race another stack for the ports; Docker's own error names only the port.
   const running = runningServices(project);
   const environment = parseEnvironment(readFileSync(paths.environment, "utf8"));
-  printMessage("Checking startup ports…");
+  printMessage(cliTranslate("Checking startup ports…"));
   const initialHealth = await checkHealth(paths);
   assertOwnServer(runner, initialHealth, running, environment);
   await assertPortsAvailable(runner, portRequirementsFromEnvironment(environment, running));
@@ -169,20 +195,31 @@ const startProject = async (
       printStartupReady(paths, environment, health, true);
       return;
     }
-    if (state.stopped) printMessage("aiTeamOS is stopped. Starting services…");
+    if (state.stopped) printMessage(cliTranslate("aiTeamOS is stopped. Starting services…"));
     else if (state.notReady.length) {
       printMessage(
-        `aiTeamOS is partially running. Starting or checking: ${state.notReady.join(", ")}…`
+        cliTranslate("aiTeamOS is partially running. Starting or checking: {services}…", {
+          services: state.notReady.join(", "),
+        })
       );
-    } else printMessage(`aiTeamOS is running but not ready (${health.detail}). Checking services…`);
+    } else
+      printMessage(
+        cliTranslate("aiTeamOS is running but not ready ({detail}). Checking services…", {
+          detail: health.detail,
+        })
+      );
   }
+  // The note is shared with setup.ts (out of scope) and defined in startup.ts.
   printMessage(SETUP_JOBS_NOTE, "muted");
   project.runOrThrow(["up", "--detach", "--remove-orphans", "--wait", "--wait-timeout", "180"], {
     inherit: true,
   });
-  printMessage("Waiting for aiTeamOS…");
+  printMessage(cliTranslate("Waiting for aiTeamOS…"));
   const health = await waitForStartup(project, paths, expectedVersion);
-  if (!health.ok) throw new CliError(`aiTeamOS did not become healthy: ${health.detail}`);
+  if (!health.ok)
+    throw new CliError(
+      cliTranslate("aiTeamOS did not become healthy: {detail}", { detail: health.detail })
+    );
   printStartupReady(paths, environment, health);
 };
 
@@ -200,7 +237,11 @@ export const installCommand = async (
       );
     }
     if (existing.uninstalledAt) {
-      printMessage(`Reinstalling aiTeamOS ${existing.version}; refreshing release configuration…`);
+      printMessage(
+        cliTranslate("Reinstalling aiTeamOS {version}; refreshing release configuration…", {
+          version: existing.version,
+        })
+      );
       const release = await downloadRelease({
         repository: existing.repository,
         version: existing.version,
@@ -218,7 +259,9 @@ export const installCommand = async (
     }
     if (!existing.ownerUsername && !options.noSetup) {
       console.log(
-        `aiTeamOS ${existing.version} is installed but setup is incomplete; resuming setup.`
+        cliTranslate("aiTeamOS {version} is installed but setup is incomplete; resuming setup.", {
+          version: existing.version,
+        })
       );
       await setupCommand(
         paths,
@@ -232,7 +275,11 @@ export const installCommand = async (
         suppliedPrompter
       );
     } else {
-      printMessage(`aiTeamOS ${existing.version} is already installed; starting it.`);
+      printMessage(
+        cliTranslate("aiTeamOS {version} is already installed; starting it.", {
+          version: existing.version,
+        })
+      );
       await startCommand(paths, runner, { allowIncompleteSetup: options.noSetup });
     }
     return;
@@ -249,11 +296,11 @@ export const installCommand = async (
         desktopStarting: desktop === "timed-out",
       })
     );
-    throw new CliError("Docker is required.", 2, true);
+    throw new CliError(cliTranslate("Docker is required."), 2, true);
   }
   if (diagnosis.ok) {
     const report = new TerminalReport();
-    report.notice("Server requirements checked", "success");
+    report.notice(cliTranslate("Server requirements checked"), "success");
     const warnings = diagnosis.checks.filter(
       (check) => check.level === "warn" && !["Installation", "Local ports"].includes(check.label)
     );
@@ -267,13 +314,19 @@ export const installCommand = async (
   } else printDoctor(diagnosis, { compact: true });
   if (!diagnosis.ok)
     throw new CliError(
-      `Server setup paused. The CLI is available. Fix the failed checks above, then run ${installationCommand(paths, "setup")} again.`,
+      cliTranslate(
+        "Server setup paused. The CLI is available. Fix the failed checks above, then run {command} again.",
+        { command: installationCommand(paths, "setup") }
+      ),
       2
     );
 
   if (!options.noSetup && !suppliedPrompter && (!process.stdin.isTTY || !process.stdout.isTTY)) {
     throw new CliError(
-      `Preflight checks passed. Guided setup needs an interactive terminal. Run ${installationCommand(paths, "setup")} in a terminal to continue.`,
+      cliTranslate(
+        "Preflight checks passed. Guided setup needs an interactive terminal. Run {command} in a terminal to continue.",
+        { command: installationCommand(paths, "setup") }
+      ),
       2
     );
   }
@@ -287,7 +340,7 @@ export const installCommand = async (
 
   const version = normalizeVersion(options.version || CLI_VERSION);
   const repository = normalizeRepository(options.repository || DEFAULT_REPOSITORY);
-  printMessage(`Downloading aiTeamOS ${version} release configuration…`);
+  printMessage(cliTranslate("Downloading aiTeamOS {version} release configuration…", { version }));
   const release = await downloadRelease({
     repository,
     version,
@@ -317,18 +370,32 @@ export const installCommand = async (
       rmSync(file, { force: true });
     }
     throw new CliError(
-      `Could not save the aiTeamOS configuration in ${paths.directory}: ${error instanceof Error ? error.message : error}. Free up disk space or fix the folder's permissions, then run ${installationCommand(paths, "setup")} again.`
+      cliTranslate(
+        "Could not save the aiTeamOS configuration in {directory}: {error}. Free up disk space or fix the folder's permissions, then run {command} again.",
+        {
+          directory: paths.directory,
+          error: error instanceof Error ? error.message : String(error),
+          command: installationCommand(paths, "setup"),
+        }
+      )
     );
   }
 
   if (options.noSetup) {
     const project = requireComposeProject(paths, runner, projectName);
-    printMessage("Pulling aiTeamOS container images…");
+    printMessage(cliTranslate("Pulling aiTeamOS container images…"));
     project.runOrThrow(["pull"], { inherit: true });
     await startProject(project, paths, runner, version);
-    printMessage(`Installation configuration: ${paths.directory}`, "muted");
     printMessage(
-      `Guided setup was skipped. Run ${installationCommand(paths, "setup")} to finish setup.`
+      cliTranslate("Installation configuration: {directory}", {
+        directory: paths.directory,
+      }),
+      "muted"
+    );
+    printMessage(
+      cliTranslate("Guided setup was skipped. Run {command} to finish setup.", {
+        command: installationCommand(paths, "setup"),
+      })
     );
     return;
   }
@@ -361,7 +428,7 @@ export const doctorCommand = async (
     if (interactive) process.stdout.write("\r\x1b[2K");
   });
   printDoctor(diagnosis);
-  if (!diagnosis.ok) throw new CliError("Doctor checks failed.", 2, true);
+  if (!diagnosis.ok) throw new CliError(cliTranslate("Doctor checks failed."), 2, true);
 };
 
 export const stopCommand = (paths: InstallationPaths, runner: CommandRunner): void => {
@@ -372,10 +439,13 @@ export const stopCommand = (paths: InstallationPaths, runner: CommandRunner): vo
   console.log(
     renderSummary(
       "stop",
-      "STOPPED",
-      [{ label: "Installation", value: paths.directory }],
+      cliTranslate("STOPPED"),
+      [{ label: cliTranslate("Installation"), value: paths.directory }],
       [
-        { text: "aiTeamOS is stopped. Its data and containers are preserved.", tone: "success" },
+        {
+          text: cliTranslate("aiTeamOS is stopped. Its data and containers are preserved."),
+          tone: "success",
+        },
         { text: installationCommand(paths, "start"), tone: "info" },
       ]
     )
@@ -390,7 +460,9 @@ export const startCommand = async (
   const manifest = requireInstallation(paths);
   if (!manifest.ownerUsername?.trim() && !options.allowIncompleteSetup) {
     throw new CliError(
-      "aiTeamOS is installed, but account setup is incomplete. Run aiteamos setup to create your sign-in, then retry aiteamos start.",
+      cliTranslate(
+        "aiTeamOS is installed, but account setup is incomplete. Run aiteamos setup to create your sign-in, then retry aiteamos start."
+      ),
       2
     );
   }
@@ -472,12 +544,24 @@ const updateCommandUnlocked = async (
       ? `aiTeamOS ${target} and its command-line tools are up to date`
       : `aiTeamOS ${target} is already installed`;
     report("complete", message, target);
-    console.log(`${message}.`);
+    console.log(
+      cliTranslate(
+        cliPromotion
+          ? "aiTeamOS {version} and its command-line tools are up to date."
+          : "aiTeamOS {version} is already installed.",
+        { version: target }
+      )
+    );
     return;
   }
   const whenIdle = updateWaitsForIdle(options);
   if (whenIdle) await assertNoAgentWorking(paths);
-  console.log(`Updating aiTeamOS ${manifest.version} → ${target}…`);
+  console.log(
+    cliTranslate("Updating aiTeamOS {from} → {to}…", {
+      from: manifest.version,
+      to: target,
+    })
+  );
   report("downloading", `Downloading and verifying aiTeamOS ${target}`, target);
   const release = await downloadRelease({
     repository,
@@ -617,7 +701,14 @@ const updateCommandUnlocked = async (
     ? `aiTeamOS and its command-line tools are now running ${target}`
     : `aiTeamOS is now running ${target}`;
   report("complete", completion, target);
-  console.log(`${completion}.`);
+  console.log(
+    cliTranslate(
+      cliPromotion
+        ? "aiTeamOS and its command-line tools are now running {version}."
+        : "aiTeamOS is now running {version}.",
+      { version: target }
+    )
+  );
 };
 
 export const resolveUpdateTarget = async (
@@ -668,12 +759,14 @@ export const updateCommand = async (
 
 const confirmation = async (question: string): Promise<boolean> => {
   if (!process.stdin.isTTY || !process.stdout.isTTY) {
-    throw new CliError("Interactive confirmation is unavailable; pass --yes to confirm.");
+    throw new CliError(
+      cliTranslate("Interactive confirmation is unavailable; pass --yes to confirm.")
+    );
   }
   const prompt = createInterface({ input: process.stdin, output: process.stdout });
   try {
     console.log(new TerminalReport().notice(question, "warning").toString());
-    const answer = await prompt.question("  Continue? [y/N] ");
+    const answer = await prompt.question(`  ${cliTranslate("Continue? [y/N]")} `);
     return /^y(?:es)?$/i.test(answer.trim());
   } finally {
     prompt.close();
@@ -688,10 +781,12 @@ export const uninstallCommand = async (
 ): Promise<void> => {
   const manifest = requireInstallation(paths);
   const question = options.purge
-    ? "Permanently delete all aiTeamOS containers, volumes, configuration, sessions, and workspace data?"
-    : "Remove the aiTeamOS containers while preserving configuration and data?";
+    ? cliTranslate(
+        "Permanently delete all aiTeamOS containers, volumes, configuration, sessions, and workspace data?"
+      )
+    : cliTranslate("Remove the aiTeamOS containers while preserving configuration and data?");
   if (!options.yes && !(await confirmation(question))) {
-    printMessage("Uninstall cancelled.", "muted");
+    printMessage(cliTranslate("Uninstall cancelled."), "muted");
     return;
   }
   const project = requireComposeProject(paths, runner, manifestProjectName(manifest));
@@ -705,9 +800,14 @@ export const uninstallCommand = async (
     console.log(
       renderSummary(
         "uninstall",
-        "REMOVED",
-        cliPath ? [{ label: "CLI removed", value: cliPath }] : [],
-        [{ text: "aiTeamOS and its local Docker data were permanently removed.", tone: "success" }]
+        cliTranslate("REMOVED"),
+        cliPath ? [{ label: cliTranslate("CLI removed"), value: cliPath }] : [],
+        [
+          {
+            text: cliTranslate("aiTeamOS and its local Docker data were permanently removed."),
+            tone: "success",
+          },
+        ]
       )
     );
     return;
@@ -717,14 +817,16 @@ export const uninstallCommand = async (
   console.log(
     renderSummary(
       "uninstall",
-      "UNINSTALLED",
+      cliTranslate("UNINSTALLED"),
       [
-        { label: "Data preserved", value: paths.directory },
-        ...(cliPath ? [{ label: "CLI removed", value: cliPath }] : []),
+        { label: cliTranslate("Data preserved"), value: paths.directory },
+        ...(cliPath ? [{ label: cliTranslate("CLI removed"), value: cliPath }] : []),
       ],
       [
         {
-          text: "Run the aiTeamOS installer again to restore the CLI and recreate the containers with the preserved data.",
+          text: cliTranslate(
+            "Run the aiTeamOS installer again to restore the CLI and recreate the containers with the preserved data."
+          ),
           tone: "info",
         },
       ]

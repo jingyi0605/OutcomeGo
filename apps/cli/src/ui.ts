@@ -1,4 +1,5 @@
 import { stdout } from "node:process";
+import { cliTranslate } from "./localization";
 
 export type MessageTone = "info" | "success" | "warning" | "muted";
 
@@ -159,8 +160,9 @@ const wrapText = (value: string, width: number): string[] => {
 export const renderSelectionPrompt = (input: SelectionPromptInput): readonly string[] => {
   const styled = input.color ?? colorEnabled();
   const width = Math.max(16, Math.min(80, measuredWidth(input.width ?? stdout.columns)));
-  const hint =
-    width >= 40 ? "  ↑/↓ move · Enter select" : width >= 21 ? "  arrows · Enter" : "  ↑↓ · Enter";
+  const hint = `  ${cliTranslate(
+    width >= 40 ? "↑/↓ move · Enter select" : width >= 21 ? "arrows · Enter" : "↑↓ · Enter"
+  )}`;
   const lines = [
     `${paint(styled, "?", ANSI.cyan)} ${paint(styled, truncate(input.message, width - 2), ANSI.bold)}`,
   ];
@@ -318,7 +320,7 @@ export const renderSetupSession = (
       }
       case "option": {
         const marker = row.selected ? paint(styled, "●", ANSI.green) : paint(styled, "○", ANSI.dim);
-        const tags = [row.badge, row.recommended ? "recommended" : null]
+        const tags = [row.badge, row.recommended ? cliTranslate("recommended") : null]
           .filter(Boolean)
           .join(" · ");
         const badge = tags ? paint(styled, `  ${tags}`, ANSI.green) : "";
@@ -350,7 +352,11 @@ export const renderSetupSession = (
               ? paint(styled, truncate(row.value, valueWidth), ANSI.bold)
               : truncate(row.value, valueWidth);
         } else {
-          value = paint(styled, truncate(row.placeholder ?? "not set", valueWidth), ANSI.dim);
+          value = paint(
+            styled,
+            truncate(row.placeholder ?? cliTranslate("not set"), valueWidth),
+            ANSI.dim
+          );
         }
         body.push(`  ${pointer} ${active ? paint(styled, label, ANSI.bold) : label}  ${value}`);
         if (editing?.error) {
@@ -392,26 +398,29 @@ export const renderSetupSession = (
   const footer: string[] = [""];
   if (input.notice) footer.push(...noteLines(input.notice.text, input.notice.tone, width, styled));
   const focused = input.cursorRow >= 0 ? input.rows[input.cursorRow] : undefined;
-  let hint: string;
-  if (input.mode === "edit") {
-    hint = width >= 48 ? "  Type to edit · Enter save · Esc discard" : "  Enter save · Esc discard";
-  } else if (!focused) {
-    hint = width < 40 ? "  ←→ · Esc" : "  ←/→ step · Esc cancel";
-  } else if (width < 40) {
-    hint = "  ↑↓ · Enter · ←→ · Esc";
-  } else if (width < 64) {
-    hint = "  ↑↓ move · Enter · ←→ · Esc cancel";
-  } else if (focused?.kind === "text") {
-    hint = focused.value
-      ? "  Type to replace · Enter keep · ↑/↓ move · ←/→ step · Esc cancel"
-      : "  Type to enter · Enter edit · ↑/↓ move · ←/→ step · Esc cancel";
-  } else if (focused?.kind === "toggle" || focused?.kind === "cycle") {
-    hint = "  ↑/↓ move · Enter change · ←/→ step · Esc cancel";
-  } else if (focused?.kind === "action") {
-    hint = "  ↑/↓ choose · Enter confirm · ← back · Esc cancel";
-  } else {
-    hint = "  ↑/↓ choose · Enter confirm · ←/→ step · Esc cancel";
-  }
+  const hintKey =
+    input.mode === "edit"
+      ? width >= 48
+        ? "Type to edit · Enter save · Esc discard"
+        : "Enter save · Esc discard"
+      : !focused
+        ? width < 40
+          ? "←→ · Esc"
+          : "←/→ step · Esc cancel"
+        : width < 40
+          ? "↑↓ · Enter · ←→ · Esc"
+          : width < 64
+            ? "↑↓ move · Enter · ←→ · Esc cancel"
+            : focused.kind === "text"
+              ? focused.value
+                ? "Type to replace · Enter keep · ↑/↓ move · ←/→ step · Esc cancel"
+                : "Type to enter · Enter edit · ↑/↓ move · ←/→ step · Esc cancel"
+              : focused.kind === "toggle" || focused.kind === "cycle"
+                ? "↑/↓ move · Enter change · ←/→ step · Esc cancel"
+                : focused.kind === "action"
+                  ? "↑/↓ choose · Enter confirm · ← back · Esc cancel"
+                  : "↑/↓ choose · Enter confirm · ←/→ step · Esc cancel";
+  const hint = `  ${cliTranslate(hintKey)}`;
   footer.push(paint(styled, truncate(hint, width), ANSI.dim));
   return { header, body, footer, cursorLine };
 };
@@ -443,9 +452,13 @@ export const clampViewport = (
   return {
     offset,
     lines: [
-      above > 0 ? paint(color, `  ↑ ${above} more`, ANSI.dim) : "",
+      above > 0
+        ? paint(color, `  ${cliTranslate("↑ {count} more", { count: above })}`, ANSI.dim)
+        : "",
       ...lines.slice(offset, offset + window),
-      below > 0 ? paint(color, `  ↓ ${below} more`, ANSI.dim) : "",
+      below > 0
+        ? paint(color, `  ${cliTranslate("↓ {count} more", { count: below })}`, ANSI.dim)
+        : "",
     ],
   };
 };
@@ -476,7 +489,7 @@ export const createSetupPresentation = (input: {
     start() {
       write(header());
       for (const line of wrapText(
-        "A few quick choices, then aiTeamOS will check the rest.",
+        cliTranslate("A few quick choices, then aiTeamOS will check the rest."),
         width
       )) {
         write(paint(styled, line, ANSI.dim));
@@ -497,7 +510,9 @@ export const createSetupPresentation = (input: {
     },
     choices(items) {
       for (const [index, item] of items.entries()) {
-        const badge = item.recommended ? paint(styled, " recommended", ANSI.green) : "";
+        const badge = item.recommended
+          ? paint(styled, ` ${cliTranslate("recommended")}`, ANSI.green)
+          : "";
         write(
           `  ${paint(styled, String(index + 1), ANSI.bold, ANSI.cyan)}  ${paint(styled, item.title, ANSI.bold)}${badge}`
         );

@@ -13,6 +13,7 @@ import { PROJECT_NAME } from "./constants";
 import { requireComposeProject } from "./docker";
 import { CliError } from "./errors";
 import { checkHealth } from "./health";
+import { cliTranslate } from "./localization";
 import type { CommandRunner } from "./process";
 import { inspectPublicReadiness } from "./public-readiness";
 import {
@@ -250,13 +251,28 @@ export async function tailscaleCommand(
   if (options.json) console.log(JSON.stringify(status));
   else {
     console.log(
-      `Tailscale HTTPS: ${status.enabled ? "enabled" : "disabled"}\nServer: ${status.publicUrl}\nBackend: ${status.backendUrl}\nRoute: ${status.route} (${status.ownership})`
+      [
+        cliTranslate("Tailscale HTTPS: {state}", {
+          state: cliTranslate(status.enabled ? "enabled" : "disabled"),
+        }),
+        cliTranslate("Server: {url}", { url: status.publicUrl }),
+        cliTranslate("Backend: {url}", { url: status.backendUrl }),
+        cliTranslate("Route: {route} ({ownership})", {
+          route: status.route,
+          ownership: status.ownership,
+        }),
+      ].join("\n")
     );
     if (status.issue) console.log(status.issue);
-    if (status.managedRoutes) console.log(`aiTeamOS-managed mappings: ${status.managedRoutes}`);
+    if (status.managedRoutes)
+      console.log(
+        cliTranslate("aiTeamOS-managed mappings: {count}", { count: status.managedRoutes })
+      );
     if (options.command !== "tailscale-status")
       console.log(
-        "Reconnect your apps using the server address above. Reused user-managed Serve mappings are preserved."
+        cliTranslate(
+          "Reconnect your apps using the server address above. Reused user-managed Serve mappings are preserved."
+        )
       );
   }
   if ((status.enabled || status.managedRoutes > 0) && status.issue) process.exitCode = 2;

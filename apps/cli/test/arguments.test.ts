@@ -17,6 +17,13 @@ describe("CLI arguments", () => {
     });
   });
 
+  test("normalizes the optional UI language override", () => {
+    expect(parseArguments(["status", "--language", "zh-Hans-CN"])).toMatchObject({
+      command: "status",
+      language: "zh-CN",
+    });
+  });
+
   test("bare model opens the editor, supports installation selection, and retains contextual help", () => {
     expect(parseArguments(["model", "--dir", "/tmp/model-test"])).toMatchObject({
       command: "model",
