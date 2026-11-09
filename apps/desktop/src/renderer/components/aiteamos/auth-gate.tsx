@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { lazy, Suspense, useEffect, useState } from "react";
 import { refreshAuthSession } from "../../client/auth";
 import { useAuthSession } from "../../hooks/use-auth-session";
+import { useI18n } from "../../lib/i18n";
 import { LoadingOrb } from "../ui/loading-orb";
 import { FirstRunShell, isFirstRun } from "./first-run-shell";
 
@@ -9,6 +10,7 @@ import { FirstRunShell, isFirstRun } from "./first-run-shell";
 const SignInFlow = lazy(() => import("./sign-in-flow"));
 
 function Checking({ signedIn = false }: { signedIn?: boolean }) {
+  const { t } = useI18n();
   // A first run shows setup's frame, so what comes next fades in on a frame that is already
   // there: the server check when someone is signed in, otherwise the sign-in screens.
   // Returning launches keep the plain spinner.
@@ -20,7 +22,7 @@ function Checking({ signedIn = false }: { signedIn?: boolean }) {
       role="status"
     >
       <div className="electron-window-drag-strip" />
-      <LoadingOrb label="Checking session" size={20} />
+      <LoadingOrb label={t("Checking session")} size={20} />
     </main>
   );
 }

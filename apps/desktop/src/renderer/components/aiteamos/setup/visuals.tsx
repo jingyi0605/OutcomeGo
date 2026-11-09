@@ -1,9 +1,10 @@
 import type { RobotAvatarShape } from "@aiteamos/contracts/robot-avatar";
 import { CircleAlert, ExternalLink, Globe, KeyRound, Lock, Mic, Search } from "lucide-react";
 import { type CSSProperties, useEffect, useState } from "react";
+import { useI18n } from "../../../lib/i18n";
 import { BotAvatarGlyph } from "../avatar-picker-icons";
-import { CrossFade } from "./cross-fade";
 import { AppIcon, hasProviderIcon, ProviderIcon } from "./app-icons";
+import { CrossFade } from "./cross-fade";
 import { ProviderTile } from "./provider-marks";
 import { SetupSuccessMark } from "./setup-layout";
 
@@ -71,8 +72,13 @@ function useCountUp(target: number, duration = 700) {
 }
 
 function LatencyBadge({ latencyMs }: { latencyMs: number }) {
+  const { t } = useI18n();
   const shown = useCountUp(latencyMs);
-  return <span className="setup-badge">Replied in {(shown / 1000).toFixed(1)} s</span>;
+  return (
+    <span className="setup-badge">
+      {t("Replied in {seconds} s", { seconds: (shown / 1000).toFixed(1) })}
+    </span>
+  );
 }
 
 const BURST_COLORS = ["#08c875", "#1685ed", "#ff9912", "#925df2", "#ffd60a"];
@@ -125,6 +131,7 @@ export function ChatVisual({
   error?: string;
   celebrate?: boolean;
 }) {
+  const { t } = useI18n();
   return (
     <div className="setup-card setup-chat">
       {/* "It works!": a light sweeps across the card once. */}
@@ -142,11 +149,11 @@ export function ChatVisual({
             width={22}
           />
         )}
-        {providerName ?? "Your bots' AI"}
-        <span>{modelName ?? "Not connected yet"}</span>
+        {providerName ?? t("Your bots' AI")}
+        <span>{modelName ?? t("Not connected yet")}</span>
       </div>
       <div className="setup-bubble" data-from="you">
-        Reply with the single word OK.
+        {t("Reply with the single word OK.")}
       </div>
       {phase === "testing" ? (
         <div className="setup-bubble" data-from="bot" key="typing">
@@ -165,7 +172,7 @@ export function ChatVisual({
         </>
       ) : phase === "failed" ? (
         <div className="setup-bubble" data-from="bot" data-tone="error" key="failed">
-          <CircleAlert aria-hidden="true" className="inline size-3.5" /> {error ?? "No reply"}
+          <CircleAlert aria-hidden="true" className="inline size-3.5" /> {error ?? t("No reply")}
         </div>
       ) : (
         <div className="setup-bubble" data-from="bot" style={{ opacity: 0.45 }}>
@@ -196,6 +203,7 @@ export function BrowserVisual({
   paste?: boolean;
   signedIn?: boolean;
 }) {
+  const { t } = useI18n();
   const host = SIGN_IN_HOSTS[providerId] ?? provider;
   return (
     <div>
@@ -215,13 +223,17 @@ export function BrowserVisual({
           <strong>
             <CrossFade
               value={
-                signedIn ? "You're signed in" : code ? "Enter your code" : `Sign in to ${provider}`
+                signedIn
+                  ? t("You're signed in")
+                  : code
+                    ? t("Enter your code")
+                    : t("Sign in to {provider}", { provider })
               }
             />
           </strong>
           {signedIn ? (
             <span className="setup-browser-note">
-              You can close this tab and return to aiTeamOS
+              {t("You can close this tab and return to aiTeamOS")}
             </span>
           ) : code ? (
             <span className="setup-browser-code">
@@ -233,18 +245,18 @@ export function BrowserVisual({
               ))}
             </span>
           ) : (
-            <span>Allow aiTeamOS to use your plan</span>
+            <span>{t("Allow aiTeamOS to use your plan")}</span>
           )}
-          {signedIn ? null : <span className="setup-browser-button">Continue</span>}
+          {signedIn ? null : <span className="setup-browser-button">{t("Continue")}</span>}
         </div>
       </div>
       <div className="setup-return">
         <ExternalLink aria-hidden="true" className="size-3.5" />
         {signedIn
-          ? "Back in aiTeamOS"
+          ? t("Back in aiTeamOS")
           : paste
-            ? "Then paste the address your browser lands on"
-            : "aiTeamOS continues as soon as you're done"}
+            ? t("Then paste the address your browser lands on")
+            : t("aiTeamOS continues as soon as you're done")}
       </div>
     </div>
   );
@@ -260,6 +272,7 @@ export function KeyVisual({
   provider: string;
   prefix: string;
 }) {
+  const { t } = useI18n();
   return (
     <div className="setup-card setup-chat">
       <div className="setup-chat-head">
@@ -268,14 +281,14 @@ export function KeyVisual({
         ) : (
           <KeyRound aria-hidden="true" className="size-4" />
         )}
-        {provider} API key
-        <span>Stored on your server</span>
+        {t("{provider} API key", { provider })}
+        <span>{t("Stored on your server")}</span>
       </div>
       <div className="setup-bubble" data-from="bot">
         {prefix}••••••••••••••••••••
       </div>
       <span className="setup-badge">
-        <Lock aria-hidden="true" className="size-3" /> Only your server sees it
+        <Lock aria-hidden="true" className="size-3" /> {t("Only your server sees it")}
       </span>
     </div>
   );
@@ -298,6 +311,7 @@ export function SearchVisual({
   /** Search was just turned on: the card says so. */
   on?: boolean;
 }) {
+  const { t } = useI18n();
   return (
     <div className="setup-card setup-chat">
       {on ? (
@@ -311,18 +325,18 @@ export function SearchVisual({
         ) : (
           <Search aria-hidden="true" className="size-4" />
         )}
-        Web search
+        {t("Web search")}
         <span>{providerName}</span>
       </div>
       <div className="setup-bubble" data-from="you">
-        Find a venue in Lisbon for our team offsite.
+        {t("Find a venue in Lisbon for our team offsite.")}
       </div>
       <ul className="setup-search-results">
         {SEARCH_RESULTS.map((result, index) => (
           <li key={result.site} style={nth(index)}>
             <Globe aria-hidden="true" className="size-3.5" />
             <span>
-              <strong>{result.title}</strong>
+              <strong>{t(result.title)}</strong>
               <small>{result.site}</small>
             </span>
           </li>
@@ -334,6 +348,7 @@ export function SearchVisual({
 
 /** A voice note becoming text. */
 export function VoiceVisual() {
+  const { t } = useI18n();
   return (
     <div className="setup-mic">
       <span className="setup-mic-button">
@@ -347,7 +362,7 @@ export function VoiceVisual() {
       </div>
       <div className="setup-card setup-chat" style={{ width: "100%" }}>
         <div className="setup-bubble" data-from="you">
-          Find three venues for the team offsite under $5,000.
+          {t("Find three venues for the team offsite under $5,000.")}
         </div>
       </div>
     </div>

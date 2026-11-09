@@ -1,4 +1,5 @@
 import { normalizeBaseUrl, withDefaultScheme } from "@aiteamos/client-core/http";
+import { translateCurrent } from "./i18n-catalog";
 
 const EXAMPLE = "192.168.1.20:8787";
 
@@ -8,9 +9,13 @@ const EXAMPLE = "192.168.1.20:8787";
  */
 export function serverAddressProblem(value: string): string | null {
   const address = value.trim();
-  if (!address) return `Enter your server's address, like ${EXAMPLE}.`;
+  if (!address)
+    return translateCurrent("Enter your server's address, like {example}.", { example: EXAMPLE });
   if (/\s/.test(address)) {
-    return `A server address has no spaces. Use the one your terminal printed, like ${EXAMPLE}.`;
+    return translateCurrent(
+      "A server address has no spaces. Use the one your terminal printed, like {example}.",
+      { example: EXAMPLE }
+    );
   }
   try {
     normalizeBaseUrl(withDefaultScheme(address));
@@ -18,12 +23,17 @@ export function serverAddressProblem(value: string): string | null {
   } catch (cause) {
     const message = cause instanceof Error ? cause.message : "";
     if (/username or password/.test(message)) {
-      return "Leave the username and password out of the address. You'll sign in on the next screen.";
+      return translateCurrent(
+        "Leave the username and password out of the address. You'll sign in on the next screen."
+      );
     }
     if (/query or fragment/.test(message)) {
-      return "Use the server address without anything after ? or #.";
+      return translateCurrent("Use the server address without anything after ? or #.");
     }
-    return `That doesn't look like a server address. Use the one your terminal printed, like ${EXAMPLE}.`;
+    return translateCurrent(
+      "That doesn't look like a server address. Use the one your terminal printed, like {example}.",
+      { example: EXAMPLE }
+    );
   }
 }
 

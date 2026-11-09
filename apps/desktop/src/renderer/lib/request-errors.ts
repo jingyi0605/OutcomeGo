@@ -1,5 +1,6 @@
 import { AiTeamOSClientError } from "@aiteamos/client-core";
 import { clientErrorMessage, redactSensitiveText } from "@aiteamos/product-core/redaction";
+import { translateCurrent } from "./i18n-catalog";
 
 /** How long setup waits for an ordinary request before saying so and offering a retry. */
 export const REQUEST_DEADLINE_MS = 20_000;
@@ -9,9 +10,12 @@ export const REQUEST_DEADLINE_MS = 20_000;
  */
 export const MODEL_TEST_DEADLINE_MS = 90_000;
 
-export const OFFLINE_MESSAGE = "Couldn't reach your server. Check your connection and try again.";
-export const TIMEOUT_MESSAGE =
-  "Your server didn't answer in time. Check that it's running and try again.";
+/** The sentence a lost connection shows. A function so it follows the interface language. */
+export const offlineMessage = (): string =>
+  translateCurrent("Couldn't reach your server. Check your connection and try again.");
+/** The sentence a silent server shows. A function so it follows the interface language. */
+export const timeoutMessage = (): string =>
+  translateCurrent("Your server didn't answer in time. Check that it's running and try again.");
 
 /**
  * Runs a request with a deadline. When it passes, the request is cancelled and the promise
@@ -25,7 +29,7 @@ export function withDeadline<T>(
   let timer: ReturnType<typeof setTimeout> | undefined;
   const deadline = new Promise<never>((_, reject) => {
     timer = setTimeout(() => {
-      reject(new AiTeamOSClientError(TIMEOUT_MESSAGE, "timeout"));
+      reject(new AiTeamOSClientError(timeoutMessage(), "timeout"));
       controller.abort();
     }, ms);
   });
@@ -74,13 +78,14 @@ export function requestErrorMessage(cause: unknown, fallback: string): string {
   const error = failure(cause);
   const message = plainMessage(cause);
   const status = typeof error.status === "number" ? error.status : 0;
-  if (timedOut(cause)) return TIMEOUT_MESSAGE;
+  if (timedOut(cause)) return timeoutMessage();
   if (NETWORK_FAILURE.test(message) || (error.code === "offline" && !status)) {
-    return OFFLINE_MESSAGE;
+    return offlineMessage();
   }
   if (readable(message)) return message;
-  if (status === 429) return "Your server is busy. Wait a moment and try again.";
-  if (status >= 500) return "Your server ran into a problem. Try again in a moment.";
+  if (status === 429) return translateCurrent("Your server is busy. Wait a moment and try again.");
+  if (status >= 500)
+    return translateCurrent("Your server ran into a problem. Try again in a moment.");
   return fallback;
 }
 

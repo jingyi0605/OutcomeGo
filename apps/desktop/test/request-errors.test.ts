@@ -4,9 +4,9 @@ import {
   keyCheckMessage,
   keyRejected,
   modelTestErrorMessage,
-  OFFLINE_MESSAGE,
+  offlineMessage,
   requestErrorMessage,
-  TIMEOUT_MESSAGE,
+  timeoutMessage,
   timedOut,
   withDeadline,
 } from "../src/renderer/lib/request-errors";
@@ -18,7 +18,7 @@ describe("setup request deadlines", () => {
       signal = given;
       return new Promise<never>(() => {});
     }, 20);
-    await expect(request).rejects.toMatchObject({ code: "timeout", message: TIMEOUT_MESSAGE });
+    await expect(request).rejects.toMatchObject({ code: "timeout", message: timeoutMessage() });
     expect(signal?.aborted).toBe(true);
   });
 
@@ -50,13 +50,15 @@ describe("request failures in plain words", () => {
     new Error("Load failed"),
     new Error("Error invoking remote method 'aiteamos:x': AiTeamOSClientError: fetch failed"),
   ])("a lost connection: %p", (cause) => {
-    expect(requestErrorMessage(cause, "Could not create the bot")).toBe(OFFLINE_MESSAGE);
+    expect(requestErrorMessage(cause, "Could not create the bot")).toBe(offlineMessage());
   });
 
   test("a deadline or engine timeout", () => {
-    expect(requestErrorMessage(new AiTeamOSClientError("x", "timeout"), "x")).toBe(TIMEOUT_MESSAGE);
+    expect(requestErrorMessage(new AiTeamOSClientError("x", "timeout"), "x")).toBe(
+      timeoutMessage()
+    );
     expect(requestErrorMessage(new DOMException("signal timed out", "TimeoutError"), "x")).toBe(
-      TIMEOUT_MESSAGE
+      timeoutMessage()
     );
     expect(timedOut(new Error("The operation timed out."))).toBe(true);
     expect(timedOut(new Error("Failed to fetch"))).toBe(false);

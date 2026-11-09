@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { type CSSProperties, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { API_BASE } from "../../../client/http";
+import { useI18n } from "../../../lib/i18n";
 import { shortHost } from "../../../lib/server-address";
 import "./topology.css";
 
@@ -161,6 +162,7 @@ export function TopologyVisual({
   unreachable?: boolean;
 }) {
   const [server, database, queue, computer] = states;
+  const { t } = useI18n();
   const tool: NodeState =
     computer === "ready"
       ? "ready"
@@ -250,14 +252,14 @@ export function TopologyVisual({
             >
               <spec.icon aria-hidden="true" className="setup-topo-icon" />
               <span className="setup-topo-text">
-                <b>{spec.id === "here" ? here : spec.label}</b>
+                <b>{spec.id === "here" ? t(here) : t(spec.label)}</b>
                 {spec.id === "server" ? <small>{shortHost(hostOf(API_BASE))}</small> : null}
               </span>
-              {spec.kind === "ghost" ? <span className="setup-topo-next">next</span> : null}
+              {spec.kind === "ghost" ? <span className="setup-topo-next">{t("next")}</span> : null}
               {spec.kind === "node" ? <span className="setup-topo-dot" /> : null}
               {spec.kind === "node" && spec.id !== "here" ? (
                 <span className="setup-topo-flag">
-                  {spec.id === "server" && unreachable ? "No answer" : "Not running"}
+                  {spec.id === "server" && unreachable ? t("No answer") : t("Not running")}
                 </span>
               ) : null}
             </div>

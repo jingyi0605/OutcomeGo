@@ -9,6 +9,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { useI18n } from "../../../lib/i18n";
 import { Popover, PopoverAnchor, PopoverContent } from "../../ui/popover";
 import "./model-picker.css";
 
@@ -91,6 +92,7 @@ export function ModelPicker({
   onChange: (modelId: string) => void;
   variant?: "setup" | "settings";
 }) {
+  const { t } = useI18n();
   const listId = useId();
   const options = useMemo(
     () => models.map((model) => modelOption(model, providerName)),
@@ -189,7 +191,7 @@ export function ModelPicker({
       aria-controls={open ? listId : undefined}
       aria-expanded={open}
       aria-haspopup="listbox"
-      aria-label="Model"
+      aria-label={t("Model")}
       className={variant === "setup" ? "setup-input setup-picker-trigger" : "setup-picker-trigger"}
       disabled={disabled}
       onClick={() => (open ? close() : openList())}
@@ -208,8 +210,10 @@ export function ModelPicker({
       role="combobox"
       type="button"
     >
-      <span className="setup-picker-value">{selected?.name ?? (value || "No models available")}</span>
-      {selected && selected.modelId === recommended ? <em>Recommended</em> : null}
+      <span className="setup-picker-value">
+        {selected?.name ?? (value || t("No models available"))}
+      </span>
+      {selected && selected.modelId === recommended ? <em>{t("Recommended")}</em> : null}
       {selected && selected.maker !== providerName ? <small>{selected.maker}</small> : null}
       <ChevronDown aria-hidden="true" className="setup-picker-chevron" />
     </button>
@@ -222,13 +226,13 @@ export function ModelPicker({
           <input
             aria-activedescendant={activeId}
             aria-controls={listId}
-            aria-label="Filter models"
+            aria-label={t("Filter models")}
             autoComplete="off"
             onChange={(event) => {
               setQuery(event.target.value);
               setActive(0);
             }}
-            placeholder={`Filter ${options.length} models`}
+            placeholder={t("Filter {count} models", { count: options.length })}
             ref={filter}
             spellCheck={false}
             value={query}
@@ -237,7 +241,7 @@ export function ModelPicker({
       ) : null}
       <div
         aria-activedescendant={filterable ? undefined : activeId}
-        aria-label={`${providerName} models`}
+        aria-label={t("{provider} models", { provider: providerName })}
         className="setup-picker-list"
         id={listId}
         ref={list}
@@ -266,17 +270,19 @@ export function ModelPicker({
               ) : null}
             </span>
             <span className="setup-picker-name">{option.name}</span>
-            {option.modelId === recommended ? <em>Recommended</em> : null}
+            {option.modelId === recommended ? <em>{t("Recommended")}</em> : null}
             {option.maker !== providerName ? <small>{option.maker}</small> : null}
           </div>
         ))}
         {matches.length > shown.length ? (
           <div className="setup-picker-note">
-            {matches.length - shown.length} more — keep typing to narrow it down
+            {t("{count} more — keep typing to narrow it down", {
+              count: matches.length - shown.length,
+            })}
           </div>
         ) : null}
         {matches.length === 0 ? (
-          <div className="setup-picker-note">No models match “{query}”</div>
+          <div className="setup-picker-note">{t("No models match “{query}”", { query })}</div>
         ) : null}
       </div>
     </>
@@ -293,7 +299,7 @@ export function ModelPicker({
           {open ? (
             <PopoverContent
               align="end"
-              aria-label="Choose a model"
+              aria-label={t("Choose a model")}
               className="setup-picker-pop setup-picker-settings setup-picker-settings-pop"
               onOpenAutoFocus={(event) => {
                 event.preventDefault();

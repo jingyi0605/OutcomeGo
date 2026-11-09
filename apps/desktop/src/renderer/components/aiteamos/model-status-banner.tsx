@@ -1,6 +1,7 @@
 import type { ClientSnapshot } from "@aiteamos/contracts";
 import { useEffect, useRef } from "react";
 import { toast } from "sonner";
+import { useI18n } from "../../lib/i18n";
 
 export const MODEL_STATUS_TOAST_ID = "aiteamos-model-status";
 
@@ -38,6 +39,7 @@ export function ModelStatusBanner({
   onOpenSettings: () => void;
   paused?: boolean;
 }) {
+  const { t } = useI18n();
   const openSettings = useRef(onOpenSettings);
   openSettings.current = onOpenSettings;
 
@@ -55,13 +57,13 @@ export function ModelStatusBanner({
       return;
     }
     const notice = NOTICES[inference];
-    toast.warning(notice.title, {
+    toast.warning(t(notice.title), {
       id: MODEL_STATUS_TOAST_ID,
-      description: notice.description,
+      description: t(notice.description),
       duration: Number.POSITIVE_INFINITY,
-      action: { label: notice.action, onClick: () => openSettings.current() },
+      action: { label: t(notice.action), onClick: () => openSettings.current() },
     });
-  }, [inference, paused]);
+  }, [inference, paused, t]);
 
   return null;
 }

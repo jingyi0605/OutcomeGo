@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useState } from "react";
 import { API_BASE } from "../../client/http";
-import { TIMEOUT_MESSAGE } from "../../lib/request-errors";
+import { timeoutMessage } from "../../lib/request-errors";
+import { useI18n } from "../../lib/i18n";
 
 /** True until setup has finished for the server (App.tsx keeps the same flag). */
 export const isFirstRun = (apiBase: string = API_BASE): boolean => {
@@ -78,7 +79,7 @@ export function FirstRunShell({
     <Suspense fallback={<EmptyFrame />}>
       <ServerCheckPreview
         onRetry={retry}
-        problem={problem ?? (late ? TIMEOUT_MESSAGE : null)}
+        problem={problem ?? (late ? timeoutMessage() : null)}
         retrying={retrying}
       />
     </Suspense>
@@ -86,6 +87,7 @@ export function FirstRunShell({
 }
 
 function EmptyFrame() {
+  const { t } = useI18n();
   // The setup screens pick up from here instead of filling the first segment again.
   document.documentElement.dataset.setupProgress = "0";
   const dark = document.documentElement.dataset.theme === "dark";
@@ -95,7 +97,7 @@ function EmptyFrame() {
   return (
     <main
       aria-busy="true"
-      aria-label="Loading"
+      aria-label={t("Loading")}
       style={{
         position: "fixed",
         inset: 0,

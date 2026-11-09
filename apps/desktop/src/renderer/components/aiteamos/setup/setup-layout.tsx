@@ -1,5 +1,4 @@
 import { ArrowLeft, Check, ChevronRight } from "lucide-react";
-import { LoadingOrb } from "../../ui/loading-orb";
 import {
   type CSSProperties,
   type FormEvent,
@@ -11,6 +10,8 @@ import {
   useRef,
   useState,
 } from "react";
+import { useI18n } from "../../../lib/i18n";
+import { LoadingOrb } from "../../ui/loading-orb";
 import { CrossFade } from "./cross-fade";
 import {
   useAppearedBefore,
@@ -133,6 +134,7 @@ export function SetupLayout({
   leaving?: boolean;
   onSubmit?: () => void;
 }) {
+  const { t } = useI18n();
   const shell = useRef<HTMLElement>(null);
   const panel = useRef<HTMLElement>(null);
   const heading = useRef<HTMLHeadingElement>(null);
@@ -204,7 +206,11 @@ export function SetupLayout({
       <div className="electron-window-drag-strip" />
       <section aria-labelledby="setup-title" className="setup-panel electron-no-drag" ref={panel}>
         <header className="setup-header">
-          <div aria-label={`Setup: ${SETUP_STAGES[stage]}`} className="setup-progress" role="img">
+          <div
+            aria-label={t("Setup: {stage}", { stage: t(SETUP_STAGES[stage] ?? "") })}
+            className="setup-progress"
+            role="img"
+          >
             {SETUP_STAGES.map((label, index) => (
               <span
                 data-fill={
@@ -227,14 +233,14 @@ export function SetupLayout({
           <div className="setup-nav">
             {onBack ? (
               <button onClick={onBack} type="button">
-                <ArrowLeft aria-hidden="true" className="size-3.5" /> Back
+                <ArrowLeft aria-hidden="true" className="size-3.5" /> {t("Back")}
               </button>
             ) : (
               <span />
             )}
             {onSkip ? (
               <button onClick={onSkip} type="button">
-                Skip
+                {t("Skip")}
               </button>
             ) : null}
           </div>
@@ -255,7 +261,7 @@ export function SetupLayout({
           }}
           onSubmit={submit}
         >
-          <p className="setup-eyebrow">{SETUP_STAGES[stage]}</p>
+          <p className="setup-eyebrow">{t(SETUP_STAGES[stage] ?? "")}</p>
           {/* A new title on the same screen ("It works!") cross-fades in place, settling in
               from just below, so the heading is never blank. */}
           <h1
@@ -265,7 +271,7 @@ export function SetupLayout({
             tabIndex={-1}
           >
             {typeof title === "string" ? (
-              <CrossFade className="setup-title-xfade" value={title} />
+              <CrossFade className="setup-title-xfade" value={t(title)} />
             ) : (
               title
             )}
@@ -277,7 +283,7 @@ export function SetupLayout({
               data-tone={tone}
               role={tone === "error" ? "alert" : undefined}
             >
-              {typeof body === "string" ? <CrossFade value={body} /> : body}
+              {typeof body === "string" ? <CrossFade value={t(body)} /> : body}
             </p>
           ) : null}
           <div className="setup-controls">{children}</div>
@@ -375,6 +381,7 @@ export function SetupPrimary({
   busy?: boolean;
   disabled?: boolean;
 }) {
+  const { t } = useI18n();
   // The second click of a double click lands on whatever replaced this screen; drop it.
   const ignoreRepeat = (event: MouseEvent) => {
     if (event.detail > 1) event.preventDefault();
@@ -386,7 +393,9 @@ export function SetupPrimary({
       onClick={ignoreRepeat}
       type="submit"
     >
-      <span className="setup-primary-label">{children}</span>
+      <span className="setup-primary-label">
+        {typeof children === "string" ? t(children) : children}
+      </span>
       {/* The hint and the spinner share one spot and cross-fade, so the label never moves. */}
       <span aria-hidden="true" className="setup-primary-end" data-busy={Boolean(busy)}>
         <kbd>↵</kbd>
@@ -402,9 +411,10 @@ const singleClick = (handler: () => void) => (event: MouseEvent) => {
 };
 
 export function SetupLink({ children, onClick }: { children: ReactNode; onClick: () => void }) {
+  const { t } = useI18n();
   return (
     <button className="setup-link" onClick={singleClick(onClick)} type="button">
-      {children}
+      {typeof children === "string" ? t(children) : children}
     </button>
   );
 }
@@ -422,6 +432,7 @@ export function SetupOption({
   onClick: () => void;
   selected?: boolean;
 }) {
+  const { t } = useI18n();
   return (
     <button
       aria-pressed={selected}
@@ -431,8 +442,8 @@ export function SetupOption({
     >
       <span className="setup-option-icon">{icon}</span>
       <span className="setup-option-text">
-        <strong>{title}</strong>
-        <span>{detail}</span>
+        <strong>{t(title)}</strong>
+        <span>{t(detail)}</span>
       </span>
       {selected === undefined ? (
         <ChevronRight aria-hidden="true" className="size-4" />
@@ -447,8 +458,9 @@ export function SetupOption({
 
 /** A device code split into boxes so it reads like the page it gets typed into. */
 export function SetupCode({ code }: { code: string }) {
+  const { t } = useI18n();
   return (
-    <div aria-label={`Sign-in code ${code}`} className="setup-code" role="text">
+    <div aria-label={t("Sign-in code {code}", { code })} className="setup-code" role="text">
       {[...code].map((character, index) => (
         // biome-ignore lint/suspicious/noArrayIndexKey: Code characters repeat and never reorder.
         <span data-dash={character === "-"} key={index} style={{ "--i": index } as CSSProperties}>

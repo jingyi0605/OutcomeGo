@@ -1,4 +1,5 @@
 import type { CSSProperties } from "react";
+import { useI18n } from "../../../lib/i18n";
 import { BotAvatarGlyph } from "../avatar-picker-icons";
 
 // The pictures for welcome and sign-in. They live apart from the setup screens' pictures
@@ -12,9 +13,10 @@ const nth = (index: number) => ({ "--i": index }) as CSSProperties;
  * the first one says hello; afterwards they float out of phase and blink now and then.
  */
 export function RobotsVisual() {
+  const { t } = useI18n();
   return (
     <div className="setup-robots">
-      <div className="setup-hello">Hi! Let's get you set up.</div>
+      <div className="setup-hello">{t("Hi! Let's get you set up.")}</div>
       <span style={{ ...nth(0), "--tilt": "-9deg" } as CSSProperties}>
         <BotAvatarGlyph color="#08c875" eyeColor="#111111" mode="idle" shape="chip" />
       </span>

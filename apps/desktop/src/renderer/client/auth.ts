@@ -9,6 +9,7 @@ import {
   parseAuthUser,
 } from "@aiteamos/client-core";
 import { authErrorMessage } from "@aiteamos/product-core/auth-feedback";
+import { translateCurrent } from "../lib/i18n-catalog";
 import { resolveConfiguredApiBase } from "./runtime-url";
 import { readNativeAuthWithDeadline } from "./native-auth-deadline";
 
@@ -91,7 +92,9 @@ const loadAuthToken = (): Promise<string | null> => {
 // Set when the server turned this device's sign-in down (it expired or was revoked), so the
 // sign-in screens open on the account step for the same server and say why.
 let serverSignOut: { username: string } | null = null;
-export const SERVER_SIGN_OUT_NOTE = "You were signed out. Sign in again to continue.";
+/** Why the sign-in screens reopened after the server signed this device out. */
+export const serverSignOutNote = (): string =>
+  translateCurrent("You were signed out. Sign in again to continue.");
 /** Whether the server signed this device out, and the account it was signed in as. */
 export const getServerSignOut = () => serverSignOut;
 
@@ -105,7 +108,8 @@ const persistAuthToken = async (next: string | null): Promise<void> => {
     if (next) await bridge.writeToken(next);
     else await bridge.clearToken().catch(() => undefined);
   }
-  if (generation !== credentialGeneration) throw new Error("Sign-in was cancelled. Please try again.");
+  if (generation !== credentialGeneration)
+    throw new Error(translateCurrent("Sign-in was cancelled. Please try again."));
   token = next;
 };
 
@@ -165,7 +169,13 @@ export const refreshAuthSession = (): Promise<AiTeamOSAuthSnapshot> => {
       await removeAuthCredentials();
     }
     if (assessment.user) cacheUser(assessment.user);
-    if (assessment.status === "authenticated") void authBridge()?.connectMachine?.(API_BASE).then(result => { desktopMachineId = result.machineId; }).catch(() => undefined);
+    if (assessment.status === "authenticated")
+      void authBridge()
+        ?.connectMachine?.(API_BASE)
+        .then((result) => {
+          desktopMachineId = result.machineId;
+        })
+        .catch(() => undefined);
     return authStore.publish({
       status: assessment.status,
       mode: assessment.mode,
@@ -183,7 +193,10 @@ export const refreshAuthSession = (): Promise<AiTeamOSAuthSnapshot> => {
         status: "signed-out",
         mode: "required",
         connection: "unknown",
-        error: authErrorMessage(cause, "Could not restore your sign-in. Please sign in again."),
+        error: authErrorMessage(
+          cause,
+          translateCurrent("Could not restore your sign-in. Please sign in again.")
+        ),
         user: null,
       })
     )
@@ -199,7 +212,10 @@ export const signIn = async (username: string, password: string): Promise<AiTeam
   cacheUser(result.user);
   const session = await refreshAuthSession();
   if (session.status !== "authenticated") {
-    throw new Error(session.error ?? "The server could not verify your sign-in. Please try again.");
+    throw new Error(
+      session.error ??
+        translateCurrent("The server could not verify your sign-in. Please try again.")
+    );
   }
   return session;
 };
@@ -218,7 +234,9 @@ export const testServerConnection = async (
   } catch (cause) {
     if (cause instanceof AiTeamOSClientError && cause.code === "offline" && cause.status === 0) {
       throw new Error(
-        "Could not reach this aiTeamOS server. Check the endpoint and your connection."
+        translateCurrent(
+          "Could not reach this aiTeamOS server. Check the endpoint and your connection."
+        )
       );
     }
     throw cause;

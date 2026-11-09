@@ -6,6 +6,7 @@ import type {
 } from "@aiteamos/contracts/inference";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../client/aiteamos-api";
+import { translateCurrent } from "../lib/i18n-catalog";
 import { providerName } from "../lib/provider-names";
 import {
   keyRejected,
@@ -104,7 +105,12 @@ export function useModelSetup() {
     load()
       .catch((cause) => {
         if (active)
-          setError(requestErrorMessage(cause, "Couldn't load your AI settings. Try again."));
+          setError(
+            requestErrorMessage(
+              cause,
+              translateCurrent("Couldn't load your AI settings. Try again.")
+            )
+          );
       })
       .finally(() => active && setBusy(null));
     return () => {
@@ -119,7 +125,9 @@ export function useModelSetup() {
     try {
       await load();
     } catch (cause) {
-      setError(requestErrorMessage(cause, "Couldn't load your AI settings. Try again."));
+      setError(
+        requestErrorMessage(cause, translateCurrent("Couldn't load your AI settings. Try again."))
+      );
     } finally {
       setBusy(null);
     }
@@ -133,7 +141,9 @@ export function useModelSetup() {
       try {
         setAuthSession(await api.respondToInferenceProviderAuth(authSession.id, promptId, value));
       } catch (cause) {
-        setError(requestErrorMessage(cause, "Couldn't continue the sign-in. Try again."));
+        setError(
+          requestErrorMessage(cause, translateCurrent("Couldn't continue the sign-in. Try again."))
+        );
       } finally {
         setBusy(null);
       }
@@ -189,7 +199,7 @@ export function useModelSetup() {
         setAuthSession(next);
       } catch (cause) {
         if (!active) return;
-        const message = requestErrorMessage(cause, "Couldn't check the sign-in.");
+        const message = requestErrorMessage(cause, translateCurrent("Couldn't check the sign-in."));
         // A server restart forgets sign-ins; end this one instead of polling it forever.
         failures += 1;
         if (failures >= 3 || /not found/i.test(message)) {
@@ -198,7 +208,9 @@ export function useModelSetup() {
             status: "failed",
             prompt: null,
             error: /not found/i.test(message)
-              ? "Your server stopped this sign-in, for example by restarting. Try again."
+              ? translateCurrent(
+                  "Your server stopped this sign-in, for example by restarting. Try again."
+                )
               : message,
           });
         } else setError(message);
@@ -219,7 +231,12 @@ export function useModelSetup() {
     setCapture("idle");
     if (finishedSession.status === "connected") {
       load(finishedSession.providerId).catch((cause) =>
-        setError(requestErrorMessage(cause, "Couldn't load this provider's models. Try again."))
+        setError(
+          requestErrorMessage(
+            cause,
+            translateCurrent("Couldn't load this provider's models. Try again.")
+          )
+        )
       );
     }
   }, [finishedSession?.id, finishedSession?.status]);
@@ -268,7 +285,12 @@ export function useModelSetup() {
     try {
       await load(nextProviderId);
     } catch (cause) {
-      setError(requestErrorMessage(cause, "Couldn't load this provider's models. Try again."));
+      setError(
+        requestErrorMessage(
+          cause,
+          translateCurrent("Couldn't load this provider's models. Try again.")
+        )
+      );
     } finally {
       setBusy(null);
     }
@@ -298,7 +320,9 @@ export function useModelSetup() {
       setAuthSession(session);
       return session;
     } catch (cause) {
-      setError(requestErrorMessage(cause, "Couldn't start the sign-in. Try again."));
+      setError(
+        requestErrorMessage(cause, translateCurrent("Couldn't start the sign-in. Try again."))
+      );
       return null;
     } finally {
       setBusy(null);
@@ -316,7 +340,12 @@ export function useModelSetup() {
       await load(provider.id);
       requestRuntimeRefresh();
     } catch (cause) {
-      setError(requestErrorMessage(cause, "Couldn't disconnect this provider. Try again."));
+      setError(
+        requestErrorMessage(
+          cause,
+          translateCurrent("Couldn't disconnect this provider. Try again.")
+        )
+      );
     } finally {
       setBusy(null);
     }
@@ -346,8 +375,10 @@ export function useModelSetup() {
       outcome = {
         status: "failed",
         error: timedOut(cause)
-          ? `${nameOf(testedProvider)} didn't answer in time. Try again.`
-          : requestErrorMessage(cause, "Couldn't test the model. Try again."),
+          ? translateCurrent("{provider} didn't answer in time. Try again.", {
+              provider: nameOf(testedProvider),
+            })
+          : requestErrorMessage(cause, translateCurrent("Couldn't test the model. Try again.")),
       };
     }
     setTest(outcome);
@@ -371,7 +402,7 @@ export function useModelSetup() {
       // Reported as a failed test, so the screen showing the test offers Try again.
       const failed: ModelTestState = {
         status: "failed",
-        error: requestErrorMessage(cause, "Couldn't save the model. Try again."),
+        error: requestErrorMessage(cause, translateCurrent("Couldn't save the model. Try again.")),
       };
       setTest(failed);
       setBusy(null);
@@ -397,7 +428,10 @@ export function useModelSetup() {
       return { data: next, selection: selectionFor(next, nextProviderId) };
     } catch (cause) {
       return {
-        error: requestErrorMessage(cause, "Couldn't load this provider's models. Try again."),
+        error: requestErrorMessage(
+          cause,
+          translateCurrent("Couldn't load this provider's models. Try again.")
+        ),
       };
     } finally {
       setBusy(null);

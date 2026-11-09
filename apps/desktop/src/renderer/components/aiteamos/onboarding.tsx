@@ -11,26 +11,31 @@ import { Check, ChevronsUpDown, CircleAlert, Copy, Ellipsis, Minus, Shuffle } fr
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../../client/aiteamos-api";
 import { useModelSetup } from "../../hooks/use-model-setup";
+import { useI18n } from "../../lib/i18n";
 import { providerName } from "../../lib/provider-names";
 import {
   keyCheckMessage,
-  OFFLINE_MESSAGE,
+  offlineMessage,
   requestErrorMessage,
   withDeadline,
 } from "../../lib/request-errors";
 import { requestRuntimeRefresh } from "../../lib/runtime-refresh";
-import { webProviderIcon } from "../../lib/web-provider-icons";
 import {
   HOSTED_TRANSCRIPTION_ENDPOINTS,
   HOSTED_TRANSCRIPTION_MODELS,
 } from "../../lib/transcription-providers";
+import { webProviderIcon } from "../../lib/web-provider-icons";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "../ui/dropdown-menu";
 import { LoadingOrb } from "../ui/loading-orb";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../ui/dropdown-menu";
 import { AppIcon } from "./setup/app-icons";
 import { ModelPicker, modelOption } from "./setup/model-picker";
 import { OpenAIMark, ProviderMark, ProviderTile } from "./setup/provider-marks";
 import { changeScreen } from "./setup/screen-transition";
-import { type CheckState, TopologyVisual } from "./setup/topology";
 import {
   SetupCode,
   SetupLayout,
@@ -42,6 +47,7 @@ import {
   useCopied,
   useSetupKeyboard,
 } from "./setup/setup-layout";
+import { type CheckState, TopologyVisual } from "./setup/topology";
 import {
   BotAvatarBadge,
   BotVisual,
@@ -457,6 +463,7 @@ function HealthScreen({
   onRetry?: () => void;
   retrying?: boolean;
 }) {
+  const { t } = useI18n();
   const [revealed, setRevealed] = useState(0);
   const [stuck, setStuck] = useState(false);
   const [attempt, setAttempt] = useState(0);
@@ -525,7 +532,7 @@ function HealthScreen({
     return ready[index] ? "ready" : failing ? "failed" : "pending";
   });
   // The title already says the server can't be reached; the body says what to check.
-  const lostBody = problem && problem !== OFFLINE_MESSAGE ? problem : UNREACHABLE;
+  const lostBody = problem && problem !== offlineMessage() ? problem : t(UNREACHABLE);
   return (
     <SetupLayout
       {...frame}
@@ -534,19 +541,21 @@ function HealthScreen({
           lostBody
         ) : failing ? (
           <>
-            Run <code>aiteamos doctor</code> on your server to see why.
+            {t("Run")} <code>aiteamos doctor</code> {t("on your server to see why.")}
           </>
         ) : done ? (
-          "Your server is ready for bots."
+          t("Your server is ready for bots.")
         ) : (
-          "This takes a few seconds."
+          t("This takes a few seconds.")
         )
       }
       footer={
         failing ? (
           <>
-            <SetupPrimary busy={retrying}>Check again</SetupPrimary>
-            {lost || preview ? null : <SetupLink onClick={onContinue}>Continue anyway</SetupLink>}
+            <SetupPrimary busy={retrying}>{t("Check again")}</SetupPrimary>
+            {lost || preview ? null : (
+              <SetupLink onClick={onContinue}>{t("Continue anyway")}</SetupLink>
+            )}
           </>
         ) : null
       }
@@ -562,12 +571,12 @@ function HealthScreen({
       }
       title={
         done
-          ? "All systems go"
+          ? t("All systems go")
           : lost
-            ? "Can't reach your server"
+            ? t("Can't reach your server")
             : failing
-              ? "Something isn't running yet"
-              : "Checking your server"
+              ? t("Something isn't running yet")
+              : t("Checking your server")
       }
       tone={failing ? "error" : undefined}
       visual={<TopologyVisual states={states} unreachable={lost} />}
@@ -587,8 +596,8 @@ function HealthScreen({
               )}
             </span>
             <span>
-              <strong>{check.label}</strong>
-              <small>{check.detail}</small>
+              <strong>{t(check.label)}</strong>
+              <small>{t(check.detail)}</small>
             </span>
           </li>
         ))}
@@ -614,6 +623,7 @@ function ModelScreen({
   onSignInAgain: (providerId: string) => void;
   onSkip: () => void;
 }) {
+  const { t } = useI18n();
   const [changing, setChanging] = useState(false);
   // A model picked here is saved and tested again before Keep it.
   const [picked, setPicked] = useState(false);
@@ -658,19 +668,19 @@ function ModelScreen({
     return (
       <SetupLayout
         {...frame}
-        body={failed ? setup.error : "Loading your server's AI settings…"}
+        body={failed ? setup.error : t("Loading your server's AI settings…")}
         footer={
           failed ? (
             <>
-              <SetupPrimary>Try again</SetupPrimary>
+              <SetupPrimary>{t("Try again")}</SetupPrimary>
               <SetupLink onClick={onSkip}>
-                Skip for now — bots can't reply until you connect one
+                {t("Skip for now — bots can't reply until you connect one")}
               </SetupLink>
             </>
           ) : null
         }
         onSubmit={() => void setup.reload()}
-        title={failed ? "Couldn't load your AI settings" : "Checking your AI"}
+        title={failed ? t("Couldn't load your AI settings") : t("Checking your AI")}
         visual={<ProvidersVisual />}
       />
     );
@@ -687,7 +697,7 @@ function ModelScreen({
     const picker =
       setup.data.models.length > 1 && setup.providerId === saved.providerId ? (
         <>
-          <span className="setup-label">Model</span>
+          <span className="setup-label">{t("Model")}</span>
           <ModelPicker
             disabled={testing || Boolean(setup.busy)}
             models={setup.data.models}
@@ -714,25 +724,25 @@ function ModelScreen({
           body={test.error}
           footer={
             <>
-              <SetupPrimary>Try again</SetupPrimary>
+              <SetupPrimary>{t("Try again")}</SetupPrimary>
               {plan ? (
                 <SetupLink onClick={() => onSignInAgain(saved.providerId)}>
-                  Sign in to {name} again
+                  {t("Sign in to {provider} again", { provider: name })}
                 </SetupLink>
               ) : null}
               <SetupLink onClick={() => changeScreen(() => setChanging(true))}>
-                Choose a different AI
+                {t("Choose a different AI")}
               </SetupLink>
             </>
           }
           // A model picked here that couldn't be saved is saved again; otherwise the saved
           // one is tested again.
           onSubmit={() => (setup.changed ? setRetest(true) : void setup.runTest())}
-          title="That didn't work"
+          title={t("That didn't work")}
           tone="error"
           visual={
             <ChatVisual
-              error="No reply"
+              error={t("No reply")}
               modelName={modelName}
               phase="failed"
               providerId={saved.providerId}
@@ -750,23 +760,28 @@ function ModelScreen({
         {...frame}
         body={
           !testing
-            ? `${name} · ${modelName} is connected and replying.`
+            ? t("{provider} · {model} is connected and replying.", {
+                provider: name,
+                model: modelName,
+              })
             : slow
-              ? `Still waiting for ${modelName} to answer. Some take up to a minute.`
+              ? t("Still waiting for {model} to answer. Some take up to a minute.", {
+                  model: modelName,
+                })
               : picked
-                ? `Sending a short test message to ${modelName}…`
-                : "Checking the AI your server already uses…"
+                ? t("Sending a short test message to {model}…", { model: modelName })
+                : t("Checking the AI your server already uses…")
         }
         footer={
           <>
-            <SetupPrimary busy={testing}>Keep it</SetupPrimary>
+            <SetupPrimary busy={testing}>{t("Keep it")}</SetupPrimary>
             <SetupLink onClick={() => changeScreen(() => setChanging(true))}>
-              Use a different AI
+              {t("Use a different AI")}
             </SetupLink>
           </>
         }
         onSubmit={() => test.status === "passed" && !retest && onKeep()}
-        title={!testing ? "You're already connected" : "Checking your AI"}
+        title={!testing ? t("You're already connected") : t("Checking your AI")}
         visual={
           <ChatVisual
             latencyMs={test.status === "passed" ? test.latencyMs : undefined}
@@ -785,32 +800,32 @@ function ModelScreen({
   return (
     <SetupLayout
       {...frame}
-      body="Sign in with a ChatGPT or Claude plan you already pay for, or use an API key."
+      body={t("Sign in with a ChatGPT or Claude plan you already pay for, or use an API key.")}
       footer={
         keepSaved ? null : (
           <SetupLink onClick={onSkip}>
-            Skip for now — bots can't reply until you connect one
+            {t("Skip for now — bots can't reply until you connect one")}
           </SetupLink>
         )
       }
       onBack={frame.onBack ?? keepSaved}
-      title="Choose your bots' AI"
+      title={t("Choose your bots' AI")}
       visual={<ProvidersVisual />}
     >
       <SetupOption
-        detail="Your ChatGPT plan or an OpenAI API key"
+        detail={t("Your ChatGPT plan or an OpenAI API key")}
         icon={<AppIcon app="chatgpt" size={40} />}
         onClick={() => onChoosePlan("chatgpt")}
         title="ChatGPT"
       />
       <SetupOption
-        detail="Your Claude plan or an Anthropic API key"
+        detail={t("Your Claude plan or an Anthropic API key")}
         icon={<AppIcon app="claude" size={40} />}
         onClick={() => onChoosePlan("claude")}
         title="Claude"
       />
       <SetupOption
-        detail="One key, hundreds of models"
+        detail={t("One key, hundreds of models")}
         icon={<ProviderTile provider="openrouter" size={40} />}
         onClick={() => onChoose("openrouter", "api_key")}
         title="OpenRouter"
@@ -825,16 +840,13 @@ function ModelScreen({
                 </span>
               </span>
               <span className="setup-option-text">
-                <strong>More providers</strong>
-                <span>OpenAI-compatible endpoints</span>
+                <strong>{t("More providers")}</strong>
+                <span>{t("OpenAI-compatible endpoints")}</span>
               </span>
               <ChevronsUpDown aria-hidden="true" className="size-4" />
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent
-            align="end"
-            className="w-[var(--radix-dropdown-menu-trigger-width)]"
-          >
+          <DropdownMenuContent align="end" className="w-[var(--radix-dropdown-menu-trigger-width)]">
             {others.map((provider) => (
               <DropdownMenuItem
                 key={provider.id}
@@ -860,17 +872,20 @@ function MethodScreen({
   plan: Plan;
   onChoose: (providerId: string, authType: AuthType) => void;
 }) {
+  const { t } = useI18n();
   const { name, tile, methods } = PLANS[plan];
   return (
     <SetupLayout
       {...frame}
-      body={`Sign in with the ${name} plan you already pay for, or use an API key.`}
-      title={`Connect ${name}`}
+      body={t("Sign in with the {provider} plan you already pay for, or use an API key.", {
+        provider: name,
+      })}
+      title={t("Connect {provider}", { provider: name })}
       visual={<ProvidersVisual focus={plan} />}
     >
       {methods.map((method) => (
         <SetupOption
-          detail={method.detail}
+          detail={t(method.detail)}
           icon={
             method.authType === "oauth" ? (
               <AppIcon app={plan} size={40} />
@@ -880,7 +895,7 @@ function MethodScreen({
           }
           key={method.providerId}
           onClick={() => onChoose(method.providerId, method.authType)}
-          title={method.title}
+          title={t(method.title)}
         />
       ))}
     </SetupLayout>
@@ -898,6 +913,7 @@ function ConnectScreen({
   providerId: string;
   onConnected: () => void;
 }) {
+  const { t } = useI18n();
   const started = useRef(false);
   const copied = useRef<string | null>(null);
   const [value, setValue] = useState("");
@@ -963,8 +979,8 @@ function ConnectScreen({
     return (
       <SetupLayout
         {...frame}
-        body={`${name} is connected. Next, a quick test.`}
-        title="Signed in"
+        body={t("{provider} is connected. Next, a quick test.", { provider: name })}
+        title={t("Signed in")}
         visual={visual}
       >
         <SetupSuccessMark />
@@ -979,10 +995,10 @@ function ConnectScreen({
     return (
       <SetupLayout
         {...frame}
-        body={session?.error || setup.error || "The sign-in was cancelled."}
-        footer={<SetupPrimary>Try again</SetupPrimary>}
+        body={session?.error || setup.error || t("The sign-in was cancelled.")}
+        footer={<SetupPrimary>{t("Try again")}</SetupPrimary>}
         onSubmit={start}
-        title="That didn't work"
+        title={t("That didn't work")}
         tone="error"
         visual={visual}
       />
@@ -993,21 +1009,23 @@ function ConnectScreen({
     return (
       <SetupLayout
         {...frame}
-        body="Open the sign-in page and type this code. It's already copied. We'll continue automatically."
+        body={t(
+          "Open the sign-in page and type this code. It's already copied. We'll continue automatically."
+        )}
         footer={
           <>
-            <SetupPrimary>Open sign-in page</SetupPrimary>
+            <SetupPrimary>{t("Open sign-in page")}</SetupPrimary>
             <SetupLink onClick={() => copyCode(userCode)}>
               <SetupSwap
                 active={codeCopied}
                 off={
                   <>
-                    <Copy aria-hidden="true" className="inline size-3.5" /> Copy code again
+                    <Copy aria-hidden="true" className="inline size-3.5" /> {t("Copy code again")}
                   </>
                 }
                 on={
                   <>
-                    <Check aria-hidden="true" className="inline size-3.5" /> Copied
+                    <Check aria-hidden="true" className="inline size-3.5" /> {t("Copied")}
                   </>
                 }
               />
@@ -1015,7 +1033,7 @@ function ConnectScreen({
           </>
         }
         onSubmit={() => openExternal(verificationUri)}
-        title="Enter this code to sign in"
+        title={t("Enter this code to sign in")}
         visual={visual}
       >
         <SetupCode code={userCode} />
@@ -1028,23 +1046,23 @@ function ConnectScreen({
         {...frame}
         body={
           prompt.type === "manual_code"
-            ? `${setup.captureMessage ?? ""} After you sign in, copy the address your browser lands on and paste it here.`.trim()
+            ? `${setup.captureMessage ?? ""} ${t("After you sign in, copy the address your browser lands on and paste it here.")}`.trim()
             : prompt.message
         }
         footer={
           <>
             <SetupPrimary busy={setup.busy === "respond"} disabled={!value.trim()}>
-              Continue
+              {t("Continue")}
             </SetupPrimary>
             {session?.authorizationUrl ? (
               <SetupLink onClick={() => openExternal(session.authorizationUrl!)}>
-                Open the sign-in page
+                {t("Open the sign-in page")}
               </SetupLink>
             ) : null}
           </>
         }
         onSubmit={() => void setup.respond(prompt.id, value.trim())}
-        title="Finish signing in in your browser"
+        title={t("Finish signing in in your browser")}
         visual={visual}
       >
         <input
@@ -1055,7 +1073,9 @@ function ConnectScreen({
           className="setup-input"
           onChange={(event) => setValue(event.target.value)}
           placeholder={
-            prompt.type === "manual_code" ? "Paste the address from your browser" : prompt.message
+            prompt.type === "manual_code"
+              ? t("Paste the address from your browser")
+              : prompt.message
           }
           type={prompt.type === "secret" ? "password" : "text"}
           value={value}
@@ -1067,7 +1087,9 @@ function ConnectScreen({
     <SetupLayout
       {...frame}
       body={
-        waitingForBrowser ? "We'll bring you back here automatically." : `Opening ${name} sign-in…`
+        waitingForBrowser
+          ? t("We'll bring you back here automatically.")
+          : t("Opening {provider} sign-in…", { provider: name })
       }
       footer={
         waitingForBrowser && session?.authorizationUrl ? (
@@ -1077,26 +1099,32 @@ function ConnectScreen({
               onClick={() => openExternal(session.authorizationUrl!)}
               type="button"
             >
-              Open it again
+              {t("Open it again")}
             </button>
             <button
               className="setup-secondary"
               onClick={() => copyLink(session.authorizationUrl!)}
               type="button"
             >
-              <SetupSwap active={linkCopied} off="Copy link" on="Copied" />
+              <SetupSwap active={linkCopied} off={t("Copy link")} on={t("Copied")} />
             </button>
           </div>
         ) : null
       }
-      title={waitingForBrowser ? "Finish signing in in your browser" : `Connecting ${name}`}
+      title={
+        waitingForBrowser
+          ? t("Finish signing in in your browser")
+          : t("Connecting {provider}", { provider: name })
+      }
       visual={visual}
     >
       <p className="setup-note">
         <span className="mr-1.5 inline-flex align-[-2px]">
           <LoadingOrb aria-hidden size={14} />
         </span>
-        {waitingForBrowser ? `Waiting for ${name}…` : "Starting sign-in…"}
+        {waitingForBrowser
+          ? t("Waiting for {provider}…", { provider: name })
+          : t("Starting sign-in…")}
       </p>
     </SetupLayout>
   );
@@ -1113,6 +1141,7 @@ function KeyScreen({
   providerId: string;
   onConnected: (key: string) => void;
 }) {
+  const { t } = useI18n();
   const [key, setKey] = useState("");
   // One per Connect; a newer one (or a new key) makes an older one's late answers stale.
   const [request, setRequest] = useState<{ id: number; key: string } | null>(null);
@@ -1190,24 +1219,24 @@ function KeyScreen({
   const busy = Boolean(request) && !failure;
   const progress =
     step === "connecting"
-      ? `Connecting to ${label}…`
+      ? t("Connecting to {provider}…", { provider: label })
       : step === "checking"
-        ? `Checking your key with ${label}…`
-        : `Sending a test message to ${
-            setup.selectedModel ? modelOption(setup.selectedModel, label).name : label
-          }…`;
+        ? t("Checking your key with {provider}…", { provider: label })
+        : t("Sending a test message to {model}…", {
+            model: setup.selectedModel ? modelOption(setup.selectedModel, label).name : label,
+          });
   return (
     <SetupLayout
       {...frame}
-      body={`Your server checks it with ${label}, then keeps it there.`}
+      body={t("Your server checks it with {provider}, then keeps it there.", { provider: label })}
       footer={
         <>
           <SetupPrimary busy={busy} disabled={!key.trim()}>
-            Connect
+            {t("Connect")}
           </SetupPrimary>
           {keyInfo ? (
             <SetupLink onClick={() => openExternal(keyInfo.keysUrl)}>
-              Get a key from {label}
+              {t("Get a key from {provider}", { provider: label })}
             </SetupLink>
           ) : null}
         </>
@@ -1223,13 +1252,15 @@ function KeyScreen({
         setRequest({ id: requests.current, key: value });
       }}
       title={
-        providerId === "openrouter" ? "Paste your OpenRouter key" : `Paste your ${label} API key`
+        providerId === "openrouter"
+          ? t("Paste your OpenRouter key")
+          : t("Paste your {provider} API key", { provider: label })
       }
       visual={<KeyVisual prefix={keyInfo?.prefix ?? ""} provider={label} providerId={providerId} />}
     >
       <input
         aria-invalid={Boolean(failure)}
-        aria-label="API key"
+        aria-label={t("API key")}
         autoComplete="off"
         // biome-ignore lint/a11y/noAutofocus: The key field is the only input on this screen.
         autoFocus
@@ -1240,7 +1271,7 @@ function KeyScreen({
           requests.current += 1;
           setRequest(null);
         }}
-        placeholder={keyInfo ? `${keyInfo.prefix}…` : "API key"}
+        placeholder={keyInfo ? `${keyInfo.prefix}…` : t("API key")}
         readOnly={busy}
         spellCheck={false}
         type="password"
@@ -1275,6 +1306,7 @@ function TestScreen({
   onChooseAnother: () => void;
   onSignInAgain: () => void;
 }) {
+  const { t } = useI18n();
   // A key arrives already tested (see KeyScreen); a sign-in still needs its test.
   const [pending, setPending] = useState(() => setup.test.status === "idle" || setup.changed);
 
@@ -1297,7 +1329,7 @@ function TestScreen({
   const picker =
     setup.data && setup.data.models.length > 1 ? (
       <>
-        <span className="setup-label">Model</span>
+        <span className="setup-label">{t("Model")}</span>
         <ModelPicker
           disabled={retrying || test.status === "running"}
           models={setup.data.models}
@@ -1319,8 +1351,10 @@ function TestScreen({
       test.status === "failed"
         ? test.error
         : rejected
-          ? `${name} didn't accept that. Check your key or sign in again.`
-          : message || "This account doesn't offer any chat models.";
+          ? t("{provider} didn't accept that. Check your key or sign in again.", {
+              provider: name,
+            })
+          : message || t("This account doesn't offer any chat models.");
     // A plan sign-in can expire; signing in again is the usual fix.
     const signsIn =
       setup.provider?.authType !== "api_key" &&
@@ -1331,19 +1365,21 @@ function TestScreen({
         body={body}
         footer={
           <>
-            <SetupPrimary>Try again</SetupPrimary>
+            <SetupPrimary>{t("Try again")}</SetupPrimary>
             {signsIn ? (
-              <SetupLink onClick={onSignInAgain}>Sign in to {name} again</SetupLink>
+              <SetupLink onClick={onSignInAgain}>
+                {t("Sign in to {provider} again", { provider: name })}
+              </SetupLink>
             ) : null}
-            <SetupLink onClick={onChooseAnother}>Choose a different AI</SetupLink>
+            <SetupLink onClick={onChooseAnother}>{t("Choose a different AI")}</SetupLink>
           </>
         }
         onSubmit={noModels ? (frame.onBack ?? onChooseAnother) : () => setPending(true)}
-        title="That didn't work"
+        title={t("That didn't work")}
         tone="error"
         visual={
           <ChatVisual
-            error="No reply"
+            error={t("No reply")}
             modelName={modelName || name}
             phase="failed"
             providerId={setup.providerId}
@@ -1361,15 +1397,17 @@ function TestScreen({
       {...frame}
       body={
         passed
-          ? `${modelName} answered your server's test message.`
+          ? t("{model} answered your server's test message.", { model: modelName })
           : slow
-            ? `Still waiting for ${modelName || "your AI"} to answer. Some take up to a minute.`
-            : `Sending a short test message to ${modelName || "your AI"}…`
+            ? t("Still waiting for {model} to answer. Some take up to a minute.", {
+                model: modelName || t("your AI"),
+              })
+            : t("Sending a short test message to {model}…", { model: modelName || t("your AI") })
       }
       celebrate={passed}
-      footer={<SetupPrimary busy={!passed}>Continue</SetupPrimary>}
+      footer={<SetupPrimary busy={!passed}>{t("Continue")}</SetupPrimary>}
       onSubmit={() => passed && onContinue()}
-      title={passed ? "It works!" : "Let's make sure it works"}
+      title={passed ? t("It works!") : t("Let's make sure it works")}
       visual={
         <ChatVisual
           celebrate={passed}
@@ -1404,6 +1442,7 @@ function SearchScreen({
   onDone: (view: WebProvidersView) => void;
   onSkip: () => void;
 }) {
+  const { t } = useI18n();
   const [view, setView] = useState(initial);
   const [providerId, setProviderId] = useState<string>(RECOMMENDED_SEARCH_PROVIDER);
   const [key, setKey] = useState("");
@@ -1453,7 +1492,9 @@ function SearchScreen({
       const checked = await api.checkWebProvider({ tool: "search", provider: info.id });
       const check = checked.search.providers[info.id]?.check;
       if (check?.status !== "passed") {
-        throw new Error(check?.message || `${info.name} didn't accept that key.`);
+        throw new Error(
+          check?.message || t("{provider} didn't accept that key.", { provider: info.name })
+        );
       }
       setView(await api.updateWebProviders({ search: { selected: info.id } }));
       setState("done");
@@ -1465,7 +1506,7 @@ function SearchScreen({
           .then(setView)
           .catch(() => {});
       }
-      setError(requestErrorMessage(cause, "Couldn't turn on web search. Try again."));
+      setError(requestErrorMessage(cause, t("Couldn't turn on web search. Try again.")));
       setState("idle");
     }
   };
@@ -1476,20 +1517,28 @@ function SearchScreen({
       {...frame}
       body={
         state === "done"
-          ? `Bots search the web with ${info.name}. You can change it in Settings → Providers.`
+          ? t("Bots search the web with {provider}. You can change it in Settings → Providers.", {
+              provider: info.name,
+            })
           : providerId === RECOMMENDED_SEARCH_PROVIDER
-            ? `Bots look things up with a search service. ${info.name} gives the most accurate results; paste its API key to turn it on.`
-            : `Bots look things up with a search service. Paste your ${info.name} API key to turn it on.`
+            ? t(
+                "Bots look things up with a search service. {provider} gives the most accurate results; paste its API key to turn it on.",
+                { provider: info.name }
+              )
+            : t(
+                "Bots look things up with a search service. Paste your {provider} API key to turn it on.",
+                { provider: info.name }
+              )
       }
       footer={
         state === "done" ? null : (
           <>
             <SetupPrimary busy={state === "saving"} disabled={!key.trim()}>
-              Turn on web search
+              {t("Turn on web search")}
             </SetupPrimary>
             {info.setupUrl ? (
               <SetupLink onClick={() => openExternal(info.setupUrl!)}>
-                Get a key from {info.name}
+                {t("Get a key from {provider}", { provider: info.name })}
               </SetupLink>
             ) : null}
           </>
@@ -1497,12 +1546,12 @@ function SearchScreen({
       }
       onSkip={state === "done" ? undefined : onSkip}
       onSubmit={() => void turnOn()}
-      title={state === "done" ? "Web search is on" : "Let your bots search the web"}
+      title={state === "done" ? t("Web search is on") : t("Let your bots search the web")}
       visual={
         <SearchVisual
           on={state === "done"}
           providerIcon={icon}
-          providerName={state === "done" ? info.name : "Not set up yet"}
+          providerName={state === "done" ? info.name : t("Not set up yet")}
         />
       }
     >
@@ -1512,7 +1561,11 @@ function SearchScreen({
         <>
           <DropdownMenu>
             <DropdownMenuTrigger asChild disabled={state === "saving"}>
-              <button aria-label={`Search provider: ${info.name}`} className="setup-option" type="button">
+              <button
+                aria-label={t("Search provider: {provider}", { provider: info.name })}
+                className="setup-option"
+                type="button"
+              >
                 <span className="setup-option-icon">
                   {icon ? <img alt="" className="setup-search-tile" src={icon} /> : null}
                 </span>
@@ -1520,7 +1573,7 @@ function SearchScreen({
                   <strong>
                     {info.name}
                     {info.id === RECOMMENDED_SEARCH_PROVIDER ? (
-                      <span className="setup-tag">Recommended</span>
+                      <span className="setup-tag">{t("Recommended")}</span>
                     ) : null}
                   </strong>
                   <span>{info.description}</span>
@@ -1544,21 +1597,21 @@ function SearchScreen({
                   }}
                 >
                   {provider.name}
-                  {provider.id === RECOMMENDED_SEARCH_PROVIDER ? " · Recommended" : ""}
+                  {provider.id === RECOMMENDED_SEARCH_PROVIDER ? ` · ${t("Recommended")}` : ""}
                 </DropdownMenuItem>
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
           <input
             aria-invalid={Boolean(error)}
-            aria-label={`${info.name} API key`}
+            aria-label={t("{provider} API key", { provider: info.name })}
             autoComplete="off"
             className="setup-input"
             onChange={(event) => {
               setKey(event.target.value);
               setError(null);
             }}
-            placeholder={`${info.name} API key`}
+            placeholder={t("{provider} API key", { provider: info.name })}
             readOnly={state === "saving"}
             spellCheck={false}
             type="password"
@@ -1573,7 +1626,7 @@ function SearchScreen({
               <span className="mr-1.5 inline-flex align-[-2px]">
                 <LoadingOrb aria-hidden size={14} />
               </span>
-              Running a test search with {info.name}…
+              {t("Running a test search with {provider}…", { provider: info.name })}
             </p>
           ) : null}
         </>
@@ -1593,6 +1646,7 @@ function VoiceScreen({
   onDone: () => void;
   onSkip: () => void;
 }) {
+  const { t } = useI18n();
   const [useSameKey, setUseSameKey] = useState(Boolean(openAIKey));
   const [provider, setProvider] = useState<"openai" | "deepgram">("openai");
   const [key, setKey] = useState("");
@@ -1625,7 +1679,7 @@ function VoiceScreen({
       saved = true;
       const check = await api.checkTranscription();
       if (check.level === "fail") {
-        throw new Error(check.detail || "That key didn't work.");
+        throw new Error(check.detail || t("That key didn't work."));
       }
       requestRuntimeRefresh();
       setState("done");
@@ -1637,7 +1691,7 @@ function VoiceScreen({
           .catch(() => {});
         requestRuntimeRefresh();
       }
-      setError(requestErrorMessage(cause, "Couldn't turn on voice notes. Try again."));
+      setError(requestErrorMessage(cause, t("Couldn't turn on voice notes. Try again.")));
       setState("idle");
     }
   };
@@ -1647,19 +1701,21 @@ function VoiceScreen({
       {...frame}
       body={
         state === "done"
-          ? "Use the microphone in any chat."
-          : "Record a message and your server turns it into text. Needs an OpenAI or Deepgram key."
+          ? t("Use the microphone in any chat.")
+          : t(
+              "Record a message and your server turns it into text. Needs an OpenAI or Deepgram key."
+            )
       }
       footer={
         state === "done" ? null : (
           <SetupPrimary busy={state === "saving"} disabled={!useSameKey && !key.trim()}>
-            Turn on voice notes
+            {t("Turn on voice notes")}
           </SetupPrimary>
         )
       }
       onSkip={state === "done" ? undefined : onSkip}
       onSubmit={() => void turnOn()}
-      title={state === "done" ? "Voice notes are on" : "Talk instead of type?"}
+      title={state === "done" ? t("Voice notes are on") : t("Talk instead of type?")}
       visual={<VoiceVisual />}
     >
       {state === "done" ? (
@@ -1668,16 +1724,16 @@ function VoiceScreen({
         <>
           {openAIKey ? (
             <SetupOption
-              detail={useSameKey ? "Selected" : "One tap, nothing to paste"}
+              detail={useSameKey ? t("Selected") : t("One tap, nothing to paste")}
               icon={<OpenAIMark size={20} />}
               onClick={() => setUseSameKey(!useSameKey)}
               selected={useSameKey}
-              title="Use the same OpenAI key"
+              title={t("Use the same OpenAI key")}
             />
           ) : null}
           {useSameKey ? null : (
             <>
-              <div aria-label="Voice provider" className="setup-segmented" role="radiogroup">
+              <div aria-label={t("Voice provider")} className="setup-segmented" role="radiogroup">
                 {(["openai", "deepgram"] as const).map((option) => (
                   <button
                     aria-checked={provider === option}
@@ -1699,11 +1755,11 @@ function VoiceScreen({
               </div>
               <input
                 aria-invalid={Boolean(error)}
-                aria-label="Voice API key"
+                aria-label={t("Voice API key")}
                 autoComplete="off"
                 className="setup-input"
                 onChange={(event) => setKey(event.target.value)}
-                placeholder={provider === "openai" ? "OpenAI API key" : "Deepgram API key"}
+                placeholder={provider === "openai" ? t("OpenAI API key") : t("Deepgram API key")}
                 type="password"
                 value={key}
               />
@@ -1740,6 +1796,7 @@ function BotScreen({
   onOpenBot: (bot: Bot) => Promise<void>;
   onFinish: () => void;
 }) {
+  const { t } = useI18n();
   const [avatar, setAvatar] = useState(randomAvatar);
   const [name, setName] = useState<string>(() => pick(BOT_NAMES));
   const [roleId, setRoleId] = useState<(typeof ROLES)[number]["id"]>("general");
@@ -1747,7 +1804,7 @@ function BotScreen({
   const [opening, setOpening] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const role = useMemo(() => ROLES.find((option) => option.id === roleId) ?? ROLES[0], [roleId]);
-  const displayName = name.trim() || "New Bot";
+  const displayName = name.trim() || t("New Bot");
   const profile = {
     name: displayName,
     icon: avatar.shape,
@@ -1783,7 +1840,7 @@ function BotScreen({
     try {
       await onCreateBot({ clientRequestId: request.current.id, ...profile });
     } catch (cause) {
-      setError(requestErrorMessage(cause, "Couldn't create the bot. Try again."));
+      setError(requestErrorMessage(cause, t("Couldn't create the bot. Try again.")));
       setCreating(false);
     }
   };
@@ -1794,7 +1851,9 @@ function BotScreen({
     try {
       await onOpenBot(bot);
     } catch (cause) {
-      setError(requestErrorMessage(cause, `Couldn't open ${bot.name}. Try again.`));
+      setError(
+        requestErrorMessage(cause, t("Couldn't open {name}. Try again.", { name: bot.name }))
+      );
       setOpening(false);
     }
   };
@@ -1808,21 +1867,24 @@ function BotScreen({
     return (
       <SetupLayout
         {...frame}
-        body={`${elsewhere.name} was just created on another device.`}
+        body={t("{name} was just created on another device.", { name: elsewhere.name })}
         footer={
           <>
-            <SetupPrimary busy={opening}>Open it</SetupPrimary>
-            <SetupLink onClick={() => void create()}>Create mine too</SetupLink>
+            <SetupPrimary busy={opening}>{t("Open it")}</SetupPrimary>
+            <SetupLink onClick={() => void create()}>{t("Create mine too")}</SetupLink>
           </>
         }
         onSubmit={() => void open(elsewhere)}
-        title={`${elsewhere.name} is already here`}
+        title={t("{name} is already here", { name: elsewhere.name })}
         visual={
           <BotVisual
             color={elsewhere.color}
-            greeting={`Hi, I'm ${elsewhere.name}. ${theirRole?.greeting ?? "What should we work on?"}`}
+            greeting={t("Hi, I'm {name}. {greeting}", {
+              name: elsewhere.name,
+              greeting: theirRole ? t(theirRole.greeting) : t("What should we work on?"),
+            })}
             name={elsewhere.name}
-            role={theirRole?.label ?? "On your team"}
+            role={theirRole ? t(theirRole.label) : t("On your team")}
             shape={shape}
           />
         }
@@ -1840,16 +1902,16 @@ function BotScreen({
     return (
       <SetupLayout
         {...frame}
-        body="Your server and AI are ready. Your bots are waiting."
-        footer={<SetupPrimary>Open aiTeamOS</SetupPrimary>}
+        body={t("Your server and AI are ready. Your bots are waiting.")}
+        footer={<SetupPrimary>{t("Open aiTeamOS")}</SetupPrimary>}
         onSubmit={onFinish}
-        title="You're all set"
+        title={t("You're all set")}
         visual={
           <BotVisual
             color="#10b972"
-            greeting="Welcome back. What should we work on?"
-            name="Your team"
-            role="Ready when you are"
+            greeting={t("Welcome back. What should we work on?")}
+            name={t("Your team")}
+            role={t("Ready when you are")}
             shape="chip"
           />
         }
@@ -1861,26 +1923,31 @@ function BotScreen({
   return (
     <SetupLayout
       {...frame}
-      body="Give it a name and a job. You can change these anytime."
-      footer={<SetupPrimary busy={creating}>Create {displayName}</SetupPrimary>}
+      body={t("Give it a name and a job. You can change these anytime.")}
+      footer={
+        <SetupPrimary busy={creating}>{t("Create {name}", { name: displayName })}</SetupPrimary>
+      }
       onSubmit={() => void create()}
-      title="Create your first bot"
+      title={t("Create your first bot")}
       visual={
         <BotVisual
           color={avatar.color}
-          greeting={`Hi, I'm ${displayName}. ${role.greeting}`}
+          greeting={t("Hi, I'm {name}. {greeting}", {
+            name: displayName,
+            greeting: t(role.greeting),
+          })}
           name={displayName}
-          role={role.label}
+          role={t(role.label)}
           shape={avatar.shape}
         />
       }
     >
-      <span className="setup-label">Name</span>
+      <span className="setup-label">{t("Name")}</span>
       <div className="setup-row">
         {/* Below 860 px the preview is hidden, so the look shows here instead. */}
         <BotAvatarBadge color={avatar.color} shape={avatar.shape} />
         <input
-          aria-label="Bot name"
+          aria-label={t("Bot name")}
           className="setup-input"
           maxLength={120}
           onChange={(event) => setName(event.target.value)}
@@ -1888,17 +1955,17 @@ function BotScreen({
           value={name}
         />
         <button
-          aria-label="New look: shuffle the look"
+          aria-label={t("New look: shuffle the look")}
           className="setup-secondary"
           onClick={() => setAvatar(randomAvatar())}
           style={{ flex: "0 0 auto", height: 46 }}
           type="button"
         >
-          <Shuffle aria-hidden="true" className="size-4" /> New look
+          <Shuffle aria-hidden="true" className="size-4" /> {t("New look")}
         </button>
       </div>
-      <span className="setup-label">Job</span>
-      <div aria-label="Job" className="setup-chips" role="radiogroup">
+      <span className="setup-label">{t("Job")}</span>
+      <div aria-label={t("Job")} className="setup-chips" role="radiogroup">
         {ROLES.map((option) => (
           <button
             aria-checked={roleId === option.id}
@@ -1907,7 +1974,7 @@ function BotScreen({
             role="radio"
             type="button"
           >
-            {option.label}
+            {t(option.label)}
           </button>
         ))}
       </div>

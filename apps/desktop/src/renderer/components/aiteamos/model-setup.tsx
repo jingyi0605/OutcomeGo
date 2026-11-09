@@ -2,6 +2,7 @@ import { Check, CircleAlert, ExternalLink } from "lucide-react";
 import { LoadingOrb } from "../ui/loading-orb";
 import { useEffect, useState } from "react";
 import type { ModelSetup, ModelTestState } from "../../hooks/use-model-setup";
+import { useI18n } from "../../lib/i18n";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 
 export const primaryButton =
@@ -14,10 +15,14 @@ const inputClass =
 const openLink = (url: string) => window.open(url, "_blank", "noopener,noreferrer");
 
 /** Shows whatever the provider sign-in needs next: a browser, a code, or a key. */
-export function SignInProgress({ setup, controlStyles }: {
+export function SignInProgress({
+  setup,
+  controlStyles,
+}: {
   setup: ModelSetup;
   controlStyles?: { primaryButton: string; secondaryButton: string; input: string };
 }) {
+  const { t } = useI18n();
   const session = setup.authSession;
   const prompt = session?.prompt;
   const [value, setValue] = useState("");
@@ -34,21 +39,21 @@ export function SignInProgress({ setup, controlStyles }: {
     <div className="space-y-2 py-3 text-[12.5px]" data-testid="provider-sign-in">
       {session.status === "connected" ? (
         <div className="flex items-center gap-1.5 text-foreground">
-          <Check className="size-3.5 text-emerald-600" /> Connected
+          <Check className="size-3.5 text-emerald-600" /> {t("Connected")}
         </div>
       ) : session.status === "failed" ? (
         <div className="flex items-start gap-1.5 text-red-600 dark:text-red-400">
           <CircleAlert className="mt-0.5 size-3.5 shrink-0" />
-          <span>{session.error || "The sign-in didn't finish. Try again."}</span>
+          <span>{session.error || t("The sign-in didn't finish. Try again.")}</span>
         </div>
       ) : waitingForBrowser ? (
         <div className="flex items-center gap-2 text-foreground-secondary">
-          <LoadingOrb aria-hidden size={14} /> Finish signing in in your browser…
+          <LoadingOrb aria-hidden size={14} /> {t("Finish signing in in your browser…")}
         </div>
       ) : session.deviceCode ? (
         <div className="space-y-1.5">
           <div className="text-foreground-secondary">
-            Open the sign-in page and enter this code:
+            {t("Open the sign-in page and enter this code:")}
           </div>
           <div className="flex items-center gap-2">
             <span className="rounded-[8px] bg-black/[0.05] px-3 py-1.5 font-mono text-[15px] font-medium tracking-wider dark:bg-white/[0.08]">
@@ -59,20 +64,22 @@ export function SignInProgress({ setup, controlStyles }: {
               onClick={() => openLink(session.deviceCode!.verificationUri)}
               type="button"
             >
-              Open sign-in page <ExternalLink className="size-3" />
+              {t("Open sign-in page")} <ExternalLink className="size-3" />
             </button>
           </div>
         </div>
       ) : !prompt ? (
         <div className="flex items-center gap-2 text-foreground-secondary">
-          <LoadingOrb aria-hidden size={14} /> Starting sign-in…
+          <LoadingOrb aria-hidden size={14} /> {t("Starting sign-in…")}
         </div>
       ) : null}
 
       {setup.captureMessage && !finished ? (
         <div className="text-[12px] text-foreground-secondary">
-          {setup.captureMessage} After you sign in, copy the address of the page your browser lands
-          on and paste it here.
+          {setup.captureMessage}{" "}
+          {t(
+            "After you sign in, copy the address of the page your browser lands on and paste it here."
+          )}
         </div>
       ) : null}
       {session.authorizationUrl && !finished && setup.capture !== "waiting" ? (
@@ -81,7 +88,7 @@ export function SignInProgress({ setup, controlStyles }: {
           onClick={() => openLink(session.authorizationUrl!)}
           type="button"
         >
-          Open sign-in page <ExternalLink className="size-3" />
+          {t("Open sign-in page")} <ExternalLink className="size-3" />
         </button>
       ) : null}
 
@@ -116,9 +123,9 @@ export function SignInProgress({ setup, controlStyles }: {
               onChange={(event) => setValue(event.target.value)}
               placeholder={
                 prompt.type === "secret"
-                  ? "Paste your API key"
+                  ? t("Paste your API key")
                   : prompt.type === "manual_code"
-                    ? "Paste the address from your browser"
+                    ? t("Paste the address from your browser")
                     : (prompt.placeholder ?? prompt.message)
               }
               type={prompt.type === "secret" ? "password" : "text"}
@@ -130,7 +137,7 @@ export function SignInProgress({ setup, controlStyles }: {
             disabled={!value.trim() || setup.busy === "respond"}
             type="submit"
           >
-            Continue
+            {t("Continue")}
           </button>
         </form>
       ) : null}
@@ -141,11 +148,15 @@ export function SignInProgress({ setup, controlStyles }: {
           onClick={setup.cancelSignIn}
           type="button"
         >
-          Cancel
+          {t("Cancel")}
         </button>
       ) : session.status !== "connected" ? (
-        <button className={controlStyles?.secondaryButton ?? secondaryButton} onClick={setup.clearSignIn} type="button">
-          Try again
+        <button
+          className={controlStyles?.secondaryButton ?? secondaryButton}
+          onClick={setup.clearSignIn}
+          type="button"
+        >
+          {t("Try again")}
         </button>
       ) : null}
     </div>
@@ -153,6 +164,7 @@ export function SignInProgress({ setup, controlStyles }: {
 }
 
 export function ModelTestStatus({ test }: { test: ModelTestState }) {
+  const { t } = useI18n();
   if (test.status === "idle") return null;
   if (test.status === "running") {
     return (
@@ -160,15 +172,15 @@ export function ModelTestStatus({ test }: { test: ModelTestState }) {
         className="inline-flex items-center gap-1.5 text-[12px] text-foreground-secondary"
         role="status"
       >
-        <LoadingOrb aria-hidden size={14} state="solving" /> Testing the model…
+        <LoadingOrb aria-hidden size={14} state="solving" /> {t("Testing the model…")}
       </span>
     );
   }
   if (test.status === "passed") {
     return (
       <span className="inline-flex items-center gap-1.5 text-[12px] text-foreground" role="status">
-        <Check className="size-3.5 text-emerald-600" /> Working · replied in{" "}
-        {(test.latencyMs / 1000).toFixed(1)} s
+        <Check className="size-3.5 text-emerald-600" />{" "}
+        {t("Working · replied in {seconds} s", { seconds: (test.latencyMs / 1000).toFixed(1) })}
       </span>
     );
   }

@@ -6,7 +6,7 @@ import {
   clearAuthCredentialsForServerChange,
   getServerSignOut,
   refreshAuthSession,
-  SERVER_SIGN_OUT_NOTE,
+  serverSignOutNote,
   signIn,
   signInToServer,
   testServerConnection,
@@ -16,6 +16,7 @@ import { CONFIGURED_API_BASE_KEY, saveConfiguredApiBase } from "../../client/run
 import type { useAuthSession } from "../../hooks/use-auth-session";
 import { authErrorMessage } from "../../lib/auth-error-message";
 import { serverAddressProblem } from "../../lib/server-address";
+import { useI18n } from "../../lib/i18n";
 import { reloadInto } from "./first-run-shell";
 import { changeScreen } from "./setup/screen-transition";
 import {
@@ -57,6 +58,7 @@ const serverVersion = async (baseUrl: string): Promise<string | null> => {
 
 /** Welcome, server address, and sign-in: the first stage of setup, before an account exists here. */
 export default function SignInFlow({ auth }: { auth: ReturnType<typeof useAuthSession> }) {
+  const { t } = useI18n();
   // When the server signed this device out (for example, the sign-in expired partway through
   // setup), the account step opens for the same server and account and says why.
   const [signedOut] = useState(getServerSignOut);
@@ -140,7 +142,7 @@ export default function SignInFlow({ auth }: { auth: ReturnType<typeof useAuthSe
       }
       setPassword("");
     } catch (cause) {
-      setError(authErrorMessage(cause, "Could not sign in to aiTeamOS"));
+      setError(authErrorMessage(cause, t("Could not sign in to aiTeamOS")));
     } finally {
       setSubmitting(false);
     }
@@ -180,7 +182,7 @@ export default function SignInFlow({ auth }: { auth: ReturnType<typeof useAuthSe
       if (stage === "endpoint") {
         const version = await serverVersion(connection.baseUrl);
         if (!current()) return;
-        setFound(version ? `Found aiTeamOS ${version}` : "Found aiTeamOS");
+        setFound(version ? t("Found aiTeamOS {version}", { version }) : t("Found aiTeamOS"));
         await new Promise((resolve) => window.setTimeout(resolve, 800));
         if (!current()) return;
       }
@@ -188,7 +190,7 @@ export default function SignInFlow({ auth }: { auth: ReturnType<typeof useAuthSe
     } catch (cause) {
       if (!current()) return;
       if (stage !== "endpoint") goTo("endpoint");
-      setError(authErrorMessage(cause, "Could not connect to this aiTeamOS server"));
+      setError(authErrorMessage(cause, t("Could not connect to this aiTeamOS server")));
     } finally {
       window.clearTimeout(slow);
       if (current()) {
@@ -201,14 +203,16 @@ export default function SignInFlow({ auth }: { auth: ReturnType<typeof useAuthSe
   if (stage === "welcome") {
     return (
       <SetupLayout
-        body="Let's connect to your server and set up your first bot. It takes about two minutes."
+        body={t(
+          "Let's connect to your server and set up your first bot. It takes about two minutes."
+        )}
         direction={direction}
         footer={
           <>
-            <SetupPrimary busy={connecting}>Get started</SetupPrimary>
+            <SetupPrimary busy={connecting}>{t("Get started")}</SetupPrimary>
             {localServer || showInstall ? null : (
               <SetupLink onClick={() => setShowInstall(true)}>
-                I still need to install the server
+                {t("I still need to install the server")}
               </SetupLink>
             )}
           </>
@@ -219,36 +223,36 @@ export default function SignInFlow({ auth }: { auth: ReturnType<typeof useAuthSe
         }}
         screenKey="welcome"
         stage={0}
-        title="Welcome to aiTeamOS"
+        title={t("Welcome to aiTeamOS")}
         visual={<RobotsVisual />}
       >
         <ol className="setup-steps">
           <li>
             <Server aria-hidden="true" className="size-4" />
             <span>
-              <strong>Connect your server</strong>
-              <small>The one you installed with the terminal</small>
+              <strong>{t("Connect your server")}</strong>
+              <small>{t("The one you installed with the terminal")}</small>
             </span>
           </li>
           <li>
             <Sparkles aria-hidden="true" className="size-4" />
             <span>
-              <strong>Choose your bots' AI</strong>
-              <small>ChatGPT, Claude, or an API key</small>
+              <strong>{t("Choose your bots' AI")}</strong>
+              <small>{t("ChatGPT, Claude, or an API key")}</small>
             </span>
           </li>
           <li>
             <Bot aria-hidden="true" className="size-4" />
             <span>
-              <strong>Meet your first bot</strong>
-              <small>Give it a name and a job</small>
+              <strong>{t("Meet your first bot")}</strong>
+              <small>{t("Give it a name and a job")}</small>
             </span>
           </li>
         </ol>
         {localServer ? (
           <p className="setup-note" data-tone="success">
             <SetupDrawnCheck />
-            aiTeamOS is running on this computer.
+            {t("aiTeamOS is running on this computer.")}
           </p>
         ) : null}
         {showInstall ? (
@@ -256,7 +260,7 @@ export default function SignInFlow({ auth }: { auth: ReturnType<typeof useAuthSe
             <div>
               <code>{INSTALL_COMMAND}</code>
               <button
-                aria-label={installCopied ? "Copied" : "Copy the install command"}
+                aria-label={installCopied ? t("Copied") : t("Copy the install command")}
                 onClick={() => copyInstall(INSTALL_COMMAND)}
                 type="button"
               >
@@ -265,13 +269,13 @@ export default function SignInFlow({ auth }: { auth: ReturnType<typeof useAuthSe
                   off={<Copy aria-hidden="true" className="size-3.5" />}
                   on={
                     <>
-                      <Check aria-hidden="true" className="size-3.5" /> Copied
+                      <Check aria-hidden="true" className="size-3.5" /> {t("Copied")}
                     </>
                   }
                 />
               </button>
             </div>
-            Run this on the computer that will host your bots, then come back here.
+            {t("Run this on the computer that will host your bots, then come back here.")}
           </div>
         ) : null}
         {error ? (
@@ -286,22 +290,22 @@ export default function SignInFlow({ auth }: { auth: ReturnType<typeof useAuthSe
   if (stage === "endpoint") {
     return (
       <SetupLayout
-        body="Paste the address your terminal printed at the end of setup."
+        body={t("Paste the address your terminal printed at the end of setup.")}
         direction={direction}
         footer={
           <SetupPrimary busy={connecting} disabled={!serverUrl.trim()}>
-            Connect
+            {t("Connect")}
           </SetupPrimary>
         }
         onBack={leaveEndpoint}
         onSubmit={() => void connectTo(serverUrl)}
         screenKey="endpoint"
         stage={0}
-        title="Where's your server?"
+        title={t("Where's your server?")}
         visual={<TerminalVisual highlight="server" />}
       >
         <label className="setup-label" htmlFor="server-url">
-          Server address
+          {t("Server address")}
         </label>
         <input
           aria-describedby="server-hint"
@@ -342,22 +346,26 @@ export default function SignInFlow({ auth }: { auth: ReturnType<typeof useAuthSe
               {found}
             </>
           ) : stillTrying ? (
-            `Still trying ${hostOf(withDefaultScheme(serverUrl))}… Make sure the server is on and you're on the same network or VPN.`
+            t(
+              "Still trying {address}… Make sure the server is on and you're on the same network or VPN.",
+              { address: hostOf(withDefaultScheme(serverUrl)) }
+            )
           ) : localServer ? (
             <>
-              Lost it? Run <code>aiteamos status</code> on your server, or{" "}
+              {t("Lost it? Run")} <code>aiteamos status</code>{" "}
+              {t("on your server, or")}{" "}
               <button
                 className="setup-link-inline"
                 onClick={() => void connectTo(localServer.url, localServer.username)}
                 type="button"
               >
-                use this computer
+                {t("use this computer")}
               </button>
-              .
+              {t(".")}
             </>
           ) : (
             <>
-              Lost it? Run <code>aiteamos status</code> on your server.
+              {t("Lost it? Run")} <code>aiteamos status</code> {t("on your server.")}
             </>
           )}
         </p>
@@ -367,19 +375,19 @@ export default function SignInFlow({ auth }: { auth: ReturnType<typeof useAuthSe
 
   return (
     <SetupLayout
-      body="Use the account you created in the terminal."
+      body={t("Use the account you created in the terminal.")}
       direction={direction}
       leaving={leaving}
       footer={
         <SetupPrimary busy={submitting} disabled={!username.trim() || !password}>
-          Sign in
+          {t("Sign in")}
         </SetupPrimary>
       }
       onBack={leaveCredentials}
       onSubmit={() => void submit()}
       screenKey="credentials"
       stage={0}
-      title="Sign in to your server"
+      title={t("Sign in to your server")}
       visual={<TerminalVisual highlight="username" />}
     >
       <p className="setup-host" title={connectedApiBase}>
@@ -387,7 +395,7 @@ export default function SignInFlow({ auth }: { auth: ReturnType<typeof useAuthSe
         <span>{hostOf(connectedApiBase)}</span>
       </p>
       <label className="setup-label" htmlFor="username">
-        Username
+        {t("Username")}
       </label>
       <input
         autoCapitalize="none"
@@ -400,13 +408,13 @@ export default function SignInFlow({ auth }: { auth: ReturnType<typeof useAuthSe
           setUsername(event.target.value);
           setError(null);
         }}
-        placeholder="Username"
+        placeholder={t("Username")}
         readOnly={submitting}
         spellCheck={false}
         value={username}
       />
       <label className="setup-label" htmlFor="password">
-        Password
+        {t("Password")}
       </label>
       <input
         aria-describedby="credentials-hint"
@@ -420,7 +428,7 @@ export default function SignInFlow({ auth }: { auth: ReturnType<typeof useAuthSe
           setPassword(event.target.value);
           setError(null);
         }}
-        placeholder="Password"
+        placeholder={t("Password")}
         readOnly={submitting}
         type="password"
         value={password}
@@ -434,10 +442,11 @@ export default function SignInFlow({ auth }: { auth: ReturnType<typeof useAuthSe
       >
         {error ??
           (signedOut && !password ? (
-            SERVER_SIGN_OUT_NOTE
+            serverSignOutNote()
           ) : (
             <>
-              Forgot it? Run <code>aiteamos account update --password</code> on your server.
+              {t("Forgot it? Run")} <code>aiteamos account update --password</code>{" "}
+              {t("on your server.")}
             </>
           ))}
       </p>
