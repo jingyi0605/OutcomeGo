@@ -75,7 +75,15 @@ RUN apt-get update \
     fonts-liberation \
     fonts-noto-core \
     fonts-noto-cjk \
+    fonts-noto-cjk-extra \
     fonts-noto-color-emoji \
+    fonts-wqy-zenhei \
+    fonts-wqy-microhei \
+    fonts-arphic-ukai \
+    fonts-arphic-uming \
+    fonts-lxgw-wenkai \
+    fonts-crosextra-carlito \
+    fonts-crosextra-caladea \
     fonts-urw-base35 \
     ffmpeg \
     gcc \
@@ -174,6 +182,8 @@ COPY --chown=box:box docker/aiteamos-pi-auth /usr/lib/aiteamos/bin/aiteamos-pi-a
 COPY docker/aiteamos-installs /usr/lib/aiteamos/bin/aiteamos-installs
 COPY docker/aiteamos-box-timezone /usr/lib/aiteamos/bin/aiteamos-box-timezone
 COPY --chown=box:box docker/desktop /usr/share/aiteamos-desktop
+# Maps Windows/macOS Chinese font names used by Word/WPS files to the installed CJK fonts.
+COPY docker/fonts/64-aiteamos-cjk-aliases.conf /etc/fonts/conf.d/64-aiteamos-cjk-aliases.conf
 COPY --chown=box:box docker/aiteamos-screen-launch /usr/lib/aiteamos/bin/aiteamos-screen-launch
 COPY --chown=box:box docker/aiteamos-browser /usr/bin/chromium
 COPY --chown=box:box docker/aiteamos-vnc.html /usr/share/novnc/aiteamos.html
