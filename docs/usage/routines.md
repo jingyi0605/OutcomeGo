@@ -47,6 +47,12 @@ This is an advanced setup. You need:
 
 Add the subscription in **Settings → Server → Automation event subscriptions**, then ask the bot to create a routine that runs on those events. On desktop, event routines don't appear in the **Routines** list, so ask the bot when you want to see, pause, or change one.
 
+For a generic webhook that another service can call directly, ask the bot for a routine such as:
+
+> When this webhook is called, summarize the JSON payload and post the result in this conversation.
+
+For a routine with `{ "type": "webhook" }`, OpenTeam creates a dedicated endpoint for that routine and returns a copy-ready POST URL, bearer key, and complete `Authorization` header in the bot's result. Configure the sending service with those values and have it POST JSON to the URL. Set the public HTTPS origin in **Settings → Server → Automation webhooks → Public webhook URL**, then choose **Test** to check that the server can reach it and **Save** to apply it immediately. `OPENTEAM_PUBLIC_URL` remains a server-side fallback when no Settings value is saved. Changing the setting updates existing routine webhook callback URLs without restarting the server. The client cannot make a private or local server reachable from the Internet. Each endpoint wakes only its own routine, and a request may contain any JSON object for the routine to inspect.
+
 ## When a routine fails
 
 Open its **Run history** to see which runs failed, then check the conversation for the bot's message about the problem. Common causes are a disconnected plugin account, an expired model sign-in, or missing information in the conversation. Fix the cause, then use **Test run** to check. See [troubleshooting](../manage/troubleshooting.md).

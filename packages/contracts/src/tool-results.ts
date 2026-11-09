@@ -131,6 +131,14 @@ export function renderControlResult(
         result.trigger?.type === "cron"
           ? `schedule: ${JSON.stringify(result.trigger.schedule)} (leave it out of an update unless the time itself changes)`
           : `trigger: ${JSON.stringify(result.trigger)}`,
+        ...(result.webhook
+          ? [
+              `Webhook URL: ${result.webhook.callbackUrl}`,
+              `Webhook key: ${result.webhook.key}`,
+              `Webhook Authorization: ${result.webhook.authorizationHeader}`,
+              `Webhook status: ${result.webhook.status}`,
+            ]
+          : []),
         "Saved prompt:",
         result.prompt,
       ].join("\n");
@@ -147,7 +155,10 @@ export function renderControlResult(
       )[args.action];
       const owner = result.owner?.kind === "group" ? ` Owner: group "${result.owner.name ?? result.owner.id}" (${result.owner.id}).` : "";
       const summary = `${verb} routine "${result.name}" (folder ${result.folder ?? args.id})${["create", "update", "resume"].includes(args.action) ? `: ${describeTrigger(result.trigger ?? {type:"cron",schedule:result.schedule})}${result.enabled ? "" : ", paused"}` : ""}.${owner}`;
-      return `${summary}${result.delivery_nudge ? "\nGive the user a concise summary of what this routine does and where its result goes." : ""}`;
+      const webhook = result.webhook
+        ? `\nWebhook URL: ${result.webhook.callbackUrl}\nWebhook key: ${result.webhook.key}\nWebhook Authorization: ${result.webhook.authorizationHeader}\nWebhook status: ${result.webhook.status}\nGive the user these values to configure the sending service.`
+        : "";
+      return `${summary}${webhook}${result.delivery_nudge ? "\nGive the user a concise summary of what this routine does and where its result goes." : ""}`;
     }
     if (result.target === "avatar" && result.cleared)
       return "Cleared your picture. It is back to the default.";
