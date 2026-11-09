@@ -998,6 +998,21 @@ export class RoutineService {
     return this.runMatching(parseAutomationEvent(raw), routineOwnerWhere(owner));
   }
 
+  async dispatchEventToRoutine(owner: RoutineOwner, routineId: string, raw: unknown) {
+    const event = parseAutomationEvent(raw);
+    const routine = await this.prisma.routine.findFirst({
+      where: { id: routineId, ...routineOwnerWhere(owner), enabled: true, deletedAt: null },
+      select: { id: true, botId: true, channelId: true, trigger: true },
+    });
+    if (!routine || !matchesAutomationEvent(parseStoredTrigger(routine.trigger), event)) return [];
+    try {
+      return [await this.runNowOwner(routineOwnerFrom(routine), routine.id, event.id, new Date(), event)];
+    } catch (error) {
+      if (error instanceof ApiError && error.code === "routine_event_inactive") return [];
+      throw error;
+    }
+  }
+
   /** For deployment-wide sources such as a connected mailbox: every enabled routine on
    * any Bot or group whose trigger matches the event runs once for it. */
   async dispatchEventToAll(raw: unknown) {

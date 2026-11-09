@@ -208,8 +208,12 @@ export class AppService {
     );
     this.routines = new RoutineService(this.prisma, this.messaging, this.agentData);
     this.messaging.onGroupRoutineSettled = (settled) => this.routines.afterGroupExecution(settled);
-    this.automationWebhooks = new AutomationWebhooksService(this.prisma, (owner, event) =>
-      this.routines.dispatchEvent(owner, event)
+    this.automationWebhooks = new AutomationWebhooksService(
+      this.prisma,
+      (owner, event, routineId) =>
+        routineId
+          ? this.routines.dispatchEventToRoutine(owner, routineId, event)
+          : this.routines.dispatchEvent(owner, event)
     );
     this.pluginEvents = new PluginEventPoller(
       this.prisma,
@@ -220,7 +224,8 @@ export class AppService {
       this.prisma,
       this.routines,
       this.agentData,
-      this.messaging
+      this.messaging,
+      this.automationWebhooks
     );
     this.internalTools = new InternalToolService(
       this.prisma,
@@ -246,6 +251,7 @@ export class AppService {
     serviceEffect(async () => {
       await this.prisma.$queryRaw`SELECT 1`;
       await this.voice.settings.load();
+      await this.automationWebhooks.loadPublicUrl();
       await this.eventWakeup.start();
       await this.snapshots.pruneEvents();
       this.eventPruneTimer = setInterval(() => {

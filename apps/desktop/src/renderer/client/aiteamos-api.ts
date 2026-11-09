@@ -9,6 +9,10 @@ import type {
   VoiceSettingsInput,
   VoiceSettingsView,
 } from "@aiteamos/contracts/voice";
+import type {
+  AutomationWebhookPublicUrlCheck,
+  AutomationWebhookPublicUrlView,
+} from "@aiteamos/contracts/automation-webhooks";
 
 const localTimeZone = () => Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
 
@@ -50,6 +54,20 @@ export const api = {
         body: JSON.stringify(input),
       }),
   },
+  automationWebhookPublicUrl: () =>
+    request<AutomationWebhookPublicUrlView>(
+      "/api/server-settings/automation-webhook-public-url"
+    ),
+  updateAutomationWebhookPublicUrl: (publicUrl: string) =>
+    request<AutomationWebhookPublicUrlView & { updatedWebhooks: number }>(
+      "/api/server-settings/automation-webhook-public-url",
+      { method: "PATCH", body: JSON.stringify({ publicUrl }) }
+    ),
+  checkAutomationWebhookPublicUrl: (publicUrl: string) =>
+    request<AutomationWebhookPublicUrlCheck>(
+      "/api/server-settings/automation-webhook-public-url/check",
+      { method: "POST", body: JSON.stringify({ publicUrl }) }
+    ),
   screenTakeover: aiTeamOSClient.setScreenTakeover,
   /** Best-effort unload path; keepalive is a browser lifecycle concern. */
   releaseScreenTakeover: (botId: string) => {

@@ -332,6 +332,10 @@ adaptDescription("UpdateRoutine", [
     'at least 5 minutes apart; take the minute from the latest <timestamp>, never :00 or :30 unless the user named it.',
     'at least 5 minutes apart. A clock time the user names is saved as named ("8am" is "0 8 * * *"); only an ask that names no time takes the minute from the latest <timestamp>.',
   ],
+  [
+    "A change you suggest to save usage waits for the user's yes.",
+    "A webhook trigger provisions a routine-owned HTTPS POST URL and bearer key when a valid public HTTPS URL is configured in Settings > Server or through OPENTEAM_PUBLIC_URL. The result includes the URL, key, and complete Authorization header to give the user to configure in the sending service. The endpoint accepts an optional JSON body and starts only that routine.\nA change you suggest to save usage waits for the user's yes.",
+  ],
 ]);
 // The runtime checks arguments against the advertised schema, so the bare-array group
 // shorthand the parser accepts is advertised beside the compact listener object.

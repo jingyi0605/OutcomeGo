@@ -328,7 +328,25 @@
           ],
           "description": "An event listener instead of schedule. Fields depend on type; see Trigger shapes in the routines skill."
         },
-        "enabled": {
+        "webhook": {
+        "type": "object",
+        "properties": {
+          "publicUrl": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000,
+            "description": "Optional public HTTPS base URL. The server's configured public URL is used when omitted."
+          },
+          "key": {
+            "type": "string",
+            "minLength": 16,
+            "maxLength": 16000,
+            "description": "Optional bearer key. The server generates one when omitted."
+          }
+        },
+        "description": "Optional settings for a webhook trigger. The result returns the callback URL, key, and complete Authorization header."
+      },
+      "enabled": {
           "type": "boolean",
           "description": "Defaults to true on create. On update, omit it and use pause or resume."
         }

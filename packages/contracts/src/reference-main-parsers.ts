@@ -536,7 +536,7 @@ var memoryParameters = external_exports.object({
 
 // The routines skill's trigger shapes, which an invalid trigger is answered with. aiTeamOS's
 // email listener reads a connected Email plugin inbox, the cron example keeps a named time, and a
-// webhook URL is registered per bot in the server's automation webhook settings, not per routine.
+// webhook URL is provisioned for the routine that owns the webhook trigger.
 var AUTOMATION_TRIGGER_SHAPE_LINES = [
   '  { "type": "slack", "channel": "#eng" | "@someone" | "*", "match": { "kind": "mention" } | { "kind": "keyword", "keyword": "deploy" } | { "kind": "message" } | { "kind": "reaction" } }',
   `A reaction match also takes two optional filters: "emoji" (short names without colons, e.g. { "kind": "reaction", "emoji": ["eyes", "pencil2"] }, and any one of them fires it; omit for any reaction) and "bySelf": true (only the user's OWN reactions, not a colleague's). Reach for both together with "channel": "*" when the user wants their own emoji to be the signal: "when I react :eyes: to anything, do X".`,
@@ -552,7 +552,7 @@ var AUTOMATION_TRIGGER_SHAPE_LINES = [
   '  { "type": "sentry", "event": { "case": "issueCreated" | "issueResolved" | "issueAssigned" | "issueArchived" | "issueUnresolved" | "issueAny" }, "projectIds"?: [...] }',
   '  { "type": "pagerduty", "event": { "case": "incidentTriggered" | "incidentAcknowledged" | "incidentResolved" | "incidentEscalated" | "incidentAny" }, "serviceIds"?: [...] }',
   `  { "type": "email", "inbox": "<one of the user's connected Email plugin inbox addresses (ListEmailInboxes)>", "from"?: ["sender@example.com", ...] (omit for any sender), "requireAuthPass"?: true (default; false also wakes on mail that failed SPF/DKIM/DMARC) }, which fires when mail arrives at that inbox. Mail matching no routine wakes nobody. The wake carries headers only; read the body with ReadEmailThread.`,
-  `  { "type": "webhook" }, which fires when an outside system POSTs to your webhook URL; every webhook routine you have fires on it. The URL and its signing secret are registered for you in the server's automation webhook settings; you never see or need the secret, so point the user at those settings rather than giving them a URL.`,
+  `  { "type": "webhook" }, which fires when an outside system POSTs to the routine's own webhook URL. When you create or change a Bot or group routine with this trigger, UpdateRoutine provisions the endpoint and returns the POST URL, bearer key, and complete Authorization header; give those values to the user. The server must have a public HTTPS URL configured. Senders may POST an optional JSON body; the request starts only this routine.`,
   "The id arrays on the linear/sentry/pagerduty shapes, and a microsoftTeams channelIds, are optional narrowing filters (platform ids/UUIDs); omit one to fire for any project, status, cycle, channel, or service. A microsoftTeams trigger always names its scope: tenantId plus at least one team id (teamIds) are required.",
   '  { "type": "group", "listeners": [ ...several listeners... ] }, where any one fires the same prompt. Origin can group with cron, Slack, and GitHub; do not group it with Microsoft Teams, Linear, Sentry, PagerDuty, email, or webhook until those triggers share one scheduling authority.',
   '  { "type": "cron", "schedule": "0 8 * * 1-5" }, a schedule written as a listener, in the same format as schedule. It belongs in a group, so one prompt fires both on time and on events; on its own, pass schedule instead.',
@@ -577,6 +577,10 @@ var routineParameters = external_exports.object({
   ),
   schedule: automationSchedule.optional().describe("See the description. Never with trigger."),
   trigger: automationTriggerWithInvalidMessage.optional(),
+  webhook: external_exports.object({
+    publicUrl: external_exports.string().trim().min(1).max(2000).optional(),
+    key: external_exports.string().min(16).max(16000).optional(),
+  }).optional().describe("Optional webhook endpoint settings for a webhook trigger. The server supplies defaults."),
   enabled: external_exports.boolean().optional().describe("Defaults to true on create. On update, omit it and use pause or resume.")
 });
 
