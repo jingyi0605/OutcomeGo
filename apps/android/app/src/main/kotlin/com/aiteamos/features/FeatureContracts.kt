@@ -171,7 +171,17 @@ data class AppSettings(
 ) {
     enum class Appearance { System, Light, Dark }
     enum class Accent { Black, Blue, Purple, Green }
-    enum class Language { English, Chinese }
+    enum class Language(val localeTag: String) {
+        English("en-US"),
+        Chinese("zh-CN");
+
+        companion object {
+            fun fromLocaleTag(value: String?): Language = when (value?.lowercase()) {
+                "zh", "zh-cn", "zh-hans", "zh-hans-cn", Chinese.localeTag.lowercase() -> Chinese
+                else -> English
+            }
+        }
+    }
 }
 
 data class NotificationPreferences(
