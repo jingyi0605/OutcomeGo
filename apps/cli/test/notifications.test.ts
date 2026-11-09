@@ -9,7 +9,7 @@ import { readApnsConfiguration } from "../src/notifications";
 const privateKey = generateKeyPairSync("ec", { namedCurve: "prime256v1" })
   .privateKey.export({ type: "pkcs8", format: "pem" })
   .toString();
-const metadata = { keyId: "ABCDE12345", teamId: "FGHIJ67890", topic: "dev.openbot.mobile" };
+const metadata = { keyId: "ABCDE12345", teamId: "FGHIJ67890", topic: "dev.aiteamos.mobile" };
 describe("APNs configuration import", () => {
   test("parses nested commands, help and installation selection", () => {
     expect(parseArguments(["notifications", "status", "--dir", "/tmp/test"])).toMatchObject({

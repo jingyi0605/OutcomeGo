@@ -6,7 +6,7 @@ import { ApnsSettingsStore, validateApnsConfiguration } from "../src/apns-settin
 const config = {
   keyId: "ABCDE12345",
   teamId: "FGHIJ67890",
-  topic: "dev.openbot.mobile",
+  topic: "dev.aiteamos.mobile",
   privateKey: generateKeyPairSync("ec", { namedCurve: "prime256v1" })
     .privateKey.export({ type: "pkcs8", format: "pem" })
     .toString(),

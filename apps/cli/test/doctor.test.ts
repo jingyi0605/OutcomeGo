@@ -218,7 +218,7 @@ describe("doctor model API connection", () => {
       total: 1,
       eligible: 1,
       invalid: 0,
-      topics: ["dev.openbot.mobile"],
+      topics: ["dev.aiteamos.mobile"],
       failed: 87,
       waiting: 0,
     };

@@ -71,7 +71,7 @@ describe("release Compose rendering", () => {
     const worker = rendered.split("  worker:")[1]!.split("\n  caddy:")[0]!;
     expect(worker).toContain("AITEAMOS_APNS_KEY_ID: ${AITEAMOS_APNS_KEY_ID:-}");
     expect(worker).toContain("AITEAMOS_APNS_TEAM_ID: ${AITEAMOS_APNS_TEAM_ID:-}");
-    expect(worker).toContain("AITEAMOS_APNS_TOPIC: ${AITEAMOS_APNS_TOPIC:-dev.openbot.mobile}");
+    expect(worker).toContain("AITEAMOS_APNS_TOPIC: ${AITEAMOS_APNS_TOPIC:-dev.aiteamos.mobile}");
     expect(worker).toContain("AITEAMOS_APNS_PRIVATE_KEY: ${AITEAMOS_APNS_PRIVATE_KEY:-}");
     // Longer than pg-boss's 30 s graceful stop, so stopping never kills the worker.
     expect(worker).toContain("stop_grace_period: 45s");

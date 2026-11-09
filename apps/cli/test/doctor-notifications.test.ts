@@ -17,11 +17,11 @@ const state = {
   total: 1,
   eligible: 1,
   invalid: 0,
-  topics: ["dev.openbot.mobile"],
+  topics: ["dev.aiteamos.mobile"],
   failed: 0,
   waiting: 0,
 };
-const config = { missing: [], issue: null, topic: "dev.openbot.mobile" };
+const config = { missing: [], issue: null, topic: "dev.aiteamos.mobile" };
 const missing = ["AITEAMOS_APNS_KEY_ID", "AITEAMOS_APNS_TEAM_ID", "AITEAMOS_APNS_PRIVATE_KEY"];
 const check = (checks: ReturnType<typeof notificationChecks>, label: string) =>
   checks.find((c) => c.label === label)!;
@@ -112,7 +112,7 @@ describe("Doctor notification readiness", () => {
     "{broken",
     "{}",
     "null",
-    '{"missing":["secret-token"],"issue":null,"topic":"dev.openbot.mobile"}',
+    '{"missing":["secret-token"],"issue":null,"topic":"dev.aiteamos.mobile"}',
   ])("invalid probe output %s never passes or leaks its contents", (stdout) => {
     const project = { run: () => ({ status: 0, stdout, stderr: "" }) } as unknown as ComposeProject;
     const checks = runNotificationChecks(project, new Set(["server", "worker"]));

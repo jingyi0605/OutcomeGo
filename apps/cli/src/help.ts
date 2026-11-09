@@ -98,7 +98,7 @@ ${directoryOption}
 ${helpHint}
 
 Example:
-  aiteamos notifications configure --key-file ./AuthKey.p8 --key-id ABCDE12345 --team-id FGHIJ67890 --topic dev.openbot.mobile
+  aiteamos notifications configure --key-file ./AuthKey.p8 --key-id ABCDE12345 --team-id FGHIJ67890 --topic dev.aiteamos.mobile
 
 Local validation checks the key format and signing ability. It does not prove Apple acceptance or phone delivery.`,
   "notifications-status": `${heading("aiteamos notifications status [options]", "Show the saved APNs configuration source and local validation status. The signing key is never returned.")}

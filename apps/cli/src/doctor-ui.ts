@@ -116,7 +116,7 @@ const checkAction = (check: DoctorCheck): string | undefined => {
     case "iOS push registration":
       return "Open the iPhone app connected to this server, sign in, and check Settings → Notifications. Retry notifications or turn them off and on to register again.";
     case "iOS push credentials":
-      return "Run aiteamos notifications configure --config ./apns.json to import the APNs key and apply it live. The topic must match the iOS app bundle ID (dev.openbot.mobile for the distributed app). Then run aiteamos notifications status and aiteamos doctor.";
+      return "Run aiteamos notifications configure --config ./apns.json to import the APNs key and apply it live. The topic must match the iOS app bundle ID (dev.aiteamos.mobile for the distributed app). Then run aiteamos notifications status and aiteamos doctor.";
     case "iOS push delivery":
       return "Inspect aiteamos logs worker for APNs delivery errors and check the push credentials and device registration. Verify a real alert on the iPhone with the conversation closed and Focus allowing aiTeamOS.";
   }

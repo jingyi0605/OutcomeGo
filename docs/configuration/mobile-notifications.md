@@ -23,7 +23,7 @@ messages remain unread until you read them.
 
 The signing key must belong to the Apple Developer team that signed your iPhone app, and must allow pushes for that app's bundle ID. A key from an unrelated Apple account will not work with the distributed aiTeamOS app.
 
-For the distributed app, use APNs credentials supplied by its signing team; its bundle ID is `dev.openbot.mobile`. If you build the iPhone app yourself, use your build's Apple team and bundle ID instead.
+The iPhone app's bundle ID is `dev.aiteamos.mobile`, signed by Apple team `828JR8JA8V`. Use an APNs key from that team. If you build the iPhone app yourself, use your build's Apple team and bundle ID instead.
 
 If you manage that Apple Developer team, follow [Apple's key creation instructions](https://developer.apple.com/help/account/keys/create-a-private-key/): enable **Apple Push Notification service**, configure the allowed environment and topics, and download the `.p8` key. Record its **Key ID** and your **Team ID**. TestFlight and App Store builds use production APNs; development builds use development APNs. The key must allow the environment your app uses. Apple allows the private key to be downloaded only once, so retain it securely.
 
@@ -35,7 +35,7 @@ Run these commands on the computer hosting your aiTeamOS server. For a remote se
 {
   "keyId": "ABCDE12345",
   "teamId": "FGHIJ67890",
-  "topic": "dev.openbot.mobile",
+  "topic": "dev.aiteamos.mobile",
   "privateKeyFile": "./AuthKey.p8"
 }
 ```
@@ -55,7 +55,7 @@ aiteamos notifications configure \
   --key-file ./AuthKey.p8 \
   --key-id ABCDE12345 \
   --team-id FGHIJ67890 \
-  --topic dev.openbot.mobile
+  --topic dev.aiteamos.mobile
 ```
 
 If your installation uses a custom folder, add `--dir /path/to/installation`. If the command is unavailable, update to a release that supports live APNs configuration first.

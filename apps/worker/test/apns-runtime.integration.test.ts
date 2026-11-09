@@ -54,7 +54,7 @@ test.skipIf(!databaseUrl)(
       });
       const output = (worker.stdout as ReadableStream<Uint8Array>).getReader();
       let buffered = "";
-      const send = async (publicKey: string, topic = "dev.openbot.mobile") => {
+      const send = async (publicKey: string, topic = "dev.aiteamos.mobile") => {
         (worker!.stdin as { write: (value: string) => unknown }).write(
           JSON.stringify({ publicKey, topic }) + "\n"
         );
@@ -77,7 +77,7 @@ test.skipIf(!databaseUrl)(
       };
       const first = keyPair(),
         second = keyPair();
-      const metadata = { keyId: "ABCDE12345", teamId: "FGHIJ67890", topic: "dev.openbot.mobile" };
+      const metadata = { keyId: "ABCDE12345", teamId: "FGHIJ67890", topic: "dev.aiteamos.mobile" };
       await writeFile(
         join(directory, "apns.json"),
         JSON.stringify({ ...metadata, privateKeyFile: "AuthKey.p8" })

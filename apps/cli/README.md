@@ -231,8 +231,8 @@ aiteamos doctor
 ```
 
 `apns.json` contains `keyId`, `teamId`, `topic` (the distributed app uses
-`dev.openbot.mobile`) and `privateKeyFile`, a path to the Apple `.p8` key relative to the JSON file.
-Alternatively, use `--key-file ./AuthKey.p8 --key-id ABCDE12345 --team-id FGHIJ67890 --topic dev.openbot.mobile`.
+`dev.aiteamos.mobile`) and `privateKeyFile`, a path to the Apple `.p8` key relative to the JSON file.
+Alternatively, use `--key-file ./AuthKey.p8 --key-id ABCDE12345 --team-id FGHIJ67890 --topic dev.aiteamos.mobile`.
 The CLI validates locally and imports through the running server's authenticated settings API.
 The signing key is encrypted in PostgreSQL with the installation control token; it is never returned
 by the status API. Back up the database and installation `.env` together, and retain your Apple key
