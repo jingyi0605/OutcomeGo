@@ -196,6 +196,13 @@ import com.aiteamos.features.RichMessageCardScreen
 import com.aiteamos.features.isQuestion
 import com.aiteamos.features.ChatAttachmentStrip
 import com.aiteamos.features.FileGlyph
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material.icons.automirrored.outlined.Reply
+import androidx.compose.material.icons.outlined.IosShare
+import androidx.compose.material.icons.outlined.FileDownload
+import com.aiteamos.features.DocumentPreview
+import androidx.compose.material.icons.automirrored.filled.Forward
+import androidx.compose.material.icons.filled.Download
 import com.aiteamos.features.formatAttachmentSize
 import com.aiteamos.features.rememberDecodedBitmap
 import com.aiteamos.features.MarkdownMessage
@@ -3639,56 +3646,72 @@ private fun AttachmentGalleryDialog(
     }
     val current = attachments.getOrNull(index) ?: return
     val bitmap = rememberDecodedBitmap(current.localUri, maxSizePx = 2048)
+    val isDocument = !current.isImage
+    val dark = isSystemInDarkTheme()
+    val background = if (isDocument) MaterialTheme.colorScheme.background else Color.Black
+    val foreground = if (isDocument && !dark) Color(0xFF1C1C1C) else Color(0xFFF5F5F5)
+    val ready = current.localUri != null
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Box(Modifier.fillMaxSize().background(Color.Black)) {
-            Column(Modifier.fillMaxSize().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Text(current.name, Modifier.weight(1f), color = Color.White, maxLines = 1)
-                    IconButton(onClick = onDismiss) { Icon(Icons.Default.Close, localizedText("Close", "关闭"), tint = Color.White) }
+        Box(Modifier.fillMaxSize().background(background)) {
+            Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
+                // Round glass controls with the title between them, as on iOS.
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    ChromeButton(Icons.Default.Close, localizedText("Close", "关闭"), foreground, onClick = onDismiss)
+                    Text(
+                        current.name,
+                        Modifier.weight(1f),
+                        color = foreground,
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        textAlign = TextAlign.Center,
+                    )
+                    Row(
+                        Modifier.height(44.dp).clip(CircleShape).background(foreground.copy(alpha = .09f)).border(.5.dp, foreground.copy(alpha = .1f), CircleShape).padding(horizontal = 2.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        ChromeIcon(Icons.Outlined.FileDownload, localizedText("Download", "下载"), foreground, ready) { onSave(current) }
+                        ChromeIcon(Icons.Outlined.IosShare, localizedText("Share", "分享"), foreground, ready) { onShare(current) }
+                        ChromeIcon(Icons.AutoMirrored.Outlined.Reply, localizedText("Forward", "转发"), foreground, ready) { onForward(current) }
+                    }
                 }
                 Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
                     if (bitmap != null) {
                         Image(bitmap, current.alt ?: current.name, Modifier.fillMaxWidth())
-                    } else {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            FileGlyph(current.name, Modifier.scale(1.6f).padding(bottom = 8.dp))
-                            Text(current.name, color = Color.White, maxLines = 2, textAlign = TextAlign.Center)
-                            Text(formatAttachmentSize(current.sizeBytes), color = Color.White.copy(alpha = .6f), style = MaterialTheme.typography.bodySmall)
-                            if (current.localUri == null) {
-                                CircularProgressIndicator(Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
-                            } else {
-                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    TextButton(onClick = { onOpenDocument(current) }) {
-                                        Text(localizedText("Preview", "预览"), color = Color.White)
-                                    }
-                                    TextButton(onClick = { onSave(current) }) {
-                                        Text(localizedText("Download", "下载"), color = Color.White)
-                                    }
-                                }
-                            }
-                        }
+                    } else if (isDocument) {
+                        DocumentPreview(current, onDownload = { onSave(current) }, onOpenExternally = { onOpenDocument(current) })
                     }
                 }
-                Row(
-                    Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                ) {
-                    TextButton(onClick = { onSave(current) }) {
-                        Text(localizedText("Save", "保存"), color = Color.White)
+                if (!isDocument && attachments.size > 1) {
+                    Row(Modifier.fillMaxWidth().padding(8.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                        TextButton(onClick = { index = (index - 1).coerceAtLeast(0) }, enabled = index > 0) { Text(localizedText("Previous", "上一项"), color = Color.White) }
+                        Text("${index + 1} / ${attachments.size}", color = Color.White)
+                        TextButton(onClick = { index = (index + 1).coerceAtMost(attachments.lastIndex) }, enabled = index < attachments.lastIndex) { Text(localizedText("Next", "下一项"), color = Color.White) }
                     }
-                    TextButton(onClick = { onShare(current) }) {
-                        Text(localizedText("Share", "分享"), color = Color.White)
-                    }
-                    TextButton(onClick = { onForward(current) }) {
-                        Text(localizedText("Forward", "转发"), color = Color.White)
-                    }
-                }
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    TextButton(onClick = { index = (index - 1).coerceAtLeast(0) }, enabled = index > 0) { Text(localizedText("Previous", "上一项"), color = Color.White) }
-                    Text("${index + 1} / ${attachments.size}", color = Color.White)
-                    TextButton(onClick = { index = (index + 1).coerceAtMost(attachments.lastIndex) }, enabled = index < attachments.lastIndex) { Text(localizedText("Next", "下一项"), color = Color.White) }
                 }
             }
         }
     }
+}
+
+@Composable
+private fun ChromeButton(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, tint: Color, onClick: () -> Unit) {
+    Box(
+        Modifier.size(44.dp).clip(CircleShape).background(tint.copy(alpha = .09f)).border(.5.dp, tint.copy(alpha = .1f), CircleShape)
+            .clickable(onClickLabel = label, role = androidx.compose.ui.semantics.Role.Button, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) { Icon(icon, label, Modifier.size(20.dp), tint = tint) }
+}
+
+@Composable
+private fun ChromeIcon(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, tint: Color, enabled: Boolean, onClick: () -> Unit) {
+    Box(
+        Modifier.size(40.dp).clip(CircleShape).clickable(enabled = enabled, onClickLabel = label, role = androidx.compose.ui.semantics.Role.Button, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) { Icon(icon, label, Modifier.size(21.dp), tint = tint.copy(alpha = if (enabled) 1f else .35f)) }
 }
