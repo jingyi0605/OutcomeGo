@@ -52,12 +52,14 @@ struct RealtimeVoiceSettingsView: View {
             TextField("Base URL", text: $deepgramBaseURL).textInputAutocapitalization(.never).autocorrectionDisabled()
           }
         }
-        Section("Speech defaults") {
+        Section {
           TextField("STT model", text: $sttModel).textInputAutocapitalization(.never).autocorrectionDisabled()
           TextField("TTS model", text: $ttsModel).textInputAutocapitalization(.never).autocorrectionDisabled()
           TextField("TTS voice", text: $voice).textInputAutocapitalization(.never).autocorrectionDisabled()
           TextField("Language", text: $language).textInputAutocapitalization(.never).autocorrectionDisabled()
           TextField("Narration model", text: $narrationModel).textInputAutocapitalization(.never).autocorrectionDisabled()
+        } header: {
+          Text("Speech defaults")
         } footer: {
           SettingsFooter("Narration speaks short progress updates while the Bot works. Leave fields blank to use server defaults.")
         }

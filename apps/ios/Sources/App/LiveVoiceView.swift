@@ -1,5 +1,4 @@
 import SwiftUI
-import OpenTeamCore
 
 public struct LiveVoiceView: View {
   @ObservedObject private var session: LiveVoiceSession
