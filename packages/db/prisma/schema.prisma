@@ -438,6 +438,7 @@ model Routine {
   runLedger       Json                @default("[]")
   revisions       RoutineRevision[]
   executions      RoutineExecution[]
+  webhook         AutomationWebhook?
   createdAt       DateTime            @default(now())
   updatedAt       DateTime            @updatedAt
 
@@ -1214,6 +1215,8 @@ model WebToolProvider {
 model AutomationWebhook {
   externalAppKey String? @unique
   id String @id @default(uuid()) @db.Uuid
+  routineId String? @unique @db.Uuid
+  routine Routine? @relation(fields: [routineId], references: [id], onDelete: Cascade)
   source String
   ownerKind String
   ownerId String @db.Uuid
@@ -1229,6 +1232,12 @@ model AutomationWebhook {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   @@index([ownerKind,ownerId])
+}
+
+model AutomationWebhookSettings {
+  id        String   @id @default("global")
+  publicUrl String?
+  updatedAt DateTime @updatedAt
 }
 
 // Single deployment owner's registered physical computers. Offline devices stay listed.

@@ -1124,6 +1124,10 @@ export const UpdateStateInput = Schema.Struct({
   prompt: Schema.optional(Schema.String.pipe(Schema.minLength(1))),
   schedule: Schema.optional(Schema.String.pipe(Schema.minLength(1))),
   trigger: Schema.optional(Schema.Unknown),
+  webhook: Schema.optional(Schema.Struct({
+    publicUrl: Schema.optional(Schema.String.pipe(Schema.minLength(1), Schema.maxLength(2_000))),
+    key: Schema.optional(Schema.String.pipe(Schema.minLength(16), Schema.maxLength(16_000))),
+  })),
   enabled: Schema.optional(Schema.Boolean),
   body: Schema.optional(Schema.String.pipe(Schema.minLength(1))),
   notify_on_updates: Schema.optional(Schema.Boolean),
@@ -1149,6 +1153,10 @@ export const UpdateRoutineToolInput = Schema.Struct({
   prompt: optionalText,
   schedule: optionalText,
   trigger: Schema.optional(Schema.Unknown),
+  webhook: Schema.optional(Schema.Struct({
+    publicUrl: Schema.optional(Schema.String.pipe(Schema.minLength(1), Schema.maxLength(2_000))),
+    key: Schema.optional(Schema.String.pipe(Schema.minLength(16), Schema.maxLength(16_000))),
+  })),
   enabled: Schema.optional(Schema.Boolean),
 });
 export type UpdateRoutineToolInput = typeof UpdateRoutineToolInput.Type;

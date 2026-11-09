@@ -14,6 +14,7 @@ import {
   type UpdateStateInput,
 } from "@openteam/contracts";
 import type { Prisma, PrismaClient } from "@openteam/db";
+import type { AutomationWebhooksService } from "./services/automation-webhooks";
 import {
   appendAgentTimelineEvent,
   automationContextRunId,
@@ -73,7 +74,8 @@ export class DurableStateService {
     private readonly prisma: PrismaClient,
     private readonly routines: RoutineService,
     private readonly agentData: AgentDataStore,
-    private readonly timelineHost: TimelineEventWakeHost
+    private readonly timelineHost: TimelineEventWakeHost,
+    private readonly automationWebhooks?: AutomationWebhooksService
   ) {}
 
   /** Run one state tool call as an update of its fixed target. */
@@ -206,6 +208,17 @@ export class DurableStateService {
             : undefined;
           if (refused) return { target: "routine", action: input.action, refused };
         }
+        if (input.action === "create" && input.trigger && this.triggerIsWebhook(input.trigger))
+          this.automationWebhooks?.validateRoutineWebhookConfiguration(input.webhook?.publicUrl);
+        const previous = input.action === "update"
+          ? await this.routines.detailOwner(owner, requiredText(input.id, "id", tool, input.action)).catch((error: unknown) => {
+              if (error instanceof ApiError && error.code === "routine_not_found")
+                throw new ApiError(404, "routine_not_found", `no routine with folder "${input.id}" exists. List the automations folder, then pass its id.`);
+              throw error;
+            })
+          : null;
+        if (input.action === "update" && input.trigger && this.triggerIsWebhook(input.trigger))
+          this.automationWebhooks?.validateRoutineWebhookConfiguration(input.webhook?.publicUrl);
         const routine = await this.routines.mutateOwner(owner, callId, runId, {
           action: input.action as "create" | "update" | "pause" | "resume" | "delete",
           id: input.id,
@@ -224,12 +237,35 @@ export class DurableStateService {
           throw new ApiError(404, "routine_not_found", `no routine with folder "${input.id}" exists. List the automations folder, then pass its id.`);
         });
         if (typeof routine.refused === "string") return routine;
-        return {
-          ...routine,
+        const savedRoutine = routine as Record<string, unknown>;
+        const result: Record<string, unknown> = {
+          ...savedRoutine,
           owner: { ...owner, ...(group ? { name: group.name } : {}) },
           // Outside a routine run, a saved routine is summarized for the user.
           ...(!inRun && ["create", "update"].includes(input.action) ? { delivery_nudge: true } : {}),
         };
+        if (!this.automationWebhooks) return result;
+        if (["create", "update"].includes(input.action)) {
+          const savedTrigger = savedRoutine.trigger as Record<string, unknown> | undefined;
+          if (this.triggerIsWebhook(savedTrigger)) {
+            result.webhook = await this.automationWebhooks.ensureRoutineWebhook(
+              String(savedRoutine.id),
+              owner,
+              input.webhook
+            );
+          } else if (previous?.trigger && this.triggerIsWebhook(previous.trigger)) {
+            await this.automationWebhooks.removeRoutineWebhook(String(savedRoutine.id), owner);
+          }
+        } else if (input.action === "pause" || input.action === "resume") {
+          await this.automationWebhooks.setRoutineWebhookEnabled(
+            String(savedRoutine.id),
+            owner,
+            input.action === "resume"
+          );
+        } else if (input.action === "delete") {
+          await this.automationWebhooks.removeRoutineWebhook(String(savedRoutine.id), owner);
+        }
+        return result;
       }
       case "skill":
         return this.skill(botId, input, tool);
@@ -274,10 +310,20 @@ export class DurableStateService {
         throw new ApiError(404, "routine_not_found", `no routine with folder "${id}" exists. Your routines and their folder ids are in the latest <automation_status> reminder.`);
       throw error;
     });
-    return {
+    const result: Record<string, unknown> = {
       target: "routine", action: "get", id: routine.id, folder: routine.folder, name: routine.name,
       enabled: routine.enabled, schedule: routine.schedule, trigger: routine.trigger, prompt: routine.prompt,
     };
+    if (routine.trigger && this.triggerIsWebhook(routine.trigger) && this.automationWebhooks) {
+      result.webhook = await this.automationWebhooks.routineWebhook(routine.id, owner);
+    }
+    return result;
+  }
+
+  private triggerIsWebhook(value: unknown): boolean {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+    const trigger = value as Record<string, unknown>;
+    return trigger.type === "webhook" || (trigger.type === "group" && Array.isArray(trigger.listeners) && trigger.listeners.some((listener) => this.triggerIsWebhook(listener)));
   }
 
   private async memory(

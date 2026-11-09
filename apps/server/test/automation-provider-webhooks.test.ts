@@ -148,3 +148,48 @@ test("Teams binds notification secret, tenant, subscription and resource before 
   );
   expect(await challenge.text()).toBe("opaque-token");
 });
+
+test("generic webhook accepts a bearer key, preserves JSON payload context, and targets one routine", async () => {
+  const events: any[] = [];
+  const dispatches: string[] = [];
+  const response = await receiveAutomationWebhook(
+    new Request("https://example.test/api/automation-hooks/fixture", {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${secret}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({ id: "delivery-42", kind: "build.completed", text: "Build passed", commit: "abc123" }),
+    }),
+    { id: "fixture", source: "webhook", owner, routineId: "routine-1" },
+    secret,
+    async (_owner, event, routineId) => {
+      events.push(event);
+      dispatches.push(routineId ?? "");
+    }
+  );
+
+  expect(response.status).toBe(200);
+  expect(events).toMatchObject([
+    {
+      id: "delivery-42",
+      source: "webhook",
+      kind: "build.completed",
+      text: "Build passed",
+    },
+  ]);
+  expect(dispatches).toEqual(["routine-1"]);
+
+  await expect(
+    receiveAutomationWebhook(
+      new Request("https://example.test/api/automation-hooks/fixture", {
+        method: "POST",
+        headers: { authorization: "Bearer wrong-key" },
+        body: JSON.stringify({ event: "ignored" }),
+      }),
+      { id: "fixture", source: "webhook", owner, routineId: "routine-1" },
+      secret,
+      async () => {}
+    )
+  ).rejects.toThrow("signature");
+});

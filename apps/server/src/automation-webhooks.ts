@@ -7,6 +7,7 @@ export interface AutomationWebhookBinding {
   id: string;
   source: "slack" | "github" | "webhook" | "linear" | "sentry" | "pagerduty" | "microsoftTeams";
   owner: { kind: "bot" | "group"; id: string };
+  routineId?: string;
   secretEnv?: string;
   tenantId?: string;
   organizationId?: string;
@@ -77,7 +78,11 @@ export async function receiveAutomationWebhook(
   request: Request,
   binding: AutomationWebhookBinding,
   secret: string,
-  dispatch: (owner: AutomationWebhookBinding["owner"], event: AutomationEvent) => Promise<unknown>,
+  dispatch: (
+    owner: AutomationWebhookBinding["owner"],
+    event: AutomationEvent,
+    routineId?: string
+  ) => Promise<unknown>,
   now = Date.now(),
   fetchTeamsMessage?: (resource: string) => Promise<Record<string, any>>
 ): Promise<Response> {
@@ -102,7 +107,12 @@ export async function receiveAutomationWebhook(
     if(!valid)return reject(401,"Invalid webhook signature");
   } else if(binding.source!=="microsoftTeams") {
     const expected = `sha256=${createHmac("sha256", secret).update(raw).digest("hex")}`;
+    const authorization = request.headers.get("authorization") ?? "";
+    const bearerMatches = binding.source === "webhook" && /^Bearer\s+\S+$/i.test(authorization)
+      ? same(secret, authorization.replace(/^Bearer\s+/i, ""))
+      : false;
     if (
+      !bearerMatches &&
       !same(
         expected,
         request.headers.get(
@@ -132,7 +142,7 @@ export async function receiveAutomationWebhook(
       const message=await fetchTeamsMessage(item.resource);
       events.push(parseAutomationEvent({id:`${item.subscriptionId}:${id}:${message.lastModifiedDateTime??message.createdDateTime}`,source:"microsoftTeams",kind:"message",text:String(message.body?.content??"").slice(0,32000),tenantId:binding.tenantId,teamId:binding.teamId,channelId:message.channelIdentity?.channelId,actor:message.from?.user?.id,authenticatedUser:Boolean(message.from?.user?.id),occurredAt:message.createdDateTime}));
     }
-    for(const event of events)await dispatch(binding.owner,event);
+    for(const event of events)await dispatch(binding.owner,event,binding.routineId);
     return Response.json({accepted:true,events:events.length});
   }
   // The digest is signed with the body; unsigned delivery headers cannot create
@@ -144,7 +154,7 @@ export async function receiveAutomationWebhook(
     return Response.json({ challenge: payload.challenge });
   }
   const events = normalizeWebhook(binding, payload, request.headers);
-  for (const event of events) await dispatch(binding.owner, event);
+  for (const event of events) await dispatch(binding.owner, event, binding.routineId);
   return Response.json({ accepted: true, events: events.length });
 }
 export function normalizeWebhook(
@@ -152,8 +162,15 @@ export function normalizeWebhook(
   payload: Record<string, any>,
   headers: Headers
 ): AutomationEvent[] {
-  if (binding.source === "webhook")
-    return [parseAutomationEvent({ ...payload, source: "webhook" })];
+  if (binding.source === "webhook") {
+    const { __deliveryDigest, ...body } = payload;
+    return [parseAutomationEvent({
+      id: typeof body.id === "string" ? body.id : __deliveryDigest,
+      source: "webhook",
+      kind: typeof body.kind === "string" ? body.kind : "received",
+      text: typeof body.text === "string" ? body.text : JSON.stringify(body),
+    })];
+  }
   if (binding.source === "slack") {
     if (payload.team_id !== binding.teamId)
       return reject(403, "Slack workspace does not match the binding");

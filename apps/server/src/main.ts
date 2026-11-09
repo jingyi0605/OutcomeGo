@@ -131,7 +131,15 @@ const server = Bun.serve<VncConnection | NetworkConnection>({
         if(native)return native;
         const binding = await automationWebhookBinding(automationHook[1]!);
         if (!binding) return json({ error: "Webhook not found" }, 404);
-        return await receiveAutomationWebhook(request, binding, (binding.secretEnv ? process.env[binding.secretEnv] : "") ?? "", (owner, event) => app.routines.dispatchEvent(owner, event));
+        return await receiveAutomationWebhook(
+          request,
+          binding,
+          (binding.secretEnv ? process.env[binding.secretEnv] : "") ?? "",
+          (owner, event, routineId) =>
+            routineId
+              ? app.routines.dispatchEventToRoutine(owner, routineId, event)
+              : app.routines.dispatchEvent(owner, event)
+        );
       }
       const publicTemplate = path.match(/^\/api\/templates\/([a-f0-9-]{36})$/i);
       if (request.method === "GET" && publicTemplate?.[1]) return json(await app.sharedTemplateRecipe(publicTemplate[1], true));

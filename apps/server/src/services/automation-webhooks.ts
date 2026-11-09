@@ -1,8 +1,10 @@
-import { randomUUID } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import { ApiError } from "@openteam/contracts";
 import type { PrismaClient } from "@openteam/db";
 import {
   AUTOMATION_WEBHOOK_PROVIDERS,
+  type AutomationWebhookPublicUrlCheck,
+  type AutomationWebhookPublicUrlView,
   type AutomationWebhookInput,
   type AutomationWebhookView,
 } from "@openteam/contracts/automation-webhooks";
@@ -23,6 +25,16 @@ const stableConfig = (value: unknown) =>
   JSON.stringify(
     Object.entries(value as Record<string, string>).sort(([a], [b]) => a.localeCompare(b))
   );
+const containsWebhookTrigger = (value: unknown): boolean => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const trigger = value as Record<string, unknown>;
+  return (
+    trigger.type === "webhook" ||
+    (trigger.type === "group" &&
+      Array.isArray(trigger.listeners) &&
+      trigger.listeners.some((listener) => containsWebhookTrigger(listener)))
+  );
+};
 class ProviderResponseError extends Error {
   constructor(readonly status: number) {
     super(
@@ -31,15 +43,163 @@ class ProviderResponseError extends Error {
   }
 }
 type Row = NonNullable<Awaited<ReturnType<PrismaClient["automationWebhook"]["findUnique"]>>>;
+export interface RoutineWebhookOwner {
+  kind: "bot" | "group";
+  id: string;
+}
+export interface RoutineWebhookDetails {
+  callbackUrl: string;
+  key: string;
+  authorizationHeader: string;
+  status: string;
+}
 export class AutomationWebhooksService {
+  private readonly environmentPublicUrl: string | null;
+  private persistedPublicUrl: string | null = null;
+  private effectivePublicUrl: string | null;
+
   constructor(
     private readonly db: PrismaClient,
     private readonly dispatch: (
       owner: AutomationWebhookBinding["owner"],
-      event: AutomationEvent
+      event: AutomationEvent,
+      routineId?: string
     ) => Promise<unknown>,
-    private readonly fetcher: typeof fetch = fetch
-  ) {}
+    private readonly fetcher: typeof fetch = fetch,
+    initialPublicUrl = process.env.OPENTEAM_PUBLIC_URL
+  ) {
+    this.environmentPublicUrl = initialPublicUrl?.trim() || null;
+    this.effectivePublicUrl = this.environmentPublicUrl;
+  }
+
+  async loadPublicUrl(): Promise<void> {
+    const settings = await this.db.automationWebhookSettings.findUnique({
+      where: { id: "global" },
+      select: { publicUrl: true },
+    });
+    this.persistedPublicUrl = settings?.publicUrl?.trim() || null;
+    this.effectivePublicUrl = this.persistedPublicUrl ?? this.environmentPublicUrl;
+  }
+
+  publicUrlView(): AutomationWebhookPublicUrlView {
+    const source = this.persistedPublicUrl
+      ? "settings"
+      : this.environmentPublicUrl
+        ? "environment"
+        : "none";
+    if (!this.effectivePublicUrl)
+      return { publicUrl: null, source, valid: false, error: null };
+    try {
+      return {
+        publicUrl: this.resolvePublicBaseUrl(this.effectivePublicUrl),
+        source,
+        valid: true,
+        error: null,
+      };
+    } catch (error) {
+      return {
+        publicUrl: this.effectivePublicUrl,
+        source,
+        valid: false,
+        error: error instanceof ApiError ? error.message : "The public URL is invalid.",
+      };
+    }
+  }
+
+  async updatePublicUrl(raw: unknown): Promise<AutomationWebhookPublicUrlView & { updatedWebhooks: number }> {
+    if (typeof raw !== "object" || raw === null || Array.isArray(raw))
+      throw new ApiError(400, "invalid_webhook_public_url", "A public URL value is required");
+    const input = raw as { publicUrl?: unknown };
+    if (input.publicUrl !== undefined && typeof input.publicUrl !== "string")
+      throw new ApiError(400, "invalid_webhook_public_url", "publicUrl must be a string");
+    const value = input.publicUrl?.trim() ?? "";
+    const normalized = value ? this.resolvePublicBaseUrl(value) : null;
+    if (normalized) {
+      await this.db.automationWebhookSettings.upsert({
+        where: { id: "global" },
+        create: { id: "global", publicUrl: normalized },
+        update: { publicUrl: normalized },
+      });
+    } else {
+      await this.db.automationWebhookSettings.deleteMany({ where: { id: "global" } });
+    }
+    this.persistedPublicUrl = normalized;
+    this.effectivePublicUrl = normalized ?? this.environmentPublicUrl;
+    const updatedWebhooks = await this.refreshRoutineCallbackUrls();
+    return { ...this.publicUrlView(), updatedWebhooks };
+  }
+
+  async testPublicUrl(raw: unknown): Promise<AutomationWebhookPublicUrlCheck> {
+    if (typeof raw !== "object" || raw === null || Array.isArray(raw))
+      throw new ApiError(400, "invalid_webhook_public_url", "A public URL value is required");
+    const input = raw as { publicUrl?: unknown };
+    if (typeof input.publicUrl !== "string" || !input.publicUrl.trim())
+      throw new ApiError(400, "invalid_webhook_public_url", "publicUrl must be a non-empty string");
+    let publicUrl: string;
+    try {
+      publicUrl = this.resolvePublicBaseUrl(input.publicUrl.trim());
+    } catch (error) {
+      return {
+        ok: false,
+        url: input.publicUrl.trim(),
+        status: null,
+        latencyMs: null,
+        message: error instanceof ApiError ? error.message : "The public URL is invalid.",
+      };
+    }
+    const startedAt = performance.now();
+    try {
+      const response = await this.fetcher(`${publicUrl}/api/v0/health`, {
+        method: "GET",
+        headers: { accept: "application/json" },
+        redirect: "error",
+        signal: AbortSignal.timeout(15_000),
+      });
+      const latencyMs = Math.round(performance.now() - startedAt);
+      return {
+        ok: response.ok,
+        url: publicUrl,
+        status: response.status,
+        latencyMs,
+        message: response.ok
+          ? `Public webhook address is reachable (${response.status}, ${latencyMs} ms).`
+          : `Public webhook address responded with HTTP ${response.status}.`,
+      };
+    } catch (error) {
+      return {
+        ok: false,
+        url: publicUrl,
+        status: null,
+        latencyMs: Math.round(performance.now() - startedAt),
+        message: error instanceof Error ? `Could not reach the public webhook address: ${error.message}` : "Could not reach the public webhook address.",
+      };
+    }
+  }
+
+  private async refreshRoutineCallbackUrls(): Promise<number> {
+    if (!this.effectivePublicUrl) return 0;
+    const publicUrl = this.resolvePublicBaseUrl(this.effectivePublicUrl);
+    const rows = await this.db.automationWebhook.findMany({
+      where: { source: "webhook", routineId: { not: null } },
+      select: { id: true, callbackUrl: true },
+    });
+    const updates = rows
+      .map((row) => ({
+        id: row.id,
+        callbackUrl: `${publicUrl}/api/v0/automation-hooks/${row.id}`,
+      }))
+      .filter((row, index) => row.callbackUrl !== rows[index]!.callbackUrl);
+    if (!updates.length) return 0;
+    await this.db.$transaction(
+      updates.map((row) =>
+        this.db.automationWebhook.update({
+          where: { id: row.id },
+          data: { callbackUrl: row.callbackUrl },
+        })
+      )
+    );
+    return updates.length;
+  }
   private viewOf(row: Row): AutomationWebhookView {
     return {
       id: row.id,
@@ -70,6 +230,7 @@ export class AutomationWebhooksService {
       !AUTOMATION_WEBHOOK_PROVIDERS.includes(input.source) ||
       !["bot", "group"].includes(input.ownerKind) ||
       !uuid.test(input.ownerId) ||
+      (input.routineId !== undefined && !uuid.test(input.routineId)) ||
       (input.id && !uuid.test(input.id))
     )
       throw new ApiError(400, "invalid_webhook", "Choose a provider and a valid owner ID");
@@ -85,7 +246,25 @@ export class AutomationWebhooksService {
         "webhook_owner_unavailable",
         "The target bot or group is unavailable"
       );
-    const origin = new URL(input.publicUrl);
+    if (input.routineId !== undefined) {
+      const routine = await this.db.routine.findFirst({
+        where: {
+          id: input.routineId,
+          deletedAt: null,
+          ...(input.ownerKind === "bot" ? { botId: input.ownerId } : { channelId: input.ownerId }),
+        },
+        select: { trigger: true },
+      });
+      const trigger = routine?.trigger as { type?: unknown } | undefined;
+      if (input.source !== "webhook" || !containsWebhookTrigger(trigger))
+        throw new ApiError(400, "invalid_webhook_routine", "A routine webhook must belong to an active webhook-triggered routine owned by its target");
+    }
+    let origin: URL;
+    try {
+      origin = new URL(input.publicUrl);
+    } catch {
+      throw new ApiError(400, "invalid_webhook_url", "Use this server's public HTTPS base URL");
+    }
     if (
       origin.protocol !== "https:" ||
       origin.username ||
@@ -201,6 +380,7 @@ export class AutomationWebhooksService {
       externalAppKey: ["slack", "sentry"].includes(input.source)
         ? `${input.source}:${input.configuration[input.source === "slack" ? "appId" : "appSlug"]}`
         : null,
+      routineId: input.routineId ?? null,
       source: input.source,
       ownerKind: input.ownerKind,
       ownerId: input.ownerId,
@@ -209,7 +389,7 @@ export class AutomationWebhooksService {
       signingSecret,
       apiToken: input.apiToken ?? previous?.apiToken ?? null,
       enabled: input.enabled ?? true,
-      status: "pending",
+      status: (input.enabled ?? true) ? "pending" : "paused",
       statusMessage: null,
     };
     if (previous) {
@@ -247,6 +427,102 @@ export class AutomationWebhooksService {
       }
     }
     return this.connect(id);
+  }
+
+  private resolvePublicBaseUrl(publicUrl = this.effectivePublicUrl ?? undefined): string {
+    if (!publicUrl) {
+      throw new ApiError(503, "webhook_public_url_missing", "Configure OPENTEAM_PUBLIC_URL as this server's public HTTPS address before creating a webhook routine.");
+    }
+    let url: URL;
+    try {
+      url = new URL(publicUrl);
+    } catch {
+      throw new ApiError(503, "webhook_public_url_invalid", "OPENTEAM_PUBLIC_URL must be a valid public HTTPS base URL.");
+    }
+    if (url.protocol !== "https:" || url.username || url.password || url.search || url.hash)
+      throw new ApiError(503, "webhook_public_url_invalid", "OPENTEAM_PUBLIC_URL must be a public HTTPS base URL without credentials, query, or fragment.");
+    return url.href.replace(/\/$/, "");
+  }
+
+  validateRoutineWebhookConfiguration(publicUrl?: string): void {
+    this.resolvePublicBaseUrl(publicUrl);
+  }
+
+  /** Provision one bearer-key endpoint for a routine and return its copy-ready settings. */
+  async ensureRoutineWebhook(
+    routineId: string,
+    owner: RoutineWebhookOwner,
+    setup: { publicUrl?: string; key?: string } = {}
+  ): Promise<RoutineWebhookDetails> {
+    const publicUrl = this.resolvePublicBaseUrl(setup.publicUrl);
+    const routine = await this.db.routine.findFirst({
+      where: {
+        id: routineId,
+        deletedAt: null,
+        ...(owner.kind === "bot" ? { botId: owner.id } : { channelId: owner.id }),
+      },
+      select: { id: true, enabled: true, trigger: true },
+    });
+    if (!routine || !containsWebhookTrigger(routine.trigger))
+      throw new ApiError(409, "routine_webhook_mismatch", "This routine is not an active webhook-triggered routine owned by this Bot or group.");
+
+    const existing = await this.db.automationWebhook.findUnique({ where: { routineId } });
+    if (existing && (existing.ownerKind !== owner.kind || existing.ownerId !== owner.id || existing.source !== "webhook"))
+      throw new ApiError(409, "routine_webhook_conflict", "This routine's webhook binding belongs to a different target. Remove it before retrying.");
+    const key = existing?.signingSecret ?? setup.key ?? randomBytes(32).toString("base64url");
+    const saved = await this.save({
+      ...(existing ? { id: existing.id } : {}),
+      routineId,
+      source: "webhook",
+      ownerKind: owner.kind,
+      ownerId: owner.id,
+      publicUrl,
+      configuration: {},
+      signingSecret: key,
+      enabled: routine.enabled,
+    });
+    return {
+      callbackUrl: saved.callbackUrl,
+      key,
+      authorizationHeader: `Authorization: Bearer ${key}`,
+      status: saved.status,
+    };
+  }
+
+  async routineWebhook(routineId: string, owner: RoutineWebhookOwner): Promise<RoutineWebhookDetails | null> {
+    const row = await this.db.automationWebhook.findUnique({ where: { routineId } });
+    if (!row) return null;
+    if (row.ownerKind !== owner.kind || row.ownerId !== owner.id || row.source !== "webhook")
+      throw new ApiError(409, "routine_webhook_conflict", "This routine's webhook binding belongs to a different target.");
+    return {
+      callbackUrl: row.callbackUrl,
+      key: row.signingSecret,
+      authorizationHeader: `Authorization: Bearer ${row.signingSecret}`,
+      status: row.enabled ? row.status : "paused",
+    };
+  }
+
+  async setRoutineWebhookEnabled(routineId: string, owner: RoutineWebhookOwner, enabled: boolean): Promise<void> {
+    const row = await this.db.automationWebhook.findUnique({ where: { routineId } });
+    if (!row) return;
+    if (row.ownerKind !== owner.kind || row.ownerId !== owner.id || row.source !== "webhook")
+      throw new ApiError(409, "routine_webhook_conflict", "This routine's webhook binding belongs to a different target.");
+    await this.db.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`routine-webhook:${routineId}`}))`;
+      await tx.automationWebhook.update({
+        where: { routineId },
+        data: { enabled, status: enabled ? "pending" : "paused", statusMessage: null },
+      });
+    });
+    if (enabled) await this.connect(row.id);
+  }
+
+  async removeRoutineWebhook(routineId: string, owner: RoutineWebhookOwner): Promise<void> {
+    const row = await this.db.automationWebhook.findUnique({ where: { routineId } });
+    if (!row) return;
+    if (row.ownerKind !== owner.kind || row.ownerId !== owner.id || row.source !== "webhook")
+      throw new ApiError(409, "routine_webhook_conflict", "This routine's webhook binding belongs to a different target.");
+    await this.remove(row.id);
   }
   private async request(row: Row, url: string, method: string, body?: unknown) {
     const authorization =
@@ -508,6 +784,7 @@ export class AutomationWebhooksService {
       id,
       source: row.source as AutomationWebhookBinding["source"],
       owner: { kind: row.ownerKind as "bot" | "group", id: row.ownerId },
+      routineId: row.routineId ?? undefined,
       subscriptionId: row.remoteId ?? undefined,
     };
     return receiveAutomationWebhook(
