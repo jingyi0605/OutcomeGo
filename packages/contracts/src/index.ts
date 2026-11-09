@@ -1,4 +1,8 @@
-export type { ServerUpdateView, ServerUpdateRequest, ServerUpdateHeartbeat } from "./server-updates";
+export type {
+  ServerUpdateView,
+  ServerUpdateRequest,
+  ServerUpdateHeartbeat,
+} from "./server-updates";
 export { stillWorking, updateBusyMessage, isUpdateBusyMessage } from "./server-updates";
 import type { NotificationRouting } from "./notification-presence";
 export type { SystemActivityView } from "./system-activity";
@@ -6,19 +10,29 @@ import { withReferenceContract, referenceTool } from "./tool-contracts";
 import { Schema } from "effect";
 import { BOT_AVATAR_COLOR_NAMES } from "./bot-avatar";
 export { validateProcessSecretName } from "./process-secrets";
-import { MAX_INLINE_IMAGE_URL_LENGTH, MAX_TASK_ATTACHMENTS, TASK_ATTACHMENT_LIMIT_MESSAGE, isTaskMediaPath } from "./media-input";
+import {
+  MAX_INLINE_IMAGE_URL_LENGTH,
+  MAX_TASK_ATTACHMENTS,
+  TASK_ATTACHMENT_LIMIT_MESSAGE,
+  isTaskMediaPath,
+} from "./media-input";
 import cursorToolsDocument from "./cursor-tools.json";
 export * from "./user-forms";
 export { formatUserFormReceipt } from "./user-form-receipts";
 import nativeToolsDocument from "./native-tools.json";
 import { CLIENT_CAPABILITIES, type ClientCapabilities } from "./capabilities";
 import { PI_REASONING_LEVELS, type RuntimeEngine } from "./inference";
-import type { AgentNotificationKind, ChannelNotificationState, NotificationReadState } from "./notification-content";
+import type {
+  AgentNotificationKind,
+  ChannelNotificationState,
+  NotificationReadState,
+} from "./notification-content";
 
 export * from "./bot-avatar";
 export * from "./capabilities";
 export * from "./client-preferences";
 export * from "./inference";
+export * from "./inference-presets";
 export * from "./transcription";
 export * from "./voice";
 export * from "./localization";
@@ -32,7 +46,6 @@ export * from "./state-tools";
 export interface NativeToolDefinition {
   name: string;
   description: string;
-export * from "./inference-presets";
   parameters: Record<string, unknown>;
 }
 
@@ -63,7 +76,10 @@ export interface CursorToolDefinition {
 }
 
 /** The explicitly supported Cursor-compatible subset; no other Cursor tools are exposed. */
-export const CURSOR_TOOLS = (cursorToolsDocument.cursor as CursorToolDefinition[]).map(t => { const c = withReferenceContract({ ...t, name: t.tool }); return { ...t, description: c.description, inputSchema: c.inputSchema }; });
+export const CURSOR_TOOLS = (cursorToolsDocument.cursor as CursorToolDefinition[]).map((t) => {
+  const c = withReferenceContract({ ...t, name: t.tool });
+  return { ...t, description: c.description, inputSchema: c.inputSchema };
+});
 export const CURSOR_TOOL_NAMES = CURSOR_TOOLS.map(({ tool }) => tool);
 
 const cursorTool = <const Name extends string>(name: Name) => {
@@ -167,9 +183,13 @@ export const CreateBotInput = Schema.Struct({
 export type CreateBotInput = typeof CreateBotInput.Type;
 
 export const UpdateBotInput = Schema.Struct({
-  name: Schema.optional(Schema.String.pipe(Schema.filter((value) => value.trim().length > 0, {
-    message: () => "Bot name must not be blank",
-  }))),
+  name: Schema.optional(
+    Schema.String.pipe(
+      Schema.filter((value) => value.trim().length > 0, {
+        message: () => "Bot name must not be blank",
+      })
+    )
+  ),
   title: Schema.optional(Schema.String.pipe(Schema.maxLength(120))),
   description: Schema.optional(Schema.String.pipe(Schema.maxLength(2_000))),
   instructions: Schema.optional(Schema.String.pipe(Schema.maxLength(20_000))),
@@ -179,7 +199,12 @@ export const UpdateBotInput = Schema.Struct({
   notificationsEnabled: Schema.optional(Schema.Boolean),
   draftingDisabled: Schema.optional(Schema.Boolean),
   draftAllowedRecipients: Schema.optional(
-    Schema.Array(Schema.String.pipe(Schema.pattern(/^[^\s<>@,;]+@[^\s<>@,;]+\.[^\s<>@,;]+$/), Schema.maxLength(320))).pipe(Schema.maxItems(500))
+    Schema.Array(
+      Schema.String.pipe(
+        Schema.pattern(/^[^\s<>@,;]+@[^\s<>@,;]+\.[^\s<>@,;]+$/),
+        Schema.maxLength(320)
+      )
+    ).pipe(Schema.maxItems(500))
   ),
 });
 export type UpdateBotInput = typeof UpdateBotInput.Type;
@@ -194,7 +219,9 @@ export const RegisterPushDeviceInput = Schema.Struct({
   pushToken: Schema.String.pipe(Schema.minLength(20), Schema.maxLength(4096)),
   provider: Schema.Literal("apns", "fcm"),
   apnsEnvironment: Schema.optional(Schema.Literal("development", "production")),
-  apnsTopic: Schema.optional(Schema.String.pipe(Schema.pattern(/^[A-Za-z0-9][A-Za-z0-9.-]{2,199}$/))),
+  apnsTopic: Schema.optional(
+    Schema.String.pipe(Schema.pattern(/^[A-Za-z0-9][A-Za-z0-9.-]{2,199}$/))
+  ),
   notificationScope: Schema.String.pipe(Schema.pattern(/^[a-f0-9]{64}$/)),
   timeZone: Schema.optional(Schema.String.pipe(Schema.minLength(1), Schema.maxLength(120))),
   locale: Schema.optional(Schema.String.pipe(Schema.minLength(2), Schema.maxLength(35))),
@@ -279,20 +306,28 @@ export type UploadAssetInput = typeof UploadAssetInput.Type;
 
 export const SendMessageInput = Schema.Struct({
   content: Schema.String,
-  sourceMachineId: Schema.optional(Schema.String.pipe(Schema.pattern(/^[\da-f]{8}(-[\da-f]{4}){3}-[\da-f]{12}$/i))),
+  sourceMachineId: Schema.optional(
+    Schema.String.pipe(Schema.pattern(/^[\da-f]{8}(-[\da-f]{4}){3}-[\da-f]{12}$/i))
+  ),
   clientId: Schema.String.pipe(Schema.minLength(8), Schema.maxLength(120)),
   replyToMessageId: Schema.optional(Schema.String.pipe(Schema.minLength(1), Schema.maxLength(120))),
   richText: Schema.optional(Schema.String),
   isFork: Schema.optional(Schema.Boolean),
-  attachments: Schema.optional(Schema.Array(AssetRef).pipe(Schema.maxItems(CLIENT_CAPABILITIES.uploads.maxAttachmentsPerMessage))),
+  attachments: Schema.optional(
+    Schema.Array(AssetRef).pipe(
+      Schema.maxItems(CLIENT_CAPABILITIES.uploads.maxAttachmentsPerMessage)
+    )
+  ),
   timeZone: Schema.optional(Schema.String.pipe(Schema.minLength(1), Schema.maxLength(100))),
-  voice: Schema.optional(Schema.Struct({
-    sessionId: Schema.String,
-    turnId: Schema.String,
-    durationMs: Schema.Number.pipe(Schema.int(), Schema.between(0, 60_000)),
-    provider: Schema.Literal("volcengine", "deepgram"),
-    language: Schema.optional(Schema.String.pipe(Schema.maxLength(40))),
-  })),
+  voice: Schema.optional(
+    Schema.Struct({
+      sessionId: Schema.String,
+      turnId: Schema.String,
+      durationMs: Schema.Number.pipe(Schema.int(), Schema.between(0, 60_000)),
+      provider: Schema.Literal("volcengine", "deepgram"),
+      language: Schema.optional(Schema.String.pipe(Schema.maxLength(40))),
+    })
+  ),
 }).pipe(
   Schema.filter(
     (input) =>
@@ -367,11 +402,20 @@ export const TodoWriteInput = Schema.Struct({
     })
   ).pipe(Schema.minItems(1)),
   merge: Schema.Boolean,
-}).pipe(Schema.filter(input => input.merge || input.todos.length >= 2, {
-  message: () => "A replacement task list requires at least two items; merge updates may contain one item",
-}), Schema.filter(input => input.merge || input.todos.every(todo => todo.content !== undefined && todo.status !== undefined), {
-  message: () => "Replacement tasks require content and status",
-}));
+}).pipe(
+  Schema.filter((input) => input.merge || input.todos.length >= 2, {
+    message: () =>
+      "A replacement task list requires at least two items; merge updates may contain one item",
+  }),
+  Schema.filter(
+    (input) =>
+      input.merge ||
+      input.todos.every((todo) => todo.content !== undefined && todo.status !== undefined),
+    {
+      message: () => "Replacement tasks require content and status",
+    }
+  )
+);
 export type TodoWriteInput = typeof TodoWriteInput.Type;
 
 export const SubagentType = Schema.Literal(
@@ -389,11 +433,20 @@ export const TaskInput = Schema.Struct({
   prompt: Schema.String.pipe(Schema.minLength(1)),
   resume: Schema.optional(Schema.String),
   subagent_type: Schema.optional(SubagentType),
-  file_attachments: Schema.optional(Schema.Array(Schema.String.pipe(Schema.filter(isTaskMediaPath, {
-    message: () => "Task file_attachments accepts supported images or videos only. For ZIPs, PDFs and other files, put the shared filesystem path in the Task prompt and omit file_attachments.",
-  }))).pipe(Schema.maxItems(MAX_TASK_ATTACHMENTS, {
-    message: () => TASK_ATTACHMENT_LIMIT_MESSAGE,
-  }))),
+  file_attachments: Schema.optional(
+    Schema.Array(
+      Schema.String.pipe(
+        Schema.filter(isTaskMediaPath, {
+          message: () =>
+            "Task file_attachments accepts supported images or videos only. For ZIPs, PDFs and other files, put the shared filesystem path in the Task prompt and omit file_attachments.",
+        })
+      )
+    ).pipe(
+      Schema.maxItems(MAX_TASK_ATTACHMENTS, {
+        message: () => TASK_ATTACHMENT_LIMIT_MESSAGE,
+      })
+    )
+  ),
   run_in_background: Schema.optional(Schema.Boolean),
   read_only: Schema.optional(Schema.Boolean),
 });
@@ -417,7 +470,10 @@ export type MessageSubagentInput = typeof MessageSubagentInput.Type;
 
 /** One running subagent by id, or every running subagent with all: true. */
 export const StopSubagentInput = Schema.Union(
-  Schema.Struct({ subagent_id: Schema.String.pipe(Schema.minLength(1)), all: Schema.optional(Schema.Literal(false)) }),
+  Schema.Struct({
+    subagent_id: Schema.String.pipe(Schema.minLength(1)),
+    all: Schema.optional(Schema.Literal(false)),
+  }),
   Schema.Struct({ all: Schema.Literal(true) })
 );
 export type StopSubagentInput = typeof StopSubagentInput.Type;
@@ -464,7 +520,17 @@ export const SendToAgentInput = Schema.Struct({
 export type SendToAgentInput = typeof SendToAgentInput.Type;
 
 export const AgentSendToUserInput = Schema.Struct({
-  type: Schema.Literal("text", "attachment", "widget", "secret-request", "computer-handoff", "user-form", "external-draft", "imessage-send", "bot-template"),
+  type: Schema.Literal(
+    "text",
+    "attachment",
+    "widget",
+    "secret-request",
+    "computer-handoff",
+    "user-form",
+    "external-draft",
+    "imessage-send",
+    "bot-template"
+  ),
   form: Schema.optional(Schema.Unknown),
   draft: Schema.optional(Schema.Unknown),
   imessage: Schema.optional(Schema.Unknown),
@@ -629,7 +695,9 @@ export const GRAPHICAL_SHELL_WAIT_CAP_MS = 3_480_000;
 
 export const ShellToolInput = Schema.Struct({
   command: Schema.String,
-  block_until_ms: Schema.optional(Schema.Number.pipe(Schema.finite(), Schema.greaterThanOrEqualTo(0))),
+  block_until_ms: Schema.optional(
+    Schema.Number.pipe(Schema.finite(), Schema.greaterThanOrEqualTo(0))
+  ),
   description: Schema.optional(Schema.String),
   working_directory: Schema.optional(Schema.String),
   machineId: Schema.optional(Schema.String),
@@ -662,7 +730,9 @@ export type GetDynamicToolsInput = typeof GetDynamicToolsInput.Type;
 export const CallDynamicToolInput = Schema.Struct({
   namespace: Schema.String,
   toolName: Schema.String,
-  arguments: Schema.optional(Schema.Union(Schema.Record({ key: Schema.String, value: Schema.Unknown }), Schema.String)),
+  arguments: Schema.optional(
+    Schema.Union(Schema.Record({ key: Schema.String, value: Schema.Unknown }), Schema.String)
+  ),
 });
 export type CallDynamicToolInput = typeof CallDynamicToolInput.Type;
 
@@ -684,13 +754,20 @@ export const PluginDynamicNamespace = Schema.Struct({
   /** Why the connection is not ready and how to recover, for the agent to relay. */
   statusMessage: Schema.optional(Schema.String),
   tools: Schema.Array(PluginToolDescriptor),
-  fileTransfers: Schema.optional(Schema.Struct({ upload: Schema.Boolean, download: Schema.Boolean })),
+  fileTransfers: Schema.optional(
+    Schema.Struct({ upload: Schema.Boolean, download: Schema.Boolean })
+  ),
 });
 export type PluginDynamicNamespace = typeof PluginDynamicNamespace.Type;
 
 export const InstallPluginInput = Schema.Struct({
   pluginKey: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(160)),
-  values: Schema.optional(Schema.Record({ key: Schema.String, value: Schema.Union(Schema.String, Schema.Number, Schema.Boolean) })),
+  values: Schema.optional(
+    Schema.Record({
+      key: Schema.String,
+      value: Schema.Union(Schema.String, Schema.Number, Schema.Boolean),
+    })
+  ),
 });
 export type InstallPluginInput = typeof InstallPluginInput.Type;
 
@@ -755,8 +832,16 @@ export interface PluginCatalogSkillView {
   description: string;
 }
 
-export type { PluginField as PluginCatalogSetupFieldView, PluginField as PluginSetupFieldView, PluginSetup as PluginSetupView } from "@aiteamos/plugin-sdk";
-import type { PluginField as PluginCatalogSetupFieldView, PluginField as PluginSetupFieldView, PluginSetup as PluginSetupView } from "@aiteamos/plugin-sdk";
+export type {
+  PluginField as PluginCatalogSetupFieldView,
+  PluginField as PluginSetupFieldView,
+  PluginSetup as PluginSetupView,
+} from "@aiteamos/plugin-sdk";
+import type {
+  PluginField as PluginCatalogSetupFieldView,
+  PluginField as PluginSetupFieldView,
+  PluginSetup as PluginSetupView,
+} from "@aiteamos/plugin-sdk";
 export * from "./plugin-management";
 
 export interface PluginCatalogItemView {
@@ -797,7 +882,13 @@ export interface PluginConnectionView {
   oauthRedirectUrl: string | null;
   oauthCallbackMode?: "desktop" | "server" | "manual";
   manualCallbackSupported?: boolean;
-  setupPhase?: "provider_setup_required" | "ready_to_authorize" | "ready_to_connect" | "authorization_pending" | "validation_failed" | "connected";
+  setupPhase?:
+    | "provider_setup_required"
+    | "ready_to_authorize"
+    | "ready_to_connect"
+    | "authorization_pending"
+    | "validation_failed"
+    | "connected";
   oauthLoopbackPort?: number;
   canAuthenticate: boolean;
   configured: boolean;
@@ -920,7 +1011,9 @@ export const ScreenClipboardInput = Schema.Union(
   })
 );
 export type ScreenClipboardInput = typeof ScreenClipboardInput.Type;
-export interface ScreenClipboardView { text?: string }
+export interface ScreenClipboardView {
+  text?: string;
+}
 
 const ComputerUseActionName = Schema.Literal(
   "screenshot",
@@ -932,7 +1025,13 @@ const ComputerUseActionName = Schema.Literal(
   "scroll",
   "wait"
 );
-const ComputerUseModifier = Schema.String.pipe(Schema.filter(value => value.split("+").every(key => ["ctrl","alt","shift","meta","super"].includes(key.toLowerCase()))));
+const ComputerUseModifier = Schema.String.pipe(
+  Schema.filter((value) =>
+    value
+      .split("+")
+      .every((key) => ["ctrl", "alt", "shift", "meta", "super"].includes(key.toLowerCase()))
+  )
+);
 const ComputerUsePoint = Schema.Struct({
   x: Schema.Number.pipe(Schema.int(), Schema.greaterThanOrEqualTo(0)),
   y: Schema.Number.pipe(Schema.int(), Schema.greaterThanOrEqualTo(0)),
@@ -943,9 +1042,7 @@ const ComputerUseActionFields = {
   y: Schema.optional(Schema.Number.pipe(Schema.int(), Schema.greaterThanOrEqualTo(0))),
   x2: Schema.optional(Schema.Number.pipe(Schema.int(), Schema.greaterThanOrEqualTo(0))),
   y2: Schema.optional(Schema.Number.pipe(Schema.int(), Schema.greaterThanOrEqualTo(0))),
-  path: Schema.optional(
-    Schema.Array(ComputerUsePoint)
-  ),
+  path: Schema.optional(Schema.Array(ComputerUsePoint)),
   text: Schema.optional(Schema.String),
   key: Schema.optional(Schema.String),
   button: Schema.optional(Schema.Literal("left", "right", "middle")),
@@ -972,7 +1069,11 @@ const validComputerUseAction = (input: {
   count?: number;
   modifiers?: string;
 }): boolean => {
-  if (input.holdDurationMs !== undefined && (input.action !== "click" || (input.count ?? 1) > 1 || input.modifiers !== undefined)) return false;
+  if (
+    input.holdDurationMs !== undefined &&
+    (input.action !== "click" || (input.count ?? 1) > 1 || input.modifiers !== undefined)
+  )
+    return false;
   const coordinatePair = (input.x === undefined) === (input.y === undefined);
   switch (input.action) {
     case "screenshot":
@@ -1105,15 +1206,7 @@ export type MemoryType = typeof MemoryType.Type;
 
 /** The shared durable-state handler's input. Each state tool is one fixed target of it. */
 export const UpdateStateInput = Schema.Struct({
-  target: Schema.Literal(
-    "memory",
-    "routine",
-    "skill",
-    "profile",
-    "settings",
-    "channel",
-    "avatar"
-  ),
+  target: Schema.Literal("memory", "routine", "skill", "profile", "settings", "channel", "avatar"),
   action: Schema.Literal(
     "write",
     "forget",
@@ -1133,15 +1226,22 @@ export const UpdateStateInput = Schema.Struct({
   name: Schema.optional(Schema.String.pipe(Schema.minLength(1))),
   title: Schema.optional(Schema.String),
   avatar_shape: Schema.optional(Schema.String.pipe(Schema.minLength(1))),
-  avatar_color: Schema.optional(Schema.Union(Schema.Literal(...BOT_AVATAR_COLOR_NAMES), Schema.String.pipe(Schema.pattern(/^#[0-9a-fA-F]{6}$/)))),
+  avatar_color: Schema.optional(
+    Schema.Union(
+      Schema.Literal(...BOT_AVATAR_COLOR_NAMES),
+      Schema.String.pipe(Schema.pattern(/^#[0-9a-fA-F]{6}$/))
+    )
+  ),
   description: Schema.optional(Schema.String),
   prompt: Schema.optional(Schema.String.pipe(Schema.minLength(1))),
   schedule: Schema.optional(Schema.String.pipe(Schema.minLength(1))),
   trigger: Schema.optional(Schema.Unknown),
-  webhook: Schema.optional(Schema.Struct({
-    publicUrl: Schema.optional(Schema.String.pipe(Schema.minLength(1), Schema.maxLength(2_000))),
-    key: Schema.optional(Schema.String.pipe(Schema.minLength(16), Schema.maxLength(16_000))),
-  })),
+  webhook: Schema.optional(
+    Schema.Struct({
+      publicUrl: Schema.optional(Schema.String.pipe(Schema.minLength(1), Schema.maxLength(2_000))),
+      key: Schema.optional(Schema.String.pipe(Schema.minLength(16), Schema.maxLength(16_000))),
+    })
+  ),
   enabled: Schema.optional(Schema.Boolean),
   body: Schema.optional(Schema.String.pipe(Schema.minLength(1))),
   notify_on_updates: Schema.optional(Schema.Boolean),
@@ -1167,10 +1267,12 @@ export const UpdateRoutineToolInput = Schema.Struct({
   prompt: optionalText,
   schedule: optionalText,
   trigger: Schema.optional(Schema.Unknown),
-  webhook: Schema.optional(Schema.Struct({
-    publicUrl: Schema.optional(Schema.String.pipe(Schema.minLength(1), Schema.maxLength(2_000))),
-    key: Schema.optional(Schema.String.pipe(Schema.minLength(16), Schema.maxLength(16_000))),
-  })),
+  webhook: Schema.optional(
+    Schema.Struct({
+      publicUrl: Schema.optional(Schema.String.pipe(Schema.minLength(1), Schema.maxLength(2_000))),
+      key: Schema.optional(Schema.String.pipe(Schema.minLength(16), Schema.maxLength(16_000))),
+    })
+  ),
   enabled: Schema.optional(Schema.Boolean),
 });
 export type UpdateRoutineToolInput = typeof UpdateRoutineToolInput.Type;
@@ -1326,7 +1428,15 @@ export const ComputerTurnRequest = Schema.Struct({
   sessionPath: Schema.NullOr(Schema.String),
   content: Schema.String,
   clientMessageId: Schema.String,
-  prependMessages: Schema.optional(Schema.Array(Schema.Struct({ id: Schema.String, content: Schema.String, images: Schema.optional(Schema.Array(RuntimeInlineImage)) }))),
+  prependMessages: Schema.optional(
+    Schema.Array(
+      Schema.Struct({
+        id: Schema.String,
+        content: Schema.String,
+        images: Schema.optional(Schema.Array(RuntimeInlineImage)),
+      })
+    )
+  ),
   cwd: Schema.String,
   instructions: Schema.String,
   userInfo: Schema.optional(Schema.NullOr(Schema.String)),
@@ -1348,7 +1458,9 @@ export const ComputerTurnRequest = Schema.Struct({
   reasoning: Schema.Literal(...PI_REASONING_LEVELS),
   fileAttachments: Schema.optional(Schema.Array(Schema.String)),
   attachmentOwnerBotId: Schema.optional(Schema.String),
-  images: Schema.optional(Schema.Array(RuntimeInlineImage).pipe(Schema.maxItems(MAX_TURN_INLINE_IMAGES))),
+  images: Schema.optional(
+    Schema.Array(RuntimeInlineImage).pipe(Schema.maxItems(MAX_TURN_INLINE_IMAGES))
+  ),
   dynamicNamespaces: Schema.optional(Schema.Array(PluginDynamicNamespace)),
   pluginRuntimePackages: Schema.optional(Schema.Array(Schema.Unknown)),
   /** Present only for realtime voice turns: the model that narrates slow tool work aloud. */
@@ -1361,7 +1473,9 @@ export type ComputerTurnRequest = typeof ComputerTurnRequest.Type;
 /** Apps report the zone their device detects; Settings sets or clears (null) an override. */
 export const UpdateUserTimeZoneInput = Schema.Struct({
   detectedTimeZone: Schema.optional(Schema.String.pipe(Schema.minLength(1), Schema.maxLength(100))),
-  overrideTimeZone: Schema.optional(Schema.NullOr(Schema.String.pipe(Schema.minLength(1), Schema.maxLength(100)))),
+  overrideTimeZone: Schema.optional(
+    Schema.NullOr(Schema.String.pipe(Schema.minLength(1), Schema.maxLength(100)))
+  ),
 });
 export type UpdateUserTimeZoneInput = typeof UpdateUserTimeZoneInput.Type;
 
@@ -1834,17 +1948,21 @@ export class ApiError extends Error {
     this.name = "ApiError";
   }
 }
-export * from './external-draft';
-export * from './messages-send';
-export * from './bot-recipe';
+export * from "./external-draft";
+export * from "./messages-send";
+export * from "./bot-recipe";
 
 export * from "./web-search";
 
 export const UpdateNotificationPresenceInput = Schema.Struct({
-  clientId: Schema.String.pipe(Schema.pattern(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)),
+  clientId: Schema.String.pipe(
+    Schema.pattern(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)
+  ),
   sequence: Schema.Number.pipe(Schema.int(), Schema.between(0, 2_147_483_647)),
   platform: Schema.Literal("macos", "ios", "android"),
   active: Schema.Boolean,
-  idleSeconds: Schema.optional(Schema.Number.pipe(Schema.finite(), Schema.between(0, 2_147_483_647))),
+  idleSeconds: Schema.optional(
+    Schema.Number.pipe(Schema.finite(), Schema.between(0, 2_147_483_647))
+  ),
 });
 export const UpdateNotificationPreferencesInput = Schema.Struct({ smartEnabled: Schema.Boolean });
