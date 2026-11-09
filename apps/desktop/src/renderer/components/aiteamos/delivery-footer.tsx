@@ -1,9 +1,13 @@
 import { type CSSProperties, memo, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { DurableSendRecord } from "@aiteamos/product-core/durable-delivery";
+import { useI18n } from "../../lib/i18n";
 import { sendRetryProgressVisible } from "../../lib/send-progress";
 import { clientErrorMessage } from "@aiteamos/product-core/redaction";
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
 
 type DeliveryFooterProps = {
@@ -35,15 +39,17 @@ export const DeliveryFooter = memo(function DeliveryFooter(props: DeliveryFooter
   useEffect(() => {
     if (pending) return;
     // Reduced motion has no transitionend; this also covers interrupted transitions.
-    const timer = setTimeout(() => setRetained(null),
-      matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 240);
+    const timer = setTimeout(
+      () => setRetained(null),
+      matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 240
+    );
     return () => clearTimeout(timer);
   }, [pending]);
   return (
     <div
       className="delivery-footer"
       data-delivery-footer=""
-      style={{"--delivery-height": `${height}px`} as CSSProperties}
+      style={{ "--delivery-height": `${height}px` } as CSSProperties}
       data-expanded={expanded || undefined}
       data-queued={queued || undefined}
       aria-hidden={!pending || undefined}
@@ -60,12 +66,8 @@ export const DeliveryFooter = memo(function DeliveryFooter(props: DeliveryFooter
   );
 });
 
-function DeliveryStatus({
-  delivery,
-  onCancel,
-  onDelete,
-  onResend,
-}: DeliveryFooterProps) {
+function DeliveryStatus({ delivery, onCancel, onDelete, onResend }: DeliveryFooterProps) {
+  const { t } = useI18n();
   const [busy, setBusy] = useState(false);
   const actionInFlight = useRef(false);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -77,7 +79,9 @@ function DeliveryStatus({
     setActionError(null);
     void operation()
       .catch((cause) => {
-        setActionError(clientErrorMessage(cause, "The message could not be updated. Try again."));
+        setActionError(
+          clientErrorMessage(cause, t("The message could not be updated. Try again."))
+        );
         setDetailsOpen(true);
       })
       .finally(() => {
@@ -90,14 +94,20 @@ function DeliveryStatus({
   const details = delivery ? (
     <DropdownMenu open={detailsOpen} onOpenChange={setDetailsOpen}>
       <DropdownMenuTrigger asChild>
-        <button className={actionClass} type="button" aria-label="Message delivery details">…</button>
+        <button className={actionClass} type="button" aria-label={t("Message delivery details")}>
+          …
+        </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="max-w-72">
-        <p role={actionError ? "alert" : undefined} className="px-2 py-1.5 text-xs text-muted-foreground">
-          {actionError ?? clientErrorMessage(delivery.failure?.message, "The message could not be sent.")}
+        <p
+          role={actionError ? "alert" : undefined}
+          className="px-2 py-1.5 text-xs text-muted-foreground"
+        >
+          {actionError ??
+            clientErrorMessage(delivery.failure?.message, t("The message could not be sent."))}
         </p>
         <DropdownMenuItem disabled={busy} onSelect={() => act(() => onDelete(delivery.nonce))}>
-          Delete message
+          {t("Delete message")}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
@@ -105,13 +115,13 @@ function DeliveryStatus({
   if (delivery?.phase === "failed") {
     return (
       <div
-        aria-label="Failed message actions"
+        aria-label={t("Failed message actions")}
         className="delivery-caption text-[11px] leading-4"
         data-failed-send-actions=""
         role="group"
       >
         <span className="font-medium text-destructive" role="status">
-          {delivery.failure?.uncertain ? "Delivery unconfirmed" : "Not delivered"}
+          {delivery.failure?.uncertain ? t("Delivery unconfirmed") : t("Not delivered")}
         </span>
         <button
           className={actionClass}
@@ -119,7 +129,7 @@ function DeliveryStatus({
           onClick={() => act(() => onResend(delivery.nonce))}
           type="button"
         >
-          Retry
+          {t("Retry")}
         </button>
         {details}
       </div>
@@ -127,7 +137,9 @@ function DeliveryStatus({
   }
   if (delivery && delivery.phase !== "accepted-awaiting-echo") {
     return (
-      <div className={`delivery-caption delivery-caption-sending text-[11px] leading-4 text-muted-foreground${actionError ? " delivery-caption-sending-error" : ""}`}>
+      <div
+        className={`delivery-caption delivery-caption-sending text-[11px] leading-4 text-muted-foreground${actionError ? " delivery-caption-sending-error" : ""}`}
+      >
         {delivery.phase === "queued" ? (
           <button
             className={`delivery-queued-cancel ${actionClass}`}
@@ -135,11 +147,16 @@ function DeliveryStatus({
             onClick={() => act(() => onCancel(delivery.nonce))}
             type="button"
           >
-            Cancel
+            {t("Cancel")}
           </button>
         ) : null}
         {sendRetryProgressVisible(delivery) ? (
-          <span className="delivery-sending-bar" data-send-progress="" role="status" aria-label="Retrying message">
+          <span
+            className="delivery-sending-bar"
+            data-send-progress=""
+            role="status"
+            aria-label={t("Retrying message")}
+          >
             <span />
           </span>
         ) : null}

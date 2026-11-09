@@ -1,3 +1,5 @@
+import { translateCurrent } from "./i18n-catalog";
+
 export const MICROPHONE_STORAGE_KEY = "aiteamos:microphone";
 export const MICROPHONE_CHANGE_EVENT = "aiteamos:microphone-change";
 export const MICROPHONE_ACCESS_EVENT = "aiteamos:microphone-access";
@@ -34,20 +36,29 @@ export const microphoneErrorMessage = (error: unknown): string => {
   switch (name) {
     case "NotAllowedError":
     case "SecurityError":
-      return "Allow microphone access in system settings to record a voice note.";
+      return translateCurrent("Allow microphone access in system settings to record a voice note.");
     case "NotFoundError":
-      return "No microphone found. Connect a microphone and try again.";
+      return translateCurrent("No microphone found. Connect a microphone and try again.");
     case "NotReadableError":
-      return "The microphone is unavailable or in use. Check its connection and close other audio apps, then try again.";
+      return translateCurrent(
+        "The microphone is unavailable or in use. Check its connection and close other audio apps, then try again."
+      );
     case "OverconstrainedError":
-      return "This microphone could not be used. Choose another microphone in General settings.";
+      return translateCurrent(
+        "This microphone could not be used. Choose another microphone in General settings."
+      );
     default:
-      return "Could not start the microphone. Check its connection and try again.";
+      return translateCurrent(
+        "Could not start the microphone. Check its connection and try again."
+      );
   }
 };
 
-export const MICROPHONE_DISCONNECTED = "Microphone disconnected. Reconnect it and try again.";
-export const MICROPHONE_FALLBACK = "Selected microphone unavailable. Using system default.";
+// Functions so the notices follow the interface language chosen after this module loaded.
+export const microphoneDisconnected = (): string =>
+  translateCurrent("Microphone disconnected. Reconnect it and try again.");
+export const microphoneFallback = (): string =>
+  translateCurrent("Selected microphone unavailable. Using system default.");
 
 /** Only invoked after an explicit record/test action. Never records or uploads audio itself. */
 export async function openMicrophone(
@@ -61,7 +72,8 @@ export async function openMicrophone(
     autoGainControl: true,
   };
   const devices = navigator.mediaDevices;
-  if (!devices?.getUserMedia) throw new Error("Microphone capture is unavailable.");
+  if (!devices?.getUserMedia)
+    throw new Error(translateCurrent("Microphone capture is unavailable."));
   let stream: MediaStream;
   let usedFallback = false;
   try {

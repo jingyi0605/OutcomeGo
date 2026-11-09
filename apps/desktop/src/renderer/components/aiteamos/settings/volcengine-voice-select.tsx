@@ -4,6 +4,7 @@ import { VOLCENGINE_VOICE_GROUPS, VOLCENGINE_VOICES } from "../../../lib/volceng
 import { cn } from "../../../lib/cn";
 import { Popover, PopoverContent, PopoverTrigger } from "../../ui/popover";
 import { settingsInput, settingsSelect } from "./ui";
+import { useI18n } from "../../../lib/i18n";
 
 const AUTOMATIC = "";
 
@@ -14,7 +15,8 @@ interface Option {
   haystack: string;
 }
 
-const labelOf = (voice: { name: string; gender: string }) => `${voice.name}${voice.gender ? ` · ${voice.gender}` : ""}`;
+const labelOf = (voice: { name: string; gender: string }) =>
+  `${voice.name}${voice.gender ? ` · ${voice.gender}` : ""}`;
 
 /**
  * Searchable voice picker. Radix Select cannot host a search field because its
@@ -37,6 +39,7 @@ export function VolcengineVoiceSelect({
   onChange: (value: string) => void;
   onClose?: () => void;
 }) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [active, setActive] = useState(0);
@@ -44,10 +47,11 @@ export function VolcengineVoiceSelect({
 
   const options = useMemo<Option[]>(() => {
     const defaultName = VOLCENGINE_VOICES.find((voice) => voice.id === defaultVoiceId)?.name;
+    const automaticText = t(automaticLabel);
     const result: Option[] = [
       {
         value: AUTOMATIC,
-        label: `${automaticLabel}${defaultName ? ` (${defaultName})` : ""}`,
+        label: `${automaticText}${defaultName ? ` (${defaultName})` : ""}`,
         group: "",
         haystack: "automatic default",
       },
@@ -65,11 +69,13 @@ export function VolcengineVoiceSelect({
       });
     }
     return result;
-  }, [automaticLabel, defaultVoiceId, value]);
+  }, [automaticLabel, defaultVoiceId, t, value]);
 
   const filtered = useMemo(() => {
     const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
-    return terms.length === 0 ? options : options.filter((option) => terms.every((term) => option.haystack.includes(term)));
+    return terms.length === 0
+      ? options
+      : options.filter((option) => terms.every((term) => option.haystack.includes(term)));
   }, [options, query]);
 
   const groups = useMemo(() => {
@@ -86,7 +92,9 @@ export function VolcengineVoiceSelect({
   }, [query, open]);
 
   useEffect(() => {
-    list.current?.querySelector<HTMLElement>('[data-active="true"]')?.scrollIntoView({ block: "nearest" });
+    list.current
+      ?.querySelector<HTMLElement>('[data-active="true"]')
+      ?.scrollIntoView({ block: "nearest" });
   }, [active, filtered]);
 
   const choose = (option: Option) => {
@@ -124,7 +132,7 @@ export function VolcengineVoiceSelect({
         <button
           aria-expanded={open}
           aria-haspopup="listbox"
-          aria-label="TTS voice"
+          aria-label={t("TTS voice")}
           className={cn(
             "flex items-center justify-between gap-2 text-left outline-none",
             triggerClassName ?? `${settingsSelect} w-[330px] max-w-full border`
@@ -146,22 +154,26 @@ export function VolcengineVoiceSelect({
         <div className="relative px-1 pb-1 pt-1">
           <Search className="pointer-events-none absolute left-3.5 top-1/2 size-3.5 -translate-y-[40%] text-muted-foreground" />
           <input
-            aria-label="Search voices"
+            aria-label={t("Search voices")}
             className={`${settingsInput} w-full pl-7`}
             onChange={(event) => setQuery(event.target.value)}
             onKeyDown={onKeyDown}
-            placeholder="Search by name, ID or scene"
+            placeholder={t("Search by name, ID or scene")}
             value={query}
           />
         </div>
         <div className="max-h-[300px] overflow-y-auto overscroll-contain" ref={list} role="listbox">
           {filtered.length === 0 ? (
-            <div className="px-2 py-6 text-center text-[12px] text-muted-foreground">No matching voices</div>
+            <div className="px-2 py-6 text-center text-[12px] text-muted-foreground">
+              {t("No matching voices")}
+            </div>
           ) : (
             groups.map((group) => (
               <div key={group.name || "automatic"} role="group">
                 {group.name ? (
-                  <div className="px-2 py-1.5 text-[11px] font-medium text-muted-foreground">{group.name}</div>
+                  <div className="px-2 py-1.5 text-[11px] font-medium text-muted-foreground">
+                    {t(group.name)}
+                  </div>
                 ) : null}
                 {group.items.map((option) => {
                   const index = filtered.indexOf(option);
@@ -179,7 +191,9 @@ export function VolcengineVoiceSelect({
                       role="option"
                     >
                       <span className="truncate">{option.label}</span>
-                      {option.value === value ? <Check className="absolute right-2 size-4" /> : null}
+                      {option.value === value ? (
+                        <Check className="absolute right-2 size-4" />
+                      ) : null}
                     </div>
                   );
                 })}

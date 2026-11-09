@@ -11,6 +11,8 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useLiveVoice } from "../../../hooks/use-live-voice";
+import { useI18n } from "../../../lib/i18n";
+import { translateCurrent } from "../../../lib/i18n-catalog";
 import { BotAvatar } from "../avatar";
 import { Button } from "../../ui/button";
 import "./live-voice.css";
@@ -22,6 +24,7 @@ export function LiveVoiceLayer({
   bot: Pick<BotView, "id" | "name" | "title" | "color" | "icon" | "hasAvatar" | "updatedAt">;
   channelId: string;
 }) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [minimized, setMinimized] = useState(false);
   const voice = useLiveVoice(bot.id, channelId);
@@ -68,21 +71,21 @@ export function LiveVoiceLayer({
         <Button
           aria-label={
             voice.available
-              ? "Start realtime voice conversation"
-              : "Realtime voice is disabled or not configured"
+              ? t("Start realtime voice conversation")
+              : t("Realtime voice is disabled or not configured")
           }
           className="live-voice-launcher gap-1.5 rounded-full px-3"
           onClick={start}
           size="sm"
           title={
             voice.available
-              ? "Start realtime voice conversation"
-              : "Check realtime voice settings and start a conversation"
+              ? t("Start realtime voice conversation")
+              : t("Check realtime voice settings and start a conversation")
           }
           variant="outline"
         >
           <PhoneCall className="size-3.5" />
-          <span>Talk live</span>
+          <span>{t("Talk live")}</span>
         </Button>
       ) : null}
 
@@ -98,7 +101,7 @@ export function LiveVoiceLayer({
             </span>
           </span>
           <Button
-            aria-label="Restore realtime voice"
+            aria-label={t("Restore realtime voice")}
             className="live-voice-mini-button"
             onClick={() => setMinimized(false)}
             size="icon-sm"
@@ -107,7 +110,7 @@ export function LiveVoiceLayer({
             <ChevronDown className="size-4 rotate-180" />
           </Button>
           <Button
-            aria-label="End realtime voice"
+            aria-label={t("End realtime voice")}
             className="live-voice-mini-stop"
             onClick={close}
             size="icon-sm"
@@ -128,7 +131,7 @@ export function LiveVoiceLayer({
           <div className="live-voice-dialog">
             <header className="live-voice-header">
               <Button
-                aria-label="Minimize realtime voice"
+                aria-label={t("Minimize realtime voice")}
                 className="live-voice-minimize"
                 onClick={() => setMinimized(true)}
                 size="icon-sm"
@@ -137,11 +140,11 @@ export function LiveVoiceLayer({
                 <Minimize2 className="size-4" />
               </Button>
               <div className="live-voice-heading">
-                <span className="live-voice-eyebrow">Realtime conversation</span>
+                <span className="live-voice-eyebrow">{t("Realtime conversation")}</span>
                 <h2 id="live-voice-title">{bot.name}</h2>
-                <p>{bot.title || "Talk with your assistant"}</p>
+                <p>{bot.title || t("Talk with your assistant")}</p>
               </div>
-              <span aria-label={`Call duration ${elapsed}`} className="live-voice-duration">
+              <span aria-label={t("Call duration {elapsed}", { elapsed })} className="live-voice-duration">
                 {elapsed}
               </span>
             </header>
@@ -166,7 +169,7 @@ export function LiveVoiceLayer({
               </div>
 
               <div
-                aria-label="Live captions"
+                aria-label={t("Live captions")}
                 className="live-voice-captions"
                 onScroll={(event) => {
                   const element = event.currentTarget;
@@ -179,7 +182,7 @@ export function LiveVoiceLayer({
                 {voice.transcript.length === 0 && !voice.partialText && !voice.error ? (
                   <div className="live-voice-empty">
                     <Mic className="size-5" />
-                    <span>Start speaking when you are ready.</span>
+                    <span>{t("Start speaking when you are ready.")}</span>
                   </div>
                 ) : null}
                 {voice.transcript.map((entry) => (
@@ -188,14 +191,14 @@ export function LiveVoiceLayer({
                     key={entry.id}
                   >
                     <span className="live-voice-caption-label">
-                      {entry.role === "assistant" ? bot.name : "You"}
+                      {entry.role === "assistant" ? bot.name : t("You")}
                     </span>
                     <p>{entry.text}</p>
                   </article>
                 ))}
                 {voice.partialText ? (
                   <article className="live-voice-caption live-voice-caption-user live-voice-caption-partial">
-                    <span className="live-voice-caption-label">You · listening</span>
+                    <span className="live-voice-caption-label">{t("You · listening")}</span>
                     <p>{voice.partialText}</p>
                   </article>
                 ) : null}
@@ -210,7 +213,7 @@ export function LiveVoiceLayer({
             <footer className="live-voice-controls">
               <div className="live-voice-control-group">
                 <Button
-                  aria-label={voice.microphoneMuted ? "Unmute microphone" : "Mute microphone"}
+                  aria-label={voice.microphoneMuted ? t("Unmute microphone") : t("Mute microphone")}
                   aria-pressed={voice.microphoneMuted}
                   className="live-voice-control"
                   onClick={() => voice.setMicrophoneMuted(!voice.microphoneMuted)}
@@ -219,11 +222,11 @@ export function LiveVoiceLayer({
                 >
                   {voice.microphoneMuted ? <MicOff className="size-5" /> : <Mic className="size-5" />}
                 </Button>
-                <span>{voice.microphoneMuted ? "Unmute" : "Mute"}</span>
+                <span>{voice.microphoneMuted ? t("Unmute") : t("Mute")}</span>
               </div>
               <div className="live-voice-control-group live-voice-control-stop">
                 <Button
-                  aria-label="End realtime voice"
+                  aria-label={t("End realtime voice")}
                   className="live-voice-control live-voice-control-hangup"
                   onClick={close}
                   size="icon"
@@ -231,11 +234,11 @@ export function LiveVoiceLayer({
                 >
                   <PhoneOff className="size-5" />
                 </Button>
-                <span>End call</span>
+                <span>{t("End call")}</span>
               </div>
               <div className="live-voice-control-group">
                 <Button
-                  aria-label={voice.speakerMuted ? "Unmute speaker" : "Mute speaker"}
+                  aria-label={voice.speakerMuted ? t("Unmute speaker") : t("Mute speaker")}
                   aria-pressed={voice.speakerMuted}
                   className="live-voice-control"
                   onClick={() => voice.setSpeakerMuted(!voice.speakerMuted)}
@@ -244,17 +247,17 @@ export function LiveVoiceLayer({
                 >
                   {voice.speakerMuted ? <VolumeX className="size-5" /> : <Volume2 className="size-5" />}
                 </Button>
-                <span>{voice.speakerMuted ? "Unmute" : "Speaker"}</span>
+                <span>{voice.speakerMuted ? t("Unmute") : t("Speaker")}</span>
               </div>
             </footer>
 
             {voice.state === "error" ? (
               <div className="live-voice-error-actions">
                 <Button className="rounded-full" onClick={() => void voice.restart()} variant="secondary">
-                  Try again
+                  {t("Try again")}
                 </Button>
                 <Button className="rounded-full" onClick={close} variant="ghost">
-                  Close
+                  {t("Close")}
                 </Button>
               </div>
             ) : null}
@@ -265,22 +268,22 @@ export function LiveVoiceLayer({
   );
 }
 
+/** The pill's caption. Translated here so both render sites share one catalog key. */
 function statusLabel(state: string): string {
   switch (state) {
     case "connecting":
-      return "Connecting";
+      return translateCurrent("Connecting");
     case "listening":
-      return "Listening";
-    case "processing":
-      return "Thinking";
-    case "speaking":
-      return "Speaking";
     case "interrupted":
-      return "Listening";
+      return translateCurrent("Listening");
+    case "processing":
+      return translateCurrent("Thinking");
+    case "speaking":
+      return translateCurrent("Speaking");
     case "error":
-      return "Connection problem";
+      return translateCurrent("Connection problem");
     default:
-      return "Ready";
+      return translateCurrent("Ready");
   }
 }
 

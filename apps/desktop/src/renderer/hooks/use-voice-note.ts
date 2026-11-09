@@ -6,11 +6,12 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { api } from "../client/aiteamos-api";
 import {
-  MICROPHONE_DISCONNECTED,
-  MICROPHONE_FALLBACK,
+  microphoneDisconnected,
+  microphoneFallback,
   microphoneErrorMessage,
   openMicrophone,
 } from "../lib/microphone";
+import { translateCurrent } from "../lib/i18n-catalog";
 
 export function useVoiceNote(configured: boolean, onTranscript: (text: string) => void) {
   const [state, setState] = useState<"idle" | "requesting" | "recording" | "processing" | "error">(
@@ -77,7 +78,11 @@ export function useVoiceNote(configured: boolean, onTranscript: (text: string) =
     } catch (cause) {
       if (session !== generation.current) return;
       setState("error");
-      setError(cause instanceof Error ? cause.message : "Transcription failed. Try again.");
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : translateCurrent("Transcription failed. Try again.")
+      );
     }
   };
   const available =
@@ -105,7 +110,7 @@ export function useVoiceNote(configured: boolean, onTranscript: (text: string) =
         return;
       }
       stream.current = media;
-      setNotice(usedFallback ? MICROPHONE_FALLBACK : null);
+      setNotice(usedFallback ? microphoneFallback() : null);
       const mimeType = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4"].find((type) =>
         MediaRecorder.isTypeSupported(type)
       );
@@ -116,7 +121,7 @@ export function useVoiceNote(configured: boolean, onTranscript: (text: string) =
       let failure: string | null = null;
       const disconnected = () => {
         if (session !== generation.current) return;
-        failure = MICROPHONE_DISCONNECTED;
+        failure = microphoneDisconnected();
         if (recording.state === "recording") recording.stop();
       };
       const tracks = media.getTracks();
@@ -129,13 +134,13 @@ export function useVoiceNote(configured: boolean, onTranscript: (text: string) =
         size += event.data.size;
         if (size <= MAX_VOICE_NOTE_BYTES) chunks.push(event.data);
         else {
-          failure = "The recording is too large. Try a shorter voice note.";
+          failure = translateCurrent("The recording is too large. Try a shorter voice note.");
           if (recording.state === "recording") recording.stop();
         }
       };
       recording.onerror = () => {
         if (session !== generation.current) return;
-        failure = "Microphone recording failed. Try again.";
+        failure = translateCurrent("Microphone recording failed. Try again.");
         cleanup();
         starting.current = false;
         setState("error");
@@ -148,7 +153,9 @@ export function useVoiceNote(configured: boolean, onTranscript: (text: string) =
         const duration = (stoppedAt || Date.now()) - startedAt;
         if (failure || duration < MIN_VOICE_NOTE_MS) {
           setState("error");
-          setError(failure ?? "Voice note was too short. Try speaking for longer.");
+          setError(
+            failure ?? translateCurrent("Voice note was too short. Try speaking for longer.")
+          );
           return;
         }
         void processAudio(

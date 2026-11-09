@@ -1,9 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../client/aiteamos-api";
 import { LiveVoiceAudio } from "../lib/live-voice-audio";
+import { translateCurrent } from "../lib/i18n-catalog";
 import { LiveVoiceTransport } from "../lib/live-voice-transport";
 
-export type LiveVoiceUiState = "idle" | "connecting" | "listening" | "processing" | "speaking" | "interrupted" | "error";
+export type LiveVoiceUiState =
+  | "idle"
+  | "connecting"
+  | "listening"
+  | "processing"
+  | "speaking"
+  | "interrupted"
+  | "error";
 
 export interface LiveVoiceTranscriptEntry {
   id: string;
@@ -47,7 +55,8 @@ export function useLiveVoice(botId: string, channelId: string) {
   }, []);
 
   const stop = useCallback(async () => {
-    transport.current?.stop(); transport.current = null;
+    transport.current?.stop();
+    transport.current = null;
     await audio.current?.close().catch(() => undefined);
     audio.current = null;
     if (sessionId.current) await api.voice.endSession(sessionId.current).catch(() => undefined);
@@ -69,43 +78,76 @@ export function useLiveVoice(botId: string, channelId: string) {
     setStartedAt(Date.now());
     try {
       if (!(await refreshAvailability())) {
-        throw new Error("Realtime voice is disabled or not configured on the server.");
+        throw new Error(
+          translateCurrent("Realtime voice is disabled or not configured on the server.")
+        );
       }
       const nextAudio = new LiveVoiceAudio({
-        onFrame: frame => transport.current?.sendFrame(frame),
-        onPlaybackAck: (generation, sequence) => transport.current?.acknowledge(generation, sequence),
+        onFrame: (frame) => transport.current?.sendFrame(frame),
+        onPlaybackAck: (generation, sequence) =>
+          transport.current?.acknowledge(generation, sequence),
       });
       audio.current = nextAudio;
-      const ticket = await api.voice.createSession({ botId, channelId, clientPlatform: "macos", clientInstanceId: `desktop:${crypto.randomUUID()}` });
+      const clientPlatform = window.aiteamos?.platform === "win32" ? "windows" : "macos";
+      const ticket = await api.voice.createSession({
+        botId,
+        channelId,
+        clientPlatform,
+        clientInstanceId: `desktop:${clientPlatform}:${crypto.randomUUID()}`,
+      });
       sessionId.current = ticket.id;
       const next = new LiveVoiceTransport(ticket, {
-        onControl: message => {
-          if (message.type === "ready") { updateState("listening"); next.ready(); }
-          else if (message.type === "turn.started") { setPartialText(""); updateState("listening"); }
-          else if (message.type === "transcript.partial") { setPartialText(message.text); updateState("listening"); }
-          else if (message.type === "transcript.final") {
+        onControl: (message) => {
+          if (message.type === "ready") {
+            updateState("listening");
+            next.ready();
+          } else if (message.type === "turn.started") {
+            setPartialText("");
+            updateState("listening");
+          } else if (message.type === "transcript.partial") {
+            setPartialText(message.text);
+            updateState("listening");
+          } else if (message.type === "transcript.final") {
             if (message.text.trim()) {
-              setTranscript(current => [...current, { id: `${message.turnId}:user`, role: "user", text: message.text }]);
+              setTranscript((current) => [
+                ...current,
+                { id: `${message.turnId}:user`, role: "user", text: message.text },
+              ]);
             }
             setPartialText("");
             updateState("processing");
-          }
-          else if (message.type === "reply.message") {
-            setTranscript(current => [...current, { id: message.messageId, role: "assistant", text: message.text }]);
+          } else if (message.type === "reply.message") {
+            setTranscript((current) => [
+              ...current,
+              { id: message.messageId, role: "assistant", text: message.text },
+            ]);
             updateState("speaking");
+          } else if (message.type === "audio.started") updateState("speaking");
+          else if (message.type === "barge_in" || message.type === "audio.stopped") {
+            nextAudio.stopPlayback();
+            updateState("interrupted");
+          } else if (message.type === "ended") void stop();
+          else if (message.type === "error") {
+            updateState("error");
+            setError(message.message);
           }
-          else if (message.type === "audio.started") updateState("speaking");
-          else if (message.type === "barge_in" || message.type === "audio.stopped") { nextAudio.stopPlayback(); updateState("interrupted"); }
-          else if (message.type === "ended") void stop();
-          else if (message.type === "error") { updateState("error"); setError(message.message); }
         },
-        onError: cause => { updateState("error"); setError(cause instanceof Error ? cause.message : "Voice connection failed"); },
-        onAudio: frame => nextAudio.handleOutputFrame(frame),
-        onClose: event => {
+        onError: (cause) => {
+          updateState("error");
+          setError(
+            cause instanceof Error ? cause.message : translateCurrent("Voice connection failed")
+          );
+        },
+        onAudio: (frame) => nextAudio.handleOutputFrame(frame),
+        onClose: (event) => {
           void nextAudio.close();
           if (event.code !== 1000 && stateRef.current !== "idle") {
             updateState("error");
-            setError(current => current ?? `Voice connection closed (${event.code})`);
+            setError(
+              (current) =>
+                current ??
+                translateCurrent("Voice connection closed ({code})", { code: event.code })
+            );
           }
         },
       });
@@ -116,7 +158,9 @@ export function useLiveVoice(botId: string, channelId: string) {
     } catch (cause) {
       await stop();
       updateState("error");
-      setError(cause instanceof Error ? cause.message : "Realtime voice is unavailable");
+      setError(
+        cause instanceof Error ? cause.message : translateCurrent("Realtime voice is unavailable")
+      );
     }
   }, [botId, channelId, refreshAvailability, stop, updateState]);
 
@@ -141,7 +185,12 @@ export function useLiveVoice(botId: string, channelId: string) {
     return () => window.clearInterval(timer);
   }, [state]);
 
-  useEffect(() => () => { void stop(); }, [stop]);
+  useEffect(
+    () => () => {
+      void stop();
+    },
+    [stop]
+  );
 
   return {
     state,

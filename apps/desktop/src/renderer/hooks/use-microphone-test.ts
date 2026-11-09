@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import {
-  MICROPHONE_DISCONNECTED,
-  MICROPHONE_FALLBACK,
+  microphoneDisconnected,
+  microphoneFallback,
   microphoneErrorMessage,
   openMicrophone,
 } from "../lib/microphone";
+import { translateCurrent } from "../lib/i18n-catalog";
 
 export function useMicrophoneTest(deviceId: string) {
   const [state, setState] = useState<"idle" | "requesting" | "testing">("idle");
@@ -17,7 +18,7 @@ export function useMicrophoneTest(deviceId: string) {
     dispose.current?.();
     dispose.current = null;
   };
-  const stop = (detail = "Microphone test stopped.") => {
+  const stop = (detail = translateCurrent("Microphone test stopped.")) => {
     cleanup();
     setState("idle");
     setLevel(0);
@@ -44,7 +45,7 @@ export function useMicrophoneTest(deviceId: string) {
     let source: MediaStreamAudioSourceNode | undefined;
     let frame = 0;
     let timer: ReturnType<typeof setTimeout> | undefined;
-    const disconnected = () => stop(MICROPHONE_DISCONNECTED);
+    const disconnected = () => stop(microphoneDisconnected());
     dispose.current = () => {
       abort.abort();
       cancelAnimationFrame(frame);
@@ -75,7 +76,11 @@ export function useMicrophoneTest(deviceId: string) {
       await context.resume();
       if (session !== generation.current) return;
       setState("testing");
-      setMessage(opened.usedFallback ? MICROPHONE_FALLBACK : "Speak to check the input level.");
+      setMessage(
+        opened.usedFallback
+          ? microphoneFallback()
+          : translateCurrent("Speak to check the input level.")
+      );
       const samples = new Float32Array(analyser.fftSize);
       let lastSample = 0;
       const sample = (now: number) => {
@@ -91,7 +96,7 @@ export function useMicrophoneTest(deviceId: string) {
         frame = requestAnimationFrame(sample);
       };
       frame = requestAnimationFrame(sample);
-      timer = setTimeout(() => stop("Microphone test finished."), 30_000);
+      timer = setTimeout(() => stop(translateCurrent("Microphone test finished.")), 30_000);
     } catch (error) {
       if (session !== generation.current) return;
       stop(microphoneErrorMessage(error));

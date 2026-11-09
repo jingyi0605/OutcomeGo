@@ -6,6 +6,7 @@ import { type CSSProperties, useEffect, useId, useRef, useState } from "react";
 import { getAudioContext } from "voice-glow";
 import { useWindowActive } from "../../../hooks/use-window-active";
 import { useResourceActive } from "../../../hooks/resource-activity";
+import { useI18n } from "../../../lib/i18n";
 import { BotArrowUpIcon, BotCloseIcon, BotPlusIcon } from "../../ai-elements/composer-icons";
 import { LoadingOrb, preloadLoadingOrb } from "../../ui/loading-orb";
 import { VoiceBackdropGlow } from "./voice-backdrop-glow";
@@ -175,6 +176,7 @@ function TimeChip({
   gooId: string;
   processing: boolean;
 }) {
+  const { t } = useI18n();
   return (
     <span className="vm-chip">
       <svg aria-hidden="true" className="vm-goo" height="44" width="96" viewBox="-8 -8 96 44">
@@ -198,7 +200,7 @@ function TimeChip({
         {formatDuration(elapsedMs)}
       </span>
       <span aria-hidden="true" className="vm-chip-orb">
-        {processing ? <LoadingOrb label="Transcribing" size={20} state="listening" /> : null}
+        {processing ? <LoadingOrb label={t("Transcribing")} size={20} state="listening" /> : null}
       </span>
     </span>
   );
@@ -215,6 +217,7 @@ export default function VoiceMemoLayer({
   onSend,
   onCancelProcessing,
 }: VoiceMemoLayerProps) {
+  const { t } = useI18n();
   const dark = useDocumentDark();
   const reducedMotion = useReducedMotion();
   const gooId = `vm-goo-${useId().replace(/:/g, "")}`;
@@ -254,7 +257,7 @@ export default function VoiceMemoLayer({
             <VoiceWave stream={stream} />
           </span>
           <span aria-hidden="true" className="vm-processing">
-            Transcribing…
+            {t("Transcribing…")}
           </span>
         </span>
         <span className="vm-actions">
@@ -276,24 +279,24 @@ export default function VoiceMemoLayer({
           </svg>
           <button
             aria-hidden={mode !== "recording" || exiting}
-            aria-label="Discard voice note"
+            aria-label={t("Discard voice note")}
             className="vm-icon-button vm-discard"
             disabled={mode !== "recording" || exiting}
             onClick={onDiscard}
             tabIndex={mode !== "recording" || exiting ? -1 : undefined}
-            title="Discard · Esc"
+            title={t("Discard · Esc")}
             type="button"
           >
             <Trash2 className="size-3.5" />
           </button>
           <button
             aria-hidden={exiting}
-            aria-label={mode === "recording" ? "Send voice note" : "Cancel voice note"}
+            aria-label={mode === "recording" ? t("Send voice note") : t("Cancel voice note")}
             className="vm-send"
             disabled={exiting}
             onClick={mode === "recording" ? onSend : onCancelProcessing}
             tabIndex={exiting ? -1 : undefined}
-            title={mode === "recording" ? "Send" : "Cancel · Esc"}
+            title={mode === "recording" ? t("Send") : t("Cancel · Esc")}
             type="button"
           >
             <span className="vm-send-icon">
@@ -309,8 +312,8 @@ export default function VoiceMemoLayer({
         {exiting
           ? ""
           : mode === "recording"
-            ? "Recording voice note. Send or discard when you're done."
-            : "Transcribing voice note…"}
+            ? t("Recording voice note. Send or discard when you're done.")
+            : t("Transcribing voice note…")}
       </span>
     </div>
   );
