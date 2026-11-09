@@ -90,6 +90,7 @@ import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
@@ -142,9 +143,11 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.animation.core.Animatable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.zIndex
 import com.aiteamos.android.data.RoutineEvent
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.text.style.TextOverflow
 import kotlin.math.roundToInt
 import androidx.compose.ui.draw.rotate
@@ -192,6 +195,8 @@ import com.aiteamos.features.ReactionsAndActionsRow
 import com.aiteamos.features.RichMessageCardScreen
 import com.aiteamos.features.isQuestion
 import com.aiteamos.features.ChatAttachmentStrip
+import com.aiteamos.features.FileGlyph
+import com.aiteamos.features.formatAttachmentSize
 import com.aiteamos.features.rememberDecodedBitmap
 import com.aiteamos.features.MarkdownMessage
 import com.aiteamos.features.PluginsScreen
@@ -201,6 +206,7 @@ import com.aiteamos.features.RoutinesScreen
 import com.aiteamos.features.SettingsScreen
 import com.aiteamos.features.WebProviderSettingsScreen
 import com.aiteamos.features.VoiceSettingsScreen
+import com.aiteamos.features.LiveVoiceView
 import com.aiteamos.features.LocalAppLanguage
 import com.aiteamos.features.localizedText
 import com.aiteamos.features.AppSettings
@@ -251,6 +257,14 @@ private enum class SignInStep { WELCOME, ENDPOINT, CREDENTIALS }
 private val NavigationSpec = tween<androidx.compose.ui.unit.IntOffset>(NAVIGATION_TRANSITION_DURATION_MILLIS, easing = FastOutSlowInEasing)
 
 /** Settings is a left-edge panel: it opens from the left and closes back to the left. */
+/** Microphone is required for a call; Bluetooth is only needed to route audio to a headset (Android 12+). */
+private fun liveVoicePermissionRequest(): Array<String> =
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        arrayOf(Manifest.permission.RECORD_AUDIO, Manifest.permission.BLUETOOTH_CONNECT)
+    } else {
+        arrayOf(Manifest.permission.RECORD_AUDIO)
+    }
+
 private fun AnimatedContentTransitionScope<NavBackStackEntry>.isSettingsOpening() =
     initialState.destination.route == DIRECTORY && targetState.destination.route == SETTINGS
 
@@ -282,6 +296,16 @@ fun AiTeamOSApp(
     val context = LocalContext.current
     val microphonePermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         if (granted) appViewModel.startVoice()
+    }
+    var pendingLiveVoiceConversationId by remember { mutableStateOf<String?>(null) }
+    // Headset routing needs BLUETOOTH_CONNECT on Android 12+. It is optional: a denial still
+    // starts the call, which then plays through the phone.
+    val liveVoicePermissions = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { results ->
+        val conversationId = pendingLiveVoiceConversationId
+        pendingLiveVoiceConversationId = null
+        if (results[Manifest.permission.RECORD_AUDIO] == true && conversationId != null) {
+            appViewModel.startLiveVoice(conversationId)
+        }
     }
     val notificationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {}
 
@@ -382,6 +406,7 @@ fun AiTeamOSApp(
         return
     }
     CompositionLocalProvider(LocalAppLanguage provides state.features.settings.language) {
+        Box(Modifier.fillMaxSize()) {
         NavHost(
             navController = navController,
             startDestination = if (state.session != null) DIRECTORY else LOGIN,
@@ -540,6 +565,21 @@ fun AiTeamOSApp(
                 onStopVoice = appViewModel::stopVoice,
                 onRetryVoice = appViewModel::retryVoice,
                 onCancelVoice = appViewModel::cancelVoice,
+                liveVoice = state.liveVoice,
+                onStartLiveVoice = {
+                    val recordGranted = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+                    val bluetoothMissing = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+                        ContextCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED
+                    if (recordGranted && !bluetoothMissing) {
+                        appViewModel.startLiveVoice(id)
+                    } else {
+                        pendingLiveVoiceConversationId = id
+                        liveVoicePermissions.launch(liveVoicePermissionRequest())
+                    }
+                },
+                onStopLiveVoice = appViewModel::stopLiveVoice,
+                onMuteLiveVoiceMicrophone = appViewModel::setLiveVoiceMicrophoneMuted,
+                onMuteLiveVoiceSpeaker = appViewModel::setLiveVoiceSpeakerMuted,
                 operation = state.features.operation,
                 pendingAttachments = state.pendingAttachments,
                 hasMoreHistory = state.hasMoreHistory,
@@ -741,6 +781,20 @@ fun AiTeamOSApp(
                 state = state.features.plugins,
                 onBack = { navController.popBackStack() },
                 onOpenExtensions = { navController.navigate(PLUGINS) },
+            )
+        }
+        }
+        if (
+            state.liveVoice.state != com.aiteamos.platform.AndroidLiveVoiceState.Idle &&
+            state.liveVoiceConversationId != null
+        ) {
+            LiveVoiceView(
+                snapshot = state.liveVoice,
+                bot = state.conversations.firstOrNull { it.id == state.liveVoiceConversationId },
+                onStop = appViewModel::stopLiveVoice,
+                onMuteMicrophone = appViewModel::setLiveVoiceMicrophoneMuted,
+                onMuteSpeaker = appViewModel::setLiveVoiceSpeakerMuted,
+                modifier = Modifier.fillMaxSize().zIndex(20f),
             )
         }
         }
@@ -2855,6 +2909,11 @@ private fun ChatScreen(
     onStopVoice: () -> Unit,
     onRetryVoice: () -> Unit,
     onCancelVoice: () -> Unit,
+    liveVoice: com.aiteamos.platform.AndroidLiveVoiceSnapshot,
+    onStartLiveVoice: () -> Unit,
+    onStopLiveVoice: () -> Unit,
+    onMuteLiveVoiceMicrophone: (Boolean) -> Unit,
+    onMuteLiveVoiceSpeaker: (Boolean) -> Unit,
     operation: FeatureOperationState,
     pendingAttachments: List<Attachment>,
     hasMoreHistory: Boolean,
@@ -3032,6 +3091,13 @@ private fun ChatScreen(
                     Spacer(Modifier.width(8.dp))
                     IconButton(onClick = onStartVoice, enabled = voiceState is VoiceRecordingState.Idle, modifier = Modifier.testTag("voice-composer")) {
                         Icon(Icons.Default.Mic, contentDescription = stringResource(com.aiteamos.android.R.string.chat_record_voice))
+                    }
+                    IconButton(
+                        onClick = onStartLiveVoice,
+                        enabled = bot?.isBot == true && liveVoice.state == com.aiteamos.platform.AndroidLiveVoiceState.Idle,
+                        modifier = Modifier.testTag("live-voice-composer"),
+                    ) {
+                        Icon(Icons.Default.Call, contentDescription = localizedText("Start realtime voice", "开始实时语音"))
                     }
                     IconButton(onClick = onSend, enabled = draft.isNotBlank() || pendingAttachments.isNotEmpty(), modifier = Modifier.testTag("send-message").clip(CircleShape).background(MaterialTheme.colorScheme.primary)) {
                         Icon(Icons.AutoMirrored.Filled.Send, contentDescription = stringResource(com.aiteamos.android.R.string.chat_send), tint = MaterialTheme.colorScheme.onPrimary)
@@ -3582,9 +3648,20 @@ private fun AttachmentGalleryDialog(
                         Image(bitmap, current.alt ?: current.name, Modifier.fillMaxWidth())
                     } else {
                         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            Text(current.mimeType.ifBlank { localizedText("Document", "文档") }, color = Color.White)
-                            TextButton(onClick = { onOpenDocument(current) }) {
-                                Text(localizedText("Open with Android", "使用 Android 打开"), color = Color.White)
+                            FileGlyph(current.name, Modifier.scale(1.6f).padding(bottom = 8.dp))
+                            Text(current.name, color = Color.White, maxLines = 2, textAlign = TextAlign.Center)
+                            Text(formatAttachmentSize(current.sizeBytes), color = Color.White.copy(alpha = .6f), style = MaterialTheme.typography.bodySmall)
+                            if (current.localUri == null) {
+                                CircularProgressIndicator(Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
+                            } else {
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    TextButton(onClick = { onOpenDocument(current) }) {
+                                        Text(localizedText("Preview", "预览"), color = Color.White)
+                                    }
+                                    TextButton(onClick = { onSave(current) }) {
+                                        Text(localizedText("Download", "下载"), color = Color.White)
+                                    }
+                                }
                             }
                         }
                     }

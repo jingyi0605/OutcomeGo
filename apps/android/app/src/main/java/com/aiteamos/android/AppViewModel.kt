@@ -50,6 +50,9 @@ import com.aiteamos.platform.AndroidUpdateManager
 import com.aiteamos.platform.AndroidUpdateState
 import com.aiteamos.platform.SearchableItem
 import com.aiteamos.platform.AndroidVoiceCapture
+import com.aiteamos.platform.AndroidLiveVoiceSnapshot
+import com.aiteamos.platform.AndroidLiveVoiceState
+import com.aiteamos.platform.AndroidLiveVoiceForeground
 import com.aiteamos.platform.ComputerVncGrant
 import com.aiteamos.platform.VoiceRecordingController
 import com.aiteamos.platform.VoiceRecordingState
@@ -61,6 +64,7 @@ import com.aiteamos.mobile.core.mobileJson
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -100,6 +104,8 @@ data class AppState(
     /** Message the composer is replying to; cleared when the conversation changes or the reply is sent. */
     val replyingTo: ChatMessage? = null,
     val error: String? = null,
+    val liveVoice: AndroidLiveVoiceSnapshot = AndroidLiveVoiceSnapshot(),
+    val liveVoiceConversationId: String? = null,
     val loading: Boolean = false,
     val authChecking: Boolean = false,
     val validatedServer: String? = null,
@@ -177,6 +183,25 @@ class AppViewModel @JvmOverloads constructor(
     fun installAndroidUpdate() = androidUpdateManager.install()
 
     init {
+        viewModelScope.launch {
+            AndroidLiveVoiceForeground.snapshot.collect { snapshot ->
+                mutableState.update { current ->
+                    current.copy(
+                        liveVoice = snapshot,
+                        liveVoiceConversationId = if (snapshot.state == AndroidLiveVoiceState.Idle) {
+                            null
+                        } else {
+                            current.liveVoiceConversationId
+                        },
+                    )
+                }
+            }
+        }
+        viewModelScope.launch {
+            AndroidLiveVoiceForeground.conversationId.collect { conversationId ->
+                mutableState.update { it.copy(liveVoiceConversationId = conversationId) }
+            }
+        }
         viewModelScope.launch {
             val restored = runCatching { gateway.restoreSession() }.getOrNull()
             if (restored == null) {
@@ -1220,6 +1245,7 @@ class AppViewModel @JvmOverloads constructor(
     }
 
     fun signOut() {
+        AndroidLiveVoiceForeground.stop(getApplication())
         mutableState.value.session?.let {
             drafts.clearAccount(accountScope(it))
             outboxStore.clear(accountScope(it))
@@ -1253,6 +1279,38 @@ class AppViewModel @JvmOverloads constructor(
 
     fun cancelVoice() {
         voiceController.cancel()
+    }
+
+    fun startLiveVoice(conversationId: String) {
+        val api = activeGateway as? MobileFeatureApi
+        val conversation = mutableState.value.conversations.firstOrNull { it.id == conversationId }
+        val botId = conversation?.botId
+        if (api == null || botId.isNullOrBlank()) {
+            mutableState.update {
+                it.copy(
+                    liveVoice = AndroidLiveVoiceSnapshot(
+                        state = AndroidLiveVoiceState.Error,
+                        error = "Realtime voice is only available in a Bot conversation.",
+                    ),
+                )
+            }
+            return
+        }
+        mutableState.update { it.copy(liveVoiceConversationId = conversationId) }
+        AndroidLiveVoiceForeground.start(getApplication(), botId, conversationId)
+    }
+
+    fun stopLiveVoice() {
+        AndroidLiveVoiceForeground.stop(getApplication())
+        mutableState.update { it.copy(liveVoice = AndroidLiveVoiceSnapshot(), liveVoiceConversationId = null) }
+    }
+
+    fun setLiveVoiceMicrophoneMuted(muted: Boolean) {
+        AndroidLiveVoiceForeground.setMicrophoneMuted(getApplication(), muted)
+    }
+
+    fun setLiveVoiceSpeakerMuted(muted: Boolean) {
+        AndroidLiveVoiceForeground.setSpeakerMuted(getApplication(), muted)
     }
 
     override fun onCleared() {
