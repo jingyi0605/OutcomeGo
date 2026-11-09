@@ -271,6 +271,21 @@ const server = Bun.serve({
         );
       }
 
+      if (request.method === "POST" && url.pathname === COMPUTER_API_PATHS.inferenceCustomProviders) {
+        return json(
+          await runtime.addCustomInferenceProvider(await request.json().catch(() => null)),
+          201
+        );
+      }
+
+      const customProviderMatch = url.pathname.match(
+        /^\/v1\/inference\/custom-providers\/([^/]+)$/
+      );
+      if (request.method === "DELETE" && customProviderMatch?.[1]) {
+        await runtime.removeCustomInferenceProvider(decodeURIComponent(customProviderMatch[1]));
+        return json({ ok: true });
+      }
+
       const providerMatch = url.pathname.match(/^\/v1\/inference\/providers\/([^/]+)$/);
       if (request.method === "DELETE" && providerMatch?.[1]) {
         await runtime.disconnectInferenceProvider(decodeURIComponent(providerMatch[1]));

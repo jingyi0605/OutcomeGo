@@ -60,6 +60,9 @@ export async function settingsRoutes(context: RouteContext): Promise<Response | 
     // An empty body tests the saved model; a body tests a choice before it is applied.
     return json(await run(app.testInference(await request.json().catch(() => null))));
   }
+  if (request.method === "POST" && path === "/api/inference-providers") {
+    return json(await run(app.addInferenceProvider(await request.json().catch(() => null))), 201);
+  }
   if (request.method === "PATCH" && path === "/api/server-settings/inference") {
     return json(await run(app.updateInferenceSettings(await request.json().catch(() => null))));
   }
@@ -144,6 +147,10 @@ const routes = [
   effectRoute("GET", "/api/settings", ({ app }) => app.rootSettings()),
   effectRoute("GET", "/api/server-settings", ({ app, url }, id) =>
     app.serverSettings(url.searchParams.get("provider") ?? undefined)
+  ),
+  effectRoute("GET", "/api/inference-provider-presets", ({ app }) => app.inferenceProviderPresets()),
+  effectRoute("DELETE", /^\/api\/inference-custom-providers\/([^/]+)$/, ({ app }, id) =>
+    app.removeInferenceProvider(decodeURIComponent(id))
   ),
   effectRoute("DELETE", /^\/api\/inference-providers\/([^/]+)$/, ({ app }, id) =>
     app.disconnectInferenceProvider(decodeURIComponent(id))

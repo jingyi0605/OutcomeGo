@@ -32,6 +32,7 @@ export * from "./state-tools";
 export interface NativeToolDefinition {
   name: string;
   description: string;
+export * from "./inference-presets";
   parameters: Record<string, unknown>;
 }
 

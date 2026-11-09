@@ -560,6 +560,9 @@ export class AppService {
     () => this.settings.cancelInferenceProviderAuth
   );
 
+  inferenceProviderPresets = forwardServiceMethod(() => this.settings.inferenceProviderPresets);
+  addInferenceProvider = forwardServiceMethod(() => this.settings.addInferenceProvider);
+  removeInferenceProvider = forwardServiceMethod(() => this.settings.removeInferenceProvider);
   disconnectInferenceProvider = forwardServiceMethod(
     () => this.settings.disconnectInferenceProvider
   );

@@ -5,6 +5,9 @@ export const COMPUTER_API_PATHS = {
   turns: "/v1/turns",
   inference: "/v1/infer",
   inferenceProviders: "/v1/inference/providers",
+  inferenceCustomProviders: "/v1/inference/custom-providers",
+  inferenceCustomProvider: (providerId: string) =>
+    `/v1/inference/custom-providers/${encodeURIComponent(providerId)}`,
   inferenceSettingsVerify: "/v1/inference/settings/verify",
   inferenceProvider: (providerId: string) =>
     `/v1/inference/providers/${encodeURIComponent(providerId)}`,

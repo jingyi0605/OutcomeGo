@@ -44,6 +44,8 @@ export interface InferenceProviderView {
   authType: "api_key" | "oauth" | null;
   authSource: string | null;
   custom: boolean;
+  /** The mark to show, a file name in the provider icon set (docs/provider-icons.md). */
+  icon?: string;
   modelCount: number;
   modelStatus?: "ready" | "disconnected" | "unavailable";
   modelMessage?: string;

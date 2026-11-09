@@ -1,7 +1,14 @@
 import {
+  type AddInferenceProviderResult,
   ApiError,
+  CUSTOM_PROVIDER_APIS,
+  type CustomProviderApi,
+  customProviderIdFromName,
+  findInferenceProviderPreset,
+  INFERENCE_PROVIDER_PRESETS,
   type InferenceProviderAuthSessionView,
   type InferenceTestResult,
+  presetProviderId,
   serverInferenceSettings,
   type ServerInferenceSettings,
   type ServerSettingsView,
@@ -158,6 +165,60 @@ export class SettingsService {
   cancelInferenceProviderAuth = (sessionId: string) =>
     serviceEffect(() =>
       this.computerJson(`/v1/inference/auth-sessions/${encodeURIComponent(sessionId)}`, {
+        method: "DELETE",
+      })
+    );
+
+  inferenceProviderPresets = () => serviceEffect(async () => INFERENCE_PROVIDER_PRESETS);
+
+  addInferenceProvider = (input: unknown) =>
+    serviceEffect(async (): Promise<AddInferenceProviderResult> => {
+      const value = (typeof input === "object" && input !== null ? input : {}) as Record<
+        string,
+        unknown
+      >;
+      const api = value.api;
+      if (!(CUSTOM_PROVIDER_APIS as readonly unknown[]).includes(api))
+        throw new ApiError(400, "invalid_provider_api", "Choose OpenAI Chat, OpenAI Responses or Anthropic Messages");
+      const preset = findInferenceProviderPreset(
+        typeof value.presetId === "string" ? value.presetId : undefined
+      );
+      if (typeof value.presetId === "string" && !preset)
+        throw new ApiError(400, "unknown_provider_preset", "That provider preset does not exist");
+      const name = typeof value.name === "string" ? value.name.trim() : "";
+      let id: string;
+      try {
+        id = preset
+          ? presetProviderId(preset, api as CustomProviderApi)
+          : customProviderIdFromName(name);
+      } catch (cause) {
+        throw new ApiError(400, "invalid_provider_name", cause instanceof Error ? cause.message : String(cause));
+      }
+      try {
+        return await this.computerJson<AddInferenceProviderResult>(
+          COMPUTER_API_PATHS.inferenceCustomProviders,
+          {
+            method: "POST",
+            body: JSON.stringify({
+              id,
+              name,
+              baseUrl: value.baseUrl,
+              api,
+              noAuth: value.noAuth === true,
+              ...(preset?.catalog ? { catalog: preset.catalog } : {}),
+              ...(preset ? { icon: preset.icon } : {}),
+              createOnly: true,
+            }),
+          }
+        );
+      } catch (cause) {
+        throw new ApiError(400, "invalid_provider", cause instanceof Error ? cause.message : String(cause));
+      }
+    });
+
+  removeInferenceProvider = (providerId: string) =>
+    serviceEffect(() =>
+      this.computerJson(COMPUTER_API_PATHS.inferenceCustomProvider(providerId), {
         method: "DELETE",
       })
     );

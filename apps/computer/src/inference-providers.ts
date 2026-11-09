@@ -13,6 +13,7 @@ import {
   type ServerInferenceSettings,
 } from "@aiteamos/contracts";
 import { ChatProviderRegistry } from "./chat-provider-registry";
+import { customProviderEntry, customProviderInput } from "./custom-provider";
 
 interface AuthSessionState extends InferenceProviderAuthSessionView {
   controller: AbortController;
@@ -82,6 +83,20 @@ export class InferenceProviderService {
 
   async refreshPromptCaps(): Promise<void> {
     await this.registry.refreshPromptCaps();
+  }
+
+  /** Adds a custom endpoint. The key is connected afterwards through a normal api_key sign-in. */
+  async addCustom(value: unknown): Promise<{ providerId: string }> {
+    const input = customProviderInput(value);
+    await this.registry.addCustom(input.id, customProviderEntry(input));
+    return { providerId: input.id };
+  }
+
+  /** Removes a custom endpoint and forgets its key. */
+  async removeCustom(providerId: string): Promise<void> {
+    const id = normalizeInferenceProviderId(providerId);
+    await this.registry.removeCustom(id);
+    await this.runtime().logout(id).catch(() => undefined);
   }
 
   async disconnect(providerId: string): Promise<void> {

@@ -16,6 +16,9 @@ import type {
 } from "@aiteamos/contracts/plugin-management";
 import type {
   AddCustomMcpInput,
+  AddInferenceProviderInput,
+  AddInferenceProviderResult,
+  InferenceProviderPreset,
   UpdateUserTimeZoneInput,
   UserTimeZoneView,
   ScreenClipboardInput,
@@ -246,6 +249,17 @@ export const createAiTeamOSClient = (options: AiTeamOSClientOptions) => {
         `/api/v0/inference-provider-auth-sessions/${encodeURIComponent(sessionId)}`,
         { method: "DELETE" }
       ),
+    inferenceProviderPresets: () =>
+      transport.request<InferenceProviderPreset[]>("/api/v0/inference-provider-presets"),
+    addInferenceProvider: (input: AddInferenceProviderInput) =>
+      transport.request<AddInferenceProviderResult>("/api/v0/inference-providers", {
+        method: "POST",
+        body: JSON.stringify(input),
+      }),
+    removeInferenceProvider: (providerId: string) =>
+      transport.request(`/api/v0/inference-custom-providers/${encodeURIComponent(providerId)}`, {
+        method: "DELETE",
+      }),
     disconnectInferenceProvider: (providerId: string) =>
       transport.request(`/api/v0/inference-providers/${encodeURIComponent(providerId)}`, {
         method: "DELETE",

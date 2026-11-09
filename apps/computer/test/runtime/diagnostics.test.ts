@@ -55,3 +55,49 @@ test("diagnostics use the saved selection and leave new installs unconfigured", 
     await rm(root, { recursive: true, force: true });
   }
 });
+
+test("a saved model the registry no longer has is reported, not thrown, and its provider can't be removed while in use", async () => {
+  const root = await mkdtemp(join(tmpdir(), "aiteamos-diagnostics-missing-"));
+  try {
+    const runtime = new ComputerRuntime();
+    const internals = runtime as unknown as {
+      settingsPath: string;
+      refreshAuthentication(): Promise<void>;
+      modelRuntime: unknown;
+      started: boolean;
+      inferenceProviders: { removeCustom(id: string): Promise<void> };
+    };
+    internals.settingsPath = join(root, "settings.json");
+    internals.started = true;
+    internals.modelRuntime = {
+      checkAuth: async () => ({ type: "api_key" }),
+      isUsingSubscription: () => false,
+      // The registry has no such model: what remains after its provider was removed and re-added.
+      getModel: () => undefined,
+      getModels: () => [],
+    };
+    runtime.start = () => internals.refreshAuthentication();
+    const removed: string[] = [];
+    internals.inferenceProviders = { removeCustom: async (id: string) => void removed.push(id) };
+    await writeFile(
+      internals.settingsPath,
+      JSON.stringify({ inference: { providerId: "gone-api", modelId: "saved-model", reasoning: "off" } })
+    );
+    await runtime.start();
+
+    // The health check gets an answer, so the computer stays healthy while bots wait for a model.
+    const report = await runtime.inferenceDiagnostics();
+    expect(report).toMatchObject({ ready: false, authenticated: false, model: "saved-model" });
+    expect(String((report as { error?: string }).error)).toContain("gone-api/saved-model");
+    // A caller that asked for a specific model still gets the error.
+    await expect(runtime.inferenceDiagnostics("gone-api/saved-model")).rejects.toThrow("does not provide");
+
+    // The provider in use stays; any other one can go.
+    await expect(runtime.removeCustomInferenceProvider("gone-api")).rejects.toThrow("bots use now");
+    expect(removed).toEqual([]);
+    await runtime.removeCustomInferenceProvider("other-api");
+    expect(removed).toEqual(["other-api"]);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});

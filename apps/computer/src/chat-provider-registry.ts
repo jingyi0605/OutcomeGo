@@ -6,6 +6,7 @@ import type { ModelRuntime } from "@earendil-works/pi-coding-agent";
 import {
   type InferenceProviderView,
   PI_REASONING_LEVELS,
+  providerRowIcon,
   type PiReasoningLevel,
   type ServerInferenceSettings,
 } from "@aiteamos/contracts";
@@ -17,6 +18,7 @@ import {
 } from "./inference-models";
 
 export const CHAT_PROVIDERS = new Set(Object.keys(CHAT_PROVIDER_DEFINITIONS));
+const iconField = (icon: string | undefined) => (icon ? { icon } : {});
 export const KEYLESS_API_KEY = "aiteamos-no-auth";
 export type ChatModel = Model<Api> & {
   reasoningLevels?: PiReasoningLevel[];
@@ -25,6 +27,8 @@ export type ChatModel = Model<Api> & {
 };
 type CustomConfig = {
   name?: string;
+  catalog?: string;
+  icon?: string;
   baseUrl?: string;
   api?: string;
   apiKey?: string;
@@ -199,7 +203,7 @@ export const modelsEndpoint = (baseUrl: string, anthropic = false): URL => {
   return url;
 };
 async function responseJson(response: Response): Promise<unknown> {
-  if (!response.body) throw new Error("Empty model response");
+  if (!response.body) throw new DiscoveryError("The provider returned an empty model list.");
   const reader = response.body.getReader();
   const chunks: Uint8Array[] = [];
   let length = 0;
@@ -208,7 +212,7 @@ async function responseJson(response: Response): Promise<unknown> {
       const { value, done } = await reader.read();
       if (done) break;
       length += value.byteLength;
-      if (length > 2 * 1024 * 1024) throw new Error("Model response too large");
+      if (length > 2 * 1024 * 1024) throw new DiscoveryError("The provider's model list is too large to load.");
       chunks.push(value);
     }
     return JSON.parse(Buffer.concat(chunks).toString("utf8"));
@@ -244,6 +248,7 @@ export class ChatProviderRegistry {
           authType: authentication?.type ?? null,
           authSource: authentication?.source ?? null,
           custom: isCustom,
+          ...iconField(providerRowIcon(p.id, isCustom ? custom[p.id] : undefined)),
           modelCount: 0,
           authMethods: [
             ...(p.auth.oauth
@@ -275,9 +280,10 @@ export class ChatProviderRegistry {
           return { row, models };
         } catch (error) {
           row.modelMessage =
-            error instanceof DiscoveryError
-              ? error.message
-              : `Could not load chat models. Check the endpoint and credentials, then refresh the provider.`;
+            error instanceof DiscoveryError ? error.message : describeDiscoveryFailure(error);
+          // The code names the cause for whoever runs the server; the message stays a fixed sentence.
+          if (!(error instanceof DiscoveryError))
+            console.warn(`Model discovery failed for ${p.id}: ${failureCode(error) || "unknown"}`);
           return { row, models: [] as ChatModel[] };
         }
       })
@@ -367,14 +373,16 @@ export class ChatProviderRegistry {
           "The provider returned an invalid model list. Check the API base URL and protocol."
         );
       for (const value of values) {
-        if (!object(value)) throw new Error("Invalid model");
+        if (!object(value))
+          throw new DiscoveryError("The model list has an entry that is not an object. Check the API base URL and protocol.");
         const modelId =
           id === "openai-codex"
             ? value.slug
             : config?.api === "google-generative-ai" && typeof value.name === "string"
               ? value.name.replace(/^models\//, "")
               : value.id;
-        if (!validId(modelId)) throw new Error("Invalid model id");
+        if (!validId(modelId))
+          throw new DiscoveryError("The model list has an entry without a usable id. Check the API base URL and protocol.");
         if (id === "openai-codex" && value.visibility !== "list") continue;
         entries.push({ ...value, id: modelId });
       }
@@ -393,7 +401,17 @@ export class ChatProviderRegistry {
       cursors.add(body.last_id);
       url.searchParams.set("after_id", body.last_id);
     }
-    const known = new Map(availableInferenceModels(runtime, id).map((m) => [m.id, m]));
+    // A custom endpoint of a vendor the runtime already knows reuses that vendor's model table:
+    // its reasoning levels and request quirks. Only models for the same wire protocol are
+    // borrowed, since the level mapping is that protocol's. The endpoint's own entries win.
+    const borrowed = config?.catalog
+      ? availableInferenceModels(runtime, config.catalog).filter(
+          (m) => !config.api || m.api === config.api
+        )
+      : [];
+    const known = new Map(
+      [...borrowed, ...availableInferenceModels(runtime, id)].map((m) => [m.id, m])
+    );
     const custom = !CHAT_PROVIDERS.has(id) && Boolean(config);
     const models = [
       ...new Map(
@@ -562,6 +580,25 @@ export class ChatProviderRegistry {
     }
     await this.save(document);
   }
+  /** Adds a custom endpoint. It never replaces a built-in provider or an existing entry. */
+  async addCustom(id: string, entry: CustomConfig): Promise<void> {
+    const document = await configFile(this.modelsPath);
+    const configured = Object.hasOwn(document.providers ?? {}, id);
+    if (!configured && (CHAT_PROVIDERS.has(id) || this.runtime().getProvider(id)))
+      throw new Error(`Custom providers cannot replace built-in provider ${id}`);
+    if (configured) throw new Error(`Custom provider ${id} already exists`);
+    document.providers = { ...document.providers, [id]: entry };
+    await this.save(document);
+  }
+  /** Removes a custom endpoint from the registry; built-in providers are not removable. */
+  async removeCustom(providerId: string): Promise<void> {
+    const document = await configFile(this.modelsPath);
+    if (!Object.hasOwn(document.providers ?? {}, providerId))
+      throw new Error(`Custom provider ${providerId} is not configured`);
+    const { [providerId]: _removed, ...rest } = document.providers ?? {};
+    document.providers = rest;
+    await this.save(document);
+  }
   private async save(document: Config): Promise<void> {
     await mkdir(dirname(this.modelsPath), { recursive: true, mode: 0o700 });
     const temp = `${this.modelsPath}.${randomUUID()}.tmp`;
@@ -596,3 +633,30 @@ export class ChatProviderRegistry {
   }
 }
 class DiscoveryError extends Error {}
+
+/** The error code a failed fetch carries, on the error or its cause. */
+export const failureCode = (error: unknown): string => {
+  const read = (value: unknown): string =>
+    object(value) && typeof value.code === "string" ? value.code : "";
+  return read(error) || (object(error) ? read(error.cause) : "");
+};
+
+/**
+ * A fixed sentence for a failed model-list request, chosen by the cause. Never the raw
+ * message: it can carry the address, and fixed sentences are the ones the apps translate.
+ */
+export const describeDiscoveryFailure = (error: unknown): string => {
+  const code = failureCode(error);
+  const name = object(error) && typeof error.name === "string" ? error.name : "";
+  if (/CERT|SELF_SIGNED|UNABLE_TO_(VERIFY|GET)|ISSUER|TLS|SSL/i.test(code))
+    return "The server's TLS certificate could not be verified. The computer may lack the issuing certificate, or the server may not send its full certificate chain.";
+  if (code === "UnexpectedRedirect")
+    return "The endpoint redirected the request. Use the final API base URL.";
+  if (name === "TimeoutError" || name === "AbortError" || code === "ETIMEDOUT")
+    return "The provider did not answer in time. Check the address and the server's network.";
+  if (code === "ECONNREFUSED")
+    return "The connection was refused. Check the address and port, and that the service is running.";
+  if (/^(ENOTFOUND|EAI_AGAIN|ECONNRESET|EHOSTUNREACH|ENETUNREACH)$/.test(code))
+    return "The provider could not be reached. Check the address and the server's network.";
+  return "Could not load chat models. Check the endpoint and credentials, then refresh the provider.";
+};

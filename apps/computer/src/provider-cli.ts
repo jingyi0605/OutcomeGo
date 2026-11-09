@@ -14,7 +14,6 @@ import {
 import {
   formatPiModelRef,
   defaultServerInferenceSettings,
-  normalizeInferenceModelId,
   normalizeInferenceProviderId,
   piModelRef,
   serverInferenceSettings,
@@ -22,9 +21,8 @@ import {
 import {
   CHAT_PROVIDERS,
   ChatProviderRegistry,
-  KEYLESS_API_KEY,
-  modelsEndpoint,
 } from "./chat-provider-registry";
+import { customProviderEntry, customProviderInput } from "./custom-provider";
 import { createModelRuntime } from "./model-runtime";
 import {
   authOptionLabel,
@@ -220,63 +218,6 @@ const writeModelsDocument = async (document: Record<string, unknown>): Promise<v
   await rename(temporary, modelsPath);
 };
 
-type CustomProviderInput = {
-  id: string;
-  name: string;
-  baseUrl: string;
-  api: "openai-completions" | "openai-responses" | "anthropic-messages" | "google-generative-ai";
-  model?: string;
-  noAuth?: boolean;
-  reasoning?: boolean;
-  contextWindow?: number;
-  maxTokens?: number;
-  createOnly?: boolean;
-};
-
-const customProviderInput = (value: unknown): CustomProviderInput => {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    throw new Error("Custom provider input must be an object");
-  }
-  const input = value as Record<string, unknown>;
-  const id = normalizeInferenceProviderId(String(input.id ?? ""));
-  const name = String(input.name ?? "").trim();
-  if (!name || name.length > 100) throw new Error("Custom provider name is invalid");
-  const endpoint = new URL(String(input.baseUrl ?? ""));
-  if (!["https:", "http:"].includes(endpoint.protocol)) {
-    throw new Error("Custom provider URL must use HTTP or HTTPS");
-  }
-  modelsEndpoint(endpoint.toString(), input.api === "anthropic-messages");
-  const supportedApis = [
-    "openai-completions",
-    "openai-responses",
-    "anthropic-messages",
-    "google-generative-ai",
-  ] as const;
-  const api = String(input.api ?? "") as CustomProviderInput["api"];
-  if (api.startsWith("openai-") && (!endpoint.pathname || endpoint.pathname === "/"))
-    endpoint.pathname = "/v1";
-  if (input.noAuth === true && !api.startsWith("openai-"))
-    throw new Error("--no-auth is supported for OpenAI-compatible chat endpoints.");
-  if (!supportedApis.includes(api)) throw new Error(`Unsupported Pi API protocol: ${api}`);
-  const positiveInteger = (field: "contextWindow" | "maxTokens", fallback: number) => {
-    const number = input[field] === undefined ? fallback : Number(input[field]);
-    if (!Number.isSafeInteger(number) || number <= 0) throw new Error(`${field} must be positive`);
-    return number;
-  };
-  return {
-    id,
-    name,
-    baseUrl: endpoint.toString().replace(/\/$/, ""),
-    api,
-    model: input.model ? normalizeInferenceModelId(String(input.model)) : undefined,
-    noAuth: input.noAuth === true,
-    reasoning: input.reasoning === true,
-    contextWindow: positiveInteger("contextWindow", 128_000),
-    maxTokens: positiveInteger("maxTokens", 16_384),
-    createOnly: input.createOnly === true,
-  };
-};
-
 const addCustomProvider = async (): Promise<void> => {
   const input = customProviderInput(JSON.parse(await stdinText()));
   const document = await readModelsDocument();
@@ -297,26 +238,7 @@ const addCustomProvider = async (): Promise<void> => {
     throw new Error(`Custom provider ${input.id} already exists`);
   }
   const providers = { ...configuredProviders };
-  providers[input.id] = {
-    name: input.name,
-    baseUrl: input.baseUrl,
-    api: input.api,
-    ...(input.noAuth
-      ? // The OpenAI SDK requires a nonempty placeholder even for servers with no auth.
-        { apiKey: KEYLESS_API_KEY }
-      : {}),
-    models: input.model
-      ? [
-          {
-            id: input.model,
-            name: input.model,
-            reasoning: input.reasoning,
-            contextWindow: input.contextWindow,
-            maxTokens: input.maxTokens,
-          },
-        ]
-      : [],
-  };
+  providers[input.id] = customProviderEntry(input);
   await writeModelsDocument({ ...document, providers });
   console.log(`Added custom provider ${input.name} (${input.id}).`);
 };

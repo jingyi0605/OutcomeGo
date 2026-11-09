@@ -193,7 +193,21 @@ export class ComputerRuntime {
         reasoning: this.inferenceSettings.reasoning,
       };
     }
-    const selectedModel = this.resolveModel(modelRef);
+    let selectedModel;
+    try {
+      selectedModel = this.resolveModel(modelRef);
+    } catch (error) {
+      // The saved choice names a model the registry no longer has (its provider was removed or
+      // re-added). Bots can't reply until one is chosen, but the computer itself is healthy.
+      if (model) throw error;
+      return {
+        ...this.diagnostics,
+        ready: false,
+        authenticated: false,
+        reasoning: this.inferenceSettings.reasoning,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
     const authentication = await this.requireModelRuntime().checkAuth(modelRef.providerId);
     return {
       ready: true,
@@ -211,6 +225,24 @@ export class ComputerRuntime {
       sessionScope: "transcript",
       activeTurns: this.activeByRun.size,
     };
+  }
+
+  async addCustomInferenceProvider(input: unknown) {
+    await this.start();
+    return this.inferenceProviders.addCustom(input);
+  }
+
+  async removeCustomInferenceProvider(providerId: string): Promise<void> {
+    await this.start();
+    // Re-read the saved choice: the server writes it, not this process.
+    await this.refreshAuthentication();
+    if (this.inferenceSettings.providerId === providerId && this.inferenceSettings.modelId) {
+      throw new Error(
+        `Provider ${providerId} is the one bots use now. Choose a model from another provider first, then remove it.`
+      );
+    }
+    this.inferenceConnections.clear();
+    await this.inferenceProviders.removeCustom(providerId);
   }
 
   async providerCatalog(providerId?: string) {
