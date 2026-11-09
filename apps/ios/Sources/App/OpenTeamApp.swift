@@ -8,6 +8,7 @@ struct OpenTeamApp: App {
   @State private var mobileUpdates = MobileUpdates()
   @AppStorage("appearance") private var appearance = "system"
   @AppStorage("accent") private var accent = "black"
+  @AppStorage("language") private var language = AppLanguage.default.rawValue
   @Environment(\.scenePhase) private var scenePhase
   init() {
     let store = AppStore()
@@ -40,6 +41,7 @@ struct OpenTeamApp: App {
       .tint(accent == "blue" ? NativePalette.link : NativePalette.text)
       .toggleStyle(SwitchToggleStyle(tint: NativePalette.toggle))
       .preferredColorScheme(selectedAppearance)
+      .environment(\.locale, AppLanguage.normalized(language).locale)
       .onChange(of: scenePhase) { _, phase in
         store.setForeground(phase == .active)
         // iOS caches a launch picture for a new appearance or orientation at launch.

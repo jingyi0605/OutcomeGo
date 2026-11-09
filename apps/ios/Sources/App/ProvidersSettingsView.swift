@@ -240,7 +240,7 @@ struct WebProviderDetailView: View {
                 check.passed ? Color(uiColor: .systemGreen) : NativePalette.destructive)
             VStack(alignment: .leading, spacing: 2) {
               Text(check.message).fixedSize(horizontal: false, vertical: true)
-              Text("Checked " + check.ago()).font(.footnote).foregroundStyle(NativePalette.muted)
+              Text("Checked \(check.ago())").font(.footnote).foregroundStyle(NativePalette.muted)
             }
           }.font(.subheadline).accessibilityElement(children: .combine)
             .accessibilityValue(check.passed ? "Passed" : "Failed")

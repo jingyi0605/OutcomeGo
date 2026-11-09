@@ -10,6 +10,7 @@ struct SettingsView: View {
   @AppStorage("appearance") private var appearance = "system"
   @AppStorage("accent") private var accent = "black"
   @AppStorage("haptics") private var haptics = true
+  @AppStorage("language") private var language = AppLanguage.default.rawValue
   @State private var signOut = false
   @State private var path: [SettingsRoute]
   init(initialRoute: SettingsRoute? = nil) {
@@ -86,6 +87,16 @@ struct SettingsView: View {
         }
         Section { PushNotificationSettings() }
         SystemDiscoverySettings()
+        Section {
+          Picker("Language", selection: $language) {
+            ForEach(AppLanguage.allCases) { option in
+              Text(option.label).tag(option.rawValue)
+            }
+          }
+          .accessibilityIdentifier("language-picker")
+        } header: {
+          Text("Language").font(.system(size: 13)).foregroundStyle(NativePalette.faint)
+        }
         Section {
           Menu {
             Picker("Appearance", selection: $appearance.hapticSelection("settings.appearance")) {

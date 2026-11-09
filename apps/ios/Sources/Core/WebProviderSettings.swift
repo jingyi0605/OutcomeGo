@@ -110,9 +110,9 @@ public struct WebProviderCheck: Equatable, Sendable {
   public func ago(now: Date = Date()) -> String {
     guard let checkedAt else { return "" }
     let minutes = Int((now.timeIntervalSince(checkedAt) / 60).rounded())
-    if minutes < 1 { return "just now" }
-    if minutes < 60 { return "\(minutes) min ago" }
-    if minutes < 1_440 { return "\(Int((Double(minutes) / 60).rounded())) h ago" }
+    if minutes < 1 { return String(localized: "just now") }
+    if minutes < 60 { return String(localized: "\(minutes) min ago") }
+    if minutes < 1_440 { return String(localized: "\(Int((Double(minutes) / 60).rounded())) h ago") }
     return checkedAt.formatted(date: .abbreviated, time: .omitted)
   }
 }

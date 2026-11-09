@@ -1,0 +1,8216 @@
+{
+  "sourceLanguage": "en",
+  "strings": {
+    "%@ %lld": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ %lld"
+          }
+        }
+      }
+    },
+    "%@ API key": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ API 密钥"
+          }
+        }
+      }
+    },
+    "%@ key": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 密钥"
+          }
+        }
+      }
+    },
+    "%@ · Recommended": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ · 推荐"
+          }
+        }
+      }
+    },
+    "%@, %lld reactions": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@，%lld 个回应"
+          }
+        }
+      }
+    },
+    "%lld bots": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 个机器人"
+          }
+        }
+      }
+    },
+    "%lld bots selected": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已选择 %lld 个机器人"
+          }
+        }
+      }
+    },
+    "%lld installed": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已安装 %lld 个"
+          }
+        }
+      }
+    },
+    "%lld models": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 个模型"
+          }
+        }
+      }
+    },
+    "%lld ms": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 毫秒"
+          }
+        }
+      }
+    },
+    "%lld of 5 stages complete": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已完成 %lld/5 个阶段"
+          }
+        }
+      }
+    },
+    "%lld percent": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 百分比"
+          }
+        }
+      }
+    },
+    "%lld points": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 点"
+          }
+        }
+      }
+    },
+    "%lld seconds": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 秒"
+          }
+        }
+      }
+    },
+    "%lld unread": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 条未读"
+          }
+        }
+      }
+    },
+    "1. Approve access in your browser.\n2. If Safari says it can’t open the page, that’s expected. Copy the entire address from the address bar (it starts with 127.0.0.1).\n3. Return here and paste the address below.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1. 在浏览器中批准访问。\n2. 如果 Safari 提示无法打开页面，这是正常现象。请复制地址栏中的完整地址（以 127.0.0.1 开头）。\n3. 返回此处并在下方粘贴该地址。"
+          }
+        }
+      }
+    },
+    "AI model": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AI 模型"
+          }
+        }
+      }
+    },
+    "AI provider and model for all bots": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "所有机器人使用的 AI 服务商和模型"
+          }
+        }
+      }
+    },
+    "API key": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "API 密钥"
+          }
+        }
+      }
+    },
+    "About": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "关于"
+          }
+        }
+      }
+    },
+    "About server updates": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "关于服务器更新"
+          }
+        }
+      }
+    },
+    "Accent": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "强调色"
+          }
+        }
+      }
+    },
+    "Account": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "账户"
+          }
+        }
+      }
+    },
+    "Account alias (optional)": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "账户别名（可选）"
+          }
+        }
+      }
+    },
+    "Account name, e.g. Personal": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "账户名称，例如：个人"
+          }
+        }
+      }
+    },
+    "Add": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "添加"
+          }
+        }
+      }
+    },
+    "Add API key": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "添加 API 密钥"
+          }
+        }
+      }
+    },
+    "Add another account": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "添加其他账户"
+          }
+        }
+      }
+    },
+    "Add custom MCP": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "添加自定义 MCP"
+          }
+        }
+      }
+    },
+    "Add routine": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "添加例程"
+          }
+        }
+      }
+    },
+    "Add source": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "添加来源"
+          }
+        }
+      }
+    },
+    "Address from your browser": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "浏览器中的地址"
+          }
+        }
+      }
+    },
+    "Advanced": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "高级"
+          }
+        }
+      }
+    },
+    "Advanced connection settings": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "高级连接设置"
+          }
+        }
+      }
+    },
+    "After filling, this presses Enter on %@.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "填写后，此操作会在 %@ 上按下 Enter。"
+          }
+        }
+      }
+    },
+    "After you sign in, copy the address your browser lands on and paste it here.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "登录后，复制浏览器最终打开的地址并粘贴到此处。"
+          }
+        }
+      }
+    },
+    "Alerts pause while you’re using your Mac, unless OpenTeam is open here. They resume after five minutes of Mac inactivity.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用 Mac 时 iPhone 提醒会暂停，除非 OpenTeam 正在此处打开。Mac 闲置五分钟后恢复。"
+          }
+        }
+      }
+    },
+    "All": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "全部"
+          }
+        }
+      }
+    },
+    "Allow notifications in iPhone Settings": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在 iPhone 设置中允许通知"
+          }
+        }
+      }
+    },
+    "Almost done…": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "即将完成…"
+          }
+        }
+      }
+    },
+    "Anthropic API key": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anthropic API 密钥"
+          }
+        }
+      }
+    },
+    "App": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "应用"
+          }
+        }
+      }
+    },
+    "App haptics": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "应用触感反馈"
+          }
+        }
+      }
+    },
+    "Appearance": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "外观"
+          }
+        }
+      }
+    },
+    "Apply": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "应用"
+          }
+        }
+      }
+    },
+    "Apply connection priority?": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "应用连接优先级？"
+          }
+        }
+      }
+    },
+    "Apply priority": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "应用优先级"
+          }
+        }
+      }
+    },
+    "Approval": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "批准"
+          }
+        }
+      }
+    },
+    "Approve access in your browser, then return to OpenTeam.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在浏览器中批准访问，然后返回 OpenTeam。"
+          }
+        }
+      }
+    },
+    "Apps and scrolling": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "应用与滚动"
+          }
+        }
+      }
+    },
+    "Arguments": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "参数"
+          }
+        }
+      }
+    },
+    "Ask %@ to %@": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "让%@执行%@"
+          }
+        }
+      }
+    },
+    "Ask a Bot": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "询问机器人"
+          }
+        }
+      }
+    },
+    "Assistant": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "助手"
+          }
+        }
+      }
+    },
+    "Assistant  ": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "助手  "
+          }
+        }
+      }
+    },
+    "Attachment": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "附件"
+          }
+        }
+      }
+    },
+    "Attachments": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "附件"
+          }
+        }
+      }
+    },
+    "Authentication": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "身份验证"
+          }
+        }
+      }
+    },
+    "Authorize": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "授权"
+          }
+        }
+      }
+    },
+    "Authorize OpenTeam": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "授权 OpenTeam"
+          }
+        }
+      }
+    },
+    "Automatic": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自动"
+          }
+        }
+      }
+    },
+    "Automatic (recommended)": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自动（推荐）"
+          }
+        }
+      }
+    },
+    "Back": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "返回"
+          }
+        }
+      }
+    },
+    "Base URL": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "基础 URL"
+          }
+        }
+      }
+    },
+    "Before you sign in": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "登录之前"
+          }
+        }
+      }
+    },
+    "Billed per use": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "按使用量计费"
+          }
+        }
+      }
+    },
+    "Black": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "黑色"
+          }
+        }
+      }
+    },
+    "Blue": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "蓝色"
+          }
+        }
+      }
+    },
+    "Bot": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "机器人"
+          }
+        }
+      }
+    },
+    "Bot avatar": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "机器人头像"
+          }
+        }
+      }
+    },
+    "Bot name": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "机器人名称"
+          }
+        }
+      }
+    },
+    "Bot notifications": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "机器人通知"
+          }
+        }
+      }
+    },
+    "Bot options": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "机器人选项"
+          }
+        }
+      }
+    },
+    "Bots can't reply until you connect one": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "连接之前机器人无法回复"
+          }
+        }
+      }
+    },
+    "Bots do the work in OpenTeam. Create one to get started.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "机器人在 OpenTeam 中完成工作。创建一个机器人即可开始。"
+          }
+        }
+      }
+    },
+    "Browser network": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "浏览器网络"
+          }
+        }
+      }
+    },
+    "Cancel": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "取消"
+          }
+        }
+      }
+    },
+    "Cancel connection": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "取消连接"
+          }
+        }
+      }
+    },
+    "Cancel reply": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "取消回复"
+          }
+        }
+      }
+    },
+    "Cancel sign-in": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "取消登录"
+          }
+        }
+      }
+    },
+    "Can’t connect to server": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法连接服务器"
+          }
+        }
+      }
+    },
+    "Changing the active connection interrupts browser downloads and connections. Pages stay open; requests are not replayed.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更改当前连接会中断浏览器的下载和连接。页面保持打开，请求不会重放。"
+          }
+        }
+      }
+    },
+    "Changing the robot replaces the current custom photo.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更换机器人会替换当前的自定义照片。"
+          }
+        }
+      }
+    },
+    "Character": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "形象"
+          }
+        }
+      }
+    },
+    "Check again": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重新检查"
+          }
+        }
+      }
+    },
+    "Check connection": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "检查连接"
+          }
+        }
+      }
+    },
+    "Check failed": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "检查失败"
+          }
+        }
+      }
+    },
+    "Check for an iOS app update": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "检查 iOS 应用更新"
+          }
+        }
+      }
+    },
+    "Check for updates": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "检查更新"
+          }
+        }
+      }
+    },
+    "Checked": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已检查"
+          }
+        }
+      }
+    },
+    "Checking": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "检查中"
+          }
+        }
+      }
+    },
+    "Checking the key…": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在检查密钥…"
+          }
+        }
+      }
+    },
+    "Checking your server…": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在检查你的服务器…"
+          }
+        }
+      }
+    },
+    "Choose": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "选取"
+          }
+        }
+      }
+    },
+    "Choose a conversation": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "选择会话"
+          }
+        }
+      }
+    },
+    "Choose a different AI": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "选择其他 AI"
+          }
+        }
+      }
+    },
+    "Choose a model": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "选择模型"
+          }
+        }
+      }
+    },
+    "Choose a provider": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "选择服务商"
+          }
+        }
+      }
+    },
+    "Choose another %@ provider before removing this key.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "移除此密钥前，请先选择其他 %@ 服务商。"
+          }
+        }
+      }
+    },
+    "Choose from %lld models": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "从 %lld 个模型中选择"
+          }
+        }
+      }
+    },
+    "Choose…": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "选取…"
+          }
+        }
+      }
+    },
+    "Claude models, billed per use": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claude 模型，按使用量计费"
+          }
+        }
+      }
+    },
+    "Clear": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "清除"
+          }
+        }
+      }
+    },
+    "Clear all local data, then sign in again or change your server.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "清除所有本地数据，然后重新登录或更换服务器。"
+          }
+        }
+      }
+    },
+    "Clear all saved environment variables": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "清除所有已保存的环境变量"
+          }
+        }
+      }
+    },
+    "Clear all saved headers": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "清除所有已保存的请求头"
+          }
+        }
+      }
+    },
+    "Clear search": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "清除搜索"
+          }
+        }
+      }
+    },
+    "Clear server address": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "清除服务器地址"
+          }
+        }
+      }
+    },
+    "Client secret in body": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "客户端密钥放在请求体中"
+          }
+        }
+      }
+    },
+    "Clipboard": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "剪贴板"
+          }
+        }
+      }
+    },
+    "Close": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "关闭"
+          }
+        }
+      }
+    },
+    "Close clipboard": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "关闭剪贴板"
+          }
+        }
+      }
+    },
+    "Close input controls": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "关闭输入控制"
+          }
+        }
+      }
+    },
+    "Code not accepted? Turn on device code sign-in in ChatGPT → Settings → Security.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "验证码未被接受？请在 ChatGPT 的“设置”→“安全”中开启设备代码登录。"
+          }
+        }
+      }
+    },
+    "Collapse": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "收起"
+          }
+        }
+      }
+    },
+    "Command": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "命令"
+          }
+        }
+      }
+    },
+    "Complete sign-in": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "完成登录"
+          }
+        }
+      }
+    },
+    "Complete template": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "完整模板"
+          }
+        }
+      }
+    },
+    "Computer": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "电脑"
+          }
+        }
+      }
+    },
+    "Computer help": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "电脑帮助"
+          }
+        }
+      }
+    },
+    "Computer options": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "电脑选项"
+          }
+        }
+      }
+    },
+    "Connect": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "连接"
+          }
+        }
+      }
+    },
+    "Connect apps": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "连接应用"
+          }
+        }
+      }
+    },
+    "Connect once in the desktop app using a native OAuth client. Your server stores the connection and makes it available on this device.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在桌面应用中使用原生 OAuth 客户端连接一次。服务器会保存该连接，并在此设备上使用。"
+          }
+        }
+      }
+    },
+    "Connected": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已连接"
+          }
+        }
+      }
+    },
+    "Connected server": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已连接的服务器"
+          }
+        }
+      }
+    },
+    "Connecting your account…": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在连接你的账户…"
+          }
+        }
+      }
+    },
+    "Connecting…": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在连接…"
+          }
+        }
+      }
+    },
+    "Connection": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "连接"
+          }
+        }
+      }
+    },
+    "Connection settings": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "连接设置"
+          }
+        }
+      }
+    },
+    "Connection test": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "连接测试"
+          }
+        }
+      }
+    },
+    "Continue": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "继续"
+          }
+        }
+      }
+    },
+    "Continue anyway": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "仍然继续"
+          }
+        }
+      }
+    },
+    "Continue on computer": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在电脑上继续"
+          }
+        }
+      }
+    },
+    "Conversation": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "会话"
+          }
+        }
+      }
+    },
+    "Conversation list width": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "会话列表宽度"
+          }
+        }
+      }
+    },
+    "Conversation order": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "会话排序"
+          }
+        }
+      }
+    },
+    "Conversation unavailable": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "会话不可用"
+          }
+        }
+      }
+    },
+    "Conversations": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "会话"
+          }
+        }
+      }
+    },
+    "Copied": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已复制"
+          }
+        }
+      }
+    },
+    "Copy": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "复制"
+          }
+        }
+      }
+    },
+    "Copy again": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "再次复制"
+          }
+        }
+      }
+    },
+    "Copy and paste from browser": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "从浏览器复制粘贴"
+          }
+        }
+      }
+    },
+    "Copy code": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "复制代码"
+          }
+        }
+      }
+    },
+    "Copy install command": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "复制安装命令"
+          }
+        }
+      }
+    },
+    "Copy version info": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "复制版本信息"
+          }
+        }
+      }
+    },
+    "Could not load transcription settings. Check the server connection.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法加载转写设置。请检查服务器连接。"
+          }
+        }
+      }
+    },
+    "Could not verify the server version. Check for updates again.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法验证服务器版本。请再次检查更新。"
+          }
+        }
+      }
+    },
+    "Couldn't reach your server. Check your connection and try again.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法连接到你的服务器。请检查网络连接后重试。"
+          }
+        }
+      }
+    },
+    "Couldn't update server": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法更新服务器"
+          }
+        }
+      }
+    },
+    "Couldn’t complete action": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法完成操作"
+          }
+        }
+      }
+    },
+    "Couldn’t save video": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法保存视频"
+          }
+        }
+      }
+    },
+    "Couldn’t share file": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法共享文件"
+          }
+        }
+      }
+    },
+    "Create": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "创建"
+          }
+        }
+      }
+    },
+    "Create New Bot": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "创建新机器人"
+          }
+        }
+      }
+    },
+    "Create a bot": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "创建机器人"
+          }
+        }
+      }
+    },
+    "Create a bot from this template": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "用此模板创建机器人"
+          }
+        }
+      }
+    },
+    "Create draft": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "创建草稿"
+          }
+        }
+      }
+    },
+    "Create mine too": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "也给我创建一个"
+          }
+        }
+      }
+    },
+    "Create skill": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "创建技能"
+          }
+        }
+      }
+    },
+    "Create your first bot": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "创建第一个机器人"
+          }
+        }
+      }
+    },
+    "Creating…": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在创建…"
+          }
+        }
+      }
+    },
+    "Custom MCP": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自定义 MCP"
+          }
+        }
+      }
+    },
+    "Dark": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "深色"
+          }
+        }
+      }
+    },
+    "Date": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "日期"
+          }
+        }
+      }
+    },
+    "Day of month": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "每月日期"
+          }
+        }
+      }
+    },
+    "Day of week": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "星期"
+          }
+        }
+      }
+    },
+    "Default provider": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "默认服务商"
+          }
+        }
+      }
+    },
+    "Definition": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "定义"
+          }
+        }
+      }
+    },
+    "Delete": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "删除"
+          }
+        }
+      }
+    },
+    "Delete %@?": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "删除%@？"
+          }
+        }
+      }
+    },
+    "Delete bot": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "删除机器人"
+          }
+        }
+      }
+    },
+    "Delete draft": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "删除草稿"
+          }
+        }
+      }
+    },
+    "Delete group": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "删除群组"
+          }
+        }
+      }
+    },
+    "Delete key": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "删除密钥"
+          }
+        }
+      }
+    },
+    "Delete routine": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "删除例程"
+          }
+        }
+      }
+    },
+    "Delete section": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "删除分区"
+          }
+        }
+      }
+    },
+    "Delete section?": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "删除分区？"
+          }
+        }
+      }
+    },
+    "Delete skill": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "删除技能"
+          }
+        }
+      }
+    },
+    "Delete this draft?": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "删除此草稿？"
+          }
+        }
+      }
+    },
+    "Delete this private skill?": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "删除此私有技能？"
+          }
+        }
+      }
+    },
+    "Delete this routine?": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "删除此例程？"
+          }
+        }
+      }
+    },
+    "Delivery unconfirmed": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "送达未确认"
+          }
+        }
+      }
+    },
+    "Description": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "描述"
+          }
+        }
+      }
+    },
+    "Desktop listener (advanced)": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "桌面监听（高级）"
+          }
+        }
+      }
+    },
+    "Details": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "详情"
+          }
+        }
+      }
+    },
+    "Didn't reply": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未回复"
+          }
+        }
+      }
+    },
+    "Disable": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "停用"
+          }
+        }
+      }
+    },
+    "Disable drafts": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "停用草稿"
+          }
+        }
+      }
+    },
+    "Discard": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "丢弃"
+          }
+        }
+      }
+    },
+    "Discard changes": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "放弃更改"
+          }
+        }
+      }
+    },
+    "Discard recording": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "丢弃录音"
+          }
+        }
+      }
+    },
+    "Discard this queued message?": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "丢弃此排队消息？"
+          }
+        }
+      }
+    },
+    "Disconnect": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "断开连接"
+          }
+        }
+      }
+    },
+    "Disconnect %@?": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "断开%@？"
+          }
+        }
+      }
+    },
+    "Disk": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "磁盘"
+          }
+        }
+      }
+    },
+    "Dismiss": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "忽略"
+          }
+        }
+      }
+    },
+    "Do this on the computer": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在电脑上完成"
+          }
+        }
+      }
+    },
+    "Done": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "完成"
+          }
+        }
+      }
+    },
+    "Draft %@ to %@": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "起草%@到%@"
+          }
+        }
+      }
+    },
+    "Draft a message to a conversation": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "为会话起草消息"
+          }
+        }
+      }
+    },
+    "Draft: only you can see it until you publish": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "草稿：发布前只有你能看到"
+          }
+        }
+      }
+    },
+    "Drafts and edits documents, posts, and messages in your voice.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "用你的语气起草和编辑文档、帖子与消息。"
+          }
+        }
+      }
+    },
+    "Edit skill": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "编辑技能"
+          }
+        }
+      }
+    },
+    "Emoji": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "表情"
+          }
+        }
+      }
+    },
+    "Enable": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "启用"
+          }
+        }
+      }
+    },
+    "Enable updates on your server": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在服务器上启用更新"
+          }
+        }
+      }
+    },
+    "Enabled": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已启用"
+          }
+        }
+      }
+    },
+    "Enabled bots": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已启用的机器人"
+          }
+        }
+      }
+    },
+    "End call": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "结束通话"
+          }
+        }
+      }
+    },
+    "End realtime voice": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "结束实时语音"
+          }
+        }
+      }
+    },
+    "Endpoint": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "端点"
+          }
+        }
+      }
+    },
+    "English": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "English"
+          }
+        }
+      }
+    },
+    "Environment": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "环境变量"
+          }
+        }
+      }
+    },
+    "Every": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "每"
+          }
+        }
+      }
+    },
+    "Every 5 seconds": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "每 5 秒"
+          }
+        }
+      }
+    },
+    "Exit IP": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "出口 IP"
+          }
+        }
+      }
+    },
+    "Expand": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "展开"
+          }
+        }
+      }
+    },
+    "Export package": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "导出包"
+          }
+        }
+      }
+    },
+    "Export template": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "导出模板"
+          }
+        }
+      }
+    },
+    "Favorited": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已收藏"
+          }
+        }
+      }
+    },
+    "Fetches a real web page.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "抓取真实网页。"
+          }
+        }
+      }
+    },
+    "File name": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "文件名"
+          }
+        }
+      }
+    },
+    "File paths and text contents": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "文件路径和文本内容"
+          }
+        }
+      }
+    },
+    "Files": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "文件"
+          }
+        }
+      }
+    },
+    "Files the user wants the Bot to use for this task.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "用户希望机器人用于此任务的文件。"
+          }
+        }
+      }
+    },
+    "Files the user wants to send.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "用户要发送的文件。"
+          }
+        }
+      }
+    },
+    "Files to attach to the draft.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "要附加到草稿的文件。"
+          }
+        }
+      }
+    },
+    "Filter plugins": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "筛选插件"
+          }
+        }
+      }
+    },
+    "Find OpenTeam messages": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "查找 OpenTeam 消息"
+          }
+        }
+      }
+    },
+    "Find a venue in Lisbon for our team offsite.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在里斯本为团队外出活动找一处场地。"
+          }
+        }
+      }
+    },
+    "Find messages": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "查找消息"
+          }
+        }
+      }
+    },
+    "Find messages matching %@": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "查找与%@匹配的消息"
+          }
+        }
+      }
+    },
+    "Finds, compares, and summarizes information from the web, with sources.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "从网络上查找、比较并总结信息，并附上来源。"
+          }
+        }
+      }
+    },
+    "Forgot it? Run `openteam account update -⁠-⁠password` on your server.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "忘记了？在服务器上运行 `openteam account update -⁠-⁠password`。"
+          }
+        }
+      }
+    },
+    "Forward": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "转发"
+          }
+        }
+      }
+    },
+    "Forwarding…": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在转发…"
+          }
+        }
+      }
+    },
+    "Frequency": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "频率"
+          }
+        }
+      }
+    },
+    "From": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "发件人"
+          }
+        }
+      }
+    },
+    "From a URL": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "从 URL"
+          }
+        }
+      }
+    },
+    "GPT models, billed per use": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GPT 模型，按使用量计费"
+          }
+        }
+      }
+    },
+    "General helper": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "通用助手"
+          }
+        }
+      }
+    },
+    "Get a key": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "获取密钥"
+          }
+        }
+      }
+    },
+    "Get started": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "开始使用"
+          }
+        }
+      }
+    },
+    "Give back control": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "交还控制权"
+          }
+        }
+      }
+    },
+    "Give it a name and a job. You can change these anytime.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "给它起个名字并指定职责。这些随时可以更改。"
+          }
+        }
+      }
+    },
+    "Group": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "群组"
+          }
+        }
+      }
+    },
+    "HTTP": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HTTP"
+          }
+        }
+      }
+    },
+    "HTTP Basic": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HTTP 基础认证"
+          }
+        }
+      }
+    },
+    "HTTP is not encrypted. Only connect through a network or VPN you trust.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HTTP 未加密。请只通过你信任的网络或 VPN 连接。"
+          }
+        }
+      }
+    },
+    "Handles recurring admin work like reports, spreadsheets, and checklists.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "处理报表、表格和清单等重复性事务。"
+          }
+        }
+      }
+    },
+    "Headers": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请求头"
+          }
+        }
+      }
+    },
+    "Help Center": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "帮助中心"
+          }
+        }
+      }
+    },
+    "Helps with research, writing, and everyday tasks on the web.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "帮助完成网络上的调研、写作和日常任务。"
+          }
+        }
+      }
+    },
+    "Hide keyboard": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "隐藏键盘"
+          }
+        }
+      }
+    },
+    "Hide password": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "隐藏密码"
+          }
+        }
+      }
+    },
+    "Host/VM CPU & RAM · OpenTeam data disk": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "主机/虚拟机 CPU 与内存 · OpenTeam 数据磁盘"
+          }
+        }
+      }
+    },
+    "How this Bot’s mark looks everywhere": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此机器人的标志在各处的显示效果"
+          }
+        }
+      }
+    },
+    "Hundreds of models, one key": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "数百个模型，一个密钥"
+          }
+        }
+      }
+    },
+    "I can help with research, writing, and everyday tasks on the web.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "我可以帮你完成网络上的调研、写作和日常任务。"
+          }
+        }
+      }
+    },
+    "I draft and edit documents, posts, and messages in your voice.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "我会用你的语气起草和编辑文档、帖子与消息。"
+          }
+        }
+      }
+    },
+    "I find, compare, and summarize information from the web, with sources.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "我会从网络上查找、比较并总结信息，并附上来源。"
+          }
+        }
+      }
+    },
+    "I handle recurring admin work like reports, spreadsheets, and checklists.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "我会处理报表、表格和清单等重复性事务。"
+          }
+        }
+      }
+    },
+    "I sort email, draft replies for your review, and track follow-ups.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "我会整理邮件、起草待你审阅的回复，并跟踪后续事项。"
+          }
+        }
+      }
+    },
+    "If you sign in in Safari, the last page won't load. Copy its address and paste it here.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "如果在 Safari 中登录，最后一页不会加载。请复制其地址并粘贴到此处。"
+          }
+        }
+      }
+    },
+    "Image unavailable": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "图片不可用"
+          }
+        }
+      }
+    },
+    "Import URL": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "导入 URL"
+          }
+        }
+      }
+    },
+    "Import ZIP archive": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "导入 ZIP 归档"
+          }
+        }
+      }
+    },
+    "Import package": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "导入包"
+          }
+        }
+      }
+    },
+    "Import text files": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "导入文本文件"
+          }
+        }
+      }
+    },
+    "In use": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用中"
+          }
+        }
+      }
+    },
+    "In use for %@": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "用于 %@"
+          }
+        }
+      }
+    },
+    "Inbox assistant": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "收件箱助手"
+          }
+        }
+      }
+    },
+    "Input controls": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "输入控制"
+          }
+        }
+      }
+    },
+    "Input mode": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "输入模式"
+          }
+        }
+      }
+    },
+    "Install %@ on %@? Your server and bot computer will restart briefly. Your files and sign-ins stay in place.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "将 %@ 安装到 %@？你的服务器和机器人电脑会短暂重启，文件和登录状态都会保留。"
+          }
+        }
+      }
+    },
+    "Install draft": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "安装草稿"
+          }
+        }
+      }
+    },
+    "Install plugin": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "安装插件"
+          }
+        }
+      }
+    },
+    "Install the server": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "安装服务器"
+          }
+        }
+      }
+    },
+    "Install update": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "安装更新"
+          }
+        }
+      }
+    },
+    "Installation": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "安装"
+          }
+        }
+      }
+    },
+    "Installation steps": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "安装步骤"
+          }
+        }
+      }
+    },
+    "Instructions": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "指令"
+          }
+        }
+      }
+    },
+    "Instructions for bots": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "给机器人的说明"
+          }
+        }
+      }
+    },
+    "Its conversations will stay in your list.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "其会话会保留在你的列表中。"
+          }
+        }
+      }
+    },
+    "Job": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "职责"
+          }
+        }
+      }
+    },
+    "Keep editing": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "继续编辑"
+          }
+        }
+      }
+    },
+    "Keep this schedule, or choose a frequency to replace it. More scheduling options are available on desktop.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "保留此计划，或选择新的频率替换它。更多计划选项可在桌面端使用。"
+          }
+        }
+      }
+    },
+    "Keep this screen open while the update starts.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更新开始期间请保持此屏幕打开。"
+          }
+        }
+      }
+    },
+    "Keep this take to send or discard.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "保留这段录音以发送或丢弃。"
+          }
+        }
+      }
+    },
+    "Keep your current AI": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "保留当前 AI"
+          }
+        }
+      }
+    },
+    "Key saved": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "密钥已保存"
+          }
+        }
+      }
+    },
+    "Keys": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "按键"
+          }
+        }
+      }
+    },
+    "Label (optional)": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "标签（可选）"
+          }
+        }
+      }
+    },
+    "Language": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "语言"
+          }
+        }
+      }
+    },
+    "Last checked %@ ago.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "上次检查：%@ 前。"
+          }
+        }
+      }
+    },
+    "Last seen: %@": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "上次看到：%@"
+          }
+        }
+      }
+    },
+    "Latency %lld milliseconds": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "延迟 %lld 毫秒"
+          }
+        }
+      }
+    },
+    "Latest messages": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "最新消息"
+          }
+        }
+      }
+    },
+    "Leave blank to use the server default voice.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "留空则使用服务器默认音色。"
+          }
+        }
+      }
+    },
+    "Leave these objects empty to preserve saved values, or select Clear all to remove them when saving. Saved values are never displayed.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "留空这些对象可保留已保存的值，或在保存时选择“全部清除”将其移除。已保存的值不会显示。"
+          }
+        }
+      }
+    },
+    "Let Siri understand visible messages and find recent conversations and messages in Spotlight on this device. Hidden conversations are excluded from the index. Shortcuts actions are available even when this is off.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "让 Siri 理解可见消息，并在此设备的 Spotlight 中查找最近的会话和消息。隐藏的会话不会建立索引。即使关闭此项，“快捷指令”操作仍可使用。"
+          }
+        }
+      }
+    },
+    "Let's connect to your server and set up your first bot. It takes about two minutes.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "让我们连接你的服务器并设置第一个机器人。大约需要两分钟。"
+          }
+        }
+      }
+    },
+    "Let's make sure it works": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "确认一下能否正常工作"
+          }
+        }
+      }
+    },
+    "Light": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "浅色"
+          }
+        }
+      }
+    },
+    "Live Bot conversations": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "实时机器人对话"
+          }
+        }
+      }
+    },
+    "Live activity": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "实时活动"
+          }
+        }
+      }
+    },
+    "Live progress": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "实时进度"
+          }
+        }
+      }
+    },
+    "Load earlier messages": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "加载更早的消息"
+          }
+        }
+      }
+    },
+    "Load earlier replies": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "加载更早的回复"
+          }
+        }
+      }
+    },
+    "Load later messages": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "加载更晚的消息"
+          }
+        }
+      }
+    },
+    "Loading": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "加载中"
+          }
+        }
+      }
+    },
+    "Loading exchange": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在加载对话记录"
+          }
+        }
+      }
+    },
+    "Loading image": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在加载图片"
+          }
+        }
+      }
+    },
+    "Loading messages": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在加载消息"
+          }
+        }
+      }
+    },
+    "Loading photo": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在加载照片"
+          }
+        }
+      }
+    },
+    "Loading photos": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在加载照片"
+          }
+        }
+      }
+    },
+    "Loading plugins…": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在加载插件…"
+          }
+        }
+      }
+    },
+    "Loading recent runs…": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在加载最近的运行…"
+          }
+        }
+      }
+    },
+    "Loading routines…": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在加载例程…"
+          }
+        }
+      }
+    },
+    "Loading thread": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在加载会话串"
+          }
+        }
+      }
+    },
+    "Loading…": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "加载中…"
+          }
+        }
+      }
+    },
+    "Location": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "位置"
+          }
+        }
+      }
+    },
+    "Lost it? Run `openteam status` on your server.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "丢失了？在服务器上运行 `openteam status`。"
+          }
+        }
+      }
+    },
+    "Love": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "喜爱"
+          }
+        }
+      }
+    },
+    "Manage accounts": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "管理账户"
+          }
+        }
+      }
+    },
+    "Manage devices": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "管理设备"
+          }
+        }
+      }
+    },
+    "Many models with one OpenRouter account": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "用一个 OpenRouter 账户访问众多模型"
+          }
+        }
+      }
+    },
+    "Mark as unread": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "标记为未读"
+          }
+        }
+      }
+    },
+    "Mark unread": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "标记为未读"
+          }
+        }
+      }
+    },
+    "Marketplace": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "插件市场"
+          }
+        }
+      }
+    },
+    "Members": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "成员"
+          }
+        }
+      }
+    },
+    "Message": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "消息"
+          }
+        }
+      }
+    },
+    "Message body": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "消息正文"
+          }
+        }
+      }
+    },
+    "Message from": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "来自"
+          }
+        }
+      }
+    },
+    "Messaged": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已发消息"
+          }
+        }
+      }
+    },
+    "Minimize realtime voice": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "最小化实时语音"
+          }
+        }
+      }
+    },
+    "Minute": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "分钟"
+          }
+        }
+      }
+    },
+    "Mode": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "模式"
+          }
+        }
+      }
+    },
+    "Model": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "模型"
+          }
+        }
+      }
+    },
+    "Model ID": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "模型 ID"
+          }
+        }
+      }
+    },
+    "Model, %@": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "模型，%@"
+          }
+        }
+      }
+    },
+    "More camera controls": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更多相机控制"
+          }
+        }
+      }
+    },
+    "More connection actions": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更多连接操作"
+          }
+        }
+      }
+    },
+    "More preferences": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更多偏好设置"
+          }
+        }
+      }
+    },
+    "More providers": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更多服务商"
+          }
+        }
+      }
+    },
+    "Move conversations here from the home screen’s conversation menu.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "从主屏幕的会话菜单将会话移动到这里。"
+          }
+        }
+      }
+    },
+    "Move down": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "下移"
+          }
+        }
+      }
+    },
+    "Move the pointer by dragging. Tap to click; tap then drag to drag remotely.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "拖动可移动指针。轻点即点击；轻点后拖动可远程拖移。"
+          }
+        }
+      }
+    },
+    "Move to": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "移动到"
+          }
+        }
+      }
+    },
+    "Move up": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "上移"
+          }
+        }
+      }
+    },
+    "NEW": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新"
+          }
+        }
+      }
+    },
+    "Name": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "名称"
+          }
+        }
+      }
+    },
+    "Name your Bot": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "为你的机器人命名"
+          }
+        }
+      }
+    },
+    "Name your group": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "为群组命名"
+          }
+        }
+      }
+    },
+    "Narration model": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "旁白模型"
+          }
+        }
+      }
+    },
+    "Native text-field control": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "原生文本框控件"
+          }
+        }
+      }
+    },
+    "New Bot": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新建机器人"
+          }
+        }
+      }
+    },
+    "New Group Chat": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新建群聊"
+          }
+        }
+      }
+    },
+    "New account name, e.g. Work": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新账户名称，例如：工作"
+          }
+        }
+      }
+    },
+    "New conversation": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新会话"
+          }
+        }
+      }
+    },
+    "New messages": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新消息"
+          }
+        }
+      }
+    },
+    "New routine": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新例程"
+          }
+        }
+      }
+    },
+    "New section": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新分区"
+          }
+        }
+      }
+    },
+    "New skill": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新技能"
+          }
+        }
+      }
+    },
+    "New source": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新来源"
+          }
+        }
+      }
+    },
+    "Next": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "下一步"
+          }
+        }
+      }
+    },
+    "Next: %@": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "下次：%@"
+          }
+        }
+      }
+    },
+    "No chats": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无会话"
+          }
+        }
+      }
+    },
+    "No conversations yet": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "还没有会话"
+          }
+        }
+      }
+    },
+    "No exchange messages loaded.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未加载对话记录。"
+          }
+        }
+      }
+    },
+    "No model chosen yet. Bots can't reply until you choose one.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "尚未选择模型。选择之前机器人无法回复。"
+          }
+        }
+      }
+    },
+    "No models available": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "没有可用模型"
+          }
+        }
+      }
+    },
+    "No plugins available.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "没有可用插件。"
+          }
+        }
+      }
+    },
+    "No plugins installed yet.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "尚未安装插件。"
+          }
+        }
+      }
+    },
+    "No plugins match this filter.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "没有符合此筛选条件的插件。"
+          }
+        }
+      }
+    },
+    "No queued messages": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "没有排队消息"
+          }
+        }
+      }
+    },
+    "No reply": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无回复"
+          }
+        }
+      }
+    },
+    "No routines yet": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "还没有例程"
+          }
+        }
+      }
+    },
+    "No runs yet": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "还没有运行记录"
+          }
+        }
+      }
+    },
+    "None": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无"
+          }
+        }
+      }
+    },
+    "Not checked": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未检查"
+          }
+        }
+      }
+    },
+    "Not connected.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未连接。"
+          }
+        }
+      }
+    },
+    "Not delivered": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未送达"
+          }
+        }
+      }
+    },
+    "Not now": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "以后再说"
+          }
+        }
+      }
+    },
+    "Not running": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未运行"
+          }
+        }
+      }
+    },
+    "Not set up": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未设置"
+          }
+        }
+      }
+    },
+    "Not working": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "不工作"
+          }
+        }
+      }
+    },
+    "Notifications": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "通知"
+          }
+        }
+      }
+    },
+    "OAuth": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OAuth"
+          }
+        }
+      }
+    },
+    "OAuth client authentication": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OAuth 客户端认证"
+          }
+        }
+      }
+    },
+    "OK": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "好"
+          }
+        }
+      }
+    },
+    "Off": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "关闭"
+          }
+        }
+      }
+    },
+    "One account, hundreds of models": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "一个账户，数百个模型"
+          }
+        }
+      }
+    },
+    "Open %@": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "打开%@"
+          }
+        }
+      }
+    },
+    "Open Bot": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "打开机器人"
+          }
+        }
+      }
+    },
+    "Open Connection settings to finish the one-time setup. Then you can sign in on this device.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "打开“连接设置”完成一次性设置，然后即可在此设备上登录。"
+          }
+        }
+      }
+    },
+    "Open OpenTeam": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "打开 OpenTeam"
+          }
+        }
+      }
+    },
+    "Open TestFlight": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "打开 TestFlight"
+          }
+        }
+      }
+    },
+    "Open a Bot": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "打开机器人"
+          }
+        }
+      }
+    },
+    "Open a chosen Bot and start hands-free voice-note recording. Tap Send to transcribe and send, or discard the recording. Works with a saved shortcut assigned to Back Tap or the Action button.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "打开所选机器人并开始免提录制语音消息。轻点“发送”即可转写并发送，也可丢弃录音。可用于分配到轻点背面或操作按钮的已保存快捷指令。"
+          }
+        }
+      }
+    },
+    "Open a chosen Bot's conversation in OpenTeam. Save the Bot in a shortcut to use it with Back Tap or the Action button.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在 OpenTeam 中打开所选机器人的会话。将机器人保存到快捷指令后，即可通过轻点背面或操作按钮使用。"
+          }
+        }
+      }
+    },
+    "Open a conversation": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "打开会话"
+          }
+        }
+      }
+    },
+    "Open a draft for review in a specific existing OpenTeam conversation. Appends to any existing draft and never sends it.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在特定现有 OpenTeam 会话中打开草稿以供审阅。会附加到现有草稿，且绝不会发送。"
+          }
+        }
+      }
+    },
+    "Open a message": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "打开消息"
+          }
+        }
+      }
+    },
+    "Open an existing Bot or group conversation in OpenTeam.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在 OpenTeam 中打开现有的机器人或群组会话。"
+          }
+        }
+      }
+    },
+    "Open computer": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "打开电脑"
+          }
+        }
+      }
+    },
+    "Open conversation": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "打开会话"
+          }
+        }
+      }
+    },
+    "Open iOS Settings": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "打开 iOS 设置"
+          }
+        }
+      }
+    },
+    "Open in Safari instead": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "改用 Safari 打开"
+          }
+        }
+      }
+    },
+    "Open it again": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重新打开"
+          }
+        }
+      }
+    },
+    "Open it to start chatting, or create a bot of your own too.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "打开它即可开始聊天，也可以再创建一个自己的机器人。"
+          }
+        }
+      }
+    },
+    "Open message": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "打开消息"
+          }
+        }
+      }
+    },
+    "Open sign-in page": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "打开登录页面"
+          }
+        }
+      }
+    },
+    "Open the OpenTeam desktop app on a computer and sign in to add it here.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在电脑上打开 OpenTeam 桌面应用并登录，即可在此添加。"
+          }
+        }
+      }
+    },
+    "Open the sign-in page and enter this code:": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "打开登录页面并输入此验证码："
+          }
+        }
+      }
+    },
+    "OpenAI API key": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenAI API 密钥"
+          }
+        }
+      }
+    },
+    "OpenAI-compatible endpoints": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenAI 兼容端点"
+          }
+        }
+      }
+    },
+    "OpenTeam %@ · Build %@": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenTeam %@ · 版本号 %@"
+          }
+        }
+      }
+    },
+    "OpenTeam follows your iPhone’s language and text size. Your bots use your timezone for routines and their computer’s clock.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenTeam 会跟随 iPhone 的语言和文字大小。机器人的例程使用你的时区，电脑使用其自身的时钟。"
+          }
+        }
+      }
+    },
+    "OpenTeam is ready": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenTeam 已就绪"
+          }
+        }
+      }
+    },
+    "OpenTeam server": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenTeam 服务器"
+          }
+        }
+      }
+    },
+    "Opening": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在打开"
+          }
+        }
+      }
+    },
+    "Opening message": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在打开消息"
+          }
+        }
+      }
+    },
+    "Opening…": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在打开…"
+          }
+        }
+      }
+    },
+    "Operations": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "运营"
+          }
+        }
+      }
+    },
+    "Or answer in the chat below": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "或在下方聊天中回答"
+          }
+        }
+      }
+    },
+    "Organize conversations": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "整理会话"
+          }
+        }
+      }
+    },
+    "Other reaction": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "其他回应"
+          }
+        }
+      }
+    },
+    "Our desktop robots · Swift": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "我们的桌面机器人 · Swift"
+          }
+        }
+      }
+    },
+    "Our robot · native motion": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "我们的机器人 · 原生动效"
+          }
+        }
+      }
+    },
+    "Package": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "包"
+          }
+        }
+      }
+    },
+    "Package URL": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "包 URL"
+          }
+        }
+      }
+    },
+    "Package and updates": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "包与更新"
+          }
+        }
+      }
+    },
+    "Packages": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "包"
+          }
+        }
+      }
+    },
+    "Password": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "密码"
+          }
+        }
+      }
+    },
+    "Paste it here": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "粘贴到此处"
+          }
+        }
+      }
+    },
+    "Paste the address": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "粘贴地址"
+          }
+        }
+      }
+    },
+    "Paste the address from your browser": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "粘贴浏览器中的地址"
+          }
+        }
+      }
+    },
+    "Paste the address your terminal printed at the end of setup.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "粘贴终端在设置结束时输出的地址。"
+          }
+        }
+      }
+    },
+    "Paste the browser address here": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在此粘贴浏览器地址"
+          }
+        }
+      }
+    },
+    "Paste your %@ API key": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "粘贴你的 %@ API 密钥"
+          }
+        }
+      }
+    },
+    "Paste your %@ key": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "粘贴你的 %@ 密钥"
+          }
+        }
+      }
+    },
+    "Paste your API key": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "粘贴你的 API 密钥"
+          }
+        }
+      }
+    },
+    "Paste your key": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "粘贴你的密钥"
+          }
+        }
+      }
+    },
+    "Pause": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "暂停"
+          }
+        }
+      }
+    },
+    "Pause iPhone alerts while I’m using my Mac": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用 Mac 时暂停 iPhone 提醒"
+          }
+        }
+      }
+    },
+    "Pause view": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "暂停画面"
+          }
+        }
+      }
+    },
+    "Paused": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已暂停"
+          }
+        }
+      }
+    },
+    "Pay as you go with an Anthropic key": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用 Anthropic 密钥按用量付费"
+          }
+        }
+      }
+    },
+    "Pay as you go with an OpenAI key": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用 OpenAI 密钥按用量付费"
+          }
+        }
+      }
+    },
+    "Pay per use with a key from console.anthropic.com": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用 console.anthropic.com 的密钥按使用量付费"
+          }
+        }
+      }
+    },
+    "Pay per use with a key from platform.openai.com": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用 platform.openai.com 的密钥按使用量付费"
+          }
+        }
+      }
+    },
+    "Photo %lld": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "照片 %lld"
+          }
+        }
+      }
+    },
+    "Photo options": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "照片选项"
+          }
+        }
+      }
+    },
+    "Pin": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "固定"
+          }
+        }
+      }
+    },
+    "Pinned": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已固定"
+          }
+        }
+      }
+    },
+    "Play": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "播放"
+          }
+        }
+      }
+    },
+    "Plugin package": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "插件包"
+          }
+        }
+      }
+    },
+    "Plugin workspace": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "插件工作区"
+          }
+        }
+      }
+    },
+    "Plugins": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "插件"
+          }
+        }
+      }
+    },
+    "Position": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "位置"
+          }
+        }
+      }
+    },
+    "Preparing attachment": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在准备附件"
+          }
+        }
+      }
+    },
+    "Preparing attachment…": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在准备附件…"
+          }
+        }
+      }
+    },
+    "Preparing template…": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在准备模板…"
+          }
+        }
+      }
+    },
+    "Preview: %@, %@": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "预览：%@，%@"
+          }
+        }
+      }
+    },
+    "Private skills": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "私有技能"
+          }
+        }
+      }
+    },
+    "Provided securely": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "安全提供"
+          }
+        }
+      }
+    },
+    "Provider": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "服务商"
+          }
+        }
+      }
+    },
+    "Provider connection": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "服务商连接"
+          }
+        }
+      }
+    },
+    "Provider setup": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "服务商设置"
+          }
+        }
+      }
+    },
+    "Provider setup guide": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "服务商设置指南"
+          }
+        }
+      }
+    },
+    "Providers": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "服务商"
+          }
+        }
+      }
+    },
+    "Publish": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "发布"
+          }
+        }
+      }
+    },
+    "Publisher": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "发布者"
+          }
+        }
+      }
+    },
+    "Publishing…": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在发布…"
+          }
+        }
+      }
+    },
+    "Queued messages": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "排队消息"
+          }
+        }
+      }
+    },
+    "REALTIME CONVERSATION": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "实时对话"
+          }
+        }
+      }
+    },
+    "Re-auth": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重新授权"
+          }
+        }
+      }
+    },
+    "React": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "回应"
+          }
+        }
+      }
+    },
+    "React to message": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "回应消息"
+          }
+        }
+      }
+    },
+    "Read-only": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "只读"
+          }
+        }
+      }
+    },
+    "Ready": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "就绪"
+          }
+        }
+      }
+    },
+    "Realtime voice": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "实时语音"
+          }
+        }
+      }
+    },
+    "Reasoning effort": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "推理强度"
+          }
+        }
+      }
+    },
+    "Recent runs": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "最近运行"
+          }
+        }
+      }
+    },
+    "Recommended": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "推荐"
+          }
+        }
+      }
+    },
+    "Reconnect": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重新连接"
+          }
+        }
+      }
+    },
+    "Reconnecting to the server…": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在重新连接服务器…"
+          }
+        }
+      }
+    },
+    "Record a voice note to %@": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "向%@发送语音消息"
+          }
+        }
+      }
+    },
+    "Record a voice note to a Bot": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "向机器人发送语音消息"
+          }
+        }
+      }
+    },
+    "Record to a Bot": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "录制语音给机器人"
+          }
+        }
+      }
+    },
+    "Recording voice note": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在录制语音消息"
+          }
+        }
+      }
+    },
+    "Recover to a draft": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "恢复为草稿"
+          }
+        }
+      }
+    },
+    "Recovering safely": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "安全恢复中"
+          }
+        }
+      }
+    },
+    "Reduce motion": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "减弱动态效果"
+          }
+        }
+      }
+    },
+    "Refresh": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "刷新"
+          }
+        }
+      }
+    },
+    "Refresh source": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "刷新来源"
+          }
+        }
+      }
+    },
+    "Refresh status": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "刷新状态"
+          }
+        }
+      }
+    },
+    "Register this exact callback with your provider’s web OAuth client. Google requires an HTTPS hostname for a remote server callback. A desktop OAuth client cannot be reused for this method.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请将此回调地址原样注册到服务商的 Web OAuth 客户端。Google 要求远程服务器回调使用 HTTPS 主机名。桌面 OAuth 客户端无法用于此方式。"
+          }
+        }
+      }
+    },
+    "Release to Cancel": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "松开以取消"
+          }
+        }
+      }
+    },
+    "Release to Send": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "松开以发送"
+          }
+        }
+      }
+    },
+    "Reload latest version": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重新加载最新版本"
+          }
+        }
+      }
+    },
+    "Remove": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "移除"
+          }
+        }
+      }
+    },
+    "Remove account": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "移除账户"
+          }
+        }
+      }
+    },
+    "Remove key": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "移除密钥"
+          }
+        }
+      }
+    },
+    "Remove source": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "移除来源"
+          }
+        }
+      }
+    },
+    "Remove the %@ API key?": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "移除 %@ API 密钥？"
+          }
+        }
+      }
+    },
+    "Remove this source?": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "移除此来源？"
+          }
+        }
+      }
+    },
+    "Rename": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重命名"
+          }
+        }
+      }
+    },
+    "Rename account": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重命名账户"
+          }
+        }
+      }
+    },
+    "Rename section": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重命名分区"
+          }
+        }
+      }
+    },
+    "Reopen sign-in": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重新打开登录"
+          }
+        }
+      }
+    },
+    "Replace key": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "替换密钥"
+          }
+        }
+      }
+    },
+    "Replace your edits with the latest version?": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "用最新版本替换你的编辑？"
+          }
+        }
+      }
+    },
+    "Replacement environment variables": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "替换的环境变量"
+          }
+        }
+      }
+    },
+    "Replacement headers": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "替换的请求头"
+          }
+        }
+      }
+    },
+    "Reply": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "回复"
+          }
+        }
+      }
+    },
+    "Reply with OK": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "回复 OK"
+          }
+        }
+      }
+    },
+    "Researcher": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "研究员"
+          }
+        }
+      }
+    },
+    "Reset to default": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "恢复默认"
+          }
+        }
+      }
+    },
+    "Restart connection": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重新启动连接"
+          }
+        }
+      }
+    },
+    "Restore realtime voice": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "恢复实时语音"
+          }
+        }
+      }
+    },
+    "Result": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "结果"
+          }
+        }
+      }
+    },
+    "Resume": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "继续"
+          }
+        }
+      }
+    },
+    "Resume view": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "继续画面"
+          }
+        }
+      }
+    },
+    "Retry": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重试"
+          }
+        }
+      }
+    },
+    "Retry connection": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重试连接"
+          }
+        }
+      }
+    },
+    "Retry notifications": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重试通知"
+          }
+        }
+      }
+    },
+    "Retry setup": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重试设置"
+          }
+        }
+      }
+    },
+    "Retrying connection": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在重试连接"
+          }
+        }
+      }
+    },
+    "Retrying message": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在重试消息"
+          }
+        }
+      }
+    },
+    "Return to server (HTTPS)": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "返回服务器（HTTPS）"
+          }
+        }
+      }
+    },
+    "Role": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "角色"
+          }
+        }
+      }
+    },
+    "Roll back to previous version": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "回滚到上一版本"
+          }
+        }
+      }
+    },
+    "Routine": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "例程"
+          }
+        }
+      }
+    },
+    "Routine name": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "例程名称"
+          }
+        }
+      }
+    },
+    "Routines": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "例程"
+          }
+        }
+      }
+    },
+    "Run %@": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "运行%@"
+          }
+        }
+      }
+    },
+    "Run an OpenTeam routine": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "运行 OpenTeam 例程"
+          }
+        }
+      }
+    },
+    "Run now": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "立即运行"
+          }
+        }
+      }
+    },
+    "Run routine": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "运行例程"
+          }
+        }
+      }
+    },
+    "Run test": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "运行测试"
+          }
+        }
+      }
+    },
+    "Run this on the computer that will host your bots, then come back here.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在将托管机器人的电脑上运行此命令，然后回到这里。"
+          }
+        }
+      }
+    },
+    "Run this once on the server computer:": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在服务器电脑上运行一次："
+          }
+        }
+      }
+    },
+    "Run transition tour": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "运行动画演示"
+          }
+        }
+      }
+    },
+    "Running": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "运行中"
+          }
+        }
+      }
+    },
+    "Runs a real test search.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "执行一次真实的测试搜索。"
+          }
+        }
+      }
+    },
+    "Runs only in months with a %@ day.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "仅在每月有第 %@ 天的月份运行。"
+          }
+        }
+      }
+    },
+    "STT WebSocket URL": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "STT WebSocket 地址"
+          }
+        }
+      }
+    },
+    "STT model": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "STT 模型"
+          }
+        }
+      }
+    },
+    "STT resource ID": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "STT 资源 ID"
+          }
+        }
+      }
+    },
+    "Save": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "保存"
+          }
+        }
+      }
+    },
+    "Save and sign in": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "保存并登录"
+          }
+        }
+      }
+    },
+    "Save changes": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "保存更改"
+          }
+        }
+      }
+    },
+    "Save changes?": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "保存更改？"
+          }
+        }
+      }
+    },
+    "Save configuration": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "保存配置"
+          }
+        }
+      }
+    },
+    "Save draft": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "保存草稿"
+          }
+        }
+      }
+    },
+    "Save instructions": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "保存说明"
+          }
+        }
+      }
+    },
+    "Save nonsecret info for future forms": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "保存非机密信息以便日后填写"
+          }
+        }
+      }
+    },
+    "Save settings": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "保存设置"
+          }
+        }
+      }
+    },
+    "Saved conversations and drafts will be removed from this iPhone.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已保存的会话和草稿将从此 iPhone 移除。"
+          }
+        }
+      }
+    },
+    "Saved for all users of this Bot": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "为此机器人的所有用户保存"
+          }
+        }
+      }
+    },
+    "Saved messages. Reconnecting…": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已保存消息。正在重新连接…"
+          }
+        }
+      }
+    },
+    "Saved securely for you": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已为你安全保存"
+          }
+        }
+      }
+    },
+    "Saved to Photos": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已保存到照片"
+          }
+        }
+      }
+    },
+    "Saving": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在保存"
+          }
+        }
+      }
+    },
+    "Saving…": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在保存…"
+          }
+        }
+      }
+    },
+    "Schedule": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "计划"
+          }
+        }
+      }
+    },
+    "Schedule recurring work for this conversation.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "为此会话安排周期性工作。"
+          }
+        }
+      }
+    },
+    "Scroll down": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "向下滚动"
+          }
+        }
+      }
+    },
+    "Scroll to the next unread conversation": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "滚动到下一个未读会话"
+          }
+        }
+      }
+    },
+    "Scroll up": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "向上滚动"
+          }
+        }
+      }
+    },
+    "Search": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "搜索"
+          }
+        }
+      }
+    },
+    "Search %lld models": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "搜索 %lld 个模型"
+          }
+        }
+      }
+    },
+    "Search Bots": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "搜索机器人"
+          }
+        }
+      }
+    },
+    "Search committed messages on the connected OpenTeam server, including messages older than the recent on-device index. Returns matching messages, not a generated answer.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在已连接的 OpenTeam 服务器上搜索已提交的消息，包括早于本机近期索引的消息。返回匹配的消息，而不是生成的回答。"
+          }
+        }
+      }
+    },
+    "Search in": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "搜索范围"
+          }
+        }
+      }
+    },
+    "Search plugins": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "搜索插件"
+          }
+        }
+      }
+    },
+    "Search provider": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "搜索服务商"
+          }
+        }
+      }
+    },
+    "Search provider: %@": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "搜索服务商：%@"
+          }
+        }
+      }
+    },
+    "Search timezone": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "搜索时区"
+          }
+        }
+      }
+    },
+    "Searching": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在搜索"
+          }
+        }
+      }
+    },
+    "Section name": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "分区名称"
+          }
+        }
+      }
+    },
+    "Sections": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "分区"
+          }
+        }
+      }
+    },
+    "Secure input": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "安全输入"
+          }
+        }
+      }
+    },
+    "Select a chat": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "选择一个对话"
+          }
+        }
+      }
+    },
+    "Selected": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已选中"
+          }
+        }
+      }
+    },
+    "Select…": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "选择…"
+          }
+        }
+      }
+    },
+    "Self-hosted": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自托管"
+          }
+        }
+      }
+    },
+    "Send": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "发送"
+          }
+        }
+      }
+    },
+    "Send %@ to %@": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "将%@发送到%@"
+          }
+        }
+      }
+    },
+    "Send a message to a conversation": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "向会话发送消息"
+          }
+        }
+      }
+    },
+    "Send a task to a Bot": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "向机器人发送任务"
+          }
+        }
+      }
+    },
+    "Send instructions to an OpenTeam Bot. The Bot keeps working on your server.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "向 OpenTeam 机器人发送指令。机器人会在你的服务器上继续工作。"
+          }
+        }
+      }
+    },
+    "Send instructions, text and files to one specific existing OpenTeam conversation. Use this for a named group even when another group has the same members. The returned message acknowledges acceptance; Bot work continues asynchronously.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "向一个特定的现有 OpenTeam 会话发送指令、文本和文件。即使其他群组有相同成员，也可用此项指定名称的群组。返回的消息表示已接受；机器人的工作会异步继续。"
+          }
+        }
+      }
+    },
+    "Send text to the computer": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "向电脑发送文本"
+          }
+        }
+      }
+    },
+    "Sending": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在发送"
+          }
+        }
+      }
+    },
+    "Sending…": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在发送…"
+          }
+        }
+      }
+    },
+    "Sent to %@.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已发送到%@。"
+          }
+        }
+      }
+    },
+    "Sent to %@. Your Bot will continue working on your server.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已发送到%@。你的机器人会在服务器上继续工作。"
+          }
+        }
+      }
+    },
+    "Sent to %@. Your Bots will continue working on your server.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已发送到%@。你的机器人会在服务器上继续工作。"
+          }
+        }
+      }
+    },
+    "Server": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "服务器"
+          }
+        }
+      }
+    },
+    "Server %@": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "服务器 %@"
+          }
+        }
+      }
+    },
+    "Server address": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "服务器地址"
+          }
+        }
+      }
+    },
+    "Server version unknown": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "服务器版本未知"
+          }
+        }
+      }
+    },
+    "Services": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "服务"
+          }
+        }
+      }
+    },
+    "Settings": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "设置"
+          }
+        }
+      }
+    },
+    "Setup": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "设置"
+          }
+        }
+      }
+    },
+    "Share": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "共享"
+          }
+        }
+      }
+    },
+    "Share as template": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "作为模板共享"
+          }
+        }
+      }
+    },
+    "Share package": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "共享包"
+          }
+        }
+      }
+    },
+    "Show a specific existing message in its original OpenTeam conversation.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在其原始 OpenTeam 会话中显示指定的现有消息。"
+          }
+        }
+      }
+    },
+    "Show less": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "收起"
+          }
+        }
+      }
+    },
+    "Show more": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "展开"
+          }
+        }
+      }
+    },
+    "Show password": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "显示密码"
+          }
+        }
+      }
+    },
+    "Showing the last received screen": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "显示最后接收的画面"
+          }
+        }
+      }
+    },
+    "Shuffle": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "随机"
+          }
+        }
+      }
+    },
+    "Shuffle avatar": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "随机更换头像"
+          }
+        }
+      }
+    },
+    "Sign in": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "登录"
+          }
+        }
+      }
+    },
+    "Sign in on desktop": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在桌面端登录"
+          }
+        }
+      }
+    },
+    "Sign in on the provider's page. OpenTeam finishes the connection for you.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在服务商页面登录。OpenTeam 会为你完成连接。"
+          }
+        }
+      }
+    },
+    "Sign in on this device, then copy the browser’s final address back into OpenTeam. For Google, choose “Desktop app” when creating the OAuth client in Google Cloud. That is Google’s client type name; you can still sign in entirely on your iPhone.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在此设备上登录，然后把浏览器最终的地址复制回 OpenTeam。使用 Google 时，请在 Google Cloud 创建 OAuth 客户端时选择“桌面应用”。这只是 Google 的客户端类型名称，你仍可完全在 iPhone 上登录。"
+          }
+        }
+      }
+    },
+    "Sign in to your server": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "登录你的服务器"
+          }
+        }
+      }
+    },
+    "Sign in with ChatGPT": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用 ChatGPT 登录"
+          }
+        }
+      }
+    },
+    "Sign in with Claude": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用 Claude 登录"
+          }
+        }
+      }
+    },
+    "Sign in with the plan you already pay for, or use an API key billed per use.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "用你已付费的订阅登录，或使用按使用量计费的 API 密钥。"
+          }
+        }
+      }
+    },
+    "Sign in with your ChatGPT plan": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用你的 ChatGPT 订阅登录"
+          }
+        }
+      }
+    },
+    "Sign in with your Claude plan": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用你的 Claude 订阅登录"
+          }
+        }
+      }
+    },
+    "Sign out": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "退出登录"
+          }
+        }
+      }
+    },
+    "Sign out of this server?": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "退出此服务器的登录？"
+          }
+        }
+      }
+    },
+    "Sign-in code %@": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "登录验证码 %@"
+          }
+        }
+      }
+    },
+    "Sign-in method": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "登录方式"
+          }
+        }
+      }
+    },
+    "Signed in in Safari? Its last page won't load. Copy that page's address and paste it here.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已在 Safari 中登录？最后一页不会加载。请复制该页面的地址并粘贴到此处。"
+          }
+        }
+      }
+    },
+    "Siri and Spotlight": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Siri 与 Spotlight"
+          }
+        }
+      }
+    },
+    "Skill": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "技能"
+          }
+        }
+      }
+    },
+    "Skill sync": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "技能同步"
+          }
+        }
+      }
+    },
+    "Skip": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "跳过"
+          }
+        }
+      }
+    },
+    "Skip for now": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "暂时跳过"
+          }
+        }
+      }
+    },
+    "Some earlier replies are not loaded yet.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "部分较早的回复尚未加载。"
+          }
+        }
+      }
+    },
+    "Something went wrong": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "出了点问题"
+          }
+        }
+      }
+    },
+    "Sorts email, drafts replies for your review, and tracks follow-ups.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "整理邮件、起草待你审阅的回复，并跟踪后续事项。"
+          }
+        }
+      }
+    },
+    "Source": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "来源"
+          }
+        }
+      }
+    },
+    "Sources": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "来源"
+          }
+        }
+      }
+    },
+    "Speech defaults": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "语音默认值"
+          }
+        }
+      }
+    },
+    "Standard I/O": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "标准输入输出"
+          }
+        }
+      }
+    },
+    "Start a thread": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "创建会话串"
+          }
+        }
+      }
+    },
+    "Start again when you’re ready. Your setup is saved.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "准备好后重新开始。你的设置已保存。"
+          }
+        }
+      }
+    },
+    "Start an existing saved routine once on your OpenTeam server. This starts asynchronous work; it does not change its schedule or return completed results.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在你的 OpenTeam 服务器上运行一次现有的已保存例程。这会启动异步工作，不会更改其计划，也不会返回完成结果。"
+          }
+        }
+      }
+    },
+    "Start realtime voice": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "开始实时语音"
+          }
+        }
+      }
+    },
+    "Start speaking when you are ready.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "准备好后开始说话。"
+          }
+        }
+      }
+    },
+    "Started %@ on your OpenTeam server.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已在你的 OpenTeam 服务器上启动%@。"
+          }
+        }
+      }
+    },
+    "Starting sign-in…": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在开始登录…"
+          }
+        }
+      }
+    },
+    "Status": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "状态"
+          }
+        }
+      }
+    },
+    "Step %lld of 5": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "第 %lld 步，共 5 步"
+          }
+        }
+      }
+    },
+    "Sticker": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "贴纸"
+          }
+        }
+      }
+    },
+    "Stop recording": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "停止录制"
+          }
+        }
+      }
+    },
+    "Submit": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "提交"
+          }
+        }
+      }
+    },
+    "Submit securely": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "安全提交"
+          }
+        }
+      }
+    },
+    "Supporting files": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "支持文件"
+          }
+        }
+      }
+    },
+    "Sync skills": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "同步技能"
+          }
+        }
+      }
+    },
+    "Syncing state": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "同步状态"
+          }
+        }
+      }
+    },
+    "System": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "系统"
+          }
+        }
+      }
+    },
+    "System preferences": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "系统偏好设置"
+          }
+        }
+      }
+    },
+    "TTS WebSocket URL": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TTS WebSocket 地址"
+          }
+        }
+      }
+    },
+    "TTS model": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TTS 模型"
+          }
+        }
+      }
+    },
+    "TTS resource ID": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TTS 资源 ID"
+          }
+        }
+      }
+    },
+    "TTS voice": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TTS 音色"
+          }
+        }
+      }
+    },
+    "Take control": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "接管控制"
+          }
+        }
+      }
+    },
+    "Take over": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "接管"
+          }
+        }
+      }
+    },
+    "Talk with your assistant": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "与你的助手交谈"
+          }
+        }
+      }
+    },
+    "Tap to click, drag to move, and hold to right-click.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "轻点即点击，拖动即移动，按住即右键点击。"
+          }
+        }
+      }
+    },
+    "Terminal": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "终端"
+          }
+        }
+      }
+    },
+    "Test": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "测试"
+          }
+        }
+      }
+    },
+    "Test a tool": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "测试工具"
+          }
+        }
+      }
+    },
+    "Test active connection": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "测试当前连接"
+          }
+        }
+      }
+    },
+    "Test connection": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "测试连接"
+          }
+        }
+      }
+    },
+    "Test message": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "测试消息"
+          }
+        }
+      }
+    },
+    "Test unavailable": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "测试不可用"
+          }
+        }
+      }
+    },
+    "Testing": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在测试"
+          }
+        }
+      }
+    },
+    "Testing connection": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在测试连接"
+          }
+        }
+      }
+    },
+    "Testing…": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在测试…"
+          }
+        }
+      }
+    },
+    "Text": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "文本"
+          }
+        }
+      }
+    },
+    "Text to send now, including any requested links.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "现在要发送的文本，包括所要求的链接。"
+          }
+        }
+      }
+    },
+    "The AI provider couldn't find this model. Choose a different model.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AI 服务商找不到此模型。请选择其他模型。"
+          }
+        }
+      }
+    },
+    "The AI provider didn't accept a request to this model. Choose a different model or reasoning effort.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AI 服务商不接受对此模型的请求。请选择其他模型或推理强度。"
+          }
+        }
+      }
+    },
+    "The AI provider didn't accept the sign-in or key. Sign in again, or choose a different AI.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AI 服务商未接受该登录或密钥。请重新登录，或选择其他 AI。"
+          }
+        }
+      }
+    },
+    "The AI provider is limiting requests right now. Wait a moment and try again.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AI 服务商当前正在限制请求。请稍后再试。"
+          }
+        }
+      }
+    },
+    "The AI provider is overloaded right now. Try again in a moment.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AI 服务商当前负载过高。请稍后重试。"
+          }
+        }
+      }
+    },
+    "The AI took too long to answer. Try again.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AI 响应超时。请重试。"
+          }
+        }
+      }
+    },
+    "The draft text, including any requested links.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "草稿文本，包括所要求的链接。"
+          }
+        }
+      }
+    },
+    "The exact existing Bot or group conversation for this draft.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此草稿对应的现有机器人或群组会话。"
+          }
+        }
+      }
+    },
+    "The exact existing Bot or group conversation to receive the message.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "要接收消息的现有机器人或群组会话。"
+          }
+        }
+      }
+    },
+    "The existing OpenTeam Bot that should receive the task.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "要接收该任务的现有 OpenTeam 机器人。"
+          }
+        }
+      }
+    },
+    "The existing saved routine explicitly requested by the user.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "用户明确指定的现有已保存例程。"
+          }
+        }
+      }
+    },
+    "The one you just added for your bots": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "你刚为机器人添加的那个"
+          }
+        }
+      }
+    },
+    "The sign-in was cancelled.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "登录已取消。"
+          }
+        }
+      }
+    },
+    "The task to send now. Sending starts asynchronous work; it does not return the Bot’s completed answer.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "现在要发送的任务。发送会启动异步工作，不会返回机器人已完成的回答。"
+          }
+        }
+      }
+    },
+    "There are unsent messages. Signing out removes them and your drafts from this iPhone.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "还有未发送的消息。退出登录会将其和你的草稿从此 iPhone 移除。"
+          }
+        }
+      }
+    },
+    "This account is ready to use.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此账户已可使用。"
+          }
+        }
+      }
+    },
+    "This account uses the desktop sign-in method. To sign in on this iPhone, open Connection settings, expand Sign-in setup, and choose Automatic. Or finish signing in in the OpenTeam desktop app.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此账户使用桌面端登录方式。要在此 iPhone 上登录，请打开“连接设置”，展开“登录设置”，然后选择“自动”。或在 OpenTeam 桌面应用中完成登录。"
+          }
+        }
+      }
+    },
+    "This file type can't be previewed here.\nShare it to open elsewhere.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此文件类型无法在此预览。\n请共享到其他应用打开。"
+          }
+        }
+      }
+    },
+    "This provider requires HTTPS. Configure Tailscale Serve or your own HTTPS domain before authorizing.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此服务商要求 HTTPS。请先配置 Tailscale Serve 或你自己的 HTTPS 域名，再进行授权。"
+          }
+        }
+      }
+    },
+    "This removes the bot and its chat history. This cannot be undone.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此操作会删除该机器人及其聊天记录，且无法撤销。"
+          }
+        }
+      }
+    },
+    "This removes the conversation and its history. This cannot be undone.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此操作会删除该会话及其记录，且无法撤销。"
+          }
+        }
+      }
+    },
+    "This server is newer than the installed iOS app.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此服务器比已安装的 iOS 应用更新。"
+          }
+        }
+      }
+    },
+    "This trigger will stay unchanged. Edit its schedule on desktop.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此触发器将保持不变。请在桌面端编辑其计划。"
+          }
+        }
+      }
+    },
+    "Time": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "时间"
+          }
+        }
+      }
+    },
+    "Time since update started": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更新开始后的时长"
+          }
+        }
+      }
+    },
+    "Time zone: %@": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "时区：%@"
+          }
+        }
+      }
+    },
+    "Timezone": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "时区"
+          }
+        }
+      }
+    },
+    "To:": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "收件人："
+          }
+        }
+      }
+    },
+    "Token": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "令牌"
+          }
+        }
+      }
+    },
+    "Tool": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "工具"
+          }
+        }
+      }
+    },
+    "Tools and skills for OpenTeam": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenTeam 的工具与技能"
+          }
+        }
+      }
+    },
+    "Tools and troubleshooting": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "工具与疑难解答"
+          }
+        }
+      }
+    },
+    "Touch": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "触摸"
+          }
+        }
+      }
+    },
+    "Trackpad": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "触控板"
+          }
+        }
+      }
+    },
+    "Transcribing": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在转写"
+          }
+        }
+      }
+    },
+    "Transcribing…": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在转写…"
+          }
+        }
+      }
+    },
+    "Transcription API key": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "转写 API 密钥"
+          }
+        }
+      }
+    },
+    "Transcription for recorded messages": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "为录音消息提供转写"
+          }
+        }
+      }
+    },
+    "Transcription language": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "转写语言"
+          }
+        }
+      }
+    },
+    "Transport": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "传输方式"
+          }
+        }
+      }
+    },
+    "Try Again": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重试"
+          }
+        }
+      }
+    },
+    "Try again": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重试"
+          }
+        }
+      }
+    },
+    "Try again in a moment.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请稍后重试。"
+          }
+        }
+      }
+    },
+    "Turn on Messages in the desktop app on each Mac, under Settings → Computer.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在每台 Mac 的桌面应用中，前往“设置”→“电脑”开启“信息”。"
+          }
+        }
+      }
+    },
+    "Turn on voice notes": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "开启语音消息"
+          }
+        }
+      }
+    },
+    "Turn on web search": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "开启网页搜索"
+          }
+        }
+      }
+    },
+    "Type": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "输入"
+          }
+        }
+      }
+    },
+    "Type it here": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在此输入"
+          }
+        }
+      }
+    },
+    "Type on the computer": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在电脑上输入"
+          }
+        }
+      }
+    },
+    "Unassigned": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未分配"
+          }
+        }
+      }
+    },
+    "Unavailable conversation": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "会话不可用"
+          }
+        }
+      }
+    },
+    "Unavailable · retrying": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "不可用 · 正在重试"
+          }
+        }
+      }
+    },
+    "Undo deletion": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "撤销删除"
+          }
+        }
+      }
+    },
+    "Uninstall plugin": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "卸载插件"
+          }
+        }
+      }
+    },
+    "Unit": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "单位"
+          }
+        }
+      }
+    },
+    "Unpin": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "取消固定"
+          }
+        }
+      }
+    },
+    "Unpublish": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "取消发布"
+          }
+        }
+      }
+    },
+    "Unpublished": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未发布"
+          }
+        }
+      }
+    },
+    "Update": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更新"
+          }
+        }
+      }
+    },
+    "Update available": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "有可用更新"
+          }
+        }
+      }
+    },
+    "Update available. Open TestFlight": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "有可用更新。打开 TestFlight"
+          }
+        }
+      }
+    },
+    "Update in TestFlight": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在 TestFlight 中更新"
+          }
+        }
+      }
+    },
+    "Update server": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更新服务器"
+          }
+        }
+      }
+    },
+    "Update stages": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更新阶段"
+          }
+        }
+      }
+    },
+    "Update the iOS app to match this server.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请更新 iOS 应用以匹配此服务器。"
+          }
+        }
+      }
+    },
+    "Update the server to support this iOS app.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请更新服务器以支持此 iOS 应用。"
+          }
+        }
+      }
+    },
+    "Update to %@": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更新到 %@"
+          }
+        }
+      }
+    },
+    "Update your server?": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更新你的服务器？"
+          }
+        }
+      }
+    },
+    "Updates": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更新"
+          }
+        }
+      }
+    },
+    "Use Edit to reorder or remove sections. Removing a section moves its conversations to Unassigned.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用“编辑”可重新排序或删除分区。删除分区会将其会话移到“未分配”。"
+          }
+        }
+      }
+    },
+    "Use a different method": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用其他方式"
+          }
+        }
+      }
+    },
+    "Use an Anthropic API key": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用 Anthropic API 密钥"
+          }
+        }
+      }
+    },
+    "Use an OpenAI API key": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用 OpenAI API 密钥"
+          }
+        }
+      }
+    },
+    "Use the account you created in the terminal.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用你在终端中创建的账户。"
+          }
+        }
+      }
+    },
+    "Use the keyboard or choose Take control in the menu to pause the bot and interact. Tap to click, drag to move, or hold to right-click. Use two fingers to scroll. Closing this screen returns control to the bot.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用键盘，或在菜单中选择“接管控制”以暂停机器人并亲自操作。轻点即点击，拖动即移动，按住即右键点击。双指可滚动。关闭此屏幕后控制权交还机器人。"
+          }
+        }
+      }
+    },
+    "Use the same OpenAI key": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用同一个 OpenAI 密钥"
+          }
+        }
+      }
+    },
+    "Username": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "用户名"
+          }
+        }
+      }
+    },
+    "Uses your ChatGPT Plus or Pro plan": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用你的 ChatGPT Plus 或 Pro 订阅"
+          }
+        }
+      }
+    },
+    "Uses your Claude Pro or Max plan": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用你的 Claude Pro 或 Max 订阅"
+          }
+        }
+      }
+    },
+    "Using the computer": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用电脑"
+          }
+        }
+      }
+    },
+    "Value": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "值"
+          }
+        }
+      }
+    },
+    "Version": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "版本"
+          }
+        }
+      }
+    },
+    "Version %@ · TestFlight": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "版本 %@ · TestFlight"
+          }
+        }
+      }
+    },
+    "View all": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "查看全部"
+          }
+        }
+      }
+    },
+    "View original message": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "查看原消息"
+          }
+        }
+      }
+    },
+    "View paused": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "画面已暂停"
+          }
+        }
+      }
+    },
+    "View updates": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "查看更新"
+          }
+        }
+      }
+    },
+    "Voice conversation · %lld messages": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "语音对话 · %lld 条消息"
+          }
+        }
+      }
+    },
+    "Voice note ready": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "语音消息已就绪"
+          }
+        }
+      }
+    },
+    "Voice notes": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "语音消息"
+          }
+        }
+      }
+    },
+    "Voice or speaker ID": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "音色或说话人 ID"
+          }
+        }
+      }
+    },
+    "Voice session stopped": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "语音会话已停止"
+          }
+        }
+      }
+    },
+    "Waiting for you to finish signing in…": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "等待你完成登录…"
+          }
+        }
+      }
+    },
+    "Web search": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "网页搜索"
+          }
+        }
+      }
+    },
+    "Web search and page fetching": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "网页搜索与页面抓取"
+          }
+        }
+      }
+    },
+    "Welcome to OpenTeam": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "欢迎使用 OpenTeam"
+          }
+        }
+      }
+    },
+    "Where's your server?": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "你的服务器在哪里？"
+          }
+        }
+      }
+    },
+    "Words or a phrase to search for in existing messages.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "要在现有消息中搜索的词语或短语。"
+          }
+        }
+      }
+    },
+    "Working": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在工作"
+          }
+        }
+      }
+    },
+    "Working directory": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "工作目录"
+          }
+        }
+      }
+    },
+    "Working directory (optional)": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "工作目录（可选）"
+          }
+        }
+      }
+    },
+    "Working · replied in %@ s": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在工作 · 用时 %@ 秒回复"
+          }
+        }
+      }
+    },
+    "Working, In use": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在工作，使用中"
+          }
+        }
+      }
+    },
+    "Working…": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在工作…"
+          }
+        }
+      }
+    },
+    "Writer": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "写作"
+          }
+        }
+      }
+    },
+    "You": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "你"
+          }
+        }
+      }
+    },
+    "You  ": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "你  "
+          }
+        }
+      }
+    },
+    "You can add a key again at any time.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "你可以随时重新添加密钥。"
+          }
+        }
+      }
+    },
+    "You can close the app. The update will keep going.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "你可以关闭应用，更新会继续进行。"
+          }
+        }
+      }
+    },
+    "You can connect it again at any time.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "你可以随时重新连接。"
+          }
+        }
+      }
+    },
+    "You're all set": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "全部就绪"
+          }
+        }
+      }
+    },
+    "You're up to date": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已是最新版本"
+          }
+        }
+      }
+    },
+    "Your AI provider account is out of credit or over its limit. Check its plan and billing, or choose a different AI.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "你的 AI 服务商账户余额不足或已超限。请检查其订阅和账单，或选择其他 AI。"
+          }
+        }
+      }
+    },
+    "Your API key": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "你的 API 密钥"
+          }
+        }
+      }
+    },
+    "Your bot": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "你的机器人"
+          }
+        }
+      }
+    },
+    "Your bot was created. Open it to say hello.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "你的机器人已创建。打开它打个招呼吧。"
+          }
+        }
+      }
+    },
+    "Your bots use this provider. They can't reply until you connect a model again.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "你的机器人使用此服务商。重新连接模型前它们无法回复。"
+          }
+        }
+      }
+    },
+    "Your help is needed": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "需要你的帮助"
+          }
+        }
+      }
+    },
+    "Your password will be sent without HTTPS protection.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "你的密码将在没有 HTTPS 保护的情况下发送。"
+          }
+        }
+      }
+    },
+    "Your plan or an Anthropic key": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "你的订阅或 Anthropic 密钥"
+          }
+        }
+      }
+    },
+    "Your plan or an OpenAI key": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "你的订阅或 OpenAI 密钥"
+          }
+        }
+      }
+    },
+    "Your profile changes haven’t been saved.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "你的个人资料更改尚未保存。"
+          }
+        }
+      }
+    },
+    "Your server already has bots. Open OpenTeam to chat with them.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "你的服务器已有机器人。打开 OpenTeam 与它们聊天。"
+          }
+        }
+      }
+    },
+    "Your server and bot computer update together. Files, installed software and browser sign-ins stay in place. Open browser tabs close during the restart.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "服务器和机器人电脑会一起更新。文件、已安装的软件和浏览器登录状态都会保留。重启期间打开的浏览器标签页会关闭。"
+          }
+        }
+      }
+    },
+    "Your server and bot computer will restart briefly.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "你的服务器和机器人电脑会短暂重启。"
+          }
+        }
+      }
+    },
+    "Your server couldn't reach the AI right now. Check its internet connection and try again.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "你的服务器当前无法连接到 AI。请检查其网络连接后重试。"
+          }
+        }
+      }
+    },
+    "Your server didn't answer in time. Try again.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "你的服务器未能及时响应。请重试。"
+          }
+        }
+      }
+    },
+    "Your server is busy right now. Wait a moment and try again.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "你的服务器当前繁忙。请稍后再试。"
+          }
+        }
+      }
+    },
+    "Your server is restarting. We'll reconnect automatically.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "你的服务器正在重启。我们会自动重新连接。"
+          }
+        }
+      }
+    },
+    "Your server matches iOS app %@.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "你的服务器与 iOS 应用 %@ 匹配。"
+          }
+        }
+      }
+    },
+    "Your server's answer didn't come through. Try again.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "你的服务器的回应未能送达。请重试。"
+          }
+        }
+      }
+    },
+    "Your sign-in code": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "你的登录验证码"
+          }
+        }
+      }
+    },
+    "Your sign-in is saved. Reconnect to refresh this plugin’s tools.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "你的登录已保存。重新连接以刷新此插件的工具。"
+          }
+        }
+      }
+    },
+    "You’ll copy one address back into OpenTeam to finish connecting.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "你将把一个地址复制回 OpenTeam 以完成连接。"
+          }
+        }
+      }
+    },
+    "dismissed": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已忽略"
+          }
+        }
+      }
+    },
+    "iOS app": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iOS 应用"
+          }
+        }
+      }
+    },
+    "“Remind me to send the invoices on Friday.”": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "“提醒我周五发送发票。”"
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}
