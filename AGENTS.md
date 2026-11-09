@@ -1,5 +1,10 @@
 # Project Rules
 
+## Git Commit Messages
+
+- Write Git commit messages in Chinese.
+- Use one of these formats: `前端：xxxxx`, `修复：xxxxxx`, or `IOS：xxxxx：`.
+
 ## Android Debug Packaging
 
 - Package the current working tree with `bash scripts/android/package-debug.sh`.
