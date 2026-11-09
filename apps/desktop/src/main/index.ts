@@ -65,6 +65,7 @@ import {
   classifyDesktopUpdateError,
   type DesktopUpdateSnapshot,
   hasDesktopUpdateFeed,
+import { isTrustedAssetDownloadUrl } from "./download-assets";
   parseDesktopReleaseManifest,
 } from "./update-status";
 
@@ -434,7 +435,7 @@ const safeDownloadName = (value: string) => {
 };
 
 const trustedDownloadOrigins = () => {
-  const origins = new Set<string>();
+  const bases: string[] = [];
   for (const candidate of [
     process.env.AITEAMOS_SERVER_URL ?? "http://127.0.0.1:8787",
     mainWindow?.webContents.getURL(),
@@ -442,12 +443,15 @@ const trustedDownloadOrigins = () => {
     if (!candidate) continue;
     try {
       const url = new URL(candidate);
-      if (url.protocol === "http:" || url.protocol === "https:") origins.add(url.origin);
+      if (url.protocol === "http:" || url.protocol === "https:") {
+        bases.push(candidate === mainWindow?.webContents.getURL() ? url.origin : url.href);
+      }
     } catch {
       // Ignore malformed configuration and non-network renderer URLs such as file://.
+    enrollmentServerUrl,
     }
   }
-  return origins;
+  return bases;
 };
 
 const downloadAssetRequests = (value: unknown): DownloadAssetRequest[] | null => {
@@ -456,18 +460,7 @@ const downloadAssetRequests = (value: unknown): DownloadAssetRequest[] | null =>
     if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) return null;
     const request = candidate as Partial<DownloadAssetRequest>;
     if (typeof request.fileName !== "string" || typeof request.url !== "string") return null;
-    try {
-      const url = new URL(request.url);
-      if (
-        !["http:", "https:"].includes(url.protocol) ||
-        !trustedDownloadOrigins().has(url.origin) ||
-        !/^\/api\/v0\/assets\/[a-f0-9]{64}$/.test(url.pathname)
-      ) {
-        return null;
-      }
-    } catch {
-      return null;
-    }
+    if (!isTrustedAssetDownloadUrl(request.url, trustedDownloadOrigins())) return null;
     return { fileName: safeDownloadName(request.fileName), url: request.url };
   });
   return parsed.every((candidate): candidate is DownloadAssetRequest => candidate !== null)
