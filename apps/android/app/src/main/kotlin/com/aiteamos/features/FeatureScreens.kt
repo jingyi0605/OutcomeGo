@@ -764,6 +764,7 @@ fun RoutinesScreen(
     onRun: (Routine) -> Unit,
     onBack: () -> Unit,
 ) {
+    val haptic = LocalAppHaptics.current
     FeaturePage(localizedText("Routines", "例行任务"), onBack = onBack) {
         LoadStateContent(state, onRetry, emptyAction = { FilledTonalButton(onClick = onAdd) { Text(localizedText("Add routine", "添加例行任务")) } }) { routines ->
             LazyColumn(
@@ -781,7 +782,7 @@ fun RoutinesScreen(
                         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(routine.name, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                                Switch(checked = routine.enabled, onCheckedChange = { onToggle(routine) })
+                                Switch(checked = routine.enabled, onCheckedChange = { haptic.play(HapticEffect.Selection); onToggle(routine) })
                             }
                             Text(routine.schedule.localizedSummary(), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             Text(routine.prompt, maxLines = 3, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, style = MaterialTheme.typography.bodySmall)
@@ -790,7 +791,7 @@ fun RoutinesScreen(
                             }
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 FilledTonalButton(onClick = { onEdit(routine) }) { Text(localizedText("Edit", "编辑")) }
-                                TextButton(onClick = { onRun(routine) }) { Text(localizedText("Run now", "立即运行")) }
+                                TextButton(onClick = { haptic.play(HapticEffect.Light); onRun(routine) }) { Text(localizedText("Run now", "立即运行")) }
                             }
                             if (routine.executions.isNotEmpty()) {
                                 HorizontalDivider()
@@ -814,6 +815,7 @@ fun RoutineEditorScreen(
     onDelete: (() -> Unit)? = null,
     operation: FeatureOperationState = FeatureOperationState.Idle,
 ) {
+    val haptic = LocalAppHaptics.current
     var confirmDelete by remember { mutableStateOf(false) }
     FeaturePage(if (routine.id.isBlank()) localizedText("New routine", "新建例行任务") else localizedText("Edit routine", "编辑例行任务"), onBack = onBack) {
         LazyColumn(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -849,7 +851,7 @@ fun RoutineEditorScreen(
             }
             item {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(onClick = onSave, enabled = routine.name.isNotBlank() && routine.prompt.isNotBlank()) { Text(localizedText("Save", "保存")) }
+                    Button(onClick = { haptic.play(HapticEffect.Light); onSave() }, enabled = routine.name.isNotBlank() && routine.prompt.isNotBlank()) { Text(localizedText("Save", "保存")) }
                     onDelete?.let { TextButton(onClick = { confirmDelete = true }) { Text(localizedText("Delete", "删除"), color = MaterialTheme.colorScheme.error) } }
                 }
                 OperationStatus(operation)
@@ -944,6 +946,7 @@ fun SettingsScreen(
     onPlugins: () -> Unit,
     onSidebar: () -> Unit,
 ) {
+    val haptic = LocalAppHaptics.current
     var confirmSignOut by remember { mutableStateOf(false) }
     val language = settings.language
     val text: (String, String) -> String = { english, chinese ->
@@ -1083,7 +1086,7 @@ fun SettingsScreen(
                     }
                     SettingsDivider()
                     SettingsRow(text("App haptics", "应用触感反馈"), text("Vibrate for important interactions", "重要交互时提供震动反馈")) {
-                        Switch(checked = settings.haptics, onCheckedChange = { onChange(settings.copy(haptics = it)) })
+                        Switch(checked = settings.haptics, onCheckedChange = { onChange(settings.copy(haptics = it)); if (it) haptic.play(HapticEffect.Selection) })
                     }
                 }
             }
@@ -1321,8 +1324,9 @@ private fun SettingsRow(title: String, description: String, inline: Boolean = tr
 
 @Composable
 private fun SettingsToggleRow(title: String, description: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+    val haptic = LocalAppHaptics.current
     SettingsRow(title, description) {
-        Switch(checked = checked, onCheckedChange = onCheckedChange)
+        Switch(checked = checked, onCheckedChange = { haptic.play(HapticEffect.Selection); onCheckedChange(it) })
     }
 }
 
@@ -1345,6 +1349,7 @@ private fun SettingsActionRow(title: String, description: String, onClick: () ->
 
 @Composable
 private fun <T> SettingsSegmented(choices: List<T>, selected: T, label: (T) -> String, onSelected: (T) -> Unit) {
+    val haptic = LocalAppHaptics.current
     val track = RoundedCornerShape(12.dp)
     val trackColor = if (settingsDark()) Color(0xFF3A393D) else Color(0xFFEFEFF4)
     Row(
@@ -1356,7 +1361,7 @@ private fun <T> SettingsSegmented(choices: List<T>, selected: T, label: (T) -> S
             Box(
                 Modifier.weight(1f).clip(RoundedCornerShape(9.dp))
                     .background(if (active) settingsCard() else Color.Transparent)
-                    .clickable { onSelected(choice) }.padding(vertical = 9.dp),
+                    .clickable { if (!active) haptic.play(HapticEffect.Selection); onSelected(choice) }.padding(vertical = 9.dp),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
@@ -1408,7 +1413,8 @@ private fun <T> ChoiceRow(title: String, choices: List<T>, selected: T, onSelect
 
 @Composable
 private fun NotificationToggle(label: String, enabled: Boolean, onChange: (Boolean) -> Unit) {
-    Row(verticalAlignment = Alignment.CenterVertically) { Text(label, modifier = Modifier.weight(1f)); Switch(checked = enabled, onCheckedChange = onChange) }
+    val haptic = LocalAppHaptics.current
+    Row(verticalAlignment = Alignment.CenterVertically) { Text(label, modifier = Modifier.weight(1f)); Switch(checked = enabled, onCheckedChange = { haptic.play(HapticEffect.Selection); onChange(it) }) }
 }
 
 @Composable
