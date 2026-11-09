@@ -5,6 +5,7 @@ import "../../src/renderer/styles.css";
 import { Onboarding } from "../../src/renderer/components/aiteamos/onboarding";
 import { SettingsPanel } from "../../src/renderer/components/aiteamos/settings/panel";
 import { TooltipProvider } from "../../src/renderer/components/ui/tooltip";
+import { I18nProvider } from "../../src/renderer/lib/i18n";
 import ServerSettings from "../../src/renderer/components/aiteamos/settings/server";
 
 // Renders the first-run wizard or Settings → Server against a server (or fixture)
@@ -61,10 +62,12 @@ function QA() {
   }, []);
   const [settingsOpen, setSettingsOpen] = React.useState(true);
   if (params.get("view") === "model-settings") return (
-    <TooltipProvider>
-      <button onClick={() => setSettingsOpen(true)}>Open settings</button>
-      <SettingsPanel open={settingsOpen} onOpenChange={setSettingsOpen} target={params.has("anchor") ? {anchor: "inference-model", nonce: 1} : undefined} />
-    </TooltipProvider>
+    <I18nProvider>
+      <TooltipProvider>
+        <button onClick={() => setSettingsOpen(true)}>Open settings</button>
+        <SettingsPanel open={settingsOpen} onOpenChange={setSettingsOpen} target={params.has("anchor") ? {anchor: "inference-model", nonce: 1} : undefined} />
+      </TooltipProvider>
+    </I18nProvider>
   );
   if (result) return <main style={{ padding: 60, font: "14px -apple-system" }}>{result}</main>;
   return params.get("view") === "settings" ? (

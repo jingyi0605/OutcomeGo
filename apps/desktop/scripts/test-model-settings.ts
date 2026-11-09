@@ -126,6 +126,113 @@ try {
     });
     assert.deepEqual(setup.tests.at(-1), setup.inference);
 
+    // The list ends with the way to add one, and each row shows a mark.
+    await picker("Provider").click();
+    const options = page.getByRole("option");
+    assert.equal(await options.last().innerText(), "Add provider");
+    assert.ok((await page.getByRole("option").first().locator("svg, img, span[style*=mask]").count()) > 0);
+    await page.screenshot({ path: join(output, `desktop-provider-list-${mode}.png`) });
+    await page.keyboard.press("Escape");
+    // The X shows in the provider list on hover; no other provider needs to be picked first.
+    const removeFromList = async (providerId: string, name: string) => {
+      await picker("Provider").click();
+      const row = page.getByTestId(`remove-provider-${providerId}`);
+      await row.hover();
+      await row.click();
+      const confirm = page.getByRole("alertdialog");
+      await confirm.getByText(`Remove ${name}?`).waitFor();
+      await confirm.getByRole("button", { name: "Remove", exact: true }).click();
+      await confirm.waitFor({ state: "detached" });
+      // Closing the confirmation must leave the Settings dialog readable by assistive technology.
+      assert.equal(
+        await page.getByRole("dialog", { name: "Settings", exact: true }).getAttribute("aria-hidden"),
+        null,
+        "Settings stays exposed after a provider is removed"
+      );
+    };
+    // Add a provider over a standard protocol: a refused key leaves nothing behind.
+    await select("Provider", "Add provider");
+    const dialog = page.getByRole("dialog", { name: "Add provider" });
+    await dialog.waitFor();
+    await dialog.getByRole("combobox", { name: "Service", exact: true }).click();
+    // Vendor marks: DeepSeek keeps its colours (an image), Ollama follows the text colour (a mask).
+    const marked = (name: string) => page.getByRole("option", { name, exact: true });
+    assert.equal(await marked("DeepSeek").locator("img").count(), 1);
+    assert.equal(await marked("Ollama").locator("span[style*=mask]").count(), 1);
+    assert.ok(
+      await marked("DeepSeek").locator("img").evaluate((el: HTMLImageElement) => el.complete && el.naturalWidth > 0),
+      "DeepSeek's mark loads"
+    );
+    await page.screenshot({ path: join(output, `desktop-add-service-${mode}.png`) });
+    await page.getByRole("option", { name: "DeepSeek", exact: true }).click();
+    assert.equal(
+      await dialog.getByRole("textbox", { name: "API base URL" }).inputValue(),
+      "https://api.deepseek.com/v1"
+    );
+    await dialog.getByRole("combobox", { name: "Protocol", exact: true }).click();
+    await page.getByRole("option", { name: "Anthropic Messages", exact: true }).click();
+    assert.equal(
+      await dialog.getByRole("textbox", { name: "API base URL" }).inputValue(),
+      "https://api.deepseek.com/anthropic"
+    );
+    await dialog.getByRole("combobox", { name: "Protocol", exact: true }).click();
+    await page.getByRole("option", { name: "OpenAI Chat", exact: true }).click();
+    assert.equal(await dialog.getByRole("button", { name: "Add", exact: true }).isDisabled(), true);
+    await dialog.getByLabel("API key").fill("qa-bad-key");
+    await dialog.getByRole("button", { name: "Add", exact: true }).click();
+    await dialog.getByRole("alert").filter({ hasText: "That key was refused." }).waitFor();
+    assert.equal(setup.added.size, 0, "A refused key leaves no provider behind");
+    await dialog.getByLabel("API key").fill("qa-good-key");
+    await dialog.getByRole("button", { name: "Add", exact: true }).click();
+    await dialog.waitFor({ state: "detached" });
+    assert.deepEqual([...setup.added.keys()], ["deepseek-api"]);
+    assert.equal(await picker("Provider").innerText(), "DeepSeek");
+    await page.getByText("Connected with an API key.", { exact: true }).waitFor();
+    await removeFromList("deepseek-api", "DeepSeek");
+    assert.equal(setup.added.size, 0);
+    // magpie takes a key for another computer's, and none for the server's own.
+    await select("Provider", "Add provider");
+    await dialog.waitFor();
+    await dialog.getByRole("combobox", { name: "Service", exact: true }).click();
+    await page.getByRole("option", { name: "magpie", exact: true }).click();
+    assert.equal(await dialog.getByLabel("API key").count(), 1, "magpie shows the key field");
+    assert.match(await dialog.innerText(), /optional|可选/i);
+    await dialog.getByRole("textbox", { name: "API base URL" }).fill("http://10.0.0.8:3425/v1");
+    await dialog.getByLabel("API key").fill("qa-good-key");
+    await dialog.getByRole("button", { name: "Add", exact: true }).click();
+    await dialog.waitFor({ state: "detached" });
+    assert.deepEqual([...setup.added.keys()], ["magpie-local"]);
+    assert.equal(setup.added.get("magpie-local")?.key, "qa-good-key", "the key reached the server");
+    assert.equal(setup.added.get("magpie-local")?.input.baseUrl, "http://10.0.0.8:3425/v1");
+    await removeFromList("magpie-local", "magpie");
+    assert.equal(setup.added.size, 0);
+    // With the key left empty, magpie is added as a keyless local server.
+    await select("Provider", "Add provider");
+    await dialog.waitFor();
+    await dialog.getByRole("combobox", { name: "Service", exact: true }).click();
+    await page.getByRole("option", { name: "magpie", exact: true }).click();
+    await dialog.getByRole("button", { name: "Add", exact: true }).click();
+    await dialog.waitFor({ state: "detached" });
+    assert.equal(setup.added.get("magpie-local")?.input.noAuth, true);
+    await removeFromList("magpie-local", "magpie");
+    assert.equal(setup.added.size, 0);
+    // A local server needs no key.
+    await select("Provider", "Add provider");
+    await dialog.waitFor();
+    await dialog.getByRole("combobox", { name: "Service", exact: true }).click();
+    await page.getByRole("option", { name: "Ollama", exact: true }).click();
+    assert.equal(await dialog.getByLabel("API key").count(), 0);
+    await dialog.getByRole("button", { name: "Add", exact: true }).click();
+    await dialog.waitFor({ state: "detached" });
+    assert.deepEqual([...setup.added.keys()], ["ollama-local"]);
+    // Neither a built-in provider nor the one bots use has an X.
+    await picker("Provider").click();
+    assert.equal(await page.getByTestId("remove-provider-openrouter").count(), 0);
+    await page.keyboard.press("Escape");
+    await removeFromList("ollama-local", "Ollama");
+    assert.equal(setup.added.size, 0);
+    await select("Provider", "OpenAI");
+
     await select("Provider", "OpenRouter");
     await select("Model", "Reasoning QA model");
     await select("Reasoning effort", "High");

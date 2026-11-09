@@ -88,6 +88,9 @@ const MARKS: Record<string, ReturnType<typeof mark>> = {
   deepgram: DeepgramMark,
 };
 
+/** Whether the app has its own mark for this server provider id. */
+export const hasProviderMark = (id: string) => id in MARKS;
+
 /** A provider's one-colour mark by its server id, for small inline places; null when unknown. */
 export function ProviderMark({ id, size = 14, className }: MarkProps & { id: string }) {
   const Mark = MARKS[id];

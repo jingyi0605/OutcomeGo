@@ -1,3 +1,4 @@
+import type { AddInferenceProviderInput } from "@aiteamos/contracts";
 import type {
   InferenceProviderAuthSessionView,
   InferenceTestResult,
@@ -355,6 +356,72 @@ export function useModelSetup() {
   const nameOf = (id: string) =>
     providerName(id, data?.providers.find((candidate) => candidate.id === id)?.name);
 
+  /**
+   * Adds an endpoint that speaks one of the standard protocols and connects its key.
+   * Resolves to the provider id, or to why it couldn't be added; a key the provider
+   * turns down leaves nothing behind.
+   */
+  const addProvider = async (
+    input: AddInferenceProviderInput,
+    apiKey: string
+  ): Promise<{ providerId: string } | { error: string }> => {
+    setBusy("add");
+    setError(null);
+    setTest({ status: "idle" });
+    let added: string | null = null;
+    try {
+      added = (await api.addInferenceProvider(input)).providerId;
+      if (!input.noAuth) {
+        let session = await api.startInferenceProviderAuth(added, "api_key");
+        // The key prompt appears a moment after the session starts.
+        for (let wait = 0; !session.prompt && !terminal(session) && wait < 40; wait += 1) {
+          await new Promise((resolve) => window.setTimeout(resolve, 100));
+          session = await api.inferenceProviderAuthSession(session.id);
+        }
+        if (!session.prompt) throw new Error(session.error ?? "The provider did not ask for a key.");
+        session = await api.respondToInferenceProviderAuth(session.id, session.prompt.id, apiKey);
+        for (let wait = 0; !terminal(session) && wait < 150; wait += 1) {
+          await new Promise((resolve) => window.setTimeout(resolve, 200));
+          session = await api.inferenceProviderAuthSession(session.id);
+        }
+        if (session.status !== "connected")
+          throw new Error(session.error ?? translateCurrent("The provider didn't accept that key."));
+      }
+      await load(added);
+      requestRuntimeRefresh();
+      return { providerId: added };
+    } catch (cause) {
+      if (added) await api.removeInferenceProvider(added).catch(() => undefined);
+      return {
+        error: requestErrorMessage(cause, translateCurrent("Couldn't add this provider. Try again.")),
+      };
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  /** Removes a provider added by hand, along with its key. Resolves to whether it went. */
+  const removeProvider = async (id: string): Promise<boolean> => {
+    if (!data?.providers.some((candidate) => candidate.id === id && candidate.custom)) return false;
+    setBusy("remove");
+    setError(null);
+    setTest({ status: "idle" });
+    try {
+      await api.removeInferenceProvider(id);
+      // Removing the one on screen moves the screen back to the saved provider.
+      await load(id === providerId ? undefined : providerId);
+      requestRuntimeRefresh();
+      return true;
+    } catch (cause) {
+      setError(
+        requestErrorMessage(cause, translateCurrent("Couldn't remove this provider. Try again."))
+      );
+      return false;
+    } finally {
+      setBusy(null);
+    }
+  };
+
   /** Tests the saved model with one real request; resolves to how it went. */
   const runTest = async (testedProvider = providerId): Promise<ModelTestState> => {
     setTest({ status: "running" });
@@ -464,6 +531,8 @@ export function useModelSetup() {
     cancelSignIn,
     clearSignIn: () => setAuthSession(null),
     disconnect,
+    addProvider,
+    removeProvider,
     apply,
     runTest,
     reload,
