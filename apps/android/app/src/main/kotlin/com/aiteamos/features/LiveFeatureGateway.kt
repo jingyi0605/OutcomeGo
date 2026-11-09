@@ -230,6 +230,7 @@ class LiveFeatureGateway(private val client: MobileFeatureApi) : FeatureGateway 
             put("ttsModel", settings.ttsModel)
             put("voice", settings.voice)
             put("language", settings.language)
+            put("narrationModel", settings.narrationModel)
             if (removeVolcengineKey) put("volcengineApiKey", JsonNull)
             else if (!volcengineApiKey.isNullOrBlank()) put("volcengineApiKey", volcengineApiKey)
             if (removeDeepgramKey) put("deepgramApiKey", JsonNull)
@@ -479,6 +480,7 @@ private fun JsonObject.voiceSettings(): VoiceSettings {
         ttsModel = string("ttsModel", "aura-2-thalia-en"),
         voice = string("voice", "alloy"),
         language = string("language", "en-US"),
+        narrationModel = string("narrationModel"),
     )
 }
 private fun JsonObject.reactions() = array("reactions").mapNotNull { element -> element.jsonObjectOrNull()?.let { Reaction(it.string("emoji"), it.int("count"), it.boolean("selected")) } }

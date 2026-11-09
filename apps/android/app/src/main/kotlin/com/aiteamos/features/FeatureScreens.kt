@@ -50,6 +50,9 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
@@ -1415,6 +1418,12 @@ fun ProviderSettingsScreen(
     }
 }
 
+/** Display-only mirror of the server's per-provider defaults, shown as placeholders for blank fields. */
+private data class VoiceDefaults(val sttModel: String, val ttsModel: String, val voice: String, val language: String)
+
+private val volcengineDefaults = VoiceDefaults("bigmodel", "", "zh_female_vv_uranus_bigtts", "zh-CN")
+private val deepgramDefaults = VoiceDefaults("nova-3", "aura-2-thalia-en", "alloy", "en-US")
+
 @Composable
 fun VoiceSettingsScreen(
     state: FeatureLoadState<VoiceSettings>,
@@ -1425,59 +1434,218 @@ fun VoiceSettingsScreen(
 ) {
     val text: (String, String) -> String = { english, chinese -> if (language == AppSettings.Language.Chinese) chinese else english }
     var draft by remember { mutableStateOf<VoiceSettings?>(null) }
-    var volcengineKey by remember { mutableStateOf("") }
-    var deepgramKey by remember { mutableStateOf("") }
-    var removeVolcengineKey by remember { mutableStateOf(false) }
-    var removeDeepgramKey by remember { mutableStateOf(false) }
+    var apiKey by remember { mutableStateOf("") }
+    var removeKey by remember { mutableStateOf(false) }
+    var advancedOpen by remember { mutableStateOf(false) }
     LaunchedEffect(state) { if (state is FeatureLoadState.Ready) draft = state.value }
     FeaturePage(text("Realtime voice", "实时语音"), onBack) {
         LoadStateContent(state, onRetry) { loaded ->
             val value = draft ?: loaded
-            LazyColumn(Modifier.fillMaxSize().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(14.dp), contentPadding = androidx.compose.foundation.layout.PaddingValues(top = 14.dp, bottom = 28.dp)) {
+            val volcengine = value.defaultProvider == "volcengine"
+            val provider = if (volcengine) value.volcengine else value.deepgram
+            val providerName = if (volcengine) "Volcengine" else "Deepgram"
+            val defaults = if (volcengine) volcengineDefaults else deepgramDefaults
+            val changed = value != loaded || apiKey.isNotBlank() || removeKey
+            fun update(next: VoiceSettings) { draft = next }
+            fun updateProvider(change: (VoiceProviderSettings) -> VoiceProviderSettings) {
+                update(if (volcengine) value.copy(volcengine = change(value.volcengine)) else value.copy(deepgram = change(value.deepgram)))
+            }
+            LazyColumn(
+                Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(top = 10.dp, bottom = 32.dp),
+            ) {
                 item {
-                    SettingsGroup {
-                        SettingsToggleRow(text("Enable realtime voice", "启用实时语音"), text("Allow authenticated speech sessions from macOS and Android", "允许 macOS 和 Android 建立认证语音会话"), value.enabled) { draft = value.copy(enabled = it) }
-                        SettingsRow(text("Provider", "服务商"), text("Speech-to-text and text-to-speech provider", "语音识别和语音合成服务商"), inline = false) {
-                            ChoiceChips(listOf("volcengine", "deepgram"), value.defaultProvider, { provider -> when (provider) { "volcengine" -> "Volcengine"; else -> "Deepgram" } }) { draft = value.copy(defaultProvider = it) }
+                    VoiceCard {
+                        SettingsToggleRow(text("Enable realtime voice", "启用实时语音"), text("Allow authenticated speech sessions from macOS and Android", "允许 macOS 和 Android 建立认证语音会话"), value.enabled) { update(value.copy(enabled = it)) }
+                    }
+                }
+                item { VoiceSectionHeader(text("Provider", "服务商")) }
+                item {
+                    VoiceCard {
+                        Column(Modifier.padding(horizontal = 18.dp, vertical = 14.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            VoiceSegmented(listOf("volcengine", "deepgram"), value.defaultProvider, { if (it == "volcengine") "Volcengine" else "Deepgram" }) {
+                                update(value.copy(defaultProvider = it))
+                                apiKey = ""
+                                removeKey = false
+                            }
+                            VoiceStatus(
+                                ok = provider.configured,
+                                label = if (provider.configured) text("$providerName is configured.", "$providerName 已配置。") else text("$providerName needs an API key.", "$providerName 需要 API 密钥。"),
+                            )
+                        }
+                        VoiceDivider()
+                        Column(Modifier.padding(horizontal = 18.dp, vertical = 14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text(text("$providerName API key", "$providerName API 密钥"), fontWeight = FontWeight.Medium)
+                            Text(
+                                when {
+                                    removeKey -> text("The saved key will be deleted when you save.", "保存时将删除已保存的密钥。")
+                                    provider.configured -> text("Enter a new key to replace the saved key.", "输入新密钥以替换已保存的密钥。")
+                                    else -> text("The key is stored encrypted on the server.", "密钥将加密存储在服务器上。")
+                                },
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            VoiceTextField(
+                                value = apiKey,
+                                onChange = { apiKey = it; if (it.isNotBlank()) removeKey = false },
+                                placeholder = if (provider.configured) "••••${provider.apiKeySuffix.orEmpty()}" else text("API key", "API 密钥"),
+                                secret = true,
+                            )
+                            if (provider.configured) {
+                                TextButton(onClick = { removeKey = !removeKey; if (removeKey) apiKey = "" }, contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 4.dp)) {
+                                    Text(if (removeKey) text("Undo deletion", "撤销删除") else text("Delete key", "删除密钥"), color = if (removeKey) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.error)
+                                }
+                            }
                         }
                     }
                 }
-                item { SettingsSectionTitle(text("Provider credentials", "服务商凭据")) }
                 item {
-                    SettingsGroup {
-                        SettingsRow(text("Volcengine API key", "Volcengine API 密钥"), text(if (value.volcengine.configured) "A key is saved on the server." else "Enter the key supplied by Volcengine.", if (value.volcengine.configured) "服务器已保存密钥。" else "输入 Volcengine 提供的密钥。"), inline = false) {
-                            OutlinedTextField(volcengineKey, { volcengineKey = it; removeVolcengineKey = false }, label = { Text(if (value.volcengine.configured) text("Replace key", "替换密钥") else text("API key", "API 密钥")) }, visualTransformation = PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth(), singleLine = true)
-                            if (value.volcengine.configured) TextButton(onClick = { removeVolcengineKey = !removeVolcengineKey }) { Text(if (removeVolcengineKey) text("Undo deletion", "撤销删除") else text("Delete key", "删除密钥"), color = MaterialTheme.colorScheme.error) }
-                        }
-                        SettingsRow(text("Deepgram API key", "Deepgram API 密钥"), text(if (value.deepgram.configured) "A key is saved on the server." else "Enter the key supplied by Deepgram.", if (value.deepgram.configured) "服务器已保存密钥。" else "输入 Deepgram 提供的密钥。"), inline = false) {
-                            OutlinedTextField(deepgramKey, { deepgramKey = it; removeDeepgramKey = false }, label = { Text(if (value.deepgram.configured) text("Replace key", "替换密钥") else text("API key", "API 密钥")) }, visualTransformation = PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth(), singleLine = true)
-                            if (value.deepgram.configured) TextButton(onClick = { removeDeepgramKey = !removeDeepgramKey }) { Text(if (removeDeepgramKey) text("Undo deletion", "撤销删除") else text("Delete key", "删除密钥"), color = MaterialTheme.colorScheme.error) }
+                    VoiceCard {
+                        Row(
+                            Modifier.fillMaxWidth().clickable { advancedOpen = !advancedOpen }.padding(horizontal = 18.dp, vertical = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            Column(Modifier.weight(1f)) {
+                                Text(text("Advanced settings", "高级设置"), fontWeight = FontWeight.Medium)
+                                Text(text("Provider endpoints, resource IDs, models, and speech defaults", "服务商端点、资源 ID、模型和语音默认值"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            Icon(if (advancedOpen) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                 }
-                item { SettingsSectionTitle(text("Speech defaults", "语音默认值")) }
-                item {
-                    SettingsGroup {
-                        @Composable
-                        fun field(title: String, current: String, update: (String) -> VoiceSettings) {
-                            SettingsRow(title, "", inline = false) { OutlinedTextField(current, { draft = update(it) }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text(title) }) }
+                if (advancedOpen) {
+                    item { VoiceSectionHeader(text("$providerName connection", "$providerName 连接")) }
+                    item {
+                        VoiceCard {
+                            if (volcengine) {
+                                VoiceField(text("Base URL", "基础 URL"), provider.baseUrl.orEmpty(), "https://openspeech.bytedance.com") { v -> updateProvider { it.copy(baseUrl = v) } }
+                                VoiceDivider()
+                                VoiceField(text("STT WebSocket URL", "STT WebSocket URL"), provider.sttUrl.orEmpty(), text("Optional provider-specific URL", "可选，服务商专用 URL")) { v -> updateProvider { it.copy(sttUrl = v) } }
+                                VoiceDivider()
+                                VoiceField(text("TTS WebSocket URL", "TTS WebSocket URL"), provider.ttsUrl.orEmpty(), text("Optional provider-specific URL", "可选，服务商专用 URL")) { v -> updateProvider { it.copy(ttsUrl = v) } }
+                                VoiceDivider()
+                                VoiceField(text("STT resource ID", "STT 资源 ID"), provider.sttResourceId.orEmpty(), "volc.seedasr.sauc.duration") { v -> updateProvider { it.copy(sttResourceId = v) } }
+                                VoiceDivider()
+                                VoiceField(text("TTS resource ID", "TTS 资源 ID"), provider.ttsResourceId.orEmpty(), "seed-tts-2.0") { v -> updateProvider { it.copy(ttsResourceId = v) } }
+                            } else {
+                                VoiceField(text("Base URL", "基础 URL"), provider.baseUrl.orEmpty(), "https://api.deepgram.com") { v -> updateProvider { it.copy(baseUrl = v) } }
+                            }
                         }
-                        field(text("Volcengine base URL", "Volcengine 基础 URL"), value.volcengine.baseUrl.orEmpty()) { value.copy(volcengine = value.volcengine.copy(baseUrl = it)) }
-                        field(text("Volcengine STT WebSocket URL", "Volcengine STT WebSocket URL"), value.volcengine.sttUrl.orEmpty()) { value.copy(volcengine = value.volcengine.copy(sttUrl = it)) }
-                        field(text("Volcengine TTS WebSocket URL", "Volcengine TTS WebSocket URL"), value.volcengine.ttsUrl.orEmpty()) { value.copy(volcengine = value.volcengine.copy(ttsUrl = it)) }
-                        field(text("Volcengine STT resource ID", "Volcengine STT 资源 ID"), value.volcengine.sttResourceId.orEmpty()) { value.copy(volcengine = value.volcengine.copy(sttResourceId = it)) }
-                        field(text("Volcengine TTS resource ID", "Volcengine TTS 资源 ID"), value.volcengine.ttsResourceId.orEmpty()) { value.copy(volcengine = value.volcengine.copy(ttsResourceId = it)) }
-                        field(text("Deepgram base URL", "Deepgram 基础 URL"), value.deepgram.baseUrl.orEmpty()) { value.copy(deepgram = value.deepgram.copy(baseUrl = it)) }
-                        field(text("STT model", "语音识别模型"), value.sttModel) { value.copy(sttModel = it) }
-                        field(text("TTS model", "语音合成模型"), value.ttsModel) { value.copy(ttsModel = it) }
-                        field(text("TTS voice", "语音"), value.voice) { value.copy(voice = it) }
-                        field(text("Language", "语言"), value.language) { value.copy(language = it) }
-                        Button(onClick = { onSave(value, volcengineKey.takeIf { it.isNotBlank() }, deepgramKey.takeIf { it.isNotBlank() }, removeVolcengineKey, removeDeepgramKey); volcengineKey = ""; deepgramKey = ""; removeVolcengineKey = false; removeDeepgramKey = false }, modifier = Modifier.fillMaxWidth()) { Text(text("Save settings", "保存设置")) }
                     }
+                    item { VoiceSectionHeader(text("Speech defaults", "语音默认值")) }
+                    item {
+                        VoiceCard {
+                            val automatic = text("Automatic", "自动")
+                            VoiceField(text("STT model", "语音识别模型"), value.sttModel, defaults.sttModel.ifBlank { automatic }) { update(value.copy(sttModel = it)) }
+                            VoiceDivider()
+                            VoiceField(text("TTS model", "语音合成模型"), value.ttsModel, defaults.ttsModel.ifBlank { automatic }) { update(value.copy(ttsModel = it)) }
+                            VoiceDivider()
+                            VoiceField(text("TTS voice", "语音"), value.voice, defaults.voice.ifBlank { automatic }) { update(value.copy(voice = it)) }
+                            VoiceDivider()
+                            VoiceField(text("Language", "语言"), value.language, defaults.language.ifBlank { automatic }) { update(value.copy(language = it)) }
+                            VoiceDivider()
+                            VoiceField(
+                                text("Narration model", "旁白模型"),
+                                value.narrationModel,
+                                text("Same as the bot", "与 Bot 相同"),
+                                hint = text("Speaks short progress updates while the agent works. Use a fast model as provider/model. Leave empty to use the bot's own model.", "Agent 工作时朗读简短的进度更新。请使用 provider/model 格式的快速模型，留空则使用 Bot 自己的模型。"),
+                            ) { update(value.copy(narrationModel = it)) }
+                        }
+                    }
+                    item { Text(text("Leave fields empty to use the recommended values.", "字段留空将使用推荐值。"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 6.dp)) }
+                }
+                item {
+                    Button(
+                        onClick = {
+                            onSave(value, if (volcengine) apiKey.takeIf { it.isNotBlank() } else null, if (volcengine) null else apiKey.takeIf { it.isNotBlank() }, volcengine && removeKey, !volcengine && removeKey)
+                            apiKey = ""
+                            removeKey = false
+                        },
+                        enabled = changed,
+                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier.fillMaxWidth().height(50.dp).padding(top = 0.dp),
+                    ) { Text(text("Save settings", "保存设置")) }
                 }
             }
         }
     }
+}
+
+@Composable
+private fun VoiceSectionHeader(title: String) {
+    Text(title, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 6.dp, top = 12.dp))
+}
+
+@Composable
+private fun VoiceCard(content: @Composable ColumnScope.() -> Unit) {
+    val shape = RoundedCornerShape(20.dp)
+    Column(
+        Modifier.fillMaxWidth().clip(shape).background(MaterialTheme.colorScheme.surface).border(1.dp, MaterialTheme.colorScheme.outlineVariant, shape),
+        content = content,
+    )
+}
+
+@Composable
+private fun VoiceDivider() {
+    HorizontalDivider(Modifier.padding(start = 18.dp), color = MaterialTheme.colorScheme.outlineVariant)
+}
+
+@Composable
+private fun VoiceStatus(ok: Boolean, label: String) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Box(Modifier.size(8.dp).clip(RoundedCornerShape(50)).background(if (ok) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.error))
+        Text(label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+@Composable
+private fun <T> VoiceSegmented(choices: List<T>, selected: T, label: (T) -> String, onSelected: (T) -> Unit) {
+    val track = RoundedCornerShape(14.dp)
+    Row(
+        Modifier.fillMaxWidth().clip(track).background(MaterialTheme.colorScheme.surfaceVariant).padding(3.dp),
+        horizontalArrangement = Arrangement.spacedBy(3.dp),
+    ) {
+        choices.forEach { choice ->
+            val active = choice == selected
+            Box(
+                Modifier.weight(1f).clip(RoundedCornerShape(11.dp))
+                    .background(if (active) MaterialTheme.colorScheme.surface else Color.Transparent)
+                    .clickable { onSelected(choice) }.padding(vertical = 10.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(label(choice), fontWeight = if (active) FontWeight.SemiBold else FontWeight.Normal, color = if (active) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+    }
+}
+
+@Composable
+private fun VoiceField(title: String, value: String, placeholder: String, hint: String? = null, onChange: (String) -> Unit) {
+    Column(Modifier.padding(horizontal = 18.dp, vertical = 14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(title, fontWeight = FontWeight.Medium)
+        hint?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        VoiceTextField(value, onChange, placeholder)
+    }
+}
+
+@Composable
+private fun VoiceTextField(value: String, onChange: (String) -> Unit, placeholder: String, secret: Boolean = false) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onChange,
+        placeholder = { Text(placeholder, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)) },
+        visualTransformation = if (secret) PasswordVisualTransformation() else androidx.compose.ui.text.input.VisualTransformation.None,
+        singleLine = true,
+        shape = RoundedCornerShape(14.dp),
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+            unfocusedBorderColor = Color.Transparent,
+        ),
+        modifier = Modifier.fillMaxWidth(),
+    )
 }
 
 @Composable

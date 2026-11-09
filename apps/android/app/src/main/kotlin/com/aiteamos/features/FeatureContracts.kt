@@ -245,6 +245,7 @@ data class VoiceSettings(
     val ttsModel: String = "aura-2-thalia-en",
     val voice: String = "alloy",
     val language: String = "en-US",
+    val narrationModel: String = "",
 )
 
 data class Plugin(
