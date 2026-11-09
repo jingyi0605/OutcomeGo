@@ -21,6 +21,7 @@ export * from "./client-preferences";
 export * from "./inference";
 export * from "./transcription";
 export * from "./voice";
+export * from "./localization";
 export * from "./notification-content";
 export * from "./plugin-settings";
 export * from "./routine-types";
