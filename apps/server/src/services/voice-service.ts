@@ -292,7 +292,10 @@ export class VoiceService {
         // Greet first, so the user hears the call is live without having to speak. A reconnect stays silent.
         if (message.type === "client_ready" && !greeted.has(sessionId)) {
           greeted.add(sessionId);
-          void speak(pickGreeting(language), connection.media.currentGeneration, "narration");
+          const greeting = pickGreeting(language);
+          // Show the greeting as a caption too; clients that only play audio would otherwise see nothing.
+          connection.send({ type: "reply.message", turnId: "", messageId: `greeting:${sessionId}`, text: greeting, generation: connection.media.currentGeneration });
+          void speak(greeting, connection.media.currentGeneration, "narration");
         }
         if (message.type === "playback.ack") {
           connection.acknowledgePlayback(message.generation, message.frameSequence);

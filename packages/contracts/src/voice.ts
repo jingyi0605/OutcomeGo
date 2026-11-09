@@ -13,7 +13,7 @@ export const VOICE_MAX_TURN_MS = 60_000;
 export const VOICE_PLAYBACK_LEAD_MS = 1_000;
 export const VOICE_PLAYBACK_ACK_TIMEOUT_MS = 5_000;
 
-export const VoiceClientPlatform = Schema.Literal("macos", "ios", "android");
+export const VoiceClientPlatform = Schema.Literal("macos", "windows", "ios", "android");
 export type VoiceClientPlatform = typeof VoiceClientPlatform.Type;
 export const VoiceProviderId = Schema.Literal("volcengine", "deepgram");
 export type VoiceProviderId = typeof VoiceProviderId.Type;
