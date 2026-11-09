@@ -25,7 +25,7 @@
         { "t": "例行任务与事件", "s": "定时 · Webhook · 事件触发" },
         { "t": "外部服务", "s": "插件 · MCP · 渠道 · 邮件" }
       ],
-      "frame": "ai-TeamOS · 唯一数据源",
+      "frame": "aiTeamOS · 唯一数据源",
       "layers": [
         { "t": "事件接入层", "s": "Webhook · MCP · 渠道与邮件连接器 · Bot 运行状态" },
         { "t": "统一工作上下文引擎", "s": "项目关联 · 去重 · 状态归一 · 任务识别 · AI 摘要 · 优先级" },
@@ -37,7 +37,7 @@
       "title": "目标分层架构",
       "entry": { "t": "统一工作入口", "s": "自然语言交互 · 项目总览 · 决策收件箱 · Bot 进度 · 搜索" },
       "coordinator": { "t": "AI 协调与规划层", "s": "意图理解 · 项目关联 · 任务规划 · 优先级 · 分派 · 异常处理" },
-      "frame": "全部在 ai-TeamOS 内实现",
+      "frame": "全部在 aiTeamOS 内实现",
       "services": [
         { "t": "工作流引擎", "s": "长任务 · 重试 · 等待审批" },
         { "t": "权限策略引擎", "s": "授权 · 风险分级 · 审计" },
@@ -74,7 +74,7 @@
         { "t": "Routines and events", "s": "Schedules · webhooks · triggers" },
         { "t": "External services", "s": "Plugins · MCP · channels · mail" }
       ],
-      "frame": "ai-TeamOS · single source of truth",
+      "frame": "aiTeamOS · single source of truth",
       "layers": [
         { "t": "Event intake", "s": "Webhooks · MCP · channel and mail connectors · bot run status" },
         { "t": "Unified work-context engine", "s": "Project matching · dedup · state merge · task detection · summaries · priority" },
@@ -86,7 +86,7 @@
       "title": "Target layers",
       "entry": { "t": "Unified work entry", "s": "Natural language · project overview · decision inbox · bot progress · search" },
       "coordinator": { "t": "AI coordination and planning", "s": "Intent · project matching · task planning · priority · dispatch · exceptions" },
-      "frame": "All built inside ai-TeamOS",
+      "frame": "All built inside aiTeamOS",
       "services": [
         { "t": "Workflow engine", "s": "Long tasks · retries · wait for approval" },
         { "t": "Policy engine", "s": "Authorization · risk tiers · audit" },

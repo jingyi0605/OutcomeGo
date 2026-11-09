@@ -1,7 +1,7 @@
-# ai-TeamOS app icons
+# aiTeamOS app icons
 
 `aiTeamOS.icon` is the shared, editable Icon Composer source for iOS and macOS.
-It holds one layer, `Assets/logo.png`, the ai-TeamOS prism mark (trimmed from
+It holds one layer, `Assets/logo.png`, the aiTeamOS prism mark (trimmed from
 `apps/landing/public/ai-teamOS-concept-02-prism.png`), on a charcoal gradient
 background. Colors are defined in `icon.json`. The robot artwork that upstream
 aiTeamOS ships here was removed in this fork.

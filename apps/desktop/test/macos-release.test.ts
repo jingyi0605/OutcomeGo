@@ -22,7 +22,7 @@ const entitlementsSource = Bun.file(
 ).text();
 
 describe("macOS distribution release", () => {
-  test("uses the ai-TeamOS app icon on every desktop platform", async () => {
+  test("uses the aiTeamOS app icon on every desktop platform", async () => {
     const desktop = await packageJson;
     const assets = "../../packages/design-tokens/assets";
 
