@@ -7,10 +7,13 @@ public struct MobileRelease: Codable, Equatable, Sendable {
   public let buildNumber: String
   public let bundleIdentifier: String
 
-  public static let feedURL = URL(string: "https://openteam.so/ios-update.json")!
-  public static let testFlightURL = URL(string: "https://testflight.apple.com/join/KFBFPkjP")!
-  public static let testFlightAppURL = URL(
-    string: "itms-beta://testflight.apple.com/join/KFBFPkjP")!
+  /// Where published releases are announced. `nil` turns the in-app update check off: no request
+  /// is made and no notice is shown. Set it, together with `downloadURL`, once a release channel
+  /// exists for this app.
+  public static let feedURL: URL? = nil
+  /// What the update notice opens. Required whenever `feedURL` is set.
+  public static let downloadURL: URL? = nil
+  public static let expectedBundleIdentifier = "dev.aiteamos.mobile"
 
   public init(version: String, buildNumber: String, bundleIdentifier: String) {
     self.version = version
@@ -20,7 +23,7 @@ public struct MobileRelease: Codable, Equatable, Sendable {
 
   public var isValid: Bool {
     Self.components(version) != nil && Self.components(buildNumber) != nil
-      && bundleIdentifier == "dev.openbot.mobile"
+      && bundleIdentifier == Self.expectedBundleIdentifier
   }
 
   public func isNewer(thanVersion version: String, buildNumber: String) -> Bool {

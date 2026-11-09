@@ -4,10 +4,9 @@ The native SwiftUI iPhone/iPad client lives in `apps/ios`. The React Native app 
 its Expo/Android build have been retired. Native notification- and share-extension
 sources, QA fixtures, asset generators, and the Xcode project are all owned here.
 
-Debug installs as **OpenTeam Swift** (`dev.openteam.mobile.swift`) with an isolated
-Keychain and `openteam-swift://` links. Release installs as **OpenTeam**
-(`dev.openbot.mobile`), retaining the existing TestFlight app, notification and
-Keychain identity, and `aiteamos://` links. Version, build number, bundle ID and
+Debug installs as **aiTeamOS Swift** (`dev.openteam.mobile.swift`) with an isolated
+Keychain and `aiteamos-swift://` links. Release installs as **aiTeamOS**
+(`dev.aiteamos.mobile`) with `aiteamos://` links. Version, build number, bundle ID and
 signing team are configured in `release.json`.
 
 ## Build and run
@@ -191,28 +190,26 @@ Uploading an archive does not establish Apple processing or tester availability.
 
 ### In-app update notice
 
-The home-screen Update badge and the notice at the top of Settings open the
-OpenTeam public beta in TestFlight, with the HTTPS invitation as a fallback.
-The app checks `https://openteam.so/ios-update.json` on launch, on returning to
-the foreground (at most once every 15 minutes), and every six hours while active.
-It compares both the marketing version and build number, independently of the
-self-hosted server. Offline checks retain the last successfully fetched release.
+The app can show an Update badge and a notice at the top of Settings when a newer build is
+published. It is **off** in this fork: `MobileRelease.feedURL` and `MobileRelease.downloadURL` in
+`Sources/Core/MobileRelease.swift` are `nil`, so the app makes no request and shows no notice.
 
-After confirming a build is available to the **public TestFlight group**, update
-`apps/landing/public/ios-update.json` and deploy the landing site:
+To turn it on, host a JSON file such as the one below, set `feedURL` to its HTTPS address and
+`downloadURL` to the page where people get the build:
 
 ```json
 {
   "release": {
-    "version": "0.0.12",
-    "buildNumber": "62",
-    "bundleIdentifier": "dev.openbot.mobile"
+    "version": "0.1.0",
+    "buildNumber": "66",
+    "bundleIdentifier": "dev.aiteamos.mobile"
   }
 }
 ```
 
-Use the version and build number Apple has made available, not a pending archive.
-The initial `{"release": null}` intentionally advertises no unverified builds.
+The app compares the marketing version and the build number with the installed build, independent
+of the self-hosted server. `{"release": null}` advertises nothing. Publish a version only after the
+build can actually be installed.
 Set it back to null to withdraw a notice. Opening TestFlight keeps the notice
 visible until a new app build is installed or the published notice is withdrawn.
 

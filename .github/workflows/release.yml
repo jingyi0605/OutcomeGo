@@ -455,7 +455,8 @@ jobs:
           import json, os
           path = 'apps/ios/release.json'
           release = json.load(open(path))
-          assert release['bundleIdentifier'] != 'dev.openbot.mobile', 'apps/ios/release.json still has the upstream bundle identifier'
+          assert release['bundleIdentifier'] == 'dev.aiteamos.mobile', 'apps/ios/release.json must use this fork\'s bundle identifier'
+          assert release['teamIdentifier'] == '828JR8JA8V', 'apps/ios/release.json must use this fork\'s Apple team'
           release['buildNumber'] = os.environ['BUILD_NUMBER']
           json.dump(release, open(path, 'w'), indent=2)
           PY

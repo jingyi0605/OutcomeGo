@@ -9,7 +9,7 @@ final class MobileUpdates {
   private(set) var openError: String?
   private var lastChecked: Date?
   private var checking = false
-  private let cacheKey = "openteam.testflight-release"
+  private let cacheKey = "aiteamos.mobile-release"
   private let installedVersion: String
   private let installedBuild: String
 
@@ -33,7 +33,8 @@ final class MobileUpdates {
         release = nil
         if ProcessInfo.processInfo.arguments.contains("--qa-mobile-update") {
           release = MobileRelease(
-            version: "0.2.0", buildNumber: "51", bundleIdentifier: "dev.openbot.mobile")
+            version: "0.2.0", buildNumber: "51",
+            bundleIdentifier: MobileRelease.expectedBundleIdentifier)
         }
       }
     #endif
@@ -43,6 +44,7 @@ final class MobileUpdates {
     #if DEBUG
       if ProcessInfo.processInfo.arguments.contains("--ui-testing") { return }
     #endif
+    guard let feedURL = MobileRelease.feedURL else { return }
     guard !checking, lastChecked.map({ Date().timeIntervalSince($0) >= 15 * 60 }) ?? true
     else { return }
     checking = true
@@ -56,7 +58,7 @@ final class MobileUpdates {
       configuration.timeoutIntervalForResource = 15
       let session = URLSession(configuration: configuration)
       defer { session.invalidateAndCancel() }
-      let (data, response) = try await session.data(from: MobileRelease.feedURL)
+      let (data, response) = try await session.data(from: feedURL)
       guard let response = response as? HTTPURLResponse, response.statusCode == 200 else { return }
       let next = try MobileReleaseFeed.decode(data)
       guard !Task.isCancelled else { return }
@@ -80,12 +82,11 @@ final class MobileUpdates {
       if ProcessInfo.processInfo.arguments.contains("--ui-testing") {
         // Exercise the action without leaving the UI-test app for another app.
         UserDefaults.standard.set(
-          MobileRelease.testFlightAppURL.absoluteString, forKey: "qa-testflight-url")
+          MobileRelease.downloadURL?.absoluteString ?? "none", forKey: "qa-testflight-url")
         return
       }
     #endif
-    if await UIApplication.shared.open(MobileRelease.testFlightAppURL) { return }
-    if await UIApplication.shared.open(MobileRelease.testFlightURL) { return }
-    openError = "Could not open TestFlight. Try again."
+    if let url = MobileRelease.downloadURL, await UIApplication.shared.open(url) { return }
+    openError = "Could not open the download page. Try again."
   }
 }
