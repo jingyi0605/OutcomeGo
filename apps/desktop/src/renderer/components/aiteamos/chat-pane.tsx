@@ -3,7 +3,11 @@ import { ResourceActivityProvider } from "../../hooks/resource-activity";
 import { ThinkingCaption } from "./thinking-caption";
 import { thinkingActivity } from "../../lib/thinking-activity";
 import { EXECUTING_ASYNC_TASK_STATUSES } from "../../lib/async-tasks";
-import { firstUnreadMessageId, groupChatActivity, type GroupActivity } from "../../lib/group-chat-presentation";
+import {
+  firstUnreadMessageId,
+  groupChatActivity,
+  type GroupActivity,
+} from "../../lib/group-chat-presentation";
 import { GroupActivityContent } from "./group-activity";
 import { TranscriptSenderAvatar, TranscriptSenderName } from "./transcript-sender";
 import "./group-chat.css";
@@ -87,16 +91,14 @@ import {
   turnInterruptedEventFor,
 } from "../../lib/channel-events";
 import { cn } from "../../lib/cn";
+import { useI18n } from "../../lib/i18n";
 import {
   desktopDurableSendController,
   discardDesktopDeliveryStages,
   stageDesktopDeliveryFile,
 } from "../../lib/durable-sends";
 import { type MentionOption, mentionHandleFor } from "../../lib/mentions";
-import {
-  formatIdleGapTimestamp,
-  shouldShowIdleGapTimestamp,
-} from "../../lib/message-timestamps";
+import { formatIdleGapTimestamp, shouldShowIdleGapTimestamp } from "../../lib/message-timestamps";
 import { addContextGaps } from "../../lib/search-context";
 import { mergeThreadTrayPin, type ThreadTrayPin } from "../../lib/thread-pin";
 import { deriveThreads, isBranchedMessage } from "../../lib/threads";
@@ -357,7 +359,6 @@ const copyRequestId = (message: ChannelMessageView) => {
   void navigator.clipboard.writeText(message.id).catch(() => undefined);
 };
 
-
 const MessageRow = memo(function MessageRow({
   message,
   channel,
@@ -409,6 +410,7 @@ const MessageRow = memo(function MessageRow({
   onDeleteSend: (nonce: string) => Promise<void>;
   onResendSend: (nonce: string) => Promise<void>;
 }) {
+  const { t } = useI18n();
   const [entranceActive, setEntranceActive] = useState(animateEntrance);
   useLayoutEffect(() => {
     if (entranceActive) onConsumeEntrance(entranceKey);
@@ -425,7 +427,9 @@ const MessageRow = memo(function MessageRow({
   const userReactionSet = ownReactionEmojiSet(message);
   const display = messageDisplayProjection(message);
   const isWidget = messageMetadata(message).type === "widget";
-  const isDraftCard = messageMetadata(message).type === "external-draft" || messageMetadata(message).type === "imessage-send";
+  const isDraftCard =
+    messageMetadata(message).type === "external-draft" ||
+    messageMetadata(message).type === "imessage-send";
   const { attachments, stagedAttachments, displayContent, files: fileAttachments } = display;
   const stagedImageAttachments = stagedAttachments.filter(
     (attachment) => attachment.kind === "image" && attachment.previewUri
@@ -446,7 +450,8 @@ const MessageRow = memo(function MessageRow({
   const hasAttachmentStack =
     images.length > 0 || fileAttachments.length > 0 || stagedFileAttachments.length > 0;
   // Beside attachments, hover actions belong next to the caption bubble, not the wider stack.
-  const actionsBesideCaption = !display.richMessage && hasAttachmentStack && Boolean(displayContent);
+  const actionsBesideCaption =
+    !display.richMessage && hasAttachmentStack && Boolean(displayContent);
   const reactionPills = messageReactionPills(message);
   const previousReactionKeys = useRef<ReadonlySet<string> | null>(null);
   const newReactionKeys = new Set(
@@ -468,7 +473,7 @@ const MessageRow = memo(function MessageRow({
         data-channel-event="name-changed"
         data-message-id={message.id}
       >
-        Renamed to {channelEvent.to}
+        {t("Renamed to {name}", { name: channelEvent.to })}
       </div>
     );
   }
@@ -496,7 +501,7 @@ const MessageRow = memo(function MessageRow({
       >
         <span>{routineChangedActionLabel(routineEvent.action)}</span>
         <button
-          aria-label={`Open routine ${routineEvent.automationName}`}
+          aria-label={t("Open routine {name}", { name: routineEvent.automationName })}
           className="inline-flex h-6 min-w-0 items-center gap-1 rounded-full px-1.5 outline-none transition-colors hover:bg-[#f1f1f1] hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/35 dark:hover:bg-[#252525]"
           data-routine-event-link=""
           onClick={() => onOpenRoutine?.(routineEvent.automationId)}
@@ -522,7 +527,7 @@ const MessageRow = memo(function MessageRow({
         selectedEmojis={userReactionSet}
       >
         <button
-          aria-label="React to message"
+          aria-label={t("React to message")}
           className="flex size-6 shrink-0 items-center justify-center rounded-full transition-colors duration-[120ms] hover:bg-accent focus-visible:bg-accent focus-visible:outline-none"
           disabled={!canInteract}
           type="button"
@@ -534,40 +539,42 @@ const MessageRow = memo(function MessageRow({
         className="size-6 shrink-0 rounded-full transition-colors duration-[120ms]"
         disabled={!canInteract}
         onClick={() => onReply(message)}
-        tooltip="Reply"
+        tooltip={t("Reply")}
       >
         <Reply className="size-[15px]" />
       </MessageAction>
-      {channel.kind !== "group" && <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <button
-            aria-label="More message actions"
-            className="flex size-6 shrink-0 items-center justify-center rounded-full transition-colors duration-[120ms] hover:bg-accent focus-visible:bg-accent focus-visible:outline-none"
-            type="button"
-          >
-            <Ellipsis className="size-[15px]" />
-          </button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent
-          align={from === "user" ? "end" : "start"}
-          className="w-[156px] min-w-0"
-        >
-          <DropdownMenuItem className="h-8 text-[13px]" onSelect={() => copyMessage(message)}>
-            <Copy className="size-3.5" /> Copy
-          </DropdownMenuItem>
-          <DropdownMenuItem className="h-8 text-[13px]" onSelect={() => copyRequestId(message)}>
-            <Copy className="size-3.5" /> Copy request ID
-          </DropdownMenuItem>
-          {attachments.length > 1 && (
-            <DropdownMenuItem
-              className="h-8 text-[13px]"
-              onSelect={() => void downloadAttachments(attachments)}
+      {channel.kind !== "group" && (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              aria-label={t("More message actions")}
+              className="flex size-6 shrink-0 items-center justify-center rounded-full transition-colors duration-[120ms] hover:bg-accent focus-visible:bg-accent focus-visible:outline-none"
+              type="button"
             >
-              <Download className="size-3.5" /> Download all
+              <Ellipsis className="size-[15px]" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            align={from === "user" ? "end" : "start"}
+            className="w-[156px] min-w-0"
+          >
+            <DropdownMenuItem className="h-8 text-[13px]" onSelect={() => copyMessage(message)}>
+              <Copy className="size-3.5" /> {t("Copy")}
             </DropdownMenuItem>
-          )}
-        </DropdownMenuContent>
-      </DropdownMenu>}
+            <DropdownMenuItem className="h-8 text-[13px]" onSelect={() => copyRequestId(message)}>
+              <Copy className="size-3.5" /> {t("Copy request ID")}
+            </DropdownMenuItem>
+            {attachments.length > 1 && (
+              <DropdownMenuItem
+                className="h-8 text-[13px]"
+                onSelect={() => void downloadAttachments(attachments)}
+              >
+                <Download className="size-3.5" /> {t("Download all")}
+              </DropdownMenuItem>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
     </MessageActions>
   );
   return (
@@ -597,8 +604,8 @@ const MessageRow = memo(function MessageRow({
             <div className="flex items-center gap-1.5 px-1 pt-2 text-xs font-medium text-muted-foreground">
               <MessageCircle className="size-3.5" />
               <span>
-                {a2aProjection.direction === "incoming" ? "Message from" : "Messaged"}{" "}
-                {a2aProjection.peerName ?? (senderBot?.name || "another agent")}
+                {a2aProjection.direction === "incoming" ? t("Message from") : t("Messaged")}{" "}
+                {a2aProjection.peerName ?? (senderBot?.name || t("another agent"))}
               </span>
             </div>
           )}
@@ -606,12 +613,20 @@ const MessageRow = memo(function MessageRow({
             channel.kind !== "bot_dm" &&
             groupPosition !== "middle" &&
             groupPosition !== "last" && (
-              <TranscriptSenderName bot={senderBot} name={senderName ?? senderBot?.name ?? "Bot"} onOpenChat={onOpenBotChat} />
+              <TranscriptSenderName
+                bot={senderBot}
+                name={senderName ?? senderBot?.name ?? t("Bot")}
+                onOpenChat={onOpenBotChat}
+              />
             )}
           {replyPreview && (
             <div
               className={`flex max-w-[min(88%,640px,calc(100%-82px))] items-center gap-1.5 px-2 pb-0.5 text-xs text-muted-foreground ${
-                from === "user" ? "self-end" : hasAgentGutter ? "ml-[30px] self-start" : "self-start"
+                from === "user"
+                  ? "self-end"
+                  : hasAgentGutter
+                    ? "ml-[30px] self-start"
+                    : "self-start"
               }`}
             >
               <Reply className="size-3 shrink-0" />
@@ -629,19 +644,32 @@ const MessageRow = memo(function MessageRow({
                 className="flex w-[22px] shrink-0 self-stretch items-end justify-center"
                 data-message-agent-gutter=""
               >
-                {showAgentAvatar && <TranscriptSenderAvatar bot={senderBot} name={senderName ?? senderBot?.name ?? "Bot"} onOpenChat={onOpenBotChat} onOpenProfile={onOpenBotProfile} />}
+                {showAgentAvatar && (
+                  <TranscriptSenderAvatar
+                    bot={senderBot}
+                    name={senderName ?? senderBot?.name ?? t("Bot")}
+                    onOpenChat={onOpenBotChat}
+                    onOpenProfile={onOpenBotProfile}
+                  />
+                )}
               </div>
             )}
-            <div className={`flex min-w-0 flex-1 ${from === "user" ? "justify-end" : "justify-start"}`}>
-              <div data-role={from} data-group-position={groupPosition} className={cn(
-                "message-with-actions relative min-w-0",
-                display.richMessage ? "w-full" : "w-fit",
-                isDraftCard
-                  ? "max-w-[min(100%,560px,calc(100%-82px))]"
-                  : display.richMessage && !isWidget
-                  ? "max-w-[min(88%,520px,calc(100%-82px))]"
-                  : "max-w-[min(88%,640px,calc(100%-82px))]"
-              )}>
+            <div
+              className={`flex min-w-0 flex-1 ${from === "user" ? "justify-end" : "justify-start"}`}
+            >
+              <div
+                data-role={from}
+                data-group-position={groupPosition}
+                className={cn(
+                  "message-with-actions relative min-w-0",
+                  display.richMessage ? "w-full" : "w-fit",
+                  isDraftCard
+                    ? "max-w-[min(100%,560px,calc(100%-82px))]"
+                    : display.richMessage && !isWidget
+                      ? "max-w-[min(88%,520px,calc(100%-82px))]"
+                      : "max-w-[min(88%,640px,calc(100%-82px))]"
+                )}
+              >
                 {display.richMessage ? (
                   <RichMessage bot={senderBot} message={message} />
                 ) : hasAttachmentStack ? (
@@ -653,10 +681,21 @@ const MessageRow = memo(function MessageRow({
                   >
                     <MessageImageGallery images={images} />
                     {fileAttachments.length > 0 && (
-                      <MessageRendererBoundary content={`Attachment previews unavailable.\n${fileAttachments.map((file) => file.fileName).join("\n")}`}>
-                      <Suspense fallback={<div data-chat-layout-pending className="h-[61px] w-[246px] max-w-full" />}>
-                        <MessageFileAttachments attachments={fileAttachments} />
-                      </Suspense>
+                      <MessageRendererBoundary
+                        content={t("Attachment previews unavailable.\n{files}", {
+                          files: fileAttachments.map((file) => file.fileName).join("\n"),
+                        })}
+                      >
+                        <Suspense
+                          fallback={
+                            <div
+                              data-chat-layout-pending
+                              className="h-[61px] w-[246px] max-w-full"
+                            />
+                          }
+                        >
+                          <MessageFileAttachments attachments={fileAttachments} />
+                        </Suspense>
                       </MessageRendererBoundary>
                     )}
                     {stagedFileAttachments.map((attachment) => (
@@ -700,14 +739,22 @@ const MessageRow = memo(function MessageRow({
           {(reactionPills.length > 0 || userReactionSet.size > 0) && (
             <div
               className={`relative -mt-2 flex flex-row flex-wrap gap-1 ${
-                from === "user" ? "ml-auto mr-2.5 self-end justify-end" : hasAgentGutter ? "ml-[40px] self-start" : "ml-2.5 self-start"
+                from === "user"
+                  ? "ml-auto mr-2.5 self-end justify-end"
+                  : hasAgentGutter
+                    ? "ml-[40px] self-start"
+                    : "ml-2.5 self-start"
               }`}
             >
               {reactionPills.map(({ emoji, count }) => {
                 const selected = userReactionSet.has(emoji);
                 return (
                   <button
-                    aria-label={`${selected ? "Remove" : "Add"} ${emoji} reaction`}
+                    aria-label={
+                      selected
+                        ? t("Remove {emoji} reaction", { emoji })
+                        : t("Add {emoji} reaction", { emoji })
+                    }
                     aria-pressed={selected}
                     className={`inline-flex h-[22px] origin-center items-center gap-[3px] rounded-full border-0 py-0 pl-[7px] pr-2 text-xs leading-4 tabular-nums text-[#666] shadow-[0_0_0_2px_#fcfcfc] transition-[transform,background-color] duration-[120ms] active:scale-95 disabled:cursor-default dark:text-[rgba(240,240,240,0.74)] dark:shadow-[0_0_0_2px_#070707] ${
                       newReactionKeys.has(emoji) ? "reaction-pill-enter" : ""
@@ -736,23 +783,31 @@ const MessageRow = memo(function MessageRow({
           {threadReplyCount > 0 && (
             <button
               className={`mt-0.5 inline-flex h-7 items-center gap-1.5 rounded-lg px-2 text-xs font-medium text-muted-foreground hover:bg-accent hover:text-foreground ${
-                from === "user" ? "self-end" : hasAgentGutter ? "ml-[30px] self-start" : "self-start"
+                from === "user"
+                  ? "self-end"
+                  : hasAgentGutter
+                    ? "ml-[30px] self-start"
+                    : "self-start"
               }`}
               data-thread-summary-id={message.id}
               onClick={() => onOpenThread(message)}
               type="button"
             >
               <MessageCircle className="size-3.5" />
-              {threadReplyCount} {threadReplyCount === 1 ? "reply" : "replies"}
+              {threadReplyCount === 1
+                ? t("{count} reply", { count: threadReplyCount })
+                : t("{count} replies", { count: threadReplyCount })}
             </button>
           )}
-          {from === "user" && <DeliveryFooter
-            delivery={delivery}
-            sendingSinceMs={sendingSinceMs}
-            onCancel={onCancelSend}
-            onDelete={onDeleteSend}
-            onResend={onResendSend}
-          />}
+          {from === "user" && (
+            <DeliveryFooter
+              delivery={delivery}
+              sendingSinceMs={sendingSinceMs}
+              onCancel={onCancelSend}
+              onDelete={onDeleteSend}
+              onResend={onResendSend}
+            />
+          )}
         </Message>
       </ContextMenuTrigger>
       <ContextMenuContent className="w-[246px]">
@@ -761,7 +816,7 @@ const MessageRow = memo(function MessageRow({
             <div className="flex items-center gap-0.5 px-1 py-0.5">
               {QUICK_REACTIONS.map((emoji) => (
                 <button
-                  aria-label={`React with ${emoji}`}
+                  aria-label={t("React with {emoji}", { emoji })}
                   className={`flex size-[30px] items-center justify-center rounded-lg text-[20px] hover:bg-accent ${
                     userReactionSet.has(emoji) ? "bg-accent ring-1 ring-input" : ""
                   }`}
@@ -776,7 +831,7 @@ const MessageRow = memo(function MessageRow({
               ))}
               <ContextMenuSub>
                 <ContextMenuSubTrigger
-                  aria-label="Open emoji picker"
+                  aria-label={t("Open emoji picker")}
                   className="size-[30px] justify-center gap-0 p-0"
                 >
                   <MoreEmojiIcon />
@@ -793,23 +848,22 @@ const MessageRow = memo(function MessageRow({
             </div>
             <ContextMenuSeparator className="my-0.5" />
             <ContextMenuItem onSelect={() => onReply(message)}>
-              <Reply className="size-4" /> Reply
+              <Reply className="size-4" /> {t("Reply")}
             </ContextMenuItem>
           </>
         )}
         <ContextMenuItem onSelect={() => copyMessage(message)}>
-          <Copy className="size-4" /> Copy
+          <Copy className="size-4" /> {t("Copy")}
         </ContextMenuItem>
         {from === "user" && (
           <ContextMenuItem onSelect={() => copyRequestId(message)}>
-            <Copy className="size-4" /> Copy request ID
+            <Copy className="size-4" /> {t("Copy request ID")}
           </ContextMenuItem>
         )}
       </ContextMenuContent>
     </ContextMenu>
   );
 });
-
 
 const BotThinkingSlot = memo(function BotThinkingSlot({
   bot,
@@ -828,7 +882,8 @@ const BotThinkingSlot = memo(function BotThinkingSlot({
   groupStart?: boolean;
   persistent?: boolean;
 }) {
-  const name = bot?.name ?? "Bot";
+  const { t } = useI18n();
+  const name = bot?.name ?? t("Bot");
   const mounted = phase !== "hidden";
   return (
     <div
@@ -841,7 +896,7 @@ const BotThinkingSlot = memo(function BotThinkingSlot({
     >
       {mounted ? (
         <div
-          aria-label={group ? activity : `${name}: ${activity}`}
+          aria-label={group ? t(activity) : `${name}: ${t(activity)}`}
           aria-hidden={phase === "exiting" || undefined}
           className={cn(
             "bot-thinking-content flex min-w-0 items-center gap-2",
@@ -857,7 +912,7 @@ const BotThinkingSlot = memo(function BotThinkingSlot({
           ) : (
             <>
               <BotAvatar bot={bot} size="sm" mode="thinking" />
-              <ThinkingCaption text={activity} group={group} />
+              <ThinkingCaption text={t(activity)} group={group} />
             </>
           )}
         </div>
@@ -879,6 +934,7 @@ const A2AActivityRow = memo(function A2AActivityRow({
   peer?: BotView;
   peerName: string;
 }) {
+  const { t } = useI18n();
   const name = peer?.name ?? peerName;
   const peerContent = (
     <>
@@ -893,12 +949,16 @@ const A2AActivityRow = memo(function A2AActivityRow({
     >
       <span className="leading-5">
         {count === 1 && direction
-          ? direction === "incoming" ? "Message from" : "Messaged"
-          : `${count} ${count === 1 ? "message" : "messages"} with`}
+          ? direction === "incoming"
+            ? t("Message from")
+            : t("Messaged")
+          : count === 1
+            ? t("{count} message with", { count })
+            : t("{count} messages with", { count })}
       </span>
       {onOpen ? (
         <button
-          aria-label={`Open A2A exchange with ${name}`}
+          aria-label={t("Open A2A exchange with {name}", { name })}
           className="inline-flex h-6 max-w-[min(320px,55vw)] items-center gap-1 rounded-full bg-transparent pl-1 pr-2 leading-5 text-inherit transition-colors hover:bg-[#efefef] focus-visible:bg-[#efefef] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30 dark:hover:bg-[#1b1b1b] dark:focus-visible:bg-[#1b1b1b]"
           data-a2a-peer-pill=""
           onClick={(event) => onOpen(event.currentTarget)}
@@ -925,13 +985,20 @@ const VoiceConversationCard = memo(function VoiceConversationCard({
   botName: string;
   messages: ChannelMessageView[];
 }) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const first = messages[0];
   const last = messages[messages.length - 1];
   const preview = messages.find((message) => message.sender === "user")?.content.trim() ?? "";
-  const minutes = first && last
-    ? Math.max(1, Math.round((new Date(last.createdAt).getTime() - new Date(first.createdAt).getTime()) / 60_000))
-    : 1;
+  const minutes =
+    first && last
+      ? Math.max(
+          1,
+          Math.round(
+            (new Date(last.createdAt).getTime() - new Date(first.createdAt).getTime()) / 60_000
+          )
+        )
+      : 1;
   return (
     <div className="mx-auto my-1 w-full max-w-[640px] px-1" data-voice-conversation="">
       <button
@@ -942,7 +1009,15 @@ const VoiceConversationCard = memo(function VoiceConversationCard({
       >
         <Mic aria-hidden className="size-4 shrink-0" />
         <span className="shrink-0">
-          Voice conversation · {messages.length} {messages.length === 1 ? "message" : "messages"} · {minutes} min
+          {messages.length === 1
+            ? t("Voice conversation · {count} message · {minutes} min", {
+                count: messages.length,
+                minutes,
+              })
+            : t("Voice conversation · {count} messages · {minutes} min", {
+                count: messages.length,
+                minutes,
+              })}
         </span>
         <span
           className="min-w-0 flex-1 truncate text-right text-xs italic text-muted-foreground/70"
@@ -951,14 +1026,20 @@ const VoiceConversationCard = memo(function VoiceConversationCard({
         >
           {open ? "" : preview}
         </span>
-        <ChevronDown aria-hidden className={cn("size-4 shrink-0 transition-transform", open && "rotate-180")} />
+        <ChevronDown
+          aria-hidden
+          className={cn("size-4 shrink-0 transition-transform", open && "rotate-180")}
+        />
       </button>
       {open && (
-        <ol className="mt-1 space-y-1.5 rounded-xl border border-border px-3 py-2 text-sm" data-voice-transcript="">
+        <ol
+          className="mt-1 space-y-1.5 rounded-xl border border-border px-3 py-2 text-sm"
+          data-voice-transcript=""
+        >
           {messages.map((message) => (
             <li key={message.id}>
               <span className="mr-2 text-xs text-muted-foreground">
-                {message.sender === "user" ? "You" : botName}
+                {message.sender === "user" ? t("You") : botName}
               </span>
               <span className="whitespace-pre-wrap break-words">{message.content}</span>
             </li>
@@ -1012,6 +1093,7 @@ export const ChatPane = memo(function ChatPane({
   onOpenBotChat,
   onOpenBotProfile,
 }: ChatPaneProps) {
+  const { t } = useI18n();
   const now = useDayClock(active);
   // Until the first history page arrives the loading orb covers the transcript.
   // Rows measured then (a bootstrap preview) would keep stale heights and jump
@@ -1028,7 +1110,10 @@ export const ChatPane = memo(function ChatPane({
     unreadVisit.current = {
       channelId: channel.id,
       active,
-      through: (channel.unreadCount ?? 0) > 0 ? channel.notificationState?.lastReadSequence ?? null : null,
+      through:
+        (channel.unreadCount ?? 0) > 0
+          ? (channel.notificationState?.lastReadSequence ?? null)
+          : null,
     };
   } else unreadVisit.current.active = active;
   const [replyTarget, setReplyTarget] = useState<{
@@ -1142,7 +1227,12 @@ export const ChatPane = memo(function ChatPane({
         message: messagesById.get(recovery.payload.replyToMessageId) as ChannelMessageView,
       });
     }
-    setComposerRecovery({ id: recovery.nonce, payload: recovery.payload, message: recovery.failure?.message, durable: true });
+    setComposerRecovery({
+      id: recovery.nonce,
+      payload: recovery.payload,
+      message: recovery.failure?.message,
+      durable: true,
+    });
   }, [channel.id, channelRecoveries, composerRecovery, messagesById]);
   const threads = useMemo(
     () => deriveThreads(visibleMessages.map(({ message }) => message)),
@@ -1163,8 +1253,11 @@ export const ChatPane = memo(function ChatPane({
     // Open once per focus request (search result or alert click): a thread the
     // user closed must stay closed when later messages arrive.
     if (!focusedThreadRootId || nonce === undefined || !focusMessage) return;
-    if (openedThreadFocus.current?.nonce === nonce &&
-      openedThreadFocus.current.messageId === focusMessage.messageId) return;
+    if (
+      openedThreadFocus.current?.nonce === nonce &&
+      openedThreadFocus.current.messageId === focusMessage.messageId
+    )
+      return;
     if (threadCloseTimer.current) window.clearTimeout(threadCloseTimer.current);
     const root = messagesById.get(focusedThreadRootId);
     if (!root) return;
@@ -1178,7 +1271,14 @@ export const ChatPane = memo(function ChatPane({
         truncated: threadContextTruncated,
       }),
     });
-  }, [focusMessage?.messageId, focusMessage?.nonce, focusedThreadRootId, messagesById, threadContextTruncated, threads]);
+  }, [
+    focusMessage?.messageId,
+    focusMessage?.nonce,
+    focusedThreadRootId,
+    messagesById,
+    threadContextTruncated,
+    threads,
+  ]);
 
   useEffect(() => {
     setThreadState((current) => {
@@ -1236,23 +1336,24 @@ export const ChatPane = memo(function ChatPane({
     [mainMessages]
   );
   const timeline = useMemo(() => {
-    const ordered: MessageTimelineEntry[] = mainMessageRecords
-      .map(
-        ({ animateEntrance, delivery, message, pending, renderKey }): MessageTimelineEntry => ({
-          type: "message" as const,
-          id: renderKey,
-          createdAt: message.createdAt,
-          message,
-          animateEntrance,
-          pending,
-          delivery,
-        })
-      );
+    const ordered: MessageTimelineEntry[] = mainMessageRecords.map(
+      ({ animateEntrance, delivery, message, pending, renderKey }): MessageTimelineEntry => ({
+        type: "message" as const,
+        id: renderKey,
+        createdAt: message.createdAt,
+        message,
+        animateEntrance,
+        pending,
+        delivery,
+      })
+    );
     const collapsed =
       channel.kind === "bot_dm" ? collapseA2ATimeline(ordered, (entry) => entry.message) : ordered;
     // Only plain message entries are ever wrapped, so the folded entries keep their message shape.
     const withVoice: Array<
-      MessageTimelineEntry | A2AActivityEntry<MessageTimelineEntry> | VoiceConversationEntry<MessageTimelineEntry>
+      | MessageTimelineEntry
+      | A2AActivityEntry<MessageTimelineEntry>
+      | VoiceConversationEntry<MessageTimelineEntry>
     > =
       channel.kind === "bot_dm"
         ? (collapseVoiceTimeline(collapsed, (entry) =>
@@ -1269,8 +1370,7 @@ export const ChatPane = memo(function ChatPane({
         : entry.entries.some((candidate) => visibleContextMessageIds.has(candidate.message.id))
     );
     return messageTimeline.sort(
-      (left, right) =>
-        new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime()
+      (left, right) => new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime()
     );
   }, [channel.kind, mainMessageRecords, visibleContextMessageIds]);
   const replyingTo = replyTarget?.channelId === channel.id ? replyTarget.message : null;
@@ -1383,7 +1483,8 @@ export const ChatPane = memo(function ChatPane({
     const loadingLatest = Promise.resolve(onScrollToNewest?.());
     const glide = () => {
       const conversation = conversationRef.current;
-      if (conversation) void glideConversationToBottom(conversation, { awaitGrowth: 1_000, durationMs: 350 });
+      if (conversation)
+        void glideConversationToBottom(conversation, { awaitGrowth: 1_000, durationMs: 350 });
     };
     if (historyMode === "latest" && !hasNewerGap) {
       glide();
@@ -1450,9 +1551,13 @@ export const ChatPane = memo(function ChatPane({
     );
     const retained = new Set<string>();
     for (const run of activeRuns) {
-      if (committedGroupRuns.current.has(run.id) || (itemsByRun.get(run.id) ?? []).some(
-        (item) => ["tool", "command", "file_change"].includes(item.kind)
-      )) retained.add(run.id);
+      if (
+        committedGroupRuns.current.has(run.id) ||
+        (itemsByRun.get(run.id) ?? []).some((item) =>
+          ["tool", "command", "file_change"].includes(item.kind)
+        )
+      )
+        retained.add(run.id);
     }
     committedGroupRuns.current = retained;
     return groupChatActivity(activeRuns, botById, itemsByRun, retained);
@@ -1470,7 +1575,9 @@ export const ChatPane = memo(function ChatPane({
   );
   const wantsThinkingIndicator = groupActivity
     ? groupActivity.workers.length + groupActivity.readers.length > 0
-    : Boolean((activeRun || hasBackgroundTask) && !(visibleMessages.length === 0 && onboardingInProgress));
+    : Boolean(
+        (activeRun || hasBackgroundTask) && !(visibleMessages.length === 0 && onboardingInProgress)
+      );
   // A run usually starts from a message this transcript has not received yet.
   // Appearing first, the indicator would then be pushed down by that message.
   // Only its appearance waits; an indicator already showing stays put.
@@ -1485,10 +1592,15 @@ export const ChatPane = memo(function ChatPane({
     thinkingShownRef.current = thinkingPhase !== "hidden";
   }, [thinkingPhase]);
   const thinkingText = useMemo(() => {
-    return groupActivity?.text ?? (hasBackgroundTask && !activeRun
-      ? "Working in the background"
-      : thinkingActivity(activeRun ? itemsByRun.get(activeRun.id) : undefined));
-  }, [activeRun, groupActivity, hasBackgroundTask, itemsByRun]);
+    return (
+      groupActivity?.text ??
+      (hasBackgroundTask && !activeRun
+        ? t("Working in the background")
+        : // `thinkingActivity` returns English sentinels ("Thinking"/"Working"/"Typing")
+          // that other code compares by identity, plus already-translated tool captions.
+          t(thinkingActivity(activeRun ? itemsByRun.get(activeRun.id) : undefined)))
+    );
+  }, [activeRun, groupActivity, hasBackgroundTask, itemsByRun, t]);
   const unreadMessageId = firstUnreadMessageId(mainMessages, unreadVisit.current.through);
   const lastThinkingText = useRef({ channelId: channel.id, text: thinkingText });
   if (showThinkingIndicator || lastThinkingText.current.channelId !== channel.id) {
@@ -1497,9 +1609,12 @@ export const ChatPane = memo(function ChatPane({
   const thinkingMounted = thinkingPhase !== "hidden";
   // Keep the thinking row's space when it exits. Removing that space in a
   // bottom-locked transcript makes the newly arrived reply jump a second time.
-  const restingThinkingSpace = !thinkingMounted && timeline.length > 0 && channel.kind !== "agent_dm"
-    ? channel.kind === "group" && mainMessages.at(-1)?.sender !== "agent" ? 52 : 40
-    : 0;
+  const restingThinkingSpace =
+    !thinkingMounted && timeline.length > 0 && channel.kind !== "agent_dm"
+      ? channel.kind === "group" && mainMessages.at(-1)?.sender !== "agent"
+        ? 52
+        : 40
+      : 0;
   const renderedTimeline = useMemo(() => {
     const transcriptTimeline = timeline;
     if (thinkingPhase === "hidden") return transcriptTimeline;
@@ -1523,12 +1638,11 @@ export const ChatPane = memo(function ChatPane({
   }, []);
   const focusedRenderedTimelineEntry = useMemo(() => {
     if (!focusMessage || !messagesById.has(focusMessage.messageId)) return null;
-    const index = renderedTimeline.findIndex(
-      (entry) =>
-        entry.type === "message"
-          ? entry.message.id === focusMessage.messageId
-          : entry.type === "voice" &&
-            entry.entries.some((candidate) => candidate.message.id === focusMessage.messageId)
+    const index = renderedTimeline.findIndex((entry) =>
+      entry.type === "message"
+        ? entry.message.id === focusMessage.messageId
+        : entry.type === "voice" &&
+          entry.entries.some((candidate) => candidate.message.id === focusMessage.messageId)
     );
     return index < 0
       ? null
@@ -1538,8 +1652,7 @@ export const ChatPane = memo(function ChatPane({
     <div
       className={cn(
         "relative flex size-full min-h-0 flex-col bg-background",
-        active && channel.kind !== "agent_dm" && !onboardingInProgress &&
-          "chat-composer-overlap"
+        active && channel.kind !== "agent_dm" && !onboardingInProgress && "chat-composer-overlap"
       )}
       data-chat-drop-target=""
       ref={fileDropTargetRef}
@@ -1553,14 +1666,16 @@ export const ChatPane = memo(function ChatPane({
             warmLayout={conversationLayoutIsWarm(channel.id, historyGeneration)}
             overlayScrollbars
             className="max-w-none gap-1 px-4 pt-11"
-            style={{ paddingBottom: `calc(${24 + restingThinkingSpace}px + var(--composer-overlap, 0px))` }}
+            style={{
+              paddingBottom: `calc(${24 + restingThinkingSpace}px + var(--composer-overlap, 0px))`,
+            }}
           >
             {activityTruncated && (
               <div
                 className="mx-auto mb-2 w-full max-w-[640px] rounded-lg border border-border bg-muted/45 px-3 py-2 text-xs text-muted-foreground"
                 role="status"
               >
-                Older run details are summarized; active runs remain visible.
+                {t("Older run details are summarized; active runs remain visible.")}
               </div>
             )}
             {threadContextTruncated && (
@@ -1568,8 +1683,9 @@ export const ChatPane = memo(function ChatPane({
                 className="mx-auto mb-2 w-full max-w-[640px] rounded-lg border border-border bg-muted/45 px-3 py-2 text-xs text-muted-foreground"
                 role="status"
               >
-                Some older thread context is omitted. Open or search an older reply to load its
-                local thread window.
+                {t(
+                  "Some older thread context is omitted. Open or search an older reply to load its local thread window."
+                )}
               </div>
             )}
             {timeline.length === 0 && onboardingInProgress ? (
@@ -1585,7 +1701,7 @@ export const ChatPane = memo(function ChatPane({
                 <BotThinkingSlot bot={selectedBot} phase="visible" />
               </>
             ) : renderedTimeline.length === 0 ? (
-              <span className="sr-only">No messages yet</span>
+              <span className="sr-only">{t("No messages yet")}</span>
             ) : (
               <VirtualizedTimeline
                 conversationId={channel.id}
@@ -1603,19 +1719,30 @@ export const ChatPane = memo(function ChatPane({
                 renderEntry={(entry, index) =>
                   entry.type === "context_gap" ? (
                     <div
-                      aria-label="Messages between this search context and the latest view are omitted"
+                      aria-label={t(
+                        "Messages between this search context and the latest view are omitted"
+                      )}
                       className="mx-auto my-2 flex w-full max-w-[640px] items-center gap-3 px-4 text-[11px] text-muted-foreground"
                       role="separator"
                     >
                       <span className="h-px flex-1 bg-border" />
                       <span>
-                        Messages between this search context and the latest view are omitted
+                        {t("Messages between this search context and the latest view are omitted")}
                       </span>
                       <span className="h-px flex-1 bg-border" />
                     </div>
                   ) : (
                     <Fragment>
-                      {entry.type === "message" && entry.message.id === unreadMessageId && <div className="chat-unread-divider" role="separator" aria-label="New messages" data-unread-divider="">NEW</div>}
+                      {entry.type === "message" && entry.message.id === unreadMessageId && (
+                        <div
+                          className="chat-unread-divider"
+                          role="separator"
+                          aria-label={t("New messages")}
+                          data-unread-divider=""
+                        >
+                          {t("NEW")}
+                        </div>
+                      )}
                       {entry.type !== "thinking" &&
                         shouldShowIdleGapTimestamp(
                           renderedTimeline[index - 1]?.createdAt,
@@ -1634,110 +1761,137 @@ export const ChatPane = memo(function ChatPane({
                         )}
                       <TimestampedEntry
                         createdAt={entry.type === "thinking" ? undefined : entry.createdAt}
-                        from={entry.type === "message" && entry.message.sender === "user" ? "user" : "other"}
+                        from={
+                          entry.type === "message" && entry.message.sender === "user"
+                            ? "user"
+                            : "other"
+                        }
                       >
-                      {entry.type === "thinking" ? (
-                        <BotThinkingSlot bot={entry.bot} phase={entry.phase} activity={lastThinkingText.current.text} persistent={hasBackgroundTask && !activeRun} group={channel.kind === "group"} groupStart={channel.kind === "group" && mainMessages.length > 0 && mainMessages.at(-1)?.sender !== "agent"} groupActivity={groupActivity ? { ...groupActivity, text: lastThinkingText.current.text } : undefined} />
-                      ) : entry.type === "voice" ? (
-                        <VoiceConversationCard
-                          botName={selectedBot?.name ?? "Assistant"}
-                          messages={entry.entries.map((candidate) => candidate.message)}
-                        />
-                      ) : entry.type === "a2a" ? (
-                        <A2AActivityRow
-                          count={entry.entries.length}
-                          direction={entry.entries[0]?.message ? a2aProjectionFor(entry.entries[0].message)?.direction : undefined}
-                          onOpen={
-                            entry.peerId && onOpenA2A && selectedBot
-                              ? (trigger) =>
-                                  onOpenA2A(selectedBot.id, entry.peerId as string, trigger)
-                              : undefined
-                          }
-                          peer={entry.peerId ? botById.get(entry.peerId) : undefined}
-                          peerName={entry.peerName ?? "another agent"}
-                        />
-                      ) : (
-                        <MessageRow
-                          animateEntrance={entry.animateEntrance && !consumedEntrances.current.has(entry.id)}
-                          entranceKey={entry.id}
-                          onConsumeEntrance={consumeEntrance}
-                          canInteract={
-                            canSend &&
-                            !entry.pending &&
-                            entry.delivery?.phase !== "failed" &&
-                            entry.message.sender !== "system"
-                          }
-                          channel={channel}
-                          groupPosition={appendThinkingIndicatorToGroup(
-                            getMessageGroupPosition(
-                              mainMessages,
-                              mainMessageIndexById.get(entry.message.id) ?? -1,
-                              unreadMessageId
-                            ),
-                            (() => {
-                              const following = renderedTimeline[index + 1];
+                        {entry.type === "thinking" ? (
+                          <BotThinkingSlot
+                            bot={entry.bot}
+                            phase={entry.phase}
+                            activity={lastThinkingText.current.text}
+                            persistent={hasBackgroundTask && !activeRun}
+                            group={channel.kind === "group"}
+                            groupStart={
+                              channel.kind === "group" &&
+                              mainMessages.length > 0 &&
+                              mainMessages.at(-1)?.sender !== "agent"
+                            }
+                            groupActivity={
+                              groupActivity
+                                ? { ...groupActivity, text: lastThinkingText.current.text }
+                                : undefined
+                            }
+                          />
+                        ) : entry.type === "voice" ? (
+                          <VoiceConversationCard
+                            botName={selectedBot?.name ?? t("Assistant")}
+                            messages={entry.entries.map((candidate) => candidate.message)}
+                          />
+                        ) : entry.type === "a2a" ? (
+                          <A2AActivityRow
+                            count={entry.entries.length}
+                            direction={
+                              entry.entries[0]?.message
+                                ? a2aProjectionFor(entry.entries[0].message)?.direction
+                                : undefined
+                            }
+                            onOpen={
+                              entry.peerId && onOpenA2A && selectedBot
+                                ? (trigger) =>
+                                    onOpenA2A(selectedBot.id, entry.peerId as string, trigger)
+                                : undefined
+                            }
+                            peer={entry.peerId ? botById.get(entry.peerId) : undefined}
+                            peerName={entry.peerName ?? t("another agent")}
+                          />
+                        ) : (
+                          <MessageRow
+                            animateEntrance={
+                              entry.animateEntrance && !consumedEntrances.current.has(entry.id)
+                            }
+                            entranceKey={entry.id}
+                            onConsumeEntrance={consumeEntrance}
+                            canInteract={
+                              canSend &&
+                              !entry.pending &&
+                              entry.delivery?.phase !== "failed" &&
+                              entry.message.sender !== "system"
+                            }
+                            channel={channel}
+                            groupPosition={appendThinkingIndicatorToGroup(
+                              getMessageGroupPosition(
+                                mainMessages,
+                                mainMessageIndexById.get(entry.message.id) ?? -1,
+                                unreadMessageId
+                              ),
+                              (() => {
+                                const following = renderedTimeline[index + 1];
+                                return Boolean(
+                                  channel.kind === "bot_dm" &&
+                                    thinkingMounted &&
+                                    following?.type === "thinking" &&
+                                    entry.message.sender === "agent" &&
+                                    (!entry.message.senderBotId ||
+                                      !following.bot?.id ||
+                                      entry.message.senderBotId === following.bot.id)
+                                );
+                              })()
+                            )}
+                            message={entry.message}
+                            delivery={entry.delivery}
+                            sendingSinceMs={
+                              entry.delivery?.nonce === sendProgress?.nonce
+                                ? (sendProgress?.sinceMs ?? null)
+                                : null
+                            }
+                            pending={entry.pending}
+                            onCancelSend={cancelDurableSend}
+                            onDeleteSend={deleteDurableSend}
+                            onReact={reactToMessage}
+                            onReply={replyToMessage}
+                            onResendSend={resendDurableSend}
+                            onOpenThread={openThread}
+                            onOpenRoutine={onOpenRoutine}
+                            onOpenBotChat={onOpenBotChat}
+                            onOpenBotProfile={onOpenBotProfile}
+                            replyPreview={(() => {
+                              const preview = replyTargetFor(entry.message, messagesById);
+                              if (!preview) return null;
+                              return {
+                                content:
+                                  preview.content ||
+                                  (messageImages(preview).length > 0 ? t("Image") : ""),
+                                senderLabel: messageSenderLabel(preview, botById),
+                              };
+                            })()}
+                            separatedFromPrevious={(() => {
+                              const previous = renderedTimeline[index - 1];
                               return Boolean(
-                                channel.kind === "bot_dm" && thinkingMounted &&
-                                  following?.type === "thinking" &&
-                                  entry.message.sender === "agent" &&
-                                  (!entry.message.senderBotId ||
-                                    !following.bot?.id ||
-                                    entry.message.senderBotId === following.bot.id)
+                                previous &&
+                                  (previous.type !== "message" ||
+                                    !messagesShareGroup(previous.message, entry.message)) &&
+                                  !shouldShowIdleGapTimestamp(
+                                    previous.createdAt,
+                                    entry.message.createdAt
+                                  )
                               );
-                            })()
-                          )}
-                          message={entry.message}
-                          delivery={entry.delivery}
-                          sendingSinceMs={
-                            entry.delivery?.nonce === sendProgress?.nonce
-                              ? sendProgress?.sinceMs ?? null
-                              : null
-                          }
-                          pending={entry.pending}
-                          onCancelSend={cancelDurableSend}
-                          onDeleteSend={deleteDurableSend}
-                          onReact={reactToMessage}
-                          onReply={replyToMessage}
-                          onResendSend={resendDurableSend}
-                          onOpenThread={openThread}
-                          onOpenRoutine={onOpenRoutine}
-                          onOpenBotChat={onOpenBotChat}
-                          onOpenBotProfile={onOpenBotProfile}
-                          replyPreview={(() => {
-                            const preview = replyTargetFor(entry.message, messagesById);
-                            if (!preview) return null;
-                            return {
-                              content:
-                                preview.content ||
-                                (messageImages(preview).length > 0 ? "Image" : ""),
-                              senderLabel: messageSenderLabel(preview, botById),
-                            };
-                          })()}
-                          separatedFromPrevious={(() => {
-                            const previous = renderedTimeline[index - 1];
-                            return Boolean(
-                              previous &&
-                                (previous.type !== "message" ||
-                                  !messagesShareGroup(previous.message, entry.message)) &&
-                                !shouldShowIdleGapTimestamp(
-                                  previous.createdAt,
-                                  entry.message.createdAt
-                                )
-                            );
-                          })()}
-                          senderBot={
-                            entry.message.senderBotId
-                              ? botById.get(entry.message.senderBotId)
-                              : undefined
-                          }
-                          senderName={
-                            entry.message.senderBotId
-                              ? agentNameById.get(entry.message.senderBotId)
-                              : undefined
-                          }
-                          threadReplyCount={threads.get(entry.message.id)?.replies.length ?? 0}
-                        />
-                      )}
+                            })()}
+                            senderBot={
+                              entry.message.senderBotId
+                                ? botById.get(entry.message.senderBotId)
+                                : undefined
+                            }
+                            senderName={
+                              entry.message.senderBotId
+                                ? agentNameById.get(entry.message.senderBotId)
+                                : undefined
+                            }
+                            threadReplyCount={threads.get(entry.message.id)?.replies.length ?? 0}
+                          />
+                        )}
                       </TimestampedEntry>
                     </Fragment>
                   )
@@ -1745,9 +1899,7 @@ export const ChatPane = memo(function ChatPane({
               />
             )}
           </ConversationContent>
-          <ConversationViewportAnchor
-            active={composerExpanded || pendingAttachmentCount > 0}
-          />
+          <ConversationViewportAnchor active={composerExpanded || pendingAttachmentCount > 0} />
           <ConversationScrollButton
             authoritativeMessageCount={messages.length}
             conversationId={channel.id}
@@ -1769,14 +1921,14 @@ export const ChatPane = memo(function ChatPane({
         <div className="a2a-exchange-footer mx-auto w-full max-w-[1040px] px-5 pb-4">
           <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
             <LockKeyhole className="size-3.5" />
-            <span>This chat is view-only</span>
+            <span>{t("This chat is view-only")}</span>
             {onCloseViewOnly && (
               <Button
                 className="h-7 rounded-full px-3 text-xs"
                 onClick={onCloseViewOnly}
                 variant="secondary"
               >
-                Close Chat
+                {t("Close Chat")}
               </Button>
             )}
           </div>
@@ -1787,55 +1939,56 @@ export const ChatPane = memo(function ChatPane({
           data-composer-dock=""
           style={{ marginTop: "calc(-1 * var(--composer-overlap, 0px))" }}
         >
-            {channel.kind === "bot_dm" && selectedBot ? (
-              <Suspense fallback={null}>
-                <LiveVoiceLayer bot={selectedBot} channelId={channel.id} />
-              </Suspense>
-            ) : null}
-            <PromptInput
-              focusRequest={composerFocusRequest}
-              transcriptionConfigured={runtime.transcription === "configured" && !threadState?.open}
-              uploadCapabilities={capabilities.uploads}
-              disabled={!canSend}
-              docked
-              dropTargetRef={fileDropTargetRef}
-              key={channel.id}
-              incomingDraft={incomingDraft}
-              onDraftApplied={onDraftApplied}
-              recovery={composerRecovery}
-              onAttachmentsChange={setPendingAttachmentCount}
-              onCancelReply={() => setReplyTarget(null)}
-              onExpandedChange={setComposerExpanded}
-              onRecoveryApplied={() =>
-                setComposerRecovery((current) => (current?.durable ? current : null))
-              }
-              onRecoveryConsumed={async (nonce) => {
-                await sendController.acknowledgeRecovery(nonce);
-                setComposerRecovery((current) => (current?.id === nonce ? null : current));
-              }}
-              onSubmit={submit}
-              onStage={stageDesktopDeliveryFile}
-              onDiscardStages={discardDesktopDeliveryStages}
-              mentionOptions={mentionOptions}
-              placeholder={
-                selectedBot?.status === "provisioning"
-                  ? `Message ${channel.name} — it will be queued`
-                  : runtime.inference !== "ready"
-                    ? channel.kind === "bot_dm"
-                      ? `Message ${channel.name} — it will be queued`
-                      : "Pi runtime is not ready"
-                    : `Message ${channel.name}`
-              }
-              reply={
-                replyingTo
-                  ? {
-                      id: replyingTo.id,
-                      content:
-                        replyingTo.content || (messageImages(replyingTo).length > 0 ? "Image" : ""),
-                    }
-                  : null
-              }
-            />
+          {channel.kind === "bot_dm" && selectedBot ? (
+            <Suspense fallback={null}>
+              <LiveVoiceLayer bot={selectedBot} channelId={channel.id} />
+            </Suspense>
+          ) : null}
+          <PromptInput
+            focusRequest={composerFocusRequest}
+            transcriptionConfigured={runtime.transcription === "configured" && !threadState?.open}
+            uploadCapabilities={capabilities.uploads}
+            disabled={!canSend}
+            docked
+            dropTargetRef={fileDropTargetRef}
+            key={channel.id}
+            incomingDraft={incomingDraft}
+            onDraftApplied={onDraftApplied}
+            recovery={composerRecovery}
+            onAttachmentsChange={setPendingAttachmentCount}
+            onCancelReply={() => setReplyTarget(null)}
+            onExpandedChange={setComposerExpanded}
+            onRecoveryApplied={() =>
+              setComposerRecovery((current) => (current?.durable ? current : null))
+            }
+            onRecoveryConsumed={async (nonce) => {
+              await sendController.acknowledgeRecovery(nonce);
+              setComposerRecovery((current) => (current?.id === nonce ? null : current));
+            }}
+            onSubmit={submit}
+            onStage={stageDesktopDeliveryFile}
+            onDiscardStages={discardDesktopDeliveryStages}
+            mentionOptions={mentionOptions}
+            placeholder={
+              selectedBot?.status === "provisioning"
+                ? t("Message {name} — it will be queued", { name: channel.name })
+                : runtime.inference !== "ready"
+                  ? channel.kind === "bot_dm"
+                    ? t("Message {name} — it will be queued", { name: channel.name })
+                    : t("Pi runtime is not ready")
+                  : t("Message {name}", { name: channel.name })
+            }
+            reply={
+              replyingTo
+                ? {
+                    id: replyingTo.id,
+                    content:
+                      replyingTo.content ||
+                      (messageImages(replyingTo).length > 0 ? t("Image") : ""),
+                  }
+                : null
+            }
+          />
         </div>
       )}
       {threadState && (

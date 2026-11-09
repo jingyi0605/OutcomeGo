@@ -2,6 +2,8 @@ import type { BotView, ChannelView } from "@aiteamos/contracts";
 import { Pencil, Upload } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { cn } from "../../lib/cn";
+import { useI18n } from "../../lib/i18n";
+import { translateCurrent } from "../../lib/i18n-catalog";
 import { Button } from "../ui/button";
 import { ChannelAvatar } from "./avatar";
 
@@ -14,7 +16,7 @@ const canvasPngBase64 = (canvas: HTMLCanvasElement): string =>
 
 const fileAvatarPng = async (file: File): Promise<string> => {
   if (!file.type.startsWith("image/") || file.size > 10 * 1024 * 1024) {
-    throw new Error("Choose an image no larger than 10 MB.");
+    throw new Error(translateCurrent("Choose an image no larger than 10 MB."));
   }
   const url = URL.createObjectURL(file);
   try {
@@ -28,7 +30,7 @@ const fileAvatarPng = async (file: File): Promise<string> => {
     canvas.width = PNG_SIZE;
     canvas.height = PNG_SIZE;
     const context = canvas.getContext("2d");
-    if (!context) throw new Error("That image could not be loaded.");
+    if (!context) throw new Error(translateCurrent("That image could not be loaded."));
     context.imageSmoothingEnabled = true;
     context.imageSmoothingQuality = "high";
     context.drawImage(image, sx, sy, side, side, 0, 0, PNG_SIZE, PNG_SIZE);
@@ -49,7 +51,7 @@ const generatedAvatarPng = (description: string): string => {
   canvas.width = PNG_SIZE;
   canvas.height = PNG_SIZE;
   const context = canvas.getContext("2d");
-  if (!context) throw new Error("Could not generate the avatar.");
+  if (!context) throw new Error(translateCurrent("Could not generate the avatar."));
   const gradient = context.createLinearGradient(0, 0, PNG_SIZE, PNG_SIZE);
   gradient.addColorStop(0, `hsl(${hue} 82% 58%)`);
   gradient.addColorStop(1, `hsl(${(hue + 72) % 360} 76% 38%)`);
@@ -78,6 +80,7 @@ export function GroupAvatarEditor({
   channel: ChannelView;
   onSave: (pngBase64: string | null) => Promise<void>;
 }) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [source, setSource] = useState<AvatarSource>("upload");
   const [description, setDescription] = useState("");
@@ -109,7 +112,7 @@ export function GroupAvatarEditor({
     try {
       setCandidate(await fileAvatarPng(file));
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "That image could not be loaded.");
+      setError(caught instanceof Error ? caught.message : t("That image could not be loaded."));
     }
   };
 
@@ -121,7 +124,7 @@ export function GroupAvatarEditor({
       setCandidate(null);
       setOpen(false);
     } catch {
-      setError("Could not save the avatar.");
+      setError(t("Could not save the avatar."));
     } finally {
       setSaving(false);
     }
@@ -131,7 +134,7 @@ export function GroupAvatarEditor({
     <div className="relative flex flex-col items-center" ref={root}>
       <button
         aria-expanded={open}
-        aria-label="Edit Bot avatar"
+        aria-label={t("Edit Bot avatar")}
         className="group relative grid size-16 place-items-center outline-none"
         onClick={() => setOpen((current) => !current)}
         type="button"
@@ -143,7 +146,7 @@ export function GroupAvatarEditor({
       </button>
       {open && (
         <div
-          aria-label="Avatar editor"
+          aria-label={t("Avatar editor")}
           className="mt-2 w-full rounded-xl bg-[#f0f0f0] p-3 dark:bg-[#181818]"
           onPaste={(event) => {
             const file = [...event.clipboardData.files].find((candidate) =>
@@ -156,7 +159,7 @@ export function GroupAvatarEditor({
           }}
           role="dialog"
         >
-          <div aria-label="Avatar source" className="flex gap-1" role="tablist">
+          <div aria-label={t("Avatar source")} className="flex gap-1" role="tablist">
             {(["generate", "upload"] as const).map((tab) => (
               <button
                 aria-selected={source === tab}
@@ -173,14 +176,14 @@ export function GroupAvatarEditor({
                 role="tab"
                 type="button"
               >
-                {tab}
+                {t(tab)}
               </button>
             ))}
           </div>
           {candidate ? (
             <div className="mt-3 grid gap-3">
               <img
-                alt="Avatar preview"
+                alt={t("Avatar preview")}
                 className="mx-auto size-24 rounded-full object-cover"
                 src={`data:image/png;base64,${candidate}`}
               />
@@ -190,14 +193,14 @@ export function GroupAvatarEditor({
                   onClick={() => setCandidate(null)}
                   variant="secondary"
                 >
-                  Restart
+                  {t("Restart")}
                 </Button>
                 <Button
                   className="h-8 flex-1 text-xs"
                   disabled={saving}
                   onClick={() => void save(candidate)}
                 >
-                  {saving ? "Saving…" : "Set avatar"}
+                  {saving ? t("Saving…") : t("Set avatar")}
                 </Button>
               </div>
             </div>
@@ -211,14 +214,16 @@ export function GroupAvatarEditor({
               }}
             >
               <Upload className="mb-2 size-5 text-muted-foreground" />
-              <div className="text-sm text-muted-foreground">Drag, drop, or paste an image</div>
-              <div className="my-2 text-xs text-foreground-tertiary">or</div>
+              <div className="text-sm text-muted-foreground">
+                {t("Drag, drop, or paste an image")}
+              </div>
+              <div className="my-2 text-xs text-foreground-tertiary">{t("or")}</div>
               <Button
                 className="h-8 text-xs"
                 onClick={() => fileInput.current?.click()}
                 variant="secondary"
               >
-                Browse files
+                {t("Browse files")}
               </Button>
               <input
                 accept="image/*"
@@ -231,10 +236,10 @@ export function GroupAvatarEditor({
           ) : (
             <div className="mt-3 grid gap-2">
               <textarea
-                aria-label="Describe your avatar"
+                aria-label={t("Describe your avatar")}
                 className="min-h-28 resize-none rounded-lg border bg-background p-2 text-sm outline-none"
                 onChange={(event) => setDescription(event.target.value)}
-                placeholder="Describe your avatar…"
+                placeholder={t("Describe your avatar…")}
                 value={description}
               />
               <Button
@@ -242,7 +247,7 @@ export function GroupAvatarEditor({
                 disabled={!description.trim()}
                 onClick={() => setCandidate(generatedAvatarPng(description))}
               >
-                Generate
+                {t("Generate")}
               </Button>
             </div>
           )}
@@ -253,7 +258,7 @@ export function GroupAvatarEditor({
               onClick={() => void save(null)}
               type="button"
             >
-              Remove photo
+              {t("Remove photo")}
             </button>
           )}
           {error && <div className="mt-2 text-xs text-destructive">{error}</div>}

@@ -4,6 +4,7 @@ import { Popover as PopoverPrimitive } from "radix-ui";
 import type { ReactNode } from "react";
 import { lazy, Suspense, useState } from "react";
 import { cn } from "../../../lib/cn";
+import { useI18n } from "../../../lib/i18n";
 import type { EmojiPanelProps } from "./panel";
 
 export { QUICK_REACTIONS } from "@aiteamos/product-core/messages";
@@ -16,15 +17,16 @@ const LazyEmojiPanel = lazy(loadEmojiPanel);
 export const preloadEmojiPanel = () => void loadEmojiPanel();
 
 export function EmojiPanel(props: EmojiPanelProps) {
+  const { t } = useI18n();
   return (
     <Suspense
       fallback={
         <div
-          aria-label="Loading emoji"
+          aria-label={t("Loading emoji")}
           className="grid h-[310px] place-items-center text-[13px] text-muted-foreground"
           role="status"
         >
-          Loading emoji…
+          {t("Loading emoji…")}
         </div>
       }
     >
@@ -44,6 +46,7 @@ export function EmojiPicker({
   onSelect: (emoji: string) => void;
   selectedEmojis?: ReadonlySet<string>;
 }) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [expanded, setExpanded] = useState(!compactFirst);
   const setPickerOpen = (nextOpen: boolean) => {
@@ -75,7 +78,7 @@ export function EmojiPicker({
             <div className="flex items-center gap-1">
               {QUICK_REACTIONS.map((emoji) => (
                 <button
-                  aria-label={`React with ${emoji}`}
+                  aria-label={t("React with {emoji}", { emoji })}
                   className={cn(
                     "flex size-[30px] items-center justify-center rounded-lg text-[20px] hover:bg-accent focus-visible:bg-accent focus-visible:outline-none",
                     selectedEmojis?.has(emoji) && "bg-accent ring-1 ring-input"
@@ -91,7 +94,7 @@ export function EmojiPicker({
                 </button>
               ))}
               <button
-                aria-label="Open emoji picker"
+                aria-label={t("Open emoji picker")}
                 className="flex size-[30px] items-center justify-center rounded-lg text-muted-foreground hover:bg-accent focus-visible:bg-accent focus-visible:outline-none"
                 onClick={() => {
                   preloadEmojiPanel();

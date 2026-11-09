@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../client/aiteamos-api";
 import { API_BASE } from "../client/http";
+import { translateCurrent } from "../lib/i18n-catalog";
 import { readServerUpdateSnapshot, saveServerUpdateSnapshot } from "../lib/server-update-cache";
 import { isAiTeamOSVersion } from "@aiteamos/contracts/version-compatibility";
 import { isWindowActive } from "../lib/window-visibility";
@@ -22,7 +23,9 @@ const unavailableStatus = (targetVersion: string | null): AiTeamOSServerUpdateSt
   updaterAvailable: false,
   status: "unavailable",
   phase: null,
-  message: "Run aiteamos update once on this server to enable updates from the app.",
+  message: translateCurrent(
+    "Run aiteamos update once on this server to enable updates from the app."
+  ),
   manualCommand: manualCommand(targetVersion),
   jobId: null,
   safeToCloseDesktop: false,
@@ -99,7 +102,7 @@ export function useServerUpdateStatus(targetVersion: string | null) {
             message:
               release || previous.status?.currentVersion
                 ? next.message
-                : "Could not verify the connected server. Reconnecting…",
+                : translateCurrent("Could not verify the connected server. Reconnecting…"),
           },
           loading: false,
           reconnecting: !release || !update,

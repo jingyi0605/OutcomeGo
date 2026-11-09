@@ -11,6 +11,7 @@ import {
 import { useRef } from "react";
 import type { A2AExchangePhase } from "../../lib/a2a-exchange";
 import { cn } from "../../lib/cn";
+import { useI18n } from "../../lib/i18n";
 import { measureUntilNextPaint } from "../../lib/performance";
 import { Button } from "../ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
@@ -47,12 +48,20 @@ export function DesktopHeader({
   onShowSettings: () => void;
   onShowSummary: () => void;
 }) {
+  const { t } = useI18n();
   const computerRef = useRef<HTMLButtonElement>(null);
   const settingsRef = useRef<HTMLButtonElement>(null);
   const backRef = useRef<HTMLButtonElement>(null);
-  const focusNext = (ref: { current: HTMLButtonElement | null }) => requestAnimationFrame(() => ref.current?.focus({ preventScroll: true }));
-  const showSummary = () => { onShowSummary(); focusNext(settingsRef); };
-  const showSettings = () => { onShowSettings(); focusNext(backRef); };
+  const focusNext = (ref: { current: HTMLButtonElement | null }) =>
+    requestAnimationFrame(() => ref.current?.focus({ preventScroll: true }));
+  const showSummary = () => {
+    onShowSummary();
+    focusNext(settingsRef);
+  };
+  const showSettings = () => {
+    onShowSettings();
+    focusNext(backRef);
+  };
   const changeDetails = (open: boolean) => {
     measureUntilNextPaint("view.details-toggle", { opening: open });
     onDetailsOpenChange(open);
@@ -69,7 +78,10 @@ export function DesktopHeader({
             bot,
             botId: member.botId,
             name:
-              bot?.name ?? agentNameById.get(member.botId) ?? directNameFallbacks[index] ?? "Agent",
+              bot?.name ??
+              agentNameById.get(member.botId) ??
+              directNameFallbacks[index] ??
+              t("Agent"),
           };
         })
         .sort(
@@ -82,7 +94,7 @@ export function DesktopHeader({
     <>
       <ArrowLeftRight className="size-3.5 shrink-0 text-muted-foreground" />
       <BotAvatar bot={directMembers[1]?.bot} size="xs" />
-      <span className="ml-0.5 text-[13px] font-medium">{directMembers[1]?.name ?? "Agent"}</span>
+      <span className="ml-0.5 text-[13px] font-medium">{directMembers[1]?.name ?? t("Agent")}</span>
     </>
   );
 
@@ -91,7 +103,12 @@ export function DesktopHeader({
     <header className="electron-drag pointer-events-none absolute inset-x-0 top-0 z-30 flex h-11 items-center bg-background">
       {selected ? (
         <>
-          <div className={cn("flex h-full min-w-0 flex-1 items-center", selected.kind === "group" ? "px-3" : "px-4")}>
+          <div
+            className={cn(
+              "flex h-full min-w-0 flex-1 items-center",
+              selected.kind === "group" ? "px-3" : "px-4"
+            )}
+          >
             <h2
               aria-label={selected.name}
               className="pointer-events-auto inline-flex h-6 max-w-full items-center gap-1.5 overflow-hidden"
@@ -104,7 +121,7 @@ export function DesktopHeader({
                 >
                   <BotAvatar bot={directMembers[0]?.bot} size="xs" />
                   <span className="ml-0.5 text-[13px] font-medium">
-                    {directMembers[0]?.name ?? "Agent"}
+                    {directMembers[0]?.name ?? t("Agent")}
                   </span>
                   {exchange ? (
                     <span
@@ -120,7 +137,7 @@ export function DesktopHeader({
                 </div>
               ) : selected.kind === "bot_dm" ? (
                 <button
-                  aria-label="View conversation details"
+                  aria-label={t("View conversation details")}
                   className="electron-no-drag inline-flex min-w-0 items-center gap-1.5 rounded-[5px] outline-none focus-visible:ring-2 focus-visible:ring-ring/30"
                   onClick={() => {
                     changeDetails(true);
@@ -137,9 +154,12 @@ export function DesktopHeader({
                 </button>
               ) : (
                 <button
-                  aria-label="View conversation details"
+                  aria-label={t("View conversation details")}
                   className="electron-no-drag inline-flex min-w-0 items-center gap-1.5 rounded-[5px] outline-none focus-visible:ring-2 focus-visible:ring-ring/30"
-                  onClick={() => { changeDetails(true); showSummary(); }}
+                  onClick={() => {
+                    changeDetails(true);
+                    showSummary();
+                  }}
                   type="button"
                 >
                   {selected.kind === "group" ? (
@@ -178,7 +198,7 @@ export function DesktopHeader({
               {inspectorMode === "settings" ? (
                 <>
                   <Button
-                    aria-label="Back to details"
+                    aria-label={t("Back to details")}
                     ref={backRef}
                     className="rounded-full text-foreground-tertiary"
                     onClick={showSummary}
@@ -188,13 +208,13 @@ export function DesktopHeader({
                     <ChevronLeft className="size-4" />
                   </Button>
                   <span className="relative top-0.5 text-center text-[13px] font-medium leading-[18px]">
-                    Settings
+                    {t("Settings")}
                   </span>
                 </>
               ) : inspectorMode === "routine" ? (
                 <>
                   <Button
-                    aria-label="Back to Routines"
+                    aria-label={t("Back to Routines")}
                     ref={backRef}
                     className="rounded-full text-foreground-tertiary"
                     onClick={showSummary}
@@ -204,7 +224,7 @@ export function DesktopHeader({
                     <ChevronLeft className="size-4" />
                   </Button>
                   <span className="relative top-0.5 text-center text-[13px] font-medium leading-[18px]">
-                    Routine
+                    {t("Routine")}
                   </span>
                 </>
               ) : (
@@ -220,7 +240,7 @@ export function DesktopHeader({
                       <Button
                         ref={settingsRef}
                         aria-label={
-                          selected.kind === "group" ? "Conversation settings" : "Bot settings"
+                          selected.kind === "group" ? t("Conversation settings") : t("Bot settings")
                         }
                         className="rounded-full text-foreground-tertiary"
                         onClick={() => {
@@ -234,14 +254,14 @@ export function DesktopHeader({
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent>
-                      {selected.kind === "group" ? "Conversation settings" : "Bot settings"}
+                      {selected.kind === "group" ? t("Conversation settings") : t("Bot settings")}
                     </TooltipContent>
                   </Tooltip>
                 ) : null}
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button
-                      aria-label="Close details"
+                      aria-label={t("Close details")}
                       className="rounded-full text-foreground-tertiary hover:bg-transparent hover:text-foreground"
                       onClick={() => changeDetails(false)}
                       size="icon-sm"
@@ -250,7 +270,7 @@ export function DesktopHeader({
                       <ChevronsRight className="size-4" />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent>Close details</TooltipContent>
+                  <TooltipContent>{t("Close details")}</TooltipContent>
                 </Tooltip>
               </div>
             </div>
@@ -268,8 +288,8 @@ export function DesktopHeader({
                     <Button
                       aria-label={
                         selected.kind === "group"
-                          ? "View conversation details"
-                          : "aiTeamOS's Computer"
+                          ? t("View conversation details")
+                          : t("aiTeamOS's Computer")
                       }
                       className="rounded-full text-foreground-tertiary"
                       ref={computerRef}
@@ -285,7 +305,9 @@ export function DesktopHeader({
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>
-                    {selected.kind === "group" ? "Conversation details" : "aiTeamOS's Computer"}
+                    {selected.kind === "group"
+                      ? t("Conversation details")
+                      : t("aiTeamOS's Computer")}
                   </TooltipContent>
                 </Tooltip>
               </div>

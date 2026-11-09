@@ -1,5 +1,6 @@
 import { startNotificationPresence } from "./lib/notification-presence";
 import { startTimeZoneReporting } from "./lib/time-zone";
+import { useI18n } from "./lib/i18n";
 import { authHeaders } from "./client/auth";
 import { API_BASE } from "./client/http";
 import type { PromptDraft } from "./components/ai-elements/prompt-input";
@@ -152,6 +153,7 @@ const readInspectorWidth = () => {
 };
 
 export default function App() {
+  const { t } = useI18n();
   const {
     snapshot,
     detachedMessageIds,
@@ -461,7 +463,7 @@ export default function App() {
         if (searchLoadNonce.current !== nonce) return;
         const found = await ensureMessageLoaded(channelId, message.messageId);
         if (searchLoadNonce.current !== nonce) return;
-        if (!found) throw new Error("This message could not be loaded.");
+        if (!found) throw new Error(t("This message could not be loaded."));
         setSearchMessageTarget({
           channelId,
           messageId: message.messageId,
@@ -473,7 +475,7 @@ export default function App() {
         if (searchLoadNonce.current === nonce) {
           setNotificationOpening({
             target,
-            error: requestErrorMessage(cause, "Couldn’t open this message."),
+            error: requestErrorMessage(cause, t("Couldn’t open this message.")),
           });
         }
       }
@@ -637,7 +639,7 @@ export default function App() {
       creatingBot.current = true;
       if (draft) setTransferredDraft({ channelId: null, draft });
       setNewBotPicker(false);
-      const name = requestedName?.trim() || "New Bot";
+      const name = requestedName?.trim() || t("New Bot");
       setPendingBot({ name });
       try {
         const bot = await mutate(() =>
@@ -698,7 +700,7 @@ export default function App() {
   // is thrown back to setup, which shows it and retries.
   const createFirstBot = useCallback(
     async (input: CreateBotInput) => {
-      if (creatingBot.current) throw new Error("A bot is already being created.");
+      if (creatingBot.current) throw new Error(t("A bot is already being created."));
       creatingBot.current = true;
       let bot: BotView;
       try {
@@ -1133,8 +1135,8 @@ export default function App() {
         ? [
             {
               id: "info:settings",
-              title: "Chat Settings",
-              subtitle: "Current chat",
+              title: t("Chat Settings"),
+              subtitle: t("Current chat"),
               keywords: CHAT_SETTINGS_KEYWORDS,
               icon: "details" as const,
               run: () => {
@@ -1146,15 +1148,15 @@ export default function App() {
         : []),
       ...SETTINGS_PALETTE_SECTIONS.map((settings) => ({
         id: `settings:${settings.id}`,
-        title: `Settings: ${settings.label}`,
-        subtitle: "Settings",
+        title: t("Settings: {section}", { section: settings.label }),
+        subtitle: t("Settings"),
         keywords: settings.keywords,
         icon: settings.icon,
         run: () => openSettingsTarget(settings.target),
       })),
       {
         id: "overlay:plugins",
-        title: "Plugins",
+        title: t("Plugins"),
         subtitle: "",
         keywords: PLUGINS_PALETTE_KEYWORDS,
         icon: "plugins",
@@ -1162,8 +1164,8 @@ export default function App() {
       },
       ...THEME_PALETTE_COMMANDS.map((theme) => ({
         id: `theme:${theme.preference}`,
-        title: `Theme: ${theme.label}`,
-        subtitle: "Settings · Appearance",
+        title: t("Theme: {theme}", { theme: theme.label }),
+        subtitle: t("Settings · Appearance"),
         keywords: theme.keywords,
         icon: theme.icon,
         current: themePreference === theme.preference,
@@ -1174,7 +1176,7 @@ export default function App() {
             {
               id: "update:app",
               title: updatePaletteAction.title,
-              subtitle: "Updates",
+              subtitle: t("Updates"),
               keywords: UPDATE_PALETTE_KEYWORDS,
               icon: updatePaletteAction.icon,
               run: () => {
@@ -1252,7 +1254,7 @@ export default function App() {
     // A first run keeps setup's frame on screen between signing in and the server check, and
     // says so in it, with a retry, when the server can't be loaded.
     const problem = error
-      ? requestErrorMessage(error, "Couldn't load your server. Try again.")
+      ? requestErrorMessage(error, t("Couldn't load your server. Try again."))
       : null;
     if (!onboardingFinished) {
       return <FirstRunShell onRetry={() => void refresh()} problem={problem} serverCheck />;
@@ -1261,7 +1263,7 @@ export default function App() {
       <main className="grid h-screen place-items-center bg-background text-foreground">
         <div className="text-center">
           <LoadingOrb aria-hidden className="mx-auto" size={28} />
-          <p className="mt-3 text-sm">Connecting to aiTeamOS…</p>
+          <p className="mt-3 text-sm">{t("Connecting to aiTeamOS…")}</p>
           {problem && <p className="mt-2 max-w-sm text-xs text-destructive">{problem}</p>}
         </div>
       </main>
@@ -1296,8 +1298,15 @@ export default function App() {
               className="absolute bottom-28 left-1/2 z-50 flex max-w-md -translate-x-1/2 items-center gap-3 rounded-xl border bg-background px-4 py-3 shadow-lg">
               {notificationOpening.error ? <>
                 <span>{notificationOpening.error}</span>
-                <Button onClick={() => openDesktopNotification(notificationOpening.target)}>Retry</Button>
-              </> : <><LoadingOrb size={24} label="Opening message" /><span>Opening message</span></>}
+                <Button onClick={() => openDesktopNotification(notificationOpening.target)}>
+                  {t("Retry")}
+                </Button>
+              </> : (
+                <>
+                  <LoadingOrb size={24} label={t("Opening message")} />
+                  <span>{t("Opening message")}</span>
+                </>
+              )}
             </div>
           )}
           <div aria-hidden="true" className="electron-window-drag-strip" />
@@ -1376,7 +1385,7 @@ export default function App() {
                 <CircleAlert className="size-3.5" />
                 <span className="flex-1">{error}</span>
                 <Button onClick={() => void refresh()} size="sm" variant="ghost">
-                  <RefreshCw className="size-3.5" /> Retry
+                  <RefreshCw className="size-3.5" /> {t("Retry")}
                 </Button>
               </div>
             )}
@@ -1385,7 +1394,7 @@ export default function App() {
               <Suspense
                 fallback={
                   <div className="grid min-h-0 flex-1 place-items-center" role="status">
-                    <LoadingOrb label="Loading new Bot" size={24} />
+                    <LoadingOrb label={t("Loading new Bot")} size={24} />
                   </div>
                 }
               >
@@ -1410,7 +1419,7 @@ export default function App() {
                     mutate(() =>
                       api.createGroup({
                         name: botIds
-                          .map((id) => index.botById.get(id)?.name ?? "Bot")
+                          .map((id) => index.botById.get(id)?.name ?? t("Bot"))
                           .join(", ")
                           .slice(0, 120),
                         botIds,
@@ -1425,7 +1434,7 @@ export default function App() {
               </Suspense>
             ) : pendingBot ? (
               <div
-                aria-label={`Creating ${pendingBot.name}`}
+                aria-label={t("Creating {name}", { name: pendingBot.name })}
                 aria-live="polite"
                 className="grid min-h-0 flex-1 place-items-center bg-background text-muted-foreground"
                 data-new-bot-state="creating"
@@ -1441,7 +1450,7 @@ export default function App() {
                 role="status"
               >
                 <p className="landing-note text-[17px] font-medium text-foreground">
-                  {landing.name} joined your team
+                  {t("{name} joined your team", { name: landing.name })}
                 </p>
               </div>
             ) : selected ? (
@@ -1527,7 +1536,7 @@ export default function App() {
                   {a2aExchange && a2aExchangeChannel && (
                     <Suspense fallback={null}>
                       <A2AExchangeSheet
-                        label={`${a2aExchangeChannel.name} agent exchange`}
+                        label={t("{name} agent exchange", { name: a2aExchangeChannel.name })}
                         onAnimationEnd={finishA2AAnimation}
                         phase={a2aExchange.phase}
                       >
@@ -1562,7 +1571,7 @@ export default function App() {
                   )}
                 </div>
                 <section
-                  aria-label="Conversation details"
+                  aria-label={t("Conversation details")}
                   aria-hidden={!visibleDetailsOpen}
                   className={cn(
                     "shrink-0 overflow-hidden bg-inspector opacity-100",
@@ -1585,7 +1594,7 @@ export default function App() {
                   >
                     {/* biome-ignore lint/a11y/useSemanticElements: This interactive separator contains a visible resize handle and exposes range semantics. */}
                     <div
-                      aria-label="Resize details"
+                      aria-label={t("Resize details")}
                       aria-orientation="vertical"
                       aria-valuemax={inspectorMaxWidth}
                       aria-valuemin={MIN_INSPECTOR_WIDTH}
@@ -1700,13 +1709,13 @@ export default function App() {
               <div className="grid flex-1 place-items-center text-sm text-muted-foreground">
                 {snapshot.bots.length === 0 ? (
                   <div className="flex flex-col items-center gap-3">
-                    <span>Bots do the work in aiTeamOS. Create one to get started.</span>
+                    <span>{t("Bots do the work in aiTeamOS. Create one to get started.")}</span>
                     <Button onClick={() => void createNewBot()} size="sm">
-                      Create a bot
+                      {t("Create a bot")}
                     </Button>
                   </div>
                 ) : (
-                  "Choose a chat, or press + to create a bot."
+                  t("Choose a chat, or press + to create a bot.")
                 )}
               </div>
             )}

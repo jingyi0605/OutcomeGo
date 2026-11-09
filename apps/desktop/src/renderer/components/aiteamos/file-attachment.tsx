@@ -14,6 +14,8 @@ import { api } from "../../client/aiteamos-api";
 import { useAuthenticatedResource } from "../../hooks/use-authenticated-resource";
 import { useVirtualWindow } from "../../hooks/use-virtual-window";
 import { type AttachmentPreviewKind, attachmentPreviewKind } from "../../lib/attachment-preview";
+import { useI18n } from "../../lib/i18n";
+import { translateCurrent } from "../../lib/i18n-catalog";
 import { MessageResponse } from "../ai-elements/message";
 import { Button } from "../ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "../ui/dialog";
@@ -34,7 +36,7 @@ export const downloadAttachments = async (attachments: readonly AssetRef[]) => {
   for (const file of files) {
     const anchor = document.createElement("a");
     const response = await fetch(file.url, { headers: authHeaders(), redirect: "error" });
-    if (!response.ok) throw new Error(`File request failed (${response.status})`);
+    if (!response.ok) throw new Error(translateCurrent("File request failed ({status})", { status: response.status }));
     const objectUrl = URL.createObjectURL(await response.blob());
     anchor.href = objectUrl;
     anchor.download = file.fileName;
@@ -51,13 +53,13 @@ const readBoundedResponse = async (
 ): Promise<{ buffer: ArrayBuffer; truncated: boolean }> => {
   const declaredLength = Number(response.headers.get("content-length") ?? 0);
   if (!truncate && Number.isFinite(declaredLength) && declaredLength > maximumBytes) {
-    throw new Error("This file is too large to preview here. Download it to open it in full.");
+    throw new Error(translateCurrent("This file is too large to preview here. Download it to open it in full."));
   }
 
   if (!response.body) {
     const buffer = await response.arrayBuffer();
     if (!truncate && buffer.byteLength > maximumBytes) {
-      throw new Error("This file is too large to preview here. Download it to open it in full.");
+      throw new Error(translateCurrent("This file is too large to preview here. Download it to open it in full."));
     }
     return {
       buffer: buffer.byteLength > maximumBytes ? buffer.slice(0, maximumBytes) : buffer,
@@ -190,6 +192,7 @@ function PdfPage({
 }
 
 function PdfPreview({ url }: { url: string }) {
+  const { t } = useI18n();
   const [document, setDocument] = useState<PDFDocumentProxy | null>(null);
   const [error, setError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -222,18 +225,18 @@ function PdfPreview({ url }: { url: string }) {
         const loaded = await currentTask.promise;
         if (active) setDocument(loaded);
       })
-      .catch((cause) => active && setError(clientErrorMessage(cause, "Preview unavailable")));
+      .catch((cause) => active && setError(clientErrorMessage(cause, t("Preview unavailable"))));
     return () => {
       active = false;
       void task?.destroy();
     };
   }, [url]);
 
-  if (error) return <PreviewStatus detail={error} title="Couldn’t render this PDF" />;
-  if (!document) return <PreviewStatus loading title="Loading PDF…" />;
+  if (error) return <PreviewStatus detail={error} title={t("Couldn’t render this PDF")} />;
+  if (!document) return <PreviewStatus loading title={t("Loading PDF…")} />;
   return (
     <div
-      aria-label={`${document.numPages} page PDF preview`}
+      aria-label={t("{count} page PDF preview", { count: document.numPages })}
       className="bot-scrollbar h-full min-h-[360px] overflow-auto bg-[#ececec] dark:bg-[#111]"
       ref={scrollRef}
     >
@@ -294,6 +297,7 @@ function LoadedDocumentPreview({
   kind: AttachmentPreviewKind;
   open: boolean;
 }) {
+  const { t } = useI18n();
   const [state, setState] = useState<
     | { kind: "idle" }
     | { kind: "loading" }
@@ -316,7 +320,7 @@ function LoadedDocumentPreview({
         signal: controller.signal,
         redirect: "error",
       });
-      if (!response.ok) throw new Error(`File request failed (${response.status})`);
+      if (!response.ok) throw new Error(translateCurrent("File request failed ({status})", { status: response.status }));
       const maximum = CLIENT_CAPABILITIES.uploads.maxRegularBytes;
       const loaded = await readBoundedResponse(
         response,
@@ -350,7 +354,7 @@ function LoadedDocumentPreview({
       });
     })().catch((cause) => {
       if (controller.signal.aborted) return;
-      setState({ kind: "error", message: clientErrorMessage(cause, "Preview unavailable") });
+      setState({ kind: "error", message: clientErrorMessage(cause, t("Preview unavailable")) });
     });
     return () => controller.abort();
   }, [kind, open, url]);
@@ -387,26 +391,29 @@ function LoadedDocumentPreview({
           <Button
             onClick={() =>
               void downloadAttachments([attachment]).catch((error) =>
-                toast.error(clientErrorMessage(error, "Couldn’t download file"))
+                toast.error(clientErrorMessage(error, t("Couldn’t download file")))
               )
             }
             size="sm"
             variant="secondary"
           >
-            Download
+            {t("Download")}
           </Button>
         }
-        detail="This file type can’t be previewed. Download it to open it on your computer."
-        title="Preview not available"
+        detail={t("This file type can’t be previewed. Download it to open it on your computer.")}
+        title={t("Preview not available")}
       />
     );
   }
   if (state.kind === "idle" || state.kind === "loading")
     return (
-      <PreviewStatus loading title={kind === "docx" ? "Loading document…" : "Loading file…"} />
+      <PreviewStatus
+        loading
+        title={kind === "docx" ? t("Loading document…") : t("Loading file…")}
+      />
     );
   if (state.kind === "error")
-    return <PreviewStatus detail={state.message} title="Couldn’t read file" />;
+    return <PreviewStatus detail={state.message} title={t("Couldn’t read file")} />;
   if (state.kind === "html") {
     return <ProgressiveHtmlPreview source={state.value} />;
   }
@@ -414,7 +421,7 @@ function LoadedDocumentPreview({
     <div className="mx-auto min-h-full w-full max-w-[960px] bg-background px-8 py-7">
       {state.truncated ? (
         <div className="mb-4 rounded-[8px] bg-amber-500/10 px-3 py-2 text-[11.5px] text-amber-800 dark:text-amber-200">
-          Showing the start of this file
+          {t("Showing the start of this file")}
         </div>
       ) : null}
       {kind === "markdown" ? (
@@ -429,6 +436,7 @@ function LoadedDocumentPreview({
 }
 
 export function FileAttachmentCard({ attachment }: { attachment: AssetRef }) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const kind = attachmentPreviewKind(attachment);
 
@@ -441,7 +449,7 @@ export function FileAttachmentCard({ attachment }: { attachment: AssetRef }) {
         {/* As in the reference, every card opens the viewer; a type it can't show
             offers the download there. */}
         <button
-          aria-label={`Open ${attachment.fileName}`}
+          aria-label={t("Open {name}", { name: attachment.fileName })}
           className="flex w-full min-w-0 cursor-pointer items-center gap-2.5 rounded-[22px] p-4 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring/35"
           onClick={() => setOpen(true)}
           type="button"
@@ -467,21 +475,21 @@ export function FileAttachmentCard({ attachment }: { attachment: AssetRef }) {
         >
           <DialogTitle className="sr-only">{attachment.fileName}</DialogTitle>
           <DialogDescription className="sr-only">
-            Preview and download {attachment.fileName}
+            {t("Preview and download {name}", { name: attachment.fileName })}
           </DialogDescription>
           <header className="flex min-w-0 items-center gap-3 border-b-[0.5px] border-black/[0.07] bg-[#f7f7f7] px-4 dark:border-white/[0.08] dark:bg-[#111111]">
             <span className="min-w-0 flex-1 truncate text-[12.5px] font-medium">
               {attachment.fileName}
             </span>
             <a
-              aria-label="Download file"
+              aria-label={t("Download file")}
               className="grid size-8 place-items-center rounded-full text-foreground-secondary hover:bg-black/[0.05] dark:hover:bg-white/[0.07]"
               download={attachment.fileName}
               href={api.assetUrl(attachment, true)}
               onClick={(event) => {
                 event.preventDefault();
                 void downloadAttachments([attachment]).catch((error) =>
-                  toast.error(clientErrorMessage(error, "Couldn’t download file"))
+                  toast.error(clientErrorMessage(error, t("Couldn’t download file")))
                 );
               }}
             >
@@ -490,7 +498,7 @@ export function FileAttachmentCard({ attachment }: { attachment: AssetRef }) {
             {(kind === "video" || kind === "pdf") && (
               <button
                 aria-label={
-                  kind === "video" ? "Open video full screen" : "Open preview full screen"
+                  kind === "video" ? t("Open video full screen") : t("Open preview full screen")
                 }
                 className="grid size-8 place-items-center rounded-full text-foreground-secondary hover:bg-black/[0.05] dark:hover:bg-white/[0.07]"
                 onClick={() => document.documentElement.requestFullscreen?.()}
@@ -500,7 +508,7 @@ export function FileAttachmentCard({ attachment }: { attachment: AssetRef }) {
               </button>
             )}
             <button
-              aria-label="Close preview"
+              aria-label={t("Close preview")}
               className="grid size-8 place-items-center rounded-full text-foreground-secondary hover:bg-black/[0.05] dark:hover:bg-white/[0.07]"
               onClick={() => setOpen(false)}
               type="button"
@@ -541,22 +549,21 @@ export function MediaPositionControl({
   onPrevious: () => void;
   total: number;
 }) {
+  const { t } = useI18n();
   if (total < 2) return null;
   return (
     <div className="flex items-center gap-1 text-[11px] text-foreground-secondary">
       <button
-        aria-label="Previous media"
+        aria-label={t("Previous media")}
         className="grid size-7 place-items-center"
         onClick={onPrevious}
         type="button"
       >
         <ChevronLeft className="size-4" />
       </button>
-      <span>
-        {current + 1} of {total}
-      </span>
+      <span>{t("{current} of {total}", { current: current + 1, total })}</span>
       <button
-        aria-label="Next media"
+        aria-label={t("Next media")}
         className="grid size-7 place-items-center"
         onClick={onNext}
         type="button"

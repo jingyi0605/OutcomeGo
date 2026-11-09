@@ -2,6 +2,7 @@ import type { BotView, ChannelView } from "@aiteamos/contracts";
 import { Plus, UsersRound, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useVirtualWindow } from "../../hooks/use-virtual-window";
+import { useI18n } from "../../lib/i18n";
 import {
   desktopDurableSendController,
   discardDesktopDeliveryStages,
@@ -29,6 +30,7 @@ export function NewBotScreen({
   onCancel: () => void;
   onSelect: (id: string, draft?: PromptDraft) => void;
 }) {
+  const { t } = useI18n();
   const draftRef = useRef<PromptInputHandle>(null);
   const [query, setQuery] = useState("");
   const [resultsOpen, setResultsOpen] = useState(true);
@@ -121,7 +123,7 @@ export function NewBotScreen({
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-background">
       <div className="electron-drag relative flex min-h-11 shrink-0 items-center border-b px-3 text-[13px] text-muted-foreground">
-        <span className="shrink-0">To:</span>
+        <span className="shrink-0">{t("To:")}</span>
         <div className="electron-no-drag flex min-w-0 flex-1 flex-wrap items-center gap-1 px-1 py-1.5">
           {recipients.map((id) => (
             <span
@@ -129,11 +131,11 @@ export function NewBotScreen({
               className="flex max-w-[180px] items-center gap-1 rounded-full bg-subtle px-1.5 py-1 text-[12px] text-foreground"
             >
               <BotAvatar bot={botById.get(id)} size="xs" mode="idle" />
-              <span className="truncate">{botById.get(id)?.name ?? "Bot"}</span>
+              <span className="truncate">{botById.get(id)?.name ?? t("Bot")}</span>
               <button
                 type="button"
                 disabled={submitting || Boolean(createdRoom.current)}
-                aria-label={`Remove ${botById.get(id)?.name ?? "Bot"}`}
+                aria-label={t("Remove {name}", { name: botById.get(id)?.name ?? t("Bot") })}
                 onClick={() => {
                   setRecipients((current) => current.filter((value) => value !== id));
                   setResultsOpen(true);
@@ -157,7 +159,7 @@ export function NewBotScreen({
                 : undefined
             }
             aria-expanded={resultsOpen}
-            aria-label="Search or create bots"
+            aria-label={t("Search or create bots")}
             autoComplete="off"
             maxLength={120}
             role="combobox"
@@ -188,14 +190,14 @@ export function NewBotScreen({
               } else if (event.key === "Backspace" && !query && recipients.length)
                 setRecipients((current) => current.slice(0, -1));
             }}
-            placeholder={recipients.length ? "Add Bots" : "Search or create Bots"}
+            placeholder={recipients.length ? t("Add Bots") : t("Search or create Bots")}
             ref={searchRef}
             value={query}
           />
         </div>
         <button
           type="button"
-          aria-label="Close New Chat"
+          aria-label={t("Close New Chat")}
           disabled={submitting}
           onClick={onCancel}
           className="electron-no-drag grid size-7 shrink-0 place-items-center rounded-lg text-foreground-tertiary hover:bg-subtle"
@@ -207,7 +209,7 @@ export function NewBotScreen({
             className="electron-no-drag absolute left-[33px] top-full z-20 w-[560px] max-w-[calc(100%-48px)] overflow-hidden rounded-[13px] border border-input bg-popover text-popover-foreground shadow-[0_12px_30px_rgba(0,0,0,0.16)] dark:bg-[#2f2f2f]"
             id="new-bot-results"
             role="listbox"
-            aria-label="Chat recipients"
+            aria-label={t("Chat recipients")}
           >
             <div className="space-y-0.5 p-1.5">
               {!group && (
@@ -224,7 +226,9 @@ export function NewBotScreen({
                     <span className="grid size-5 place-items-center rounded-full bg-subtle text-muted-foreground">
                       <Plus className="size-3.5" />
                     </span>
-                    {hasQuery ? `Create “${query.trim()}” Bot` : "Create new Bot"}
+                    {hasQuery
+                      ? t("Create “{name}” Bot", { name: query.trim() })
+                      : t("Create new Bot")}
                   </button>
                   {!hasQuery && (
                     <button
@@ -239,13 +243,13 @@ export function NewBotScreen({
                       <span className="grid size-5 place-items-center rounded-full bg-subtle text-muted-foreground">
                         <UsersRound className="size-3.5" />
                       </span>
-                      Create group chat
+                      {t("Create group chat")}
                     </button>
                   )}
                 </>
               )}
               <div
-                aria-label={`${matches.length} existing Bots`}
+                aria-label={t("{count} existing Bots", { count: matches.length })}
                 className="bot-scrollbar overflow-y-auto"
                 style={{ maxHeight: 388 - actionCount * 40 }}
                 ref={resultsRef}
@@ -253,7 +257,7 @@ export function NewBotScreen({
               >
                 {group && recipients.length >= 6 ? (
                   <p className="px-2 py-3 text-[12px] text-foreground-secondary">
-                    Up to six Bots can join a group chat.
+                    {t("Up to six Bots can join a group chat.")}
                   </p>
                 ) : (
                   <div className="relative w-full" style={{ height: totalSize }}>
@@ -288,7 +292,7 @@ export function NewBotScreen({
                 )}
                 {group && !matches.length && (
                   <p className="px-2 py-3 text-[12px] text-foreground-secondary">
-                    {query ? "No matching Bots." : "All available Bots are selected."}
+                    {query ? t("No matching Bots.") : t("All available Bots are selected.")}
                   </p>
                 )}
               </div>
@@ -330,8 +334,10 @@ export function NewBotScreen({
           onDiscardStages={discardDesktopDeliveryStages}
           placeholder={
             group && recipients.length
-              ? `Message ${recipients.map((id) => botById.get(id)?.name ?? "Bot").join(", ")}`
-              : "Message Bot"
+              ? t("Message {names}", {
+                  names: recipients.map((id) => botById.get(id)?.name ?? t("Bot")).join(", "),
+                })
+              : t("Message Bot")
           }
         />
       </div>

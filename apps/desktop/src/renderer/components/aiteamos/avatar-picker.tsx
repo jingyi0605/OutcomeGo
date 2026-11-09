@@ -10,6 +10,7 @@ import { Popover as PopoverPrimitive } from "radix-ui";
 import { useState } from "react";
 import { useBotAvatarMode } from "./bot-avatar-activity";
 import { cn } from "../../lib/cn";
+import { useI18n } from "../../lib/i18n";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 import { BotAvatarGlyph, botAvatarSwatchBackground } from "./avatar-picker-icons";
 
@@ -61,6 +62,7 @@ export function AvatarPicker({
   icon: string;
   onChange: (next: { color: string; icon: string }) => void;
 }) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [tooltipOpen, setTooltipOpen] = useState(false);
   const [draft, setDraft] = useState({ color, icon });
@@ -80,7 +82,7 @@ export function AvatarPicker({
         <TooltipTrigger asChild>
           <PopoverPrimitive.Trigger asChild>
             <button
-              aria-label="Edit Bot avatar"
+              aria-label={t("Edit Bot avatar")}
               className="group relative grid size-16 place-items-center outline-none"
               type="button"
             >
@@ -120,14 +122,14 @@ export function AvatarPicker({
           </PopoverPrimitive.Trigger>
         </TooltipTrigger>
         <TooltipContent side="bottom" sideOffset={10}>
-          Edit Bot avatar
+          {t("Edit Bot avatar")}
         </TooltipContent>
       </Tooltip>
 
       <PopoverPrimitive.Portal>
         <PopoverPrimitive.Content
           align="center"
-          aria-label="Avatar selector"
+          aria-label={t("Avatar selector")}
           className="floating-surface z-[110] w-[248px] max-h-[var(--radix-popover-content-available-height)] overflow-y-auto rounded-2xl border border-[#e4e4e4] bg-[#fcfcfc] text-foreground shadow-[0_8px_24px_rgba(0,0,0,0.10)] outline-none dark:border-[#393939] dark:bg-[#181818] dark:shadow-[0_10px_30px_rgba(0,0,0,0.45)]"
           collisionPadding={8}
           side="bottom"
@@ -135,7 +137,7 @@ export function AvatarPicker({
         >
           <div className="flex h-[43px] items-center justify-between border-b border-[#e4e4e4] px-4 dark:border-[#303030]">
             <span className="rounded-[9px] bg-[#f0f0f0] px-2 py-1 text-[13px] font-normal leading-[18px] dark:bg-[#2b2b2b]">
-              Bot
+              {t("Bot")}
             </span>
             <button
               className="px-1.5 py-1 text-[13px] leading-[18px] text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:underline"
@@ -145,7 +147,7 @@ export function AvatarPicker({
               }}
               type="button"
             >
-              Reset
+              {t("Reset")}
             </button>
           </div>
 
@@ -155,7 +157,7 @@ export function AvatarPicker({
                 const selected = selectedShape === shape;
                 return (
                   <button
-                    aria-label={`${ROBOT_AVATAR_LABELS[shape]} bot avatar`}
+                    aria-label={t("{shape} bot avatar", { shape: ROBOT_AVATAR_LABELS[shape] })}
                     aria-pressed={selected}
                     className="group grid size-11 place-items-center outline-none"
                     key={shape}
@@ -173,7 +175,7 @@ export function AvatarPicker({
                 const selected = draft.color.toLowerCase() === candidate.toLowerCase();
                 return (
                   <button
-                    aria-label={`${candidate} avatar color`}
+                    aria-label={t("{color} avatar color", { color: candidate })}
                     aria-pressed={selected}
                     className={cn(
                       "grid size-8 place-items-center rounded-full border-2 outline-none transition-colors focus-visible:border-ring",
@@ -198,11 +200,23 @@ export function AvatarPicker({
             </div>
           </div>
           <div className="flex justify-end gap-2 border-t border-border px-4 py-3">
-            <button className="rounded-lg px-3 py-1.5 text-[13px] outline-none hover:bg-hover focus-visible:ring-2 focus-visible:ring-ring" onClick={() => changeOpen(false)} type="button">Cancel</button>
-            <button className="rounded-lg bg-primary px-3 py-1.5 text-[13px] text-primary-foreground outline-none hover:bg-primary/90 focus-visible:ring-2 focus-visible:ring-ring" onClick={() => {
-              onChange(draft);
-              changeOpen(false);
-            }} type="button">Set avatar</button>
+            <button
+              className="rounded-lg px-3 py-1.5 text-[13px] outline-none hover:bg-hover focus-visible:ring-2 focus-visible:ring-ring"
+              onClick={() => changeOpen(false)}
+              type="button"
+            >
+              {t("Cancel")}
+            </button>
+            <button
+              className="rounded-lg bg-primary px-3 py-1.5 text-[13px] text-primary-foreground outline-none hover:bg-primary/90 focus-visible:ring-2 focus-visible:ring-ring"
+              onClick={() => {
+                onChange(draft);
+                changeOpen(false);
+              }}
+              type="button"
+            >
+              {t("Set avatar")}
+            </button>
           </div>
         </PopoverPrimitive.Content>
       </PopoverPrimitive.Portal>

@@ -2,6 +2,7 @@ import { type BotRecipe, type ChannelMessageView } from "@aiteamos/contracts";
 import { useEffect, useRef, useState } from "react";
 import { Ellipsis } from "lucide-react";
 import { api } from "../../client/aiteamos-api";
+import { useI18n } from "../../lib/i18n";
 import { BotAvatar } from "./avatar";
 import { TemplateDetails } from "./template-details";
 import {
@@ -11,6 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
 export function SharedTemplateCard({ message }: { message: ChannelMessageView }) {
+  const { t } = useI18n();
   const inFlight = useRef(false);
   const metadata = message.metadata as Record<string, unknown>;
   const template = metadata.template as Record<string, any>;
@@ -31,7 +33,9 @@ export function SharedTemplateCard({ message }: { message: ChannelMessageView })
       setState(String((result.message.metadata as Record<string, unknown>).cardState));
       if (result.botId) setImported(true);
     } catch (error) {
-      setError(error instanceof Error ? error.message : "The template action could not be completed");
+      setError(
+        error instanceof Error ? error.message : t("The template action could not be completed")
+      );
     } finally {
       inFlight.current = false;
       setBusy(false);
@@ -49,7 +53,7 @@ export function SharedTemplateCard({ message }: { message: ChannelMessageView })
       link.click();
       setTimeout(() => URL.revokeObjectURL(url), 10_000);
     } catch {
-      setError("The template could not be downloaded");
+      setError(t("The template could not be downloaded"));
     }
   };
   {
@@ -58,7 +62,11 @@ export function SharedTemplateCard({ message }: { message: ChannelMessageView })
       ? recipe.profile.avatarColor!
       : "#5bc67a";
     const draft = state === "draft";
-    const primaryLabel = draft ? "Publish" : state === "published" && !imported ? "Use template" : null;
+    const primaryLabel = draft
+      ? t("Publish")
+      : state === "published" && !imported
+        ? t("Use template")
+        : null;
     const primaryAction = () => void act(draft ? "publish" : "import");
     return (
       <>
@@ -70,15 +78,15 @@ export function SharedTemplateCard({ message }: { message: ChannelMessageView })
                 className={`size-1.5 rounded-full ${state === "published" ? "bg-[#5bc67a]" : "bg-foreground-tertiary"}`}
               />
               {state === "published"
-                ? "Published"
+                ? t("Published")
                 : state === "unpublished" || draft
-                  ? "Unpublished"
+                  ? t("Unpublished")
                   : String(metadata.outcomeText ?? state)}
             </span>
           </div>
           <button
             type="button"
-            aria-label={`View ${recipe.profile.name} template`}
+            aria-label={t("View {name} template", { name: recipe.profile.name })}
             onClick={() => setDetailsOpen(true)}
             style={{
               background: `linear-gradient(135deg, color-mix(in srgb, ${tint} 30%, var(--message-assistant)), color-mix(in srgb, ${tint} 5%, var(--message-assistant)))`,
@@ -96,7 +104,11 @@ export function SharedTemplateCard({ message }: { message: ChannelMessageView })
           <p className="line-clamp-2 whitespace-pre-wrap text-foreground-secondary">
             {recipe.profile.description}
           </p>
-          {draft && <p className="text-[12px] text-foreground-tertiary">Draft: only you can see it until you publish</p>}
+          {draft && (
+            <p className="text-[12px] text-foreground-tertiary">
+              {t("Draft: only you can see it until you publish")}
+            </p>
+          )}
           <div className="flex gap-2">
             {primaryLabel && (
               <button
@@ -105,7 +117,7 @@ export function SharedTemplateCard({ message }: { message: ChannelMessageView })
                 onClick={primaryAction}
                 className="h-8 flex-1 rounded-[8px] bg-foreground px-3 font-medium text-background disabled:opacity-50"
               >
-                {busy ? (draft ? "Publishing…" : "Working…") : primaryLabel}
+                {busy ? (draft ? t("Publishing…") : t("Working…")) : primaryLabel}
               </button>
             )}
             <button
@@ -113,13 +125,13 @@ export function SharedTemplateCard({ message }: { message: ChannelMessageView })
               onClick={() => setDetailsOpen(true)}
               className="h-8 flex-1 rounded-[8px] border border-foreground/10 bg-background/60 px-3 hover:bg-background"
             >
-              View Details
+              {t("View Details")}
             </button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
                   type="button"
-                  aria-label="Template actions"
+                  aria-label={t("Template actions")}
                   className="grid size-8 shrink-0 place-items-center rounded-lg text-foreground-secondary hover:bg-background/60"
                 >
                   <Ellipsis className="size-4" />
@@ -127,11 +139,11 @@ export function SharedTemplateCard({ message }: { message: ChannelMessageView })
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="text-[13px]">
                 <DropdownMenuItem onSelect={() => void download()}>
-                  Download template JSON
+                  {t("Download template JSON")}
                 </DropdownMenuItem>
                 {state === "published" && (
                   <DropdownMenuItem disabled={busy} onSelect={() => void act("unpublish")}>
-                    Unpublish
+                    {t("Unpublish")}
                   </DropdownMenuItem>
                 )}
               </DropdownMenuContent>
@@ -139,7 +151,7 @@ export function SharedTemplateCard({ message }: { message: ChannelMessageView })
           </div>
           {imported && (
             <p role="status" className="text-[12px] text-foreground-secondary">
-              Bot created — open it from the sidebar
+              {t("Bot created — open it from the sidebar")}
             </p>
           )}
           {error && (

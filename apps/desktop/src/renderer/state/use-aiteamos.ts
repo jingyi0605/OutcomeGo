@@ -1,4 +1,9 @@
-import { isWindowActive, isWindowVisible, WINDOW_ACTIVITY_EVENT, WINDOW_VISIBILITY_EVENT } from "../lib/window-visibility";
+import {
+  isWindowActive,
+  isWindowVisible,
+  WINDOW_ACTIVITY_EVENT,
+  WINDOW_VISIBILITY_EVENT,
+} from "../lib/window-visibility";
 import { createKeyedRequestCoordinator } from "@aiteamos/client-core";
 import type { ChannelMessageView, ClientSnapshot } from "@aiteamos/contracts";
 import { CLIENT_CAPABILITIES, type ClientCapabilities } from "@aiteamos/contracts/capabilities";
@@ -17,6 +22,7 @@ import {
   setDesktopSendLiveTransportHealthy,
 } from "../lib/durable-sends";
 import { nextHistoryPageLoadStartedAt } from "../lib/history-pagination";
+import { translateCurrent } from "../lib/i18n-catalog";
 import {
   applyPrimaryHistoryPage,
   type ChannelMessageWindowState,
@@ -331,7 +337,9 @@ export function useAiTeamOS() {
             setHistoryRevision((value) => value + 1);
             // The next event or opening the chat reads it again.
             if (background) return;
-            setError(clientErrorMessage(cause, "Could not load this conversation"));
+            setError(
+              clientErrorMessage(cause, translateCurrent("Could not load this conversation"))
+            );
             throw cause;
           }
         }
@@ -552,8 +560,8 @@ export function useAiTeamOS() {
             clientErrorMessage(
               cause,
               direction === "older"
-                ? "Could not load earlier message context"
-                : "Could not load later message context"
+                ? translateCurrent("Could not load earlier message context")
+                : translateCurrent("Could not load later message context")
             )
           );
           throw cause;
@@ -628,7 +636,7 @@ export function useAiTeamOS() {
           const current = histories.current.get(channelId);
           if (current) histories.current.set(channelId, { ...current, loading: false });
           setHistoryRevision((value) => value + 1);
-          setError(clientErrorMessage(cause, "Could not load earlier messages"));
+          setError(clientErrorMessage(cause, translateCurrent("Could not load earlier messages")));
           throw cause;
         }
       }
@@ -661,7 +669,9 @@ export function useAiTeamOS() {
       }
       if (cached?.searchContext.some((message) => message.id === messageId)) return true;
       const window = historyWindows.current.get(channelId);
-      const tailHasTarget = window?.latestTail?.messages.some((message) => message.id === messageId);
+      const tailHasTarget = window?.latestTail?.messages.some(
+        (message) => message.id === messageId
+      );
       const reset = cached && window && tailHasTarget ? resetToLatestTail(cached, window) : null;
       if (reset) {
         histories.current.set(channelId, reset.history);
@@ -674,7 +684,11 @@ export function useAiTeamOS() {
       const contextLease = searchContextRequests.current.supersede(channelId);
       try {
         const context = await api.messageContext(messageId);
-        if (context.channelId !== channelId || !context.messages.some((message) => message.id === messageId)) return false;
+        if (
+          context.channelId !== channelId ||
+          !context.messages.some((message) => message.id === messageId)
+        )
+          return false;
         if (!searchContextRequests.current.isCurrent(contextLease)) return false;
         if (!historyLru.current.includes(channelId)) return false;
         const current = histories.current.get(channelId) ?? loadingChannelHistory();
@@ -693,7 +707,7 @@ export function useAiTeamOS() {
         return context.messages.some((message) => message.id === messageId);
       } catch (cause) {
         if (!searchContextRequests.current.isCurrent(contextLease)) return false;
-        setError(clientErrorMessage(cause, "Could not load message context"));
+        setError(clientErrorMessage(cause, translateCurrent("Could not load message context")));
         throw cause;
       }
     },
@@ -833,8 +847,7 @@ export function useAiTeamOS() {
               }
               for (const [channelId, state] of channelStates.current) {
                 if (
-                  compareSequence({ sequence: state.revision }, { sequence: bootstrap.cursor }) <
-                  0
+                  compareSequence({ sequence: state.revision }, { sequence: bootstrap.cursor }) < 0
                 ) {
                   channelStates.current.delete(channelId);
                 }
@@ -864,7 +877,7 @@ export function useAiTeamOS() {
               lastRefreshCompletedAt.current = Date.now();
             } catch (cause) {
               refreshError.current = cause;
-              setError(clientErrorMessage(cause, "Could not refresh aiTeamOS"));
+              setError(clientErrorMessage(cause, translateCurrent("Could not refresh aiTeamOS")));
             }
           }
           // Let requests queued by promise continuations join this runner. Once
@@ -895,7 +908,7 @@ export function useAiTeamOS() {
         return result;
       } catch (cause) {
         if (previous) patchMessage(previous);
-        setError(clientErrorMessage(cause, "Could not update this reaction"));
+        setError(clientErrorMessage(cause, translateCurrent("Could not update this reaction")));
         throw cause;
       }
     },
@@ -957,8 +970,7 @@ export function useAiTeamOS() {
       }
     };
     const pollWhenVisible = () => {
-      if (!isWindowActive() || Date.now() - lastRuntimePoll.current < 30_000)
-        return;
+      if (!isWindowActive() || Date.now() - lastRuntimePoll.current < 30_000) return;
       if (timer) clearTimeout(timer);
       void poll();
     };
@@ -999,7 +1011,7 @@ export function useAiTeamOS() {
       onHealthChange: (healthy) => {
         streamHealthy = healthy;
         setDesktopSendLiveTransportHealthy(healthy);
-        setError(healthy ? null : "Live updates are reconnecting");
+        setError(healthy ? null : translateCurrent("Live updates are reconnecting"));
       },
     });
     // Where the stream keeps running in the background, every alt-tab used to
@@ -1043,7 +1055,9 @@ export function useAiTeamOS() {
         await refresh(true);
         return result;
       } catch (cause) {
-        setError(clientErrorMessage(cause, "aiTeamOS could not complete this change"));
+        setError(
+          clientErrorMessage(cause, translateCurrent("aiTeamOS could not complete this change"))
+        );
         throw cause;
       }
     },

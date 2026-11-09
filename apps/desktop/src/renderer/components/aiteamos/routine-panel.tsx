@@ -18,6 +18,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ClientError } from "../../client/http";
 import { api } from "../../client/aiteamos-api";
 import { cn } from "../../lib/cn";
+import { useI18n } from "../../lib/i18n";
 import {
   DEFAULT_ROUTINE_SCHEDULE,
   describeRoutineSchedule,
@@ -290,6 +291,7 @@ function AddScheduleMenu({
   onOpenChange: (open: boolean) => void;
   open: boolean;
 }) {
+  const { t } = useI18n();
   return (
     <DropdownMenu onOpenChange={onOpenChange} open={open}>
       <DropdownMenuTrigger asChild>
@@ -301,12 +303,12 @@ function AddScheduleMenu({
           variant="ghost"
         >
           <CirclePlus className="size-3.5" />
-          {hasSchedules ? "Add another" : "Add trigger"}
+          {hasSchedules ? t("Add another") : t("Add trigger")}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align="start"
-        aria-label="Trigger source"
+        aria-label={t("Trigger source")}
         className={cn(menuContentClass, "min-w-[200px]")}
         data-routine-popover="add-trigger"
         sideOffset={4}
@@ -314,11 +316,11 @@ function AddScheduleMenu({
         <DropdownMenuSub>
           <DropdownMenuSubTrigger className={menuItemClass}>
             <Clock3 className="size-4 shrink-0 text-muted-foreground" />
-            <span className="flex-1">On a schedule</span>
+            <span className="flex-1">{t("On a schedule")}</span>
             <ChevronRight className="size-3 text-muted-foreground" />
           </DropdownMenuSubTrigger>
           <DropdownMenuSubContent
-            aria-label="Cadence"
+            aria-label={t("Cadence")}
             className={menuContentClass}
             data-routine-popover="add-schedule"
           >
@@ -330,7 +332,7 @@ function AddScheduleMenu({
                   key={value}
                   onSelect={() => onAdd(scheduleForPreset(value))}
                 >
-                  {value === "advanced" ? "Advanced…" : label}
+                  {value === "advanced" ? t("Advanced…") : t(label)}
                 </DropdownMenuItem>
               ))}
           </DropdownMenuSubContent>
@@ -347,29 +349,30 @@ function ScheduleFields({
   value: RoutineScheduleDraft;
   onChange: (next: RoutineScheduleDraft) => void;
 }) {
+  const { t } = useI18n();
   const patch = (change: Partial<RoutineScheduleDraft>) => onChange({ ...value, ...change });
   return (
     <fieldset
-      aria-label="Trigger fields"
+      aria-label={t("Trigger fields")}
       className="m-0 flex flex-wrap items-center gap-1 border-0 px-2 pb-2 pt-0.5 text-[12px]"
       data-routine-schedule-editor=""
     >
       <CompactSelect
-        ariaLabel="Frequency"
+        ariaLabel={t("Frequency")}
         className="max-w-[112px]"
         contentClassName="min-w-[168px]"
         onValueChange={(preset) =>
           onChange(changeSchedulePreset(value, preset as RoutineSchedulePreset))
         }
-        options={schedulePresets}
+        options={schedulePresets.map((option) => ({ ...option, label: t(option.label) }))}
         value={value.preset}
       />
 
       {value.preset === "hourly" && (
         <>
-          <span className="text-muted-foreground">at</span>
+          <span className="text-muted-foreground">{t("at")}</span>
           <CompactSelect
-            ariaLabel="Minute"
+            ariaLabel={t("Minute")}
             onValueChange={(minute) => patch({ minute: Number(minute) })}
             options={minuteOptions}
             value={String(value.minute)}
@@ -378,9 +381,9 @@ function ScheduleFields({
       )}
       {(value.preset === "daily" || value.preset === "weekdays") && (
         <>
-          <span className="text-muted-foreground">at</span>
+          <span className="text-muted-foreground">{t("at")}</span>
           <CompactSelect
-            ariaLabel="Time"
+            ariaLabel={t("Time")}
             contentClassName="min-w-[158px]"
             onValueChange={(time) => patch({ time })}
             options={timeOptions}
@@ -390,16 +393,16 @@ function ScheduleFields({
       )}
       {value.preset === "weekly" && (
         <>
-          <span className="text-muted-foreground">on</span>
+          <span className="text-muted-foreground">{t("on")}</span>
           <CompactSelect
-            ariaLabel="Day of week"
+            ariaLabel={t("Day of week")}
             onValueChange={(day) => patch({ weekDay: Number(day) })}
-            options={weekDays.map((label, index) => ({ value: String(index), label }))}
+            options={weekDays.map((label, index) => ({ value: String(index), label: t(label) }))}
             value={String(value.weekDay)}
           />
-          <span className="text-muted-foreground">at</span>
+          <span className="text-muted-foreground">{t("at")}</span>
           <CompactSelect
-            ariaLabel="Time"
+            ariaLabel={t("Time")}
             contentClassName="min-w-[158px]"
             onValueChange={(time) => patch({ time })}
             options={timeOptions}
@@ -409,9 +412,9 @@ function ScheduleFields({
       )}
       {value.preset === "monthly" && (
         <>
-          <span className="text-muted-foreground">on the</span>
+          <span className="text-muted-foreground">{t("on the")}</span>
           <CompactSelect
-            ariaLabel="Day of month"
+            ariaLabel={t("Day of month")}
             onValueChange={(day) => patch({ monthDay: Number(day) })}
             options={Array.from({ length: 31 }, (_, index) => ({
               value: String(index + 1),
@@ -419,9 +422,9 @@ function ScheduleFields({
             }))}
             value={String(value.monthDay)}
           />
-          <span className="text-muted-foreground">at</span>
+          <span className="text-muted-foreground">{t("at")}</span>
           <CompactSelect
-            ariaLabel="Time"
+            ariaLabel={t("Time")}
             contentClassName="min-w-[158px]"
             onValueChange={(time) => patch({ time })}
             options={timeOptions}
@@ -431,9 +434,9 @@ function ScheduleFields({
       )}
       {value.preset === "interval" && (
         <>
-          <span className="text-muted-foreground">every</span>
+          <span className="text-muted-foreground">{t("every")}</span>
           <CompactSelect
-            ariaLabel="Interval amount"
+            ariaLabel={t("Interval amount")}
             onValueChange={(amount) => patch({ intervalAmount: Number(amount) })}
             options={intervalAmounts[value.intervalUnit].map((amount) => ({
               value: String(amount),
@@ -442,7 +445,7 @@ function ScheduleFields({
             value={String(value.intervalAmount)}
           />
           <CompactSelect
-            ariaLabel="Interval unit"
+            ariaLabel={t("Interval unit")}
             onValueChange={(unit) => {
               const intervalUnit = unit as RoutineScheduleDraft["intervalUnit"];
               patch({
@@ -453,9 +456,9 @@ function ScheduleFields({
               });
             }}
             options={[
-              { value: "m", label: "minutes" },
-              { value: "h", label: "hours" },
-              { value: "d", label: "days" },
+              { value: "m", label: t("minutes") },
+              { value: "h", label: t("hours") },
+              { value: "d", label: t("days") },
             ]}
             value={value.intervalUnit}
           />
@@ -463,45 +466,45 @@ function ScheduleFields({
       )}
       {value.preset === "advanced" && (
         <div className="mt-1 grid w-full grid-cols-[38px_1fr] items-center gap-x-1 gap-y-1">
-          <span className="text-muted-foreground">Months</span>
+          <span className="text-muted-foreground">{t("Months")}</span>
           <MultiPicker
-            ariaLabel="Months"
-            emptyOptionLabel="Any month"
+            ariaLabel={t("Months")}
+            emptyOptionLabel={t("Any month")}
             onChange={(advancedMonths) => patch({ advancedMonths })}
-            options={months.map((label, index) => ({ value: index + 1, label }))}
-            triggerLabel="Months"
+            options={months.map((label, index) => ({ value: index + 1, label: t(label) }))}
+            triggerLabel={t("Months")}
             values={value.advancedMonths}
           />
-          <span className="text-muted-foreground">Days</span>
+          <span className="text-muted-foreground">{t("Days")}</span>
           <div className="flex flex-wrap gap-1">
             <CompactSelect
-              ariaLabel="Days"
+              ariaLabel={t("Days")}
               onValueChange={(advancedDayMode) =>
                 patch({
                   advancedDayMode: advancedDayMode as RoutineScheduleDraft["advancedDayMode"],
                 })
               }
               options={[
-                { value: "every-day", label: "Every day" },
-                { value: "weekdays", label: "Days of the week" },
-                { value: "month-days", label: "Days of the month" },
+                { value: "every-day", label: t("Every day") },
+                { value: "weekdays", label: t("Days of the week") },
+                { value: "month-days", label: t("Days of the month") },
               ]}
               value={value.advancedDayMode}
             />
             {value.advancedDayMode === "weekdays" && (
               <MultiPicker
-                ariaLabel="Days of the week"
+                ariaLabel={t("Days of the week")}
                 onChange={(advancedWeekDays) =>
                   patch({ advancedWeekDays: advancedWeekDays.length > 0 ? advancedWeekDays : [1] })
                 }
-                options={weekDays.map((label, index) => ({ value: index, label }))}
-                triggerLabel="Days of the week"
+                options={weekDays.map((label, index) => ({ value: index, label: t(label) }))}
+                triggerLabel={t("Days of the week")}
                 values={value.advancedWeekDays}
               />
             )}
             {value.advancedDayMode === "month-days" && (
               <MultiPicker
-                ariaLabel="Days of the month"
+                ariaLabel={t("Days of the month")}
                 onChange={(advancedMonthDays) =>
                   patch({
                     advancedMonthDays: advancedMonthDays.length > 0 ? advancedMonthDays : [1],
@@ -511,23 +514,23 @@ function ScheduleFields({
                   value: index + 1,
                   label: routineOrdinalLabel(index + 1),
                 }))}
-                triggerLabel="Days of the month"
+                triggerLabel={t("Days of the month")}
                 values={value.advancedMonthDays}
               />
             )}
           </div>
-          <span className="self-start pt-1.5 text-muted-foreground">Time</span>
+          <span className="self-start pt-1.5 text-muted-foreground">{t("Time")}</span>
           <div className="flex flex-wrap items-center gap-1">
             <CompactSelect
-              ariaLabel="Time mode"
+              ariaLabel={t("Time mode")}
               onValueChange={(advancedTimeMode) =>
                 patch({
                   advancedTimeMode: advancedTimeMode as RoutineScheduleDraft["advancedTimeMode"],
                 })
               }
               options={[
-                { value: "at-times", label: "At times" },
-                { value: "every", label: "Every" },
+                { value: "at-times", label: t("At times") },
+                { value: "every", label: t("Every") },
               ]}
               value={value.advancedTimeMode}
             />
@@ -536,7 +539,9 @@ function ScheduleFields({
                 {value.advancedTimes.map((time, index) => (
                   <span className="inline-flex items-center gap-0.5" key={`advanced-time-${time}`}>
                     <CompactSelect
-                      ariaLabel={index === 0 ? "Time" : `Time ${index + 1}`}
+                      ariaLabel={
+                        index === 0 ? t("Time") : t("Time {number}", { number: index + 1 })
+                      }
                       contentClassName="min-w-[158px]"
                       onValueChange={(nextTime) =>
                         patch({
@@ -550,7 +555,7 @@ function ScheduleFields({
                     />
                     {index > 0 && (
                       <Button
-                        aria-label={`Remove ${timeLabel(time)}`}
+                        aria-label={t("Remove {time}", { time: timeLabel(time) })}
                         className="size-7 rounded-full text-muted-foreground"
                         onClick={() =>
                           patch({
@@ -580,14 +585,14 @@ function ScheduleFields({
                     }
                     variant="ghost"
                   >
-                    <CirclePlus className="size-3" /> Add time
+                    <CirclePlus className="size-3" /> {t("Add time")}
                   </Button>
                 )}
               </>
             ) : (
               <>
                 <CompactSelect
-                  ariaLabel="Interval amount"
+                  ariaLabel={t("Interval amount")}
                   onValueChange={(amount) => patch({ advancedEveryAmount: Number(amount) })}
                   options={intervalAmounts[value.advancedEveryUnit].map((amount) => ({
                     value: String(amount),
@@ -596,7 +601,7 @@ function ScheduleFields({
                   value={String(value.advancedEveryAmount)}
                 />
                 <CompactSelect
-                  ariaLabel="Interval unit"
+                  ariaLabel={t("Interval unit")}
                   onValueChange={(unit) => {
                     const advancedEveryUnit = unit as RoutineScheduleDraft["advancedEveryUnit"];
                     patch({
@@ -609,22 +614,22 @@ function ScheduleFields({
                     });
                   }}
                   options={[
-                    { value: "m", label: "minutes" },
-                    { value: "h", label: "hours" },
-                    { value: "d", label: "days" },
+                    { value: "m", label: t("minutes") },
+                    { value: "h", label: t("hours") },
+                    { value: "d", label: t("days") },
                   ]}
                   value={value.advancedEveryUnit}
                 />
-                <span className="text-muted-foreground">between</span>
+                <span className="text-muted-foreground">{t("between")}</span>
                 <CompactSelect
-                  ariaLabel="From hour"
+                  ariaLabel={t("From hour")}
                   onValueChange={(advancedFromTime) => patch({ advancedFromTime })}
                   options={hourOptions}
                   value={value.advancedFromTime}
                 />
-                <span className="text-muted-foreground">and</span>
+                <span className="text-muted-foreground">{t("and")}</span>
                 <CompactSelect
-                  ariaLabel="To hour"
+                  ariaLabel={t("To hour")}
                   onValueChange={(advancedToTime) => patch({ advancedToTime })}
                   options={hourOptions}
                   value={value.advancedToTime}
@@ -636,7 +641,7 @@ function ScheduleFields({
       )}
       {value.preset === "custom" && (
         <Input
-          aria-label="Schedule"
+          aria-label={t("Schedule")}
           className="h-8 min-w-[145px] flex-1 rounded-[7px] border-[#d9d9d9] bg-background px-2 text-[12px] shadow-none focus-visible:ring-0 dark:border-[#292929] dark:bg-transparent"
           onChange={(event) => patch({ customSchedule: event.target.value })}
           value={value.customSchedule}
@@ -661,6 +666,7 @@ function ScheduleCard({
   onExpand: () => void;
   onRemove: () => void;
 }) {
+  const { t } = useI18n();
   const description = describeRoutineSchedule(value);
   return (
     <li
@@ -683,7 +689,7 @@ function ScheduleCard({
           <span className="min-w-0 flex-1 truncate text-[13px]">{description}</span>
         </button>
         <Button
-          aria-label={`Remove trigger: ${description}`}
+          aria-label={t("Remove trigger: {description}", { description })}
           className="size-7 rounded-full text-muted-foreground opacity-0 transition-opacity group-hover/schedule:opacity-100 hover:opacity-100 focus-visible:opacity-100"
           onClick={onRemove}
           size="icon-sm"
@@ -707,19 +713,20 @@ function RunHistory({
   executions: RoutineExecutionView[];
   hideTransient: boolean;
 }) {
+  const { t } = useI18n();
   const visibleExecutions = hideTransient
     ? executions.filter((execution) => !isTransientRoutineExecutionStatus(execution.status))
     : executions;
   if (visibleExecutions.length === 0) {
-    return <div className="px-2 py-2 text-[12px] text-muted-foreground">No runs yet</div>;
+    return <div className="px-2 py-2 text-[12px] text-muted-foreground">{t("No runs yet")}</div>;
   }
   return (
-    <ul aria-label="Run history">
+    <ul aria-label={t("Run history")}>
       {visibleExecutions.map((execution) => {
         const running = isTransientRoutineExecutionStatus(execution.status);
         return (
           <li
-            aria-label={execution.kind === "test" ? "Manual run" : "Scheduled run"}
+            aria-label={execution.kind === "test" ? t("Manual run") : t("Scheduled run")}
             className="flex min-h-8 items-center gap-2 py-1 text-[12px]"
             data-routine-execution-status={execution.status}
             key={execution.id}
@@ -815,13 +822,16 @@ export function RoutineEditor({
   routineId: string | null;
   onDeleted: () => void;
 }) {
+  const { t } = useI18n();
   const [routine, setRoutine] = useState<RoutineView | null>(null);
   const [draft, setDraft] = useState<RoutineDraft>(newDraft);
   const [executions, setExecutions] = useState<RoutineExecutionView[]>([]);
   const [expandedSchedule, setExpandedSchedule] = useState<number | null>(null);
   const [addScheduleOpen, setAddScheduleOpen] = useState(false);
   const [loading, setLoading] = useState(Boolean(routineId));
-  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error" | "conflict">("idle");
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error" | "conflict">(
+    "idle"
+  );
   const [runError, setRunError] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [toggleSaving, setToggleSaving] = useState(false);
@@ -934,7 +944,8 @@ export function RoutineEditor({
       }
       if (context.attached) setSaveState("saved");
     } catch (error) {
-      if (context.attached) setSaveState(error instanceof ClientError && error.status === 409 ? "conflict" : "error");
+      if (context.attached)
+        setSaveState(error instanceof ClientError && error.status === 409 ? "conflict" : "error");
     } finally {
       context.saving = false;
       const pending = context.pending;
@@ -980,11 +991,20 @@ export function RoutineEditor({
         return;
       }
       try {
-        const [history, latest] = await Promise.all([api.routineExecutions(current), api.routine(current)]);
+        const [history, latest] = await Promise.all([
+          api.routineExecutions(current),
+          api.routine(current),
+        ]);
         if (!stopped) {
           setExecutions(history);
           const context = contextRef.current;
-          if (context?.routine?.id === current && !context.dirty && !context.saving && !context.toggling && latest.revision > context.routine.revision) {
+          if (
+            context?.routine?.id === current &&
+            !context.dirty &&
+            !context.saving &&
+            !context.toggling &&
+            latest.revision > context.routine.revision
+          ) {
             const refreshed = draftFromRoutine(latest);
             context.routine = latest;
             context.draft = refreshed;
@@ -1091,7 +1111,7 @@ export function RoutineEditor({
   if (loading) {
     return (
       <div className="grid size-full place-items-center pt-10">
-        <LoadingOrb label="Loading routine" size={16} />
+        <LoadingOrb label={t("Loading routine")} size={16} />
       </div>
     );
   }
@@ -1104,13 +1124,13 @@ export function RoutineEditor({
       <div className="flex min-w-0 items-center gap-2" data-routine-actions="">
         <div className="flex min-w-0 items-center gap-1.5">
           <Switch
-            aria-label="Active"
+            aria-label={t("Active")}
             checked={draft.enabled}
             className="h-4 w-7 data-[state=checked]:bg-[#070707] [&>span]:size-3 [&>span]:data-[state=checked]:translate-x-3 dark:data-[state=checked]:bg-[#626262]"
             disabled={toggleSaving}
             onCheckedChange={toggleActive}
           />
-          <span className="text-[13px]">Active</span>
+          <span className="text-[13px]">{t("Active")}</span>
         </div>
         <div className="ml-auto flex shrink-0 items-center gap-2">
           <Button
@@ -1118,7 +1138,7 @@ export function RoutineEditor({
             onClick={() => void deleteRoutine().catch(() => setSaveState("error"))}
             variant="secondary"
           >
-            Delete
+            {t("Delete")}
           </Button>
           <Button
             className={cn(
@@ -1136,7 +1156,7 @@ export function RoutineEditor({
               );
             }}
           >
-            {running ? "Running…" : "Test run"}
+            {running ? t("Running…") : t("Test run")}
           </Button>
         </div>
       </div>
@@ -1147,14 +1167,14 @@ export function RoutineEditor({
             className="pl-2 text-[12px] font-normal text-muted-foreground"
             htmlFor="routine-name"
           >
-            Name
+            {t("Name")}
           </Label>
           <Input
             className={cn(fieldClass, "h-7")}
             id="routine-name"
             maxLength={80}
             onChange={(event) => queue({ ...draft, name: event.target.value })}
-            placeholder="Name this routine"
+            placeholder={t("Name this routine")}
             value={draft.name}
           />
         </div>
@@ -1163,21 +1183,23 @@ export function RoutineEditor({
             className="pl-2 text-[12px] font-normal text-muted-foreground"
             htmlFor="routine-instruction"
           >
-            Instruction
+            {t("Instruction")}
           </Label>
           <Textarea
             className="min-h-[80px] resize-none rounded-[7px] border-[#d9d9d9] px-2.5 py-2 text-[13px] shadow-none focus-visible:ring-0 dark:border-[#292929] dark:bg-transparent"
             id="routine-instruction"
             maxLength={20_000}
             onChange={(event) => queue({ ...draft, prompt: event.target.value })}
-            placeholder="What should this routine do each time it runs?"
+            placeholder={t("What should this routine do each time it runs?")}
             value={draft.prompt}
           />
         </div>
         <div className="grid gap-[5px]">
-          <Label className="pl-2 text-[12px] font-normal text-muted-foreground">When to run</Label>
+          <Label className="pl-2 text-[12px] font-normal text-muted-foreground">
+            {t("When to run")}
+          </Label>
           <div className="rounded-[10px] border border-[#dedede] dark:border-[#343434]">
-            <ul aria-label="Triggers">
+            <ul aria-label={t("Triggers")}>
               {draft.schedules.map((item, index) => (
                 <ScheduleCard
                   expanded={expandedSchedule === index}
@@ -1224,23 +1246,25 @@ export function RoutineEditor({
         </div>
 
         <div className="grid gap-1">
-          <Label className="pl-2 text-[12px] font-normal text-muted-foreground">Run history</Label>
+          <Label className="pl-2 text-[12px] font-normal text-muted-foreground">
+            {t("Run history")}
+          </Label>
           <RunHistory executions={executions} hideTransient={draft.schedules.length > 1} />
         </div>
         <div className="min-h-4 text-center text-[11px] text-muted-foreground" aria-live="polite">
           {saveState === "saving"
-            ? "Saving…"
+            ? t("Saving…")
             : saveState === "conflict"
-              ? "This routine changed elsewhere. Reopen it to load the latest version."
-            : saveState === "error"
-              ? "Couldn't save this routine."
-              : runError
-                ? "Couldn't start a test run."
-                : !routine && valid
-                  ? "Saving…"
-                  : !routine
-                    ? ""
-                    : ""}
+              ? t("This routine changed elsewhere. Reopen it to load the latest version.")
+              : saveState === "error"
+                ? t("Couldn't save this routine.")
+                : runError
+                  ? t("Couldn't start a test run.")
+                  : !routine && valid
+                    ? t("Saving…")
+                    : !routine
+                      ? ""
+                      : ""}
         </div>
       </div>
     </div>

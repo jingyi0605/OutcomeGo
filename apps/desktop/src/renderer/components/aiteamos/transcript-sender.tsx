@@ -2,6 +2,7 @@ import type { BotView } from "@aiteamos/contracts";
 import { HoverCard } from "radix-ui";
 import { useState, type CSSProperties } from "react";
 import { groupSenderColors } from "../../lib/group-chat-presentation";
+import { useI18n } from "../../lib/i18n";
 import { BotAvatar } from "./avatar";
 
 export function TranscriptSenderName({
@@ -13,11 +14,12 @@ export function TranscriptSenderName({
   name: string;
   onOpenChat?: (botId: string) => void;
 }) {
+  const { t } = useI18n();
   const [light, dark] = groupSenderColors(bot?.color);
   const style = { "--sender-light": light, "--sender-dark": dark } as CSSProperties;
   return bot && onOpenChat ? (
     <button
-      aria-label={`Open ${name}'s chat`}
+      aria-label={t("Open {name}'s chat", { name })}
       className="group-sender-name"
       data-message-agent-name=""
       onClick={() => onOpenChat(bot.id)}
@@ -44,6 +46,7 @@ export function TranscriptSenderAvatar({
   onOpenChat?: (botId: string) => void;
   onOpenProfile?: (botId: string) => void;
 }) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const avatar = <BotAvatar bot={bot} mode="still" size="sm" />;
   if (!bot || !onOpenChat) return avatar;
@@ -51,7 +54,7 @@ export function TranscriptSenderAvatar({
     <HoverCard.Root open={open} onOpenChange={setOpen} openDelay={350} closeDelay={200}>
       <HoverCard.Trigger asChild>
         <button
-          aria-label={`Open ${name}'s chat`}
+          aria-label={t("Open {name}'s chat", { name })}
           className="group-sender-avatar"
           onClick={() => {
             setOpen(false);
@@ -68,7 +71,7 @@ export function TranscriptSenderAvatar({
           side="top"
           sideOffset={6}
           className="group-sender-profile floating-surface"
-          aria-label={`${name}'s profile`}
+          aria-label={t("{name}'s profile", { name })}
           onEscapeKeyDown={() => setOpen(false)}
         >
           <div className="flex min-w-0 items-center gap-2">
@@ -86,7 +89,7 @@ export function TranscriptSenderAvatar({
               }}
               type="button"
             >
-              Open chat
+              {t("Open chat")}
             </button>
             {onOpenProfile && (
               <button
@@ -97,7 +100,7 @@ export function TranscriptSenderAvatar({
                 }}
                 type="button"
               >
-                Edit Profile
+                {t("Edit Profile")}
               </button>
             )}
           </div>

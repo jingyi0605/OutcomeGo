@@ -23,6 +23,7 @@ import {
   useState,
 } from "react";
 import { api } from "../../client/aiteamos-api";
+import { useI18n } from "../../lib/i18n";
 import { useVirtualWindow } from "../../hooks/use-virtual-window";
 import { useInitialConversationLayout } from "../../hooks/use-initial-conversation-layout";
 import { DeliveryFooter } from "./delivery-footer";
@@ -56,6 +57,7 @@ const ThreadMessage = ({
   onDeleteSend: (nonce: string) => Promise<unknown>;
   onResendSend: (nonce: string) => Promise<unknown>;
 }) => {
+  const { t } = useI18n();
   const bot = message.senderBotId ? botById.get(message.senderBotId) : undefined;
   const from = message.sender === "user" ? "user" : "assistant";
   const pending = delivery ? durableSendIsInFlight(delivery) : false;
@@ -91,18 +93,28 @@ const ThreadMessage = ({
       data-thread-message-id={message.id}
     >
       {from !== "user" && <BotAvatar bot={bot} size="sm" />}
-      <div className={`relative ${from === "user" ? "flex w-[82%] min-w-0 flex-col items-end" : "max-w-[82%] items-start"}`}>
+      <div
+        className={`relative ${from === "user" ? "flex w-[82%] min-w-0 flex-col items-end" : "max-w-[82%] items-start"}`}
+      >
         {from !== "user" && (
-          <div className="mb-1 px-1 text-[11px] text-muted-foreground">{bot?.name ?? "Bot"}</div>
+          <div className="mb-1 px-1 text-[11px] text-muted-foreground">{bot?.name ?? t("Bot")}</div>
         )}
         {images.length > 0 || display.files.length > 0 || stagedFiles.length > 0 ? (
           <div className={`flex flex-col gap-1.5 ${from === "user" ? "items-end" : "items-start"}`}>
             <MessageImageGallery images={images} />
             {display.files.length > 0 && (
-              <MessageRendererBoundary content={`Attachment previews unavailable.\n${display.files.map((file) => file.fileName).join("\n")}`}>
-              <Suspense fallback={<div data-chat-layout-pending className="h-[61px] w-[246px] max-w-full" />}>
-                <MessageFileAttachments attachments={display.files} />
-              </Suspense>
+              <MessageRendererBoundary
+                content={t("Attachment previews unavailable.\n{files}", {
+                  files: display.files.map((file) => file.fileName).join("\n"),
+                })}
+              >
+                <Suspense
+                  fallback={
+                    <div data-chat-layout-pending className="h-[61px] w-[246px] max-w-full" />
+                  }
+                >
+                  <MessageFileAttachments attachments={display.files} />
+                </Suspense>
               </MessageRendererBoundary>
             )}
             {stagedFiles.map((attachment) => (
@@ -128,13 +140,15 @@ const ThreadMessage = ({
             <MessageResponse>{display.displayContent}</MessageResponse>
           </MessageContent>
         )}
-        {from === "user" && <DeliveryFooter
-          delivery={delivery}
-          sendingSinceMs={sendingSinceMs}
-          onCancel={onCancelSend}
-          onDelete={onDeleteSend}
-          onResend={onResendSend}
-        />}
+        {from === "user" && (
+          <DeliveryFooter
+            delivery={delivery}
+            sendingSinceMs={sendingSinceMs}
+            onCancel={onCancelSend}
+            onDelete={onDeleteSend}
+            onResend={onResendSend}
+          />
+        )}
       </div>
     </div>
   );
@@ -183,10 +197,15 @@ export function ThreadTray({
     options?: { richText?: string; stagedAttachments?: DurableStagedAttachment[] }
   ) => Promise<unknown> | undefined;
 }) {
+  const { t } = useI18n();
   const scrollRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const layoutReady = useInitialConversationLayout(
-    contentRef, scrollRef, open, false, `${root.id}:${focusMessageId ?? ""}`
+    contentRef,
+    scrollRef,
+    open,
+    false,
+    `${root.id}:${focusMessageId ?? ""}`
   );
   const [composerRecovery, setComposerRecovery] = useState<{
     id: string;
@@ -241,19 +260,24 @@ export function ThreadTray({
         messageIds.has(record.payload.replyToMessageId as string)
     );
     if (!recovery) return;
-    setComposerRecovery({ id: recovery.nonce, payload: recovery.payload, message: recovery.failure?.message, durable: true });
+    setComposerRecovery({
+      id: recovery.nonce,
+      payload: recovery.payload,
+      message: recovery.failure?.message,
+      durable: true,
+    });
   }, [composerRecovery, messages, recoveries]);
   const focusIndex = focusMessageId
-    ? messages.findIndex((message) => message.id === focusMessageId) : -1;
+    ? messages.findIndex((message) => message.id === focusMessageId)
+    : -1;
   const { measureElement, scrollToIndex, totalSize, virtualItems } = useVirtualWindow({
     count: messages.length,
     estimateSize,
     getKey,
     initialViewportSize: 600,
     // Measure each newly mounted window before paint, including fast scrolling.
-    initialScroll: focusIndex >= 0
-      ? { index: focusIndex, align: "center" }
-      : { index: 0, viewportOffset: 0 },
+    initialScroll:
+      focusIndex >= 0 ? { index: focusIndex, align: "center" } : { index: 0, viewportOffset: 0 },
     maxItems: 70,
     // Keep nearby replies mounted through rapid wheel bursts.
     overscan: 1_200,
@@ -277,22 +301,22 @@ export function ThreadTray({
       inert={!open}
     >
       <button
-        aria-label="Close thread"
+        aria-label={t("Close thread")}
         className="absolute inset-0"
         onClick={onClose}
         type="button"
       />
       <aside
-        aria-label="Thread"
+        aria-label={t("Thread")}
         className={`absolute inset-y-2 right-2 flex w-[min(430px,calc(100%-16px))] flex-col overflow-hidden rounded-[18px] border-[0.5px] border-border bg-background shadow-[0_20px_60px_rgba(0,0,0,0.24)] transition-[transform,opacity] duration-300 ease-[linear(0,0.002,0.01_2.4%,0.04_5.2%,0.14_10.8%,0.32_18.8%,0.56_28.8%,0.74_39.4%,0.87_52.4%,0.95_68.8%,0.99_84.8%,1)] motion-reduce:duration-120 motion-reduce:ease-in-out ${
           open ? "translate-x-0 opacity-100" : "translate-x-5 opacity-0"
         }`}
         data-thread-tray=""
       >
         <header className="flex h-12 shrink-0 items-center border-b px-4">
-          <h2 className="text-sm font-semibold">Thread</h2>
+          <h2 className="text-sm font-semibold">{t("Thread")}</h2>
           <button
-            aria-label="Close thread"
+            aria-label={t("Close thread")}
             className="ml-auto grid size-7 place-items-center rounded-full hover:bg-accent"
             onClick={onClose}
             type="button"
@@ -305,13 +329,18 @@ export function ThreadTray({
             className="shrink-0 border-b bg-muted/35 px-4 py-2 text-[11px] text-muted-foreground"
             role="status"
           >
-            Some replies are omitted from this open thread snapshot.
+            {t("Some replies are omitted from this open thread snapshot.")}
           </div>
         )}
         {/* biome-ignore lint/a11y/useSemanticElements: The virtualized rows need a non-list positioning wrapper between the scrollport and rows. */}
         <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4" ref={scrollRef} role="list">
-          <div className="relative w-full" ref={contentRef} aria-hidden={!layoutReady} inert={!layoutReady}
-            style={{ height: totalSize, opacity: layoutReady ? 1 : 0 }}>
+          <div
+            className="relative w-full"
+            ref={contentRef}
+            aria-hidden={!layoutReady}
+            inert={!layoutReady}
+            style={{ height: totalSize, opacity: layoutReady ? 1 : 0 }}
+          >
             {virtualItems.map((virtualItem) => {
               const message = messages[virtualItem.index];
               if (!message) return null;
@@ -332,7 +361,7 @@ export function ThreadTray({
                     delivery={deliveryByMessageId.get(message.id) ?? null}
                     sendingSinceMs={
                       deliveryByMessageId.get(message.id)?.nonce === sendProgress?.nonce
-                        ? sendProgress?.sinceMs ?? null
+                        ? (sendProgress?.sinceMs ?? null)
                         : null
                     }
                     message={message}
@@ -352,7 +381,11 @@ export function ThreadTray({
           </div>
         </div>
         {open && !layoutReady && (
-          <div className="pointer-events-none absolute inset-0 grid place-items-center" role="status" aria-label="Loading thread">
+          <div
+            className="pointer-events-none absolute inset-0 grid place-items-center"
+            role="status"
+            aria-label={t("Loading thread")}
+          >
             <LoadingOrb aria-hidden />
           </div>
         )}
@@ -372,7 +405,7 @@ export function ThreadTray({
             onSubmit={onSubmit}
             onStage={onStage}
             onDiscardStages={onDiscardStages}
-            placeholder="Reply in thread"
+            placeholder={t("Reply in thread")}
           />
         </div>
       </aside>

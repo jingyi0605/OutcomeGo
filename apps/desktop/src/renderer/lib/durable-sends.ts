@@ -1,4 +1,7 @@
-import { attachmentSizeRejection, attachmentRejectionMessage } from "@aiteamos/contracts/media-input";
+import {
+  attachmentSizeRejection,
+  attachmentRejectionMessage,
+} from "@aiteamos/contracts/media-input";
 import { MAX_PARALLEL_UPLOADS, mapWithConcurrency } from "@aiteamos/client-core";
 import { attachmentAssetKind } from "@aiteamos/product-core/attachments";
 import {
@@ -14,6 +17,7 @@ import {
 import { getAuthSnapshot, subscribeAuthSnapshot } from "../client/auth";
 import { API_BASE } from "../client/http";
 import { api } from "../client/aiteamos-api";
+import { translateCurrent } from "./i18n-catalog";
 import { recordPerformance } from "./performance";
 
 export const DURABLE_SEND_ACCEPTED_EVENT = "aiteamos:durable-send-accepted";
@@ -88,7 +92,7 @@ export const stageDesktopDeliveryFile = async (
   if (rejection) throw new Error(attachmentRejectionMessage(fileName, rejection));
   const normalizedName = fileName.trim();
   if (!normalizedName || normalizedName.length > 255) {
-    throw new Error("Attachment name is invalid.");
+    throw new Error(translateCurrent("Attachment name is invalid."));
   }
   const stagingId = crypto.randomUUID();
   const mimeType = file.type || "application/octet-stream";
@@ -152,10 +156,13 @@ const readDesktopDeliveryStage = async (attachment: DurableStagedAttachment): Pr
     throw cause;
   }
   if (!bytes) {
-    throw Object.assign(new Error("The staged attachment is no longer available."), {
-      code: "staged_attachment_missing",
-      status: 422,
-    });
+    throw Object.assign(
+      new Error(translateCurrent("The staged attachment is no longer available.")),
+      {
+        code: "staged_attachment_missing",
+        status: 422,
+      }
+    );
   }
   return new Blob([Uint8Array.from(bytes).buffer], { type: attachment.mimeType });
 };
@@ -165,7 +172,7 @@ const withAttachmentCommitDeadline = <T>(operation: Promise<T>): Promise<T> =>
     const timeout = window.setTimeout(
       () =>
         reject(
-          Object.assign(new Error("Attachment upload timed out."), {
+          Object.assign(new Error(translateCurrent("Attachment upload timed out.")), {
             code: "attachment_commit_timeout",
             status: 422,
           })
@@ -251,10 +258,19 @@ const startLifecycle = (controller: DurableSendController) => {
   const scheduleRetryExpiry = () => {
     window.clearTimeout(retryTimer);
     if (!active || expiring) return;
-    const deadline = Math.min(...controller.getSnapshot().flatMap(record =>
-      record.phase !== "failed" && record.phase !== "accepted-awaiting-echo" && record.retryStartedAtMs !== undefined
-        ? [record.retryStartedAtMs + SEND_RETRY_TIMEOUT_MS] : []));
-    if (Number.isFinite(deadline)) retryTimer = window.setTimeout(expireAndFlush, Math.max(0, deadline - Date.now()));
+    const deadline = Math.min(
+      ...controller
+        .getSnapshot()
+        .flatMap((record) =>
+          record.phase !== "failed" &&
+          record.phase !== "accepted-awaiting-echo" &&
+          record.retryStartedAtMs !== undefined
+            ? [record.retryStartedAtMs + SEND_RETRY_TIMEOUT_MS]
+            : []
+        )
+    );
+    if (Number.isFinite(deadline))
+      retryTimer = window.setTimeout(expireAndFlush, Math.max(0, deadline - Date.now()));
   };
   const expireAndFlush = () => {
     if (!active || expiring) return;
@@ -267,8 +283,10 @@ const startLifecycle = (controller: DurableSendController) => {
     });
   };
   const syncPolling = () => {
-    const needed = active && (transportDownUntilMs > Date.now() ||
-      controller.getSnapshot().some(record => record.phase !== "failed"));
+    const needed =
+      active &&
+      (transportDownUntilMs > Date.now() ||
+        controller.getSnapshot().some((record) => record.phase !== "failed"));
     if (needed && interval === undefined) {
       interval = window.setInterval(() => {
         refreshTransportSnapshot();

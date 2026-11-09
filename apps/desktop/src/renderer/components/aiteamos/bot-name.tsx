@@ -1,6 +1,7 @@
 import type { BotView } from "@aiteamos/contracts";
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { api } from "../../client/aiteamos-api";
+import { useI18n } from "../../lib/i18n";
 
 export const BotRenameContext = createContext<{
   bot: BotView;
@@ -10,6 +11,7 @@ export const BotRenameContext = createContext<{
 
 /** Inline names also work in pinned tiles; no profile panel or modal is opened. */
 export function BotName({ name }: { name: string }) {
+  const { t } = useI18n();
   const rename = useContext(BotRenameContext);
   const [draft, setDraft] = useState(name);
   const [error, setError] = useState("");
@@ -39,7 +41,7 @@ export function BotName({ name }: { name: string }) {
       await api.updateBot(rename.bot.id, { name: draft.trim() });
       rename.finish();
     } catch {
-      setError("Could not rename. Press Enter to retry.");
+      setError(t("Could not rename. Press Enter to retry."));
       input.current?.focus();
     } finally {
       submitting.current = false;
@@ -50,7 +52,7 @@ export function BotName({ name }: { name: string }) {
     <>
       <input
         ref={input}
-        aria-label="Rename Bot"
+        aria-label={t("Rename Bot")}
         aria-invalid={Boolean(error)}
         title={error || undefined}
         className="w-full min-w-0 border-0 bg-transparent p-0 font-[inherit] leading-[inherit] text-foreground outline-none selection:bg-[#afd3f5] selection:text-[#141414]"

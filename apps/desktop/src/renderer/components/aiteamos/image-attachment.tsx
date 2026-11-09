@@ -4,6 +4,7 @@ import { API_BASE } from "../../client/http";
 import { useAuthenticatedResource } from "../../hooks/use-authenticated-resource";
 import { useResourceActive } from "../../hooks/resource-activity";
 import { cn } from "../../lib/cn";
+import { useI18n } from "../../lib/i18n";
 import { imageRowWidth, planImageRow } from "./attachment-visuals";
 import { Dialog, DialogContent, DialogDescription, DialogPortal, DialogTitle } from "../ui/dialog";
 
@@ -55,9 +56,10 @@ export function ImageAttachment({
   onRemove?: () => void;
   variant?: "composer" | "message" | "message-grid" | "tile";
 }) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const resourcesActive = useResourceActive();
-  const label = image.alt?.trim() || "Image";
+  const label = image.alt?.trim() || t("Image");
   const rawSource = image.url.startsWith("/api/")
     ? new URL(image.url, API_BASE).toString()
     : image.url;
@@ -67,8 +69,12 @@ export function ImageAttachment({
   // Images without dimensions keep the fallback frame even after load, so
   // revisiting a chat or remounting a virtual row cannot change its height.
   const hasDimensions =
-    typeof image.width === "number" && Number.isFinite(image.width) && image.width > 0 &&
-    typeof image.height === "number" && Number.isFinite(image.height) && image.height > 0;
+    typeof image.width === "number" &&
+    Number.isFinite(image.width) &&
+    image.width > 0 &&
+    typeof image.height === "number" &&
+    Number.isFinite(image.height) &&
+    image.height > 0;
   const width = hasDimensions ? image.width! : 320;
   const height = hasDimensions ? image.height! : 180;
   const messageWidth = Math.min(width, 320, (width / height) * 300);
@@ -84,7 +90,8 @@ export function ImageAttachment({
       <div
         className={cn(
           "group/image relative shrink-0 overflow-hidden border border-black/10 bg-background dark:border-white/15",
-          variant === "composer" && "size-14 rounded-[10px] border-[#1c1c1c1f] dark:border-[#f5f5f51a]",
+          variant === "composer" &&
+            "size-14 rounded-[10px] border-[#1c1c1c1f] dark:border-[#f5f5f51a]",
           variant === "tile" && "size-full rounded-[12px] border-0",
           variant === "message" && "inline-flex max-w-[min(66vw,100%)] rounded-[12px]",
           variant === "message-grid" && "aspect-square w-full min-w-0 rounded-[12px]"
@@ -92,7 +99,7 @@ export function ImageAttachment({
         style={messageStyle}
       >
         <button
-          aria-label={`Open ${label}`}
+          aria-label={t("Open {name}", { name: label })}
           className={cn(
             "absolute inset-0 block overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
             "size-full"
@@ -116,7 +123,7 @@ export function ImageAttachment({
         </button>
         {onRemove && (
           <button
-            aria-label={`Remove ${label}`}
+            aria-label={t("Remove {name}", { name: label })}
             className="absolute right-0.5 top-0.5 grid size-5 place-items-center rounded-full bg-[#1c1c1c] text-[#fcfcfc] opacity-0 transition focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 group-hover/image:opacity-100 dark:bg-[#f5f5f5] dark:text-[#121212]"
             onClick={(event) => {
               event.stopPropagation();
@@ -138,9 +145,11 @@ export function ImageAttachment({
             surface="transparent"
           >
             <DialogTitle className="sr-only">{label}</DialogTitle>
-            <DialogDescription className="sr-only">Full-size preview of {label}.</DialogDescription>
+            <DialogDescription className="sr-only">
+              {t("Full-size preview of {name}.", { name: label })}
+            </DialogDescription>
             <button
-              aria-label={`Close ${label}`}
+              aria-label={t("Close {name}", { name: label })}
               className="block overflow-hidden rounded-[12px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
               onClick={() => setOpen(false)}
               style={{ cursor: "zoom-out" }}
@@ -173,25 +182,45 @@ export function ImageAttachment({
   );
 }
 
-function MediaThumbnail({ image, index, total, active, onSelect }: {
-  image: DisplayImage; index: number; total: number; active: boolean; onSelect: () => void;
+function MediaThumbnail({
+  image,
+  index,
+  total,
+  active,
+  onSelect,
+}: {
+  image: DisplayImage;
+  index: number;
+  total: number;
+  active: boolean;
+  onSelect: () => void;
 }) {
+  const { t } = useI18n();
   const resourcesActive = useResourceActive();
   const raw = image.url.startsWith("/api/") ? new URL(image.url, API_BASE).toString() : image.url;
   const source = useAuthenticatedResource(raw, { enabled: resourcesActive });
   return (
     <button
       aria-current={active || undefined}
-      aria-label={`View media ${index + 1} of ${total}`}
+      aria-label={t("View media {index} of {total}", { index: index + 1, total })}
       className={cn(
         "grid size-12 shrink-0 place-items-center overflow-hidden rounded-[8px] focus-visible:outline-none",
-        active ? "border-2 border-[#f5f5f5]" : "border border-[#f5f5f51a] opacity-50 hover:opacity-80"
+        active
+          ? "border-2 border-[#f5f5f5]"
+          : "border border-[#f5f5f51a] opacity-50 hover:opacity-80"
       )}
       onClick={onSelect}
       type="button"
     >
       {source ? (
-        <img alt="" className={cn("object-cover", active ? "size-10 rounded-[4px]" : "size-[46px] rounded-[7.5px]")} src={source} />
+        <img
+          alt=""
+          className={cn(
+            "object-cover",
+            active ? "size-10 rounded-[4px]" : "size-[46px] rounded-[7.5px]"
+          )}
+          src={source}
+        />
       ) : null}
     </button>
   );
@@ -201,7 +230,8 @@ function MediaThumbnail({ image, index, total, active, onSelect }: {
 const useChatColumnWidth = (ref: RefObject<HTMLElement | null>) => {
   const [width, setWidth] = useState(640);
   useLayoutEffect(() => {
-    const column = ref.current?.closest<HTMLElement>(".group-message-body") ?? ref.current?.parentElement;
+    const column =
+      ref.current?.closest<HTMLElement>(".group-message-body") ?? ref.current?.parentElement;
     if (!column) return;
     const measure = () => setWidth(column.getBoundingClientRect().width);
     measure();
@@ -213,6 +243,7 @@ const useChatColumnWidth = (ref: RefObject<HTMLElement | null>) => {
 };
 
 export function MessageImageGallery({ images }: { images: DisplayImage[] }) {
+  const { t } = useI18n();
   const resourcesActive = useResourceActive();
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const rowRef = useRef<HTMLDivElement>(null);
@@ -242,7 +273,7 @@ export function MessageImageGallery({ images }: { images: DisplayImage[] }) {
     : null;
   const activeSource = useAuthenticatedResource(activeRawSource, { enabled: resourcesActive });
   if (images.length === 0) return null;
-  const activeLabel = activeImage?.alt?.trim() || "Image";
+  const activeLabel = activeImage?.alt?.trim() || t("Image");
   const downloadActive = () => {
     if (!activeImage || !activeSource) return;
     const anchor = document.createElement("a");
@@ -292,7 +323,7 @@ export function MessageImageGallery({ images }: { images: DisplayImage[] }) {
         >
           <DialogTitle className="sr-only">{activeLabel}</DialogTitle>
           <DialogDescription className="sr-only">
-            Full-size media preview of {activeLabel}.
+            {t("Full-size media preview of {name}.", { name: activeLabel })}
           </DialogDescription>
           {activeImage ? (
             <div className="flex size-full flex-col items-center" data-media-viewer="">
@@ -313,7 +344,10 @@ export function MessageImageGallery({ images }: { images: DisplayImage[] }) {
                 {images.length > 1 ? ` · ${(activeIndex ?? 0) + 1} / ${images.length}` : ""}
               </span>
               {images.length > 1 ? (
-                <div className="mb-5 flex max-w-[calc(100vw-64px)] gap-2 overflow-x-auto [scrollbar-width:none] [mask-image:linear-gradient(to_right,black_calc(100%-48px),transparent)]" data-media-filmstrip="">
+                <div
+                  className="mb-5 flex max-w-[calc(100vw-64px)] gap-2 overflow-x-auto [scrollbar-width:none] [mask-image:linear-gradient(to_right,black_calc(100%-48px),transparent)]"
+                  data-media-filmstrip=""
+                >
                   {images.map((image, index) => (
                     <MediaThumbnail
                       active={index === activeIndex}
@@ -330,7 +364,7 @@ export function MessageImageGallery({ images }: { images: DisplayImage[] }) {
               )}
               <div className="absolute right-3 top-3 flex items-center gap-2">
                 <button
-                  aria-label="Download media"
+                  aria-label={t("Download media")}
                   className="grid size-8 place-items-center rounded-full border border-[#f5f5f50f] bg-[#f5f5f50a] text-[#f5f5f5a8] transition hover:text-[#f5f5f5] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
                   onClick={downloadActive}
                   type="button"
@@ -338,7 +372,7 @@ export function MessageImageGallery({ images }: { images: DisplayImage[] }) {
                   <Download className="size-4" strokeWidth={1.8} />
                 </button>
                 <button
-                  aria-label="Close media preview"
+                  aria-label={t("Close media preview")}
                   className="grid size-8 place-items-center rounded-full border border-[#f5f5f50f] bg-[#f5f5f50a] text-[#f5f5f5a8] transition hover:text-[#f5f5f5] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
                   onClick={() => setActiveIndex(null)}
                   type="button"

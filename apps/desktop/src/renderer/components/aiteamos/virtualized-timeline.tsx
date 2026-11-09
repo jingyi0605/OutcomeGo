@@ -11,6 +11,7 @@ import {
   resolveConversationScrollRestore,
 } from "../../lib/conversation-scroll-state";
 import { nextHistoryPageLoadStartedAt } from "../../lib/history-pagination";
+import { useI18n } from "../../lib/i18n";
 import { recordPerformance } from "../../lib/performance";
 import {
   createVirtualMeasurements,
@@ -90,6 +91,7 @@ export function VirtualizedTimeline<T extends { id: string; type: string }>({
   messageIdsForEntry: (entry: T) => readonly string[];
   renderEntry: (entry: T, index: number) => ReactNode;
 }) {
+  const { t } = useI18n();
   const { scrollRef, stopScroll, state } = useStickToBottomContext();
   const contentRef = useRef<HTMLDivElement>(null);
   const focusWindowRef = useRef<{ key: string; expiresAt: number } | null>(null);
@@ -648,7 +650,7 @@ export function VirtualizedTimeline<T extends { id: string; type: string }>({
   return (
     // biome-ignore lint/a11y/useSemanticElements: Virtualization requires a single explicitly-sized positioning element.
     <div
-      aria-label={`${entries.length} timeline entries`}
+      aria-label={t("{count} timeline entries", { count: entries.length })}
       className="relative w-full"
       data-virtual-timeline-count={entries.length}
       ref={contentRef}
@@ -662,7 +664,7 @@ export function VirtualizedTimeline<T extends { id: string; type: string }>({
           onClick={() => loadOlder(false)}
           type="button"
         >
-          {loadingOlder ? "Loading older messages…" : "Load older messages"}
+          {loadingOlder ? t("Loading older messages…") : t("Load older messages")}
         </button>
       )}
       {hasNewer && (
@@ -672,7 +674,7 @@ export function VirtualizedTimeline<T extends { id: string; type: string }>({
           onClick={() => loadNewer(false)}
           type="button"
         >
-          {loadingNewer ? "Loading newer messages…" : "Load newer messages"}
+          {loadingNewer ? t("Loading newer messages…") : t("Load newer messages")}
         </button>
       )}
       {virtualItems.map((virtualItem) => {

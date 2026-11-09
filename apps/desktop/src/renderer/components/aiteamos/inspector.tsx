@@ -21,6 +21,7 @@ import { Label } from "../ui/label";
 import { Textarea } from "../ui/textarea";
 import { api } from "../../client/aiteamos-api";
 import { botTemplateRecipe, downloadBotTemplate } from "../../lib/bot-template";
+import { useI18n } from "../../lib/i18n";
 import { BotAvatar } from "./avatar";
 
 const AvatarPicker = lazy(() =>
@@ -89,6 +90,7 @@ function BotSettings({
   onOpenRoutine: (routineId: string | null) => void;
   onAction?: (action: BotSettingsAction) => void;
 }) {
+  const { t } = useI18n();
   const [exporting, setExporting] = useState(false);
   const [exportFailed, setExportFailed] = useState(false);
   // Voice IDs are provider-specific, so the picker follows the server's selected provider.
@@ -197,7 +199,7 @@ function BotSettings({
       <div className="flex justify-center">
         <Suspense
           fallback={
-            <div aria-label="Loading avatar options" className="size-[76px]" role="status" />
+            <div aria-label={t("Loading avatar options")} className="size-[76px]" role="status" />
           }
         >
           <AvatarPicker
@@ -214,10 +216,10 @@ function BotSettings({
             className="pl-2 text-[12px] font-normal leading-[18px] text-muted-foreground"
             htmlFor={`settings-name-${bot.id}`}
           >
-            Name
+            {t("Name")}
           </Label>
           <Input
-            aria-label="Bot name"
+            aria-label={t("Bot name")}
             className="h-9 rounded-[7px] border-[#d9d9d9] px-2.5 text-[14px] shadow-none focus-visible:border-ring dark:focus-visible:border-ring focus-visible:ring-0 dark:border-[#292929] dark:bg-transparent"
             id={`settings-name-${bot.id}`}
             onBlur={() => {
@@ -229,7 +231,7 @@ function BotSettings({
               flush();
             }}
             onChange={(event) => queue({ ...draft, name: event.target.value })}
-            placeholder="Bob"
+            placeholder={t("Bob")}
             value={draft.name}
           />
         </div>
@@ -238,12 +240,16 @@ function BotSettings({
             className="pl-2 text-[12px] font-normal leading-[18px] text-muted-foreground"
             htmlFor={`settings-voice-${bot.id}`}
           >
-            Realtime voice
+            {t("Realtime voice")}
           </Label>
           {voiceProvider === "volcengine" ? (
-            <Suspense fallback={<div aria-label="Loading voice options" className="h-9" role="status" />}>
+            <Suspense
+              fallback={
+                <div aria-label={t("Loading voice options")} className="h-9" role="status" />
+              }
+            >
               <VolcengineVoiceSelect
-                automaticLabel="Server default"
+                automaticLabel={t("Server default")}
                 defaultVoiceId={serverVoice || "zh_female_vv_uranus_bigtts"}
                 onChange={(voice) => queue({ ...draft, voice }, true)}
                 triggerClassName="h-9 w-full rounded-[7px] border border-[#d9d9d9] px-2.5 text-[14px] shadow-none focus-visible:border-ring dark:border-[#292929]"
@@ -252,18 +258,20 @@ function BotSettings({
             </Suspense>
           ) : (
             <Input
-              aria-label="Realtime voice"
+              aria-label={t("Realtime voice")}
               className="h-9 rounded-[7px] border-[#d9d9d9] px-2.5 text-[14px] shadow-none focus-visible:border-ring dark:focus-visible:border-ring focus-visible:ring-0 dark:border-[#292929] dark:bg-transparent"
               id={`settings-voice-${bot.id}`}
               maxLength={200}
               onBlur={flush}
               onChange={(event) => queue({ ...draft, voice: event.target.value })}
-              placeholder="Leave blank to use the server default"
+              placeholder={t("Leave blank to use the server default")}
               value={draft.voice}
             />
           )}
           <p className="px-2 text-[12px] leading-4 text-muted-foreground">
-            Overrides the server voice for this bot’s realtime replies. Applies from the next call.
+            {t(
+              "Overrides the server voice for this bot’s realtime replies. Applies from the next call."
+            )}
           </p>
         </div>
         <div className="grid gap-[2px]">
@@ -271,16 +279,16 @@ function BotSettings({
             className="pl-2 text-[12px] font-normal leading-[18px] text-muted-foreground"
             htmlFor={`settings-title-${bot.id}`}
           >
-            Label (optional)
+            {t("Label (optional)")}
           </Label>
           <Input
-            aria-label="Bot label"
+            aria-label={t("Bot label")}
             className="h-9 rounded-[7px] border-[#d9d9d9] px-2.5 text-[14px] shadow-none focus-visible:border-ring dark:focus-visible:border-ring focus-visible:ring-0 dark:border-[#292929] dark:bg-transparent"
             id={`settings-title-${bot.id}`}
             maxLength={120}
             onBlur={flush}
             onChange={(event) => queue({ ...draft, title: event.target.value })}
-            placeholder="Research, marketing, admin"
+            placeholder={t("Research, marketing, admin")}
             value={draft.title}
           />
         </div>
@@ -289,16 +297,16 @@ function BotSettings({
             className="pl-2 text-[12px] font-normal leading-[18px] text-muted-foreground"
             htmlFor={`settings-description-${bot.id}`}
           >
-            Description
+            {t("Description")}
           </Label>
           <Textarea
-            aria-label="Bot description"
+            aria-label={t("Bot description")}
             className="min-h-20 resize-none rounded-[7px] border-[#d9d9d9] px-2.5 py-2 text-[14px] shadow-none focus-visible:border-ring dark:focus-visible:border-ring focus-visible:ring-0 dark:border-[#292929] dark:bg-transparent"
             id={`settings-description-${bot.id}`}
             maxLength={2_000}
             onBlur={flush}
             onChange={(event) => queue({ ...draft, description: event.target.value })}
-            placeholder="What this Bot is for"
+            placeholder={t("What this Bot is for")}
             value={draft.description}
           />
         </div>
@@ -307,24 +315,28 @@ function BotSettings({
             className="pl-2 text-[12px] font-normal leading-[18px] text-muted-foreground"
             htmlFor={`settings-instructions-${bot.id}`}
           >
-            Instructions
+            {t("Instructions")}
           </Label>
           <Textarea
-            aria-label="Bot instructions"
+            aria-label={t("Bot instructions")}
             className="min-h-32 resize-y rounded-[7px] border-[#d9d9d9] px-2.5 py-2 text-[14px] shadow-none focus-visible:border-ring dark:focus-visible:border-ring focus-visible:ring-0 dark:border-[#292929] dark:bg-transparent"
             id={`settings-instructions-${bot.id}`}
             maxLength={20_000}
             onBlur={flush}
             onChange={(event) => queue({ ...draft, instructions: event.target.value })}
-            placeholder="How this Bot should work"
+            placeholder={t("How this Bot should work")}
             value={draft.instructions}
           />
         </div>
         {saveState === "error" && (
-          <p className="text-xs text-destructive">Could not save. Your draft is still here.</p>
+          <p className="text-xs text-destructive">
+            {t("Could not save. Your draft is still here.")}
+          </p>
         )}
       </div>
-      <Suspense fallback={<div aria-label="Loading routines" className="mt-6 h-16" role="status" />}>
+      <Suspense
+        fallback={<div aria-label={t("Loading routines")} className="mt-6 h-16" role="status" />}
+      >
         <RoutinesSummary
           active={active}
           embedded
@@ -341,11 +353,11 @@ function BotSettings({
           type="button"
         >
           <Share className="size-4 text-foreground-secondary" strokeWidth={1.7} />
-          {exporting ? "Preparing template…" : "Share as template"}
+          {exporting ? t("Preparing template…") : t("Share as template")}
         </button>
         {exportFailed && (
           <p className="px-2 text-xs text-destructive" role="alert">
-            Could not prepare the template. Try again.
+            {t("Could not prepare the template. Try again.")}
           </p>
         )}
         {onAction ? (
@@ -356,7 +368,7 @@ function BotSettings({
               type="button"
             >
               <Trash2 className="size-4" strokeWidth={1.7} />
-              Delete bot
+              {t("Delete bot")}
             </button>
           </>
         ) : null}
@@ -376,6 +388,7 @@ function GroupSettings({
   onSetAvatar: (pngBase64: string | null) => Promise<void>;
   onUpdate: (name: string, description: string) => Promise<ChannelView>;
 }) {
+  const { t } = useI18n();
   const [draft, setDraft] = useState(() => ({
     name: channel.name,
     description: channel.description,
@@ -443,7 +456,7 @@ function GroupSettings({
 
   return (
     <div className="flex size-full flex-col overflow-y-auto px-4 pb-5 pt-[70px]">
-      <Suspense fallback={<div aria-label="Loading group avatar" className="h-[76px]" />}>
+      <Suspense fallback={<div aria-label={t("Loading group avatar")} className="h-[76px]" />}>
         <GroupAvatarEditor botById={botById} channel={channel} onSave={onSetAvatar} />
       </Suspense>
       <div className="mt-8 grid gap-2">
@@ -452,7 +465,7 @@ function GroupSettings({
             className="pl-2 text-[12px] font-normal leading-[18px] text-muted-foreground"
             htmlFor={`group-settings-name-${channel.id}`}
           >
-            Name
+            {t("Name")}
           </Label>
           <Input
             className="h-9 rounded-[7px] border-[#d9d9d9] px-2.5 text-[14px] shadow-none focus-visible:border-ring dark:focus-visible:border-ring focus-visible:ring-0 dark:border-[#292929] dark:bg-transparent"
@@ -468,7 +481,7 @@ function GroupSettings({
             className="pl-2 text-[12px] font-normal leading-[18px] text-muted-foreground"
             htmlFor={`group-settings-description-${channel.id}`}
           >
-            Description
+            {t("Description")}
           </Label>
           <Textarea
             className="min-h-20 resize-none rounded-[7px] border-[#d9d9d9] px-2.5 py-2 text-[14px] shadow-none focus-visible:border-ring dark:focus-visible:border-ring focus-visible:ring-0 dark:border-[#292929] dark:bg-transparent"
@@ -476,12 +489,14 @@ function GroupSettings({
             maxLength={2_000}
             onBlur={flush}
             onChange={(event) => queue({ ...draft, description: event.target.value })}
-            placeholder="What this conversation is for"
+            placeholder={t("What this conversation is for")}
             value={draft.description}
           />
         </div>
         {saveState === "error" && (
-          <p className="text-xs text-destructive">Could not save. Your draft is still here.</p>
+          <p className="text-xs text-destructive">
+            {t("Could not save. Your draft is still here.")}
+          </p>
         )}
       </div>
     </div>
@@ -529,6 +544,7 @@ export const Inspector = memo(function Inspector({
   routineOpenRequest?: { routineId: string; nonce: number } | null;
   onBotAction?: (bot: BotView, action: BotSettingsAction) => void;
 }) {
+  const { t } = useI18n();
   const members = useMemo(
     () =>
       channel.members
@@ -579,7 +595,7 @@ export const Inspector = memo(function Inspector({
 
   if (bot && mode === "settings") {
     return (
-      <aside aria-label="Settings" className="size-full bg-background">
+      <aside aria-label={t("Settings")} className="size-full bg-background">
         <BotSettings
           active={active}
           bot={bot}
@@ -596,7 +612,7 @@ export const Inspector = memo(function Inspector({
 
   if (!bot && mode === "settings") {
     return (
-      <aside aria-label="Settings" className="size-full bg-background">
+      <aside aria-label={t("Settings")} className="size-full bg-background">
         <GroupSettings
           botById={botById}
           channel={channel}
@@ -612,7 +628,9 @@ export const Inspector = memo(function Inspector({
     return (
       <aside className="size-full bg-background">
         <Suspense
-          fallback={<div aria-label="Loading routine editor" className="size-full" role="status" />}
+          fallback={
+            <div aria-label={t("Loading routine editor")} className="size-full" role="status" />
+          }
         >
           <RoutineEditor
             active={active}
@@ -633,9 +651,11 @@ export const Inspector = memo(function Inspector({
     <aside className="flex size-full flex-col bg-background px-4 pb-5 pt-11">
       {bot ? (
         <Suspense
-          fallback={<div aria-label="Loading bot details" className="size-full" role="status" />}
+          fallback={
+            <div aria-label={t("Loading bot details")} className="size-full" role="status" />
+          }
         >
-          <section aria-label="Computer preview">
+          <section aria-label={t("Computer preview")}>
             <BotScreen
               active={active}
               bot={bot}
@@ -647,8 +667,8 @@ export const Inspector = memo(function Inspector({
             />
             <div className="mt-2 text-center text-[12px] leading-4 text-muted-foreground">
               {bot.status === "provisioning"
-                ? `Starting ${bot.name}'s screen…`
-                : `${bot.name}'s screen`}
+                ? t("Starting {name}'s screen…", { name: bot.name })
+                : t("{name}'s screen", { name: bot.name })}
             </div>
           </section>
           {/* <BotMemoryButton bot={bot} active={active} /> */}
@@ -664,8 +684,10 @@ export const Inspector = memo(function Inspector({
         </Suspense>
       ) : (
         <>
-          <section aria-label="Members" className="sand-group-members-section">
-            <div className="px-2 text-[12px] leading-5 text-foreground-secondary">Members</div>
+          <section aria-label={t("Members")} className="sand-group-members-section">
+            <div className="px-2 text-[12px] leading-5 text-foreground-secondary">
+              {t("Members")}
+            </div>
             <div className="mt-1">
               {members.map((member) => (
                 <div
@@ -673,7 +695,7 @@ export const Inspector = memo(function Inspector({
                   key={member.id}
                 >
                   <button
-                    aria-label={`Open ${member.name}'s chat`}
+                    aria-label={t("Open {name}'s chat", { name: member.name })}
                     className="sand-group-member-open flex min-w-0 flex-1 items-center gap-2.5 rounded-[8px] px-1.5 py-1 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring/35"
                     onClick={() => onAiTeamOS(member.id)}
                     type="button"
@@ -684,7 +706,7 @@ export const Inspector = memo(function Inspector({
                     </span>
                   </button>
                   <button
-                    aria-label={`Remove ${member.name}`}
+                    aria-label={t("Remove {name}", { name: member.name })}
                     className="mr-1 grid size-6 shrink-0 place-items-center rounded-[7px] text-foreground-secondary opacity-0 outline-none transition-opacity hover:bg-black/[0.055] hover:text-foreground focus:opacity-100 focus-visible:ring-2 focus-visible:ring-ring/35 group-hover:opacity-100 disabled:pointer-events-none dark:hover:bg-white/[0.08]"
                     disabled={members.length <= 1 || memberMutationPending}
                     onClick={() => setRemoveMemberTarget(member)}
@@ -704,7 +726,7 @@ export const Inspector = memo(function Inspector({
                     type="button"
                   >
                     <Plus className="size-4" strokeWidth={1.7} />
-                    <span>Add Member</span>
+                    <span>{t("Add Member")}</span>
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent
@@ -719,7 +741,7 @@ export const Inspector = memo(function Inspector({
                       onSelect={() =>
                         void setMembers(
                           [...memberIds, candidate.id],
-                          "Adding failed. Check your connection and try again."
+                          t("Adding failed. Check your connection and try again.")
                         )
                       }
                     >
@@ -734,7 +756,9 @@ export const Inspector = memo(function Inspector({
               <p className="mt-1 px-2 text-[11px] text-destructive">{memberMutationError}</p>
             )}
           </section>
-          <Suspense fallback={<div aria-label="Loading group routines" className="mt-4 h-16" />}>
+          <Suspense
+            fallback={<div aria-label={t("Loading group routines")} className="mt-4 h-16" />}
+          >
             <RoutinesSummary
               active={active}
               ownerId={channel.id}
@@ -752,11 +776,13 @@ export const Inspector = memo(function Inspector({
             <AlertDialogContent aria-describedby={undefined}>
               <AlertDialogHeader>
                 <AlertDialogTitle>
-                  Remove {removeMemberTarget?.name} from this conversation?
+                  {t("Remove {name} from this conversation?", {
+                    name: removeMemberTarget?.name ?? "",
+                  })}
                 </AlertDialogTitle>
               </AlertDialogHeader>
               <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogCancel>{t("Cancel")}</AlertDialogCancel>
                 <AlertDialogAction
                   disabled={memberMutationPending}
                   onClick={(event) => {
@@ -765,13 +791,13 @@ export const Inspector = memo(function Inspector({
                     if (!targetId || memberIds.length <= 1) return;
                     void setMembers(
                       memberIds.filter((id) => id !== targetId),
-                      "Removing failed. Check your connection and try again."
+                      t("Removing failed. Check your connection and try again.")
                     ).then((updated) => {
                       if (updated) setRemoveMemberTarget(null);
                     });
                   }}
                 >
-                  {memberMutationPending ? "Removing..." : "Remove"}
+                  {memberMutationPending ? t("Removing…") : t("Remove")}
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>

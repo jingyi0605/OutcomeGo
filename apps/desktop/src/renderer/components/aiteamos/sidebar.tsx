@@ -49,6 +49,7 @@ import { useVirtualWindow } from "../../hooks/use-virtual-window";
 import { accountPresentation } from "../../lib/account";
 import { channelMessageSummary } from "../../lib/channel-events";
 import { cn } from "../../lib/cn";
+import { useI18n } from "../../lib/i18n";
 import { desktopUpdateProgress, requestDesktopUpdateRestart } from "../../lib/desktop-update";
 import { showsGroupLabel } from "../../lib/group-chat-presentation";
 import {
@@ -130,6 +131,7 @@ function WorkingAvatar({
   ringColor: string;
   size: "sm" | "md" | "pin";
 }) {
+  const { t } = useI18n();
   const composing = useSidebarComposing(channelId);
   return (
     <span
@@ -168,9 +170,14 @@ function UnreadJumpPill({
   target: SidebarUnreadJumpTarget;
   onJump: (target: SidebarUnreadJumpTarget) => void;
 }) {
+  const { t } = useI18n();
+  const unreadLabel = t("{count} unread message{suffix}", {
+    count: target.count,
+    suffix: target.count === 1 ? "" : "s",
+  });
   return (
     <button
-      aria-label={`More unreads ${direction}`}
+      aria-label={t("More unread messages {direction}", { direction })}
       className={cn(
         "sidebar-unread-pill absolute left-1/2 z-[12] inline-flex -translate-x-1/2 cursor-pointer items-center gap-0.5 whitespace-nowrap rounded-full border-0 py-1 pl-1 pr-2 font-[inherit] text-[13px] font-normal leading-[18px] text-[#fcfcfc] outline-none focus-visible:ring-2 focus-visible:ring-ring",
         direction === "above" ? "top-2" : "bottom-2",
@@ -178,7 +185,7 @@ function UnreadJumpPill({
       )}
       data-more-unreads={direction}
       onClick={() => onJump(target)}
-      title={`${target.count} unread message${target.count === 1 ? "" : "s"}`}
+      title={unreadLabel}
       type="button"
     >
       <span className="inline-flex size-5 shrink-0 items-center justify-center">
@@ -188,7 +195,7 @@ function UnreadJumpPill({
           <ArrowDown className="size-4" strokeWidth={1.7} />
         )}
       </span>
-      <span className={compact ? "sr-only" : "inline pr-0.5"}>More unreads</span>
+      <span className={compact ? "sr-only" : "inline pr-0.5"}>{t("More unreads")}</span>
     </button>
   );
 }
@@ -214,6 +221,7 @@ export function AccountMenu({
   compact?: boolean;
   onOpenSettings: () => void;
 }) {
+  const { t } = useI18n();
   const auth = useAuthSession();
   const [signOutOpen, setSignOutOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -253,22 +261,22 @@ export function AccountMenu({
   const progress = update ? desktopUpdateProgress(update) : null;
   const updateLabel =
     update?.status === "downloaded"
-      ? "Restart"
+      ? t("Restart")
       : update?.status === "downloading"
         ? progress === null
-          ? "Updating"
-          : `${progress}%`
+        ? t("Updating")
+        : `${progress}%`
         : update?.status === "installing"
-          ? "Restarting"
-          : "Update";
+        ? t("Restarting")
+        : t("Update");
   const updateDescription =
     update?.status === "downloaded"
-      ? "Update ready. Restart to update aiTeamOS."
+      ? t("Update ready. Restart to update aiTeamOS.")
       : update?.status === "downloading"
-        ? `Downloading aiTeamOS update${progress === null ? "" : `, ${progress}%`}.`
+        ? t("Downloading aiTeamOS update{progress}.", { progress: progress === null ? "" : `, ${progress}%` })
         : update?.status === "installing"
-          ? "Restarting aiTeamOS to install the update."
-          : "An aiTeamOS update is available.";
+          ? t("Restarting aiTeamOS to install the update.")
+          : t("An aiTeamOS update is available.");
   const downloadUpdate = async () => {
     if (!update || startingDownloadRef.current) return;
     setUpdateError(null);
@@ -284,7 +292,7 @@ export function AccountMenu({
     try {
       await window.aiteamos?.updates.openDownload();
     } catch {
-      setUpdateError("Could not download the update. Try again from update settings.");
+      setUpdateError(t("Could not download the update. Try again from update settings."));
     } finally {
       startingDownloadRef.current = false;
       setStartingDownload(false);
@@ -308,7 +316,7 @@ export function AccountMenu({
               setUpdate(value);
               if (value.status === "idle") return window.aiteamos?.updates.check().then(setUpdate);
             })
-            .catch(() => setUpdateError("Could not check for updates. Try again from Settings."));
+            .catch(() => setUpdateError(t("Could not check for updates. Try again from Settings.")));
         }}
       >
         <div className="relative min-w-0" data-account-update={hasUpdate || undefined}>
@@ -342,7 +350,7 @@ export function AccountMenu({
         </div>
         <DropdownMenuContent
           align={compact ? "end" : "start"}
-          aria-label="Account"
+          aria-label={t("Account")}
           onCloseAutoFocus={(event) => {
             if (!openingUpdateDialog.current) return;
             event.preventDefault();
@@ -371,13 +379,13 @@ export function AccountMenu({
             }
           >
             <Smartphone className="size-4" strokeWidth={1.85} />
-            Get aiTeamOS for iOS
+            {t("Get aiTeamOS for iOS")}
           </DropdownMenuItem>
-          <DropdownMenuItem className={menuItem} onSelect={onOpenSettings}><Settings className="size-4" strokeWidth={1.85} />Settings</DropdownMenuItem>
+          <DropdownMenuItem className={menuItem} onSelect={onOpenSettings}><Settings className="size-4" strokeWidth={1.85} />{t("Settings")}</DropdownMenuItem>
           <DropdownMenuSeparator className="mx-1 my-1.5" />
           <DropdownMenuItem className={menuItem} onSelect={() => setSignOutOpen(true)}>
             <LogOut className="size-4" strokeWidth={1.85} />
-            Log out
+            {t("Log out")}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -386,23 +394,23 @@ export function AccountMenu({
         <AlertDialogContent className="max-w-[430px] rounded-[16px]">
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {auth.mode === "required" ? "Log out?" : "Authentication is off"}
+              {auth.mode === "required" ? t("Log out?") : t("Authentication is off")}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {auth.mode === "required"
-                ? "You can sign back in with your aiTeamOS username and password. Your Bots and chats stay on this server."
-                : "This server is running in trusted no-auth mode, so there is no account session to remove."}
+                ? t("You can sign back in with your aiTeamOS username and password. Your Bots and chats stay on this server.")
+                : t("This server is running in trusted no-auth mode, so there is no account session to remove.")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t("Cancel")}</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
                 setSignOutOpen(false);
                 if (auth.mode === "required") void signOut();
               }}
             >
-              {auth.mode === "required" ? "Log out" : "Done"}
+              {auth.mode === "required" ? t("Log out") : t("Done")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -464,17 +472,18 @@ function ChannelPreviewTooltipContent({
   row: ChannelRowData;
   botById: ReadonlyMap<string, BotView>;
 }) {
+  const { t } = useI18n();
   const { channel, latest } = row;
   const working = sidebarRowIsWorking(row);
   const bot = channel.kind === "bot_dm" ? botById.get(channel.members[0]?.botId ?? "") : undefined;
   const description = working
-    ? "Working…"
+    ? t("Working…")
     : bot?.status === "provisioning"
-      ? "Starting up…"
+      ? t("Starting up…")
       : bot?.status === "failed"
-        ? "Setup needs attention"
+        ? t("Setup needs attention")
         : latestMessagePreview(row, botById) ||
-          (channel.kind === "agent_dm" ? "Private bot exchange" : latest ? "" : "No messages yet");
+          (channel.kind === "agent_dm" ? t("Private bot exchange") : latest ? "" : t("No messages yet"));
 
   return (
     <TooltipContent
@@ -564,10 +573,11 @@ function MoveMenu({
   onCreateSection: (channelId: string) => void;
   onMoveToSection: (channelId: string, sectionId: string | null) => void;
 }) {
+  const { t } = useI18n();
   if (sections.length === 0) {
     return (
       <ContextMenuItem onSelect={() => onCreateSection(channelId)}>
-        <FolderPlus className="size-4" /> Move to new section
+        <FolderPlus className="size-4" /> {t("Move to new section")}
       </ContextMenuItem>
     );
   }
@@ -575,7 +585,7 @@ function MoveMenu({
   return (
     <ContextMenuSub>
       <ContextMenuSubTrigger>
-        <Folder className="size-4" /> Move to
+        <Folder className="size-4" /> {t("Move to")}
         <ChevronRight className="ml-auto size-3.5" />
       </ContextMenuSubTrigger>
       <ContextMenuSubContent className="w-[180px]">
@@ -594,11 +604,11 @@ function MoveMenu({
           <Check
             className={cn("size-4", currentSectionId === null ? "opacity-100" : "opacity-0")}
           />
-          Unassigned
+          {t("Unassigned")}
         </ContextMenuItem>
         <ContextMenuSeparator />
         <ContextMenuItem onSelect={() => onCreateSection(channelId)}>
-          <FolderPlus className="size-4" /> New section
+          <FolderPlus className="size-4" /> {t("New section")}
         </ContextMenuItem>
       </ContextMenuSubContent>
     </ContextMenuSub>
@@ -632,12 +642,13 @@ function BotContextMenu({
   tooltipContent?: React.ReactNode;
   children: React.ReactNode;
 }) {
+  const { t } = useI18n();
   const [renaming, setRenaming] = useState(false);
   const menuContent = (
     <ContextMenuContent className="w-[202px]" onCloseAutoFocus={(event) => { if (renaming) event.preventDefault(); }}>
       <ContextMenuItem onSelect={() => onBotAction(bot, "togglePin")}>
         {pinned ? <PinOff className="size-4" /> : <Pin className="size-4" />}
-        {pinned ? "Unpin" : "Pin"}
+        {pinned ? t("Unpin") : t("Pin")}
       </ContextMenuItem>
       {showMove && (
         <MoveMenu
@@ -649,27 +660,27 @@ function BotContextMenu({
         />
       )}
       <ContextMenuItem onSelect={() => onBotAction(bot, "toggleUnread")}>
-        <BellDot className="size-4" /> {unread ? "Mark as Read" : "Mark as Unread"}
+        <BellDot className="size-4" /> {unread ? t("Mark as Read") : t("Mark as Unread")}
       </ContextMenuItem>
       {bot.status === "failed" && (
         <ContextMenuItem onSelect={() => onBotAction(bot, "retry")}>
-          <RotateCw className="size-4" /> Retry setup
+          <RotateCw className="size-4" /> {t("Retry setup")}
         </ContextMenuItem>
       )}
       <ContextMenuSeparator />
       <ContextMenuItem onSelect={() => setRenaming(true)}>
-        <Pencil className="size-4" /> Rename Bot
+        <Pencil className="size-4" /> {t("Rename Bot")}
       </ContextMenuItem>
       <ContextMenuItem onSelect={() => onBotAction(bot, "editProfile")}>
-        <Pencil className="size-4" /> Edit Profile
+        <Pencil className="size-4" /> {t("Edit Profile")}
       </ContextMenuItem>
       <ContextMenuSeparator />
       <ContextMenuItem onSelect={() => onBotAction(bot, "copyConversationId")}>
-        <Copy className="size-4" /> Copy conversation ID
+        <Copy className="size-4" /> {t("Copy conversation ID")}
       </ContextMenuItem>
       {SHOW_INTERNAL_ASYNC_TASKS && (
         <ContextMenuItem onSelect={() => onBotAction(bot, "showAsyncTasks")}>
-          <Clock3 className="size-4" /> Show async tasks
+          <Clock3 className="size-4" /> {t("Show async tasks")}
         </ContextMenuItem>
       )}
       <ContextMenuSeparator />
@@ -677,7 +688,7 @@ function BotContextMenu({
         className="text-destructive data-[highlighted]:text-destructive [&_svg]:text-destructive"
         onSelect={() => onBotAction(bot, "delete")}
       >
-        <Trash2 className="size-4" /> Delete
+        <Trash2 className="size-4" /> {t("Delete")}
       </ContextMenuItem>
     </ContextMenuContent>
   );
@@ -721,11 +732,12 @@ function GroupContextMenu({
   tooltipContent?: React.ReactNode;
   children: React.ReactNode;
 }) {
+  const { t } = useI18n();
   const menuContent = (
     <ContextMenuContent className="w-[202px]">
       <ContextMenuItem onSelect={() => onGroupAction(channel, "togglePin")}>
         {pinned ? <PinOff className="size-4" /> : <Pin className="size-4" />}
-        {pinned ? "Unpin" : "Pin"}
+        {pinned ? t("Unpin") : t("Pin")}
       </ContextMenuItem>
       {showMove && (
         <MoveMenu
@@ -737,21 +749,21 @@ function GroupContextMenu({
         />
       )}
       <ContextMenuItem onSelect={() => onGroupAction(channel, "toggleUnread")}>
-        <BellDot className="size-4" /> {unread ? "Mark as Read" : "Mark as Unread"}
+        <BellDot className="size-4" /> {unread ? t("Mark as Read") : t("Mark as Unread")}
       </ContextMenuItem>
       <ContextMenuSeparator />
       <ContextMenuItem onSelect={() => onGroupAction(channel, "editProfile")}>
-        <Pencil className="size-4" /> Edit Profile
+        <Pencil className="size-4" /> {t("Edit Profile")}
       </ContextMenuItem>
       <ContextMenuItem onSelect={() => onGroupAction(channel, "copyConversationId")}>
-        <Copy className="size-4" /> Copy conversation ID
+        <Copy className="size-4" /> {t("Copy conversation ID")}
       </ContextMenuItem>
       <ContextMenuSeparator />
       <ContextMenuItem
         className="text-destructive data-[highlighted]:text-destructive [&_svg]:text-destructive"
         onSelect={() => onGroupAction(channel, "delete")}
       >
-        <Trash2 className="size-4" /> Delete
+        <Trash2 className="size-4" /> {t("Delete")}
       </ContextMenuItem>
     </ContextMenuContent>
   );
@@ -807,6 +819,7 @@ const ChannelRow = memo(function ChannelRow({
   onMoveToSection: (channelId: string, sectionId: string | null) => void;
   dragHandleRef?: (element: HTMLButtonElement | null) => void;
 }) {
+  const { t } = useI18n();
   const { channel, running } = row;
   const needsAttention = false;
   const working = sidebarRowIsWorking(row);
@@ -818,13 +831,13 @@ const ChannelRow = memo(function ChannelRow({
   const preview = onboardingInProgress
     ? latestPreview
     : needsAttention
-      ? "Needs your input"
+      ? t("Needs your input")
       : bot?.status === "provisioning"
-          ? "Starting up…"
+          ? t("Starting up…")
           : bot?.status === "failed"
-            ? "Setup needs attention"
+            ? t("Setup needs attention")
             : latestPreview ||
-              (channel.kind === "agent_dm" ? "Private bot exchange" : "");
+              (channel.kind === "agent_dm" ? t("Private bot exchange") : "");
   const content = (
     <Button
       className={cn(
@@ -852,18 +865,18 @@ const ChannelRow = memo(function ChannelRow({
             </span>
             {bot?.title || showsGroupLabel(channel) ? (
               <span className="max-w-24 shrink-0 truncate rounded-[4px] bg-black/[0.07] px-1.5 py-px text-[11px] font-normal leading-[15px] text-foreground-secondary dark:bg-white/[0.1] dark:text-[#ababab]">
-                {bot?.title || "Group"}
+                {bot?.title || t("Group")}
               </span>
             ) : null}
             {pinned && (
-              <Pin aria-label="Pinned" className="size-2.5 shrink-0 text-foreground-tertiary" />
+              <Pin aria-label={t("Pinned")} className="size-2.5 shrink-0 text-foreground-tertiary" />
             )}
           </span>
         </span>
         <span className="mt-px flex min-w-0 items-center gap-1.5">
           {needsAttention ? (
             <span
-              aria-label="Needs your input"
+              aria-label={t("Needs your input")}
               className="sidebar-status-reveal size-1.5 shrink-0 rounded-full bg-amber-500"
               role="img"
             />
@@ -965,6 +978,7 @@ function VirtualizedChannelRows({
   renderRow: (row: ChannelRowData, index: number, group: string) => React.ReactNode;
   onRegisterJumpHandler?: (key: string, handler: SidebarVirtualJumpHandler | null) => void;
 }) {
+  const { t } = useI18n();
   const [focusChannelId, setFocusChannelId] = useState<string | null>(null);
   const scopeRef = useRef<HTMLDivElement>(null);
   const activeIndex = useMemo(() => {
@@ -1016,7 +1030,7 @@ function VirtualizedChannelRows({
 
   return (
     <div
-      aria-label={`${rows.length} chats`}
+      aria-label={t("{count} chats", { count: rows.length })}
       className="relative w-full"
       data-virtual-sidebar-count={rows.length}
       onKeyDownCapture={(event) => {
@@ -1089,6 +1103,7 @@ function DraggablePinnedTile({
   onCreateSection: (channelId: string) => void;
   onMoveToSection: (channelId: string, sectionId: string | null) => void;
 }) {
+  const { t } = useI18n();
   const { channel } = row;
   const needsAttention = false;
   const working = sidebarRowIsWorking(row);
@@ -1100,7 +1115,7 @@ function DraggablePinnedTile({
   });
   const tile = (
     <Button
-      aria-label={`Open pinned ${channel.name}`}
+      aria-label={t("Open pinned {name}", { name: channel.name })}
       className={cn(
         "flex h-[106px] w-full touch-none flex-col justify-start gap-1 rounded-[10px] px-1 pt-2 text-center font-normal transition-[background-color,transform]",
         selected ? "bg-selected hover:bg-selected" : "hover:bg-hover"
@@ -1127,7 +1142,7 @@ function DraggablePinnedTile({
       <span className="mt-0.5 flex w-full min-w-0 items-center justify-center gap-1 px-1 text-[12px]">
         {needsAttention ? (
           <span
-            aria-label="Needs your input"
+            aria-label={t("Needs your input")}
             className="sidebar-status-reveal size-1.5 shrink-0 rounded-full bg-amber-500"
           />
         ) : null}
@@ -1214,6 +1229,7 @@ function VirtualizedPinnedTiles({
   unreadIds: ReadonlySet<string>;
   onRegisterJumpHandler?: (key: string, handler: SidebarVirtualJumpHandler | null) => void;
 }) {
+  const { t } = useI18n();
   const [responsiveColumns, setResponsiveColumns] = useState(() =>
     pinnedGridColumnCount(sidebarWidth)
   );
@@ -1292,7 +1308,7 @@ function VirtualizedPinnedTiles({
 
   return (
     <div
-      aria-label={`${rows.length} pinned chats`}
+      aria-label={t("{count} pinned chats", { count: rows.length })}
       className="relative w-full rounded-[12px] p-[6px]"
       data-pinned-grid=""
       data-virtual-pinned-sidebar-count={rows.length}
@@ -1543,6 +1559,7 @@ function SectionGroup({
   onDelete: () => void;
   onToggle: () => void;
 }) {
+  const { t } = useI18n();
   const { ref, isDragging } = useSortable({
     id: `section:${section.id}`,
     index: sectionIndex,
@@ -1583,7 +1600,7 @@ function SectionGroup({
               data-section-id={section.id}
             >
               <Input
-                aria-label="Section name"
+                aria-label={t("Section name")}
                 autoFocus
                 className="h-[30px] flex-1 -translate-y-[1.5px] rounded-none border-0 bg-transparent p-0 text-[12px] font-normal text-foreground-tertiary shadow-none selection:bg-[#afd3f5] selection:text-foreground-tertiary focus-visible:border-transparent focus-visible:ring-0 dark:text-foreground-secondary"
                 maxLength={48}
@@ -1617,23 +1634,23 @@ function SectionGroup({
               </ContextMenuTrigger>
               <ContextMenuContent className="w-[180px]">
                 <ContextMenuItem onSelect={onRename}>
-                  <Pencil className="size-4" /> Rename
+                  <Pencil className="size-4" /> {t("Rename")}
                 </ContextMenuItem>
                 <ContextMenuItem disabled={sectionIndex === 0} onSelect={() => onMove(-1)}>
-                  <ArrowUp className="size-4" /> Move up
+                  <ArrowUp className="size-4" /> {t("Move up")}
                 </ContextMenuItem>
                 <ContextMenuItem
                   disabled={sectionIndex === sectionCount - 1}
                   onSelect={() => onMove(1)}
                 >
-                  <ArrowDown className="size-4" /> Move down
+                  <ArrowDown className="size-4" /> {t("Move down")}
                 </ContextMenuItem>
                 <ContextMenuSeparator />
                 <ContextMenuItem
                   className="text-destructive data-[highlighted]:text-destructive [&_svg]:text-destructive"
                   onSelect={onDelete}
                 >
-                  <Trash2 className="size-4" /> Delete
+                  <Trash2 className="size-4" /> {t("Delete")}
                 </ContextMenuItem>
               </ContextMenuContent>
             </ContextMenu>
@@ -1659,7 +1676,7 @@ function SectionGroup({
                 className="flex h-7 items-center px-2 text-[12px] font-normal text-foreground-tertiary"
                 data-empty-section={section.id}
               >
-                Drag chats here
+                {t("Drag chats here")}
               </div>
             )}
           </div>
@@ -1684,6 +1701,7 @@ function VirtualizedSections({
   sections: SidebarSection[];
   onRegisterJumpHandler?: (key: string, handler: SidebarVirtualJumpHandler | null) => void;
 }) {
+  const { t } = useI18n();
   const [focusSectionId, setFocusSectionId] = useState<string | null>(null);
   const scopeRef = useRef<HTMLDivElement>(null);
   const activeIndex = useMemo(() => {
@@ -1746,7 +1764,7 @@ function VirtualizedSections({
 
   return (
     <div
-      aria-label={`${sections.length} chat sections`}
+      aria-label={t("{count} chat sections", { count: sections.length })}
       className="relative w-full shrink-0"
       data-virtual-sidebar-sections={sections.length}
       onKeyDownCapture={(event) => {
@@ -1813,6 +1831,7 @@ function CompactChannelTile({
   onFocus?: () => void;
   tabIndex?: number;
 }) {
+  const { t } = useI18n();
   const { channel } = row;
   const needsAttention = false;
   const working = sidebarRowIsWorking(row);
@@ -1821,7 +1840,13 @@ function CompactChannelTile({
     <Tooltip>
       <TooltipTrigger asChild>
         <Button
-          aria-label={`Open ${channel.name}${needsAttention ? ", needs your input" : unread ? ", unread" : ""}`}
+          aria-label={
+            needsAttention
+              ? t("Open {name}, needs your input", { name: channel.name })
+              : unread
+                ? t("Open {name}, unread", { name: channel.name })
+                : t("Open {name}", { name: channel.name })
+          }
           className={cn(
             "relative flex size-[54px] shrink-0 items-center justify-center rounded-[11px] p-0 transition-colors",
             selected ? "bg-selected hover:bg-selected" : "hover:bg-hover"
@@ -1879,6 +1904,7 @@ function VirtualizedCompactChannels({
   onSelect: (id: string, focusComposer?: boolean) => void;
   scrollRef: React.RefObject<HTMLElement | null>;
 }) {
+  const { t } = useI18n();
   const entries = useMemo<CompactVirtualEntry[]>(
     () =>
       groups.flatMap((group, groupIndex) => [
@@ -1958,7 +1984,7 @@ function VirtualizedCompactChannels({
 
   return (
     <ul
-      aria-label={`${channelIds.length} chats`}
+      aria-label={t("{count} chats", { count: channelIds.length })}
       className="relative w-full"
       data-virtual-compact-sidebar-count={entries.length}
       onKeyDownCapture={(event) => {
@@ -2068,6 +2094,7 @@ function CompactSidebarContent({
   onNewBot: () => void;
   onOpenPlugins: () => void;
 }) {
+  const { t } = useI18n();
   const scrollRef = useRef<HTMLElement>(null);
   const channelCount = groups.reduce((count, group) => count + group.rows.length, 0);
   const metrics = useMemo(() => {
@@ -2193,7 +2220,7 @@ function CompactSidebarContent({
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
-              aria-label="New chat"
+              aria-label={t("New chat")}
               className="size-7 rounded-[7px] p-0 text-foreground-tertiary hover:bg-subtle hover:text-foreground-secondary"
               onClick={onNewBot}
               variant="ghost"
@@ -2201,15 +2228,15 @@ function CompactSidebarContent({
               <Plus className="size-5" strokeWidth={1.8} />
             </Button>
           </TooltipTrigger>
-          <TooltipContent side="top">New chat</TooltipContent>
+          <TooltipContent side="top">{t("New chat")}</TooltipContent>
         </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button aria-label="Marketplace" data-marketplace-trigger="" className="size-7 rounded-[7px] p-0 text-foreground-tertiary hover:bg-hover" onClick={onOpenPlugins} variant="ghost">
+            <Button aria-label={t("Marketplace")} data-marketplace-trigger="" className="size-7 rounded-[7px] p-0 text-foreground-tertiary hover:bg-hover" onClick={onOpenPlugins} variant="ghost">
               <MarketplaceIcon />
             </Button>
           </TooltipTrigger>
-          <TooltipContent side="right">Marketplace</TooltipContent>
+          <TooltipContent side="right">{t("Marketplace")}</TooltipContent>
         </Tooltip>
       </div>
     </>
@@ -2285,6 +2312,7 @@ export const Sidebar = memo(function Sidebar({
   pendingBot?: { name: string } | null;
   preferences: SidebarPreferencesController;
 }) {
+  const { t } = useI18n();
   const auth = useAuthSession();
   const account = accountPresentation(auth.user, auth.mode);
   const [editingSectionId, setEditingSectionId] = useState<string | null>(null);
@@ -2396,7 +2424,9 @@ export const Sidebar = memo(function Sidebar({
       resizer.setAttribute("aria-valuenow", String(visibleWidth));
       resizer.setAttribute(
         "aria-valuetext",
-        visibleWidth === COMPACT_SIDEBAR_WIDTH ? "Compact" : `${visibleWidth} pixels`
+        visibleWidth === COMPACT_SIDEBAR_WIDTH
+          ? t("Compact")
+          : t("{width} pixels", { width: visibleWidth })
       );
     };
     const observer = new ResizeObserver(() => syncVisibleWidth(true));
@@ -2570,10 +2600,10 @@ export const Sidebar = memo(function Sidebar({
   const createSection = useCallback(
     (channelId: string) => {
       const sectionId = preferences.createSection(channelId);
-      setSectionDraft("New section");
+      setSectionDraft(t("New section"));
       setEditingSectionId(sectionId);
     },
-    [preferences.createSection]
+    [preferences.createSection, t]
   );
   const applySidebarWidth = useCallback((width: number) => {
     const next = Math.min(maxExpandedWidth, clampSidebarWidth(width));
@@ -2585,7 +2615,7 @@ export const Sidebar = memo(function Sidebar({
       sidebarResizerRef.current.setAttribute("aria-valuenow", String(next));
       sidebarResizerRef.current.setAttribute(
         "aria-valuetext",
-        next === COMPACT_SIDEBAR_WIDTH ? "Compact" : `${Math.round(next)} pixels`
+        next === COMPACT_SIDEBAR_WIDTH ? t("Compact") : t("{width} pixels", { width: Math.round(next) })
       );
     }
     return next;
@@ -2832,24 +2862,24 @@ export const Sidebar = memo(function Sidebar({
           <div className="electron-drag flex h-[47px] shrink-0 items-center justify-end gap-0.5 px-[13px] pt-0.5">
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button aria-label="New chat" className="electron-no-drag size-7 rounded-[7px] text-foreground-tertiary hover:bg-subtle hover:text-foreground dark:text-foreground-secondary" onClick={onNewBot} size="icon-sm" variant="ghost">
+                <Button aria-label={t("New chat")} className="electron-no-drag size-7 rounded-[7px] text-foreground-tertiary hover:bg-subtle hover:text-foreground dark:text-foreground-secondary" onClick={onNewBot} size="icon-sm" variant="ghost">
                   <Plus className="size-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side="bottom">New chat</TooltipContent>
+              <TooltipContent side="bottom">{t("New chat")}</TooltipContent>
             </Tooltip>
           </div>
           <div className="relative px-[12px] pb-[9px]">
             <Search className="pointer-events-none absolute left-5 top-[10px] z-10 size-[14px] text-foreground-secondary" />
             <button
-              aria-label="Search"
+              aria-label={t("Search")}
               className="relative top-px flex h-[32px] w-full items-center rounded-[8px] bg-field pl-[26.5px] pr-2 text-left text-[13.5px] text-foreground-secondary shadow-[inset_0_0_0_0.5px_var(--input)] outline-none focus-visible:shadow-[inset_0_0_0_0.5px_var(--ring)]"
               onClick={onSearch}
               onFocus={onPreloadSearch}
               onPointerEnter={onPreloadSearch}
               type="button"
             >
-              Search
+              {t("Search")}
             </button>
           </div>
           <DragDropProvider
@@ -2973,7 +3003,7 @@ export const Sidebar = memo(function Sidebar({
                   <div className="grid">
                     <TransitionDropZone
                       group={PINNED_GROUP_ID}
-                      label="Drag here to pin"
+                      label={t("Drag here to pin")}
                       settling={false}
                       visible={pinTargetVisible && groups.pinned.length === 0}
                     />
@@ -3047,7 +3077,7 @@ export const Sidebar = memo(function Sidebar({
                         {pendingBot.name}
                       </span>
                       <span className="mt-px block text-[13px] leading-4 text-foreground-secondary">
-                        Creating…
+                        {t("Creating…")}
                       </span>
                     </span>
                   </div>
@@ -3098,7 +3128,7 @@ export const Sidebar = memo(function Sidebar({
                           type="button"
                         >
                           <span className="min-w-0 flex-1 -translate-y-[1.5px] truncate text-left">
-                            Unassigned
+                            {t("Unassigned")}
                           </span>
                           <SectionDisclosure
                             collapsed={preferences.unassignedCollapsed}
@@ -3183,7 +3213,7 @@ export const Sidebar = memo(function Sidebar({
       <div className="sidebar-account-footer">
         <AccountMenu compact={compact} onOpenSettings={onOpenSettings}>
           <button
-            aria-label={`Account: ${account.name}`}
+            aria-label={t("Account: {name}", { name: account.name })}
             data-sidebar-account-trigger=""
             className="sidebar-account-button"
             title={account.name}
@@ -3200,7 +3230,7 @@ export const Sidebar = memo(function Sidebar({
           </button>
         </AccountMenu>
         <button
-          aria-label="Connect apps"
+          aria-label={t("Connect apps")}
           className="sidebar-connect-apps"
           data-marketplace-trigger=""
           data-sidebar-connect-apps=""
@@ -3225,7 +3255,7 @@ export const Sidebar = memo(function Sidebar({
             </svg>
           </span>
           <span className="sidebar-connect-content" aria-hidden="true">
-            <span>Connect apps</span>
+            <span>{t("Connect apps")}</span>
             <span className="sidebar-connect-logos">
               {[calendarLogo, notionLogo, slackLogo].map((logo, index) => (
                 <span
@@ -3244,7 +3274,7 @@ export const Sidebar = memo(function Sidebar({
       </div>
 
       <div
-        aria-label="Resize sidebar"
+        aria-label={t("Resize sidebar")}
         aria-orientation="vertical"
         aria-valuemax={Math.min(maxSidebarWidth(), maxExpandedWidth)}
         aria-valuemin={COMPACT_SIDEBAR_WIDTH}
@@ -3336,19 +3366,19 @@ export const Sidebar = memo(function Sidebar({
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete “{deleteDialogTarget?.name}”</AlertDialogTitle>
+            <AlertDialogTitle>{t("Delete “{name}”", { name: deleteDialogTarget?.name ?? "" })}</AlertDialogTitle>
             <AlertDialogDescription>
-              Its Bots move to Unassigned. No Bots are deleted.
+              {t("Its Bots move to Unassigned. No Bots are deleted.")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t("Cancel")}</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
                 if (deleteDialogTarget) preferences.deleteSection(deleteDialogTarget.id);
               }}
             >
-              Delete
+              {t("Delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

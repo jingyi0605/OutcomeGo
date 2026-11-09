@@ -3,6 +3,7 @@ import type { BotRecipe } from "@aiteamos/contracts";
 import { ChevronLeft, ChevronRight, Globe, LockKeyhole, Plug, X } from "lucide-react";
 import { ScrollArea } from "radix-ui";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useI18n } from "../../lib/i18n";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from "../ui/dialog";
 import { BotAvatar } from "./avatar";
 
@@ -41,6 +42,7 @@ export function TemplateDetails({
   updatedAt?: string;
   error: string;
 }) {
+  const { locale, t } = useI18n();
   const [page, setPage] = useState<Page>({ kind: "overview" });
   const [transition, setTransition] = useState<{
     from: Page;
@@ -99,11 +101,11 @@ export function TemplateDetails({
   const plugins = recipe.plugins ?? [];
   const firstRoutineName = routines[0]?.name ?? routines[0]?.slug ?? "";
   const contextParts = [
-    recipe.profile.description.trim() && "Instructions",
-    memory.length && "memories",
-    skills.length && "skills",
+    recipe.profile.description.trim() && t("Instructions"),
+    memory.length && t("memories"),
+    skills.length && t("skills"),
   ].filter(Boolean) as string[];
-  const contextDescription = new Intl.ListFormat("en", {
+  const contextDescription = new Intl.ListFormat(locale, {
     style: "long",
     type: "conjunction",
   }).format(contextParts);
@@ -118,10 +120,10 @@ export function TemplateDetails({
       : page.kind === "content"
         ? page.title
         : page.kind === "context"
-          ? "Context"
+          ? t("Context")
           : page.kind === "routines"
-            ? "Routines"
-            : "Integrations";
+            ? t("Routines")
+            : t("Integrations");
   const showContent = (
     title: string,
     content: string,
@@ -138,7 +140,7 @@ export function TemplateDetails({
           </h3>
           {updatedLabel && (
             <p className="mt-0.5 text-center text-[13px] leading-[18px] text-foreground-secondary">
-              Last updated {updatedLabel}
+              {t("Last updated {date}", { date: updatedLabel })}
             </p>
           )}
           {recipe.profile.description.trim() && (
@@ -150,7 +152,7 @@ export function TemplateDetails({
             <div className="template-card mt-6 overflow-hidden rounded-xl p-1">
               {contextParts.length > 0 && (
                 <TemplateRow
-                  title="Context"
+                  title={t("Context")}
                   description={contextDescription}
                   target="context"
                   onClick={() => navigate({ kind: "context" }, "push", "context")}
@@ -158,11 +160,14 @@ export function TemplateDetails({
               )}
               {routines.length > 0 && (
                 <TemplateRow
-                  title="Routines"
+                  title={t("Routines")}
                   description={
                     routines.length === 1
                       ? firstRoutineName
-                      : `${firstRoutineName} and ${routines.length - 1} more`
+                      : t("{name} and {count} more", {
+                          name: firstRoutineName,
+                          count: routines.length - 1,
+                        })
                   }
                   target="routines"
                   onClick={() => navigate({ kind: "routines" }, "push", "routines")}
@@ -170,7 +175,7 @@ export function TemplateDetails({
               )}
               {plugins.length > 0 && (
                 <TemplateRow
-                  title="Integrations"
+                  title={t("Integrations")}
                   description={plugins.map((plugin) => plugin.name ?? plugin.pluginId).join(", ")}
                   target="integrations"
                   onClick={() => navigate({ kind: "integrations" }, "push", "integrations")}
@@ -183,7 +188,7 @@ export function TemplateDetails({
         <div className="space-y-4">
           {recipe.profile.description.trim() && (
             <section>
-              <TemplateLabel>Instructions</TemplateLabel>
+              <TemplateLabel>{t("Instructions")}</TemplateLabel>
               <div className="template-card min-h-[148px] whitespace-pre-wrap break-words rounded-xl p-3.5 text-[14px] leading-5">
                 {recipe.profile.description}
               </div>
@@ -191,7 +196,7 @@ export function TemplateDetails({
           )}
           {memory.length > 0 && (
             <section>
-              <TemplateLabel>Memories</TemplateLabel>
+              <TemplateLabel>{t("Memories")}</TemplateLabel>
               <div className="template-card overflow-hidden rounded-xl p-1">
                 {memory.map((item, index) => (
                   <TemplateRow
@@ -209,7 +214,7 @@ export function TemplateDetails({
           )}
           {skills.length > 0 && (
             <section>
-              <TemplateLabel>Skills</TemplateLabel>
+              <TemplateLabel>{t("Skills")}</TemplateLabel>
               <div className="template-card overflow-hidden rounded-xl p-1">
                 {skills.map((skill, index) => (
                   <TemplateRow
@@ -266,14 +271,14 @@ export function TemplateDetails({
         <div className="space-y-4">
           {page.description && (
             <section>
-              <TemplateLabel>Description</TemplateLabel>
+              <TemplateLabel>{t("Description")}</TemplateLabel>
               <div className="template-card whitespace-pre-wrap break-words rounded-xl p-3.5 text-[14px] leading-5">
                 {page.description}
               </div>
             </section>
           )}
           <section>
-            <TemplateLabel>Content</TemplateLabel>
+            <TemplateLabel>{t("Content")}</TemplateLabel>
             <div className="template-card whitespace-pre-wrap break-words rounded-xl p-3.5 text-[14px] leading-5">
               {page.content}
             </div>
@@ -302,7 +307,13 @@ export function TemplateDetails({
             <button
               ref={back}
               type="button"
-              aria-label={page.kind !== "content" ? "Back to template" : `Back to ${page.parent}`}
+              aria-label={
+                page.kind !== "content"
+                  ? t("Back to template")
+                  : page.parent === "context"
+                    ? t("Back to context")
+                    : t("Back to routines")
+              }
               className="grid size-7 shrink-0 place-items-center rounded-lg text-foreground-secondary hover:bg-subtle"
               onClick={() =>
                 navigate({ kind: page.kind === "content" ? page.parent : "overview" }, "pop")
@@ -327,14 +338,14 @@ export function TemplateDetails({
         <DialogClose asChild>
           <button
             type="button"
-            aria-label="Close template details"
+            aria-label={t("Close template details")}
             className="sr-only focus:not-sr-only focus:absolute focus:right-3 focus:top-3 focus:z-30 focus:grid focus:size-7 focus:place-items-center focus:rounded-lg focus:bg-subtle"
           >
             <X className="size-4" />
           </button>
         </DialogClose>
         <DialogDescription className="sr-only">
-          Review version {version} of this Bot template before publishing.
+          {t("Review version {version} of this Bot template before publishing.", { version })}
         </DialogDescription>
         <ScrollArea.Root type="hover" className="relative min-h-0 flex-1 overflow-hidden">
           <ScrollArea.Viewport
@@ -406,8 +417,8 @@ export function TemplateDetails({
             className="flex items-center gap-1.5 text-[12px] text-foreground-secondary"
             title={
               recipe.visibility === "public"
-                ? "Public after publishing"
-                : "People with access to this aiTeamOS installation"
+                ? t("Public after publishing")
+                : t("People with access to this aiTeamOS installation")
             }
           >
             {recipe.visibility === "public" ? (
@@ -415,7 +426,7 @@ export function TemplateDetails({
             ) : (
               <LockKeyhole className="size-3.5" />
             )}
-            {recipe.visibility === "public" ? "Public" : "Team only"}
+            {recipe.visibility === "public" ? t("Public") : t("Team only")}
           </span>
           {action && (
             <button
@@ -424,7 +435,7 @@ export function TemplateDetails({
               onClick={onAction}
               className="template-publish h-8 min-w-[108px] rounded-lg px-2.5 text-[14px] font-normal leading-5"
             >
-              {busy ? "Working…" : action}
+              {busy ? t("Working…") : action}
             </button>
           )}
         </footer>

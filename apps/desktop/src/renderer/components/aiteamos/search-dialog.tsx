@@ -30,6 +30,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { api } from "../../client/aiteamos-api";
 import { cn } from "../../lib/cn";
+import { useI18n } from "../../lib/i18n";
 import {
   isDefaultSearchResultKind,
   moveSearchSelection,
@@ -194,6 +195,7 @@ function OpenSearchDialog({
   onOpenChange,
   onSelectResult,
 }: SearchDialogProps) {
+  const { t } = useI18n();
   const [query, setQuery] = useState("");
   const [documents, setDocuments] = useState<SearchResultView[]>(
     () => freshCachedResults(DEFAULT_SEARCH_KEY) ?? []
@@ -209,12 +211,16 @@ function OpenSearchDialog({
     const element = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const selection = document.getSelection();
     const range = selection?.rangeCount ? selection.getRangeAt(0) : null;
-    return { element, range: range && element?.contains(range.commonAncestorContainer) ? range.cloneRange() : null };
+    return {
+      element,
+      range: range && element?.contains(range.commonAncestorContainer) ? range.cloneRange() : null,
+    };
   });
   const restoreFocusOnClose = useRef(true);
   const focusRestored = useRef(false);
   const restoreCallerFocus = () => {
-    if (!restoreFocusOnClose.current || focusRestored.current || !returnFocus.element?.isConnected) return;
+    if (!restoreFocusOnClose.current || focusRestored.current || !returnFocus.element?.isConnected)
+      return;
     focusRestored.current = true;
     returnFocus.element.focus({ preventScroll: true });
     if (returnFocus.range) {
@@ -298,7 +304,7 @@ function OpenSearchDialog({
           .catch((requestError) => {
             if (controller.signal.aborted || !requestGate.isCurrent(requestToken)) return;
             setDocuments([]);
-            setError(requestError instanceof Error ? requestError.message : "Search failed");
+            setError(requestError instanceof Error ? requestError.message : t("Search failed"));
           })
           .finally(() => {
             if (!controller.signal.aborted && requestGate.isCurrent(requestToken)) {
@@ -363,7 +369,6 @@ function OpenSearchDialog({
     onOpenChange(false);
   };
 
-
   return (
     <Dialog onOpenChange={changeOpen} open={open}>
       <DialogContent
@@ -379,10 +384,10 @@ function OpenSearchDialog({
         showCloseButton={false}
       >
         <DialogTitle aria-hidden="true" className="sr-only">
-          Search
+          {t("Search")}
         </DialogTitle>
         <DialogDescription aria-hidden="true" className="sr-only">
-          Search messages, bots, groups, files, links, routines, and actions.
+          {t("Search messages, bots, groups, files, links, routines, and actions.")}
         </DialogDescription>
         <div className="relative border-b border-border/70">
           <Search className="pointer-events-none absolute left-4 top-1/2 size-[15px] -translate-y-1/2 text-foreground-tertiary" />
@@ -395,7 +400,7 @@ function OpenSearchDialog({
                 : undefined
             }
             aria-expanded={results.length > 0}
-            aria-label="Search"
+            aria-label={t("Search")}
             className="h-[54px] w-full bg-transparent pl-10 pr-4 text-[14px] outline-none placeholder:text-foreground-tertiary"
             onChange={(event) => setQuery(event.target.value)}
             onKeyDown={(event) => {
@@ -418,7 +423,7 @@ function OpenSearchDialog({
                 choose(results[selectedIndex]);
               }
             }}
-            placeholder="Search"
+            placeholder={t("Search")}
             ref={inputRef}
             role="combobox"
             value={query}
@@ -429,33 +434,45 @@ function OpenSearchDialog({
           className="search-results-scroll min-h-0 overflow-y-auto p-2"
           id="search-results"
           ref={listRef}
-          aria-label="Results"
+          aria-label={t("Results")}
           role="listbox"
         >
           {results.length > 0 ? (
             results.map((result, index) => {
               const key = result.type === "action" ? `action:${result.value.id}` : result.value.id;
-              const channel = result.type === "document" && result.value.channelId
-                ? channelById.get(result.value.channelId) : undefined;
-              const bot = result.type === "document" && result.value.botId
-                ? botById.get(result.value.botId) : undefined;
-              const description = result.type === "document" && result.value.kind === "bot"
-                ? bot?.description ?? result.value.subtitle
-                : result.type === "document" && result.value.kind === "channel" && channel
-                  ? channel.members.map((member) => botById.get(member.botId)?.name).filter(Boolean).join(", ")
-                  : result.value.subtitle;
-              const age = result.type === "document" && (result.value.kind === "message" || result.value.kind === "file")
-                ? searchTimeLabel(result.value.createdAt) : "";
+              const channel =
+                result.type === "document" && result.value.channelId
+                  ? channelById.get(result.value.channelId)
+                  : undefined;
+              const bot =
+                result.type === "document" && result.value.botId
+                  ? botById.get(result.value.botId)
+                  : undefined;
+              const description =
+                result.type === "document" && result.value.kind === "bot"
+                  ? (bot?.description ?? result.value.subtitle)
+                  : result.type === "document" && result.value.kind === "channel" && channel
+                    ? channel.members
+                        .map((member) => botById.get(member.botId)?.name)
+                        .filter(Boolean)
+                        .join(", ")
+                    : result.value.subtitle;
+              const age =
+                result.type === "document" &&
+                (result.value.kind === "message" || result.value.kind === "file")
+                  ? searchTimeLabel(result.value.createdAt)
+                  : "";
               const subtitle = [description, age].filter(Boolean).join(" · ");
-              const unread = result.type === "document" && (result.value.kind === "bot" || result.value.kind === "channel") && (channel?.unreadCount ?? 0) > 0;
+              const unread =
+                result.type === "document" &&
+                (result.value.kind === "bot" || result.value.kind === "channel") &&
+                (channel?.unreadCount ?? 0) > 0;
               return (
                 <button
                   aria-selected={selectedIndex === index}
                   className={cn(
                     "group flex min-h-[51px] w-full items-center gap-2.5 rounded-[10px] px-2.5 py-1.5 text-left outline-none",
-                    selectedIndex === index
-                      ? "bg-selected"
-                      : "hover:bg-hover"
+                    selectedIndex === index ? "bg-selected" : "hover:bg-hover"
                   )}
                   data-search-result-index={index}
                   id={`search-result-${index}`}
@@ -482,41 +499,50 @@ function OpenSearchDialog({
                         )
                       )}
                     </span>
-                    {subtitle && <span className="block truncate text-[12px] leading-[17px] text-foreground-secondary">{subtitle}</span>}
+                    {subtitle && (
+                      <span className="block truncate text-[12px] leading-[17px] text-foreground-secondary">
+                        {subtitle}
+                      </span>
+                    )}
                   </span>
-                  {unread && <span aria-label="Unread" className="size-1.5 shrink-0 rounded-full bg-[var(--control-accent)]" />}
+                  {unread && (
+                    <span
+                      aria-label={t("Unread")}
+                      className="size-1.5 shrink-0 rounded-full bg-[var(--control-accent)]"
+                    />
+                  )}
                   {commandHeld && index < 9 ? (
                     <kbd className="h-[19px] min-w-[26px] shrink-0 rounded-[5px] bg-[#f3f3f3] px-[5px] py-0 text-center font-sans text-[10px] font-normal leading-[19px] text-[#626262] dark:bg-subtle dark:text-foreground-tertiary">
                       ⌘{index + 1}
                     </kbd>
                   ) : result.type === "action" && result.value.current ? (
                     <Check
-                      aria-label="Current"
+                      aria-label={t("Current")}
                       className="size-3.5 shrink-0 text-foreground-secondary"
                     />
                   ) : (
-                    <span className="sr-only">
-                      {resultTypeLabel(result)}
-                    </span>
+                    <span className="sr-only">{t(resultTypeLabel(result))}</span>
                   )}
                 </button>
               );
             })
           ) : loading ? (
             <div className="grid h-full place-items-center text-foreground-tertiary">
-              <LoadingOrb label="Searching" />
+              <LoadingOrb label={t("Searching")} />
             </div>
           ) : error ? (
             <div className="grid h-full place-items-center px-8 text-center">
               <div>
-                <p className="text-sm font-medium">Search is unavailable</p>
+                <p className="text-sm font-medium">{t("Search is unavailable")}</p>
                 <p className="mt-1 text-xs text-destructive">{error}</p>
               </div>
             </div>
           ) : (
             <div className="grid h-full place-items-center px-8 text-center">
               <div>
-                <p className="text-[12px] text-foreground-secondary">{hasQuery ? "No results" : "Nothing here yet"}</p>
+                <p className="text-[12px] text-foreground-secondary">
+                  {hasQuery ? t("No results") : t("Nothing here yet")}
+                </p>
               </div>
             </div>
           )}

@@ -1,12 +1,5 @@
 import type { BotMemoryEntry, BotView } from "@aiteamos/contracts";
-import {
-  Brain,
-  ChevronLeft,
-  ChevronRight,
-  RefreshCw,
-  Search,
-  Trash2,
-} from "lucide-react";
+import { Brain, ChevronLeft, ChevronRight, RefreshCw, Search, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { api } from "../../client/aiteamos-api";
 import {
@@ -15,6 +8,7 @@ import {
   subscribeMemoryChanges,
   subscribeMemoryRefresh,
 } from "../../lib/memory-events";
+import { useI18n } from "../../lib/i18n";
 import { createMemoryView, type MemoryViewState } from "../../lib/memory-view";
 import {
   AlertDialog,
@@ -31,6 +25,7 @@ import { Input } from "../ui/input";
 import { LoadingOrb } from "../ui/loading-orb";
 
 export function BotMemoryPanel({ bot }: { bot: Pick<BotView, "id" | "name"> }) {
+  const { t } = useI18n();
   const [state, setState] = useState<MemoryViewState>({
     data: null,
     loading: true,
@@ -99,15 +94,15 @@ export function BotMemoryPanel({ bot }: { bot: Pick<BotView, "id" | "name"> }) {
             className="flex min-h-8 items-center gap-1.5 self-start rounded-lg pr-2 text-[13px] text-foreground-secondary hover:bg-subtle"
           >
             <ChevronLeft className="size-4" />
-            All memories
+            {t("All memories")}
           </button>
           <div className="bot-scrollbar min-h-0 flex-1 overflow-y-auto">
-            <div className="mb-1.5 px-2 text-[12px] text-foreground-secondary">Content</div>
+            <div className="mb-1.5 px-2 text-[12px] text-foreground-secondary">{t("Content")}</div>
             <p className="whitespace-pre-wrap break-words rounded-xl bg-subtle p-3 text-[14px] leading-5">
               {entry.content}
             </p>
             <p className="mt-2 px-2 text-[12px] text-foreground-secondary">
-              {entry.kind === "profile" ? "Profile" : "Journal"} ·{" "}
+              {entry.kind === "profile" ? t("Profile") : t("Journal")} ·{" "}
               {new Date(entry.createdAt).toISOString().slice(0, 10)}
             </p>
             <button
@@ -117,7 +112,7 @@ export function BotMemoryPanel({ bot }: { bot: Pick<BotView, "id" | "name"> }) {
               className="mt-4 flex items-center gap-2 rounded-lg px-2 py-2 text-[13px] text-destructive hover:bg-subtle"
             >
               <Trash2 className="size-3.5" />
-              Delete memory
+              {t("Delete memory")}
             </button>
           </div>
         </>
@@ -127,15 +122,15 @@ export function BotMemoryPanel({ bot }: { bot: Pick<BotView, "id" | "name"> }) {
             <div className="relative min-w-0 flex-1">
               <Search className="pointer-events-none absolute left-2.5 top-2 size-3.5 text-foreground-secondary" />
               <Input
-                aria-label="Search memories"
-                placeholder="Search saved memories"
+                aria-label={t("Search memories")}
+                placeholder={t("Search saved memories")}
                 value={query}
                 className="h-[30px] rounded-[8px] border-0 bg-field pl-8 text-[13px] shadow-none focus-visible:ring-1"
                 onChange={(event) => setQuery(event.target.value)}
               />
             </div>
             <Button
-              aria-label="Refresh memories"
+              aria-label={t("Refresh memories")}
               variant="ghost"
               size="icon"
               className="size-7 rounded-lg text-foreground-secondary"
@@ -147,7 +142,7 @@ export function BotMemoryPanel({ bot }: { bot: Pick<BotView, "id" | "name"> }) {
           </div>
           {state.loading ? (
             <div role="status" className="grid flex-1 place-items-center py-12">
-              <LoadingOrb label="Loading memories" size={16} />
+              <LoadingOrb label={t("Loading memories")} size={16} />
             </div>
           ) : (
             <div className="bot-scrollbar min-h-0 flex-1 overflow-y-auto">
@@ -172,13 +167,13 @@ export function BotMemoryPanel({ bot }: { bot: Pick<BotView, "id" | "name"> }) {
                             {memory.content}
                           </span>
                           <span className="mt-0.5 block text-[11px] leading-4 text-foreground-secondary">
-                            {memory.kind === "profile" ? "Profile" : "Journal"} ·{" "}
+                            {memory.kind === "profile" ? t("Profile") : t("Journal")} ·{" "}
                             {new Date(memory.createdAt).toISOString().slice(0, 10)}
                           </span>
                         </span>
                         {newIds.has(memory.id) && (
                           <span className="rounded-full bg-[#e5f0ff] px-1.5 py-0.5 text-[10px] text-[#3062bf] dark:bg-[#1a2e55] dark:text-[#88b5ff]">
-                            New
+                            {t("New")}
                           </span>
                         )}
                         <ChevronRight className="size-3.5 shrink-0 text-foreground-tertiary" />
@@ -187,7 +182,7 @@ export function BotMemoryPanel({ bot }: { bot: Pick<BotView, "id" | "name"> }) {
                         variant="ghost"
                         size="icon"
                         className="size-7 shrink-0 text-foreground-secondary opacity-0 group-hover:opacity-100 focus:opacity-100 [@media(hover:none)]:opacity-100"
-                        aria-label={`Delete memory: ${memory.content}`}
+                        aria-label={t("Delete memory: {content}", { content: memory.content })}
                         disabled={Boolean(state.pending)}
                         onClick={() => setTarget(memory)}
                       >
@@ -199,10 +194,10 @@ export function BotMemoryPanel({ bot }: { bot: Pick<BotView, "id" | "name"> }) {
               ) : (
                 <p className="px-2 py-10 text-center text-[13px] text-foreground-secondary">
                   {state.data?.total
-                    ? "No matching memories."
+                    ? t("No matching memories.")
                     : state.error
-                      ? "Memories are unavailable."
-                      : "No saved memories yet."}
+                      ? t("Memories are unavailable.")
+                      : t("No saved memories yet.")}
                 </p>
               )}
             </div>
@@ -217,9 +212,13 @@ export function BotMemoryPanel({ bot }: { bot: Pick<BotView, "id" | "name"> }) {
       <div className="flex shrink-0 items-center justify-between gap-3 border-t pt-3">
         <p aria-live="polite" className="text-[12px] text-foreground-secondary">
           {state.data
-            ? `${state.data.total} saved ${state.data.total === 1 ? "memory" : "memories"}`
+            ? state.data.total === 1
+              ? t("1 saved memory")
+              : t("{count} saved memories", { count: state.data.total })
             : ""}
-          {newIds.size > 0 && <span className="ml-1">· {newIds.size} new</span>}
+          {newIds.size > 0 && (
+            <span className="ml-1">· {t("{count} new", { count: newIds.size })}</span>
+          )}
         </p>
         <Button
           variant="ghost"
@@ -227,13 +226,15 @@ export function BotMemoryPanel({ bot }: { bot: Pick<BotView, "id" | "name"> }) {
           disabled={!state.data?.total || Boolean(state.pending)}
           onClick={() => setTarget("all")}
         >
-          Clear memories
+          {t("Clear memories")}
         </Button>
       </div>
       {state.data && state.data.total > state.data.limit && (
         <p className="text-[12px] text-foreground-secondary">
-          Showing the first {state.data.limit} memories. Search filters these entries; clear removes
-          all {state.data.total} saved memories.
+          {t(
+            "Showing the first {limit} memories. Search filters these entries; clear removes all {total} saved memories.",
+            { limit: state.data.limit, total: state.data.total }
+          )}
         </p>
       )}
       <AlertDialog
@@ -245,12 +246,18 @@ export function BotMemoryPanel({ bot }: { bot: Pick<BotView, "id" | "name"> }) {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {target === "all" ? `Clear ${bot.name}’s memories?` : "Delete this memory?"}
+              {target === "all"
+                ? t("Clear {name}’s memories?", { name: bot.name })
+                : t("Delete this memory?")}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {target === "all"
-                ? "This removes this bot’s saved facts across its chats. Earlier messages and pending learning remain, so facts may be learned again. Shared user memories stay. This cannot be undone."
-                : "This removes the saved fact. Earlier messages and other memories may still mention it. This cannot be undone."}
+                ? t(
+                    "This removes this bot’s saved facts across its chats. Earlier messages and pending learning remain, so facts may be learned again. Shared user memories stay. This cannot be undone."
+                  )
+                : t(
+                    "This removes the saved fact. Earlier messages and other memories may still mention it. This cannot be undone."
+                  )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           {target && target !== "all" && (
@@ -264,17 +271,17 @@ export function BotMemoryPanel({ bot }: { bot: Pick<BotView, "id" | "name"> }) {
             </p>
           )}
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={Boolean(state.pending)}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={Boolean(state.pending)}>{t("Cancel")}</AlertDialogCancel>
             <Button
               variant="destructive"
               disabled={Boolean(state.pending)}
               onClick={() => void confirm()}
             >
               {state.pending
-                ? "Deleting…"
+                ? t("Deleting…")
                 : target === "all"
-                  ? "Clear all memories"
-                  : "Delete memory"}
+                  ? t("Clear all memories")
+                  : t("Delete memory")}
             </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -284,6 +291,7 @@ export function BotMemoryPanel({ bot }: { bot: Pick<BotView, "id" | "name"> }) {
 }
 
 export function BotMemoryButton({ bot, active }: { bot: BotView; active: boolean }) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const updated = useSyncExternalStore(
     subscribeMemoryChanges,
@@ -309,11 +317,11 @@ export function BotMemoryButton({ bot, active }: { bot: BotView; active: boolean
         onClick={() => changeOpen(true)}
       >
         <Brain className="size-4" strokeWidth={1.7} />
-        <span className="flex-1 text-left">Memories</span>
+        <span className="flex-1 text-left">{t("Memories")}</span>
         {updated && (
           <span
             role="status"
-            aria-label="Memories updated"
+            aria-label={t("Memories updated")}
             className="size-1.5 rounded-full bg-[#3062bf] dark:bg-[#88b5ff]"
           />
         )}
@@ -323,10 +331,12 @@ export function BotMemoryButton({ bot, active }: { bot: BotView; active: boolean
         <DialogContent className="flex h-[min(540px,calc(100dvh-40px))] w-[min(400px,calc(100vw-32px))] max-w-none flex-col gap-4 rounded-[14px] p-4 pt-0">
           <DialogHeader className="-mx-4 shrink-0 border-b px-5 py-4 pr-12">
             <DialogTitle className="truncate text-[14px] font-medium leading-5">
-              {bot.name}’s memories
+              {t("{name}’s memories", { name: bot.name })}
             </DialogTitle>
             <DialogDescription className="sr-only">
-              Saved facts used across this bot’s chats. New memories appear here as the bot learns.
+              {t(
+                "Saved facts used across this bot’s chats. New memories appear here as the bot learns."
+              )}
             </DialogDescription>
           </DialogHeader>
           {open && active && <BotMemoryPanel key={bot.id} bot={bot} />}

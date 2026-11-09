@@ -1,6 +1,7 @@
 import { Search } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "../../../lib/cn";
+import { useI18n } from "../../../lib/i18n";
 import { computeVirtualRange } from "../../../lib/virtual-window";
 import { EMOJI_GROUPS, emojiLabel, searchEmojis } from "./data";
 import { buildEmojiVirtualRows, emojiVirtualRowHeight } from "./virtual-grid";
@@ -11,6 +12,7 @@ export type EmojiPanelProps = {
 };
 
 function EmojiGrid({ onSelect, selectedEmojis, query = "" }: EmojiPanelProps & { query?: string }) {
+  const { t } = useI18n();
   const hasQuery = query.trim().length > 0;
   const groups = useMemo(() => {
     if (!hasQuery) return EMOJI_GROUPS;
@@ -54,7 +56,7 @@ function EmojiGrid({ onSelect, selectedEmojis, query = "" }: EmojiPanelProps & {
         aria-hidden="true"
         className="sticky top-0 z-20 -mx-0 bg-popover py-2 text-[12px] font-medium text-muted-foreground"
       >
-        {stickyLabel}
+        {t(stickyLabel)}
       </div>
       <div className="relative -mt-8" style={{ height: range.totalSize }}>
         {Array.from(
@@ -70,7 +72,7 @@ function EmojiGrid({ onSelect, selectedEmojis, query = "" }: EmojiPanelProps & {
                 key={row.key}
                 style={{ transform: `translateY(${top}px)` }}
               >
-                {row.label}
+                {t(row.label)}
               </div>
             );
           }
@@ -81,7 +83,7 @@ function EmojiGrid({ onSelect, selectedEmojis, query = "" }: EmojiPanelProps & {
                 key={row.key}
                 style={{ transform: `translateY(${top}px)` }}
               >
-                No emoji found.
+                {t("No emoji found.")}
               </div>
             );
           }
@@ -93,7 +95,7 @@ function EmojiGrid({ onSelect, selectedEmojis, query = "" }: EmojiPanelProps & {
             >
               {row.emojis.map((emoji) => (
                 <button
-                  aria-label={`React with ${emojiLabel(emoji)}`}
+                  aria-label={t("React with {name}", { name: emojiLabel(emoji) })}
                   className={cn(
                     "flex size-8 items-center justify-center rounded-lg text-[20px] transition-colors hover:bg-accent focus-visible:bg-accent focus-visible:outline-none",
                     selectedEmojis?.has(emoji) && "bg-accent ring-1 ring-input"
@@ -114,17 +116,18 @@ function EmojiGrid({ onSelect, selectedEmojis, query = "" }: EmojiPanelProps & {
 }
 
 export default function EmojiPanel({ onSelect, selectedEmojis }: EmojiPanelProps) {
+  const { t } = useI18n();
   const [query, setQuery] = useState("");
   return (
     <>
       <div className="flex h-11 items-center gap-2 border-b px-3">
         <Search className="size-4 text-muted-foreground" />
         <input
-          aria-label="Search emoji"
+          aria-label={t("Search emoji")}
           autoFocus
           className="min-w-0 flex-1 bg-transparent text-[13px] outline-none placeholder:text-muted-foreground"
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search emoji"
+          placeholder={t("Search emoji")}
           value={query}
         />
       </div>

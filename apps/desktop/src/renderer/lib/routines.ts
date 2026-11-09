@@ -4,6 +4,7 @@ import {
   routineOrdinalLabel,
 } from "@aiteamos/product-core/routines";
 import { isTransientRoutineExecutionStatus } from "@aiteamos/product-core/statuses";
+import { translateCurrent } from "./i18n-catalog";
 
 export type { RoutineExecutionView, RoutineView } from "@aiteamos/contracts";
 
@@ -49,9 +50,9 @@ export const formatRoutineExecutionTime = (
 ): string => {
   const when = new Date(execution.completedAt ?? execution.startedAt ?? execution.createdAt);
   const elapsed = now.getTime() - when.getTime();
-  if (elapsed >= 0 && elapsed < 60_000) return "Just now";
+  if (elapsed >= 0 && elapsed < 60_000) return translateCurrent("Just now");
   if (elapsed >= 60_000 && elapsed < 3_600_000) {
-    return `${Math.floor(elapsed / 60_000)} min ago`;
+    return translateCurrent("{count} min ago", { count: Math.floor(elapsed / 60_000) });
   }
 
   return formatRoutineExecutionCalendarTime(execution, now, locale);

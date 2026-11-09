@@ -1,12 +1,13 @@
 import type { BotView } from "@aiteamos/contracts";
 import type { BotRecipe } from "@aiteamos/contracts/bot-recipe";
+import { translateCurrent } from "./i18n-catalog";
 import { describeRoutineSchedules, routineScheduleDrafts, type RoutineView } from "./routines";
 
 export const BOT_TEMPLATE_FILENAME = "Bot Template.json";
 
 const scheduleSummary = (routine: RoutineView) =>
   routine.scheduleKind === "event"
-    ? "On an event"
+    ? translateCurrent("On an event")
     : describeRoutineSchedules(routineScheduleDrafts(routine));
 
 /**
@@ -52,9 +53,7 @@ export function botTemplateRecipe(
 
 /** Saves the template the way plugin bundles are exported: a file download. */
 export function downloadBotTemplate(recipe: BotRecipe) {
-  const url = URL.createObjectURL(
-    new Blob([JSON.stringify(recipe)], { type: "application/json" })
-  );
+  const url = URL.createObjectURL(new Blob([JSON.stringify(recipe)], { type: "application/json" }));
   const link = document.createElement("a");
   link.href = url;
   link.download = BOT_TEMPLATE_FILENAME;

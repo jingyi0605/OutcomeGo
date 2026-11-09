@@ -11,9 +11,11 @@ import {
 } from "@aiteamos/contracts/user-forms";
 import { useEffect, useId, useRef, useState } from "react";
 import { api } from "../../client/aiteamos-api";
+import { useI18n } from "../../lib/i18n";
 import { LoadingOrb } from "../ui/loading-orb";
 
 export function UserFormCard({ message, form }: { message: ChannelMessageView; form: UserForm }) {
+  const { t } = useI18n();
   const inFlight = useRef(false);
   const metadata = message.metadata as Record<string, unknown>;
   const [localMetadata, setLocalMetadata] = useState(metadata);
@@ -69,12 +71,18 @@ export function UserFormCard({ message, form }: { message: ChannelMessageView; f
         const next = result.message.metadata as Record<string, unknown>;
         setLocalMetadata(next);
         if (mode === "escalated" && next.cardState === "escalated" && message.senderBotId)
-          openComputerHandoff({ botId: message.senderBotId, messageId: message.id, reason: form.instruction || form.title });
+          openComputerHandoff({
+            botId: message.senderBotId,
+            messageId: message.id,
+            reason: form.instruction || form.title,
+          });
       }
     } catch {
       // Provider errors can echo submitted values. Never display their raw text.
       if (authoritative.current === previous)
-        setError("We couldn't confirm the form was completed. Check the page before trying again.");
+        setError(
+          t("We couldn't confirm the form was completed. Check the page before trying again.")
+        );
     } finally {
       inFlight.current = false;
       setPending(false);
@@ -93,30 +101,32 @@ export function UserFormCard({ message, form }: { message: ChannelMessageView; f
   const status = pending ? "sending" : failed ? "fill_failed" : state;
   const summary =
     status === "sending"
-      ? "Sending…"
+      ? t("Sending…")
       : status === "submitted"
         ? form.domain
-          ? "Filled into the page. Secret values were never shown to your Bot."
-          : "Form submitted. Secret values were never shown to your Bot."
+          ? t("Filled into the page. Secret values were never shown to your Bot.")
+          : t("Form submitted. Secret values were never shown to your Bot.")
         : status === "fill_failed"
-          ? "Could not fill into the page — it may have moved or changed. Secret values were never shown to your Bot."
+          ? t(
+              "Could not fill into the page — it may have moved or changed. Secret values were never shown to your Bot."
+            )
           : status === "escalated"
-            ? "You chose to do this step on the screen instead."
+            ? t("You chose to do this step on the screen instead.")
             : status === "expired"
               ? outcome.summary
-              : "Dismissed without filling anything.";
+              : t("Dismissed without filling anything.");
   const label =
     status === "sending"
-      ? "Sending"
+      ? t("Sending")
       : status === "submitted"
-        ? "Submitted"
+        ? t("Submitted")
         : status === "fill_failed"
-          ? "Not filled"
+          ? t("Not filled")
           : status === "escalated"
-            ? "On screen"
+            ? t("On screen")
             : status === "expired"
-              ? "Expired"
-              : "Dismissed";
+              ? t("Expired")
+              : t("Dismissed");
   const card =
     "permission-surface rich-message-card w-full max-w-[520px] min-w-0 rounded-2xl bg-[#eeeeee] p-3 dark:bg-[#262626]";
   if (status !== "pending")
@@ -136,9 +146,7 @@ export function UserFormCard({ message, form }: { message: ChannelMessageView; f
           </span>
         </span>
         <span className="permission-pill">
-          {status === "submitted" && (
-            <PermissionIcon name="check" className="size-3" />
-          )}
+          {status === "submitted" && <PermissionIcon name="check" className="size-3" />}
           {status === "sending" && <LoadingOrb aria-hidden size={12} />}
           <span className="permission-pill-label">{label}</span>
         </span>
@@ -221,7 +229,7 @@ export function UserFormCard({ message, form }: { message: ChannelMessageView; f
       })}
       {form.submitAfterFill && (
         <p className="permission-field-label">
-          After filling the code, this will press Enter on {form.domain}.
+          {t("After filling the code, this will press Enter on {domain}.", { domain: form.domain })}
         </p>
       )}
       {error && (
@@ -235,7 +243,7 @@ export function UserFormCard({ message, form }: { message: ChannelMessageView; f
           disabled={pending || !valid}
           type="submit"
         >
-          Continue
+          {t("Continue")}
         </button>
         {message.senderBotId && (
           <button
@@ -244,7 +252,7 @@ export function UserFormCard({ message, form }: { message: ChannelMessageView; f
             onClick={() => void submit("escalated")}
             type="button"
           >
-            Open the screen
+            {t("Open the screen")}
           </button>
         )}
         <button
@@ -253,7 +261,7 @@ export function UserFormCard({ message, form }: { message: ChannelMessageView; f
           onClick={() => void submit("dismissed")}
           type="button"
         >
-          Dismiss
+          {t("Dismiss")}
         </button>
       </div>
     </form>

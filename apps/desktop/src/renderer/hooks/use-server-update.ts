@@ -3,6 +3,7 @@ import {
   aiTeamOSCompatibility,
 } from "@aiteamos/contracts/version-compatibility";
 import { useEffect, useState } from "react";
+import { translateCurrent } from "../lib/i18n-catalog";
 import { useServerUpdateStatus } from "./use-server-update-status";
 
 /**
@@ -60,7 +61,7 @@ export function useServerUpdate() {
     (compatibility === "server-update-required" || serverTarget !== null);
 
   const updateServer = async () => {
-    if (!serverTarget) throw new Error("No newer server release is available.");
+    if (!serverTarget) throw new Error(translateCurrent("No newer server release is available."));
     await requestServerUpdate(serverTarget);
     await refreshServer();
   };

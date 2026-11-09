@@ -1,3 +1,5 @@
+import { translateCurrent } from "../../../lib/i18n-catalog";
+
 export type DocumentPreviewParserKind = "docx" | "table";
 
 type DocumentPreviewRequest = {
@@ -60,13 +62,21 @@ export const parseDocumentPreview = (
     worker.onmessage = (event) => {
       const response = event.data;
       if (response.ok) settle(() => resolve(response.html));
-      else settle(() => reject(new Error(response.message)));
+      // The worker runs without the interface language, so a catalog key it sent back is
+      // resolved here; an unrecognised diagnostic stays exactly as the parser wrote it.
+      else settle(() => reject(new Error(translateCurrent(response.message))));
     };
     worker.onerror = (event) => {
-      settle(() => reject(new Error(event.message || "Document preview worker failed.")));
+      settle(() =>
+        reject(new Error(event.message || translateCurrent("Document preview worker failed.")))
+      );
     };
     worker.onmessageerror = () => {
-      settle(() => reject(new Error("Document preview worker returned an unreadable response.")));
+      settle(() =>
+        reject(
+          new Error(translateCurrent("Document preview worker returned an unreadable response."))
+        )
+      );
     };
     signal.addEventListener("abort", onAbort, { once: true });
 

@@ -40,6 +40,7 @@ import {
 import { API_BASE } from "../../client/http";
 import { api } from "../../client/aiteamos-api";
 import { cn } from "../../lib/cn";
+import { useI18n } from "../../lib/i18n";
 import { openComputerHandoff } from "../../lib/computer-handoff";
 import { parseUserForm } from "@aiteamos/contracts/user-forms";
 import { UserFormCard } from "./user-form-card";
@@ -164,23 +165,32 @@ function AnimatedCardHeight({ children }: { children: ReactNode }) {
 }
 
 function ResolvedWidget({ metadata, widget }: { metadata: RichMetadata; widget: Widget }) {
+  const { t } = useI18n();
   const answer = String(metadata.respondedValue ?? "");
   const answers = resolvedWidgetAnswers(widget, answer);
   return (
-    <section className={cn(cardClass, "permission-widget")} data-rich-widget-state="resolved" role="group">
+    <section
+      className={cn(cardClass, "permission-widget")}
+      data-rich-widget-state="resolved"
+      role="group"
+    >
       <p className="m-0 min-w-0 text-[14px] font-medium leading-5">{widget.prompt}</p>
-      <div aria-label="Your answer" className={optionGroupClass} role="group">
+      <div aria-label={t("Your answer")} className={optionGroupClass} role="group">
         {answers.map(({ value, label, optionIndex }, index) => {
           return (
             <Fragment key={value}>
-            {index > 0 && <div className="widget-divider" />}
-            <div className="widget-option widget-option-resolved">
-              {optionIndex !== null ? (
-                <span aria-hidden="true" className={optionKeyClass}><span>{widgetOptionLetter(optionIndex)}</span></span>
-              ) : null}
-              <span className="widget-option-label min-w-0 flex-1">{label}</span>
-              <span className="inline-flex w-4 shrink-0"><PermissionIcon name="check" className="size-3.5" /></span>
-            </div>
+              {index > 0 && <div className="widget-divider" />}
+              <div className="widget-option widget-option-resolved">
+                {optionIndex !== null ? (
+                  <span aria-hidden="true" className={optionKeyClass}>
+                    <span>{widgetOptionLetter(optionIndex)}</span>
+                  </span>
+                ) : null}
+                <span className="widget-option-label min-w-0 flex-1">{label}</span>
+                <span className="inline-flex w-4 shrink-0">
+                  <PermissionIcon name="check" className="size-3.5" />
+                </span>
+              </div>
             </Fragment>
           );
         })}
@@ -190,6 +200,7 @@ function ResolvedWidget({ metadata, widget }: { metadata: RichMetadata; widget: 
 }
 
 function DismissedWidget({ widget }: { widget: Widget }) {
+  const { t } = useI18n();
   return (
     <section
       aria-disabled="true"
@@ -201,7 +212,8 @@ function DismissedWidget({ widget }: { widget: Widget }) {
         {widget.prompt}
       </p>
       <span className="widget-dismissed-pill">
-        <span aria-hidden="true" className="size-1.5 rounded-full bg-current" /> <span>Dismissed</span>
+        <span aria-hidden="true" className="size-1.5 rounded-full bg-current" />{" "}
+        <span>{t("Dismissed")}</span>
       </span>
     </section>
   );
@@ -218,6 +230,7 @@ function WidgetCard({
   metadata: RichMetadata;
   widget: Widget;
 }) {
+  const { t } = useI18n();
   const [localMetadata, setLocalMetadata] = useState(metadata);
   const draftKey = JSON.stringify([API_BASE, message.id, widget]);
   const [selected, setSelected] = useState<Set<string>>(
@@ -253,7 +266,10 @@ function WidgetCard({
     const previous = authoritative.current;
     setPending(true);
     setError("");
-    setLocalMetadata({ ...previous, ...(value === undefined ? { widgetDismissed: true } : { respondedValue: value }) });
+    setLocalMetadata({
+      ...previous,
+      ...(value === undefined ? { widgetDismissed: true } : { respondedValue: value }),
+    });
     try {
       const result =
         value === undefined
@@ -268,12 +284,14 @@ function WidgetCard({
           typeof next.respondedValue !== "string" &&
           next.widgetDismissed !== true
         )
-          setError("We couldn't confirm your answer. Check this card before trying again.");
+          setError(t("We couldn't confirm your answer. Check this card before trying again."));
       }
     } catch {
       if (authoritative.current === previous) {
         setLocalMetadata(previous);
-        setError("We couldn't confirm your answer. Check the card in a moment before trying again.");
+        setError(
+          t("We couldn't confirm your answer. Check the card in a moment before trying again.")
+        );
       }
     } finally {
       inFlight.current = false;
@@ -333,11 +351,11 @@ function WidgetCard({
           ) : null}
         </div>
         <button
-          aria-label="Dismiss question"
+          aria-label={t("Dismiss question")}
           className="grid size-5 shrink-0 place-items-center rounded-md text-[#141414]/60 dark:text-[#f0f0f0]/60 hover:bg-black/[0.06] disabled:opacity-40 dark:hover:bg-white/[0.07]"
           disabled={pending}
           onClick={() => void dismiss()}
-          title="Dismiss without answering"
+          title={t("Dismiss without answering")}
           type="button"
         >
           <PermissionIcon name="close" className="size-3" />
@@ -349,27 +367,31 @@ function WidgetCard({
           const active = selected.has(value);
           return (
             <Fragment key={`${value}-${index}`}>
-            {index > 0 && <div className="widget-divider" />}
-            <button
-              aria-keyshortcuts={widgetOptionLetter(index).toLowerCase()}
-              aria-pressed={widget.multiSelect ? active : undefined}
-              className={optionRowClass}
-              disabled={pending}
-              key={`${value}-${index}`}
-              onClick={() => choose(value)}
-              type="button"
-            >
-              <span aria-hidden="true" className={optionKeyClass}><span>{widgetOptionLetter(index)}</span></span>
-              <span className="min-w-0 flex-1">
-                <span className="widget-option-label">{option.label}</span>
-                {option.description ? (
-                  <span className="widget-option-description">
-                    {option.description}
+              {index > 0 && <div className="widget-divider" />}
+              <button
+                aria-keyshortcuts={widgetOptionLetter(index).toLowerCase()}
+                aria-pressed={widget.multiSelect ? active : undefined}
+                className={optionRowClass}
+                disabled={pending}
+                key={`${value}-${index}`}
+                onClick={() => choose(value)}
+                type="button"
+              >
+                <span aria-hidden="true" className={optionKeyClass}>
+                  <span>{widgetOptionLetter(index)}</span>
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="widget-option-label">{option.label}</span>
+                  {option.description ? (
+                    <span className="widget-option-description">{option.description}</span>
+                  ) : null}
+                </span>
+                {active ? (
+                  <span className="inline-flex w-4 shrink-0">
+                    <PermissionIcon name="check" className="size-3.5" />
                   </span>
                 ) : null}
-              </span>
-              {active ? <span className="inline-flex w-4 shrink-0"><PermissionIcon name="check" className="size-3.5" /></span> : null}
-            </button>
+              </button>
             </Fragment>
           );
         })}
@@ -378,9 +400,8 @@ function WidgetCard({
         <div className="flex w-full min-w-0 items-start gap-2">
           <div className="widget-custom">
             <textarea
-              aria-label="Custom answer"
+              aria-label={t("Custom answer")}
               autoComplete="off"
-
               disabled={pending}
               onChange={(event) => {
                 setCustom(event.currentTarget.value);
@@ -391,7 +412,7 @@ function WidgetCard({
                   void submit(widget.multiSelect ? selectedValue : custom.trim());
                 }
               }}
-              placeholder="Type your own answer"
+              placeholder={t("Type your own answer")}
               rows={1}
               spellCheck={false}
               value={custom}
@@ -403,7 +424,7 @@ function WidgetCard({
               disabled={pending}
               type="submit"
             >
-              Submit
+              {t("Submit")}
             </button>
           ) : null}
         </div>
@@ -415,12 +436,8 @@ function WidgetCard({
       ) : null}
       {widget.multiSelect && selectedValue ? (
         <div className="flex w-full justify-end">
-          <button
-            className="widget-submit disabled:opacity-40"
-            disabled={pending}
-            type="submit"
-          >
-            Submit
+          <button className="widget-submit disabled:opacity-40" disabled={pending} type="submit">
+            {t("Submit")}
           </button>
         </div>
       ) : null}
@@ -437,6 +454,7 @@ function SecretCard({
   metadata: RichMetadata;
   request: SecretRequest;
 }) {
+  const { t } = useI18n();
   const [provided, setProvided] = useState(metadata.secretProvided === true);
   const [value, setValue] = useState("");
   const [pending, setPending] = useState(false);
@@ -453,17 +471,32 @@ function SecretCard({
     }
   }, [metadata.secretProvided]);
   const botSecret = !!request.name && request.scope !== "personal";
-  const variableNote = request.name ? <span className="permission-copy">Saved securely {botSecret ? "for all users of this bot" : "for you"} and exposed as {request.name}</span> : null;
+  const variableNote = request.name ? (
+    <span className="permission-copy">
+      {botSecret
+        ? t("Saved securely for all users of this bot and exposed as {name}", {
+            name: request.name,
+          })
+        : t("Saved securely for you and exposed as {name}", { name: request.name })}
+    </span>
+  ) : null;
   if (provided) {
     return (
       <section aria-labelledby={titleId} className={cn(cardClass, "permission-receipt")}>
         <span className="permission-receipt-copy">
-          <span className="permission-title" id={titleId}>{request.label}</span>
+          <span className="permission-title" id={titleId}>
+            {request.label}
+          </span>
           {variableNote}
-          <span className="permission-copy">{botSecret ? "Saved for all users of this bot. Configure in bot settings." : "Saved securely and kept private."}</span>
+          <span className="permission-copy">
+            {botSecret
+              ? t("Saved for all users of this bot. Configure in bot settings.")
+              : t("Saved securely and kept private.")}
+          </span>
         </span>
         <span className="permission-pill permission-pill-success">
-          <PermissionIcon name="check" className="size-3" /><span className="permission-pill-label">Saved</span>
+          <PermissionIcon name="check" className="size-3" />
+          <span className="permission-pill-label">{t("Saved")}</span>
         </span>
       </section>
     );
@@ -486,12 +519,14 @@ function SecretCard({
           if (result.accepted || record(result.message.metadata).secretProvided === true) {
             setProvided(true);
           } else if (authoritative.current === previous) {
-            setError("This value could not be saved. Enter it again to retry.");
+            setError(t("This value could not be saved. Enter it again to retry."));
           }
         } catch {
           if (authoritative.current === previous)
             setError(
-              "We couldn't confirm this value was saved. Check this card before entering it again."
+              t(
+                "We couldn't confirm this value was saved. Check this card before entering it again."
+              )
             );
         } finally {
           inFlight.current = false;
@@ -500,11 +535,11 @@ function SecretCard({
       }}
     >
       <div className="flex min-w-0 flex-col">
-        <span className="permission-title" id={titleId}>{request.label}</span>
+        <span className="permission-title" id={titleId}>
+          {request.label}
+        </span>
         {variableNote}
-        {request.description ? (
-          <p className="permission-copy">{request.description}</p>
-        ) : null}
+        {request.description ? <p className="permission-copy">{request.description}</p> : null}
       </div>
       <div className="flex w-full min-w-0 items-start gap-2">
         <input
@@ -523,7 +558,7 @@ function SecretCard({
           disabled={!value.trim() || pending}
           type="submit"
         >
-          Save securely
+          {t("Save securely")}
         </button>
       </div>
       {error ? (
@@ -531,11 +566,20 @@ function SecretCard({
           {error}
         </p>
       ) : null}
-      <div className={cn("permission-secret-note flex min-w-0 items-center gap-1 text-[13px] leading-[18px] tracking-[-0.08px]", secondaryText)}>
+      <div
+        className={cn(
+          "permission-secret-note flex min-w-0 items-center gap-1 text-[13px] leading-[18px] tracking-[-0.08px]",
+          secondaryText
+        )}
+      >
         <span className="flex shrink-0">
           <PermissionIcon name="shield" className="size-3" />
         </span>
-        <span className="min-w-0">{botSecret ? "Saved for all users of this bot. Never shown to other bots." : "Stored securely, never shown to your Bot."}</span>
+        <span className="min-w-0">
+          {botSecret
+            ? t("Saved for all users of this bot. Never shown to other bots.")
+            : t("Stored securely, never shown to your Bot.")}
+        </span>
       </div>
     </form>
   );
@@ -550,6 +594,7 @@ function ComputerHandoffCard({
   metadata: RichMetadata;
   handoff: ComputerHandoff;
 }) {
+  const { t } = useI18n();
   const [state, setState] = useState(
     typeof metadata.computerHandoffState === "string" ? metadata.computerHandoffState : "requested"
   );
@@ -579,16 +624,24 @@ function ComputerHandoffCard({
       const next = record(result.message.metadata).computerHandoffState;
       if (typeof next === "string") setState(next);
       if (action === "start" && next === "active" && message.senderBotId) {
-        openComputerHandoff({ botId: message.senderBotId, messageId: message.id, reason: String(record(metadata.computerHandoff).reason ?? message.content) });
+        openComputerHandoff({
+          botId: message.senderBotId,
+          messageId: message.id,
+          reason: String(record(metadata.computerHandoff).reason ?? message.content),
+        });
       } else if (
         !result.accepted &&
         !["completed", "skipped", "dismissed"].includes(String(next))
       ) {
-        setError("The computer request could not be updated. Check this card before trying again.");
+        setError(
+          t("The computer request could not be updated. Check this card before trying again.")
+        );
       }
     } catch {
       if (authoritative.current === previous)
-        setError("The computer request could not be updated. Check this card before trying again.");
+        setError(
+          t("The computer request could not be updated. Check this card before trying again.")
+        );
     } finally {
       inFlight.current = false;
       setPending(false);
@@ -599,7 +652,7 @@ function ComputerHandoffCard({
       <div className="flex min-w-0 items-start gap-2.5">
         <MonitorUp className="mt-0.5 size-4 shrink-0" />
         <div className="min-w-0 flex-1">
-          <div className="text-[14px] font-medium">Take over the computer</div>
+          <div className="text-[14px] font-medium">{t("Take over the computer")}</div>
           <p className={cn("m-0 mt-0.5 leading-5", secondaryText)}>{handoff.reason}</p>
         </div>
       </div>
@@ -618,7 +671,7 @@ function ComputerHandoffCard({
             onClick={() => void mutate("skip")}
             type="button"
           >
-            Skip
+            {t("Skip")}
           </button>
           <button
             className="h-8 rounded-lg bg-[#141414] px-2.5 font-medium text-white disabled:opacity-40 dark:bg-[#f0f0f0] dark:text-[#181818]"
@@ -626,7 +679,7 @@ function ComputerHandoffCard({
             onClick={() => void mutate("start")}
             type="button"
           >
-            {state === "active" ? "Return to computer" : "Take over"}
+            {state === "active" ? t("Return to computer") : t("Take over")}
           </button>
         </div>
       )}
@@ -636,16 +689,26 @@ function ComputerHandoffCard({
 
 export function RichMessage({ message, bot }: { message: ChannelMessageView; bot?: BotView }) {
   const metadata = record(message.metadata);
-  if (metadata.type === "bot-template" && metadata.template && typeof metadata.template === "object")
+  if (
+    metadata.type === "bot-template" &&
+    metadata.template &&
+    typeof metadata.template === "object"
+  )
     return <SharedTemplateCard message={message} />;
   if (metadata.type === "external-draft") {
     try {
-      return <ExternalDraftCard bot={bot} draft={parseExternalDraft(metadata.draft)} message={message} />;
+      return (
+        <ExternalDraftCard bot={bot} draft={parseExternalDraft(metadata.draft)} message={message} />
+      );
     } catch {
       return null;
     }
   }
-  if (metadata.type === "imessage-send" && metadata.imessage && typeof metadata.imessage === "object")
+  if (
+    metadata.type === "imessage-send" &&
+    metadata.imessage &&
+    typeof metadata.imessage === "object"
+  )
     return <IMessageSendCard message={message} />;
   if (metadata.type === "user-form") {
     try {

@@ -1,6 +1,7 @@
 import { clientErrorMessage } from "@aiteamos/product-core/redaction";
 import { useEffect, useRef, useState } from "react";
 import { DESKTOP_UPDATE_RESTART_EVENT } from "../../lib/desktop-update";
+import { useI18n } from "../../lib/i18n";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -14,6 +15,7 @@ import { Button } from "../ui/button";
 import { LoadingOrb } from "../ui/loading-orb";
 
 export function DesktopUpdateDialog() {
+  const { t } = useI18n();
   const [update, setUpdate] = useState<AiTeamOSUpdateStatus | null>(null);
   const [open, setOpen] = useState(false);
   const [installing, setInstalling] = useState(false);
@@ -70,7 +72,7 @@ export function DesktopUpdateDialog() {
     } catch (error) {
       installingRef.current = false;
       setInstalling(false);
-      setError(clientErrorMessage(error, "Could not restart to update."));
+      setError(clientErrorMessage(error, t("Could not restart to update.")));
       const current = await window.aiteamos.updates.status().catch(() => null);
       if (current) setUpdate(current);
     }
@@ -83,12 +85,17 @@ export function DesktopUpdateDialog() {
       <AlertDialogContent className="gap-6 border-0 pb-[12.5px] pl-[16.5px] pr-[12.5px] pt-[13.5px] antialiased shadow-[inset_0_0_0_0.5px_var(--border)] dark:shadow-[inset_0_0_0_0.5px_#3a3a3a]">
         <AlertDialogHeader className="gap-1">
           <AlertDialogTitle className="-translate-y-[1.5px] text-[14px] leading-[21px] tracking-[-0.125px]">
-            Update ready
+            {t("Update ready")}
           </AlertDialogTitle>
           <AlertDialogDescription className="-translate-y-[0.5px] text-[14px] leading-[22px] tracking-[-0.12px]">
-            Restart to finish installing aiTeamOS
-            {update?.latestVersion ? ` ${update.latestVersion}` : ""}. Your Bots and work will be
-            right where you left them.
+            {update?.latestVersion
+              ? t(
+                  "Restart to finish installing aiTeamOS {version}. Your Bots and work will be right where you left them.",
+                  { version: update.latestVersion }
+                )
+              : t(
+                  "Restart to finish installing aiTeamOS. Your Bots and work will be right where you left them."
+                )}
           </AlertDialogDescription>
         </AlertDialogHeader>
         {error ? (
@@ -101,7 +108,7 @@ export function DesktopUpdateDialog() {
             className="rounded-[9px] text-[14px] font-normal"
             disabled={installing}
           >
-            <span className="-translate-y-[0.5px]">Not now</span>
+            <span className="-translate-y-[0.5px]">{t("Not now")}</span>
           </AlertDialogCancel>
           <Button
             className="h-8 gap-1.5 rounded-[9px] bg-black text-[14px] font-normal text-white hover:bg-black/90 dark:bg-[#fafafa] dark:text-[#141414] dark:shadow-[inset_0_0_0_0.5px_#d7d7d7] dark:hover:bg-white/90"
@@ -125,7 +132,7 @@ export function DesktopUpdateDialog() {
               </svg>
             )}
             <span className="-translate-y-[0.5px]">
-              {installing ? "Restarting…" : "Restart to update"}
+              {installing ? t("Restarting…") : t("Restart to update")}
             </span>
           </Button>
         </AlertDialogFooter>

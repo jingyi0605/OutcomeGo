@@ -1,9 +1,11 @@
 import type { BotTranscriptView } from "@aiteamos/contracts";
 import { useCallback, useRef } from "react";
 import { useVirtualWindow } from "../../hooks/use-virtual-window";
+import { useI18n } from "../../lib/i18n";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "../ui/dialog";
 
 function TranscriptEvents({ events }: { events: BotTranscriptView["events"] }) {
+  const { t } = useI18n();
   const scrollRef = useRef<HTMLDivElement>(null);
   const estimateSize = useCallback(
     (index: number) => {
@@ -25,7 +27,7 @@ function TranscriptEvents({ events }: { events: BotTranscriptView["events"] }) {
 
   return (
     <div
-      aria-label={`${events.length} transcript events`}
+      aria-label={t("{count} transcript events", { count: events.length })}
       className="bot-scrollbar max-h-[60vh] min-h-0 overflow-auto rounded-xl border bg-muted/25 p-3"
       data-virtual-transcript-count={events.length}
       ref={scrollRef}
@@ -72,13 +74,15 @@ export function TranscriptDialog({
   transcript: BotTranscriptView | null;
   onOpenChange: (open: boolean) => void;
 }) {
+  const { t } = useI18n();
   return (
     <Dialog onOpenChange={onOpenChange} open={Boolean(transcript)}>
       <DialogContent className="max-h-[80vh] max-w-3xl overflow-hidden">
-        <DialogTitle>{botName} transcript</DialogTitle>
+        <DialogTitle>{t("{name} transcript", { name: botName })}</DialogTitle>
         <DialogDescription>
-          Safe visible-message and run projection. Internal reasoning and raw tool data are
-          excluded.
+          {t(
+            "Safe visible-message and run projection. Internal reasoning and raw tool data are excluded."
+          )}
         </DialogDescription>
         {transcript && <TranscriptEvents events={transcript.events} />}
       </DialogContent>

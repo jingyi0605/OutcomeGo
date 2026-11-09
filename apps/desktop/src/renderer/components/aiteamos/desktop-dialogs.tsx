@@ -12,6 +12,7 @@ import {
 } from "../ui/alert-dialog";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "../ui/dialog";
 import { LoadingOrb } from "../ui/loading-orb";
+import { useI18n } from "../../lib/i18n";
 import { TranscriptDialog } from "./transcript-dialog";
 
 const GroupForm = lazy(() => import("./forms").then((module) => ({ default: module.GroupForm })));
@@ -43,36 +44,42 @@ export function DesktopDialogs({
   onNewGroupOpenChange: (open: boolean) => void;
   onTranscriptOpenChange: (open: boolean) => void;
 }) {
+  const { t } = useI18n();
   return (
     <>
       <AlertDialog onOpenChange={onDeleteBotOpenChange} open={Boolean(deleteBotTarget)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete “{deleteBotTarget?.name}”</AlertDialogTitle>
+            <AlertDialogTitle>
+              {t("Delete “{name}”", { name: deleteBotTarget?.name ?? "" })}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              This permanently deletes the Bot and its chat history.
+              {t("This permanently deletes the Bot and its chat history.")}
               <br />
-              This can't be undone.
+              {t("This can't be undone.")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={onConfirmDeleteBot}>Delete</AlertDialogAction>
+            <AlertDialogCancel>{t("Cancel")}</AlertDialogCancel>
+            <AlertDialogAction onClick={onConfirmDeleteBot}>{t("Delete")}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
       <AlertDialog onOpenChange={onDeleteGroupOpenChange} open={Boolean(deleteGroupTarget)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete “{deleteGroupTarget?.name}”</AlertDialogTitle>
+            <AlertDialogTitle>
+              {t("Delete “{name}”", { name: deleteGroupTarget?.name ?? "" })}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              This permanently deletes the group and its chat history. The Bots in it are not
-              deleted and remain available individually. This can't be undone.
+              {t(
+                "This permanently deletes the group and its chat history. The Bots in it are not deleted and remain available individually. This can't be undone."
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={onConfirmDeleteGroup}>Delete</AlertDialogAction>
+            <AlertDialogCancel>{t("Cancel")}</AlertDialogCancel>
+            <AlertDialogAction onClick={onConfirmDeleteGroup}>{t("Delete")}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -81,11 +88,11 @@ export function DesktopDialogs({
           <Suspense
             fallback={
               <div className="grid min-h-72 place-items-center">
-                <DialogTitle className="sr-only">New channel</DialogTitle>
+                <DialogTitle className="sr-only">{t("New channel")}</DialogTitle>
                 <DialogDescription className="sr-only">
-                  Loading channel creation form.
+                  {t("Loading channel creation form.")}
                 </DialogDescription>
-                <LoadingOrb label="Loading" />
+                <LoadingOrb label={t("Loading")} />
               </div>
             }
           >
@@ -94,7 +101,7 @@ export function DesktopDialogs({
         </DialogContent>
       </Dialog>
       <TranscriptDialog
-        botName={rowTranscript?.bot.name ?? "Bot"}
+        botName={rowTranscript?.bot.name ?? t("Bot")}
         onOpenChange={onTranscriptOpenChange}
         transcript={rowTranscript?.transcript ?? null}
       />

@@ -2,10 +2,23 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { BrowserNetworkIndicator } from "./browser-network-indicator";
 import { ComputerConnectionStatus } from "./computer-connection-status";
 import { resolveVncSocketUrl } from "../../client/runtime-url";
+import { useI18n } from "../../lib/i18n";
 import type RFB from "@novnc/novnc";
-import type { ScreenClipboardInput, ScreenClipboardView, ScreenVncSessionView } from "@aiteamos/contracts";
+import type {
+  ScreenClipboardInput,
+  ScreenClipboardView,
+  ScreenVncSessionView,
+} from "@aiteamos/contracts";
 
-export default function VncComputer({ botId, name, serverUrl, createSession, clipboard, onReady, onClose }: {
+export default function VncComputer({
+  botId,
+  name,
+  serverUrl,
+  createSession,
+  clipboard,
+  onReady,
+  onClose,
+}: {
   botId: string;
   name: string;
   serverUrl: string;
@@ -14,6 +27,7 @@ export default function VncComputer({ botId, name, serverUrl, createSession, cli
   onReady: () => void;
   onClose: () => void;
 }) {
+  const { t } = useI18n();
   const container = useRef<HTMLDivElement>(null);
   const rfb = useRef<RFB | null>(null);
   const [state, setState] = useState("connecting");
@@ -28,43 +42,73 @@ export default function VncComputer({ botId, name, serverUrl, createSession, cli
     clipboardRequests.current.clear();
     clipboardQueue.current = Promise.resolve();
   }, []);
-  const transferClipboard = useCallback((action: "paste" | "copy" | "cut", shift = false, text?: Promise<string>) => {
-    const current = rfb.current;
-    if (!current) return;
-    // Read the local clipboard at the gesture, before a queued operation can delay it.
-    const value = action === "paste" ? (text ?? Promise.resolve().then(() => window.aiteamos?.clipboard?.readText() ?? navigator.clipboard.readText())) : Promise.resolve("");
-    const request = new AbortController();
-    clipboardRequests.current.add(request);
-    const prepared = value.then(text => ({ text }), () => ({ error: "Clipboard access failed. Use the Edit menu to try again." }));
-    const operation = clipboardQueue.current.then(async () => {
-      const result = await prepared;
-      if (request.signal.aborted || rfb.current !== current) return;
-      if ("error" in result) throw new Error(result.error);
-      if (!clipboardAPI.current) throw new Error("Update your aiTeamOS server to use clipboard sharing.");
-      if (result.text.length > 1_000_000) throw new Error("Clipboard text is too large.");
-      setError(null);
-      const input: ScreenClipboardInput = action === "paste" ? { action, text: result.text, shift } : { action, shift };
-      const response = await clipboardAPI.current(input, request.signal);
-      if (!request.signal.aborted && rfb.current === current && response.text !== undefined) {
-        if (window.aiteamos?.clipboard) await window.aiteamos.clipboard.writeText(response.text);
-        else await navigator.clipboard.writeText(response.text);
-      }
-    }).catch(cause => {
-      if (!request.signal.aborted && rfb.current === current) {
-        setError(cause instanceof Error ? cause.message : "Computer clipboard transfer failed.");
-      }
-    }).finally(() => clipboardRequests.current.delete(request));
-    clipboardQueue.current = operation;
-  }, []);
+  const transferClipboard = useCallback(
+    (action: "paste" | "copy" | "cut", shift = false, text?: Promise<string>) => {
+      const current = rfb.current;
+      if (!current) return;
+      // Read the local clipboard at the gesture, before a queued operation can delay it.
+      const value =
+        action === "paste"
+          ? (text ??
+            Promise.resolve().then(
+              () => window.aiteamos?.clipboard?.readText() ?? navigator.clipboard.readText()
+            ))
+          : Promise.resolve("");
+      const request = new AbortController();
+      clipboardRequests.current.add(request);
+      const prepared = value.then(
+        (text) => ({ text }),
+        () => ({
+          error: t("Clipboard access failed. Use the Edit menu to try again."),
+        })
+      );
+      const operation = clipboardQueue.current
+        .then(async () => {
+          const result = await prepared;
+          if (request.signal.aborted || rfb.current !== current) return;
+          if ("error" in result) throw new Error(result.error);
+          if (!clipboardAPI.current)
+            throw new Error(t("Update your aiTeamOS server to use clipboard sharing."));
+          if (result.text.length > 1_000_000) throw new Error(t("Clipboard text is too large."));
+          setError(null);
+          const input: ScreenClipboardInput =
+            action === "paste" ? { action, text: result.text, shift } : { action, shift };
+          const response = await clipboardAPI.current(input, request.signal);
+          if (!request.signal.aborted && rfb.current === current && response.text !== undefined) {
+            if (window.aiteamos?.clipboard)
+              await window.aiteamos.clipboard.writeText(response.text);
+            else await navigator.clipboard.writeText(response.text);
+          }
+        })
+        .catch((cause) => {
+          if (!request.signal.aborted && rfb.current === current) {
+            setError(
+              cause instanceof Error ? cause.message : t("Computer clipboard transfer failed.")
+            );
+          }
+        })
+        .finally(() => clipboardRequests.current.delete(request));
+      clipboardQueue.current = operation;
+    },
+    [t]
+  );
   useEffect(() => {
     const bridge = window.aiteamos?.clipboard;
-    const update = () => bridge?.setComputerActive(state === "connected" && !!container.current?.contains(document.activeElement));
+    const update = () =>
+      bridge?.setComputerActive(
+        state === "connected" && !!container.current?.contains(document.activeElement)
+      );
     update();
     document.addEventListener("focusin", update);
-    const unsubscribe = bridge?.onComputerAction(action => {
-      if (state === "connected" && container.current?.contains(document.activeElement)) transferClipboard(action);
+    const unsubscribe = bridge?.onComputerAction((action) => {
+      if (state === "connected" && container.current?.contains(document.activeElement))
+        transferClipboard(action);
     });
-    return () => { document.removeEventListener("focusin", update); unsubscribe?.(); bridge?.setComputerActive(false); };
+    return () => {
+      document.removeEventListener("focusin", update);
+      unsubscribe?.();
+      bridge?.setComputerActive(false);
+    };
   }, [state, transferClipboard]);
   useEffect(() => {
     let stopped = false;
@@ -77,7 +121,10 @@ export default function VncComputer({ botId, name, serverUrl, createSession, cli
     const retry = () => {
       if (stopped || timer) return;
       setState(established ? "reconnecting" : "connecting");
-      timer = setTimeout(() => { timer = undefined; void connect(); }, delay);
+      timer = setTimeout(() => {
+        timer = undefined;
+        void connect();
+      }, delay);
       delay = Math.min(delay * 2, 5000);
     };
     const connect = async () => {
@@ -86,12 +133,14 @@ export default function VncComputer({ botId, name, serverUrl, createSession, cli
       pending = request;
       try {
         const [{ default: RFB }, session] = await Promise.all([
-          import("@novnc/novnc"), createSession(botId, request.signal),
+          import("@novnc/novnc"),
+          createSession(botId, request.signal),
         ]);
         if (stopped || request.signal.aborted || !container.current) return;
         const url = resolveVncSocketUrl(serverUrl, session.path, botId);
         const current = new RFB(container.current, url, {
-          credentials: { password: session.password }, wsProtocols: session.protocols,
+          credentials: { password: session.password },
+          wsProtocols: session.protocols,
         });
         connection = current;
         rfb.current = current;
@@ -118,7 +167,11 @@ export default function VncComputer({ botId, name, serverUrl, createSession, cli
           if (stopped || connection !== current) return;
           clearTimeout(handshake);
           if (established) {
-            try { setLastFrame(current.toDataURL("image/jpeg", 0.8)); } catch { /* no frame yet */ }
+            try {
+              setLastFrame(current.toDataURL("image/jpeg", 0.8));
+            } catch {
+              /* no frame yet */
+            }
           }
           connection = null;
           rfb.current = null;
@@ -137,10 +190,11 @@ export default function VncComputer({ botId, name, serverUrl, createSession, cli
         });
       } catch (cause) {
         if (stopped || request.signal.aborted) return;
-        const status = cause && typeof cause === "object" && "status" in cause ? cause.status : undefined;
+        const status =
+          cause && typeof cause === "object" && "status" in cause ? cause.status : undefined;
         if (status === 401 || status === 403) {
           setLastFrame(null);
-          setError("Computer access expired. Sign in and reopen the computer.");
+          setError(t("Computer access expired. Sign in and reopen the computer."));
           setState("unavailable");
           return;
         }
@@ -166,49 +220,99 @@ export default function VncComputer({ botId, name, serverUrl, createSession, cli
       rfb.current = null;
       abortClipboard();
     };
-  }, [botId, serverUrl, createSession, onReady, abortClipboard]);
+  }, [botId, serverUrl, createSession, onReady, abortClipboard, t]);
 
-  return <div className="absolute inset-0 bg-[#1b1d1f]" data-vnc-state={state}
-    onKeyDownCapture={(event) => {
-      if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); onClose(); }
-      else if (event.key === "Meta") { event.preventDefault(); event.stopPropagation(); }
-      else if ((event.ctrlKey || event.metaKey) && ["v", "c", "x"].includes(event.key.toLowerCase()) && !event.altKey) {
-        event.preventDefault();
-        event.stopPropagation();
-        transferClipboard(event.key.toLowerCase() === "v" ? "paste" : event.key.toLowerCase() === "c" ? "copy" : "cut", event.shiftKey);
-      }
-      // Accessibility keyboards may send modifier flags without separate modifier
-      // key events. Keep the remote modifiers in sync before noVNC sends the key.
-      else if (!["Control", "Shift", "Alt", "Meta"].includes(event.key)) {
+  return (
+    <div
+      className="absolute inset-0 bg-[#1b1d1f]"
+      data-vnc-state={state}
+      onKeyDownCapture={(event) => {
+        if (event.key === "Escape") {
+          event.preventDefault();
+          event.stopPropagation();
+          onClose();
+        } else if (event.key === "Meta") {
+          event.preventDefault();
+          event.stopPropagation();
+        } else if (
+          (event.ctrlKey || event.metaKey) &&
+          ["v", "c", "x"].includes(event.key.toLowerCase()) &&
+          !event.altKey
+        ) {
+          event.preventDefault();
+          event.stopPropagation();
+          transferClipboard(
+            event.key.toLowerCase() === "v"
+              ? "paste"
+              : event.key.toLowerCase() === "c"
+                ? "copy"
+                : "cut",
+            event.shiftKey
+          );
+        }
+        // Accessibility keyboards may send modifier flags without separate modifier
+        // key events. Keep the remote modifiers in sync before noVNC sends the key.
+        else if (!["Control", "Shift", "Alt", "Meta"].includes(event.key)) {
+          rfb.current?.sendKey(0xffe3, "ControlLeft", event.ctrlKey || event.metaKey);
+          rfb.current?.sendKey(0xffe1, "ShiftLeft", event.shiftKey);
+        }
+      }}
+      onKeyUpCapture={(event) => {
+        if (
+          event.key === "Meta" ||
+          ((event.ctrlKey || event.metaKey) &&
+            ["v", "c", "x"].includes(event.key.toLowerCase()) &&
+            !event.altKey)
+        ) {
+          event.preventDefault();
+          event.stopPropagation();
+        }
         rfb.current?.sendKey(0xffe3, "ControlLeft", event.ctrlKey || event.metaKey);
         rfb.current?.sendKey(0xffe1, "ShiftLeft", event.shiftKey);
-      }
-    }}
-    onKeyUpCapture={(event) => {
-      if (event.key === "Meta" || ((event.ctrlKey || event.metaKey) && ["v", "c", "x"].includes(event.key.toLowerCase()) && !event.altKey)) {
-        event.preventDefault(); event.stopPropagation();
-      }
-      rfb.current?.sendKey(0xffe3, "ControlLeft", event.ctrlKey || event.metaKey);
-      rfb.current?.sendKey(0xffe1, "ShiftLeft", event.shiftKey);
-    }}
-    onBeforeInput={(event) => event.preventDefault()}
-    onPaste={(event) => {
-      const text = event.clipboardData.getData("text/plain");
-      if (!text || !rfb.current) return;
-      event.preventDefault();
-      transferClipboard("paste", false, Promise.resolve(text));
-    }}>
-    {lastFrame && <img alt="" className="pointer-events-none absolute inset-0 size-full object-contain" src={lastFrame} />}
-    <div ref={container} contentEditable suppressContentEditableWarning className="absolute inset-0 size-full" role="application" aria-label={`${name}'s interactive Linux computer`} />
-    <BrowserNetworkIndicator />
-    {(state !== "connected" || error) && <div className={`pointer-events-none absolute ${lastFrame || error ? "bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-black/70 px-3 py-1" : "inset-0 grid place-items-center"}`}>
-      <ComputerConnectionStatus
-        loading={!error}
-        compact={!!(lastFrame || error)}
-        subtitle={lastFrame ? undefined : state === "reconnecting" ? "Reconnecting to screen…" : "Connecting to screen…"}
-      >
-        {error ?? (state === "reconnecting" ? "Reconnecting…" : "Connecting…")}
-      </ComputerConnectionStatus>
-    </div>}
-  </div>;
+      }}
+      onBeforeInput={(event) => event.preventDefault()}
+      onPaste={(event) => {
+        const text = event.clipboardData.getData("text/plain");
+        if (!text || !rfb.current) return;
+        event.preventDefault();
+        transferClipboard("paste", false, Promise.resolve(text));
+      }}
+    >
+      {lastFrame && (
+        <img
+          alt=""
+          className="pointer-events-none absolute inset-0 size-full object-contain"
+          src={lastFrame}
+        />
+      )}
+      <div
+        ref={container}
+        contentEditable
+        suppressContentEditableWarning
+        className="absolute inset-0 size-full"
+        role="application"
+        aria-label={t("{name}'s interactive Linux computer", { name })}
+      />
+      <BrowserNetworkIndicator />
+      {(state !== "connected" || error) && (
+        <div
+          className={`pointer-events-none absolute ${lastFrame || error ? "bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-black/70 px-3 py-1" : "inset-0 grid place-items-center"}`}
+        >
+          <ComputerConnectionStatus
+            loading={!error}
+            compact={!!(lastFrame || error)}
+            subtitle={
+              lastFrame
+                ? undefined
+                : state === "reconnecting"
+                  ? t("Reconnecting to screen…")
+                  : t("Connecting to screen…")
+            }
+          >
+            {error ?? (state === "reconnecting" ? t("Reconnecting…") : t("Connecting…"))}
+          </ComputerConnectionStatus>
+        </div>
+      )}
+    </div>
+  );
 }

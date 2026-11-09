@@ -11,6 +11,7 @@ import {
   resolveBotAvatarColorName,
 } from "@aiteamos/contracts/bot-avatar";
 import { thinkingActivity } from "./thinking-activity";
+import { translateCurrent } from "./i18n-catalog";
 
 // Grok's text palette, rather than its brighter avatar fills.
 const senderColors = {
@@ -53,10 +54,14 @@ export function groupSenderColors(color?: string): readonly [string, string] {
 
 export function groupParticipantNames(names: readonly string[]): string {
   const displayed =
-    names.length <= 3 ? names : [...names.slice(0, 2), `${names.length - 2} others`];
-  return displayed.length < 2
-    ? (displayed[0] ?? "Bot")
-    : `${displayed.slice(0, -1).join(", ")} and ${displayed.at(-1)}`;
+    names.length <= 3
+      ? names
+      : [...names.slice(0, 2), translateCurrent("{count} others", { count: names.length - 2 })];
+  if (displayed.length < 2) return displayed[0] ?? translateCurrent("Bot");
+  return translateCurrent("{names} and {last}", {
+    names: displayed.slice(0, -1).join(translateCurrent(", ")),
+    last: displayed.at(-1),
+  });
 }
 
 /** A group chat with one Bot is named after that Bot by default, so without a label its
@@ -111,20 +116,29 @@ export function groupChatActivity(
   const typing =
     workers.length > 0 &&
     values.filter(({ phase }) => phase !== "reading").every(({ phase }) => phase === "typing");
-  const verb = workers.length === 1 ? "is" : "are";
   const singleWorkerActivity =
     workers.length === 1 ? values.find(({ phase }) => phase !== "reading")?.activity : undefined;
   const toolCaption =
     singleWorkerActivity && !["Thinking", "Working", "Typing"].includes(singleWorkerActivity)
       ? singleWorkerActivity
       : undefined;
+  const workers_ = groupParticipantNames(workers.map((bot) => bot.name));
+  const readers_ = groupParticipantNames(readers.map((bot) => bot.name));
   const working =
     toolCaption ??
     (workers.length
-      ? `${groupParticipantNames(workers.map((bot) => bot.name))} ${verb} ${typing ? "typing" : "working"}`
+      ? typing
+        ? workers.length === 1
+          ? translateCurrent("{names} is typing", { names: workers_ })
+          : translateCurrent("{names} are typing", { names: workers_ })
+        : workers.length === 1
+          ? translateCurrent("{names} is working", { names: workers_ })
+          : translateCurrent("{names} are working", { names: workers_ })
       : "");
   const reading = readers.length
-    ? `${groupParticipantNames(readers.map((bot) => bot.name))} ${readers.length === 1 ? "is" : "are"} reading`
+    ? readers.length === 1
+      ? translateCurrent("{names} is reading", { names: readers_ })
+      : translateCurrent("{names} are reading", { names: readers_ })
     : "";
   const caption = [working, reading].filter(Boolean).join(" · ");
   return { workers, readers, typing, text: caption ? `${caption}…` : "" };

@@ -1,6 +1,7 @@
 import { ArrowDownToLine, ArrowUpRight, Check, LoaderCircle, RotateCw } from "lucide-react";
 import { cn } from "../../lib/cn";
 import { desktopUpdateProgress } from "../../lib/desktop-update";
+import { useI18n } from "../../lib/i18n";
 
 export function DesktopUpdateCard({
   update,
@@ -11,6 +12,7 @@ export function DesktopUpdateCard({
   startingDownload: boolean;
   onUpdate: () => void;
 }) {
+  const { t } = useI18n();
   const downloading = update.status === "downloading" || startingDownload;
   const ready = update.status === "downloaded";
   const installing = update.status === "installing";
@@ -32,21 +34,21 @@ export function DesktopUpdateCard({
             className="text-[12.5px] font-medium leading-[18px] text-foreground"
           >
             {downloading
-              ? "Downloading update"
+              ? t("Downloading update")
               : ready
-                ? "Ready to restart"
+                ? t("Ready to restart")
                 : installing
-                  ? "Restarting aiTeamOS…"
-                  : "Update available"}
+                  ? t("Restarting aiTeamOS…")
+                  : t("Update available")}
           </p>
           <p className="mt-0.5 truncate text-[11px] leading-4 text-muted-foreground">
             {ready
-              ? "Your work will be right here."
+              ? t("Your work will be right here.")
               : installing
-                ? "Finishing up your update"
+                ? t("Finishing up your update")
                 : update.latestVersion
-                  ? `aiTeamOS ${update.latestVersion}`
-                  : "A new version of aiTeamOS"}
+                  ? t("aiTeamOS {version}", { version: update.latestVersion })
+                  : t("A new version of aiTeamOS")}
           </p>
         </div>
       </div>
@@ -54,7 +56,7 @@ export function DesktopUpdateCard({
       {downloading || installing ? (
         <div className="mt-3">
           <div className="mb-1.5 flex items-center justify-between gap-2 text-[11px] leading-4 text-muted-foreground">
-            <span>{installing ? "See you in a moment" : "You can keep working"}</span>
+            <span>{installing ? t("See you in a moment") : t("You can keep working")}</span>
             <span className="tabular-nums text-blue-600 dark:text-blue-300">
               {installing ? (
                 <LoaderCircle
@@ -62,14 +64,14 @@ export function DesktopUpdateCard({
                   className="size-3 animate-spin motion-reduce:animate-none"
                 />
               ) : progress === null ? (
-                "Preparing…"
+                t("Preparing…")
               ) : (
                 `${progress}%`
               )}
             </span>
           </div>
           <div
-            aria-label={installing ? "Installing update" : "Downloading update"}
+            aria-label={installing ? t("Installing update") : t("Downloading update")}
             aria-valuemax={100}
             aria-valuemin={0}
             aria-valuenow={installing ? undefined : (progress ?? undefined)}
@@ -92,7 +94,7 @@ export function DesktopUpdateCard({
           type="button"
         >
           {ready ? <RotateCw aria-hidden="true" className="size-3.5" /> : null}
-          {ready ? "Restart to update" : "Download update"}
+          {ready ? t("Restart to update") : t("Download update")}
           {!ready ? <ArrowUpRight aria-hidden="true" className="size-3.5" /> : null}
         </button>
       )}

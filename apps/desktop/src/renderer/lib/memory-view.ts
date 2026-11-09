@@ -1,4 +1,5 @@
 import type { BotMemoryList } from "@aiteamos/contracts";
+import { translateCurrent } from "./i18n-catalog";
 
 export interface MemoryViewState {
   data: BotMemoryList | null;
@@ -38,7 +39,7 @@ export function createMemoryView(options: {
         change({ data, error: mutationError ? state.error : null, loading: false });
     } catch {
       if (!stopped && requestGeneration === generation)
-        change({ error: "Could not load memories. Try again.", loading: false });
+        change({ error: translateCurrent("Could not load memories. Try again."), loading: false });
     } finally {
       reading = false;
       if (dirty && !state.pending && !stopped) void refresh();
@@ -58,7 +59,11 @@ export function createMemoryView(options: {
         return true;
       } catch {
         mutationError = true;
-        change({ error: "Could not delete memories. Check your connection and try again." });
+        change({
+          error: translateCurrent(
+            "Could not delete memories. Check your connection and try again."
+          ),
+        });
         return false;
       } finally {
         change({ pending: null });

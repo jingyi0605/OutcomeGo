@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { useI18n } from "../../lib/i18n";
 
 /** Grok's normal/pinned markers are 8/10px; their cutout is outside the disc. */
 export function SidebarUnreadDot({
@@ -8,9 +9,10 @@ export function SidebarUnreadDot({
   corner?: boolean;
   pinned?: boolean;
 }) {
+  const { t } = useI18n();
   return (
     <span
-      aria-label="Unread activity"
+      aria-label={t("Unread activity")}
       className={`sidebar-status-reveal pointer-events-none block shrink-0 rounded-full bg-[#0c64c1] dark:bg-[#459ffe] ${pinned ? "size-2.5" : "size-2"}${corner ? " absolute bottom-0.5 right-0.5 z-20" : ""}`}
       data-unread-indicator="true"
       role="status"

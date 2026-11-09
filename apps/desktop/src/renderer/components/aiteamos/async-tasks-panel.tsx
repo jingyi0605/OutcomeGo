@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useVisibleNow } from "../../hooks/use-visible-now";
 import { asyncTaskElapsed } from "../../lib/async-tasks";
 import { cn } from "../../lib/cn";
+import { useI18n } from "../../lib/i18n";
 import { Button } from "../ui/button";
 
 const PANEL_WIDTH = 336;
@@ -39,6 +40,7 @@ export function AsyncTasksPanel({
   tasks: readonly SubagentActivityView[];
   onClose: () => void;
 }) {
+  const { t } = useI18n();
   const [position, setPosition] = useState(initialPosition);
   const nowMs = useVisibleNow(1_000);
   const dragRef = useRef<{
@@ -63,7 +65,7 @@ export function AsyncTasksPanel({
 
   return (
     <aside
-      aria-label={`Async tasks: ${bot.name}`}
+      aria-label={t("Async tasks: {name}", { name: bot.name })}
       className="electron-no-drag fixed z-[80] flex h-[360px] w-[336px] flex-col overflow-hidden rounded-[18px] border border-border/80 bg-popover text-popover-foreground shadow-[0_20px_60px_rgba(0,0,0,0.24),0_2px_12px_rgba(0,0,0,0.08)]"
       data-async-tasks-panel=""
       role="dialog"
@@ -104,11 +106,11 @@ export function AsyncTasksPanel({
       >
         <Clock3 aria-hidden="true" className="size-4 shrink-0 text-foreground-secondary" />
         <div className="min-w-0 flex-1 leading-tight">
-          <div className="text-[13px] font-medium">Async tasks</div>
+          <div className="text-[13px] font-medium">{t("Async tasks")}</div>
           <div className="truncate text-[11px] text-foreground-secondary">{bot.name}</div>
         </div>
         <Button
-          aria-label="Close async tasks"
+          aria-label={t("Close async tasks")}
           className="size-7 rounded-full"
           onClick={onClose}
           onPointerDown={(event) => event.stopPropagation()}
@@ -121,7 +123,7 @@ export function AsyncTasksPanel({
       <div className="bot-scrollbar min-h-0 flex-1 overflow-y-auto p-2" role="list">
         {tasks.length === 0 ? (
           <div className="grid h-full place-items-center px-6 text-center text-[13px] text-foreground-tertiary">
-            No async tasks in progress.
+            {t("No async tasks in progress.")}
           </div>
         ) : (
           tasks.map((task) => (
@@ -131,25 +133,27 @@ export function AsyncTasksPanel({
               data-kind="subagent"
               key={task.subagentId}
               role="listitem"
-              title={`${task.subagentId} · started ${new Date(taskStartedAt(task)).toLocaleString()}`}
+              title={t("{id} · started {time}", {
+                id: task.subagentId,
+                time: new Date(taskStartedAt(task)).toLocaleString(),
+              })}
             >
               <span
-                aria-label={task.status === "waiting" ? "Waiting" : "Running"}
+                aria-label={task.status === "waiting" ? t("Waiting") : t("Running")}
                 className={cn(
                   "size-2 shrink-0 rounded-full",
                   task.status === "waiting" ? "bg-foreground-tertiary" : "bg-emerald-500",
-                  task.status === "running" &&
-                    "motion-safe:animate-pulse"
+                  task.status === "running" && "motion-safe:animate-pulse"
                 )}
                 role="status"
               />
               <Bot aria-hidden="true" className="size-4 shrink-0 text-foreground-secondary" />
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-[13px] font-medium">
-                  {task.description || "Background task"}
+                  {task.description || t("Background task")}
                 </span>
                 <span className="block truncate text-[11px] text-foreground-secondary">
-                  Subagent · {task.subagentType}
+                  {t("Subagent · {type}", { type: task.subagentType })}
                 </span>
               </span>
               <span className="shrink-0 text-[11px] tabular-nums text-foreground-tertiary">

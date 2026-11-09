@@ -15,6 +15,7 @@ import { createPortal } from "react-dom";
 import { API_BASE } from "../../client/http";
 import { api } from "../../client/aiteamos-api";
 import { useAuthenticatedResource } from "../../hooks/use-authenticated-resource";
+import { useI18n } from "../../lib/i18n";
 import { useWindowVisible } from "../../hooks/use-window-active";
 import { useResourceActive } from "../../hooks/resource-activity";
 import { measureUntilNextPaint, recordPerformance } from "../../lib/performance";
@@ -52,6 +53,7 @@ export function BotScreen({
   onHandoffFinished?: () => void;
   onRetry?: () => Promise<void>;
 }) {
+  const { t } = useI18n();
   const visible = useWindowVisible();
   const resourcesActive = useResourceActive();
   const [screen, setScreen] = useState<ScreenStatusView | null>(null);
@@ -63,11 +65,15 @@ export function BotScreen({
   viewerState.current.botId = bot.id;
   useEffect(() => {
     viewerState.current.mounted = true;
-    return () => { viewerState.current.mounted = false; };
+    return () => {
+      viewerState.current.mounted = false;
+    };
   }, []);
   const recordViewerReady = useCallback(() => {
     if (!viewerOpenedAt.current) return;
-    recordPerformance("view.desktop-ready", performance.now() - viewerOpenedAt.current, { botId: bot.id });
+    recordPerformance("view.desktop-ready", performance.now() - viewerOpenedAt.current, {
+      botId: bot.id,
+    });
     viewerOpenedAt.current = 0;
   }, [bot.id]);
   const [handoffPending, setHandoffPending] = useState(false);
@@ -89,10 +95,10 @@ export function BotScreen({
       setError(null);
       return next;
     } catch (cause) {
-      setError(clientErrorMessage(cause, "Could not load the shared computer"));
+      setError(clientErrorMessage(cause, t("Could not load the shared computer")));
       return null;
     }
-  }, [bot.id]);
+  }, [bot.id, t]);
 
   useEffect(() => {
     if (visible && shouldLoadScreenStatus(enabled, active) && !screen) void refreshStatus();
@@ -148,12 +154,12 @@ export function BotScreen({
         onHandoffFinished?.();
       } catch (cause) {
         handoffRelease.retry();
-        setError(clientErrorMessage(cause, "Could not return computer control"));
+        setError(clientErrorMessage(cause, t("Could not return computer control")));
       } finally {
         setHandoffPending(false);
       }
     },
-    [handoff, handoffPending, handoffRelease, onHandoffFinished]
+    [handoff, handoffPending, handoffRelease, onHandoffFinished, t]
   );
   const closeViewer = useCallback(() => {
     if (handoff) {
@@ -210,7 +216,7 @@ export function BotScreen({
           const next = await pending;
           if (active) setScreen(next);
         } catch (cause) {
-          if (active) setError(clientErrorMessage(cause, "Could not keep computer control"));
+          if (active) setError(clientErrorMessage(cause, t("Could not keep computer control")));
         }
       },
     });
@@ -223,16 +229,24 @@ export function BotScreen({
       if (!handoff) {
         // Wait for an in-flight acquisition before releasing; a reopened viewer
         // keeps its lease, while closing or changing bots returns control.
-        void Promise.resolve(pending).catch(() => undefined).then(() => {
-          const viewer = viewerState.current;
-          if (!viewer.mounted || !viewer.open || viewer.botId !== bot.id) return api.screenTakeover(bot.id, false);
-        }).catch(() => { /* The bounded lease expires if the server is offline. */ });
+        void Promise.resolve(pending)
+          .catch(() => undefined)
+          .then(() => {
+            const viewer = viewerState.current;
+            if (!viewer.mounted || !viewer.open || viewer.botId !== bot.id)
+              return api.screenTakeover(bot.id, false);
+          })
+          .catch(() => {
+            /* The bounded lease expires if the server is offline. */
+          });
       }
     };
   }, [bot.id, handoff, open]);
   const viewerReady = screen?.state === "ready";
   const frameSource = useAuthenticatedResource(
-    enabled && active && screen?.state === "ready" && !open ? api.screenFrameUrl(bot.id, frameRevision) : null,
+    enabled && active && screen?.state === "ready" && !open
+      ? api.screenFrameUrl(bot.id, frameRevision)
+      : null,
     { enabled: resourcesActive, retainPreviousFor: bot.id }
   );
   const retryConnection = () => {
@@ -245,7 +259,7 @@ export function BotScreen({
     <>
       <div className="mt-[3px] w-full overflow-hidden rounded-[7px] border border-[#d9d9d9] bg-[#f0f0f0] dark:border-[#323232] dark:bg-[#1b1b1b]">
         <Button
-          aria-label="Open computer"
+          aria-label={t("Open computer")}
           className="group relative block h-auto aspect-[16/10] w-full !cursor-pointer overflow-hidden rounded-none bg-[#f0f0f0] p-0 transition-colors duration-150 hover:bg-[#ededed] dark:bg-[#1b1b1b] dark:hover:bg-[#232323]"
           disabled={bot.status === "failed"}
           onClick={openViewer}
@@ -258,12 +272,12 @@ export function BotScreen({
             </div>
           ) : screen?.state === "ready" && !open && frameSource ? (
             <img
-              alt={`${bot.name}'s Linux screen`}
+              alt={t("{name}'s Linux screen", { name: bot.name })}
               className="size-full object-cover transition-opacity duration-150 group-hover:opacity-[0.97]"
               decoding="async"
               fetchPriority={active ? "high" : "low"}
               loading={active ? "eager" : "lazy"}
-              onError={() => setError("Screen preview is reconnecting")}
+              onError={() => setError(t("Screen preview is reconnecting"))}
               src={frameSource}
             />
           ) : (
@@ -275,8 +289,8 @@ export function BotScreen({
               >
                 {error ??
                   (bot.status === "failed" || screen?.state === "failed"
-                    ? "Computer setup needs attention"
-                    : `Starting ${bot.name}'s screen…`)}
+                    ? t("Computer setup needs attention")
+                    : t("Starting {name}'s screen…", { name: bot.name }))}
               </ComputerConnectionStatus>
             </div>
           )}
@@ -284,101 +298,112 @@ export function BotScreen({
       </div>
       {(bot.status === "failed" || screen?.state === "failed") && onRetry && (
         <Button className="mt-2 w-full" onClick={() => void onRetry()} size="sm" variant="outline">
-          <RefreshCw className="size-3.5" /> Retry setup
+          <RefreshCw className="size-3.5" /> {t("Retry setup")}
         </Button>
       )}
       {/* The inspector is transformed and clips overflow while animating. Keep
           the full-window computer outside that containing block. */}
-      {open && createPortal(
-        <div className="fixed inset-0 z-[70] flex flex-col bg-black/[0.94] text-white">
-          {/* One draggable title row; content starts past the macOS window
+      {open &&
+        createPortal(
+          <div className="fixed inset-0 z-[70] flex flex-col bg-black/[0.94] text-white">
+            {/* One draggable title row; content starts past the macOS window
               buttons, which end at x=76px. */}
-          <header className="electron-drag flex min-h-11 shrink-0 flex-wrap items-center justify-end gap-x-2 gap-y-1 border-b border-white/[0.035] py-1.5 pl-[88px] pr-3">
-            {handoff ? (
-              <>
-                <span className="mr-auto min-w-0 basis-full py-2 text-[13px] leading-4 text-white/85 md:flex-1 md:basis-0 md:py-0">
-                  {handoff.reason || "Complete the requested step"}
-                </span>
-                <Button
-                  className="electron-no-drag text-white/70 hover:bg-white/[0.055] hover:text-white"
-                  disabled={handoffPending}
-                  onClick={() => void finishHandoff("skip")}
-                  size="sm"
-                  variant="ghost"
-                >
-                  Skip this step
-                </Button>
-                <Button
-                  className="electron-no-drag bg-white text-black hover:bg-white/90"
-                  disabled={handoffPending}
-                  onClick={() => void finishHandoff("complete")}
-                  size="sm"
-                >
-                  I'm done, continue
-                </Button>
-              </>
-            ) : null}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  aria-label="Close computer view"
-                  className="electron-no-drag size-8 rounded-md text-white/65 hover:bg-white/[0.055] hover:text-white"
-                  onClick={closeViewer}
-                  size="icon-sm"
-                  variant="ghost"
-                >
-                  <Minimize2 className="size-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Close computer view</TooltipContent>
-            </Tooltip>
-          </header>
-          {error && viewerReady && <p className="shrink-0 px-3 py-2 text-sm text-red-300" role="alert">{error}</p>}
-          <main
-            className="flex min-h-0 flex-1 items-center justify-center p-2 [container-type:size]"
-            onClick={(event) => event.target === event.currentTarget && closeViewer()}
-            onKeyDown={(event) => event.key === "Escape" && closeViewer()}
-          >
-            {/* The largest 16:10 screen that fits the space below the header. */}
-            <div
-              className="relative aspect-[16/10] overflow-hidden rounded-[6px] bg-[#1b1d1f]"
-              style={{ width: "min(100cqw, 160cqh)" }}
+            <header className="electron-drag flex min-h-11 shrink-0 flex-wrap items-center justify-end gap-x-2 gap-y-1 border-b border-white/[0.035] py-1.5 pl-[88px] pr-3">
+              {handoff ? (
+                <>
+                  <span className="mr-auto min-w-0 basis-full py-2 text-[13px] leading-4 text-white/85 md:flex-1 md:basis-0 md:py-0">
+                    {handoff.reason || t("Complete the requested step")}
+                  </span>
+                  <Button
+                    className="electron-no-drag text-white/70 hover:bg-white/[0.055] hover:text-white"
+                    disabled={handoffPending}
+                    onClick={() => void finishHandoff("skip")}
+                    size="sm"
+                    variant="ghost"
+                  >
+                    {t("Skip this step")}
+                  </Button>
+                  <Button
+                    className="electron-no-drag bg-white text-black hover:bg-white/90"
+                    disabled={handoffPending}
+                    onClick={() => void finishHandoff("complete")}
+                    size="sm"
+                  >
+                    {t("I'm done, continue")}
+                  </Button>
+                </>
+              ) : null}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    aria-label={t("Close computer view")}
+                    className="electron-no-drag size-8 rounded-md text-white/65 hover:bg-white/[0.055] hover:text-white"
+                    onClick={closeViewer}
+                    size="icon-sm"
+                    variant="ghost"
+                  >
+                    <Minimize2 className="size-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{t("Close computer view")}</TooltipContent>
+              </Tooltip>
+            </header>
+            {error && viewerReady && (
+              <p className="shrink-0 px-3 py-2 text-sm text-red-300" role="alert">
+                {error}
+              </p>
+            )}
+            <main
+              className="flex min-h-0 flex-1 items-center justify-center p-2 [container-type:size]"
+              onClick={(event) => event.target === event.currentTarget && closeViewer()}
+              onKeyDown={(event) => event.key === "Escape" && closeViewer()}
             >
-              {viewerReady && visible ? (
-                <VncComputer key={bot.id} botId={bot.id} name={bot.name}
-                  serverUrl={API_BASE} createSession={api.screenVncSession}
-                  clipboard={(input, signal) => api.screenClipboard(bot.id, input, signal)}
-                  onReady={recordViewerReady} onClose={closeViewer} />
-              ) : (
-                <div className="absolute inset-0 grid place-items-center text-center">
-                  <div>
-                    <ComputerConnectionStatus
-                      loading={!error && screen?.state !== "failed"}
-                      subtitle="Starting computer…"
-                    >
-                      {error ??
-                        (screen?.state === "failed"
-                          ? "Computer setup needs attention"
-                          : "Connecting…")}
-                    </ComputerConnectionStatus>
-                    {error && (
-                      <Button
-                        className="mt-4 border-white/15 bg-white/5 text-white hover:bg-white/10"
-                        onClick={retryConnection}
-                        size="sm"
-                        variant="outline"
+              {/* The largest 16:10 screen that fits the space below the header. */}
+              <div
+                className="relative aspect-[16/10] overflow-hidden rounded-[6px] bg-[#1b1d1f]"
+                style={{ width: "min(100cqw, 160cqh)" }}
+              >
+                {viewerReady && visible ? (
+                  <VncComputer
+                    key={bot.id}
+                    botId={bot.id}
+                    name={bot.name}
+                    serverUrl={API_BASE}
+                    createSession={api.screenVncSession}
+                    clipboard={(input, signal) => api.screenClipboard(bot.id, input, signal)}
+                    onReady={recordViewerReady}
+                    onClose={closeViewer}
+                  />
+                ) : (
+                  <div className="absolute inset-0 grid place-items-center text-center">
+                    <div>
+                      <ComputerConnectionStatus
+                        loading={!error && screen?.state !== "failed"}
+                        subtitle={t("Starting computer…")}
                       >
-                        <RefreshCw className="size-3.5" /> Retry
-                      </Button>
-                    )}
+                        {error ??
+                          (screen?.state === "failed"
+                            ? t("Computer setup needs attention")
+                            : t("Connecting…"))}
+                      </ComputerConnectionStatus>
+                      {error && (
+                        <Button
+                          className="mt-4 border-white/15 bg-white/5 text-white hover:bg-white/10"
+                          onClick={retryConnection}
+                          size="sm"
+                          variant="outline"
+                        >
+                          <RefreshCw className="size-3.5" /> {t("Retry")}
+                        </Button>
+                      )}
+                    </div>
                   </div>
-                </div>
-              )}
-            </div>
-          </main>
-        </div>,
-        document.body
-      )}
+                )}
+              </div>
+            </main>
+          </div>,
+          document.body
+        )}
     </>
   );
 }

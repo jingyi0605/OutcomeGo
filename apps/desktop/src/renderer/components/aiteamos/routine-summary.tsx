@@ -2,6 +2,7 @@ import { useWindowVisible } from "../../hooks/use-window-active";
 import { CalendarClock, CirclePause, LoaderCircle, Plus } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../../client/aiteamos-api";
+import { useI18n } from "../../lib/i18n";
 import {
   DEFAULT_ROUTINE_SCHEDULE,
   describeRoutineSchedule,
@@ -36,6 +37,7 @@ export function RoutinesSummary({
   /** Inside a scrolling settings page: no scroller of its own, a heading even when empty, and Add routine. */
   embedded?: boolean;
 }) {
+  const { t } = useI18n();
   const [routines, setRoutines] = useState<RoutineView[] | null>(null);
   const visible = useWindowVisible();
   useEffect(() => {
@@ -90,15 +92,15 @@ export function RoutinesSummary({
 
   if (embedded) {
     return (
-      <section aria-label="Routines" className="mt-6">
-        <div className="pl-2 text-[12px] leading-[18px] text-muted-foreground">Routines</div>
+      <section aria-label={t("Routines")} className="mt-6">
+        <div className="pl-2 text-[12px] leading-[18px] text-muted-foreground">{t("Routines")}</div>
         {routines === null ? (
           <div className="grid h-10 place-items-center">
-            <LoadingOrb label="Loading routines" size={16} />
+            <LoadingOrb label={t("Loading routines")} size={16} />
           </div>
         ) : sorted.length === 0 ? (
           <p className="px-2 py-2 text-[13px] leading-[17px] text-muted-foreground">
-            No routines yet
+            {t("No routines yet")}
           </p>
         ) : (
           <RoutineRows onOpen={onOpen} routines={sorted} />
@@ -109,7 +111,7 @@ export function RoutinesSummary({
           type="button"
         >
           <Plus className="size-4" strokeWidth={1.7} />
-          Add routine
+          {t("Add routine")}
         </button>
       </section>
     );
@@ -118,7 +120,7 @@ export function RoutinesSummary({
   if (routines === null) {
     return (
       <div className="grid flex-1 place-items-center">
-        <LoadingOrb label="Loading routines" size={16} />
+        <LoadingOrb label={t("Loading routines")} size={16} />
       </div>
     );
   }
@@ -128,9 +130,10 @@ export function RoutinesSummary({
       <div className="flex flex-1 items-center justify-center px-4 py-4">
         <div className="grid max-w-64 gap-3 text-center">
           <p className="text-[13px] leading-[17px] text-muted-foreground">
-            Routines are recurring tasks this Bot runs on a schedule. Ask it in chat to set one up.
+            {t(
+              "Routines are recurring tasks this Bot runs on a schedule. Ask it in chat to set one up."
+            )}
           </p>
-
         </div>
       </div>
     );
@@ -139,8 +142,7 @@ export function RoutinesSummary({
   return (
     <div className="mt-5 min-h-0 flex-1 overflow-y-auto" data-routines-list="">
       <div className="flex items-center px-1">
-        <h2 className="text-[13px] font-medium">Routines</h2>
-
+        <h2 className="text-[13px] font-medium">{t("Routines")}</h2>
       </div>
       <RoutineRows onOpen={onOpen} routines={sorted} />
     </div>
@@ -154,8 +156,9 @@ function RoutineRows({
   routines: RoutineView[];
   onOpen: (routineId: string | null) => void;
 }) {
+  const { t } = useI18n();
   return (
-    <ul aria-label="Routines" className="mt-1 grid gap-1">
+    <ul aria-label={t("Routines")} className="mt-1 grid gap-1">
       {routines.map((routine) => {
         const running = routineIsRunning(routine);
         const schedules = routineScheduleDrafts(routine);
@@ -163,7 +166,7 @@ function RoutineRows({
           ? schedules.length > 0
             ? describeRoutineSchedules(schedules)
             : describeRoutineSchedule(cloneDefaultSchedule())
-          : "Paused";
+          : t("Paused");
         return (
           <li key={routine.id}>
             <button

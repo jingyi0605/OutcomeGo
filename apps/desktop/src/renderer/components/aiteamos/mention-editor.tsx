@@ -2,6 +2,7 @@ import type { ClipboardEvent, CSSProperties, KeyboardEvent, MutableRefObject } f
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useVirtualWindow } from "../../hooks/use-virtual-window";
 import { cn } from "../../lib/cn";
+import { useI18n } from "../../lib/i18n";
 import {
   type MentionOption,
   type MentionSegment,
@@ -94,6 +95,7 @@ export function MentionEditor({
   onSubmit: () => void;
   onEscape?: () => void;
 }) {
+  const { t } = useI18n();
   const [trigger, setTrigger] = useState<"@" | "/">("@");
   const [query, setQuery] = useState<string | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -116,7 +118,11 @@ export function MentionEditor({
   const filtered = useMemo(() => {
     if (query === null) return [];
     return searchableOptions
-      .filter((entry) => (entry.option.trigger ?? "@") === trigger && (entry.label.includes(query) || entry.handle.includes(query)))
+      .filter(
+        (entry) =>
+          (entry.option.trigger ?? "@") === trigger &&
+          (entry.label.includes(query) || entry.handle.includes(query))
+      )
       .map(({ option }) => option);
   }, [query, searchableOptions, trigger]);
   const estimateOptionSize = useCallback(() => 28, []);
@@ -321,7 +327,7 @@ export function MentionEditor({
   return (
     <>
       <div
-        aria-label="Message"
+        aria-label={t("Message")}
         className={cn(
           "whitespace-pre-wrap break-words empty:before:float-left empty:before:h-0 empty:before:pointer-events-none empty:before:text-[#b7b7b7] empty:before:content-[attr(data-placeholder)] dark:empty:before:text-[#6d6d6d]",
           className
@@ -367,23 +373,25 @@ export function MentionEditor({
       />
       {query !== null && (
         <div
-          aria-label="Mention suggestions"
+          aria-label={t("Mention suggestions")}
           className="fixed z-[2000] w-[min(360px,calc(100vw-16px))] overflow-hidden rounded-[12px] border-[0.5px] border-[#dedede] bg-[#fcfcfc] shadow-[0_8px_24px_rgba(0,0,0,0.18)] dark:border-[#444] dark:bg-[#2f2f2f]"
           style={pickerPosition}
         >
           {filtered.length === 0 ? (
             <div className="flex flex-col gap-0.5 px-3 py-2 leading-[1.3]">
               <span className="text-[13px] text-foreground">
-                {query.trim() ? `No matches for “${query.trim()}”` : "No one to mention yet"}
+                {query.trim()
+                  ? t("No matches for “{query}”", { query: query.trim() })
+                  : t("No one to mention yet")}
               </span>
               <span className="text-[11px] text-[#737373] dark:text-[#a8a8a8]">
-                Press Esc to close
+                {t("Press Esc to close")}
               </span>
             </div>
           ) : (
             <div className="max-h-80 w-full overscroll-contain overflow-y-auto" ref={listScrollRef}>
               <ul
-                aria-label="Mention"
+                aria-label={t("Mention")}
                 className="relative m-0 list-none px-1.5"
                 id={listboxId}
                 role="listbox"
@@ -428,7 +436,9 @@ export function MentionEditor({
                             else optionAvatarById.current.delete(option.id);
                           }}
                         >
-                          {option.id === "__everyone__" || option.kind === "connection" || option.kind === "skill" ? (
+                          {option.id === "__everyone__" ||
+                          option.kind === "connection" ||
+                          option.kind === "skill" ? (
                             <span className="grid size-4 place-items-center rounded-full bg-[#e9e9e9] text-[11px] font-semibold leading-none text-[#737373] dark:bg-[#464646] dark:text-[#a8a8a8]">
                               {option.trigger ?? "@"}
                             </span>
@@ -447,7 +457,11 @@ export function MentionEditor({
                         </span>
                         <span className="min-w-0 flex-1 truncate">{option.label}</span>
                         <span className="shrink-0 text-[14px] text-[#737373] dark:text-[#a8a8a8]">
-                          {option.kind === "skill" ? "Skill" : option.kind === "connection" ? option.status ?? "Connection" : "Bot"}
+                          {option.kind === "skill"
+                            ? t("Skill")
+                            : option.kind === "connection"
+                              ? (option.status ?? t("Connection"))
+                              : t("Bot")}
                         </span>
                       </button>
                     </li>

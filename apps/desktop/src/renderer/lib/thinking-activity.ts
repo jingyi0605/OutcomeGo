@@ -1,4 +1,5 @@
 import type { RunItemView } from "@aiteamos/contracts";
+import { translateCurrent } from "./i18n-catalog";
 
 /** Project only active runtime items; never display tool arguments or reasoning text. */
 export function thinkingActivity(items: readonly RunItemView[] = []): string {
@@ -14,9 +15,9 @@ export function thinkingActivity(items: readonly RunItemView[] = []): string {
   }
   if (!latest) return "Thinking";
   if (latest.kind === "reasoning") return "Thinking";
-  if (latest.kind === "command") return "Running commands";
-  if (latest.kind === "file_change") return "Drafting the file";
-  if (latest.kind === "compaction") return "Organizing context";
+  if (latest.kind === "command") return translateCurrent("Running commands");
+  if (latest.kind === "file_change") return translateCurrent("Drafting the file");
+  if (latest.kind === "compaction") return translateCurrent("Organizing context");
   // Runtime agent text is internal, not necessarily a message being sent to the user.
   const content =
     latest.content && typeof latest.content === "object"
@@ -30,37 +31,37 @@ export function thinkingActivity(items: readonly RunItemView[] = []): string {
     case "Read":
     case "ReadFile":
     case "BoxRead":
-      return "Reading file";
+      return translateCurrent("Reading file");
     case "WebSearch":
     case "web_search":
-      return "Searching the web";
+      return translateCurrent("Searching the web");
     case "WebFetch":
     case "web_fetch":
-      return "Reading the web";
+      return translateCurrent("Reading the web");
     case "write":
     case "edit":
     case "Write":
     case "Edit":
-      return "Drafting the file";
+      return translateCurrent("Drafting the file");
     case "Shell":
     case "ExternalShell":
     case "bash":
     case "BoxShell":
-      return "Running commands";
+      return translateCurrent("Running commands");
     case "Await":
     case "AwaitProcess":
-      return "Waiting on a command";
+      return translateCurrent("Waiting on a command");
     case "Computer":
     case "Screenshot":
-      return "On its computer";
+      return translateCurrent("On its computer");
     case "SendToAgent":
     case "UpdateAgent":
-      return "Messaging another assistant";
+      return translateCurrent("Messaging another assistant");
     case "Task":
     case "CheckSubagent":
-      return "Waiting on another Bot";
+      return translateCurrent("Waiting on another Bot");
     case "GenerateImage":
-      return "Generating a photo";
+      return translateCurrent("Generating a photo");
     default:
       return latest.kind === "agent_message" ? "Thinking" : "Working";
   }

@@ -4,6 +4,7 @@ import { GROUP_MEMBER_LIMIT, toggleBoundedSelection } from "@aiteamos/product-co
 import { ChevronDown, Search } from "lucide-react";
 import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useVirtualWindow } from "../../hooks/use-virtual-window";
+import { useI18n } from "../../lib/i18n";
 import { Button } from "../ui/button";
 import { Checkbox } from "../ui/checkbox";
 import { DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "../ui/dialog";
@@ -22,8 +23,9 @@ export function NewBotForm({
   onCancel: () => void;
   onSubmit: (value: CreateBotInput) => Promise<void>;
 }) {
+  const { t } = useI18n();
   const [clientRequestId] = useState(() => crypto.randomUUID());
-  const [name, setName] = useState("New Bot");
+  const [name, setName] = useState(() => t("New Bot"));
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [instructions, setInstructions] = useState("");
@@ -40,14 +42,14 @@ export function NewBotForm({
     try {
       await onSubmit({
         clientRequestId,
-        name: name.trim() || "New Bot",
+        name: name.trim() || t("New Bot"),
         ...(title.trim() ? { title: title.trim() } : {}),
         ...(description.trim() ? { description: description.trim() } : {}),
         ...(instructions.trim() ? { instructions: instructions.trim() } : {}),
         color,
       });
     } catch (cause) {
-      setError(clientErrorMessage(cause, "aiTeamOS could not create this Bot"));
+      setError(clientErrorMessage(cause, t("aiTeamOS could not create this Bot")));
     } finally {
       setBusy(false);
     }
@@ -56,14 +58,13 @@ export function NewBotForm({
     <form className="grid gap-5" onSubmit={submit}>
       <DialogHeader className="items-center text-center">
         <BotAvatar bot={{ color, icon: "●" }} size="lg" />
-        <DialogTitle className="pt-1">Create a new Bot</DialogTitle>
+        <DialogTitle className="pt-1">{t("Create a new Bot")}</DialogTitle>
         <DialogDescription className="max-w-sm text-center">
-          It gets one durable Pi session with the selected inference provider, persistent chat, and
-          its own Linux screen on the shared computer.
+          {t("It gets one durable Pi session with the selected inference provider, persistent chat, and its own Linux screen on the shared computer.")}
         </DialogDescription>
       </DialogHeader>
       <div className="grid gap-2">
-        <Label htmlFor="new-bot-name">Name</Label>
+        <Label htmlFor="new-bot-name">{t("Name")}</Label>
         <Input
           id="new-bot-name"
           onChange={(event) => setName(event.target.value)}
@@ -77,38 +78,38 @@ export function NewBotForm({
         type="button"
         variant="ghost"
       >
-        Customize first
+        {t("Customize first")}
         <ChevronDown className={`size-4 transition-transform ${customize ? "rotate-180" : ""}`} />
       </Button>
       {customize && (
         <div className="grid gap-4 rounded-xl border bg-muted/20 p-4">
           <div className="grid gap-2">
-            <Label htmlFor="new-bot-title">Title</Label>
+            <Label htmlFor="new-bot-title">{t("Title")}</Label>
             <Input
               id="new-bot-title"
               maxLength={120}
               onChange={(event) => setTitle(event.target.value)}
-              placeholder="Describe what your Bot does"
+              placeholder={t("Describe what your Bot does")}
               value={title}
             />
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="new-bot-description">Description</Label>
+            <Label htmlFor="new-bot-description">{t("Description")}</Label>
             <Textarea
               id="new-bot-description"
               maxLength={2_000}
               onChange={(event) => setDescription(event.target.value)}
-              placeholder="What this Bot is for"
+              placeholder={t("What this Bot is for")}
               value={description}
             />
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="new-bot-instructions">Durable instructions</Label>
+            <Label htmlFor="new-bot-instructions">{t("Durable instructions")}</Label>
             <Textarea
               id="new-bot-instructions"
               maxLength={20_000}
               onChange={(event) => setInstructions(event.target.value)}
-              placeholder="Optional standing instructions"
+              placeholder={t("Optional standing instructions")}
               value={instructions}
             />
           </div>
@@ -117,11 +118,11 @@ export function NewBotForm({
       {error && <p className="text-sm text-destructive">{error}</p>}
       <DialogFooter>
         <Button onClick={onCancel} type="button" variant="ghost">
-          Cancel
+          {t("Cancel")}
         </Button>
         <Button disabled={busy} type="submit">
           {busy && <LoadingOrb aria-hidden inverse size={16} />}
-          Create New Bot
+          {t("Create New Bot")}
         </Button>
       </DialogFooter>
     </form>
@@ -144,6 +145,7 @@ export function BotForm({
     color: string;
   }) => Promise<void>;
 }) {
+  const { t } = useI18n();
   const [name, setName] = useState(initial?.name ?? "");
   const [instructions, setInstructions] = useState(initial?.instructions ?? "");
   const [icon, setIcon] = useState(initial?.icon ?? "●");
@@ -162,15 +164,15 @@ export function BotForm({
   return (
     <form className="grid gap-5" onSubmit={submit}>
       <DialogHeader>
-        <DialogTitle>{initial ? "Bot settings" : "New bot"}</DialogTitle>
+        <DialogTitle>{initial ? t("Bot settings") : t("New bot")}</DialogTitle>
         <DialogDescription>
           {initial
-            ? "Update this bot's identity and durable instructions."
-            : "Create a durable Pi agent with its own session and Linux screen."}
+            ? t("Update this bot's identity and durable instructions.")
+            : t("Create a durable Pi agent with its own session and Linux screen.")}
         </DialogDescription>
       </DialogHeader>
       <div className="grid gap-2">
-        <Label htmlFor="bot-name">Name</Label>
+        <Label htmlFor="bot-name">{t("Name")}</Label>
         <Input
           id="bot-name"
           onChange={(event) => setName(event.target.value)}
@@ -179,7 +181,7 @@ export function BotForm({
       </div>
       <div className="grid grid-cols-[1fr_112px] gap-3">
         <div className="grid gap-2">
-          <Label htmlFor="bot-icon">Icon</Label>
+          <Label htmlFor="bot-icon">{t("Icon")}</Label>
           <Input
             id="bot-icon"
             maxLength={16}
@@ -188,7 +190,7 @@ export function BotForm({
           />
         </div>
         <div className="grid gap-2">
-          <Label htmlFor="bot-color">Color</Label>
+          <Label htmlFor="bot-color">{t("Color")}</Label>
           <Input
             className="p-1"
             id="bot-color"
@@ -199,23 +201,23 @@ export function BotForm({
         </div>
       </div>
       <div className="grid gap-2">
-        <Label htmlFor="bot-instructions">Instructions</Label>
+        <Label htmlFor="bot-instructions">{t("Instructions")}</Label>
         <Textarea
           id="bot-instructions"
           className="min-h-32 resize-y"
           maxLength={20_000}
           onChange={(event) => setInstructions(event.target.value)}
-          placeholder="What should this bot own?"
+          placeholder={t("What should this bot own?")}
           value={instructions}
         />
       </div>
       <DialogFooter>
         <Button onClick={onCancel} type="button" variant="ghost">
-          Cancel
+          {t("Cancel")}
         </Button>
         <Button disabled={!name.trim() || busy} type="submit">
           {busy && <LoadingOrb aria-hidden inverse size={16} />}
-          {submitLabel}
+          {t(submitLabel)}
         </Button>
       </DialogFooter>
     </form>
@@ -229,6 +231,7 @@ export function GroupForm({
   bots: BotView[];
   onSubmit: (name: string, botIds: string[]) => Promise<void>;
 }) {
+  const { t } = useI18n();
   const [name, setName] = useState("");
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<string[]>([]);
@@ -274,36 +277,36 @@ export function GroupForm({
   return (
     <form onSubmit={submit}>
       <DialogHeader className="border-b px-5 py-4">
-        <DialogTitle className="text-[15px] font-semibold">New channel</DialogTitle>
+        <DialogTitle className="text-[15px] font-semibold">{t("New channel")}</DialogTitle>
         <DialogDescription className="sr-only">
-          Name a shared project room and choose one to six bots.
+          {t("Name a shared project room and choose one to six bots.")}
         </DialogDescription>
       </DialogHeader>
       <div className="grid gap-3 px-5 py-5">
         <div className="grid gap-2">
           <Label className="text-[12px] font-normal text-muted-foreground" htmlFor="group-name">
-            Name
+            {t("Name")}
           </Label>
           <Input
             className="h-9 rounded-[7px]"
             id="group-name"
             maxLength={80}
             onChange={(event) => setName(event.target.value)}
-            placeholder="Ex: Project Falcon"
+            placeholder={t("Ex: Project Falcon")}
             ref={nameRef}
             value={name}
           />
         </div>
         <div className="grid gap-2">
-          <Label className="text-[12px] font-normal text-muted-foreground">Add Bots</Label>
+          <Label className="text-[12px] font-normal text-muted-foreground">{t("Add Bots")}</Label>
           <div className="overflow-hidden rounded-[9px] border border-input">
             <div className="relative border-b">
               <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                aria-label="Search bots"
+                aria-label={t("Search bots")}
                 className="h-10 rounded-none border-0 bg-transparent pl-9 shadow-none focus-visible:border-0 focus-visible:ring-0"
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="Search"
+                placeholder={t("Search")}
                 value={query}
               />
             </div>
@@ -347,7 +350,7 @@ export function GroupForm({
               </div>
               {filteredBots.length === 0 && (
                 <div className="grid min-h-32 place-items-center px-4 text-[12px] text-muted-foreground">
-                  No bots found
+                  {t("No bots found")}
                 </div>
               )}
             </div>
@@ -363,7 +366,7 @@ export function GroupForm({
           type="submit"
         >
           {busy && <LoadingOrb aria-hidden inverse size={16} />}
-          Create
+          {t("Create")}
         </Button>
       </DialogFooter>
     </form>

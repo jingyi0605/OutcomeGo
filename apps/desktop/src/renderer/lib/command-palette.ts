@@ -1,4 +1,5 @@
 import type { SettingsAnchor } from "./app-deep-links";
+import { translateCurrent } from "./i18n-catalog";
 
 export const SETTINGS_PALETTE_SECTIONS = [
   {
@@ -111,17 +112,17 @@ export const updatePalettePresentation = (
 ): { title: string; icon: "refresh" | "updates" } => {
   switch (status) {
     case "checking":
-      return { title: "Checking for Updates…", icon: "refresh" };
+      return { title: translateCurrent("Checking for Updates…"), icon: "refresh" };
     case "available":
     case "downloading":
-      return { title: "Downloading Update…", icon: "updates" };
+      return { title: translateCurrent("Downloading Update…"), icon: "updates" };
     case "backing-up":
-      return { title: "Preparing Update…", icon: "updates" };
+      return { title: translateCurrent("Preparing Update…"), icon: "updates" };
     case "downloaded":
-      return { title: "Restart to Update", icon: "refresh" };
+      return { title: translateCurrent("Restart to Update"), icon: "refresh" };
     case "installing":
-      return { title: "Update in Progress…", icon: "refresh" };
+      return { title: translateCurrent("Update in Progress…"), icon: "refresh" };
     default:
-      return { title: "Check for Updates", icon: "refresh" };
+      return { title: translateCurrent("Check for Updates"), icon: "refresh" };
   }
 };

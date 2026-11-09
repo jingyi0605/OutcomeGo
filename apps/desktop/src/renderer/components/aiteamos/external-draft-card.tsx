@@ -12,10 +12,13 @@ import { Check, ChevronDown, ChevronUp } from "lucide-react";
 import { DropdownMenu } from "radix-ui";
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { api } from "../../client/aiteamos-api";
+import { useI18n } from "../../lib/i18n";
 import { LoadingOrb } from "../ui/loading-orb";
 
 const record = (value: unknown): Record<string, unknown> =>
-  value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
+  value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
 const addresses = (text: string) =>
   text
     .split(",")
@@ -48,18 +51,24 @@ const MODE_LABEL: Record<ExternalDraftApprovalMode, string> = {
 };
 
 /** What changed, for the line under the card after the user picks a mode. */
-export function approvalNotice(previous: ExternalDraftApprovalMode, next: ExternalDraftApprovalMode) {
+export function approvalNotice(
+  previous: ExternalDraftApprovalMode,
+  next: ExternalDraftApprovalMode
+) {
   if (next === "always-allow") return "Added to your Allow rules";
   if (next === "disable-drafts") return "Drafts are off for this Bot";
-  return previous === "disable-drafts" ? "Drafts need your approval again" : "Removed from your Allow rules";
+  return previous === "disable-drafts"
+    ? "Drafts need your approval again"
+    : "Removed from your Allow rules";
 }
 
 function Status({ state }: { state: string }) {
+  const { t } = useI18n();
   const status = STATUS[state] ?? STATUS.unknown!;
   return (
     <span className="draft-status" data-tone={status.tone} role="status">
       {status.dot && <span aria-hidden className="draft-status-dot" />}
-      {status.label}
+      {t(status.label)}
     </span>
   );
 }
@@ -113,6 +122,7 @@ function Picker<T extends string>({
   disabled?: boolean;
   onChange: (value: T) => void;
 }) {
+  const { t } = useI18n();
   const selected = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   // Open with the current choice highlighted, as the reference select does.
@@ -124,7 +134,9 @@ function Picker<T extends string>({
   return (
     <DropdownMenu.Root modal={false} onOpenChange={setOpen} open={open}>
       <DropdownMenu.Trigger aria-label={label} className="draft-trigger" disabled={disabled}>
-        <span className="truncate">{value === "disable-drafts" ? "Disable drafts" : display(value)}</span>
+        <span className="truncate">
+          {value === "disable-drafts" ? t("Disable drafts") : display(value)}
+        </span>
         <ChevronDown aria-hidden className="draft-trigger-icon" strokeWidth={2.25} />
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
@@ -143,7 +155,9 @@ function Picker<T extends string>({
               onSelect={() => option !== value && onChange(option)}
             >
               <span>{display(option)}</span>
-              {option === value && <Check aria-hidden className="draft-menu-check" strokeWidth={2.25} />}
+              {option === value && (
+                <Check aria-hidden className="draft-menu-check" strokeWidth={2.25} />
+              )}
             </DropdownMenu.Item>
           ))}
         </DropdownMenu.Content>
@@ -161,10 +175,13 @@ export function ExternalDraftCard({
   draft: ExternalDraft;
   bot?: Pick<BotView, "draftingDisabled" | "draftAllowedRecipients">;
 }) {
+  const { t } = useI18n();
   const inFlight = useRef(false);
   const body = useRef<HTMLTextAreaElement>(null);
   const metadata = record(message.metadata);
-  const verification = record(record(metadata.draft).verification) as Partial<ExternalDraftVerification>;
+  const verification = record(
+    record(metadata.draft).verification
+  ) as Partial<ExternalDraftVerification>;
   const sendingAddresses = verification.sendingAddresses ?? [];
   const email = draft.platform === "email";
   const [state, setState] = useState(String(metadata.cardState ?? "pending"));
@@ -215,12 +232,15 @@ export function ExternalDraftCard({
         const result = await api.mutateExternalDraft(message.id, action, edits);
         const next = record(result.message.metadata);
         setState(String(next.cardState ?? "pending"));
-        if (typeof next.sendError === "string") setError(`Couldn't send this draft: ${next.sendError}`);
+        if (typeof next.sendError === "string")
+          setError(t("Couldn't send this draft: {error}", { error: next.sendError }));
       } catch (failure) {
         setError(
           clientErrorMessage(
             failure,
-            action === "send" ? "Couldn't send this draft" : "Couldn't discard this draft. Try again."
+            action === "send"
+              ? t("Couldn't send this draft")
+              : t("Couldn't discard this draft. Try again.")
           )
         );
         if (action !== "send") return;
@@ -241,7 +261,7 @@ export function ExternalDraftCard({
         setState(String(record(checked.message.metadata).cardState ?? "pending"));
         setLost(false);
       } catch (failure) {
-        setError(clientErrorMessage(failure, "Couldn't check delivery. Try again."));
+        setError(clientErrorMessage(failure, t("Couldn't check delivery. Try again.")));
       }
     });
   const mode = externalDraftApprovalMode(
@@ -256,26 +276,32 @@ export function ExternalDraftCard({
       setNotice("");
       try {
         const edits =
-          state === "pending" ? externalDraftReviewEdits(draft, "approval", fields, sendingAddresses) : undefined;
+          state === "pending"
+            ? externalDraftReviewEdits(draft, "approval", fields, sendingAddresses)
+            : undefined;
         await api.setExternalDraftApproval(message.id, next, edits);
-        setNotice(approvalNotice(mode, next));
+        setNotice(t(approvalNotice(mode, next)));
       } catch (failure) {
-        setError(clientErrorMessage(failure, "Couldn't save. Try again."));
+        setError(clientErrorMessage(failure, t("Couldn't save. Try again.")));
       }
     });
   const sentUnder = record(metadata.sentUnder);
   const menu = bot ? (
     <Picker
       disabled={busy}
-      display={(value) => MODE_LABEL[value]}
-      label="Approval"
+      display={(value) => t(MODE_LABEL[value])}
+      label={t("Approval")}
       onChange={(next) => void setMode(next)}
-      options={email ? ["always-allow", "needs-approval", "disable-drafts"] : ["needs-approval", "disable-drafts"]}
+      options={
+        email
+          ? ["always-allow", "needs-approval", "disable-drafts"]
+          : ["needs-approval", "disable-drafts"]
+      }
       value={mode}
     />
   ) : null;
   const signature = email ? verification.signatures?.[from.toLowerCase()] : undefined;
-  const title = email ? (draft.replyToMessageId ? "Reply" : "New email") : "Slack message";
+  const title = email ? (draft.replyToMessageId ? t("Reply") : t("New email")) : t("Slack message");
   const header = (
     <div className="draft-header">
       <span className="draft-title">{title}</span>
@@ -284,24 +310,23 @@ export function ExternalDraftCard({
   );
   const replyRow =
     email && draft.replyToMessageId ? (
-      <Field
-        href={verification.threadUrl}
-        label="In reply to"
-      >
+      <Field href={verification.threadUrl} label={t("In reply to")}>
         {verification.thread ?? draft.replyToMessageId}
       </Field>
     ) : null;
   const notes = (
     <>
       {sentUnder.rule ? (
-        <p className="draft-note">Auto-approved by your rule: {String(sentUnder.rule)}</p>
+        <p className="draft-note">
+          {t("Auto-approved by your rule: {rule}", { rule: String(sentUnder.rule) })}
+        </p>
       ) : sentUnder.draftingDisabled ? (
-        <p className="draft-note">Sent without review: drafts are off for this Bot</p>
+        <p className="draft-note">{t("Sent without review: drafts are off for this Bot")}</p>
       ) : null}
       {notice && <p className="draft-note">{notice}</p>}
       {(error || (state === "pending" && sendError)) && (
         <p className="draft-note" role="alert">
-          {error || `Couldn't send this draft: ${sendError}`}
+          {error || t("Couldn't send this draft: {error}", { error: sendError })}
         </p>
       )}
     </>
@@ -311,8 +336,17 @@ export function ExternalDraftCard({
     const recipient = email ? (addresses(to)[0] ?? "") : (draft.target ?? "");
     const summary =
       state === "unknown"
-        ? "The send was interrupted — check your mailbox to see whether it went out"
-        : `${state === "sent" ? "Sent to" : "To"} ${recipient}${email ? ` — “${subject || draft.subject}”` : ""}`;
+        ? t("The send was interrupted — check your mailbox to see whether it went out")
+        : email
+          ? t("{action} {recipient} — “{subject}”", {
+              action: state === "sent" ? t("Sent to") : t("To"),
+              recipient,
+              subject: String(subject || draft.subject),
+            })
+          : t("{action} {recipient}", {
+              action: state === "sent" ? t("Sent to") : t("To"),
+              recipient,
+            });
     const autoSent = Boolean(sentUnder.rule || sentUnder.draftingDisabled);
     return (
       <section aria-label={title} className="draft-card rich-message-card">
@@ -341,24 +375,26 @@ export function ExternalDraftCard({
         <div className="draft-fields">
           {email ? (
             <>
-              <Field label="From">
+              <Field label={t("From")}>
                 {sendingAddresses.length > 1 ? (
                   <Picker
                     disabled={locked}
                     display={(value) => value}
-                    label="From"
+                    label={t("From")}
                     onChange={setFrom}
                     options={sendingAddresses}
-                    value={sendingAddresses.find((address) => address === from.toLowerCase()) ?? from}
+                    value={
+                      sendingAddresses.find((address) => address === from.toLowerCase()) ?? from
+                    }
                   />
                 ) : (
                   from
                 )}
               </Field>
               {replyRow}
-              <Field htmlFor={`${message.id}-to`} label="To">
+              <Field htmlFor={`${message.id}-to`} label={t("To")}>
                 <textarea
-                  aria-label="To"
+                  aria-label={t("To")}
                   autoComplete="off"
                   className="draft-input"
                   disabled={locked}
@@ -370,9 +406,9 @@ export function ExternalDraftCard({
                   value={to}
                 />
               </Field>
-              <Field htmlFor={`${message.id}-cc`} label="Cc">
+              <Field htmlFor={`${message.id}-cc`} label={t("Cc")}>
                 <textarea
-                  aria-label="Cc"
+                  aria-label={t("Cc")}
                   autoComplete="off"
                   className="draft-input"
                   disabled={locked}
@@ -384,15 +420,15 @@ export function ExternalDraftCard({
                   value={cc}
                 />
               </Field>
-              <Field htmlFor={`${message.id}-subject`} label="Subject">
+              <Field htmlFor={`${message.id}-subject`} label={t("Subject")}>
                 <textarea
-                  aria-label="Subject"
+                  aria-label={t("Subject")}
                   autoComplete="off"
                   className="draft-input"
                   disabled={locked}
                   id={`${message.id}-subject`}
                   onChange={(event) => setSubject(event.target.value.replace(/[\r\n]+/g, " "))}
-                  placeholder="Subject"
+                  placeholder={t("Subject")}
                   rows={1}
                   value={subject}
                 />
@@ -400,28 +436,36 @@ export function ExternalDraftCard({
             </>
           ) : (
             <>
-              <Field label="Workspace">{verification.identity}</Field>
-              <Field label="To">{draft.target}</Field>
-              {draft.threadTs && <Field label="In thread">{verification.thread?.split("\n")[0] ?? draft.threadTs}</Field>}
+              <Field label={t("Workspace")}>{verification.identity}</Field>
+              <Field label={t("To")}>{draft.target}</Field>
+              {draft.threadTs && (
+                <Field label={t("In thread")}>
+                  {verification.thread?.split("\n")[0] ?? draft.threadTs}
+                </Field>
+              )}
             </>
           )}
         </div>
         <textarea
-          aria-label="Message body"
+          aria-label={t("Message body")}
           className="draft-body"
           data-clamped={overflowing && !expanded ? "" : undefined}
           dir="auto"
           disabled={locked}
           name="body"
           onChange={(event) => setText(event.target.value)}
-          placeholder="Write a message"
+          placeholder={t("Write a message")}
           ref={body}
           rows={4}
           value={text}
         />
         {overflowing && (
-          <button className="draft-toggle" onClick={() => setExpanded((open) => !open)} type="button">
-            {expanded ? "Show less" : "Show more"}
+          <button
+            className="draft-toggle"
+            onClick={() => setExpanded((open) => !open)}
+            type="button"
+          >
+            {expanded ? t("Show less") : t("Show more")}
             {expanded ? (
               <ChevronUp aria-hidden className="draft-trigger-icon" strokeWidth={2.25} />
             ) : (
@@ -441,7 +485,7 @@ export function ExternalDraftCard({
             type="submit"
           >
             {sending && <LoadingOrb aria-hidden size={14} />}
-            {sending ? "Sending…" : "Send"}
+            {sending ? t("Sending…") : t("Send")}
           </button>
           {lost ? (
             <button
@@ -450,7 +494,7 @@ export function ExternalDraftCard({
               onClick={() => void checkDelivery()}
               type="button"
             >
-              Check delivery
+              {t("Check delivery")}
             </button>
           ) : (
             <button
@@ -459,7 +503,7 @@ export function ExternalDraftCard({
               onClick={() => void act("cancel")}
               type="button"
             >
-              Discard
+              {t("Discard")}
             </button>
           )}
         </div>
