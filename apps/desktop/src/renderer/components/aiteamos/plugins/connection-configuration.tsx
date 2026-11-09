@@ -5,9 +5,20 @@ import type {
 } from "@aiteamos/contracts/plugin-management";
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../../../client/aiteamos-api";
-import { inputClass, PluginButton, PluginField, PluginSelect, usePluginOperation } from "./plugin-ui";
+import { useI18n } from "../../../lib/i18n";
+import {
+  inputClass,
+  PluginButton,
+  PluginField,
+  PluginSelect,
+  usePluginOperation,
+} from "./plugin-ui";
 import { PluginAuthorization, openAutomaticPluginSignIn } from "./plugin-authorization";
-import { pluginAuthorization, pluginProviderSetupSteps, pluginProviderSetupDescription } from "@aiteamos/product-core/plugin-authorization";
+import {
+  pluginAuthorization,
+  pluginProviderSetupSteps,
+  pluginProviderSetupDescription,
+} from "@aiteamos/product-core/plugin-authorization";
 
 export function ConnectionConfiguration({
   connection,
@@ -18,6 +29,7 @@ export function ConnectionConfiguration({
   settings: PluginSettingsView;
   refresh: () => Promise<unknown>;
 }) {
+  const { t } = useI18n();
   const [config, setConfig] = useState<PluginConfigurationView | null>(null);
   const [values, setValues] = useState<Record<string, string | number | boolean>>({});
   const [secrets, setSecrets] = useState<NonNullable<PluginConfigurationInput["secrets"]>>({});
@@ -30,7 +42,8 @@ export function ConnectionConfiguration({
   const [cwd, setCwd] = useState("");
   const [headers, setHeaders] = useState("");
   const [env, setEnv] = useState("");
-  const [callbackMode, setCallbackMode] = useState<NonNullable<PluginConfigurationInput["oauthCallbackMode"]>>("auto");
+  const [callbackMode, setCallbackMode] =
+    useState<NonNullable<PluginConfigurationInput["oauthCallbackMode"]>>("auto");
   const [loopbackPort, setLoopbackPort] = useState(0);
   const [authMethod, setAuthMethod] =
     useState<PluginConfigurationInput["tokenEndpointAuthMethod"]>("none");
@@ -74,7 +87,13 @@ export function ConnectionConfiguration({
           : {}),
       ...(headers.trim() ? { headers: JSON.parse(headers) } : {}),
       ...(env.trim() ? { env: JSON.parse(env) } : {}),
-      ...(connection.auth === "oauth" ? { tokenEndpointAuthMethod: authMethod, oauthCallbackMode: callbackMode, oauthLoopbackPort: loopbackPort } : {}),
+      ...(connection.auth === "oauth"
+        ? {
+            tokenEndpointAuthMethod: authMethod,
+            oauthCallbackMode: callbackMode,
+            oauthLoopbackPort: loopbackPort,
+          }
+        : {}),
     });
   const connect = async (reauth = false) => {
     await save();
@@ -89,28 +108,37 @@ export function ConnectionConfiguration({
     return (
       <div>
         {operation.feedback}
-        <p className="text-[12px]">Loading connection setup…</p>
+        <p className="text-[12px]">{t("Loading connection setup…")}</p>
       </div>
     );
   return (
     <div className="grid gap-5">
       {operation.feedback}
-      <PluginAuthorization connection={connection} busy={operation.busy}
-        onRetry={(force = false) => void operation.run(async () => {
-          const result = await api.authenticatePlugin(connection.id, force);
-          openAutomaticPluginSignIn(connection.oauthCallbackMode, result.authorizationUrl);
-        })}
-        onCancel={() => { const session = pluginAuthorization(connection); if (session) void operation.run(() => api.cancelPluginAuthentication(connection.id, session.state)); }} />
+      <PluginAuthorization
+        connection={connection}
+        busy={operation.busy}
+        onRetry={(force = false) =>
+          void operation.run(async () => {
+            const result = await api.authenticatePlugin(connection.id, force);
+            openAutomaticPluginSignIn(connection.oauthCallbackMode, result.authorizationUrl);
+          })
+        }
+        onCancel={() => {
+          const session = pluginAuthorization(connection);
+          if (session)
+            void operation.run(() => api.cancelPluginAuthentication(connection.id, session.state));
+        }}
+      />
       <div>
         <h3 className="text-[14px] font-medium">
           {connection.name} · {connection.alias}
         </h3>
         <p className="text-[12px] text-foreground-secondary">
           {config.runtime === "desktop"
-            ? "Runs on your local computer through aiTeamOS desktop"
+            ? t("Runs on your local computer through aiTeamOS desktop")
             : connection.transport === "stdio"
-            ? "Runs on your Bot computer"
-            : "Connects to the configured server"}{" "}
+              ? t("Runs on your Bot computer")
+              : t("Connects to the configured server")}{" "}
           · {connection.status.replaceAll("_", " ")}
         </p>
         {connection.statusMessage && <p className="mt-2 text-[12px]">{connection.statusMessage}</p>}
@@ -118,9 +146,15 @@ export function ConnectionConfiguration({
       {config.setup && connection.status !== "ready" && (
         <section className="rounded-xl bg-black/5 p-4 dark:bg-white/5">
           <h4 className="text-[13px] font-medium">{config.setup.title}</h4>
-          <p className="mt-1 text-[12px]">{pluginProviderSetupDescription(connection.pluginKey, config.setup.description)}</p>
+          <p className="mt-1 text-[12px]">
+            {pluginProviderSetupDescription(connection.pluginKey, config.setup.description)}
+          </p>
           <ol className="my-3 list-decimal space-y-1 pl-5 text-[12px]">
-            {pluginProviderSetupSteps(connection.pluginKey, resolvedCallbackMode, config.setup.steps).map((step) => (
+            {pluginProviderSetupSteps(
+              connection.pluginKey,
+              resolvedCallbackMode,
+              config.setup.steps
+            ).map((step) => (
               <li key={step}>{step}</li>
             ))}
           </ol>
@@ -131,52 +165,102 @@ export function ConnectionConfiguration({
               target="_blank"
               rel="noreferrer"
             >
-              Open provider setup guide
+              {t("Open provider setup guide")}
             </a>
           )}
           {config.setup.requiredScopes.length > 0 && (
             <p className="mt-3 break-words text-xs text-foreground-secondary">
-              Requested scopes: {config.setup.requiredScopes.join(", ")}
+              {t("Requested scopes: {scopes}", {
+                scopes: config.setup.requiredScopes.join(", "),
+              })}
             </p>
           )}
         </section>
       )}
       {connection.auth === "oauth" && (
-        <PluginField label="Sign-in callback" help="Automatic uses your HTTPS server callback, or manual callback paste for HTTP. Google needs a Web application client for HTTPS and a Desktop app client for manual paste. Both work independently of the desktop app.">
+        <PluginField
+          label={t("Sign-in callback")}
+          help={t(
+            "Automatic uses your HTTPS server callback, or manual callback paste for HTTP. Google needs a Web application client for HTTPS and a Desktop app client for manual paste. Both work independently of the desktop app."
+          )}
+        >
           <PluginSelect
             className={inputClass}
-            label="Sign-in callback"
+            label={t("Sign-in callback")}
             value={callbackMode}
-            onChange={value => setCallbackMode(value as NonNullable<PluginConfigurationInput["oauthCallbackMode"]>)}
+            onChange={(value) =>
+              setCallbackMode(value as NonNullable<PluginConfigurationInput["oauthCallbackMode"]>)
+            }
             options={[
-              { value: "auto", label: "Automatic (recommended)" },
-              { value: "manual", label: "Paste callback URL", disabled: config.manualCallbackSupported === false },
-              { value: "desktop", label: "Desktop listener (advanced)" },
-              { value: "server", label: "Server callback" },
+              { value: "auto", label: t("Automatic (recommended)") },
+              {
+                value: "manual",
+                label: t("Paste callback URL"),
+                disabled: config.manualCallbackSupported === false,
+              },
+              { value: "desktop", label: t("Desktop listener (advanced)") },
+              { value: "server", label: t("Server callback") },
             ]}
           />
-          {callbackMode === "desktop" && <PluginField label="Desktop callback port" help="Use 0 to select an available port. If your provider requires a fixed URL, register http://127.0.0.1:PORT/callback and enter that port here.">
-            <input className={inputClass} aria-label="Desktop callback port" type="number" min={0} max={65535} value={loopbackPort} onChange={event => setLoopbackPort(Number(event.target.value))} />
-          </PluginField>}
+          {callbackMode === "desktop" && (
+            <PluginField
+              label={t("Desktop callback port")}
+              help={t(
+                "Use 0 to select an available port. If your provider requires a fixed URL, register http://127.0.0.1:PORT/callback and enter that port here."
+              )}
+            >
+              <input
+                className={inputClass}
+                aria-label={t("Desktop callback port")}
+                type="number"
+                min={0}
+                max={65535}
+                value={loopbackPort}
+                onChange={(event) => setLoopbackPort(Number(event.target.value))}
+              />
+            </PluginField>
+          )}
         </PluginField>
       )}
-      {connection.auth === "oauth" && resolvedCallbackMode === "manual" && config.manualCallbackSupported === false && (
-        <p role="status" className="text-[12px]">This provider requires HTTPS. Configure Tailscale Serve or your own HTTPS domain before authorizing.</p>
-      )}
+      {connection.auth === "oauth" &&
+        resolvedCallbackMode === "manual" &&
+        config.manualCallbackSupported === false && (
+          <p role="status" className="text-[12px]">
+            {t(
+              "This provider requires HTTPS. Configure Tailscale Serve or your own HTTPS domain before authorizing."
+            )}
+          </p>
+        )}
       {connection.auth === "oauth" && callbackMode !== "desktop" && (
         <PluginField
-          label="OAuth callback URL"
-          help={resolvedCallbackMode === "manual" ? "Use an OAuth client that permits loopback redirects. For Google, create a Desktop app client. After authorization, paste the full returned URL into aiTeamOS." : "Register this exact URL with the provider’s Web application client."}
+          label={t("OAuth callback URL")}
+          help={
+            resolvedCallbackMode === "manual"
+              ? t(
+                  "Use an OAuth client that permits loopback redirects. For Google, create a Desktop app client. After authorization, paste the full returned URL into aiTeamOS."
+                )
+              : t("Register this exact URL with the provider’s Web application client.")
+          }
         >
           <div className="flex gap-2">
             <input
               readOnly
-              aria-label="OAuth callback URL"
+              aria-label={t("OAuth callback URL")}
               className={inputClass}
-              value={resolvedCallbackMode === "manual" ? config.manualCallbackUrl : config.callbackUrl}
+              value={
+                resolvedCallbackMode === "manual" ? config.manualCallbackUrl : config.callbackUrl
+              }
             />
-            <PluginButton onClick={() => void navigator.clipboard.writeText((resolvedCallbackMode === "manual" ? config.manualCallbackUrl : config.callbackUrl) ?? "")}>
-              Copy
+            <PluginButton
+              onClick={() =>
+                void navigator.clipboard.writeText(
+                  (resolvedCallbackMode === "manual"
+                    ? config.manualCallbackUrl
+                    : config.callbackUrl) ?? ""
+                )
+              }
+            >
+              {t("Copy")}
             </PluginButton>
           </div>
         </PluginField>
@@ -203,9 +287,14 @@ export function ConnectionConfiguration({
                   })
                 }
                 options={[
-                  { value: "keep", label: config.configuredSecrets.includes(field.key) ? "Keep saved value" : "Not configured" },
-                  { value: "replace", label: "Replace" },
-                  { value: "clear", label: "Clear" },
+                  {
+                    value: "keep",
+                    label: config.configuredSecrets.includes(field.key)
+                      ? t("Keep saved value")
+                      : t("Not configured"),
+                  },
+                  { value: "replace", label: t("Replace") },
+                  { value: "clear", label: t("Clear") },
                 ]}
               />
               {secrets[field.key]?.action === "replace" && (
@@ -236,8 +325,10 @@ export function ConnectionConfiguration({
                 })
               }
               options={[
-                ...(!field.enum.some(value => String(value) === "") ? [{ value: "", label: "Choose…" }] : []),
-                ...field.enum.map(value => ({ value: String(value), label: String(value) })),
+                ...(!field.enum.some((value) => String(value) === "")
+                  ? [{ value: "", label: t("Choose…") }]
+                  : []),
+                ...field.enum.map((value) => ({ value: String(value), label: String(value) })),
               ]}
             />
           ) : field.type === "boolean" ? (
@@ -269,104 +360,110 @@ export function ConnectionConfiguration({
           )}
         </PluginField>
       ))}
-      {config.runtime !== "desktop" && <details className="animated-disclosure rounded-xl border border-black/10 p-3 dark:border-white/10">
-        <summary className="cursor-pointer text-[12px] font-medium">Server settings</summary>
-        <div className="mt-4 grid gap-4">
-          {connection.transport === "http" && (
-            <PluginField label="MCP server URL">
-              <input
-                aria-label="MCP server URL"
-                className={inputClass}
-                value={endpoint}
-                onChange={(event) => setEndpoint(event.target.value)}
-              />
-            </PluginField>
-          )}
-          {connection.transport === "stdio" && (
-            <>
-              <PluginField label="Command">
+      {config.runtime !== "desktop" && (
+        <details className="animated-disclosure rounded-xl border border-black/10 p-3 dark:border-white/10">
+          <summary className="cursor-pointer text-[12px] font-medium">
+            {t("Server settings")}
+          </summary>
+          <div className="mt-4 grid gap-4">
+            {connection.transport === "http" && (
+              <PluginField label={t("MCP server URL")}>
                 <input
+                  aria-label={t("MCP server URL")}
                   className={inputClass}
-                  value={command}
-                  onChange={(event) => setCommand(event.target.value)}
+                  value={endpoint}
+                  onChange={(event) => setEndpoint(event.target.value)}
                 />
               </PluginField>
+            )}
+            {connection.transport === "stdio" && (
+              <>
+                <PluginField label={t("Command")}>
+                  <input
+                    className={inputClass}
+                    value={command}
+                    onChange={(event) => setCommand(event.target.value)}
+                  />
+                </PluginField>
+                <PluginField
+                  label={t("Arguments")}
+                  help={t(
+                    "JSON array; each item is one argument, so spaces and quotes are preserved."
+                  )}
+                >
+                  <textarea
+                    className={inputClass}
+                    rows={3}
+                    value={args}
+                    onChange={(event) => setArgs(event.target.value)}
+                  />
+                </PluginField>
+                <PluginField label={t("Working directory on Bot computer")}>
+                  <input
+                    className={inputClass}
+                    value={cwd}
+                    onChange={(event) => setCwd(event.target.value)}
+                  />
+                </PluginField>
+                <PluginField
+                  label={t("Replace environment values")}
+                  help={`Saved keys: ${config.environmentNames.join(", ") || "none"}. Leave blank to keep; use {} to clear.`}
+                >
+                  <textarea
+                    aria-label={t("Environment values")}
+                    className={inputClass}
+                    rows={3}
+                    placeholder='{"API_KEY":"…"}'
+                    value={env}
+                    onChange={(event) => setEnv(event.target.value)}
+                  />
+                </PluginField>
+              </>
+            )}
+            {connection.transport === "http" && (
               <PluginField
-                label="Arguments"
-                help="JSON array; each item is one argument, so spaces and quotes are preserved."
+                label={t("Replace request headers")}
+                help={`Saved keys: ${config.headerNames.join(", ") || "none"}. Leave blank to keep; use {} to clear.`}
               >
                 <textarea
+                  aria-label={t("Request headers")}
                   className={inputClass}
                   rows={3}
-                  value={args}
-                  onChange={(event) => setArgs(event.target.value)}
+                  placeholder='{"Authorization":"Bearer …"}'
+                  value={headers}
+                  onChange={(event) => setHeaders(event.target.value)}
                 />
               </PluginField>
-              <PluginField label="Working directory on Bot computer">
-                <input
+            )}
+            {connection.auth === "oauth" && (
+              <PluginField label={t("OAuth client authentication")}>
+                <PluginSelect
                   className={inputClass}
-                  value={cwd}
-                  onChange={(event) => setCwd(event.target.value)}
+                  label={t("OAuth client authentication")}
+                  value={authMethod ?? "none"}
+                  onChange={(value) => setAuthMethod(value as typeof authMethod)}
+                  options={[
+                    { value: "none", label: t("Public client (PKCE)") },
+                    { value: "client_secret_post", label: t("Client secret in request") },
+                    { value: "client_secret_basic", label: t("Client secret via HTTP Basic") },
+                  ]}
                 />
               </PluginField>
-              <PluginField
-                label="Replace environment values"
-                help={`Saved keys: ${config.environmentNames.join(", ") || "none"}. Leave blank to keep; use {} to clear.`}
-              >
-                <textarea
-                  aria-label="Environment values"
-                  className={inputClass}
-                  rows={3}
-                  placeholder='{"API_KEY":"…"}'
-                  value={env}
-                  onChange={(event) => setEnv(event.target.value)}
-                />
-              </PluginField>
-            </>
-          )}
-          {connection.transport === "http" && (
-            <PluginField
-              label="Replace request headers"
-              help={`Saved keys: ${config.headerNames.join(", ") || "none"}. Leave blank to keep; use {} to clear.`}
-            >
-              <textarea
-                aria-label="Request headers"
-                className={inputClass}
-                rows={3}
-                placeholder='{"Authorization":"Bearer …"}'
-                value={headers}
-                onChange={(event) => setHeaders(event.target.value)}
-              />
-            </PluginField>
-          )}
-          {connection.auth === "oauth" && (
-            <PluginField label="OAuth client authentication">
-              <PluginSelect
-                className={inputClass}
-                label="OAuth client authentication"
-                value={authMethod ?? "none"}
-                onChange={(value) => setAuthMethod(value as typeof authMethod)}
-                options={[
-                  { value: "none", label: "Public client (PKCE)" },
-                  { value: "client_secret_post", label: "Client secret in request" },
-                  { value: "client_secret_basic", label: "Client secret via HTTP Basic" },
-                ]}
-              />
-            </PluginField>
-          )}
-          <p className="break-all text-xs text-foreground-secondary">
-            Stable tool namespace: {config.namespace}
-          </p>
-        </div>
-      </details>}
+            )}
+            <p className="break-all text-xs text-foreground-secondary">
+              {t("Stable tool namespace: {namespace}", { namespace: config.namespace })}
+            </p>
+          </div>
+        </details>
+      )}
       <div className="flex flex-wrap gap-2">
         <PluginButton
           disabled={operation.busy}
           onClick={() =>
-            void operation.run(save, "Configuration saved. You can finish connecting later.")
+            void operation.run(save, t("Configuration saved. You can finish connecting later."))
           }
         >
-          Save configuration
+          {t("Save configuration")}
         </PluginButton>
         <PluginButton
           primary
@@ -375,21 +472,21 @@ export function ConnectionConfiguration({
             void operation.run(
               () => connect(),
               connection.auth === "oauth"
-                ? "Finish authorization in your browser."
-                : "Connected and tools refreshed."
+                ? t("Finish authorization in your browser.")
+                : t("Connected and tools refreshed.")
             )
           }
         >
-          {connection.auth === "oauth" ? "Save and authorize" : "Save and connect"}
+          {connection.auth === "oauth" ? t("Save and authorize") : t("Save and connect")}
         </PluginButton>
         {connection.status === "ready" && (
           <PluginButton
             disabled={operation.busy}
             onClick={() =>
-              void operation.run(() => api.disconnectPlugin(connection.id), "Disconnected.")
+              void operation.run(() => api.disconnectPlugin(connection.id), t("Disconnected."))
             }
           >
-            Disconnect
+            {t("Disconnect")}
           </PluginButton>
         )}
         <PluginButton
@@ -397,18 +494,18 @@ export function ConnectionConfiguration({
           onClick={() =>
             void operation.run(
               () => api.restartPluginConnection(connection.id),
-              "Connection restarted and tools refreshed."
+              t("Connection restarted and tools refreshed.")
             )
           }
         >
-          Restart / refresh tools
+          {t("Restart / refresh tools")}
         </PluginButton>
       </div>
       <section className="grid gap-3 border-t border-black/10 pt-4 dark:border-white/10">
-        <h4 className="text-[13px] font-medium">Account</h4>
+        <h4 className="text-[13px] font-medium">{t("Account")}</h4>
         <div className="flex gap-2">
           <input
-            aria-label="Account name"
+            aria-label={t("Account name")}
             className={inputClass}
             value={alias}
             onChange={(event) => setAlias(event.target.value)}
@@ -418,18 +515,18 @@ export function ConnectionConfiguration({
             onClick={() =>
               void operation.run(
                 () => api.renamePluginAccount(connection.id, alias),
-                "Account renamed."
+                t("Account renamed.")
               )
             }
           >
-            Rename
+            {t("Rename")}
           </PluginButton>
         </div>
         <div className="flex gap-2">
           <input
-            aria-label="New account name"
+            aria-label={t("New account name")}
             className={inputClass}
-            placeholder="Name another account"
+            placeholder={t("Name another account")}
             value={newAlias}
             onChange={(event) => setNewAlias(event.target.value)}
           />
@@ -438,11 +535,11 @@ export function ConnectionConfiguration({
             onClick={() =>
               void operation.run(
                 () => api.addPluginAccount(connection.id, newAlias),
-                "Account added. Select it to configure and authorize separately."
+                t("Account added. Select it to configure and authorize separately.")
               )
             }
           >
-            Add account
+            {t("Add account")}
           </PluginButton>
         </div>
         <div className="flex gap-2">
@@ -451,18 +548,18 @@ export function ConnectionConfiguration({
               disabled={operation.busy}
               onClick={() => void operation.run(() => connect(true))}
             >
-              Reauthorize
+              {t("Reauthorize")}
             </PluginButton>
           )}
           <PluginButton
             disabled={operation.busy}
             onClick={() => void operation.run(() => api.removePluginAccount(connection.id))}
           >
-            Remove account
+            {t("Remove account")}
           </PluginButton>
         </div>
       </section>
-      <PluginField label="Instructions for Bots using this connection">
+      <PluginField label={t("Instructions for Bots using this connection")}>
         <textarea
           className={inputClass}
           rows={3}
@@ -475,17 +572,22 @@ export function ConnectionConfiguration({
           onClick={() =>
             void operation.run(
               () => api.setMcpInstructions(connection.id, instructions),
-              "Instructions saved."
+              t("Instructions saved.")
             )
           }
         >
-          Save instructions
+          {t("Save instructions")}
         </PluginButton>
       </PluginField>
       <section className="grid gap-2">
-        <h4 className="text-[13px] font-medium">Tools ({connection.tools.length})</h4>
+        <h4 className="text-[13px] font-medium">
+          {t("Tools ({count})", { count: connection.tools.length })}
+        </h4>
         {connection.tools.map((tool) => (
-          <div className="rounded-lg border border-black/10 p-3 dark:border-white/10" key={tool.name}>
+          <div
+            className="rounded-lg border border-black/10 p-3 dark:border-white/10"
+            key={tool.name}
+          >
             <p className="break-all text-[12px]">{tool.name}</p>
             <p className="line-clamp-2 text-xs text-foreground-secondary">{tool.description}</p>
           </div>
@@ -493,28 +595,28 @@ export function ConnectionConfiguration({
       </section>
       {connection.tools.length > 0 && (
         <section className="grid gap-3 rounded-xl border border-black/10 p-4 dark:border-white/10">
-          <h4 className="text-[13px] font-medium">Test a tool</h4>
+          <h4 className="text-[13px] font-medium">{t("Test a tool")}</h4>
           <PluginSelect
             className={inputClass}
-            label="Tool to test"
+            label={t("Tool to test")}
             value={testTool}
             onChange={(value) => {
               setTestTool(value);
               setTestResult("");
             }}
             options={[
-              { value: "", label: "Choose a tool…" },
-              ...connection.tools.map(tool => ({ value: tool.name, label: tool.name })),
+              { value: "", label: t("Choose a tool…") },
+              ...connection.tools.map((tool) => ({ value: tool.name, label: tool.name })),
             ]}
           />
-          <PluginField label="Test arguments (JSON)">
+          <PluginField label={t("Test arguments (JSON)")}>
             <textarea
               className={inputClass}
               rows={4}
               value={testArgs}
               onChange={(event) => {
                 setTestArgs(event.target.value);
-                }}
+              }}
             />
           </PluginField>
           <PluginButton
@@ -526,10 +628,10 @@ export function ConnectionConfiguration({
                   arguments: JSON.parse(testArgs),
                 });
                 setTestResult(JSON.stringify(response.result, null, 2));
-                });
+              });
             }}
           >
-            Run test
+            {t("Run test")}
           </PluginButton>
           {testResult && (
             <pre className="max-h-64 overflow-auto whitespace-pre-wrap break-all rounded-lg bg-black/5 p-3 text-xs dark:bg-white/5">

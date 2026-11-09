@@ -4,6 +4,7 @@ import { pluginIconUrl } from "@aiteamos/plugin-sdk";
 import { PluginMark } from "./plugin-mark";
 import { useRef, useState } from "react";
 import { api } from "../../../client/aiteamos-api";
+import { useI18n } from "../../../lib/i18n";
 import {
   downloadPlugin,
   inputClass,
@@ -20,6 +21,7 @@ export function PackageStudio({
   data: PluginManagementView;
   refresh: () => Promise<unknown>;
 }) {
+  const { t } = useI18n();
   const [mode, setMode] = useState<PluginTemplateMode>("skills");
   const [selected, setSelected] = useState<PluginDraftView | null>(null);
   const [source, setSource] = useState("");
@@ -51,28 +53,31 @@ export function PackageStudio({
         const { archivePackageFiles } = await import("@aiteamos/plugin-sdk/archive");
         select(await api.importPluginArchive(archivePackageFiles(entries)));
       }
-    }, "Package loaded and validated.");
+    }, t("Package loaded and validated."));
   };
   return (
     <div className="grid gap-5">
       {operation.feedback}
       <div>
-        <h1 tabIndex={-1} className="text-[16px] font-medium">Develop plugins</h1>
+        <h1 tabIndex={-1} className="text-[16px] font-medium">
+          {t("Develop plugins")}
+        </h1>
         <p className="mt-1 text-[12px] leading-5 text-foreground-secondary">
-          Load a package, preview its setup, test an installation, and export a bundle for others.
-          Drafts and installed packages are separate.
+          {t(
+            "Load a package, preview its setup, test an installation, and export a bundle for others. Drafts and installed packages are separate."
+          )}
         </p>
       </div>
-      <PluginField label="Plugin type">
+      <PluginField label={t("Plugin type")}>
         <PluginSelect<PluginTemplateMode>
-          label="Plugin type"
+          label={t("Plugin type")}
           value={mode}
           onChange={setMode}
           options={[
-            { value: "skills", label: "Skills" },
-            { value: "remote-mcp", label: "Remote MCP" },
-            { value: "packaged-mcp", label: "Packaged MCP" },
-            { value: "hybrid", label: "Hybrid skills + packaged MCP" },
+            { value: "skills", label: t("Skills") },
+            { value: "remote-mcp", label: t("Remote MCP") },
+            { value: "packaged-mcp", label: t("Packaged MCP") },
+            { value: "hybrid", label: t("Hybrid skills + packaged MCP") },
           ]}
         />
       </PluginField>
@@ -91,13 +96,13 @@ export function PackageStudio({
             )
           }
         >
-          Create plugin
+          {t("Create plugin")}
         </PluginButton>
         <PluginButton disabled={operation.busy} onClick={() => folder.current?.click()}>
-          Load / reload folder
+          {t("Load / reload folder")}
         </PluginButton>
         <PluginButton disabled={operation.busy} onClick={() => archive.current?.click()}>
-          Import ZIP or manifest
+          {t("Import ZIP or manifest")}
         </PluginButton>
       </div>
       <input
@@ -121,7 +126,7 @@ export function PackageStudio({
           event.target.value = "";
         }}
       />
-      <PluginField label="Repository, release ZIP, or manifest URL">
+      <PluginField label={t("Repository, release ZIP, or manifest URL")}>
         <div className="flex gap-2">
           <input
             className={inputClass}
@@ -134,11 +139,11 @@ export function PackageStudio({
             onClick={() =>
               void operation.run(
                 async () => select(await api.importPluginUrl(source)),
-                "Package fetched and validated."
+                t("Package fetched and validated.")
               )
             }
           >
-            Load URL
+            {t("Load URL")}
           </PluginButton>
         </div>
       </PluginField>
@@ -169,8 +174,10 @@ export function PackageStudio({
               </p>
             </div>
             <p className="mt-1 text-sm">
-              {selected.definition.connections.length} connectors ·{" "}
-              {selected.definition.skills.length} skills
+              {t("{connectors} connectors · {skills} skills", {
+                connectors: selected.definition.connections.length,
+                skills: selected.definition.skills.length,
+              })}
             </p>
             {selected.warnings.map((warning) => (
               <p className="mt-2 text-sm text-amber-700 dark:text-amber-300" key={warning}>
@@ -182,17 +189,19 @@ export function PackageStudio({
                 <strong>{connection.name}</strong> · {connection.transport} · {connection.auth}
                 <p className="text-foreground-secondary">
                   {connection.setup?.description ??
-                    "Users configure and connect this connector from Installed plugins."}
+                    t("Users configure and connect this connector from Installed plugins.")}
                 </p>
               </div>
             ))}
           </div>
           <PluginField
-            label="Package definition"
-            help="Edit metadata, connectors, setup fields, skills, and supporting files. Save validates the package without changing an installed version."
+            label={t("Package definition")}
+            help={t(
+              "Edit metadata, connectors, setup fields, skills, and supporting files. Save validates the package without changing an installed version."
+            )}
           >
             <textarea
-              aria-label="Package definition"
+              aria-label={t("Package definition")}
               spellCheck={false}
               className={`${inputClass} min-h-80 font-mono text-xs`}
               value={text}
@@ -206,30 +215,30 @@ export function PackageStudio({
               onClick={() =>
                 void operation.run(
                   async () => select(await api.savePluginDraft(selected.id, JSON.parse(text))),
-                  "Valid package. Changes saved."
+                  t("Valid package. Changes saved.")
                 )
               }
             >
-              Validate and save
+              {t("Validate and save")}
             </PluginButton>
             <PluginButton
               disabled={operation.busy}
               onClick={() =>
                 void operation.run(
                   () => api.installPluginDraft(selected.id),
-                  "Installed. Open Installed to configure its accounts and test its connections."
+                  t("Installed. Open Installed to configure its accounts and test its connections.")
                 )
               }
             >
-              Install for testing
+              {t("Install for testing")}
             </PluginButton>
             <PluginButton
               disabled={operation.busy}
               onClick={() =>
-                void operation.run(() => downloadPlugin(selected.id, true), "Package exported.")
+                void operation.run(() => downloadPlugin(selected.id, true), t("Package exported."))
               }
             >
-              Export ZIP
+              {t("Export ZIP")}
             </PluginButton>
             <PluginButton
               disabled={operation.busy}
@@ -242,21 +251,22 @@ export function PackageStudio({
                   : setRemoveArmed(true)
               }
             >
-              {removeArmed ? "Confirm delete draft" : "Delete draft"}
+              {removeArmed ? t("Confirm delete draft") : t("Delete draft")}
             </PluginButton>
           </div>
         </>
       )}
       <aside className="border-t border-black/10 pt-4 text-[12px] leading-5 text-foreground-secondary dark:border-white/10">
         <p>
-          Contributions belong in <code>packages/plugins/&lt;plugin-name&gt;/</code>. Most plugins
-          need only a manifest and skill files. A connector implementation can keep its dependencies
-          inside its own package.
+          {t("Contributions belong in")} <code>packages/plugins/&lt;plugin-name&gt;/</code>
+          {t(
+            ". Most plugins need only a manifest and skill files. A connector implementation can keep its dependencies inside its own package."
+          )}
         </p>
         <p className="mt-2">
-          Export the validated bundle, add its files using GitHub’s web editor, and open a pull
-          request. Include setup instructions and the connection tests you ran. Saved account
-          credentials are never added to an exported installation.
+          {t(
+            "Export the validated bundle, add its files using GitHub’s web editor, and open a pull request. Include setup instructions and the connection tests you ran. Saved account credentials are never added to an exported installation."
+          )}
         </p>
       </aside>
     </div>

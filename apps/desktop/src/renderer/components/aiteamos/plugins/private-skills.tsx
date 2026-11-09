@@ -4,6 +4,7 @@ import type {
 } from "@aiteamos/contracts/plugin-management";
 import { useEffect, useRef, useState } from "react";
 import { api } from "../../../client/aiteamos-api";
+import { useI18n } from "../../../lib/i18n";
 import { inputClass, PluginButton, PluginField, usePluginOperation } from "./plugin-ui";
 
 export function PrivateSkills({
@@ -13,6 +14,7 @@ export function PrivateSkills({
   data: PluginManagementView;
   refresh: () => Promise<unknown>;
 }) {
+  const { t } = useI18n();
   const [selected, setSelected] = useState<PluginPrivateSkillView | null>(null);
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState("");
@@ -42,15 +44,20 @@ export function PrivateSkills({
       {operation.feedback}
       <div className="flex items-center justify-between">
         <div>
-          <h1 tabIndex={-1} className="text-[16px] font-medium">Private skills</h1>
+          <h1 tabIndex={-1} className="text-[16px] font-medium">
+            {t("Private skills")}
+          </h1>
           <p className="text-[12px] leading-5 text-foreground-secondary">
-            Instructions and supporting files stored on your server. Choose which Bots can use each
-            skill.
+            {t(
+              "Instructions and supporting files stored on your server. Choose which Bots can use each skill."
+            )}
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <PluginButton onClick={() => importInput.current?.click()}>Import SKILL.md</PluginButton>
-          <PluginButton onClick={() => edit(null)}>Create skill</PluginButton>
+          <PluginButton onClick={() => importInput.current?.click()}>
+            {t("Import SKILL.md")}
+          </PluginButton>
+          <PluginButton onClick={() => edit(null)}>{t("Create skill")}</PluginButton>
         </div>
       </div>
       <div className="grid gap-2">
@@ -63,19 +70,22 @@ export function PrivateSkills({
           >
             <p className="font-medium">{skill.name}</p>
             <p className="text-[12px] leading-5 text-foreground-secondary">
-              {skill.description} · {skill.enabledBotIds.length} Bot{skill.enabledBotIds.length === 1 ? "" : "s"}
+              {skill.description} ·{" "}
+              {skill.enabledBotIds.length === 1
+                ? t("{count} Bot", { count: skill.enabledBotIds.length })
+                : t("{count} Bots", { count: skill.enabledBotIds.length })}
             </p>
           </button>
         ))}
         {!data.skills.length && !editing && (
           <p className="py-8 text-center text-[12px] leading-5 text-foreground-secondary">
-            Create a skill or import a SKILL.md file to get started.
+            {t("Create a skill or import a SKILL.md file to get started.")}
           </p>
         )}
       </div>
       <input
         ref={importInput}
-        aria-label="Import SKILL.md"
+        aria-label={t("Import SKILL.md")}
         hidden
         type="file"
         accept=".md"
@@ -96,21 +106,21 @@ export function PrivateSkills({
       />
       {editing && (
         <>
-          <PluginField label="Skill name">
+          <PluginField label={t("Skill name")}>
             <input
               className={inputClass}
               value={name}
               onChange={(event) => setName(event.target.value)}
             />
           </PluginField>
-          <PluginField label="When to use it">
+          <PluginField label={t("When to use it")}>
             <input
               className={inputClass}
               value={description}
               onChange={(event) => setDescription(event.target.value)}
             />
           </PluginField>
-          <PluginField label="Instructions">
+          <PluginField label={t("Instructions")}>
             <textarea
               className={`${inputClass} min-h-52`}
               value={body}
@@ -118,9 +128,9 @@ export function PrivateSkills({
             />
           </PluginField>
           <details className="animated-disclosure">
-            <summary className="cursor-pointer text-sm">Supporting files</summary>
+            <summary className="cursor-pointer text-sm">{t("Supporting files")}</summary>
             <PluginField
-              label="Relative file paths and text content"
+              label={t("Relative file paths and text content")}
               help='For example: {"references/style.md":"Your reference text"}'
             >
               <textarea
@@ -132,7 +142,7 @@ export function PrivateSkills({
             </PluginField>
           </details>
           <fieldset className="grid gap-2">
-            <legend className="mb-2 text-sm font-medium">Available to Bots</legend>
+            <legend className="mb-2 text-sm font-medium">{t("Available to Bots")}</legend>
             {bots.map((bot) => (
               <label className="flex gap-2 text-sm" key={bot.id}>
                 <input
@@ -164,12 +174,12 @@ export function PrivateSkills({
                     enabledBotIds,
                   });
                   setEditing(false);
-                }, "Skill saved.")
+                }, t("Skill saved."))
               }
             >
-              Save skill
+              {t("Save skill")}
             </PluginButton>
-            <PluginButton onClick={() => setEditing(false)}>Cancel</PluginButton>
+            <PluginButton onClick={() => setEditing(false)}>{t("Cancel")}</PluginButton>
             {selected && (
               <PluginButton
                 disabled={operation.busy}
@@ -182,7 +192,7 @@ export function PrivateSkills({
                     : setArmed(true)
                 }
               >
-                {armed ? "Confirm delete skill" : "Delete skill"}
+                {armed ? t("Confirm delete skill") : t("Delete skill")}
               </PluginButton>
             )}
           </div>

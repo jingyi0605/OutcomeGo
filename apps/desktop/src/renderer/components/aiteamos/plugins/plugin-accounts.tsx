@@ -5,6 +5,7 @@ import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { AnimatedCollapse } from "../../ui/animated-collapse";
 import { LoadingOrb } from "../../ui/loading-orb";
 import { cn } from "../../../lib/cn";
+import { useI18n } from "../../../lib/i18n";
 import { pluginAuthorization } from "@aiteamos/product-core/plugin-authorization";
 import { PluginAuthorization } from "./plugin-authorization";
 
@@ -30,6 +31,7 @@ export function PluginAccountRow({
   onCancelAuthentication: () => void;
   children: React.ReactNode;
 }) {
+  const { t } = useI18n();
   const [editing, setEditing] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const settingsId = useId();
@@ -38,13 +40,20 @@ export function PluginAccountRow({
   useEffect(() => setAlias(connection.alias), [connection.alias]);
   const ready = connection.status === "ready";
   const authorization = pluginAuthorization(connection);
-  const status = connection.setupPhase === "provider_setup_required" ? "Setup needed" : connection.setupPhase === "authorization_pending" ? "Finish signing in" : connection.setupPhase === "ready_to_authorize" && connection.auth === "oauth" ? "Sign-in needed" : ready
-    ? "Connected"
-    : connection.status === "needs_auth"
-      ? "Sign-in needed"
-      : connection.status === "error"
-        ? "Connection error"
-        : "Not connected";
+  const status =
+    connection.setupPhase === "provider_setup_required"
+      ? t("Setup needed")
+      : connection.setupPhase === "authorization_pending"
+        ? t("Finish signing in")
+        : connection.setupPhase === "ready_to_authorize" && connection.auth === "oauth"
+          ? t("Sign-in needed")
+          : ready
+            ? t("Connected.")
+            : connection.status === "needs_auth"
+              ? t("Sign-in needed")
+              : connection.status === "error"
+                ? t("Connection error")
+                : t("Not connected");
   const save = async () => {
     if (alias.trim().length < 2 || busy) return;
     if (await onRename(alias.trim())) setEditing(false);
@@ -57,7 +66,7 @@ export function PluginAccountRow({
             <input
               autoFocus
               data-plugin-account-editor
-              aria-label={`Rename ${connection.alias} account`}
+              aria-label={t("Rename {name} account", { name: connection.alias })}
               value={alias}
               onChange={(e) => setAlias(e.target.value)}
               onKeyDown={(e) => {
@@ -75,7 +84,10 @@ export function PluginAccountRow({
             <span className="truncate text-[13px] font-medium">{connection.alias}</span>
           )}
           <button
-            aria-label={`${editing ? "Save" : "Edit"} ${connection.alias} account`}
+            aria-label={t("{action} {name} account", {
+              action: editing ? t("Save") : t("Edit"),
+              name: connection.alias,
+            })}
             aria-expanded={editing}
             disabled={busy || (editing && alias.trim().length < 2)}
             className={iconButton}
@@ -92,10 +104,10 @@ export function PluginAccountRow({
           </button>
           {!editing && (
             <button
-              aria-label={`${connection.alias} account settings`}
+              aria-label={t("{name} account settings", { name: connection.alias })}
               aria-expanded={expanded}
               aria-controls={settingsId}
-              title="Account settings"
+              title={t("Account settings")}
               className={cn(
                 iconButton,
                 "opacity-0 group-hover/account:opacity-100 focus-visible:opacity-100",
@@ -113,7 +125,7 @@ export function PluginAccountRow({
             role="status"
             title={
               connection.statusMessage ??
-              (connection.status === "needs_auth" ? "Sign-in needed" : status)
+              (connection.status === "needs_auth" ? t("Sign-in needed") : status)
             }
             className={cn(
               "text-[12px]",
@@ -130,12 +142,19 @@ export function PluginAccountRow({
         {!editing && !ready && !authorization && (
           <button className={button} type="button" disabled={busy} onClick={() => onConnect()}>
             {busy ? <LoadingOrb aria-hidden size={12} /> : null}
-            {connection.configured ? (connection.auth === "oauth" ? "Sign in" : "Connect") : "Set up"}
+            {connection.configured
+              ? connection.auth === "oauth"
+                ? t("Sign in")
+                : t("Connect")
+              : t("Set up")}
           </button>
         )}
         {editing && (connection.alias !== "default" || connection.status !== "needs_auth") && (
           <button
-            aria-label={`${confirmingRemove ? "Confirm removal of" : "Remove"} ${connection.alias} account`}
+            aria-label={t("{action} {name} account", {
+              action: confirmingRemove ? t("Confirm removal of") : t("Remove"),
+              name: connection.alias,
+            })}
             className={cn(button, "text-red-600 dark:text-red-400")}
             disabled={busy}
             type="button"
@@ -146,12 +165,21 @@ export function PluginAccountRow({
               } else setConfirmingRemove(true);
             }}
           >
-            {confirmingRemove ? "Confirm" : "Remove"}
+            {confirmingRemove ? t("Confirm") : t("Remove")}
           </button>
         )}
       </div>
-      <PluginAuthorization connection={connection} busy={busy} onCancel={onCancelAuthentication} onRetry={onConnect} />
-      {connection.statusMessage && !ready && !authorization ? <p role="status" className="px-3.5 pb-3 text-[11px] text-foreground-secondary">{connection.statusMessage}</p> : null}
+      <PluginAuthorization
+        connection={connection}
+        busy={busy}
+        onCancel={onCancelAuthentication}
+        onRetry={onConnect}
+      />
+      {connection.statusMessage && !ready && !authorization ? (
+        <p role="status" className="px-3.5 pb-3 text-[11px] text-foreground-secondary">
+          {connection.statusMessage}
+        </p>
+      ) : null}
       <AnimatedCollapse open={expanded} id={settingsId}>
         <div className="px-3 pb-3">{children}</div>
       </AnimatedCollapse>
@@ -168,6 +196,7 @@ export function AddPluginAccount({
   busy: boolean;
   onAdd: (connection: PluginConnectionView, alias: string) => Promise<boolean>;
 }) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const formId = useId();
   const [alias, setAlias] = useState("");
@@ -194,7 +223,12 @@ export function AddPluginAccount({
           onSubmit={async (e) => {
             e.preventDefault();
             const connection = choices.find((c) => c.connectorKey === connector);
-            if (connection && !busy && alias.trim().length >= 2 && await onAdd(connection, alias.trim())) {
+            if (
+              connection &&
+              !busy &&
+              alias.trim().length >= 2 &&
+              (await onAdd(connection, alias.trim()))
+            ) {
               setOpen(false);
               setAlias("");
             }
@@ -202,23 +236,23 @@ export function AddPluginAccount({
         >
           {choices.length > 1 && (
             <PluginSelect
-              label="Connector for new account"
+              label={t("Connector for new account")}
               className="h-8 rounded-md bg-background px-2 text-[12px]"
               value={connector}
               onChange={setConnector}
-              options={choices.map(c => ({ value: c.connectorKey, label: c.name }))}
+              options={choices.map((c) => ({ value: c.connectorKey, label: c.name }))}
             />
           )}
           <input
             ref={labelRef}
-            aria-label="New account label"
-            placeholder="Label this account, e.g. work or personal"
+            aria-label={t("New account label")}
+            placeholder={t("Label this account, e.g. work or personal")}
             className="h-8 min-w-0 flex-1 rounded-md border border-black/10 bg-background px-2 text-[12px] outline-none dark:border-white/10"
             value={alias}
             onChange={(e) => setAlias(e.target.value)}
           />
           <button className={button} type="submit" disabled={busy || alias.trim().length < 2}>
-            Add Account
+            {t("Add Account")}
           </button>
           <button
             className={button}
@@ -228,7 +262,7 @@ export function AddPluginAccount({
               setAlias("");
             }}
           >
-            Cancel
+            {t("Cancel")}
           </button>
         </form>
       </AnimatedCollapse>
@@ -242,7 +276,7 @@ export function AddPluginAccount({
           onClick={() => setOpen(true)}
         >
           <Plus className="size-3.5" />
-          Add Another Account
+          {t("Add Another Account")}
         </button>
       </AnimatedCollapse>
     </div>

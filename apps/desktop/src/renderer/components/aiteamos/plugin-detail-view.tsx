@@ -1,27 +1,32 @@
 import { PluginSelect } from "./plugins/plugin-ui";
 import type {
-PluginCatalogItemView,
-PluginConnectionView,
-PluginInstallView,
-PluginSettingsView,
+  PluginCatalogItemView,
+  PluginConnectionView,
+  PluginInstallView,
+  PluginSettingsView,
 } from "@aiteamos/contracts";
-import { GOOGLE_PLUGIN_KEYS, pluginAuthorization } from "@aiteamos/product-core/plugin-authorization";
-import { clientErrorMessage } from "@aiteamos/product-core/redaction";
 import {
-Check,
-ChevronDown,
-ChevronLeft,
-ChevronRight,
-Copy,
-ExternalLink,
-KeyRound,
-Plus,
-Search
+  GOOGLE_PLUGIN_KEYS,
+  pluginAuthorization,
+} from "@aiteamos/product-core/plugin-authorization";
+import { clientErrorMessage } from "@aiteamos/product-core/redaction";
+import { translateCurrent } from "../../lib/i18n-catalog";
+import {
+  Check,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Copy,
+  ExternalLink,
+  KeyRound,
+  Plus,
+  Search,
 } from "lucide-react";
 import { Accordion } from "radix-ui";
-import { lazy,Suspense,useEffect,useLayoutEffect,useMemo,useRef,useState } from "react";
+import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { api } from "../../client/aiteamos-api";
 import { cn } from "../../lib/cn";
+import { useI18n } from "../../lib/i18n";
 import { AnimatedCollapse } from "../ui/animated-collapse";
 import { LoadingOrb } from "../ui/loading-orb";
 const loadPluginSettingsDetail = () => import("./plugin-settings-detail");
@@ -29,18 +34,22 @@ const PluginAuthSelect = lazy(() =>
   loadPluginSettingsDetail().then((module) => ({ default: module.PluginAuthSelect }))
 );
 
-import { AddPluginAccount,PluginAccountRow } from "./plugins/plugin-accounts";
+import { AddPluginAccount, PluginAccountRow } from "./plugins/plugin-accounts";
 import { PluginMark } from "./plugins/plugin-mark";
 
 type MarketplacePage = "marketplace" | "installed" | "detail" | "custom" | "manage";
-type OAuthCallbackSettings = { oauthCallbackMode: "auto" | "desktop" | "server" | "manual"; oauthLoopbackPort: number };
+type OAuthCallbackSettings = {
+  oauthCallbackMode: "auto" | "desktop" | "server" | "manual";
+  oauthLoopbackPort: number;
+};
 
 const primaryButton =
   "inline-flex h-[26px] shrink-0 items-center justify-center gap-1.5 cursor-pointer rounded-full bg-black px-3 text-[13px] font-medium text-white outline-none transition-opacity duration-120 ease-out enabled:hover:opacity-80 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:cursor-wait disabled:bg-[#77777717] disabled:text-foreground disabled:opacity-60 dark:bg-white dark:text-black dark:disabled:bg-[#77777717] dark:disabled:text-foreground";
 const secondaryButton =
   "inline-flex h-[26px] shrink-0 items-center justify-center gap-1.5 cursor-pointer rounded-full bg-[#77777717] px-3 text-[13px] text-foreground outline-none transition-colors duration-120 ease-out hover:bg-[#7777772b] focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-45";
 
-const errorMessage = (cause: unknown) => clientErrorMessage(cause, "Plugin operation failed");
+const errorMessage = (cause: unknown) =>
+  translateCurrent(clientErrorMessage(cause, "Plugin operation failed"));
 
 const installFor = (data: PluginSettingsView, pluginKey: string) =>
   data.installs.find((plugin) => plugin.pluginKey === pluginKey);
@@ -93,6 +102,7 @@ export function CustomMcpView({
     alias: string;
   }) => void;
 }) {
+  const { t } = useI18n();
   const [transport, setTransport] = useState<"http" | "stdio">("http");
   const [name, setName] = useState("");
   const [location, setLocation] = useState("");
@@ -156,14 +166,16 @@ export function CustomMcpView({
       }}
     >
       <div className="mb-6">
-        <h2 tabIndex={-1} className="text-[16px] font-medium">Add custom MCP</h2>
+        <h2 tabIndex={-1} className="text-[16px] font-medium">
+          {t("Add custom MCP")}
+        </h2>
         <p className="mt-1 text-[12px] leading-5 text-foreground-secondary">
-          Connect a remote MCP server or run one on your Bot’s computer.
+          {t("Connect a remote MCP server or run one on your Bot’s computer.")}
         </p>
       </div>
       <div className="space-y-4 rounded-[14px] bg-[#77777717] p-4">
         <label className="block text-[12px] text-foreground-secondary">
-          Name
+          {t("Name")}
           <input
             className={cn(field, "mt-1.5")}
             onChange={(e) => setName(e.target.value)}
@@ -171,7 +183,7 @@ export function CustomMcpView({
           />
         </label>
         <div>
-          <div className="mb-1.5 text-[12px] text-foreground-secondary">Transport</div>
+          <div className="mb-1.5 text-[12px] text-foreground-secondary">{t("Transport")}</div>
           <div className="inline-flex rounded-[8px] bg-black/[0.06] p-0.5 dark:bg-black/30">
             {(["http", "stdio"] as const).map((value) => (
               <button
@@ -183,13 +195,13 @@ export function CustomMcpView({
                 onClick={() => setTransport(value)}
                 type="button"
               >
-                {value === "http" ? "Remote HTTP" : "Local stdio"}
+                {value === "http" ? t("Remote HTTP") : t("Local stdio")}
               </button>
             ))}
           </div>
         </div>
         <label className="block text-[12px] text-foreground-secondary">
-          {transport === "http" ? "MCP URL" : "Command"}
+          {transport === "http" ? t("MCP URL") : t("Command")}
           <input
             className={cn(field, "mt-1.5 font-mono")}
             onChange={(e) => setLocation(e.target.value)}
@@ -200,7 +212,7 @@ export function CustomMcpView({
         {transport === "stdio" ? (
           <>
             <label className="block text-[12px] text-foreground-secondary">
-              Arguments (JSON array)
+              {t("Arguments (JSON array)")}
               <input
                 className={cn(field, "mt-1.5 font-mono")}
                 onChange={(e) => setArgs(e.target.value)}
@@ -209,7 +221,7 @@ export function CustomMcpView({
               />
             </label>
             <label className="block text-[12px] text-foreground-secondary">
-              Working directory on Bot computer
+              {t("Working directory on Bot computer")}
               <input
                 className={cn(field, "mt-1.5 font-mono")}
                 value={cwd}
@@ -218,7 +230,7 @@ export function CustomMcpView({
               />
             </label>
             <label className="block text-[12px] text-foreground-secondary">
-              Environment JSON (optional)
+              {t("Environment JSON (optional)")}
               <textarea
                 className={cn(field, "mt-1.5 h-20 resize-none py-2 font-mono")}
                 onChange={(e) => setConfiguration(e.target.value)}
@@ -230,7 +242,7 @@ export function CustomMcpView({
         ) : (
           <>
             <div className="text-[12px] text-foreground-secondary">
-              <span>Authentication</span>
+              <span>{t("Authentication")}</span>
               <Suspense
                 fallback={
                   <span
@@ -252,7 +264,7 @@ export function CustomMcpView({
               </Suspense>
             </div>
             <label className="block text-[12px] text-foreground-secondary">
-              Headers JSON (optional)
+              {t("Headers JSON (optional)")}
               <textarea
                 className={cn(field, "mt-1.5 h-20 resize-none py-2 font-mono")}
                 onChange={(e) => setConfiguration(e.target.value)}
@@ -263,7 +275,7 @@ export function CustomMcpView({
           </>
         )}
         <label className="block text-[12px] text-foreground-secondary">
-          Account label
+          {t("Account label")}
           <input
             className={cn(field, "mt-1.5")}
             onChange={(e) => setAlias(e.target.value)}
@@ -273,11 +285,11 @@ export function CustomMcpView({
       </div>
       <div className="sticky bottom-0 mt-5 flex justify-end gap-2 bg-background py-3">
         <button className={secondaryButton} onClick={onBack} type="button">
-          Cancel
+          {t("Cancel")}
         </button>
         <button className={primaryButton} disabled={!valid || busy} type="submit">
           {busy ? <LoadingOrb aria-hidden size={12} /> : <Plus className="size-3" />}{" "}
-          Add server
+          {t("Add server")}
         </button>
       </div>
     </form>
@@ -338,6 +350,7 @@ function DetailBlock({
   onOpenChange?: (open: boolean) => void;
   open?: boolean;
 }) {
+  const { t } = useI18n();
   const singular =
     label === "Connectors"
       ? "connector"
@@ -346,14 +359,18 @@ function DetailBlock({
         : label === "Accounts"
           ? "account"
           : "event";
+  const countLabel =
+    singular === "connector"
+      ? t(count === 1 ? "{count} connector" : "{count} connectors", { count })
+      : singular === "skill"
+        ? t(count === 1 ? "{count} skill" : "{count} skills", { count })
+        : singular === "account"
+          ? t(count === 1 ? "{count} account" : "{count} accounts", { count })
+          : t(count === 1 ? "{count} event" : "{count} events", { count });
   return (
     <section className="mt-6">
-      <h3 className="mb-2 px-3.5 text-[13px] font-normal text-foreground-tertiary">{label}</h3>
-      <DetailAccordion
-        summary={summary ?? `${count} ${singular}${count === 1 ? "" : "s"}`}
-        open={open}
-        onOpenChange={onOpenChange}
-      >
+      <h3 className="mb-2 px-3.5 text-[13px] font-normal text-foreground-tertiary">{t(label)}</h3>
+      <DetailAccordion summary={summary ?? countLabel} open={open} onOpenChange={onOpenChange}>
         {children}
       </DetailAccordion>
     </section>
@@ -415,6 +432,7 @@ function PluginSetupCard({
   onConfigureValues: (values: Record<string, string>) => void;
   onDismiss: () => void;
 }) {
+  const { t } = useI18n();
   const setup = plugin.setup;
   const [values, setValues] = useState<Record<string, string>>({});
   const [copied, setCopied] = useState<string | null>(null);
@@ -422,9 +440,11 @@ function PluginSetupCard({
   useLayoutEffect(() => {
     const section = sectionRef.current;
     if (!focusRequest || !section) return;
-    const target = section.querySelector<HTMLElement>("input:required") ??
+    const target =
+      section.querySelector<HTMLElement>("input:required") ??
       section.querySelector<HTMLElement>("input") ??
-      section.querySelector<HTMLElement>("[data-setup-action]:not(:disabled)") ?? section;
+      section.querySelector<HTMLElement>("[data-setup-action]:not(:disabled)") ??
+      section;
     section.scrollIntoView({ block: "start", behavior: "instant" });
     target.scrollIntoView({ block: "nearest", behavior: "instant" });
     target.focus({ preventScroll: true });
@@ -435,7 +455,8 @@ function PluginSetupCard({
   if (!setup || pluginAuthorization(connection)) return null;
 
   const ready = connection.status === "ready";
-  const requiresHttps = connection.oauthCallbackMode === "manual" && connection.manualCallbackSupported === false;
+  const requiresHttps =
+    connection.oauthCallbackMode === "manual" && connection.manualCallbackSupported === false;
   const missingRequired = setup.fields.some(
     (field) => field.required && !values[field.key]?.trim()
   );
@@ -476,16 +497,18 @@ function PluginSetupCard({
     onAuthenticate();
   };
   const actionLabel = ready
-    ? "Connected"
+    ? t("Connected")
     : setup.kind === "token"
       ? connection.configured
-        ? "Reconnect"
-        : "Save token and connect"
+        ? t("Reconnect")
+        : t("Save token and connect")
       : setup.kind === "oauth_client"
         ? connection.configured
-          ? "Authorize account"
-          : "Save credentials and continue"
-        : setup.kind === "none" ? "Connect" : "Continue to authorization";
+          ? t("Authorize account")
+          : t("Save credentials and continue")
+        : setup.kind === "none"
+          ? t("Connect")
+          : t("Continue to authorization");
 
   return (
     <section
@@ -517,7 +540,7 @@ function PluginSetupCard({
         <div className="min-w-0 flex-1">
           <div className="flex items-center justify-between gap-3">
             <div className="text-[12px] font-medium">
-              {ready ? `${plugin.name} is connected` : setup.title}
+              {ready ? t("{name} is connected", { name: plugin.name }) : setup.title}
             </div>
             {setup.documentationUrl ? (
               <a
@@ -526,13 +549,15 @@ function PluginSetupCard({
                 rel="noreferrer"
                 target="_blank"
               >
-                Setup guide <ExternalLink className="size-2.5" />
+                {t("Setup guide")} <ExternalLink className="size-2.5" />
               </a>
             ) : null}
           </div>
           <p className="mt-0.5 text-[10.5px] leading-4 text-foreground-secondary">
             {ready
-              ? `${connection.tools.length} tools are available from this account.`
+              ? t("{count} tools are available from this account.", {
+                  count: connection.tools.length,
+                })
               : setup.description}
           </p>
         </div>
@@ -558,13 +583,17 @@ function PluginSetupCard({
 
           {requiresHttps ? (
             <p className="mt-3 text-[10px] leading-4 text-foreground-secondary">
-              This provider requires an HTTPS aiTeamOS address. Configure Tailscale Serve or your own HTTPS domain before signing in. Callback paste is not supported.
+              {t(
+                "This provider requires an HTTPS aiTeamOS address. Configure Tailscale Serve or your own HTTPS domain before signing in. Callback paste is not supported."
+              )}
             </p>
           ) : setup.kind === "oauth_client" && connection.oauthRedirectUrl ? (
             <div className="mt-3 rounded-[8px] border border-black/[0.06] bg-background px-3 py-2.5 dark:border-white/[0.08] dark:bg-black/15">
               <div className="flex items-center justify-between gap-3">
                 <span className="text-[9.5px] font-medium uppercase tracking-[0.04em] text-foreground-tertiary">
-                  {connection.oauthCallbackMode === "manual" ? "Manual callback URI" : "Authorized redirect URI"}
+                  {connection.oauthCallbackMode === "manual"
+                    ? t("Manual callback URI")
+                    : t("Authorized redirect URI")}
                 </span>
                 <button
                   className="inline-flex items-center gap-1 text-[9.5px] text-foreground-secondary hover:text-foreground"
@@ -576,33 +605,41 @@ function PluginSetupCard({
                   ) : (
                     <Copy className="size-3" />
                   )}
-                  {copied === "callback" ? "Copied" : "Copy"}
+                  {copied === "callback" ? t("Copied") : t("Copy")}
                 </button>
               </div>
               <code className="mt-1 block select-all break-all text-[10px] text-foreground">
                 {connection.oauthRedirectUrl}
               </code>
-              {<p className="mt-2 text-[10px] leading-4 text-foreground-secondary">
-                {connection.oauthCallbackMode === "manual"
-                  ? GOOGLE_PLUGIN_KEYS.includes(plugin.key)
-                    ? "Your server uses HTTP. For Google, create a Desktop app OAuth client. Approve access in your browser, then paste the complete callback URL into aiTeamOS on this device."
-                    : "Approve access in your browser, then paste the complete callback URL into aiTeamOS on this device, even if the localhost page cannot load."
-                  : "Register this exact URL with your provider’s Web application OAuth client. HTTPS sign-in returns automatically on desktop or iOS."}
-              </p>}
+              {
+                <p className="mt-2 text-[10px] leading-4 text-foreground-secondary">
+                  {connection.oauthCallbackMode === "manual"
+                    ? GOOGLE_PLUGIN_KEYS.includes(plugin.key)
+                      ? t(
+                          "Your server uses HTTP. For Google, create a Desktop app OAuth client. Approve access in your browser, then paste the complete callback URL into aiTeamOS on this device."
+                        )
+                      : t(
+                          "Approve access in your browser, then paste the complete callback URL into aiTeamOS on this device, even if the localhost page cannot load."
+                        )
+                    : t(
+                        "Register this exact URL with your provider’s Web application OAuth client. HTTPS sign-in returns automatically on desktop or iOS."
+                      )}
+                </p>
+              }
             </div>
           ) : null}
 
           {setup.requiredScopes.length ? (
             <details className="animated-disclosure mt-3 text-[10px] text-foreground-secondary">
               <summary className="cursor-pointer select-none text-foreground-secondary">
-                Required provider scopes ({setup.requiredScopes.length})
+                {t("Required provider scopes ({count})", { count: setup.requiredScopes.length })}
               </summary>
               <div className="mt-2 flex items-start gap-2 rounded-[8px] bg-black/[0.025] p-2.5 dark:bg-black/15">
                 <code className="min-w-0 flex-1 whitespace-pre-wrap break-all leading-4">
                   {setup.requiredScopes.join("\n")}
                 </code>
                 <button
-                  aria-label="Copy required scopes"
+                  aria-label={t("Copy required scopes")}
                   className="grid size-6 shrink-0 place-items-center rounded-[6px] hover:bg-black/[0.05] dark:hover:bg-white/[0.06]"
                   onClick={() => void copy("scopes", setup.requiredScopes.join(" "))}
                   type="button"
@@ -641,7 +678,10 @@ function PluginSetupCard({
             </div>
           ) : connection.configured && setup.fields.length ? (
             <div className="mt-3 text-[10px] text-foreground-secondary">
-              Settings saved. {connection.status === "ready" ? "Connection verified." : "A successful connection is required to verify access."}
+              {t("Settings saved.")}{" "}
+              {connection.status === "ready"
+                ? t("Connection verified.")
+                : t("A successful connection is required to verify access.")}
             </div>
           ) : null}
 
@@ -658,9 +698,16 @@ function PluginSetupCard({
             type="button"
           >
             {busy ? <LoadingOrb aria-hidden size={12} /> : null}
-            {requiresHttps ? "HTTPS required" : actionLabel}
+            {requiresHttps ? t("HTTPS required") : actionLabel}
           </button>
-          <button className={cn(secondaryButton, "ml-2")} type="button" disabled={busy} onClick={onDismiss}>Set up later</button>
+          <button
+            className={cn(secondaryButton, "ml-2")}
+            type="button"
+            disabled={busy}
+            onClick={onDismiss}
+          >
+            {t("Set up later")}
+          </button>
         </div>
       ) : null}
     </section>
@@ -690,15 +737,31 @@ function ConnectionSettingsRow({
   onRename: (alias: string) => void;
   onRestart: () => void;
 }) {
+  const { t } = useI18n();
   const [alias, setAlias] = useState(connection.alias);
   const [instructions, setInstructions] = useState(connection.instructions);
   const [token, setToken] = useState("");
   const [oauthClientId, setOauthClientId] = useState("");
   const [oauthClientSecret, setOauthClientSecret] = useState("");
   const [oauthScope, setOauthScope] = useState("");
-  const [callbackMode, setCallbackMode] = useState<OAuthCallbackSettings["oauthCallbackMode"]>("auto");
+  const [callbackMode, setCallbackMode] =
+    useState<OAuthCallbackSettings["oauthCallbackMode"]>("auto");
   const [manualSupported, setManualSupported] = useState(true);
-  useEffect(() => { let active = true; void api.pluginConfiguration(connection.id).then(config => { if (active) { setCallbackMode(config.oauthCallbackMode ?? "auto"); setManualSupported(config.manualCallbackSupported !== false); } }).catch(() => {}); return () => { active = false; }; }, [connection.id]);
+  useEffect(() => {
+    let active = true;
+    void api
+      .pluginConfiguration(connection.id)
+      .then((config) => {
+        if (active) {
+          setCallbackMode(config.oauthCallbackMode ?? "auto");
+          setManualSupported(config.manualCallbackSupported !== false);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [connection.id]);
   const [callbackPort, setCallbackPort] = useState(connection.oauthLoopbackPort ?? 0);
   const field =
     "h-8 rounded-[7px] border border-black/[0.08] bg-background px-2 text-[10.5px] outline-none dark:border-white/10 dark:bg-[#1d1d1d]";
@@ -723,25 +786,25 @@ function ConnectionSettingsRow({
             onClick={onAuthenticate}
             type="button"
           >
-            Authenticate
+            {t("Authenticate")}
           </button>
         ) : null}
         <button className={secondaryButton} disabled={busy} onClick={onRestart} type="button">
-          Restart
+          {t("Restart")}
         </button>
       </div>
       <div className="mt-3 grid grid-cols-[minmax(110px,0.7fr)_minmax(180px,1.4fr)_auto] gap-2 max-sm:grid-cols-1">
         <input
-          aria-label="Account alias"
+          aria-label={t("Account alias")}
           className={field}
           onChange={(e) => setAlias(e.target.value)}
           value={alias}
         />
         <input
-          aria-label="Connector instructions"
+          aria-label={t("Connector instructions")}
           className={field}
           onChange={(e) => setInstructions(e.target.value)}
-          placeholder="Instructions, e.g. reply in threads"
+          placeholder={t("Instructions, e.g. reply in threads")}
           value={instructions}
         />
         <div className="flex gap-1.5">
@@ -751,7 +814,7 @@ function ConnectionSettingsRow({
             onClick={() => onRename(alias.trim())}
             type="button"
           >
-            Rename
+            {t("Rename")}
           </button>
           <button
             className={secondaryButton}
@@ -759,17 +822,17 @@ function ConnectionSettingsRow({
             onClick={() => onInstructions(instructions)}
             type="button"
           >
-            Save
+            {t("Save")}
           </button>
         </div>
       </div>
       {connection.auth === "token" && connection.status !== "ready" ? (
         <div className="mt-2 flex gap-2">
           <input
-            aria-label="Bearer token"
+            aria-label={t("Bearer token")}
             className={cn(field, "min-w-0 flex-1 font-mono")}
             onChange={(e) => setToken(e.target.value)}
-            placeholder="Bearer token"
+            placeholder={t("Bearer token")}
             type="password"
             value={token}
           />
@@ -779,63 +842,103 @@ function ConnectionSettingsRow({
             onClick={() => onConfigureToken(token)}
             type="button"
           >
-            Save token
+            {t("Save token")}
           </button>
         </div>
       ) : null}
       {connection.auth === "oauth" && onConfigureCallback ? (
         <div className="mt-3 grid gap-2 text-[10.5px]">
-          <label className="grid gap-1">Sign-in callback
+          <label className="grid gap-1">
+            {t("Sign-in callback")}
             <PluginSelect
               className={field}
-              label="Sign-in callback"
+              label={t("Sign-in callback")}
               value={callbackMode}
-              onChange={value => setCallbackMode(value as OAuthCallbackSettings["oauthCallbackMode"])}
+              onChange={(value) =>
+                setCallbackMode(value as OAuthCallbackSettings["oauthCallbackMode"])
+              }
               options={[
-                { value: "auto", label: "Automatic (recommended)" },
-                { value: "manual", label: "Paste callback URL", disabled: !manualSupported },
-                { value: "desktop", label: "Desktop listener (advanced)" },
-                { value: "server", label: "Server callback" },
+                { value: "auto", label: t("Automatic (recommended)") },
+                { value: "manual", label: t("Paste callback URL"), disabled: !manualSupported },
+                { value: "desktop", label: t("Desktop listener (advanced)") },
+                { value: "server", label: t("Server callback") },
               ]}
             />
           </label>
-          {callbackMode === "desktop" && <label className="grid gap-1">Desktop callback port (0 = automatic)
-            <input className={field} aria-label="Desktop callback port" type="number" min={0} max={65535} value={callbackPort} onChange={event => setCallbackPort(Number(event.target.value))} />
-          </label>}
-          <p className="text-foreground-secondary">Automatic uses HTTPS when your server has it, or callback paste for HTTP. For Google use a Web application client with HTTPS, or a Desktop app client for manual paste. Changing the method may require a new provider client.</p>
-          {!manualSupported && <p className="text-foreground-secondary">This provider requires an HTTPS server callback. Use Tailscale Serve or your own HTTPS domain.</p>}
-          <button className={cn(secondaryButton, "justify-self-start")} type="button" disabled={busy} onClick={() => onConfigureCallback({ oauthCallbackMode: callbackMode, oauthLoopbackPort: callbackPort })}>Save callback settings</button>
+          {callbackMode === "desktop" && (
+            <label className="grid gap-1">
+              {t("Desktop callback port (0 = automatic)")}
+              <input
+                className={field}
+                aria-label={t("Desktop callback port")}
+                type="number"
+                min={0}
+                max={65535}
+                value={callbackPort}
+                onChange={(event) => setCallbackPort(Number(event.target.value))}
+              />
+            </label>
+          )}
+          <p className="text-foreground-secondary">
+            {t(
+              "Automatic uses HTTPS when your server has it, or callback paste for HTTP. For Google use a Web application client with HTTPS, or a Desktop app client for manual paste. Changing the method may require a new provider client."
+            )}
+          </p>
+          {!manualSupported && (
+            <p className="text-foreground-secondary">
+              {t(
+                "This provider requires an HTTPS server callback. Use Tailscale Serve or your own HTTPS domain."
+              )}
+            </p>
+          )}
+          <button
+            className={cn(secondaryButton, "justify-self-start")}
+            type="button"
+            disabled={busy}
+            onClick={() =>
+              onConfigureCallback({
+                oauthCallbackMode: callbackMode,
+                oauthLoopbackPort: callbackPort,
+              })
+            }
+          >
+            {t("Save callback settings")}
+          </button>
         </div>
       ) : null}
       {connection.auth === "oauth" && connection.status !== "ready" ? (
         <div className="mt-3 rounded-[9px] bg-black/[0.035] p-3 dark:bg-black/20">
           <div className="mb-2 text-[10.5px] leading-4 text-foreground-secondary">
-            {connection.oauthCallbackMode === "manual" ? "Manual sign-in uses a loopback callback. For Google, create a Desktop app client:" : "Current callback URL (save callback settings before registering it):"}
+            {connection.oauthCallbackMode === "manual"
+              ? t(
+                  "Manual sign-in uses a loopback callback. For Google, create a Desktop app client:"
+                )
+              : t("Current callback URL (save callback settings before registering it):")}
             <code className="mt-1 block select-all break-all text-[10px] text-foreground">
               {connection.oauthRedirectUrl}
             </code>
           </div>
           <div className="grid grid-cols-2 gap-2 max-sm:grid-cols-1">
             <input
-              aria-label="OAuth client ID"
+              aria-label={t("OAuth client ID")}
               className={field}
               onChange={(event) => setOauthClientId(event.target.value)}
-              placeholder="OAuth client ID"
+              placeholder={t("OAuth client ID")}
               value={oauthClientId}
             />
             <input
-              aria-label="OAuth client secret"
+              aria-label={t("OAuth client secret")}
               className={field}
               onChange={(event) => setOauthClientSecret(event.target.value)}
-              placeholder="OAuth client secret (optional)"
+              placeholder={t("OAuth client secret (optional)")}
               type="password"
               value={oauthClientSecret}
             />
             <input
-              aria-label="OAuth scopes"
+              aria-label={t("OAuth scopes")}
               className={cn(field, "col-span-2 max-sm:col-span-1")}
               onChange={(event) => setOauthScope(event.target.value)}
-              placeholder="Scopes (optional, space separated)"
+              placeholder={t("Scopes (optional, space separated)")}
               value={oauthScope}
             />
           </div>
@@ -851,7 +954,7 @@ function ConnectionSettingsRow({
             }
             type="button"
           >
-            Save client and authenticate
+            {t("Save client and authenticate")}
           </button>
         </div>
       ) : null}
@@ -861,7 +964,7 @@ function ConnectionSettingsRow({
         onClick={onRemove}
         type="button"
       >
-        Remove account
+        {t("Remove account")}
       </button>
     </div>
   );
@@ -908,18 +1011,29 @@ export function PluginDetail({
   onRemove: (plugin: PluginCatalogItemView) => void;
   onRestart: (connection: PluginConnectionView) => void;
   onToggle: (connection: PluginConnectionView) => void;
-  onUpdateEnvironment?: (plugin: PluginCatalogItemView, values: Record<string, string>) => Promise<boolean>;
+  onUpdateEnvironment?: (
+    plugin: PluginCatalogItemView,
+    values: Record<string, string>
+  ) => Promise<boolean>;
   advancedSettings?: React.ReactNode;
 }) {
+  const { t } = useI18n();
   const [setupValues, setSetupValues] = useState<Record<string, string>>({});
   const [environmentValues, setEnvironmentValues] = useState<Record<string, string>>({});
-  const [setupRequest, setSetupRequest] = useState<{ accountId: string; sequence: number } | null>(null);
+  const [setupRequest, setSetupRequest] = useState<{ accountId: string; sequence: number } | null>(
+    null
+  );
   const [dismissedSetupIds, setDismissedSetupIds] = useState<string[]>([]);
   const install = installFor(data, plugin.key);
   const connections = install?.connections ?? [];
   const setupConnection =
     connections.find((c) => c.id === setupRequest?.accountId && c.status !== "ready") ??
-    connections.find((c) => !dismissedSetupIds.includes(c.id) && c.status !== "ready" && (!c.configured || plugin.setup?.kind === "none"));
+    connections.find(
+      (c) =>
+        !dismissedSetupIds.includes(c.id) &&
+        c.status !== "ready" &&
+        (!c.configured || plugin.setup?.kind === "none")
+    );
   const recentActivity = data.activity
     .filter((entry) => entry.pluginKey === plugin.key)
     .slice(0, 8);
@@ -928,7 +1042,9 @@ export function PluginDetail({
       <div className="group/plugin-heading flex items-center gap-3 pt-1">
         <PluginMark logoUrl={plugin.logoUrl} name={plugin.name} size="lg" />
         <div className="min-w-0 flex-1 pt-1">
-          <h1 tabIndex={-1} className="flex items-center gap-1.5 text-[16px] font-medium">{plugin.name}</h1>
+          <h1 tabIndex={-1} className="flex items-center gap-1.5 text-[16px] font-medium">
+            {plugin.name}
+          </h1>
           <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-[12px] text-foreground-secondary">
             <span>{plugin.publisher}</span>
             {plugin.sourceUrl || plugin.homepageUrl ? (
@@ -938,7 +1054,8 @@ export function PluginDetail({
                 rel="noreferrer"
                 target="_blank"
               >
-                {plugin.sourceUrl ? "View Source" : "Website"} <ExternalLink className="size-2.5" />
+                {plugin.sourceUrl ? t("View Source") : t("Website")}{" "}
+                <ExternalLink className="size-2.5" />
               </a>
             ) : null}
           </div>
@@ -954,7 +1071,7 @@ export function PluginDetail({
             type="button"
           >
             {busy === plugin.key ? <LoadingOrb aria-hidden size={12} /> : null}
-            Add
+            {t("Add")}
           </button>
         ) : (
           <button
@@ -963,7 +1080,7 @@ export function PluginDetail({
             onClick={() => onRemove(plugin)}
             type="button"
           >
-            Uninstall
+            {t("Uninstall")}
           </button>
         )}
       </div>
@@ -971,8 +1088,42 @@ export function PluginDetail({
         {plugin.description}
       </p>
 
-      {plugin.installationSteps?.length ? <details className="animated-disclosure mt-4 text-[12px]" open={!install && plugin.setupFields.some((field) => field.required)}><summary className="cursor-pointer">Installation steps</summary><ol className="mt-2 list-decimal space-y-1 pl-5">{plugin.installationSteps.map(step => <li key={step}>{step}</li>)}</ol></details> : null}
-      {!install && plugin.setup ? <details className="animated-disclosure mt-3 text-[12px]"><summary className="cursor-pointer">Provider setup: {plugin.setup.title}</summary><p className="mt-2">{plugin.setup.description}</p><ol className="mt-2 list-decimal space-y-1 pl-5">{plugin.setup.steps.map(step => <li key={step}>{step}</li>)}</ol>{plugin.setup.documentationUrl && <a href={plugin.setup.documentationUrl} target="_blank" rel="noreferrer" className="underline">Provider setup guide</a>}</details> : null}
+      {plugin.installationSteps?.length ? (
+        <details
+          className="animated-disclosure mt-4 text-[12px]"
+          open={!install && plugin.setupFields.some((field) => field.required)}
+        >
+          <summary className="cursor-pointer">{t("Installation steps")}</summary>
+          <ol className="mt-2 list-decimal space-y-1 pl-5">
+            {plugin.installationSteps.map((step) => (
+              <li key={step}>{step}</li>
+            ))}
+          </ol>
+        </details>
+      ) : null}
+      {!install && plugin.setup ? (
+        <details className="animated-disclosure mt-3 text-[12px]">
+          <summary className="cursor-pointer">
+            {t("Provider setup: {title}", { title: plugin.setup.title })}
+          </summary>
+          <p className="mt-2">{plugin.setup.description}</p>
+          <ol className="mt-2 list-decimal space-y-1 pl-5">
+            {plugin.setup.steps.map((step) => (
+              <li key={step}>{step}</li>
+            ))}
+          </ol>
+          {plugin.setup.documentationUrl && (
+            <a
+              href={plugin.setup.documentationUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="underline"
+            >
+              {t("Provider setup guide")}
+            </a>
+          )}
+        </details>
+      ) : null}
       {!install && plugin.setupFields.length ? (
         <div className="mt-5 grid grid-cols-2 gap-2 rounded-[10px] bg-black/[0.035] p-3 dark:bg-white/[0.045] max-sm:grid-cols-1">
           {plugin.setupFields.map((field) => (
@@ -988,7 +1139,9 @@ export function PluginDetail({
                 value={setupValues[field.key] ?? ""}
               />
               {field.helpText ? (
-                <span className="block text-[9.5px] leading-3.5 text-foreground-tertiary">{field.helpText}</span>
+                <span className="block text-[9.5px] leading-3.5 text-foreground-tertiary">
+                  {field.helpText}
+                </span>
               ) : null}
             </label>
           ))}
@@ -1014,14 +1167,19 @@ export function PluginDetail({
                 <label className="space-y-1" key={field.key}>
                   <span className="block text-[10.5px] text-foreground-secondary">
                     {field.label} ·{" "}
-                    {install.configuredEnvironment?.includes(field.environment!) ? "Saved" : "Not set"}
+                    {install.configuredEnvironment?.includes(field.environment!)
+                      ? t("Saved")
+                      : t("Not set")}
                   </span>
                   <input
                     className="h-8 w-full rounded-[7px] border border-black/[0.08] bg-background px-2.5 text-[11px] outline-none dark:border-white/[0.09]"
                     onChange={(event) =>
-                      setEnvironmentValues((current) => ({ ...current, [field.key]: event.target.value }))
+                      setEnvironmentValues((current) => ({
+                        ...current,
+                        [field.key]: event.target.value,
+                      }))
                     }
-                    placeholder="Enter a new value to replace it"
+                    placeholder={t("Enter a new value to replace it")}
                     type="password"
                     value={environmentValues[field.key] ?? ""}
                   />
@@ -1030,17 +1188,19 @@ export function PluginDetail({
           </div>
           <button
             className={cn(secondaryButton, "mt-2 h-8 px-3")}
-            disabled={busy === plugin.key || !Object.values(environmentValues).some((value) => value.trim())}
+            disabled={
+              busy === plugin.key || !Object.values(environmentValues).some((value) => value.trim())
+            }
             type="submit"
           >
-            Save
+            {t("Save")}
           </button>
         </form>
       ) : null}
 
       {connections.length ? (
         <section className="mt-8">
-          <h3 className="mb-1.5 px-3.5 text-[13px] text-foreground-tertiary">Accounts</h3>
+          <h3 className="mb-1.5 px-3.5 text-[13px] text-foreground-tertiary">{t("Accounts")}</h3>
           <div className="overflow-hidden rounded-[14px] bg-[#77777717]">
             {connections.map((connection) => (
               <PluginAccountRow
@@ -1052,10 +1212,11 @@ export function PluginDetail({
                 onCancelAuthentication={() => onCancelAuthentication(connection)}
                 onConnect={(force = false) => {
                   if (!connection.configured && plugin.setup) {
-                    setSetupRequest(request => ({ accountId: connection.id, sequence: (request?.sequence ?? 0) + 1 }));
-                  }
-                  else if (connection.auth === "oauth")
-                    onAuthenticate(connection, force);
+                    setSetupRequest((request) => ({
+                      accountId: connection.id,
+                      sequence: (request?.sequence ?? 0) + 1,
+                    }));
+                  } else if (connection.auth === "oauth") onAuthenticate(connection, force);
                   else onRestart(connection);
                 }}
               >
@@ -1064,7 +1225,11 @@ export function PluginDetail({
                   connection={connection}
                   onAuthenticate={() => onAuthenticate(connection)}
                   onConfigureOAuth={(input) => onConfigureOAuth(connection, input)}
-                  onConfigureCallback={onConfigureCallback ? input => onConfigureCallback(connection, input) : undefined}
+                  onConfigureCallback={
+                    onConfigureCallback
+                      ? (input) => onConfigureCallback(connection, input)
+                      : undefined
+                  }
                   onConfigureToken={(token) => onConfigureToken(connection, token)}
                   onInstructions={(instructions) => onInstructions(connection, instructions)}
                   onRemove={() => onRemoveAccount(connection)}
@@ -1077,7 +1242,7 @@ export function PluginDetail({
                     className="my-2 text-[12px] text-foreground-secondary hover:text-foreground"
                     onClick={() => onToggle(connection)}
                   >
-                    Disconnect
+                    {t("Disconnect")}
                   </button>
                 )}
               </PluginAccountRow>
@@ -1089,41 +1254,68 @@ export function PluginDetail({
               key={setupConnection.id}
               busy={busy === setupConnection.id}
               connection={setupConnection}
-              focusRequest={setupRequest?.accountId === setupConnection.id ? setupRequest.sequence : 0}
+              focusRequest={
+                setupRequest?.accountId === setupConnection.id ? setupRequest.sequence : 0
+              }
               onAuthenticate={() => onAuthenticate(setupConnection)}
               onConfigureOAuth={(input) => onConfigureOAuth(setupConnection, input)}
               onConfigureToken={(token) => onConfigureToken(setupConnection, token)}
               onConfigureValues={(values) => onConfigureValues(setupConnection, values)}
-              onDismiss={() => { setDismissedSetupIds(ids => [...ids, setupConnection.id]); setSetupRequest(null); }}
+              onDismiss={() => {
+                setDismissedSetupIds((ids) => [...ids, setupConnection.id]);
+                setSetupRequest(null);
+              }}
               plugin={plugin}
             />
           ) : null}
         </section>
       ) : null}
-      {connections.some(connection => connection.tools.length > 0) ? (
-        <DetailBlock count={connections.reduce((count, connection) => count + connection.tools.length, 0)} label="Tools" summary={`${connections.reduce((count, connection) => count + connection.tools.length, 0)} tools available`}>
-          {connections.flatMap(connection => connection.tools.map(tool => <div key={`${connection.id}:${tool.name}`} className="border-t border-foreground/[0.06] px-3.5 py-3">
-            <div className="flex items-center justify-between gap-3 text-[13px]"><span className="break-all">{tool.name}</span>{connections.length > 1 && <span className="shrink-0 text-[12px] text-foreground-secondary">{connection.alias}</span>}</div>
-            <p className="mt-1 text-[12px] leading-5 text-foreground-secondary">{tool.description}</p>
-          </div>))}
+      {connections.some((connection) => connection.tools.length > 0) ? (
+        <DetailBlock
+          count={connections.reduce((count, connection) => count + connection.tools.length, 0)}
+          label={t("Tools")}
+          summary={t("{count} tools available", {
+            count: connections.reduce((count, connection) => count + connection.tools.length, 0),
+          })}
+        >
+          {connections.flatMap((connection) =>
+            connection.tools.map((tool) => (
+              <div
+                key={`${connection.id}:${tool.name}`}
+                className="border-t border-foreground/[0.06] px-3.5 py-3"
+              >
+                <div className="flex items-center justify-between gap-3 text-[13px]">
+                  <span className="break-all">{tool.name}</span>
+                  {connections.length > 1 && (
+                    <span className="shrink-0 text-[12px] text-foreground-secondary">
+                      {connection.alias}
+                    </span>
+                  )}
+                </div>
+                <p className="mt-1 text-[12px] leading-5 text-foreground-secondary">
+                  {tool.description}
+                </p>
+              </div>
+            ))
+          )}
         </DetailBlock>
       ) : null}
       {plugin.connections.length ? (
-        <DetailBlock count={plugin.connections.length} label="Connectors">
+        <DetailBlock count={plugin.connections.length} label={t("Connectors")}>
           {plugin.connections.map((connection) => (
             <div
               key={connection.key}
               className="flex min-h-[42px] items-center justify-between gap-2 border-t border-black/[0.055] px-3.5 text-[13px] first:border-t-0 dark:border-white/[0.065]"
             >
               <span>{connection.name}</span>
-              <span className="text-[12px] text-foreground-secondary">Connector</span>
+              <span className="text-[12px] text-foreground-secondary">{t("Connector")}</span>
             </div>
           ))}
         </DetailBlock>
       ) : null}
 
       {plugin.skills.length ? (
-        <DetailBlock count={plugin.skills.length} label="Skills">
+        <DetailBlock count={plugin.skills.length} label={t("Skills")}>
           {[...plugin.skills]
             .sort((a, b) => a.name.localeCompare(b.name))
             .map((skill) => (
@@ -1144,20 +1336,28 @@ export function PluginDetail({
       ) : null}
 
       <section className="mt-6">
-        <h3 className="mb-2 px-3.5 text-[13px] text-foreground-tertiary">Information</h3>
+        <h3 className="mb-2 px-3.5 text-[13px] text-foreground-tertiary">{t("Information")}</h3>
         <dl className="plugin-management-card px-3.5 text-[13px]">
-          <div className="flex min-h-[42px] items-center justify-between gap-3"><dt>Publisher</dt><dd className="text-foreground-secondary">{plugin.publisher}</dd></div>
-          <div className="flex min-h-[42px] items-center justify-between gap-3 border-t border-foreground/10"><dt>Version</dt><dd className="text-foreground-secondary">{install?.version ?? plugin.version}</dd></div>
+          <div className="flex min-h-[42px] items-center justify-between gap-3">
+            <dt>{t("Publisher")}</dt>
+            <dd className="text-foreground-secondary">{plugin.publisher}</dd>
+          </div>
+          <div className="flex min-h-[42px] items-center justify-between gap-3 border-t border-foreground/10">
+            <dt>{t("Version")}</dt>
+            <dd className="text-foreground-secondary">{install?.version ?? plugin.version}</dd>
+          </div>
         </dl>
       </section>
-      {install && advancedSettings ? <section className="mt-6">
-        <h3 className="mb-2 px-3.5 text-[13px] text-foreground-tertiary">Settings</h3>
-        <DetailAccordion summary="Advanced settings">
-          <div className="border-t border-foreground/10 p-4">{advancedSettings}</div>
-        </DetailAccordion>
-      </section> : null}
+      {install && advancedSettings ? (
+        <section className="mt-6">
+          <h3 className="mb-2 px-3.5 text-[13px] text-foreground-tertiary">{t("Settings")}</h3>
+          <DetailAccordion summary={t("Advanced settings")}>
+            <div className="border-t border-foreground/10 p-4">{advancedSettings}</div>
+          </DetailAccordion>
+        </section>
+      ) : null}
       {recentActivity.length ? (
-        <DetailBlock count={recentActivity.length} label="Activity" open={false}>
+        <DetailBlock count={recentActivity.length} label={t("Activity")} open={false}>
           {recentActivity.map((entry) => (
             <div
               className="flex min-h-10 items-center gap-3 border-t border-black/[0.055] px-3 text-[10.5px] first:border-t-0 dark:border-white/[0.065]"

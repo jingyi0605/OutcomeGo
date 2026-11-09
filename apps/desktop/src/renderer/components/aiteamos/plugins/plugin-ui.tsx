@@ -3,6 +3,7 @@ import { api } from "../../../client/aiteamos-api";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../ui/select";
 import { clientErrorMessage } from "@aiteamos/product-core/redaction";
 import { cn } from "../../../lib/cn";
+import { useI18n } from "../../../lib/i18n";
 
 export const inputClass =
   "w-full min-w-0 min-h-9 rounded-[8px] border border-black/10 bg-[#7777770a] px-3 py-2 text-[13px] outline-none focus:ring-2 focus:ring-blue-500/40 dark:border-white/15";
@@ -47,10 +48,17 @@ export function PluginSelect<Value extends string>({
   // Radix reserves an empty value for placeholders; settings may select it explicitly.
   const encode = (value: string) => `value:${value}`;
   return (
-    <Select onValueChange={(next) => onChange(next.slice(6) as Value)} value={encode(value)} disabled={disabled}>
+    <Select
+      onValueChange={(next) => onChange(next.slice(6) as Value)}
+      value={encode(value)}
+      disabled={disabled}
+    >
       <SelectTrigger
         aria-label={label}
-        className={cn("h-auto min-h-9 w-full rounded-[8px] border-black/10 bg-[#7777770a] px-3 py-2 text-[13px] text-foreground shadow-none focus-visible:ring-2 focus-visible:ring-blue-500/40 dark:border-white/15 [&>span]:truncate", className)}
+        className={cn(
+          "h-auto min-h-9 w-full rounded-[8px] border-black/10 bg-[#7777770a] px-3 py-2 text-[13px] text-foreground shadow-none focus-visible:ring-2 focus-visible:ring-blue-500/40 dark:border-white/15 [&>span]:truncate",
+          className
+        )}
       >
         <SelectValue />
       </SelectTrigger>
@@ -82,6 +90,7 @@ export function PluginField({
   );
 }
 export function usePluginOperation(refresh: () => Promise<unknown>) {
+  const { t } = useI18n();
   const [busy, setBusy] = useState(false);
   const active = useRef(false);
   const [error, setError] = useState<string | null>(null);
@@ -106,7 +115,7 @@ export function usePluginOperation(refresh: () => Promise<unknown>) {
       return true;
     } catch (cause) {
       if (options.refreshAfter !== false) await refresh().catch(() => undefined);
-      setError(clientErrorMessage(cause, "Plugin operation failed"));
+      setError(clientErrorMessage(cause, t("Plugin operation failed")));
       return false;
     } finally {
       active.current = false;

@@ -15,23 +15,24 @@ import { useEffect, useState } from "react";
 import { api } from "../../../client/aiteamos-api";
 import { pluginAuthorization, pluginNeedsSetup } from "@aiteamos/product-core/plugin-authorization";
 import { cn } from "../../../lib/cn";
+import { useI18n } from "../../../lib/i18n";
 import { LoadingOrb } from "../../ui/loading-orb";
 import { PluginMark } from "./plugin-mark";
 import { MarketplaceCategories } from "./marketplace-categories";
 
 const pill =
   "inline-flex h-[26px] shrink-0 cursor-pointer items-center justify-center gap-1 rounded-full bg-[#77777717] px-3 text-[12px] text-foreground outline-none transition-colors duration-120 ease-out hover:bg-[#7777772b] focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:cursor-default disabled:opacity-45";
-const categoryLabel = (value: string) =>
-  value
-    .replace("Documents & Files", "Documents and Files")
-    .replace("Inbox & Collaboration", "Inbox and Collaboration");
+// Plugin manifests still spell some categories with "&", while the catalog keys spell
+// them out, so normalize before translating the section heading.
+const categoryLabel = (value: string) => value.replace(/\s*&\s*/g, " and ");
 function SearchField({ query, onChange }: { query: string; onChange: (value: string) => void }) {
+  const { t } = useI18n();
   return (
     <label className="relative block">
       <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-foreground-tertiary" />
       <input
-        aria-label="Search plugins"
-        placeholder="Search plugins"
+        aria-label={t("Search plugins")}
+        placeholder={t("Search plugins")}
         type="search"
         spellCheck={false}
         value={query}
@@ -56,10 +57,11 @@ function PluginRow({
   onOpen: (plugin: PluginCatalogItemView) => void;
   onInstall?: (plugin: PluginCatalogItemView) => void;
 }) {
+  const { t } = useI18n();
   return (
     <div className="flex min-w-0 items-center gap-3 rounded-2xl px-3 hover:bg-foreground/[0.05]">
       <button
-        aria-label={`Open ${plugin.name}`}
+        aria-label={t("Open {name}", { name: plugin.name })}
         className="flex min-w-0 flex-1 cursor-pointer items-center gap-2.5 rounded-md py-3 text-left outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
         onClick={() => onOpen(plugin)}
         type="button"
@@ -78,7 +80,7 @@ function PluginRow({
         (plugin.installed ? (
           <span className="inline-flex items-center gap-1 px-1 text-[12px] text-foreground-secondary">
             <Check className="size-3 text-emerald-600" />
-            Added
+            {t("Added")}
           </span>
         ) : (
           <button
@@ -87,40 +89,48 @@ function PluginRow({
             onClick={() => onInstall?.(plugin)}
             type="button"
           >
-            {busy && <LoadingOrb aria-hidden size={12} />}Add
+            {busy && <LoadingOrb aria-hidden size={12} />}
+            {t("Add")}
           </button>
         ))}
     </div>
   );
 }
 
-export function InstalledPluginsSummary({ data, onShowInstalled }: { data: PluginSettingsView; onShowInstalled: () => void }) {
+export function InstalledPluginsSummary({
+  data,
+  onShowInstalled,
+}: {
+  data: PluginSettingsView;
+  onShowInstalled: () => void;
+}) {
+  const { t } = useI18n();
   const installedCount = data.installs.length;
   return (
-      <button
-        aria-label="Your plugins"
-        className="flex h-8 shrink-0 cursor-pointer self-start items-center gap-2 rounded-lg text-left outline-none hover:opacity-70 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
-        onClick={onShowInstalled}
-        type="button"
-      >
-        <span className="flex -space-x-1">
-          {data.installs.slice(0, 3).map((p) => (
-            <span className="rounded-[7px] ring-2 ring-background" key={p.id}>
-              <PluginMark
-                name={p.name}
-                size="xs"
-                logoUrl={
-                  p.catalog?.logoUrl ?? data.catalog.find((c) => c.key === p.pluginKey)?.logoUrl
-                }
-              />
-            </span>
-          ))}
-        </span>
-        <span className="text-[12px] text-foreground-secondary">
-          {installedCount ? `${installedCount} installed` : "Your plugins"}
-        </span>
-        <ChevronRight className="size-3 text-foreground-tertiary" />
-      </button>
+    <button
+      aria-label={t("Your plugins")}
+      className="flex h-8 shrink-0 cursor-pointer self-start items-center gap-2 rounded-lg text-left outline-none hover:opacity-70 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+      onClick={onShowInstalled}
+      type="button"
+    >
+      <span className="flex -space-x-1">
+        {data.installs.slice(0, 3).map((p) => (
+          <span className="rounded-[7px] ring-2 ring-background" key={p.id}>
+            <PluginMark
+              name={p.name}
+              size="xs"
+              logoUrl={
+                p.catalog?.logoUrl ?? data.catalog.find((c) => c.key === p.pluginKey)?.logoUrl
+              }
+            />
+          </span>
+        ))}
+      </span>
+      <span className="text-[12px] text-foreground-secondary">
+        {installedCount ? t("{count} installed", { count: installedCount }) : t("Your plugins")}
+      </span>
+      <ChevronRight className="size-3 text-foreground-tertiary" />
+    </button>
   );
 }
 
@@ -143,6 +153,7 @@ export function MarketplaceView({
   onInstall: (plugin: PluginCatalogItemView) => void;
   onOpen: (plugin: PluginCatalogItemView) => void;
 }) {
+  const { t } = useI18n();
   const setQuery = onQueryChange;
   const setCategory = onCategoryChange;
   const normalized = query.trim().toLocaleLowerCase();
@@ -155,13 +166,13 @@ export function MarketplaceView({
   const groups = [...new Set(data.catalog.filter((p) => !p.featured).map((p) => p.category))];
   const sections = grouped
     ? [
-        { name: "Featured", plugins: data.catalog.filter((p) => p.featured) },
+        { name: t("Featured"), plugins: data.catalog.filter((p) => p.featured) },
         ...groups.map((name) => ({
-          name: categoryLabel(name),
+          name: t(categoryLabel(name)),
           plugins: data.catalog.filter((p) => !p.featured && p.category === name),
         })),
       ].filter((s) => s.plugins.length)
-    : [{ name: normalized ? "Results" : category, plugins: filtered }];
+    : [{ name: normalized ? t("Results") : t(category), plugins: filtered }];
   return (
     <div className="flex min-h-0 flex-1 flex-col px-8 pb-5 max-sm:px-5">
       <SearchField query={query} onChange={setQuery} />
@@ -197,7 +208,7 @@ export function MarketplaceView({
         ))}
         {!filtered.length && !grouped && (
           <p className="py-12 text-center text-[13px] text-foreground-secondary">
-            No plugins found.
+            {t("No plugins found.")}
           </p>
         )}
       </div>
@@ -224,6 +235,7 @@ export function InstalledPluginsView({
   query: string;
   onQueryChange: (value: string) => void;
 }) {
+  const { t } = useI18n();
   const setQuery = onQueryChange;
   const [skills, setSkills] = useState<PluginPrivateSkillView[] | null>(null);
   const [skillError, setSkillError] = useState(false);
@@ -245,12 +257,14 @@ export function InstalledPluginsView({
   const installs = data.installs.filter((p) => matches(p.name));
   return (
     <div className="flex min-h-0 flex-1 flex-col px-8 pb-6 max-sm:px-5">
-      <h1 tabIndex={-1} className="mb-5 text-[16px] font-medium">Manage plugins and skills</h1>
+      <h1 tabIndex={-1} className="mb-5 text-[16px] font-medium">
+        {t("Manage plugins and skills")}
+      </h1>
       <SearchField query={query} onChange={setQuery} />
       <div className="bot-scrollbar mt-8 min-h-0 flex-1 overflow-y-auto">
         <section>
           <div className="mb-2 flex items-center justify-between px-2">
-            <h3 className="text-[12px] text-foreground-secondary">Installed</h3>
+            <h3 className="text-[12px] text-foreground-secondary">{t("Installed")}</h3>
           </div>
           <div className="grid grid-cols-2 gap-x-4 max-sm:grid-cols-1">
             {installs.map((install) => {
@@ -261,9 +275,15 @@ export function InstalledPluginsView({
               const retry = install.connections.find((c) => c.status !== "ready");
               const connectors = new Set(install.connections.map((c) => c.connectorKey)).size;
               const subtitle = [
-                connectors ? `${connectors} connector${connectors === 1 ? "" : "s"}` : "",
+                connectors
+                  ? connectors === 1
+                    ? t("{count} connector", { count: connectors })
+                    : t("{count} connectors", { count: connectors })
+                  : "",
                 plugin.skills.length
-                  ? `${plugin.skills.length} skill${plugin.skills.length === 1 ? "" : "s"}`
+                  ? plugin.skills.length === 1
+                    ? t("{count} skill", { count: plugin.skills.length })
+                    : t("{count} skills", { count: plugin.skills.length })
                   : "",
               ]
                 .filter(Boolean)
@@ -279,16 +299,26 @@ export function InstalledPluginsView({
                       <button
                         className={pill}
                         disabled={busy === retry.id}
-                        onClick={() => (pluginNeedsSetup(retry, plugin) ? onOpen(plugin) : onRetry(retry))}
+                        onClick={() =>
+                          pluginNeedsSetup(retry, plugin) ? onOpen(plugin) : onRetry(retry)
+                        }
                         type="button"
                       >
-                        {busy === retry.id ? (
-                          <LoadingOrb aria-hidden size={12} />
-                        ) : null}
-                        {pluginAuthorization(retry) ? pluginAuthorization(retry)?.expired ? "Try again" : "Reopen" : pluginNeedsSetup(retry, plugin) ? "Set up" : retry.auth === "oauth" && retry.status === "needs_auth" ? "Authorize" : "Retry"}
+                        {busy === retry.id ? <LoadingOrb aria-hidden size={12} /> : null}
+                        {pluginAuthorization(retry)
+                          ? pluginAuthorization(retry)?.expired
+                            ? t("Try again")
+                            : t("Reopen")
+                          : pluginNeedsSetup(retry, plugin)
+                            ? t("Set up")
+                            : retry.auth === "oauth" && retry.status === "needs_auth"
+                              ? t("Authorize")
+                              : t("Retry")}
                       </button>
                     ) : (
-                      <span className="text-[12px] text-emerald-600 dark:text-emerald-400">{install.connections.length ? "Connected" : "Added"}</span>
+                      <span className="text-[12px] text-emerald-600 dark:text-emerald-400">
+                        {install.connections.length ? t("Connected.") : t("Added")}
+                      </span>
                     )
                   }
                 />
@@ -297,19 +327,19 @@ export function InstalledPluginsView({
           </div>
           {!installs.length && (
             <p className="px-2 py-4 text-[13px] text-foreground-secondary">
-              {query ? "No installed plugins found." : "No plugins installed yet."}
+              {query ? t("No installed plugins found.") : t("No plugins installed yet.")}
             </p>
           )}
         </section>
         <section className="mt-8">
           <div className="mb-2 flex items-center justify-between px-2">
-            <h3 className="text-[12px] text-foreground-secondary">Private skills</h3>
+            <h3 className="text-[12px] text-foreground-secondary">{t("Private skills")}</h3>
             <button
               className="text-[12px] text-foreground-secondary hover:text-foreground"
               type="button"
               onClick={() => onManage()}
             >
-              Manage skills
+              {t("Manage skills")}
             </button>
           </div>
           {skills
@@ -333,10 +363,10 @@ export function InstalledPluginsView({
           {(!skills || !skills.length) && (
             <p className="px-2 text-[12px] text-foreground-secondary">
               {skillError
-                ? "Could not load private skills. Open Manage skills to retry."
+                ? t("Could not load private skills. Open Manage skills to retry.")
                 : skills
-                  ? "No private skills yet. Create one or ask your Bot to help."
-                  : "Loading private skills…"}
+                  ? t("No private skills yet. Create one or ask your Bot to help.")
+                  : t("Loading private skills…")}
             </p>
           )}
         </section>

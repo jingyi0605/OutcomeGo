@@ -1,6 +1,7 @@
 import { ChevronDown } from "lucide-react";
 import { useId, useLayoutEffect, useRef, useState } from "react";
 import { cn } from "../../../lib/cn";
+import { useI18n } from "../../../lib/i18n";
 import { visiblePluginCategoryCount } from "../../../lib/plugin-category-layout";
 import { AnimatedCollapse } from "../../ui/animated-collapse";
 
@@ -17,6 +18,7 @@ export function MarketplaceCategories({
   category: string;
   onChange: (value: string) => void;
 }) {
+  const { t } = useI18n();
   const measure = useRef<HTMLDivElement>(null);
   const extraId = useId();
   const [visibleCount, setVisibleCount] = useState(6);
@@ -59,11 +61,11 @@ export function MarketplaceCategories({
       onClick={() => onChange(category === item ? "All" : item)}
       type="button"
     >
-      {item}
+      {t(item)}
     </button>
   );
   return (
-    <div className="relative mt-3 grid shrink-0" role="group" aria-label="Plugin categories">
+    <div className="relative mt-3 grid shrink-0" role="group" aria-label={t("Plugin categories")}>
       <div className="flex min-w-0 gap-2">
         {categories.slice(0, visibleCount).map(renderCategory)}
         {visibleCount < categories.length && (
@@ -74,9 +76,12 @@ export function MarketplaceCategories({
             type="button"
             onClick={() => setExpanded((value) => !value)}
           >
-            {expanded ? "Hide" : "More"}
+            {expanded ? t("Hide") : t("More")}
             <ChevronDown
-              className={cn("size-3 transition-transform duration-200 ease-out motion-reduce:transition-none", expanded && "rotate-180")}
+              className={cn(
+                "size-3 transition-transform duration-200 ease-out motion-reduce:transition-none",
+                expanded && "rotate-180"
+              )}
             />
           </button>
         )}
@@ -93,15 +98,15 @@ export function MarketplaceCategories({
         <div className="flex w-max gap-2" ref={measure}>
           {categories.map((item) => (
             <span className={chip} data-category-measure key={item}>
-              {item}
+              {t(item)}
             </span>
           ))}
           <span className={chip} data-category-toggle>
-            More
+            {t("More")}
             <ChevronDown className="size-3" />
           </span>
           <span className={chip} data-category-toggle>
-            Hide
+            {t("Hide")}
             <ChevronDown className="size-3" />
           </span>
         </div>

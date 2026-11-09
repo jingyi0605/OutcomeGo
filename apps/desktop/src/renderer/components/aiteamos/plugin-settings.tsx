@@ -1,35 +1,36 @@
 import type {
-PluginCatalogItemView,
-PluginConnectionView,
-PluginInstallView,
-PluginSettingsView
+  PluginCatalogItemView,
+  PluginConnectionView,
+  PluginInstallView,
+  PluginSettingsView,
 } from "@aiteamos/contracts";
 
-import { pluginAuthorization,pluginNeedsSetup } from "@aiteamos/product-core/plugin-authorization";
+import { pluginAuthorization, pluginNeedsSetup } from "@aiteamos/product-core/plugin-authorization";
 import { clientErrorMessage } from "@aiteamos/product-core/redaction";
-import {
-ChevronDown,
-ChevronLeft,
-X
-} from "lucide-react";
-import { lazy,Suspense,useCallback,useEffect,useMemo,useRef,useState } from "react";
+import { translateCurrent } from "../../lib/i18n-catalog";
+import { ChevronDown, ChevronLeft, X } from "lucide-react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../../client/aiteamos-api";
 import {
-createCoalescedRefresh,
-mergePluginConnectionStatuses
+  createCoalescedRefresh,
+  mergePluginConnectionStatuses,
 } from "../../lib/plugin-settings-scale";
-import { Dialog,DialogContent,DialogDescription,DialogTitle } from "../ui/dialog";
+import { useI18n } from "../../lib/i18n";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "../ui/dialog";
 import {
-DropdownMenu,
-DropdownMenuContent,
-DropdownMenuItem,
-DropdownMenuTrigger,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
 import { LoadingOrb } from "../ui/loading-orb";
 import { PluginPageStack } from "./plugins/plugin-page-stack";
-import { InstalledPluginsSummary,InstalledPluginsView,MarketplaceView } from "./plugins/marketplace-browse";
+import {
+  InstalledPluginsSummary,
+  InstalledPluginsView,
+  MarketplaceView,
+} from "./plugins/marketplace-browse";
 import { openAutomaticPluginSignIn } from "./plugins/plugin-authorization";
-
 
 const loadPluginWorkspace = () => import("./plugins/plugin-workspace");
 const PluginWorkspace = lazy(loadPluginWorkspace);
@@ -39,7 +40,8 @@ type MarketplacePage = "marketplace" | "installed" | "detail" | "custom" | "mana
 const secondaryButton =
   "inline-flex h-[26px] shrink-0 items-center justify-center gap-1.5 cursor-pointer rounded-full bg-[#77777717] px-3 text-[13px] text-foreground outline-none transition-colors duration-120 ease-out hover:bg-[#7777772b] focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-45";
 
-const errorMessage = (cause: unknown) => clientErrorMessage(cause, "Plugin operation failed");
+const errorMessage = (cause: unknown) =>
+  translateCurrent(clientErrorMessage(cause, "Plugin operation failed"));
 
 const installFor = (data: PluginSettingsView, pluginKey: string) =>
   data.installs.find((plugin) => plugin.pluginKey === pluginKey);
@@ -90,9 +92,12 @@ export function PluginDialog({
   open: boolean;
   target?: { pluginId: string; nonce: number } | null;
 }) {
+  const { t } = useI18n();
   const [page, setCurrentPage] = useState<MarketplacePage>("marketplace");
   const [direction, setDirection] = useState<"push" | "pop">("push");
-  const trail = useRef<Array<{ page: MarketplacePage; selectedKey: string | null; section: "private" | "develop" }>>([]);
+  const trail = useRef<
+    Array<{ page: MarketplacePage; selectedKey: string | null; section: "private" | "develop" }>
+  >([]);
   const [installedQuery, setInstalledQuery] = useState("");
   const [browseQuery, setBrowseQuery] = useState("");
   const [browseCategory, setBrowseCategory] = useState("All");
@@ -176,11 +181,15 @@ export function PluginDialog({
   useEffect(() => {
     const bridge = window.aiteamos?.pluginOAuth;
     if (!open || !bridge) return;
-    const unsubscribe = bridge.onResult(result => {
-      if (result.status === "error") setError(result.message ?? "Plugin sign-in failed. Try again.");
-      void refresh().catch(cause => setError(errorMessage(cause)));
+    const unsubscribe = bridge.onResult((result) => {
+      if (result.status === "error")
+        setError(result.message ?? t("Plugin sign-in failed. Try again."));
+      void refresh().catch((cause) => setError(errorMessage(cause)));
     });
-    return () => { unsubscribe(); void bridge.close().catch(() => {}); };
+    return () => {
+      unsubscribe();
+      void bridge.close().catch(() => {});
+    };
   }, [open, selectedKey, refresh]);
   useEffect(() => {
     if (!open || !needsPluginAuthentication) return;
@@ -268,7 +277,9 @@ export function PluginDialog({
     }
     setPage("marketplace");
     setSelectedKey(null);
-    setError(`Plugin “${target.pluginId}” is not available in this catalog.`);
+    setError(
+      t("Plugin “{pluginId}” is not available in this catalog.", { pluginId: target.pluginId })
+    );
   }, [data, open, target]);
   const authenticateConnection = (connection: PluginConnectionView, force = false) => {
     if (connection.status === "error" && connection.auth !== "oauth") {
@@ -329,35 +340,47 @@ export function PluginDialog({
     page === "detail" && selected
       ? selected.name
       : page === "custom"
-        ? "Add custom MCP"
+        ? t("Add custom MCP")
         : page === "manage"
-          ? managementSection === "private" ? "Private skills" : "Develop plugins"
-          : page === "installed" ? "Manage plugins and skills" : "Marketplace";
+          ? managementSection === "private"
+            ? t("Private skills")
+            : t("Develop plugins")
+          : page === "installed"
+            ? t("Manage plugins and skills")
+            : t("Marketplace");
   // Every page's back button names where it goes, as the installed list's always did.
   const backTarget = trail.current.at(-1);
   const backLabel =
     !backTarget || backTarget.page === "marketplace"
-      ? "Marketplace"
+      ? t("Marketplace")
       : backTarget.page === "installed"
-        ? "Your plugins"
+        ? t("Your plugins")
         : backTarget.page === "manage"
-          ? backTarget.section === "private" ? "Private skills" : "Develop plugins"
+          ? backTarget.section === "private"
+            ? t("Private skills")
+            : t("Develop plugins")
           : backTarget.page === "custom"
-            ? "Add custom MCP"
+            ? t("Add custom MCP")
             : (data?.installs.find((plugin) => plugin.pluginKey === backTarget.selectedKey)?.catalog
                 ?.name ??
               data?.catalog.find((plugin) => plugin.key === backTarget.selectedKey)?.name ??
-              "Back");
+              t("Back"));
   return (
     <Dialog onOpenChange={onOpenChange} open={open}>
       <DialogContent
         overlayClassName="plugin-overlay"
         className="plugin-dialog flex h-[min(700px,calc(100dvh-48px))] w-[min(800px,calc(100vw-40px))] flex-col max-w-none gap-0 overflow-hidden rounded-[13px] border-black/10 bg-background p-0 text-foreground shadow-[0_24px_72px_rgba(0,0,0,0.24)] dark:border-[#303030]"
         ref={dialogRef}
-        onOpenAutoFocus={(event) => { event.preventDefault(); dialogRef.current?.focus(); }}
+        onOpenAutoFocus={(event) => {
+          event.preventDefault();
+          dialogRef.current?.focus();
+        }}
         onCloseAutoFocus={(event) => {
           const trigger = document.querySelector<HTMLElement>("[data-marketplace-trigger]");
-          if (trigger) { event.preventDefault(); trigger.focus(); }
+          if (trigger) {
+            event.preventDefault();
+            trigger.focus();
+          }
         }}
         onEscapeKeyDown={(event) => {
           if (
@@ -372,220 +395,272 @@ export function PluginDialog({
       >
         <DialogTitle className="sr-only">{title}</DialogTitle>
         <DialogDescription className="sr-only">
-          Browse, install, connect, and configure aiTeamOS plugins.
+          {t("Browse, install, connect, and configure aiTeamOS plugins.")}
         </DialogDescription>
-        <button aria-label="Close plugins" className="absolute right-3.5 top-3.5 z-10 grid size-8 cursor-pointer place-items-center rounded-full text-foreground-tertiary outline-none transition-colors hover:bg-foreground/[0.08] focus-visible:ring-2 focus-visible:ring-blue-500" onClick={() => onOpenChange(false)} type="button"><X className="size-4" strokeWidth={1.7} /></button>
-        <PluginPageStack pageKey={`${page}:${page === "detail" ? selectedKey : page === "manage" ? managementSection : ""}`} direction={direction}>
-        <header className={`relative flex shrink-0 items-center px-8 ${page === "marketplace" ? "h-[96px]" : "h-[64px]"}`}>
-          {page !== "marketplace" ? (
-            <button
-              aria-label={backTarget?.page === "installed" ? "Back to installed plugins" : `Back to ${backLabel}`}
-              className="absolute left-3.5 flex h-8 max-w-[45%] items-center justify-center gap-1 cursor-pointer rounded-full px-2 text-[12px] text-foreground-secondary outline-none transition-colors duration-120 ease-out hover:bg-foreground/[0.08] focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
-              onClick={goBack}
-              type="button"
-            >
-              <ChevronLeft className="size-4 shrink-0" />
-              <span className="truncate">{backLabel}</span>
-            </button>
-          ) : null}
-          {page !== "marketplace" ? (
-            <span className="sr-only">{title}</span>
-          ) : (
-            <div className="flex w-full items-center justify-between pr-8">
-              <h1 tabIndex={-1} className="text-[16px] font-semibold">Marketplace</h1>
-              <div className="flex items-center gap-3">
-                {data && <InstalledPluginsSummary data={data} onShowInstalled={() => setPage("installed")} />}
-                <DropdownMenu onOpenChange={isOpen => { if (isOpen) void loadPluginWorkspace().then(module => module.preloadPluginManagement()).catch(() => undefined); }}>
-                  <DropdownMenuTrigger asChild>
-                    <button type="button" className={secondaryButton} aria-label="Manage plugins">
-                      Manage
-                      <ChevronDown className="size-3" />
-                    </button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="plugin-management-menu w-[190px]">
-                    <DropdownMenuItem onSelect={() => setPage("installed")}>
-                      Your plugins
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onSelect={() => openManagement("private")}>
-                      Private skills
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onSelect={() => openManagement("develop")}>
-                      Develop plugins
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onSelect={() => setPage("custom")}>
-                      Add custom MCP
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            </div>
-          )}
-
-        </header>
-
-        {error ? (
-          <div
-            role="alert"
-            className="mx-8 mb-3 flex items-center justify-between gap-3 rounded-[8px] bg-red-500/10 px-3 py-2 text-[11px] text-red-700 dark:text-red-300"
-          >
-            <span>{error}</span>
-            <button
-              className={secondaryButton}
-              disabled={reloading || Boolean(busy)}
-              onClick={() => void reload()}
-              type="button"
-            >
-              Reload plugins
-            </button>
-          </div>
-        ) : null}
-        {data && page === "marketplace" && (
-          <MarketplaceView
-            query={browseQuery}
-            category={browseCategory}
-            onQueryChange={setBrowseQuery}
-            onCategoryChange={setBrowseCategory}
-            busy={busy}
-            data={data}
-            onInstall={(plugin) => {
-              if (plugin.connections.length || plugin.setup || plugin.setupFields.length)
-                openDetail(plugin);
-              if (
-                !plugin.setupFields.some((field) => field.required && field.default === undefined)
-              )
-                void mutate(plugin.key, () => installAndConnect(plugin));
-            }}
-            onOpen={openDetail}
-          />
-        )}
-        <Suspense
-          fallback={
-            <div role="status" className="p-8 text-sm">
-              Loading plugin details…
-            </div>
-          }
+        <button
+          aria-label={t("Close plugins")}
+          className="absolute right-3.5 top-3.5 z-10 grid size-8 cursor-pointer place-items-center rounded-full text-foreground-tertiary outline-none transition-colors hover:bg-foreground/[0.08] focus-visible:ring-2 focus-visible:ring-blue-500"
+          onClick={() => onOpenChange(false)}
+          type="button"
         >
-          {!data && error ? null : !data ? (
+          <X className="size-4" strokeWidth={1.7} />
+        </button>
+        <PluginPageStack
+          pageKey={`${page}:${page === "detail" ? selectedKey : page === "manage" ? managementSection : ""}`}
+          direction={direction}
+        >
+          <header
+            className={`relative flex shrink-0 items-center px-8 ${page === "marketplace" ? "h-[96px]" : "h-[64px]"}`}
+          >
+            {page !== "marketplace" ? (
+              <button
+                aria-label={
+                  backTarget?.page === "installed"
+                    ? t("Back to installed plugins")
+                    : t("Back to {label}", { label: backLabel })
+                }
+                className="absolute left-3.5 flex h-8 max-w-[45%] items-center justify-center gap-1 cursor-pointer rounded-full px-2 text-[12px] text-foreground-secondary outline-none transition-colors duration-120 ease-out hover:bg-foreground/[0.08] focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+                onClick={goBack}
+                type="button"
+              >
+                <ChevronLeft className="size-4 shrink-0" />
+                <span className="truncate">{backLabel}</span>
+              </button>
+            ) : null}
+            {page !== "marketplace" ? (
+              <span className="sr-only">{title}</span>
+            ) : (
+              <div className="flex w-full items-center justify-between pr-8">
+                <h1 tabIndex={-1} className="text-[16px] font-semibold">
+                  {t("Marketplace")}
+                </h1>
+                <div className="flex items-center gap-3">
+                  {data && (
+                    <InstalledPluginsSummary
+                      data={data}
+                      onShowInstalled={() => setPage("installed")}
+                    />
+                  )}
+                  <DropdownMenu
+                    onOpenChange={(isOpen) => {
+                      if (isOpen)
+                        void loadPluginWorkspace()
+                          .then((module) => module.preloadPluginManagement())
+                          .catch(() => undefined);
+                    }}
+                  >
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        type="button"
+                        className={secondaryButton}
+                        aria-label={t("Manage plugins")}
+                      >
+                        {t("Manage")}
+                        <ChevronDown className="size-3" />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="plugin-management-menu w-[190px]">
+                      <DropdownMenuItem onSelect={() => setPage("installed")}>
+                        {t("Your plugins")}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onSelect={() => openManagement("private")}>
+                        {t("Private skills")}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onSelect={() => openManagement("develop")}>
+                        {t("Develop plugins")}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onSelect={() => setPage("custom")}>
+                        {t("Add custom MCP")}
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              </div>
+            )}
+          </header>
+
+          {error ? (
             <div
-              role="status"
-              aria-label="Loading plugins"
-              className="grid flex-1 place-items-center"
+              role="alert"
+              className="mx-8 mb-3 flex items-center justify-between gap-3 rounded-[8px] bg-red-500/10 px-3 py-2 text-[11px] text-red-700 dark:text-red-300"
             >
-              <LoadingOrb aria-hidden />
+              <span>{error}</span>
+              <button
+                className={secondaryButton}
+                disabled={reloading || Boolean(busy)}
+                onClick={() => void reload()}
+                type="button"
+              >
+                {t("Reload plugins")}
+              </button>
             </div>
-          ) : page === "installed" ? (
-            <InstalledPluginsView
-              query={installedQuery}
-              onQueryChange={setInstalledQuery}
-              data={data}
-              busy={busy}
-              onOpen={openDetail}
-              onManage={() => openManagement("private")}
-              onRetry={(connection) =>
-                connection.auth === "oauth" && connection.status === "needs_auth"
-                  ? authenticateConnection(connection)
-                  : void mutate(connection.id, () => api.restartPluginConnection(connection.id))
-              }
-              catalogFallback={catalogPluginForInstall}
-            />
-          ) : page === "manage" ? (
-            <Suspense fallback={<p className="p-8 text-sm">Loading plugin management…</p>}>
-              <PluginWorkspace
-                key={managementSection}
-                initialSection={managementSection}
-                settings={data}
-                refresh={refresh}
-                initialPluginKey={selectedKey}
-              />
-            </Suspense>
-          ) : page === "marketplace" ? null : page === "custom" ? (
-            <CustomMcpView
-              onBack={goBack}
-              busy={busy === "custom-mcp"}
-              onSubmit={(input) =>
-                void mutate("custom-mcp", () => api.addCustomMcp(input)).then((created) => {
-                  if (created) { setDirection("pop"); setCurrentPage("installed"); }
-                })
-              }
-            />
-          ) : selected ? (
-            <PluginDetail
-              advancedSettings={<Suspense fallback={<p className="p-4 text-[13px]">Loading settings…</p>}><PluginWorkspace initialSection="installed" settings={data} refresh={refresh} initialPluginKey={selected.key} /></Suspense>}
-              busy={busy}
-              data={data}
-              key={selected.key}
-              onAddAccount={(connection, alias) => {
-                let created = false;
-                return mutate(`account:${connection.id}`, async () => {
-                  await api.addPluginAccount(connection.id, alias);
-                  created = true;
-                  const settings = await api.pluginSettings();
-                  setData(settings);
-                  const account = settings.installs
-                    .flatMap((row) => row.connections)
-                    .find(
-                      (row) =>
-                        row.pluginKey === connection.pluginKey &&
-                        row.connectorKey === connection.connectorKey &&
-                        row.alias === alias
-                    );
-                  if (account?.auth === "oauth" && !pluginNeedsSetup(account, selected)) {
-                    const result = await api.authenticatePlugin(account.id);
-                    openAutomaticPluginSignIn(account.oauthCallbackMode, result.authorizationUrl);
-                  }
-                }).then((success) => success || created);
-              }}
-              onAuthenticate={authenticateConnection}
-              onCancelAuthentication={cancelAuthentication}
-              onConfigureToken={(connection, token) =>
-                void mutate(connection.id, async () => {
-                  await api.configurePluginConnection(connection.id, { token });
-                  return api.connectPlugin(connection.id);
-                })
-              }
-              onConfigureCallback={(connection, input) => {
-                void mutate(connection.id, () => api.savePluginConfiguration(connection.id, input));
-              }}
-              onConfigureOAuth={(connection, input) =>
-                void mutate(connection.id, async () => {
-                  await api.configurePluginConnection(connection.id, input);
-                  const result = await api.authenticatePlugin(connection.id);
-                  openAutomaticPluginSignIn(connection.oauthCallbackMode, result.authorizationUrl);
-                  return result;
-                })
-              }
-              onConfigureValues={(connection, values) =>
-                void mutate(connection.id, async () => {
-                  await api.savePluginConfiguration(connection.id, { values });
-                  return api.connectPlugin(connection.id);
-                })
-              }
-              onInstructions={(connection, instructions) =>
-                void mutate(connection.id, () =>
-                  api.setMcpInstructions(connection.id, instructions)
-                )
-              }
-              onInstall={(plugin, values) =>
-                void mutate(plugin.key, () => installAndConnect(plugin, values))
-              }
-              onRemoveAccount={(connection) =>
-                void mutate(connection.id, () => api.removePluginAccount(connection.id))
-              }
-              onRename={(connection, alias) =>
-                mutate(connection.id, () => api.renamePluginAccount(connection.id, alias))
-              }
-              onRemove={(plugin) => void mutate(plugin.key, () => api.uninstallPlugin(plugin.key))}
-              onUpdateEnvironment={(plugin, values) =>
-                mutate(plugin.key, () => api.updatePluginEnvironment(plugin.key, values))
-              }
-              onRestart={(connection) =>
-                void mutate(connection.id, () => api.restartPluginConnection(connection.id))
-              }
-              onToggle={toggleConnection}
-              plugin={selected}
-            />
           ) : null}
-        </Suspense>
+          {data && page === "marketplace" && (
+            <MarketplaceView
+              query={browseQuery}
+              category={browseCategory}
+              onQueryChange={setBrowseQuery}
+              onCategoryChange={setBrowseCategory}
+              busy={busy}
+              data={data}
+              onInstall={(plugin) => {
+                if (plugin.connections.length || plugin.setup || plugin.setupFields.length)
+                  openDetail(plugin);
+                if (
+                  !plugin.setupFields.some((field) => field.required && field.default === undefined)
+                )
+                  void mutate(plugin.key, () => installAndConnect(plugin));
+              }}
+              onOpen={openDetail}
+            />
+          )}
+          <Suspense
+            fallback={
+              <div role="status" className="p-8 text-sm">
+                {t("Loading plugin details…")}
+              </div>
+            }
+          >
+            {!data && error ? null : !data ? (
+              <div
+                role="status"
+                aria-label={t("Loading plugins")}
+                className="grid flex-1 place-items-center"
+              >
+                <LoadingOrb aria-hidden />
+              </div>
+            ) : page === "installed" ? (
+              <InstalledPluginsView
+                query={installedQuery}
+                onQueryChange={setInstalledQuery}
+                data={data}
+                busy={busy}
+                onOpen={openDetail}
+                onManage={() => openManagement("private")}
+                onRetry={(connection) =>
+                  connection.auth === "oauth" && connection.status === "needs_auth"
+                    ? authenticateConnection(connection)
+                    : void mutate(connection.id, () => api.restartPluginConnection(connection.id))
+                }
+                catalogFallback={catalogPluginForInstall}
+              />
+            ) : page === "manage" ? (
+              <Suspense fallback={<p className="p-8 text-sm">{t("Loading plugin management…")}</p>}>
+                <PluginWorkspace
+                  key={managementSection}
+                  initialSection={managementSection}
+                  settings={data}
+                  refresh={refresh}
+                  initialPluginKey={selectedKey}
+                />
+              </Suspense>
+            ) : page === "marketplace" ? null : page === "custom" ? (
+              <CustomMcpView
+                onBack={goBack}
+                busy={busy === "custom-mcp"}
+                onSubmit={(input) =>
+                  void mutate("custom-mcp", () => api.addCustomMcp(input)).then((created) => {
+                    if (created) {
+                      setDirection("pop");
+                      setCurrentPage("installed");
+                    }
+                  })
+                }
+              />
+            ) : selected ? (
+              <PluginDetail
+                advancedSettings={
+                  <Suspense fallback={<p className="p-4 text-[13px]">{t("Loading settings…")}</p>}>
+                    <PluginWorkspace
+                      initialSection="installed"
+                      settings={data}
+                      refresh={refresh}
+                      initialPluginKey={selected.key}
+                    />
+                  </Suspense>
+                }
+                busy={busy}
+                data={data}
+                key={selected.key}
+                onAddAccount={(connection, alias) => {
+                  let created = false;
+                  return mutate(`account:${connection.id}`, async () => {
+                    await api.addPluginAccount(connection.id, alias);
+                    created = true;
+                    const settings = await api.pluginSettings();
+                    setData(settings);
+                    const account = settings.installs
+                      .flatMap((row) => row.connections)
+                      .find(
+                        (row) =>
+                          row.pluginKey === connection.pluginKey &&
+                          row.connectorKey === connection.connectorKey &&
+                          row.alias === alias
+                      );
+                    if (account?.auth === "oauth" && !pluginNeedsSetup(account, selected)) {
+                      const result = await api.authenticatePlugin(account.id);
+                      openAutomaticPluginSignIn(account.oauthCallbackMode, result.authorizationUrl);
+                    }
+                  }).then((success) => success || created);
+                }}
+                onAuthenticate={authenticateConnection}
+                onCancelAuthentication={cancelAuthentication}
+                onConfigureToken={(connection, token) =>
+                  void mutate(connection.id, async () => {
+                    await api.configurePluginConnection(connection.id, { token });
+                    return api.connectPlugin(connection.id);
+                  })
+                }
+                onConfigureCallback={(connection, input) => {
+                  void mutate(connection.id, () =>
+                    api.savePluginConfiguration(connection.id, input)
+                  );
+                }}
+                onConfigureOAuth={(connection, input) =>
+                  void mutate(connection.id, async () => {
+                    await api.configurePluginConnection(connection.id, input);
+                    const result = await api.authenticatePlugin(connection.id);
+                    openAutomaticPluginSignIn(
+                      connection.oauthCallbackMode,
+                      result.authorizationUrl
+                    );
+                    return result;
+                  })
+                }
+                onConfigureValues={(connection, values) =>
+                  void mutate(connection.id, async () => {
+                    await api.savePluginConfiguration(connection.id, { values });
+                    return api.connectPlugin(connection.id);
+                  })
+                }
+                onInstructions={(connection, instructions) =>
+                  void mutate(connection.id, () =>
+                    api.setMcpInstructions(connection.id, instructions)
+                  )
+                }
+                onInstall={(plugin, values) =>
+                  void mutate(plugin.key, () => installAndConnect(plugin, values))
+                }
+                onRemoveAccount={(connection) =>
+                  void mutate(connection.id, () => api.removePluginAccount(connection.id))
+                }
+                onRename={(connection, alias) =>
+                  mutate(connection.id, () => api.renamePluginAccount(connection.id, alias))
+                }
+                onRemove={(plugin) =>
+                  void mutate(plugin.key, () => api.uninstallPlugin(plugin.key))
+                }
+                onUpdateEnvironment={(plugin, values) =>
+                  mutate(plugin.key, () => api.updatePluginEnvironment(plugin.key, values))
+                }
+                onRestart={(connection) =>
+                  void mutate(connection.id, () => api.restartPluginConnection(connection.id))
+                }
+                onToggle={toggleConnection}
+                plugin={selected}
+              />
+            ) : null}
+          </Suspense>
         </PluginPageStack>
       </DialogContent>
     </Dialog>
