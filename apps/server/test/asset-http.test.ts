@@ -161,4 +161,48 @@ describe("bounded asset HTTP responses", () => {
     expect(await response.text()).toBe("agent-local-authority");
     expect(response.headers.get("content-type")).toContain("text/plain");
   });
+
+  test("serves an agent-local DOCX with its Office MIME type", async () => {
+    const root = await mkdtemp(join(tmpdir(), "aiteamos-agent-docx-http-"));
+    roots.push(root);
+    const bytes = Buffer.from("agent-local-docx");
+    const assetId = createHash("sha256").update(bytes).digest("hex");
+    const path = join(root, `${assetId}.docx`);
+    await writeFile(path, bytes);
+    const assets = new AssetStore({ root: join(root, "empty-staging"), allowedFileRoots: [root] });
+    const url = new URL(`http://aiteamos.test/api/v0/assets/${assetId}?name=report.docx`);
+    const response = await assetResponse(
+      assets,
+      { agentAttachmentPath: async () => path },
+      new Request(url),
+      url,
+      assetId
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toBe(
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    );
+    expect(await response.text()).toBe("agent-local-docx");
+  });
+  test("serves attachments whose names contain non-ASCII characters", async () => {
+    const { assets } = await fixture();
+    const fileName = "预览与下载测试文档.docx";
+    const ref = await assets.ingestBytes({ fileName, bytes: Buffer.from("PK") });
+    const url = new URL(
+      `http://aiteamos.test/api/v0/assets/${ref.assetId}?name=${encodeURIComponent(fileName)}&download=1`
+    );
+    const response = await assetResponse(
+      assets,
+      noAgentAttachment,
+      new Request(url),
+      url,
+      ref.assetId
+    );
+
+    expect(response.status).toBe(200);
+    const disposition = response.headers.get("content-disposition") ?? "";
+    expect(disposition).toContain(`filename*=UTF-8''${encodeURIComponent(fileName)}`);
+    expect(disposition).toContain('filename="attachment.docx"');
+  });
 });

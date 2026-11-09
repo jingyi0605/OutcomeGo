@@ -14,6 +14,13 @@ const assetFileName = (value: string | null): string => {
   return safe.slice(0, 180) || "attachment";
 };
 
+/** HTTP header values are Latin-1/ASCII only; the UTF-8 name travels in `filename*`. */
+const asciiFallbackName = (name: string): string => {
+  const extension = extname(name).replace(/[^\x20-\x7e]/g, "");
+  const stem = name.slice(0, name.length - extname(name).length).replace(/[^\x20-\x7e]/g, "_");
+  return `${/[A-Za-z0-9]/.test(stem) ? stem : "attachment"}${extension}`;
+};
+
 const rangeNotSatisfiable = (byteSize: number) =>
   new Response(null, {
     status: 416,
@@ -48,7 +55,7 @@ export const assetResponse = async (
     const extension = extname(agentPath).toLowerCase();
     const kinds = new Map<
       string,
-      { mimeType: string; kind: "image" | "video" | "audio" | "pdf" | "text" }
+      { mimeType: string; kind: "image" | "video" | "audio" | "pdf" | "text" | "file" }
     >([
       [".png", { mimeType: "image/png", kind: "image" }],
       [".jpg", { mimeType: "image/jpeg", kind: "image" }],
@@ -61,6 +68,27 @@ export const assetResponse = async (
       [".mp3", { mimeType: "audio/mpeg", kind: "audio" }],
       [".wav", { mimeType: "audio/wav", kind: "audio" }],
       [".txt", { mimeType: "text/plain; charset=utf-8", kind: "text" }],
+      [
+        ".docx",
+        {
+          mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+          kind: "file",
+        },
+      ],
+      [
+        ".xlsx",
+        {
+          mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          kind: "file",
+        },
+      ],
+      [
+        ".pptx",
+        {
+          mimeType: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+          kind: "file",
+        },
+      ],
     ] as const);
     const detected = kinds.get(extension) ?? {
       mimeType: "application/octet-stream",
@@ -111,7 +139,7 @@ export const assetResponse = async (
     "accept-ranges": "bytes",
     "cache-control": "private, max-age=31536000, immutable",
     "content-security-policy": "sandbox; default-src 'none'",
-    "content-disposition": `${inline ? "inline" : "attachment"}; filename="${name}"; filename*=UTF-8''${encodeURIComponent(name)}`,
+    "content-disposition": `${inline ? "inline" : "attachment"}; filename="${asciiFallbackName(name)}"; filename*=UTF-8''${encodeURIComponent(name)}`,
     "content-length": String(end - start + 1),
     "content-type": browserContentType(metadata.mimeType),
     etag: `"${assetId}"`,

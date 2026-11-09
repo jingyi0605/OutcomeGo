@@ -323,7 +323,7 @@ const server = Bun.serve<VncConnection | NetworkConnection | VoiceConnectionData
       // Knowing a content hash does not grant access to a private conversation.
       const assetMatch = path.match(/^\/api\/assets\/([a-f0-9]{64})$/i);
       if (["GET", "HEAD"].includes(request.method) && assetMatch?.[1]) {
-        return assetResponse(app.assets, app.agentData, request, url, assetMatch[1]);
+        return await assetResponse(app.assets, app.agentData, request, url, assetMatch[1]);
       }
       const context: RouteContext = { app, request, url, path, authMode, authenticatedSessionId, server };
       if (path === "/api/server-settings/browser-network") {
