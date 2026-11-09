@@ -6,7 +6,7 @@
 set -euo pipefail
 
 ROOT_DIR=$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)
-APP_ID="com.teambots.android"
+APP_ID="com.teambots.android.debug"
 LAUNCH_COMPONENT="${APP_ID}/com.aiteamos.android.MainActivity"
 XIAOMI_MODEL_MARKER="M154FF"
 

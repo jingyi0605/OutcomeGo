@@ -58,6 +58,10 @@ android {
         }
     }
     buildTypes {
+        debug {
+            // Keep local/debug installs side-by-side with the signed release app.
+            applicationIdSuffix = ".debug"
+        }
         release {
             if (keystorePath != null) signingConfig = signingConfigs.getByName("release")
         }
