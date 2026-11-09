@@ -12,7 +12,11 @@
         {
           "image-name": "logo.png",
           "name": "Prism",
-          "glass": false
+          "glass": false,
+          "position": {
+            "scale": 1.26,
+            "translation-in-points": [0, 0]
+          }
         }
       ],
       "lighting": "combined",

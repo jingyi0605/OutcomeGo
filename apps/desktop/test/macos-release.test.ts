@@ -41,6 +41,16 @@ describe("macOS distribution release", () => {
     }
   });
 
+  test("keeps the prism mark large within the app icon canvas", async () => {
+    const manifest = (await Bun.file(
+      new URL("../../../packages/design-tokens/assets/aiTeamOS.icon/icon.json", import.meta.url)
+    ).json()) as { groups: { layers: { position?: { scale?: number } }[] }[] };
+    const scale = manifest.groups
+      .flatMap((group) => group.layers)
+      .find((layer) => layer.position?.scale !== undefined)?.position?.scale;
+    expect(scale).toBeGreaterThanOrEqual(1.2);
+  });
+
   test("keeps normal packaging local, ad-hoc, and performance-gated", async () => {
     const desktop = await packageJson;
 
