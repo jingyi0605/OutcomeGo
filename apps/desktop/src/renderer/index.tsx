@@ -7,27 +7,43 @@ import { FirstRunShell, isFirstRun } from "./components/aiteamos/first-run-shell
 import { installPerformanceMonitoring } from "./lib/performance";
 import { initializeTheme } from "./lib/theme";
 import { installWindowVisibility } from "./lib/window-visibility";
+import { I18nProvider, useI18n } from "./lib/i18n";
 import { WindowResourceActivity } from "./hooks/resource-activity";
 import "./styles.css";
 
 // The signed-out window needs authentication UI, not the transcript, sidebar,
 // drag-and-drop engine and workspace state. Load the workspace after auth.
 function Workspace() {
+  const { t } = useI18n();
   const [loaded, setLoaded] = useState<{ component: ComponentType } | { error: unknown }>();
   useEffect(() => {
     let active = true;
     // Commit as soon as the module resolves. Suspense retries can deliberately
     // retain a just-shown fallback for 300 ms, delaying the workspace bootstrap.
     void import("./App").then(
-      ({ default: component }) => { if (active) setLoaded({ component }); },
-      (error: unknown) => { if (active) setLoaded({ error }); }
+      ({ default: component }) => {
+        if (active) setLoaded({ component });
+      },
+      (error: unknown) => {
+        if (active) setLoaded({ error });
+      }
     );
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, []);
   if (loaded && "error" in loaded) throw loaded.error;
   // A first run keeps setup's empty frame up while the workspace loads (first-run-shell.tsx).
   if (!loaded && isFirstRun()) return <FirstRunShell serverCheck />;
-  if (!loaded) return <div className="grid h-dvh place-items-center text-sm text-foreground-secondary" role="status">Loading workspace…</div>;
+  if (!loaded)
+    return (
+      <div
+        className="grid h-dvh place-items-center text-sm text-foreground-secondary"
+        role="status"
+      >
+        {t("Loading workspace…")}
+      </div>
+    );
   const App = loaded.component;
   return <App />;
 }
@@ -50,11 +66,13 @@ createRoot(root).render(
       richColors
       theme="system"
     />
-    <DesktopUpdateDialog />
-    <AuthGate>
-      <WindowResourceActivity>
-        <Workspace />
-      </WindowResourceActivity>
-    </AuthGate>
+    <I18nProvider>
+      <DesktopUpdateDialog />
+      <AuthGate>
+        <WindowResourceActivity>
+          <Workspace />
+        </WindowResourceActivity>
+      </AuthGate>
+    </I18nProvider>
   </StrictMode>
 );

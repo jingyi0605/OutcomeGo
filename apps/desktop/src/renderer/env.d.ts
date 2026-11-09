@@ -8,13 +8,19 @@ interface Window {
       onComputerAction(callback: (action: "copy" | "cut" | "paste") => void): () => void;
     };
     onMenuAction?: (listener: (action: "about" | "updates" | "settings") => void) => () => void;
+    setApplicationMenuLocale?: (locale: "en-US" | "zh-CN") => Promise<void>;
     visibility?: {
       subscribe: (callback: (visible: boolean) => void) => () => void;
       subscribeActivity?: (callback: (active: boolean) => void) => () => void;
     };
     auth: {
       connectMachine: (serverUrl: string) => Promise<{ machineId: string }>;
-      machineStatus: () => Promise<{ machineId: string; connected: boolean; configured: boolean; error: string | null }>;
+      machineStatus: () => Promise<{
+        machineId: string;
+        connected: boolean;
+        configured: boolean;
+        error: string | null;
+      }>;
       signIn: (
         serverUrl: string,
         username: string,
@@ -26,10 +32,19 @@ interface Window {
       clearToken: () => Promise<AiTeamOSAuthTokenStorageResult>;
     };
     pluginOAuth?: {
-      start(connectionId: string, force?: boolean): Promise<{ authorizationUrl: string; status: string }>;
+      start(
+        connectionId: string,
+        force?: boolean
+      ): Promise<{ authorizationUrl: string; status: string }>;
       cancel(connectionId: string, state: string): Promise<boolean>;
       close(): Promise<void>;
-      onResult(callback: (result: { connectionId: string; status: "ready" | "cancelled" | "error"; message?: string }) => void): () => void;
+      onResult(
+        callback: (result: {
+          connectionId: string;
+          status: "ready" | "cancelled" | "error";
+          message?: string;
+        }) => void
+      ): () => void;
     };
     /** An aiTeamOS server installed on this computer by the CLI, if any. */
     localServer?: {
@@ -48,11 +63,20 @@ interface Window {
       cancel(): Promise<void>;
     };
     computer: {
-      network: () => Promise<import("@aiteamos/contracts/browser-network").NetworkSharingStatus | null>;
-      shareNetwork: (enabled: boolean) => Promise<import("@aiteamos/contracts/browser-network").NetworkSharingStatus>;
+      network: () => Promise<
+        import("@aiteamos/contracts/browser-network").NetworkSharingStatus | null
+      >;
+      shareNetwork: (
+        enabled: boolean
+      ) => Promise<import("@aiteamos/contracts/browser-network").NetworkSharingStatus>;
       get: () => Promise<AiTeamOSComputerSettings>;
-      update: (request: { machineLabel?: string; messagesEnabled?: boolean }) => Promise<AiTeamOSComputerSettings>;
-      messagesPermissions: (request?: "fullDiskAccess" | "automation" | "contacts") => Promise<AiTeamOSMessagesPermissions | null>;
+      update: (request: {
+        machineLabel?: string;
+        messagesEnabled?: boolean;
+      }) => Promise<AiTeamOSComputerSettings>;
+      messagesPermissions: (
+        request?: "fullDiskAccess" | "automation" | "contacts"
+      ) => Promise<AiTeamOSMessagesPermissions | null>;
       messagesIcon?: () => Promise<string | null>;
       onMessagesGrantsNeeded?: (listener: () => void) => () => void;
     };
@@ -69,7 +93,11 @@ interface Window {
       write: (scope: string, journal: unknown) => Promise<void>;
     };
     tailscale: {
-      request: (request: { serverUrl: string; action: "status" | "enable" | "disable"; httpsPort?: string }) => Promise<import("@aiteamos/contracts/tailscale").DesktopTailscaleStatus>;
+      request: (request: {
+        serverUrl: string;
+        action: "status" | "enable" | "disable";
+        httpsPort?: string;
+      }) => Promise<import("@aiteamos/contracts/tailscale").DesktopTailscaleStatus>;
     };
     updates: {
       status: () => Promise<AiTeamOSUpdateStatus>;
@@ -77,7 +105,6 @@ interface Window {
       openDownload: () => Promise<void>;
       installClient: () => Promise<void>;
       onClientProgress: (listener: (status: AiTeamOSUpdateStatus) => void) => () => void;
-
     };
     microphone: {
       status: () => Promise<{
@@ -115,7 +142,9 @@ interface Window {
       gpu: Electron.GPUFeatureStatus;
     }>;
     onNotificationClick: (
-      listener: (target: import("@aiteamos/contracts/notification-content").DesktopNotificationTarget) => void
+      listener: (
+        target: import("@aiteamos/contracts/notification-content").DesktopNotificationTarget
+      ) => void
     ) => () => void;
     versions: Readonly<{ app: string; electron: string; chrome: string }>;
   };

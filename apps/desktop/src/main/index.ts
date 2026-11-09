@@ -8,9 +8,7 @@ import { nativeCommand } from "./host/native-command";
 import { mkdtemp, open, readFile, rename, rm, unlink } from "node:fs/promises";
 import { hostname, tmpdir } from "node:os";
 import { extname, join } from "node:path";
-import {
-  compareAiTeamOSVersions,
-} from "@aiteamos/contracts/version-compatibility";
+import { compareAiTeamOSVersions } from "@aiteamos/contracts/version-compatibility";
 import { safeErrorMessage } from "@aiteamos/product-core/redaction";
 import {
   app,
@@ -29,7 +27,7 @@ import {
   systemPreferences,
 } from "electron";
 import type { AppUpdater } from "electron-updater";
-import { applicationMenuTemplate } from "./application-menu";
+import { applicationMenuTemplate, type ApplicationMenuLocale } from "./application-menu";
 import { desktopSignIn, desktopSignOut } from "./auth-client";
 import { createAiTeamOSClient } from "@aiteamos/client-core";
 import { DesktopPluginOAuth } from "./plugin-oauth";
@@ -65,18 +63,20 @@ import {
   classifyDesktopUpdateError,
   type DesktopUpdateSnapshot,
   hasDesktopUpdateFeed,
-import { isTrustedAssetDownloadUrl } from "./download-assets";
   parseDesktopReleaseManifest,
 } from "./update-status";
+import { isTrustedAssetDownloadUrl } from "./download-assets";
 
 let mainWindow: BrowserWindow | null = null;
 const isMainWindowVisible = () => Boolean(mainWindow && windowIsVisible(mainWindow));
 ipcMain.handle("aiteamos:window-visibility", (event) => {
-  if (!mainWindow || event.sender !== mainWindow.webContents) throw new Error("Window is unavailable");
+  if (!mainWindow || event.sender !== mainWindow.webContents)
+    throw new Error("Window is unavailable");
   return isMainWindowVisible();
 });
 ipcMain.handle("aiteamos:window-activity", (event) => {
-  if (!mainWindow || event.sender !== mainWindow.webContents) throw new Error("Window is unavailable");
+  if (!mainWindow || event.sender !== mainWindow.webContents)
+    throw new Error("Window is unavailable");
   return windowIsActive(mainWindow);
 });
 let authTokenStore: DesktopAuthTokenStore | null = null;
@@ -89,10 +89,18 @@ let isQuitting = false;
 const localMachine = { machineId: "", label: hostname() };
 let machineEnrollment: DesktopMachineEnrollment | null = null;
 let browserNetwork: DesktopBrowserNetwork | null = null;
+let applicationMenuLocale: ApplicationMenuLocale = "en-US";
 // Messages is macOS-only: other platforms report no Messages support at all.
-const messagesAccess = process.platform === "darwin"
-  ? new MessagesAccess(undefined, undefined, [...new Set([process.env.__CFBundleIdentifier, "dev.aiteamos.desktop"].filter((id): id is string => !!id))])
-  : null;
+const messagesAccess =
+  process.platform === "darwin"
+    ? new MessagesAccess(undefined, undefined, [
+        ...new Set(
+          [process.env.__CFBundleIdentifier, "dev.aiteamos.desktop"].filter(
+            (id): id is string => !!id
+          )
+        ),
+      ])
+    : null;
 let enrollmentServerUrl: string | null = null;
 const windowBackground = () => (nativeTheme.shouldUseDarkColors ? "#080808" : "#fbfbfb");
 const releasePage = "https://github.com/jingyi0605/ai-TeamOS/releases/latest";
@@ -438,6 +446,7 @@ const trustedDownloadOrigins = () => {
   const bases: string[] = [];
   for (const candidate of [
     process.env.AITEAMOS_SERVER_URL ?? "http://127.0.0.1:8787",
+    enrollmentServerUrl,
     mainWindow?.webContents.getURL(),
   ]) {
     if (!candidate) continue;
@@ -448,7 +457,6 @@ const trustedDownloadOrigins = () => {
       }
     } catch {
       // Ignore malformed configuration and non-network renderer URLs such as file://.
-    enrollmentServerUrl,
     }
   }
   return bases;
@@ -648,30 +656,51 @@ const requireAuthSender = (event: Electron.IpcMainInvokeEvent) => {
   }
 };
 
-const pluginOAuth = new DesktopPluginOAuth(result => {
-  if (mainWindow && !mainWindow.webContents.isDestroyed()) mainWindow.webContents.send("aiteamos:plugin-oauth:result", result);
+const pluginOAuth = new DesktopPluginOAuth((result) => {
+  if (mainWindow && !mainWindow.webContents.isDestroyed())
+    mainWindow.webContents.send("aiteamos:plugin-oauth:result", result);
 });
-ipcMain.handle("aiteamos:plugin-oauth:start", async (event, connectionId: unknown, force: unknown) => {
-  requireAuthSender(event);
-  if (typeof connectionId !== "string" || !/^[a-zA-Z0-9-]{1,128}$/.test(connectionId) || typeof force !== "boolean") throw new Error("Invalid plugin sign-in request");
-  const serverUrl = enrollmentServerUrl;
-  if (!serverUrl) throw new Error("Connect to your aiTeamOS server before authorizing a plugin.");
-  const generation = pluginOAuth.sessionGeneration;
-  const token = (await requireAuthTokenStore(event).read()).token;
-  if (enrollmentServerUrl !== serverUrl || generation !== pluginOAuth.sessionGeneration) throw new Error("The server or sign-in session changed. Try again.");
-  const client = createAiTeamOSClient({ baseUrl: serverUrl, getAuthToken: () => token,
-    fetch: (input, init) => net.fetch(input instanceof Request ? input.url : String(input), {
-      ...init, signal: AbortSignal.timeout(45_000), redirect: "error",
-    }),
-  });
-  return pluginOAuth.start(`${serverUrl}:${token ?? ""}`, connectionId, client, force);
-});
+ipcMain.handle(
+  "aiteamos:plugin-oauth:start",
+  async (event, connectionId: unknown, force: unknown) => {
+    requireAuthSender(event);
+    if (
+      typeof connectionId !== "string" ||
+      !/^[a-zA-Z0-9-]{1,128}$/.test(connectionId) ||
+      typeof force !== "boolean"
+    )
+      throw new Error("Invalid plugin sign-in request");
+    const serverUrl = enrollmentServerUrl;
+    if (!serverUrl) throw new Error("Connect to your aiTeamOS server before authorizing a plugin.");
+    const generation = pluginOAuth.sessionGeneration;
+    const token = (await requireAuthTokenStore(event).read()).token;
+    if (enrollmentServerUrl !== serverUrl || generation !== pluginOAuth.sessionGeneration)
+      throw new Error("The server or sign-in session changed. Try again.");
+    const client = createAiTeamOSClient({
+      baseUrl: serverUrl,
+      getAuthToken: () => token,
+      fetch: (input, init) =>
+        net.fetch(input instanceof Request ? input.url : String(input), {
+          ...init,
+          signal: AbortSignal.timeout(45_000),
+          redirect: "error",
+        }),
+    });
+    return pluginOAuth.start(`${serverUrl}:${token ?? ""}`, connectionId, client, force);
+  }
+);
 ipcMain.handle("aiteamos:plugin-oauth:cancel", (event, connectionId: unknown, state: unknown) => {
   requireAuthSender(event);
-  if (typeof connectionId !== "string" || connectionId.length > 128 || typeof state !== "string" || state.length > 4096) throw new Error("Invalid plugin cancellation");
+  if (
+    typeof connectionId !== "string" ||
+    connectionId.length > 128 ||
+    typeof state !== "string" ||
+    state.length > 4096
+  )
+    throw new Error("Invalid plugin cancellation");
   return pluginOAuth.cancel(connectionId, state);
 });
-ipcMain.handle("aiteamos:plugin-oauth:close", event => {
+ipcMain.handle("aiteamos:plugin-oauth:close", (event) => {
   requireAuthSender(event);
   pluginOAuth.closeAll();
 });
@@ -710,9 +739,17 @@ ipcMain.handle("aiteamos:provider-sign-in:cancel", (event) => {
 
 ipcMain.handle("aiteamos:machine:connect", (event, serverUrl: unknown) => {
   requireAuthSender(event);
-  if (typeof serverUrl !== "string" || serverUrl.length > 8192) throw new Error("Invalid server URL");
+  if (typeof serverUrl !== "string" || serverUrl.length > 8192)
+    throw new Error("Invalid server URL");
   const url = new URL(serverUrl);
-  if (!["http:", "https:"].includes(url.protocol) || url.username || url.password || url.search || url.hash) throw new Error("Invalid server URL");
+  if (
+    !["http:", "https:"].includes(url.protocol) ||
+    url.username ||
+    url.password ||
+    url.search ||
+    url.hash
+  )
+    throw new Error("Invalid server URL");
   const nextServerUrl = url.href.replace(/\/$/, "");
   if (enrollmentServerUrl !== nextServerUrl) {
     pluginOAuth.closeAll();
@@ -723,9 +760,12 @@ ipcMain.handle("aiteamos:machine:connect", (event, serverUrl: unknown) => {
   return { machineId: localMachine.machineId };
 });
 
-ipcMain.handle("aiteamos:machine:status", event => {
+ipcMain.handle("aiteamos:machine:status", (event) => {
   requireAuthSender(event);
-  return { machineId: localMachine.machineId, ...(machineEnrollment?.status() ?? { connected: false, configured: false, error: null }) };
+  return {
+    machineId: localMachine.machineId,
+    ...(machineEnrollment?.status() ?? { connected: false, configured: false, error: null }),
+  };
 });
 
 ipcMain.handle("aiteamos:auth:sign-in", (event, serverUrl, username, password) => {
@@ -788,10 +828,10 @@ ipcMain.handle("aiteamos:updates:install-client", async (event) => {
 });
 
 ipcMain.handle("aiteamos:tailscale", async (event, value) => {
-  if (!mainWindow || event.sender !== mainWindow.webContents) throw new Error("Tailscale management is unavailable");
+  if (!mainWindow || event.sender !== mainWindow.webContents)
+    throw new Error("Tailscale management is unavailable");
   return tailscaleManager.request(value);
 });
-
 
 const desktopNotificationSnapshot = (value: unknown): DesktopNotificationSnapshot | null => {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
@@ -832,11 +872,21 @@ let notificationScreenLocked = false;
 let notificationSuspended = false;
 let notificationDeliveryFailed = false;
 ipcMain.handle("aiteamos:notifications:activity", (event) => {
-  if (!mainWindow || event.sender !== mainWindow.webContents) throw new Error("Activity is unavailable");
+  if (!mainWindow || event.sender !== mainWindow.webContents)
+    throw new Error("Activity is unavailable");
   const idleSeconds = powerMonitor.getSystemIdleTime();
-  return { idleSeconds, active: process.platform === "darwin" && !isQuitting &&
-    !notificationScreenLocked && !notificationSuspended && !notificationDeliveryFailed &&
-    powerMonitor.getSystemIdleState(300) !== "locked" && Notification.isSupported() && idleSeconds < 300 };
+  return {
+    idleSeconds,
+    active:
+      process.platform === "darwin" &&
+      !isQuitting &&
+      !notificationScreenLocked &&
+      !notificationSuspended &&
+      !notificationDeliveryFailed &&
+      powerMonitor.getSystemIdleState(300) !== "locked" &&
+      Notification.isSupported() &&
+      idleSeconds < 300,
+  };
 });
 
 ipcMain.handle("aiteamos:notifications:status", async (event) => {
@@ -917,13 +967,16 @@ const requireComputerSettings = (event: Electron.IpcMainInvokeEvent) => {
 };
 
 const computerSettingsView = (settings: ComputerSettings) => ({
-  ...settings, machine: { ...localMachine, label: settings.machineLabel ?? localMachine.label }, messagesSupported: !!messagesAccess,
+  ...settings,
+  machine: { ...localMachine, label: settings.machineLabel ?? localMachine.label },
+  messagesSupported: !!messagesAccess,
 });
 let computerClipboardActive = false;
 ipcMain.on("aiteamos:computer-clipboard-active", (event, active: unknown) => {
-  if (event.sender === mainWindow?.webContents && typeof active === "boolean") computerClipboardActive = active;
+  if (event.sender === mainWindow?.webContents && typeof active === "boolean")
+    computerClipboardActive = active;
 });
-ipcMain.handle("aiteamos:computer-clipboard-read", event => {
+ipcMain.handle("aiteamos:computer-clipboard-read", (event) => {
   requireAuthSender(event);
   if (!computerClipboardActive) throw new Error("Focus the computer before using its clipboard.");
   const text = clipboard.readText();
@@ -933,24 +986,49 @@ ipcMain.handle("aiteamos:computer-clipboard-read", event => {
 ipcMain.handle("aiteamos:computer-clipboard-write", (event, text: unknown) => {
   requireAuthSender(event);
   if (!computerClipboardActive) throw new Error("Focus the computer before using its clipboard.");
-  if (typeof text !== "string" || Buffer.byteLength(text, "utf8") > 4_000_000) throw new Error("Clipboard text is too large.");
+  if (typeof text !== "string" || Buffer.byteLength(text, "utf8") > 4_000_000)
+    throw new Error("Clipboard text is too large.");
   clipboard.writeText(text);
 });
-ipcMain.handle("aiteamos:computer:get", async event => computerSettingsView(await requireComputerSettings(event).read()));
-ipcMain.handle("aiteamos:network:get", event => { requireAuthSender(event); return browserNetwork?.status() ?? null; });
+ipcMain.handle("aiteamos:computer:get", async (event) =>
+  computerSettingsView(await requireComputerSettings(event).read())
+);
+ipcMain.handle("aiteamos:network:get", (event) => {
+  requireAuthSender(event);
+  return browserNetwork?.status() ?? null;
+});
 ipcMain.handle("aiteamos:network:share", async (event, enabled: unknown) => {
   requireAuthSender(event);
-  if (typeof enabled !== "boolean" || !browserNetwork) throw new Error("Invalid browser network permission");
+  if (typeof enabled !== "boolean" || !browserNetwork)
+    throw new Error("Invalid browser network permission");
   return browserNetwork.setAllowed(enabled);
 });
 ipcMain.handle("aiteamos:computer:update", async (event, input: unknown) => {
-  const record = input && typeof input === "object" && !Array.isArray(input) ? input as Record<string, unknown> : null;
-  if (!record || !Object.keys(record).length || Object.keys(record).some(key => key !== "machineLabel" && key !== "messagesEnabled")) throw new Error("Invalid computer settings");
-  if ("machineLabel" in record && (typeof record.machineLabel !== "string" || !record.machineLabel.trim())) throw new Error("A computer label is required");
-  if ("messagesEnabled" in record && (typeof record.messagesEnabled !== "boolean" || !messagesAccess)) throw new Error("Messages is available on a Mac only");
+  const record =
+    input && typeof input === "object" && !Array.isArray(input)
+      ? (input as Record<string, unknown>)
+      : null;
+  if (
+    !record ||
+    !Object.keys(record).length ||
+    Object.keys(record).some((key) => key !== "machineLabel" && key !== "messagesEnabled")
+  )
+    throw new Error("Invalid computer settings");
+  if (
+    "machineLabel" in record &&
+    (typeof record.machineLabel !== "string" || !record.machineLabel.trim())
+  )
+    throw new Error("A computer label is required");
+  if (
+    "messagesEnabled" in record &&
+    (typeof record.messagesEnabled !== "boolean" || !messagesAccess)
+  )
+    throw new Error("Messages is available on a Mac only");
   const updated = await requireComputerSettings(event).update({
     ...(typeof record.machineLabel === "string" ? { machineLabel: record.machineLabel } : {}),
-    ...(typeof record.messagesEnabled === "boolean" ? { messagesEnabled: record.messagesEnabled } : {}),
+    ...(typeof record.messagesEnabled === "boolean"
+      ? { messagesEnabled: record.messagesEnabled }
+      : {}),
   });
   await machineEnrollment?.report();
   return computerSettingsView(updated);
@@ -965,7 +1043,16 @@ ipcMain.handle("aiteamos:computer:messages-icon", async (event) => {
     const directory = await mkdtemp(join(tmpdir(), "aiteamos-messages-icon-"));
     try {
       const target = join(directory, "messages.png");
-      await nativeCommand("/usr/bin/sips", ["-s", "format", "png", "-Z", "80", "/System/Applications/Messages.app/Contents/Resources/AppIcon.icns", "--out", target]);
+      await nativeCommand("/usr/bin/sips", [
+        "-s",
+        "format",
+        "png",
+        "-Z",
+        "80",
+        "/System/Applications/Messages.app/Contents/Resources/AppIcon.icns",
+        "--out",
+        target,
+      ]);
       return `data:image/png;base64,${(await readFile(target)).toString("base64")}`;
     } catch {
       return null;
@@ -979,13 +1066,17 @@ ipcMain.handle("aiteamos:computer:messages-permissions", async (event, request: 
   requireAuthSender(event);
   if (!messagesAccess) return null;
   if (request === "fullDiskAccess") {
-    await shell.openExternal("x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles");
+    await shell.openExternal(
+      "x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles"
+    );
     return messagesAccess.permissions(0);
   }
   // macOS never asks twice: after a denial only System Settings can grant it.
   const current = await messagesAccess.permissions(0);
   if ((request === "automation" || request === "contacts") && current[request] === "denied") {
-    await shell.openExternal(`x-apple.systempreferences:com.apple.preference.security?${request === "automation" ? "Privacy_Automation" : "Privacy_Contacts"}`);
+    await shell.openExternal(
+      `x-apple.systempreferences:com.apple.preference.security?${request === "automation" ? "Privacy_Automation" : "Privacy_Contacts"}`
+    );
     return messagesAccess.request(request);
   }
   if (request === "automation" || request === "contacts") {
@@ -1086,6 +1177,45 @@ const focusMainWindow = () => {
   mainWindow.focus();
 };
 
+const rebuildApplicationMenu = () => {
+  Menu.setApplicationMenu(
+    Menu.buildFromTemplate(
+      applicationMenuTemplate(
+        process.platform,
+        applicationMenuLocale,
+        (action) => {
+          focusMainWindow();
+          mainWindow?.webContents.send("aiteamos:app-menu", action);
+          if (
+            action === "updates" &&
+            !["checking", "downloading", "downloaded", "installing"].includes(
+              desktopUpdateSnapshot.status
+            )
+          ) {
+            void checkForDesktopUpdate();
+          }
+        },
+        (action, window) => {
+          if (!computerClipboardActive || window !== mainWindow) return false;
+          mainWindow?.webContents.send("aiteamos:computer-clipboard", action);
+          return true;
+        }
+      )
+    )
+  );
+};
+
+ipcMain.handle("aiteamos:application-menu-locale", (event, locale: unknown) => {
+  if (!mainWindow || event.sender !== mainWindow.webContents) {
+    throw new Error("Window is unavailable");
+  }
+  if (locale !== "en-US" && locale !== "zh-CN") {
+    throw new Error("Unsupported application menu locale");
+  }
+  applicationMenuLocale = locale;
+  rebuildApplicationMenu();
+});
+
 // Development builds can run beside an installed app by design, but packaged launches should
 // reuse the existing desktop instance instead of competing for its host bridge port.
 const hasSingleInstanceLock = !app.isPackaged || app.requestSingleInstanceLock();
@@ -1101,27 +1231,10 @@ if (!hasSingleInstanceLock) {
   void app
     .whenReady()
     .then(async () => {
-      Menu.setApplicationMenu(
-        Menu.buildFromTemplate(
-          applicationMenuTemplate(process.platform, (action) => {
-            focusMainWindow();
-            mainWindow?.webContents.send("aiteamos:app-menu", action);
-            if (
-              action === "updates" &&
-              !["checking", "downloading", "downloaded", "installing"].includes(
-                desktopUpdateSnapshot.status
-              )
-            ) {
-              void checkForDesktopUpdate();
-            }
-          }, (action, window) => {
-            if (!computerClipboardActive || window !== mainWindow) return false;
-            mainWindow?.webContents.send("aiteamos:computer-clipboard", action);
-            return true;
-          })
-        )
+      rebuildApplicationMenu();
+      localMachine.machineId = await loadMachineIdentity(
+        join(app.getPath("userData"), "machine-id")
       );
-      localMachine.machineId = await loadMachineIdentity(join(app.getPath("userData"), "machine-id"));
       authTokenStore = new DesktopAuthTokenStore(
         join(app.getPath("userData"), "auth-session.json")
       );
@@ -1144,14 +1257,36 @@ if (!hasSingleInstanceLock) {
       computerSettings = createComputerSettingsStore(
         join(app.getPath("userData"), "computer-settings.json")
       );
-      const activityChanged = () => mainWindow?.webContents.send("aiteamos:notifications:activity-changed");
-      powerMonitor.on("lock-screen", () => { notificationScreenLocked = true; activityChanged(); });
-      powerMonitor.on("unlock-screen", () => { notificationScreenLocked = false; notificationDeliveryFailed = false; activityChanged(); });
+      const activityChanged = () =>
+        mainWindow?.webContents.send("aiteamos:notifications:activity-changed");
+      powerMonitor.on("lock-screen", () => {
+        notificationScreenLocked = true;
+        activityChanged();
+      });
+      powerMonitor.on("unlock-screen", () => {
+        notificationScreenLocked = false;
+        notificationDeliveryFailed = false;
+        activityChanged();
+      });
       // A sleeping computer goes offline at once, so bots move Messages and other work to one that's awake.
-      powerMonitor.on("suspend", () => { notificationSuspended = true; activityChanged(); void machineEnrollment?.stop(); });
-      powerMonitor.on("resume", () => { notificationSuspended = false; activityChanged(); if (enrollmentServerUrl) machineEnrollment?.configure(enrollmentServerUrl); });
-      powerMonitor.on("user-did-resign-active", () => { notificationScreenLocked = true; activityChanged(); });
-      powerMonitor.on("user-did-become-active", () => { notificationScreenLocked = false; activityChanged(); });
+      powerMonitor.on("suspend", () => {
+        notificationSuspended = true;
+        activityChanged();
+        void machineEnrollment?.stop();
+      });
+      powerMonitor.on("resume", () => {
+        notificationSuspended = false;
+        activityChanged();
+        if (enrollmentServerUrl) machineEnrollment?.configure(enrollmentServerUrl);
+      });
+      powerMonitor.on("user-did-resign-active", () => {
+        notificationScreenLocked = true;
+        activityChanged();
+      });
+      powerMonitor.on("user-did-become-active", () => {
+        notificationScreenLocked = false;
+        activityChanged();
+      });
       desktopNotifications = new DesktopNotificationManager({
         isFocused: () => mainWindow?.isFocused() ?? false,
         isSupported: () => Notification.isSupported(),
@@ -1197,7 +1332,10 @@ if (!hasSingleInstanceLock) {
           });
           notification.on("click", () => {
             focusMainWindow();
-            mainWindow?.webContents.send("aiteamos:notification-click", parseNotificationTarget(notificationEvent));
+            mainWindow?.webContents.send(
+              "aiteamos:notification-click",
+              parseNotificationTarget(notificationEvent)
+            );
           });
           notification.show();
         },
@@ -1214,7 +1352,8 @@ if (!hasSingleInstanceLock) {
       });
       const legacyBridge = token !== "local-compose-only-change-me";
       const bridgeToken = legacyBridge ? token : randomBytes(32).toString("base64url");
-      const startBridge = (bridgePort: number) => startHostBridge({
+      const startBridge = (bridgePort: number) =>
+        startHostBridge({
           token: bridgeToken,
           port: bridgePort,
           hostname: legacyBridge ? "0.0.0.0" : "127.0.0.1",
@@ -1223,38 +1362,59 @@ if (!hasSingleInstanceLock) {
           machineId: localMachine.machineId,
           machineLabel: localMachine.label,
           runJob: hostJobs.run,
-          capabilities: new HostCapabilities(undefined, undefined, process.platform, new NativeActionReceipts(join(app.getPath("userData"), "native-action-receipts.json")), {
-            enabled: async () => (await computerSettings!.read()).messagesEnabled,
-            access: messagesAccess ?? undefined,
-            onGrantMissing: () => {
-              mainWindow?.webContents.send("aiteamos:messages-grants-needed");
-              if (process.platform === "darwin" && !mainWindow?.isFocused()) app.dock?.bounce("informational");
-            },
-          }),
+          capabilities: new HostCapabilities(
+            undefined,
+            undefined,
+            process.platform,
+            new NativeActionReceipts(join(app.getPath("userData"), "native-action-receipts.json")),
+            {
+              enabled: async () => (await computerSettings!.read()).messagesEnabled,
+              access: messagesAccess ?? undefined,
+              onGrantMissing: () => {
+                mainWindow?.webContents.send("aiteamos:messages-grants-needed");
+                if (process.platform === "darwin" && !mainWindow?.isFocused())
+                  app.dock?.bounce("informational");
+              },
+            }
+          ),
         });
-      try { hostBridge = await startBridge(port); }
-      catch (error) {
+      try {
+        hostBridge = await startBridge(port);
+      } catch (error) {
         if (!isAddressInUseError(error)) throw error;
         hostBridge = await startBridge(0);
       }
       const address = hostBridge.address();
-      if (!address || typeof address === "string") throw new Error("Local computer bridge did not start");
+      if (!address || typeof address === "string")
+        throw new Error("Local computer bridge did not start");
       machineEnrollment = new DesktopMachineEnrollment({
         machineId: localMachine.machineId,
         localUrl: `http://127.0.0.1:${address.port}`,
         localToken: bridgeToken,
-        onConnection: connection => { void browserNetwork?.configure(connection); },
+        onConnection: (connection) => {
+          void browserNetwork?.configure(connection);
+        },
         getToken: async () => (await authTokenStore!.read()).token,
         getIdentity: async () => {
           const settings = await computerSettings!.read();
           return {
             label: settings.machineLabel ?? localMachine.label,
-            ...(messagesAccess ? { messages: { enabled: settings.messagesEnabled, ...await messagesAccess.permissions() } } : {}),
+            ...(messagesAccess
+              ? {
+                  messages: {
+                    enabled: settings.messagesEnabled,
+                    ...(await messagesAccess.permissions()),
+                  },
+                }
+              : {}),
           };
         },
       });
       const { DesktopBrowserNetwork, NetworkConsentStore } = await import("./browser-network");
-      browserNetwork = new DesktopBrowserNetwork(localMachine.machineId, new NetworkConsentStore(join(app.getPath("userData"), "browser-network-consent.json")));
+      browserNetwork = new DesktopBrowserNetwork(
+        localMachine.machineId,
+        new NetworkConsentStore(join(app.getPath("userData"), "browser-network-consent.json"))
+      );
       powerMonitor.on("suspend", () => browserNetwork?.setSuspended(true));
       powerMonitor.on("resume", () => browserNetwork?.setSuspended(false));
       if (enrollmentServerUrl) machineEnrollment.configure(enrollmentServerUrl);

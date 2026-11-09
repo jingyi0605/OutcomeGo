@@ -43,8 +43,6 @@ const record = (value: unknown, label: string): Record<string, unknown> => {
   return value as Record<string, unknown>;
 };
 
-
-
 const downloadRequests = (value: unknown) => {
   if (!Array.isArray(value) || value.length === 0 || value.length > 24) {
     throw new Error("Download request is invalid");
@@ -110,9 +108,11 @@ contextBridge.exposeInMainWorld("aiteamos", {
   platform: process.platform,
   clipboard: {
     readText: (): Promise<string> => ipcRenderer.invoke("aiteamos:computer-clipboard-read"),
-    writeText: (text: string): Promise<void> => ipcRenderer.invoke("aiteamos:computer-clipboard-write", text),
+    writeText: (text: string): Promise<void> =>
+      ipcRenderer.invoke("aiteamos:computer-clipboard-write", text),
     setComputerActive: (active: boolean) => {
-      if (typeof active === "boolean") ipcRenderer.send("aiteamos:computer-clipboard-active", active);
+      if (typeof active === "boolean")
+        ipcRenderer.send("aiteamos:computer-clipboard-active", active);
     },
     onComputerAction: (callback: (action: "copy" | "cut" | "paste") => void) => {
       const listener = (_event: Electron.IpcRendererEvent, action: unknown) => {
@@ -129,6 +129,8 @@ contextBridge.exposeInMainWorld("aiteamos", {
     ipcRenderer.on("aiteamos:app-menu", listener);
     return () => ipcRenderer.removeListener("aiteamos:app-menu", listener);
   },
+  setApplicationMenuLocale: (locale: "en-US" | "zh-CN") =>
+    ipcRenderer.invoke("aiteamos:application-menu-locale", locale),
   visibility: {
     subscribeActivity: (callback: (active: boolean) => void) => {
       let subscribed = true;
@@ -139,10 +141,18 @@ contextBridge.exposeInMainWorld("aiteamos", {
         if (subscribed) callback(active);
       };
       ipcRenderer.on("aiteamos:window-activity-changed", listener);
-      void ipcRenderer.invoke("aiteamos:window-activity").then((active) => {
-        if (subscribed && !receivedEvent && typeof active === "boolean") callback(active);
-      }).catch(() => { /* Browser focus remains the fallback during shutdown. */ });
-      return () => { subscribed = false; ipcRenderer.removeListener("aiteamos:window-activity-changed", listener); };
+      void ipcRenderer
+        .invoke("aiteamos:window-activity")
+        .then((active) => {
+          if (subscribed && !receivedEvent && typeof active === "boolean") callback(active);
+        })
+        .catch(() => {
+          /* Browser focus remains the fallback during shutdown. */
+        });
+      return () => {
+        subscribed = false;
+        ipcRenderer.removeListener("aiteamos:window-activity-changed", listener);
+      };
     },
     subscribe: (callback: (visible: boolean) => void) => {
       let active = true;
@@ -153,14 +163,23 @@ contextBridge.exposeInMainWorld("aiteamos", {
         if (active) callback(visible);
       };
       ipcRenderer.on("aiteamos:window-visibility-changed", listener);
-      void ipcRenderer.invoke("aiteamos:window-visibility").then((visible) => {
-        if (active && !receivedEvent && typeof visible === "boolean") callback(visible);
-      }).catch(() => { /* Browser visibility remains the fallback during shutdown. */ });
-      return () => { active = false; ipcRenderer.removeListener("aiteamos:window-visibility-changed", listener); };
+      void ipcRenderer
+        .invoke("aiteamos:window-visibility")
+        .then((visible) => {
+          if (active && !receivedEvent && typeof visible === "boolean") callback(visible);
+        })
+        .catch(() => {
+          /* Browser visibility remains the fallback during shutdown. */
+        });
+      return () => {
+        active = false;
+        ipcRenderer.removeListener("aiteamos:window-visibility-changed", listener);
+      };
     },
   },
   auth: {
-    connectMachine: (serverUrl: string) => ipcRenderer.invoke("aiteamos:machine:connect", serverUrl),
+    connectMachine: (serverUrl: string) =>
+      ipcRenderer.invoke("aiteamos:machine:connect", serverUrl),
     machineStatus: () => ipcRenderer.invoke("aiteamos:machine:status"),
     signIn: (serverUrl: string, username: string, password: string) =>
       ipcRenderer.invoke("aiteamos:auth:sign-in", serverUrl, username, password),
@@ -178,11 +197,22 @@ contextBridge.exposeInMainWorld("aiteamos", {
       authTokenStorageResult(await ipcRenderer.invoke("aiteamos:auth-token:clear")),
   },
   pluginOAuth: {
-    start: (connectionId: string, force = false) => ipcRenderer.invoke("aiteamos:plugin-oauth:start", connectionId, force),
-    cancel: (connectionId: string, state: string) => ipcRenderer.invoke("aiteamos:plugin-oauth:cancel", connectionId, state),
+    start: (connectionId: string, force = false) =>
+      ipcRenderer.invoke("aiteamos:plugin-oauth:start", connectionId, force),
+    cancel: (connectionId: string, state: string) =>
+      ipcRenderer.invoke("aiteamos:plugin-oauth:cancel", connectionId, state),
     close: () => ipcRenderer.invoke("aiteamos:plugin-oauth:close"),
-    onResult: (callback: (result: { connectionId: string; status: "ready" | "cancelled" | "error"; message?: string }) => void) => {
-      const listener = (_event: Electron.IpcRendererEvent, result: Parameters<typeof callback>[0]) => callback(result);
+    onResult: (
+      callback: (result: {
+        connectionId: string;
+        status: "ready" | "cancelled" | "error";
+        message?: string;
+      }) => void
+    ) => {
+      const listener = (
+        _event: Electron.IpcRendererEvent,
+        result: Parameters<typeof callback>[0]
+      ) => callback(result);
       ipcRenderer.on("aiteamos:plugin-oauth:result", listener);
       return () => ipcRenderer.removeListener("aiteamos:plugin-oauth:result", listener);
     },
@@ -199,13 +229,18 @@ contextBridge.exposeInMainWorld("aiteamos", {
     network: () => ipcRenderer.invoke("aiteamos:network:get"),
     shareNetwork: (enabled: boolean) => ipcRenderer.invoke("aiteamos:network:share", enabled),
     get: () => ipcRenderer.invoke("aiteamos:computer:get"),
-    update: (request: { machineLabel?: string; messagesEnabled?: boolean }) => ipcRenderer.invoke("aiteamos:computer:update", request),
-    messagesPermissions: (request?: "fullDiskAccess" | "automation" | "contacts") => ipcRenderer.invoke("aiteamos:computer:messages-permissions", request ?? null),
-    messagesIcon: (): Promise<string | null> => ipcRenderer.invoke("aiteamos:computer:messages-icon"),
+    update: (request: { machineLabel?: string; messagesEnabled?: boolean }) =>
+      ipcRenderer.invoke("aiteamos:computer:update", request),
+    messagesPermissions: (request?: "fullDiskAccess" | "automation" | "contacts") =>
+      ipcRenderer.invoke("aiteamos:computer:messages-permissions", request ?? null),
+    messagesIcon: (): Promise<string | null> =>
+      ipcRenderer.invoke("aiteamos:computer:messages-icon"),
     onMessagesGrantsNeeded: (listener: () => void) => {
       const handler = () => listener();
       ipcRenderer.on("aiteamos:messages-grants-needed", handler);
-      return () => { ipcRenderer.removeListener("aiteamos:messages-grants-needed", handler); };
+      return () => {
+        ipcRenderer.removeListener("aiteamos:messages-grants-needed", handler);
+      };
     },
   },
   files: {
@@ -231,7 +266,11 @@ contextBridge.exposeInMainWorld("aiteamos", {
       }),
   },
   tailscale: {
-    request: (request: { serverUrl: string; action: "status" | "enable" | "disable"; httpsPort?: string }) => ipcRenderer.invoke("aiteamos:tailscale", request),
+    request: (request: {
+      serverUrl: string;
+      action: "status" | "enable" | "disable";
+      httpsPort?: string;
+    }) => ipcRenderer.invoke("aiteamos:tailscale", request),
   },
   updates: {
     status: () => ipcRenderer.invoke("aiteamos:updates:status"),
@@ -243,7 +282,6 @@ contextBridge.exposeInMainWorld("aiteamos", {
       ipcRenderer.on("aiteamos:desktop-update-progress", handler);
       return () => ipcRenderer.removeListener("aiteamos:desktop-update-progress", handler);
     },
-
   },
   microphone: {
     status: () => ipcRenderer.invoke("aiteamos:microphone:status"),
@@ -272,9 +310,7 @@ contextBridge.exposeInMainWorld("aiteamos", {
     openSettings: () => ipcRenderer.invoke("aiteamos:notifications:open-settings"),
   },
   getProcessMetrics: () => ipcRenderer.invoke("aiteamos:performance-snapshot"),
-  onNotificationClick: (
-    listener: (target: DesktopNotificationTarget) => void
-  ) => {
+  onNotificationClick: (listener: (target: DesktopNotificationTarget) => void) => {
     const handler = (_event: Electron.IpcRendererEvent, target: unknown) => {
       const parsed = parseNotificationTarget(target);
       if (parsed) listener(parsed);
