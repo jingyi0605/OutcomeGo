@@ -375,11 +375,11 @@ export function AccountMenu({
           <DropdownMenuItem
             className={menuItem}
             onSelect={() =>
-              openExternal("https://github.com/jingyi0605/ai-TeamOS/tree/ai-TeamOS/apps/ios")
+              openExternal("https://github.com/jingyi0605/ai-TeamOS/blob/ai-TeamOS/docs/mobile/README.md")
             }
           >
             <Smartphone className="size-4" strokeWidth={1.85} />
-            {t("Get aiTeamOS for iOS")}
+            {t("Get aiTeamOS for mobile")}
           </DropdownMenuItem>
           <DropdownMenuItem className={menuItem} onSelect={onOpenSettings}><Settings className="size-4" strokeWidth={1.85} />{t("Settings")}</DropdownMenuItem>
           <DropdownMenuSeparator className="mx-1 my-1.5" />

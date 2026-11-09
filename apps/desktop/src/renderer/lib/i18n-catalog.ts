@@ -1624,7 +1624,7 @@ export const sourceTranslations: Record<string, string> = {
   "Finish in your browser. If you closed it, reopen the same sign-in below.":
     "在浏览器中完成。如果你关闭了它，请在下面重新打开同一次登录。",
   "Get a key": "获取密钥",
-  "Get aiTeamOS for iOS": "获取 iOS 版 aiTeamOS",
+  "Get aiTeamOS for mobile": "获取移动端 aiTeamOS",
   "Instructions, e.g. reply in threads": "指令，例如在话题中回复",
   "It gets one durable Pi session with the selected inference provider, persistent chat, and its own Linux screen on the shared computer.":
     "它会获得一个使用所选推理服务商的持久 Pi 会话、持久聊天，以及共享电脑上属于自己的 Linux 屏幕。",
