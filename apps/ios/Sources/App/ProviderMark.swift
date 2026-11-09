@@ -116,3 +116,33 @@ struct ProviderIconShape: Shape {
       .path(in: rect)
   }
 }
+
+/// A vendor's mark from the provider icon set (scripts/icons/export-provider-icons.ts).
+/// Names ending in "-color" keep their colours; the rest are one-colour template images.
+struct ProviderIconView: View {
+  let name: String?
+  var size: CGFloat = 20
+  var body: some View {
+    if let name, UIImage(named: "ProviderIcon-" + name) != nil {
+      let image = Image("ProviderIcon-" + name).resizable().scaledToFit()
+      Group {
+        if name.hasSuffix("-color") { image } else {
+          image.renderingMode(.template).foregroundStyle(.primary)
+        }
+      }.frame(width: size, height: size).accessibilityHidden(true)
+    }
+  }
+}
+
+/// The mark a provider row shows: the app's own mark where it has one, else the vendor icon.
+struct ProviderRowMark: View {
+  let provider: InferenceProvider
+  var size: CGFloat = 20
+  var body: some View {
+    if ProviderMark.kind(for: provider.id) != .other {
+      ProviderMark(kind: ProviderMark.kind(for: provider.id), size: size, style: .mark)
+    } else {
+      ProviderIconView(name: provider.icon, size: size)
+    }
+  }
+}

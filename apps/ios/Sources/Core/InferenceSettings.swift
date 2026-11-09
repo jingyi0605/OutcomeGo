@@ -39,13 +39,15 @@ public struct InferenceProvider: Codable, Sendable, Identifiable, Hashable {
   public var authType: String?
   public var authSource: String?
   public var custom: Bool
+  /// The mark to show: a name in the provider icon set, chosen by the server.
+  public var icon: String?
   public var modelCount: Int
   public var modelStatus: String?
   public var modelMessage: String?
   public init(
     id: String, name: String, authMethods: [InferenceAuthMethod] = [], connected: Bool = false,
-    authType: String? = nil, authSource: String? = nil, custom: Bool = false, modelCount: Int = 0,
-    modelStatus: String? = nil, modelMessage: String? = nil
+    authType: String? = nil, authSource: String? = nil, custom: Bool = false, icon: String? = nil,
+    modelCount: Int = 0, modelStatus: String? = nil, modelMessage: String? = nil
   ) {
     self.id = id
     self.name = name
@@ -54,6 +56,7 @@ public struct InferenceProvider: Codable, Sendable, Identifiable, Hashable {
     self.authType = authType
     self.authSource = authSource
     self.custom = custom
+    self.icon = icon
     self.modelCount = modelCount
     self.modelStatus = modelStatus
     self.modelMessage = modelMessage

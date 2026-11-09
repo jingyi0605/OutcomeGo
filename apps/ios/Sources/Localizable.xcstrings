@@ -181,6 +181,16 @@
         }
       }
     },
+    "API base URL": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "API 基础地址"
+          }
+        }
+      }
+    },
     "API key": {
       "localizations": {
         "zh-CN": {
@@ -287,6 +297,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "添加自定义 MCP"
+          }
+        }
+      }
+    },
+    "Add provider": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "添加服务商"
           }
         }
       }
@@ -407,6 +427,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Anthropic API 密钥"
+          }
+        }
+      }
+    },
+    "Anthropic Messages": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anthropic Messages"
           }
         }
       }
@@ -1131,6 +1161,16 @@
         }
       }
     },
+    "Cloud platforms": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "云平台"
+          }
+        }
+      }
+    },
     "Code not accepted? Turn on device code sign-in in ChatGPT → Settings → Security.": {
       "localizations": {
         "zh-CN": {
@@ -1217,6 +1257,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "连接"
+          }
+        }
+      }
+    },
+    "Connect any service that speaks OpenAI Chat, OpenAI Responses or Anthropic Messages. The key stays on your server.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "连接任何支持 OpenAI Chat、OpenAI Responses 或 Anthropic Messages 的服务。密钥只保存在你的服务器上。"
           }
         }
       }
@@ -1461,12 +1511,42 @@
         }
       }
     },
+    "Could not add this provider": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法添加此服务商"
+          }
+        }
+      }
+    },
+    "Could not load the provider list": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法加载服务商列表"
+          }
+        }
+      }
+    },
     "Could not load transcription settings. Check the server connection.": {
       "localizations": {
         "zh-CN": {
           "stringUnit": {
             "state": "translated",
             "value": "无法加载转写设置。请检查服务器连接。"
+          }
+        }
+      }
+    },
+    "Could not remove this provider": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法移除此服务商"
           }
         }
       }
@@ -1627,6 +1707,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "自定义 MCP"
+          }
+        }
+      }
+    },
+    "Custom endpoint": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自定义地址"
           }
         }
       }
@@ -2571,6 +2661,16 @@
         }
       }
     },
+    "Hosts and gateways": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "托管与网关"
+          }
+        }
+      }
+    },
     "How this Bot’s mark looks everywhere": {
       "localizations": {
         "zh-CN": {
@@ -2837,6 +2937,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "给机器人的说明"
+          }
+        }
+      }
+    },
+    "Its address and key are deleted from your server.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "它的地址和密钥会从你的服务器上删除。"
           }
         }
       }
@@ -3411,6 +3521,16 @@
         }
       }
     },
+    "Model makers": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "模型厂商"
+          }
+        }
+      }
+    },
     "Model, %@": {
       "localizations": {
         "zh-CN": {
@@ -3931,6 +4051,16 @@
         }
       }
     },
+    "On this server": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在此服务器上"
+          }
+        }
+      }
+    },
     "One account, hundreds of models": {
       "localizations": {
         "zh-CN": {
@@ -4167,6 +4297,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "OpenAI API 密钥"
+          }
+        }
+      }
+    },
+    "OpenAI Chat": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenAI Chat"
+          }
+        }
+      }
+    },
+    "OpenAI Responses": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenAI Responses"
           }
         }
       }
@@ -4671,6 +4821,16 @@
         }
       }
     },
+    "Protocol": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "协议"
+          }
+        }
+      }
+    },
     "Provided securely": {
       "localizations": {
         "zh-CN": {
@@ -5037,6 +5197,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "移除"
+          }
+        }
+      }
+    },
+    "Remove %@?": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "移除“%@”？"
           }
         }
       }
@@ -6061,6 +6231,16 @@
         }
       }
     },
+    "Service": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "服务"
+          }
+        }
+      }
+    },
     "Services": {
       "localizations": {
         "zh-CN": {
@@ -6961,6 +7141,36 @@
         }
       }
     },
+    "The provider did not ask for a key.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "服务商没有要求提供密钥。"
+          }
+        }
+      }
+    },
+    "The provider didn't accept that key.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "服务商不接受这个密钥。"
+          }
+        }
+      }
+    },
+    "The server did not return the new provider.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "服务器没有返回新添加的服务商。"
+          }
+        }
+      }
+    },
     "The sign-in was cancelled.": {
       "localizations": {
         "zh-CN": {
@@ -7571,6 +7781,16 @@
         }
       }
     },
+    "Use any service that speaks OpenAI Chat, OpenAI Responses or Anthropic Messages.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "可使用任何支持 OpenAI Chat、OpenAI Responses 或 Anthropic Messages 的服务。"
+          }
+        }
+      }
+    },
     "Use the account you created in the terminal.": {
       "localizations": {
         "zh-CN": {
@@ -7997,6 +8217,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "你的机器人已创建。打开它打个招呼吧。"
+          }
+        }
+      }
+    },
+    "Your bots use this provider. They can't reply until you choose another model.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "你的机器人正在使用此服务商，在你选择其他模型之前将无法回复。"
           }
         }
       }

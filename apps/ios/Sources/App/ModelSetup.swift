@@ -4,7 +4,7 @@ import SwiftUI
 /// Connects a model provider, chooses a model, and proves it works with one real
 /// request. Shared by onboarding and Settings → Model; mirrors desktop's useModelSetup.
 @MainActor @Observable final class ModelSetup {
-  enum Busy: Equatable { case load, provider, connect, respond, disconnect, save }
+  enum Busy: Equatable { case load, provider, connect, respond, disconnect, save, add, remove }
   /// A browser sign-in shown in the app, which ends on a localhost page.
   struct WebSignIn: Identifiable, Equatable {
     let sessionId: String
@@ -208,6 +208,103 @@ import SwiftUI
     guard session?.id == signIn.sessionId, session?.prompt?.id == signIn.promptId else { return }
     NativeHaptics.play(.light, source: "model.sign-in")
     await respond(signIn.promptId, callback.absoluteString)
+  }
+
+  /// The vendors the server knows addresses for; empty until the Add sheet asks.
+  private(set) var presets: [InferenceProviderPreset] = []
+  private(set) var presetsError: String?
+
+  func loadPresets() async {
+    presetsError = nil
+    do {
+      presets = try await store.request(InferenceProviderRequest.presetsPath)
+        .decode([InferenceProviderPreset].self)
+    } catch {
+      guard !UserFacingError.isCancelled(error) else { return }
+      presetsError = message(error, "Could not load the provider list")
+    }
+  }
+
+  /// Adds an endpoint that speaks one of the standard protocols and proves its key.
+  /// Returns nil once it is connected; otherwise the reason. A key the provider turns
+  /// down leaves nothing behind.
+  func addProvider(
+    preset: InferenceProviderPreset?, name: String, baseUrl: String, proto: ProviderProtocol,
+    apiKey: String?
+  ) async -> String? {
+    busy = .add
+    error = nil
+    test = .idle
+    defer { busy = nil }
+    var added: String?
+    do {
+      // No key given means the server takes none: a keyless preset, or an optional key left empty.
+      let noAuth = apiKey == nil
+      let result = try await store.request(
+        InferenceProviderRequest.addPath, method: "POST",
+        body: InferenceProviderRequest.add(
+          preset: preset, name: name, baseUrl: baseUrl, proto: proto, noAuth: noAuth),
+        timeout: 30)
+      guard case .object(let fields) = result, case .string(let id)? = fields["providerId"] else {
+        return "The server did not return the new provider."
+      }
+      added = id
+      if !noAuth {
+        var current = try await store.request(
+          InferenceRequest.startPath(id), method: "POST",
+          body: InferenceRequest.start(authType: "api_key"), timeout: 30
+        ).decode(InferenceAuthSession.self)
+        var waits = 0
+        while current.prompt == nil, !current.finished, waits < 40 {
+          try await Task.sleep(for: .milliseconds(100))
+          current = try await store.request(InferenceRequest.sessionPath(current.id))
+            .decode(InferenceAuthSession.self)
+          waits += 1
+        }
+        guard let prompt = current.prompt else {
+          throw APIError(current.error ?? "The provider did not ask for a key.", status: 400)
+        }
+        current = try await store.request(
+          InferenceRequest.respondPath(current.id), method: "POST",
+          body: InferenceRequest.respond(promptId: prompt.id, value: apiKey ?? ""), timeout: 30
+        ).decode(InferenceAuthSession.self)
+        waits = 0
+        while !current.finished, waits < 150 {
+          try await Task.sleep(for: .milliseconds(200))
+          current = try await store.request(InferenceRequest.sessionPath(current.id))
+            .decode(InferenceAuthSession.self)
+          waits += 1
+        }
+        guard current.status == "connected" else {
+          throw APIError(current.error ?? "The provider didn't accept that key.", status: 400)
+        }
+      }
+      try await load(id)
+      await store.refreshRuntime()
+      return nil
+    } catch {
+      if let id = added {
+        _ = try? await store.request(InferenceProviderRequest.removePath(id), method: "DELETE")
+        _ = try? await load()
+      }
+      return UserFacingError.isCancelled(error)
+        ? "Could not add this provider" : message(error, "Could not add this provider")
+    }
+  }
+
+  /// Removes a provider added by hand, along with its key.
+  func removeProvider() async {
+    guard let provider, provider.custom else { return }
+    busy = .remove
+    error = nil
+    test = .idle
+    do {
+      _ = try await store.request(InferenceProviderRequest.removePath(provider.id), method: "DELETE")
+      clearSignIn()
+      try await load()
+      await store.refreshRuntime()
+    } catch { failed(error, "Could not remove this provider") }
+    busy = nil
   }
 
   func disconnect() async {

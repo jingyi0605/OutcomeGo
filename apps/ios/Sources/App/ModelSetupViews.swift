@@ -378,23 +378,46 @@ private struct ModelSettingsForm: View {
   @Bindable var setup: ModelSetup
   @State private var confirmingDisconnect = false
   @State private var choosingModel = false
+  @State private var addingProvider = false
+  @State private var confirmingRemove = false
   var body: some View {
     let data = setup.data
     let provider = setup.provider
     let busy = setup.busy != nil || setup.test == .running
     NativeForm {
       Section {
-        Picker(
-          "Provider",
-          selection: Binding(
-            get: { setup.providerId },
-            set: { id in Task { await setup.selectProvider(id) } })
-        ) {
-          if setup.providerId.isEmpty { Text("Choose a provider").tag("") }
-          ForEach(data?.providers ?? []) { candidate in
-            Text(candidate.displayName).tag(candidate.id)
+        // The list of providers ends with the way to add one.
+        Menu {
+          Picker(
+            "Provider",
+            selection: Binding(
+              get: { setup.providerId },
+              set: { id in Task { await setup.selectProvider(id) } })
+          ) {
+            if setup.providerId.isEmpty { Text("Choose a provider").tag("") }
+            ForEach(data?.providers ?? []) { candidate in
+              Label {
+                Text(candidate.displayName)
+              } icon: {
+                ProviderRowMark(provider: candidate)
+              }.tag(candidate.id)
+            }
           }
-        }.pickerStyle(.menu).disabled(data == nil || busy)
+          Divider()
+          Button {
+            addingProvider = true
+          } label: {
+            Label("Add provider", systemImage: "plus")
+          }.accessibilityIdentifier("model-add-provider")
+        } label: {
+          HStack {
+            Text("Provider").foregroundStyle(NativePalette.text)
+            Spacer(minLength: 8)
+            Text(provider?.displayName ?? "Choose a provider").foregroundStyle(NativePalette.muted)
+            Image(systemName: "chevron.up.chevron.down").font(.footnote.weight(.semibold))
+              .foregroundStyle(NativePalette.muted)
+          }.contentShape(Rectangle())
+        }.disabled(data == nil || busy || setup.signingIn)
           .accessibilityIdentifier("model-provider-picker")
         HStack(spacing: 12) {
           // The chosen provider's official icon, like an account row.
@@ -408,9 +431,16 @@ private struct ModelSettingsForm: View {
               .accessibilityIdentifier("model-connection-summary")
           }
           Spacer(minLength: 8)
-          if setup.busy == .connect || setup.busy == .provider || setup.busy == .disconnect {
+          if setup.busy == .connect || setup.busy == .provider || setup.busy == .disconnect
+            || setup.busy == .remove
+          {
             LoadingOrb(label: "Working")
           } else if provider?.connected == true {
+            if provider?.custom == true {
+              Button("Remove") { confirmingRemove = true }
+                .buttonStyle(ModelCapsuleButtonStyle()).disabled(busy || setup.signingIn)
+                .accessibilityIdentifier("model-remove")
+            }
             Button("Disconnect") { confirmingDisconnect = true }
               .buttonStyle(ModelCapsuleButtonStyle()).disabled(busy || setup.signingIn)
               .accessibilityIdentifier("model-disconnect")
@@ -515,6 +545,18 @@ private struct ModelSettingsForm: View {
       ProviderWebSignInSheet(signIn: signIn) { url in
         Task { await setup.captured(url, for: signIn) }
       }
+    }
+    .sheet(isPresented: $addingProvider) { AddProviderSheet(setup: setup) }
+    .confirmationDialog(
+      "Remove \(provider?.displayName ?? "this provider")?", isPresented: $confirmingRemove,
+      titleVisibility: .visible
+    ) {
+      Button("Remove", role: .destructive) { Task { await setup.removeProvider() } }
+    } message: {
+      Text(
+        data?.inference.providerId == provider?.id && data?.savedModel != nil
+          ? "Your bots use this provider. They can't reply until you choose another model."
+          : "Its address and key are deleted from your server.")
     }
     .sheet(isPresented: $choosingModel) {
       ModelSearchSheet(
