@@ -262,7 +262,7 @@ irm https://github.com/jingyi0605/ai-TeamOS/releases/latest/download/install.ps1
 | 应用 | 获取方式 |
 | --- | --- |
 | macOS（Apple 芯片）和 Linux（x64）桌面端 | 上游[下载页](https://openteam.so/download) |
-| iPhone（测试版） | 上游 [TestFlight](https://testflight.apple.com/join/KFBFPkjP) · [从源码构建](apps/ios/README.md) |
+| iPhone（测试版） | [从源码构建](apps/ios/README.md) |
 | Android | [从源码构建](apps/android/README.md) |
 
 所有应用都连接到你的服务端进行聊天和查看实时屏幕。大多数服务端设置（例如模型）都在桌面端里。

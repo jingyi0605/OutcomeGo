@@ -20,12 +20,7 @@ is running. A hidden computer viewer reconnects when you open it again.
 
 ## iPhone
 
-The iPhone app is in public beta on TestFlight. It needs iOS 18 or later.
-
-1. Install [TestFlight](https://apps.apple.com/app/testflight/id899247664) from the App Store.
-2. On your iPhone, open the [aiTeamOS beta invite](https://testflight.apple.com/join/KFBFPkjP) and choose **Accept**, then **Install**.
-
-You can also build the app yourself with Xcode by following the [iPhone app instructions](../../apps/ios/README.md).
+The iPhone app is in beta and is built from source with Xcode. It needs iOS 18 or later. Follow the [iPhone app instructions](../../apps/ios/README.md).
 
 Enter your server URL and sign in. If the server has no model or bots yet, the app walks you through connecting a model and creating your first bot. On iPhone, you can:
 

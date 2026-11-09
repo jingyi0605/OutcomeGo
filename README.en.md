@@ -296,7 +296,7 @@ when you close the app. Keep the desktop app open when bots need access to your 
 | App | Get it |
 | --- | --- |
 | Desktop for macOS (Apple silicon) and Linux (x64) | Upstream [downloads](https://openteam.so/download) |
-| iPhone (beta) | Upstream [TestFlight](https://testflight.apple.com/join/KFBFPkjP) · [build from source](apps/ios/README.md) |
+| iPhone (beta) | [Build from source](apps/ios/README.md) |
 | Android | [Build from source](apps/android/README.md) |
 
 All apps connect to your server for chat and live screens. Most server settings, such as the model, are in the desktop app.

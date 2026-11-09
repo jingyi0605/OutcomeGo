@@ -18,7 +18,6 @@ import "../alive.css";
 const GITHUB = "https://github.com/jingyi0605/ai-TeamOS";
 const INSTALL_COMMAND = "curl -fsSL https://openteam.so/install | sh";
 const WINDOWS_INSTALL_COMMAND = "irm https://openteam.so/install.ps1 | iex";
-const TESTFLIGHT_URL = "https://testflight.apple.com/join/KFBFPkjP";
 
 export const metadata = pageMetadata({
   title: "Download aiTeamOS: install the server and desktop app",
@@ -137,25 +136,21 @@ export default function DownloadPage() {
           </div>
           <div className="dl-phone-card">
             <div className="dl-phone-icon">
-              <Image src="/ai-teamOS-app-icon.png" alt="ai-TeamOS app icon" width={52} height={52} unoptimized />
+              <Image src="/ai-teamOS-app-icon.png" alt="aiTeamOS app icon" width={52} height={52} unoptimized />
             </div>
             <div>
-              <h3>Public beta on TestFlight.</h3>
+              <h3>Beta, built from source.</h3>
               <p>
-                Install TestFlight from the App Store, then open the invite on your iPhone. Requires
-                iOS 18 or later. You can also build the app yourself from source.
+                Build the app with Xcode and install it on your iPhone. Requires iOS 18 or later.
               </p>
               <div className="dl-phone-actions">
                 <Button
                   className="ot-button"
-                  render={<a href={TESTFLIGHT_URL} />}
+                  render={<a href={`${GITHUB}/tree/ai-TeamOS/apps/ios`} />}
                   nativeButton={false}
                 >
-                  Join the TestFlight beta <ArrowUpRight size={16} />
+                  Build from source <ArrowUpRight size={16} />
                 </Button>
-                <a className="ot-text-link" href={`${GITHUB}/tree/main/apps/ios`}>
-                  Build from source <ArrowUpRight size={15} />
-                </a>
               </div>
             </div>
           </div>

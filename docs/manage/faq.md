@@ -44,7 +44,7 @@ No. Bots can use any website in their browser. Plugins give them faster, more re
 
 ## Is there an iPhone or Android app?
 
-There's an iPhone app in [public beta on TestFlight](https://testflight.apple.com/join/KFBFPkjP), which you can also build from source. There's no Android app. See [desktop and mobile](../getting-started/apps.md).
+There's an iPhone app in beta that you build from source, and an Android app. See the [iPhone app instructions](../../apps/ios/README.md). See [desktop and mobile](../getting-started/apps.md).
 
 ## Do updates back up my data?
 
