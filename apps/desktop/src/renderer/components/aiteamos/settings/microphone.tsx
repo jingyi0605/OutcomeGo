@@ -1,6 +1,7 @@
 import { type ReactNode, useState } from "react";
 import { useMicrophoneDevices } from "../../../hooks/use-microphone-devices";
 import { microphoneErrorMessage, setMicrophonePreference } from "../../../lib/microphone";
+import { useI18n } from "../../../lib/i18n";
 import { SectionLabel, SettingsGroup, SettingsRow, settingsSecondaryButton } from "./ui";
 
 export interface MicrophoneControlProps {
@@ -17,6 +18,7 @@ export function MicrophoneSettings({
 }: {
   renderControl: (props: MicrophoneControlProps) => ReactNode;
 }) {
+  const { t } = useI18n();
   const {
     deviceId,
     devices,
@@ -32,14 +34,14 @@ export function MicrophoneSettings({
   const [accessError, setAccessError] = useState("");
   const [requesting, setRequesting] = useState(false);
   const accessLabel = checking
-    ? "Checking…"
+    ? t("Checking…")
     : permission === "granted"
-      ? "Allowed"
+      ? t("Allowed")
       : permission === "denied"
-        ? "Blocked"
+        ? t("Blocked")
         : permission === "prompt"
-          ? "Not requested"
-          : "Unknown";
+          ? t("Not requested")
+          : t("Unknown");
   const requestAccess = async () => {
     setAccessError("");
     setRequesting(true);
@@ -57,39 +59,41 @@ export function MicrophoneSettings({
       await openSettings();
     } catch {
       setAccessError(
-        "Could not open system settings. Open your device’s microphone privacy settings."
+        t("Could not open system settings. Open your device’s microphone privacy settings.")
       );
     }
   };
   const missing = Boolean(deviceId && !devices.some((device) => device.deviceId === deviceId));
   const availability =
     status === "unsupported"
-      ? "Microphone input is unavailable in this app environment."
+      ? t("Microphone input is unavailable in this app environment.")
       : status === "error"
-        ? "Could not list microphones."
+        ? t("Could not list microphones.")
         : permission === "granted" && status === "ready" && devices.length === 0
-          ? "No microphone found. Connect a microphone to record voice notes."
+          ? t("No microphone found. Connect a microphone to record voice notes.")
           : missing && status === "ready"
-            ? "Your saved microphone is unavailable. Recording will use the system default until it reconnects."
+            ? t(
+                "Your saved microphone is unavailable. Recording will use the system default until it reconnects."
+              )
             : undefined;
   return (
     <>
-      <SectionLabel>System</SectionLabel>
+      <SectionLabel>{t("System")}</SectionLabel>
       <SettingsGroup>
         <SettingsRow
           stackControl
-          title="Microphone"
+          title={t("Microphone")}
           anchors={["microphone"]}
           description={saveError || availability}
           control={renderControl({
             disabled: status === "unsupported",
             value: deviceId || "system-default",
             options: [
-              { value: "system-default", label: "System Default" },
-              ...(missing ? [{ value: deviceId, label: "Saved microphone (unavailable)" }] : []),
+              { value: "system-default", label: t("System Default") },
+              ...(missing ? [{ value: deviceId, label: t("Saved microphone (unavailable)") }] : []),
               ...devices.map((device, index) => ({
                 value: device.deviceId,
-                label: device.label || `Microphone ${index + 1}`,
+                label: device.label || t("Microphone {number}", { number: index + 1 }),
               })),
             ],
             onValueChange: (value) => {
@@ -98,7 +102,7 @@ export function MicrophoneSettings({
                 setSaveError("");
               } catch {
                 setSaveError(
-                  "Could not save your microphone choice. Check local app storage and try again."
+                  t("Could not save your microphone choice. Check local app storage and try again.")
                 );
               }
             },
@@ -106,23 +110,23 @@ export function MicrophoneSettings({
         />
         <SettingsRow
           stackControl
-          title="Microphone access"
+          title={t("Microphone access")}
           description={
             accessError ||
             (permission === "denied"
               ? canOpenSettings
-                ? "Allow aiTeamOS in system settings."
-                : "Allow microphone access in your browser’s site settings."
+                ? t("Allow aiTeamOS in system settings.")
+                : t("Allow microphone access in your browser’s site settings.")
               : permission === "prompt"
-                ? "Allow microphone access to record voice notes."
+                ? t("Allow microphone access to record voice notes.")
                 : permission === "unknown" && !checking
-                  ? "Microphone permission could not be checked."
+                  ? t("Microphone permission could not be checked.")
                   : undefined)
           }
           control={
             <div className="flex items-center gap-3">
               <span
-                aria-label={`Microphone access ${accessLabel.toLowerCase()}`}
+                aria-label={t("Microphone access {status}", { status: accessLabel.toLowerCase() })}
                 className="inline-flex items-center gap-1.5 text-[12px] text-foreground-secondary"
                 role="status"
               >
@@ -139,7 +143,7 @@ export function MicrophoneSettings({
                   onClick={() => void requestAccess()}
                   type="button"
                 >
-                  {requesting ? "Requesting…" : "Enable microphone"}
+                  {requesting ? t("Requesting…") : t("Enable microphone")}
                 </button>
               ) : !checking && canOpenSettings ? (
                 <button
@@ -147,11 +151,11 @@ export function MicrophoneSettings({
                   onClick={() => void showSystemSettings()}
                   type="button"
                 >
-                  System settings
+                  {t("System settings")}
                 </button>
               ) : !checking && permission === "denied" ? (
                 <button className={actionClass} onClick={() => void refresh()} type="button">
-                  Check again
+                  {t("Check again")}
                 </button>
               ) : null}
             </div>

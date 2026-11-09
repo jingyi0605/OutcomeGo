@@ -1,5 +1,6 @@
 /** Settings rows the apps open from an aiteamos://app/v1/settings?id=<anchor> link. */
 export const APP_SETTINGS_ANCHORS = [
+  "language",
   "theme",
   "microphone",
   "computers",

@@ -8,8 +8,10 @@ import {
   settingsSecondaryButton,
 } from "./ui";
 import { MessagesSettings } from "./messages";
+import { useI18n } from "../../../lib/i18n";
 
 export default function ComputerSettings() {
+  const { t } = useI18n();
   const [computer, setComputer] = useState<AiTeamOSComputerSettings | null>(null);
   const [machineLabel, setMachineLabel] = useState("");
   const [permissionError, setPermissionError] = useState<string | null>(null);
@@ -26,7 +28,7 @@ export default function ComputerSettings() {
       .catch(
         (error) =>
           active &&
-          setPermissionError(clientErrorMessage(error, "Could not load computer settings"))
+          setPermissionError(clientErrorMessage(error, t("Could not load computer settings")))
       );
     return () => {
       active = false;
@@ -44,23 +46,23 @@ export default function ComputerSettings() {
         setMachineLabel(value.machine.label);
       })
       .catch((error) =>
-        setPermissionError(clientErrorMessage(error, "Could not update computer settings"))
+        setPermissionError(clientErrorMessage(error, t("Could not update computer settings")))
       );
   };
 
   return (
     <>
-      <SectionLabel>Your computer</SectionLabel>
+      <SectionLabel>{t("Your computer")}</SectionLabel>
       <SettingsGroup>
         <SettingsRow
-          title="Current computer"
-          description="This is the computer you are using now"
+          title={t("Current computer")}
+          description={t("This is the computer you are using now")}
           anchors={["computers"]}
           stackControl
           control={
             <div className="flex min-w-0 items-center gap-2">
               <input
-                aria-label="Computer label"
+                aria-label={t("Computer label")}
                 className={`${settingsInput} w-[184px] flex-1`}
                 maxLength={80}
                 onChange={(event) => setMachineLabel(event.target.value)}
@@ -79,7 +81,7 @@ export default function ComputerSettings() {
                 onClick={saveMachineLabel}
                 type="button"
               >
-                Save
+                {t("Save")}
               </button>
             </div>
           }

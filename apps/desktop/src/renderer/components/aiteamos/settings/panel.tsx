@@ -16,6 +16,7 @@ import {
   settingsViewForAnchor,
 } from "../../../lib/app-deep-links";
 import { cn } from "../../../lib/cn";
+import { useI18n } from "../../../lib/i18n";
 import { SettingsHeading } from "./ui";
 import {
   Dialog,
@@ -90,6 +91,7 @@ export function SettingsPanel({
   open: boolean;
   target?: { anchor: SettingsAnchor; nonce: number } | null;
 }) {
+  const { t } = useI18n();
   const [view, setView] = useState<SettingsView>("general");
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -146,13 +148,13 @@ export function SettingsPanel({
         showCloseButton={false}
         surface="transparent"
       >
-        <DialogTitle className="sr-only">Settings</DialogTitle>
+        <DialogTitle className="sr-only">{t("Settings")}</DialogTitle>
         <DialogDescription className="sr-only">
-          Configure aiTeamOS and application updates.
+          {t("Configure aiTeamOS and application updates.")}
         </DialogDescription>
         <aside className="border-r-[0.5px] border-black/[0.07] bg-[#f7f7f7] px-3 pb-4 pt-4 dark:border-white/[0.07] dark:bg-[#111111] max-[512px]:border-b-[0.5px] max-[512px]:border-r-0 max-[512px]:py-2">
           <nav
-            aria-label="Settings sections"
+            aria-label={t("Settings sections")}
             className="space-y-0.5 max-[512px]:grid max-[512px]:grid-cols-2 max-[512px]:gap-1 max-[512px]:space-y-0"
           >
             {navigation.map((item) => {
@@ -181,7 +183,7 @@ export function SettingsPanel({
                   type="button"
                 >
                   <Icon className="size-[15px] shrink-0" strokeWidth={1.75} />
-                  <span className="truncate">{item.label}</span>
+                  <span className="truncate">{t(item.label)}</span>
                 </button>
               );
             })}
@@ -191,7 +193,7 @@ export function SettingsPanel({
         <section className="relative min-h-0 min-w-0">
           <DialogClose asChild>
             <button
-              aria-label="Close"
+              aria-label={t("Close")}
               className="absolute right-2.5 top-2.5 z-10 grid size-8 place-items-center rounded-full text-foreground-tertiary outline-none transition-colors hover:bg-black/[0.045] hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/35 dark:hover:bg-white/[0.06]"
               type="button"
             >
@@ -205,7 +207,7 @@ export function SettingsPanel({
             {/* Providers renders its own heading, with a breadcrumb on its Search and Fetch pages. */}
             {view === "providers" ? null : (
               <SettingsHeading>
-                {navigation.find((item) => item.id === view)?.label ?? "General"}
+                {t(navigation.find((item) => item.id === view)?.label ?? "General")}
               </SettingsHeading>
             )}
             <Suspense fallback={null}>

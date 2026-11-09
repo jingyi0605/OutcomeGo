@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../../../client/aiteamos-api";
 import { InteractiveSwitch, SectionLabel, SettingsGroup, SettingsRow } from "./ui";
+import { useI18n } from "../../../lib/i18n";
 
 export function SmartNotificationSettings() {
+  const { t } = useI18n();
   const [enabled, setEnabled] = useState<boolean | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -34,14 +36,16 @@ export function SmartNotificationSettings() {
   if (enabled === null) return null;
   return (
     <>
-      <SectionLabel>Notifications</SectionLabel>
+      <SectionLabel>{t("Notifications")}</SectionLabel>
       <SettingsGroup>
         <SettingsRow
-          title="Pause iPhone alerts while using this Mac"
-          description="Alerts resume after 5 minutes of inactivity or when you open aiTeamOS on Mobile."
+          title={t("Pause iPhone alerts while using this Mac")}
+          description={t(
+            "Alerts resume after 5 minutes of inactivity or when you open aiTeamOS on Mobile."
+          )}
           control={
             <InteractiveSwitch
-              label="Pause iPhone alerts while using this Mac"
+              label={t("Pause iPhone alerts while using this Mac")}
               checked={enabled}
               disabled={saving}
               onChange={(value) => {
@@ -50,7 +54,7 @@ export function SmartNotificationSettings() {
                 void api
                   .updateNotificationPreferences(value)
                   .then(apply)
-                  .catch(() => setError("Couldn’t save notification settings. Try again."))
+                  .catch(() => setError(t("Couldn’t save notification settings. Try again.")))
                   .finally(() => setSaving(false));
               }}
             />

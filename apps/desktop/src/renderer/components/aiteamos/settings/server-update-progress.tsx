@@ -2,6 +2,7 @@ import { SERVER_UPDATE_STEPS, serverUpdateProgress } from "@aiteamos/contracts/s
 import { Check, LoaderCircle, ShieldCheck, Wifi } from "lucide-react";
 import { useVisibleNow } from "../../../hooks/use-visible-now";
 import { cn } from "../../../lib/cn";
+import { useI18n } from "../../../lib/i18n";
 
 export function ServerUpdateProgressPanel({
   phase,
@@ -18,6 +19,7 @@ export function ServerUpdateProgressPanel({
   startedAt: number | null;
   observedAt: number | null;
 }) {
+  const { t } = useI18n();
   const progress = serverUpdateProgress(phase);
   const now = useVisibleNow(1_000, startedAt !== null);
   const elapsed = startedAt === null ? null : Math.max(0, Math.floor((now - startedAt) / 1000));
@@ -41,14 +43,21 @@ export function ServerUpdateProgressPanel({
           }
         >
           {progress.rollingBack
-            ? "Recovering safely"
+            ? t("Recovering safely")
             : progress.step === null
-              ? "Live progress"
-              : `Step ${Math.min(progress.step + 1, 5)} of 5`}
+              ? t("Live progress")
+              : t("Step {current} of {total}", {
+                  current: Math.min(progress.step + 1, 5),
+                  total: 5,
+                })}
         </span>
         {elapsed === null ? null : (
-          <span className="tabular-nums" aria-live="off" aria-label="Time since update started">
-            {Math.floor(elapsed / 60)}:{String(elapsed % 60).padStart(2, "0")} elapsed
+          <span
+            className="tabular-nums"
+            aria-live="off"
+            aria-label={t("Time since update started")}
+          >
+            {Math.floor(elapsed / 60)}:{String(elapsed % 60).padStart(2, "0")} {t("elapsed")}
           </span>
         )}
       </div>
@@ -73,15 +82,18 @@ export function ServerUpdateProgressPanel({
             progress.rollingBack ? "text-amber-600" : "text-blue-500"
           )}
         />
-        {reconnecting ? "Reconnecting to the server…" : progress.title}
+        {reconnecting ? t("Reconnecting to the server…") : t(progress.title)}
       </div>
       {reconnecting || message ? (
         <p className="mt-1 text-[12px] leading-4 text-foreground-secondary">
-          {reconnecting ? `Last seen: ${progress.title}` : message}
+          {reconnecting ? t("Last seen: {title}", { title: progress.title }) : message}
         </p>
       ) : null}
       {progress.step !== null && !progress.rollingBack ? (
-        <ol className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-[11px]" aria-label="Update stages">
+        <ol
+          className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-[11px]"
+          aria-label={t("Update stages")}
+        >
           {SERVER_UPDATE_STEPS.map((title, index) => (
             <li
               key={title}
@@ -98,7 +110,7 @@ export function ServerUpdateProgressPanel({
               ) : (
                 <span className="size-1.5 rounded-full bg-current opacity-40" />
               )}
-              {title}
+              {t(title)}
             </li>
           ))}
         </ol>
@@ -110,10 +122,17 @@ export function ServerUpdateProgressPanel({
           <ShieldCheck className="mt-px size-3 shrink-0" />
         )}
         {reconnecting
-          ? `Reconnecting automatically.${observedAt === null ? "" : ` Last checked at ${new Date(observedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}.`}`
+          ? observedAt === null
+            ? t("Reconnecting automatically.")
+            : t("Reconnecting automatically. Last checked at {time}.", {
+                time: new Date(observedAt).toLocaleTimeString([], {
+                  hour: "numeric",
+                  minute: "2-digit",
+                }),
+              })
           : safeToClose
-            ? "You can close the app. The update will keep going."
-            : "Keep this screen open while the update starts."}
+            ? t("You can close the app. The update will keep going.")
+            : t("Keep this screen open while the update starts.")}
       </p>
     </div>
   );

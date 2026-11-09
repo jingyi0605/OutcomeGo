@@ -3,12 +3,21 @@ import { APP_SETTINGS_ANCHORS } from "@aiteamos/contracts/app-deep-links";
 export const SETTINGS_ANCHORS = APP_SETTINGS_ANCHORS;
 
 export type SettingsAnchor = (typeof SETTINGS_ANCHORS)[number];
-export type SettingsView = "general" | "computer" | "model" | "voice" | "realtime-voice" | "server" | "providers" | "updates";
+export type SettingsView =
+  | "general"
+  | "computer"
+  | "model"
+  | "voice"
+  | "realtime-voice"
+  | "server"
+  | "providers"
+  | "updates";
 export const AITEAMOS_DEEP_LINK_EVENT = "aiteamos:deep-link";
 
 const settingsAnchorSet = new Set<string>(SETTINGS_ANCHORS);
 
 const viewByAnchor: Record<SettingsAnchor, SettingsView> = {
+  language: "general",
   theme: "general",
   microphone: "general",
   computers: "computer",

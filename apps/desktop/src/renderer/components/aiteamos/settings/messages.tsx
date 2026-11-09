@@ -3,7 +3,14 @@ import { useCallback, useEffect, useState } from "react";
 import type { MachineMessagesSettings } from "@aiteamos/client-core";
 import { api } from "../../../client/aiteamos-api";
 import { MessagesPermissionsDialog, missingGrants } from "./messages-permissions-dialog";
-import { InteractiveSwitch, SectionLabel, SettingsGroup, SettingsRow, settingsSecondaryButton } from "./ui";
+import { useI18n } from "../../../lib/i18n";
+import {
+  InteractiveSwitch,
+  SectionLabel,
+  SettingsGroup,
+  SettingsRow,
+  settingsSecondaryButton,
+} from "./ui";
 
 /** This Mac's Messages switch, its macOS permissions, and who aiTeamOS may text without asking. */
 export function MessagesSettings({
@@ -13,6 +20,7 @@ export function MessagesSettings({
   computer: AiTeamOSComputerSettings;
   onComputerChange: (value: AiTeamOSComputerSettings) => void;
 }) {
+  const { t } = useI18n();
   const machineId = computer.machine.machineId;
   const [permissions, setPermissions] = useState<AiTeamOSMessagesPermissions | null>(null);
   const [send, setSend] = useState<MachineMessagesSettings | null>(null);
@@ -34,7 +42,11 @@ export function MessagesSettings({
       .catch(() => setSendFailed(true));
   }, [machineId]);
   useEffect(() => {
-    const refresh = () => void window.aiteamos?.computer.messagesPermissions().then(setPermissions).catch(() => {});
+    const refresh = () =>
+      void window.aiteamos?.computer
+        .messagesPermissions()
+        .then(setPermissions)
+        .catch(() => {});
     refresh();
     loadSend();
     window.addEventListener("focus", refresh);
@@ -43,7 +55,7 @@ export function MessagesSettings({
 
   if (!computer.messagesSupported) return null;
   const enabled = computer.messagesEnabled;
-  const missing = missingGrants(permissions);
+  const missing = missingGrants(permissions, t);
 
   const setEnabled = async (messagesEnabled: boolean) => {
     setSaving("enabled");
@@ -51,7 +63,9 @@ export function MessagesSettings({
     try {
       onComputerChange(await window.aiteamos!.computer.update({ messagesEnabled }));
       // The server clears send rules whenever the switch flips.
-      setSend((current) => current && { ...current, sendWithoutAsking: false, allowedRecipients: [] });
+      setSend(
+        (current) => current && { ...current, sendWithoutAsking: false, allowedRecipients: [] }
+      );
       changed();
       if (messagesEnabled) {
         const current = await window.aiteamos!.computer.messagesPermissions().catch(() => null);
@@ -64,7 +78,11 @@ export function MessagesSettings({
       setSaving(null);
     }
   };
-  const updateSend = async (key: string, input: { sendWithoutAsking?: boolean; removeRecipient?: string }, failure: "standing" | "recipient") => {
+  const updateSend = async (
+    key: string,
+    input: { sendWithoutAsking?: boolean; removeRecipient?: string },
+    failure: "standing" | "recipient"
+  ) => {
     setSaving(key);
     setFailed(null);
     try {
@@ -79,17 +97,34 @@ export function MessagesSettings({
   const recipients = send?.allowedRecipients ?? [];
   return (
     <>
-      <SectionLabel>Messages</SectionLabel>
+      <SectionLabel>{t("Messages")}</SectionLabel>
       <SettingsGroup>
         <SettingsRow
-          title="Use Messages"
-          description={failed === "enabled" ? "Couldn't save. Try again." : "Lets aiTeamOS read and send texts on this Mac"}
-          control={<InteractiveSwitch label="Use Messages" checked={enabled} disabled={saving !== null} onChange={(value) => void setEnabled(value)} />}
+          title={t("Use Messages")}
+          description={
+            failed === "enabled"
+              ? t("Couldn't save. Try again.")
+              : t("Lets aiTeamOS read and send texts on this Mac")
+          }
+          control={
+            <InteractiveSwitch
+              label={t("Use Messages")}
+              checked={enabled}
+              disabled={saving !== null}
+              onChange={(value) => void setEnabled(value)}
+            />
+          }
         />
         {enabled ? (
           <SettingsRow
-            title="macOS permissions"
-            description={!permissions ? "Loading…" : missing.length ? `Needs ${missing.join(", ")}` : "Automation, Contacts and Full Disk Access are allowed"}
+            title={t("macOS permissions")}
+            description={
+              !permissions
+                ? t("Loading…")
+                : missing.length
+                  ? t("Needs {grants}", { grants: missing.join(", ") })
+                  : t("Automation, Contacts and Full Disk Access are allowed")
+            }
             control={
               <button
                 className={settingsSecondaryButton}
@@ -97,26 +132,40 @@ export function MessagesSettings({
                 onClick={() => setDialogOpen(true)}
                 type="button"
               >
-                {missing.length ? "Set up" : "Review"}
+                {missing.length ? t("Set up") : t("Review")}
               </button>
             }
           />
         ) : null}
         {enabled ? (
           <SettingsRow
-            title="Send Without Asking"
-            description={!send ? (sendFailed ? "Couldn't load this setting" : "Loading…") : failed === "standing" ? "Couldn't save. Try again." : "Skips the approval card for every text"}
+            title={t("Send Without Asking")}
+            description={
+              !send
+                ? sendFailed
+                  ? t("Couldn't load this setting")
+                  : t("Loading…")
+                : failed === "standing"
+                  ? t("Couldn't save. Try again.")
+                  : t("Skips the approval card for every text")
+            }
             control={
               sendFailed ? (
-                <button className="text-[12px] text-foreground-secondary hover:text-foreground" onClick={loadSend} type="button">
-                  Retry
+                <button
+                  className="text-[12px] text-foreground-secondary hover:text-foreground"
+                  onClick={loadSend}
+                  type="button"
+                >
+                  {t("Retry")}
                 </button>
               ) : (
                 <InteractiveSwitch
-                  label="Send Without Asking"
+                  label={t("Send Without Asking")}
                   checked={send?.sendWithoutAsking ?? false}
                   disabled={!send || saving !== null}
-                  onChange={(sendWithoutAsking) => void updateSend("standing", { sendWithoutAsking }, "standing")}
+                  onChange={(sendWithoutAsking) =>
+                    void updateSend("standing", { sendWithoutAsking }, "standing")
+                  }
                 />
               )
             }
@@ -125,8 +174,12 @@ export function MessagesSettings({
         {enabled && send && !send.sendWithoutAsking && recipients.length ? (
           <>
             <SettingsRow
-              title="Allowed recipients"
-              description={failed === "recipient" ? "The change could not be applied. Try again." : "aiTeamOS can text these people without asking first"}
+              title={t("Allowed recipients")}
+              description={
+                failed === "recipient"
+                  ? t("The change could not be applied. Try again.")
+                  : t("aiTeamOS can text these people without asking first")
+              }
               control={
                 <button
                   aria-expanded={recipientsOpen}
@@ -134,8 +187,14 @@ export function MessagesSettings({
                   onClick={() => setRecipientsOpen((open) => !open)}
                   type="button"
                 >
-                  {recipients.length === 1 ? "1 person" : `${recipients.length} people`}
-                  <ChevronDown aria-hidden className={`size-3.5 transition-transform ${recipientsOpen ? "rotate-180" : ""}`} strokeWidth={2.25} />
+                  {recipients.length === 1
+                    ? t("1 person")
+                    : t("{count} people", { count: recipients.length })}
+                  <ChevronDown
+                    aria-hidden
+                    className={`size-3.5 transition-transform ${recipientsOpen ? "rotate-180" : ""}`}
+                    strokeWidth={2.25}
+                  />
                 </button>
               }
             />
@@ -144,14 +203,28 @@ export function MessagesSettings({
                 {recipients.map((recipient) => (
                   <li className="flex items-center gap-3 py-1.5 pl-3" key={recipient.recipient}>
                     <div className="min-w-0 flex-1">
-                      {recipient.recipientName ? <div className="truncate text-[12.5px] font-medium">{recipient.recipientName}</div> : null}
-                      <div className="truncate text-[12px] text-foreground-secondary" dir="ltr">{recipient.recipient}</div>
+                      {recipient.recipientName ? (
+                        <div className="truncate text-[12.5px] font-medium">
+                          {recipient.recipientName}
+                        </div>
+                      ) : null}
+                      <div className="truncate text-[12px] text-foreground-secondary" dir="ltr">
+                        {recipient.recipient}
+                      </div>
                     </div>
                     <button
-                      aria-label={`Remove ${recipient.recipientName ?? recipient.recipient}`}
+                      aria-label={t("Remove {name}", {
+                        name: recipient.recipientName ?? recipient.recipient,
+                      })}
                       className="rounded-md p-1 text-foreground-secondary hover:bg-black/[0.06] hover:text-foreground disabled:opacity-50 dark:hover:bg-white/[0.08]"
                       disabled={saving !== null}
-                      onClick={() => void updateSend(recipient.recipient, { removeRecipient: recipient.recipient }, "recipient")}
+                      onClick={() =>
+                        void updateSend(
+                          recipient.recipient,
+                          { removeRecipient: recipient.recipient },
+                          "recipient"
+                        )
+                      }
                       type="button"
                     >
                       <Trash2 aria-hidden className="size-3.5" />

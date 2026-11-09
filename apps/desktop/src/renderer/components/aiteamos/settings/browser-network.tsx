@@ -16,8 +16,10 @@ import { SectionLabel, SettingsGroup, settingsPrimaryButton, settingsSecondaryBu
 
 import { browserNetworkLabel } from "../../../lib/browser-network-status";
 import { useWindowVisible } from "../../../hooks/use-window-active";
+import { useI18n } from "../../../lib/i18n";
 
 export function BrowserNetworkSettings() {
+  const { t } = useI18n();
   const visible = useWindowVisible();
   const [view, setView] = useState<BrowserNetworkView | null>(null);
   const [egress, setEgress] = useState<NetworkEgress | null>(null);
@@ -42,7 +44,7 @@ export function BrowserNetworkSettings() {
       ]);
       if (!active) return;
       if (results[0].status === "fulfilled") setView(results[0].value);
-      else setError(clientErrorMessage(results[0].reason, "Could not load computer networking"));
+      else setError(clientErrorMessage(results[0].reason, t("Could not load computer networking")));
       if (results[1].status === "fulfilled") setSharing(results[1].value);
       setLocalMachineId(
         results[2].status === "fulfilled" && results[2].value?.configured
@@ -127,7 +129,9 @@ export function BrowserNetworkSettings() {
     if (!view || !dirty) return;
     if (
       !window.confirm(
-        "Save this connection priority? Changing the active connection interrupts downloads and network connections across the bot computer. Apps stay open; requests are not replayed."
+        t(
+          "Save this connection priority? Changing the active connection interrupts downloads and network connections across the bot computer. Apps stay open; requests are not replayed."
+        )
       )
     )
       return;
@@ -145,7 +149,7 @@ export function BrowserNetworkSettings() {
       setOrder(null);
       setDraftRevision(null);
     } catch (e) {
-      setError(clientErrorMessage(e, "Could not change computer connection"));
+      setError(clientErrorMessage(e, t("Could not change computer connection")));
       setOrder(null);
       setDraftRevision(null);
       try {
@@ -161,7 +165,10 @@ export function BrowserNetworkSettings() {
     if (
       allowed &&
       !window.confirm(
-        `Allow all apps and commands on the bot computer at ${sharing?.serverUrl ?? "this server"} to use this computer's internet connection while aiTeamOS is open? Public TCP connections and DNS are supported. Other UDP traffic and local and private network destinations remain blocked.`
+        t(
+          "Allow all apps and commands on the bot computer at {server} to use this computer's internet connection while aiTeamOS is open? Public TCP connections and DNS are supported. Other UDP traffic and local and private network destinations remain blocked.",
+          { server: sharing?.serverUrl ?? t("this server") }
+        )
       )
     )
       return;
@@ -172,7 +179,7 @@ export function BrowserNetworkSettings() {
       if (result) setSharing(result);
       setView(await api.browserNetwork());
     } catch (e) {
-      setError(clientErrorMessage(e, "Could not change network sharing"));
+      setError(clientErrorMessage(e, t("Could not change network sharing")));
     } finally {
       setBusy(false);
     }
@@ -181,10 +188,10 @@ export function BrowserNetworkSettings() {
   const ready = view && ["ready", "server"].includes(view.runtime.state);
   return (
     <section className="bn-network" data-settings-anchor="browser-network">
-      <SectionLabel>Computer network</SectionLabel>
+      <SectionLabel>{t("Computer network")}</SectionLabel>
       <SettingsGroup>
         <p role="status" className="bn-status">
-          {view ? browserNetworkLabel(view).split(" · ")[0] : "Loading connections…"}
+          {view ? t(browserNetworkLabel(view).split(" · ")[0] ?? "") : t("Loading connections…")}
         </p>
         <DragDropProvider
           sensors={[PointerSensor, KeyboardSensor]}
@@ -200,11 +207,13 @@ export function BrowserNetworkSettings() {
             }
           }}
         >
-          <ol aria-label="Connection priority" className="bn-list">
+          <ol aria-label={t("Connection priority")} className="bn-list">
             {ranked.map((id, index) => {
               const device = view?.devices.find((d) => d.machineId === id);
               const name =
-                id === "server" ? "Server connection" : (device?.label ?? "Unavailable computer");
+                id === "server"
+                  ? t("Server connection")
+                  : (device?.label ?? t("Unavailable computer"));
               return (
                 <NetworkSourceRow
                   key={id}
@@ -225,61 +234,69 @@ export function BrowserNetworkSettings() {
           </ol>
         </DragDropProvider>
         <div className="bn-egress" key={routeKey}>
-          <span>Exit IP</span>
+          <span>{t("Exit IP")}</span>
           {ready &&
           egress &&
           (!view?.runtime.routeEpoch || egress.epoch === view.runtime.routeEpoch) ? (
             <div className="bn-egress-values">
-              <PrivateSettingValue key={egress.ip} value={egress.ip} label="exit IP" />
+              <PrivateSettingValue key={egress.ip} value={egress.ip} label={t("exit IP")} />
               <span aria-hidden="true">·</span>
               <PrivateSettingValue
                 key={egress.location}
                 value={egress.location}
-                label="exit location"
+                label={t("Exit location")}
               />
             </div>
           ) : (
             <span className="bn-egress-pending">
-              {!ready || egressFailed ? "Unavailable" : "Checking…"}
+              {!ready || egressFailed ? t("Unavailable") : t("Checking…")}
             </span>
           )}
         </div>
         <div className="bn-quality">
-          <span className="bn-quality-label">Connection test</span>
+          <span className="bn-quality-label">{t("Connection test")}</span>
           <div className="bn-quality-values" aria-live="polite">
             {ready && quality?.epoch === view?.runtime.routeEpoch && quality ? (
               <>
-                <span aria-label={`Latency ${quality.latencyMs} milliseconds`}>
+                <span aria-label={t("Latency {ms} milliseconds", { ms: quality.latencyMs })}>
                   {quality.latencyMs} ms
                 </span>
-                <span aria-label={`Estimated download ${quality.downloadMbps} megabits per second`}>
+                <span
+                  aria-label={t("Estimated download {mbps} megabits per second", {
+                    mbps: quality.downloadMbps,
+                  })}
+                >
                   ↓ ~{quality.downloadMbps.toFixed(1)} Mbps
                 </span>
-                <span aria-label={`Estimated upload ${quality.uploadMbps} megabits per second`}>
+                <span
+                  aria-label={t("Estimated upload {mbps} megabits per second", {
+                    mbps: quality.uploadMbps,
+                  })}
+                >
                   ↑ ~{quality.uploadMbps.toFixed(1)} Mbps
                 </span>
               </>
             ) : qualityFailed ? (
-              <span>Test unavailable</span>
+              <span>{t("Test unavailable")}</span>
             ) : null}
           </div>
           <button
             type="button"
             className={settingsSecondaryButton}
-            aria-label="Test active connection"
-            title="Quick latency and speed estimate from the bot computer; about 1.25 MB"
+            aria-label={t("Test active connection")}
+            title={t("Quick latency and speed estimate from the bot computer; about 1.25 MB")}
             disabled={!ready || testing}
             onClick={() => void testConnection()}
           >
-            {testing ? "Testing…" : "Test"}
+            {testing ? t("Testing…") : t("Test")}
           </button>
         </div>
         {sharing?.supported && (
           <label className="bn-share">
-            <span>Share this computer’s connection</span>
+            <span>{t("Share this computer’s connection")}</span>
             <input
               type="checkbox"
-              aria-label="Share this computer’s connection"
+              aria-label={t("Share this computer’s connection")}
               checked={sharing.sharingAllowed}
               disabled={busy || !sharing.connected}
               onChange={(e) => void share(e.target.checked)}
@@ -289,7 +306,7 @@ export function BrowserNetworkSettings() {
         )}
         {dirty && (
           <div className="bn-actions">
-            <span>Unsaved changes</span>
+            <span>{t("Unsaved changes")}</span>
             <div className="bn-buttons">
               {dirty && (
                 <button
@@ -301,7 +318,7 @@ export function BrowserNetworkSettings() {
                   }}
                   className={settingsSecondaryButton}
                 >
-                  Discard
+                  {t("Discard")}
                 </button>
               )}
               <button
@@ -310,7 +327,7 @@ export function BrowserNetworkSettings() {
                 onClick={() => void apply()}
                 className={settingsPrimaryButton}
               >
-                Apply
+                {t("Apply")}
               </button>
             </div>
           </div>
@@ -324,12 +341,12 @@ export function BrowserNetworkSettings() {
               void api
                 .retryBrowserNetwork()
                 .then(setView)
-                .catch((e) => setError(clientErrorMessage(e, "Could not retry connection")))
+                .catch((e) => setError(clientErrorMessage(e, t("Could not retry connection"))))
                 .finally(() => setBusy(false));
             }}
             className={`${settingsSecondaryButton} mb-2`}
           >
-            Retry connection
+            {t("Retry connection")}
           </button>
         )}
         {error && (
@@ -359,6 +376,7 @@ function NetworkSourceRow({
   available: boolean;
   disabled: boolean;
 }) {
+  const { t } = useI18n();
   const { ref, handleRef, isDragging } = useSortable({
     id,
     index,
@@ -378,19 +396,19 @@ function NetworkSourceRow({
       <Icon size={16} strokeWidth={1.7} className="bn-icon" />
       <span className="bn-device-label">
         <span className="bn-name">{name}</span>
-        {current && <span className="bn-current">(current)</span>}
+        {current && <span className="bn-current">{t("(current)")}</span>}
       </span>
       <span
         className={`bn-device-status${available ? " bn-working" : ""}${active ? " bn-in-use" : ""}`}
-        aria-label={active ? "Working · In use" : undefined}
+        aria-label={active ? t("Working · In use") : undefined}
       >
         <span className="bn-status-dot" aria-hidden="true" />
-        {active ? "In use" : available ? "Working" : "Not working"}
+        {active ? t("In use") : available ? t("Working") : t("Not working")}
       </span>
       <button
         ref={handleRef}
         type="button"
-        aria-label={`Reorder ${name}`}
+        aria-label={t("Reorder {name}", { name })}
         disabled={disabled}
         className="bn-handle"
       >

@@ -8,6 +8,7 @@ import { Sparkles } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../../../client/aiteamos-api";
 import { requestRuntimeRefresh } from "../../../lib/runtime-refresh";
+import { useI18n } from "../../../lib/i18n";
 import {
   MODEL_TEST_DEADLINE_MS,
   requestErrorMessage,
@@ -40,6 +41,7 @@ export default function VoiceNotesSettings() {
 }
 
 export function TranscriptionSettingsPanel() {
+  const { t } = useI18n();
   const [saved, setSaved] = useState<TranscriptionSettingsView | null>(null);
   const [draft, setDraft] = useState<TranscriptionSettings>(defaultTranscriptionSettings);
   const [apiKey, setApiKey] = useState("");
@@ -72,7 +74,9 @@ export function TranscriptionSettingsPanel() {
     } catch (error) {
       if (version !== loadVersion.current) return;
       setFailed(true);
-      setMessage(requestErrorMessage(error, "Could not load transcription settings. Try again."));
+      setMessage(
+        requestErrorMessage(error, t("Could not load transcription settings. Try again."))
+      );
     } finally {
       if (version === loadVersion.current) setBusy(null);
     }
@@ -122,12 +126,14 @@ export function TranscriptionSettingsPanel() {
       setFailed(false);
       setMessage(
         value.configured
-          ? "Saved. Voice notes are enabled on connected devices."
-          : "Saved. Voice notes are disabled."
+          ? t("Saved. Voice notes are enabled on connected devices.")
+          : t("Saved. Voice notes are disabled.")
       );
     } catch (error) {
       setFailed(true);
-      setMessage(requestErrorMessage(error, "Could not save transcription settings. Try again."));
+      setMessage(
+        requestErrorMessage(error, t("Could not save transcription settings. Try again."))
+      );
     } finally {
       setBusy(null);
     }
@@ -141,7 +147,7 @@ export function TranscriptionSettingsPanel() {
       setMessage(result.detail);
     } catch (error) {
       setFailed(true);
-      setMessage(requestErrorMessage(error, "Could not check transcription. Try again."));
+      setMessage(requestErrorMessage(error, t("Could not check transcription. Try again.")));
     } finally {
       setBusy(null);
     }
@@ -149,8 +155,9 @@ export function TranscriptionSettingsPanel() {
   return (
     <div className="transcription-settings">
       <SettingsIntro>
-        Turn recordings into text you can review before sending. Shared by all apps connected to
-        this server.
+        {t(
+          "Turn recordings into text you can review before sending. Shared by all apps connected to this server."
+        )}
       </SettingsIntro>
       {!saved ? (
         <SettingsGroup>
@@ -160,7 +167,7 @@ export function TranscriptionSettingsPanel() {
           >
             {busy ? (
               <>
-                <LoadingOrb aria-hidden size={16} /> Loading voice notes…
+                <LoadingOrb aria-hidden size={16} /> {t("Loading voice notes…")}
               </>
             ) : (
               <>
@@ -170,7 +177,7 @@ export function TranscriptionSettingsPanel() {
                   onClick={() => void load()}
                   type="button"
                 >
-                  Try again
+                  {t("Try again")}
                 </button>
               </>
             )}
@@ -180,21 +187,21 @@ export function TranscriptionSettingsPanel() {
         <fieldset disabled={Boolean(busy)} className="min-w-0">
           <SettingsGroup>
             <SettingsRow
-              title="Voice notes"
-              description="Enable transcription for recorded messages on desktop and iPhone."
+              title={t("Voice notes")}
+              description={t("Enable transcription for recorded messages on desktop and iPhone.")}
               control={
                 <InteractiveSwitch
-                  label="Enable voice notes"
+                  label={t("Enable voice notes")}
                   checked={draft.enabled}
                   onChange={(value) => change("enabled", value)}
                 />
               }
             />
           </SettingsGroup>
-          <SectionLabel>Transcription service</SectionLabel>
+          <SectionLabel>{t("Transcription service")}</SectionLabel>
           <SettingsGroup className="transcription-fields">
             <SettingsRow
-              title="Provider"
+              title={t("Provider")}
               stackControl
               control={
                 <Select
@@ -213,7 +220,7 @@ export function TranscriptionSettingsPanel() {
                   }}
                 >
                   <SelectTrigger
-                    aria-label="Transcription provider"
+                    aria-label={t("Transcription provider")}
                     className={`${settingsSelect} transcription-input`}
                   >
                     <SelectValue />
@@ -237,7 +244,7 @@ export function TranscriptionSettingsPanel() {
                           className="size-3.5 text-violet-500"
                           strokeWidth={1.8}
                         />
-                        Custom / OpenAI-compatible
+                        {t("Custom / OpenAI-compatible")}
                       </span>
                     </SelectItem>
                   </SettingsSelectContent>
@@ -246,13 +253,13 @@ export function TranscriptionSettingsPanel() {
             />
             {draft.provider === "openai-compatible" ? (
               <SettingsRow
-                title="Base URL"
+                title={t("Base URL")}
                 stackControl
-                description="An audio service reachable from your aiTeamOS server."
+                description={t("An audio service reachable from your aiTeamOS server.")}
                 control={
                   <input
                     className={inputClass}
-                    aria-label="Transcription base URL"
+                    aria-label={t("Transcription base URL")}
                     inputMode="url"
                     spellCheck={false}
                     value={draft.baseUrl}
@@ -263,33 +270,33 @@ export function TranscriptionSettingsPanel() {
               />
             ) : null}
             <SettingsRow
-              title="Model"
+              title={t("Model")}
               stackControl
               control={
                 <input
                   className={inputClass}
-                  aria-label="Transcription model"
+                  aria-label={t("Transcription model")}
                   spellCheck={false}
                   value={draft.model}
-                  placeholder="Model ID"
+                  placeholder={t("Model ID")}
                   onChange={(e) => change("model", e.target.value)}
                 />
               }
             />
           </SettingsGroup>
-          <SectionLabel>Credentials and language</SectionLabel>
+          <SectionLabel>{t("Credentials and language")}</SectionLabel>
           <SettingsGroup className="transcription-fields">
             <SettingsRow
-              title="API key"
+              title={t("API key")}
               stackControl
               description={
                 removeKey
-                  ? "Key will be deleted when you save."
+                  ? t("Key will be deleted when you save.")
                   : hasSavedKey
-                    ? "Enter a new key to replace it."
+                    ? t("Enter a new key to replace it.")
                     : saved.hasApiKey
-                      ? "Replace or delete the saved key to change endpoints."
-                      : "Separate from chat sign-in. Keys stay on your server."
+                      ? t("Replace or delete the saved key to change endpoints.")
+                      : t("Separate from chat sign-in. Keys stay on your server.")
               }
               control={
                 <div className="transcription-key flex w-[270px] max-w-full flex-wrap items-center gap-2">
@@ -297,14 +304,14 @@ export function TranscriptionSettingsPanel() {
                     className={`${inputClass} min-w-0 flex-1`}
                     type="password"
                     autoComplete="new-password"
-                    aria-label="Transcription API key"
+                    aria-label={t("Transcription API key")}
                     value={apiKey}
                     placeholder={
                       hasSavedKey
                         ? saved.apiKeySuffix
                           ? `••••${saved.apiKeySuffix}`
-                          : "Key saved"
-                        : "API key"
+                          : t("Key saved")
+                        : t("API key")
                     }
                     onChange={(e) => {
                       setApiKey(e.target.value);
@@ -322,23 +329,23 @@ export function TranscriptionSettingsPanel() {
                         setMessage("");
                       }}
                     >
-                      {removeKey ? "Undo deletion" : "Delete key"}
+                      {removeKey ? t("Undo deletion") : t("Delete key")}
                     </button>
                   ) : null}
                 </div>
               }
             />
             <SettingsRow
-              title="Language"
+              title={t("Language")}
               stackControl
-              description="Leave blank to detect automatically, or use a code such as en."
+              description={t("Leave blank to detect automatically, or use a code such as en.")}
               control={
                 <input
                   className={inputClass}
-                  aria-label="Transcription language"
+                  aria-label={t("Transcription language")}
                   spellCheck={false}
                   value={draft.language}
-                  placeholder="Automatic"
+                  placeholder={t("Automatic")}
                   onChange={(e) => change("language", e.target.value)}
                 />
               }
@@ -351,7 +358,8 @@ export function TranscriptionSettingsPanel() {
               disabled={Boolean(busy) || Boolean(changed) || !saved.configured}
               onClick={() => void check()}
             >
-              {busy === "check" ? <LoadingOrb aria-hidden size={14} /> : null} Test connection
+              {busy === "check" ? <LoadingOrb aria-hidden size={14} /> : null}{" "}
+              {t("Test connection")}
             </button>
             <button
               type="button"
@@ -359,7 +367,7 @@ export function TranscriptionSettingsPanel() {
               disabled={Boolean(busy) || !changed}
               onClick={() => void save()}
             >
-              {busy === "save" ? <LoadingOrb aria-hidden size={14} /> : null} Save
+              {busy === "save" ? <LoadingOrb aria-hidden size={14} /> : null} {t("Save")}
             </button>
           </div>
           {message ? (

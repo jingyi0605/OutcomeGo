@@ -1,5 +1,6 @@
 import { X } from "lucide-react";
 import appIcon from "../../../assets/ai-teamos-icon.png?url";
+import { useI18n } from "../../../lib/i18n";
 import {
   Dialog,
   DialogClose,
@@ -26,6 +27,7 @@ export default function AboutPanel({
   onOpenChange: (open: boolean) => void;
   open: boolean;
 }) {
+  const { t } = useI18n();
   const version = window.aiteamos?.versions.app ?? "0.0.0";
   const copyVersion = () =>
     void navigator.clipboard?.writeText(
@@ -38,13 +40,13 @@ export default function AboutPanel({
         onOpenAutoFocus={(event) => event.preventDefault()}
         showCloseButton={false}
       >
-        <DialogTitle className="sr-only">About aiTeamOS</DialogTitle>
+        <DialogTitle className="sr-only">{t("About aiTeamOS")}</DialogTitle>
         <DialogDescription className="sr-only">
-          aiTeamOS version and copyright information.
+          {t("aiTeamOS version and copyright information.")}
         </DialogDescription>
         <DialogClose asChild>
           <button
-            aria-label="Close About"
+            aria-label={t("Close About")}
             className="absolute right-3.5 top-3.5 z-10 grid size-8 place-items-center rounded-full text-foreground-tertiary outline-none transition-colors hover:bg-black/[0.045] hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/35 dark:hover:bg-white/[0.06]"
             type="button"
           >
@@ -55,17 +57,17 @@ export default function AboutPanel({
           <AiTeamOSAppIcon />
           <h2 className="mt-3 text-[20px] font-semibold leading-6 tracking-[-0.02em]">aiTeamOS</h2>
           <div className="mt-0.5 text-[12px] leading-4 text-foreground-tertiary">
-            Version {version}
+            {t("Version {version}", { version })}
           </div>
           <div className="mt-3 text-[12px] leading-4 text-foreground-tertiary">
-            Copyright © 2026 aiTeamOS contributors
+            {t("Copyright © 2026 aiTeamOS contributors")}
           </div>
           <button
             className="mt-6 inline-flex h-8 items-center rounded-[8px] border border-black/[0.055] bg-black/[0.035] px-3 text-[12px] shadow-[0_1px_1px_rgba(0,0,0,0.02)] hover:bg-black/[0.06] dark:border-white/[0.07] dark:bg-white/[0.07] dark:hover:bg-white/[0.1]"
             onClick={copyVersion}
             type="button"
           >
-            Copy version info
+            {t("Copy version info")}
           </button>
         </div>
       </DialogContent>

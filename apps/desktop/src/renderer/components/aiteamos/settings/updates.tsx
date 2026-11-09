@@ -5,30 +5,43 @@ import { useServerUpdate } from "../../../hooks/use-server-update";
 import { requestDesktopUpdateRestart } from "../../../lib/desktop-update";
 import { LoadingOrb } from "../../ui/loading-orb";
 import { ServerUpdateSettings } from "./server-update";
-import { SectionLabel, SettingsGroup, SettingsLink, SettingsRow, settingsPrimaryButton, settingsSecondaryButton } from "./ui";
+import { useI18n } from "../../../lib/i18n";
+import {
+  SectionLabel,
+  SettingsGroup,
+  SettingsLink,
+  SettingsRow,
+  settingsPrimaryButton,
+  settingsSecondaryButton,
+} from "./ui";
 
 const primaryButton = settingsPrimaryButton;
 const secondaryButton = settingsSecondaryButton;
 
-const clientUpdateFailure = (status: AiTeamOSUpdateStatus): string => {
+type Translate = (key: string, values?: Record<string, string | number>) => string;
+
+const clientUpdateFailure = (status: AiTeamOSUpdateStatus, t: Translate): string => {
   const summary =
     status.failureKind === "signature-invalid"
-      ? "The downloaded update failed signature verification and was not installed."
+      ? t("The downloaded update failed signature verification and was not installed.")
       : status.failureKind === "feed-malformed"
-        ? "The update server returned an invalid release manifest."
+        ? t("The update server returned an invalid release manifest.")
         : status.failureKind === "feed-http-status"
-          ? "The update server refused the request."
+          ? t("The update server refused the request.")
           : status.failureKind === "service-unavailable"
-            ? "The update service is currently unreachable."
+            ? t("The update service is currently unreachable.")
             : status.failureKind === "download-failed"
-              ? "The update could not be downloaded."
+              ? t("The update could not be downloaded.")
               : status.failureKind === "apply-unsupported"
-                ? "The downloaded update cannot be installed on this platform."
-                : "The desktop update failed.";
-  return status.message && status.message !== summary ? `${summary} ${status.message}` : summary;
+                ? t("The downloaded update cannot be installed on this platform.")
+                : t("The desktop update failed.");
+  return status.message && status.message !== summary
+    ? t("{summary} {message}", { summary, message: status.message })
+    : summary;
 };
 
 export default function UpdatesSettings() {
+  const { t } = useI18n();
   const update = useServerUpdate();
   const {
     clientVersion,
@@ -55,7 +68,7 @@ export default function UpdatesSettings() {
       if (next) setClientUpdate(next);
       await refreshServer();
     } catch (error) {
-      setActionError(clientErrorMessage(error, "Could not check for updates"));
+      setActionError(clientErrorMessage(error, t("Could not check for updates")));
     }
   };
 
@@ -73,19 +86,27 @@ export default function UpdatesSettings() {
         if (next) setClientUpdate(next);
       }
       if (next?.status === "available") await window.aiteamos?.updates.openDownload();
-      else throw new Error("No newer desktop release is currently published");
+      else throw new Error(t("No newer desktop release is currently published"));
     } catch (error) {
-      setActionError(clientErrorMessage(error, "Could not open the client update"));
+      setActionError(clientErrorMessage(error, t("Could not open the client update")));
     }
   };
 
   const mismatchMessage =
     compatibility === "server-update-required"
-      ? `Server ${server?.currentVersion} cannot support desktop ${clientVersion}. Update the connected server below.`
+      ? t("Server {server} cannot support desktop {desktop}. Update the connected server below.", {
+          server: server?.currentVersion ?? "",
+          desktop: clientVersion,
+        })
       : compatibility === "client-update-required"
-        ? `Desktop ${clientVersion} is outside server ${server?.currentVersion}'s supported range. Update the desktop app.`
+        ? t(
+            "Desktop {desktop} is outside server {server}'s supported range. Update the desktop app.",
+            { desktop: clientVersion, server: server?.currentVersion ?? "" }
+          )
         : compatibility === "unknown" && !serverLoading
-          ? "aiTeamOS could not verify that the desktop and server releases match. Update the server first if it does not report a version."
+          ? t(
+              "aiTeamOS could not verify that the desktop and server releases match. Update the server first if it does not report a version."
+            )
           : null;
 
   return (
@@ -103,15 +124,15 @@ export default function UpdatesSettings() {
       {compatibility === "update-recommended" ? (
         <p className="mb-4 px-2 text-[12.5px] text-muted-foreground">
           {update.serverNeedsUpdate
-            ? "Server update available. You can keep working."
-            : "Your server is newer than this desktop."}{" "}
+            ? t("Server update available. You can keep working.")
+            : t("Your server is newer than this desktop.")}{" "}
           <SettingsLink anchor={update.serverNeedsUpdate ? "server-update" : "update-status"}>
-            View update
+            {t("View update")}
           </SettingsLink>
         </p>
       ) : null}
 
-      <SectionLabel>aiTeamOS Updates</SectionLabel>
+      <SectionLabel>{t("aiTeamOS Updates")}</SectionLabel>
       <SettingsGroup>
         <SettingsRow
           anchors={["update-status", "automatic-updates"]}
@@ -127,12 +148,14 @@ export default function UpdatesSettings() {
                   <LoadingOrb aria-hidden size={14} />
                 ) : null}
                 {clientUpdate?.status === "downloaded"
-                  ? "Restart to update"
+                  ? t("Restart to update")
                   : clientUpdate?.status === "downloading"
-                    ? `Downloading ${Math.round(clientUpdate.progress ?? 0)}%`
+                    ? t("Downloading {percent}%", {
+                        percent: Math.round(clientUpdate.progress ?? 0),
+                      })
                     : clientUpdate?.status === "installing"
-                      ? "Restarting…"
-                      : "Update desktop"}
+                      ? t("Restarting…")
+                      : t("Update desktop")}
               </button>
             ) : (
               <button
@@ -142,22 +165,23 @@ export default function UpdatesSettings() {
                 type="button"
               >
                 {clientUpdate?.status === "checking" ? <LoadingOrb aria-hidden size={14} /> : null}
-                {clientUpdate?.status === "checking" ? "Checking…" : "Check for Updates"}
+                {clientUpdate?.status === "checking" ? t("Checking…") : t("Check for Updates")}
               </button>
             )
           }
           description={
             clientUpdate?.status === "available"
-              ? (clientUpdate.message ?? `Desktop ${clientUpdate.latestVersion} is available`)
+              ? (clientUpdate.message ??
+                t("Desktop {version} is available", { version: clientUpdate.latestVersion }))
               : clientUpdate?.status === "up-to-date"
-                ? (clientUpdate.message ?? "You’re up to date")
+                ? (clientUpdate.message ?? t("You’re up to date"))
                 : ["downloading", "downloaded", "installing"].includes(clientUpdate?.status ?? "")
                   ? clientUpdate?.message
                   : clientUpdate?.status === "error"
-                    ? clientUpdateFailure(clientUpdate)
-                    : "Check for a newer desktop version."
+                    ? clientUpdateFailure(clientUpdate, t)
+                    : t("Check for a newer desktop version.")
           }
-          title={`Desktop app ${clientVersion}`}
+          title={t("Desktop app {version}", { version: clientVersion })}
         />
       </SettingsGroup>
       {actionError ? (

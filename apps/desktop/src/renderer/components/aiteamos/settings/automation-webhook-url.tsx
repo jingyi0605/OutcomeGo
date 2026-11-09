@@ -5,6 +5,7 @@ import type {
 import { clientErrorMessage } from "@aiteamos/product-core/redaction";
 import { useEffect, useState } from "react";
 import { api } from "../../../client/aiteamos-api";
+import { useI18n } from "../../../lib/i18n";
 import {
   SectionLabel,
   SettingsGroup,
@@ -14,18 +15,12 @@ import {
   settingsSecondaryButton,
 } from "./ui";
 
-const describeSource = (source: AutomationWebhookPublicUrlView["source"]) => {
-  if (source === "settings") return "Saved in aiTeamOS settings.";
-  if (source === "environment") return "Using the server environment value.";
-  return "No public webhook URL is configured.";
-};
-
 export function AutomationWebhookPublicUrlSettings() {
+  const { t } = useI18n();
   const [view, setView] = useState<AutomationWebhookPublicUrlView | null>(null);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState<"load" | "save" | "check" | null>("load");
   const [check, setCheck] = useState<AutomationWebhookPublicUrlCheck | null>(null);
-  const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -38,7 +33,7 @@ export function AutomationWebhookPublicUrlSettings() {
         setDraft(next.publicUrl ?? "");
       })
       .catch((cause) => {
-        if (active) setError(clientErrorMessage(cause, "Could not load webhook settings."));
+        if (active) setError(clientErrorMessage(cause, t("Could not load webhook settings.")));
       })
       .finally(() => {
         if (active) setBusy(null);
@@ -46,20 +41,18 @@ export function AutomationWebhookPublicUrlSettings() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [t]);
 
   const test = async () => {
     setBusy("check");
     setError("");
-    setMessage("");
     setCheck(null);
     try {
       const result = await api.checkAutomationWebhookPublicUrl(draft.trim());
       setCheck(result);
-      if (result.ok) setMessage(result.message);
-      else setError(result.message);
+      if (!result.ok) setError(result.message);
     } catch (cause) {
-      setError(clientErrorMessage(cause, "Could not test the public webhook URL."));
+      setError(clientErrorMessage(cause, t("Could not test the public webhook URL.")));
     } finally {
       setBusy(null);
     }
@@ -68,50 +61,36 @@ export function AutomationWebhookPublicUrlSettings() {
   const save = async (publicUrl = draft.trim()) => {
     setBusy("save");
     setError("");
-    setMessage("");
     setCheck(null);
     try {
       const next = await api.updateAutomationWebhookPublicUrl(publicUrl);
       setView(next);
       setDraft(next.publicUrl ?? "");
-      setMessage(
-        next.updatedWebhooks
-          ? `Saved and applied immediately. Updated ${next.updatedWebhooks} existing routine webhook${next.updatedWebhooks === 1 ? "" : "s"}.`
-          : "Saved and applied immediately. New routine webhooks will use this address."
-      );
     } catch (cause) {
-      setError(clientErrorMessage(cause, "Could not save the public webhook URL."));
+      setError(clientErrorMessage(cause, t("Could not save the public webhook URL.")));
     } finally {
       setBusy(null);
     }
   };
 
   const configured = view?.valid && Boolean(view.publicUrl);
+  const statusLabel = check ? (check.ok ? t("Reachable") : t("Not reachable")) : t("Not tested");
   return (
     <>
-      <SectionLabel>Automation webhooks</SectionLabel>
+      <SectionLabel>{t("Automation webhooks")}</SectionLabel>
       <SettingsGroup>
         <SettingsRow
-          title="Public webhook URL"
-          description={
-            <div className="space-y-1">
-              <p>
-                The HTTPS address that external services use to reach webhook routines created by
-                your bots.
-              </p>
-              <p>{view ? describeSource(view.source) : "Loading…"}</p>
-            </div>
-          }
+          title={t("Public webhook URL")}
+          description={t("HTTPS endpoint for webhook routines.")}
           control={
-            <div className="flex max-w-[520px] flex-wrap items-center justify-end gap-2">
+            <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
               <input
-                aria-label="Public webhook URL"
-                className={`${settingsInput} w-[320px] max-w-full`}
+                aria-label={t("Public webhook URL")}
+                className={`${settingsInput} min-w-[220px] flex-1 basis-[240px]`}
                 disabled={busy !== null}
                 onChange={(event) => {
                   setDraft(event.target.value);
                   setCheck(null);
-                  setMessage("");
                   setError("");
                 }}
                 placeholder="https://hooks.example.com"
@@ -124,7 +103,7 @@ export function AutomationWebhookPublicUrlSettings() {
                 onClick={() => void test()}
                 type="button"
               >
-                {busy === "check" ? "Testing…" : "Test"}
+                {busy === "check" ? t("Testing…") : t("Test")}
               </button>
               <button
                 className={settingsPrimaryButton}
@@ -132,52 +111,46 @@ export function AutomationWebhookPublicUrlSettings() {
                 onClick={() => void save()}
                 type="button"
               >
-                {busy === "save" ? "Saving…" : "Save"}
+                {busy === "save" ? t("Saving…") : t("Save")}
+              </button>
+              <button
+                className={settingsSecondaryButton}
+                disabled={busy !== null || view?.source !== "settings"}
+                onClick={() => void save("")}
+                type="button"
+              >
+                {t("Clear")}
               </button>
             </div>
           }
           stackControl
+          descriptionBelow
         />
-        {view?.source === "settings" ? (
-          <SettingsRow
-            title="Clear saved override"
-            description="Remove the value saved in Settings. If OPENTEAM_PUBLIC_URL exists on the server, aiTeamOS will use that environment value instead."
-            control={
-              <button
-                className={settingsSecondaryButton}
-                disabled={busy !== null}
-                onClick={() => void save("")}
-                type="button"
-              >
-                Clear
-              </button>
-            }
-          />
-        ) : null}
         <SettingsRow
-          title="Connectivity"
+          title={t("Connectivity")}
           description={
-            check
-              ? check.message
-              : configured
-                ? "Use Test to check this address from the aiTeamOS server."
-                : "Set a public HTTPS address, then test it before creating a webhook routine."
+            check?.message ?? (configured ? t("Not tested") : t("Set a public HTTPS address."))
+          }
+          control={
+            <span
+              aria-label={statusLabel}
+              className={`inline-flex items-center gap-1.5 text-[12px] ${check ? (check.ok ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400") : "text-foreground-tertiary"}`}
+              role="status"
+              title={statusLabel}
+            >
+              <span className="size-2 rounded-full bg-current" />
+            </span>
           }
         />
       </SettingsGroup>
       {busy === "load" ? (
         <p className="px-2 text-xs text-foreground-secondary" role="status">
-          Loading webhook settings…
+          {t("Loading webhook settings…")}
         </p>
       ) : null}
       {error || (view && !view.valid && view.error) ? (
         <p className="px-2 text-xs text-destructive" role="alert">
           {error || view?.error}
-        </p>
-      ) : null}
-      {message ? (
-        <p className="px-2 text-xs text-foreground-secondary" role="status">
-          {message}
         </p>
       ) : null}
     </>

@@ -1,4 +1,5 @@
 import { SectionLabel, SettingsGroup, SettingsRow } from "./ui";
+import { useI18n } from "../../../lib/i18n";
 
 export interface NotificationSettingsProps {
   permission: "allowed" | "blocked";
@@ -6,18 +7,21 @@ export interface NotificationSettingsProps {
 }
 
 export function NotificationSettings({ permission, onEnable }: NotificationSettingsProps) {
+  const { t } = useI18n();
   const allowed = permission === "allowed";
 
   return (
     <>
-      <SectionLabel>Notifications</SectionLabel>
+      <SectionLabel>{t("Notifications")}</SectionLabel>
       <SettingsGroup>
         <SettingsRow
-          title="Desktop alerts"
+          title={t("Desktop alerts")}
           control={
             <div className="flex items-center gap-3">
               <span
-                aria-label={`Desktop alerts ${permission}`}
+                aria-label={t("Desktop alerts {status}", {
+                  status: t(allowed ? "Allowed" : "Blocked").toLowerCase(),
+                })}
                 className="inline-flex items-center gap-1.5 text-[12px] text-foreground-secondary"
                 role="status"
               >
@@ -25,7 +29,7 @@ export function NotificationSettings({ permission, onEnable }: NotificationSetti
                   aria-hidden="true"
                   className={`size-1.5 rounded-full ${allowed ? "bg-emerald-500" : "bg-foreground-tertiary"}`}
                 />
-                {allowed ? "Allowed" : "Blocked"}
+                {allowed ? t("Allowed") : t("Blocked")}
               </span>
               {!allowed ? (
                 <button
@@ -33,7 +37,7 @@ export function NotificationSettings({ permission, onEnable }: NotificationSetti
                   onClick={onEnable}
                   type="button"
                 >
-                  Enable notifications
+                  {t("Enable notifications")}
                 </button>
               ) : null}
             </div>

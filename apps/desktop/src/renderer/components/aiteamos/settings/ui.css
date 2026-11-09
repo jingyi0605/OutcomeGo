@@ -4,6 +4,15 @@
 
 /* Keep wide form fields readable without changing compact toggle rows. */
 @container settings-group (max-width: 440px) {
+  [data-settings-description-below] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  [data-settings-description-below] > [data-slot="settings-control"] {
+    grid-column: 1;
+    width: 100%;
+  }
+
   [data-settings-layout="form"] {
     flex-direction: column;
     align-items: stretch;
@@ -16,6 +25,10 @@
   }
 
   [data-settings-layout="form"] > [data-slot="settings-control"] > * {
+    max-width: 100%;
+  }
+
+  [data-settings-description-below] > [data-slot="settings-control"] > * {
     max-width: 100%;
   }
 

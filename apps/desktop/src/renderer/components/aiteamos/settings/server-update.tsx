@@ -7,6 +7,7 @@ import { api } from "../../../client/aiteamos-api";
 import { API_BASE } from "../../../client/http";
 import { useServerUpdate } from "../../../hooks/use-server-update";
 import { cn } from "../../../lib/cn";
+import { useI18n } from "../../../lib/i18n";
 import { inSidebarOrder, useSidebarBotOrder } from "../../../lib/sidebar-bot-order";
 import { SectionLabel, SettingsGroup, settingsSecondaryButton } from "./ui";
 import { ServerUpdateProgressPanel } from "./server-update-progress";
@@ -31,6 +32,7 @@ export function ConfirmButton({
   disabled?: boolean;
   onConfirm: () => void;
 }) {
+  const { t } = useI18n();
   const [armed, setArmed] = useState(false);
   useEffect(() => {
     if (!armed) return;
@@ -40,7 +42,7 @@ export function ConfirmButton({
   const confirming = armed && !pending && !disabled;
   return (
     <button
-      aria-label={confirming ? `Click Again to Confirm: ${label}` : label}
+      aria-label={confirming ? t("Click Again to Confirm: {label}", { label }) : label}
       className={cn(
         button,
         confirming && "bg-red-500/15 text-red-600 dark:bg-red-500/20 dark:text-red-400"
@@ -55,7 +57,7 @@ export function ConfirmButton({
       }}
       type="button"
     >
-      {pending && pendingLabel ? pendingLabel : confirming ? "Click Again to Confirm" : label}
+      {pending && pendingLabel ? pendingLabel : confirming ? t("Click Again to Confirm") : label}
     </button>
   );
 }
@@ -79,6 +81,7 @@ export function ServerUpdateSettings({
     serverUpdating,
     updateServer,
   } = serverUpdate;
+  const { t } = useI18n();
   const sidebarOrder = useSidebarBotOrder();
   const [busyBots, setBusyBots] = useState<BusyBotsView["bots"]>([]);
   const [starting, setStarting] = useState(false);
@@ -128,7 +131,7 @@ export function ServerUpdateSettings({
       if ((await refreshBusy()).length > 0) return;
       await updateServer();
     } catch (cause) {
-      setError(clientErrorMessage(cause, FAILED));
+      setError(clientErrorMessage(cause, t(FAILED)));
     } finally {
       setStarting(false);
     }
@@ -147,43 +150,46 @@ export function ServerUpdateSettings({
   const failure = error ?? (server?.status === "error" ? server.message : null);
   const extraCopy =
     state === "loading" ? (
-      "Checking the connected server…"
+      t("Checking the connected server…")
     ) : state === "busy" ? (
-      `${stillWorking(busyInOrder.map((bot) => bot.name))}. Update will be available when every agent is done.`
+      t("{status}. Update will be available when every agent is done.", {
+        status: stillWorking(busyInOrder.map((bot) => bot.name)),
+      })
     ) : state === "updating" ? (
-      (server?.message ?? "Updating the server…")
+      (server?.message ?? t("Updating the server…"))
     ) : state === "unavailable" ? (
       serverReconnecting ? (
-        "Could not reach the server. Reconnecting automatically."
+        t("Could not reach the server. Reconnecting automatically.")
       ) : (
-        (server?.message ?? "Could not verify the server update status. Check for updates again.")
+        (server?.message ??
+        t("Could not verify the server update status. Check for updates again."))
       )
     ) : failure && state !== "up-to-date" ? (
       isUpdateBusyMessage(failure) ? (
         failure
       ) : (
         <>
-          {FAILED}
+          {t(FAILED)}
           <span className="block text-foreground-tertiary">{failure}</span>
         </>
       )
     ) : state === "ready" && serverTarget ? (
-      `Update to ${serverTarget} is available.`
+      t("Update to {version} is available.", { version: serverTarget })
     ) : null;
 
   const updateButton = (
     <ConfirmButton
       disabled={state !== "ready"}
-      label="Update"
+      label={t("Update")}
       onConfirm={() => void update()}
       pending={state === "updating"}
-      pendingLabel="Updating…"
+      pendingLabel={t("Updating…")}
     />
   );
 
   return (
     <>
-      <SectionLabel>Connected server</SectionLabel>
+      <SectionLabel>{t("Connected server")}</SectionLabel>
       <SettingsGroup>
         <div
           className="min-h-[52px] py-2"
@@ -194,7 +200,7 @@ export function ServerUpdateSettings({
             <Server aria-hidden className="size-4 shrink-0 self-start mt-1 text-muted-foreground" />
             <div className="min-w-0 flex-1">
               <div className="text-[13px] font-medium leading-5 text-foreground">
-                Server {server?.currentVersion ?? "version unknown"}
+                {t("Server {version}", { version: server?.currentVersion ?? t("version unknown") })}
               </div>
               <div className="mt-px text-[12px] leading-4 text-foreground-secondary">
                 {new URL(API_BASE).host}
@@ -214,10 +220,10 @@ export function ServerUpdateSettings({
                 >
                   <CircleCheck aria-hidden className="size-3.5" />
                   {compatibility === "client-update-required"
-                    ? "Update the desktop app to match this server."
+                    ? t("Update the desktop app to match this server.")
                     : compatibility === "update-recommended"
-                      ? "This server is newer than the installed desktop."
-                      : `Your server matches desktop ${clientVersion}.`}
+                      ? t("This server is newer than the installed desktop.")
+                      : t("Your server matches desktop {version}.", { version: clientVersion })}
                 </div>
               ) : null}
             </div>
@@ -226,7 +232,7 @@ export function ServerUpdateSettings({
                 {stopTarget ? (
                   <ConfirmButton
                     key={stopTarget.botId}
-                    label={`Stop ${stopTarget.name}`}
+                    label={t("Stop {name}", { name: stopTarget.name })}
                     onConfirm={() => void stop(stopTarget.botId)}
                     pending={stopping}
                   />

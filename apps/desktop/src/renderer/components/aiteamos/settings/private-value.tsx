@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
+import { useI18n } from "../../../lib/i18n";
 
 /** Shared endpoint/IP privacy interaction. Hidden values are excluded from VoiceOver. */
 export function PrivateSettingValue({ value, label }: { value: string; label: string }) {
+  const { t } = useI18n();
   const [revealed, setRevealed] = useState(false);
   useEffect(() => {
     setRevealed(false);
@@ -11,7 +13,7 @@ export function PrivateSettingValue({ value, label }: { value: string; label: st
   }, [value]);
   return (
     <button
-      aria-label={`${revealed ? "Hide" : "Reveal"} ${label}`}
+      aria-label={`${t(revealed ? "Hide" : "Reveal")} ${t(label)}`}
       aria-pressed={revealed}
       className="min-w-0 rounded px-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
       onClick={() => setRevealed((value) => !value)}

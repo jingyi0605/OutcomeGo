@@ -16,7 +16,11 @@ describe("aiTeamOS deep-link routing parity", () => {
     expect(settingsViewForAnchor("server-update")).toBe("updates");
     expect(settingsViewForAnchor("browser-network")).toBe("server");
     expect(parseAiTeamOSDeepLink("aiteamos://app/v1/settings?id=local-execution")).toBeNull();
-    for (const anchor of ["inference-provider", "inference-model", "inference-reasoning"] as const) {
+    for (const anchor of [
+      "inference-provider",
+      "inference-model",
+      "inference-reasoning",
+    ] as const) {
       expect(settingsViewForAnchor(anchor)).toBe("model");
     }
     expect(settingsViewForAnchor("web-search-provider")).toBe("providers");
@@ -30,7 +34,6 @@ describe("aiTeamOS deep-link routing parity", () => {
     });
     expect(parseAiTeamOSDeepLink("aiteamos://app/v1/settings?id=not-a-real-anchor")).toBeNull();
     expect(parseAiTeamOSDeepLink("aiteamos://app/v1/settings?id=plan")).toBeNull();
-    expect(parseAiTeamOSDeepLink("aiteamos://app/v1/settings?id=language")).toBeNull();
     expect(parseAiTeamOSDeepLink("aiteamos://app/v1/settings?id=update-channel")).toBeNull();
     expect(parseAiTeamOSDeepLink("https://app/v1/settings?id=theme")).toBeNull();
     expect(parseAiTeamOSDeepLink("aiteamos://app/v1/plugin/add?id=")).toBeNull();

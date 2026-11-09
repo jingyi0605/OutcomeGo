@@ -1,12 +1,20 @@
-import { useCallback, useEffect, useState } from "react";
 import type { DesktopTailscaleStatus } from "@aiteamos/contracts/tailscale";
+import { useCallback, useEffect, useState } from "react";
 import { API_BASE } from "../../../client/http";
-import { SectionLabel, SettingsGroup, SettingsRow, settingsSecondaryButton, settingsInput } from "./ui";
+import { useI18n } from "../../../lib/i18n";
+import {
+  SectionLabel,
+  SettingsGroup,
+  SettingsRow,
+  settingsInput,
+  settingsSecondaryButton,
+} from "./ui";
 
 export function TailscaleSettings() {
+  const { t } = useI18n();
   const [result, setResult] = useState<DesktopTailscaleStatus | null>(null);
   const [port, setPort] = useState("443");
-  const [busy, setBusy] = useState<string | null>("Checking Tailscale…");
+  const [busy, setBusy] = useState<string | null>(t("Checking Tailscale…"));
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const refresh = useCallback(async () => {
@@ -19,7 +27,7 @@ export function TailscaleSettings() {
         next ?? {
           canManage: false,
           status: null,
-          message: "Run these commands on your aiTeamOS server host.",
+          message: t("Run these commands on your aiTeamOS server host."),
         }
       );
       if (next?.status) setPort(next.status.httpsPort);
@@ -29,26 +37,34 @@ export function TailscaleSettings() {
     } finally {
       setBusy(null);
     }
-  }, []);
+  }, [t]);
   useEffect(() => {
     void refresh();
   }, [refresh]);
 
   const change = async (action: "enable" | "disable") => {
     setBusy(
-      action === "enable" ? "Configuring and verifying HTTPS…" : "Switching to local access…"
+      action === "enable" ? t("Configuring and verifying HTTPS…") : t("Switching to local access…")
     );
     setError(null);
     setNotice(null);
     try {
-      const next = await window.aiteamos!.tailscale.request({
+      const request = window.aiteamos?.tailscale?.request;
+      if (!request) throw new Error(t("Tailscale is unavailable."));
+      const next = await request({
         serverUrl: API_BASE,
         action,
         httpsPort: port,
       });
       setResult(next);
       setNotice(
-        `Server address: ${next.status?.publicUrl}. Reconnect your apps using this address. ${action === "disable" ? "User-managed Serve mappings were preserved." : "Keep Tailscale connected on your devices."}`
+        t("Server address: {url}.\nReconnect your apps using this address.\n{followUp}", {
+          url: next.status?.publicUrl ?? API_BASE,
+          followUp:
+            action === "disable"
+              ? t("User-managed Serve mappings were preserved.")
+              : t("Keep Tailscale connected on your devices."),
+        })
       );
     } catch (error) {
       setError(error instanceof Error ? error.message : String(error));
@@ -61,34 +77,37 @@ export function TailscaleSettings() {
   const buttonClass = settingsSecondaryButton;
   return (
     <>
-      <SectionLabel>Remote access</SectionLabel>
+      <SectionLabel>{t("Remote access")}</SectionLabel>
       <SettingsGroup>
         <SettingsRow
-          title="Tailscale HTTPS"
+          title={t("Tailscale HTTPS")}
           anchors={["tailscale-https"]}
-          description="Use a private HTTPS address to connect your devices. Tailscale must be running on the server and on each device."
+          description={t(
+            "Use HTTPS to connect devices privately.\nTailscale must run on the server and each device."
+          )}
           control={
             <button
               className={buttonClass}
               disabled={!!busy}
               onClick={() => {
-                setBusy("Checking Tailscale…");
+                setBusy(t("Checking Tailscale…"));
                 void refresh();
               }}
+              type="button"
             >
-              Refresh
+              {t("Refresh")}
             </button>
           }
         />
-        <SettingsRow title="Server address" description={status?.publicUrl || API_BASE} />
+        <SettingsRow title={t("Server address")} description={status?.publicUrl || API_BASE} />
         {result?.canManage ? (
           <>
             <SettingsRow
-              title="HTTPS port"
-              description="Default 443. Choose another port if another application uses it."
+              title={t("HTTPS port")}
+              description={t("Default: 443.\nChoose another port if needed.")}
               control={
                 <input
-                  aria-label="Tailscale HTTPS port"
+                  aria-label={t("Tailscale HTTPS port")}
                   className={`${settingsInput} w-24`}
                   type="number"
                   min="1"
@@ -100,41 +119,55 @@ export function TailscaleSettings() {
               }
             />
             <SettingsRow
-              title="HTTPS address"
+              title={t("HTTPS address")}
               description={
                 status?.hostname && validPort
                   ? `https://${status.hostname}${Number(port) === 443 ? "" : `:${Number(port)}`}`
-                  : "Start Tailscale on the host to detect its HTTPS address."
+                  : t("Start Tailscale on the host to detect its HTTPS address.")
               }
             />
             <SettingsRow
-              title={status?.enabled ? "Tailscale HTTPS configured" : "Enable Tailscale HTTPS"}
+              title={
+                status?.enabled ? t("Tailscale HTTPS configured") : t("Enable Tailscale HTTPS")
+              }
               description={
                 status?.enabled
-                  ? `${status.verified ? "HTTPS endpoint verified." : "This connection needs attention."} ${status.ownership === "aiteamos" ? "Managed by aiTeamOS." : status.ownership === "external" ? "Uses an existing user-managed route." : ""}`
-                  : "Enabling restarts the server and creates or reuses a private Serve mapping. HTTPS must be enabled for your tailnet."
+                  ? status.verified
+                    ? status.ownership === "aiteamos"
+                      ? t("HTTPS endpoint verified.\nManaged by aiTeamOS.")
+                      : status.ownership === "external"
+                        ? t("HTTPS endpoint verified.\nUses an existing user-managed route.")
+                        : t("HTTPS endpoint verified.")
+                    : t("This connection needs attention.")
+                  : t(
+                      "Creates or reuses a private HTTPS route.\nHTTPS must be enabled for your tailnet."
+                    )
               }
               control={
                 <button
                   className={buttonClass}
                   disabled={!!busy || !validPort}
                   onClick={() => void change("enable")}
+                  type="button"
                 >
-                  {status?.enabled ? "Apply / repair" : "Enable"}
+                  {status?.enabled ? t("Apply / repair") : t("Enable")}
                 </button>
               }
             />
             {(status?.enabled || !!status?.managedRoutes) && (
               <SettingsRow
-                title="Disable Tailscale HTTPS"
-                description="Switch to local access and restart the server. Remote devices will disconnect. Only unchanged aiTeamOS-managed mappings are removed."
+                title={t("Disable Tailscale HTTPS")}
+                description={t(
+                  "Switches to local access and restarts the server.\nRemote devices will disconnect."
+                )}
                 control={
                   <button
                     className={buttonClass}
                     disabled={!!busy}
                     onClick={() => void change("disable")}
+                    type="button"
                   >
-                    Disable
+                    {t("Disable")}
                   </button>
                 }
               />
@@ -142,15 +175,15 @@ export function TailscaleSettings() {
           </>
         ) : (
           <SettingsRow
-            title="Configure on the server"
+            title={t("Configure on the server")}
             description={
               <div className="space-y-2 py-2">
-                <p>{result?.message || "Tailscale is managed on the server host."}</p>
+                <p>{result?.message || t("Tailscale is managed on the server host.")}</p>
                 <code className="block select-all">aiteamos tailscale enable --https-port 443</code>
                 <code className="block select-all">aiteamos tailscale status</code>
                 <code className="block select-all">aiteamos tailscale disable</code>
                 <p>
-                  You can also choose Tailscale HTTPS in <code>aiteamos setup</code>.
+                  {t("You can also choose Tailscale HTTPS in")} <code>aiteamos setup</code>.
                 </p>
               </div>
             }
@@ -159,7 +192,7 @@ export function TailscaleSettings() {
       </SettingsGroup>
       {result?.canManage && !validPort && (
         <p className="px-2 text-xs text-destructive" role="alert">
-          Enter an HTTPS port from 1 to 65535.
+          {t("Enter an HTTPS port from 1 to 65535.")}
         </p>
       )}
       {busy && (

@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { AITEAMOS_DEEP_LINK_EVENT, type SettingsAnchor } from "../../../lib/app-deep-links";
 import { cn } from "../../../lib/cn";
+import { useI18n } from "../../../lib/i18n";
 import "./ui.css";
 
 const settingsButton =
@@ -14,6 +15,8 @@ export const settingsSelect =
   "h-7 min-w-0 rounded-[8px] border-black/[0.055] bg-black/[0.035] px-2 py-0 text-[12px] shadow-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:opacity-50 dark:border-white/[0.07] dark:bg-white/[0.07]";
 export const settingsRow =
   "flex min-h-[52px] items-center gap-5 border-t border-black/[0.065] py-2 first:border-t-0 dark:border-white/[0.07]";
+export const settingsRowDescriptionBelow =
+  "grid min-h-[52px] grid-cols-[minmax(0,1fr)_auto] items-center gap-x-5 gap-y-1 border-t border-black/[0.065] py-2 first:border-t-0 dark:border-white/[0.07]";
 
 export function SettingsIntro({
   children,
@@ -22,9 +25,10 @@ export function SettingsIntro({
   children: ReactNode;
   className?: string;
 }) {
+  const { t } = useI18n();
   return (
     <p className={cn("-mt-4 mb-5 px-2 text-[12px] leading-4 text-foreground-secondary", className)}>
-      {children}
+      {typeof children === "string" ? t(children) : children}
     </p>
   );
 }
@@ -36,6 +40,7 @@ export function SettingsLink({
   anchor: SettingsAnchor;
   children: ReactNode;
 }) {
+  const { t } = useI18n();
   const url = `aiteamos://app/v1/settings?id=${anchor}`;
   return (
     <a
@@ -46,7 +51,7 @@ export function SettingsLink({
         window.dispatchEvent(new CustomEvent(AITEAMOS_DEEP_LINK_EVENT, { detail: { url } }));
       }}
     >
-      {children}
+      {typeof children === "string" ? t(children) : children}
     </a>
   );
 }
@@ -62,10 +67,11 @@ export function InteractiveSwitch({
   onChange: (checked: boolean) => void;
   label?: string;
 }) {
+  const { t } = useI18n();
   return (
     <button
       aria-checked={checked}
-      aria-label={label ?? (checked ? "On" : "Off")}
+      aria-label={label ? t(label) : t(checked ? "On" : "Off")}
       className={cn(
         "relative inline-flex h-5 w-[34px] shrink-0 rounded-full outline-none transition-colors duration-120 ease-out focus-visible:ring-2 focus-visible:ring-ring/40 disabled:opacity-50",
         checked ? "bg-[var(--control-accent)]" : "bg-black/15 dark:bg-white/20"
@@ -112,6 +118,7 @@ export function SettingsRow({
   className,
   anchors,
   stackControl = false,
+  descriptionBelow = false,
 }: {
   title: string;
   description?: ReactNode;
@@ -119,27 +126,47 @@ export function SettingsRow({
   className?: string;
   anchors?: readonly SettingsAnchor[];
   stackControl?: boolean;
+  descriptionBelow?: boolean;
 }) {
+  const { t } = useI18n();
+  const descriptionContent = description ? (
+    <div className="mt-px max-w-[560px] whitespace-pre-line text-[12px] leading-4 text-foreground-secondary">
+      {typeof description === "string" ? t(description) : description}
+    </div>
+  ) : null;
   return (
     <div
-      className={cn(settingsRow, className)}
+      className={cn(descriptionBelow ? settingsRowDescriptionBelow : settingsRow, className)}
       data-settings-anchor={anchors?.join(" ")}
+      data-settings-description-below={descriptionBelow ? "" : undefined}
       data-slot="settings-row"
       data-settings-layout={stackControl ? "form" : undefined}
     >
-      <div className="min-w-0 flex-1">
-        <div className="text-[13px] font-normal leading-[17px] text-foreground">{title}</div>
-        {description ? (
-          <div className="mt-px max-w-[640px] text-[12px] leading-4 text-foreground-secondary">
-            {description}
+      {descriptionBelow ? (
+        <>
+          <div className="min-w-0">
+            <div className="text-[13px] font-normal leading-[17px] text-foreground">{t(title)}</div>
           </div>
-        ) : null}
-      </div>
-      {control ? (
-        <div className="min-w-0 shrink-0" data-slot="settings-control">
-          {control}
-        </div>
-      ) : null}
+          {control ? (
+            <div className="min-w-0 shrink-0" data-slot="settings-control">
+              {control}
+            </div>
+          ) : null}
+          {descriptionContent ? <div className="col-span-full">{descriptionContent}</div> : null}
+        </>
+      ) : (
+        <>
+          <div className="min-w-0 flex-1">
+            <div className="text-[13px] font-normal leading-[17px] text-foreground">{t(title)}</div>
+            {descriptionContent}
+          </div>
+          {control ? (
+            <div className="min-w-0 shrink-0" data-slot="settings-control">
+              {control}
+            </div>
+          ) : null}
+        </>
+      )}
     </div>
   );
 }
@@ -151,20 +178,22 @@ export function SettingsHeading({
   children: ReactNode;
   anchor?: SettingsAnchor;
 }) {
+  const { t } = useI18n();
   return (
     <h2
       className="mb-7 px-2 text-[17px] font-medium leading-6 tracking-[-0.018em]"
       data-settings-anchor={anchor}
     >
-      {children}
+      {typeof children === "string" ? t(children) : children}
     </h2>
   );
 }
 
 export function SectionLabel({ children }: { children: ReactNode }) {
+  const { t } = useI18n();
   return (
     <div className="mb-2 mt-7 px-2 text-[12px] font-normal leading-4 text-foreground-tertiary first:mt-0">
-      {children}
+      {typeof children === "string" ? t(children) : children}
     </div>
   );
 }

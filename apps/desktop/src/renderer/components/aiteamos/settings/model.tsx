@@ -5,6 +5,7 @@ import { LoadingOrb } from "../../ui/loading-orb";
 import { Select, SelectItem, SelectTrigger, SelectValue } from "../../ui/select";
 import { ModelTestStatus, SignInProgress } from "../model-setup";
 import { ModelPicker } from "../setup/model-picker";
+import { useI18n } from "../../../lib/i18n";
 import { ProviderMark } from "../setup/provider-marks";
 import {
   SettingsGroup,
@@ -27,6 +28,7 @@ const reasoningLabel = (value: string): string =>
       : `${value[0]?.toUpperCase()}${value.slice(1)}`;
 
 export default function ModelSettings() {
+  const { t } = useI18n();
   const setup = useModelSetup();
   const { data, provider, busy } = setup;
   const working = Boolean(busy) || setup.test.status === "running";
@@ -34,7 +36,9 @@ export default function ModelSettings() {
 
   return (
     <>
-      <SettingsIntro>Choose the AI provider and model for all bots on this server.</SettingsIntro>
+      <SettingsIntro>
+        {t("Choose the AI provider and model for all bots on this server.")}
+      </SettingsIntro>
       <SettingsGroup>
         <SettingsRow
           stackControl
@@ -45,8 +49,8 @@ export default function ModelSettings() {
               onValueChange={(value) => void setup.selectProvider(value)}
               value={setup.providerId}
             >
-              <SelectTrigger aria-label="Provider" className={`${selectTrigger} w-[210px]`}>
-                <SelectValue placeholder="Choose a provider" />
+              <SelectTrigger aria-label={t("Provider")} className={`${selectTrigger} w-[210px]`}>
+                <SelectValue placeholder={t("Choose a provider")} />
               </SelectTrigger>
               <SettingsSelectContent>
                 {(data?.providers ?? []).map((candidate) => (
@@ -63,8 +67,10 @@ export default function ModelSettings() {
               </SettingsSelectContent>
             </Select>
           }
-          description="The account your bots use to think. Sign-ins and keys stay on your server."
-          title="Provider"
+          description={t(
+            "The account your bots use to think. Sign-ins and keys stay on your server."
+          )}
+          title={t("Provider")}
         />
         <SettingsRow
           control={
@@ -75,7 +81,7 @@ export default function ModelSettings() {
                 onClick={() => void setup.disconnect()}
                 type="button"
               >
-                Disconnect
+                {t("Disconnect")}
               </button>
             ) : signingIn ? null : (
               // The sign-in or key form below replaces these while it's open.
@@ -89,7 +95,7 @@ export default function ModelSettings() {
                     type="button"
                   >
                     {busy === "connect" ? <LoadingOrb aria-hidden size={14} /> : null}
-                    {method.type === "oauth" ? "Sign in" : "Add API key"}
+                    {method.type === "oauth" ? t("Sign in") : t("Add API key")}
                   </button>
                 ))}
               </div>
@@ -98,13 +104,15 @@ export default function ModelSettings() {
           description={
             provider?.connected
               ? provider.authType === "oauth"
-                ? `Signed in with your ${providerName(provider.id, provider.name)} account.`
+                ? t("Signed in with your {provider} account.", {
+                    provider: providerName(provider.id, provider.name),
+                  })
                 : /env/i.test(provider.authSource ?? "")
-                  ? "Using an API key from the server's environment."
-                  : "Connected with an API key."
-              : "Not connected."
+                  ? t("Using an API key from the server's environment.")
+                  : t("Connected with an API key.")
+              : t("Not connected.")
           }
-          title="Connection"
+          title={t("Connection")}
         />
         {signingIn ? (
           <SignInProgress
@@ -129,8 +137,10 @@ export default function ModelSettings() {
               variant="settings"
             />
           }
-          description={provider?.modelMessage ?? "Used for every bot's work and background tasks."}
-          title="Model"
+          description={
+            provider?.modelMessage ?? t("Used for every bot's work and background tasks.")
+          }
+          title={t("Model")}
         />
         <SettingsRow
           stackControl
@@ -143,13 +153,16 @@ export default function ModelSettings() {
               }
               value={setup.effectiveReasoning}
             >
-              <SelectTrigger aria-label="Reasoning effort" className={`${selectTrigger} w-[130px]`}>
+              <SelectTrigger
+                aria-label={t("Reasoning effort")}
+                className={`${selectTrigger} w-[130px]`}
+              >
                 <SelectValue />
               </SelectTrigger>
               <SettingsSelectContent>
                 {(setup.reasoningLevels.length ? setup.reasoningLevels : ["off"]).map((level) => (
                   <SelectItem key={level} value={level}>
-                    {reasoningLabel(level)}
+                    {t(reasoningLabel(level))}
                   </SelectItem>
                 ))}
               </SettingsSelectContent>
@@ -157,21 +170,29 @@ export default function ModelSettings() {
           }
           description={
             setup.selectedModel?.reasoning
-              ? "Higher effort is slower but more careful."
-              : "This model doesn't offer reasoning levels."
+              ? t("Higher effort is slower but more careful.")
+              : t("This model doesn't offer reasoning levels.")
           }
-          title="Reasoning effort"
+          title={t("Reasoning effort")}
         />
         <div className={`${settingsRow} flex-wrap justify-between`}>
           <div className="min-w-0 text-[12px] text-foreground-secondary">
             {setup.test.status !== "idle" ? (
               <ModelTestStatus test={setup.test} />
             ) : data?.inference.modelId ? (
-              `In use: ${providerName(data.inference.providerId, data.providers.find((p) => p.id === data.inference.providerId)?.name)} · ${data.models.find((m) => m.modelId === data.inference.modelId)?.name ?? data.inference.modelId}`
+              t("In use: {provider} · {model}", {
+                provider: providerName(
+                  data.inference.providerId,
+                  data.providers.find((p) => p.id === data.inference.providerId)?.name
+                ),
+                model:
+                  data.models.find((m) => m.modelId === data.inference.modelId)?.name ??
+                  data.inference.modelId,
+              })
             ) : data ? (
-              "No model chosen yet. Bots can't reply until you choose one."
+              t("No model chosen yet. Bots can't reply until you choose one.")
             ) : (
-              "Loading…"
+              t("Loading…")
             )}
           </div>
           <div className="flex shrink-0 items-center gap-2">
@@ -186,7 +207,7 @@ export default function ModelSettings() {
                 onClick={() => void setup.connect("oauth")}
                 type="button"
               >
-                Sign in again
+                {t("Sign in again")}
               </button>
             ) : null}
             <button
@@ -200,7 +221,7 @@ export default function ModelSettings() {
               onClick={() => void setup.runTest()}
               type="button"
             >
-              Test
+              {t("Test")}
             </button>
             <button
               className={settingsPrimaryButton}
@@ -209,7 +230,7 @@ export default function ModelSettings() {
               type="button"
             >
               {busy === "save" ? <LoadingOrb aria-hidden size={14} /> : null}
-              Apply
+              {t("Apply")}
             </button>
           </div>
         </div>
@@ -224,7 +245,7 @@ export default function ModelSettings() {
               onClick={() => void setup.reload()}
               type="button"
             >
-              Try again
+              {t("Try again")}
             </button>
           ) : null}
         </div>
