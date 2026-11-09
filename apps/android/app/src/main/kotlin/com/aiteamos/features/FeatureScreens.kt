@@ -34,6 +34,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -107,7 +108,7 @@ internal fun featureTopBarColors() = TopAppBarDefaults.topAppBarColors(
 internal fun featureCardColors() = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
 
 @Composable
-internal fun FeaturePage(title: String, onBack: (() -> Unit)? = null, content: @Composable () -> Unit) {
+internal fun FeaturePage(title: String, onBack: (() -> Unit)? = null, settingsStyle: Boolean = false, content: @Composable () -> Unit) {
     Scaffold(
         topBar = {
             TopAppBar(
@@ -119,10 +120,10 @@ internal fun FeaturePage(title: String, onBack: (() -> Unit)? = null, content: @
                     }
                 },
                 title = { Text(title) },
-                colors = featureTopBarColors(),
+                colors = if (settingsStyle) settingsTopBarColors() else featureTopBarColors(),
             )
         },
-        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+        containerColor = if (settingsStyle) settingsCanvas() else MaterialTheme.colorScheme.surfaceVariant,
     ) { padding ->
         Box(Modifier.fillMaxSize().padding(padding)) { content() }
     }
@@ -952,7 +953,7 @@ fun SettingsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                colors = featureTopBarColors(),
+                colors = settingsTopBarColors(),
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = text("Back", "返回"))
@@ -970,7 +971,7 @@ fun SettingsScreen(
                 },
             )
         },
-        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+        containerColor = settingsCanvas(),
     ) { padding ->
         LazyColumn(
             Modifier.fillMaxSize()
@@ -985,27 +986,27 @@ fun SettingsScreen(
                     }
                 }
                 .padding(padding).padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(top = 14.dp, bottom = 28.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(top = 10.dp, bottom = 32.dp),
         ) {
             item {
-                Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
-                    Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                SettingsGroup {
+                    Row(Modifier.padding(horizontal = 18.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
                         Box(
-                            Modifier.size(48.dp).background(MaterialTheme.colorScheme.primary, androidx.compose.foundation.shape.CircleShape),
+                            Modifier.size(44.dp).background(MaterialTheme.colorScheme.primary, androidx.compose.foundation.shape.CircleShape),
                             contentAlignment = Alignment.Center,
                         ) {
                             Text(
                                 accountName.take(1).uppercase().ifBlank { "O" },
                                 color = MaterialTheme.colorScheme.onPrimary,
-                                style = MaterialTheme.typography.titleLarge,
+                                style = MaterialTheme.typography.titleMedium,
                             )
                         }
                         Spacer(Modifier.width(14.dp))
                         Column(Modifier.weight(1f)) {
-                            Text(accountName.ifBlank { "aiTeamOS" }, fontWeight = FontWeight.SemiBold)
-                            Text(server, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Text(text("Connected", "已连接"), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.tertiary)
+                            Text(accountName.ifBlank { "aiTeamOS" }, style = MaterialTheme.typography.bodyLarge)
+                            Text(server, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(text("Connected", "已连接"), fontSize = 13.sp, color = MaterialTheme.colorScheme.tertiary)
                         }
                     }
                 }
@@ -1027,8 +1028,8 @@ fun SettingsScreen(
             item { SettingsSectionTitle(text("Appearance", "外观")) }
             item {
                 SettingsGroup {
-                    SettingsRow(text("Theme", "主题"), text("Choose the app theme", "选择应用主题")) {
-                        ChoiceChips(
+                    SettingsRow(text("Theme", "主题"), "", inline = false) {
+                        SettingsSegmented(
                             choices = AppSettings.Appearance.entries,
                             selected = settings.appearance,
                             label = { choice ->
@@ -1041,12 +1042,9 @@ fun SettingsScreen(
                             onSelected = { onChange(settings.copy(appearance = it)) },
                         )
                     }
-                    SettingsRow(
-                        text("Accent", "强调色"),
-                        text("Choose the interface accent", "选择界面强调色"),
-                        inline = false,
-                    ) {
-                        ChoiceChips(
+                    SettingsDivider()
+                    SettingsRow(text("Accent", "强调色"), "", inline = false) {
+                        SettingsSegmented(
                             choices = AppSettings.Accent.entries,
                             selected = settings.accent,
                             label = { choice ->
@@ -1066,8 +1064,8 @@ fun SettingsScreen(
             item { SettingsSectionTitle(text("Language", "语言")) }
             item {
                 SettingsGroup {
-                    SettingsRow(text("Interface language", "界面语言"), text("Choose the language used by settings", "选择设置界面使用的语言")) {
-                        ChoiceChips(
+                    SettingsRow(text("Interface language", "界面语言"), "", inline = false) {
+                        SettingsSegmented(
                             choices = AppSettings.Language.entries,
                             selected = language,
                             label = { choice -> if (choice == AppSettings.Language.Chinese) "中文" else "English" },
@@ -1081,14 +1079,9 @@ fun SettingsScreen(
             item {
                 SettingsGroup {
                     SettingsRow(text("Time zone", "时区"), text("Used for routines and timestamps", "用于例行任务和时间戳"), inline = false) {
-                        OutlinedTextField(
-                            value = settings.timeZone,
-                            onValueChange = { onChange(settings.copy(timeZone = it)) },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true,
-                            label = { Text(text("Time zone", "时区")) },
-                        )
+                        SettingsTextField(settings.timeZone, { onChange(settings.copy(timeZone = it)) }, "Asia/Shanghai")
                     }
+                    SettingsDivider()
                     SettingsRow(text("App haptics", "应用触感反馈"), text("Vibrate for important interactions", "重要交互时提供震动反馈")) {
                         Switch(checked = settings.haptics, onCheckedChange = { onChange(settings.copy(haptics = it)) })
                     }
@@ -1114,27 +1107,26 @@ fun SettingsScreen(
             item { SettingsSectionTitle(text("Connections", "连接")) }
             item {
                 SettingsGroup {
-                    SettingsActionRow(
-                        text("Message outbox", "消息发件箱"),
-                        text("Retry messages that could not be delivered", "重试无法投递的消息"),
-                        text("Open", "打开"),
-                        onOutbox,
-                    )
-                    SettingsActionRow(text("Account and memory", "账户与记忆"), text("Review account data and saved memories", "查看账户数据和已保存的记忆"), text("Open", "打开"), onAccount)
-                    SettingsActionRow(text("Plugins", "插件"), text("Manage installed connections and tools", "管理已安装的连接和工具"), text("Open", "打开"), onPlugins)
-                    SettingsActionRow(text("Organize conversations", "整理会话"), text("Rename sections and manage hidden conversations", "重命名分区并管理隐藏会话"), text("Open", "打开"), onSidebar)
-                    SettingsActionRow(text("AI model", "AI 模型"), text("Choose the provider and model used by bots", "选择 Bot 使用的服务商和模型"), text("Open", "打开"), onProviders)
-                    SettingsActionRow(text("Realtime voice", "实时语音"), text("Configure speech providers for realtime conversations", "配置实时对话的语音服务商"), text("Open", "打开"), onRealtimeVoice)
-                    SettingsActionRow(text("Web providers", "网络服务商"), text("Choose search and page-fetch services", "选择搜索和网页抓取服务"), text("Open", "打开"), onWebProviders)
+                    SettingsActionRow(text("Message outbox", "消息发件箱"), text("Retry messages that could not be delivered", "重试无法投递的消息"), onOutbox)
+                    SettingsDivider()
+                    SettingsActionRow(text("Account and memory", "账户与记忆"), text("Review account data and saved memories", "查看账户数据和已保存的记忆"), onAccount)
+                    SettingsDivider()
+                    SettingsActionRow(text("Plugins", "插件"), text("Manage installed connections and tools", "管理已安装的连接和工具"), onPlugins)
+                    SettingsDivider()
+                    SettingsActionRow(text("Organize conversations", "整理会话"), text("Rename sections and manage hidden conversations", "重命名分区并管理隐藏会话"), onSidebar)
+                    SettingsDivider()
+                    SettingsActionRow(text("AI model", "AI 模型"), text("Choose the provider and model used by bots", "选择 Bot 使用的服务商和模型"), onProviders)
+                    SettingsDivider()
+                    SettingsActionRow(text("Realtime voice", "实时语音"), text("Configure speech providers for realtime conversations", "配置实时对话的语音服务商"), onRealtimeVoice)
+                    SettingsDivider()
+                    SettingsActionRow(text("Web providers", "网络服务商"), text("Choose search and page-fetch services", "选择搜索和网页抓取服务"), onWebProviders)
                 }
             }
 
             item {
                 SettingsGroup {
-                    Row(Modifier.fillMaxWidth().padding(14.dp), horizontalArrangement = Arrangement.End) {
-                        TextButton(onClick = { confirmSignOut = true }) {
-                            Text(text("Sign out", "退出登录"), color = MaterialTheme.colorScheme.error)
-                        }
+                    Box(Modifier.fillMaxWidth().clickable { confirmSignOut = true }.padding(vertical = 15.dp), contentAlignment = Alignment.Center) {
+                        Text(text("Sign out", "退出登录"), color = MaterialTheme.colorScheme.error)
                     }
                 }
             }
@@ -1258,60 +1250,70 @@ private data class UpdateRowContent(
     val onClick: () -> Unit,
 )
 
+/** iOS-style settings palette: grey canvas, white outlined cards. */
+@Composable
+private fun settingsDark() = MaterialTheme.colorScheme.background.luminance() < 0.5f
+
+@Composable
+private fun settingsCanvas() = if (settingsDark()) Color(0xFF1C1C1C) else Color(0xFFF2F2F7)
+
+@Composable
+private fun settingsCard() = if (settingsDark()) Color(0xFF272629) else Color.White
+
+@Composable
+private fun settingsBorder() = if (settingsDark()) Color(0xFF333235) else Color(0xFFE4E4E8)
+
+@Composable
+private fun settingsTopBarColors() = TopAppBarDefaults.topAppBarColors(
+    containerColor = settingsCanvas(),
+    scrolledContainerColor = settingsCanvas(),
+)
+
 @Composable
 private fun SettingsSectionTitle(title: String) {
-    Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+    Text(
+        title,
+        fontSize = 13.sp,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(start = 18.dp, top = 18.dp, end = 18.dp),
+    )
 }
 
 @Composable
 private fun SettingsGroup(content: @Composable ColumnScope.() -> Unit) {
-    Card(
-        Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-    ) {
-        Column(content = content)
+    val shape = RoundedCornerShape(20.dp)
+    Column(
+        Modifier.fillMaxWidth().clip(shape).background(settingsCard()).border(1.dp, settingsBorder(), shape),
+        content = content,
+    )
+}
+
+@Composable
+private fun SettingsDivider() {
+    HorizontalDivider(Modifier.padding(start = 18.dp), thickness = 0.5.dp, color = settingsBorder())
+}
+
+@Composable
+private fun SettingsRowText(title: String, description: String, modifier: Modifier = Modifier) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(title, style = MaterialTheme.typography.bodyLarge)
+        if (description.isNotBlank()) {
+            Text(description, fontSize = 13.sp, lineHeight = 18.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
     }
 }
 
 @Composable
 private fun SettingsRow(title: String, description: String, inline: Boolean = true, content: @Composable () -> Unit) {
-    val rowModifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 13.dp)
+    val rowModifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 14.dp)
     if (!inline) {
-        Column(
-            rowModifier,
-            verticalArrangement = Arrangement.spacedBy(9.dp),
-        ) {
-            Column(Modifier.widthIn(max = 360.dp)) {
-                Text(title, fontWeight = FontWeight.Medium)
-                Text(
-                    description,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            Box(
-                Modifier.fillMaxWidth(),
-                contentAlignment = Alignment.CenterEnd,
-            ) {
-                content()
-            }
+        Column(rowModifier, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            SettingsRowText(title, description)
+            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) { content() }
         }
     } else {
-        Row(
-            rowModifier,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(
-                Modifier.weight(1f).widthIn(max = 320.dp),
-            ) {
-                Text(title, fontWeight = FontWeight.Medium)
-                Text(
-                    description,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
+        Row(rowModifier, horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            SettingsRowText(title, description, Modifier.weight(1f))
             content()
         }
     }
@@ -1324,11 +1326,66 @@ private fun SettingsToggleRow(title: String, description: String, checked: Boole
     }
 }
 
+/** A tappable navigation row with a trailing chevron, like an iOS NavigationLink. */
 @Composable
-private fun SettingsActionRow(title: String, description: String, action: String, onClick: () -> Unit) {
-    SettingsRow(title, description) {
-        TextButton(onClick = onClick) { Text(action) }
+private fun SettingsActionRow(title: String, description: String, onClick: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 18.dp, vertical = 14.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        SettingsRowText(title, description, Modifier.weight(1f))
+        Icon(
+            Icons.AutoMirrored.Filled.KeyboardArrowRight,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+        )
     }
+}
+
+@Composable
+private fun <T> SettingsSegmented(choices: List<T>, selected: T, label: (T) -> String, onSelected: (T) -> Unit) {
+    val track = RoundedCornerShape(12.dp)
+    val trackColor = if (settingsDark()) Color(0xFF3A393D) else Color(0xFFEFEFF4)
+    Row(
+        Modifier.fillMaxWidth().clip(track).background(trackColor).padding(3.dp),
+        horizontalArrangement = Arrangement.spacedBy(3.dp),
+    ) {
+        choices.forEach { choice ->
+            val active = choice == selected
+            Box(
+                Modifier.weight(1f).clip(RoundedCornerShape(9.dp))
+                    .background(if (active) settingsCard() else Color.Transparent)
+                    .clickable { onSelected(choice) }.padding(vertical = 9.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    label(choice),
+                    fontSize = 14.sp,
+                    fontWeight = if (active) FontWeight.SemiBold else FontWeight.Normal,
+                    color = if (active) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SettingsTextField(value: String, onChange: (String) -> Unit, placeholder: String, secret: Boolean = false) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onChange,
+        placeholder = { Text(placeholder, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)) },
+        visualTransformation = if (secret) PasswordVisualTransformation() else androidx.compose.ui.text.input.VisualTransformation.None,
+        singleLine = true,
+        shape = RoundedCornerShape(14.dp),
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedContainerColor = settingsCanvas(),
+            unfocusedContainerColor = settingsCanvas(),
+            unfocusedBorderColor = Color.Transparent,
+        ),
+        modifier = Modifier.fillMaxWidth(),
+    )
 }
 
 @Composable
@@ -1367,7 +1424,7 @@ fun ProviderSettingsScreen(
 ) {
     var pendingDisconnect by remember { mutableStateOf<ProviderConnection?>(null) }
     val text: (String, String) -> String = { english, chinese -> if (language == AppSettings.Language.Chinese) chinese else english }
-    FeaturePage(text("AI model", "AI 模型"), onBack = onBack) {
+    FeaturePage(text("AI model", "AI 模型"), onBack = onBack, settingsStyle = true) {
         LoadStateContent(state, onRetry) { providers ->
             LazyColumn(Modifier.fillMaxSize().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(14.dp), contentPadding = androidx.compose.foundation.layout.PaddingValues(top = 14.dp, bottom = 28.dp)) {
                 item { SettingsSectionTitle(text("Choose the provider and model used by bots.", "选择 Bot 使用的服务商和模型。")) }
@@ -1438,7 +1495,7 @@ fun VoiceSettingsScreen(
     var removeKey by remember { mutableStateOf(false) }
     var advancedOpen by remember { mutableStateOf(false) }
     LaunchedEffect(state) { if (state is FeatureLoadState.Ready) draft = state.value }
-    FeaturePage(text("Realtime voice", "实时语音"), onBack) {
+    FeaturePage(text("Realtime voice", "实时语音"), onBack, settingsStyle = true) {
         LoadStateContent(state, onRetry) { loaded ->
             val value = draft ?: loaded
             val volcengine = value.defaultProvider == "volcengine"
@@ -1456,15 +1513,15 @@ fun VoiceSettingsScreen(
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(top = 10.dp, bottom = 32.dp),
             ) {
                 item {
-                    VoiceCard {
+                    SettingsGroup {
                         SettingsToggleRow(text("Enable realtime voice", "启用实时语音"), text("Allow authenticated speech sessions from macOS and Android", "允许 macOS 和 Android 建立认证语音会话"), value.enabled) { update(value.copy(enabled = it)) }
                     }
                 }
-                item { VoiceSectionHeader(text("Provider", "服务商")) }
+                item { SettingsSectionTitle(text("Provider", "服务商")) }
                 item {
-                    VoiceCard {
+                    SettingsGroup {
                         Column(Modifier.padding(horizontal = 18.dp, vertical = 14.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            VoiceSegmented(listOf("volcengine", "deepgram"), value.defaultProvider, { if (it == "volcengine") "Volcengine" else "Deepgram" }) {
+                            SettingsSegmented(listOf("volcengine", "deepgram"), value.defaultProvider, { if (it == "volcengine") "Volcengine" else "Deepgram" }) {
                                 update(value.copy(defaultProvider = it))
                                 apiKey = ""
                                 removeKey = false
@@ -1474,7 +1531,7 @@ fun VoiceSettingsScreen(
                                 label = if (provider.configured) text("$providerName is configured.", "$providerName 已配置。") else text("$providerName needs an API key.", "$providerName 需要 API 密钥。"),
                             )
                         }
-                        VoiceDivider()
+                        SettingsDivider()
                         Column(Modifier.padding(horizontal = 18.dp, vertical = 14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text(text("$providerName API key", "$providerName API 密钥"), fontWeight = FontWeight.Medium)
                             Text(
@@ -1486,7 +1543,7 @@ fun VoiceSettingsScreen(
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
-                            VoiceTextField(
+                            SettingsTextField(
                                 value = apiKey,
                                 onChange = { apiKey = it; if (it.isNotBlank()) removeKey = false },
                                 placeholder = if (provider.configured) "••••${provider.apiKeySuffix.orEmpty()}" else text("API key", "API 密钥"),
@@ -1501,7 +1558,7 @@ fun VoiceSettingsScreen(
                     }
                 }
                 item {
-                    VoiceCard {
+                    SettingsGroup {
                         Row(
                             Modifier.fillMaxWidth().clickable { advancedOpen = !advancedOpen }.padding(horizontal = 18.dp, vertical = 14.dp),
                             verticalAlignment = Alignment.CenterVertically,
@@ -1516,36 +1573,36 @@ fun VoiceSettingsScreen(
                     }
                 }
                 if (advancedOpen) {
-                    item { VoiceSectionHeader(text("$providerName connection", "$providerName 连接")) }
+                    item { SettingsSectionTitle(text("$providerName connection", "$providerName 连接")) }
                     item {
-                        VoiceCard {
+                        SettingsGroup {
                             if (volcengine) {
                                 VoiceField(text("Base URL", "基础 URL"), provider.baseUrl.orEmpty(), "https://openspeech.bytedance.com") { v -> updateProvider { it.copy(baseUrl = v) } }
-                                VoiceDivider()
+                                SettingsDivider()
                                 VoiceField(text("STT WebSocket URL", "STT WebSocket URL"), provider.sttUrl.orEmpty(), text("Optional provider-specific URL", "可选，服务商专用 URL")) { v -> updateProvider { it.copy(sttUrl = v) } }
-                                VoiceDivider()
+                                SettingsDivider()
                                 VoiceField(text("TTS WebSocket URL", "TTS WebSocket URL"), provider.ttsUrl.orEmpty(), text("Optional provider-specific URL", "可选，服务商专用 URL")) { v -> updateProvider { it.copy(ttsUrl = v) } }
-                                VoiceDivider()
+                                SettingsDivider()
                                 VoiceField(text("STT resource ID", "STT 资源 ID"), provider.sttResourceId.orEmpty(), "volc.seedasr.sauc.duration") { v -> updateProvider { it.copy(sttResourceId = v) } }
-                                VoiceDivider()
+                                SettingsDivider()
                                 VoiceField(text("TTS resource ID", "TTS 资源 ID"), provider.ttsResourceId.orEmpty(), "seed-tts-2.0") { v -> updateProvider { it.copy(ttsResourceId = v) } }
                             } else {
                                 VoiceField(text("Base URL", "基础 URL"), provider.baseUrl.orEmpty(), "https://api.deepgram.com") { v -> updateProvider { it.copy(baseUrl = v) } }
                             }
                         }
                     }
-                    item { VoiceSectionHeader(text("Speech defaults", "语音默认值")) }
+                    item { SettingsSectionTitle(text("Speech defaults", "语音默认值")) }
                     item {
-                        VoiceCard {
+                        SettingsGroup {
                             val automatic = text("Automatic", "自动")
                             VoiceField(text("STT model", "语音识别模型"), value.sttModel, defaults.sttModel.ifBlank { automatic }) { update(value.copy(sttModel = it)) }
-                            VoiceDivider()
+                            SettingsDivider()
                             VoiceField(text("TTS model", "语音合成模型"), value.ttsModel, defaults.ttsModel.ifBlank { automatic }) { update(value.copy(ttsModel = it)) }
-                            VoiceDivider()
+                            SettingsDivider()
                             VoiceField(text("TTS voice", "语音"), value.voice, defaults.voice.ifBlank { automatic }) { update(value.copy(voice = it)) }
-                            VoiceDivider()
+                            SettingsDivider()
                             VoiceField(text("Language", "语言"), value.language, defaults.language.ifBlank { automatic }) { update(value.copy(language = it)) }
-                            VoiceDivider()
+                            SettingsDivider()
                             VoiceField(
                                 text("Narration model", "旁白模型"),
                                 value.narrationModel,
@@ -1574,25 +1631,6 @@ fun VoiceSettingsScreen(
 }
 
 @Composable
-private fun VoiceSectionHeader(title: String) {
-    Text(title, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 6.dp, top = 12.dp))
-}
-
-@Composable
-private fun VoiceCard(content: @Composable ColumnScope.() -> Unit) {
-    val shape = RoundedCornerShape(20.dp)
-    Column(
-        Modifier.fillMaxWidth().clip(shape).background(MaterialTheme.colorScheme.surface).border(1.dp, MaterialTheme.colorScheme.outlineVariant, shape),
-        content = content,
-    )
-}
-
-@Composable
-private fun VoiceDivider() {
-    HorizontalDivider(Modifier.padding(start = 18.dp), color = MaterialTheme.colorScheme.outlineVariant)
-}
-
-@Composable
 private fun VoiceStatus(ok: Boolean, label: String) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Box(Modifier.size(8.dp).clip(RoundedCornerShape(50)).background(if (ok) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.error))
@@ -1601,51 +1639,12 @@ private fun VoiceStatus(ok: Boolean, label: String) {
 }
 
 @Composable
-private fun <T> VoiceSegmented(choices: List<T>, selected: T, label: (T) -> String, onSelected: (T) -> Unit) {
-    val track = RoundedCornerShape(14.dp)
-    Row(
-        Modifier.fillMaxWidth().clip(track).background(MaterialTheme.colorScheme.surfaceVariant).padding(3.dp),
-        horizontalArrangement = Arrangement.spacedBy(3.dp),
-    ) {
-        choices.forEach { choice ->
-            val active = choice == selected
-            Box(
-                Modifier.weight(1f).clip(RoundedCornerShape(11.dp))
-                    .background(if (active) MaterialTheme.colorScheme.surface else Color.Transparent)
-                    .clickable { onSelected(choice) }.padding(vertical = 10.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(label(choice), fontWeight = if (active) FontWeight.SemiBold else FontWeight.Normal, color = if (active) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        }
-    }
-}
-
-@Composable
 private fun VoiceField(title: String, value: String, placeholder: String, hint: String? = null, onChange: (String) -> Unit) {
     Column(Modifier.padding(horizontal = 18.dp, vertical = 14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(title, fontWeight = FontWeight.Medium)
         hint?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-        VoiceTextField(value, onChange, placeholder)
+        SettingsTextField(value, onChange, placeholder)
     }
-}
-
-@Composable
-private fun VoiceTextField(value: String, onChange: (String) -> Unit, placeholder: String, secret: Boolean = false) {
-    OutlinedTextField(
-        value = value,
-        onValueChange = onChange,
-        placeholder = { Text(placeholder, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)) },
-        visualTransformation = if (secret) PasswordVisualTransformation() else androidx.compose.ui.text.input.VisualTransformation.None,
-        singleLine = true,
-        shape = RoundedCornerShape(14.dp),
-        colors = OutlinedTextFieldDefaults.colors(
-            focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-            unfocusedBorderColor = Color.Transparent,
-        ),
-        modifier = Modifier.fillMaxWidth(),
-    )
 }
 
 @Composable
@@ -1660,7 +1659,7 @@ fun WebProviderSettingsScreen(
     onCheck: (tool: String, provider: WebProvider) -> Unit,
 ) {
     val text: (String, String) -> String = { english, chinese -> if (language == AppSettings.Language.Chinese) chinese else english }
-    FeaturePage(text("Web providers", "网络服务商"), onBack = onBack) {
+    FeaturePage(text("Web providers", "网络服务商"), onBack = onBack, settingsStyle = true) {
         LoadStateContent(state, onRetry) { providers ->
             LazyColumn(Modifier.fillMaxSize().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(14.dp), contentPadding = androidx.compose.foundation.layout.PaddingValues(top = 14.dp, bottom = 28.dp)) {
                 item { WebProviderTool(text("Search", "搜索"), text("The service bots use to find information on the web.", "Bot 用于在网络上查找信息的服务。"), "search", providers.search, language, onSelect, onSaveKey, onRemoveKey, onCheck) }
