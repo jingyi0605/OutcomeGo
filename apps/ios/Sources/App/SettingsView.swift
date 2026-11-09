@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Settings pages that other screens open directly.
-enum SettingsRoute: Hashable { case model, voiceNotes, server, updates, devices }
+enum SettingsRoute: Hashable { case model, voiceNotes, realtimeVoice, server, updates, devices }
 
 struct SettingsView: View {
   @Environment(AppStore.self) private var store
@@ -59,6 +59,9 @@ struct SettingsView: View {
             serverRow(
               "Voice notes", detail: "Transcription for recorded messages", status: voiceStatus)
           }.accessibilityIdentifier("voice-settings")
+          NavigationLink(value: SettingsRoute.realtimeVoice) {
+            serverRow("Realtime voice", detail: "Live Bot conversations", status: nil)
+          }.accessibilityIdentifier("realtime-voice-settings")
           NavigationLink {
             ProvidersSettingsView()
           } label: {
@@ -121,6 +124,7 @@ struct SettingsView: View {
           switch route {
           case .model: ModelSettingsView()
           case .voiceNotes: VoiceNotesSettingsView()
+          case .realtimeVoice: RealtimeVoiceSettingsView()
           case .server: BrowserNetworkSettingsView { path.append($0) }
           case .updates: UpdatesSettingsView()
           case .devices: ManageDevicesView()
@@ -341,7 +345,7 @@ struct ServerStatusSections: View {
 }
 
 struct ConversationDetails: View {
-  private enum ProfileField: Hashable { case name, title, description, instructions }
+  private enum ProfileField: Hashable { case name, title, description, instructions, voice }
   @FocusState private var focusedProfile: ProfileField?
   @Environment(AppStore.self) private var store
   @Environment(\.dismiss) private var dismiss
@@ -350,6 +354,8 @@ struct ConversationDetails: View {
   @State private var name = ""
   @State private var description = ""
   @State private var instructions = ""
+  @State private var voice = ""
+  @State private var savedVoice = ""
   @State private var members: Set<String> = []
   @State private var resetAvatar = false
   @State private var deleting = false
@@ -418,6 +424,14 @@ struct ConversationDetails: View {
                   : "How this Bot’s mark looks everywhere"
               ).font(.system(size: 14)).foregroundStyle(NativePalette.faint)
                 .listRowInsets(EdgeInsets(top: 8, leading: 18, bottom: 8, trailing: 18))
+            }.listRowBackground(NativePalette.assistant)
+            Section("Realtime voice") {
+              TextField("Voice or speaker ID", text: $voice)
+                .textInputAutocapitalization(.never).autocorrectionDisabled()
+                .accessibilityIdentifier("profile-voice")
+                .focused($focusedProfile, equals: .voice)
+            } footer: {
+              Text("Leave blank to use the server default voice.")
             }.listRowBackground(NativePalette.assistant)
             Section {
               NavigationLink {
@@ -553,6 +567,14 @@ struct ConversationDetails: View {
           icon = bot?.icon ?? "chip"
           color = bot?.color ?? "#A47952"
           title = bot?.title ?? ""
+          Task {
+            if let bot {
+              if let value = try? await store.request("/api/v0/bots/\(API.segment(bot.id))") {
+                voice = value["voice"].string
+                savedVoice = voice
+              }
+            }
+          }
           members = Set(channel?.members.map(\.botId) ?? [])
         }
         .alert("Save changes?", isPresented: $confirmingExit) {
@@ -627,6 +649,7 @@ struct ConversationDetails: View {
       && (name != (channel?.name ?? "")
         || description != (bot?.description ?? channel?.description ?? "")
         || instructions != (bot?.instructions ?? "") || title != (bot?.title ?? "")
+        || voice != savedVoice
         || icon != (bot?.icon ?? "chip") || color != (bot?.color ?? "#A47952")
         || resetAvatar || members != Set(channel?.members.map(\.botId) ?? []))
   }
@@ -667,6 +690,7 @@ struct ConversationDetails: View {
         "name": .string(name.trimmingCharacters(in: .whitespacesAndNewlines)),
         "description": .string(description), "instructions": .string(instructions),
         "title": .string(title),
+        "voice": .string(voice),
       ]
       if resetAvatar || icon != bot.icon || color.lowercased() != bot.color.lowercased() {
         fields["icon"] = .string(icon)

@@ -89,6 +89,7 @@ final class AppStore {
     }
   }
   private(set) var api: API?
+  private(set) var liveVoiceSession: LiveVoiceSession?
   private var disk: DiskStore?
   private var record: SessionRecord?
   private var lifecycle: Task<Void, Never>?
@@ -779,6 +780,31 @@ final class AppStore {
     state.bootstrap?.runtime = value["runtime"]
     persist()
   }
+
+  func startLiveVoice(for channel: Channel) {
+    guard let api, let bot = bot(for: channel) else {
+      error = "Realtime voice is only available in a Bot conversation."
+      return
+    }
+    liveVoiceSession?.stop()
+    let session = LiveVoiceSession(sessionID: UUID().uuidString)
+    liveVoiceSession = session
+    session.start(api: api, botID: bot.id, channelID: channel.id)
+  }
+
+  func stopLiveVoice() {
+    liveVoiceSession?.stop()
+    liveVoiceSession = nil
+  }
+
+  func setLiveVoiceMicrophoneMuted(_ muted: Bool) {
+    liveVoiceSession?.setMicrophoneMuted(muted)
+  }
+
+  func setLiveVoiceSpeakerMuted(_ muted: Bool) {
+    liveVoiceSession?.setSpeakerMuted(muted)
+  }
+
   func finishLaunch() {
     launchComplete = true
     startEvents()

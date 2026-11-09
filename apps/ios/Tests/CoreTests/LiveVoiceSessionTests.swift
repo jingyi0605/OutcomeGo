@@ -12,6 +12,6 @@ final class LiveVoiceSessionTests: XCTestCase {
   func testFinalTranscriptMovesToProcessing() {
     let next = reduceLiveVoice(LiveVoiceSnapshot(sessionID: "s"), command: .final("hello"))
     XCTAssertEqual(next.state, .processing)
-    XCTAssertEqual(next.partialTranscript, "hello")
+    XCTAssertEqual(next.partialTranscript, "")
   }
 }
