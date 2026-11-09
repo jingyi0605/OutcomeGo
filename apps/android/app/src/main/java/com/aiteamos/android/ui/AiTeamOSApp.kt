@@ -136,8 +136,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalView
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.aiteamos.features.AndroidHaptics
+import com.aiteamos.features.HapticEffect
+import com.aiteamos.features.HapticPolicy
+import com.aiteamos.features.LocalAppHaptics
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.animation.core.Animatable
@@ -315,6 +320,34 @@ fun AiTeamOSApp(
         }
     }
     val notificationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {}
+    val view = LocalView.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val haptics = remember(view, context, lifecycleOwner) {
+        AndroidHaptics(
+            view = view,
+            enabled = { HapticPolicy.isEnabled(context) },
+            active = { lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED) },
+        )
+    }
+    // Failures arrive asynchronously. Each new failure plays one error cue, never a repeat for an old one.
+    val failedMessages = state.messages.count { it.delivery == com.aiteamos.android.data.Delivery.FAILED }
+    var seenFailedMessages by remember { mutableStateOf(failedMessages) }
+    LaunchedEffect(failedMessages) {
+        if (failedMessages > seenFailedMessages) haptics.play(HapticEffect.Error)
+        seenFailedMessages = failedMessages
+    }
+    // Sign-in ends when loading drops. A restored session never passes through loading.
+    var wasLoading by remember { mutableStateOf(false) }
+    LaunchedEffect(state.loading) {
+        if (wasLoading && !state.loading) {
+            haptics.play(if (state.session != null) HapticEffect.Success else HapticEffect.Error)
+        }
+        wasLoading = state.loading
+    }
+    val operation = state.features.operation
+    LaunchedEffect(operation) {
+        if (operation is FeatureOperationState.Failed) haptics.play(HapticEffect.Error)
+    }
 
     LaunchedEffect(state.session) {
         if (
@@ -412,7 +445,7 @@ fun AiTeamOSApp(
         Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background))
         return
     }
-    CompositionLocalProvider(LocalAppLanguage provides state.features.settings.language) {
+    CompositionLocalProvider(LocalAppLanguage provides state.features.settings.language, LocalAppHaptics provides haptics) {
         Box(Modifier.fillMaxSize()) {
         NavHost(
             navController = navController,
@@ -964,6 +997,7 @@ private fun OutboxScreen(
     onDiscard: (String) -> Unit,
     onBack: () -> Unit,
 ) {
+    val haptic = LocalAppHaptics.current
     Scaffold(
         topBar = {
             TopAppBar(
@@ -1007,8 +1041,8 @@ private fun OutboxScreen(
                                 style = MaterialTheme.typography.bodySmall,
                             )
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                TextButton(onClick = { onRetry(item.id) }) { Text(localizedText("Retry", "重试")) }
-                                TextButton(onClick = { onDiscard(item.id) }) {
+                                TextButton(onClick = { haptic.play(HapticEffect.Light); onRetry(item.id) }) { Text(localizedText("Retry", "重试")) }
+                                TextButton(onClick = { haptic.play(HapticEffect.Warning); onDiscard(item.id) }) {
                                     Text(localizedText("Discard", "丢弃"), color = MaterialTheme.colorScheme.error)
                                 }
                             }
@@ -1498,8 +1532,9 @@ private fun IosPrimaryButton(
     busy: Boolean = false,
     success: Boolean = false,
 ) {
+    val haptic = LocalAppHaptics.current
     Button(
-        onClick = onClick,
+        onClick = { haptic.play(HapticEffect.Light); onClick() },
         enabled = enabled,
         modifier = Modifier.fillMaxWidth().testTag(testTag),
         shape = RoundedCornerShape(16.dp),
@@ -1517,8 +1552,9 @@ private fun IosPrimaryButton(
 
 @Composable
 private fun IosSecondaryButton(label: String, onClick: () -> Unit, enabled: Boolean) {
+    val haptic = LocalAppHaptics.current
     OutlinedButton(
-        onClick = onClick,
+        onClick = { haptic.play(HapticEffect.Light); onClick() },
         enabled = enabled,
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -1965,10 +2001,14 @@ private fun PinnedBotCard(
     onClick: () -> Unit,
     onLongClick: () -> Unit,
 ) {
+    val haptic = LocalAppHaptics.current
     Column(
         modifier = Modifier.width(100.dp)
             .testTag("pinned-${conversation.id}")
-            .combinedClickable(onClick = onClick, onLongClick = onLongClick),
+            .combinedClickable(
+                onClick = { haptic.play(HapticEffect.Light); onClick() },
+                onLongClick = { haptic.play(HapticEffect.Medium); onLongClick() },
+            ),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Box {
@@ -2010,14 +2050,15 @@ private fun DirectoryConversationRow(
         row.updatedAt,
         yesterday = localizedText("Yesterday", "昨天"),
     )
+    val haptic = LocalAppHaptics.current
     Box {
         Row(
             modifier = Modifier.fillMaxWidth()
                 .clip(RoundedCornerShape(18.dp))
                 .testTag("conversation-${row.id}")
                 .combinedClickable(
-                    onClick = onOpen,
-                    onLongClick = onOpenMenu,
+                    onClick = { haptic.play(HapticEffect.Light); onOpen() },
+                    onLongClick = { haptic.play(HapticEffect.Medium); onOpenMenu() },
                 )
                 .padding(vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -2440,6 +2481,7 @@ private fun CreateConversationScreen(
     onCreateGroup: (String, List<String>) -> Unit,
     onBack: () -> Unit,
 ) {
+    val haptic = LocalAppHaptics.current
     var group by remember { mutableStateOf(false) }
     var name by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
@@ -2485,6 +2527,7 @@ private fun CreateConversationScreen(
             }
             Button(
                 onClick = {
+                    haptic.play(HapticEffect.Light)
                     if (group) onCreateGroup(name, selected.value.filter(String::isNotBlank))
                     else onCreateBot(name, description, instructions, icon, color)
                 },
@@ -2503,6 +2546,7 @@ private fun ConversationProfileScreen(
     onSaveGroup: (Conversation, String, String, List<String>) -> Unit,
     onBack: () -> Unit,
 ) {
+    val haptic = LocalAppHaptics.current
     if (conversation == null) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text(localizedText("Conversation is unavailable.", "对话不可用。")) }
         return
@@ -2544,6 +2588,7 @@ private fun ConversationProfileScreen(
             }
             Button(
                 onClick = {
+                    haptic.play(HapticEffect.Light)
                     if (conversation.isGroup) onSaveGroup(conversation, name, description, selected.value.toList())
                     else onSaveBot(conversation, name, description, instructions, voice, icon, color)
                 },
@@ -3032,6 +3077,7 @@ private fun ChatScreen(
             confirmButton = { TextButton(onClick = { forwardingAttachment = null }) { Text(stringResource(com.aiteamos.android.R.string.login_cancel)) } },
         )
     }
+    val haptic = LocalAppHaptics.current
     Scaffold(
         topBar = {
             TopAppBar(
@@ -3073,8 +3119,8 @@ private fun ChatScreen(
                     is VoiceRecordingState.Review -> {
                         Text(voiceState.error ?: localizedText("Transcription failed", "语音转写失败"), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            TextButton(onClick = onRetryVoice) { Text(localizedText("Retry", "重试")) }
-                            TextButton(onClick = onCancelVoice) { Text(localizedText("Discard", "丢弃")) }
+                            TextButton(onClick = { haptic.play(HapticEffect.Light); onRetryVoice() }) { Text(localizedText("Retry", "重试")) }
+                            TextButton(onClick = { haptic.play(HapticEffect.Warning); onCancelVoice() }) { Text(localizedText("Discard", "丢弃")) }
                         }
                     }
                     is VoiceRecordingState.Failed -> {
@@ -3086,7 +3132,7 @@ private fun ChatScreen(
                     ReplyPreviewBar(target, onCancelReply)
                 }
                 Row(verticalAlignment = Alignment.Bottom) {
-                    IconButton(onClick = { attachmentPicker.launch(arrayOf("*/*")) }) { Icon(Icons.Default.Add, contentDescription = stringResource(com.aiteamos.android.R.string.chat_add_attachment)) }
+                    IconButton(onClick = { haptic.play(HapticEffect.Light); attachmentPicker.launch(arrayOf("*/*")) }) { Icon(Icons.Default.Add, contentDescription = stringResource(com.aiteamos.android.R.string.chat_add_attachment)) }
                     OutlinedTextField(
                         value = draft,
                         onValueChange = onDraftChange,
@@ -3096,17 +3142,17 @@ private fun ChatScreen(
                         maxLines = 5,
                     )
                     Spacer(Modifier.width(8.dp))
-                    IconButton(onClick = onStartVoice, enabled = voiceState is VoiceRecordingState.Idle, modifier = Modifier.testTag("voice-composer")) {
+                    IconButton(onClick = { haptic.play(HapticEffect.Medium); onStartVoice() }, enabled = voiceState is VoiceRecordingState.Idle, modifier = Modifier.testTag("voice-composer")) {
                         Icon(Icons.Default.Mic, contentDescription = stringResource(com.aiteamos.android.R.string.chat_record_voice))
                     }
                     IconButton(
-                        onClick = onStartLiveVoice,
+                        onClick = { haptic.play(HapticEffect.Medium); onStartLiveVoice() },
                         enabled = bot?.isBot == true && liveVoice.state == com.aiteamos.platform.AndroidLiveVoiceState.Idle,
                         modifier = Modifier.testTag("live-voice-composer"),
                     ) {
                         Icon(Icons.Default.Call, contentDescription = localizedText("Start realtime voice", "开始实时语音"))
                     }
-                    IconButton(onClick = onSend, enabled = draft.isNotBlank() || pendingAttachments.isNotEmpty(), modifier = Modifier.testTag("send-message").clip(CircleShape).background(MaterialTheme.colorScheme.primary)) {
+                    IconButton(onClick = { haptic.play(HapticEffect.Light); onSend() }, enabled = draft.isNotBlank() || pendingAttachments.isNotEmpty(), modifier = Modifier.testTag("send-message").clip(CircleShape).background(MaterialTheme.colorScheme.primary)) {
                         Icon(Icons.AutoMirrored.Filled.Send, contentDescription = stringResource(com.aiteamos.android.R.string.chat_send), tint = MaterialTheme.colorScheme.onPrimary)
                     }
                 }
@@ -3281,10 +3327,11 @@ fun ChatContextSummary(messages: List<ChatMessage>, truncated: Boolean) {
 
 @Composable
 private fun voiceControls(label: String, onStop: (() -> Unit)?, onCancel: () -> Unit) {
+    val haptic = LocalAppHaptics.current
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Text(label, Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
-        onStop?.let { IconButton(onClick = it) { Icon(Icons.Default.Stop, contentDescription = localizedText("Stop voice note", "停止语音消息")) } }
-        IconButton(onClick = onCancel) { Icon(Icons.Default.Close, contentDescription = localizedText("Cancel voice note", "取消语音消息")) }
+        onStop?.let { IconButton(onClick = { haptic.play(HapticEffect.Light); it() }) { Icon(Icons.Default.Stop, contentDescription = localizedText("Stop voice note", "停止语音消息")) } }
+        IconButton(onClick = { haptic.play(HapticEffect.Warning); onCancel() }) { Icon(Icons.Default.Close, contentDescription = localizedText("Cancel voice note", "取消语音消息")) }
     }
 }
 
@@ -3371,7 +3418,7 @@ private fun MessageBubble(
         )
     }
     val swipeScope = rememberCoroutineScope()
-    val haptics = LocalHapticFeedback.current
+    val haptics = LocalAppHaptics.current
     val density = LocalDensity.current
     val replyThresholdPx = with(density) { 56.dp.toPx() }
     val maxSwipePx = with(density) { 84.dp.toPx() }
@@ -3409,7 +3456,7 @@ private fun MessageBubble(
                         val next = (swipe.value + delta).coerceIn(-maxSwipePx, 0f)
                         swipeScope.launch { swipe.snapTo(next) }
                         val nowCrossed = -next >= replyThresholdPx
-                        if (nowCrossed && !crossed) haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        if (nowCrossed && !crossed) haptics.play(HapticEffect.Light)
                         crossed = nowCrossed
                     }
                 },
@@ -3507,7 +3554,7 @@ private fun MessageBubble(
                             Row(
                                 modifier = Modifier.align(Alignment.End)
                                     .clip(RoundedCornerShape(8.dp))
-                                    .clickable { onRetry(message.id) }
+                                    .clickable { haptics.play(HapticEffect.Light); onRetry(message.id) }
                                     .padding(horizontal = 10.dp, vertical = 8.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
@@ -3646,6 +3693,7 @@ private fun AttachmentGalleryDialog(
     }
     val current = attachments.getOrNull(index) ?: return
     val bitmap = rememberDecodedBitmap(current.localUri, maxSizePx = 2048)
+    val haptic = LocalAppHaptics.current
     val isDocument = !current.isImage
     val dark = isSystemInDarkTheme()
     val background = if (isDocument) MaterialTheme.colorScheme.background else Color.Black
@@ -3675,9 +3723,9 @@ private fun AttachmentGalleryDialog(
                         Modifier.height(44.dp).clip(CircleShape).background(foreground.copy(alpha = .09f)).border(.5.dp, foreground.copy(alpha = .1f), CircleShape).padding(horizontal = 2.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        ChromeIcon(Icons.Outlined.FileDownload, localizedText("Download", "下载"), foreground, ready) { onSave(current) }
-                        ChromeIcon(Icons.Outlined.IosShare, localizedText("Share", "分享"), foreground, ready) { onShare(current) }
-                        ChromeIcon(Icons.AutoMirrored.Outlined.Reply, localizedText("Forward", "转发"), foreground, ready) { onForward(current) }
+                        ChromeIcon(Icons.Outlined.FileDownload, localizedText("Download", "下载"), foreground, ready) { haptic.play(HapticEffect.Light); onSave(current) }
+                        ChromeIcon(Icons.Outlined.IosShare, localizedText("Share", "分享"), foreground, ready) { haptic.play(HapticEffect.Light); onShare(current) }
+                        ChromeIcon(Icons.AutoMirrored.Outlined.Reply, localizedText("Forward", "转发"), foreground, ready) { haptic.play(HapticEffect.Light); onForward(current) }
                     }
                 }
                 Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
