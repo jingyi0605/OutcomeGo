@@ -8,6 +8,7 @@ import java.io.FileInputStream
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.ui.draw.alpha
@@ -32,6 +33,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
@@ -57,6 +59,21 @@ import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -1425,10 +1442,15 @@ fun ProviderSettingsScreen(
     language: AppSettings.Language,
     onConnect: (ProviderConnection, String?) -> Unit,
     onDisconnect: (ProviderConnection) -> Unit,
+    onRemove: (ProviderConnection) -> Unit,
+    loadPresets: suspend () -> Result<List<ProviderPreset>>,
+    onAdd: suspend (ProviderPreset?, String, String, ProviderProtocol, String?) -> Result<String>,
     onModelChange: (ProviderConnection, String) -> Unit,
     onReasoningChange: (ProviderConnection, String) -> Unit,
 ) {
     var pendingDisconnect by remember { mutableStateOf<ProviderConnection?>(null) }
+    var pendingRemove by remember { mutableStateOf<ProviderConnection?>(null) }
+    var adding by remember { mutableStateOf(false) }
     val text: (String, String) -> String = { english, chinese -> if (language == AppSettings.Language.Chinese) chinese else english }
     FeaturePage(text("AI model", "AI 模型"), onBack = onBack, settingsStyle = true) {
         LoadStateContent(state, onRetry) { providers ->
@@ -1438,6 +1460,8 @@ fun ProviderSettingsScreen(
                     SettingsGroup {
                         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
+                                ProviderIcon(provider.icon)
+                                Spacer(Modifier.width(10.dp))
                                 Text(provider.name, Modifier.weight(1f), fontWeight = FontWeight.SemiBold)
                                 Text(
                                     if (provider.connected) text("Connected", "已连接") else text("Disconnected", "未连接"),
@@ -1462,9 +1486,19 @@ fun ProviderSettingsScreen(
                                 SettingsRow(text("Reasoning", "推理强度"), text("How much effort the model uses", "模型使用的推理强度"), inline = false) {
                                     ChoiceChips(provider.reasoningLevels, provider.selectedReasoning ?: provider.reasoningLevels.firstOrNull().orEmpty(), { it }) { onReasoningChange(provider, it) }
                                 }
-                                TextButton(onClick = { pendingDisconnect = provider }) { Text(text("Disconnect", "断开连接"), color = MaterialTheme.colorScheme.error) }
+                                Row {
+                                    if (provider.custom) TextButton(onClick = { pendingRemove = provider }) { Text(text("Remove", "移除"), color = MaterialTheme.colorScheme.error) }
+                                    TextButton(onClick = { pendingDisconnect = provider }) { Text(text("Disconnect", "断开连接"), color = MaterialTheme.colorScheme.error) }
+                                }
                             }
                         }
+                    }
+                }
+                item {
+                    OutlinedButton(onClick = { adding = true }, modifier = Modifier.fillMaxWidth()) {
+                        Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text(text("Add provider", "添加服务商"))
                     }
                 }
             }
@@ -1477,6 +1511,170 @@ fun ProviderSettingsScreen(
                 confirmButton = { TextButton(onClick = { pendingDisconnect = null; onDisconnect(provider) }) { Text(text("Disconnect", "断开连接"), color = MaterialTheme.colorScheme.error) } },
                 dismissButton = { TextButton(onClick = { pendingDisconnect = null }) { Text(text("Cancel", "取消")) } },
             )
+        }
+        pendingRemove?.let { provider ->
+            AlertDialog(
+                onDismissRequest = { pendingRemove = null },
+                title = { Text(text("Remove ${provider.name}?", "移除 ${provider.name}？")) },
+                text = { Text(text("Its address and key are deleted from your server.", "它的地址和密钥会从你的服务器上删除。")) },
+                confirmButton = { TextButton(onClick = { pendingRemove = null; onRemove(provider) }) { Text(text("Remove", "移除"), color = MaterialTheme.colorScheme.error) } },
+                dismissButton = { TextButton(onClick = { pendingRemove = null }) { Text(text("Cancel", "取消")) } },
+            )
+        }
+        if (adding) AddProviderSheet(text = text, loadPresets = loadPresets, onAdd = onAdd, onDismiss = { adding = false })
+    }
+}
+
+/**
+ * A vendor mark from the provider icon set (scripts/icons/export-provider-icons.ts). Names ending in
+ * "-color" keep their colours; the rest are black on transparent and take the text colour.
+ */
+@Composable
+private fun ProviderIcon(name: String?, size: androidx.compose.ui.unit.Dp = 20.dp) {
+    val context = LocalContext.current
+    val id = remember(name) { name?.let { context.resources.getIdentifier("provider_" + it.replace('-', '_'), "drawable", context.packageName) } ?: 0 }
+    if (id == 0) {
+        Spacer(Modifier.size(size))
+        return
+    }
+    androidx.compose.foundation.Image(
+        painter = painterResource(id),
+        contentDescription = null,
+        modifier = Modifier.size(size),
+        contentScale = ContentScale.Fit,
+        colorFilter = if (name!!.endsWith("-color")) null else ColorFilter.tint(MaterialTheme.colorScheme.onSurface),
+    )
+}
+
+private val providerGroups = listOf(
+    "vendor" to ("Model makers" to "模型厂商"),
+    "cloud" to ("Cloud platforms" to "云平台"),
+    "relay" to ("Hosts and gateways" to "托管与网关"),
+    "local" to ("On this server" to "在此服务器上"),
+)
+
+/** Adds a provider over a standard protocol. The server keeps the key and removes the provider again if the key is refused. */
+@Composable
+private fun AddProviderSheet(
+    text: (String, String) -> String,
+    loadPresets: suspend () -> Result<List<ProviderPreset>>,
+    onAdd: suspend (ProviderPreset?, String, String, ProviderProtocol, String?) -> Result<String>,
+    onDismiss: () -> Unit,
+) {
+    val scope = rememberCoroutineScope()
+    val uriHandler = LocalUriHandler.current
+    var presets by remember { mutableStateOf<List<ProviderPreset>>(emptyList()) }
+    var loadError by remember { mutableStateOf<String?>(null) }
+    var preset by remember { mutableStateOf<ProviderPreset?>(null) }
+    var protocol by remember { mutableStateOf(ProviderProtocol.OpenAiChat) }
+    var name by remember { mutableStateOf("") }
+    var baseUrl by remember { mutableStateOf("") }
+    var apiKey by remember { mutableStateOf("") }
+    var failure by remember { mutableStateOf<String?>(null) }
+    var busy by remember { mutableStateOf(false) }
+    var serviceMenu by remember { mutableStateOf(false) }
+    var protocolMenu by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        loadPresets().onSuccess { presets = it }.onFailure { loadError = it.message ?: text("Could not load the provider list", "无法加载服务商列表") }
+    }
+    // The key field is shown unless the server never takes one; an optional key may stay empty.
+    val showsKey = preset?.noKey != true
+    val withoutKey = !showsKey || (preset?.keyOptional == true && apiKey.isBlank())
+    val protocols = preset?.protocols ?: ProviderProtocol.values().toList()
+    val ready = name.isNotBlank() && baseUrl.isNotBlank() && (withoutKey || apiKey.isNotBlank())
+    fun pick(next: ProviderPreset?) {
+        preset = next
+        failure = null
+        if (next != null) {
+            protocol = next.defaultProtocol
+            name = next.name
+            baseUrl = next.baseUrl(protocol)
+        }
+    }
+    ModalBottomSheet(onDismissRequest = { if (!busy) onDismiss() }, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+        Column(
+            Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 20.dp).imePadding().navigationBarsPadding().verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(text("Add provider", "添加服务商"), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+            Text(
+                text("Connect any service that speaks OpenAI Chat, OpenAI Responses or Anthropic Messages. The key stays on your server.", "连接任何支持 OpenAI Chat、OpenAI Responses 或 Anthropic Messages 的服务。密钥只保存在你的服务器上。"),
+                fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Box {
+                OutlinedButton(onClick = { serviceMenu = true }, enabled = !busy, modifier = Modifier.fillMaxWidth()) {
+                    ProviderIcon(preset?.icon ?: protocol.genericIcon, 18.dp)
+                    Spacer(Modifier.width(8.dp))
+                    Text(preset?.name ?: text("Custom endpoint", "自定义地址"), Modifier.weight(1f))
+                    Icon(Icons.Filled.KeyboardArrowDown, contentDescription = null)
+                }
+                DropdownMenu(expanded = serviceMenu, onDismissRequest = { serviceMenu = false }, modifier = Modifier.heightIn(max = 420.dp)) {
+                    DropdownMenuItem(
+                        leadingIcon = { ProviderIcon(protocol.genericIcon, 18.dp) },
+                        text = { Text(text("Custom endpoint", "自定义地址")) },
+                        onClick = { serviceMenu = false; pick(null) },
+                    )
+                    providerGroups.forEach { (group, titles) ->
+                        val members = presets.filter { it.group == group }
+                        if (members.isNotEmpty()) {
+                            Text(text(titles.first, titles.second), Modifier.padding(horizontal = 16.dp, vertical = 6.dp), fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            members.forEach { member -> DropdownMenuItem(leadingIcon = { ProviderIcon(member.icon, 18.dp) }, text = { Text(member.name) }, onClick = { serviceMenu = false; pick(member) }) }
+                        }
+                    }
+                }
+            }
+            loadError?.let { Text(it, color = MaterialTheme.colorScheme.error, fontSize = 13.sp) }
+            Box {
+                OutlinedButton(onClick = { protocolMenu = true }, enabled = !busy && protocols.size > 1, modifier = Modifier.fillMaxWidth()) {
+                    Text(protocol.label, Modifier.weight(1f))
+                    Icon(Icons.Filled.KeyboardArrowDown, contentDescription = null)
+                }
+                DropdownMenu(expanded = protocolMenu, onDismissRequest = { protocolMenu = false }) {
+                    protocols.forEach { option ->
+                        DropdownMenuItem(text = { Text(option.label) }, onClick = {
+                            protocolMenu = false
+                            protocol = option
+                            // A vendor documents an address per protocol; a typed address stays as it is.
+                            preset?.takeIf { it.endpoints.containsKey(option.wire) }?.let { baseUrl = it.baseUrl(option) }
+                        })
+                    }
+                }
+            }
+            OutlinedTextField(name, { name = it }, label = { Text(text("Name", "名称")) }, enabled = !busy, singleLine = true, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(
+                baseUrl, { baseUrl = it }, label = { Text(text("API base URL", "API 基础地址")) }, enabled = !busy, singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri), textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
+                modifier = Modifier.fillMaxWidth(),
+            )
+            if (showsKey) {
+                OutlinedTextField(
+                    apiKey, { apiKey = it }, label = { Text(if (preset?.keyOptional == true) text("API key (optional)", "API 密钥（可选）") else text("API key", "API 密钥")) }, enabled = !busy, singleLine = true,
+                    visualTransformation = PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                preset?.keysUrl?.let { url -> TextButton(onClick = { uriHandler.openUri(url) }) { Text(text("Get a key", "获取密钥")) } }
+            }
+            if (preset?.noKey == true || preset?.keyOptional == true) preset?.note?.let { Text(it, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+            failure?.let { Text(it, color = MaterialTheme.colorScheme.error, fontSize = 13.sp) }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End), verticalAlignment = Alignment.CenterVertically) {
+                TextButton(onClick = onDismiss, enabled = !busy) { Text(text("Cancel", "取消")) }
+                Button(
+                    enabled = ready && !busy,
+                    onClick = {
+                        busy = true
+                        failure = null
+                        scope.launch {
+                            onAdd(preset, name.trim(), baseUrl.trim(), protocol, if (withoutKey) null else apiKey.trim())
+                                .onSuccess { onDismiss() }
+                                .onFailure { failure = it.message ?: text("Could not add this provider", "无法添加此服务商") }
+                            busy = false
+                        }
+                    },
+                ) {
+                    if (busy) CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
+                    Text(if (busy) text("Checking the key…", "正在检查密钥…") else text("Add", "添加"))
+                }
+            }
         }
     }
 }

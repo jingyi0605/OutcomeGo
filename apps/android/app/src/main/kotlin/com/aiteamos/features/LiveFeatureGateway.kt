@@ -3,6 +3,7 @@ package com.aiteamos.features
 import com.aiteamos.android.data.MobileFeatureApi
 import com.aiteamos.mobile.core.HttpMethod
 import com.aiteamos.mobile.core.mobileJson
+import kotlinx.coroutines.delay
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
@@ -186,6 +187,55 @@ class LiveFeatureGateway(private val client: MobileFeatureApi) : FeatureGateway 
     override suspend fun disconnectProvider(providerId: String): Result<Unit> = runCatching {
         client.request(HttpMethod.DELETE, "/api/v0/inference-providers/${segment(providerId)}")
         Unit
+    }
+
+    override suspend fun loadProviderPresets(): Result<List<ProviderPreset>> = runCatching {
+        client.request(HttpMethod.GET, "/api/v0/inference-provider-presets").array("value").mapNotNull { it.jsonObjectOrNull()?.providerPreset() }
+    }
+
+    override suspend fun addProvider(preset: ProviderPreset?, name: String, baseUrl: String, protocol: ProviderProtocol, apiKey: String?): Result<String> = runCatching {
+        val created = client.request(HttpMethod.POST, "/api/v0/inference-providers", buildJsonObject {
+            preset?.let { put("presetId", it.id) }
+            put("name", name)
+            put("baseUrl", baseUrl)
+            put("api", protocol.wire)
+            if (apiKey == null) put("noAuth", true)
+        })
+        val id = created.string("providerId")
+        require(id.isNotBlank()) { "The server did not return the new provider." }
+        try {
+            if (apiKey != null) connectApiKey(id, apiKey)
+            id
+        } catch (error: Throwable) {
+            runCatching { client.request(HttpMethod.DELETE, "/api/v0/inference-custom-providers/${segment(id)}") }
+            throw error
+        }
+    }
+
+    override suspend fun removeProvider(providerId: String): Result<Unit> = runCatching {
+        client.request(HttpMethod.DELETE, "/api/v0/inference-custom-providers/${segment(providerId)}")
+        Unit
+    }
+
+    /** Starts an API-key sign-in, answers its key prompt and waits for the provider to accept or refuse the key. */
+    private suspend fun connectApiKey(providerId: String, apiKey: String) {
+        var session = client.request(HttpMethod.POST, "/api/v0/inference-providers/${segment(providerId)}/auth-sessions", buildJsonObject { put("authType", "api_key") })
+        var waits = 0
+        while (session.objectAt("prompt").string("id").isBlank() && !session.authFinished() && waits < 40) {
+            delay(100)
+            session = client.request(HttpMethod.GET, "/api/v0/inference-provider-auth-sessions/${segment(session.string("id"))}")
+            waits++
+        }
+        val promptId = session.objectAt("prompt").string("id")
+        require(promptId.isNotBlank()) { session.string("error").ifBlank { "The provider did not ask for a key." } }
+        session = client.request(HttpMethod.POST, "/api/v0/inference-provider-auth-sessions/${segment(session.string("id"))}/respond", buildJsonObject { put("promptId", promptId); put("value", apiKey) })
+        waits = 0
+        while (!session.authFinished() && waits < 150) {
+            delay(200)
+            session = client.request(HttpMethod.GET, "/api/v0/inference-provider-auth-sessions/${segment(session.string("id"))}")
+            waits++
+        }
+        require(session.string("status") == "connected") { session.string("error").ifBlank { "The provider didn't accept that key." } }
     }
 
     override suspend fun loadWebProviders(): Result<WebProvidersState> = runCatching {
@@ -443,8 +493,17 @@ private fun oauthState(url: String): String? = runCatching {
 private fun JsonObject.providerList(): List<ProviderConnection> = array("providers").mapNotNull { it.jsonObjectOrNull()?.let { row ->
     val models = row.array("models").mapNotNull { model -> model.jsonObjectOrNull()?.string("modelId", "id", "name") ?: model.jsonPrimitive.contentOrNull }
     val reasoning = row.array("reasoningLevels").mapNotNull { level -> level.jsonObjectOrNull()?.string("id", "name") ?: level.jsonPrimitive.contentOrNull }
-    ProviderConnection(row.string("id", "providerId"), row.string("name"), row.boolean("connected"), if (row.string("authType") == "oauth") AuthMode.OAuth else AuthMode.ApiKey, row.boolean("apiKeySaved"), models, row.string("model", "selectedModel").ifBlank { null }, reasoning, row.string("reasoning", "selectedReasoning").ifBlank { null }, row.string("error").ifBlank { null }, row.string("authorizationUrl").ifBlank { null })
+    ProviderConnection(row.string("id", "providerId"), row.string("name"), row.boolean("connected"), if (row.string("authType") == "oauth") AuthMode.OAuth else AuthMode.ApiKey, row.boolean("apiKeySaved"), models, row.string("model", "selectedModel").ifBlank { null }, reasoning, row.string("reasoning", "selectedReasoning").ifBlank { null }, row.string("error").ifBlank { null }, row.string("authorizationUrl").ifBlank { null }, custom = row.boolean("custom"), icon = row.string("icon").ifBlank { null })
 } }
+
+private fun JsonObject.authFinished(): Boolean = string("status") in setOf("connected", "failed", "cancelled")
+
+private fun JsonObject.providerPreset(): ProviderPreset? {
+    val id = string("id")
+    if (id.isBlank()) return null
+    val endpoints = objectAt("endpoints").mapNotNull { (api, url) -> url.jsonPrimitive.contentOrNull?.let { api to it } }.toMap()
+    return ProviderPreset(id, string("name").ifBlank { id }, string("group"), endpoints, string("keysUrl").ifBlank { null }, boolean("noKey"), boolean("keyOptional"), string("note").ifBlank { null }, string("icon").ifBlank { null })
+}
 
 private fun JsonObject.webProviders(): WebProvidersState = WebProvidersState(webTool("search"), webTool("fetch"))
 private fun JsonObject.webTool(name: String): List<WebProvider> {

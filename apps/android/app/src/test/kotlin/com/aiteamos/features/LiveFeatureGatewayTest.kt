@@ -206,6 +206,94 @@ class LiveFeatureGatewayTest {
         assertEquals("aiteamos://oauth/callback?code=abc&state=oauth-state", client.lastBody?.get("callbackUrl")?.jsonPrimitive?.content)
     }
 
+    private fun providerSession(status: String, promptId: String? = null, error: String? = null) = buildJsonObject {
+        put("id", "session-1")
+        put("status", status)
+        if (promptId != null) put("prompt", buildJsonObject { put("id", promptId); put("type", "secret") })
+        if (error != null) put("error", error)
+    }
+
+    private val providerFlow = mapOf(
+        "/api/v0/inference-providers" to buildJsonObject { put("providerId", "deepseek-api") },
+        "/api/v0/inference-providers/deepseek-api/auth-sessions" to providerSession("waiting", "prompt-1"),
+    )
+
+    @Test
+    fun providerPresetsAreReadFromTheWrappedArray() = runBlocking {
+        val client = RecordingFeatureClient(
+            responsesByPath = mapOf("/api/v0/inference-provider-presets" to buildJsonObject {
+                put("value", buildJsonArray {
+                    add(buildJsonObject {
+                        put("id", "deepseek-api")
+                        put("name", "DeepSeek")
+                        put("group", "vendor")
+                        put("endpoints", buildJsonObject {
+                            put("openai-completions", "https://api.deepseek.com/v1")
+                            put("anthropic-messages", "https://api.deepseek.com/anthropic")
+                        })
+                        put("keysUrl", "https://platform.deepseek.com/api_keys")
+                    })
+                    add(buildJsonObject {
+                        put("id", "ollama-local"); put("name", "Ollama"); put("group", "local"); put("noKey", true); put("keyOptional", false)
+                        put("endpoints", buildJsonObject { put("openai-completions", "http://localhost:11434/v1") })
+                    })
+                })
+            }),
+        )
+
+        val presets = LiveFeatureGateway(client).loadProviderPresets().getOrThrow()
+
+        assertEquals(listOf("deepseek-api", "ollama-local"), presets.map { it.id })
+        assertEquals(listOf(ProviderProtocol.OpenAiChat, ProviderProtocol.AnthropicMessages), presets[0].protocols)
+        assertEquals("https://api.deepseek.com/anthropic", presets[0].baseUrl(ProviderProtocol.AnthropicMessages))
+        assertTrue(presets[1].noKey)
+        assertEquals(false, presets[1].keyOptional)
+    }
+
+    @Test
+    fun aRemoteMagpieIsAddedWithItsKeyAndALocalOneWithout() = runBlocking {
+        val withKey = RecordingFeatureClient(responsesByPath = providerFlow + mapOf("/api/v0/inference-provider-auth-sessions/session-1/respond" to providerSession("connected")))
+        val remote = ProviderPreset("deepseek-api", "magpie", "local", mapOf("openai-completions" to "http://127.0.0.1:3425/v1"), keyOptional = true)
+        LiveFeatureGateway(withKey).addProvider(remote, "magpie", "http://10.0.0.8:3425/v1", ProviderProtocol.OpenAiChat, "sk-magpie-key-1").getOrThrow()
+        assertEquals("sk-magpie-key-1", withKey.lastBody?.get("value")?.jsonPrimitive?.content)
+
+        val keyless = RecordingFeatureClient(responsesByPath = providerFlow)
+        LiveFeatureGateway(keyless).addProvider(remote, "magpie", "http://127.0.0.1:3425/v1", ProviderProtocol.OpenAiChat, null).getOrThrow()
+        assertTrue(keyless.requests.none { it.second.contains("auth-sessions") })
+    }
+
+    @Test
+    fun addingAProviderSendsTheEndpointThenTheKeyAndKeepsItWhenAccepted() = runBlocking {
+        val client = RecordingFeatureClient(
+            responsesByPath = providerFlow + mapOf(
+                "/api/v0/inference-provider-auth-sessions/session-1/respond" to providerSession("connected"),
+            ),
+        )
+        val preset = ProviderPreset("deepseek-api", "DeepSeek", "vendor", mapOf("openai-completions" to "https://api.deepseek.com/v1"))
+
+        val id = LiveFeatureGateway(client).addProvider(preset, "DeepSeek", "https://api.deepseek.com/v1", ProviderProtocol.OpenAiChat, "sk-good").getOrThrow()
+
+        assertEquals("deepseek-api", id)
+        assertEquals(HttpMethod.POST to "/api/v0/inference-providers", client.requests.first())
+        assertTrue(client.requests.none { it.first == HttpMethod.DELETE })
+        assertEquals("sk-good", client.lastBody?.get("value")?.jsonPrimitive?.content)
+    }
+
+    @Test
+    fun aRefusedKeyRemovesTheProviderAgain() = runBlocking {
+        val client = RecordingFeatureClient(
+            responsesByPath = providerFlow + mapOf(
+                "/api/v0/inference-provider-auth-sessions/session-1/respond" to providerSession("failed", error = "That key was refused."),
+            ),
+        )
+
+        val result = LiveFeatureGateway(client).addProvider(null, "Mine", "https://x.test/v1", ProviderProtocol.OpenAiChat, "sk-bad")
+
+        assertTrue(result.isFailure)
+        assertEquals("That key was refused.", result.exceptionOrNull()?.message)
+        assertEquals(HttpMethod.DELETE to "/api/v0/inference-custom-providers/deepseek-api", client.requests.last())
+    }
+
     private class RecordingFeatureClient(
         private val response: JsonObject = JsonObject(emptyMap()),
         private val responsesByPath: Map<String, JsonObject> = emptyMap(),
@@ -214,8 +302,10 @@ class LiveFeatureGatewayTest {
         var lastPath: String? = null
         var lastBody: JsonObject? = null
         var downloaded = false
+        val requests = mutableListOf<Pair<HttpMethod, String>>()
 
         override suspend fun request(method: HttpMethod, path: String, body: JsonObject?): JsonObject {
+            requests += method to path
             lastMethod = method
             lastPath = path
             lastBody = body

@@ -32,6 +32,8 @@ import com.aiteamos.features.Attachment
 import com.aiteamos.features.AppSettings
 import com.aiteamos.features.FeatureGateway
 import com.aiteamos.features.FeatureLoadState
+import com.aiteamos.features.ProviderPreset
+import com.aiteamos.features.ProviderProtocol
 import com.aiteamos.features.FeatureOperationState
 import com.aiteamos.features.LiveFeatureGateway
 import com.aiteamos.features.Plugin
@@ -1478,6 +1480,16 @@ class AppViewModel @JvmOverloads constructor(
 
     fun disconnectProvider(provider: ProviderConnection) {
         runFeatureOperation { activeFeatureGateway.disconnectProvider(provider.id).onSuccess { loadProviders() }.onFailure(::reportFeatureFailure) }
+    }
+
+    suspend fun loadProviderPresets(): Result<List<ProviderPreset>> = activeFeatureGateway.loadProviderPresets()
+
+    /** The new provider's models load on the next provider refresh, which this triggers on success. */
+    suspend fun addProvider(preset: ProviderPreset?, name: String, baseUrl: String, protocol: ProviderProtocol, apiKey: String?): Result<String> =
+        activeFeatureGateway.addProvider(preset, name, baseUrl, protocol, apiKey).onSuccess { loadProviders() }
+
+    fun removeProvider(provider: ProviderConnection) {
+        runFeatureOperation { activeFeatureGateway.removeProvider(provider.id).onSuccess { loadProviders() }.onFailure(::reportFeatureFailure) }
     }
 
     fun saveWebProvider(tool: String, provider: WebProvider, apiKey: String? = null) {

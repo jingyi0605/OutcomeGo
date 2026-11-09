@@ -202,9 +202,38 @@ data class ProviderConnection(
     val selectedReasoning: String? = null,
     val error: String? = null,
     val authorizationUrl: String? = null,
+    /** Added by hand (not built in), so it can be removed along with its key. */
+    val custom: Boolean = false,
+    /** The mark to show: a name in the provider icon set, chosen by the server. */
+    val icon: String? = null,
 )
 
 enum class AuthMode { None, OAuth, ApiKey }
+
+/** The three standard wire protocols a provider can be added over. */
+enum class ProviderProtocol(val wire: String, val label: String, val genericIcon: String) {
+    OpenAiChat("openai-completions", "OpenAI Chat", "generic-openai-chat"),
+    OpenAiResponses("openai-responses", "OpenAI Responses", "generic-openai-responses"),
+    AnthropicMessages("anthropic-messages", "Anthropic Messages", "generic-anthropic-messages"),
+}
+
+/** A vendor whose endpoints the server already knows. The server owns this catalog. */
+data class ProviderPreset(
+    val id: String,
+    val name: String,
+    val group: String,
+    val endpoints: Map<String, String>,
+    val keysUrl: String? = null,
+    val noKey: Boolean = false,
+    /** The key may stay empty: a local server that only asks other computers for one. */
+    val keyOptional: Boolean = false,
+    val note: String? = null,
+    val icon: String? = null,
+) {
+    val protocols: List<ProviderProtocol> get() = ProviderProtocol.values().filter { endpoints.containsKey(it.wire) }
+    val defaultProtocol: ProviderProtocol get() = protocols.firstOrNull() ?: ProviderProtocol.OpenAiChat
+    fun baseUrl(protocol: ProviderProtocol): String = endpoints[protocol.wire].orEmpty()
+}
 
 data class WebProvider(
     val id: String,
@@ -289,6 +318,10 @@ interface FeatureGateway {
     suspend fun listProviderConnections(): Result<List<ProviderConnection>>
     suspend fun saveProvider(provider: ProviderConnection, apiKey: String? = null): Result<ProviderConnection>
     suspend fun disconnectProvider(providerId: String): Result<Unit>
+    suspend fun loadProviderPresets(): Result<List<ProviderPreset>>
+    /** Adds an endpoint and proves its key; a key the provider turns down leaves nothing behind. Resolves to the new provider's id. */
+    suspend fun addProvider(preset: ProviderPreset?, name: String, baseUrl: String, protocol: ProviderProtocol, apiKey: String?): Result<String>
+    suspend fun removeProvider(providerId: String): Result<Unit>
     suspend fun loadWebProviders(): Result<WebProvidersState>
     suspend fun saveWebProvider(tool: String, providerId: String, apiKey: String?, selected: Boolean): Result<WebProvidersState>
     suspend fun checkWebProvider(tool: String, providerId: String): Result<WebProviderCheck>

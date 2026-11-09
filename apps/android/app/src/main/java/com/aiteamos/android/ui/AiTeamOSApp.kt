@@ -755,6 +755,9 @@ fun AiTeamOSApp(
                 language = state.features.settings.language,
                 onConnect = appViewModel::connectProvider,
                 onDisconnect = appViewModel::disconnectProvider,
+                onRemove = appViewModel::removeProvider,
+                loadPresets = appViewModel::loadProviderPresets,
+                onAdd = appViewModel::addProvider,
                 onModelChange = { provider, model -> appViewModel.connectProvider(provider.copy(selectedModel = model)) },
                 onReasoningChange = { provider, reasoning -> appViewModel.connectProvider(provider.copy(selectedReasoning = reasoning)) },
             )
