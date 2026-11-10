@@ -53,11 +53,13 @@ import {
   GROUP_MAX_MESSAGES_PER_TURN,
   GROUP_MAX_ROUNDS,
   groupVisibilityClauses,
+  isAddressedTurn,
   resolveGroupResponderIds,
+  resolveRelayResponders,
   rotateGroupResponders,
 } from "./group-routing";
 import { appendRoutineRunLedger, followUserTimeZone, pinRoutinesToScheduledZone } from "./routines";
-import { groupMessageCount, stageGroupMessage, settleGroupOutbox } from "./group-outbox";
+import { groupMessageCount, stageFallbackMessage, stageGroupMessage, settleGroupOutbox } from "./group-outbox";
 import { groupRoutineState } from "./group-routine-state";
 import { lockGroupExecution, lockGroupRound, lockGroupDelivery } from "./group-supersession";
 export { lockGroupExecution, supersedeGroupUserTurns } from "./group-supersession";
@@ -842,6 +844,20 @@ export const validateSendToUserInput = (value: unknown): void => {
   }
 };
 
+/** The realtime-voice marker of the user message that started a room turn, if it was spoken. */
+export async function groupRootVoice(
+  tx: Prisma.TransactionClient,
+  rootMessageId: string
+): Promise<{ sessionId: string } | null> {
+  const root = await tx.channelMessage.findUnique({ where: { id: rootMessageId }, select: { metadata: true } });
+  const metadata = root?.metadata;
+  if (!metadata || Array.isArray(metadata) || typeof metadata !== "object") return null;
+  const voice = (metadata as Record<string, unknown>).voice;
+  if (!voice || Array.isArray(voice) || typeof voice !== "object") return null;
+  const sessionId = (voice as Record<string, unknown>).sessionId;
+  return typeof sessionId === "string" ? { sessionId } : null;
+}
+
 export class AgentMessaging {
   readonly agentData: AgentDataStore;
   readonly assets: AssetStore;
@@ -1576,18 +1592,38 @@ export class AgentMessaging {
               },
             });
           };
-          const triggerMetadata =
-            round.triggerMessage.metadata &&
-            !Array.isArray(round.triggerMessage.metadata) &&
-            typeof round.triggerMessage.metadata === "object"
-              ? (round.triggerMessage.metadata as Record<string, unknown>)
-              : {};
-          if (
-            triggerMetadata.voice &&
-            typeof triggerMetadata.voice === "object" &&
-            !Array.isArray(triggerMetadata.voice)
-          ) {
-            return null;
+          const rootVoice = await groupRootVoice(tx, round.rootMessageId);
+          if (rootVoice) {
+            // A spoken room has no free-running follow-up rounds. A reply that @-names another
+            // participant hands that member the next turn. It starts as soon as the reply is
+            // published, while the voice session is still speaking it, so thinking and speech overlap.
+            if (round.roundIndex + 1 >= GROUP_MAX_ROUNDS || deliveredMessages >= GROUP_MAX_MEMBER_TURNS) return null;
+            const runIds = round.deliveries.flatMap((candidate) => (candidate.run ? [candidate.run.id] : []));
+            const reply = runIds.length
+              ? await tx.channelMessage.findFirst({
+                  where: { channelId: round.channelId, sender: "agent", sourceRunId: { in: runIds } },
+                  orderBy: { sequence: "desc" },
+                })
+              : null;
+            const session = reply
+              ? await tx.voiceSession.findUnique({ where: { id: rootVoice.sessionId }, select: { participantBotIds: true } })
+              : null;
+            if (!reply || !session) return null;
+            const participants = round.channel.members
+              .filter((member) => member.bot.status === "active" && session.participantBotIds.includes(member.botId))
+              .map((member) => ({ id: member.botId, name: member.bot.name }));
+            const responderIds = resolveRelayResponders(reply.content, participants, reply.senderBotId);
+            if (responderIds.length === 0) return null;
+            const relay = await this.createGroupRound(tx, {
+              channelId: round.channelId,
+              triggerMessageId: reply.id,
+              rootMessageId: round.rootMessageId,
+              initiatorBotId: null,
+              roundIndex: round.roundIndex + 1,
+              memberTurnOffset: deliveredMessages,
+              responderIds,
+            });
+            return relay.status === "completed" ? null : relay.id;
           }
           if (
             round.roundIndex + 1 >= GROUP_MAX_ROUNDS ||
@@ -1854,6 +1890,42 @@ export class AgentMessaging {
     }
   }
 
+  /**
+   * A member that was called on by name and finished without SendToUser has still answered in its
+   * own text. Rather than leave the caller with silence, that final text is posted as its reply.
+   * A turn that sent anything, passed, or was not addressed to the member is left alone.
+   */
+  private async stageAddressedFallback(
+    tx: Prisma.TransactionClient,
+    delivery: { id: string; botId: string; roundId: string; run: { id: string } | null }
+  ): Promise<void> {
+    if (!delivery.run) return;
+    const round = await tx.channelRound.findUnique({
+      where: { id: delivery.roundId },
+      include: { triggerMessage: { select: { sender: true, content: true } } },
+    });
+    const bot = await tx.bot.findUnique({ where: { id: delivery.botId }, select: { id: true, name: true } });
+    if (!round || !bot) return;
+    const rootVoice = await groupRootVoice(tx, round.rootMessageId);
+    const addressed = isAddressedTurn(
+      { rootIsVoice: Boolean(rootVoice), triggerIsUser: round.triggerMessage.sender === "user", triggerContent: round.triggerMessage.content },
+      bot
+    );
+    if (!addressed) return;
+    const items = await tx.runItem.findMany({
+      where: { runId: delivery.run.id, kind: "agent_message", status: "completed" },
+      orderBy: { createdAt: "desc" },
+      select: { content: true },
+    });
+    const text = items
+      .map((item) => (item.content as { text?: unknown } | null)?.text)
+      .find((value): value is string => typeof value === "string" && value.trim().length > 0);
+    if (!text) return;
+    const normalized = normalizeGroupAgentMessage(text);
+    if (normalized.status !== "message") return;
+    await stageFallbackMessage(tx, delivery.id, delivery.run.id, normalized.content);
+  }
+
   async completeDelivery(
     deliveryId: string,
     status: "completed" | "failed" | "skipped",
@@ -1876,6 +1948,7 @@ export class AgentMessaging {
       const current = await tx.channelDelivery.findUnique({ where: { id: deliveryId }, include: { run: true } });
       if (!current || (expectedRunId && current.run?.id !== expectedRunId) || ["completed", "failed", "skipped"].includes(current.status)) return;
       settledRunId = current.run?.id ?? expectedRunId ?? null;
+      if (status === "completed" && current.run?.status === "completed") await this.stageAddressedFallback(tx, current);
       // A prepared SendToUser remains a delivery even if later work fails.
       // User cancellation still discards it; the failure status remains visible.
       await settleGroupOutbox(tx, deliveryId, status === "completed" || (status === "failed" && current.run?.status === "failed"));

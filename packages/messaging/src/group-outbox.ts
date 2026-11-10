@@ -90,6 +90,40 @@ export async function stageGroupMessage(
   return buffered;
 }
 
+/**
+ * Stage the final plain text of an addressed turn that never called SendToUser, so the
+ * caller is not left without an answer. Called under the delivery lock, after the run
+ * has ended, so it writes the outbox row directly instead of going through the turn guard.
+ * Returns false when the turn already staged something or the text is not a reply.
+ */
+export async function stageFallbackMessage(
+  tx: Prisma.TransactionClient,
+  deliveryId: string,
+  runId: string,
+  content: string
+): Promise<boolean> {
+  const scope = scopeFor(deliveryId, runId);
+  if ((await tx.idempotencyRecord.count({ where: { scope } })) > 0) return false;
+  const callId = `fallback:${runId}`;
+  const buffered: BufferedMessage = {
+    id: randomUUID(),
+    callId,
+    ordinal: 0,
+    content,
+    metadata: { kind: "send-message", type: "text", content, fallback: true },
+  };
+  await tx.idempotencyRecord.create({
+    data: {
+      scope,
+      key: callId,
+      requestHash: createHash("sha256").update(JSON.stringify({ content })).digest("hex"),
+      response: json(buffered),
+      expiresAt: new Date(Date.now() + 7 * 86400_000),
+    },
+  });
+  return true;
+}
+
 /** Called under the delivery lock. A crash can replay this without another post. */
 export async function settleGroupOutbox(
   tx: Prisma.TransactionClient,
