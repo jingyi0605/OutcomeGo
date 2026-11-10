@@ -62,7 +62,7 @@ export class FunctionalFixtures {
       const id=path.split("/")[4] || crypto.randomUUID();
       if(method==="DELETE")this.skills=this.skills.filter(s=>s.id!==id);
       else if(method==="PUT")Object.assign(this.skills.find(s=>s.id===id)??{},input);
-      else this.skills.push({id,...input});
+      else this.skills.push({id,slug:String(input.name).toLowerCase().replace(/[^a-z0-9]+/g,"-"),files:{},...input});
       return reply({id});
     }
     if(path.endsWith("/package"))return reply({definition:{name:"Fixture Notes"},digest:"fixture-digest",mode:"optional",skillSyncStatus:"ready",skillSyncError:null,hasRollback:true,update:null});

@@ -127,7 +127,6 @@ struct PrivateSkillEditor: View {
   @State private var description = ""
   @State private var bodyText = ""
   @State private var files = "{}"
-  @State private var enabled: Set<String> = []
   @State private var operation = FormOperation()
   @State private var deleting = false
   private var path: String {
@@ -142,15 +141,6 @@ struct PrivateSkillEditor: View {
       }
       Section("Instructions") {
         TextEditor(text: $bodyText).frame(minHeight: 180).accessibilityIdentifier("skill-body")
-      }
-      Section("Enabled bots") {
-        ForEach(store.bots) { bot in
-          Toggle(
-            bot.name,
-            isOn: Binding(
-              get: { enabled.contains(bot.id) },
-              set: { if $0 { enabled.insert(bot.id) } else { enabled.remove(bot.id) } }))
-        }
       }
       Section {
         DisclosureGroup("Supporting files") {
@@ -171,7 +161,6 @@ struct PrivateSkillEditor: View {
               body: .object([
                 "name": .string(name.trimmingCharacters(in: .whitespacesAndNewlines)),
                 "description": .string(description), "body": .string(bodyText), "files": fileMap,
-                "enabledBotIds": .array(enabled.sorted().map(JSON.string)),
               ]))
           }) {
             dismiss()
@@ -186,7 +175,6 @@ struct PrivateSkillEditor: View {
       description = skill["description"].string
       bodyText = skill["body"].string
       files = skill["files"] == .null ? "{}" : skill["files"].pretty
-      enabled = Set(skill["enabledBotIds"].array.map(\.string))
     }
     .confirmationDialog(
       "Delete this private skill?", isPresented: $deleting, titleVisibility: .visible

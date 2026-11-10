@@ -2171,16 +2171,6 @@
         }
       }
     },
-    "Enabled bots": {
-      "localizations": {
-        "zh-CN": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "已启用的机器人"
-          }
-        }
-      }
-    },
     "End call": {
       "localizations": {
         "zh-CN": {
