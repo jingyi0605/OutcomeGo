@@ -16,6 +16,7 @@ import { measureUntilNextPaint } from "../../lib/performance";
 import { Button } from "../ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 import { BotAvatar, ChannelAvatar } from "./avatar";
+import type { ReactNode } from "react";
 
 export function DesktopHeader({
   agentNameById,
@@ -27,6 +28,7 @@ export function DesktopHeader({
   inspectorMode,
   selected,
   selectedBot,
+  liveVoice,
   onDetailsOpenChange,
   onShowSettings,
   onShowSummary,
@@ -44,6 +46,7 @@ export function DesktopHeader({
   inspectorMode: "summary" | "settings" | "routine";
   selected: ChannelView | null;
   selectedBot?: BotView;
+  liveVoice?: ReactNode;
   onDetailsOpenChange: (open: boolean) => void;
   onShowSettings: () => void;
   onShowSummary: () => void;
@@ -172,6 +175,12 @@ export function DesktopHeader({
               )}
             </h2>
           </div>
+
+          {liveVoice ? (
+            <div className="pointer-events-auto mr-[2.5px] flex h-full shrink-0 items-center">
+              {liveVoice}
+            </div>
+          ) : null}
 
           <div
             className={cn(

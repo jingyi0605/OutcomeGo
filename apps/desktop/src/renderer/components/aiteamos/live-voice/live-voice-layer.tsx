@@ -15,14 +15,17 @@ import { useI18n } from "../../../lib/i18n";
 import { translateCurrent } from "../../../lib/i18n-catalog";
 import { BotAvatar } from "../avatar";
 import { Button } from "../../ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "../../ui/tooltip";
 import "./live-voice.css";
 
 export function LiveVoiceLayer({
   bot,
   channelId,
+  compact = false,
 }: {
   bot: Pick<BotView, "id" | "name" | "title" | "color" | "icon" | "hasAvatar" | "updatedAt">;
   channelId: string;
+  compact?: boolean;
 }) {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
@@ -64,29 +67,52 @@ export function LiveVoiceLayer({
   };
 
   const elapsed = formatElapsed(voice.elapsedMs);
+  const launcherLabel = voice.available
+    ? t("Start realtime voice conversation")
+    : t("Realtime voice is disabled or not configured");
 
   return (
-    <div className="live-voice-layer" data-live-voice-state={voice.state}>
+    <div
+      className={`live-voice-layer${compact ? " live-voice-layer-compact" : ""}`}
+      data-live-voice-state={voice.state}
+    >
       {!active && !open ? (
-        <Button
-          aria-label={
-            voice.available
-              ? t("Start realtime voice conversation")
-              : t("Realtime voice is disabled or not configured")
-          }
-          className="live-voice-launcher gap-1.5 rounded-full px-3"
-          onClick={start}
-          size="sm"
-          title={
-            voice.available
-              ? t("Start realtime voice conversation")
-              : t("Check realtime voice settings and start a conversation")
-          }
-          variant="outline"
-        >
-          <PhoneCall className="size-3.5" />
-          <span>{t("Talk live")}</span>
-        </Button>
+        compact ? (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                aria-label={launcherLabel}
+                className="rounded-full text-foreground-tertiary"
+                onClick={start}
+                size="icon-sm"
+                variant="ghost"
+              >
+                <PhoneCall className="size-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              {voice.available
+                ? t("Start realtime voice conversation")
+                : t("Check realtime voice settings and start a conversation")}
+            </TooltipContent>
+          </Tooltip>
+        ) : (
+          <Button
+            aria-label={launcherLabel}
+            className="live-voice-launcher gap-1.5 rounded-full px-3"
+            onClick={start}
+            size="sm"
+            title={
+              voice.available
+                ? t("Start realtime voice conversation")
+                : t("Check realtime voice settings and start a conversation")
+            }
+            variant="outline"
+          >
+            <PhoneCall className="size-3.5" />
+            <span>{t("Talk live")}</span>
+          </Button>
+        )
       ) : null}
 
       {open && minimized && active ? (

@@ -126,6 +126,11 @@ const SearchDialog = lazy(() =>
   }))
 );
 const AboutPanel = lazy(() => import("./components/aiteamos/settings/about"));
+const LiveVoiceLayer = lazy(() =>
+  import("./components/aiteamos/live-voice/live-voice-layer").then((module) => ({
+    default: module.LiveVoiceLayer,
+  }))
+);
 const SettingsPanel = lazy(async () => {
   const [module] = await Promise.all([
     import("./components/aiteamos/settings/panel"),
@@ -1351,6 +1356,13 @@ export default function App() {
                 directPerspectiveBotId={directPerspectiveBotId}
                 inspectorWidth={inspectorWidth}
                 inspectorMode={inspectorMode}
+                liveVoice={
+                  selected?.kind === "bot_dm" && selectedBot ? (
+                    <Suspense fallback={null}>
+                      <LiveVoiceLayer bot={selectedBot} channelId={selected.id} compact />
+                    </Suspense>
+                  ) : null
+                }
                 onDetailsOpenChange={(open) => {
                   if (open) setInspectorMode("summary");
                   setDetailsOpen(open);
