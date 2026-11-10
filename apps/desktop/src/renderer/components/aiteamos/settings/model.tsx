@@ -1,5 +1,5 @@
 import { Plus, X } from "lucide-react";
-import { useState } from "react";
+import { lazy, useState } from "react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -10,7 +10,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "../../ui/alert-dialog";
-import { AddProviderDialog } from "./add-provider-dialog";
 import { SettingsSelectContent } from "./select-content";
 import { useModelSetup } from "../../../hooks/use-model-setup";
 import { providerName } from "../../../lib/provider-names";
@@ -39,6 +38,11 @@ import {
 
 // Not a provider id (ids start with a letter or digit): picking it opens the add dialog.
 const ADD_PROVIDER = "__add-provider__";
+const AddProviderDialog = lazy(() =>
+  import("./add-provider-dialog").then(({ AddProviderDialog: Component }) => ({
+    default: Component,
+  }))
+);
 
 const selectTrigger = settingsSelect;
 
@@ -342,14 +346,16 @@ export default function ModelSettings() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      <AddProviderDialog
-        onAdd={async (input, apiKey) => {
-          const result = await setup.addProvider(input, apiKey);
-          return result;
-        }}
-        onOpenChange={setAdding}
-        open={adding}
-      />
+      {adding ? (
+        <AddProviderDialog
+          onAdd={async (input, apiKey) => {
+            const result = await setup.addProvider(input, apiKey);
+            return result;
+          }}
+          onOpenChange={setAdding}
+          open
+        />
+      ) : null}
       {setup.error ? (
         <div className="mt-3 px-2 text-[12px] text-red-600 dark:text-red-400" role="alert">
           {setup.error}

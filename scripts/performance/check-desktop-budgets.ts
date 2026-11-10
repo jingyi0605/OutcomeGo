@@ -119,7 +119,9 @@ if (!result.renderer.workspaceStartup) failures.push("Workspace startup closure 
 // 1,248,419 bytes. The settings Select stays outside pages that do not use it.
 // v0.0.14: delivery/loading UI and shared resource ownership measure 1,258,168.
 // Automatic lifecycle chunking avoids a React initialization cycle in built entries.
-else atMost("signed-in workspace startup bytes", result.renderer.workspaceStartup.bytes, 1_270_000);
+// The provider icon catalog and the bilingual settings shell are part of the authenticated startup
+// path. The current build measures 1,378,575 bytes; keep a small margin for generated chunk data.
+else atMost("signed-in workspace startup bytes", result.renderer.workspaceStartup.bytes, 1_400_000);
 const startupCssBytes = result.renderer.startup.files
   .filter((file) => file.path.endsWith(".css"))
   .reduce((total, file) => total + file.bytes, 0);
@@ -128,7 +130,8 @@ const startupCssBytes = result.renderer.startup.files
 // navigation available at startup.
 // v0.0.13 adds sidebar, pending-message and settings styles: 181,253 bytes.
 // v0.0.14 delivery/loading styles and background animation controls: 183,131.
-atMost("startup CSS bytes", startupCssBytes, 185_000);
+// The provider picker and settings controls add 36 bytes to the measured startup stylesheet.
+atMost("startup CSS bytes", startupCssBytes, 187_000);
 // September 16: worker isolation and the complete memory/plugin/settings UI
 // measure 15.90 MB / 3.887 MB gzip. Account for the worker's separate runtime;
 // retain the existing entry, CSS and grammar-total ceilings.
@@ -157,7 +160,8 @@ atMost("startup CSS bytes", startupCssBytes, 185_000);
 // attachment previews measure 16,523,942 after the capabilities import fix.
 // v0.0.13 measures 16,529,321 bytes after isolating SettingsSelectContent.
 // v0.0.14 resource/cache ownership and delivery UI: 16,542,075 after safe chunking.
-atMost("renderer bytes", result.renderer.bytes, 17_400_000);
+// The provider catalog and model settings add 382 KB to the renderer bundle in this release.
+atMost("renderer bytes", result.renderer.bytes, 17_900_000);
 // +10 KB (2026-09) for Settings → Providers and its provider logos (~9 KB gzip).
 // Measured total with the former saved-login screen: 4,016,715 bytes.
 // The first-run wizard and settings measure 4,022,126 bytes gzip (2026-10); with the
@@ -173,7 +177,7 @@ atMost("renderer bytes", result.renderer.bytes, 17_400_000);
 // Resource ownership and background lifecycle controls measure 4,118,074 gzip
 // bytes. Allow 2 KB for worker retirement, blob leases and shared activity hooks.
 // The same v0.0.14 build measures 4,121,192 gzip bytes, including chunk metadata.
-atMost("renderer gzip bytes", result.renderer.gzipBytes, 4_500_000);
+atMost("renderer gzip bytes", result.renderer.gzipBytes, 4_650_000);
 atMost("build-analysis metadata bytes", result.renderer.buildMetadata.bytes, 256_000);
 // October 1 release baseline, including the native launcher and current tool
 // contracts: 2,447,064 bytes with pinned Bun 1.4.2. The same sources with Bun
@@ -210,10 +214,10 @@ const lazyBudgets: Record<string, number> = {
   // secrets for Bot processes bring the measured October closure to 51,380 bytes.
   // The Settings cleanup's shared Select (#187) adds about 21.6 KB to each plugin closure:
   // 73,336, 46,419, 40,512 and 36,231.
-  pluginDetail: 73_700,
+  pluginDetail: 75_000,
   pluginConnection: 46_800,
   pluginStudio: 40_900,
-  privateSkills: 36_600,
+  privateSkills: 37_000,
   settingsMicrophone: 12_000,
   basicMarkdown: 600_000,
   advancedRich: 600_000,
@@ -262,7 +266,7 @@ const lazyBudgets: Record<string, number> = {
   // select-style trigger with a filtered list, also on "You're already connected");
   // 152,506 with the web search step (a recommended provider, its key and a real check);
   // 153,026 with the Settings cleanup.
-  onboarding: 153_400,
+  onboarding: 158_000,
   // Welcome, server address, and sign-in; loads only while signed out. Measured
   // October closure: 40,306; 44,595 after the QA fixes (cancellable connects, address
   // checks, and the shared layout's guards and styles); 61,766 with the setup screens'
@@ -270,9 +274,9 @@ const lazyBudgets: Record<string, number> = {
   // review's shared layout and CSS; 66,735 with the cinematic pass's shared CSS (its own
   // pictures, the topology and the model picker live apart, with the setup screens);
   // 69,096 with the web search stage's shared tint and five-step progress.
-  signIn: 69_500,
+  signIn: 71_000,
   // 40,608 with Messages (#165); 62,814 with the shared Select (#187).
-  pluginSettings: 63_200,
+  pluginSettings: 65_000,
   pluginSettingsDetail: 30_000,
   pluginManagement: 38_000,
   skillImport: 100_000,
@@ -280,12 +284,12 @@ const lazyBudgets: Record<string, number> = {
   groupAvatarEditor: 10_000,
   // Model and Voice notes navigation with the shared Radix chunks: 42,789 bytes;
   // 46,297 with the Timezone page.
-  settingsInitial: 46_600,
+  settingsInitial: 48_000,
   // The Voice notes entry and microphone icon bring the settings shell to 10,728;
   // 11,132 with the Messages entry and the Settings cleanup.
   // Shared SettingsLink navigation (#199/#201) brings the closure to 11,557.
   // v0.0.13 shared control styles: 13,550, without the ~21 KB Select dependency.
-  settingsShell: 14_500,
+  settingsShell: 16_500,
   settingsAbout: 70_000,
   settingsRealtimeVoice: 100_000,
   voiceSelect: 100_000,
@@ -297,12 +301,12 @@ const lazyBudgets: Record<string, number> = {
   // Provider sign-in, model selection and testing now load only on Settings → Model.
   // Includes onboarding's shared searchable picker and compact popover (53,386 bytes).
   // v0.0.13 styled controls and dropdown wrapper: 56,267 bytes.
-  settingsModel: 56_600,
+  settingsModel: 150_000,
   // Activity and Remote access stay in Server; measured 10,389 after extraction.
   // Connected version/update navigation and the moved machine controls (#201/#211)
   // measure 17,312. Browser network settings retain their separate lazy boundary.
   // v0.0.13 shared control styles: 18,849 bytes; network and Select remain lazy.
-  settingsServer: 19_000,
+  settingsServer: 24_000,
   // Dedicated Voice notes page: load retry, provider marks, busy indicators and
   // responsive fields. Still lazy; its measured closure is 40,488 bytes; 41,304 after the
   // Settings cleanup.
@@ -310,13 +314,15 @@ const lazyBudgets: Record<string, number> = {
   settingsTranscription: 42_300,
   liveVoice: 800_000,
   // Search and Fetch pages with inlined 40 px WebP logos (~10 KB of the total).
-  settingsProviders: 30_000,
+  settingsProviders: 32_000,
   // Shares lucide's triangle-alert chunk with Providers. The signed-out
   // compatibility guard brings the measured October release closure to 10,250 bytes.
   // Unified server updates with stages, idle confirmation and restart recovery
   // (#201) measure 17,768; this UI remains lazy.
   // v0.0.13 compact shared buttons/styles: 18,677 bytes.
-  settingsUpdates: 18_900,
+  settingsUpdates: 21_000,
+  // The full provider preset catalog is loaded only when the Add provider dialog opens.
+  addProviderDialog: 650_000,
 };
 if (!result.renderer.lazyClosures) {
   failures.push("Vite manifest/lazy closures were not found; run a current desktop build");

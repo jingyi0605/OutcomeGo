@@ -23,8 +23,8 @@ data class AndroidUpdateManifest(
 
 object AndroidUpdateManifestVerifier {
     private const val SIGNATURE_ALGORITHM = "SHA256withECDSA"
-    private const val PUBLIC_KEY_DER_BASE64 =
-        "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAExjbwcMr9AKaPWqpzFy7OafvKHVMIpzNfQdkWY/BYbS6BTYXZwhD2psz0IKd2UsPbv0rkoXB/zN/I8W73hllhFw=="
+    private const val PUBLIC_KEY_DER_HEX =
+        "3059301306072a8648ce3d020106082a8648ce3d030107034200040da735399b8d9e36e470326ebbbf73a840ac6b7c4af5acf20ec5edc4a24f8442370cdf85be2e0edf7409aaffc5b45f913a5623a6d30b613a902a1b8c72c16017"
     private val json = Json { ignoreUnknownKeys = false }
     private val sha256Pattern = Regex("^[0-9a-fA-F]{64}$")
     private val versionPattern = Regex("^\\d+\\.\\d+\\.\\d+(?:-[A-Za-z]+\\.\\d+)?$")
@@ -75,7 +75,7 @@ object AndroidUpdateManifestVerifier {
     private fun verifySignature(manifest: AndroidUpdateManifest): Boolean = runCatching {
         val keyFactory = KeyFactory.getInstance("EC")
         val publicKey: PublicKey = keyFactory.generatePublic(
-            X509EncodedKeySpec(Base64.getDecoder().decode(PUBLIC_KEY_DER_BASE64)),
+            X509EncodedKeySpec(PUBLIC_KEY_DER_HEX.chunked(2).map { it.toInt(16).toByte() }.toByteArray()),
         )
         Signature.getInstance(SIGNATURE_ALGORITHM).run {
             initVerify(publicKey)

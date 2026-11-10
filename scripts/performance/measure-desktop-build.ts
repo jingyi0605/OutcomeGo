@@ -471,6 +471,7 @@ const readLazyClosures = async () => {
       ],
       settingsShell: ["src/renderer/components/aiteamos/settings/panel.tsx"],
       settingsAbout: ["src/renderer/components/aiteamos/settings/about.tsx"],
+      addProviderDialog: ["src/renderer/components/aiteamos/settings/add-provider-dialog.tsx"],
       settingsRealtimeVoice: ["src/renderer/components/aiteamos/settings/realtime-voice.tsx"],
       voiceSelect: ["src/renderer/components/aiteamos/settings/volcengine-voice-select.tsx"],
       settingsGeneral: ["src/renderer/components/aiteamos/settings/general.tsx"],
