@@ -1,6 +1,5 @@
 import type { BusyBotsView } from "@aiteamos/contracts";
-import { isUpdateBusyMessage, stillWorking } from "@aiteamos/contracts/server-updates";
-import { clientErrorMessage } from "@aiteamos/product-core/redaction";
+import { isUpdateBusyMessage } from "@aiteamos/contracts/server-updates";
 import { CircleCheck, Server } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../../../client/aiteamos-api";
@@ -8,6 +7,11 @@ import { API_BASE } from "../../../client/http";
 import { useServerUpdate } from "../../../hooks/use-server-update";
 import { cn } from "../../../lib/cn";
 import { useI18n } from "../../../lib/i18n";
+import {
+  localizeServerUpdateFailure,
+  localizeServerUpdateMessage,
+  localizedStillWorking,
+} from "../../../lib/server-update-message";
 import { inSidebarOrder, useSidebarBotOrder } from "../../../lib/sidebar-bot-order";
 import { SectionLabel, SettingsGroup, settingsSecondaryButton } from "./ui";
 import { ServerUpdateProgressPanel } from "./server-update-progress";
@@ -131,7 +135,7 @@ export function ServerUpdateSettings({
       if ((await refreshBusy()).length > 0) return;
       await updateServer();
     } catch (cause) {
-      setError(clientErrorMessage(cause, t(FAILED)));
+      setError(localizeServerUpdateFailure(cause, t(FAILED)));
     } finally {
       setStarting(false);
     }
@@ -148,29 +152,31 @@ export function ServerUpdateSettings({
   };
 
   const failure = error ?? (server?.status === "error" ? server.message : null);
+  // Known pipeline text is translated; anything else stays as the server reported it.
+  const failureText = failure ? (localizeServerUpdateMessage(failure) ?? failure) : null;
   const extraCopy =
     state === "loading" ? (
       t("Checking the connected server…")
     ) : state === "busy" ? (
       t("{status}. Update will be available when every agent is done.", {
-        status: stillWorking(busyInOrder.map((bot) => bot.name)),
+        status: localizedStillWorking(busyInOrder.map((bot) => bot.name)),
       })
     ) : state === "updating" ? (
-      (server?.message ?? t("Updating the server…"))
+      (localizeServerUpdateMessage(server?.message) ?? t("Updating the server…"))
     ) : state === "unavailable" ? (
       serverReconnecting ? (
         t("Could not reach the server. Reconnecting automatically.")
       ) : (
-        (server?.message ??
+        (localizeServerUpdateMessage(server?.message) ??
         t("Could not verify the server update status. Check for updates again."))
       )
     ) : failure && state !== "up-to-date" ? (
       isUpdateBusyMessage(failure) ? (
-        failure
+        (failureText ?? t(FAILED))
       ) : (
         <>
           {t(FAILED)}
-          <span className="block text-foreground-tertiary">{failure}</span>
+          <span className="block text-foreground-tertiary">{failureText}</span>
         </>
       )
     ) : state === "ready" && serverTarget ? (

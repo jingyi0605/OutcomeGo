@@ -1483,6 +1483,79 @@ export const sourceTranslations: Record<string, string> = {
   "Reconnecting automatically. Last checked at {time}.": "正在自动重连。最后检查于 {time}。",
   "You can close the app. The update will keep going.": "你可以关闭应用，更新将继续进行。",
   "Keep this screen open while the update starts.": "更新开始前请保持此屏幕打开。",
+  // Status text reported by the connected server and the update pipeline on its host.
+  "Updates this connected server": "用于更新当前连接的服务器",
+  "Run aiteamos start on the server to enable updates from the app.":
+    "请在服务器上运行 aiteamos start，以启用从应用内更新。",
+  "Waiting for the server updater to reconnect…": "正在等待服务器更新器重新连接…",
+  "Update requested. Waiting for the server updater…": "已请求更新，正在等待服务器更新器…",
+  "Choose a newer server release.": "请选择更新的服务器版本。",
+  "Choose a newer stable server release.": "请选择更新的稳定版服务器版本。",
+  "A server update is already in progress.": "服务器更新已在进行中。",
+  "Only targetVersion is accepted.": "仅接受 targetVersion。",
+  "Sign in to update this server.": "请登录后再更新此服务器。",
+  "Starting the server updater…": "正在启动服务器更新器…",
+  "The server updater stopped. Retry the update.": "服务器更新器已停止，请重试更新。",
+  "The server requested an invalid update version.": "服务器请求了无效的更新版本。",
+  "Update accepted; it will continue if this window closes": "已接受更新；关闭此窗口后更新仍会继续",
+  "Checking the latest aiTeamOS release": "正在检查最新的 aiTeamOS 版本",
+  "Downloading and verifying aiTeamOS {version}": "正在下载并校验 aiTeamOS {version}",
+  "Pulling aiTeamOS {version} container images": "正在拉取 aiTeamOS {version} 容器镜像",
+  "Backing up the aiTeamOS database before {version}":
+    "正在备份更新前的 aiTeamOS 数据库（{version}）",
+  "Restarting the server, worker, and computer": "正在重启服务器、worker 和电脑",
+  "aiTeamOS {version} passed its readiness checks": "aiTeamOS {version} 已通过就绪检查",
+  "Installing aiTeamOS {version} command-line tools": "正在安装 aiTeamOS {version} 命令行工具",
+  "aiTeamOS {version} and its command-line tools are up to date":
+    "aiTeamOS {version} 及其命令行工具均为最新版本",
+  "aiTeamOS {version} is already installed": "aiTeamOS {version} 已安装",
+  "aiTeamOS and its command-line tools are now running {version}.":
+    "aiTeamOS 及其命令行工具现在运行 {version}。",
+  "aiTeamOS is now running {version}.": "aiTeamOS 现在运行 {version}。",
+  "Updating aiTeamOS {from} → {to}…": "正在更新 aiTeamOS {from} → {to}…",
+  "The update failed; restoring the previous aiTeamOS configuration":
+    "更新失败；正在恢复之前的 aiTeamOS 配置",
+  "Refusing prerelease {version} on the stable channel. Use --allow-prerelease to opt in.":
+    "稳定通道不接受预发布版本 {version}。如需使用，请添加 --allow-prerelease。",
+  "Refusing to downgrade aiTeamOS {current} to {target}. Use --allow-downgrade only for an intentional recovery.":
+    "拒绝将 aiTeamOS 从 {current} 降级到 {target}。仅在有意恢复时才使用 --allow-downgrade。",
+  "Update failed and the previous Compose configuration was restored; the running services were never stopped: {cause}":
+    "更新失败，已恢复之前的 Compose 配置；正在运行的服务从未被停止：{cause}",
+  "Update failed and the previous Compose configuration was restored and restarted: {cause}":
+    "更新失败，已恢复之前的 Compose 配置并重启服务：{cause}",
+  "Update failed and the previous Compose configuration was restored, but it could not be restarted: {cause}":
+    "更新失败，已恢复之前的 Compose 配置，但无法重启服务：{cause}",
+  "An agent": "智能体",
+  "{names} is still working": "{names} 仍在工作",
+  "{names} are still working": "{names} 仍在工作",
+  "{names} is still working. Nothing changed; try again when it's done.":
+    "{names} 仍在工作，未做任何更改；请等其完成后再试。",
+  "{names} are still working. Nothing changed; try again when they're done.":
+    "{names} 仍在工作，未做任何更改；请等它们完成后再试。",
+  // Milestones shown while a server update runs.
+  "Prepare update": "准备更新",
+  "Back up data": "备份数据",
+  "Restart services": "重启服务",
+  "Verify update": "校验更新",
+  "Preparing update": "正在准备更新",
+  "Verifying the release": "正在校验发布包",
+  "Protecting your data": "正在保护你的数据",
+  "Restarting services": "正在重启服务",
+  "Checking server health": "正在检查服务器健康状态",
+  "Finishing up": "正在收尾",
+  "Update complete": "更新完成",
+  "Update in progress": "更新进行中",
+  "Restoring the previous version": "正在恢复之前的版本",
+  // Status text the desktop main process reports for its own update.
+  "No published desktop release is available yet.": "尚未发布可用的桌面端版本。",
+  "Restart aiTeamOS to finish installing the update": "重启 aiTeamOS 以完成更新安装",
+  "Desktop {version} is available. This copy can’t update itself, so download the new version to replace it.":
+    "桌面端 {version} 可用。当前版本无法自行更新，请下载新版本进行替换。",
+  "The desktop update service is unavailable": "桌面端更新服务不可用",
+  "The desktop update service did not return a result": "桌面端更新服务未返回结果",
+  "Update service returned {status}": "更新服务返回 {status}",
+  "Update service returned a malformed release manifest": "更新服务返回了格式错误的发布清单",
+  "Update service returned an invalid release version": "更新服务返回了无效的发布版本",
   CPU: "CPU",
   RAM: "内存",
   Disk: "磁盘",

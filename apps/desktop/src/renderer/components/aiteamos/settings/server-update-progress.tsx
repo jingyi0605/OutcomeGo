@@ -3,6 +3,10 @@ import { Check, LoaderCircle, ShieldCheck, Wifi } from "lucide-react";
 import { useVisibleNow } from "../../../hooks/use-visible-now";
 import { cn } from "../../../lib/cn";
 import { useI18n } from "../../../lib/i18n";
+import {
+  localizeServerUpdateMessage,
+  localizeUpdateStep,
+} from "../../../lib/server-update-message";
 
 export function ServerUpdateProgressPanel({
   phase,
@@ -86,7 +90,9 @@ export function ServerUpdateProgressPanel({
       </div>
       {reconnecting || message ? (
         <p className="mt-1 text-[12px] leading-4 text-foreground-secondary">
-          {reconnecting ? t("Last seen: {title}", { title: progress.title }) : message}
+          {reconnecting
+            ? t("Last seen: {title}", { title: progress.title })
+            : localizeServerUpdateMessage(message)}
         </p>
       ) : null}
       {progress.step !== null && !progress.rollingBack ? (
@@ -110,7 +116,7 @@ export function ServerUpdateProgressPanel({
               ) : (
                 <span className="size-1.5 rounded-full bg-current opacity-40" />
               )}
-              {t(title)}
+              {localizeUpdateStep(title)}
             </li>
           ))}
         </ol>

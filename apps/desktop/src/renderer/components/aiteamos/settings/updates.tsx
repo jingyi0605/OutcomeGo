@@ -6,6 +6,7 @@ import { requestDesktopUpdateRestart } from "../../../lib/desktop-update";
 import { LoadingOrb } from "../../ui/loading-orb";
 import { ServerUpdateSettings } from "./server-update";
 import { useI18n } from "../../../lib/i18n";
+import { localizeDesktopUpdateMessage } from "../../../lib/server-update-message";
 import {
   SectionLabel,
   SettingsGroup,
@@ -35,8 +36,10 @@ const clientUpdateFailure = (status: AiTeamOSUpdateStatus, t: Translate): string
               : status.failureKind === "apply-unsupported"
                 ? t("The downloaded update cannot be installed on this platform.")
                 : t("The desktop update failed.");
-  return status.message && status.message !== summary
-    ? t("{summary} {message}", { summary, message: status.message })
+  // The main process reports an English technical cause; translate the known copy and keep it.
+  const detail = localizeDesktopUpdateMessage(status.message);
+  return detail && detail !== summary
+    ? t("{summary} {message}", { summary, message: detail })
     : summary;
 };
 
@@ -68,7 +71,8 @@ export default function UpdatesSettings() {
       if (next) setClientUpdate(next);
       await refreshServer();
     } catch (error) {
-      setActionError(clientErrorMessage(error, t("Could not check for updates")));
+      const message = clientErrorMessage(error, t("Could not check for updates"));
+      setActionError(localizeDesktopUpdateMessage(message) ?? message);
     }
   };
 
@@ -88,7 +92,8 @@ export default function UpdatesSettings() {
       if (next?.status === "available") await window.aiteamos?.updates.openDownload();
       else throw new Error(t("No newer desktop release is currently published"));
     } catch (error) {
-      setActionError(clientErrorMessage(error, t("Could not open the client update")));
+      const message = clientErrorMessage(error, t("Could not open the client update"));
+      setActionError(localizeDesktopUpdateMessage(message) ?? message);
     }
   };
 
@@ -171,12 +176,15 @@ export default function UpdatesSettings() {
           }
           description={
             clientUpdate?.status === "available"
-              ? (clientUpdate.message ??
+              ? (localizeDesktopUpdateMessage(clientUpdate.message) ??
                 t("Desktop {version} is available", { version: clientUpdate.latestVersion }))
               : clientUpdate?.status === "up-to-date"
-                ? (clientUpdate.message ?? t("You’re up to date"))
+                ? (localizeDesktopUpdateMessage(clientUpdate.message) ?? t("You’re up to date"))
                 : ["downloading", "downloaded", "installing"].includes(clientUpdate?.status ?? "")
-                  ? clientUpdate?.message
+                  ? (localizeDesktopUpdateMessage(clientUpdate?.message) ??
+                    (clientUpdate?.status === "downloaded"
+                      ? t("Restart to update")
+                      : t("Downloading update")))
                   : clientUpdate?.status === "error"
                     ? clientUpdateFailure(clientUpdate, t)
                     : t("Check for a newer desktop version.")
