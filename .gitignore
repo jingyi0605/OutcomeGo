@@ -29,7 +29,6 @@ data
 **/.gradle/
 **/build/
 local.properties
-/specs/
 
 # Signing material never belongs in the repository
 *.jks

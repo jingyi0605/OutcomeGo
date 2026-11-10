@@ -1,5 +1,11 @@
 # Project Rules
 
+## 文档语言
+
+- 所有技术文档和规格文档内容必须使用中文，包括设计方案、架构说明、任务计划和实现规格。
+- 代码标识符、代码注释、文档字符串和提交消息继续使用英文，除非项目其他规则明确要求使用不同语言。
+- 说明性 Markdown 文档使用带日期的中文文件名，例如 `20251119-文档标题.md`。
+
 ## Git Commit Messages
 
 - Write Git commit messages in Chinese.
