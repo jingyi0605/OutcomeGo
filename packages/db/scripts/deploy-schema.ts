@@ -116,30 +116,32 @@ const prepareRoutineWebhookBinding = async (): Promise<void> => {
   try {
     await client.query(`
       DO $$
+      DECLARE
+        webhook_table regclass := to_regclass('"AutomationWebhook"');
       BEGIN
-        IF to_regclass('"AutomationWebhook"') IS NOT NULL
-          AND NOT EXISTS (
+        IF webhook_table IS NOT NULL THEN
+          IF NOT EXISTS (
             SELECT 1
             FROM information_schema.columns
             WHERE table_schema = current_schema()
               AND table_name = 'AutomationWebhook'
               AND column_name = 'routineId'
           ) THEN
-          ALTER TABLE "AutomationWebhook" ADD COLUMN "routineId" UUID;
-        END IF;
+            ALTER TABLE "AutomationWebhook" ADD COLUMN "routineId" UUID;
+          END IF;
 
-        IF to_regclass('"AutomationWebhook"') IS NOT NULL
-          AND NOT EXISTS (
+          IF NOT EXISTS (
             SELECT 1
             FROM pg_constraint
-            WHERE conrelid = '"AutomationWebhook"'::regclass
+            WHERE conrelid = webhook_table
               AND conname = 'AutomationWebhook_routineId_key'
           ) THEN
-          IF to_regclass('"AutomationWebhook_routineId_key"') IS NOT NULL THEN
-            DROP INDEX "AutomationWebhook_routineId_key";
+            IF to_regclass('"AutomationWebhook_routineId_key"') IS NOT NULL THEN
+              DROP INDEX "AutomationWebhook_routineId_key";
+            END IF;
+            ALTER TABLE "AutomationWebhook"
+              ADD CONSTRAINT "AutomationWebhook_routineId_key" UNIQUE ("routineId");
           END IF;
-          ALTER TABLE "AutomationWebhook"
-            ADD CONSTRAINT "AutomationWebhook_routineId_key" UNIQUE ("routineId");
         END IF;
       END $$;
     `);
