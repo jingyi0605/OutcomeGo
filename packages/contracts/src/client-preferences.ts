@@ -219,3 +219,27 @@ export const sidebarPreferencesFromRootSettings = (
     ),
   };
 };
+
+export type SidebarSyncDecision =
+  | { action: "adopt"; preferences: SidebarPreferences }
+  | { action: "push"; preferences: SidebarPreferences }
+  | { action: "none" };
+
+/**
+ * Decide how a client reconciles its local sidebar preferences with the server's at startup.
+ * The server wins whenever it holds pinned/section data, even an empty list, so a fresh client
+ * never overwrites it. Local data is pushed only to migrate a server that has none yet.
+ */
+export const resolveSidebarSync = (
+  root: RootSettingsView,
+  local: SidebarPreferences
+): SidebarSyncDecision => {
+  if (!root.valid) return { action: "none" };
+  const remote = sidebarPreferencesFromRootSettings(root, local);
+  if (remote) return { action: "adopt", preferences: remote };
+  const hasLocalLayout =
+    local.pinnedIds.length > 0 ||
+    local.sections.length > 0 ||
+    Object.keys(local.sectionByChannel).length > 0;
+  return hasLocalLayout ? { action: "push", preferences: local } : { action: "none" };
+};

@@ -9,7 +9,10 @@ export type {
   RoutineView,
   SidebarPreferences,
 } from "@aiteamos/contracts";
-export { sidebarPreferencesFromRootSettings } from "@aiteamos/contracts/client-preferences";
+export {
+  resolveSidebarSync,
+  sidebarPreferencesFromRootSettings,
+} from "@aiteamos/contracts/client-preferences";
 export * from "./auth";
 export * from "./account";
 export * from "./async";
