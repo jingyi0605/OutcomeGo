@@ -78,8 +78,8 @@
 
 ## 阶段 2：服务端主链路
 
-- [ ] 3 群聊回合的语音分支
-  - 状态：TODO
+- [x] 3 群聊回合的语音分支
+  - 状态：DONE
   - 这一步到底做什么：`createGroupRound` 接受 `responderIds`；语音回合结束时不追问；新增 `onGroupDeliverySettled` 回调；`sendGroupMessage` 支持 `voice` 元数据和 `responderIds`；Worker 对语音群聊投递注入 `voiceTurnPrompt`。
   - 做完你能看到什么：带 `metadata.voice` 的群聊消息只投递给指定 Bot，所有投递结束后回合直接完成，每次投递发布后回调被触发。
   - 先依赖什么：1
@@ -100,7 +100,9 @@
     4. 语音群聊投递拿到 `voiceTurnPrompt`
   - 怎么验证：
     - `bun test packages/messaging/test/group-execution.integration.test.ts`
+    - 结果：未配置 `AITEAMOS_TEST_DATABASE_URL`，13 个集成测试全部跳过，0 fail
     - `bun test apps/worker/test/voice-prompt.test.ts`
+    - 结果：通过（1 pass，0 fail）
   - 对应需求：`requirements.md` 需求 3，非功能需求 3
   - 对应设计：`design.md` §2.3.3、§3.3.3、§3.3.4、§6.2
 

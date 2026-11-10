@@ -292,11 +292,19 @@ export class ChannelService {
 
   setGroupMembers = forwardServiceMethod(() => this.groups.setGroupMembers);
 
-  sendGroupMessage = (channelId: string, input: SendMessageInput) =>
+  sendGroupMessage = (
+    channelId: string,
+    input: SendMessageInput,
+    options?: { responderIds?: readonly string[] }
+  ) =>
     serviceEffect(async () => {
       input = await this.normalizeMessageAttachments(input);
       const scope = `channel:${channelId}:message`;
-      const requestHash = hashRequest({ ...input, sourceMachineId: undefined });
+      const requestHash = hashRequest({
+        ...input,
+        sourceMachineId: undefined,
+        ...(options?.responderIds ? { responderIds: [...options.responderIds] } : {}),
+      });
       const existing = await this.prisma.idempotencyRecord.findUnique({
         where: { scope_key: { scope, key: input.clientId } },
       });
@@ -363,6 +371,7 @@ export class ChannelService {
               ...(input.richText ? { richText: input.richText } : {}),
               ...(input.isFork ? { branched: true } : {}),
               ...(input.timeZone ? { timeZone: input.timeZone } : {}),
+              ...(input.voice ? { voice: input.voice } : {}),
             },
           },
         });
@@ -375,6 +384,7 @@ export class ChannelService {
           channelId,
           triggerMessageId: message.id,
           initiatorBotId: null,
+          ...(options?.responderIds ? { responderIds: options.responderIds } : {}),
         });
         await tx.channel.update({
           where: { id: channelId },

@@ -1384,6 +1384,7 @@ export class AgentMessaging {
       rootMessageId?: string;
       roundIndex?: number;
       memberTurnOffset?: number;
+      responderIds?: readonly string[];
     }
   ) {
     const roundIndex = input.roundIndex ?? 0;
@@ -1410,23 +1411,25 @@ export class AgentMessaging {
       select: { sender: true, content: true },
     });
     const eligible = allMembers.filter((member) => member.botId !== input.initiatorBotId);
-    const responderIds = resolveGroupResponderIds(
-      eligible.map((member) => ({ id: member.bot.id, name: member.bot.name })),
-      history.map((message) => ({
-        sender: message.sender,
-        content: message.content,
-      })),
-      {
-        attachmentOnlyFirstRound:
-          roundIndex === 0 &&
-          triggerMessage.content.trim().length === 0 &&
-          attachmentsFromMetadata(triggerMessage.metadata).some(
-            (attachment) => attachment.kind === "image"
-          ),
-      }
-    );
+    const responderIds = input.responderIds
+      ? [...input.responderIds]
+      : resolveGroupResponderIds(
+          eligible.map((member) => ({ id: member.bot.id, name: member.bot.name })),
+          history.map((message) => ({
+            sender: message.sender,
+            content: message.content,
+          })),
+          {
+            attachmentOnlyFirstRound:
+              roundIndex === 0 &&
+              triggerMessage.content.trim().length === 0 &&
+              attachmentsFromMetadata(triggerMessage.metadata).some(
+                (attachment) => attachment.kind === "image"
+              ),
+          }
+        );
     const membersById = new Map(eligible.map((member) => [member.botId, member] as const));
-    const members = rotateGroupResponders(responderIds, roundIndex)
+    const members = (input.responderIds ? responderIds : rotateGroupResponders(responderIds, roundIndex))
       .flatMap((botId) => {
         const member = membersById.get(botId);
         return member ? [member] : [];
@@ -1469,6 +1472,15 @@ export class AgentMessaging {
 
   /** Called once a room transaction has settled a group routine's run (wired to RoutineService). */
   onGroupRoutineSettled?: (settled: { executionId: string; routineId: string }) => Promise<unknown>;
+  onGroupDeliverySettled?: (settled: { runId: string; roundId: string }) => Promise<unknown>;
+
+  private async notifyGroupDeliverySettled(settled: { runId: string; roundId: string }): Promise<void> {
+    try {
+      await this.onGroupDeliverySettled?.(settled);
+    } catch (error) {
+      console.error("group delivery settled callback", error);
+    }
+  }
 
   async advanceRound(roundId: string): Promise<void> {
     let settledRoutine: { executionId: string; routineId: string } | undefined;
@@ -1564,6 +1576,19 @@ export class AgentMessaging {
               },
             });
           };
+          const triggerMetadata =
+            round.triggerMessage.metadata &&
+            !Array.isArray(round.triggerMessage.metadata) &&
+            typeof round.triggerMessage.metadata === "object"
+              ? (round.triggerMessage.metadata as Record<string, unknown>)
+              : {};
+          if (
+            triggerMetadata.voice &&
+            typeof triggerMetadata.voice === "object" &&
+            !Array.isArray(triggerMetadata.voice)
+          ) {
+            return null;
+          }
           if (
             round.roundIndex + 1 >= GROUP_MAX_ROUNDS ||
             deliveredMessages >= GROUP_MAX_MEMBER_TURNS || round.channel.members.length === 1
@@ -1760,6 +1785,7 @@ export class AgentMessaging {
 
   async retryInterruptedGroupDelivery(deliveryId: string, runId: string): Promise<void> {
     let roundId: string | null = null;
+    let settledRunId: string | null = null;
     await this.prisma.$transaction(async (tx) => {
       await lockGroupDelivery(tx, deliveryId);
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`delivery:${deliveryId}`}))`;
@@ -1772,6 +1798,7 @@ export class AgentMessaging {
         const members = await tx.channelMember.findMany({ where: { channelId: prepared[0]!.channelId }, select: { botId: true } });
         await this.scheduleTranscriptProjection(tx, members.map(member => member.botId));
         roundId = delivery.roundId;
+        settledRunId = runId;
         return;
       }
       const priorWakeCount = await tx.inboxEvent.count({
@@ -1814,7 +1841,10 @@ export class AgentMessaging {
       });
       roundId = delivery.roundId;
     });
-    if (roundId) await this.advanceRound(roundId);
+    if (roundId) {
+      if (settledRunId) await this.notifyGroupDeliverySettled({ runId: settledRunId, roundId });
+      await this.advanceRound(roundId);
+    }
   }
 
   async completeDelivery(
@@ -1831,12 +1861,14 @@ export class AgentMessaging {
       await this.advanceRound(delivery.roundId);
       return;
     }
+    let settledRunId: string | null = null;
     await this.prisma.$transaction(async (tx) => {
       await lockGroupDelivery(tx, deliveryId);
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`delivery:${deliveryId}`}))`;
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`group-outbox:${deliveryId}`}))`;
       const current = await tx.channelDelivery.findUnique({ where: { id: deliveryId }, include: { run: true } });
       if (!current || (expectedRunId && current.run?.id !== expectedRunId) || ["completed", "failed", "skipped"].includes(current.status)) return;
+      settledRunId = current.run?.id ?? expectedRunId ?? null;
       // A prepared SendToUser remains a delivery even if later work fails.
       // User cancellation still discards it; the failure status remains visible.
       await settleGroupOutbox(tx, deliveryId, status === "completed" || (status === "failed" && current.run?.status === "failed"));
@@ -1858,6 +1890,7 @@ export class AgentMessaging {
         },
       });
     });
+    if (settledRunId) await this.notifyGroupDeliverySettled({ runId: settledRunId, roundId: delivery.roundId });
     await this.advanceRound(delivery.roundId);
   }
 
