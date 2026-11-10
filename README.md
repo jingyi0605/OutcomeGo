@@ -10,7 +10,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/许可证-GPL--3.0-blue" alt="许可证 GPL-3.0">
-  <img src="https://img.shields.io/badge/基于-OpenTeam%20v0.0.15-555555" alt="基于 OpenTeam v0.0.15">
+  <img src="https://img.shields.io/badge/基于-OpenTeam%20v0.0.15%20%2B%20%23258-555555" alt="基于 OpenTeam v0.0.15，并同步 v0.0.16 的 #258">
   <img src="https://img.shields.io/badge/桌面端-Electron%20%2B%20React-2b3137?logo=electron&logoColor=white" alt="桌面端 Electron + React">
   <img src="https://img.shields.io/badge/服务端-Bun%20%2B%20TypeScript-f9f1e1?logo=bun&logoColor=black" alt="服务端 Bun + TypeScript">
   <img src="https://img.shields.io/badge/PostgreSQL-17-336791?logo=postgresql&logoColor=white" alt="PostgreSQL 17">
@@ -179,17 +179,32 @@ Agent 可以自行读取已授权的数据、做调研、写草稿、更新内�
 
 ## 本分支目前已有的内容
 
+本分支基于上游 OpenTeam v0.0.15，并选择性同步之后的上游修复。目前已包含 v0.0.16 中的
+[#258](https://github.com/raghavpillai/openteam/pull/258)（更新时清理按 digest 拉取的 Docker 镜像）。
+上游的版本号变更不会合并，因为本分支使用独立的版本线。
+
 与上游 OpenTeam v0.0.15 相比，本分支增加了：
 
 - 原生 **Android 客户端**：聊天、bot、例行任务、推送通知、分享入口和云端电脑查看器。
   已作为 [#236](https://github.com/raghavpillai/openteam/pull/236) 提交给上游。
 - 覆盖服务端、worker、桌面端、iOS 和 Android 的**实时语音对话**：包含语音活动检测、Opus 传输、
   火山引擎和 Deepgram 服务商，以及对耗时工具操作的语音旁白。
+- **模型服务商目录与自定义服务商**：服务端支持 OpenAI Chat、OpenAI Responses 和 Anthropic
+  Messages 协议，内置 38 个厂商预设；桌面端、iOS 和 Android 都可以从设置中添加服务商、
+  选择协议并显示厂商图标。
+- **Android 发布更新**：GitHub Release 提供签名 APK 和 `android-update.json`，应用会校验
+  更新清单、APK 校验和、应用 ID、版本号和签名证书后再安装；调试包使用独立的 `.debug`
+  应用 ID，可以和正式版并存。
+- Android 设置、登录、会话、聊天和例程页面支持震动反馈；桌面端、iOS 和 Android 的
+  aiTeamOS 品牌图标已统一。
 - Magpie 多模态模型元数据（[#198](https://github.com/raghavpillai/openteam/pull/198)）和网络修复
   （[#250](https://github.com/raghavpillai/openteam/pull/250)、
   [#251](https://github.com/raghavpillai/openteam/pull/251)）。
 
 完整清单见 [FORK.md](FORK.md)。
+
+当前发布版本是 `v0.1.0-beta.11`。桌面端、Android APK、服务端安装器和 CLI
+都发布在 [GitHub Releases](https://github.com/jingyi0605/ai-TeamOS/releases)。
 
 ## 分支
 
@@ -218,12 +233,7 @@ Agent 可以自行读取已授权的数据、做调研、写草稿、更新内�
 建议 **8 GB 内存**和 **8 GB 可用磁盘**。在 macOS 和 Windows 上，Docker Desktop 会提供引擎和 Compose。
 参见[环境要求](https://openteam.so/docs/getting-started/installation#requirements)（上游英文文档）。
 
-> **下面的安装器和应用来自上游。** 本节命令下载的是官方 OpenTeam CLI 和服务端镜像，
-> 不包含本分支的改动。要运行 aiTeamOS，请从本仓库构建，参见
-> [从源码开发](https://openteam.so/docs/development/from-source)和
-> [apps/android/README.md](apps/android/README.md) 中的 Android 说明。本分支目前没有发布版本。
-
-### 1. 安装服务端（上游 OpenTeam）
+### 1. 安装 aiTeamOS 服务端
 
 在将要托管 bot 的机器上运行。
 
@@ -239,20 +249,22 @@ curl -fsSL https://github.com/jingyi0605/ai-TeamOS/releases/latest/download/inst
 irm https://github.com/jingyi0605/ai-TeamOS/releases/latest/download/install.ps1 | iex
 ```
 
-安装器会下载 CLI，把它加入 `PATH`，并启动引导式设置。不需要 Node.js 和 Bun。
+安装器会下载 aiTeamOS CLI，把它加入 `PATH`，并启动引导式设置。不需要 Node.js 和 Bun。
 
 ### 2. 完成设置
 
-选择连接方式，然后创建你的 OpenTeam 用户名和密码。设置默认使用局域网或 VPN 上的私有连接，
+选择连接方式，然后创建你的 aiTeamOS 用户名和密码。设置默认使用局域网或 VPN 上的私有连接，
 启动服务端，并打印你的**服务器地址**。
-设置中包含私有 Tailscale HTTPS、公开 HTTPS 和已有代理等选项。使用 `openteam setup --advanced` 可调整更多服务端设置。
+设置中包含私有 Tailscale HTTPS、公开 HTTPS 和已有代理等选项。使用
+`aiteamos setup --advanced` 可调整更多服务端设置。
 
 ### 3. 打开应用
 
-[下载桌面端](https://openteam.so/download)，输入设置时得到的服务器地址，并用刚创建的账号登录。
+[下载桌面端](https://github.com/jingyi0605/ai-TeamOS/releases/latest)，输入设置时得到的服务器地址，并用刚创建的账号登录。
 应用随后会帮你用 ChatGPT 或 Claude 登录，或用 OpenAI、Anthropic、OpenRouter 的 API 密钥连接模型，并检查它能否回复。
-然后创建你的第一个 bot 并发给它一个任务。要使用自己的模型服务，请在主机上执行 `openteam provider add`，
-参见[模型服务商](https://openteam.so/docs/configuration/models#use-your-own-model-server)。
+然后创建你的第一个 bot 并发给它一个任务。要使用自己的模型服务，请在桌面端的
+**设置 → 模型**中添加服务商；也可以在主机上执行 `aiteamos provider add`。
+标准协议、自定义服务商和本地模型的说明参见[模型服务商](https://openteam.so/docs/configuration/models#use-your-own-model-server)。
 
 主机和 Docker 必须保持运行，bot 和例行任务才能工作。关闭应用后，服务端的工作会继续。
 当 bot 需要访问你的物理电脑时，请保持桌面端打开。
@@ -261,19 +273,19 @@ irm https://github.com/jingyi0605/ai-TeamOS/releases/latest/download/install.ps1
 
 | 应用 | 获取方式 |
 | --- | --- |
-| macOS（Apple 芯片）和 Linux（x64）桌面端 | 上游[下载页](https://openteam.so/download) |
-| iPhone（测试版） | [从源码构建](apps/ios/README.md) |
-| Android | [从源码构建](apps/android/README.md) |
+| macOS（Apple 芯片）、Linux（x64）和 Windows（x64）桌面端 | [GitHub Releases](https://github.com/jingyi0605/ai-TeamOS/releases/latest) |
+| Android 8.0+ | [GitHub Releases](https://github.com/jingyi0605/ai-TeamOS/releases/latest) 或[从源码构建](apps/android/README.md) |
+| iPhone / iPad（测试版） | [从源码构建](apps/ios/README.md) |
 
 所有应用都连接到你的服务端进行聊天和查看实时屏幕。大多数服务端设置（例如模型）都在桌面端里。
 
 ## 常用命令
 
 ```sh
-openteam status    # 检查服务端及其版本
-openteam doctor    # 诊断设置或连接问题
-openteam setup     # 更改连接方式
-openteam update    # 更新 CLI 和服务端，带备份和回滚
+aiteamos status    # 检查服务端及其版本
+aiteamos doctor    # 诊断设置或连接问题
+aiteamos setup     # 更改连接方式
+aiteamos update    # 更新 CLI 和服务端，带备份和回滚
 ```
 
 日常运维参见[服务端命令](https://openteam.so/docs/manage/server)、

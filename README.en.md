@@ -10,7 +10,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/License-GPL--3.0-blue" alt="License GPL-3.0">
-  <img src="https://img.shields.io/badge/Based%20on-OpenTeam%20v0.0.15-555555" alt="Based on OpenTeam v0.0.15">
+  <img src="https://img.shields.io/badge/Based%20on-OpenTeam%20v0.0.15%20%2B%20%23258-555555" alt="Based on OpenTeam v0.0.15, plus #258 from v0.0.16">
   <img src="https://img.shields.io/badge/Desktop-Electron%20%2B%20React-2b3137?logo=electron&logoColor=white" alt="Desktop Electron + React">
   <img src="https://img.shields.io/badge/Server-Bun%20%2B%20TypeScript-f9f1e1?logo=bun&logoColor=black" alt="Server Bun + TypeScript">
   <img src="https://img.shields.io/badge/PostgreSQL-17-336791?logo=postgresql&logoColor=white" alt="PostgreSQL 17">
@@ -205,6 +205,11 @@ Design notes will be added to [specs](specs) as each part is specified.
 
 ## What is in this fork today
 
+This branch is based on upstream OpenTeam v0.0.15 and selectively syncs later upstream fixes.
+So far it includes [#258](https://github.com/raghavpillai/openteam/pull/258) from v0.0.16
+(cleanup of Docker images pulled by digest during updates). Upstream version bumps are not
+merged, because this fork keeps its own version line.
+
 Compared with upstream OpenTeam v0.0.15, this branch adds:
 
 - A native **Android client** with chat, bots, routines, push notifications, a share target and
@@ -212,12 +217,24 @@ Compared with upstream OpenTeam v0.0.15, this branch adds:
   [#236](https://github.com/raghavpillai/openteam/pull/236).
 - **Realtime voice conversation** across the server, worker, desktop, iOS and Android, with VAD,
   Opus transport, Volcengine and Deepgram providers, and narration of slow tool work.
+- A **model-provider catalog and custom providers**: the server supports OpenAI Chat, OpenAI
+  Responses and Anthropic Messages, with 38 vendor presets. Desktop, iOS and Android can add
+  providers from Settings, choose the protocol, and display vendor icons.
+- **Android release updates**: GitHub Releases ship a signed APK and `android-update.json`.
+  The app verifies the update manifest, APK checksum, application ID, version code and signing
+  certificate before installing; debug builds use a separate `.debug` application ID and can
+  sit beside the release app.
+- Haptic feedback across Android settings, sign-in, sessions, chat and routines, plus a unified
+  aiTeamOS brand icon across desktop, iOS and Android.
 - Magpie multimodal model metadata
   ([#198](https://github.com/raghavpillai/openteam/pull/198)) and network fixes
   ([#250](https://github.com/raghavpillai/openteam/pull/250),
   [#251](https://github.com/raghavpillai/openteam/pull/251)).
 
 The full list is in [FORK.md](FORK.md).
+
+The current release is `v0.1.0-beta.11`. Desktop apps, the Android APK, server installers and
+CLI binaries are published on [GitHub Releases](https://github.com/jingyi0605/ai-TeamOS/releases).
 
 ## Branches
 
@@ -249,14 +266,7 @@ You need an **x64 or arm64 machine** with a running **Docker Engine for Linux co
 **Docker Compose 2.20+**. We recommend **8 GB RAM** and **8 GB free disk**. On macOS and Windows,
 Docker Desktop supplies the engine and Compose. See the [requirements](https://openteam.so/docs/getting-started/installation#requirements).
 
-> **The installer and apps below are upstream's.** The commands in this section download the
-> official OpenTeam CLI and server images, which do not include this fork's changes. To run
-> aiTeamOS, build from this repository; see
-> [development from source](https://openteam.so/docs/development/from-source) and the Android
-> instructions in [apps/android/README.md](apps/android/README.md). This fork does not publish
-> releases yet.
-
-### 1. Install the server (upstream OpenTeam)
+### 1. Install the aiTeamOS server
 
 Run this on the machine that will host your bots.
 
@@ -272,21 +282,24 @@ curl -fsSL https://github.com/jingyi0605/ai-TeamOS/releases/latest/download/inst
 irm https://github.com/jingyi0605/ai-TeamOS/releases/latest/download/install.ps1 | iex
 ```
 
-The installer downloads the CLI, adds it to your `PATH`, and starts guided setup. Node.js and Bun are not required.
+The installer downloads the aiTeamOS CLI, adds it to your `PATH`, and starts guided setup. Node.js
+and Bun are not required.
 
 ### 2. Finish setup
 
-Choose how you'll connect, then create your OpenTeam username and password. Setup defaults to a
+Choose how you'll connect, then create your aiTeamOS username and password. Setup defaults to a
 private connection over your LAN or VPN, starts the server, and prints your **server URL**.
-Setup includes private Tailscale HTTPS, public HTTPS, and existing proxy options. Use `openteam setup --advanced` for additional server settings.
+Setup includes private Tailscale HTTPS, public HTTPS, and existing proxy options. Use
+`aiteamos setup --advanced` for additional server settings.
 
 ### 3. Open the app
 
-[Download the desktop app](https://openteam.so/download), enter the server URL from setup,
+[Download the desktop app](https://github.com/jingyi0605/ai-TeamOS/releases/latest), enter the server URL from setup,
 and sign in with the account you just created. The app then helps you connect a model with a
 ChatGPT or Claude sign-in, or an OpenAI, Anthropic, or OpenRouter API key, and checks that it
-replies. Then create your first bot and send it a task. To use your own model server, add it on
-the host with `openteam provider add`; see [model providers](https://openteam.so/docs/configuration/models#use-your-own-model-server).
+replies. Then create your first bot and send it a task. To use your own model server, add it in
+**Settings → Model** or on the host with `aiteamos provider add`; see
+[model providers](https://openteam.so/docs/configuration/models#use-your-own-model-server).
 
 The host and Docker must stay running for bots and routines to work. Server-side work continues
 when you close the app. Keep the desktop app open when bots need access to your physical computer.
@@ -295,19 +308,19 @@ when you close the app. Keep the desktop app open when bots need access to your 
 
 | App | Get it |
 | --- | --- |
-| Desktop for macOS (Apple silicon) and Linux (x64) | Upstream [downloads](https://openteam.so/download) |
-| iPhone (beta) | [Build from source](apps/ios/README.md) |
-| Android | [Build from source](apps/android/README.md) |
+| Desktop for macOS (Apple silicon), Linux (x64) and Windows (x64) | [GitHub Releases](https://github.com/jingyi0605/ai-TeamOS/releases/latest) |
+| Android 8.0+ | [GitHub Releases](https://github.com/jingyi0605/ai-TeamOS/releases/latest) or [build from source](apps/android/README.md) |
+| iPhone / iPad (beta) | [Build from source](apps/ios/README.md) |
 
 All apps connect to your server for chat and live screens. Most server settings, such as the model, are in the desktop app.
 
 ## Useful commands
 
 ```sh
-openteam status    # Check the server and its version
-openteam doctor    # Diagnose setup or connection problems
-openteam setup     # Change the connection mode
-openteam update    # Update the CLI and server with backup and rollback
+aiteamos status    # Check the server and its version
+aiteamos doctor    # Diagnose setup or connection problems
+aiteamos setup     # Change the connection mode
+aiteamos update    # Update the CLI and server with backup and rollback
 ```
 
 See [server commands](https://openteam.so/docs/manage/server), [remote access](https://openteam.so/docs/configuration/remote-access),
