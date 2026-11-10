@@ -1613,6 +1613,7 @@ export const sourceTranslations: Record<string, string> = {
   "Settings · Appearance": "设置 · 外观",
   "Couldn't load your server. Try again.": "无法加载你的服务器，请重试。",
   "Connecting to aiTeamOS…": "正在连接 aiTeamOS…",
+  "Use a different server": "使用其他服务器",
   "Opening message": "正在打开消息",
   "Loading new Bot": "正在加载新机器人",
   "Creating {name}": "正在创建 {name}",

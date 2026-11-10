@@ -10,6 +10,7 @@ import {
 import { Check, ChevronsUpDown, CircleAlert, Copy, Ellipsis, Minus, Shuffle } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../../client/aiteamos-api";
+import { changeServer } from "../../client/auth";
 import { useModelSetup } from "../../hooks/use-model-setup";
 import { useI18n } from "../../lib/i18n";
 import { providerName } from "../../lib/provider-names";
@@ -556,6 +557,11 @@ function HealthScreen({
             {lost || preview ? null : (
               <SetupLink onClick={onContinue}>{t("Continue anyway")}</SetupLink>
             )}
+            {lost ? (
+              <SetupLink onClick={() => void changeServer()}>
+                {t("Use a different server")}
+              </SetupLink>
+            ) : null}
           </>
         ) : null
       }

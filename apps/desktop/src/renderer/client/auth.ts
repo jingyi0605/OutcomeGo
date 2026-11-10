@@ -10,7 +10,7 @@ import {
 } from "@aiteamos/client-core";
 import { authErrorMessage } from "@aiteamos/product-core/auth-feedback";
 import { translateCurrent } from "../lib/i18n-catalog";
-import { resolveConfiguredApiBase } from "./runtime-url";
+import { CONFIGURED_API_BASE_KEY, resolveConfiguredApiBase } from "./runtime-url";
 import { readNativeAuthWithDeadline } from "./native-auth-deadline";
 
 export type {
@@ -252,6 +252,20 @@ export const clearAuthCredentialsForServerChange = async (): Promise<void> => {
     error: null,
     user: null,
   });
+};
+
+/**
+ * Forgets the saved server and its sign-in, then reloads into the sign-in screens, so a
+ * server that can't be reached doesn't trap the app. Works offline: nothing is sent.
+ */
+export const changeServer = async (): Promise<void> => {
+  await clearAuthCredentialsForServerChange();
+  try {
+    localStorage.removeItem(CONFIGURED_API_BASE_KEY);
+  } catch {
+    // Without storage the reload still lands on the sign-in screens.
+  }
+  window.location.reload();
 };
 
 export const signInToServer = async (

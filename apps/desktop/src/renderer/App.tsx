@@ -1,7 +1,7 @@
 import { startNotificationPresence } from "./lib/notification-presence";
 import { startTimeZoneReporting } from "./lib/time-zone";
 import { useI18n } from "./lib/i18n";
-import { authHeaders } from "./client/auth";
+import { authHeaders, changeServer } from "./client/auth";
 import { API_BASE } from "./client/http";
 import type { PromptDraft } from "./components/ai-elements/prompt-input";
 import { BotAvatarActivityProvider } from "./components/aiteamos/bot-avatar-activity";
@@ -1287,6 +1287,15 @@ export default function App() {
           <LoadingOrb aria-hidden className="mx-auto" size={28} />
           <p className="mt-3 text-sm">{t("Connecting to aiTeamOS…")}</p>
           {problem && <p className="mt-2 max-w-sm text-xs text-destructive">{problem}</p>}
+          {problem && (
+            <button
+              className="mt-3 text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+              onClick={() => void changeServer()}
+              type="button"
+            >
+              {t("Use a different server")}
+            </button>
+          )}
         </div>
       </main>
     );
