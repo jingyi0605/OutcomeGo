@@ -163,8 +163,8 @@
 
 ### 最终检查
 
-- [ ] 6 回归
-  - 状态：TODO
+- [x] 6 回归
+  - 状态：DONE
   - 这一步到底做什么：跑相关包的全部测试，确认直接语音、普通群聊、群聊例行任务和原生客户端解析不受影响。
   - 做完你能看到什么：所有相关测试通过。
   - 先依赖什么：5
@@ -177,8 +177,12 @@
     1. 下列测试通过，结果记录在本任务下
   - 怎么验证：
     - `cd packages/contracts && bun test`
+    - 结果：通过（146 pass，0 fail）
     - `cd packages/messaging && bun test`
+    - 结果：通过（255 pass，32 skip，0 fail）
     - `cd apps/server && bun run test`
+    - 结果：通过（476 pass，143 skip，0 fail）
     - `cd apps/worker && bun test`
+    - 结果：通过（124 pass，29 skip，0 fail）
   - 对应需求：`requirements.md` 全部需求
   - 对应设计：`design.md` §6.4、§7
