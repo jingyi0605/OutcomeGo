@@ -32,8 +32,8 @@
 
 ## 阶段 1：契约、数据库和路由
 
-- [ ] 1 契约和数据库字段
-  - 状态：TODO
+- [x] 1 契约和数据库字段
+  - 状态：DONE
   - 这一步到底做什么：给会话输入加 `participantBotIds`，给会话视图和 `reply.message`、`audio.started` 加可选字段，给 `VoiceSession` 加 `participantBotIds` 列。
   - 做完你能看到什么：直接会话请求不变，群聊会话请求可以通过契约校验。
   - 先依赖什么：无
@@ -52,6 +52,7 @@
     3. 迁移只新增一列，默认值为空数组
   - 怎么验证：
     - `bun test packages/contracts/test/voice.test.ts`
+    - 结果：通过（3 pass，0 fail）
   - 对应需求：`requirements.md` 需求 1、需求 4、需求 5
   - 对应设计：`design.md` §3.2、§3.3.1
 

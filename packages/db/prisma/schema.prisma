@@ -846,6 +846,7 @@ model VoiceSession {
   clientInstanceId String
   provider         String
   voice            String
+  participantBotIds String[]          @default([])
   status           VoiceSessionStatus @default(created)
   expiresAt        DateTime
   endedAt          DateTime?

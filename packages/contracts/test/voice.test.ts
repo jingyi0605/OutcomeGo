@@ -1,5 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { decodeVoiceFrame, encodeVoiceFrame, VOICE_FRAME_HEADER_BYTES } from "../src/voice";
+import {
+  decodeVoiceFrame,
+  encodeVoiceFrame,
+  VOICE_FRAME_HEADER_BYTES,
+  VoiceSessionCreateInput,
+} from "../src/voice";
 
 describe("voice binary protocol", () => {
   test("round trips an input Opus frame", () => {
@@ -12,5 +17,22 @@ describe("voice binary protocol", () => {
     const bytes = encodeVoiceFrame({ kind: "output", version: 1, generation: 2, sequence: 1, timestampMs: 0, payload: new Uint8Array([4]) });
     expect(() => decodeVoiceFrame(new Uint8Array([...bytes, 5]))).toThrow();
     expect(() => decodeVoiceFrame(bytes, "input")).toThrow();
+  });
+
+  test("accepts an optional participant list with at most six bots", () => {
+    const input = {
+      botId: "default",
+      channelId: "group",
+      clientPlatform: "macos" as const,
+      clientInstanceId: "desktop-instance",
+      participantBotIds: ["one", "two"],
+    };
+    expect(VoiceSessionCreateInput.make(input)).toEqual(input);
+    expect(() =>
+      VoiceSessionCreateInput.make({
+        ...input,
+        participantBotIds: ["one", "two", "three", "four", "five", "six", "seven"],
+      })
+    ).toThrow();
   });
 });

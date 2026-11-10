@@ -29,6 +29,7 @@ export const VoiceSessionCreateInput = Schema.Struct({
   clientInstanceId: Schema.String.pipe(Schema.minLength(8), Schema.maxLength(200)),
   timeZone: Schema.optional(Schema.String.pipe(Schema.minLength(1), Schema.maxLength(120))),
   provider: Schema.optional(VoiceProviderId),
+  participantBotIds: Schema.optional(Schema.Array(Schema.String).pipe(Schema.maxItems(6))),
 });
 export type VoiceSessionCreateInput = typeof VoiceSessionCreateInput.Type;
 
@@ -53,7 +54,7 @@ export const VoiceSettingsInput = Schema.Struct({
 export type VoiceSettingsInput = typeof VoiceSettingsInput.Type;
 
 export interface VoiceAudioConfig { codec: "opus"; sampleRate: number; channels: 1; frameMs: 20; maxFrameBytes: number }
-export interface VoiceSessionView { id: string; botId: string; conversationId: string; channelId: string; clientPlatform: VoiceClientPlatform; provider: VoiceProviderId; status: VoiceSessionStatus; expiresAt: string; createdAt: string; input: VoiceAudioConfig; output: VoiceAudioConfig; limits: { maxSessionMs: number; maxTurnMs: number } }
+export interface VoiceSessionView { id: string; botId: string; conversationId: string; channelId: string; participantBotIds?: string[]; clientPlatform: VoiceClientPlatform; provider: VoiceProviderId; status: VoiceSessionStatus; expiresAt: string; createdAt: string; input: VoiceAudioConfig; output: VoiceAudioConfig; limits: { maxSessionMs: number; maxTurnMs: number } }
 export interface VoiceSessionTicketView extends VoiceSessionView { path: string; protocols: [typeof VOICE_PROTOCOL, string] }
 export interface VoiceTurnView { id: string; sessionId: string; status: VoiceTurnStatus; transcript: string | null; userMessageId: string | null; runId: string | null; assistantMessageIds: string[]; generation: number; createdAt: string; completedAt: string | null }
 export interface VoiceProviderSettingsView {
@@ -91,8 +92,8 @@ export type VoiceServerMessage =
   | { type: "turn.started"; version: 1; sessionId: string; sequence: number; turnId: string }
   | { type: "transcript.partial"; version: 1; sessionId: string; sequence: number; turnId: string; text: string; isFinal: false }
   | { type: "transcript.final"; version: 1; sessionId: string; sequence: number; turnId: string; text: string; isFinal: true }
-  | { type: "reply.message"; version: 1; sessionId: string; sequence: number; turnId: string; messageId: string; text: string; generation: number }
-  | { type: "audio.started"; version: 1; sessionId: string; sequence: number; turnId: string; generation: number }
+  | { type: "reply.message"; version: 1; sessionId: string; sequence: number; turnId: string; messageId: string; text: string; generation: number; speakerBotId?: string }
+  | { type: "audio.started"; version: 1; sessionId: string; sequence: number; turnId: string; generation: number; speakerBotId?: string }
   | { type: "audio.stopped"; version: 1; sessionId: string; sequence: number; generation: number; reason: "barge_in" | "stop" | "cancel" | "completed" }
   | { type: "barge_in"; version: 1; sessionId: string; sequence: number; turnId: string; generation: number }
   | { type: "turn.completed"; version: 1; sessionId: string; sequence: number; turnId: string; userMessageId: string; runId: string; assistantMessageIds: string[]; status: "completed" | "superseded" | "interrupted" }

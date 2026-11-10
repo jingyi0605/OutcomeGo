@@ -1,0 +1,2 @@
+ALTER TABLE "VoiceSession"
+ADD COLUMN "participantBotIds" TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[];
