@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { VoiceMediaQueue } from "../src/services/voice-media";
 import { VoiceVad } from "../src/services/voice-vad";
-import { normalizeVoiceText } from "../src/services/voice-text";
+import { normalizeVoiceText, stripVoiceMentions } from "../src/services/voice-text";
 import { NativeOpusCodec } from "../src/services/native-opus";
 
 describe("voice media queue", () => {
@@ -55,5 +55,14 @@ describe("voice media queue", () => {
     } finally {
       await codec.close();
     }
+  });
+});
+
+describe("spoken @ mentions", () => {
+  test("drops the @ that hands the turn over, keeping the rest to be read", () => {
+    expect(normalizeVoiceText(stripVoiceMentions("说完了。@小菲 请你站反方。", ["小菲"]))).toBe("说完了。 请你站反方。");
+    expect(normalizeVoiceText(stripVoiceMentions("@飞飞 到你了", ["小满"]))).toBe("到你了");
+    expect(normalizeVoiceText(stripVoiceMentions("Over to you @Research Bot, go", ["Research Bot"]))).toBe("Over to you , go");
+    expect(normalizeVoiceText(stripVoiceMentions("mail a@b.com now", []))).toBe("mail a@b.com now");
   });
 });

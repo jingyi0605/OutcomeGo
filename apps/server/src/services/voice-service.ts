@@ -27,7 +27,7 @@ import { VoiceSettingsService } from "./voice-settings";
 import { VoiceProviderRegistry } from "./voice-provider-registry";
 import { NativeOpusCodec } from "./native-opus";
 import { PcmPreroll, VoiceVad } from "./voice-vad";
-import { isMeaningfulTranscript, normalizeVoiceText, unspokenRemainder } from "./voice-text";
+import { isMeaningfulTranscript, normalizeVoiceText, stripVoiceMentions, unspokenRemainder } from "./voice-text";
 import { pickGreeting, pickOpening } from "./voice-opening";
 import { WarmTtsPool } from "./voice-tts-warm";
 import type { StreamingStt, StreamingTts } from "./voice-provider";
@@ -531,26 +531,23 @@ export class VoiceService {
   async onGroupDeliverySettled({ runId, roundId }: { runId: string; roundId: string }): Promise<void> {
     const run = await this.prisma.run.findUnique({
       where: { id: runId },
-      include: {
-        delivery: {
-          include: {
-            round: { include: { triggerMessage: true } },
-          },
-        },
-      },
+      include: { delivery: { include: { round: true } } },
     });
     if (!run || run.delivery?.roundId !== roundId) return;
-    const triggerMetadata =
-      run.delivery.round.triggerMessage.metadata &&
-      !Array.isArray(run.delivery.round.triggerMessage.metadata) &&
-      typeof run.delivery.round.triggerMessage.metadata === "object"
-        ? run.delivery.round.triggerMessage.metadata as Record<string, unknown>
+    // A relay round is triggered by a bot reply, so the spoken origin is the user message that opened the room turn.
+    const root = await this.prisma.channelMessage.findUnique({
+      where: { id: run.delivery.round.rootMessageId },
+      select: { metadata: true },
+    });
+    const rootMetadata =
+      root?.metadata && !Array.isArray(root.metadata) && typeof root.metadata === "object"
+        ? root.metadata as Record<string, unknown>
         : {};
     const voice =
-      triggerMetadata.voice &&
-      typeof triggerMetadata.voice === "object" &&
-      !Array.isArray(triggerMetadata.voice)
-        ? triggerMetadata.voice as { sessionId?: unknown; turnId?: unknown }
+      rootMetadata.voice &&
+      typeof rootMetadata.voice === "object" &&
+      !Array.isArray(rootMetadata.voice)
+        ? rootMetadata.voice as { sessionId?: unknown; turnId?: unknown }
         : null;
     if (typeof voice?.sessionId !== "string" || typeof voice.turnId !== "string") return;
     const connection = this.connections.get(voice.sessionId);
@@ -558,6 +555,10 @@ export class VoiceService {
     if (!connection || !speak) return;
     const turn = await this.prisma.voiceTurn.findUnique({ where: { id: voice.turnId } });
     if (!turn || turn.sessionId !== voice.sessionId) return;
+    const roomNames = (await this.prisma.bot.findMany({
+      where: { channelMemberships: { some: { channelId: run.delivery.round.channelId } } },
+      select: { name: true },
+    })).flatMap(bot => [bot.name, ...bot.name.trim().split(/\s+/)]);
     const messages = await this.prisma.channelMessage.findMany({
       where: { sourceRunId: runId, sender: "agent" },
       orderBy: { sequence: "asc" },
@@ -586,7 +587,8 @@ export class VoiceService {
         generation: outputGeneration,
         speakerBotId,
       });
-      const spoken = normalizeVoiceText(message.content);
+      // The @ that hands the next turn to another participant is for the chat, not for the ear.
+      const spoken = normalizeVoiceText(stripVoiceMentions(message.content, roomNames));
       if (spoken) {
         void speak({
           text: spoken,

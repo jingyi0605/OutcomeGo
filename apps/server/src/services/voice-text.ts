@@ -1,5 +1,16 @@
 const URL_PATTERN = /https?:\/\/([^\s)]+)|www\.([^\s)]+)/gi;
 
+/**
+ * An @ that hands the floor to another participant is a chat convention, not speech. Drops "@Name",
+ * and a spoken address left dangling by it (a leading comma or stop) is tidied by the whitespace pass.
+ */
+export const stripVoiceMentions = (source: string, names: readonly string[] = []): string => {
+  const known = [...names].map(name => name.trim()).filter(Boolean).sort((a, b) => b.length - a.length);
+  const escaped = known.map(name => name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  const pattern = new RegExp(`(^|[^\\p{L}\\p{N}])@(?:${[...escaped, "everyone", "all"].join("|")}|[\\p{L}\\p{N}_]+)`, "giu");
+  return source.replace(pattern, "$1");
+};
+
 export const normalizeVoiceText = (source: string): string => source
   .replace(/```[\s\S]*?```/g, "I sent a code block.")
   .replace(/`([^`]+)`/g, "$1")

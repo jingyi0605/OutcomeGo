@@ -124,21 +124,36 @@ const containsAsciiWord = (text: string, phrase: string): boolean => {
   return pattern.test(text);
 };
 
+/**
+ * Speech recognition writes a name by sound, so 小菲 may come back as 小飞. Characters that
+ * are commonly confused for each other fold to one before names are compared.
+ */
+const HOMOPHONE_GROUPS = ["飞菲非妃绯啡", "满曼蛮瞒", "小晓", "明名鸣", "李里理", "张章", "王汪", "林琳霖"];
+const HOMOPHONES = new Map(HOMOPHONE_GROUPS.flatMap((group) => [...group].map((char) => [char, group[0]!] as const)));
+const foldHomophones = (value: string) => [...value].map((char) => HOMOPHONES.get(char) ?? char).join("");
+
+/** Spoken ways of addressing every participant, which a transcript never writes as @everyone. */
+const COLLECTIVE_PHRASES_ZH = ["所有人", "大家", "你们", "你俩", "两位", "各位", "诸位"];
+const COLLECTIVE_PHRASES_EN = ["everyone", "everybody", "you two", "you both", "both of you", "you all", "all of you", "y'all"];
+
 export const resolveVoiceResponders = (
   text: string,
   participants: readonly GroupMentionMember[],
   defaultBotId: string
 ): string[] => {
   const normalized = normalizeHandle(text);
-  if (normalized.includes("所有人") || normalized.includes("大家") || containsAsciiWord(normalized, "everyone")) {
+  if (
+    COLLECTIVE_PHRASES_ZH.some((phrase) => normalized.includes(phrase)) ||
+    COLLECTIVE_PHRASES_EN.some((phrase) => containsAsciiWord(normalized, phrase))
+  ) {
     return participants.map((participant) => participant.id);
   }
 
-  const compactText = normalized.replace(/\s+/g, "");
+  const compactText = foldHomophones(normalized.replace(/\s+/g, ""));
   const matched = participants
     .map((participant) => {
       const name = normalizeHandle(participant.name.trim());
-      const compactName = name.replace(/\s+/g, "");
+      const compactName = foldHomophones(name.replace(/\s+/g, ""));
       const found = /[^\x00-\x7f]/.test(name)
         ? compactText.includes(compactName)
         : containsAsciiWord(normalized, name);
@@ -151,4 +166,36 @@ export const resolveVoiceResponders = (
   return longestMatches.length > 0
     ? participants.filter((participant) => longestMatches.some((match) => match.participant.id === participant.id)).map((participant) => participant.id)
     : [defaultBotId];
+};
+
+/**
+ * Members a voice reply hands the floor to: those it names with @, minus its author.
+ * A reply that names nobody ends the relay. A model may still know a member by an old
+ * name, so one @ that matches nobody, in a room with a single other member, still reaches them.
+ */
+export const resolveRelayResponders = (
+  text: string,
+  participants: readonly GroupMentionMember[],
+  authorBotId: string | null
+): string[] => {
+  const others = participants.filter((participant) => participant.id !== authorBotId);
+  const named = parseGroupMentions(text, others);
+  if (named.isEveryone) return others.map((participant) => participant.id);
+  if (named.memberIds.length > 0) return named.memberIds;
+  return others.length === 1 && /(?:^|[^a-z0-9])@\S/i.test(text) ? [others[0]!.id] : [];
+};
+
+/**
+ * Whether a room turn calls on this bot directly, so staying silent would leave the caller
+ * without an answer. Every responder of a voice round was picked by name or as the default
+ * speaker. In a text room only a user's @ names the bot.
+ */
+export const isAddressedTurn = (
+  turn: { rootIsVoice: boolean; triggerIsUser: boolean; triggerContent: string },
+  bot: GroupMentionMember
+): boolean => {
+  if (turn.rootIsVoice) return true;
+  if (!turn.triggerIsUser) return false;
+  const mentions = parseGroupMentions(turn.triggerContent, [bot]);
+  return mentions.isEveryone || mentions.memberIds.length > 0;
 };

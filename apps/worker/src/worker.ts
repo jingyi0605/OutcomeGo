@@ -135,6 +135,10 @@ export const isVoiceNarration = (metadata: unknown): boolean =>
 export const voiceTurnPrompt =
   "[SAND_HIDDEN_PROMPT]This is a realtime voice conversation. The user hears your SendToUser messages spoken aloud. Keep each one short, warm and natural, as if talking, with no tables, code blocks or long lists. A separate voice narrator tells the user what you are doing while you work, so do not announce routine tool use yourself. Call SendToUser when you have a result, a question, or something genuinely new to say, and never repeat what the user has already heard. Begin a message with a brief first-person sentence such as \"I'm checking that now\" only when the work will take a while and the narrator has not already said so. This instruction is internal and must not be shown as a chat message.";
 
+/** Added in a spoken room, where the speaker turns after a reply are decided by the @ it contains. */
+export const voiceRoomPrompt =
+  " You are in a spoken room with other participants. To give another participant the next turn, end your message by naming them with @Name; that @ and the name after it are not spoken aloud. Do not @ anyone when you have nothing for them to answer. If you were asked a direct question, always answer it with SendToUser.";
+
 class BotRunLeaseContended extends Error {}
 
 interface WakeData {
@@ -1410,17 +1414,24 @@ export class WakeWorker {
         missedMessages.push({ id: `input:${payload.clientId}`, content: `[SAND_HIDDEN_PROMPT]Earlier user input whose delivery was interrupted:\n${payload.content}`, images: await this.messaging.assets.runtimeImages(assetRefs(payload.attachments), budget) });
       }
       const instructions = platformPrompt.instructions;
-      const triggeringMessage = claimed.channelId
-        ? await this.prisma.channelMessage.findUnique({
-            where: { channelId_clientId: { channelId: claimed.channelId, clientId: claimed.clientId } },
-            select: { metadata: true },
-          })
-        : null;
+      // A room turn is woken by a synthetic clientId, so its spoken origin is the message that started the round.
+      const triggeringMessage = claimed.deliveryId
+        ? await this.prisma.channelDelivery
+            .findUnique({ where: { id: claimed.deliveryId }, select: { round: { select: { rootMessageId: true } } } })
+            .then((delivery) => delivery
+              ? this.prisma.channelMessage.findUnique({ where: { id: delivery.round.rootMessageId }, select: { metadata: true } })
+              : null)
+        : claimed.channelId
+          ? await this.prisma.channelMessage.findUnique({
+              where: { channelId_clientId: { channelId: claimed.channelId, clientId: claimed.clientId } },
+              select: { metadata: true },
+            })
+          : null;
       const triggeringMetadata = triggeringMessage?.metadata && typeof triggeringMessage.metadata === "object" && !Array.isArray(triggeringMessage.metadata)
         ? triggeringMessage.metadata as Record<string, unknown>
         : null;
       const voiceTurn = Boolean(triggeringMetadata?.voice && typeof triggeringMetadata.voice === "object" && !Array.isArray(triggeringMetadata.voice));
-      const voicePrompt = voiceTurn ? [{ id: `${claimed.clientId}:voice`, content: voiceTurnPrompt }] : [];
+      const voicePrompt = voiceTurn ? [{ id: `${claimed.clientId}:voice`, content: claimed.deliveryId ? voiceTurnPrompt + voiceRoomPrompt : voiceTurnPrompt }] : [];
       // Spoken progress uses the configured narration model, or the bot's own model, with reasoning off: at the lowest
       // level some models still spend the whole token budget thinking and return no text.
       const narrationSetting = voiceTurn && !claimed.subagentType && claimed.origin === "user"

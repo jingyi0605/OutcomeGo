@@ -4,6 +4,8 @@ import {
   groupVisibilityClauses,
   parseGroupMentions,
   resolveGroupResponderIds,
+  isAddressedTurn,
+  resolveRelayResponders,
   resolveVoiceResponders,
   rotateGroupResponders,
 } from "../src/group-routing";
@@ -134,4 +136,34 @@ test("voice ASCII names use word boundaries and longer names win", () => {
   expect(resolveVoiceResponders("Research Bot, answer", people, "qa")).toEqual(["researchBot"]);
   expect(resolveVoiceResponders("Research, answer", people, "qa")).toEqual(["research"]);
   expect(resolveVoiceResponders("ResearchBotly", people, "qa")).toEqual(["qa"]);
+});
+
+test("voice collective address and ASR homophones route to the right members", () => {
+  const people = [{ id: "man", name: "小满" }, { id: "fei", name: "小菲" }];
+  expect(resolveVoiceResponders("你们两个各说一句话", people, "man")).toEqual(["man", "fei"]);
+  expect(resolveVoiceResponders("you two debate", people, "man")).toEqual(["man", "fei"]);
+  // 小飞 is how recognition heard 小菲.
+  expect(resolveVoiceResponders("小飞该你说了", people, "man")).toEqual(["fei"]);
+  expect(resolveVoiceResponders("小满你好", people, "fei")).toEqual(["man"]);
+});
+
+test("a voice reply hands the next turn only to members it @-names", () => {
+  const people = [{ id: "man", name: "小满" }, { id: "fei", name: "小菲" }, { id: "qa", name: "QA" }];
+  expect(resolveRelayResponders("我说完了。@小菲 到你了", people, "man")).toEqual(["fei"]);
+  expect(resolveRelayResponders("@小满 我自己", people, "man")).toEqual([]);
+  expect(resolveRelayResponders("没有点名", people, "man")).toEqual([]);
+  expect(resolveRelayResponders("@everyone 都说说", people, "man")).toEqual(["fei", "qa"]);
+  // An old name in a two-member room still reaches the only other member.
+  expect(resolveRelayResponders("@飞飞 到你了", people.slice(0, 2), "man")).toEqual(["fei"]);
+  expect(resolveRelayResponders("@飞飞 到你了", people, "man")).toEqual([]);
+  expect(resolveRelayResponders("mail me at a@b.com", people.slice(0, 2), "man")).toEqual([]);
+});
+
+test("a turn is addressed when spoken, or when a user @-names the bot", () => {
+  const bot = { id: "fei", name: "小菲" };
+  expect(isAddressedTurn({ rootIsVoice: true, triggerIsUser: false, triggerContent: "" }, bot)).toBe(true);
+  expect(isAddressedTurn({ rootIsVoice: false, triggerIsUser: true, triggerContent: "@小菲 你怎么不说话?" }, bot)).toBe(true);
+  expect(isAddressedTurn({ rootIsVoice: false, triggerIsUser: true, triggerContent: "@everyone hi" }, bot)).toBe(true);
+  expect(isAddressedTurn({ rootIsVoice: false, triggerIsUser: true, triggerContent: "大家好" }, bot)).toBe(false);
+  expect(isAddressedTurn({ rootIsVoice: false, triggerIsUser: false, triggerContent: "@小菲 看看" }, bot)).toBe(false);
 });
