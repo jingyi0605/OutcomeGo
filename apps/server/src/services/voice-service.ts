@@ -49,10 +49,64 @@ export class VoiceService {
   private readonly groupAnswerSinks = new Map<string, (input: { text: string; generation: number; speakerBotId: string; voice: string }) => Promise<void>>();
   private readonly echoes = new Map<string, boolean>();
   private readonly sessionRuns = new Map<string, Set<string>>();
+  private groupDeliveryWatcherAbort: AbortController | null = null;
+  private groupDeliveryWatcherPromise: Promise<void> | null = null;
 
   constructor(private readonly prisma: PrismaClient, private readonly channels: ChannelService, private readonly runs: RunService) {
     this.settings = new VoiceSettingsService(prisma);
     this.replies = new VoiceReplySource(prisma);
+  }
+
+  async startGroupDeliveryWatcher(wakeup: {
+    currentVersion: number;
+    wait: (afterVersion: number, timeoutMs: number, signal?: AbortSignal) => Promise<number>;
+  }): Promise<void> {
+    if (this.groupDeliveryWatcherPromise) return;
+    const latest = await this.prisma.event.aggregate({ _max: { sequence: true } });
+    let cursor = latest._max.sequence ?? 0n;
+    const abort = new AbortController();
+    this.groupDeliveryWatcherAbort = abort;
+    this.groupDeliveryWatcherPromise = (async () => {
+      while (!abort.signal.aborted) {
+        const events = await this.prisma.event.findMany({
+          where: { topic: "channel.delivery.completed", sequence: { gt: cursor } },
+          orderBy: { sequence: "asc" },
+          take: 100,
+          select: { sequence: true, entityId: true, payload: true },
+        });
+        if (events.length > 0) {
+          for (const event of events) {
+            cursor = event.sequence;
+            if (!event.entityId) continue;
+            const delivery = await this.prisma.channelDelivery.findUnique({
+              where: { id: event.entityId },
+              select: { roundId: true, run: { select: { id: true } } },
+            });
+            if (delivery?.run?.id) {
+              await this.onGroupDeliverySettled({
+                runId: delivery.run.id,
+                roundId: delivery.roundId,
+              });
+            }
+          }
+          continue;
+        }
+        const version = wakeup.currentVersion;
+        await wakeup.wait(version, 25_000, abort.signal);
+      }
+    })().catch((error) => {
+      if (!abort.signal.aborted) console.error("group delivery voice watcher", error);
+    }).finally(() => {
+      if (this.groupDeliveryWatcherAbort === abort) {
+        this.groupDeliveryWatcherAbort = null;
+        this.groupDeliveryWatcherPromise = null;
+      }
+    });
+  }
+
+  async stopGroupDeliveryWatcher(): Promise<void> {
+    this.groupDeliveryWatcherAbort?.abort();
+    await this.groupDeliveryWatcherPromise;
   }
 
   private view(session: { id: string; botId: string; conversationId: string; channelId: string; participantBotIds: string[]; clientPlatform: string; provider: string; status: string; expiresAt: Date; createdAt: Date }): VoiceSessionView {

@@ -1795,6 +1795,13 @@ export class AgentMessaging {
       const prepared = await settleGroupOutbox(tx, deliveryId, true);
       if (prepared.length > 0) {
         await tx.channelDelivery.update({ where: { id: deliveryId }, data: { status: "completed", completedAt: new Date() } });
+        await tx.event.create({
+          data: {
+            topic: "channel.delivery.completed",
+            entityId: deliveryId,
+            payload: json({ deliveryId, roundId: delivery.roundId, status: "completed" }),
+          },
+        });
         const members = await tx.channelMember.findMany({ where: { channelId: prepared[0]!.channelId }, select: { botId: true } });
         await this.scheduleTranscriptProjection(tx, members.map(member => member.botId));
         roundId = delivery.roundId;

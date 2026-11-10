@@ -255,6 +255,7 @@ export class AppService {
       await this.voice.settings.load();
       await this.automationWebhooks.loadPublicUrl();
       await this.eventWakeup.start();
+      await this.voice.startGroupDeliveryWatcher(this.eventWakeup);
       await this.snapshots.pruneEvents();
       this.eventPruneTimer = setInterval(() => {
         void this.automationWebhooks
@@ -359,6 +360,7 @@ export class AppService {
         this.assetCleanupTimer = null;
       }
       await this.pluginEvents.stop();
+      await this.voice.stopGroupDeliveryWatcher();
       await this.eventWakeup.stop();
       await this.agentData.stopWatching();
       await this.boss.stop({ graceful: true });
