@@ -21,8 +21,9 @@ For example, a release-notes skill can define where to find changes, how to grou
    - **When to use it**: a sentence that helps bots recognize when the skill applies
    - **Instructions**: the method itself
    - **Supporting files** (optional): templates, examples, or reference text, entered as JSON that maps each file path to its text
-4. Under **Available to Bots**, choose which bots can use it.
-5. Choose **Save skill**.
+4. Choose **Save skill**.
+
+Every bot uses the same skill library. A skill you save here is available to all your bots right away, and a skill a bot saves appears in this list. Both are stored as `workflows/<skill>/SKILL.md` in the `agent_data` volume, with supporting files beside it.
 
 Good instructions are specific about inputs, steps, and the finished result:
 
@@ -34,7 +35,7 @@ You can also ask a bot to save a method it just used as a skill:
 
 > Save how you prepared these release notes as a skill, so you can do it the same way next time.
 
-Skills that bots save are available to all your bots. They don't appear under **Private skills**.
+Skills that bots save are listed under **Private skills** with the ones you create, and you can edit or delete them there.
 
 ## Skills from plugins
 
@@ -54,7 +55,7 @@ Some installed plugins include skills and runtime instructions. These load for a
 
 Gmail, Google Calendar, GitHub, and Linear provide tools without bundled skills. You can create a private skill that uses those tools.
 
-Provider skills keep their original upstream instructions. Installing or updating Granola and Notion fetches their pinned skills automatically; you don't need to copy files yourself. Updating a plugin updates its included skills. Your private skills remain separate.
+Provider skills keep their original upstream instructions. Installing or updating Granola and Notion fetches their pinned skills automatically; you don't need to copy files yourself. Updating a plugin updates its included skills. Your private skills remain separate, and plugin skills are read-only.
 
 Slack and Granola also include commands. For example, ask for `/slack:summarize-channel #general` or `/granola-brief <meeting or topic>`. See their package guides for all commands and any extra setup. Slack's app-development skills may need the Slack CLI and a language runtime on the bot computer. The 1Password skill installs the 1Password CLI on the bot computer the first time it runs and uses the token entered when the plugin was added.
 

@@ -8,10 +8,10 @@ Your data lives in a database and several Docker volumes. Back them up together,
 
 | What | Contains |
 | --- | --- |
-| Database | Bots, conversations, memory, run history, plugin accounts, and private skills |
+| Database | Bots, conversations, memory, run history, and plugin accounts |
 | `computer_home` volume | Browser profiles, website sign-ins, model provider sign-ins, and software bots installed in their home folder |
 | `computer_local` volume | Software bots installed system-wide in `/usr/local`, and the list of apt packages the computer reinstalls when it starts, with their cached downloads |
-| `agent_data` volume | Skills, routines, bot profiles, and model settings |
+| `agent_data` volume | Skills (including private skills), routines, bot profiles, and model settings |
 | `workspace` volume | Files in `/workspace` |
 | `assets` volume | Attachments |
 | `box_store` volume | Snapshots of the bots' computer files |
