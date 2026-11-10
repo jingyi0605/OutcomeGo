@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 import { readdir } from "node:fs/promises";
-import { isAbsolute, join, relative, resolve } from "node:path";
+import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 
 export function assertSessionPath(sessionsDir: string, input: string): string {
   const candidate = resolve(input);
@@ -9,6 +9,20 @@ export function assertSessionPath(sessionsDir: string, input: string): string {
     throw new Error("Pi session path is outside the aiTeamOS session directory");
   }
   if (!candidate.endsWith(".jsonl")) throw new Error("Pi session path must be a JSONL file");
+  return candidate;
+}
+
+/**
+ * The file to unlink when a context session is discarded. Databases written before the session
+ * root was renamed still record paths under the previous root (`sessions/openteam`), so discarding
+ * accepts the whole `sessions` parent. Turn start stays strict: it never reopens a legacy path.
+ */
+export function disposableSessionPath(sessionsDir: string, input: string): string | null {
+  const candidate = resolve(input);
+  if (!candidate.endsWith(".jsonl")) return null;
+  const parent = dirname(resolve(sessionsDir));
+  const traversal = relative(parent, candidate);
+  if (traversal === "" || traversal.startsWith("..") || isAbsolute(traversal)) return null;
   return candidate;
 }
 
