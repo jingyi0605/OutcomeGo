@@ -15,7 +15,7 @@ class AndroidUpdateManifestTest {
         sizeBytes = 12345,
         sha256 = "0000000000000000000000000000000000000000000000000000000000000000",
         certificateSha256 = "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
-        signatureBase64 = "MEUCICnt3Il/t/P2DcRYk7FnqoP59IPIWqiQnCJu6dbvzrQUAiEAkXQfGLdwDWiiXNIahIkaBvbhzncKNAZITuCs6esmS/A=",
+        signatureBase64 = "MEQCIGQuRBkzvqnBLcKsUkNTK8LyMBh1fErSnShtwPVdgYmCAiBYpmfTiSD9IIcT9t/a3DyUJbaMsAcDdLBHE7PQeBb2tA==",
     )
 
     @Test
