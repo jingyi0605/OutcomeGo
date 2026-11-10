@@ -105,7 +105,7 @@ test("a beta.10-shaped database upgrades through the nullable routine webhook bi
          AND conname = 'AutomationWebhook_routineId_key'`
     );
     expect(columns.rows).toHaveLength(1);
-    expect(settings.rows[0]?.table_name).toBe("AutomationWebhookSettings");
+    expect(settings.rows[0]?.table_name).toBe('"AutomationWebhookSettings"');
     expect(constraint.rows).toHaveLength(1);
 
     await deploy(target.toString());
