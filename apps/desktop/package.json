@@ -78,7 +78,8 @@
       "extendInfo": {
         "NSMicrophoneUsageDescription": "aiTeamOS uses the microphone when you record a voice note or test your input. Only voice notes are sent to your server for transcription.",
         "NSContactsUsageDescription": "aiTeamOS searches Contacts to find a person when needed for your task.",
-        "NSAppleEventsUsageDescription": "aiTeamOS reads and sends Messages to carry out your tasks."
+        "NSAppleEventsUsageDescription": "aiTeamOS reads and sends Messages to carry out your tasks.",
+        "NSLocalNetworkUsageDescription": "aiTeamOS connects to your aiTeamOS server on your local network."
       },
       "category": "public.app-category.productivity",
       "target": [
