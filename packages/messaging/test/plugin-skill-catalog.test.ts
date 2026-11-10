@@ -9,7 +9,6 @@ import {
   type PluginSkillCache,
 } from "../src/plugin-skill-catalog";
 
-const updatedAt = new Date("2026-10-14T12:00:00.000Z");
 const manifest = {
   key: "fixture",
   name: "Fixture",
@@ -29,7 +28,6 @@ const manifest = {
   ],
 };
 const installation = { name: "Fixture", pluginKey: "fixture", version: "1", manifest };
-const privateSkill = { id: "private", name: "Private", description: "Private", body: "Private workflow.", updatedAt };
 
 let root = "";
 beforeEach(async () => {
@@ -39,7 +37,7 @@ afterEach(async () => {
   await rm(root, { recursive: true, force: true });
 });
 
-// The same cache sync the plugin service runs for one package and one private skill.
+// The same cache sync the plugin service runs for one package.
 const store = (prisma: unknown = {}) =>
   new AgentDataStore(prisma as never, { root, workspaceRoot: join(root, "workspace") });
 const syncCache = async (): Promise<PluginSkillCache> => {
@@ -51,14 +49,6 @@ const syncCache = async (): Promise<PluginSkillCache> => {
       publisher: manifest.publisher,
       skills: manifest.skills,
       files: manifest.files,
-    },
-    {
-      id: `private-${privateSkill.id}`,
-      name: privateSkill.name,
-      version: updatedAt.toISOString(),
-      publisher: "Private",
-      skills: [{ ...privateSkill, path: "skills/private" }],
-      files: {},
     },
   ]);
   return JSON.parse(await readFile(join(root, "plugin-skills/cache.json"), "utf8"));
@@ -72,9 +62,9 @@ const catalogPath = (catalog: string, description: string): string => {
 
 test("the main agent's catalog lists each plugin skill with the path of its SKILL.md", async () => {
   const cache = await syncCache();
-  const catalog = renderPluginSkillCatalog(pluginSkillsForAgent(cache, [installation], [privateSkill], "main"));
+  const catalog = renderPluginSkillCatalog(pluginSkillsForAgent(cache, [installation], "main"));
 
-  for (const body of ["Main agent workflow.", "Shared sign-in workflow.", "Private workflow."])
+  for (const body of ["Main agent workflow.", "Shared sign-in workflow."])
     expect(catalog).not.toContain(body);
   expect(catalog).not.toContain("desktop-only");
   const mainOnly = catalogPath(catalog, "Main");
@@ -83,9 +73,6 @@ test("the main agent's catalog lists each plugin skill with the path of its SKIL
   expect(await readFile(catalogPath(catalog, "Sign in"), "utf8")).toContain(
     "Shared sign-in workflow."
   );
-  expect(await readFile(catalogPath(catalog, "Private"), "utf8")).toContain(
-    "Private workflow."
-  );
 });
 
 test("only the files of the installed package revision are listed", async () => {
@@ -93,19 +80,17 @@ test("only the files of the installed package revision are listed", async () => 
   const changed = { ...installation, manifest: { ...manifest, files: { "skills/main-only/reference.md": "Newer notes." } } };
   const upgraded = { ...installation, version: "2", manifest: { ...manifest, version: "2" } };
   for (const candidate of [changed, upgraded]) {
-    const entries = pluginSkillsForAgent(cache, [candidate], [], "main");
+    const entries = pluginSkillsForAgent(cache, [candidate], "main");
     expect(entries.map((entry) => entry.path)).toEqual([undefined, undefined]);
     expect(renderPluginSkillCatalog(entries)).toBe("");
   }
-  const editedPrivate = { ...privateSkill, updatedAt: new Date("2026-10-15T00:00:00.000Z") };
-  expect(pluginSkillsForAgent(cache, [], [editedPrivate], "main")[0]?.path).toBeUndefined();
 });
 
-test("subagents get only the skills that name them, and never private skills", async () => {
+test("subagents get only the skills that name them", async () => {
   const cache = await syncCache();
-  expect(pluginSkillsForAgent(cache, [installation], [privateSkill], "executor")).toEqual([]);
+  expect(pluginSkillsForAgent(cache, [installation], "executor")).toEqual([]);
   expect(
-    pluginSkillsForAgent(cache, [installation], [privateSkill], "computerUse").map((entry) => entry.name)
+    pluginSkillsForAgent(cache, [installation], "computerUse").map((entry) => entry.name)
   ).toEqual(["sign-in", "desktop-only"]);
 });
 
@@ -113,11 +98,10 @@ test("the agent prompt's skill catalog includes installed plugin skills", async 
   await syncCache();
   const prisma = {
     pluginInstallation: { findMany: async () => [installation] },
-    pluginPrivateSkill: { findMany: async () => [privateSkill] },
   };
   const rendered: string = await (store(prisma) as any).renderPluginSkills("bot");
   expect(rendered).toBe(
-    renderPluginSkillCatalog(pluginSkillsForAgent(await syncCache(), [installation], [privateSkill], "main"))
+    renderPluginSkillCatalog(pluginSkillsForAgent(await syncCache(), [installation], "main"))
   );
   expect(rendered).toMatch(/^<agent_skill fullPath="\/[^"]+\/main-only\/SKILL\.md">Main<\/agent_skill>$/m);
 

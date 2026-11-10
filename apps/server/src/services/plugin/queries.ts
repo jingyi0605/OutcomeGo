@@ -304,28 +304,18 @@ export class PluginQueries {
           `### ${plugin?.name}: ${skill.name}\n${skill.description}\n\n${skill.body}\n\nSupporting files: find pluginId ${JSON.stringify(installation.pluginKey)} and skill ${JSON.stringify(skill.name)} in ${process.env.AITEAMOS_AGENT_DATA_ROOT ?? "/agent-data"}/plugin-skills/cache.json. Resolve relative file links from that SKILL.md directory.`
       );
     });
-    const privateSkills = await this.prisma.pluginPrivateSkill.findMany({
-      where: { enabledBotIds: { array_contains: [botId] } },
-    });
-    sections.push(
-      ...privateSkills.map(
-        (skill) =>
-          `### Private skill: ${skill.name}\n${skill.description}\n\n${skill.body}\n\nSupporting files: find pluginId ${JSON.stringify(`private-${skill.id}`)} in ${process.env.AITEAMOS_AGENT_DATA_ROOT ?? "/agent-data"}/plugin-skills/cache.json and resolve links from its SKILL.md directory.`
-      )
-    );
     return sections.length ? `\n\n## Installed plugin skills\n\n${PLUGIN_WORKFLOW_HOST_CONTEXT}\n\n${sections.join("\n\n")}` : "";
   };
 
   composer = (botId: string) =>
     serviceEffect(async () => {
-      const [namespaces, installations, privateSkills] = await Promise.all([
+      const [namespaces, installations, savedSkills] = await Promise.all([
         this.dynamicNamespaces(botId),
         this.prisma.pluginInstallation.findMany({
           where: { status: "installed" },
         }),
-        this.prisma.pluginPrivateSkill.findMany({
-          where: { enabledBotIds: { array_contains: [botId] } },
-        }),
+        // The shared library every Bot reads: the same skills its agent_skills catalog lists.
+        this.prisma.savedSkill.findMany({ orderBy: { name: "asc" } }),
       ]);
       return {
         items: [
@@ -347,10 +337,10 @@ export class PluginQueries {
               status: installation.skillSyncStatus,
             }))
           ),
-          ...privateSkills.map((skill) => ({
+          ...savedSkills.map((skill) => ({
             id: skill.id,
             label: skill.name,
-            handle: `private:${skill.name.toLowerCase().replace(/[^a-z0-9.-]+/g, "-")}`,
+            handle: `private:${skill.slug}`,
             trigger: "/" as const,
             kind: "skill" as const,
             status: "ready",

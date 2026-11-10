@@ -27,11 +27,6 @@ const installation = {
 const prisma = {
   pluginConnection: { findMany: async () => [] },
   pluginInstallation: { findMany: async () => [installation] },
-  pluginPrivateSkill: {
-    findMany: async () => [
-      { id: "private", name: "Private", description: "Private", body: "Private workflow.", updatedAt: new Date() },
-    ],
-  },
 } as any;
 
 describe("subagent runtime ownership", () => {
@@ -67,13 +62,11 @@ describe("subagent runtime ownership", () => {
     const main = (await pluginRuntimeContext(prisma, "bot", "main")).skillInstructions;
     expect(main).toContain("Main agent workflow.");
     expect(main).toContain("Shared sign-in workflow.");
-    expect(main).toContain("Private workflow.");
 
     const worker = await pluginSkillInstructions(prisma, "child", "computerUse");
     expect(worker).toContain("## Installed plugin skills");
     expect(worker).toContain("Shared sign-in workflow.");
     expect(worker).not.toContain("Main agent workflow.");
-    expect(worker).not.toContain("Private workflow.");
 
     expect((await pluginRuntimeContext(prisma, "parent", "executor")).skillInstructions).toBe("");
     expect(await pluginSkillInstructions(prisma, "child", null)).toBe("");

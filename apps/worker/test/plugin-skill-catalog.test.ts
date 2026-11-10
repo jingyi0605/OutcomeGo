@@ -5,7 +5,6 @@ import { join } from "node:path";
 import { AgentDataStore } from "@aiteamos/messaging";
 import { pluginRuntimeContext, pluginSkillInstructions } from "../src/plugins";
 
-const updatedAt = new Date("2026-10-14T12:00:00.000Z");
 const manifest = {
   key: "fixture",
   name: "Fixture",
@@ -24,11 +23,9 @@ const manifest = {
   ],
 };
 const installation = { name: "Fixture", pluginKey: "fixture", version: "1", status: "installed", manifest };
-const privateSkill = { id: "private", name: "Private", description: "Private", body: "Private workflow.", updatedAt };
 const prisma = {
   pluginConnection: { findMany: async () => [] },
   pluginInstallation: { findMany: async () => [installation] },
-  pluginPrivateSkill: { findMany: async () => [privateSkill] },
 } as any;
 
 let root = "";
@@ -46,14 +43,6 @@ afterEach(async () => {
 const syncCache = () =>
   new AgentDataStore({} as never, { root, workspaceRoot: join(root, "workspace") }).syncPluginSkillCache([
     { id: "fixture", name: "Fixture", version: "1", publisher: "aiTeamOS", skills: manifest.skills, files: manifest.files },
-    {
-      id: "private-private",
-      name: "Private",
-      version: updatedAt.toISOString(),
-      publisher: "Private",
-      skills: [{ ...privateSkill, path: "skills/private" }],
-      files: {},
-    },
   ]);
 
 test("cataloged plugin skills leave only provider-workflow notes in the main agent's instructions", async () => {
@@ -61,7 +50,7 @@ test("cataloged plugin skills leave only provider-workflow notes in the main age
   const main = (await pluginRuntimeContext(prisma, "bot", "main")).skillInstructions;
   expect(main).toContain("## Installed plugin skills");
   expect(main).toContain("listed with their SKILL.md paths in the agent_skills catalog");
-  for (const text of ["Main agent workflow.", "Shared sign-in workflow.", "Private workflow.", "Path:"])
+  for (const text of ["Main agent workflow.", "Shared sign-in workflow.", "Path:"])
     expect(main).not.toContain(text);
 });
 
@@ -70,13 +59,11 @@ test("agents a skill names keep its full text, and executors get no skills", asy
   const worker = await pluginSkillInstructions(prisma, "child", "computerUse");
   expect(worker).toContain("Shared sign-in workflow.");
   expect(worker).not.toContain("Main agent workflow.");
-  expect(worker).not.toContain("Private workflow.");
   expect((await pluginRuntimeContext(prisma, "parent", "executor")).skillInstructions).toBe("");
 });
 
 test("skills whose files are not on the computer yet keep their full text", async () => {
   const main = (await pluginRuntimeContext(prisma, "bot", "main")).skillInstructions;
   expect(main).toContain("Main agent workflow.");
-  expect(main).toContain("Private workflow.");
   expect(main).not.toContain("agent_skills catalog");
 });

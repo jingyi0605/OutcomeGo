@@ -53,12 +53,13 @@ export const PluginConfigurationInput = Schema.Struct({
   ),
 });
 export type PluginConfigurationInput = typeof PluginConfigurationInput.Type;
+// Limits match the SKILL.md a Bot reads (packages/messaging/src/skill-files.ts): a file that
+// breaks them fails to parse on the next reconcile and the skill would be dropped.
 export const PluginSkillInput = Schema.Struct({
-  name: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(200)),
-  description: Schema.String.pipe(Schema.maxLength(2000)),
-  body: Schema.String.pipe(Schema.maxLength(1_000_000)),
+  name: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(80)),
+  description: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(1_536)),
+  body: Schema.String.pipe(Schema.maxLength(100_000)),
   files: Schema.optional(TextMap),
-  enabledBotIds: Schema.optional(Schema.Array(Schema.String)),
 });
 export type PluginSkillInput = typeof PluginSkillInput.Type;
 export const PluginTestInput = Schema.Struct({
@@ -129,18 +130,19 @@ export interface PluginDraftView extends PackagePreview {
   digest: string;
   updatedAt: string;
 }
-export interface PluginPrivateSkillView {
+/** A skill in the library every Bot shares: `workflows/<slug>/SKILL.md` and its `SavedSkill` row. */
+export interface SavedSkillView {
   id: string;
+  slug: string;
   name: string;
   description: string;
   body: string;
   files: Record<string, string>;
-  enabledBotIds: string[];
 }
 export interface PluginManagementView {
   sources: PluginSourceView[];
   drafts: PluginDraftView[];
-  skills: PluginPrivateSkillView[];
+  skills: SavedSkillView[];
 }
 export interface PluginPackageView {
   definition: PluginDefinition;

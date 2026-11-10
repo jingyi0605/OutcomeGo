@@ -6,6 +6,7 @@ import {
   type PluginSkillInput,
 } from "@aiteamos/contracts";
 import type { PrismaClient } from "@aiteamos/db";
+import type { AgentDataStore } from "@aiteamos/messaging";
 import { Effect } from "effect";
 import {
   environmentFields,
@@ -28,7 +29,6 @@ import {
   definitionFromManifest,
   jsonObject,
   stringArray,
-  stringRecord,
 } from "./values";
 
 export const pluginDigest = (definition: PluginDefinition): string =>
@@ -111,8 +111,18 @@ export class PluginManagement {
     private readonly bundled: () => Promise<PluginDefinition[]>,
     private readonly install: (key: string) => Promise<unknown>,
     private readonly sync: () => Promise<void>,
-    private readonly stop: (id: string, transport: string) => Promise<void>
+    private readonly stop: (id: string, transport: string) => Promise<void>,
+    private readonly skillLibrary?: Pick<
+      AgentDataStore,
+      "listSkills" | "saveLibrarySkill" | "deleteLibrarySkill"
+    >
   ) {}
+
+  private library = () => {
+    if (!this.skillLibrary)
+      throw new ApiError(503, "skill_library_unavailable", "The skill library is not available");
+    return this.skillLibrary;
+  };
 
   catalog = async (): Promise<PluginDefinition[]> => {
     const [bundled, sources, drafts] = await Promise.all([
@@ -142,7 +152,8 @@ export class PluginManagement {
       const [sources, drafts, skills] = await Promise.all([
         this.prisma.pluginSource.findMany({ orderBy: { createdAt: "asc" } }),
         this.prisma.pluginDraft.findMany({ orderBy: { updatedAt: "desc" } }),
-        this.prisma.pluginPrivateSkill.findMany({ orderBy: { name: "asc" } }),
+        // The same library the Bots read their agent_skills catalog from.
+        this.skillLibrary ? this.skillLibrary.listSkills() : Promise.resolve([]),
       ]);
       return {
         sources: sources.map((source) => ({
@@ -166,14 +177,7 @@ export class PluginManagement {
           digest: pluginDigest(parsePluginDefinition(draft.definition)),
           updatedAt: draft.updatedAt.toISOString(),
         })),
-        skills: skills.map((skill) => ({
-          id: skill.id,
-          name: skill.name,
-          description: skill.description,
-          body: skill.body,
-          files: stringRecord(skill.files),
-          enabledBotIds: stringArray(skill.enabledBotIds),
-        })),
+        skills,
       };
     });
 
@@ -611,34 +615,32 @@ export class PluginManagement {
       return { synced: true };
     });
 
+  /** Saves into `workflows/`, the library every Bot already reads, so there is no second copy to sync. */
   saveSkill = (id: string | null, input: PluginSkillInput) =>
     serviceEffect(async () => {
-      validatePackageFiles(input.files ?? {});
-      const enabledBotIds = [...new Set(input.enabledBotIds ?? [])];
-      if (
-        enabledBotIds.length &&
-        (await this.prisma.bot.count({
-          where: { id: { in: enabledBotIds }, status: { not: "archived" } },
-        })) !== enabledBotIds.length
-      )
-        throw new ApiError(400, "plugin_skill_bot_missing", "A selected bot is unavailable");
-      const data = {
-        name: input.name.trim(),
-        description: input.description,
-        body: input.body,
-        files: toJson(input.files ?? {}),
-        enabledBotIds: toJson(enabledBotIds),
-      };
-      const skill = id
-        ? await this.prisma.pluginPrivateSkill.update({ where: { id }, data })
-        : await this.prisma.pluginPrivateSkill.create({ data });
-      await this.sync();
-      return { id: skill.id };
+      const library = this.library();
+      const files = input.files ?? {};
+      try {
+        validatePackageFiles(files);
+        const saved = await library.saveLibrarySkill({
+          ...(id ? { id } : {}),
+          name: input.name.trim(),
+          description: input.description.trim(),
+          body: input.body,
+          files,
+        });
+        return { id: saved.id };
+      } catch (error) {
+        if (error instanceof Error && error.message === "Skill not found")
+          throw new ApiError(404, "skill_not_found", "That skill no longer exists");
+        if (error instanceof ApiError) throw error;
+        throw new ApiError(400, "skill_invalid", error instanceof Error ? error.message : "Invalid skill");
+      }
     });
   deleteSkill = (id: string) =>
     serviceEffect(async () => {
-      await this.prisma.pluginPrivateSkill.delete({ where: { id } });
-      await this.sync();
+      if (!(await this.library().deleteLibrarySkill(id)))
+        throw new ApiError(404, "skill_not_found", "That skill no longer exists");
       return { deleted: true };
     });
 }

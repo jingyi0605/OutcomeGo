@@ -20,19 +20,9 @@ export interface PluginSkillInstallation {
   manifest: unknown;
 }
 
-export interface PluginPrivateSkillRecord {
-  id: string;
-  name: string;
-  description: string;
-  body: string;
-  updatedAt: Date;
-}
-
 export interface PluginSkillEntry {
-  /** Plugin key, or `private-<id>` for a private skill. */
   pluginId: string;
-  /** Plugin display name; null for a private skill. */
-  pluginName: string | null;
+  pluginName: string;
   name: string;
   description: string;
   body: string;
@@ -81,11 +71,10 @@ const cachedSkillPath = (
   return typeof record?.filePath === "string" ? record.filePath : undefined;
 };
 
-/** Plugin skills declared for an agent. Private skills are enabled per Bot and go to its main agent only. */
+/** Plugin skills declared for an agent. The Bot's own saved skills are not plugin skills: they live in `workflows/`. */
 export const pluginSkillsForAgent = (
   cache: PluginSkillCache,
   installations: readonly PluginSkillInstallation[],
-  privateSkills: readonly PluginPrivateSkillRecord[],
   agent: PluginSkillAgent
 ): PluginSkillEntry[] => {
   const entries: PluginSkillEntry[] = [];
@@ -106,18 +95,6 @@ export const pluginSkillsForAgent = (
         path: cachedSkillPath(cache, installation.pluginKey, installation.version, revision, skill.name),
       });
     }
-  }
-  if (agent !== "main") return entries;
-  for (const skill of privateSkills) {
-    const pluginId = `private-${skill.id}`;
-    entries.push({
-      pluginId,
-      pluginName: null,
-      name: skill.name,
-      description: skill.description,
-      body: skill.body,
-      path: cachedSkillPath(cache, pluginId, skill.updatedAt.toISOString(), undefined, skill.name),
-    });
   }
   return entries;
 };

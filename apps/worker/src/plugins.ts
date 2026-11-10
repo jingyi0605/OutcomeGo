@@ -37,8 +37,6 @@ const readSkillCache = (): Promise<PluginSkillCache> =>
 // keeps the provider-workflow notes and the full text of skills whose files are
 // not written yet. An agent a skill names explicitly gets its full text.
 const renderSkillInstructions = async (
-  prisma: PrismaClient,
-  botId: string,
   installations: Installation[],
   agent: PluginSkillAgent | null
 ): Promise<string> => {
@@ -48,20 +46,14 @@ const renderSkillInstructions = async (
   const entries = pluginSkillsForAgent(
     main ? await readSkillCache() : {},
     installations,
-    main
-      ? await prisma.pluginPrivateSkill.findMany({
-          where: { enabledBotIds: { array_contains: [botId] } },
-        })
-      : [],
     agent
   );
   if (!entries.length) return "";
   const fullText = entries
     .filter((entry) => !entry.path)
-    .map((entry) =>
-      entry.pluginName === null
-        ? `### Private skill: ${entry.name}\n${entry.description}\n\n${entry.body}\n\nSupporting files: find pluginId ${JSON.stringify(entry.pluginId)} in ${root}/plugin-skills/cache.json and resolve links from its SKILL.md directory.`
-        : `### ${entry.pluginName}: ${entry.name}\n${entry.description ? `${entry.description}\n\n` : ""}${entry.body}\n\nSupporting files: find pluginId ${JSON.stringify(entry.pluginId)} and skill ${JSON.stringify(entry.name)} in ${root}/plugin-skills/cache.json. Resolve relative file links from that SKILL.md directory.`
+    .map(
+      (entry) =>
+        `### ${entry.pluginName}: ${entry.name}\n${entry.description ? `${entry.description}\n\n` : ""}${entry.body}\n\nSupporting files: find pluginId ${JSON.stringify(entry.pluginId)} and skill ${JSON.stringify(entry.name)} in ${root}/plugin-skills/cache.json. Resolve relative file links from that SKILL.md directory.`
     );
   return `\n\n## Installed plugin skills\n\n${[
     PLUGIN_WORKFLOW_HOST_CONTEXT,
@@ -79,8 +71,6 @@ export const pluginSkillInstructions = async (
   agent: PluginSkillAgent | null
 ): Promise<string> =>
   renderSkillInstructions(
-    prisma,
-    botId,
     await prisma.pluginInstallation.findMany({ where: { status: "installed" } }),
     agent
   );
@@ -153,6 +143,6 @@ export const pluginRuntimeContext = async (
   return {
     dynamicNamespaces,
     pluginRuntimePackages,
-    skillInstructions: [customInstructions && `\n\n${customInstructions}`, await renderSkillInstructions(prisma, botId, installations, agent)].join(""),
+    skillInstructions: [customInstructions && `\n\n${customInstructions}`, await renderSkillInstructions(installations, agent)].join(""),
   };
 };

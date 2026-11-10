@@ -174,6 +174,7 @@ export class AppService {
     this.plugins = new PluginService(
       this.prisma,
       (path, init) => this.computerFetch(path, init ?? {}),
+      this.agentData,
       this.agentData
     );
     this.richMessages = new RichMessageService(
@@ -262,6 +263,13 @@ export class AppService {
       }, 5 * 60_000);
       this.eventPruneTimer.unref?.();
       await this.agentData.startWatching();
+      await this.agentData.migratePrivateSkills().then(
+        ({ migrated, failed }) => {
+          if (migrated) console.info(`Moved ${migrated} private skill(s) into the shared skill library`);
+          for (const message of failed) console.error("private skill migration", message);
+        },
+        (error) => console.error("private skill migration", error)
+      );
       await this.plugins.syncFileCaches();
       // Plugins shipped with this release update with it. Their connections reconnect after the computer
       // is provisioned below, so a failed reconnect never blocks startup.

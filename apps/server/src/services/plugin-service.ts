@@ -98,14 +98,17 @@ export class PluginService {
     private readonly agentData?: Pick<
       AgentDataStore,
       "syncPluginSkillCache" | "writeConnectorSecret"
-    >
+    >,
+    /** The skill library the Bots read; the management view and its skill routes use it. */
+    skillLibrary?: Pick<AgentDataStore, "listSkills" | "saveLibrarySkill" | "deleteLibrarySkill">
   ) {
     this.management = new PluginManagement(
       prisma,
       () => this.marketplace.plugins(),
       (key) => Effect.runPromise(this.install(key)),
       () => this.syncFileCaches(),
-      (id, transport) => this.stopRuntime(id, transport)
+      (id, transport) => this.stopRuntime(id, transport),
+      skillLibrary
     );
     this.queries = new PluginQueries(
       prisma,
@@ -162,7 +165,6 @@ export class PluginService {
       orderBy: { installedAt: "asc" },
     });
     try {
-      const privateSkills = await this.prisma.pluginPrivateSkill.findMany();
       await this.agentData.syncPluginSkillCache([
         ...installations.flatMap((installation) => {
           const plugin = definitionFromManifest(installation.manifest);
@@ -179,26 +181,6 @@ export class PluginService {
             },
           ];
         }),
-        ...privateSkills.map((skill) => ({
-          id: `private-${skill.id}`,
-          name: skill.name,
-          version: skill.updatedAt.toISOString(),
-          publisher: "Private",
-          skills: [
-            {
-              name: skill.name,
-              description: skill.description,
-              body: skill.body,
-              path: "skills/private",
-            },
-          ],
-          files: Object.fromEntries(
-            Object.entries(stringRecord(skill.files)).map(([path, content]) => [
-              `skills/private/${path}`,
-              content,
-            ])
-          ),
-        })),
       ]);
       await this.prisma.pluginInstallation.updateMany({
         where: { id: { in: installations.map((entry) => entry.id) } },

@@ -1,8 +1,10 @@
-import { mkdir, rm } from "node:fs/promises";
+import type { Dirent } from "node:fs";
+import { mkdir, readdir, rm, stat } from "node:fs/promises";
 import { join } from "node:path";
 import type { Prisma } from "@aiteamos/db";
+import { safePackagePath } from "@aiteamos/plugin-sdk";
 import { parseDocument, stringify as stringifyYaml } from "yaml";
-import { atomicWrite, listDirectories, readText, uniqueSlug } from "./file-state";
+import { atomicWrite, listDirectories, readText, safeFolderId, uniqueSlug } from "./file-state";
 
 export const MAX_SKILL_NAME = 80;
 export const MAX_SKILL_DESCRIPTION = 1_536;
@@ -82,6 +84,70 @@ export const writeSkillFile = async (
   const path = join(skillsRoot, slug, "SKILL.md");
   await atomicWrite(path, renderSkillFile(input));
   return { slug, path };
+};
+
+const SKILL_FILE = "SKILL.md";
+const MAX_SUPPORT_FILES = 200;
+const MAX_SUPPORT_BYTES = 5 * 1024 * 1024;
+
+/** Every regular file under a skill folder except SKILL.md, keyed by its relative path. */
+export const readSkillSupportFiles = async (
+  skillsRoot: string,
+  slug: string
+): Promise<Record<string, string>> => {
+  const root = join(skillsRoot, safeFolderId(slug, "skill folder"));
+  const files: Record<string, string> = {};
+  let bytes = 0;
+  const walk = async (directory: string, prefix: string): Promise<void> => {
+    let entries: Dirent[];
+    try {
+      entries = await readdir(directory, { withFileTypes: true });
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return;
+      throw error;
+    }
+    for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
+      if (entry.isSymbolicLink() || entry.name.startsWith(".")) continue;
+      const relativePath = prefix ? `${prefix}/${entry.name}` : entry.name;
+      if (entry.isDirectory()) await walk(join(directory, entry.name), relativePath);
+      else if (entry.isFile() && relativePath !== SKILL_FILE) {
+        // Binary or oversized files stay on disk for the Bot but are not editable text.
+        if (Object.keys(files).length >= MAX_SUPPORT_FILES) return;
+        const info = await stat(join(directory, entry.name));
+        if (bytes + info.size > MAX_SUPPORT_BYTES) continue;
+        const text = await readText(join(directory, entry.name), MAX_SUPPORT_BYTES);
+        if (text === null || text.includes("\0")) continue;
+        bytes += info.size;
+        files[relativePath] = text;
+      }
+    }
+  };
+  await walk(root, "");
+  return files;
+};
+
+/** Normalized paths of `files`, or an error for any path that is unsafe or would replace SKILL.md. */
+export const validateSkillSupportFiles = (files: Record<string, string>): Map<string, string> => {
+  const wanted = new Map<string, string>();
+  for (const [path, content] of Object.entries(files)) {
+    const safe = safePackagePath(path);
+    if (safe === SKILL_FILE) throw new Error("SKILL.md is the skill itself, not a supporting file");
+    wanted.set(safe, content);
+  }
+  return wanted;
+};
+
+/** Make the support files under a skill folder exactly `files`; SKILL.md is never touched. */
+export const writeSkillSupportFiles = async (
+  skillsRoot: string,
+  slug: string,
+  files: Record<string, string>
+): Promise<void> => {
+  const root = join(skillsRoot, safeFolderId(slug, "skill folder"));
+  const wanted = validateSkillSupportFiles(files);
+  for (const stale of Object.keys(await readSkillSupportFiles(skillsRoot, slug)))
+    if (!wanted.has(stale)) await rm(join(root, stale), { force: true });
+  for (const [path, content] of wanted) await atomicWrite(join(root, path), content);
 };
 
 export const deleteSkillFolder = async (skillsRoot: string, slug: string): Promise<void> => {

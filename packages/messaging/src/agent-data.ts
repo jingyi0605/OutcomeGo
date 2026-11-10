@@ -82,7 +82,15 @@ import {
   normalizeMemoryContent,
   type MemoryProvenance,
 } from "./memory-facts";
-import { deleteSkillFolder, parseSkillFile, renderSkillFile, writeSkillFile } from "./skill-files";
+import {
+  deleteSkillFolder,
+  parseSkillFile,
+  readSkillSupportFiles,
+  renderSkillFile,
+  validateSkillSupportFiles,
+  writeSkillFile,
+  writeSkillSupportFiles,
+} from "./skill-files";
 import type { AgentTimelineEvent } from "./timeline-events";
 import {
   acknowledgeAutomationStatus,
@@ -2310,6 +2318,82 @@ export class AgentDataStore {
     return { forgotten, logicalId: memoryLogicalId(content), content };
   }
 
+  /**
+   * Private skills used to live in their own table, enabled per Bot. Move each one into the
+   * shared library, then drop the row, so nothing is listed twice and nothing is lost: a row is
+   * deleted only after its SKILL.md and supporting files are on disk.
+   */
+  async migratePrivateSkills(): Promise<{ migrated: number; failed: string[] }> {
+    const rows = await this.prisma.pluginPrivateSkill.findMany({ orderBy: { createdAt: "asc" } });
+    const failed: string[] = [];
+    let migrated = 0;
+    for (const row of rows) {
+      try {
+        const files = Object.fromEntries(
+          Object.entries(
+            row.files && typeof row.files === "object" && !Array.isArray(row.files) ? row.files : {}
+          ).filter((entry): entry is [string, string] => typeof entry[1] === "string")
+        );
+        await this.saveLibrarySkill({
+          name: row.name.slice(0, 80),
+          description: row.description.trim() || `Reusable ${row.name} workflow`,
+          body: row.body,
+          files,
+        });
+        await this.prisma.pluginPrivateSkill.delete({ where: { id: row.id } });
+        migrated += 1;
+      } catch (error) {
+        failed.push(`${row.name}: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }
+    return { migrated, failed };
+  }
+
+  /** The shared skill library with each skill's supporting text files, for the management UI. */
+  async listSkills() {
+    await this.withRootFileMutation("workflows", (tx) => this.reconcileSkills(tx, []));
+    const skills = await this.prisma.savedSkill.findMany({ orderBy: { name: "asc" } });
+    return Promise.all(
+      skills.map(async (skill) => ({
+        id: skill.id,
+        slug: skill.slug,
+        name: skill.name,
+        description: skill.description,
+        body: skill.body,
+        files: await readSkillSupportFiles(this.workflowsDirectory(), skill.slug),
+      }))
+    );
+  }
+
+  /**
+   * Save a skill from the management UI. It is the same write a Bot makes with UpdateSkill,
+   * except no Bot needs to exist: `workflows/` is one library for every Bot.
+   */
+  async saveLibrarySkill(input: {
+    id?: string;
+    name: string;
+    description: string;
+    body: string;
+    files?: Record<string, string>;
+  }) {
+    // Reject what reconcile or the file write would reject, before anything is written.
+    parseSkillFile(renderSkillFile(input), "skill");
+    validateSkillSupportFiles(input.files ?? {});
+    const saved = await this.writeSkillRecord(null, input);
+    if (input.files) await this.syncSkillSupportFiles(saved.slug, input.files);
+    return saved;
+  }
+
+  async deleteLibrarySkill(id: string): Promise<boolean> {
+    return this.withRootFileMutation("workflows", (tx) => this.removeSkill(tx, id));
+  }
+
+  private async syncSkillSupportFiles(slug: string, files: Record<string, string>) {
+    await this.withRootFileMutation("workflows", () =>
+      writeSkillSupportFiles(this.workflowsDirectory(), slug, files)
+    );
+  }
+
   async writeSkill(
     botId: string,
     input: {
@@ -2320,9 +2404,22 @@ export class AgentDataStore {
       frontmatter?: Record<string, unknown>;
     }
   ) {
-    await this.reconcileBot(botId);
+    return this.writeSkillRecord(botId, input);
+  }
+
+  private async writeSkillRecord(
+    botId: string | null,
+    input: {
+      id?: string;
+      name: string;
+      description: string;
+      body: string;
+      frontmatter?: Record<string, unknown>;
+    }
+  ) {
+    if (botId) await this.reconcileBot(botId);
     const written = await this.withRootFileMutation("workflows", async (tx) => {
-      if ((await tx.bot.count({ where: { id: botId, status: "active" } })) === 0) {
+      if (botId && (await tx.bot.count({ where: { id: botId, status: "active" } })) === 0) {
         throw new Error("Cannot write a skill for an inactive bot");
       }
       const existing = input.id
@@ -2384,7 +2481,7 @@ export class AgentDataStore {
       });
       return result;
     });
-    await this.reconcileBot(botId);
+    if (botId) await this.reconcileBot(botId);
     return this.prisma.savedSkill.findUniqueOrThrow({
       where: { slug: written.slug },
     });
@@ -2392,15 +2489,17 @@ export class AgentDataStore {
 
   async deleteSkill(botId: string, id: string): Promise<boolean> {
     await this.reconcileBot(botId);
-    return this.withRootFileMutation("workflows", async (tx) => {
-      const skill = await tx.savedSkill.findFirst({
-        where: UUID_FOLDER.test(id) ? { OR: [{ id }, { slug: id }] } : { slug: id },
-      });
-      if (!skill) return false;
-      await deleteSkillFolder(this.workflowsDirectory(), skill.slug);
-      await tx.savedSkill.delete({ where: { id: skill.id } });
-      return true;
+    return this.withRootFileMutation("workflows", (tx) => this.removeSkill(tx, id));
+  }
+
+  private async removeSkill(tx: Tx, id: string): Promise<boolean> {
+    const skill = await tx.savedSkill.findFirst({
+      where: UUID_FOLDER.test(id) ? { OR: [{ id }, { slug: id }] } : { slug: id },
     });
+    if (!skill) return false;
+    await deleteSkillFolder(this.workflowsDirectory(), skill.slug);
+    await tx.savedSkill.delete({ where: { id: skill.id } });
+    return true;
   }
 
   async writeRoutine(botId: string, id: string, transaction?: Tx): Promise<void> {
@@ -2508,7 +2607,7 @@ export class AgentDataStore {
     // Installed capabilities can change between turns without compaction.
     // Keep user workflows frozen, but never freeze a missing managed or plugin catalog.
     // The reference lists managed skills first, then plugin, then the user's own.
-    skillRender = [await this.renderManagedSkills(), await this.renderPluginSkills(botId), skillRender]
+    skillRender = [await this.renderManagedSkills(), await this.renderPluginSkills(), skillRender]
       .filter(Boolean)
       .join("\n\n");
     return {
@@ -2759,7 +2858,7 @@ export class AgentDataStore {
 
   // Plugin skills join the same catalog once the plugin service has written
   // their files to the computer; until then the worker gives their full text.
-  private async renderPluginSkills(botId: string): Promise<string> {
+  private async renderPluginSkills(): Promise<string> {
     const text = await readText(join(this.pluginSkillsDirectory(), "cache.json"));
     if (!text) return "";
     let cache: PluginSkillCache;
@@ -2768,13 +2867,10 @@ export class AgentDataStore {
     } catch {
       return "";
     }
-    const [installations, privateSkills] = await Promise.all([
-      this.prisma.pluginInstallation.findMany({ where: { status: "installed" } }),
-      this.prisma.pluginPrivateSkill.findMany({
-        where: { enabledBotIds: { array_contains: [botId] } },
-      }),
-    ]);
-    return renderPluginSkillCatalog(pluginSkillsForAgent(cache, installations, privateSkills, "main"));
+    const installations = await this.prisma.pluginInstallation.findMany({
+      where: { status: "installed" },
+    });
+    return renderPluginSkillCatalog(pluginSkillsForAgent(cache, installations, "main"));
   }
 
   /** The agent_skills catalog of a worker type that carries managed skills of its own. */

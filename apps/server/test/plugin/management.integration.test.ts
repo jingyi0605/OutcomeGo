@@ -1,6 +1,10 @@
 import { createUtilityPluginFixture } from "./fixtures/utility-plugin";
 import { expect, test } from "bun:test";
+import { access, mkdtemp, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { createPrismaClient } from "@aiteamos/db";
+import { AgentDataStore } from "@aiteamos/messaging";
 import { Effect } from "effect";
 import { importPackageArchive } from "@aiteamos/plugin-sdk/archive";
 import { createPluginTemplate } from "@aiteamos/plugin-sdk";
@@ -263,10 +267,15 @@ integration(
 );
 
 integration(
-  "sources refresh in place, installed snapshots survive removal, and private skills stay scoped",
+  "sources refresh in place, installed snapshots survive removal, and the skill library is shared by the UI and every Bot",
   async () => {
     const prisma = createPrismaClient(databaseUrl!);
-    const service = new PluginService(prisma);
+    const agentDataRoot = await mkdtemp(join(tmpdir(), "aiteamos-management-skills-"));
+    const library = new AgentDataStore(prisma, {
+      root: agentDataRoot,
+      workspaceRoot: join(agentDataRoot, "workspace"),
+    });
+    const service = new PluginService(prisma, undefined, undefined, library);
     const key = `source-test-${crypto.randomUUID()}`;
     const botId = crypto.randomUUID();
     let revision = "first";
@@ -334,31 +343,52 @@ integration(
           conversation: { create: {} },
         },
       });
-      skillId = (
-        await Effect.runPromise(
-          service.management.saveSkill(null, {
-            name: `private-${botId}`,
-            description: "Private instructions",
-            body: "Special instructions for one bot",
-            enabledBotIds: [botId],
-          })
-        )
-      ).id;
-      expect(await service.skillInstructions(botId)).toContain("Special instructions for one bot");
-      expect(await service.skillInstructions(crypto.randomUUID())).not.toContain(
-        "Special instructions for one bot"
+      const saved = await Effect.runPromise(
+        service.management.saveSkill(null, {
+          name: `Shared ${botId}`.slice(0, 80),
+          description: "Shared instructions",
+          body: "Instructions every bot can use",
+          files: { "references/style.md": "Style notes" },
+        })
       );
-      expect((await pluginRuntimeContext(prisma, botId)).skillInstructions).toContain(
-        "Special instructions for one bot"
+      skillId = saved.id;
+      // The management list reads the library the Bots read, so a Bot sees what the UI shows.
+      const listed = (await Effect.runPromise(service.management.overview())).skills.find(
+        (skill) => skill.id === skillId
       );
+      if (!listed) throw new Error("The saved skill is missing from the management list");
+      expect(listed.body).toBe("Instructions every bot can use");
+      expect(listed.files).toEqual({ "references/style.md": "Style notes" });
+      const skillFile = join(agentDataRoot, "workflows", listed.slug, "SKILL.md");
+      expect(await readFile(skillFile, "utf8")).toContain("description: Shared instructions");
+      expect(await readFile(join(skillFile, "..", "references/style.md"), "utf8")).toBe("Style notes");
+      // Editing from the UI rewrites that file and drops removed supporting files.
+      await Effect.runPromise(
+        service.management.saveSkill(skillId, {
+          name: listed.name,
+          description: "Edited",
+          body: "Edited body",
+          files: {},
+        })
+      );
+      expect(await readFile(skillFile, "utf8")).toContain("Edited body");
+      await expect(readFile(join(skillFile, "..", "references/style.md"), "utf8")).rejects.toThrow();
+      for (const id of [botId, crypto.randomUUID()])
+        expect(
+          (await Effect.runPromise(service.composer(id))).items.some((item) => item.id === skillId)
+        ).toBe(true);
+      await Effect.runPromise(service.management.deleteSkill(skillId));
+      skillId = "";
+      expect(await access(skillFile).then(() => true, () => false)).toBe(false);
     } finally {
       server.stop(true);
       if (sourceId) await prisma.pluginSource.deleteMany({ where: { id: sourceId } });
-      if (skillId) await prisma.pluginPrivateSkill.deleteMany({ where: { id: skillId } });
+      if (skillId) await Effect.runPromise(service.management.deleteSkill(skillId)).catch(() => undefined);
       await prisma.pluginInstallation.deleteMany({ where: { pluginKey: key } });
       await prisma.bot.deleteMany({ where: { id: botId } });
       await service.close();
       await prisma.$disconnect();
+      await rm(agentDataRoot, { recursive: true, force: true });
     }
   }
 );

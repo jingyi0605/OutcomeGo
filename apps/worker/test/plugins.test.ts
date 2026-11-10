@@ -9,7 +9,6 @@ test("workers load installed tools and skills without grants, enablements or rev
     pluginConnection:{findMany:async()=>[{id:"connection",alias:"default",name:"Fixture",createdAt:new Date(0),connectorKey:"fixture",status:"ready",installation,
       toolSnapshot:[{name:"write",description:"Fixture write",inputSchema:{type:"object"}}]}]},
     pluginInstallation:{findMany:async()=>[installation]},
-    pluginPrivateSkill:{findMany:async()=>[]},
   } as any,"bot");
   expect(context.dynamicNamespaces[0]?.tools.map(tool=>tool.name)).toEqual(["write"]);
   // A pattern search by service name finds the namespace.
@@ -26,7 +25,6 @@ test("unavailable connections carry their stored reason to the agent", async () 
       connection("ready","Earlier failure"),
     ]},
     pluginInstallation:{findMany:async()=>[installation]},
-    pluginPrivateSkill:{findMany:async()=>[]},
   } as any,"bot");
   expect(context.dynamicNamespaces.map(namespace=>[namespace.namespaceStatus,namespace.statusMessage])).toEqual([
     ["error","Local runtime unavailable: MCP process exited. Reconnect to try again."],
@@ -40,7 +38,6 @@ test("the main agent's prompt carries saved connector instructions; workers' pro
     pluginConnection:{findMany:async()=>[{id:"slack",alias:"default",name:"Slack",createdAt:new Date(0),connectorKey:"slack",status:"ready",statusMessage:null,
       instructions:"Reply in threads.",installation,toolSnapshot:[{name:"post",description:"Post",inputSchema:{type:"object"}}]}]},
     pluginInstallation:{findMany:async()=>[installation]},
-    pluginPrivateSkill:{findMany:async()=>[]},
   } as any;
   const main=await pluginRuntimeContext(prisma,"bot","main");
   expect(main.skillInstructions).toStartWith("\n\n## Connector custom instructions\nCustom instructions are configured for some connected tools (MCP connectors).");
