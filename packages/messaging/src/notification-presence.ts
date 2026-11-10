@@ -31,6 +31,8 @@ export async function notificationRouting(
     smartEnabled: preferences?.smartEnabled ?? true,
     serverTime: now.getTime(),
     iosActiveUntil: until("ios"),
+    androidActiveUntil: until("android"),
     macActiveUntil: until("macos"),
+    windowsActiveUntil: until("windows"),
   };
 }

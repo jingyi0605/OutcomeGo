@@ -197,10 +197,17 @@ export class PushNotificationDispatcher {
             const finalDeviceById = new Map(
               finalDevices.map((device) => [device.id, device] as const)
             );
-            const routing = sendable.some(item => item.payload.kind !== "badge-sync" && item.device.platform === "ios")
+            const routing = sendable.some(item =>
+              item.payload.kind !== "badge-sync" &&
+              (item.device.platform === "ios" || item.device.platform === "android")
+            )
               ? await notificationRouting(tx, this.authMode) : null;
             const allowed = await Promise.all(
-              sendable.map((item) => item.payload.kind !== "badge-sync" && item.device.platform === "ios" && routing && suppressMobileNotification(routing)
+              sendable.map((item) =>
+                item.payload.kind !== "badge-sync" &&
+                (item.device.platform === "ios" || item.device.platform === "android") &&
+                routing &&
+                suppressMobileNotification(routing, item.device.platform)
                 ? false : this.notificationIsDeliverable(tx, item.payload))
             );
             const attempted = sendable.flatMap((item, index) => {

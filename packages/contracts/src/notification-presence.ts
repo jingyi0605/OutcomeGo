@@ -7,7 +7,7 @@ export interface NotificationPresenceInput {
   /** A new ID for each client lifecycle; sequence orders overlapping requests. */
   clientId: string;
   sequence: number;
-  platform: "macos" | "ios" | "android";
+  platform: "macos" | "windows" | "ios" | "android";
   active: boolean;
   idleSeconds?: number;
 }
@@ -16,7 +16,9 @@ export interface NotificationRouting {
   smartEnabled: boolean;
   serverTime: number;
   iosActiveUntil: number;
+  androidActiveUntil?: number;
   macActiveUntil: number;
+  windowsActiveUntil?: number;
 }
 
 export function notificationPresenceLifetime(input: NotificationPresenceInput): number {
@@ -33,7 +35,14 @@ export function notificationPresenceLifetime(input: NotificationPresenceInput): 
 
 export function suppressMobileNotification(
   routing: NotificationRouting,
+  platform: "ios" | "android" = "ios",
   now = routing.serverTime
 ): boolean {
-  return routing.smartEnabled && routing.iosActiveUntil <= now && routing.macActiveUntil > now;
+  const mobileActiveUntil =
+    platform === "android" ? (routing.androidActiveUntil ?? 0) : routing.iosActiveUntil;
+  const desktopActiveUntil = Math.max(
+    routing.macActiveUntil,
+    routing.windowsActiveUntil ?? 0
+  );
+  return routing.smartEnabled && mobileActiveUntil <= now && desktopActiveUntil > now;
 }

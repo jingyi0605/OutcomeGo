@@ -1959,7 +1959,7 @@ export const UpdateNotificationPresenceInput = Schema.Struct({
     Schema.pattern(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)
   ),
   sequence: Schema.Number.pipe(Schema.int(), Schema.between(0, 2_147_483_647)),
-  platform: Schema.Literal("macos", "ios", "android"),
+  platform: Schema.Literal("macos", "windows", "ios", "android"),
   active: Schema.Boolean,
   idleSeconds: Schema.optional(
     Schema.Number.pipe(Schema.finite(), Schema.between(0, 2_147_483_647))

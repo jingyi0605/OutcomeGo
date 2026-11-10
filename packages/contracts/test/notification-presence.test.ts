@@ -20,26 +20,32 @@ test("Mac system idle cutoff and disconnected-client expiry are separate limits"
   expect(notificationPresenceLifetime(input)).toBe(0);
   expect(notificationPresenceLifetime({ ...input, active: false, idleSeconds: 0 })).toBe(0);
   expect(notificationPresenceLifetime({ ...input, platform: "ios" })).toBe(60_000);
+  expect(notificationPresenceLifetime({ ...input, platform: "windows", idleSeconds: 0 })).toBe(60_000);
   expect(notificationPresenceLifetime({ ...input, platform: "android" })).toBe(60_000);
 });
-test("foreground iPhone wins simultaneous activity; preference and expiry restore delivery", () => {
+test("foreground mobile clients win simultaneous activity; preference and expiry restore delivery", () => {
   const routing = {
     smartEnabled: true,
     serverTime: 10_000,
     macActiveUntil: 70_000,
+    windowsActiveUntil: 0,
     iosActiveUntil: 0,
+    androidActiveUntil: 0,
   };
-  expect(suppressMobileNotification(routing)).toBeTrue();
-  expect(suppressMobileNotification({ ...routing, iosActiveUntil: 70_000 })).toBeFalse();
-  expect(suppressMobileNotification(routing, 70_000)).toBeFalse();
-  expect(suppressMobileNotification({ ...routing, smartEnabled: false })).toBeFalse();
+  expect(suppressMobileNotification(routing, "ios")).toBeTrue();
+  expect(suppressMobileNotification(routing, "android")).toBeTrue();
+  expect(suppressMobileNotification({ ...routing, iosActiveUntil: 70_000 }, "ios")).toBeFalse();
+  expect(suppressMobileNotification({ ...routing, androidActiveUntil: 70_000 }, "android")).toBeFalse();
+  expect(suppressMobileNotification({ ...routing, windowsActiveUntil: 80_000 }, "ios")).toBeTrue();
+  expect(suppressMobileNotification(routing, "ios", 70_000)).toBeFalse();
+  expect(suppressMobileNotification({ ...routing, smartEnabled: false }, "ios")).toBeFalse();
 });
 test("presence API rejects invalid IDs, platforms, ordering and idle values", () => {
   const parse = Schema.decodeUnknownSync(UpdateNotificationPresenceInput);
   expect(parse(input)).toEqual(input);
   for (const patch of [
     { clientId: "x" },
-    { platform: "windows" },
+    { platform: "linux" },
     { active: "true" },
     { sequence: -1 },
     { sequence: 1.5 },
