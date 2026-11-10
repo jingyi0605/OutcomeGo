@@ -1,3 +1,10 @@
+import java.awt.Color
+import java.awt.Font
+import java.awt.RenderingHints
+import java.awt.geom.Rectangle2D
+import java.awt.image.BufferedImage
+import javax.imageio.ImageIO
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -5,6 +12,51 @@ plugins {
     // PendingSend and MessageAttachment are @Serializable in this module. Without the
     // compiler plugin no serializer is generated and writing the outbox crashes on send.
     id("org.jetbrains.kotlin.plugin.serialization")
+}
+
+// Debug builds reuse the release launcher icon and stamp a "DEBUG" ribbon on its top-right
+// corner, so a debug APK is recognizable on the home screen and stays in sync with the logo.
+abstract class DebugLauncherIconTask : DefaultTask() {
+    @get:InputDirectory
+    @get:PathSensitive(PathSensitivity.RELATIVE)
+    abstract val sourceResDir: DirectoryProperty
+
+    @get:OutputDirectory
+    abstract val outputDir: DirectoryProperty
+
+    @TaskAction
+    fun generate() {
+        System.setProperty("java.awt.headless", "true")
+        val out = outputDir.get().asFile.apply { deleteRecursively(); mkdirs() }
+        val densities = sourceResDir.get().asFile.listFiles { f -> f.isDirectory && f.name.startsWith("mipmap-") }
+            .orEmpty()
+        for (dir in densities) {
+            val src = File(dir, "ic_launcher.png").takeIf(File::isFile) ?: continue
+            val base = ImageIO.read(src)
+            val s = base.width.toDouble()
+            val img = BufferedImage(base.width, base.height, BufferedImage.TYPE_INT_ARGB)
+            val g = img.createGraphics()
+            g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
+            g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON)
+            g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY)
+            g.drawImage(base, 0, 0, null)
+            // A 45-degree band across the top-right corner, clipped to the icon square.
+            g.clip = Rectangle2D.Double(0.0, 0.0, s, s)
+            g.translate(0.74 * s, 0.26 * s)
+            g.rotate(Math.PI / 4)
+            val bandHeight = 0.2 * s
+            g.color = Color(0xE5, 0x39, 0x35, 0xF0)
+            g.fill(Rectangle2D.Double(-1.2 * s, -bandHeight / 2, 2.4 * s, bandHeight))
+            g.font = Font(Font.SANS_SERIF, Font.BOLD, (0.125 * s).toInt().coerceAtLeast(8))
+            g.color = Color.WHITE
+            val fm = g.fontMetrics
+            val label = "DEBUG"
+            g.drawString(label, -fm.stringWidth(label) / 2f, (fm.ascent - fm.descent) / 2f)
+            g.dispose()
+            val target = File(out, dir.name).apply { mkdirs() }
+            ImageIO.write(img, "png", File(target, "ic_launcher.png"))
+        }
+    }
 }
 
 android {
@@ -105,4 +157,14 @@ dependencies {
     androidTestImplementation("androidx.test.espresso:espresso-core:3.7.0")
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
+}
+
+androidComponents {
+    onVariants(selector().withBuildType("debug")) { variant ->
+        val iconTask = tasks.register<DebugLauncherIconTask>("generate${variant.name.replaceFirstChar(Char::uppercase)}LauncherIcon") {
+            sourceResDir.set(layout.projectDirectory.dir("src/main/res"))
+            outputDir.set(layout.buildDirectory.dir("generated/debugLauncherIcon/${variant.name}"))
+        }
+        variant.sources.res?.addGeneratedSourceDirectory(iconTask, DebugLauncherIconTask::outputDir)
+    }
 }
