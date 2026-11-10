@@ -193,21 +193,6 @@ struct ComposerView: View {
       AttachmentTrayButton(enabled: !uploading) { trayActions }
         .frame(width: 44, height: 44)
         .allowsHitTesting(!bar).accessibilityHidden(bar)
-      if !focusedReply, store.bot(for: channel) != nil {
-        Button {
-          if store.liveVoiceSession == nil { store.startLiveVoice(for: channel) }
-          else { store.stopLiveVoice() }
-        } label: {
-          Image(systemName: store.liveVoiceSession == nil ? "phone.fill" : "phone.down.fill")
-            .font(.system(size: 15, weight: .semibold))
-            .frame(width: 36, height: 36)
-            .background(NativePalette.surface, in: Circle())
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(store.liveVoiceSession == nil ? "Start realtime voice" : "End realtime voice")
-        .accessibilityIdentifier("realtime-voice-button")
-        .disabled(bar)
-      }
       VStack(spacing: 0) {
         if !focusedReply, let reply = draft.replyTo {
           HStack(spacing: 7) {

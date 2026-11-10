@@ -184,6 +184,7 @@ struct NativeGlass: ViewModifier {
   @Environment(\.colorScheme) private var scheme
   var radius: CGFloat = 22
   var darkTint: Double = 0.11
+  var shadow = true
   func body(content: Content) -> some View {
     // Regular glass diffuses the scrolling backdrop. Match the measured dark
     // resting fill over #141414, but let iOS draw its adaptive rim;
@@ -203,7 +204,7 @@ struct NativeGlass: ViewModifier {
       }
     } else {
       content.background(.regularMaterial, in: RoundedRectangle(cornerRadius: radius))
-        .shadow(color: .black.opacity(0.08), radius: 10, y: 4)
+        .shadow(color: shadow ? .black.opacity(0.08) : .clear, radius: shadow ? 10 : 0, y: shadow ? 4 : 0)
     }
   }
 }
@@ -217,9 +218,10 @@ struct NativeChatGlass: ViewModifier {
   @Environment(\.colorScheme) private var scheme
   var radius: CGFloat = 22
   var regularInLightMode = false
+  var shadow = true
   func body(content: Content) -> some View {
     if scheme == .light && regularInLightMode {
-      content.modifier(NativeGlass(radius: radius))
+      content.modifier(NativeGlass(radius: radius, shadow: shadow))
     } else if #available(iOS 26, *) {
       content.glassEffect(
         (scheme == .dark
@@ -231,9 +233,12 @@ struct NativeChatGlass: ViewModifier {
           RoundedRectangle(cornerRadius: radius)
             .strokeBorder(.black.opacity(0.12), lineWidth: 0.5).allowsHitTesting(false)
         }
-      }.shadow(color: scheme == .light ? .black.opacity(0.06) : .clear, radius: 12, y: 3)
+      }.shadow(
+        color: scheme == .light && shadow ? .black.opacity(0.06) : .clear,
+        radius: shadow ? 12 : 0,
+        y: shadow ? 3 : 0)
     } else {
-      content.modifier(NativeGlass(radius: radius))
+      content.modifier(NativeGlass(radius: radius, shadow: shadow))
     }
   }
 }
@@ -397,8 +402,11 @@ private struct ChatFloatingBars<Top: View, Bottom: View>: ViewModifier {
 }
 #endif
 extension View {
-  func nativeChatGlass(radius: CGFloat = 22, regularInLightMode: Bool = false) -> some View {
-    modifier(NativeChatGlass(radius: radius, regularInLightMode: regularInLightMode))
+  func nativeChatGlass(
+    radius: CGFloat = 22, regularInLightMode: Bool = false, shadow: Bool = true
+  ) -> some View {
+    modifier(NativeChatGlass(
+      radius: radius, regularInLightMode: regularInLightMode, shadow: shadow))
   }
   #if !SHARE_EXTENSION
   func chatFloatingBars<Top: View, Bottom: View>(
@@ -502,12 +510,14 @@ struct ChatChromeButton: View {
   var symbolSize: CGFloat = 16
   var symbolWeight: Font.Weight = .semibold
   var regularInLightMode = false
+  var shadow = true
   var action: () -> Void
   var body: some View {
     Button(action: action) {
       Image(systemName: symbol).font(.system(size: symbolSize, weight: symbolWeight))
         .frame(width: 44, height: 44).foregroundStyle(NativePalette.text)
-        .modifier(ChatButtonGlass(isRail: nativeRailControl, regularInLightMode: regularInLightMode))
+        .modifier(ChatButtonGlass(
+          isRail: nativeRailControl, regularInLightMode: regularInLightMode, shadow: shadow))
         .contentShape(Circle())
     }.buttonStyle(.plain).accessibilityLabel(title)
   }
@@ -540,9 +550,10 @@ struct RailControlGlass: ViewModifier {
 private struct ChatButtonGlass: ViewModifier {
   var isRail: Bool
   var regularInLightMode: Bool
+  var shadow: Bool
   func body(content: Content) -> some View {
     if isRail { content.modifier(RailControlGlass()) }
-    else { content.nativeChatGlass(regularInLightMode: regularInLightMode) }
+    else { content.nativeChatGlass(regularInLightMode: regularInLightMode, shadow: shadow) }
   }
 }
 struct AccountMark: View {

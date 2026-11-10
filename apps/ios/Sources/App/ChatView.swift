@@ -423,16 +423,30 @@ struct ChatView: View {
       } else if sideChrome?.holdsAllControls == true || leadingControl != nil {
         leadingButton
       }
+      realtimeVoiceButton
       computerButton
       Spacer(minLength: 12)
     }.foregroundStyle(NativePalette.text)
   }
   @ViewBuilder private var computerButton: some View {
     if let bot = store.computerBot(for: channel) {
-      ChatChromeButton(title: "Computer", symbol: "display", symbolSize: 16) {
+      ChatChromeButton(title: "Computer", symbol: "display", symbolSize: 16, shadow: false) {
         // Freeze the target for this presentation even if another bot replies.
         computerBot = bot
       }.accessibilityValue(bot.name)
+    }
+  }
+  @ViewBuilder private var realtimeVoiceButton: some View {
+    if !channel.isGroup, store.bot(for: channel) != nil {
+      ChatChromeButton(
+        title: store.liveVoiceSession == nil ? "Start realtime voice" : "End realtime voice",
+        symbol: store.liveVoiceSession == nil ? "phone.fill" : "phone.down.fill",
+        symbolSize: 16, shadow: false
+      ) {
+        if store.liveVoiceSession == nil { store.startLiveVoice(for: channel) }
+        else { store.stopLiveVoice() }
+      }
+      .accessibilityIdentifier("realtime-voice-button")
     }
   }
   private var titleButton: some View {
@@ -453,6 +467,7 @@ struct ChatView: View {
         if !conversationListVisible { leadingButton }
         titleButton
         Spacer(minLength: 0)
+        realtimeVoiceButton
         computerButton
       }.padding(.horizontal, 14).padding(.trailing, topBarTrailingInset)
         .modifier(TopBarClearance(SideChrome.topBarPadding)).padding(.bottom, 6)
@@ -467,7 +482,14 @@ struct ChatView: View {
         titleButton.frame(maxWidth: .infinity)
         // Equal side slots keep the pill on the screen's center, including groups
         // without a Computer action. Long names truncate within the middle slot.
-        // Beside a side region, Computer sits in it, below the status bar.
+        // Beside a side region, the action buttons sit in it, below the status bar.
+        Group {
+          if !channel.isGroup, store.bot(for: channel) != nil {
+            realtimeVoiceButton
+          } else {
+            Color.clear.accessibilityHidden(true)
+          }
+        }.frame(width: 44, height: 44)
         Group {
           if sideChrome == nil, store.computerBot(for: channel) != nil {
             computerButton
