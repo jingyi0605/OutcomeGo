@@ -1,15 +1,17 @@
 import type { BotView } from "@aiteamos/contracts";
 import {
+  Check,
   ChevronDown,
   Mic,
   MicOff,
   Minimize2,
   PhoneCall,
   PhoneOff,
+  Users,
   Volume2,
   VolumeX,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useLiveVoice } from "../../../hooks/use-live-voice";
 import { useI18n } from "../../../lib/i18n";
 import { translateCurrent } from "../../../lib/i18n-catalog";
@@ -20,20 +22,41 @@ import "./live-voice.css";
 
 export function LiveVoiceLayer({
   bot,
+  bots = [bot],
   channelId,
+  group = false,
   compact = false,
 }: {
   bot: Pick<BotView, "id" | "name" | "title" | "color" | "icon" | "hasAvatar" | "updatedAt">;
+  bots?: Array<Pick<BotView, "id" | "name" | "title" | "color" | "icon" | "hasAvatar" | "updatedAt">>;
   channelId: string;
+  group?: boolean;
   compact?: boolean;
 }) {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [minimized, setMinimized] = useState(false);
-  const voice = useLiveVoice(bot.id, channelId);
+  const [selectedBotIds, setSelectedBotIds] = useState(() => bots.map((member) => member.id));
+  const [defaultSpeakerId, setDefaultSpeakerId] = useState(bot.id);
+  const participantBotIds = useMemo(
+    () => bots.filter((member) => selectedBotIds.includes(member.id)).map((member) => member.id),
+    [bots, selectedBotIds]
+  );
+  const speakerId = participantBotIds.includes(defaultSpeakerId)
+    ? defaultSpeakerId
+    : participantBotIds[0] ?? bot.id;
+  const voice = useLiveVoice(speakerId, channelId, group ? participantBotIds : undefined);
   const active = voice.state !== "idle";
+  const activeSpeaker = bots.find((member) => member.id === voice.speakerBotId) ?? bot;
   const captions = useRef<HTMLDivElement>(null);
   const followCaptions = useRef(true);
+
+  useEffect(() => {
+    if (!group || voice.state !== "idle") return;
+    const ids = bots.map((member) => member.id);
+    setSelectedBotIds(ids);
+    setDefaultSpeakerId(ids[0] ?? bot.id);
+  }, [bot.id, bots, group, voice.state]);
 
   useEffect(() => {
     if (!open || minimized || !followCaptions.current) return;
@@ -56,7 +79,23 @@ export function LiveVoiceLayer({
   const start = () => {
     setOpen(true);
     setMinimized(false);
+    if (!group) void voice.start();
+  };
+
+  const beginGroupCall = () => {
+    if (participantBotIds.length === 0) return;
+    setMinimized(false);
     void voice.start();
+  };
+
+  const toggleParticipant = (botId: string) => {
+    setSelectedBotIds((current) =>
+      current.includes(botId) ? current.filter((id) => id !== botId) : [...current, botId]
+    );
+    if (botId === defaultSpeakerId && selectedBotIds.includes(botId)) {
+      const replacement = participantBotIds.find((id) => id !== botId);
+      if (replacement) setDefaultSpeakerId(replacement);
+    }
   };
 
   const close = () => {
@@ -118,10 +157,10 @@ export function LiveVoiceLayer({
       {open && minimized && active ? (
         <div className="live-voice-minimized" role="status">
           <span className="live-voice-mini-avatar">
-            <BotAvatar bot={bot} size="md" className="!size-full" />
+            <BotAvatar bot={activeSpeaker} size="md" className="!size-full" />
           </span>
           <span className="live-voice-mini-copy">
-            <strong>{bot.name}</strong>
+            <strong>{activeSpeaker.name}</strong>
             <span>
               {statusLabel(voice.state)} · {elapsed}
             </span>
@@ -167,8 +206,8 @@ export function LiveVoiceLayer({
               </Button>
               <div className="live-voice-heading">
                 <span className="live-voice-eyebrow">{t("Realtime conversation")}</span>
-                <h2 id="live-voice-title">{bot.name}</h2>
-                <p>{bot.title || t("Talk with your assistant")}</p>
+                <h2 id="live-voice-title">{group ? t("Group voice conversation") : bot.name}</h2>
+                <p>{group ? t("Choose who can answer and who speaks by default.") : bot.title || t("Talk with your assistant")}</p>
               </div>
               <span aria-label={t("Call duration {elapsed}", { elapsed })} className="live-voice-duration">
                 {elapsed}
@@ -176,13 +215,59 @@ export function LiveVoiceLayer({
             </header>
 
             <div className="live-voice-main">
+              {group && voice.state === "idle" ? (
+                <div className="flex min-w-0 flex-1 flex-col gap-4 p-5">
+                  <div className="flex items-center gap-2 text-sm font-medium">
+                    <Users className="size-4" />
+                    <span>{t("Voice participants")}</span>
+                  </div>
+                  <div className="grid gap-2">
+                    {bots.map((member) => {
+                      const selectedMember = selectedBotIds.includes(member.id);
+                      return (
+                        <label
+                          className="flex cursor-pointer items-center gap-3 rounded-xl border border-border/70 px-3 py-2.5 text-sm hover:bg-muted/50"
+                          key={member.id}
+                        >
+                          <input
+                            checked={selectedMember}
+                            className="size-4 accent-primary"
+                            onChange={() => toggleParticipant(member.id)}
+                            type="checkbox"
+                          />
+                          <BotAvatar bot={member} size="sm" />
+                          <span className="min-w-0 flex-1 truncate">{member.name}</span>
+                          {selectedMember && member.id === speakerId ? (
+                            <Check className="size-4 text-primary" />
+                          ) : null}
+                        </label>
+                      );
+                    })}
+                  </div>
+                  <label className="grid gap-1.5 text-sm">
+                    <span className="text-muted-foreground">{t("Default speaker")}</span>
+                    <select
+                      className="h-9 rounded-lg border border-border bg-background px-2"
+                      disabled={participantBotIds.length === 0}
+                      onChange={(event) => setDefaultSpeakerId(event.target.value)}
+                      value={speakerId}
+                    >
+                      {participantBotIds.map((id) => (
+                        <option key={id} value={id}>
+                          {bots.find((member) => member.id === id)?.name ?? id}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+              ) : (
               <div className="live-voice-avatar-column">
                 <div
                   className="live-voice-avatar-halo"
                   data-live-voice-speaking={voice.state === "speaking"}
                 >
                   <div className="live-voice-avatar">
-                    <BotAvatar bot={bot} size="lg" className="!size-full" />
+                    <BotAvatar bot={activeSpeaker} size="lg" className="!size-full" />
                   </div>
                 </div>
                 <div className="live-voice-state" role="status">
@@ -193,8 +278,9 @@ export function LiveVoiceLayer({
                   {statusLabel(voice.state)}
                 </div>
               </div>
+              )}
 
-              <div
+              {!(group && voice.state === "idle") ? <div
                 aria-label={t("Live captions")}
                 className="live-voice-captions"
                 onScroll={(event) => {
@@ -217,7 +303,9 @@ export function LiveVoiceLayer({
                     key={entry.id}
                   >
                     <span className="live-voice-caption-label">
-                      {entry.role === "assistant" ? bot.name : t("You")}
+                      {entry.role === "assistant"
+                        ? bots.find((member) => member.id === entry.speakerBotId)?.name ?? bot.name
+                        : t("You")}
                     </span>
                     <p>{entry.text}</p>
                   </article>
@@ -233,10 +321,22 @@ export function LiveVoiceLayer({
                     {voice.error}
                   </p>
                 ) : null}
-              </div>
+              </div> : null}
             </div>
 
-            <footer className="live-voice-controls">
+            {group && voice.state === "idle" ? (
+              <footer className="live-voice-controls">
+                <Button
+                  className="rounded-full px-5"
+                  disabled={participantBotIds.length === 0}
+                  onClick={beginGroupCall}
+                  variant="default"
+                >
+                  <PhoneCall className="mr-1.5 size-4" />
+                  {t("Start group call")}
+                </Button>
+              </footer>
+            ) : <footer className="live-voice-controls">
               <div className="live-voice-control-group">
                 <Button
                   aria-label={voice.microphoneMuted ? t("Unmute microphone") : t("Mute microphone")}
@@ -275,7 +375,7 @@ export function LiveVoiceLayer({
                 </Button>
                 <span>{voice.speakerMuted ? t("Unmute") : t("Speaker")}</span>
               </div>
-            </footer>
+            </footer>}
 
             {voice.state === "error" ? (
               <div className="live-voice-error-actions">

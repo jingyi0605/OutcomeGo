@@ -1034,6 +1034,17 @@ export default function App() {
   const a2aExchangeChannel = a2aExchangeView?.channel;
   const selectedBot =
     selected?.kind === "bot_dm" ? index.botById.get(selected.members[0]?.botId ?? "") : undefined;
+  const selectedVoiceBots = useMemo(
+    () =>
+      selected
+        ? selected.members
+        .map((member) => index.botById.get(member.botId))
+        .filter((bot): bot is BotView =>
+          Boolean(bot && (selected.kind !== "group" || bot.status === "active"))
+        )
+        : [],
+    [index.botById, selected]
+  );
   const asyncTasksBot = asyncTasksBotId ? (index.botById.get(asyncTasksBotId) ?? null) : null;
   const asyncTasks = useMemo(
     () =>
@@ -1363,9 +1374,15 @@ export default function App() {
                 inspectorWidth={inspectorWidth}
                 inspectorMode={inspectorMode}
                 liveVoice={
-                  selected?.kind === "bot_dm" && selectedBot ? (
+                  selected && selectedVoiceBots.length > 0 ? (
                     <Suspense fallback={null}>
-                      <LiveVoiceLayer bot={selectedBot} channelId={selected.id} compact />
+                      <LiveVoiceLayer
+                        bot={selectedBot ?? selectedVoiceBots[0]!}
+                        bots={selectedVoiceBots}
+                        channelId={selected.id}
+                        group={selected.kind === "group"}
+                        compact
+                      />
                     </Suspense>
                   ) : null
                 }

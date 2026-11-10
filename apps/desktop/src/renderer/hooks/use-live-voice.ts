@@ -17,9 +17,10 @@ export interface LiveVoiceTranscriptEntry {
   id: string;
   role: "user" | "assistant";
   text: string;
+  speakerBotId?: string;
 }
 
-export function useLiveVoice(botId: string, channelId: string) {
+export function useLiveVoice(botId: string, channelId: string, participantBotIds?: readonly string[]) {
   const [state, setState] = useState<LiveVoiceUiState>("idle");
   const [error, setError] = useState<string | null>(null);
   const [transcript, setTranscript] = useState<LiveVoiceTranscriptEntry[]>([]);
@@ -28,6 +29,7 @@ export function useLiveVoice(botId: string, channelId: string) {
   const [now, setNow] = useState(() => Date.now());
   const [microphoneMuted, setMicrophoneMuted] = useState(false);
   const [speakerMuted, setSpeakerMuted] = useState(false);
+  const [speakerBotId, setSpeakerBotId] = useState<string | undefined>(undefined);
   const [available, setAvailable] = useState(false);
   const transport = useRef<LiveVoiceTransport | null>(null);
   const audio = useRef<LiveVoiceAudio | null>(null);
@@ -67,6 +69,7 @@ export function useLiveVoice(botId: string, channelId: string) {
     setStartedAt(null);
     setMicrophoneMuted(false);
     setSpeakerMuted(false);
+    setSpeakerBotId(undefined);
   }, []);
 
   const start = useCallback(async () => {
@@ -94,6 +97,7 @@ export function useLiveVoice(botId: string, channelId: string) {
         channelId,
         clientPlatform,
         clientInstanceId: `desktop:${clientPlatform}:${crypto.randomUUID()}`,
+        ...(participantBotIds?.length ? { participantBotIds: [...participantBotIds] } : {}),
       });
       sessionId.current = ticket.id;
       const next = new LiveVoiceTransport(ticket, {
@@ -119,10 +123,19 @@ export function useLiveVoice(botId: string, channelId: string) {
           } else if (message.type === "reply.message") {
             setTranscript((current) => [
               ...current,
-              { id: message.messageId, role: "assistant", text: message.text },
+              {
+                id: message.messageId,
+                role: "assistant",
+                text: message.text,
+                speakerBotId: message.speakerBotId,
+              },
             ]);
+            setSpeakerBotId(message.speakerBotId);
             updateState("speaking");
-          } else if (message.type === "audio.started") updateState("speaking");
+          } else if (message.type === "audio.started") {
+            setSpeakerBotId(message.speakerBotId);
+            updateState("speaking");
+          }
           else if (message.type === "barge_in" || message.type === "audio.stopped") {
             nextAudio.stopPlayback();
             updateState("interrupted");
@@ -162,7 +175,7 @@ export function useLiveVoice(botId: string, channelId: string) {
         cause instanceof Error ? cause.message : translateCurrent("Realtime voice is unavailable")
       );
     }
-  }, [botId, channelId, refreshAvailability, stop, updateState]);
+  }, [botId, channelId, participantBotIds, refreshAvailability, stop, updateState]);
 
   const restart = useCallback(async () => {
     await stop();
@@ -202,6 +215,7 @@ export function useLiveVoice(botId: string, channelId: string) {
     elapsedMs: startedAt === null ? 0 : Math.max(0, now - startedAt),
     microphoneMuted,
     speakerMuted,
+    speakerBotId,
     setMicrophoneMuted: setMicrophoneMutedState,
     setSpeakerMuted: setSpeakerMutedState,
     start,
