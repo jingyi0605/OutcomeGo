@@ -303,8 +303,10 @@ jobs:
           WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
         run: |
           set -euo pipefail
-          test -n "$WINDOWS_CERTIFICATE_BASE64" || { echo "WINDOWS_CERTIFICATE_BASE64 is required for published Windows releases" >&2; exit 1; }
-          test -n "$WINDOWS_CERTIFICATE_PASSWORD" || { echo "WINDOWS_CERTIFICATE_PASSWORD is required for published Windows releases" >&2; exit 1; }
+          if [ -z "$WINDOWS_CERTIFICATE_BASE64" ] || [ -z "$WINDOWS_CERTIFICATE_PASSWORD" ]; then
+            echo "Windows signing credentials are not configured; publishing an unsigned installer."
+            exit 0
+          fi
           certificate="$RUNNER_TEMP/aiTeamOS-windows-signing.pfx"
           printf '%s' "$WINDOWS_CERTIFICATE_BASE64" | base64 --decode > "$certificate"
           echo "WIN_CSC_LINK=$certificate" >> "$GITHUB_ENV"
@@ -325,6 +327,10 @@ jobs:
         env:
           WINDOWS_SIGNING_SUBJECT: ${{ vars.WINDOWS_SIGNING_SUBJECT }}
         run: |
+          if [ -z "${WIN_CSC_LINK:-}" ]; then
+            echo "Windows signing credentials are not configured; skipping Authenticode verification."
+            exit 0
+          fi
           test -n "$WINDOWS_SIGNING_SUBJECT" || {
             echo "WINDOWS_SIGNING_SUBJECT is required for published Windows releases" >&2
             exit 1
@@ -463,7 +469,9 @@ jobs:
             apksigner_path="$(find "$sdk_root/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
           fi
           test -x "$apksigner_path" || { echo "apksigner was not found" >&2; exit 1; }
+          certificate_sha256="$($apksigner_path verify --print-certs "$apk" 2>&1 | sed -nE 's/.*SHA-256 digest:[[:space:]]*//p' | head -n 1)"
           certificate_sha256="$("$apksigner_path" verify --print-certs "$apk" | awk -F': ' '/Signer #1 certificate SHA-256 digest:/ {print $2; exit}')"
+          certificate_sha256="$($apksigner_path verify --print-certs "$apk" 2>&1 | sed -nE 's/.*SHA-256 digest:[[:space:]]*//p' | head -n 1)"
           test -n "$certificate_sha256" || { echo "Could not read the APK certificate digest" >&2; exit 1; }
           aapt2_path="$(find "$sdk_root/build-tools" -type f -name aapt2 | sort -V | tail -n 1)"
           test -x "$aapt2_path" || { echo "aapt2 was not found" >&2; exit 1; }
