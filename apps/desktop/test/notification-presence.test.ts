@@ -28,6 +28,7 @@ test("a lock transition overtakes a slow activity sample and unmount releases th
   let resolve!: (value: DesktopActivity) => void;
   let reads = 0;
   const stop = startNotificationPresence({
+    platform: "macos",
     activity: async () =>
       ++reads === 1
         ? new Promise<DesktopActivity>((done) => {
@@ -61,6 +62,7 @@ test("a lock transition overtakes a slow activity sample and unmount releases th
 test("heartbeats renew availability without extending the Mac idle threshold; stop cancels renewal", async () => {
   const sent: NotificationPresenceInput[] = [];
   const stop = startNotificationPresence({
+    platform: "macos",
     activity: async () => ({ active: true, idleSeconds: 299 }),
     send: async (input) => {
       sent.push(input);

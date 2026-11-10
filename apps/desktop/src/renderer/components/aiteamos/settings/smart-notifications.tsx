@@ -39,13 +39,13 @@ export function SmartNotificationSettings() {
       <SectionLabel>{t("Notifications")}</SectionLabel>
       <SettingsGroup>
         <SettingsRow
-          title={t("Pause iPhone alerts while using this Mac")}
+          title={t("Pause mobile alerts while using this desktop")}
           description={t(
             "Alerts resume after 5 minutes of inactivity or when you open aiTeamOS on Mobile."
           )}
           control={
             <InteractiveSwitch
-              label={t("Pause iPhone alerts while using this Mac")}
+              label={t("Pause mobile alerts while using this desktop")}
               checked={enabled}
               disabled={saving}
               onChange={(value) => {

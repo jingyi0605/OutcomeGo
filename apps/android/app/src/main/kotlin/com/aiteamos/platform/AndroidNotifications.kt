@@ -214,6 +214,7 @@ class HttpNotificationPresenceTransport(
         return NotificationRouting(
             json.optBoolean("smartEnabled", true), json.optLong("serverTime"),
             json.optLong("iosActiveUntil"), json.optLong("macActiveUntil"),
+            json.optLong("androidActiveUntil"), json.optLong("windowsActiveUntil"),
         )
     }
 }
@@ -294,7 +295,14 @@ data class NotificationPresencePayload(
     val platform: String = "android",
 )
 
-data class NotificationRouting(val smartEnabled: Boolean, val serverTime: Long, val iosActiveUntil: Long, val macActiveUntil: Long)
+data class NotificationRouting(
+    val smartEnabled: Boolean,
+    val serverTime: Long,
+    val iosActiveUntil: Long,
+    val macActiveUntil: Long,
+    val androidActiveUntil: Long = 0,
+    val windowsActiveUntil: Long = 0,
+)
 
 /** Android foreground presence uses the same lease protocol as iOS, with ordered heartbeats. */
 class NotificationPresenceController(

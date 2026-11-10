@@ -396,9 +396,15 @@ export default function App() {
 
   useEffect(() => {
     const native = window.aiteamos;
-    if (!appReady || native?.platform !== "darwin" || !native.notifications?.activity) return;
+    if (
+      !appReady ||
+      !native ||
+      !["darwin", "win32"].includes(native?.platform ?? "") ||
+      !native.notifications?.activity
+    ) return;
     const headers = { "content-type": "application/json", ...authHeaders() };
     const stop = startNotificationPresence({
+      platform: native.platform === "win32" ? "windows" : "macos",
       activity: () => native.notifications.activity(),
       subscribe: (changed) => native.notifications.onActivityChange(changed),
       send: (input) => api.updateNotificationPresence(input),

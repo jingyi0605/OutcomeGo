@@ -8,8 +8,11 @@ export interface DesktopActivity {
   idleSeconds: number;
 }
 
+export type DesktopNotificationPlatform = "macos" | "windows";
+
 /** Each mount has its own lease. Releases outrank any heartbeat already in flight. */
 export function startNotificationPresence(options: {
+  platform: DesktopNotificationPlatform;
   activity: () => Promise<DesktopActivity>;
   send: (input: NotificationPresenceInput) => Promise<unknown>;
   release: (input: NotificationPresenceInput) => void;
@@ -25,7 +28,7 @@ export function startNotificationPresence(options: {
     try {
       const activity = await options.activity();
       if (stopped || revision !== sequence) return;
-      await options.send({ clientId, sequence: revision, platform: "macos", ...activity });
+      await options.send({ clientId, sequence: revision, platform: options.platform, ...activity });
     } catch {
       /* Presence expires; it must never interrupt ordinary client sync. */
     }
@@ -38,6 +41,6 @@ export function startNotificationPresence(options: {
     stopped = true;
     clearInterval(timer);
     unsubscribe();
-    options.release({ clientId, sequence: ++sequence, platform: "macos", active: false });
+    options.release({ clientId, sequence: ++sequence, platform: options.platform, active: false });
   };
 }

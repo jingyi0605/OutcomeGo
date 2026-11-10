@@ -4601,12 +4601,12 @@
         }
       }
     },
-    "Pause iPhone alerts while I’m using my Mac": {
+    "Pause mobile alerts while I’m using my desktop": {
       "localizations": {
         "zh-CN": {
           "stringUnit": {
             "state": "translated",
-            "value": "使用 Mac 时暂停 iPhone 提醒"
+            "value": "使用桌面端时暂停手机提醒"
           }
         }
       }

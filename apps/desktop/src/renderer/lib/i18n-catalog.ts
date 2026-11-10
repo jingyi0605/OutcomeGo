@@ -297,7 +297,7 @@ export const sourceTranslations: Record<string, string> = {
     "仅应用于新打开的 Box 桌面。\n重启已有 Box 桌面后才会生效。",
   "Open the aiTeamOS desktop app on a computer and sign in to add it here.":
     "在电脑上打开 aiTeamOS 桌面应用并登录，即可在此添加。",
-  "Pause iPhone alerts while using this Mac": "在使用此 Mac 时暂停 iPhone 提醒",
+  "Pause mobile alerts while using this desktop": "使用此桌面端时暂停手机提醒",
   "Alerts resume after 5 minutes of inactivity or when you open aiTeamOS on Mobile.":
     "闲置 5 分钟后，或在手机上打开 aiTeamOS 时恢复提醒。",
   "Couldn’t save notification settings. Try again.": "无法保存通知设置，请重试。",

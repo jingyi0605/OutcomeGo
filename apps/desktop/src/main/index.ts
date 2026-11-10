@@ -878,7 +878,7 @@ ipcMain.handle("aiteamos:notifications:activity", (event) => {
   return {
     idleSeconds,
     active:
-      process.platform === "darwin" &&
+      (process.platform === "darwin" || process.platform === "win32") &&
       !isQuitting &&
       !notificationScreenLocked &&
       !notificationSuspended &&

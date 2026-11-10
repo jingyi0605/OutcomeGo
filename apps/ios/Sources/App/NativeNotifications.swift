@@ -526,7 +526,7 @@ struct PushNotificationSettings: View {
   var body: some View {
     VStack(alignment: .leading, spacing: 8) {
       if let smart = notifications.smartEnabled {
-        Toggle("Pause iPhone alerts while I’m using my Mac", isOn: Binding(
+        Toggle("Pause mobile alerts while I’m using my desktop", isOn: Binding(
           get: { notifications.smartEnabled ?? smart },
           set: { value in Task { await notifications.setSmartEnabled(value) } }
         )).disabled(notifications.changingSmartPreference).tint(NativePalette.toggle)
