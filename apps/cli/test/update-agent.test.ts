@@ -133,7 +133,11 @@ test("rejects unsafe versions again on the host and reports spawn failures", asy
     expect(() => updateAgentArguments(f.paths, { ...request, targetVersion })).toThrow(
       "invalid update version"
     );
-  expect(() => updateAgentArguments(f.paths, { ...request, targetVersion: "1.3.0-beta.1" })).not.toThrow();
+  const betaArguments = updateAgentArguments(f.paths, {
+    ...request,
+    targetVersion: "1.3.0-beta.1",
+  });
+  expect(betaArguments).toContain("--allow-prerelease");
   writeFileSync(
     f.paths.environment,
     "AITEAMOS_CONTROL_TOKEN=fixture-private-token\nAITEAMOS_API_PORT=9787\nAITEAMOS_UPDATE_CHANNEL=stable\n"

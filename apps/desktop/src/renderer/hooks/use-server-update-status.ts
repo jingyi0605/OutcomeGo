@@ -9,7 +9,7 @@ import { useWindowActive } from "./use-window-active";
 
 const manualCommand = (targetVersion: string | null) =>
   targetVersion && isAiTeamOSVersion(targetVersion)
-    ? `aiteamos update --version ${targetVersion}`
+    ? `aiteamos update --version ${targetVersion}${targetVersion.includes("-") ? " --allow-prerelease" : ""}`
     : "aiteamos update";
 
 const unavailableStatus = (targetVersion: string | null): AiTeamOSServerUpdateStatus => ({

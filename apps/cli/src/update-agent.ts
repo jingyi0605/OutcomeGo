@@ -276,6 +276,7 @@ export const updateAgentArguments = (
     paths.directory,
     "--version",
     version,
+    ...(allowPrerelease && version.includes("-") ? ["--allow-prerelease"] : []),
     "--json-progress",
   ]);
 };
