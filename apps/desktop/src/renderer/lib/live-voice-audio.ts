@@ -16,7 +16,10 @@ import {
   VOICE_OUTPUT_SAMPLE_RATE,
 } from "@aiteamos/contracts/voice";
 
-const CAPTURE_WORKLET_URL = new URL("../worklets/live-voice-capture.ts", import.meta.url);
+const CAPTURE_WORKLET_URL = new URL(
+  `${import.meta.env.BASE_URL}worklets/live-voice-capture.js`,
+  document.baseURI
+);
 
 export interface LiveVoiceAudioEvents {
   onFrame?: (frame: Uint8Array) => void;
