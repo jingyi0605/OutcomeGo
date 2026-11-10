@@ -3,6 +3,7 @@ import {
   emptySidebarPreferences,
   normalizeSidebarPreferences,
   removeSidebarUnread,
+  resolveSidebarSync,
   toggleSidebarPinned,
   toggleSidebarUnread,
   type SidebarPreferences,
@@ -41,6 +42,8 @@ const withoutChannel = (orders: Record<string, string[]>, channelId: string) =>
 
 export function useSidebarPreferences() {
   const [preferences, setPreferences] = useState(readPreferences);
+  const latestPreferences = useRef(preferences);
+  latestPreferences.current = preferences;
   const pendingRemote = useRef<SidebarPreferences | null>(null);
   const remoteTimer = useRef<number | null>(null);
   const remoteSaving = useRef(false);
@@ -79,16 +82,13 @@ export function useSidebarPreferences() {
       .rootSettings()
       .then((result) => {
         if (cancelled || localRevision.current !== revisionAtStart) return;
-        if (result.valid && result.settings.sidebarPreferences) {
-          const remote = readPreferences(result.settings.sidebarPreferences);
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(remote));
-          setPreferences(remote);
-          return;
+        const decision = resolveSidebarSync(result, latestPreferences.current);
+        if (decision.action === "adopt") {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(decision.preferences));
+          setPreferences(decision.preferences);
+        } else if (decision.action === "push") {
+          scheduleRemote(decision.preferences);
         }
-        setPreferences((current) => {
-          scheduleRemote(current);
-          return current;
-        });
       })
       .catch(() => undefined);
     return () => {
