@@ -25,6 +25,8 @@ bash scripts/android/package-debug.sh
 
 On macOS, double-click `scripts/android/package-debug.command`. The command selects a compatible JDK, runs `:mobile:androidApp:assembleDebug`, and prints the absolute APK path and SHA-256. It does not install the APK or start a server.
 
+Debug builds reuse the `mipmap-*/ic_launcher.png` launcher icon and stamp a red `DEBUG` ribbon on its top-right corner (generated at build time by `DebugLauncherIconTask` in `apps/android/app/build.gradle.kts`). Release builds keep the plain icon, and no extra image files are committed.
+
 The script uses `apps/android/gradlew` when a wrapper is supplied by the Android owners; otherwise it uses `gradle` from `PATH`. It does not start a server or modify signing state. To run connected tests, boot an emulator or attach a device and set its serial:
 
 ```sh
