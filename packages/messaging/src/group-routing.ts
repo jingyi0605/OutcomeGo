@@ -113,3 +113,42 @@ export const rotateGroupResponders = (
   const offset = ((roundIndex % memberIds.length) + memberIds.length) % memberIds.length;
   return [...memberIds.slice(offset), ...memberIds.slice(0, offset)];
 };
+
+const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const containsAsciiWord = (text: string, phrase: string): boolean => {
+  const pattern = new RegExp(
+    `(?:^|[^a-z0-9])${escapeRegExp(phrase)}(?=$|[^a-z0-9])`,
+    "i"
+  );
+  return pattern.test(text);
+};
+
+export const resolveVoiceResponders = (
+  text: string,
+  participants: readonly GroupMentionMember[],
+  defaultBotId: string
+): string[] => {
+  const normalized = normalizeHandle(text);
+  if (normalized.includes("所有人") || normalized.includes("大家") || containsAsciiWord(normalized, "everyone")) {
+    return participants.map((participant) => participant.id);
+  }
+
+  const compactText = normalized.replace(/\s+/g, "");
+  const matched = participants
+    .map((participant) => {
+      const name = normalizeHandle(participant.name.trim());
+      const compactName = name.replace(/\s+/g, "");
+      const found = /[^\x00-\x7f]/.test(name)
+        ? compactText.includes(compactName)
+        : containsAsciiWord(normalized, name);
+      return found ? { participant, name, compactName } : null;
+    })
+    .filter((match): match is { participant: GroupMentionMember; name: string; compactName: string } => Boolean(match));
+  const longestMatches = matched.filter(
+    (match) => !matched.some((other) => other !== match && other.compactName.includes(match.compactName) && other.compactName.length > match.compactName.length)
+  );
+  return longestMatches.length > 0
+    ? participants.filter((participant) => longestMatches.some((match) => match.participant.id === participant.id)).map((participant) => participant.id)
+    : [defaultBotId];
+};

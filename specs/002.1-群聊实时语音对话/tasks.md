@@ -56,8 +56,8 @@
   - 对应需求：`requirements.md` 需求 1、需求 4、需求 5
   - 对应设计：`design.md` §3.2、§3.3.1
 
-- [ ] 2 语音点名解析
-  - 状态：TODO
+- [x] 2 语音点名解析
+  - 状态：DONE
   - 这一步到底做什么：实现纯函数 `resolveVoiceResponders`。
   - 做完你能看到什么：给定转写、参与成员和默认说话人，得到确定的响应 Bot 顺序。
   - 先依赖什么：无
@@ -72,6 +72,7 @@
     1. 覆盖单个、多个、所有人、未点名、中文名、英文单词边界和名称包含关系
   - 怎么验证：
     - `bun test packages/messaging/test/group-routing.test.ts`
+    - 结果：通过（11 pass，0 fail）
   - 对应需求：`requirements.md` 需求 2
   - 对应设计：`design.md` §3.3.2、§6.1
 

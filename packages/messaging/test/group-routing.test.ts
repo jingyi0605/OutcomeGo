@@ -4,6 +4,7 @@ import {
   groupVisibilityClauses,
   parseGroupMentions,
   resolveGroupResponderIds,
+  resolveVoiceResponders,
   rotateGroupResponders,
 } from "../src/group-routing";
 
@@ -104,4 +105,33 @@ test("mention boundaries match punctuation, Unicode names and full spaced names"
   expect(parseGroupMentions("@Research Bot", people).memberIds).toEqual(["spaced"]);
   expect(parseGroupMentions("@日本語", people).memberIds).toEqual(["jp"]);
   expect(parseGroupMentions("email@QA.com x@QA @QAbot", people).memberIds).toEqual([]);
+});
+
+test("resolves voice responders from the current transcript in participant order", () => {
+  const people = [
+    { id: "max", name: "Max" },
+    { id: "maximum", name: "Maximum" },
+    { id: "jp", name: "日本 語" },
+  ];
+  expect(resolveVoiceResponders("Max, please answer", people, "jp")).toEqual(["max"]);
+  expect(resolveVoiceResponders("maximum and 日本語", people, "max")).toEqual(["maximum", "jp"]);
+  expect(resolveVoiceResponders("please answer", people, "jp")).toEqual(["jp"]);
+});
+
+test("voice everyone aliases select all participants", () => {
+  const people = [{ id: "one", name: "One" }, { id: "two", name: "二号" }];
+  expect(resolveVoiceResponders("所有人来回答", people, "one")).toEqual(["one", "two"]);
+  expect(resolveVoiceResponders("大家一起", people, "one")).toEqual(["one", "two"]);
+  expect(resolveVoiceResponders("everyone please", people, "one")).toEqual(["one", "two"]);
+});
+
+test("voice ASCII names use word boundaries and longer names win", () => {
+  const people = [
+    { id: "research", name: "Research" },
+    { id: "researchBot", name: "Research Bot" },
+    { id: "qa", name: "QA" },
+  ];
+  expect(resolveVoiceResponders("Research Bot, answer", people, "qa")).toEqual(["researchBot"]);
+  expect(resolveVoiceResponders("Research, answer", people, "qa")).toEqual(["research"]);
+  expect(resolveVoiceResponders("ResearchBotly", people, "qa")).toEqual(["qa"]);
 });
