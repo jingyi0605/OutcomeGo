@@ -86,7 +86,7 @@
             android:exported="false"
             android:foregroundServiceType="microphone" />
         <receiver
-            android:name=".platform.AndroidUpdateInstallReceiver"
+            android:name="com.aiteamos.platform.AndroidUpdateInstallReceiver"
             android:exported="false" />
         <provider
             android:name="androidx.core.content.FileProvider"
