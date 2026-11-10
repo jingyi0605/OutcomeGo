@@ -1,10 +1,15 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { AITEAMOS_API_PROTOCOL_VERSION } from "@aiteamos/contracts/version-compatibility";
+import { I18nProvider } from "../../src/renderer/lib/i18n";
 import "../../src/renderer/styles.css";
 if (window.aiteamos) throw new Error("Synthetic fixture requires an isolated window");
 window.open = () => null;
 localStorage.setItem("aiteamos:server-url", "https://aiteamos.example");
+// Render the interface in the requested language; the provider reads navigator.language first.
+const localeOverride = new URLSearchParams(location.search).get("locale");
+if (localeOverride)
+  Object.defineProperty(navigator, "language", { value: localeOverride, configurable: true });
 
 type Bot = { botId: string; name: string; runIds: string[] };
 type ServerStatus = Record<string, unknown> & { status: string; currentVersion: string | null };
@@ -155,12 +160,14 @@ const [{ default: ComputerSettings }, { default: ServerSettings }, { default: Up
 ]);
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    {/* Scout sits above Chief of Staff in the sidebar, although Chief of Staff started first. */}
-    <SidebarBotOrderContext.Provider value={["b-scout", "b-chief"]}>
-      <main className="mx-auto max-w-[720px] p-8">
-        {new URLSearchParams(location.search).has("computer") ? <ComputerSettings /> : new URLSearchParams(location.search).has("server") ? <ServerSettings /> : <UpdatesSettings />}
-      </main>
-    </SidebarBotOrderContext.Provider>
+    <I18nProvider>
+      {/* Scout sits above Chief of Staff in the sidebar, although Chief of Staff started first. */}
+      <SidebarBotOrderContext.Provider value={["b-scout", "b-chief"]}>
+        <main className="mx-auto max-w-[720px] p-8">
+          {new URLSearchParams(location.search).has("computer") ? <ComputerSettings /> : new URLSearchParams(location.search).has("server") ? <ServerSettings /> : <UpdatesSettings />}
+        </main>
+      </SidebarBotOrderContext.Provider>
+    </I18nProvider>
   </StrictMode>
 );
 window.fixture.ready = true;

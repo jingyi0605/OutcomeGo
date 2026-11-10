@@ -219,9 +219,33 @@ app
     await waitFor(v=>v.state==='unavailable', "an unreported server version must not appear current");
     await assert(v=>v.text.includes('Server version unknown') && !v.text.includes('Your server matches') && button(v,'Update')?.disabled, "unknown server displays uncertainty and disables updates");
 
+    // Chinese interface: every update status line the pipeline reports is translated.
+    await win.loadURL(process.argv[2] + "?locale=zh-CN");
+    for (let i = 0; i < 150 && !(await js("window.fixture?.ready")); i++) await delay(100);
+    await js(`fixture.desktop({latestVersion:null,status:'up-to-date',message:'You\u2019re up to date'})`);
+    await js(`fixture.server({status:'error',currentVersion:'0.0.11',targetVersion:'0.0.11',message:'Refusing prerelease 0.0.11 on the stable channel. Use --allow-prerelease to opt in.'})`);
+    await waitFor((v) => v.state === "unavailable", "Chinese card shows the refused update");
+    const zhRefusal = "稳定通道不接受预发布版本 0.0.11。如需使用，请添加 --allow-prerelease。";
+    if (!(await js(`document.body.innerText.includes('已是最新版本') && document.body.innerText.includes(${JSON.stringify(zhRefusal)}) && !/Refusing|up to date/.test(document.body.innerText)`)))
+      throw new Error(`Chinese update status leaked English: ${await js("document.body.innerText")}`);
+    passed++;
+    await shot("updates-zh-refused");
+    await js(`fixture.server({status:'updating',phase:'pulling',currentVersion:'0.0.10',targetVersion:'0.0.11',message:'Pulling aiTeamOS 0.0.11 container images'})`);
+    await waitFor((v) => v.state === "updating" && v.text.includes("正在拉取 aiTeamOS 0.0.11 容器镜像"), "Chinese progress message");
+    if (!(await js(`document.body.innerText.includes('下载更新') && document.body.innerText.includes('重启服务') && document.body.innerText.includes('校验更新')`)))
+      throw new Error(`Chinese milestones leaked English: ${await js("document.body.innerText")}`);
+    passed++;
+    await shot("updates-zh-updating");
+    await js(`fixture.server({status:'ready',message:null,currentVersion:'0.0.10'}); fixture.busy=[{botId:'b-scout',name:'Scout',runIds:['r1']}]`);
+    await waitFor((v) => v.state === "busy" && v.text.includes("Scout 仍在工作"), "Chinese busy copy");
+    if (!(await js(`document.body.innerText.includes('所有智能体完成后即可更新') && document.body.innerText.includes('停止 Scout')`)))
+      throw new Error(`Chinese busy copy leaked English: ${await js("document.body.innerText")}`);
+    passed++;
+    await shot("updates-zh-busy");
+
     fs.writeFileSync(
       path.join(process.argv[3], "results.json"),
-      JSON.stringify({ passed, scenarios: ["Updates contains desktop and server", "linked version notice", "older compatible server without feed", "feed failure", "server target stays on installed desktop", "up to date", "newer server", "busy + Stop first sidebar bot", "confirm arm and 3 s reset", "stopping", "next busy bot", "busy refusal", "updating", "Server summary links to Updates", "server-wide devices and display in Server", "Computer contains only the current machine", "unknown server"] }, null, 2)
+      JSON.stringify({ passed, scenarios: ["Updates contains desktop and server", "linked version notice", "older compatible server without feed", "feed failure", "server target stays on installed desktop", "up to date", "newer server", "busy + Stop first sidebar bot", "confirm arm and 3 s reset", "stopping", "next busy bot", "busy refusal", "updating", "Server summary links to Updates", "server-wide devices and display in Server", "Computer contains only the current machine", "unknown server", "Chinese update status, milestones, and busy copy"] }, null, 2)
     );
     console.log(`${passed} computer update card checks passed`);
     app.quit();
