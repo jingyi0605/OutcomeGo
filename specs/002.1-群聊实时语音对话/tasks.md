@@ -106,8 +106,8 @@
   - 对应需求：`requirements.md` 需求 3，非功能需求 3
   - 对应设计：`design.md` §2.3.3、§3.3.3、§3.3.4、§6.2
 
-- [ ] 4 VoiceService 群聊会话和顺序朗读
-  - 状态：TODO
+- [x] 4 VoiceService 群聊会话和顺序朗读
+  - 状态：DONE
   - 这一步到底做什么：`createSession` 支持群聊；`acceptTranscript` 走群聊分支；实现 `onGroupDeliverySettled` 处理，把答复按 Bot 声音加入现有 `ttsChain`，事件带 `speakerBotId`。
   - 做完你能看到什么：在群聊中说一句话，被点名的 Bot 依次回答并依次朗读。
   - 先依赖什么：2、3
@@ -127,7 +127,9 @@
     5. 直接语音测试全部通过
   - 怎么验证：
     - `bun test apps/server/test/voice-route.test.ts`
+    - 结果：通过（3 pass，0 fail）
     - `bun test apps/server/test/group-supersession.integration.test.ts`
+    - 结果：未配置 `AITEAMOS_TEST_DATABASE_URL`，5 个集成测试全部跳过，0 fail
   - 对应需求：`requirements.md` 需求 1、需求 3、需求 4，非功能需求 1、2
   - 对应设计：`design.md` §2.3、§5.3、§6.3
 

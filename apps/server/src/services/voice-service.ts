@@ -18,6 +18,7 @@ import {
 } from "@aiteamos/contracts";
 import type { PrismaClient } from "@aiteamos/db";
 import { Effect } from "effect";
+import { GROUP_MAX_MEMBERS, resolveVoiceResponders } from "@aiteamos/messaging";
 import type { ChannelService } from "./channel-service";
 import type { RunService } from "./run-service";
 import { VoiceReplySource } from "./voice-reply";
@@ -45,6 +46,7 @@ export class VoiceService {
   readonly replies: VoiceReplySource;
   private readonly tickets = new Map<string, Ticket>();
   private readonly connections = new Map<string, VoiceSessionConnection>();
+  private readonly groupAnswerSinks = new Map<string, (input: { text: string; generation: number; speakerBotId: string; voice: string }) => Promise<void>>();
   private readonly echoes = new Map<string, boolean>();
   private readonly sessionRuns = new Map<string, Set<string>>();
 
@@ -53,12 +55,12 @@ export class VoiceService {
     this.replies = new VoiceReplySource(prisma);
   }
 
-  private view(session: { id: string; botId: string; conversationId: string; channelId: string; clientPlatform: string; provider: string; status: string; expiresAt: Date; createdAt: Date }): VoiceSessionView {
-    return { id: session.id, botId: session.botId, conversationId: session.conversationId, channelId: session.channelId, clientPlatform: session.clientPlatform as VoiceClientPlatform, provider: providerId(session.provider), status: session.status as VoiceSessionView["status"], expiresAt: session.expiresAt.toISOString(), createdAt: session.createdAt.toISOString(), input: voiceInputConfig(), output: voiceOutputConfig(), limits: { maxSessionMs: VOICE_MAX_SESSION_MS, maxTurnMs: VOICE_MAX_TURN_MS } };
+  private view(session: { id: string; botId: string; conversationId: string; channelId: string; participantBotIds: string[]; clientPlatform: string; provider: string; status: string; expiresAt: Date; createdAt: Date }): VoiceSessionView {
+    return { id: session.id, botId: session.botId, conversationId: session.conversationId, channelId: session.channelId, ...(session.participantBotIds.length > 0 ? { participantBotIds: session.participantBotIds } : {}), clientPlatform: session.clientPlatform as VoiceClientPlatform, provider: providerId(session.provider), status: session.status as VoiceSessionView["status"], expiresAt: session.expiresAt.toISOString(), createdAt: session.createdAt.toISOString(), input: voiceInputConfig(), output: voiceOutputConfig(), limits: { maxSessionMs: VOICE_MAX_SESSION_MS, maxTurnMs: VOICE_MAX_TURN_MS } };
   }
 
   private async authorizedSession(sessionId: string, ownerSessionId: string | null) {
-    const session = await this.prisma.voiceSession.findUnique({ where: { id: sessionId } });
+    const session = await this.prisma.voiceSession.findUnique({ where: { id: sessionId }, include: { channel: true } });
     if (!session || (ownerSessionId && session.ownerSessionId !== ownerSessionId) || session.expiresAt <= new Date()) throw new ApiError(404, "voice_session_not_found", "Voice session was not found");
     return session;
   }
@@ -74,8 +76,36 @@ export class VoiceService {
   async create(input: VoiceSessionCreateInput, ownerSessionId: string | null, origin: string | null): Promise<VoiceSessionTicketView> {
     const settings = this.settings.runtime();
     if (!settings.enabled) throw new ApiError(404, "voice_unavailable", "Realtime voice is not enabled");
-    const channel = await this.prisma.channel.findFirst({ where: { id: input.channelId, kind: "bot_dm", archivedAt: null, members: { some: { botId: input.botId } } }, include: { members: { where: { botId: input.botId }, include: { bot: { include: { conversation: true } } } } } });
-    const bot = channel?.members[0]?.bot;
+    const channel = await this.prisma.channel.findFirst({
+      where: { id: input.channelId, archivedAt: null },
+      include: {
+        members: {
+          orderBy: { ordinal: "asc" },
+          include: { bot: { include: { conversation: true } } },
+        },
+      },
+    });
+    const directBot = channel?.members.find((member) => member.botId === input.botId)?.bot;
+    let bot = directBot;
+    let participantBotIds: string[] = [];
+    if (channel?.kind === "group") {
+      const requested = input.participantBotIds ?? [];
+      const requestedIds = new Set(requested);
+      const activeMembers = channel.members.filter((member) => member.bot.status === "active");
+      const activeIds = new Set(activeMembers.map((member) => member.botId));
+      if (
+        requestedIds.size < 1 ||
+        requestedIds.size > GROUP_MAX_MEMBERS ||
+        requested.some((botId) => !activeIds.has(botId)) ||
+        !requestedIds.has(input.botId)
+      ) {
+        throw new ApiError(400, "voice_invalid_participants", "Voice participants are invalid");
+      }
+      participantBotIds = channel.members
+        .filter((member) => member.bot.status === "active" && requestedIds.has(member.botId))
+        .map((member) => member.botId);
+      bot = channel.members.find((member) => member.botId === input.botId)?.bot;
+    }
     if (!channel || !bot?.conversation) throw new ApiError(404, "voice_target_not_found", "Bot conversation was not found");
     if (ownerSessionId) {
       const active = await this.prisma.voiceSession.count({ where: { ownerSessionId, status: { in: ["created", "active"] }, expiresAt: { gt: new Date() } } });
@@ -94,6 +124,7 @@ export class VoiceService {
         provider,
         // Blank means "use the provider default"; it is resolved when speaking.
         voice: bot.voice.trim(),
+        participantBotIds,
         status: "created",
         expiresAt: new Date(Date.now() + VOICE_MAX_SESSION_MS),
       },
@@ -130,7 +161,7 @@ export class VoiceService {
     const ticket = token ? this.tickets.get(token) : undefined;
     if (token) this.tickets.delete(token);
     if (!ticket || !protocols.includes(VOICE_PROTOCOL) || ticket.sessionId !== sessionId || ticket.expiresAt <= Date.now() || ticket.origin !== nativeOrigin(request.headers.get("origin"))) return new Response("Voice access denied", { status: 403 });
-    const session = await this.prisma.voiceSession.findUnique({ where: { id: sessionId } });
+    const session = await this.prisma.voiceSession.findUnique({ where: { id: sessionId }, include: { channel: true } });
     if (!session || session.expiresAt <= new Date() || ["ended", "failed"].includes(session.status)) return new Response("Voice session has ended", { status: 409 });
     const previous = this.connections.get(sessionId);
     await previous?.close(1000, "Voice session reconnected");
@@ -192,11 +223,13 @@ export class VoiceService {
         return;
       }
       connection.send({ type: "transcript.final", turnId: turn.id, text, isFinal: true });
-      // A fixed acknowledgement covers the wait while the agent starts. It is spoken like a queued
-      // narration, so the real answer replaces it if that arrives first.
-      const opening = pickOpening(text, lastOpening);
-      lastOpening = opening;
-      void speak(opening, connection.media.currentGeneration, "narration");
+      if (session.channel.kind === "bot_dm") {
+        // A fixed acknowledgement covers the wait while the agent starts. It is spoken like a queued
+        // narration, so the real answer replaces it if that arrives first.
+        const opening = pickOpening(text, lastOpening);
+        lastOpening = opening;
+        void speak(opening, connection.media.currentGeneration, "narration");
+      }
       await this.acceptTranscript({
         sessionId,
         turnId: turn.id,
@@ -214,7 +247,13 @@ export class VoiceService {
       activeTts = null;
       await stream?.cancel().catch(() => undefined);
     };
-    const speak = (text: string, generation: number, kind: "answer" | "narration" = "answer") => {
+    const speak = (
+      text: string,
+      generation: number,
+      kind: "answer" | "narration" = "answer",
+      speakerBotId = session.botId,
+      speakerVoice?: string
+    ) => {
       const narration = kind === "narration" ? { dropped: false } : null;
       if (narration) queuedNarrations.add(narration);
       else for (const queued of queuedNarrations) queued.dropped = true;
@@ -224,11 +263,14 @@ export class VoiceService {
           if (narration.dropped) return;
         }
         if (!outputCodec || generation !== connection.media.currentGeneration) return;
+        const defaultVoice = session.voice || this.settings.runtime(sessionProvider).voice;
+        const selectedVoice = speakerVoice?.trim() || defaultVoice;
+        const useWarmPool = !speakerVoice || selectedVoice === defaultVoice;
         // A warmed connection may have gone stale while idle; if it fails before any audio, retry once on a fresh one.
         for (let attempt = 0; attempt < 2; attempt += 1) {
-        const { stream, warmed } = attempt === 0
+        const { stream, warmed } = attempt === 0 && useWarmPool
           ? await ttsPool.take()
-          : { stream: await provider.tts({ language, voice: session.voice || this.settings.runtime(sessionProvider).voice }), warmed: false };
+          : { stream: await provider.tts({ language, voice: selectedVoice }), warmed: false };
         activeTts = stream;
         let started = false;
         try {
@@ -244,7 +286,7 @@ export class VoiceService {
               const packet = await outputCodec.encode(pcm);
               if (!started) {
                 started = true;
-                connection.send({ type: "audio.started", turnId: "", generation });
+                connection.send({ type: "audio.started", turnId: "", generation, speakerBotId });
                 if (kind === "answer") logLatency(kind);
                 else if (timing) timing.openingAudioAt ??= Date.now();
               }
@@ -269,6 +311,9 @@ export class VoiceService {
       });
       return ttsChain;
     };
+    this.groupAnswerSinks.set(sessionId, ({ text, generation, speakerBotId, voice }) =>
+      speak(text, generation, "answer", speakerBotId, voice)
+    );
     const connection = new VoiceSessionConnection({
       sessionId,
       onHello: async echoCancellation => {
@@ -294,7 +339,7 @@ export class VoiceService {
           greeted.add(sessionId);
           const greeting = pickGreeting(language);
           // Show the greeting as a caption too; clients that only play audio would otherwise see nothing.
-          connection.send({ type: "reply.message", turnId: "", messageId: `greeting:${sessionId}`, text: greeting, generation: connection.media.currentGeneration });
+          connection.send({ type: "reply.message", turnId: "", messageId: `greeting:${sessionId}`, text: greeting, generation: connection.media.currentGeneration, speakerBotId: session.botId });
           void speak(greeting, connection.media.currentGeneration, "narration");
         }
         if (message.type === "playback.ack") {
@@ -348,6 +393,7 @@ export class VoiceService {
         inputCodec = null;
         outputCodec = null;
         if (this.connections.get(sessionId) === connection) this.connections.delete(sessionId);
+        this.groupAnswerSinks.delete(sessionId);
       },
     });
     this.connections.set(sessionId, connection);
@@ -363,16 +409,30 @@ export class VoiceService {
     const session = await this.authorizedSession(input.sessionId, ownerSessionId);
     const text = input.text.trim().slice(0, 20_000);
     if (!text) return { accepted: false, reason: "empty_transcript" };
+    if (input.turnId) {
+      const existing = await this.prisma.voiceTurn.findUnique({ where: { id: input.turnId } });
+      if (existing) {
+        return {
+          accepted: true,
+          turnId: existing.id,
+          userMessageId: existing.userMessageId,
+          runId: existing.runId,
+        };
+      }
+    }
     const turn = await this.prisma.voiceTurn.create({ data: { ...(input.turnId ? { id: input.turnId } : {}), sessionId: session.id, status: "processing", transcript: text, durationMs: input.durationMs, language: input.language, providerMetadata: { provider: session.provider } } });
     const clientId = `voice:${session.id}:${turn.id}`;
     try {
-      const response = await Effect.runPromise(this.channels.sendDirectMessage(session.conversationId, { content: text, clientId, voice: voiceMessageMetadata({ sessionId: session.id, turnId: turn.id, durationMs: input.durationMs, provider: providerId(session.provider), language: input.language }) }));
+      const voice = voiceMessageMetadata({ sessionId: session.id, turnId: turn.id, durationMs: input.durationMs, provider: providerId(session.provider), language: input.language });
+      const response = session.channel.kind === "group"
+        ? await this.sendGroupTranscript(session, text, clientId, voice)
+        : await Effect.runPromise(this.channels.sendDirectMessage(session.conversationId, { content: text, clientId, voice }));
       const accepted = response as { message?: { id?: string }; run?: { id?: string } };
       const userMessageId = accepted.message?.id ?? null;
-      const runId = accepted.run?.id ?? null;
+      const runId = session.channel.kind === "group" ? null : accepted.run?.id ?? null;
       await this.prisma.voiceTurn.update({ where: { id: turn.id }, data: { userMessageId, runId, status: "speaking" } });
-      if (runId) {
-        this.replies.register(runId, this.replySink(session.id, turn.id, runId, input.onReply));
+      if (runId && session.channel.kind !== "group") {
+        this.replies.register(runId, this.replySink(session.id, turn.id, runId, session.botId, input.onReply));
         const runs = this.sessionRuns.get(session.id) ?? new Set<string>();
         runs.add(runId);
         this.sessionRuns.set(session.id, runs);
@@ -385,7 +445,106 @@ export class VoiceService {
     }
   }
 
-  private replySink(sessionId: string, turnId: string, runId: string, onReply?: (text: string, generation: number, kind: "answer" | "narration") => Promise<void>) {
+  private async sendGroupTranscript(
+    session: { id: string; botId: string; channelId: string; participantBotIds: string[]; provider: string },
+    text: string,
+    clientId: string,
+    voice: ReturnType<typeof voiceMessageMetadata>
+  ) {
+    const members = await this.prisma.channelMember.findMany({
+      where: {
+        channelId: session.channelId,
+        botId: { in: session.participantBotIds },
+        bot: { status: "active" },
+      },
+      orderBy: { ordinal: "asc" },
+      include: { bot: { select: { id: true, name: true } } },
+    });
+    const responderIds = resolveVoiceResponders(
+      text,
+      members.map((member) => ({ id: member.bot.id, name: member.bot.name })),
+      session.botId
+    );
+    return Effect.runPromise(
+      this.channels.sendGroupMessage(
+        session.channelId,
+        { content: text, clientId, voice },
+        { responderIds }
+      )
+    );
+  }
+
+  async onGroupDeliverySettled({ runId, roundId }: { runId: string; roundId: string }): Promise<void> {
+    const run = await this.prisma.run.findUnique({
+      where: { id: runId },
+      include: {
+        delivery: {
+          include: {
+            round: { include: { triggerMessage: true } },
+          },
+        },
+      },
+    });
+    if (!run || run.delivery?.roundId !== roundId) return;
+    const triggerMetadata =
+      run.delivery.round.triggerMessage.metadata &&
+      !Array.isArray(run.delivery.round.triggerMessage.metadata) &&
+      typeof run.delivery.round.triggerMessage.metadata === "object"
+        ? run.delivery.round.triggerMessage.metadata as Record<string, unknown>
+        : {};
+    const voice =
+      triggerMetadata.voice &&
+      typeof triggerMetadata.voice === "object" &&
+      !Array.isArray(triggerMetadata.voice)
+        ? triggerMetadata.voice as { sessionId?: unknown; turnId?: unknown }
+        : null;
+    if (typeof voice?.sessionId !== "string" || typeof voice.turnId !== "string") return;
+    const connection = this.connections.get(voice.sessionId);
+    const speak = this.groupAnswerSinks.get(voice.sessionId);
+    if (!connection || !speak) return;
+    const turn = await this.prisma.voiceTurn.findUnique({ where: { id: voice.turnId } });
+    if (!turn || turn.sessionId !== voice.sessionId) return;
+    const messages = await this.prisma.channelMessage.findMany({
+      where: { sourceRunId: runId, sender: "agent" },
+      orderBy: { sequence: "asc" },
+      include: { senderBot: { select: { id: true, voice: true } } },
+    });
+    for (const message of messages) {
+      if (turn.assistantMessageIds.includes(message.id)) continue;
+      const speakerBotId = message.senderBotId ?? run.botId;
+      const generation = (turn.generation + 1) >>> 0;
+      await this.prisma.voiceTurn.update({
+        where: { id: turn.id },
+        data: {
+          assistantMessageIds: { push: message.id },
+          generation,
+          status: "speaking",
+        },
+      });
+      turn.assistantMessageIds.push(message.id);
+      turn.generation = generation;
+      const outputGeneration = connection.media.currentGeneration;
+      connection.send({
+        type: "reply.message",
+        turnId: turn.id,
+        messageId: message.id,
+        text: message.content,
+        generation: outputGeneration,
+        speakerBotId,
+      });
+      const spoken = normalizeVoiceText(message.content);
+      if (spoken) {
+        void speak({
+          text: spoken,
+          generation: outputGeneration,
+          speakerBotId,
+          voice: message.senderBot?.voice ?? "",
+        });
+      }
+    }
+  }
+
+  private replySink(sessionId: string, turnId: string, runId: string, speakerBotId: string, onReply?: (text: string, generation: number, kind: "answer" | "narration") => Promise<void>) {
     let answered = false;
     // Sentences of a SendToUser message already spoken while the model was still writing it.
     const streamed = new Map<string, { raw: string; generation: number }>();
@@ -411,7 +570,7 @@ export class VoiceService {
       await this.prisma.voiceTurn.update({ where: { id: turn.id }, data: { assistantMessageIds: { push: messageId }, generation: turnGeneration, status: "speaking" } });
       const connection = this.connections.get(sessionId);
       const outputGeneration = connection?.media.currentGeneration ?? turnGeneration;
-      if (connection) connection.send({ type: "reply.message", turnId, messageId, text: content, generation: outputGeneration });
+      if (connection) connection.send({ type: "reply.message", turnId, messageId, text: content, generation: outputGeneration, speakerBotId });
       let spoken = content;
       const early = callId ? streamed.get(callId) : undefined;
       if (callId && early) {
