@@ -1,7 +1,7 @@
 import { tailscaleStatus } from "./tailscale-command";
 import { installationCommand, renderSummary } from "./command-ui";
 import { printMessage, TerminalReport } from "./terminal";
-import { readFileSync, rmSync } from "node:fs";
+import { appendFileSync, readFileSync, rmSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import { createInterface } from "node:readline/promises";
 import semver from "semver";
@@ -221,6 +221,32 @@ const startProject = async (
       cliTranslate("aiTeamOS did not become healthy: {detail}", { detail: health.detail })
     );
   printStartupReady(paths, environment, health);
+};
+
+const captureUpdateFailureDiagnostics = (project: ComposeProject, paths: InstallationPaths) => {
+  const diagnostics: Array<{ label: string; result: ReturnType<ComposeProject["run"]> }> = [
+    {
+      label: "Compose service state",
+      result: project.run(["ps", "--all", "--format", "json"], { composeFile: paths.compose }),
+    },
+    {
+      label: "Migration service logs",
+      result: project.run(["logs", "--no-color", "--tail", "200", "migrate"], {
+        composeFile: paths.compose,
+      }),
+    },
+  ];
+  const contents = diagnostics
+    .map(({ label, result }) => {
+      const output = `${result.stdout}${result.stderr}`.trim();
+      return `\n\n--- ${label} ---\n${output || `(command exited with status ${result.status})`}`;
+    })
+    .join("");
+  try {
+    appendFileSync(paths.updateLog, `${contents}\n`, { encoding: "utf8" });
+  } catch {
+    // Preserve the original update failure if diagnostics cannot be written.
+  }
 };
 
 export const installCommand = async (
@@ -641,6 +667,7 @@ const updateCommandUnlocked = async (
       "The update failed; restoring the previous aiTeamOS configuration",
       manifest.version
     );
+    if (newStackStarted) captureUpdateFailureDiagnostics(project, paths);
     writeFileAtomic(paths.compose, previousCompose, 0o600);
     writeFileAtomic(paths.environment, previousEnvironment, 0o600);
     if (manifestUpdated) writeManifest(paths, manifest);

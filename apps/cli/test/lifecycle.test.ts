@@ -1018,6 +1018,11 @@ describe("installed lifecycle", () => {
     expect(runner.calls.some((call) => call.args.includes("dropdb"))).toBe(true);
     expect(runner.calls.some((call) => call.args.includes("createdb"))).toBe(true);
     expect(runner.calls.some((call) => Boolean(call.options?.inputFile))).toBe(true);
+    expect(
+      runner.calls.some(
+        (call) => call.args.includes("logs") && call.args.includes("migrate")
+      )
+    ).toBe(true);
     const restoreIndex = runner.calls.findIndex((call) => Boolean(call.options?.inputFile));
     const stopIndexes = runner.calls
       .map((call, index) => (call.args.includes("stop") ? index : -1))
