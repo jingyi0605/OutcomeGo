@@ -2926,10 +2926,13 @@ private fun IosChromeIcon(
     icon: @Composable () -> Unit,
     contentDescription: String,
     onClick: () -> Unit,
+    enabled: Boolean = true,
+    modifier: Modifier = Modifier,
 ) {
     IconButton(
         onClick = onClick,
-        modifier = Modifier.size(44.dp).clip(CircleShape)
+        enabled = enabled,
+        modifier = modifier.size(44.dp).clip(CircleShape)
             .background(MaterialTheme.colorScheme.surface.copy(alpha = .58f))
             .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = .35f), CircleShape),
     ) {
@@ -3097,15 +3100,38 @@ private fun ChatScreen(
                     }
                 },
                 actions = {
-                    IconButton(
-                        onClick = onBotDetails,
-                        modifier = Modifier.testTag("bot-details"),
-                    ) {
-                        Icon(
-                            Icons.Default.Info,
-                            contentDescription = stringResource(com.aiteamos.android.R.string.chat_bot_details),
+                    if (bot?.isBot == true) {
+                        IosChromeIcon(
+                            icon = {
+                                Icon(
+                                    Icons.Default.Call,
+                                    contentDescription = null,
+                                )
+                            },
+                            contentDescription = localizedText(
+                                if (liveVoice.state == com.aiteamos.platform.AndroidLiveVoiceState.Idle) "Start realtime voice" else "End realtime voice",
+                                if (liveVoice.state == com.aiteamos.platform.AndroidLiveVoiceState.Idle) "开始实时语音" else "结束实时语音",
+                            ),
+                            onClick = {
+                                haptic.play(HapticEffect.Medium)
+                                if (liveVoice.state == com.aiteamos.platform.AndroidLiveVoiceState.Idle) onStartLiveVoice()
+                                else onStopLiveVoice()
+                            },
+                            enabled = liveVoice.state != com.aiteamos.platform.AndroidLiveVoiceState.Connecting,
+                            modifier = Modifier.testTag("live-voice-header"),
                         )
                     }
+                    IosChromeIcon(
+                        icon = {
+                            Icon(
+                                Icons.Default.Info,
+                                contentDescription = null,
+                            )
+                        },
+                        contentDescription = stringResource(com.aiteamos.android.R.string.chat_bot_details),
+                        onClick = onBotDetails,
+                        modifier = Modifier.testTag("bot-details"),
+                    )
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
             )
@@ -3147,13 +3173,6 @@ private fun ChatScreen(
                     Spacer(Modifier.width(8.dp))
                     IconButton(onClick = { haptic.play(HapticEffect.Medium); onStartVoice() }, enabled = voiceState is VoiceRecordingState.Idle, modifier = Modifier.testTag("voice-composer")) {
                         Icon(Icons.Default.Mic, contentDescription = stringResource(com.aiteamos.android.R.string.chat_record_voice))
-                    }
-                    IconButton(
-                        onClick = { haptic.play(HapticEffect.Medium); onStartLiveVoice() },
-                        enabled = bot?.isBot == true && liveVoice.state == com.aiteamos.platform.AndroidLiveVoiceState.Idle,
-                        modifier = Modifier.testTag("live-voice-composer"),
-                    ) {
-                        Icon(Icons.Default.Call, contentDescription = localizedText("Start realtime voice", "开始实时语音"))
                     }
                     IconButton(onClick = { haptic.play(HapticEffect.Light); onSend() }, enabled = draft.isNotBlank() || pendingAttachments.isNotEmpty(), modifier = Modifier.testTag("send-message").clip(CircleShape).background(MaterialTheme.colorScheme.primary)) {
                         Icon(Icons.AutoMirrored.Filled.Send, contentDescription = stringResource(com.aiteamos.android.R.string.chat_send), tint = MaterialTheme.colorScheme.onPrimary)
