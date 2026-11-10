@@ -1,8 +1,5 @@
-import type {
-  PluginManagementView,
-  PluginPrivateSkillView,
-} from "@aiteamos/contracts/plugin-management";
-import { useEffect, useRef, useState } from "react";
+import type { PluginManagementView, SavedSkillView } from "@aiteamos/contracts/plugin-management";
+import { useRef, useState } from "react";
 import { api } from "../../../client/aiteamos-api";
 import { useI18n } from "../../../lib/i18n";
 import { inputClass, PluginButton, PluginField, usePluginOperation } from "./plugin-ui";
@@ -15,27 +12,21 @@ export function PrivateSkills({
   refresh: () => Promise<unknown>;
 }) {
   const { t } = useI18n();
-  const [selected, setSelected] = useState<PluginPrivateSkillView | null>(null);
+  const [selected, setSelected] = useState<SavedSkillView | null>(null);
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [body, setBody] = useState("");
   const [files, setFiles] = useState("{}");
-  const [enabledBotIds, setEnabledBotIds] = useState<string[]>([]);
-  const [bots, setBots] = useState<Array<{ id: string; name: string }>>([]);
   const [armed, setArmed] = useState(false);
   const operation = usePluginOperation(refresh);
   const importInput = useRef<HTMLInputElement>(null);
-  useEffect(() => {
-    void operation.run(async () => setBots(await api.bots()));
-  }, []);
-  const edit = (skill: PluginPrivateSkillView | null) => {
+  const edit = (skill: SavedSkillView | null) => {
     setSelected(skill);
     setName(skill?.name ?? "");
     setDescription(skill?.description ?? "");
     setBody(skill?.body ?? "");
     setFiles(JSON.stringify(skill?.files ?? {}, null, 2));
-    setEnabledBotIds(skill?.enabledBotIds ?? []);
     setEditing(true);
     setArmed(false);
   };
@@ -49,7 +40,7 @@ export function PrivateSkills({
           </h1>
           <p className="text-[12px] leading-5 text-foreground-secondary">
             {t(
-              "Instructions and supporting files stored on your server. Choose which Bots can use each skill."
+              "Instructions and supporting files stored on your server. Every Bot can use these skills, and Bots can add their own."
             )}
           </p>
         </div>
@@ -69,12 +60,7 @@ export function PrivateSkills({
             className="plugin-management-card cursor-pointer px-3.5 py-3 text-left transition-colors hover:bg-[#7777772b]"
           >
             <p className="font-medium">{skill.name}</p>
-            <p className="text-[12px] leading-5 text-foreground-secondary">
-              {skill.description} ·{" "}
-              {skill.enabledBotIds.length === 1
-                ? t("{count} Bot", { count: skill.enabledBotIds.length })
-                : t("{count} Bots", { count: skill.enabledBotIds.length })}
-            </p>
+            <p className="text-[12px] leading-5 text-foreground-secondary">{skill.description}</p>
           </button>
         ))}
         {!data.skills.length && !editing && (
@@ -141,25 +127,6 @@ export function PrivateSkills({
               />
             </PluginField>
           </details>
-          <fieldset className="grid gap-2">
-            <legend className="mb-2 text-sm font-medium">{t("Available to Bots")}</legend>
-            {bots.map((bot) => (
-              <label className="flex gap-2 text-sm" key={bot.id}>
-                <input
-                  type="checkbox"
-                  checked={enabledBotIds.includes(bot.id)}
-                  onChange={(event) =>
-                    setEnabledBotIds(
-                      event.target.checked
-                        ? [...enabledBotIds, bot.id]
-                        : enabledBotIds.filter((id) => id !== bot.id)
-                    )
-                  }
-                />
-                {bot.name}
-              </label>
-            ))}
-          </fieldset>
           <div className="flex gap-2">
             <PluginButton
               primary
@@ -171,7 +138,6 @@ export function PrivateSkills({
                     description,
                     body,
                     files: JSON.parse(files),
-                    enabledBotIds,
                   });
                   setEditing(false);
                 }, t("Skill saved."))

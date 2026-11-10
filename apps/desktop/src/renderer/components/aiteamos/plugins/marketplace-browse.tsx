@@ -5,7 +5,7 @@ import type {
   PluginInstallView,
   PluginSettingsView,
 } from "@aiteamos/contracts";
-import type { PluginPrivateSkillView } from "@aiteamos/contracts/plugin-management";
+import type { SavedSkillView } from "@aiteamos/contracts/plugin-management";
 import {
   PLUGIN_MARKETPLACE_CATEGORIES,
   pluginMatchesMarketplaceCategory,
@@ -237,7 +237,7 @@ export function InstalledPluginsView({
 }) {
   const { t } = useI18n();
   const setQuery = onQueryChange;
-  const [skills, setSkills] = useState<PluginPrivateSkillView[] | null>(null);
+  const [skills, setSkills] = useState<SavedSkillView[] | null>(null);
   const [skillError, setSkillError] = useState(false);
   useEffect(() => {
     let active = true;

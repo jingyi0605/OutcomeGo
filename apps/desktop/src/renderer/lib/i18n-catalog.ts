@@ -451,8 +451,8 @@ export const sourceTranslations: Record<string, string> = {
   "Loading group routines": "正在加载群组例程",
   "Remove {name} from this conversation?": "要将 {name} 从此对话中移除吗？",
   "Removing…": "正在移除…",
-  "Instructions and supporting files stored on your server. Choose which Bots can use each skill.":
-    "指令和支持文件存储在你的服务器上。选择哪些机器人可以使用每项技能。",
+  "Instructions and supporting files stored on your server. Every Bot can use these skills, and Bots can add their own.":
+    "指令和支持文件存储在你的服务器上。所有机器人都可以使用这些技能，机器人也可以自行添加。",
   "Import SKILL.md": "导入 SKILL.md",
   "Create skill": "创建技能",
   "Create a skill or import a SKILL.md file to get started.":
@@ -461,7 +461,6 @@ export const sourceTranslations: Record<string, string> = {
   "When to use it": "使用时机",
   "Supporting files": "支持文件",
   "Relative file paths and text content": "相对文件路径和文本内容",
-  "Available to Bots": "可供机器人使用",
   "Confirm delete skill": "确认删除技能",
   "Delete skill": "删除技能",
   "Export package": "导出包",
@@ -701,8 +700,6 @@ export const sourceTranslations: Record<string, string> = {
   "Token or headers": "令牌或请求头",
   OAuth: "OAuth",
   "Plugin operation failed": "插件操作失败",
-  "{count} Bot": "{count} 个机器人",
-  "{count} Bots": "{count} 个机器人",
   "Skill saved.": "技能已保存。",
   "Save skill": "保存技能",
   All: "全部",
