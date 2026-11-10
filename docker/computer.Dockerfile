@@ -20,7 +20,10 @@ COPY packages/plugin-sdk/package.json packages/plugin-sdk/package.json
 COPY packages/plugins/package.json packages/plugins/package.json
 COPY patches ./patches
 COPY vendor/sheetjs/xlsx-0.20.3.tgz vendor/sheetjs/xlsx-0.20.3.tgz
-RUN bun install --frozen-lockfile --production --filter @aiteamos/computer
+# The package cache lives across builds: without it every manifest change pays the whole registry
+# download again (minutes of silence on a slow uplink, easy to mistake for a hung build).
+RUN --mount=type=cache,target=/root/.bun/install/cache,sharing=locked \
+    bun install --frozen-lockfile --production --filter @aiteamos/computer
 COPY apps/computer ./apps/computer
 COPY packages/contracts ./packages/contracts
 COPY packages/shell-jobs ./packages/shell-jobs
@@ -168,6 +171,7 @@ RUN npm install --global --prefix /usr/lib/aiteamos/node --no-audit --no-fund pp
 
 COPY --from=build --chown=box:box /app/node_modules /app/node_modules
 COPY --from=build --chown=box:box /app/apps/computer/node_modules /app/apps/computer/node_modules
+COPY --from=build --chown=box:box /app/apps/computer/package.json /app/apps/computer/package.json
 COPY --from=build --chown=box:box /app/apps/computer/dist/main.js /app/apps/computer/dist/main.js
 COPY --from=build --chown=box:box /app/apps/computer/dist/provider-cli.js /app/apps/computer/dist/provider-cli.js
 COPY --from=build --chown=box:box /app/apps/computer/dist/browser-network-worker.mjs /app/apps/computer/dist/browser-network-worker.mjs
