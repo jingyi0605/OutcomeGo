@@ -203,7 +203,7 @@ Agent 可以自行读取已授权的数据、做调研、写草稿、更新内�
 
 完整清单见 [FORK.md](FORK.md)。
 
-当前发布版本是 `v0.1.0-beta.11`。桌面端、Android APK、服务端安装器和 CLI
+当前发布版本是 `v0.1.0-beta.12`。桌面端、Android APK、服务端安装器和 CLI
 都发布在 [GitHub Releases](https://github.com/jingyi0605/ai-TeamOS/releases)。
 
 ## 分支

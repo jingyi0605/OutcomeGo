@@ -50,7 +50,7 @@ as the record of what has been synced.
 
 ## Current release
 
-The current published release is `v0.1.0-beta.11`. Release tags are created from
+The current published release is `v0.1.0-beta.12`. Release tags are created from
 `ai-TeamOS`, and the GitHub Release contains the server installers, CLI binaries, desktop
 artifacts, Android APK, update manifest and checksums. iOS remains source-built in this fork.
 
@@ -97,6 +97,12 @@ Based on upstream `main` at v0.0.15, plus selected fixes from v0.0.16 (see
   builds use `com.teambots.android.debug` so they can coexist with the release app.
 - **Cross-client polish**: Android haptic feedback for chat, sessions, sign-in, settings and
   routines; corrected iOS realtime-voice settings grouping; and unified aiTeamOS icon artwork.
+- **Shared skills**: server-saved skills are now shared across all bots, while bots can still
+  keep their own skills. Existing private skill data is migrated into the shared skill library.
+- **Reliability**: schema deployment handles existing installations compatibly, server-update
+  failures retain diagnostic details, and prerelease update arguments are passed correctly.
+- **Voice and chat controls**: realtime-voice controls and chat-header actions are refined across
+  desktop, iOS and Android.
 - **Model metadata**: Magpie multimodal model capabilities
   ([#198](https://github.com/raghavpillai/openteam/pull/198)).
 - **Network fixes**: SOCKS gateway capacity release

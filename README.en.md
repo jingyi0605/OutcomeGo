@@ -233,7 +233,7 @@ Compared with upstream OpenTeam v0.0.15, this branch adds:
 
 The full list is in [FORK.md](FORK.md).
 
-The current release is `v0.1.0-beta.11`. Desktop apps, the Android APK, server installers and
+The current release is `v0.1.0-beta.12`. Desktop apps, the Android APK, server installers and
 CLI binaries are published on [GitHub Releases](https://github.com/jingyi0605/ai-TeamOS/releases).
 
 ## Branches
