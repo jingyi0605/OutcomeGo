@@ -70,3 +70,48 @@ test("a 0.0.8 database with Auto-review settings and approval cards upgrades cle
     await admin.end();
   }
 }, 120_000);
+
+test("a beta.10-shaped database upgrades through the nullable routine webhook binding", async () => {
+  if (!url) return;
+  const name = `beta10_webhook_${crypto.randomUUID().slice(0, 8)}`;
+  const admin = new Client({ connectionString: url });
+  await admin.connect();
+  await admin.query(`CREATE DATABASE "${name}"`);
+  const target = new URL(url);
+  target.pathname = `/${name}`;
+  const db = new Client({ connectionString: target.toString() });
+  try {
+    await deploy(target.toString());
+    await db.connect();
+    await db.query(`
+      DROP INDEX IF EXISTS "AutomationWebhook_routineId_key";
+      ALTER TABLE "AutomationWebhook" DROP COLUMN IF EXISTS "routineId";
+      DROP TABLE IF EXISTS "AutomationWebhookSettings";
+    `);
+
+    await deploy(target.toString());
+    const columns = await db.query(
+      `SELECT column_name FROM information_schema.columns
+       WHERE table_schema = current_schema()
+         AND table_name = 'AutomationWebhook'
+         AND column_name = 'routineId'`
+    );
+    const settings = await db.query(
+      `SELECT to_regclass('"AutomationWebhookSettings"') AS table_name`
+    );
+    const constraint = await db.query(
+      `SELECT conname FROM pg_constraint
+       WHERE conrelid = '"AutomationWebhook"'::regclass
+         AND conname = 'AutomationWebhook_routineId_key'`
+    );
+    expect(columns.rows).toHaveLength(1);
+    expect(settings.rows[0]?.table_name).toBe("AutomationWebhookSettings");
+    expect(constraint.rows).toHaveLength(1);
+
+    await deploy(target.toString());
+  } finally {
+    await db.end().catch(() => {});
+    await admin.query(`DROP DATABASE IF EXISTS "${name}" WITH (FORCE)`);
+    await admin.end();
+  }
+}, 120_000);

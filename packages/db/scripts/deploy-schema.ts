@@ -107,6 +107,47 @@ DROP TYPE IF EXISTS "InboxDeliveryMode";
 DROP TABLE IF EXISTS "AutoReviewSettings";
 `;
 
+// Prisma treats adding a unique constraint as a possible data-loss operation, even when the new
+// nullable column is empty. Prepare this additive change first so upgrades from an existing
+// installation do not stop for a warning that cannot apply to the new column.
+const prepareRoutineWebhookBinding = async (): Promise<void> => {
+  const client = new Client({ connectionString });
+  await client.connect();
+  try {
+    await client.query(`
+      DO $$
+      BEGIN
+        IF to_regclass('"AutomationWebhook"') IS NOT NULL
+          AND NOT EXISTS (
+            SELECT 1
+            FROM information_schema.columns
+            WHERE table_schema = current_schema()
+              AND table_name = 'AutomationWebhook'
+              AND column_name = 'routineId'
+          ) THEN
+          ALTER TABLE "AutomationWebhook" ADD COLUMN "routineId" UUID;
+        END IF;
+
+        IF to_regclass('"AutomationWebhook"') IS NOT NULL
+          AND NOT EXISTS (
+            SELECT 1
+            FROM pg_constraint
+            WHERE conrelid = '"AutomationWebhook"'::regclass
+              AND conname = 'AutomationWebhook_routineId_key'
+          ) THEN
+          IF to_regclass('"AutomationWebhook_routineId_key"') IS NOT NULL THEN
+            DROP INDEX "AutomationWebhook_routineId_key";
+          END IF;
+          ALTER TABLE "AutomationWebhook"
+            ADD CONSTRAINT "AutomationWebhook_routineId_key" UNIQUE ("routineId");
+        END IF;
+      END $$;
+    `);
+  } finally {
+    await client.end();
+  }
+};
+
 const retireUnusedStorage = async () => {
   const client = new Client({ connectionString });
   await client.connect();
@@ -123,6 +164,7 @@ const retireUnusedStorage = async () => {
 };
 
 await retireUnusedStorage();
+await prepareRoutineWebhookBinding();
 const schemaWasPrepared = await prepareSearchProjection();
 const prisma = Bun.spawn(
   [
