@@ -1912,6 +1912,13 @@ export class AgentMessaging {
       bot
     );
     if (!addressed) return;
+    // Any SendToUser call is the model's own decision about the room, including "(pass)", which
+    // stages nothing. Only a turn that never used the tool falls back to its final text.
+    const usedSendToUser = await tx.runItem.findFirst({
+      where: { runId: delivery.run.id, kind: "tool", title: "SendToUser" },
+      select: { id: true },
+    });
+    if (usedSendToUser) return;
     const items = await tx.runItem.findMany({
       where: { runId: delivery.run.id, kind: "agent_message", status: "completed" },
       orderBy: { createdAt: "desc" },
