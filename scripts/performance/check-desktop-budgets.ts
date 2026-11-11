@@ -320,7 +320,9 @@ const lazyBudgets: Record<string, number> = {
   // Unified server updates with stages, idle confirmation and restart recovery
   // (#201) measure 17,768; this UI remains lazy.
   // v0.0.13 compact shared buttons/styles: 18,677 bytes.
-  settingsUpdates: 21_000,
+  // November 10 update-message localization adds the server and desktop status catalog:
+  // 27,699 bytes measured in the lazy closure. Keep this page lazy with modest headroom.
+  settingsUpdates: 29_000,
   // The full provider preset catalog is loaded only when the Add provider dialog opens.
   addProviderDialog: 650_000,
 };
