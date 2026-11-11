@@ -8,6 +8,7 @@ import {
 } from "@aiteamos/contracts/web-search";
 import { builtinFetch } from "./builtin-fetch";
 import { FetchProviderClient } from "./fetch-provider";
+import { publicWebUrl } from "./public-web-url";
 import { SearchProviderClient, type SearchFetch } from "./search-provider";
 
 const CHECK_QUERY = "aiTeamOS open source AI agents";
@@ -43,7 +44,8 @@ export async function checkWebProvider(
     }
     const provided = await new FetchProviderClient(
       () => ({ ...configuration, provider: request.provider as FetchProvider }),
-      http
+      http,
+      async (value) => publicWebUrl(value)
     ).fetch(CHECK_URL, signal);
     if (!provided.configured) return { ok: false, message: provided.message };
     const text = provided.provider === "builtin" ? (await builtinFetch(CHECK_URL, signal)).text : provided.text;

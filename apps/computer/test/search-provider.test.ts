@@ -80,6 +80,14 @@ const SPECS: Record<SearchProvider, Spec> = {
     success: { results: [{ ...hit, snippet: "An extract.", date: "2026-09-01" }], id: "x" },
     empty: () => Response.json({ results: [], id: "x" }),
   },
+  deepseek: {
+    method: "POST",
+    url: "https://api.deepseek.com/v1/tools/search",
+    auth: ["authorization", `Bearer ${key}`],
+    body: { query: "reference & example", count: 10, need_content: true },
+    success: { results: [{ ...hit, title: "Reference", summary: "An extract.", date: "2026-09-01T00:00:00Z" }] },
+    empty: () => Response.json({ results: [] }),
+  },
   "bing-serpapi": {
     method: "GET",
     url: "https://serpapi.com/search.json",
@@ -212,4 +220,44 @@ test("an in-flight request receives cancellation and is never retried on another
   }) as SearchFetch);
   await expect(client.search("reference", controller.signal)).rejects.toThrow();
   expect(requests).toBe(1);
+});
+
+test("failover tries the next configured provider after a provider failure", async () => {
+  const calls: string[] = [];
+  const client = new SearchProviderClient(
+    () => ({
+      strategy: "failover",
+      providers: [
+        { provider: "exa", apiKey: "first" },
+        { provider: "deepseek", apiKey: "second" },
+      ],
+    }),
+    (async (url, init) => {
+      calls.push(new URL(String(url)).hostname);
+      if (calls.length === 1) return Response.json({ error: "temporary" }, { status: 503 });
+      expect(new Headers(init.headers).get("authorization")).toBe("Bearer second");
+      return Response.json({ results: [{ title: "Reference", url: "https://example.com", summary: "ok" }] });
+    }) as SearchFetch
+  );
+  expect((await client.search("reference")).details.provider).toBe("deepseek");
+  expect(calls).toEqual(["api.exa.ai", "api.exa.ai", "api.deepseek.com"]);
+});
+
+test("round-robin uses only the provider selected by the current server cursor", async () => {
+  let calls = 0;
+  const client = new SearchProviderClient(
+    () => ({
+      strategy: "round_robin",
+      providers: [
+        { provider: "exa", apiKey: "first" },
+        { provider: "deepseek", apiKey: "second" },
+      ],
+    }),
+    (async () => {
+      calls++;
+      return Response.json({ results: [{ title: "Reference", url: "https://example.com", summary: "ok" }] });
+    }) as SearchFetch
+  );
+  expect((await client.search("reference")).details.provider).toBe("exa");
+  expect(calls).toBe(1);
 });

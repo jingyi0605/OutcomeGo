@@ -3,7 +3,11 @@ import { serverSearchConfiguration } from "../src/search-settings";
 import { SearchProviderClient, type SearchFetch } from "../src/search-provider";
 
 test("runtime reads current server settings on every search and passes cancellation privately", async () => {
-  let saved = { provider: null as string | null, apiKey: null as string | null };
+  let saved = {
+    strategy: "failover" as const,
+    providers: [] as Array<{ provider: string; apiKey: string | null }>,
+    cursor: 0,
+  };
   let reads = 0;
   let searches = 0;
   const configuration = serverSearchConfiguration(
@@ -22,8 +26,9 @@ test("runtime reads current server settings on every search and passes cancellat
   const client = new SearchProviderClient(configuration, async (_url, init) => {
     searches++;
     const headers = new Headers(init.headers);
-    expect(headers.get(saved.provider === "exa" ? "x-api-key" : "authorization")).toBe(
-      saved.provider === "exa" ? saved.apiKey : `Bearer ${saved.apiKey}`
+    const active = saved.providers[0];
+    expect(headers.get(active?.provider === "exa" ? "x-api-key" : "authorization")).toBe(
+      active?.provider === "exa" ? active.apiKey : `Bearer ${active?.apiKey}`
     );
     return Response.json({
       results: [{ title: "Reference", url: "https://example.com", content: "Source" }],
@@ -31,13 +36,13 @@ test("runtime reads current server settings on every search and passes cancellat
   });
   await expect(client.search("reference")).rejects.toThrow("Web search is not configured");
   expect(searches).toBe(0);
-  saved = { provider: "exa", apiKey: "first-fixture-key" };
+  saved = { strategy: "failover", providers: [{ provider: "exa", apiKey: "first-fixture-key" }], cursor: 0 };
   expect((await client.search("reference")).details.provider).toBe("exa");
-  saved = { provider: "perplexity", apiKey: "second-fixture-key" };
+  saved = { strategy: "failover", providers: [{ provider: "perplexity", apiKey: "second-fixture-key" }], cursor: 0 };
   const result = await client.search("reference");
   expect(result.details.provider).toBe("perplexity");
-  expect(JSON.stringify(result)).not.toContain(saved.apiKey!);
-  saved = { provider: null, apiKey: null };
+  expect(JSON.stringify(result)).not.toContain(saved.providers[0]!.apiKey!);
+  saved = { strategy: "failover", providers: [], cursor: 0 };
   await expect(client.search("reference")).rejects.toThrow("Web search is not configured");
   expect(reads).toBe(4);
   expect(searches).toBe(2);
@@ -47,9 +52,9 @@ test("configuration lookup fails closed without leaking responses, URLs or token
   const marker = "synthetic-private-marker";
   for (const request of [
     async () => Response.json({ error: marker }, { status: 401 }),
-    async () => Response.json({ provider: "bing", apiKey: marker }),
-    async () => Response.json({ provider: "exa", apiKey: 123 }),
-    async () => Response.json({ provider: "exa", apiKey: "" }),
+    async () => Response.json({ strategy: "failover", providers: [{ provider: "bing", apiKey: marker }], cursor: 0 }),
+    async () => Response.json({ strategy: "failover", providers: [{ provider: "exa", apiKey: 123 }], cursor: 0 }),
+    async () => Response.json({ strategy: "failover", providers: [{ provider: "exa", apiKey: "" }], cursor: 0 }),
     async () => new Response(marker),
     async () => {
       throw new Error(marker);
@@ -71,7 +76,7 @@ test("configuration lookup fails closed without leaking responses, URLs or token
   const configuration = serverSearchConfiguration("http://server", marker, async (_url, init) => {
     abort.abort();
     init.signal!.throwIfAborted();
-    return Response.json({ provider: null, apiKey: null });
+    return Response.json({ strategy: "failover", providers: [], cursor: 0 });
   });
   await expect(configuration(abort.signal)).rejects.toThrow();
 });

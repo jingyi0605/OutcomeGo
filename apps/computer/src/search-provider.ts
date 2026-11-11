@@ -1,10 +1,13 @@
 /** Search provider APIs, verified against each provider's official documentation (2026-09). */
-import { SEARCH_PROVIDERS, type SearchProvider, webProviderInfo } from "@aiteamos/contracts/web-search";
+import { SEARCH_PROVIDERS, type SearchProvider } from "@aiteamos/contracts/web-search";
 import { setTimeout as waitForSearchRetry } from "node:timers/promises";
 export { SEARCH_PROVIDERS, type SearchProvider } from "@aiteamos/contracts/web-search";
 export interface SearchConfiguration {
   provider?: SearchProvider | null;
   apiKey?: string;
+  cursor?: number;
+  strategy?: "round_robin" | "failover";
+  providers?: Array<{ provider: SearchProvider; apiKey?: string | null }>;
 }
 
 export type SearchFetch = (url: string, init: RequestInit) => Promise<Response>;
@@ -25,6 +28,8 @@ interface Row {
   title?: unknown;
   url?: unknown;
   snippet?: unknown;
+  summary?: unknown;
+  content?: unknown;
   published?: unknown;
 }
 interface Adapter {
@@ -107,6 +112,17 @@ const ADAPTERS: Record<SearchProvider, Adapter> = {
     request: (query, apiKey) =>
       json("https://api.perplexity.ai/search", bearer(apiKey), { query, max_results: 10, search_type: "fast", search_context_size: "low" }),
     rows: (body) => list(body.results).map((row) => ({ title: row.title, url: row.url, snippet: row.snippet, published: row.date })),
+  },
+  deepseek: {
+    request: (query, apiKey) =>
+      json("https://api.deepseek.com/v1/tools/search", bearer(apiKey), { query, count: 10, need_content: true }),
+    rows: (body) =>
+      list(body.results).map((row) => ({
+        title: row.title,
+        url: row.url,
+        snippet: row.summary || row.snippet || row.content,
+        published: row.date,
+      })),
   },
   "bing-serpapi": {
     request: (query, apiKey) => {
@@ -205,15 +221,41 @@ export class SearchProviderClient {
     signal?.throwIfAborted();
     if (typeof searchTerm !== "string" || !searchTerm.trim() || searchTerm.length > 16_000)
       throw new Error("search_term must be a nonempty string of at most 16000 characters");
-    const { provider, apiKey } = await this.configuration(signal);
+    const configuration = await this.configuration(signal);
     signal?.throwIfAborted();
     const query = searchTerm.trim();
-    if (!provider || !webProviderInfo("search", provider) || !apiKey)
+    const entries = configuration.providers?.length
+      ? configuration.providers
+      : configuration.provider
+        ? [{ provider: configuration.provider, apiKey: configuration.apiKey }]
+        : [];
+    if (!entries.length)
       throw new Error(
-        provider
-          ? `Web search is not configured: ${SEARCH_PROVIDERS[provider] ?? provider} is selected but its API key is missing. No search was performed. Tell the user they can finish setting it up or choose another search provider in Settings → Providers. Never ask for API keys in chat.`
-          : "Web search is not configured: the user has not chosen a search provider in Settings → Providers. No search was performed. Tell the user web search isn't set up and that they can choose a provider there. Never ask for API keys in chat. You can still read known URLs with WebFetch or the browser."
+        "Web search is not configured: the user has not chosen a search provider in Settings → Providers. No search was performed. Tell the user web search isn't set up and that they can choose a provider there. Never ask for API keys in chat. You can still read known URLs with WebFetch or the browser."
       );
+    const errors: string[] = [];
+    const attempts = configuration.strategy === "round_robin" ? entries.slice(0, 1) : entries;
+    for (const entry of attempts) {
+      signal?.throwIfAborted();
+      if (!entry.apiKey) {
+        errors.push(`${SEARCH_PROVIDERS[entry.provider]} is selected but its API key is missing.`);
+        continue;
+      }
+      try {
+        return await this.searchOne(entry.provider, entry.apiKey, query, signal);
+      } catch (error) {
+        signal?.throwIfAborted();
+        errors.push(error instanceof Error ? error.message : String(error));
+      }
+    }
+    const first = errors[0];
+    if (attempts.length === 1 && first?.includes("API key is missing"))
+      throw new Error(`Web search is not configured: ${first} No search was performed. Tell the user they can finish setting it up or choose another search provider in Settings → Providers. Never ask for API keys in chat.`);
+    if (attempts.length === 1 && first) throw new Error(first);
+    throw new Error(`Web search failed after trying ${attempts.length} provider${attempts.length === 1 ? "" : "s"}: ${errors.join(" | ")}`);
+  }
+
+  private async searchOne(provider: SearchProvider, apiKey: string, query: string, signal?: AbortSignal) {
     const name = SEARCH_PROVIDERS[provider];
     const adapter = ADAPTERS[provider];
     adapter.validate?.(query);
@@ -221,19 +263,14 @@ export class SearchProviderClient {
     const timeout = AbortSignal.timeout(30_000);
     const deadline = Date.now() + 30_000;
     const requestSignal = signal ? AbortSignal.any([signal, timeout]) : timeout;
-    const redact = (value: string) => (apiKey ? value.split(apiKey).join("[redacted]") : value);
+    const redact = (value: string) => value.split(apiKey).join("[redacted]");
     let response: Response;
     try {
       response = await this.request(url, { ...init, redirect: "error", signal: requestSignal });
-      // Exa documents 503 as an unprocessed, unbilled capacity rejection.
-      // Keep retries inside the original timeout; other failures remain explicit.
       for (let retry = 0; provider === "exa" && response.status === 503 && retry < 2; retry++) {
         const retryAfter = response.headers.get("retry-after")?.trim();
-        const requestedDelay = retryAfter
-          ? /^\d+$/.test(retryAfter) ? Number(retryAfter) * 1_000 : Date.parse(retryAfter) - Date.now()
-          : 0;
-        const waitMs = Math.max(1_000 * 2 ** retry + Math.random() * 250,
-          Number.isFinite(requestedDelay) ? requestedDelay : 0);
+        const requestedDelay = retryAfter ? (/^\d+$/.test(retryAfter) ? Number(retryAfter) * 1_000 : Date.parse(retryAfter) - Date.now()) : 0;
+        const waitMs = Math.max(1_000 * 2 ** retry + Math.random() * 250, Number.isFinite(requestedDelay) ? requestedDelay : 0);
         if (waitMs >= deadline - Date.now()) break;
         await response.body?.cancel();
         await waitForSearchRetry(waitMs, undefined, { signal: requestSignal });
@@ -241,7 +278,6 @@ export class SearchProviderClient {
         response = await this.request(url, { ...init, redirect: "error", signal: requestSignal });
       }
     } catch {
-      // SerpApi authenticates in the URL; never echo fetch errors or request URLs.
       signal?.throwIfAborted();
       throw new Error(`${name} search ${timeout.aborted ? "timed out" : "could not connect"}. Check the provider configuration and retry.`);
     }

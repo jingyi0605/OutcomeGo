@@ -1,5 +1,5 @@
 import type { FetchConfiguration } from "./fetch-provider";
-import { isSearchProvider, isFetchProvider } from "@aiteamos/contracts/web-search";
+import { isSearchProvider, isFetchProvider, WEB_TOOL_STRATEGIES } from "@aiteamos/contracts/web-search";
 import type { SearchConfiguration, SearchFetch } from "./search-provider";
 
 /** Read for each search so saved DB changes take effect without restarting workers. */
@@ -27,21 +27,18 @@ function serverWebConfiguration(
         throw new Error("Settings unavailable");
       }
       const value = await response.json();
-      if (
-        !value ||
-        typeof value !== "object" ||
-        Array.isArray(value) ||
-        (value.provider !== null &&
-          (kind === "fetch"
-            ? !isFetchProvider(value.provider)
-            : !isSearchProvider(value.provider))) ||
-        (value.apiKey !== null &&
-          (typeof value.apiKey !== "string" || !value.apiKey || value.apiKey.length > 20_000))
-      )
+      if (!value || typeof value !== "object" || Array.isArray(value) || !WEB_TOOL_STRATEGIES.includes(value.strategy) || !Array.isArray(value.providers) || !Number.isSafeInteger(value.cursor) || value.cursor < 0)
         throw new Error("Invalid settings");
+      for (const entry of value.providers) {
+        if (!entry || typeof entry !== "object" || Array.isArray(entry) || (kind === "fetch" ? !isFetchProvider(entry.provider) : !isSearchProvider(entry.provider)) || (entry.apiKey !== null && (typeof entry.apiKey !== "string" || !entry.apiKey || entry.apiKey.length > 20_000)))
+          throw new Error("Invalid settings");
+      }
       signal?.throwIfAborted();
-      // Keep null distinct: for fetch it means the user turned fetch off.
-      return { provider: value.provider, apiKey: value.apiKey ?? undefined };
+      return {
+        strategy: value.strategy,
+        providers: value.providers.map((entry: { provider: string; apiKey: string | null }) => ({ provider: entry.provider, apiKey: entry.apiKey ?? undefined })),
+        cursor: value.cursor,
+      };
     } catch {
       signal?.throwIfAborted();
       // Neither upstream errors nor response bodies may expose credentials.

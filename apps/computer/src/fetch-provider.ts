@@ -3,7 +3,6 @@ import {
   DEFAULT_FETCH_PROVIDER,
   FETCH_PROVIDERS,
   type FetchProvider,
-  webProviderInfo,
 } from "@aiteamos/contracts/web-search";
 import { boundedJson, ResponseTooLargeError, type SearchFetch } from "./search-provider";
 import { publicWebUrl, validatePublicWebUrl } from "./public-web-url";
@@ -13,6 +12,9 @@ export interface FetchConfiguration {
   /** Omitted: the built-in fetcher. null: fetch is turned off. */
   provider?: FetchProvider | null;
   apiKey?: string;
+  cursor?: number;
+  strategy?: "round_robin" | "failover";
+  providers?: Array<{ provider: FetchProvider; apiKey?: string | null }>;
 }
 export interface FetchProvenance {
   source: "cached" | "crawled" | "unknown";
@@ -119,6 +121,11 @@ const ADAPTERS: Record<Exclude<FetchProvider, "builtin">, Adapter> = {
       return { url: result.url, text: text(result.full_content) || excerpts, title: result.title };
     },
   },
+  deepseek: {
+    request: (url, apiKey) =>
+      post("https://api.deepseek.com/v1/tools/fetch", bearer(apiKey), { url }),
+    parse: (body) => ({ text: body.content, title: body.title }),
+  },
 };
 
 async function boundedText(response: Response): Promise<string> {
@@ -167,17 +174,46 @@ export class FetchProviderClient {
     publicWebUrl(value);
     const configured = await this.configuration(signal);
     const provider = configured.provider === undefined ? DEFAULT_FETCH_PROVIDER : configured.provider;
-    const { apiKey } = configured;
     signal?.throwIfAborted();
-    if (provider === "builtin") return { configured: true, provider };
-    if (!provider || !webProviderInfo("fetch", provider) || !apiKey)
+    const entries = configured.providers?.length
+      ? configured.providers
+      : provider
+        ? [{ provider, apiKey: configured.apiKey }]
+        : [];
+    if (!entries.length)
       return {
         configured: false,
-        provider,
-        message: provider
-          ? `Web fetch is not configured: ${FETCH_PROVIDERS[provider] ?? provider} is selected but its API key is missing. No page was fetched. Tell the user they can finish setting it up or choose the built-in fetcher in Settings → Providers. Never ask for API keys in chat.`
-          : "Web fetch is turned off: the user turned off page fetching in Settings → Providers. No page was fetched. Tell the user fetch is off and that they can turn it on there; you can still open pages with the browser tool.",
+        provider: null,
+        message: "Web fetch is turned off: the user turned off page fetching in Settings → Providers. No page was fetched. Tell the user fetch is off and that they can turn it on there; you can still open pages with the browser tool.",
       };
+    const errors: string[] = [];
+    const attempts = configured.strategy === "round_robin" ? entries.slice(0, 1) : entries;
+    for (const entry of attempts) {
+      signal?.throwIfAborted();
+      if (entry.provider === "builtin") return { configured: true, provider: "builtin" };
+      if (!entry.apiKey) {
+        errors.push(`${FETCH_PROVIDERS[entry.provider]} is selected but its API key is missing.`);
+        continue;
+      }
+      try {
+        return await this.fetchOne(entry.provider, entry.apiKey, value, signal);
+      } catch (error) {
+        signal?.throwIfAborted();
+        errors.push(error instanceof Error ? error.message : String(error));
+      }
+    }
+    const first = errors[0] ?? "No provider was available.";
+    if (attempts.length === 1 && first.includes("API key is missing"))
+      return {
+        configured: false,
+        provider: attempts[0]!.provider,
+        message: `Web fetch is not configured: ${FETCH_PROVIDERS[attempts[0]!.provider]} is selected but its API key is missing. No page was fetched. Tell the user they can finish setting it up or choose the built-in fetcher in Settings → Providers. Never ask for API keys in chat.`,
+      };
+    if (attempts.length === 1) throw new Error(first);
+    throw new Error(`Web fetch failed after trying ${attempts.length} provider${attempts.length === 1 ? "" : "s"}: ${errors.join(" | ")}`);
+  }
+
+  private async fetchOne(provider: Exclude<FetchProvider, "builtin">, apiKey: string, value: string, signal?: AbortSignal): Promise<FetchResult> {
     const name = FETCH_PROVIDERS[provider];
     const adapter = ADAPTERS[provider];
     const url = (await this.validate(value, signal)).href;
@@ -188,7 +224,6 @@ export class FetchProviderClient {
       response = await this.request(endpoint, { ...init, redirect: "error", signal: signal ? AbortSignal.any([signal, timeout]) : timeout });
     } catch {
       signal?.throwIfAborted();
-      // Some providers authenticate in the URL; never echo fetch errors or request URLs.
       throw new Error(`${name} ${timeout.aborted ? "timed out" : "could not be reached"}. Retry later, or open the page with the browser tool.`);
     }
     if (!response.ok) {
@@ -204,17 +239,15 @@ export class FetchProviderClient {
             : status === 400 || status === 408 || status === 422
               ? "The provider couldn't read this page; try the browser tool."
               : "Retry later, or open the page with the browser tool.";
-      const safe = apiKey ? detail.split(apiKey).join("[redacted]") : detail;
+      const safe = detail.split(apiKey).join("[redacted]");
       throw new Error(`${name} fetch failed (HTTP ${status})${safe ? `: ${safe}` : ""}. ${reason}`);
     }
     try {
-      // Same bound as the built-in fetcher; WebTools cuts long pages to their first 100,000 characters.
       const body = await boundedJson(response, MAX_WEB_DOWNLOAD);
       signal?.throwIfAborted();
       const parsed = adapter.parse(body);
       let content = text(parsed.text);
       if (!content.trim()) throw new ProviderPageError(`${name} returned no page content.`);
-      // Main-content extraction often drops the page title; lead with it like the built-in reader.
       const title = (Array.isArray(parsed.title) ? text(parsed.title[0]) : text(parsed.title)).replace(/\s+/g, " ").trim().slice(0, 300);
       if (title && !content.slice(0, 500).includes(title)) content = `# ${title}\n\n${content}`;
       const redact = (s: string) => s.split(apiKey).join("[redacted]");
@@ -228,7 +261,7 @@ export class FetchProviderClient {
     } catch (error) {
       signal?.throwIfAborted();
       if (error instanceof ProviderPageError) {
-        const message = apiKey ? error.message.split(apiKey).join("[redacted]") : error.message;
+        const message = error.message.split(apiKey).join("[redacted]");
         throw new Error(`${message} Try another URL, or open the page with the browser tool.`);
       }
       if (error instanceof ResponseTooLargeError)

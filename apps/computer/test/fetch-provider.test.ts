@@ -43,6 +43,14 @@ const CASES: Record<Exclude<FetchProvider, "builtin">, Case> = {
     pageFailure: () => Response.json({ extract_id: "x", results: [], errors: [{ url, error_type: "fetch_error", http_status_code: 500, content: "Error fetching content" }] }),
     finalUrl,
   },
+  deepseek: {
+    endpoint: "https://api.deepseek.com/v1/tools/fetch",
+    auth: ["authorization", `Bearer ${key}`],
+    body: { url },
+    success: () => Response.json({ title: "Page", content: "# Page\n" + key }),
+    pageFailure: () => Response.json({ title: "", content: "" }),
+    finalUrl: url,
+  },
 };
 
 for (const [provider, spec] of Object.entries(CASES)) {
@@ -202,7 +210,11 @@ test("external fetch sanitizes failures and honors cancellation and response bou
     await expect(failed.fetch(invalid)).rejects.toThrow();
 });
 test("runtime fetch configuration defaults from server and observes provider changes", async () => {
-  let value = { provider: null as string | null, apiKey: null as string | null };
+  let value = {
+    strategy: "failover" as const,
+    providers: [] as Array<{ provider: string; apiKey: string | null }>,
+    cursor: 0,
+  };
   let reads = 0;
   const configuration = serverFetchConfiguration(
     "http://server",
@@ -214,13 +226,13 @@ test("runtime fetch configuration defaults from server and observes provider cha
       return Response.json(value);
     }
   );
-  expect(await configuration()).toEqual({ provider: null, apiKey: undefined });
-  value = { provider: "builtin", apiKey: null };
-  expect(await configuration()).toEqual({ provider: "builtin", apiKey: undefined });
-  value = { provider: "firecrawl", apiKey: key };
-  expect(await configuration()).toEqual({ provider: "firecrawl", apiKey: key });
+  expect(await configuration()).toEqual({ strategy: "failover", providers: [], cursor: 0 });
+  value = { strategy: "failover", providers: [{ provider: "builtin", apiKey: null }], cursor: 0 };
+  expect(await configuration()).toEqual({ strategy: "failover", providers: [{ provider: "builtin", apiKey: undefined }], cursor: 0 });
+  value = { strategy: "failover", providers: [{ provider: "firecrawl", apiKey: key }], cursor: 0 };
+  expect(await configuration()).toEqual({ strategy: "failover", providers: [{ provider: "firecrawl", apiKey: key }], cursor: 0 });
   expect(reads).toBe(3);
-  value = { provider: "brave", apiKey: key };
+  value = { strategy: "failover", providers: [{ provider: "brave", apiKey: key }], cursor: 0 };
   await expect(configuration()).rejects.toThrow("settings could not be loaded");
 });
 
@@ -252,4 +264,26 @@ test("the result is the reference's URL heading and page, headed with the reques
     expect(page.details).toMatchObject({ requestedUrl: url, url: finalUrl });
     expect(page.details).not.toHaveProperty("retrievedAt");
   }
+});
+
+test("fetch failover tries the next provider after a provider failure", async () => {
+  const calls: string[] = [];
+  const client = new FetchProviderClient(
+    () => ({
+      strategy: "failover",
+      providers: [
+        { provider: "exa", apiKey: "first" },
+        { provider: "deepseek", apiKey: "second" },
+      ],
+    }),
+    async (endpoint, init) => {
+      calls.push(String(endpoint));
+      if (calls.length === 1) return new Response("temporary", { status: 503 });
+      expect(new Headers(init.headers).get("authorization")).toBe("Bearer second");
+      return Response.json({ title: "Page", content: "content" });
+    },
+    validate
+  );
+  expect(await client.fetch(url)).toMatchObject({ configured: true, provider: "deepseek" });
+  expect(calls).toEqual(["https://api.exa.ai/contents", "https://api.deepseek.com/v1/tools/fetch"]);
 });
