@@ -16,6 +16,7 @@ export default function VncComputer({
   serverUrl,
   createSession,
   clipboard,
+  viewOnly = false,
   onReady,
   onClose,
 }: {
@@ -24,12 +25,20 @@ export default function VncComputer({
   serverUrl: string;
   createSession: (botId: string, signal: AbortSignal) => Promise<ScreenVncSessionView>;
   clipboard?: (input: ScreenClipboardInput, signal: AbortSignal) => Promise<ScreenClipboardView>;
+  /** Observation mode: the screen is shown but no key, pointer or clipboard input is sent. */
+  viewOnly?: boolean;
   onReady: () => void;
   onClose: () => void;
 }) {
   const { t } = useI18n();
   const container = useRef<HTMLDivElement>(null);
   const rfb = useRef<RFB | null>(null);
+  const viewOnlyRef = useRef(viewOnly);
+  viewOnlyRef.current = viewOnly;
+  useEffect(() => {
+    // Toggling control must not reconnect: noVNC switches input on the live session.
+    if (rfb.current) rfb.current.viewOnly = viewOnly;
+  }, [viewOnly]);
   const [state, setState] = useState("connecting");
   const [lastFrame, setLastFrame] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -45,7 +54,7 @@ export default function VncComputer({
   const transferClipboard = useCallback(
     (action: "paste" | "copy" | "cut", shift = false, text?: Promise<string>) => {
       const current = rfb.current;
-      if (!current) return;
+      if (!current || viewOnlyRef.current) return;
       // Read the local clipboard at the gesture, before a queued operation can delay it.
       const value =
         action === "paste"
@@ -101,7 +110,11 @@ export default function VncComputer({
     update();
     document.addEventListener("focusin", update);
     const unsubscribe = bridge?.onComputerAction((action) => {
-      if (state === "connected" && container.current?.contains(document.activeElement))
+      if (
+        state === "connected" &&
+        !viewOnlyRef.current &&
+        container.current?.contains(document.activeElement)
+      )
         transferClipboard(action);
     });
     return () => {
@@ -144,6 +157,7 @@ export default function VncComputer({
         });
         connection = current;
         rfb.current = current;
+        current.viewOnly = viewOnlyRef.current;
         current.scaleViewport = true;
         current.resizeSession = false;
         current.focusOnClick = true;
@@ -231,6 +245,9 @@ export default function VncComputer({
           event.preventDefault();
           event.stopPropagation();
           onClose();
+        } else if (viewOnly) {
+          // Observation mode forwards nothing, including the modifier sync below.
+          return;
         } else if (event.key === "Meta") {
           event.preventDefault();
           event.stopPropagation();
@@ -258,6 +275,7 @@ export default function VncComputer({
         }
       }}
       onKeyUpCapture={(event) => {
+        if (viewOnly) return;
         if (
           event.key === "Meta" ||
           ((event.ctrlKey || event.metaKey) &&
@@ -273,7 +291,7 @@ export default function VncComputer({
       onBeforeInput={(event) => event.preventDefault()}
       onPaste={(event) => {
         const text = event.clipboardData.getData("text/plain");
-        if (!text || !rfb.current) return;
+        if (!text || !rfb.current || viewOnly) return;
         event.preventDefault();
         transferClipboard("paste", false, Promise.resolve(text));
       }}

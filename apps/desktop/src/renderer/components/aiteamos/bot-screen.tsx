@@ -60,15 +60,6 @@ export function BotScreen({
   const [error, setError] = useState<string | null>(null);
   const [frameRevision, setFrameRevision] = useState(Date.now());
   const [open, setOpen] = useState(false);
-  const viewerState = useRef({ open, botId: bot.id, mounted: true });
-  viewerState.current.open = open;
-  viewerState.current.botId = bot.id;
-  useEffect(() => {
-    viewerState.current.mounted = true;
-    return () => {
-      viewerState.current.mounted = false;
-    };
-  }, []);
   const recordViewerReady = useCallback(() => {
     if (!viewerOpenedAt.current) return;
     recordPerformance("view.desktop-ready", performance.now() - viewerOpenedAt.current, {
@@ -202,44 +193,110 @@ export function BotScreen({
     if (!handoff || handoff.botId !== bot.id) return;
     onEnable();
     setOpen(true);
-    if (!screen) void refreshStatus();
-  }, [bot.id, handoff, onEnable, refreshStatus, screen]);
+    // The server took control when the card started; a cached status may predate that.
+    void refreshStatus();
+  }, [bot.id, handoff, onEnable, refreshStatus]);
+  // Opening the viewer only observes. The user holds control after choosing "Take control"
+  // or accepting a bot's handoff card, and the computer drops it after five idle minutes.
+  const controlling = screen?.humanTakeover === true;
+  const controllingRef = useRef(controlling);
+  controllingRef.current = controlling;
+  const [controlPending, setControlPending] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+  const controlRequest = useRef<Promise<unknown> | undefined>(undefined);
+  const manualRelease = useRef(false);
+  const wasControlling = useRef(false);
+  const changeControl = useCallback(
+    async (active: boolean) => {
+      if (controlPending) return;
+      setControlPending(true);
+      manualRelease.current = !active;
+      const request = api.screenTakeover(bot.id, active);
+      controlRequest.current = request;
+      try {
+        setScreen(await request);
+        setError(null);
+      } catch (cause) {
+        manualRelease.current = false;
+        setError(
+          clientErrorMessage(
+            cause,
+            active ? t("Could not take computer control") : t("Could not return computer control")
+          )
+        );
+      } finally {
+        setControlPending(false);
+      }
+    },
+    [bot.id, controlPending, t]
+  );
+  useEffect(() => {
+    if (controlling) setNotice(null);
+    else if (wasControlling.current) {
+      // The computer released the lease: the user went idle, or the lease lapsed offline.
+      if (manualRelease.current) manualRelease.current = false;
+      else setNotice(t("Control was released after 5 minutes without activity"));
+    }
+    wasControlling.current = controlling;
+  }, [controlling, t]);
+  useEffect(() => {
+    if (!open) {
+      setNotice(null);
+      wasControlling.current = false;
+    }
+  }, [open]);
   useEffect(() => {
     if (!open) return;
-    let active = true;
-    let pending: Promise<ScreenStatusView> | undefined;
+    const poller = createSerialPoller({
+      intervalMs: SCREEN_STATUS_POLL_MS,
+      immediate: false,
+      task: async () => {
+        if (isWindowVisible()) await refreshStatus();
+      },
+    });
+    poller.start();
+    window.addEventListener(WINDOW_VISIBILITY_EVENT, poller.wake);
+    return () => {
+      poller.stop();
+      window.removeEventListener(WINDOW_VISIBILITY_EVENT, poller.wake);
+    };
+  }, [open, refreshStatus]);
+  useEffect(() => {
+    if (!open || !controlling) return;
+    let current = true;
     const poller = createSerialPoller({
       intervalMs: SCREEN_TAKEOVER_HEARTBEAT_MS,
+      immediate: false,
       task: async () => {
         try {
-          pending = api.screenTakeover(bot.id, true);
-          const next = await pending;
-          if (active) setScreen(next);
+          // A heartbeat keeps the connection alive. It does not count as activity and
+          // cannot re-acquire a lease the computer already released.
+          const next = await api.screenTakeover(bot.id, true, true);
+          if (current) setScreen(next);
         } catch (cause) {
-          if (active) setError(clientErrorMessage(cause, t("Could not keep computer control")));
+          if (current) setError(clientErrorMessage(cause, t("Could not keep computer control")));
         }
       },
     });
     poller.start();
     window.addEventListener(WINDOW_VISIBILITY_EVENT, poller.wake);
     return () => {
-      active = false;
+      current = false;
       poller.stop();
       window.removeEventListener(WINDOW_VISIBILITY_EVENT, poller.wake);
-      if (!handoff) {
-        // Wait for an in-flight acquisition before releasing; a reopened viewer
-        // keeps its lease, while closing or changing bots returns control.
-        void Promise.resolve(pending)
-          .catch(() => undefined)
-          .then(() => {
-            const viewer = viewerState.current;
-            if (!viewer.mounted || !viewer.open || viewer.botId !== bot.id)
-              return api.screenTakeover(bot.id, false);
-          })
-          .catch(() => {
-            /* The bounded lease expires if the server is offline. */
-          });
-      }
+    };
+  }, [bot.id, controlling, open, t]);
+  useEffect(() => {
+    if (!open || handoff) return;
+    return () => {
+      // Closing the viewer or switching bots returns control. Wait for an in-flight
+      // acquisition first so the release cannot arrive before it.
+      void Promise.resolve(controlRequest.current)
+        .catch(() => undefined)
+        .then(() => (controllingRef.current ? api.screenTakeover(bot.id, false) : undefined))
+        .catch(() => {
+          /* The bounded lease expires if the server is offline. */
+        });
     };
   }, [bot.id, handoff, open]);
   const viewerReady = screen?.state === "ready";
@@ -309,10 +366,24 @@ export function BotScreen({
             {/* One draggable title row; content starts past the macOS window
               buttons, which end at x=76px. */}
             <header className="electron-drag flex min-h-11 shrink-0 flex-wrap items-center justify-end gap-x-2 gap-y-1 border-b border-white/[0.035] py-1.5 pl-[88px] pr-3">
+              {!handoff && (
+                <span className="mr-auto min-w-0 truncate text-[12px] text-white/55">
+                  {notice ?? (controlling ? t("You have control") : t("Watching only"))}
+                </span>
+              )}
+              <Button
+                className="electron-no-drag text-white/80 hover:bg-white/[0.055] hover:text-white"
+                disabled={controlPending || !viewerReady}
+                onClick={() => void changeControl(!controlling)}
+                size="sm"
+                variant="ghost"
+              >
+                {controlling ? t("Release control") : t("Take control")}
+              </Button>
               {handoff ? (
                 <>
                   <span className="mr-auto min-w-0 basis-full py-2 text-[13px] leading-4 text-white/85 md:flex-1 md:basis-0 md:py-0">
-                    {handoff.reason || t("Complete the requested step")}
+                    {notice ?? (handoff.reason || t("Complete the requested step"))}
                   </span>
                   <Button
                     className="electron-no-drag text-white/70 hover:bg-white/[0.055] hover:text-white"
@@ -371,6 +442,7 @@ export function BotScreen({
                     serverUrl={API_BASE}
                     createSession={api.screenVncSession}
                     clipboard={(input, signal) => api.screenClipboard(bot.id, input, signal)}
+                    viewOnly={!controlling || controlPending}
                     onReady={recordViewerReady}
                     onClose={closeViewer}
                   />

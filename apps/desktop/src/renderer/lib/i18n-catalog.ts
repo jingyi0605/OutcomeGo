@@ -1191,6 +1191,12 @@ export const sourceTranslations: Record<string, string> = {
   "Could not fill into the page — it may have moved or changed. Secret values were never shown to your Bot.":
     "无法填入页面，页面可能已移动或更改。密钥类值从未显示给你的机器人。",
   "Could not keep computer control": "无法保持电脑控制权",
+  "Could not take computer control": "无法接管电脑控制权",
+  "Control was released after 5 minutes without activity": "5 分钟无操作，已自动释放控制权",
+  "Release control": "释放控制",
+  "Take control": "接管控制",
+  "Watching only": "仅观察",
+  "You have control": "你正在控制",
   "Could not load the shared computer": "无法加载共享电脑",
   "Could not return computer control": "无法归还电脑控制权",
   "Could not save the avatar.": "无法保存头像。",
