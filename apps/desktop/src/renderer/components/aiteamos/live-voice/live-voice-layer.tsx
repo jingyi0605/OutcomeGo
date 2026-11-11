@@ -11,8 +11,10 @@ import {
   Volume2,
   VolumeX,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useLiveVoice } from "../../../hooks/use-live-voice";
+import { useAuthSession } from "../../../hooks/use-auth-session";
+import { accountPresentation } from "../../../lib/account";
 import { useI18n } from "../../../lib/i18n";
 import { translateCurrent } from "../../../lib/i18n-catalog";
 import { BotAvatar } from "../avatar";
@@ -34,6 +36,8 @@ export function LiveVoiceLayer({
   compact?: boolean;
 }) {
   const { t } = useI18n();
+  const auth = useAuthSession();
+  const account = accountPresentation(auth.user, auth.mode);
   const [open, setOpen] = useState(false);
   const [minimized, setMinimized] = useState(false);
   const [selectedBotIds, setSelectedBotIds] = useState(() => bots.map((member) => member.id));
@@ -48,6 +52,7 @@ export function LiveVoiceLayer({
   const voice = useLiveVoice(speakerId, channelId, group ? participantBotIds : undefined);
   const active = voice.state !== "idle";
   const activeSpeaker = bots.find((member) => member.id === voice.speakerBotId) ?? bot;
+  const participants = bots.filter((member) => participantBotIds.includes(member.id));
   const captions = useRef<HTMLDivElement>(null);
   const followCaptions = useRef(true);
 
@@ -193,7 +198,7 @@ export function LiveVoiceLayer({
           className="live-voice-overlay"
           role="dialog"
         >
-          <div className="live-voice-dialog">
+          <div className={`live-voice-dialog${group ? " live-voice-dialog-group" : ""}`}>
             <header className="live-voice-header">
               <Button
                 aria-label={t("Minimize realtime voice")}
@@ -260,6 +265,32 @@ export function LiveVoiceLayer({
                     </select>
                   </label>
                 </div>
+              ) : group ? (
+                <div className="live-voice-stage-column">
+                  <div aria-label={t("Participants")} className="live-voice-stage" role="group">
+                    <VoiceTile
+                      muted={voice.microphoneMuted}
+                      name={t("You")}
+                      speaking={voice.userSpeaking}
+                    >
+                      <span className="live-voice-tile-initials">{account.initials}</span>
+                    </VoiceTile>
+                    {participants.map((member) => (
+                      <VoiceTile
+                        badge={member.id === speakerId ? t("Host") : undefined}
+                        key={member.id}
+                        name={member.name}
+                        speaking={voice.speakerBotId === member.id}
+                      >
+                        <BotAvatar bot={member} size="lg" className="!size-full" />
+                      </VoiceTile>
+                    ))}
+                  </div>
+                  <div className="live-voice-state" role="status">
+                    <span className="live-voice-state-dot" data-live-voice-state-dot={voice.state} />
+                    {statusLabel(voice.state)}
+                  </div>
+                </div>
               ) : (
               <div className="live-voice-avatar-column">
                 <div
@@ -297,23 +328,42 @@ export function LiveVoiceLayer({
                     <span>{t("Start speaking when you are ready.")}</span>
                   </div>
                 ) : null}
-                {voice.transcript.map((entry) => (
-                  <article
-                    className={`live-voice-caption live-voice-caption-${entry.role}`}
-                    key={entry.id}
-                  >
-                    <span className="live-voice-caption-label">
-                      {entry.role === "assistant"
-                        ? bots.find((member) => member.id === entry.speakerBotId)?.name ?? bot.name
-                        : t("You")}
-                    </span>
-                    <p>{entry.text}</p>
-                  </article>
-                ))}
+                {voice.transcript.map((entry) => {
+                  const speaker =
+                    entry.role === "assistant"
+                      ? bots.find((member) => member.id === entry.speakerBotId) ?? bot
+                      : null;
+                  const label = speaker ? speaker.name : t("You");
+                  return (
+                    <article
+                      className={`live-voice-caption live-voice-caption-${entry.role}${group ? " live-voice-caption-row" : ""}`}
+                      key={entry.id}
+                    >
+                      {group ? (
+                        <span className="live-voice-caption-chip">
+                          {speaker ? (
+                            <BotAvatar bot={speaker} size="lg" className="!size-full" />
+                          ) : (
+                            account.initials
+                          )}
+                        </span>
+                      ) : null}
+                      <div className="live-voice-caption-body">
+                        <span className="live-voice-caption-label">{label}</span>
+                        <p>{entry.text}</p>
+                      </div>
+                    </article>
+                  );
+                })}
                 {voice.partialText ? (
-                  <article className="live-voice-caption live-voice-caption-user live-voice-caption-partial">
-                    <span className="live-voice-caption-label">{t("You · listening")}</span>
-                    <p>{voice.partialText}</p>
+                  <article
+                    className={`live-voice-caption live-voice-caption-user live-voice-caption-partial${group ? " live-voice-caption-row" : ""}`}
+                  >
+                    {group ? <span className="live-voice-caption-chip">{account.initials}</span> : null}
+                    <div className="live-voice-caption-body">
+                      <span className="live-voice-caption-label">{t("You · listening")}</span>
+                      <p>{voice.partialText}</p>
+                    </div>
                   </article>
                 ) : null}
                 {voice.error ? (
@@ -390,6 +440,38 @@ export function LiveVoiceLayer({
           </div>
         </div>
       ) : null}
+    </div>
+  );
+}
+
+/** One participant in the group call: a round face that rings and ripples while its owner speaks. */
+function VoiceTile({
+  name,
+  speaking,
+  badge,
+  muted = false,
+  children,
+}: {
+  name: string;
+  speaking: boolean;
+  badge?: string;
+  muted?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <div className="live-voice-tile" data-live-voice-speaking={speaking}>
+      <div className="live-voice-tile-avatar">
+        <div className="live-voice-tile-face">{children}</div>
+        {muted ? (
+          <span className="live-voice-tile-muted">
+            <MicOff className="size-3" />
+          </span>
+        ) : null}
+      </div>
+      <span className="live-voice-tile-name" title={name}>
+        {name}
+      </span>
+      {badge ? <span className="live-voice-tile-badge">{badge}</span> : null}
     </div>
   );
 }

@@ -441,3 +441,161 @@
     animation: none !important;
   }
 }
+
+/* Group call: a meeting-room grid of participants instead of one large avatar */
+.live-voice-dialog-group {
+  width: min(36rem, 100%);
+}
+
+.live-voice-stage-column {
+  display: grid;
+  width: 100%;
+  justify-items: center;
+  gap: 0.9rem;
+}
+
+.live-voice-stage {
+  display: grid;
+  width: 100%;
+  grid-template-columns: repeat(auto-fit, minmax(5.5rem, 1fr));
+  gap: 1rem 0.75rem;
+  justify-items: center;
+}
+
+.live-voice-tile {
+  display: grid;
+  min-width: 0;
+  max-width: 100%;
+  justify-items: center;
+  gap: 0.4rem;
+}
+
+.live-voice-tile-avatar {
+  position: relative;
+  width: 4.5rem;
+  aspect-ratio: 1;
+  transition: transform 0.2s ease;
+}
+
+.live-voice-tile-avatar::before,
+.live-voice-tile-avatar::after {
+  position: absolute;
+  border: 2px solid #32a66a;
+  border-radius: 50%;
+  content: "";
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.live-voice-tile-face {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  width: 100%;
+  height: 100%;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 50%;
+  background: var(--muted);
+  box-shadow: 0 0 0 2px var(--popover), 0 6px 16px rgb(0 0 0 / 22%);
+  transition: box-shadow 0.2s ease;
+}
+
+.live-voice-tile-initials {
+  color: var(--foreground-secondary);
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.live-voice-tile[data-live-voice-speaking="true"] .live-voice-tile-avatar {
+  transform: scale(1.06);
+}
+
+.live-voice-tile[data-live-voice-speaking="true"] .live-voice-tile-face {
+  box-shadow: 0 0 0 3px #32a66a, 0 8px 20px rgb(50 166 106 / 32%);
+}
+
+.live-voice-tile[data-live-voice-speaking="true"] .live-voice-tile-avatar::before {
+  animation: live-voice-ripple 1.4s ease-out infinite;
+}
+
+.live-voice-tile[data-live-voice-speaking="true"] .live-voice-tile-avatar::after {
+  animation: live-voice-ripple 1.4s ease-out 0.5s infinite;
+}
+
+.live-voice-tile-name {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--foreground);
+  font-size: 0.78rem;
+  font-weight: 550;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.live-voice-tile[data-live-voice-speaking="true"] .live-voice-tile-name {
+  color: #32a66a;
+}
+
+.live-voice-tile-badge {
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--control-accent) 16%, transparent);
+  color: var(--control-accent);
+  font-size: 0.62rem;
+  font-weight: 600;
+}
+
+.live-voice-tile-muted {
+  position: absolute;
+  right: -0.1rem;
+  bottom: -0.1rem;
+  z-index: 2;
+  display: grid;
+  width: 1.2rem;
+  height: 1.2rem;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--foreground);
+  color: var(--background);
+}
+
+/* Captions as chat rows with the speaker's face, like a meeting transcript */
+.live-voice-captions-group,
+.live-voice-captions:has(.live-voice-caption-row) {
+  text-align: left;
+}
+
+.live-voice-caption-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+}
+
+.live-voice-caption-chip {
+  display: grid;
+  width: 1.75rem;
+  height: 1.75rem;
+  flex: 0 0 auto;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 50%;
+  background: var(--muted);
+  color: var(--foreground-secondary);
+  font-size: 0.65rem;
+  font-weight: 600;
+}
+
+.live-voice-caption-body {
+  min-width: 0;
+  flex: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .live-voice-tile[data-live-voice-speaking="true"] .live-voice-tile-avatar::before,
+  .live-voice-tile[data-live-voice-speaking="true"] .live-voice-tile-avatar::after {
+    animation: none;
+    opacity: 0.5;
+  }
+}

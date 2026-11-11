@@ -25,7 +25,12 @@ export interface LiveVoiceAudioEvents {
   onFrame?: (frame: Uint8Array) => void;
   onPlaybackAck?: (generation: number, sequence: number) => void;
   onPlaybackStopped?: () => void;
+  /** All queued speech has played and nothing new arrived for a moment. */
+  onPlaybackIdle?: () => void;
 }
+
+/** Gaps between frames of one message are shorter than this; a longer silence means the speaker finished. */
+const PLAYBACK_IDLE_MS = 450;
 
 /**
  * Owns the renderer microphone and speaker graph for a realtime voice session.
@@ -48,6 +53,7 @@ export class LiveVoiceAudio {
   private microphoneMuted = false;
   private speakerMuted = false;
   private closed = false;
+  private idleTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(private readonly events: LiveVoiceAudioEvents = {}) {}
 
@@ -130,14 +136,30 @@ export class LiveVoiceAudio {
     const startAt = this.playbackCursor;
     this.playbackCursor += samples.length / VOICE_OUTPUT_SAMPLE_RATE;
     this.playbackSources.add(source);
+    this.cancelIdleTimer();
     source.onended = () => {
       this.playbackSources.delete(source);
       this.events.onPlaybackAck?.(frame.generation, frame.sequence);
+      if (this.playbackSources.size === 0) this.scheduleIdle();
     };
     source.start(startAt);
   }
 
+  private cancelIdleTimer(): void {
+    if (this.idleTimer) clearTimeout(this.idleTimer);
+    this.idleTimer = null;
+  }
+
+  private scheduleIdle(): void {
+    this.cancelIdleTimer();
+    this.idleTimer = setTimeout(() => {
+      this.idleTimer = null;
+      if (!this.closed && this.playbackSources.size === 0) this.events.onPlaybackIdle?.();
+    }, PLAYBACK_IDLE_MS);
+  }
+
   stopPlayback(): void {
+    this.cancelIdleTimer();
     const now = this.context?.currentTime ?? 0;
     for (const source of this.playbackSources) {
       try {

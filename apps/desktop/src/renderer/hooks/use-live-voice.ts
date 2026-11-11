@@ -30,6 +30,8 @@ export function useLiveVoice(botId: string, channelId: string, participantBotIds
   const [microphoneMuted, setMicrophoneMuted] = useState(false);
   const [speakerMuted, setSpeakerMuted] = useState(false);
   const [speakerBotId, setSpeakerBotId] = useState<string | undefined>(undefined);
+  // The user is mid-utterance: from the first sound of a turn until its transcript is final.
+  const [userSpeaking, setUserSpeaking] = useState(false);
   const [available, setAvailable] = useState(false);
   const transport = useRef<LiveVoiceTransport | null>(null);
   const audio = useRef<LiveVoiceAudio | null>(null);
@@ -70,6 +72,7 @@ export function useLiveVoice(botId: string, channelId: string, participantBotIds
     setMicrophoneMuted(false);
     setSpeakerMuted(false);
     setSpeakerBotId(undefined);
+    setUserSpeaking(false);
   }, []);
 
   const start = useCallback(async () => {
@@ -89,6 +92,10 @@ export function useLiveVoice(botId: string, channelId: string, participantBotIds
         onFrame: (frame) => transport.current?.sendFrame(frame),
         onPlaybackAck: (generation, sequence) =>
           transport.current?.acknowledge(generation, sequence),
+        onPlaybackIdle: () => {
+          setSpeakerBotId(undefined);
+          if (stateRef.current === "speaking") updateState("listening");
+        },
       });
       audio.current = nextAudio;
       const clientPlatform = window.aiteamos?.platform === "win32" ? "windows" : "macos";
@@ -107,8 +114,11 @@ export function useLiveVoice(botId: string, channelId: string, participantBotIds
             next.ready();
           } else if (message.type === "turn.started") {
             setPartialText("");
+            setUserSpeaking(true);
             updateState("listening");
           } else if (message.type === "transcript.partial") {
+            // An empty partial is how the server withdraws a turn it discarded as noise.
+            setUserSpeaking(message.text.length > 0);
             setPartialText(message.text);
             updateState("listening");
           } else if (message.type === "transcript.final") {
@@ -119,18 +129,21 @@ export function useLiveVoice(botId: string, channelId: string, participantBotIds
               ]);
             }
             setPartialText("");
+            setUserSpeaking(false);
             updateState("processing");
           } else if (message.type === "reply.message") {
-            setTranscript((current) => [
-              ...current,
-              {
-                id: message.messageId,
-                role: "assistant",
-                text: message.text,
-                speakerBotId: message.speakerBotId,
-              },
-            ]);
-            setSpeakerBotId(message.speakerBotId);
+            // A reply spoken while it was still being written first shows what had been said so far;
+            // the saved message replaces that caption with the whole text instead of adding a second one.
+            const entry = {
+              id: message.messageId,
+              role: "assistant" as const,
+              text: message.text,
+              speakerBotId: message.speakerBotId,
+            };
+            setTranscript((current) => {
+              const index = message.replaces ? current.findIndex((item) => item.id === message.replaces) : -1;
+              return index < 0 ? [...current, entry] : current.map((item, at) => (at === index ? entry : item));
+            });
             updateState("speaking");
           } else if (message.type === "audio.started") {
             setSpeakerBotId(message.speakerBotId);
@@ -138,6 +151,7 @@ export function useLiveVoice(botId: string, channelId: string, participantBotIds
           }
           else if (message.type === "barge_in" || message.type === "audio.stopped") {
             nextAudio.stopPlayback();
+            setSpeakerBotId(undefined);
             updateState("interrupted");
           } else if (message.type === "ended") void stop();
           else if (message.type === "error") {
@@ -216,6 +230,7 @@ export function useLiveVoice(botId: string, channelId: string, participantBotIds
     microphoneMuted,
     speakerMuted,
     speakerBotId,
+    userSpeaking,
     setMicrophoneMuted: setMicrophoneMutedState,
     setSpeakerMuted: setSpeakerMutedState,
     start,
