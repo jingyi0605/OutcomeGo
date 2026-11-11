@@ -171,7 +171,10 @@ lines.on("line", (line) => {
   }
 });
 console.log(JSON.stringify({ started: true, port }));
-const status = setInterval(() => console.log(JSON.stringify(client.status())), 1000);
+const status = setInterval(() => {
+  console.log(JSON.stringify(client.status()));
+  console.log(JSON.stringify({ gateway: proxy.stats() }));
+}, 1000);
 shutdown = () => {
   clearInterval(status);
   management?.stop();

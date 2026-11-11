@@ -91,6 +91,26 @@ export async function startBrowserNetwork(serverUrl: string, token: string) {
     tun.kill();
     throw new Error("Computer network interface did not become ready");
   };
+  // The SOCKS gateway is the only path for every computer connection, so an exhausted
+  // gateway looks like a total outage. Surface its pressure in the container log.
+  let reported = { rejected: 0, reaped: 0 },
+    reportedAt = 0;
+  const reportGateway = (gateway: unknown) => {
+    const g = gateway as Record<string, unknown> | null;
+    const numbers = ["active", "limit", "peak", "rejected", "reaped"].map((key) => g?.[key]);
+    if (!numbers.every((value) => Number.isSafeInteger(value))) return;
+    const [active, limit, peak, rejected, reaped] = numbers as number[];
+    // A restarted worker starts its counters from zero again.
+    if (rejected! < reported.rejected || reaped! < reported.reaped)
+      reported = { rejected: 0, reaped: 0 };
+    const changed = rejected! > reported.rejected || reaped! > reported.reaped;
+    if ((!changed && active! < limit! * 0.75) || Date.now() - reportedAt < 30_000) return;
+    reported = { rejected: rejected!, reaped: reaped! };
+    reportedAt = Date.now();
+    console.warn(
+      `Browser network gateway: active=${active}/${limit} peak=${peak} rejected=${rejected} reclaimed=${reaped}`
+    );
+  };
   const launch = async () => {
     await ensureTun();
     return new Promise<void>((resolve, reject) => {
@@ -142,6 +162,7 @@ export async function startBrowserNetwork(serverUrl: string, token: string) {
               if (value.result) current.resolve(value.result);
               else current.reject(new Error("Could not check browser exit connection"));
             }
+            if (value.gateway) reportGateway(value.gateway);
             if (typeof value.ready === "boolean")
               state = {
                 ready: value.ready,
