@@ -59,7 +59,9 @@ struct ComposerView: View {
       if let session = store.liveVoiceSession, !focusedReply {
         LiveVoiceView(
           session: session,
-          bot: store.bot(for: channel),
+          bot: channel.isGroup ? nil : store.bot(for: channel),
+          participants: channel.isGroup ? store.voiceParticipants(of: channel) : [],
+          defaultSpeakerID: store.liveVoiceGroup?.defaultSpeakerID,
           onStop: { store.stopLiveVoice() },
           onMuteMicrophone: { store.setLiveVoiceMicrophoneMuted($0) },
           onMuteSpeaker: { store.setLiveVoiceSpeakerMuted($0) }

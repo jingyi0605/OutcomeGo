@@ -17,6 +17,7 @@ struct ChatView: View {
   @Environment(\.topBarTrailingInset) private var topBarTrailingInset
   let channel: Channel
   @State private var details = false
+  @State private var pickingVoiceMembers = false
   @State private var replyFocusRequest = UUID()
   @State private var computerBot: Bot?
   @State private var timelineCache = ChatTimelineCache()
@@ -436,17 +437,31 @@ struct ChatView: View {
       }.accessibilityValue(bot.name)
     }
   }
+  /// A direct chat with a bot, or a group that has at least one active member, can start a call.
+  private var canStartRealtimeVoice: Bool {
+    channel.isGroup ? !store.voiceParticipants(of: channel).isEmpty : store.bot(for: channel) != nil
+  }
   @ViewBuilder private var realtimeVoiceButton: some View {
-    if !channel.isGroup, store.bot(for: channel) != nil {
+    if canStartRealtimeVoice {
       ChatChromeButton(
         title: store.liveVoiceSession == nil ? "Start realtime voice" : "End realtime voice",
         symbol: store.liveVoiceSession == nil ? "phone.fill" : "phone.down.fill",
         symbolSize: 16, shadow: false
       ) {
-        if store.liveVoiceSession == nil { store.startLiveVoice(for: channel) }
-        else { store.stopLiveVoice() }
+        if store.liveVoiceSession != nil { store.stopLiveVoice() }
+        else if channel.isGroup { pickingVoiceMembers = true }
+        else { store.startLiveVoice(for: channel) }
       }
       .accessibilityIdentifier("realtime-voice-button")
+      .sheet(isPresented: $pickingVoiceMembers) {
+        VoiceMemberPicker(members: store.voiceParticipants(of: channel)) { ids, speaker in
+          pickingVoiceMembers = false
+          store.startLiveVoice(for: channel, participantIDs: ids, defaultSpeakerID: speaker)
+        } onCancel: {
+          pickingVoiceMembers = false
+        }
+        .presentationDetents([.medium])
+      }
     }
   }
   private var titleButton: some View {
@@ -484,7 +499,7 @@ struct ChatView: View {
         // without a Computer action. Long names truncate within the middle slot.
         // Beside a side region, the action buttons sit in it, below the status bar.
         Group {
-          if !channel.isGroup, store.bot(for: channel) != nil {
+          if canStartRealtimeVoice {
             realtimeVoiceButton
           } else {
             Color.clear.accessibilityHidden(true)

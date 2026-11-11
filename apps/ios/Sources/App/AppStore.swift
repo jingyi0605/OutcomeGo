@@ -3,6 +3,12 @@ import CryptoKit
 import Foundation
 import Observation
 
+/// A group call in progress: where it is and which bot answers when nobody is named.
+struct LiveVoiceGroup: Equatable {
+  let channelID: String
+  let defaultSpeakerID: String
+}
+
 @MainActor @Observable
 final class AppStore {
   enum Phase { case starting, signedOut, ready }
@@ -90,6 +96,8 @@ final class AppStore {
   }
   private(set) var api: API?
   private(set) var liveVoiceSession: LiveVoiceSession?
+  /// The group call in progress: its channel and the bot that answers when nobody is named.
+  private(set) var liveVoiceGroup: LiveVoiceGroup?
   private var disk: DiskStore?
   private var record: SessionRecord?
   private var lifecycle: Task<Void, Never>?
@@ -781,20 +789,33 @@ final class AppStore {
     persist()
   }
 
-  func startLiveVoice(for channel: Channel) {
-    guard let api, let bot = bot(for: channel) else {
-      error = "Realtime voice is only available in a Bot conversation."
+  /// The bots a group call can include: the active members of the group.
+  func voiceParticipants(of channel: Channel) -> [Bot] {
+    let ordered = channel.members.sorted { $0.ordinal < $1.ordinal }.map(\.botId)
+    return ordered.compactMap { id in bots.first { $0.id == id && $0.status == "active" } }
+  }
+
+  /// Starts a realtime call. A direct chat talks to its bot. A group takes the members chosen for the
+  /// call, with `defaultSpeakerID` answering when nobody is named.
+  func startLiveVoice(for channel: Channel, participantIDs: [String] = [], defaultSpeakerID: String? = nil) {
+    let group = channel.isGroup
+    let members = group ? participantIDs : []
+    let botID = group ? (defaultSpeakerID.flatMap { members.contains($0) ? $0 : nil } ?? members.first) : bot(for: channel)?.id
+    guard let api, let botID else {
+      error = "Realtime voice needs a Bot conversation, or a group with at least one member selected."
       return
     }
     liveVoiceSession?.stop()
     let session = LiveVoiceSession(sessionID: UUID().uuidString)
     liveVoiceSession = session
-    session.start(api: api, botID: bot.id, channelID: channel.id)
+    liveVoiceGroup = group ? LiveVoiceGroup(channelID: channel.id, defaultSpeakerID: botID) : nil
+    session.start(api: api, botID: botID, channelID: channel.id, participantBotIDs: members)
   }
 
   func stopLiveVoice() {
     liveVoiceSession?.stop()
     liveVoiceSession = nil
+    liveVoiceGroup = nil
   }
 
   func setLiveVoiceMicrophoneMuted(_ muted: Bool) {

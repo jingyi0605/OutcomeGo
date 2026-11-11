@@ -18,6 +18,15 @@ public struct LiveVoiceTranscript: Equatable, Sendable, Identifiable {
   public let id: String
   public let role: Role
   public let text: String
+  /// The bot that spoke this line in a group call; nil in a one-bot call or for the user.
+  public let speakerBotID: String?
+
+  public init(id: String, role: Role, text: String, speakerBotID: String? = nil) {
+    self.id = id
+    self.role = role
+    self.text = text
+    self.speakerBotID = speakerBotID
+  }
 }
 
 public struct LiveVoiceSnapshot: Equatable, Sendable {
@@ -26,19 +35,27 @@ public struct LiveVoiceSnapshot: Equatable, Sendable {
   public var generation: UInt32
   public var partialTranscript: String
   public var transcript: [LiveVoiceTranscript]
+  /// The bot whose voice is playing now, so a group call can light up the right face.
+  public var speakerBotID: String?
+  /// True while the user is mid-utterance.
+  public var userSpeaking: Bool
 
   public init(
     sessionID: String,
     state: LiveVoiceState = .disconnected,
     generation: UInt32 = 0,
     partialTranscript: String = "",
-    transcript: [LiveVoiceTranscript] = []
+    transcript: [LiveVoiceTranscript] = [],
+    speakerBotID: String? = nil,
+    userSpeaking: Bool = false
   ) {
     self.sessionID = sessionID
     self.state = state
     self.generation = generation
     self.partialTranscript = partialTranscript
     self.transcript = transcript
+    self.speakerBotID = speakerBotID
+    self.userSpeaking = userSpeaking
   }
 }
 
@@ -56,9 +73,16 @@ public func reduceLiveVoice(_ snapshot: LiveVoiceSnapshot, command: LiveVoiceCom
   var next = snapshot
   switch command {
   case .connected: next.state = .listening
-  case let .partial(text): next.state = .listening; next.partialTranscript = String(text.prefix(8_000))
-  case .final: next.state = .processing; next.partialTranscript = ""
-  case let .bargeIn(generation), let .stopped(generation): next.state = .interrupted; next.generation = max(next.generation, generation)
+  case let .partial(text):
+    next.state = .listening
+    next.partialTranscript = String(text.prefix(8_000))
+    // An empty partial is how the server withdraws a turn it discarded as noise.
+    next.userSpeaking = !text.isEmpty
+  case .final: next.state = .processing; next.partialTranscript = ""; next.userSpeaking = false
+  case let .bargeIn(generation), let .stopped(generation):
+    next.state = .interrupted
+    next.generation = max(next.generation, generation)
+    next.speakerBotID = nil
   case let .failed(message): next.state = .failed(String(message.prefix(500)))
   case .ended: next.state = .ended
   }
@@ -82,9 +106,12 @@ public final class LiveVoiceSession: NSObject, ObservableObject {
 
   /// Creates the short-lived server ticket before opening the media socket. The
   /// bearer token is used only by this authenticated HTTP request and never by
-  /// the WebSocket URL or payload.
-  public func start(api: API, botID: String, channelID: String) {
+  /// the WebSocket URL or payload. `participantBotIDs` is set for a group call:
+  /// the bots that may answer, with `botID` as the one who answers when nobody is named.
+  public func start(api: API, botID: String, channelID: String, participantBotIDs: [String] = []) {
     self.api = api
+    snapshot.speakerBotID = nil
+    snapshot.userSpeaking = false
     sequence = 0
     inputSequence = 0
     stoppedGeneration = nil
@@ -94,11 +121,13 @@ public final class LiveVoiceSession: NSObject, ObservableObject {
     Task { @MainActor [weak self] in
       guard let self else { return }
       do {
-        let ticket = try await api.request("/api/voice/sessions", method: "POST", body: .object([
+        var request: [String: JSON] = [
           "botId": .string(botID), "channelId": .string(channelID),
           "clientPlatform": .string("ios"),
           "clientInstanceId": .string("ios:" + UUID().uuidString),
-        ]))
+        ]
+        if !participantBotIDs.isEmpty { request["participantBotIds"] = .array(participantBotIDs.map { .string($0) }) }
+        let ticket = try await api.request("/api/voice/sessions", method: "POST", body: .object(request))
         let id = ticket["id"].string
         let path = ticket["path"].string
         let protocols = ticket["protocols"].array.map(\.string)
@@ -144,6 +173,8 @@ public final class LiveVoiceSession: NSObject, ObservableObject {
     socket = nil
     serverReady = false
     audio.stop()
+    snapshot.speakerBotID = nil
+    snapshot.userSpeaking = false
     snapshot = reduceLiveVoice(snapshot, command: .ended)
     if let api, !endedID.isEmpty {
       Task { _ = try? await api.request("/api/voice/sessions/\(API.segment(endedID))", method: "DELETE") }
@@ -183,7 +214,7 @@ public final class LiveVoiceSession: NSObject, ObservableObject {
       serverReady = true
       snapshot = reduceLiveVoice(snapshot, command: .connected)
       sendControl(type: "client_ready")
-    case "turn.started": snapshot.state = .listening
+    case "turn.started": snapshot.state = .listening; snapshot.userSpeaking = true
     case "transcript.partial": if let value = object["text"] as? String { snapshot = reduceLiveVoice(snapshot, command: .partial(value)) }
     case "transcript.final":
       if let value = object["text"] as? String {
@@ -209,13 +240,25 @@ public final class LiveVoiceSession: NSObject, ObservableObject {
     case "reply.message":
       snapshot.state = .speaking
       if let value = object["text"] as? String, !value.isEmpty {
-        snapshot.transcript.append(.init(
+        let entry = LiveVoiceTranscript(
           id: object["messageId"] as? String ?? UUID().uuidString,
           role: .assistant,
-          text: value
-        ))
+          text: value,
+          speakerBotID: (object["speakerBotId"] as? String).flatMap { $0.isEmpty ? nil : $0 }
+        )
+        // A reply spoken while it was still being written shows the sentences so far first; the
+        // saved message replaces that line instead of adding a second one.
+        if let replaced = object["replaces"] as? String,
+          let index = snapshot.transcript.firstIndex(where: { $0.id == replaced })
+        {
+          snapshot.transcript[index] = entry
+        } else {
+          snapshot.transcript.append(entry)
+        }
       }
-    case "audio.started": snapshot.state = .speaking
+    case "audio.started":
+      snapshot.state = .speaking
+      snapshot.speakerBotID = (object["speakerBotId"] as? String).flatMap { $0.isEmpty ? nil : $0 }
     case "ended": snapshot = reduceLiveVoice(snapshot, command: .ended)
     case "error": snapshot = reduceLiveVoice(snapshot, command: .failed(object["message"] as? String ?? "Voice session failed"))
     default: break

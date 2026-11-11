@@ -3,6 +3,8 @@ import SwiftUI
 public struct LiveVoiceView: View {
   @ObservedObject private var session: LiveVoiceSession
   private let bot: Bot?
+  private let participants: [Bot]
+  private let defaultSpeakerID: String?
   private let onStop: () -> Void
   private let onMuteMicrophone: (Bool) -> Void
   private let onMuteSpeaker: (Bool) -> Void
@@ -15,12 +17,16 @@ public struct LiveVoiceView: View {
   public init(
     session: LiveVoiceSession,
     bot: Bot?,
+    participants: [Bot] = [],
+    defaultSpeakerID: String? = nil,
     onStop: @escaping () -> Void,
     onMuteMicrophone: @escaping (Bool) -> Void = { _ in },
     onMuteSpeaker: @escaping (Bool) -> Void = { _ in }
   ) {
     self.session = session
     self.bot = bot
+    self.participants = participants
+    self.defaultSpeakerID = defaultSpeakerID
     self.onStop = onStop
     self.onMuteMicrophone = onMuteMicrophone
     self.onMuteSpeaker = onMuteSpeaker
@@ -35,6 +41,8 @@ public struct LiveVoiceView: View {
             LiveVoiceCallSurface(
               session: session,
               bot: bot,
+              participants: participants,
+              defaultSpeakerID: defaultSpeakerID,
               elapsedSeconds: elapsedSeconds,
               microphoneMuted: microphoneMuted,
               speakerMuted: speakerMuted,
@@ -48,7 +56,7 @@ public struct LiveVoiceView: View {
       } else {
         LiveVoiceMiniPill(
           session: session,
-          bot: bot,
+          bot: participants.first { $0.id == session.snapshot.speakerBotID } ?? bot ?? participants.first,
           elapsedSeconds: elapsedSeconds,
           onRestore: { expanded = true },
           onStop: onStop
@@ -91,6 +99,8 @@ public struct LiveVoiceView: View {
 private struct LiveVoiceCallSurface: View {
   @ObservedObject var session: LiveVoiceSession
   let bot: Bot?
+  let participants: [Bot]
+  let defaultSpeakerID: String?
   let elapsedSeconds: Int
   let microphoneMuted: Bool
   let speakerMuted: Bool
@@ -123,7 +133,7 @@ private struct LiveVoiceCallSurface: View {
           .foregroundStyle(NativePalette.muted)
           .padding(.top, 4)
 
-        Text(bot?.title ?? bot?.name ?? "Talk with your assistant")
+        Text(participants.isEmpty ? (bot?.title ?? bot?.name ?? "Talk with your assistant") : "Group voice conversation")
           .font(.system(size: 23, weight: .medium, design: .rounded))
           .foregroundStyle(NativePalette.text)
           .lineLimit(1)
@@ -138,13 +148,25 @@ private struct LiveVoiceCallSurface: View {
 
         Spacer(minLength: 12)
 
-        VoiceAvatar(
-          bot: bot,
-          speaking: session.snapshot.state == .speaking,
-          animate: animateAvatar
-        )
-        .frame(width: 190, height: 190)
-        .onAppear { animateAvatar = true }
+        if participants.isEmpty {
+          VoiceAvatar(
+            bot: bot,
+            speaking: session.snapshot.state == .speaking,
+            animate: animateAvatar
+          )
+          .frame(width: 190, height: 190)
+          .onAppear { animateAvatar = true }
+        } else {
+          ParticipantStage(
+            participants: participants,
+            defaultSpeakerID: defaultSpeakerID,
+            speakerBotID: session.snapshot.speakerBotID,
+            userSpeaking: session.snapshot.userSpeaking,
+            microphoneMuted: microphoneMuted
+          )
+          .padding(.horizontal, 20)
+          .onAppear { animateAvatar = true }
+        }
 
         HStack(spacing: 9) {
           Circle()
@@ -156,7 +178,7 @@ private struct LiveVoiceCallSurface: View {
         }
         .padding(.top, 16)
 
-        CaptionView(snapshot: session.snapshot, bot: bot)
+        CaptionView(snapshot: session.snapshot, bot: bot, participants: participants)
           .frame(maxWidth: 560)
           .frame(maxHeight: 190)
           .padding(.horizontal, 26)
@@ -285,6 +307,15 @@ private struct VoiceAvatar: View {
 private struct CaptionView: View {
   let snapshot: LiveVoiceSnapshot
   let bot: Bot?
+  var participants: [Bot] = []
+
+  private func speakerName(_ entry: LiveVoiceTranscript) -> String {
+    guard entry.role == .assistant else { return "You" }
+    if let id = entry.speakerBotID, let member = participants.first(where: { $0.id == id }) {
+      return member.title.isEmpty ? member.name : member.title
+    }
+    return bot?.title ?? "Assistant"
+  }
 
   var body: some View {
     ScrollViewReader { proxy in
@@ -292,7 +323,7 @@ private struct CaptionView: View {
         VStack(spacing: 9) {
           ForEach(snapshot.transcript) { entry in
             VStack(spacing: 2) {
-              Text(entry.role == .assistant ? (bot?.title ?? "Assistant") : "You")
+              Text(speakerName(entry))
                 .font(.caption.weight(.medium))
                 .foregroundStyle(NativePalette.muted)
               Text(entry.text)
@@ -329,6 +360,110 @@ private struct CaptionView: View {
       .onChange(of: snapshot.partialTranscript) { _, _ in
         withAnimation { proxy.scrollTo("partial", anchor: .bottom) }
       }
+    }
+  }
+}
+
+/// The room of a group call: a face for the user and for each bot, in a grid like a meeting. Whoever is
+/// talking gets a green ring that spreads outward and a slightly larger face.
+private struct ParticipantStage: View {
+  let participants: [Bot]
+  let defaultSpeakerID: String?
+  let speakerBotID: String?
+  let userSpeaking: Bool
+  let microphoneMuted: Bool
+
+  var body: some View {
+    // Up to three across keeps names readable on a phone; more wrap onto another row.
+    let rows = stride(from: 0, to: participants.count + 1, by: 3).map { start in
+      Array(start..<min(start + 3, participants.count + 1))
+    }
+    VStack(spacing: 18) {
+      ForEach(rows, id: \.self) { indices in
+        HStack(alignment: .top, spacing: 0) {
+          ForEach(indices, id: \.self) { index in
+            Group {
+              if index == 0 {
+                ParticipantTile(name: "You", speaking: userSpeaking, muted: microphoneMuted, badge: nil) {
+                  Image(systemName: "person.fill")
+                    .font(.system(size: 30))
+                    .foregroundStyle(NativePalette.muted)
+                    .frame(width: 76, height: 76)
+                    .background(NativePalette.surface, in: Circle())
+                }
+              } else {
+                let member = participants[index - 1]
+                ParticipantTile(
+                  name: member.title.isEmpty ? member.name : member.title,
+                  speaking: member.id == speakerBotID,
+                  muted: false,
+                  badge: member.id == defaultSpeakerID ? "Host" : nil
+                ) {
+                  BotGlyph(color: Color(hex: member.color), kind: member.icon, size: 76, mode: .still)
+                    .frame(width: 76, height: 76)
+                    .clipShape(Circle())
+                }
+              }
+            }
+            .frame(maxWidth: .infinity)
+          }
+        }
+      }
+    }
+    .accessibilityElement(children: .contain)
+    .accessibilityIdentifier("live-voice-stage")
+  }
+}
+
+private struct ParticipantTile<Face: View>: View {
+  @Environment(\.accessibilityReduceMotion) private var reduceMotion
+  let name: String
+  let speaking: Bool
+  let muted: Bool
+  let badge: String?
+  @ViewBuilder let face: () -> Face
+  @State private var spread = false
+
+  var body: some View {
+    VStack(spacing: 6) {
+      ZStack {
+        if speaking {
+          Circle()
+            .stroke(Color.green.opacity(spread ? 0 : 0.55), lineWidth: 2)
+            .frame(width: 76, height: 76)
+            .scaleEffect(spread ? 1.32 : 1)
+        }
+        face()
+          .overlay(Circle().stroke(speaking ? Color.green : Color.clear, lineWidth: 3))
+          .scaleEffect(speaking ? 1.06 : 1)
+        if muted {
+          Image(systemName: "mic.slash.fill")
+            .font(.system(size: 11, weight: .bold))
+            .foregroundStyle(NativePalette.background)
+            .frame(width: 22, height: 22)
+            .background(NativePalette.text, in: Circle())
+            .offset(x: 28, y: 28)
+            .accessibilityLabel("Microphone muted")
+        }
+      }
+      .frame(width: 98, height: 98)
+      .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: speaking)
+      Text(name)
+        .font(.system(size: 14, weight: .medium, design: .rounded))
+        .foregroundStyle(speaking ? Color.green : NativePalette.text)
+        .lineLimit(1)
+      if let badge {
+        Text(badge)
+          .font(.caption2.weight(.semibold))
+          .foregroundStyle(NativePalette.link)
+      }
+    }
+    .accessibilityElement(children: .combine)
+    .accessibilityLabel(speaking ? "\(name), speaking" : name)
+    .onChange(of: speaking) { _, isSpeaking in
+      guard isSpeaking, !reduceMotion else { spread = false; return }
+      spread = false
+      withAnimation(.easeOut(duration: 1.1).repeatForever(autoreverses: false)) { spread = true }
     }
   }
 }
