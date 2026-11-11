@@ -262,27 +262,39 @@ DROP TRIGGER IF EXISTS aiteamos_event_notify ON "Event";
 CREATE TRIGGER aiteamos_event_notify AFTER INSERT ON "Event"
   FOR EACH ROW EXECUTE FUNCTION aiteamos_notify_event();
 
--- Web tools: one selected provider per tool, and per-tool provider rows holding the API key
+-- Web tools: ordered provider schedules per tool, and per-tool provider rows holding the API key
 -- and last connection check. Provider lists match packages/contracts/src/web-search.ts.
+ALTER TABLE "WebSearchSettings"
+  ADD COLUMN IF NOT EXISTS "providers" JSONB NOT NULL DEFAULT '[]'::jsonb,
+  ADD COLUMN IF NOT EXISTS "strategy" TEXT NOT NULL DEFAULT 'failover',
+  ADD COLUMN IF NOT EXISTS "cursor" INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE "WebFetchSettings"
+  ADD COLUMN IF NOT EXISTS "providers" JSONB NOT NULL DEFAULT '[]'::jsonb,
+  ADD COLUMN IF NOT EXISTS "strategy" TEXT NOT NULL DEFAULT 'failover',
+  ADD COLUMN IF NOT EXISTS "cursor" INTEGER NOT NULL DEFAULT 0;
+UPDATE "WebSearchSettings" SET "providers" = jsonb_build_array("provider")
+WHERE "provider" IS NOT NULL AND "providers" = '[]'::jsonb;
+UPDATE "WebFetchSettings" SET "providers" = jsonb_build_array("provider")
+WHERE "provider" IS NOT NULL AND "providers" = '[]'::jsonb;
 ALTER TABLE "WebSearchSettings" DROP CONSTRAINT IF EXISTS "WebSearchSettings_valid";
 ALTER TABLE "WebFetchSettings" DROP CONSTRAINT IF EXISTS "WebFetchSettings_valid";
 ALTER TABLE "WebToolProvider" DROP CONSTRAINT IF EXISTS "WebToolProvider_valid";
 
 ALTER TABLE "WebSearchSettings" ADD CONSTRAINT "WebSearchSettings_valid" CHECK (
   "id" = 'global' AND ("provider" IS NULL OR "provider" IN (
-    'exa', 'brave', 'parallel', 'firecrawl', 'bing-serpapi', 'perplexity'
-  ))
+    'exa', 'brave', 'parallel', 'firecrawl', 'bing-serpapi', 'perplexity', 'deepseek'
+  )) AND "strategy" IN ('round_robin', 'failover') AND "cursor" >= 0
 );
 ALTER TABLE "WebFetchSettings" ADD CONSTRAINT "WebFetchSettings_valid" CHECK (
   "id" = 'global' AND ("provider" IS NULL OR "provider" IN (
-    'builtin', 'exa', 'parallel', 'firecrawl'
-  ))
+    'builtin', 'exa', 'parallel', 'firecrawl', 'deepseek'
+  )) AND "strategy" IN ('round_robin', 'failover') AND "cursor" >= 0
 );
 ALTER TABLE "WebToolProvider" ADD CONSTRAINT "WebToolProvider_valid" CHECK (
   (("tool" = 'search' AND "provider" IN (
-    'exa', 'brave', 'parallel', 'firecrawl', 'bing-serpapi', 'perplexity'
+    'exa', 'brave', 'parallel', 'firecrawl', 'bing-serpapi', 'perplexity', 'deepseek'
   )) OR ("tool" = 'fetch' AND "provider" IN (
-    'builtin', 'exa', 'parallel', 'firecrawl'
+    'builtin', 'exa', 'parallel', 'firecrawl', 'deepseek'
   ))) AND
   ("secret" IS NULL OR length(btrim("secret")) > 0) AND
   ("checkStatus" IS NULL OR "checkStatus" IN ('passed', 'failed')) AND

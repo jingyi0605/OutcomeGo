@@ -1281,18 +1281,24 @@ model TaskSettings {
   updatedAt DateTime @updatedAt
 }
 
-/// Selected search provider; null means search is off. Credentials live in WebToolProvider.
+/// Search schedule and legacy first provider; an empty schedule means search is off. Credentials live in WebToolProvider.
 model WebSearchSettings {
-  id        String   @id @default("global")
-  provider  String?
-  updatedAt DateTime @updatedAt
+  id         String   @id @default("global")
+  provider   String?
+  providers  Json     @default("[]")
+  strategy   String   @default("failover")
+  cursor     Int      @default(0)
+  updatedAt  DateTime @updatedAt
 }
 
-/// Selected fetch provider; no row means the built-in fetcher and a null provider turns fetch off.
+/// Fetch schedule and legacy first provider; a missing row defaults to built-in and an empty schedule turns fetch off.
 model WebFetchSettings {
-  id        String   @id @default("global")
-  provider  String?  @default("builtin")
-  updatedAt DateTime @updatedAt
+  id         String   @id @default("global")
+  provider   String?  @default("builtin")
+  providers  Json     @default("[]")
+  strategy   String   @default("failover")
+  cursor     Int      @default(0)
+  updatedAt  DateTime @updatedAt
 }
 
 /// A provider's saved configuration for one web tool ("search" or "fetch"). Each tool keeps its

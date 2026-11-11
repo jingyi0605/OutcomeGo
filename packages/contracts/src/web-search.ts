@@ -3,6 +3,8 @@
 
 export type WebTool = "search" | "fetch";
 export const WEB_TOOLS: readonly WebTool[] = ["search", "fetch"];
+export type WebToolStrategy = "round_robin" | "failover";
+export const WEB_TOOL_STRATEGIES: readonly WebToolStrategy[] = ["round_robin", "failover"];
 
 export interface WebProviderField {
   /** A provider's API key, its one secret. */
@@ -34,6 +36,7 @@ export const SEARCH_PROVIDER_LIST = [
   { id: "firecrawl", name: "Firecrawl", brand: "firecrawl", description: "Web search with page summaries.", fields: [apiKey()], setupUrl: "https://www.firecrawl.dev/app/api-keys" },
   { id: "bing-serpapi", name: "Bing", brand: "bing", description: "Bing results through a SerpApi key.", fields: [apiKey()], setupUrl: "https://serpapi.com/manage-api-key" },
   { id: "perplexity", name: "Perplexity", brand: "perplexity", description: "Results from Perplexity's search index.", fields: [apiKey()], setupUrl: "https://www.perplexity.ai/account/api/keys" },
+  { id: "deepseek", name: "DeepSeek", brand: "deepseek", description: "Live web search with page content.", fields: [apiKey()], setupUrl: "https://platform.deepseek.com/api_keys" },
 ] as const satisfies readonly WebProviderInfo[];
 
 export const FETCH_PROVIDER_LIST = [
@@ -41,6 +44,7 @@ export const FETCH_PROVIDER_LIST = [
   { id: "exa", name: "Exa", brand: "exa", description: "Live-crawled page text.", fields: [apiKey()], setupUrl: "https://dashboard.exa.ai/api-keys" },
   { id: "parallel", name: "Parallel", brand: "parallel", description: "Full page content, including PDFs.", fields: [apiKey()], setupUrl: "https://platform.parallel.ai" },
   { id: "firecrawl", name: "Firecrawl", brand: "firecrawl", description: "Renders JavaScript and returns clean Markdown.", fields: [apiKey()], setupUrl: "https://www.firecrawl.dev/app/api-keys" },
+  { id: "deepseek", name: "DeepSeek", brand: "deepseek", description: "Fetches public pages as Markdown.", fields: [apiKey()], setupUrl: "https://platform.deepseek.com/api_keys" },
 ] as const satisfies readonly WebProviderInfo[];
 
 export type SearchProvider = (typeof SEARCH_PROVIDER_LIST)[number]["id"];
@@ -80,9 +84,17 @@ export interface WebProviderState {
   check: WebProviderCheck | null;
 }
 
+export interface WebToolSchedule<Provider extends string = string> {
+  strategy: WebToolStrategy;
+  providers: Provider[];
+  cursor: number;
+}
+
 export interface WebToolView<Provider extends string = string> {
   /** null: the tool is off. */
   selected: Provider | null;
+  /** The configured provider order and runtime strategy. */
+  schedule: WebToolSchedule<Provider>;
   providers: Record<string, WebProviderState>;
 }
 
@@ -98,6 +110,10 @@ export interface WebProviderFieldsInput {
 
 export interface WebToolInput {
   selected?: string | null;
+  schedule?: {
+    strategy?: WebToolStrategy;
+    providers?: string[];
+  };
   providers?: Record<string, WebProviderFieldsInput>;
 }
 
@@ -113,8 +129,9 @@ export interface WebProviderCheckInput {
 
 /** Internal server → computer payloads. */
 export interface WebToolCredentials<Provider extends string = string> {
-  provider: Provider | null;
-  apiKey: string | null;
+  strategy: WebToolStrategy;
+  providers: Array<{ provider: Provider; apiKey: string | null }>;
+  cursor: number;
 }
 
 export interface WebProviderCheckRequest {

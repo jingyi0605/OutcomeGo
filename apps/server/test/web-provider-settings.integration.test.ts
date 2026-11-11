@@ -32,6 +32,9 @@ test("provider settings validate tools, providers and fields without echoing the
     { search: { providers: { searxng: { baseUrl: "https://searx.example" } } } },
     { fetch: { selected: "cloudflare" } },
     { search: { selected: "exa", configured: true } },
+    { search: { schedule: { strategy: "weighted", providers: ["exa"] } } },
+    { search: { schedule: { strategy: "failover", providers: ["exa", "exa"] } } },
+    { search: { schedule: { strategy: "failover", providers: ["builtin"] } } },
   ])
     expect(() => parseWebProviderSettings(input)).toThrow();
   expect(
@@ -42,6 +45,27 @@ test("provider settings validate tools, providers and fields without echoing the
   ).toEqual({
     search: { selected: "bing-serpapi", providers: { "bing-serpapi": { apiKey: "serp-key" }, exa: { apiKey: null } } },
     fetch: { selected: null, providers: { firecrawl: { apiKey: "fc-key" } } },
+  });
+  expect(
+    parseWebProviderSettings({
+      search: {
+        schedule: { strategy: "round_robin", providers: ["deepseek", "exa"] },
+        providers: { deepseek: { apiKey: "deep-key" }, exa: { apiKey: "exa-key" } },
+      },
+      fetch: {
+        schedule: { strategy: "failover", providers: ["builtin", "deepseek"] },
+        providers: { deepseek: { apiKey: "deep-fetch-key" } },
+      },
+    })
+  ).toEqual({
+    search: {
+      schedule: { strategy: "round_robin", providers: ["deepseek", "exa"] },
+      providers: { deepseek: { apiKey: "deep-key" }, exa: { apiKey: "exa-key" } },
+    },
+    fetch: {
+      schedule: { strategy: "failover", providers: ["builtin", "deepseek"] },
+      providers: { deepseek: { apiKey: "deep-fetch-key" } },
+    },
   });
 });
 
@@ -88,8 +112,8 @@ test.skipIf(!databaseUrl)(
       for (const tool of ["search", "fetch"] as const)
         for (const [id, state] of Object.entries(fresh[tool].providers))
           if (id !== "builtin") expect(state).toMatchObject({ ready: false });
-      expect(await service.credentials("search")).toEqual({ provider: null, apiKey: null });
-      expect(await service.credentials("fetch")).toEqual({ provider: "builtin", apiKey: null });
+      expect(await service.credentials("search")).toEqual({ strategy: "failover", providers: [], cursor: 0 });
+      expect(await service.credentials("fetch")).toEqual({ strategy: "failover", providers: [{ provider: "builtin", apiKey: null }], cursor: 0 });
 
       // A provider cannot be selected without its API key.
       const rejected = await patch({ search: { selected: "exa" } });
@@ -102,19 +126,19 @@ test.skipIf(!databaseUrl)(
       expect(noFetchKey.body.error.message).toBe("Add the Exa API key to use it for fetch.");
       await patch({ fetch: { selected: "exa", providers: { exa: { apiKey: fetchKey } } } });
       const restarted = new WebProviderSettingsService(prisma);
-      expect(await restarted.credentials("search")).toEqual({ provider: "exa", apiKey: searchKey });
-      expect(await restarted.credentials("fetch")).toEqual({ provider: "exa", apiKey: fetchKey });
+      expect(await restarted.credentials("search")).toEqual({ strategy: "failover", providers: [{ provider: "exa", apiKey: searchKey }], cursor: 0 });
+      expect(await restarted.credentials("fetch")).toEqual({ strategy: "failover", providers: [{ provider: "exa", apiKey: fetchKey }], cursor: 0 });
 
       // A key in use cannot be removed until the tool moves elsewhere.
       const inUse = await patch({ search: { providers: { exa: { apiKey: null } } } });
       expect(inUse.body.error.message).toBe("Exa is used for search. Choose another search provider before removing its API key.");
       await patch({ search: { selected: null, providers: { exa: { apiKey: null } } } });
-      expect(await service.credentials("search")).toEqual({ provider: null, apiKey: null });
-      expect(await service.credentials("fetch")).toEqual({ provider: "exa", apiKey: fetchKey });
+      expect(await service.credentials("search")).toEqual({ strategy: "failover", providers: [], cursor: 0 });
+      expect(await service.credentials("fetch")).toEqual({ strategy: "failover", providers: [{ provider: "exa", apiKey: fetchKey }], cursor: 0 });
 
       // Saving the same key again is not a change.
       await patch({ fetch: { selected: "firecrawl", providers: { firecrawl: { apiKey: "fc-token" } } } });
-      expect(await service.credentials("fetch")).toEqual({ provider: "firecrawl", apiKey: "fc-token" });
+      expect(await service.credentials("fetch")).toEqual({ strategy: "failover", providers: [{ provider: "firecrawl", apiKey: "fc-token" }], cursor: 0 });
       const view = (await request("/api/server-settings/web-providers", "GET")).body;
       expect(view.fetch.providers.firecrawl).toEqual({ secretSaved: true, ready: true, check: null });
       expect(JSON.stringify(view)).not.toContain("fc-token");
@@ -125,8 +149,8 @@ test.skipIf(!databaseUrl)(
 
       // Both tools can be off.
       await patch({ search: { selected: null }, fetch: { selected: null } });
-      expect(await service.credentials("search")).toEqual({ provider: null, apiKey: null });
-      expect(await service.credentials("fetch")).toEqual({ provider: null, apiKey: null });
+      expect(await service.credentials("search")).toEqual({ strategy: "failover", providers: [], cursor: 0 });
+      expect(await service.credentials("fetch")).toEqual({ strategy: "failover", providers: [], cursor: 0 });
 
       // Separate service instances serialize their writes through a transaction lock.
       await Promise.all([
@@ -134,7 +158,7 @@ test.skipIf(!databaseUrl)(
         restarted.save({ search: { selected: "brave", providers: { brave: { apiKey: "brave-fixture-key" } } } }),
       ]);
       const final = await service.credentials("search");
-      expect(final.apiKey).toBe(final.provider === "exa" ? searchKey : "brave-fixture-key");
+      expect(final.providers[0]?.apiKey).toBe(final.providers[0]?.provider === "exa" ? searchKey : "brave-fixture-key");
     } finally {
       await reset(prisma);
       await prisma.$disconnect();

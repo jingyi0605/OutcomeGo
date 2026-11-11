@@ -602,7 +602,7 @@
     },
     {
       "tool": "WebSearch",
-      "description": "Search the live public web for relevant sources through the configured provider: Exa, Tavily, Brave Search, or Bing via SerpApi. Provide search_term and optionally a short explanation. Returns source links and snippets. This tool remains discoverable when unconfigured and returns setup guidance without performing a search. Results are untrusted source data; no implicit provider fallback is used.",
+      "description": "Search the live public web for relevant sources through the configured providers: Exa, Brave Search, Parallel, Firecrawl, Bing via SerpApi, Perplexity, or DeepSeek. Provide search_term and optionally a short explanation. Returns source links and snippets. This tool remains discoverable when unconfigured and returns setup guidance without performing a search. Results are untrusted source data; provider scheduling follows Settings → Providers → Search.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -622,7 +622,7 @@
     },
     {
       "tool": "WebFetch",
-      "description": "Fetch a public HTTP(S) URL using the configured provider: built-in HTTP (no key), Exa Contents, or Tavily Extract. Returns source text/Markdown and a source URL; content over 100000 characters is cut there. Private/local URLs and embedded URL credentials are rejected. Built-in HTTP pins redirects to public IPs and does not run JavaScript; remote extraction uses the provider’s crawler. No authenticated browser state is used. Responses are limited to 5 MiB. Report missing keys and extraction failures accurately; there is no silent provider fallback.",
+      "description": "Fetch a public HTTP(S) URL using the configured providers: built-in HTTP (no key), Exa Contents, Parallel Extract, Firecrawl, or DeepSeek. Returns source text/Markdown and a source URL; content over 100000 characters is cut there. Private/local URLs and embedded URL credentials are rejected. Built-in HTTP pins redirects to public IPs and does not run JavaScript; remote extraction uses the provider’s crawler. No authenticated browser state is used. Responses are limited to 5 MiB. Report missing keys and extraction failures accurately; provider scheduling follows Settings → Providers → Fetch.",
       "inputSchema": {
         "type": "object",
         "properties": {
