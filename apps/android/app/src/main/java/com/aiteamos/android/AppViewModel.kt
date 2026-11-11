@@ -1350,11 +1350,15 @@ class AppViewModel @JvmOverloads constructor(
         computerRequest(HttpMethod.GET, "/api/v0/bots/${Uri.encode(botId)}/screen")
     }
 
-    suspend fun setComputerTakeover(botId: String, active: Boolean): Result<JsonObject> = runCatching {
+    /** `renew` is a heartbeat: it extends a held lease and never acquires one. */
+    suspend fun setComputerTakeover(botId: String, active: Boolean, renew: Boolean = false): Result<JsonObject> = runCatching {
         computerRequest(
             HttpMethod.POST,
             "/api/v0/bots/${Uri.encode(botId)}/screen/takeover",
-            buildJsonObject { put("active", active) },
+            buildJsonObject {
+                put("active", active)
+                if (renew) put("renew", true)
+            },
         )
     }
 

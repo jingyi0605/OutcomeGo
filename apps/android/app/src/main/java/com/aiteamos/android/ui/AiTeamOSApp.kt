@@ -2741,7 +2741,7 @@ private fun ComputerViewerScreen(
     server: String?,
     requestGrant: suspend (String) -> Result<ComputerVncGrant>,
     requestStatus: suspend (String) -> Result<JsonObject>,
-    setTakeover: suspend (String, Boolean) -> Result<JsonObject>,
+    setTakeover: suspend (String, Boolean, Boolean) -> Result<JsonObject>,
     setPaused: suspend (String, Boolean) -> Result<JsonObject>,
     sendAction: suspend (String, JsonObject) -> Result<JsonObject>,
     sendClipboard: suspend (String, String) -> Result<JsonObject>,
@@ -2800,7 +2800,7 @@ private fun ComputerViewerScreen(
         while (isActive) {
             requestStatus(botId).onSuccess { status = it }.onFailure { failure = it.message }
             if (controlling) {
-                setTakeover(botId, true).onSuccess { status = it }.onFailure { failure = it.message }
+                setTakeover(botId, true, true).onSuccess { status = it }.onFailure { failure = it.message }
             }
             delay(20_000)
         }
@@ -2812,7 +2812,7 @@ private fun ComputerViewerScreen(
     }
     DisposableEffect(botId) {
         onDispose {
-            if (controlling) scope.launch { setTakeover(botId, false) }
+            if (controlling) scope.launch { setTakeover(botId, false, false) }
         }
     }
     Scaffold(
@@ -2822,7 +2822,7 @@ private fun ComputerViewerScreen(
                 actions = {
                     TextButton(onClick = {
                         scope.launch {
-                            setTakeover(botId, !controlling).fold(
+                            setTakeover(botId, !controlling, false).fold(
                                 onSuccess = { status = it; failure = null },
                                 onFailure = { failure = it.message },
                             )
