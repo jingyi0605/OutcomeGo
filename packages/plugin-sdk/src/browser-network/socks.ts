@@ -2,30 +2,39 @@ import { createServer, type Socket } from "node:net";
 import type { Duplex } from "node:stream";
 import ipaddr from "ipaddr.js";
 
+/** How long a half-closed tunnel may stay silent before the gateway reclaims its slot. */
+export const HALF_CLOSE_IDLE_MS = 15_000;
+
 /** Loopback-only SOCKS5 CONNECT gateway. It never chooses or falls back to a route. */
 export function createBrowserProxy(
   open: (host: string, port: number) => Promise<Duplex>,
-  limit = 80
+  limit = 80,
+  halfCloseIdleMs = HALF_CLOSE_IDLE_MS
 ) {
   const clients = new Set<Socket>();
+  const counters = { peak: 0, rejected: 0, reaped: 0 };
   const server = createServer({ allowHalfOpen: true }, (client) => {
     client.setNoDelay(true);
     let timer: ReturnType<typeof setTimeout> | undefined,
+      halfClosed: ReturnType<typeof setTimeout> | undefined,
       upstream: Duplex | undefined;
     // Release capacity before admission: a rejected connection must not stay in the
     // set, because this set is the only capacity measure and, under computer-wide
     // routing, every container connection fails once it is exhausted.
     client.once("close", () => {
       clearTimeout(timer);
+      clearTimeout(halfClosed);
       clients.delete(client);
       upstream?.destroy();
     });
     client.on("error", () => {});
     clients.add(client);
     if (clients.size > limit) {
+      counters.rejected++;
       client.destroy();
       return;
     }
+    counters.peak = Math.max(counters.peak, clients.size);
     let stage = 0,
       bytes = Buffer.alloc(0),
       busy = false;
@@ -113,6 +122,31 @@ export function createBrowserProxy(
           }
           socket.on("error", () => client.destroy());
           socket.once("close", () => client.destroy());
+          // Both sides are dialed with allowHalfOpen, so a FIN is forwarded but the slot is
+          // only freed once the peer answers with its own FIN. Some servers never do, which
+          // leaves the socket in FIN-WAIT-2 and the slot taken forever. Once either side has
+          // ended, reclaim the slot after a silent period; traffic keeps the tunnel alive.
+          let halfClosing = false;
+          const rearm = () => {
+            // Data can still flush while the client is being destroyed; a timer armed then
+            // would outlive the connection's close handler and count a reclaim twice.
+            if (!halfClosing || client.destroyed) return;
+            clearTimeout(halfClosed);
+            halfClosed = setTimeout(() => {
+              if (client.destroyed) return;
+              counters.reaped++;
+              client.destroy();
+            }, halfCloseIdleMs);
+            halfClosed.unref();
+          };
+          const startHalfClose = () => {
+            halfClosing = true;
+            rearm();
+          };
+          client.once("end", startHalfClose);
+          socket.once("end", startHalfClose);
+          client.on("data", rearm);
+          socket.on("data", rearm);
           client.write(Buffer.from([5, 0, 0, 1, 0, 0, 0, 0, 0, 0]));
           if (pending.length) socket.write(pending);
           client.pipe(socket).pipe(client);
@@ -135,6 +169,8 @@ export function createBrowserProxy(
           resolve((server.address() as import("node:net").AddressInfo).port);
         });
       }),
+    /** Capacity use since start; `rejected` and `reaped` only ever increase. */
+    stats: () => ({ active: clients.size, limit, ...counters }),
     close: () => {
       for (const client of clients) client.destroy();
       return new Promise<void>((resolve) => server.close(() => resolve()));
