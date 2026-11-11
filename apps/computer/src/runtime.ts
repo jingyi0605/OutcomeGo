@@ -363,6 +363,12 @@ export class ComputerRuntime {
         await this.tools.speakChunk(active, callId, text);
         active.narrator?.spoke("agent", text);
       });
+    } else if (request.voiceSpeech && !active.subagentType && active.requestSource !== "automation") {
+      // A room turn in a voice call: no narrator, but the room message is still spoken as it is written.
+      active.speech = new SendToUserSpeech(
+        (callId, text) => this.tools.speakChunk(active, callId, text),
+        { toRoom: true }
+      );
     }
     this.activeByRun.set(active.runId, active);
     this.activeByContext.set(active.contextSessionId, active);

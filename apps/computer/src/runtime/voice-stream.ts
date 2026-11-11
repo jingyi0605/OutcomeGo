@@ -35,12 +35,23 @@ export class SendToUserSpeech {
   private readonly broken = new Set<string>();
   private chain: Promise<void> = Promise.resolve();
 
-  constructor(private readonly send: (callId: string, text: string) => Promise<void>) {}
+  /**
+   * `toRoom` is for a turn that belongs to a group call, where SendToUser already posts to the room
+   * and `to: "dm"` is the private exception. Otherwise a plain message goes to the user's own chat.
+   */
+  constructor(
+    private readonly send: (callId: string, text: string) => Promise<void>,
+    private readonly options: { toRoom?: boolean } = {}
+  ) {}
 
   observe(callId: string, args: SendArguments | undefined): void {
-    // Only a plain message to the user's own chat is spoken; a post to a room or another channel is not.
     if (!args || (args.type ?? "text") !== "text" || typeof args.content !== "string") return;
-    if (args.channel !== undefined || args.to !== undefined) return;
+    // A call with one bot speaks only a plain message to the user's own chat. In a group call the
+    // plain message goes to the room, so only an explicit channel or a private "dm" is left unspoken.
+    const spoken = this.options.toRoom
+      ? args.channel === undefined && args.to !== "dm"
+      : args.channel === undefined && args.to === undefined;
+    if (!spoken) return;
     if (this.broken.has(callId)) return;
     const content = args.content;
     // Inside an open code fence the text is not meant to be read out.

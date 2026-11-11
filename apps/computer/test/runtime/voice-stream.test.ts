@@ -71,3 +71,39 @@ describe("SendToUser speech streaming", () => {
     expect(sent).toEqual(["另一条消息说完了。"]);
   });
 });
+
+describe("SendToUser speech in a group call", () => {
+  const room = () => {
+    const sent: Array<[string, string]> = [];
+    const instance = new SendToUserSpeech(async (callId, text) => void sent.push([callId, text]), { toRoom: true });
+    return { instance, sent };
+  };
+
+  test("a plain message goes to the room, so it is spoken as it is written", async () => {
+    const { instance, sent } = room();
+    instance.observe("c1", { type: "text", content: "我站正方，AI 让能力变便宜。" });
+    await instance.flush();
+    expect(sent).toEqual([["c1", "我站正方，AI 让能力变便宜。"]]);
+  });
+
+  test("a private message to the bot's own chat is not spoken", async () => {
+    const { instance, sent } = room();
+    instance.observe("c1", { type: "text", content: "这是私下的一段话，不该读出来。", to: "dm" });
+    await instance.flush();
+    expect(sent).toEqual([]);
+  });
+
+  test("a post to another channel is not spoken", async () => {
+    const { instance, sent } = room();
+    instance.observe("c1", { type: "text", content: "发到别的频道的一段话，不该读出来。", channel: "other" });
+    await instance.flush();
+    expect(sent).toEqual([]);
+  });
+
+  test("a single-bot call still ignores a room-style target", async () => {
+    const { instance, sent } = speech();
+    instance.observe("c1", { type: "text", content: "这是私下的一段话，不该读出来。", to: "dm" });
+    await instance.flush();
+    expect(sent).toEqual([]);
+  });
+});

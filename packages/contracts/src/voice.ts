@@ -92,7 +92,7 @@ export type VoiceServerMessage =
   | { type: "turn.started"; version: 1; sessionId: string; sequence: number; turnId: string }
   | { type: "transcript.partial"; version: 1; sessionId: string; sequence: number; turnId: string; text: string; isFinal: false }
   | { type: "transcript.final"; version: 1; sessionId: string; sequence: number; turnId: string; text: string; isFinal: true }
-  | { type: "reply.message"; version: 1; sessionId: string; sequence: number; turnId: string; messageId: string; text: string; generation: number; speakerBotId?: string }
+  | { type: "reply.message"; version: 1; sessionId: string; sequence: number; turnId: string; messageId: string; text: string; generation: number; speakerBotId?: string; replaces?: string }
   | { type: "audio.started"; version: 1; sessionId: string; sequence: number; turnId: string; generation: number; speakerBotId?: string }
   | { type: "audio.stopped"; version: 1; sessionId: string; sequence: number; generation: number; reason: "barge_in" | "stop" | "cancel" | "completed" }
   | { type: "barge_in"; version: 1; sessionId: string; sequence: number; turnId: string; generation: number }

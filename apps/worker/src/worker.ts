@@ -1525,6 +1525,8 @@ export class WakeWorker {
         ...(narrationSetting !== null
           ? { voiceNarration: { model: narrationSetting || formatPiModelRef(selectedInference), reasoning: "off" as const } }
           : {}),
+        // A turn in a voice-call room: no narrator, but each sentence of the reply is spoken as it is written.
+        ...(voiceTurn && claimed.deliveryId && !claimed.subagentType ? { voiceSpeech: true as const } : {}),
         fileAttachments: claimed.fileAttachments,
         attachmentOwnerBotId: claimed.attachmentOwnerBotId,
         dynamicNamespaces: pluginContext.dynamicNamespaces,

@@ -1475,6 +1475,11 @@ export const ComputerTurnRequest = Schema.Struct({
   voiceNarration: Schema.optional(
     Schema.Struct({ model: Schema.String, reasoning: Schema.Literal(...PI_REASONING_LEVELS) })
   ),
+  /**
+   * A turn whose SendToUser sentences are spoken as the model writes them, with no narrator.
+   * Set for a room turn that belongs to a realtime voice call, where the message goes to the room.
+   */
+  voiceSpeech: Schema.optional(Schema.Literal(true)),
 });
 export type ComputerTurnRequest = typeof ComputerTurnRequest.Type;
 

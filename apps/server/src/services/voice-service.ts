@@ -2,6 +2,7 @@ import type { Server, ServerWebSocket, WebSocketHandler } from "bun";
 import {
   ApiError,
   VOICE_MAX_SESSION_MS,
+  VOICE_FRAME_MS,
   VOICE_MAX_TURN_MS,
   VOICE_PROTOCOL,
   VOICE_PROTOCOL_VERSION,
@@ -46,8 +47,14 @@ export class VoiceService {
   readonly replies: VoiceReplySource;
   private readonly tickets = new Map<string, Ticket>();
   private readonly connections = new Map<string, VoiceSessionConnection>();
-  private readonly groupAnswerSinks = new Map<string, (input: { text: string; generation: number; speakerBotId: string; voice: string }) => Promise<void>>();
+  private readonly groupAnswerSinks = new Map<string, (input: { text: string; generation: number; speakerBotId: string; voice: string; onAudible: () => void }) => Promise<void>>();
   private readonly echoes = new Map<string, boolean>();
+  /**
+   * Sentences of a room reply already spoken while the model was still writing it, per run and tool call.
+   * `onGroupDeliverySettled` reads this so the saved message is only read from where the stream stopped.
+   */
+  private readonly groupStreams = new Map<string, Map<string, { raw: string; generation: number; speakerBotId: string; captioned: boolean }>>();
+  private readonly groupRunOwners = new Map<string, { sessionId: string; speakerBotId: string; voice: string; names: string[] } | null>();
   private readonly sessionRuns = new Map<string, Set<string>>();
   private groupDeliveryWatcherAbort: AbortController | null = null;
   private groupDeliveryWatcherPromise: Promise<void> | null = null;
@@ -68,6 +75,9 @@ export class VoiceService {
     this.groupDeliveryWatcherAbort = abort;
     this.groupDeliveryWatcherPromise = (async () => {
       while (!abort.signal.aborted) {
+        // Read the version before querying: a notification that lands between an empty query and
+        // the wait would otherwise be missed until the next unrelated event.
+        const version = wakeup.currentVersion;
         const events = await this.prisma.event.findMany({
           where: { topic: "channel.delivery.completed", sequence: { gt: cursor } },
           orderBy: { sequence: "asc" },
@@ -91,8 +101,8 @@ export class VoiceService {
           }
           continue;
         }
-        const version = wakeup.currentVersion;
-        await wakeup.wait(version, 25_000, abort.signal);
+        // The notification is an optimization; the short timeout bounds how late a missed one can be.
+        await wakeup.wait(version, 5_000, abort.signal);
       }
     })().catch((error) => {
       if (!abort.signal.aborted) console.error("group delivery voice watcher", error);
@@ -306,7 +316,8 @@ export class VoiceService {
       generation: number,
       kind: "answer" | "narration" = "answer",
       speakerBotId = session.botId,
-      speakerVoice?: string
+      speakerVoice?: string,
+      onAudible?: () => void
     ) => {
       const narration = kind === "narration" ? { dropped: false } : null;
       if (narration) queuedNarrations.add(narration);
@@ -317,6 +328,23 @@ export class VoiceService {
           if (narration.dropped) return;
         }
         if (!outputCodec || generation !== connection.media.currentGeneration) return;
+        // Called once, when this message is the one being heard: after everything queued before it has
+        // played. A caption shown at publication time would run ahead of the voice.
+        let announced = false;
+        const announce = () => {
+          if (announced) return;
+          announced = true;
+          onAudible?.();
+        };
+        const untilEarlierSpeechPlayed = async () => connection.waitForPlayback(
+          generation,
+          connection.media.queuedFrames * VOICE_FRAME_MS,
+          connection.media.bufferedMs + 3_000
+        );
+        if (!text.trim()) {
+          if (onAudible && await untilEarlierSpeechPlayed()) announce();
+          return;
+        }
         const defaultVoice = session.voice || this.settings.runtime(sessionProvider).voice;
         const selectedVoice = speakerVoice?.trim() || defaultVoice;
         const useWarmPool = !speakerVoice || selectedVoice === defaultVoice;
@@ -329,7 +357,15 @@ export class VoiceService {
         let started = false;
         try {
           await stream.writeText(text);
+          // Synthesis starts now, so this message is ready the moment the earlier one finishes playing.
           await stream.end();
+          if (onAudible) {
+            if (!await untilEarlierSpeechPlayed()) {
+              await stream.cancel().catch(() => undefined);
+              return;
+            }
+            announce();
+          }
           let pending: Uint8Array<ArrayBufferLike> = new Uint8Array(0);
           for await (const chunk of stream.audio) {
             if (generation !== connection.media.currentGeneration) return;
@@ -355,6 +391,7 @@ export class VoiceService {
           return;
         } catch (error) {
           if (warmed && !started && attempt === 0 && generation === connection.media.currentGeneration) continue;
+          announce();
           // A rejected synthesis request must reach the user instead of leaving a silent call.
           connection.send({ type: "error", code: "voice_tts_failed", message: error instanceof Error ? error.message : "Voice synthesis failed", retryable: true });
           return;
@@ -365,8 +402,8 @@ export class VoiceService {
       });
       return ttsChain;
     };
-    this.groupAnswerSinks.set(sessionId, ({ text, generation, speakerBotId, voice }) =>
-      speak(text, generation, "answer", speakerBotId, voice)
+    this.groupAnswerSinks.set(sessionId, ({ text, generation, speakerBotId, voice, onAudible }) =>
+      speak(text, generation, "answer", speakerBotId, voice, onAudible)
     );
     const connection = new VoiceSessionConnection({
       sessionId,
@@ -391,7 +428,7 @@ export class VoiceService {
         // Greet first, so the user hears the call is live without having to speak. A reconnect stays silent.
         if (message.type === "client_ready" && !greeted.has(sessionId)) {
           greeted.add(sessionId);
-          const greeting = pickGreeting(language);
+          const greeting = pickGreeting(language, Math.random, session.participantBotIds.length > 1);
           // Show the greeting as a caption too; clients that only play audio would otherwise see nothing.
           connection.send({ type: "reply.message", turnId: "", messageId: `greeting:${sessionId}`, text: greeting, generation: connection.media.currentGeneration, speakerBotId: session.botId });
           void speak(greeting, connection.media.currentGeneration, "narration");
@@ -578,26 +615,36 @@ export class VoiceService {
       });
       turn.assistantMessageIds.push(message.id);
       turn.generation = generation;
-      const outputGeneration = connection.media.currentGeneration;
-      connection.send({
+      const callId = message.clientId?.startsWith("tool:") ? message.clientId.slice(5) : undefined;
+      const streamed = callId ? this.groupStreams.get(runId)?.get(callId) : undefined;
+      // Sentences already spoken while the bot was writing: only what came after is read now.
+      const rest = streamed ? unspokenRemainder(message.content, streamed.raw) : message.content;
+      const outputGeneration = streamed && rest !== null ? streamed.generation : connection.media.currentGeneration;
+      // The caption appears when this message's voice starts, not when the text is published, so
+      // it never runs ahead of the participant who is still speaking. A message that began streaming
+      // already has its caption; this one replaces it with the full text.
+      const showCaption = () => connection.send({
         type: "reply.message",
         turnId: turn.id,
         messageId: message.id,
         text: message.content,
         generation: outputGeneration,
         speakerBotId,
+        ...(streamed ? { replaces: `stream:${runId}:${callId}` } : {}),
       });
       // The @ that hands the next turn to another participant is for the chat, not for the ear.
-      const spoken = normalizeVoiceText(stripVoiceMentions(message.content, roomNames));
-      if (spoken) {
-        void speak({
-          text: spoken,
-          generation: outputGeneration,
-          speakerBotId,
-          voice: message.senderBot?.voice ?? "",
-        });
-      }
+      const spoken = normalizeVoiceText(stripVoiceMentions(rest ?? message.content, roomNames));
+      if (streamed && rest !== null && streamed.generation !== connection.media.currentGeneration) continue;
+      void speak({
+        text: spoken,
+        generation: outputGeneration,
+        speakerBotId,
+        voice: message.senderBot?.voice ?? "",
+        onAudible: showCaption,
+      });
     }
+    this.groupStreams.delete(runId);
+    this.groupRunOwners.delete(runId);
   }
 
   private replySink(sessionId: string, turnId: string, runId: string, speakerBotId: string, onReply?: (text: string, generation: number, kind: "answer" | "narration") => Promise<void>) {
@@ -641,7 +688,67 @@ export class VoiceService {
 
   async onVisibleMessage(runId: string, messageId: string) { await this.replies.onVisibleMessage(runId, messageId); }
 
-  speakChunk(runId: string, callId: string, text: string) { return this.replies.speakChunk(runId, callId, text); }
+  async speakChunk(runId: string, callId: string, text: string): Promise<boolean> {
+    if (await this.replies.speakChunk(runId, callId, text)) return true;
+    return this.speakGroupChunk(runId, callId, text);
+  }
+
+  /** The voice call, speaker and room names a room run belongs to, or null when it is not part of a voice call. */
+  private async groupRunOwner(runId: string) {
+    if (this.groupRunOwners.has(runId)) return this.groupRunOwners.get(runId)!;
+    const run = await this.prisma.run.findUnique({
+      where: { id: runId },
+      select: { botId: true, bot: { select: { voice: true } }, delivery: { select: { round: { select: { channelId: true, rootMessageId: true } } } } },
+    });
+    const round = run?.delivery?.round;
+    let owner: { sessionId: string; speakerBotId: string; voice: string; names: string[] } | null = null;
+    if (run && round) {
+      const root = await this.prisma.channelMessage.findUnique({ where: { id: round.rootMessageId }, select: { metadata: true } });
+      const metadata = root?.metadata && !Array.isArray(root.metadata) && typeof root.metadata === "object" ? root.metadata as Record<string, unknown> : {};
+      const voice = metadata.voice && typeof metadata.voice === "object" && !Array.isArray(metadata.voice) ? metadata.voice as { sessionId?: unknown } : null;
+      if (typeof voice?.sessionId === "string") {
+        const names = (await this.prisma.bot.findMany({ where: { channelMemberships: { some: { channelId: round.channelId } } }, select: { name: true } }))
+          .flatMap(bot => [bot.name, ...bot.name.trim().split(/\s+/)]);
+        owner = { sessionId: voice.sessionId, speakerBotId: run.botId, voice: run.bot.voice ?? "", names };
+      }
+    }
+    this.groupRunOwners.set(runId, owner);
+    return owner;
+  }
+
+  /**
+   * A finished sentence of a room reply the bot is still writing. It goes to the speaker at once;
+   * the caption appears with the first sentence's voice, and the saved message later only adds the rest.
+   */
+  private async speakGroupChunk(runId: string, callId: string, text: string): Promise<boolean> {
+    const owner = await this.groupRunOwner(runId);
+    if (!owner) return false;
+    const connection = this.connections.get(owner.sessionId);
+    const speak = this.groupAnswerSinks.get(owner.sessionId);
+    if (!connection || !speak) return false;
+    const streams = this.groupStreams.get(runId) ?? new Map();
+    this.groupStreams.set(runId, streams);
+    const entry = streams.get(callId) ?? { raw: "", generation: connection.media.currentGeneration, speakerBotId: owner.speakerBotId, captioned: false };
+    // The user cut in after this reply began: the rest of it is not to be spoken.
+    if (entry.generation !== connection.media.currentGeneration) return false;
+    const first = !entry.captioned;
+    entry.raw += text;
+    entry.captioned = true;
+    streams.set(callId, entry);
+    // Fixed now: by the time this sentence is heard, more may have been written, and that must not show yet.
+    const captionText = entry.raw;
+    const spoken = normalizeVoiceText(stripVoiceMentions(text, owner.names));
+    if (!spoken && !first) return true;
+    void speak({
+      text: spoken,
+      generation: entry.generation,
+      speakerBotId: owner.speakerBotId,
+      voice: owner.voice,
+      // The caption shows the text written so far; the saved message replaces it with the whole.
+      onAudible: first ? () => connection.send({ type: "reply.message", turnId: "", messageId: `stream:${runId}:${callId}`, text: captionText, generation: entry.generation, speakerBotId: owner.speakerBotId }) : () => undefined,
+    });
+    return true;
+  }
 
   private async cancelTurn(sessionId: string, turnId: string) {
     const turn = await this.prisma.voiceTurn.findFirst({ where: { id: turnId, sessionId } });
