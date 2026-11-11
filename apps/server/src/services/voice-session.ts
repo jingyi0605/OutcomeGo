@@ -62,6 +62,27 @@ export class VoiceSessionConnection {
   }
 
   /**
+   * Resolves true once the client has played the output up to `positionMs`, false if the output
+   * generation ended first (the user cut in or the call closed). Gives up after `timeoutMs` and
+   * resolves true, since a silent client must not hide text forever.
+   */
+  async waitForPlayback(generation: number, positionMs: number, timeoutMs: number): Promise<boolean> {
+    const deadline = Date.now() + timeoutMs;
+    while (!this.closed) {
+      if (this.media.currentGeneration !== generation) return false;
+      if (this.media.playbackPositionMs >= positionMs) return true;
+      const remaining = deadline - Date.now();
+      if (remaining <= 0) return true;
+      await new Promise<void>(resolve => {
+        const done = () => { clearTimeout(timer); this.outputWaiters.delete(done); resolve(); };
+        const timer = setTimeout(done, remaining);
+        this.outputWaiters.add(done);
+      });
+    }
+    return false;
+  }
+
+  /**
    * Ends the current output generation and returns the one that was stopped. Clients drop
    * every frame at or below the reported value, so reporting the new generation would
    * silence all audio that follows.

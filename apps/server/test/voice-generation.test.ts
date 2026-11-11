@@ -40,3 +40,40 @@ describe("output generation after a stop", () => {
     expect(before.generation).toBeLessThanOrEqual(stopped);
   });
 });
+
+describe("waiting for earlier speech to be heard", () => {
+  test("resolves once the client has played up to the position", async () => {
+    const call = connection();
+    const generation = call.media.currentGeneration;
+    const waiting = call.waitForPlayback(generation, 40, 5_000);
+    call.media.push(new Uint8Array([1]), 0);
+    call.media.push(new Uint8Array([2]), 20);
+    call.acknowledgePlayback(generation, 1);
+    expect(await waiting).toBe(true);
+  });
+
+  test("resolves false when the user cuts in first", async () => {
+    const call = connection();
+    const generation = call.media.currentGeneration;
+    const waiting = call.waitForPlayback(generation, 10_000, 5_000);
+    call.stopOutputGeneration();
+    expect(await waiting).toBe(false);
+  });
+
+  test("does not hold text back forever when the client never acknowledges", async () => {
+    const call = connection();
+    const started = Date.now();
+    expect(await call.waitForPlayback(call.media.currentGeneration, 10_000, 60)).toBe(true);
+    expect(Date.now() - started).toBeLessThan(1_000);
+  });
+
+  test("counts queued frames so a later message can wait for them", () => {
+    const call = connection();
+    expect(call.media.queuedFrames).toBe(0);
+    call.media.push(new Uint8Array([1]), 0);
+    call.media.push(new Uint8Array([2]), 20);
+    expect(call.media.queuedFrames).toBe(2);
+    call.stopOutputGeneration();
+    expect(call.media.queuedFrames).toBe(0);
+  });
+});

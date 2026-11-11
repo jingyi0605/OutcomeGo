@@ -32,6 +32,21 @@ const GREETING = {
   ],
 } as const;
 
+/** Spoken once when a call with several participants connects. The host speaks for all of them. */
+const GROUP_GREETING = {
+  zh: [
+    "我们都在，有什么可以帮你？",
+    "我们都在，请说。",
+    "我们都在，想聊点什么？",
+    "我们都在，请讲。",
+  ],
+  en: [
+    "We're all here. What can we do for you?",
+    "We're all here, go ahead.",
+    "We're all here. What would you like to talk about?",
+  ],
+} as const;
+
 /** Greetings, thanks, goodbyes and mic checks. They get a short spoken reply instead of "let me look", since there is nothing to look up. */
 const SOCIAL = new Set([
   "你好",
@@ -135,6 +150,12 @@ export const pickOpening = (
   );
 };
 
-/** A random greeting for when the call connects; the language is the one the voice is configured for. */
-export const pickGreeting = (language: string, random: () => number = Math.random): string =>
-  choose(GREETING[/^zh/i.test(language) ? "zh" : "en"], null, random);
+/**
+ * A random greeting for when the call connects; the language is the one the voice is configured for.
+ * With several participants the host answers for the room ("we're all here"), not for itself.
+ */
+export const pickGreeting = (
+  language: string,
+  random: () => number = Math.random,
+  group = false
+): string => choose((group ? GROUP_GREETING : GREETING)[/^zh/i.test(language) ? "zh" : "en"], null, random);

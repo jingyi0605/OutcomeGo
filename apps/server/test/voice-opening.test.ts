@@ -74,3 +74,18 @@ describe("call greeting", () => {
     expect(seen.size).toBeGreaterThan(1);
   });
 });
+
+describe("group call greeting", () => {
+  test("the host answers for the whole room", () => {
+    for (let index = 0; index < 20; index += 1) {
+      expect(pickGreeting("zh-CN", Math.random, true)).toContain("我们都在");
+      expect(pickGreeting("en-US", Math.random, true)).toContain("We're all here");
+    }
+  });
+
+  test("a direct call keeps the single-bot greeting", () => {
+    for (let index = 0; index < 20; index += 1) {
+      expect(pickGreeting("zh-CN")).not.toContain("我们都在");
+    }
+  });
+});

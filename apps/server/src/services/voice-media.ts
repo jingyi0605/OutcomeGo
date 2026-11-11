@@ -29,6 +29,8 @@ export class VoiceMediaQueue {
 
   get currentGeneration() { return this.generation; }
   get bufferedMs() { return this.outputMs; }
+  /** Frames queued in the current generation, which is where the next frame will sit in playback order. */
+  get queuedFrames() { return this.nextSequence; }
   acknowledge(generation: number, sequence: number) {
     this.lastAckAt = Date.now();
     if (generation === this.generation) this.playedThroughMs = Math.max(this.playedThroughMs, (sequence + 1) * VOICE_FRAME_MS);
