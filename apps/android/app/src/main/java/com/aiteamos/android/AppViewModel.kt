@@ -108,6 +108,8 @@ data class AppState(
     val error: String? = null,
     val liveVoice: AndroidLiveVoiceSnapshot = AndroidLiveVoiceSnapshot(),
     val liveVoiceConversationId: String? = null,
+    /** The bot that answers a group call when nobody is named; null outside a group call. */
+    val liveVoiceDefaultSpeakerId: String? = null,
     val loading: Boolean = false,
     val authChecking: Boolean = false,
     val validatedServer: String? = null,
@@ -194,6 +196,11 @@ class AppViewModel @JvmOverloads constructor(
                             null
                         } else {
                             current.liveVoiceConversationId
+                        },
+                        liveVoiceDefaultSpeakerId = if (snapshot.state == AndroidLiveVoiceState.Idle) {
+                            null
+                        } else {
+                            current.liveVoiceDefaultSpeakerId
                         },
                     )
                 }
@@ -1283,28 +1290,52 @@ class AppViewModel @JvmOverloads constructor(
         voiceController.cancel()
     }
 
-    fun startLiveVoice(conversationId: String) {
+    /**
+     * Starts a realtime call. A direct chat talks to its bot. A group chat takes the members chosen
+     * for the call ([participantBotIds]) and the one who answers when nobody is named ([defaultSpeakerId]).
+     */
+    fun startLiveVoice(
+        conversationId: String,
+        participantBotIds: List<String> = emptyList(),
+        defaultSpeakerId: String? = null,
+    ) {
         val api = activeGateway as? MobileFeatureApi
         val conversation = mutableState.value.conversations.firstOrNull { it.id == conversationId }
-        val botId = conversation?.botId
+        val participants = if (conversation?.isGroup == true) participantBotIds.distinct() else emptyList()
+        val botId = if (conversation?.isGroup == true) {
+            defaultSpeakerId?.takeIf { it in participants } ?: participants.firstOrNull()
+        } else {
+            conversation?.botId
+        }
         if (api == null || botId.isNullOrBlank()) {
             mutableState.update {
                 it.copy(
                     liveVoice = AndroidLiveVoiceSnapshot(
                         state = AndroidLiveVoiceState.Error,
-                        error = "Realtime voice is only available in a Bot conversation.",
+                        error = "Realtime voice needs a Bot conversation, or a group with at least one member selected.",
                     ),
                 )
             }
             return
         }
-        mutableState.update { it.copy(liveVoiceConversationId = conversationId) }
-        AndroidLiveVoiceForeground.start(getApplication(), botId, conversationId)
+        mutableState.update {
+            it.copy(
+                liveVoiceConversationId = conversationId,
+                liveVoiceDefaultSpeakerId = botId.takeIf { participants.isNotEmpty() },
+            )
+        }
+        AndroidLiveVoiceForeground.start(getApplication(), botId, conversationId, participants)
     }
 
     fun stopLiveVoice() {
         AndroidLiveVoiceForeground.stop(getApplication())
-        mutableState.update { it.copy(liveVoice = AndroidLiveVoiceSnapshot(), liveVoiceConversationId = null) }
+        mutableState.update {
+            it.copy(
+                liveVoice = AndroidLiveVoiceSnapshot(),
+                liveVoiceConversationId = null,
+                liveVoiceDefaultSpeakerId = null,
+            )
+        }
     }
 
     fun setLiveVoiceMicrophoneMuted(muted: Boolean) {

@@ -12,6 +12,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonArray
@@ -33,6 +34,8 @@ data class AndroidLiveVoiceTranscript(
     val id: String,
     val role: Role,
     val text: String,
+    /** The bot that spoke this line in a group call; null in a one-bot call or for the user. */
+    val speakerBotId: String? = null,
 ) {
     enum class Role { User, Assistant }
 }
@@ -42,6 +45,10 @@ data class AndroidLiveVoiceSnapshot(
     val partialTranscript: String = "",
     val error: String? = null,
     val transcript: List<AndroidLiveVoiceTranscript> = emptyList(),
+    /** The bot whose voice is playing now, so a group call can light up the right face. */
+    val speakerBotId: String? = null,
+    /** True while the user is mid-utterance. */
+    val userSpeaking: Boolean = false,
 )
 
 /** Native Android client for the authenticated realtime voice protocol. */
@@ -65,14 +72,19 @@ class AndroidLiveVoiceSession(
     private var microphoneMuted = false
     private var speakerMuted = false
     private var serverReady = false
+    private var speakerBotId: String? = null
+    private var userSpeaking = false
     private val transcript = mutableListOf<AndroidLiveVoiceTranscript>()
 
-    fun start(botId: String, channelId: String) {
+    /** [participantBotIds] is set for a group call: the bots that may answer, the default speaker being [botId]. */
+    fun start(botId: String, channelId: String, participantBotIds: List<String> = emptyList()) {
         if (sessionId != null) return
         transcript.clear()
         microphoneMuted = false
         speakerMuted = false
         serverReady = false
+        speakerBotId = null
+        userSpeaking = false
         emit(AndroidLiveVoiceState.Connecting)
         scope.launch {
             runCatching {
@@ -84,6 +96,9 @@ class AndroidLiveVoiceSession(
                         put("channelId", channelId)
                         put("clientPlatform", "android")
                         put("clientInstanceId", "android:${UUID.randomUUID()}")
+                        if (participantBotIds.isNotEmpty()) {
+                            put("participantBotIds", kotlinx.serialization.json.JsonArray(participantBotIds.map(::JsonPrimitive)))
+                        }
                     },
                 )
                 val id = ticket.string("id")
@@ -106,6 +121,8 @@ class AndroidLiveVoiceSession(
         socket?.send(control("stop"))
         sessionId = null
         serverReady = false
+        speakerBotId = null
+        userSpeaking = false
         socket?.close(1000, "Voice session stopped")
         socket = null
         audio.close()
@@ -199,15 +216,21 @@ class AndroidLiveVoiceSession(
                 if (captureJob == null && sessionId != null) startCapture()
                 emit(AndroidLiveVoiceState.Listening)
             }
-            "turn.started" -> emit(AndroidLiveVoiceState.Listening)
+            "turn.started" -> {
+                userSpeaking = true
+                emit(AndroidLiveVoiceState.Listening)
+            }
             "transcript.partial" -> {
                 val value = message.string("text")
                 onTranscript(value, false, message.string("turnId"))
+                // An empty partial is how the server withdraws a turn it discarded as noise.
+                userSpeaking = value.isNotEmpty()
                 emit(AndroidLiveVoiceState.Listening, partialTranscript = value)
             }
             "transcript.final" -> {
                 val value = message.string("text")
                 onTranscript(value, true, message.string("turnId"))
+                userSpeaking = false
                 if (value.isNotBlank()) {
                     transcript += AndroidLiveVoiceTranscript(
                         id = "${message.string("turnId")}:user",
@@ -220,21 +243,31 @@ class AndroidLiveVoiceSession(
             "reply.message" -> {
                 val value = message.string("text")
                 if (value.isNotBlank()) {
-                    transcript += AndroidLiveVoiceTranscript(
+                    val entry = AndroidLiveVoiceTranscript(
                         id = message.string("messageId"),
                         role = AndroidLiveVoiceTranscript.Role.Assistant,
                         text = value,
+                        speakerBotId = message.string("speakerBotId").ifBlank { null },
                     )
+                    // A reply spoken while it was still being written shows the sentences so far first;
+                    // the saved message replaces that line instead of adding a second one.
+                    val replaced = message.string("replaces")
+                    val at = if (replaced.isBlank()) -1 else transcript.indexOfFirst { it.id == replaced }
+                    if (at >= 0) transcript[at] = entry else transcript += entry
                 }
                 emit(AndroidLiveVoiceState.Speaking)
             }
-            "audio.started" -> emit(AndroidLiveVoiceState.Speaking)
+            "audio.started" -> {
+                speakerBotId = message.string("speakerBotId").ifBlank { null }
+                emit(AndroidLiveVoiceState.Speaking)
+            }
             "barge_in", "audio.stopped" -> {
                 val generation = runCatching {
                     message["generation"]?.jsonPrimitive?.contentOrNull?.toUIntOrNull()
                 }.getOrNull()
                 if (generation != null) stoppedGeneration = maxOf(stoppedGeneration ?: 0u, generation)
                 audio.closePlayback()
+                speakerBotId = null
                 emit(AndroidLiveVoiceState.Interrupted)
             }
             "ended" -> stop()
@@ -299,6 +332,8 @@ class AndroidLiveVoiceSession(
                 partialTranscript = partialTranscript,
                 error = error,
                 transcript = transcript.toList(),
+                speakerBotId = speakerBotId,
+                userSpeaking = userSpeaking,
             ),
         )
     }

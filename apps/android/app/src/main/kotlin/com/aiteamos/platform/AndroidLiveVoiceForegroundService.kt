@@ -32,6 +32,7 @@ object AndroidLiveVoiceForeground {
     const val ACTION_SPEAKER = "com.aiteamos.android.action.MUTE_LIVE_VOICE_SPEAKER"
     const val EXTRA_BOT_ID = "botId"
     const val EXTRA_CHANNEL_ID = "channelId"
+    const val EXTRA_PARTICIPANT_BOT_IDS = "participantBotIds"
     const val EXTRA_MUTED = "muted"
 
     private val mutableSnapshot = MutableStateFlow(AndroidLiveVoiceSnapshot())
@@ -39,11 +40,13 @@ object AndroidLiveVoiceForeground {
     private val mutableConversationId = MutableStateFlow<String?>(null)
     val conversationId: StateFlow<String?> = mutableConversationId.asStateFlow()
 
-    fun start(context: Context, botId: String, channelId: String) {
+    /** [participantBotIds] is non-empty for a group call; [botId] is then its default speaker. */
+    fun start(context: Context, botId: String, channelId: String, participantBotIds: List<String> = emptyList()) {
         val intent = Intent(context, AndroidLiveVoiceForegroundService::class.java).apply {
             action = ACTION_START
             putExtra(EXTRA_BOT_ID, botId)
             putExtra(EXTRA_CHANNEL_ID, channelId)
+            putStringArrayListExtra(EXTRA_PARTICIPANT_BOT_IDS, ArrayList(participantBotIds))
         }
         ContextCompat.startForegroundService(context, intent)
     }
@@ -105,7 +108,8 @@ class AndroidLiveVoiceForegroundService : Service() {
             AndroidLiveVoiceForeground.ACTION_START -> {
                 val botId = intent.getStringExtra(AndroidLiveVoiceForeground.EXTRA_BOT_ID).orEmpty()
                 val channelId = intent.getStringExtra(AndroidLiveVoiceForeground.EXTRA_CHANNEL_ID).orEmpty()
-                if (botId.isNotBlank() && channelId.isNotBlank()) startSession(botId, channelId)
+                val participants = intent.getStringArrayListExtra(AndroidLiveVoiceForeground.EXTRA_PARTICIPANT_BOT_IDS).orEmpty()
+                if (botId.isNotBlank() && channelId.isNotBlank()) startSession(botId, channelId, participants)
             }
             AndroidLiveVoiceForeground.ACTION_STOP -> stopSession()
             AndroidLiveVoiceForeground.ACTION_MICROPHONE ->
@@ -116,8 +120,8 @@ class AndroidLiveVoiceForegroundService : Service() {
         return START_STICKY
     }
 
-    private fun startSession(botId: String, channelId: String) {
-        val key = "$botId|$channelId"
+    private fun startSession(botId: String, channelId: String, participantBotIds: List<String>) {
+        val key = "$botId|$channelId|${participantBotIds.joinToString(",")}"
         if (session != null && sessionKey == key) return
         session?.stop()
         sessionKey = key
@@ -138,7 +142,7 @@ class AndroidLiveVoiceForegroundService : Service() {
                     },
                 ).also {
                     session = it
-                    it.start(botId, channelId)
+                    it.start(botId, channelId, participantBotIds)
                 }
             }.onFailure { error ->
                 val message = error.message ?: "Realtime voice is unavailable."
@@ -171,7 +175,7 @@ class AndroidLiveVoiceForegroundService : Service() {
     }
 
     private fun notification(state: AndroidLiveVoiceState): Notification {
-        val channelId = sessionKey?.substringAfter('|')?.takeIf(String::isNotBlank)
+        val channelId = sessionKey?.split('|')?.getOrNull(1)?.takeIf(String::isNotBlank)
         val openIntent = channelId?.let {
             AndroidNotificationTapIntent.createForChannel(this, MainActivity::class.java, it)
         }

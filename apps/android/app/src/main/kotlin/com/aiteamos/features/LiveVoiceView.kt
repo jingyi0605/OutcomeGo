@@ -2,6 +2,11 @@ package com.aiteamos.features
 
 import android.os.SystemClock
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -64,6 +69,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
@@ -93,6 +99,9 @@ private val IntOffsetStateSaver: Saver<IntOffset, Any> = listSaver(
 fun LiveVoiceView(
     snapshot: AndroidLiveVoiceSnapshot,
     bot: Conversation?,
+    /** The bots on a group call. Empty for a call with one bot, which keeps the single large avatar. */
+    participants: List<Conversation> = emptyList(),
+    defaultSpeakerId: String? = null,
     onStop: () -> Unit,
     onMuteMicrophone: (Boolean) -> Unit,
     onMuteSpeaker: (Boolean) -> Unit,
@@ -125,7 +134,7 @@ fun LiveVoiceView(
     if (minimized) {
         FloatingMiniVoiceBar(
             snapshot = snapshot,
-            bot = bot,
+            bot = participants.firstOrNull { it.botId == snapshot.speakerBotId } ?: bot,
             elapsedSeconds = elapsedSeconds,
             position = floatingOffset,
             onRestore = { minimized = false },
@@ -148,6 +157,8 @@ fun LiveVoiceView(
             VoiceCallCard(
                 snapshot = snapshot,
                 bot = bot,
+                participants = participants,
+                defaultSpeakerId = defaultSpeakerId,
                 elapsedSeconds = elapsedSeconds,
                 microphoneMuted = microphoneMuted,
                 speakerMuted = speakerMuted,
@@ -175,6 +186,8 @@ private fun callOverlayInsets(): WindowInsets =
 private fun VoiceCallCard(
     snapshot: AndroidLiveVoiceSnapshot,
     bot: Conversation?,
+    participants: List<Conversation>,
+    defaultSpeakerId: String?,
     elapsedSeconds: Long,
     microphoneMuted: Boolean,
     speakerMuted: Boolean,
@@ -228,7 +241,8 @@ private fun VoiceCallCard(
                 fontWeight = FontWeight.Bold,
             )
             Text(
-                bot?.title ?: bot?.subtitle ?: localizedText("Talk with your assistant", "和助手对话"),
+                if (participants.isNotEmpty()) localizedText("Group voice conversation", "群聊语音")
+                else bot?.title ?: bot?.subtitle ?: localizedText("Talk with your assistant", "和助手对话"),
                 style = MaterialTheme.typography.headlineSmall,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -241,12 +255,21 @@ private fun VoiceCallCard(
             )
             Spacer(Modifier.height(14.dp))
 
-            VoiceBotAvatar(bot, speaking = snapshot.state == AndroidLiveVoiceState.Speaking)
+            if (participants.isEmpty()) {
+                VoiceBotAvatar(bot, speaking = snapshot.state == AndroidLiveVoiceState.Speaking)
+            } else {
+                ParticipantStage(
+                    snapshot = snapshot,
+                    participants = participants,
+                    defaultSpeakerId = defaultSpeakerId,
+                    microphoneMuted = microphoneMuted,
+                )
+            }
             Spacer(Modifier.height(12.dp))
             StateLine(snapshot.state)
             Spacer(Modifier.height(8.dp))
 
-            CaptionList(snapshot, bot, Modifier.weight(1f).fillMaxWidth())
+            CaptionList(snapshot, bot, participants, Modifier.weight(1f).fillMaxWidth())
 
             Row(
                 Modifier
@@ -443,6 +466,146 @@ private fun stateColor(state: AndroidLiveVoiceState): Color = when (state) {
     else -> MaterialTheme.colorScheme.primary
 }
 
+/**
+ * The room of a group call: a face for the user and for each bot, in a grid like a meeting. The
+ * face of whoever is talking gets a green ring that pulses, so you can tell at a glance who has the floor.
+ */
+@Composable
+private fun ParticipantStage(
+    snapshot: AndroidLiveVoiceSnapshot,
+    participants: List<Conversation>,
+    defaultSpeakerId: String?,
+    microphoneMuted: Boolean,
+) {
+    val tiles = participants.size + 1
+    // Up to three across keeps names readable on a phone; more wrap onto another row.
+    val rows = (0 until tiles).chunked(3)
+    Column(
+        Modifier.fillMaxWidth().testTag("live-voice-stage"),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        rows.forEach { indices ->
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                indices.forEach { index ->
+                    if (index == 0) {
+                        ParticipantTile(
+                            name = localizedText("You", "你"),
+                            speaking = snapshot.userSpeaking,
+                            muted = microphoneMuted,
+                            badge = null,
+                            tag = "live-voice-tile-you",
+                        ) { YouFace() }
+                    } else {
+                        val member = participants[index - 1]
+                        ParticipantTile(
+                            name = member.title,
+                            speaking = member.botId != null && member.botId == snapshot.speakerBotId,
+                            muted = false,
+                            badge = if (member.botId == defaultSpeakerId) localizedText("Host", "主持") else null,
+                            tag = "live-voice-tile-${member.botId}",
+                        ) { VoiceBotAvatar(member, speaking = false, size = 64.dp, compact = true) }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun YouFace() {
+    Box(
+        Modifier.size(64.dp).clip(CircleShape).background(MaterialTheme.colorScheme.surfaceVariant),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(Icons.Default.Mic, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+@Composable
+private fun ParticipantTile(
+    name: String,
+    speaking: Boolean,
+    muted: Boolean,
+    badge: String?,
+    tag: String,
+    face: @Composable () -> Unit,
+) {
+    val pulse = rememberInfiniteTransition(label = "tile-pulse")
+    val ringScale by pulse.animateFloat(
+        initialValue = 1f,
+        targetValue = 1.28f,
+        animationSpec = infiniteRepeatable(
+            tween(1_100),
+            RepeatMode.Restart,
+        ),
+        label = "ring-scale",
+    )
+    val ringAlpha by pulse.animateFloat(
+        initialValue = .55f,
+        targetValue = 0f,
+        animationSpec = infiniteRepeatable(
+            tween(1_100),
+            RepeatMode.Restart,
+        ),
+        label = "ring-alpha",
+    )
+    val green = Color(0xFF32A66A)
+    Column(
+        Modifier.widthIn(max = 96.dp).testTag(tag),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(5.dp),
+    ) {
+        Box(Modifier.size(84.dp), contentAlignment = Alignment.Center) {
+            if (speaking) {
+                // Two things move on a speaker: a ring that spreads outward, and the face itself grows a little.
+                Box(
+                    Modifier
+                        .size(68.dp)
+                        .graphicsLayer { scaleX = ringScale; scaleY = ringScale; alpha = ringAlpha }
+                        .border(2.dp, green, CircleShape),
+                )
+            }
+            Box(
+                Modifier
+                    .graphicsLayer { val grow = if (speaking) 1.06f else 1f; scaleX = grow; scaleY = grow }
+                    .then(if (speaking) Modifier.border(3.dp, green, CircleShape) else Modifier),
+            ) { face() }
+            if (muted) {
+                Box(
+                    Modifier
+                        .align(Alignment.BottomEnd)
+                        .size(20.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.onSurface),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        Icons.Default.MicOff,
+                        contentDescription = localizedText("Microphone muted", "麦克风已静音"),
+                        tint = MaterialTheme.colorScheme.surface,
+                        modifier = Modifier.size(12.dp),
+                    )
+                }
+            }
+        }
+        Text(
+            name,
+            style = MaterialTheme.typography.labelMedium,
+            color = if (speaking) green else MaterialTheme.colorScheme.onSurface,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        if (badge != null) {
+            Text(
+                badge,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.primary,
+            )
+        }
+    }
+}
+
 @Composable
 private fun StateLine(state: AndroidLiveVoiceState) {
     val color = stateColor(state)
@@ -453,7 +616,12 @@ private fun StateLine(state: AndroidLiveVoiceState) {
 }
 
 @Composable
-private fun CaptionList(snapshot: AndroidLiveVoiceSnapshot, bot: Conversation?, modifier: Modifier) {
+private fun CaptionList(
+    snapshot: AndroidLiveVoiceSnapshot,
+    bot: Conversation?,
+    participants: List<Conversation>,
+    modifier: Modifier,
+) {
     if (snapshot.transcript.isEmpty() && snapshot.partialTranscript.isBlank() && snapshot.error == null) {
         Column(modifier, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
             Icon(Icons.Default.Mic, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -477,8 +645,9 @@ private fun CaptionList(snapshot: AndroidLiveVoiceSnapshot, bot: Conversation?, 
     ) {
         items(snapshot.transcript, key = { it.id }) { entry ->
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                val speaker = participants.firstOrNull { it.botId == entry.speakerBotId }
                 Text(
-                    if (entry.role == AndroidLiveVoiceTranscript.Role.Assistant) bot?.title ?: localizedText("Assistant", "助手")
+                    if (entry.role == AndroidLiveVoiceTranscript.Role.Assistant) speaker?.title ?: bot?.title ?: localizedText("Assistant", "助手")
                     else localizedText("You", "你"),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,

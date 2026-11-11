@@ -310,13 +310,17 @@ fun AiTeamOSApp(
         if (granted) appViewModel.startVoice()
     }
     var pendingLiveVoiceConversationId by remember { mutableStateOf<String?>(null) }
+    // A group call is started from a member picker; the choice waits here while permissions are asked.
+    var pendingLiveVoiceMembers by remember { mutableStateOf<Pair<List<String>, String?>>(emptyList<String>() to null) }
     // Headset routing needs BLUETOOTH_CONNECT on Android 12+. It is optional: a denial still
     // starts the call, which then plays through the phone.
     val liveVoicePermissions = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { results ->
         val conversationId = pendingLiveVoiceConversationId
+        val (members, speaker) = pendingLiveVoiceMembers
         pendingLiveVoiceConversationId = null
+        pendingLiveVoiceMembers = emptyList<String>() to null
         if (results[Manifest.permission.RECORD_AUDIO] == true && conversationId != null) {
-            appViewModel.startLiveVoice(conversationId)
+            appViewModel.startLiveVoice(conversationId, members, speaker)
         }
     }
     val notificationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {}
@@ -606,16 +610,23 @@ fun AiTeamOSApp(
                 onRetryVoice = appViewModel::retryVoice,
                 onCancelVoice = appViewModel::cancelVoice,
                 liveVoice = state.liveVoice,
-                onStartLiveVoice = {
+                onStartLiveVoice = { members, speaker ->
                     val recordGranted = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
                     val bluetoothMissing = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
                         ContextCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED
                     if (recordGranted && !bluetoothMissing) {
-                        appViewModel.startLiveVoice(id)
+                        appViewModel.startLiveVoice(id, members, speaker)
                     } else {
                         pendingLiveVoiceConversationId = id
+                        pendingLiveVoiceMembers = members to speaker
                         liveVoicePermissions.launch(liveVoicePermissionRequest())
                     }
+                },
+                groupMembers = if (conversation?.isGroup == true) {
+                    val memberIds = conversation.memberBotIds.toSet()
+                    state.conversations.filter { it.isBot && it.botId in memberIds }
+                } else {
+                    emptyList()
                 },
                 onStopLiveVoice = appViewModel::stopLiveVoice,
                 onMuteLiveVoiceMicrophone = appViewModel::setLiveVoiceMicrophoneMuted,
@@ -831,9 +842,17 @@ fun AiTeamOSApp(
             state.liveVoice.state != com.aiteamos.platform.AndroidLiveVoiceState.Idle &&
             state.liveVoiceConversationId != null
         ) {
+            val callConversation = state.conversations.firstOrNull { it.id == state.liveVoiceConversationId }
             LiveVoiceView(
                 snapshot = state.liveVoice,
-                bot = state.conversations.firstOrNull { it.id == state.liveVoiceConversationId },
+                bot = callConversation,
+                participants = if (callConversation?.isGroup == true) {
+                    val memberIds = callConversation.memberBotIds.toSet()
+                    state.conversations.filter { it.isBot && it.botId in memberIds }
+                } else {
+                    emptyList()
+                },
+                defaultSpeakerId = state.liveVoiceDefaultSpeakerId,
                 onStop = appViewModel::stopLiveVoice,
                 onMuteMicrophone = appViewModel::setLiveVoiceMicrophoneMuted,
                 onMuteSpeaker = appViewModel::setLiveVoiceSpeakerMuted,
@@ -2968,7 +2987,10 @@ private fun ChatScreen(
     onRetryVoice: () -> Unit,
     onCancelVoice: () -> Unit,
     liveVoice: com.aiteamos.platform.AndroidLiveVoiceSnapshot,
-    onStartLiveVoice: () -> Unit,
+    /** Starts the call. [participants] and [speaker] are only meaningful in a group chat. */
+    onStartLiveVoice: (participants: List<String>, speaker: String?) -> Unit,
+    /** The bots in this group, for the call's member picker. Empty outside a group chat. */
+    groupMembers: List<Conversation>,
     onStopLiveVoice: () -> Unit,
     onMuteLiveVoiceMicrophone: (Boolean) -> Unit,
     onMuteLiveVoiceSpeaker: (Boolean) -> Unit,
@@ -3084,6 +3106,17 @@ private fun ChatScreen(
         )
     }
     val haptic = LocalAppHaptics.current
+    var pickingVoiceMembers by remember { mutableStateOf(false) }
+    if (pickingVoiceMembers) {
+        VoiceMemberPickerDialog(
+            members = groupMembers,
+            onDismiss = { pickingVoiceMembers = false },
+            onStart = { participants, speaker ->
+                pickingVoiceMembers = false
+                onStartLiveVoice(participants, speaker)
+            },
+        )
+    }
     Scaffold(
         topBar = {
             TopAppBar(
@@ -3100,7 +3133,7 @@ private fun ChatScreen(
                     }
                 },
                 actions = {
-                    if (bot?.isBot == true) {
+                    if (bot?.isBot == true || (bot?.isGroup == true && groupMembers.isNotEmpty())) {
                         IosChromeIcon(
                             icon = {
                                 Icon(
@@ -3114,8 +3147,9 @@ private fun ChatScreen(
                             ),
                             onClick = {
                                 haptic.play(HapticEffect.Medium)
-                                if (liveVoice.state == com.aiteamos.platform.AndroidLiveVoiceState.Idle) onStartLiveVoice()
-                                else onStopLiveVoice()
+                                if (liveVoice.state != com.aiteamos.platform.AndroidLiveVoiceState.Idle) onStopLiveVoice()
+                                else if (bot?.isGroup == true) pickingVoiceMembers = true
+                                else onStartLiveVoice(emptyList(), null)
                             },
                             enabled = liveVoice.state != com.aiteamos.platform.AndroidLiveVoiceState.Connecting,
                             modifier = Modifier.testTag("live-voice-header"),
@@ -3278,6 +3312,68 @@ private fun ChannelActivity.label(): String = when (this) {
  * The desktop's "bot is working" row: a small avatar with a soft pulse and a caption of what the
  * bot is doing. It scales and fades in and out (180ms / 140ms) so the transcript does not jump.
  */
+/**
+ * Choose who is on a group call and who answers when nobody is named. Everyone starts selected and the
+ * first member is the default speaker, as on the desktop.
+ */
+@Composable
+private fun VoiceMemberPickerDialog(
+    members: List<Conversation>,
+    onDismiss: () -> Unit,
+    onStart: (participants: List<String>, speaker: String?) -> Unit,
+) {
+    val ids = members.mapNotNull { it.botId }
+    var selected by remember(ids) { mutableStateOf(ids.toSet()) }
+    var speaker by remember(ids) { mutableStateOf(ids.firstOrNull()) }
+    val chosen = ids.filter { it in selected }
+    val effectiveSpeaker = speaker?.takeIf { it in selected } ?: chosen.firstOrNull()
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(localizedText("Voice participants", "语音参与者")) },
+        text = {
+            Column(Modifier.testTag("live-voice-member-picker"), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    localizedText("Choose who can answer, and who speaks by default.", "选择谁可以回答，以及默认由谁发言。"),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(8.dp))
+                members.forEach { member ->
+                    val botId = member.botId ?: return@forEach
+                    Row(
+                        Modifier.fillMaxWidth().testTag("live-voice-member-$botId"),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        androidx.compose.material3.Checkbox(
+                            checked = botId in selected,
+                            onCheckedChange = { checked -> selected = if (checked) selected + botId else selected - botId },
+                        )
+                        Text(member.title, Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        androidx.compose.material3.RadioButton(
+                            selected = botId == effectiveSpeaker,
+                            enabled = botId in selected,
+                            onClick = { speaker = botId },
+                        )
+                    }
+                }
+                Text(
+                    localizedText("The round button marks the default speaker.", "圆形按钮表示默认发言人。"),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onStart(chosen, effectiveSpeaker) },
+                enabled = chosen.isNotEmpty(),
+                modifier = Modifier.testTag("live-voice-start-group"),
+            ) { Text(localizedText("Start group call", "开始群聊通话")) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(localizedText("Cancel", "取消")) } },
+    )
+}
+
 @Composable
 private fun BotActivityRow(activity: ChannelActivity?, bot: Conversation?) {
     // Keep the last caption while the row animates out.
