@@ -15,7 +15,10 @@ let computer = {
 };
 let transcription = { ...defaultTranscriptionSettings(), hasApiKey: false, configured: false };
 const providerStates = (tool: "search" | "fetch") => Object.fromEntries(WEB_PROVIDER_LISTS[tool].map((provider) => [provider.id, { secretSaved: false, ready: !provider.fields.some((field) => field.required), check: null }]));
-let providers: any = { search: { selected: null, providers: providerStates("search") }, fetch: { selected: "builtin", providers: providerStates("fetch") } };
+let providers: any = {
+  search: { selected: null, schedule: { strategy: "failover", providers: [], cursor: 0 }, providers: providerStates("search") },
+  fetch: { selected: "builtin", schedule: { strategy: "failover", providers: ["builtin"], cursor: 0 }, providers: providerStates("fetch") },
+};
 Object.assign(window, { settingsQACalls: calls, aiteamos: {
   auth: { machineStatus: async () => ({ machineId: "qa", connected: true, configured: true, error: null }) },
   computer: {
@@ -37,7 +40,24 @@ Object.assign(api, {
   transcriptionSettings: async () => transcription,
   updateTranscriptionSettings: async (input: any) => { calls.push({ type: "transcription", input }); transcription = { ...transcription, ...input }; return transcription; },
   webProviders: async () => providers,
-  updateWebProviders: async (input: any) => { calls.push({ type: "providers", input }); for (const tool of ["search", "fetch"] as const) if (input[tool]?.selected !== undefined) providers = { ...providers, [tool]: { ...providers[tool], selected: input[tool].selected } }; return providers; },
+  updateWebProviders: async (input: any) => {
+    calls.push({ type: "providers", input });
+    for (const tool of ["search", "fetch"] as const) {
+      const change = input[tool];
+      if (!change) continue;
+      const schedule = change.schedule ?? providers[tool].schedule;
+      const selected = schedule.providers[0] ?? null;
+      providers = {
+        ...providers,
+        [tool]: {
+          ...providers[tool],
+          selected,
+          schedule: { ...providers[tool].schedule, ...schedule },
+        },
+      };
+    }
+    return providers;
+  },
   checkWebProvider: async (input: any) => { calls.push({ type: "check", input }); return providers; },
   automationWebhooks: async () => [],
 });

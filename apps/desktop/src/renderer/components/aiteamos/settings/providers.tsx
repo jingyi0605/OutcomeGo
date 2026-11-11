@@ -6,12 +6,15 @@ import {
   type WebProvidersView,
   type WebTool,
   type WebToolInput,
+  type WebToolStrategy,
 } from "@aiteamos/contracts/web-search";
 import { clientErrorMessage } from "@aiteamos/product-core/redaction";
 import {
   Ban,
   Check,
+  ChevronDown,
   ChevronRight,
+  ChevronUp,
   CircleCheck,
   CircleX,
   ExternalLink,
@@ -154,7 +157,8 @@ export default function ProvidersSettings() {
   const [view, setView] = useState<WebProvidersView | null>(null);
   const [page, setPage] = useState<WebTool | null>(null);
   // Unsaved edits on the open page.
-  const [selected, setSelected] = useState<string | null>(null);
+  const [draftProviders, setDraftProviders] = useState<string[]>([]);
+  const [strategy, setStrategy] = useState<WebToolStrategy>("failover");
   const [typed, setTyped] = useState<Record<string, string>>({});
   const [removals, setRemovals] = useState<Set<string>>(new Set());
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -163,7 +167,8 @@ export default function ProvidersSettings() {
   const [applied, setApplied] = useState(false);
 
   const resetDraft = (tool: WebTool | null, next: WebProvidersView | null) => {
-    setSelected(tool && next ? next[tool].selected : null);
+    setDraftProviders(tool && next ? [...next[tool].schedule.providers] : []);
+    setStrategy(tool && next ? next[tool].schedule.strategy : "failover");
     setTyped({});
     setRemovals(new Set());
   };
@@ -189,7 +194,7 @@ export default function ProvidersSettings() {
     // With search off, the recommended provider opens ready for its key.
     setExpanded(
       new Set(
-        tool === "search" && view && !view.search.selected ? [RECOMMENDED_SEARCH_PROVIDER] : []
+        tool === "search" && view && !view.search.schedule.providers.length ? [RECOMMENDED_SEARCH_PROVIDER] : []
       )
     );
     setError(null);
@@ -198,7 +203,9 @@ export default function ProvidersSettings() {
 
   const change: WebToolInput = {};
   if (view && page) {
-    if (selected !== view[page].selected) change.selected = selected;
+    const original = view[page].schedule;
+    if (strategy !== original.strategy || draftProviders.join("\u0000") !== original.providers.join("\u0000"))
+      change.schedule = { strategy, providers: draftProviders };
     for (const info of WEB_PROVIDER_LISTS[page]) {
       const value = typed[info.id]?.trim();
       if (value) (change.providers ??= {})[info.id] = { apiKey: value };
@@ -315,8 +322,22 @@ export default function ProvidersSettings() {
   }
 
   const tool = page;
-  const pending = view ? { ...view, [tool]: { ...view[tool], selected } } : null;
+  const selected = draftProviders[0] ?? null;
+  const pending = view
+    ? {
+        ...view,
+        [tool]: {
+          ...view[tool],
+          selected,
+          schedule: { ...view[tool].schedule, strategy, providers: draftProviders },
+        },
+      }
+    : null;
   const warning = pending ? toolWarning(tool, pending, t) : null;
+  const orderedProviders = [...draftProviders, ...WEB_PROVIDER_LISTS[tool].map((info) => info.id)]
+    .filter((id, index, all) => all.indexOf(id) === index)
+    .map((id) => WEB_PROVIDER_LISTS[tool].find((info) => info.id === id))
+    .filter((info): info is WebProviderInfo => Boolean(info));
   const radio = (id: string | null, label: string) => (
     <input
       aria-label={label}
@@ -324,14 +345,33 @@ export default function ProvidersSettings() {
       className="size-3.5 shrink-0 accent-black dark:accent-white"
       disabled={!view || Boolean(busy)}
       name={`web-${tool}`}
-      onChange={() => setSelected(id)}
+      onChange={() => id === null && setDraftProviders([])}
       type="radio"
+    />
+  );
+  const checkbox = (id: string, label: string) => (
+    <input
+      aria-label={label}
+      checked={draftProviders.includes(id)}
+      className="size-3.5 shrink-0 accent-black dark:accent-white"
+      disabled={!view || Boolean(busy)}
+      onChange={(event) => {
+        setDraftProviders((current) =>
+          event.target.checked
+            ? current.includes(id)
+              ? current
+              : [...current, id]
+            : current.filter((provider) => provider !== id)
+        );
+      }}
+      type="checkbox"
     />
   );
 
   const renderProvider = (info: WebProviderInfo) => {
     const state = view?.[tool].providers[info.id];
-    const isSelected = selected === info.id;
+    const isSelected = draftProviders.includes(info.id);
+    const position = draftProviders.indexOf(info.id);
     const removing = removals.has(info.id);
     const keyed = info.fields.length > 0;
     const missing = keyed && !typed[info.id]?.trim() && (!state?.secretSaved || removing);
@@ -380,7 +420,7 @@ export default function ProvidersSettings() {
         data-testid={`provider-${tool}:${info.id}`}
       >
         <div className="settings-provider-header flex min-h-9 items-center gap-2.5">
-          {radio(info.id, t("Use {name} for {tool}", { name: info.name, tool }))}
+          {checkbox(info.id, t("Use {name} for {tool}", { name: info.name, tool }))}
           {keyed ? (
             <button
               aria-expanded={open}
@@ -410,6 +450,40 @@ export default function ProvidersSettings() {
           ) : (
             <span className="settings-provider-check w-[72px] shrink-0" />
           )}
+          {isSelected ? (
+            <span className="flex shrink-0 items-center gap-0.5">
+              <button
+                aria-label={t("Move {name} up", { name: info.name })}
+                className="rounded p-1 text-foreground-tertiary hover:text-foreground disabled:opacity-35"
+                disabled={position <= 0 || Boolean(busy)}
+                onClick={() =>
+                  setDraftProviders((current) => {
+                    const next = [...current];
+                    [next[position - 1], next[position]] = [next[position]!, next[position - 1]!];
+                    return next;
+                  })
+                }
+                type="button"
+              >
+                <ChevronUp className="size-3.5" />
+              </button>
+              <button
+                aria-label={t("Move {name} down", { name: info.name })}
+                className="rounded p-1 text-foreground-tertiary hover:text-foreground disabled:opacity-35"
+                disabled={position === -1 || position === draftProviders.length - 1 || Boolean(busy)}
+                onClick={() =>
+                  setDraftProviders((current) => {
+                    const next = [...current];
+                    [next[position], next[position + 1]] = [next[position + 1]!, next[position]!];
+                    return next;
+                  })
+                }
+                type="button"
+              >
+                <ChevronDown className="size-3.5" />
+              </button>
+            </span>
+          ) : null}
         </div>
         <AnimatedCollapse open={open} id={`${contentId}-${tool}-${info.id}`}>
           <div className="settings-provider-fields mt-2 space-y-2 pl-[54px]">
@@ -520,7 +594,29 @@ export default function ProvidersSettings() {
             </span>
           </span>
         </div>
-        {WEB_PROVIDER_LISTS[tool].map(renderProvider)}
+        <div className="border-t border-black/[0.065] px-2 py-3 dark:border-white/[0.07]">
+          <label className="flex flex-wrap items-center justify-between gap-2 text-[12px] text-foreground">
+            <span>
+              <span className="block text-[12.5px]">{t("Usage strategy")}</span>
+              <span className="block text-[11.5px] text-foreground-secondary">
+                {strategy === "round_robin"
+                  ? t("Rotate providers across requests.")
+                  : t("Try the next provider when one fails.")}
+              </span>
+            </span>
+            <select
+              aria-label={t("Usage strategy")}
+              className="rounded-md border border-black/[0.12] bg-transparent px-2 py-1.5 text-[12px] dark:border-white/[0.14]"
+              disabled={!view || Boolean(busy)}
+              onChange={(event) => setStrategy(event.target.value as WebToolStrategy)}
+              value={strategy}
+            >
+              <option value="failover">{t("Failover")}</option>
+              <option value="round_robin">{t("Round-robin")}</option>
+            </select>
+          </label>
+        </div>
+        {orderedProviders.map(renderProvider)}
       </SettingsGroup>
       <div className="mt-4 flex flex-wrap items-center justify-between gap-2 px-2">
         <div className="text-[12px] text-foreground-secondary">
