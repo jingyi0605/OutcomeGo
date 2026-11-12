@@ -40,7 +40,7 @@ export function authErrorMessage(cause: unknown, fallback: string): string {
   if (/endpoint without a username or password/.test(message)) {
     return "Remove the username and password from the server address. You’ll sign in on the next screen.";
   }
-  if (/did not return an (?:OutcomeGo|OutcomeGo) session token/.test(message)) {
+  if (/did not return an (?:OutcomeGo|outcomeGo) session token/.test(message)) {
     return "The server did not complete sign-in. Please try again or contact your server administrator.";
   }
   return message || fallback;
