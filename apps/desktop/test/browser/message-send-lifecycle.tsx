@@ -1,11 +1,11 @@
-import type { BotView, ChannelMessageView, ChannelView, ClientSnapshot, MessageDeliveryStatusView } from "@aiteamos/contracts";
-import { CLIENT_CAPABILITIES } from "@aiteamos/contracts/capabilities";
-import { DURABLE_SEND_ACK_TIMEOUT_MS, durableSendMessage, type DurableSendRecord } from "@aiteamos/product-core/durable-delivery";
+import type { BotView, ChannelMessageView, ChannelView, ClientSnapshot, MessageDeliveryStatusView } from "@outcomego/contracts";
+import { CLIENT_CAPABILITIES } from "@outcomego/contracts/capabilities";
+import { DURABLE_SEND_ACK_TIMEOUT_MS, durableSendMessage, type DurableSendRecord } from "@outcomego/product-core/durable-delivery";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { api } from "../../src/renderer/client/aiteamos-api";
-import { ChatPane } from "../../src/renderer/components/aiteamos/chat-pane";
-import { ThreadTray } from "../../src/renderer/components/aiteamos/thread-tray";
+import { api } from "../../src/renderer/client/outcomego-api";
+import { ChatPane } from "../../src/renderer/components/outcomego/chat-pane";
+import { ThreadTray } from "../../src/renderer/components/outcomego/thread-tray";
 import { TooltipProvider } from "../../src/renderer/components/ui/tooltip";
 import { desktopDurableSendController } from "../../src/renderer/lib/durable-sends";
 import "../../src/renderer/styles.css";

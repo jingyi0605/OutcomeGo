@@ -1,10 +1,10 @@
 import { createServer, type Server } from "node:http";
 import { timingSafeEqual } from "node:crypto";
 import type { AddressInfo } from "node:net";
-import type { createAiTeamOSClient } from "@aiteamos/client-core";
+import type { createOutcomeGoClient } from "@outcomego/client-core";
 
 type Client = Pick<
-  ReturnType<typeof createAiTeamOSClient>,
+  ReturnType<typeof createOutcomeGoClient>,
   | "pluginConfiguration"
   | "authenticatePlugin"
   | "finishPluginAuthentication"
@@ -88,7 +88,7 @@ export class DesktopPluginOAuth {
       response.setHeader("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'");
       const reject = () => {
         response.writeHead(400);
-        response.end("This sign-in callback is not valid. Return to aiTeamOS.");
+        response.end("This sign-in callback is not valid. Return to OutcomeGo.");
       };
       if (
         !attempt ||
@@ -119,7 +119,7 @@ export class DesktopPluginOAuth {
       )
         return reject();
       response.end(
-        "<!doctype html><title>aiTeamOS sign-in</title><p>Authorization received. Return to aiTeamOS to see the result.</p>"
+        "<!doctype html><title>OutcomeGo sign-in</title><p>Authorization received. Return to OutcomeGo to see the result.</p>"
       );
       this.stop(attempt);
       void client

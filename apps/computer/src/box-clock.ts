@@ -2,7 +2,7 @@ import { execFile } from "node:child_process";
 import { existsSync } from "node:fs";
 import { promisify } from "node:util";
 
-const BOX_TIMEZONE = "/usr/lib/aiteamos/bin/aiteamos-box-timezone";
+const BOX_TIMEZONE = "/usr/lib/outcomego/bin/outcomego-box-timezone";
 const run = promisify(execFile);
 
 const applyWithScript = async (zone: string): Promise<void> => {

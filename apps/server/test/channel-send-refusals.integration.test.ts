@@ -1,11 +1,11 @@
 import { expect, test } from "bun:test";
 import { Effect } from "effect";
-import { ApiError } from "@aiteamos/contracts";
-import { renderControlResult } from "@aiteamos/contracts/tool-results";
-import { createPrismaClient } from "@aiteamos/db";
+import { ApiError } from "@outcomego/contracts";
+import { renderControlResult } from "@outcomego/contracts/tool-results";
+import { createPrismaClient } from "@outcomego/db";
 import { InternalToolService } from "../src/services/internal-tool-service";
 
-const databaseUrl = process.env.AITEAMOS_TEST_DATABASE_URL;
+const databaseUrl = process.env.OUTCOMEGO_TEST_DATABASE_URL;
 
 test.skipIf(!databaseUrl)("a channel send that cannot leave refuses at once; a failed delivery says why", async () => {
   const prisma = createPrismaClient(databaseUrl!);

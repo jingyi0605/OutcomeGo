@@ -10,7 +10,7 @@ import {
 
 describe("desktop update diagnostics", () => {
   test("only builds with an update feed can update themselves", async () => {
-    const resources = await mkdtemp(join(tmpdir(), "aiteamos-update-feed-"));
+    const resources = await mkdtemp(join(tmpdir(), "outcomego-update-feed-"));
     try {
       expect(hasDesktopUpdateFeed(resources)).toBe(false);
       await writeFile(join(resources, "app-update.yml"), "provider: github\n");
@@ -23,16 +23,16 @@ describe("desktop update diagnostics", () => {
   test("validates release manifests and refuses unsafe download URLs", () => {
     expect(
       parseDesktopReleaseManifest(
-        { tag_name: "v1.2.3", html_url: "https://github.com/aiteamos/release" },
-        "https://github.com/aiteamos/latest"
+        { tag_name: "v1.2.3", html_url: "https://github.com/outcomego/release" },
+        "https://github.com/outcomego/latest"
       )
-    ).toEqual({ version: "1.2.3", downloadUrl: "https://github.com/aiteamos/release" });
+    ).toEqual({ version: "1.2.3", downloadUrl: "https://github.com/outcomego/release" });
     expect(
       parseDesktopReleaseManifest(
         { version: "1.2.3", html_url: "http://insecure.test/release" },
-        "https://github.com/aiteamos/latest"
+        "https://github.com/outcomego/latest"
       ).downloadUrl
-    ).toBe("https://github.com/aiteamos/latest");
+    ).toBe("https://github.com/outcomego/latest");
     expect(() => parseDesktopReleaseManifest({ tag_name: "latest" }, "https://safe.test")).toThrow(
       "invalid release version"
     );

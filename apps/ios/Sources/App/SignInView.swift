@@ -18,7 +18,7 @@ struct SignInView: View {
   /// Mirrored into each page's own focus (see WizardFocusHost).
   @State private var field: Field?
   private enum Field: Hashable { case server, username, password }
-  static let installCommand = "curl -fsSL https://openteam.so/install | sh"
+  static let installCommand = "curl -fsSL https://outcomego.so/install | sh"
   private var cleartext: Bool {
     API.withDefaultScheme(store.server).lowercased().hasPrefix("http://")
   }
@@ -97,7 +97,7 @@ struct SignInView: View {
       motion: "\(showingInstall)|\(store.authError ?? "")"
     ) {
       WizardHeader(
-        title: "Welcome to OpenTeam",
+        title: "Welcome to OutcomeGo",
         detail:
           "Let's connect to your server and set up your first bot. It takes about two minutes.",
         large: true)
@@ -218,7 +218,7 @@ struct SignInView: View {
       .id("endpoint-card")
       errorNotice
       if store.authError == nil {
-        WizardFootnote("Lost it? Run `openteam status` on your server.")
+        WizardFootnote("Lost it? Run `outcomego status` on your server.")
           .accessibilityIdentifier("server-hint")
       }
       if cleartext {
@@ -297,7 +297,7 @@ struct SignInView: View {
       .id("credentials-card")
       errorNotice
       // Word joiners keep "--password" from breaking across lines.
-      WizardFootnote("Forgot it? Run `openteam account update -\u{2060}-\u{2060}password` on your server.")
+      WizardFootnote("Forgot it? Run `outcomego account update -\u{2060}-\u{2060}password` on your server.")
         .accessibilityIdentifier("sign-in-footnote")
       if cleartext {
         WizardFootnote("Your password will be sent without HTTPS protection.")

@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="docs/images/ai-teamos-logo.png" alt="aiTeamOS logo" height="180">
+  <img src="docs/images/outcomego-logo.png" alt="OutcomeGo logo" height="180">
 </p>
 
-<h1 align="center">aiTeamOS</h1>
+<h1 align="center">OutcomeGo</h1>
 
 <p align="center">
   <b>Keep your attention for what truly needs your judgment</b>
@@ -27,13 +27,14 @@
   <a href="README.md">中文</a> | English
 </p>
 
-aiTeamOS is an independent, long-lived fork of [OpenTeam](https://github.com/raghavpillai/openteam).
-It is not affiliated with or endorsed by the upstream project. See [FORK.md](FORK.md) for
-attribution, branch rules and the list of changes.
+OutcomeGo (formerly aiTeamOS), an independent fork of OpenTeam, not affiliated with or endorsed by upstream.
+
+OutcomeGo is an independent fork of OpenTeam, with no affiliation with or endorsement from upstream.
+See [FORK.md](FORK.md) for attribution, branch rules and the list of changes.
 
 ## Standing on excellent work
 
-aiTeamOS exists because OpenTeam is an outstanding project, and we want to say so first.
+OutcomeGo exists because OpenTeam is an outstanding project, and we want to say so first.
 [Raghav Pillai](https://github.com/raghavpillai) built a complete, self-hosted way to work with
 AI agents: bots that own a real computer, keep their memory and logins between tasks, work
 together in group chats, run routines on a schedule, and reach you from desktop and mobile apps.
@@ -92,27 +93,27 @@ Today work is scattered across islands: agent conversations, email, chat apps, t
 workflow tools. You become the only connector between them, collecting, matching, ranking and
 following up by hand.
 
-aiTeamOS takes a different route. **It does not add more tools around the agents. It brings the
+OutcomeGo takes a different route. **It does not add more tools around the agents. It brings the
 parts of those tools that matter into one product, and makes that product the only source of
 truth** for projects, tasks, agent runs, conversations and decisions. No separate workflow engine,
 no second task database, no note-taking tool acting as a task store.
 
-| Capability people usually get from separate tools | Direction in aiTeamOS |
+| Capability people usually get from separate tools | Direction in OutcomeGo |
 | --- | --- |
 | Task and project database | Built-in projects, tasks and decisions, in the same database as bots and conversations |
 | Workflow automation and scheduling | Built-in routines, event triggers and agent runs |
 | Agent status collection | Agent runs are first-class records, with no log scraping |
 | Inbox for email and chat | Mail and channel connectors feed one event stream |
-| Human approvals | Decision cards, enforced by the server before a tool runs |
+| Human decisions | Decision cards collect items that need the user's judgment |
 | Notes and knowledge | Built-in memory, files and search across all of the above |
 | Reminders and calendar | Routines and notifications on desktop, iOS and Android |
 
 External services still connect, as plugins, MCP servers and channels. They are sources and
 destinations. They do not hold the state.
 
-![Unified work control plane: bot and agent runs, routines and events, and external services flow through an event intake layer into a unified work-context engine, then the cockpit and an action and scheduling layer, all inside aiTeamOS](docs/images/attention/work-control-plane.en.png)
+![Unified work control plane: bot and agent runs, routines and events, and external services flow through an event intake layer into a unified work-context engine, then the cockpit and an action and scheduling layer, all inside OutcomeGo](docs/images/attention/work-control-plane.en.png)
 
-<sub>Illustration of the direction, not of the current state. External services connect only as sources, and state lives in aiTeamOS.</sub>
+<sub>Illustration of the direction, not of the current state. External services connect only as sources, and state lives in OutcomeGo.</sub>
 
 #### The cockpit
 
@@ -153,10 +154,10 @@ around catching it before you see the result:
 #### Safe autonomy
 
 Agents may read authorized data, research, draft, and update internal task state on their own.
-Sending to customers, changing formal assignments, changing production, or deleting data requires
-approval **before** the tool runs, enforced by the server, not by a prompt. Text from mail, web
-pages and chats is treated as untrusted input, never as instructions. Context is isolated per
-project.
+Items that need the user's judgment enter the decision flow. Tool permissions and execution gates
+follow OpenTeam's existing behavior; this project does not claim to provide tool-level enforcement.
+Text from mail, web pages and chats is treated as untrusted input, never as instructions. Context is
+isolated per project.
 
 #### Focus rhythm
 
@@ -225,7 +226,7 @@ Compared with upstream OpenTeam v0.0.15, this branch adds:
   certificate before installing; debug builds use a separate `.debug` application ID and can
   sit beside the release app.
 - Haptic feedback across Android settings, sign-in, sessions, chat and routines, plus a unified
-  aiTeamOS brand icon across desktop, iOS and Android.
+  OutcomeGo brand icon across desktop, iOS and Android.
 - Magpie multimodal model metadata
   ([#198](https://github.com/raghavpillai/openteam/pull/198)) and network fixes
   ([#250](https://github.com/raghavpillai/openteam/pull/250),
@@ -233,14 +234,18 @@ Compared with upstream OpenTeam v0.0.15, this branch adds:
 
 The full list is in [FORK.md](FORK.md).
 
-The current release is `v0.1.0-beta.12`. Desktop apps, the Android APK, server installers and
-CLI binaries are published on [GitHub Releases](https://github.com/jingyi0605/ai-TeamOS/releases).
+The latest published GitHub release is `v0.1.0-beta.13`. `v0.1.0-beta.14` is not published; the
+Android signed APK and macOS arm64 signed/notarized packages exist only as local builds. Beta.13 was
+built with the former name and internal identities, so it is not the OutcomeGo beta.14 release. The
+repository is now [`jingyi0605/OutcomeGo`](https://github.com/jingyi0605/OutcomeGo); the beta.13
+release notes still contain installer commands using the old slug. See [FORK.md](FORK.md) and the
+[release decision](specs/004.1-项目更名与下一版本发布/docs/release-decision.md) for current gates.
 
 ## Branches
 
 | Branch | Purpose |
 | --- | --- |
-| `ai-TeamOS` | Default branch and product line. Upstream is merged in regularly. |
+| `OutcomeGo` | GitHub default branch and product line, updated with upstream changes. |
 | `main` | Mirror of upstream `main`. Never receives local commits. Pull requests to upstream start here. |
 
 ## What OpenTeam provides
@@ -264,42 +269,46 @@ Everything below comes from upstream OpenTeam and works the same way in this for
 
 You need an **x64 or arm64 machine** with a running **Docker Engine for Linux containers** and
 **Docker Compose 2.20+**. We recommend **8 GB RAM** and **8 GB free disk**. On macOS and Windows,
-Docker Desktop supplies the engine and Compose. See the [requirements](https://openteam.so/docs/getting-started/installation#requirements).
+Docker Desktop supplies the engine and Compose. See the [requirements](docs/getting-started/installation.md#requirements).
 
-### 1. Install the aiTeamOS server
+### 1. Install the OutcomeGo server
+
+The public `latest` installer installs beta.13 with the former product identity. OutcomeGo beta.14
+has not been released. Check the [Releases page](https://github.com/jingyi0605/OutcomeGo/releases)
+for the intended version; beta.13 is not the OutcomeGo beta.14 build.
 
 Run this on the machine that will host your bots.
 
 **macOS / Linux**
 
 ```sh
-curl -fsSL https://github.com/jingyi0605/ai-TeamOS/releases/latest/download/install.sh | sh
+curl -fsSL https://github.com/jingyi0605/OutcomeGo/releases/latest/download/install.sh | sh
 ```
 
 **Windows PowerShell**
 
 ```powershell
-irm https://github.com/jingyi0605/ai-TeamOS/releases/latest/download/install.ps1 | iex
+irm https://github.com/jingyi0605/OutcomeGo/releases/latest/download/install.ps1 | iex
 ```
 
-The installer downloads the aiTeamOS CLI, adds it to your `PATH`, and starts guided setup. Node.js
+The installer downloads the OutcomeGo CLI, adds it to your `PATH`, and starts guided setup. Node.js
 and Bun are not required.
 
 ### 2. Finish setup
 
-Choose how you'll connect, then create your aiTeamOS username and password. Setup defaults to a
+Choose how you'll connect, then create your OutcomeGo username and password. Setup defaults to a
 private connection over your LAN or VPN, starts the server, and prints your **server URL**.
 Setup includes private Tailscale HTTPS, public HTTPS, and existing proxy options. Use
-`aiteamos setup --advanced` for additional server settings.
+`outcomego setup --advanced` for additional server settings.
 
 ### 3. Open the app
 
-[Download the desktop app](https://github.com/jingyi0605/ai-TeamOS/releases/latest), enter the server URL from setup,
+[Download the desktop app](https://github.com/jingyi0605/OutcomeGo/releases/latest), enter the server URL from setup,
 and sign in with the account you just created. The app then helps you connect a model with a
 ChatGPT or Claude sign-in, or an OpenAI, Anthropic, or OpenRouter API key, and checks that it
 replies. Then create your first bot and send it a task. To use your own model server, add it in
-**Settings → Model** or on the host with `aiteamos provider add`; see
-[model providers](https://openteam.so/docs/configuration/models#use-your-own-model-server).
+**Settings → Model** or on the host with `outcomego provider add`; see
+[model providers](docs/configuration/models.md#use-your-own-model-server).
 
 The host and Docker must stay running for bots and routines to work. Server-side work continues
 when you close the app. Keep the desktop app open when bots need access to your physical computer.
@@ -308,8 +317,8 @@ when you close the app. Keep the desktop app open when bots need access to your 
 
 | App | Get it |
 | --- | --- |
-| Desktop for macOS (Apple silicon), Linux (x64) and Windows (x64) | [GitHub Releases](https://github.com/jingyi0605/ai-TeamOS/releases/latest) |
-| Android 8.0+ | [GitHub Releases](https://github.com/jingyi0605/ai-TeamOS/releases/latest) or [build from source](apps/android/README.md) |
+| Desktop for macOS (Apple silicon), Linux (x64) and Windows (x64) | [GitHub Releases](https://github.com/jingyi0605/OutcomeGo/releases/latest) |
+| Android 8.0+ | [GitHub Releases](https://github.com/jingyi0605/OutcomeGo/releases/latest) or [build from source](apps/android/README.md) |
 | iPhone / iPad (beta) | [Build from source](apps/ios/README.md) |
 
 All apps connect to your server for chat and live screens. Most server settings, such as the model, are in the desktop app.
@@ -317,28 +326,28 @@ All apps connect to your server for chat and live screens. Most server settings,
 ## Useful commands
 
 ```sh
-aiteamos status    # Check the server and its version
-aiteamos doctor    # Diagnose setup or connection problems
-aiteamos setup     # Change the connection mode
-aiteamos update    # Update the CLI and server with backup and rollback
+outcomego status    # Check the server and its version
+outcomego doctor    # Diagnose setup or connection problems
+outcomego setup     # Change the connection mode
+outcomego update    # Update the CLI and server with backup and rollback
 ```
 
-See [server commands](https://openteam.so/docs/manage/server), [remote access](https://openteam.so/docs/configuration/remote-access),
-[backups](https://openteam.so/docs/manage/backups), and [troubleshooting](https://openteam.so/docs/manage/troubleshooting) for ongoing operation.
+See [server commands](docs/manage/server.md), [remote access](docs/configuration/remote-access.md),
+[backups](docs/manage/backups.md), and [troubleshooting](docs/manage/troubleshooting.md) for ongoing operation.
 
 ## Documentation
 
 - [FORK.md](FORK.md): attribution, branch rules, identifiers and the list of changes in this fork.
-- [Server settings](https://openteam.so/docs/configuration/server): where to change each setting after setup.
-- [Plugins](https://openteam.so/docs/usage/plugins): connect accounts and control bot access.
-- [How hosting works](https://openteam.so/docs/overview/architecture): what runs where and what needs to stay on.
-- [Development from source](https://openteam.so/docs/development/from-source): run from source and run checks.
+- [Server settings](docs/configuration/server.md): where to change each setting after setup.
+- [Plugins](docs/usage/plugins.md): connect accounts and control bot access.
+- [How hosting works](docs/overview/architecture.md): what runs where and what needs to stay on.
+- [Development from source](docs/development/from-source.md): run from source and run checks.
 
-Browse [all upstream documentation](https://openteam.so/docs) for feature guides and implementation notes.
+See the upstream [OpenTeam repository](https://github.com/raghavpillai/openteam) for upstream documentation.
 
 ## License
 
-aiTeamOS is licensed under the [GNU General Public License v3.0](LICENSE), the same license as
+OutcomeGo is licensed under the [GNU General Public License v3.0](LICENSE), the same license as
 OpenTeam. Some bundled third-party components, such as noVNC, fonts, and a few plugins, keep their
 own licenses, which are included alongside them. "OpenTeam" and its logo belong to the upstream
 author.

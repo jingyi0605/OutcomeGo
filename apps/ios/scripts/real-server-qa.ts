@@ -11,34 +11,34 @@ import { createPrismaClient } from "../../../packages/db/src/index";
 const root = resolve(process.env.SWIFT_REAL_QA_OUTPUT ?? "output/swift-live-gestures-0916");
 await mkdir(root, { recursive: true });
 const base = "http://127.0.0.1:20020";
-const computerName = "openteam-swift-real-qa-0916";
-const computerImage = process.env.SWIFT_REAL_QA_COMPUTER_IMAGE ?? "openteam-memory-computer:20260913";
+const computerName = "outcomego-swift-real-qa-0916";
+const computerImage = process.env.SWIFT_REAL_QA_COMPUTER_IMAGE ?? "outcomego-memory-computer:20260913";
 const databaseName = `swiftqa_reallive_${Date.now()}`;
 const runtimeRoot = join(root, databaseName);
 const databaseURL = `postgresql://swiftqa:swiftqa-disposable-only@127.0.0.1:20002/${databaseName}`;
 const username = "swift.live.qa", password = randomBytes(24).toString("hex");
 const env = {
-  ...process.env, DATABASE_URL: databaseURL, AITEAMOS_PORT: "20020",
-  AITEAMOS_AUTH_MODE: "required", AITEAMOS_AUTH_URL: base,
-  AITEAMOS_AUTH_SECRET: randomBytes(32).toString("hex"),
-  AITEAMOS_CONTROL_TOKEN: randomBytes(32).toString("hex"),
-  AITEAMOS_COMPUTER_URL: "http://127.0.0.1:20021",
-  AITEAMOS_SERVER_URL: "http://host.docker.internal:20020",
-  AITEAMOS_AGENT_DATA_ROOT: join(runtimeRoot, "agent-data"),
-  AITEAMOS_AGENT_DATA_CANONICAL_ROOT: join(runtimeRoot, "canonical-agent-data"),
-  AITEAMOS_WORKSPACE_ROOT: join(runtimeRoot, "workspace"),
-  AITEAMOS_ASSET_ROOT: join(runtimeRoot, "assets"),
-  AITEAMOS_PI_AGENT_DIR: "/home/box/.pi/agent",
-  AITEAMOS_BOX_STORE_ROOT: "/box-store", AITEAMOS_BOX_COPY_IN: "false",
-  AITEAMOS_WORKER_CONCURRENCY: "2",
+  ...process.env, DATABASE_URL: databaseURL, OUTCOMEGO_PORT: "20020",
+  OUTCOMEGO_AUTH_MODE: "required", OUTCOMEGO_AUTH_URL: base,
+  OUTCOMEGO_AUTH_SECRET: randomBytes(32).toString("hex"),
+  OUTCOMEGO_CONTROL_TOKEN: randomBytes(32).toString("hex"),
+  OUTCOMEGO_COMPUTER_URL: "http://127.0.0.1:20021",
+  OUTCOMEGO_SERVER_URL: "http://host.docker.internal:20020",
+  OUTCOMEGO_AGENT_DATA_ROOT: join(runtimeRoot, "agent-data"),
+  OUTCOMEGO_AGENT_DATA_CANONICAL_ROOT: join(runtimeRoot, "canonical-agent-data"),
+  OUTCOMEGO_WORKSPACE_ROOT: join(runtimeRoot, "workspace"),
+  OUTCOMEGO_ASSET_ROOT: join(runtimeRoot, "assets"),
+  OUTCOMEGO_PI_AGENT_DIR: "/home/box/.pi/agent",
+  OUTCOMEGO_BOX_STORE_ROOT: "/box-store", OUTCOMEGO_BOX_COPY_IN: "false",
+  OUTCOMEGO_WORKER_CONCURRENCY: "2",
 };
 // A simulator token must never be dispatched to the real APNs service.
-for (const key of Object.keys(env)) if (key.startsWith("AITEAMOS_APNS_")) delete (env as any)[key];
+for (const key of Object.keys(env)) if (key.startsWith("OUTCOMEGO_APNS_")) delete (env as any)[key];
 const children: ReturnType<typeof Bun.spawn>[] = [];
 let computerStarted = false;
 const serverImage = process.env.SWIFT_REAL_QA_SERVER_IMAGE;
 const dockerNetwork = process.env.SWIFT_REAL_QA_DOCKER_NETWORK;
-const serverName = "openteam-swift-qa-server";
+const serverName = "outcomego-swift-qa-server";
 let serverStarted = false;
 let control: ReturnType<typeof Bun.serve> | undefined;
 const prisma = createPrismaClient(databaseURL);
@@ -54,7 +54,7 @@ const cleanup = async () => {
   for (const p of children) p.kill();
   if (serverStarted) await run(["docker", "stop", "-t", "5", serverName]).catch(() => {});
   if (computerStarted) await run(["docker", "stop", "-t", "5", computerName]).catch(() => {});
-  await rm(join(env.AITEAMOS_AGENT_DATA_ROOT, "transcription.json"), { force: true });
+  await rm(join(env.OUTCOMEGO_AGENT_DATA_ROOT, "transcription.json"), { force: true });
   await prisma.$disconnect();
 };
 process.on("SIGINT", () => void cleanup().then(() => process.exit(0)));
@@ -62,19 +62,19 @@ process.on("SIGTERM", () => void cleanup().then(() => process.exit(0)));
 try {
   // The gateway checks its unprivileged agent's workspace before the server
   // creates bot directories. This is a disposable, cross-UID container mount.
-  await mkdir(env.AITEAMOS_WORKSPACE_ROOT, { recursive: true });
-  await chmod(env.AITEAMOS_WORKSPACE_ROOT, 0o777);
-  await run(["docker", "start", "openteam-swift-fullqa-db-0916"]);
+  await mkdir(env.OUTCOMEGO_WORKSPACE_ROOT, { recursive: true });
+  await chmod(env.OUTCOMEGO_WORKSPACE_ROOT, 0o777);
+  await run(["docker", "start", "outcomego-swift-fullqa-db-0916"]);
   for (let attempt = 0; ; attempt++) {
-    try { await run(["docker", "exec", "openteam-swift-fullqa-db-0916", "pg_isready", "-U", "swiftqa"]); break; }
+    try { await run(["docker", "exec", "outcomego-swift-fullqa-db-0916", "pg_isready", "-U", "swiftqa"]); break; }
     catch { if (attempt >= 60) throw new Error("QA PostgreSQL did not become ready"); await Bun.sleep(300); }
   }
-  await run(["docker", "exec", "openteam-swift-fullqa-db-0916", "createdb", "-U", "swiftqa", databaseName]);
+  await run(["docker", "exec", "outcomego-swift-fullqa-db-0916", "createdb", "-U", "swiftqa", databaseName]);
   await run(["bun", "run", "db:push"], undefined, resolve("packages/db"));
   // This database belongs exclusively to this harness; never reset a live owner.
   if (await prisma.user.count()) throw new Error("QA database already has an owner; use the running harness instead of resetting credentials.");
   await run(["bun", "apps/server/src/main.ts", "owner-credentials"], JSON.stringify({ operation: "setup", username, password }));
-  const keys = ["AITEAMOS_CONTROL_TOKEN", "AITEAMOS_SERVER_URL", "AITEAMOS_AGENT_DATA_ROOT", "AITEAMOS_AGENT_DATA_CANONICAL_ROOT", "AITEAMOS_WORKSPACE_ROOT", "AITEAMOS_PI_AGENT_DIR", "AITEAMOS_BOX_STORE_ROOT", "AITEAMOS_BOX_COPY_IN"];
+  const keys = ["OUTCOMEGO_CONTROL_TOKEN", "OUTCOMEGO_SERVER_URL", "OUTCOMEGO_AGENT_DATA_ROOT", "OUTCOMEGO_AGENT_DATA_CANONICAL_ROOT", "OUTCOMEGO_WORKSPACE_ROOT", "OUTCOMEGO_PI_AGENT_DIR", "OUTCOMEGO_BOX_STORE_ROOT", "OUTCOMEGO_BOX_COPY_IN"];
   await run(["bun", "build", "apps/computer/src/main.ts", "apps/computer/src/provider-cli.ts", "--outdir", join(root, "computer-build"), "--target", "bun", "--external", "@earendil-works/pi-coding-agent", "--external", "playwright-core"]);
   await run(["docker", "run", "-d", "--rm", "--name", computerName,
     ...(dockerNetwork ? ["--network", dockerNetwork] : []),
@@ -86,11 +86,11 @@ try {
     ...keys.flatMap(key => ["-e", key]),
     computerImage]);
   computerStarted = true;
-  const credentials = await run(["docker", "exec", "openteam-computer-1", "cat", "/home/box/.pi/agent/auth.json"]);
+  const credentials = await run(["docker", "exec", "outcomego-computer-1", "cat", "/home/box/.pi/agent/auth.json"]);
   await run(["docker", "exec", "-i", computerName, "sh", "-c", "umask 077; cat > /home/box/.pi/agent/auth.json"], credentials);
   for (let attempt = 0; ; attempt++) {
     try {
-      const health = await fetch(env.AITEAMOS_COMPUTER_URL + "/health", { signal: AbortSignal.timeout(2_000) });
+      const health = await fetch(env.OUTCOMEGO_COMPUTER_URL + "/health", { signal: AbortSignal.timeout(2_000) });
       if (health.ok) break;
     } catch {}
     if (attempt >= 100) throw new Error("Real computer/provider did not become ready");
@@ -100,10 +100,10 @@ try {
     const serverEnv = {
       ...env,
       DATABASE_URL: databaseURL.replace("@127.0.0.1:", "@host.docker.internal:"),
-      AITEAMOS_COMPUTER_URL: dockerNetwork ? `http://${computerName}:8790` : "http://host.docker.internal:20021",
+      OUTCOMEGO_COMPUTER_URL: dockerNetwork ? `http://${computerName}:8790` : "http://host.docker.internal:20021",
     };
     // Keep credentials in the child environment, never in argv or a checked-in file.
-    const keys = Object.keys(serverEnv).filter(key => key === "DATABASE_URL" || key.startsWith("AITEAMOS_"));
+    const keys = Object.keys(serverEnv).filter(key => key === "DATABASE_URL" || key.startsWith("OUTCOMEGO_"));
     await run(["docker", "run", "-d", "--rm", "--name", serverName,
       ...(dockerNetwork ? ["--network", dockerNetwork] : []),
       "--user", `${process.getuid!()}:${process.getgid!()}`,
@@ -130,11 +130,11 @@ try {
   if (transcriptionContainer) {
     const settings = await run(["docker", "exec", transcriptionContainer, "bun", "-e", `
       const { createHash, createDecipheriv } = require("node:crypto");
-      const settings = await Bun.file(process.env.AITEAMOS_AGENT_DATA_ROOT + "/transcription.json").json();
+      const settings = await Bun.file(process.env.OUTCOMEGO_AGENT_DATA_ROOT + "/transcription.json").json();
       let apiKey = null;
       if (settings.encryptedApiKey) {
-        const secret = process.env.AITEAMOS_AUTH_SECRET;
-        const key = createHash("sha256").update("openteam-transcription-v1:" + secret).digest();
+        const secret = process.env.OUTCOMEGO_AUTH_SECRET;
+        const key = createHash("sha256").update("outcomego-transcription-v1:" + secret).digest();
         const bytes = Buffer.from(settings.encryptedApiKey, "base64");
         const decipher = createDecipheriv("aes-256-gcm", key, bytes.subarray(0, 12));
         decipher.setAuthTag(bytes.subarray(12, 28));

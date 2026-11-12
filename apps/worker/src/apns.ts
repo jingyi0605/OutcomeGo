@@ -1,11 +1,11 @@
 import { createHash, createPrivateKey, sign } from "node:crypto";
-import { apnsEnvironmentConfiguration } from "@aiteamos/db/apns-settings";
+import { apnsEnvironmentConfiguration } from "@outcomego/db/apns-settings";
 import { connect, type ClientHttp2Session } from "node:http2";
 import {
   agentNotificationDeliveryPolicy,
   truncateNotificationText,
   type PushNotificationPayload,
-} from "@aiteamos/contracts";
+} from "@outcomego/contracts";
 
 export interface ApnsDevice {
   pushToken: string;
@@ -99,7 +99,7 @@ export class ApnsClient {
         : (this.configuration ?? apnsEnvironmentConfiguration());
     if (!config.keyId || !config.teamId || !config.privateKey)
       throw new Error(
-        "Native iOS push needs APNs key ID, team ID and a signing key; run aiteamos notifications configure"
+        "Native iOS push needs APNs key ID, team ID and a signing key; run outcomego notifications configure"
       );
     const hash = createHash("sha256").update(JSON.stringify(config)).digest("hex");
     if (hash !== this.configurationHash) {
@@ -152,7 +152,7 @@ export class ApnsClient {
     if (Buffer.byteLength(body) > 4096 && payload.kind !== "badge-sync" && "alert" in content.aps) {
       content.aps.alert = {
         title: truncateNotificationText(payload.title, 30),
-        body: "Open aiTeamOS to view this message.",
+        body: "Open OutcomeGo to view this message.",
       };
       if ("sender" in content.data && content.data.sender)
         content.data.sender.name = content.aps.alert.title;

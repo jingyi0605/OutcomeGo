@@ -1,14 +1,14 @@
 import { expect, test } from "bun:test";
 import { Effect } from "effect";
-import { createAiTeamOSClient } from "../../../../packages/client-core/src";
+import { createOutcomeGoClient } from "../../../../packages/client-core/src";
 import { createPluginFlowFixture } from "./fixtures/plugin-flow";
 
-const databaseUrl = process.env.AITEAMOS_TEST_DATABASE_URL;
+const databaseUrl = process.env.OUTCOMEGO_TEST_DATABASE_URL;
 const integration = test.skipIf(!databaseUrl);
 
 async function setup(packaged = true) {
   const fixture = await createPluginFlowFixture(databaseUrl!, { packaged, authSessions: ["owner"], callbackMode: "manual" });
-  const client = createAiTeamOSClient({ baseUrl: fixture.server.url.origin, getAuthToken: () => "owner" });
+  const client = createOutcomeGoClient({ baseUrl: fixture.server.url.origin, getAuthToken: () => "owner" });
   const key = fixture.definitions[packaged ? 0 : 1]!.key;
   await client.installPlugin(key);
   const id = (await client.pluginSettings()).installs.find(row => row.pluginKey === key)!.connections[0]!.id;
@@ -71,7 +71,7 @@ for (const description of ["Token has been expired or revoked.", "", "Le jeton a
       const staleCallback = await f.approve(start.authorizationUrl);
       const fresh = await f.client.authenticatePlugin(f.id, true);
       await expect(f.client.finishManualPluginAuthentication(f.id, staleCallback)).rejects.toThrow();
-      const outsider = createAiTeamOSClient({ baseUrl: f.server.url.origin, getAuthToken: () => "outsider" });
+      const outsider = createOutcomeGoClient({ baseUrl: f.server.url.origin, getAuthToken: () => "outsider" });
       await expect(outsider.authenticatePlugin(f.id)).rejects.toThrow();
       f.provider.setRefreshFailure(null);
       await f.client.finishManualPluginAuthentication(f.id, await f.approve(fresh.authorizationUrl));

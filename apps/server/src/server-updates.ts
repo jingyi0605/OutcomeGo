@@ -6,11 +6,11 @@ import {
   type ServerUpdateHeartbeat,
   type ServerUpdateRequest,
   type ServerUpdateView,
-} from "@aiteamos/contracts";
+} from "@outcomego/contracts";
 import {
-  compareAiTeamOSVersions,
-  normalizeAiTeamOSVersion,
-} from "@aiteamos/contracts/version-compatibility";
+  compareOutcomeGoVersions,
+  normalizeOutcomeGoVersion,
+} from "@outcomego/contracts/version-compatibility";
 import { json } from "./http";
 
 const AGENT_TIMEOUT = 30_000;
@@ -66,7 +66,7 @@ export class ServerUpdates {
         : (request?.message ??
           (available
             ? "Updates this connected server"
-            : "Run aiteamos start on the server to enable updates from the app.")),
+            : "Run outcomego start on the server to enable updates from the app.")),
       jobId: request?.jobId ?? request?.id ?? null,
       safeToCloseDesktop: Boolean(active),
     };
@@ -75,11 +75,11 @@ export class ServerUpdates {
   start(input: unknown): ServerUpdateView {
     const body = input as Record<string, unknown> | null;
     const version =
-      typeof body?.targetVersion === "string" ? normalizeAiTeamOSVersion(body.targetVersion) : null;
+      typeof body?.targetVersion === "string" ? normalizeOutcomeGoVersion(body.targetVersion) : null;
     if (
       !version ||
       (version.includes("-") && !this.allowPrerelease) ||
-      (compareAiTeamOSVersions(version, this.currentVersion) ?? 0) <= 0
+      (compareOutcomeGoVersions(version, this.currentVersion) ?? 0) <= 0
     )
       throw new ApiError(
         400,
@@ -98,7 +98,7 @@ export class ServerUpdates {
       throw new ApiError(
         503,
         "updater_unavailable",
-        "Run aiteamos start on the server to enable updates from the app."
+        "Run outcomego start on the server to enable updates from the app."
       );
     this.request = {
       id: randomUUID(),

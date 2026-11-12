@@ -1,6 +1,6 @@
-import type { ChannelMessageView } from "@aiteamos/contracts";
-import { compareEntitySequence } from "@aiteamos/product-core/history";
-import { messageRetainedByteSize } from "@aiteamos/product-core/message-window";
+import type { ChannelMessageView } from "@outcomego/contracts";
+import { compareEntitySequence } from "@outcomego/product-core/history";
+import { messageRetainedByteSize } from "@outcomego/product-core/message-window";
 
 export const THREAD_TRAY_PIN_MAX_MESSAGES = 100;
 export const THREAD_TRAY_PIN_MAX_RETAINED_BYTES = 512 * 1024;

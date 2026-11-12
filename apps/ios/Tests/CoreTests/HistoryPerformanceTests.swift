@@ -1,6 +1,6 @@
 import XCTest
 
-@testable import OpenTeamCore
+@testable import OutcomeGoCore
 
 final class HistoryPerformanceTests: XCTestCase {
   private func history(_ count: Int, nested: Bool = false) throws -> [Message] {

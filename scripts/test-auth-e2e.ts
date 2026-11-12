@@ -6,7 +6,7 @@ let requestSequence = 0;
 const authRequest = (path: string, init: RequestInit = {}) => {
   const headers = new Headers(init.headers);
   requestSequence += 1;
-  headers.set("x-aiteamos-client-ip", `198.51.100.${requestSequence}`);
+  headers.set("x-outcomego-client-ip", `198.51.100.${requestSequence}`);
   return auth.handler(new Request(`http://127.0.0.1:8787/api/auth${path}`, { ...init, headers }));
 };
 
@@ -20,7 +20,7 @@ const signIn = (username: string, password: string) =>
 try {
   await setOwnerCredentials({
     operation: "setup",
-    username: "aiTeamOS.Owner",
+    username: "outcomeGo.Owner",
     password: "first test password",
   });
 
@@ -45,7 +45,7 @@ try {
   });
   assert.equal(emailLogin.status, 404, "email sign-in must be disabled");
 
-  const firstLogin = await signIn("AITEAMOS.OWNER", "first test password");
+  const firstLogin = await signIn("OUTCOMEGO.OWNER", "first test password");
   assert.equal(firstLogin.status, 200, await firstLogin.text());
   const firstToken = firstLogin.headers.get("set-auth-token");
   assert.ok(firstToken, "Better Auth bearer plugin must return a signed token");
@@ -53,8 +53,8 @@ try {
   const firstSession = await auth.api.getSession({
     headers: new Headers({ authorization: `Bearer ${firstToken}` }),
   });
-  assert.equal(firstSession?.user.username, "aiteamos.owner");
-  assert.equal(firstSession?.user.name, "aiTeamOS.Owner", "sign-in must keep the typed username");
+  assert.equal(firstSession?.user.username, "outcomego.owner");
+  assert.equal(firstSession?.user.name, "outcomeGo.Owner", "sign-in must keep the typed username");
 
   const blockedReset = await authRequest("/change-password", {
     method: "POST",
@@ -75,7 +75,7 @@ try {
   });
   assert.equal(usernameRevokedSession, null, "username changes must revoke every existing session");
 
-  const oldUsernameLogin = await signIn("aiteamos.owner", "first test password");
+  const oldUsernameLogin = await signIn("outcomego.owner", "first test password");
   assert.equal(oldUsernameLogin.status, 401, "the previous username must stop working");
   const renamedLogin = await signIn("renamed.owner", "first test password");
   assert.equal(renamedLogin.status, 200, await renamedLogin.text());

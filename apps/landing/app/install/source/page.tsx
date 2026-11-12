@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { installScript, powerShellInstallScript } from "@/lib/install-script";
 
 export const metadata = pageMetadata({
-  title: "Review the aiTeamOS installer",
+  title: "Review the OutcomeGo installer",
   description: "Read the exact macOS, Linux, and Windows bootstrap scripts before running them.",
   path: "/install/source",
 });
@@ -41,7 +41,7 @@ export default function InstallSourcePage() {
     <>
       <header className="sticky top-0 z-40 border-b border-line/80 bg-paper/85 backdrop-blur-md">
         <div className="container-page flex h-16 items-center gap-4">
-          <Link href="/" aria-label="aiTeamOS home" className="shrink-0">
+          <Link href="/" aria-label="OutcomeGo home" className="shrink-0">
             <Wordmark size={22} />
           </Link>
           <span className="hidden h-5 w-px bg-line sm:block" aria-hidden="true" />

@@ -1,4 +1,4 @@
-import type { VoiceSessionTicketView, VoiceServerMessage } from "@aiteamos/contracts/voice";
+import type { VoiceSessionTicketView, VoiceServerMessage } from "@outcomego/contracts/voice";
 import { API_BASE } from "../client/http";
 import { resolveVoiceSocketUrl } from "../client/runtime-url";
 import { translateCurrent } from "./i18n-catalog";

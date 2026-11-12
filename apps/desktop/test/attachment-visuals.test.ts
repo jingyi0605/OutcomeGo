@@ -4,7 +4,7 @@ import {
   formatAttachmentSize,
   imageRowWidth,
   planImageRow,
-} from "../src/renderer/components/aiteamos/attachment-visuals";
+} from "../src/renderer/components/outcomego/attachment-visuals";
 
 // Sizes measured in the reference app's chat column (728 wide) on 2026-11-02.
 describe("photo rows", () => {

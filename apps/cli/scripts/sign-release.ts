@@ -8,13 +8,13 @@ import { LOCAL_RELEASE_KEY_ID, LOCAL_RELEASE_PUBLIC_KEY, localReleaseSigningPayl
 import { verifyArtifactSignature } from "../src/release";
 
 // Two signing modes, both verified by `verifyArtifactSignature` before anything is written:
-//   keyless  (AITEAMOS_RELEASE_SIGNING_MODE=keyless): GitHub Actions OIDC identity plus Fulcio and
+//   keyless  (OUTCOMEGO_RELEASE_SIGNING_MODE=keyless): GitHub Actions OIDC identity plus Fulcio and
 //            Rekor. Only valid from .github/workflows/release.yml on the release tag, which is the
 //            identity the CLI verifier pins. No private key exists.
-//   local    (default): the protected P-256 key at AITEAMOS_RELEASE_SIGNING_KEY_PATH.
+//   local    (default): the protected P-256 key at OUTCOMEGO_RELEASE_SIGNING_KEY_PATH.
 const files = process.argv.slice(2);
 if (!files.length) throw new Error("Pass at least one release artifact to sign");
-const keyless = process.env.AITEAMOS_RELEASE_SIGNING_MODE === "keyless";
+const keyless = process.env.OUTCOMEGO_RELEASE_SIGNING_MODE === "keyless";
 const version = (await Bun.file(new URL("../package.json", import.meta.url)).json()).version;
 const repository = DEFAULT_REPOSITORY;
 
@@ -24,9 +24,9 @@ if (keyless) {
     throw new Error("Keyless signing needs a GitHub Actions job with `id-token: write`");
   createBundle = artifact => keylessSign(artifact);
 } else {
-  const keyPath = process.env.AITEAMOS_RELEASE_SIGNING_KEY_PATH;
+  const keyPath = process.env.OUTCOMEGO_RELEASE_SIGNING_KEY_PATH;
   if (!keyPath || ((await stat(keyPath)).mode & 0o077))
-    throw new Error("Set AITEAMOS_RELEASE_SIGNING_KEY_PATH to a protected local key file");
+    throw new Error("Set OUTCOMEGO_RELEASE_SIGNING_KEY_PATH to a protected local key file");
   const key = createPrivateKey(await Bun.file(keyPath).text());
   const publicKey = createPublicKey(key).export({ type: "spki", format: "pem" }).toString();
   if (publicKey !== LOCAL_RELEASE_PUBLIC_KEY) throw new Error("Signing key does not match the pinned release identity");

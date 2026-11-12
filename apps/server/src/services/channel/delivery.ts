@@ -1,5 +1,5 @@
-import { COMPUTER_API_PATHS } from "@aiteamos/contracts/service-protocol";
-import type { PrismaClient } from "@aiteamos/db";
+import { COMPUTER_API_PATHS } from "@outcomego/contracts/service-protocol";
+import type { PrismaClient } from "@outcomego/db";
 import { appendEvent, type ComputerFetch } from "../service-utils";
 
 export async function cancelSkippedBootstrap(

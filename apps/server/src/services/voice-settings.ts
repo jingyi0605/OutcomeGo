@@ -1,5 +1,5 @@
-import { ApiError, type VoiceProviderId, type VoiceSettingsInput, type VoiceSettingsView } from "@aiteamos/contracts";
-import type { PrismaClient } from "@aiteamos/db";
+import { ApiError, type VoiceProviderId, type VoiceSettingsInput, type VoiceSettingsView } from "@outcomego/contracts";
+import type { PrismaClient } from "@outcomego/db";
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
 
 const ID = "global";
@@ -17,16 +17,6 @@ const PROVIDER_SPEECH_DEFAULTS: Record<VoiceProviderId, { sttModel: string; ttsM
   volcengine: { sttModel: "bigmodel", ttsModel: "", voice: "zh_female_vv_uranus_bigtts", language: "zh-CN" },
   deepgram: { sttModel: "nova-3", ttsModel: "aura-2-thalia-en", voice: "alloy", language: "en-US" },
 };
-// Earlier builds persisted the Deepgram defaults for every provider. Read them back as "automatic".
-const LEGACY_STORED_DEFAULTS = {
-  sttModel: "nova-3",
-  ttsModel: "aura-2-thalia-en",
-  voice: "alloy",
-  language: "en-US",
-} as const;
-const unlessLegacy = (value: string, field: keyof typeof LEGACY_STORED_DEFAULTS) =>
-  value === LEGACY_STORED_DEFAULTS[field] ? "" : value;
-
 const invalid = (message: string) => new ApiError(400, "invalid_voice_settings", message);
 
 export interface VoiceRuntimeSettings {
@@ -162,7 +152,7 @@ export class VoiceSettingsService {
 
   constructor(
     private readonly prisma: Pick<PrismaClient, "voiceSettings">,
-    private readonly secret: () => string | undefined = () => process.env.AITEAMOS_AUTH_SECRET,
+    private readonly secret: () => string | undefined = () => process.env.OUTCOMEGO_AUTH_SECRET,
   ) {}
 
   private key(): Buffer {
@@ -193,13 +183,9 @@ export class VoiceSettingsService {
   private async read(): Promise<VoiceRuntimeSettings> {
     const row = await this.prisma.voiceSettings.findUnique({ where: { id: ID } });
     if (!row) return defaults();
-    const legacyMockProvider = row.provider === "mock";
     return {
-      enabled: legacyMockProvider ? false : row.enabled,
-      defaultProvider:
-        row.provider === "volcengine" || row.provider === "deepgram"
-          ? row.provider
-          : "volcengine",
+      enabled: row.enabled,
+      defaultProvider: row.provider as VoiceProviderId,
       volcengineApiKey: row.encryptedVolcengineApiKey ? this.decrypt(row.encryptedVolcengineApiKey) : "",
       volcengineBaseUrl: row.volcengineBaseUrl,
       volcengineSttUrl: row.volcengineSttUrl ?? "",
@@ -208,10 +194,10 @@ export class VoiceSettingsService {
       volcengineTtsResourceId: row.volcengineTtsResourceId,
       deepgramApiKey: row.encryptedDeepgramApiKey ? this.decrypt(row.encryptedDeepgramApiKey) : "",
       deepgramBaseUrl: row.deepgramBaseUrl,
-      sttModel: unlessLegacy(row.sttModel, "sttModel"),
-      ttsModel: unlessLegacy(row.ttsModel, "ttsModel"),
-      voice: unlessLegacy(row.voice, "voice"),
-      language: unlessLegacy(row.language, "language"),
+      sttModel: row.sttModel,
+      ttsModel: row.ttsModel,
+      voice: row.voice,
+      language: row.language,
       narrationModel: row.narrationModel,
     };
   }

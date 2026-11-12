@@ -6,7 +6,7 @@ import {
   readFileSync,
   statfsSync,
 } from "node:fs";
-import { redactSensitiveText } from "@aiteamos/product-core/redaction";
+import { redactSensitiveText } from "@outcomego/product-core/redaction";
 import { arch, freemem, totalmem } from "node:os";
 import { dirname } from "node:path";
 import type { InstallationPaths } from "./config";
@@ -113,7 +113,7 @@ export const runDoctor = async (
       : {
           level: "fail",
           label: "Platform",
-          detail: `${process.platform}/${machineArchitecture} is not supported by aiTeamOS images`,
+          detail: `${process.platform}/${machineArchitecture} is not supported by OutcomeGo images`,
         }
   );
 
@@ -183,7 +183,7 @@ export const runDoctor = async (
           level: compose?.supported ? "pass" : "fail",
           label: "Docker Compose",
           detail: compose
-            ? `${compose.version}${compose.supported ? "" : `; aiTeamOS requires ${MINIMUM_COMPOSE_VERSION}+`}`
+            ? `${compose.version}${compose.supported ? "" : `; OutcomeGo requires ${MINIMUM_COMPOSE_VERSION}+`}`
             : "Neither the Docker Compose plugin nor the standalone command could run.",
           ...(!compose
             ? {
@@ -212,7 +212,7 @@ export const runDoctor = async (
       label: "Installation",
       detail: [paths.manifest, paths.environment, paths.compose].some(existsSync)
         ? `Installation files are missing at ${paths.directory}; setup is incomplete.`
-        : `First-time setup: the aiTeamOS server has not been configured at ${paths.directory} yet.`,
+        : `First-time setup: the OutcomeGo server has not been configured at ${paths.directory} yet.`,
     });
     const checkInstallPorts = options.checkInstallPorts ?? true;
     const unavailablePort = checkInstallPorts
@@ -236,7 +236,7 @@ export const runDoctor = async (
       checks.push({
         level: "fail",
         label: "Installation",
-        detail: `Invalid installation manifest at ${paths.manifest}; repair it before starting aiTeamOS`,
+        detail: `Invalid installation manifest at ${paths.manifest}; repair it before starting OutcomeGo`,
       });
       return {
         ok: false,
@@ -250,7 +250,7 @@ export const runDoctor = async (
     checks.push({
       level: manifest ? "pass" : "fail",
       label: "Installation",
-      detail: manifest ? `aiTeamOS ${manifest.version} at ${paths.directory}` : "manifest missing",
+      detail: manifest ? `OutcomeGo ${manifest.version} at ${paths.directory}` : "manifest missing",
     });
     checks.push({
       level: environmentModeIsPrivate(paths) ? "pass" : "fail",
@@ -289,10 +289,10 @@ export const runDoctor = async (
       const values = parseEnvironment(readFileSync(paths.environment, "utf8"));
       environmentValues = values;
       const requiredSecrets = [
-        "AITEAMOS_POSTGRES_PASSWORD",
-        "AITEAMOS_CONTROL_TOKEN",
-        "AITEAMOS_AUTH_SECRET",
-        "AITEAMOS_PROXY_SECRET",
+        "OUTCOMEGO_POSTGRES_PASSWORD",
+        "OUTCOMEGO_CONTROL_TOKEN",
+        "OUTCOMEGO_AUTH_SECRET",
+        "OUTCOMEGO_PROXY_SECRET",
       ];
       const missingSecrets = requiredSecrets.filter((key) => (values.get(key)?.length ?? 0) < 32);
       checks.push({
@@ -308,13 +308,13 @@ export const runDoctor = async (
         label: "Owner account",
         detail: manifest?.ownerUsername
           ? `configured for ${manifest.ownerUsername}`
-          : "not configured; run aiteamos setup",
+          : "not configured; run outcomego setup",
       });
-      const accessMode = values.get("AITEAMOS_ACCESS_MODE") || "local";
-      const publicUrl = values.get("AITEAMOS_PUBLIC_URL") || "";
-      const apiIsLoopback = values.get("AITEAMOS_BIND_HOST") === "127.0.0.1";
+      const accessMode = values.get("OUTCOMEGO_ACCESS_MODE") || "local";
+      const publicUrl = values.get("OUTCOMEGO_PUBLIC_URL") || "";
+      const apiIsLoopback = values.get("OUTCOMEGO_BIND_HOST") === "127.0.0.1";
       const viewersAreLoopback =
-        (values.get("AITEAMOS_VIEWER_BIND_HOST") || values.get("AITEAMOS_BIND_HOST")) ===
+        (values.get("OUTCOMEGO_VIEWER_BIND_HOST") || values.get("OUTCOMEGO_BIND_HOST")) ===
         "127.0.0.1";
       let exposure: DoctorCheck;
       if (accessMode === "https" || accessMode === "proxy" || accessMode === "tailscale") {
@@ -327,8 +327,8 @@ export const runDoctor = async (
                   accessMode === "https"
                     ? `public HTTPS through bundled Caddy at ${publicUrl}; internal ports are loopback-only`
                     : accessMode === "tailscale"
-                      ? `private Tailscale HTTPS at ${publicUrl}; aiTeamOS ports are loopback-only`
-                      : `public HTTPS through an external proxy at ${publicUrl}; aiTeamOS ports are loopback-only`,
+                      ? `private Tailscale HTTPS at ${publicUrl}; OutcomeGo ports are loopback-only`
+                      : `public HTTPS through an external proxy at ${publicUrl}; OutcomeGo ports are loopback-only`,
               }
             : {
                 level: "fail",
@@ -398,7 +398,7 @@ export const runDoctor = async (
           label: "Tailscale Serve",
           detail:
             status.issue || `${status.publicUrl} → ${status.backendUrl} (${status.ownership})`,
-          action: cliTranslate("Run aiteamos tailscale status on the server host."),
+          action: cliTranslate("Run outcomego tailscale status on the server host."),
         });
       }
       if (["https", "proxy", "http", "tailscale"].includes(accessMode) && publicUrl) {
@@ -472,13 +472,13 @@ export const runDoctor = async (
     if (foreignServer && environmentValues) {
       checks.push({
         level: "fail",
-        label: "aiTeamOS health",
+        label: "OutcomeGo health",
         detail: foreignServerMessage(runner, probe, environmentValues),
       });
     } else {
       checks.push({
         level: health.ok ? "pass" : "fail",
-        label: "aiTeamOS health",
+        label: "OutcomeGo health",
         detail: health.ok ? `${health.detail} at ${health.url}` : `${health.url}: ${health.detail}`,
       });
     }
@@ -521,7 +521,7 @@ export const runDoctor = async (
         checks.push({
           level: "warn",
           label: "AI connection",
-          detail: "not tested; no model is connected. Connect one in the aiTeamOS app",
+          detail: "not tested; no model is connected. Connect one in the OutcomeGo app",
         });
       } else {
         try {

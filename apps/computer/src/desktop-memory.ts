@@ -11,7 +11,7 @@ export function parseMemoryLimit(value: string): number {
   const units = { "": 1, k: 1024, m: 1024 ** 2, g: 1024 ** 3, t: 1024 ** 4 };
   const bytes = match ? Number(match[1]) * units[match[2]!.toLowerCase() as keyof typeof units] : NaN;
   if (!Number.isSafeInteger(bytes) || bytes < 16 * 1024 ** 2) {
-    throw new Error("AITEAMOS_DESKTOP_MEMORY_LIMIT must be an integer size of at least 16 MiB (for example 10g)");
+    throw new Error("OUTCOMEGO_DESKTOP_MEMORY_LIMIT must be an integer size of at least 16 MiB (for example 10g)");
   }
   return bytes;
 }
@@ -22,7 +22,7 @@ function desktopGroup(botId: string): string {
 }
 
 export function desktopMemoryEnabled(): boolean {
-  return Boolean(process.env.AITEAMOS_DESKTOP_MEMORY_LIMIT);
+  return Boolean(process.env.OUTCOMEGO_DESKTOP_MEMORY_LIMIT);
 }
 
 export function desktopMemoryForSpawn(botId: string): string | undefined {
@@ -31,7 +31,7 @@ export function desktopMemoryForSpawn(botId: string): string | undefined {
     throw new Error("Per-desktop memory limits require the Linux computer supervisor");
   }
   if (!botId) throw new Error("A desktop ID is required for its memory limit");
-  const bytes = parseMemoryLimit(process.env.AITEAMOS_DESKTOP_MEMORY_LIMIT!);
+  const bytes = parseMemoryLimit(process.env.OUTCOMEGO_DESKTOP_MEMORY_LIMIT!);
   const group = desktopGroup(botId);
   // Never create a fake hierarchy on a normal filesystem or silently fall back.
   if (!readFileSync(join(ROOT, "cgroup.subtree_control"), "utf8").split(/\s+/).includes("memory")) {

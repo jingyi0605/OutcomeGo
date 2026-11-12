@@ -1,13 +1,13 @@
 import { createRoot } from "react-dom/client";
 import { useState } from "react";
-import { defaultTranscriptionSettings } from "@aiteamos/contracts/transcription";
-import { WEB_PROVIDER_LISTS } from "@aiteamos/contracts/web-search";
-import { api } from "../../src/renderer/client/aiteamos-api";
-import { SettingsPanel } from "../../src/renderer/components/aiteamos/settings/panel";
+import { defaultTranscriptionSettings } from "@outcomego/contracts/transcription";
+import { WEB_PROVIDER_LISTS } from "@outcomego/contracts/web-search";
+import { api } from "../../src/renderer/client/outcomego-api";
+import { SettingsPanel } from "../../src/renderer/components/outcomego/settings/panel";
 import { TooltipProvider } from "../../src/renderer/components/ui/tooltip";
 import "../../src/renderer/styles.css";
 
-if (window.aiteamos) throw new Error("Settings QA requires an isolated fixture");
+if (window.outcomego) throw new Error("Settings QA requires an isolated fixture");
 window.fetch = async () => { throw new Error("External network disabled in settings fixture"); };
 const calls: unknown[] = [];
 let computer = {
@@ -19,7 +19,7 @@ let providers: any = {
   search: { selected: null, schedule: { strategy: "failover", providers: [], cursor: 0 }, providers: providerStates("search") },
   fetch: { selected: "builtin", schedule: { strategy: "failover", providers: ["builtin"], cursor: 0 }, providers: providerStates("fetch") },
 };
-Object.assign(window, { settingsQACalls: calls, aiteamos: {
+Object.assign(window, { settingsQACalls: calls, outcomego: {
   auth: { machineStatus: async () => ({ machineId: "qa", connected: true, configured: true, error: null }) },
   computer: {
     get: async () => computer,

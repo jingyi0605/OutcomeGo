@@ -55,7 +55,7 @@ def create_app(model_id: str, api_key: str):
     def transcribe(audio: bytes):
         # ffmpeg handles desktop WebM/Opus and native iPhone WAV consistently.
         # Restrict protocols so an uploaded playlist cannot fetch remote resources.
-        with tempfile.TemporaryDirectory(prefix="aiteamos-voice-") as directory:
+        with tempfile.TemporaryDirectory(prefix="outcomego-voice-") as directory:
             source = Path(directory) / "input"
             target = Path(directory) / "audio.wav"
             source.write_bytes(audio)

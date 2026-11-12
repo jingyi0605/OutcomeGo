@@ -1,4 +1,4 @@
-import type { ScreenStatusView } from "@aiteamos/contracts";
+import type { ScreenStatusView } from "@outcomego/contracts";
 import {
   createSerialPoller,
   createSerializedTakeoverController,

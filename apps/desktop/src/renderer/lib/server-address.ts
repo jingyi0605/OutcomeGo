@@ -1,4 +1,4 @@
-import { normalizeBaseUrl, withDefaultScheme } from "@aiteamos/client-core/http";
+import { normalizeBaseUrl, withDefaultScheme } from "@outcomego/client-core/http";
 import { translateCurrent } from "./i18n-catalog";
 
 const EXAMPLE = "192.168.1.20:8787";

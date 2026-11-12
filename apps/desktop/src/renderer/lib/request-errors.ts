@@ -1,5 +1,5 @@
-import { AiTeamOSClientError } from "@aiteamos/client-core";
-import { clientErrorMessage, redactSensitiveText } from "@aiteamos/product-core/redaction";
+import { OutcomeGoClientError } from "@outcomego/client-core";
+import { clientErrorMessage, redactSensitiveText } from "@outcomego/product-core/redaction";
 import { translateCurrent } from "./i18n-catalog";
 
 /** How long setup waits for an ordinary request before saying so and offering a retry. */
@@ -29,7 +29,7 @@ export function withDeadline<T>(
   let timer: ReturnType<typeof setTimeout> | undefined;
   const deadline = new Promise<never>((_, reject) => {
     timer = setTimeout(() => {
-      reject(new AiTeamOSClientError(timeoutMessage(), "timeout"));
+      reject(new OutcomeGoClientError(timeoutMessage(), "timeout"));
       controller.abort();
     }, ms);
   });
@@ -55,7 +55,7 @@ const readable = (text: string | null | undefined): text is string =>
   text.length > 0 &&
   !/[{}[\]]/.test(text) &&
   !/^Request failed \(\d+\)$/.test(text) &&
-  text !== "aiTeamOS returned an invalid response";
+  text !== "OutcomeGo returned an invalid response";
 
 const plainMessage = (cause: unknown) =>
   clientErrorMessage(cause, "")

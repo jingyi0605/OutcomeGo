@@ -18,7 +18,7 @@ export const readServiceStates = (project: ComposeProject): ServiceState[] => {
   const result = project.run(["ps", "--all", "--format", "json"], { timeoutMs: 5_000 });
   if (result.status !== 0) {
     throw new CliError(
-      `Could not inspect aiTeamOS services: ${commandDiagnostic("Docker Compose ps", result)}`
+      `Could not inspect OutcomeGo services: ${commandDiagnostic("Docker Compose ps", result)}`
     );
   }
   let services: ServiceState[];
@@ -49,7 +49,7 @@ export const readServiceStates = (project: ComposeProject): ServiceState[] => {
     services = rows as ServiceState[];
   } catch {
     throw new CliError(
-      "Could not inspect aiTeamOS services: Docker Compose returned invalid service state."
+      "Could not inspect OutcomeGo services: Docker Compose returned invalid service state."
     );
   }
   return services;
@@ -119,7 +119,7 @@ export const assertServerReachable = (project: ComposeProject, health: HealthRes
   );
   if (internal.status === 0 && internal.stdout.trim() === "ready") {
     throw new CliError(
-      `aiTeamOS is ready inside Docker, but ${health.url} cannot be reached from this machine (${health.detail}). Check Docker's host port forwarding and other listeners on that port, including Tailscale Serve rules shown by \`tailscale serve status\`. Resolve the port conflict or repair Docker's forwarding, then retry aiteamos start.`
+      `OutcomeGo is ready inside Docker, but ${health.url} cannot be reached from this machine (${health.detail}). Check Docker's host port forwarding and other listeners on that port, including Tailscale Serve rules shown by \`tailscale serve status\`. Resolve the port conflict or repair Docker's forwarding, then retry outcomego start.`
     );
   }
 };

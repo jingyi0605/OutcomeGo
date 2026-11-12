@@ -5,13 +5,13 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import assert from "node:assert/strict";
 
-const context = process.env.AITEAMOS_TEST_DOCKER_CONTEXT;
-if (!context) throw Error("Set AITEAMOS_TEST_DOCKER_CONTEXT to a disposable Linux Docker context.");
-const out = resolve(process.env.AITEAMOS_TEST_OUTPUT_DIR ?? "output/browser-network-linux");
+const context = process.env.OUTCOMEGO_TEST_DOCKER_CONTEXT;
+if (!context) throw Error("Set OUTCOMEGO_TEST_DOCKER_CONTEXT to a disposable Linux Docker context.");
+const out = resolve(process.env.OUTCOMEGO_TEST_OUTPUT_DIR ?? "output/browser-network-linux");
 await mkdir(out, { recursive: true });
 await writeFile(join(out, "result.json"), JSON.stringify({ passed: false, state: "running" }));
-const temp = await mkdtemp(join(tmpdir(), "aiteamos-network-linux-"));
-const prefix = `aiteamos-network-test-${process.pid}`;
+const temp = await mkdtemp(join(tmpdir(), "outcomego-network-linux-"));
+const prefix = `outcomego-network-test-${process.pid}`;
 const controlNet = `${prefix}-control`,
   targetNet = `${prefix}-target`;
 const containers: string[] = [],
@@ -35,9 +35,9 @@ const names = Object.fromEntries(components.map((name) => [name, `${prefix}-${na
   string
 >;
 const images = {
-  computer: "aiteamos-network-computer:test",
-  server: "aiteamos-network-server:test",
-  migrate: "aiteamos-network-migrate:test",
+  computer: "outcomego-network-computer:test",
+  server: "outcomego-network-server:test",
+  migrate: "outcomego-network-migrate:test",
 };
 const config = {
   a: crypto.randomUUID(),
@@ -99,19 +99,19 @@ async function run(name: Component, args: string[]) {
 }
 const env = [
   "-e",
-  `AITEAMOS_CONTROL_TOKEN=${config.control}`,
+  `OUTCOMEGO_CONTROL_TOKEN=${config.control}`,
   "-e",
-  "AITEAMOS_AUTH_SECRET=isolated-network-test-auth-secret-123456789",
+  "OUTCOMEGO_AUTH_SECRET=isolated-network-test-auth-secret-123456789",
   "-e",
-  "AITEAMOS_AUTH_URL=http://server:8787",
+  "OUTCOMEGO_AUTH_URL=http://server:8787",
   "-e",
-  "AITEAMOS_AUTH_MODE=required",
+  "OUTCOMEGO_AUTH_MODE=required",
   "-e",
   "DATABASE_URL=postgresql://test:test@postgres:5432/network_test",
   "-e",
-  "AITEAMOS_COMPUTER_URL=http://computer:8790",
+  "OUTCOMEGO_COMPUTER_URL=http://computer:8790",
   "-e",
-  "AITEAMOS_ASSET_ROOT=/home/box/agent-data/.aiteamos-assets",
+  "OUTCOMEGO_ASSET_ROOT=/home/box/agent-data/.outcomego-assets",
 ];
 const phases = [
   "initial",
@@ -170,7 +170,7 @@ try {
       "-f",
       "scripts/browser-network-linux/cert-tools.Dockerfile",
       "-t",
-      "aiteamos-network-cert-tools:test",
+      "outcomego-network-cert-tools:test",
       "."
     ),
     { log: "cert-tools-build.log" }
@@ -183,7 +183,7 @@ try {
       names["cert-tools"],
       "--network",
       "none",
-      "aiteamos-network-cert-tools:test",
+      "outcomego-network-cert-tools:test",
       "sleep",
       "600"
     )
@@ -241,7 +241,7 @@ try {
         "--subnet",
         subnet,
         "--label",
-        "com.aiteamos.test=browser-network",
+        "com.outcomego.test=browser-network",
         name
       )
     );
@@ -333,7 +333,7 @@ try {
   );
   await run("computer", [
     "-e",
-    "AITEAMOS_NODE_BINARY=/tmp/node-with-test-ca",
+    "OUTCOMEGO_NODE_BINARY=/tmp/node-with-test-ca",
     "--shm-size=512m",
     // Match main's computer namespace/bootstrap requirements in this disposable VM.
     "--cap-add=ALL",
@@ -350,9 +350,9 @@ try {
     "-v",
     `${dataVolume}:/home/box/sand-data`,
     "-e",
-    `AITEAMOS_CONTROL_TOKEN=${config.control}`,
+    `OUTCOMEGO_CONTROL_TOKEN=${config.control}`,
     "-e",
-    "AITEAMOS_SERVER_URL=http://server:8787",
+    "OUTCOMEGO_SERVER_URL=http://server:8787",
     images.computer,
   ]);
   await command(
@@ -464,7 +464,7 @@ try {
           "--cap-add=NET_ADMIN",
           "--entrypoint",
           "sleep",
-          "aiteamos-network-cert-tools:test",
+          "outcomego-network-cert-tools:test",
           "600"
         )
       );

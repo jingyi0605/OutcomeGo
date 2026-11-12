@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { assertSessionPath, disposableSessionPath } from "../src/runtime/session-path";
 
-const sessionsDir = "/home/box/.pi/agent/sessions/aiteamos";
+const sessionsDir = "/home/box/.pi/agent/sessions/outcomego";
 
 describe("Pi session paths", () => {
   test("a turn only reopens a session inside the current session root", () => {
@@ -10,9 +10,9 @@ describe("Pi session paths", () => {
     );
     expect(() =>
       assertSessionPath(sessionsDir, "/home/box/.pi/agent/sessions/openteam/x.jsonl")
-    ).toThrow("outside the aiTeamOS session directory");
+    ).toThrow("outside the outcomeGo session directory");
     expect(() => assertSessionPath(sessionsDir, `${sessionsDir}/../escape.jsonl`)).toThrow(
-      "outside the aiTeamOS session directory"
+      "outside the outcomeGo session directory"
     );
   });
 

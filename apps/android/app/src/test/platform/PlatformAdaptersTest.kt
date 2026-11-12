@@ -1,4 +1,4 @@
-package com.aiteamos.platform
+package com.outcomego.platform
 
 import android.content.ClipData
 import android.content.Intent
@@ -20,7 +20,7 @@ class PlatformAdaptersTest {
 
     @Test fun vncGrantRejectsCrossOriginAndCredentialsInSocketUrl() {
         val grant = ComputerVncGrant(
-            "/api/v0/bots/test-bot/screen/vnc", "one-use", listOf("aiteamos-vnc", "ticket." + "a".repeat(43)),
+            "/api/v0/bots/test-bot/screen/vnc", "one-use", listOf("outcomego-vnc", "ticket." + "a".repeat(43)),
         )
         val uri = grant.socketUri(URI("https://example.test/team"), "test-bot")
         assertEquals("wss://example.test/team/api/v0/bots/test-bot/screen/vnc", uri.toString())
@@ -29,7 +29,7 @@ class PlatformAdaptersTest {
 
     @Test fun vncGrantUsesPlainWebSocketForHttpServers() {
         val grant = ComputerVncGrant(
-            "/api/v0/bots/test-bot/screen/vnc", "one-use", listOf("aiteamos-vnc", "ticket." + "a".repeat(43)),
+            "/api/v0/bots/test-bot/screen/vnc", "one-use", listOf("outcomego-vnc", "ticket." + "a".repeat(43)),
         )
         assertEquals(
             "ws://192.168.1.20:8787/api/v0/bots/test-bot/screen/vnc",
@@ -39,7 +39,7 @@ class PlatformAdaptersTest {
 
     @Test fun vncGrantParsesServerSessionPayload() {
         val grant = ComputerVncGrant.fromJson(Json.parseToJsonElement(
-            """{"path":"/api/v0/bots/test-bot/screen/vnc","protocols":["aiteamos-vnc","ticket.${"a".repeat(43)}"],"password":"one-use"}"""
+            """{"path":"/api/v0/bots/test-bot/screen/vnc","protocols":["outcomego-vnc","ticket.${"a".repeat(43)}"],"password":"one-use"}"""
         ).jsonObject)
         assertEquals("/api/v0/bots/test-bot/screen/vnc", grant.path)
         assertEquals("one-use", grant.authToken)
@@ -97,7 +97,7 @@ class PlatformAdaptersTest {
     }
 
     @Test fun notificationDeepLinksAndCustomChatLinksPreserveMessageAnchors() {
-        val link = AndroidAppLinks.parse(android.net.Uri.parse("aiteamos://chat/channel-1?message=message-9"))
+        val link = AndroidAppLinks.parse(android.net.Uri.parse("outcomego://chat/channel-1?message=message-9"))
         assertEquals("channel-1", link?.channelId)
         assertEquals("message-9", link?.messageId)
 
@@ -107,7 +107,7 @@ class PlatformAdaptersTest {
             "channelId" to "channel-1",
             "messageSequence" to "42",
         ))
-        assertEquals("aiteamos://chat/channel-1?message=42", notification.deepLinkUri().toString())
+        assertEquals("outcomego://chat/channel-1?message=42", notification.deepLinkUri().toString())
     }
 
     @Test fun notificationsRejectPayloadsFromAnotherAccountScope() {
@@ -137,8 +137,8 @@ class PlatformAdaptersTest {
     @Test fun accountScopedSearchFallbackDoesNotReturnAnotherAccountData() = runBlocking {
         val index = AccountScopedSearchFallback("account-a")
         index.index(listOf(
-            SearchableItem("a", "Project A", "", "alpha", android.net.Uri.parse("aiteamos://chat/a")),
-            SearchableItem("b", "Project B", "", "beta", android.net.Uri.parse("aiteamos://chat/b")),
+            SearchableItem("a", "Project A", "", "alpha", android.net.Uri.parse("outcomego://chat/a")),
+            SearchableItem("b", "Project B", "", "beta", android.net.Uri.parse("outcomego://chat/b")),
         ))
 
         assertEquals(listOf("a"), index.query("alpha").map(SearchableItem::id))

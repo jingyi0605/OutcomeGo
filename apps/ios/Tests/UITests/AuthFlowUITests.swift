@@ -382,7 +382,7 @@ final class AuthFlowUITests: XCTestCase {
       app.launch()
       XCTAssertTrue(app.buttons["get-started"].waitForExistence(timeout: 8))
       XCTAssertEqual(app.buttons["get-started"].label, "Get started")
-      XCTAssertTrue(app.staticTexts["Welcome to OpenTeam"].exists)
+      XCTAssertTrue(app.staticTexts["Welcome to OutcomeGo"].exists)
       capture("restored-welcome-" + appearance + "-motion-a", app)
       try await Task.sleep(for: .milliseconds(850))
       capture("restored-welcome-" + appearance + "-motion-b", app)

@@ -531,7 +531,7 @@ struct PushNotificationSettings: View {
           set: { value in Task { await notifications.setSmartEnabled(value) } }
         )).disabled(notifications.changingSmartPreference).tint(NativePalette.toggle)
           .accessibilityIdentifier("smart-notifications-toggle")
-        Text("Alerts pause while you’re using your Mac, unless OpenTeam is open here. They resume after five minutes of Mac inactivity.")
+        Text("Alerts pause while you’re using your Mac, unless OutcomeGo is open here. They resume after five minutes of Mac inactivity.")
           .font(.footnote).foregroundStyle(NativePalette.muted)
       }
       Toggle(

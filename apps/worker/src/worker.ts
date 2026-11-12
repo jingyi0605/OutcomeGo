@@ -1,10 +1,10 @@
-import { settleTaskProgress, dispatchTaskContinuations, settleRequestProgress, recoverRequestProgress, dispatchRequestChecks, requestWakeAllowed, taskProgress, recoverTaskInterruption, TASK_RECOVERY_LOCK } from "@aiteamos/messaging";
+import { settleTaskProgress, dispatchTaskContinuations, settleRequestProgress, recoverRequestProgress, dispatchRequestChecks, requestWakeAllowed, taskProgress, recoverTaskInterruption, TASK_RECOVERY_LOCK } from "@outcomego/messaging";
 import {
   publishMessageNotification,
   turnOwesReplyReminder,
   turnSystemReminder,
   withTurnSystemReminder,
-} from "@aiteamos/messaging";
+} from "@outcomego/messaging";
 import { createHash } from "node:crypto";
 import type {
   AssetRef,
@@ -14,21 +14,21 @@ import type {
   RuntimeRequestSource,
   RuntimeInlineImage,
   SubagentType,
-} from "@aiteamos/contracts";
-import { MAX_TURN_INLINE_IMAGE_BYTES, MAX_TURN_INLINE_IMAGES, SEND_TO_USER_REPLY_NUDGE_PROMPT } from "@aiteamos/contracts";
-import { CLIENT_CAPABILITIES, formatPiModelRef, normalizePiReasoningLevel } from "@aiteamos/contracts";
-import { selectTaskConfiguration, parseTaskConfiguration, subagentUsesParentConnectors, type TaskConfiguration, type TaskCapabilities } from "@aiteamos/contracts/task-configuration";
+} from "@outcomego/contracts";
+import { MAX_TURN_INLINE_IMAGE_BYTES, MAX_TURN_INLINE_IMAGES, SEND_TO_USER_REPLY_NUDGE_PROMPT } from "@outcomego/contracts";
+import { CLIENT_CAPABILITIES, formatPiModelRef, normalizePiReasoningLevel } from "@outcomego/contracts";
+import { selectTaskConfiguration, parseTaskConfiguration, subagentUsesParentConnectors, type TaskConfiguration, type TaskCapabilities } from "@outcomego/contracts/task-configuration";
 import { finalizeInterruptedItems } from "./interrupted-progress";
 import { dispatchComputerTurn } from "./runtime-dispatch";
-import { subagentTitle } from "@aiteamos/contracts/subagent-dispatch";
+import { subagentTitle } from "@outcomego/contracts/subagent-dispatch";
 import {
   COMPUTER_API_PATHS,
   parseAgentDirectorySnapshot,
   type AgentDirectoryRecord,
-} from "@aiteamos/contracts/service-protocol";
+} from "@outcomego/contracts/service-protocol";
 import {
-} from "@aiteamos/contracts";
-import { createPrismaClient, Prisma, type PrismaClient } from "@aiteamos/db";
+} from "@outcomego/contracts";
+import { createPrismaClient, Prisma, type PrismaClient } from "@outcomego/db";
 import {
   appendAgentTimelineEvent,
   AgentDataStore,
@@ -54,10 +54,10 @@ import {
   reconcileRoutineExecution,
   groupRoutineState,
   lockGroupExecution,
-} from "@aiteamos/messaging";
+} from "@outcomego/messaging";
 import { fromPrisma, type Job, type JobWithMetadata, PgBoss } from "pg-boss";
 import { pluginRuntimeContext, pluginSkillInstructions } from "./plugins";
-import type { PluginSkillAgent } from "@aiteamos/plugin-sdk";
+import type { PluginSkillAgent } from "@outcomego/plugin-sdk";
 import { Projection } from "./projection";
 import { workContinuously } from "./queue-dispatch";
 import { consumeComputerEvents } from "./computer-events";
@@ -456,9 +456,9 @@ export class WakeWorker {
     const databaseUrl = process.env.DATABASE_URL ?? "";
     this.prisma = createPrismaClient(databaseUrl);
     this.boss = new PgBoss({ connectionString: databaseUrl, useListenNotify: true });
-    this.computerUrl = process.env.AITEAMOS_COMPUTER_URL ?? "http://127.0.0.1:8790";
-    this.controlToken = process.env.AITEAMOS_CONTROL_TOKEN ?? "local-compose-only-change-me";
-    this.workspaceRoot = process.env.AITEAMOS_WORKSPACE_ROOT ?? "/workspace";
+    this.computerUrl = process.env.OUTCOMEGO_COMPUTER_URL ?? "http://127.0.0.1:8790";
+    this.controlToken = process.env.OUTCOMEGO_CONTROL_TOKEN ?? "local-compose-only-change-me";
+    this.workspaceRoot = process.env.OUTCOMEGO_WORKSPACE_ROOT ?? "/workspace";
     this.agentData = new AgentDataStore(this.prisma, {
       // Memory extraction runs on the main model, like the turn it reviews.
       memoryInference: async (request) => {
@@ -522,7 +522,7 @@ export class WakeWorker {
     await workContinuously<WakeData>(
       this.boss,
       "bot-wake",
-      Number(process.env.AITEAMOS_WORKER_CONCURRENCY ?? 8),
+      Number(process.env.OUTCOMEGO_WORKER_CONCURRENCY ?? 8),
       (job) => this.handle(job)
     );
     await workContinuously<ProvisionData>(
@@ -1672,7 +1672,7 @@ export class WakeWorker {
   private async requeueInterruptedBootstrap(claimed: Claimed, error: unknown): Promise<boolean> {
     return this.prisma.$transaction(async (tx) => {
       // skipBootstrapForUser takes the same row lock.
-      await tx.$queryRaw`SELECT "id" FROM "Bot" WHERE "id" = ${claimed.botId} FOR NO KEY UPDATE`;
+      await tx.$queryRaw`SELECT "id" FROM "outcomego_bot" WHERE "id" = ${claimed.botId} FOR NO KEY UPDATE`;
       const bot = await tx.bot.findUnique({
         where: { id: claimed.botId },
         select: { status: true, onboardingStatus: true },

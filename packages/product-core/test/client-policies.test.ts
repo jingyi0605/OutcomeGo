@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { ChannelMessageView, RoutineView } from "@aiteamos/contracts";
+import type { ChannelMessageView, RoutineView } from "@outcomego/contracts";
 import {
   attachmentOverflowMessage,
   classifyDurableSendError,

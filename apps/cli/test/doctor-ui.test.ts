@@ -50,28 +50,28 @@ describe("doctor dashboard", () => {
     expect(text).not.toContain("\r");
   });
   test("prioritizes install, setup, or start according to the installation state", () => {
-    expect(doctorNextSteps({ ...fixture, installed: false })[0]).toContain("aiteamos install");
+    expect(doctorNextSteps({ ...fixture, installed: false })[0]).toContain("outcomego install");
     expect(
       doctorNextSteps({
         ...fixture,
         checks: [...fixture.checks, { label: "Owner account", level: "fail", detail: "missing" }],
       })[0]
-    ).toContain("aiteamos setup");
-    expect(doctorNextSteps(fixture)[0]).toContain("aiteamos start");
+    ).toContain("outcomego setup");
+    expect(doctorNextSteps(fixture)[0]).toContain("outcomego start");
   });
   test("does not label an uninstalled system ready", () => {
     expect(renderDoctor({ ok: true, installed: false, checks: [] })).toContain("SETUP NEEDED");
   });
   test("recovery commands retain a custom installation path with shell-safe quoting", () => {
     const steps = doctorNextSteps({ ...fixture, commandDirectory: "/tmp/team's $HOME" });
-    expect(steps[0]).toContain("aiteamos start --dir '/tmp/team'\\''s $HOME'");
+    expect(steps[0]).toContain("outcomego start --dir '/tmp/team'\\''s $HOME'");
     const health = doctorNextSteps({
       ...fixture,
       commandDirectory: "/tmp/team",
-      checks: [{ label: "aiTeamOS health", level: "fail", detail: "Connection refused" }],
+      checks: [{ label: "OutcomeGo health", level: "fail", detail: "Connection refused" }],
     });
-    expect(health[0]).toContain("aiteamos status --dir '/tmp/team'");
-    expect(health[0]).toContain("aiteamos logs --dir '/tmp/team'");
+    expect(health[0]).toContain("outcomego status --dir '/tmp/team'");
+    expect(health[0]).toContain("outcomego logs --dir '/tmp/team'");
   });
   test.each([
     ["Platform", "x64 or arm64"],
@@ -82,14 +82,14 @@ describe("doctor dashboard", () => {
     ["Secrets", "owner-only"],
     ["Secret values", "backup"],
     ["Compose configuration", "configuration files"],
-    ["Network exposure", "aiteamos setup"],
+    ["Network exposure", "outcomego setup"],
     ["Public DNS", "public hostname"],
-    ["TLS certificate", "aiteamos logs caddy"],
+    ["TLS certificate", "outcomego logs caddy"],
     ["Public endpoint", "reverse proxy"],
-    ["Database", "aiteamos logs postgres"],
-    ["Worker heartbeat", "aiteamos logs worker"],
+    ["Database", "outcomego logs postgres"],
+    ["Worker heartbeat", "outcomego logs worker"],
     ["Bot workspace storage", "writable"],
-    ["server container", "aiteamos logs server"],
+    ["server container", "outcomego logs server"],
   ])("gives a specific recovery action for %s in both reports", (label, action) => {
     const result: DoctorResult = {
       ...fixture,
@@ -114,9 +114,9 @@ describe("doctor dashboard", () => {
     };
     const steps = doctorNextSteps(result);
     expect(steps[0]).toContain("Open Docker Desktop");
-    expect(steps.join(" ")).not.toContain("aiteamos start");
-    expect(steps.join(" ")).not.toContain("aiteamos setup");
-    expect(steps.join(" ")).not.toContain("aiteamos provider list");
+    expect(steps.join(" ")).not.toContain("outcomego start");
+    expect(steps.join(" ")).not.toContain("outcomego setup");
+    expect(steps.join(" ")).not.toContain("outcomego provider list");
   });
   test("first-time installation does not tell the user to restart an installation already in progress", () => {
     const result: DoctorResult = {
@@ -135,8 +135,8 @@ describe("doctor dashboard", () => {
         },
       ],
     };
-    expect(renderCompactDoctor(result)).not.toContain("aiteamos install");
-    expect(doctorNextSteps(result)).toEqual(["Run aiteamos install to complete the installation."]);
+    expect(renderCompactDoctor(result)).not.toContain("outcomego install");
+    expect(doctorNextSteps(result)).toEqual(["Run outcomego install to complete the installation."]);
   });
   test("advice to choose a new directory does not reuse the current broken directory", () => {
     const steps = doctorNextSteps({
@@ -145,9 +145,9 @@ describe("doctor dashboard", () => {
       commandDirectory: "/tmp/broken",
       checks: [{ label: "Installation directory", level: "fail", detail: "not writable" }],
     });
-    expect(steps[0]).toContain("aiteamos install --dir <path>");
+    expect(steps[0]).toContain("outcomego install --dir <path>");
     expect(steps[0]).not.toContain("--dir '/tmp/broken'");
-    expect(steps.at(-1)).toContain("aiteamos install --dir '/tmp/broken'");
+    expect(steps.at(-1)).toContain("outcomego install --dir '/tmp/broken'");
   });
   test("quota failures recommend checking quota instead of reconnecting a provider", () => {
     const steps = doctorNextSteps({
@@ -155,6 +155,6 @@ describe("doctor dashboard", () => {
       checks: [{ label: "AI connection", level: "fail", detail: "HTTP 429: quota exceeded" }],
     });
     expect(steps[0]).toContain("quota or billing");
-    expect(steps[0]).not.toContain("aiteamos setup");
+    expect(steps[0]).not.toContain("outcomego setup");
   });
 });

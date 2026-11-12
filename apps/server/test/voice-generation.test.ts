@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { decodeVoiceFrame } from "@aiteamos/contracts";
+import { decodeVoiceFrame } from "@outcomego/contracts";
 import { VoiceSessionConnection } from "../src/services/voice-session";
 
 const connection = () =>

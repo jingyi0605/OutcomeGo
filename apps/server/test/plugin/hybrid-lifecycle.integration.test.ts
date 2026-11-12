@@ -1,11 +1,11 @@
 import { expect, test } from "bun:test";
-import { createPrismaClient } from "@aiteamos/db";
-import { createPluginTemplate } from "@aiteamos/plugin-sdk/templates";
+import { createPrismaClient } from "@outcomego/db";
+import { createPluginTemplate } from "@outcomego/plugin-sdk/templates";
 import { Effect } from "effect";
 import { PluginService } from "../../src/services/plugin-service";
 import { createOAuthMcpFixture } from "./fixtures/oauth-mcp";
 
-const databaseUrl = process.env.AITEAMOS_TEST_DATABASE_URL;
+const databaseUrl = process.env.OUTCOMEGO_TEST_DATABASE_URL;
 test.skipIf(!databaseUrl)(
   "hybrid skill sync and OAuth recover independently on one installation",
   async () => {

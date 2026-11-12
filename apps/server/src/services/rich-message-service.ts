@@ -12,14 +12,14 @@ import {
   parseUserFormReceipt,
   formatUserFormReceipt,
   type UserFormReceipt,
-} from "@aiteamos/contracts";
+} from "@outcomego/contracts";
 import { createHash, randomUUID } from "node:crypto";
-import { Prisma, type PrismaClient } from "@aiteamos/db";
-import { type AgentMessaging, type ToolContext, PRIORITY } from "@aiteamos/messaging";
+import { Prisma, type PrismaClient } from "@outcomego/db";
+import { type AgentMessaging, type ToolContext, PRIORITY } from "@outcomego/messaging";
 import { Effect } from "effect";
 import type { PluginService } from "./plugin-service";
 import { UserFormRefusal, type ScreenService } from "./screen-service";
-import { buildUserFormUnsupportedTurnResult } from "@aiteamos/contracts/reference-form-results";
+import { buildUserFormUnsupportedTurnResult } from "@outcomego/contracts/reference-form-results";
 import { appendEvent, metadataRecord, serviceEffect, toJson } from "./service-utils";
 import { toChannelMessageView as messageView } from "./view-mappers";
 
@@ -96,10 +96,10 @@ export const dismissMoveOnWidgets = async (
   channelId: string
 ): Promise<number> =>
   tx.$executeRaw(Prisma.sql`
-    UPDATE "ChannelMessage"
+    UPDATE "outcomego_channel_message"
     SET "metadata" = "metadata" || '{"widgetDismissed":true,"widgetSkipped":true}'::jsonb
     WHERE "channelId" = ${channelId}::uuid
-      AND "sender" = 'agent'::"ChannelMessageSender"
+      AND "sender" = 'agent'::"outcomego_channel_message_sender"
       AND "metadata"->>'type' = 'widget'
       AND coalesce(("metadata"->'widget'->>'dismissOnMoveOn')::boolean, false) = true
       AND NOT ("metadata" ? 'respondedValue')

@@ -1,9 +1,9 @@
 import { expect, test } from "bun:test";
-import { createPrismaClient } from "@aiteamos/db";
+import { createPrismaClient } from "@outcomego/db";
 import { Effect } from "effect";
 import { NotificationService } from "../src/services/notification-service";
 
-const databaseUrl = process.env.AITEAMOS_TEST_DATABASE_URL;
+const databaseUrl = process.env.OUTCOMEGO_TEST_DATABASE_URL;
 
 const fixtureAt = <T>(values: readonly T[], index: number): T => {
   const value = values[index];

@@ -31,7 +31,7 @@ struct AccountConnectionView: View {
         LabeledContent("System", value: "iOS " + UIDevice.current.systemVersion)
         Button("Copy version info", systemImage: "doc.on.doc") {
           UIPasteboard.general.string =
-            "OpenTeam \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "")\niOS \(UIDevice.current.systemVersion)"
+            "OutcomeGo \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "")\niOS \(UIDevice.current.systemVersion)"
         }
       }
     }.navigationTitle("Account").navigationBarTitleDisplayMode(.inline)
@@ -52,7 +52,7 @@ struct NativePreferencesView: View {
         Button("Open iOS Settings", systemImage: "arrow.up.right") {
           openURL(URL(string: UIApplication.openSettingsURLString)!)
         }
-        Text("OpenTeam follows your iPhone’s language and text size. Your bots use your timezone for routines and their computer’s clock.").font(.footnote)
+        Text("OutcomeGo follows your iPhone’s language and text size. Your bots use your timezone for routines and their computer’s clock.").font(.footnote)
           .foregroundStyle(NativePalette.muted)
       }
     }.navigationTitle("More preferences").navigationBarTitleDisplayMode(.inline)

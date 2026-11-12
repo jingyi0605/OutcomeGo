@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "aiteamos",
+      "name": "outcomego",
       "devDependencies": {
         "@biomejs/biome": "2.4.7",
         "@types/bun": "1.3.8",
@@ -12,10 +12,10 @@
       },
     },
     "apps/cli": {
-      "name": "@aiteamos/cli",
-      "version": "0.1.0-beta.13",
+      "name": "@outcomego/cli",
+      "version": "0.1.0-beta.14",
       "bin": {
-        "aiteamos": "dist/aiteamos.js",
+        "outcomego": "dist/outcomego.js",
       },
       "dependencies": {
         "semver": "7.8.5",
@@ -23,9 +23,9 @@
         "string-width": "7.2.0",
       },
       "devDependencies": {
-        "@aiteamos/contracts": "workspace:*",
-        "@aiteamos/db": "workspace:*",
-        "@aiteamos/product-core": "workspace:*",
+        "@outcomego/contracts": "workspace:*",
+        "@outcomego/db": "workspace:*",
+        "@outcomego/product-core": "workspace:*",
         "@sigstore/bundle": "4.0.0",
         "@sigstore/protobuf-specs": "0.5.2",
         "@sigstore/sign": "4.1.1",
@@ -35,12 +35,12 @@
       },
     },
     "apps/computer": {
-      "name": "@aiteamos/computer",
-      "version": "0.1.0-beta.13",
+      "name": "@outcomego/computer",
+      "version": "0.1.0-beta.14",
       "dependencies": {
-        "@aiteamos/contracts": "workspace:*",
-        "@aiteamos/plugin-sdk": "workspace:*",
-        "@aiteamos/shell-jobs": "workspace:*",
+        "@outcomego/contracts": "workspace:*",
+        "@outcomego/plugin-sdk": "workspace:*",
+        "@outcomego/shell-jobs": "workspace:*",
         "@earendil-works/pi-ai": "0.84.3",
         "@earendil-works/pi-coding-agent": "0.84.3",
         "@jimp/core": "1.6.0",
@@ -67,15 +67,15 @@
       },
     },
     "apps/desktop": {
-      "name": "@aiteamos/desktop",
-      "version": "0.1.0-beta.13",
+      "name": "@outcomego/desktop",
+      "version": "0.1.0-beta.14",
       "devDependencies": {
-        "@aiteamos/client-core": "workspace:*",
-        "@aiteamos/contracts": "workspace:*",
-        "@aiteamos/design-tokens": "workspace:*",
-        "@aiteamos/plugin-sdk": "workspace:*",
-        "@aiteamos/product-core": "workspace:*",
-        "@aiteamos/shell-jobs": "workspace:*",
+        "@outcomego/client-core": "workspace:*",
+        "@outcomego/contracts": "workspace:*",
+        "@outcomego/design-tokens": "workspace:*",
+        "@outcomego/plugin-sdk": "workspace:*",
+        "@outcomego/product-core": "workspace:*",
+        "@outcomego/shell-jobs": "workspace:*",
         "@dnd-kit/dom": "^0.5.0",
         "@dnd-kit/react": "^0.5.0",
         "@modelcontextprotocol/sdk": "1.30.0",
@@ -120,11 +120,11 @@
       },
     },
     "apps/ios": {
-      "name": "@aiteamos/ios",
-      "version": "0.1.0-beta.13",
+      "name": "@outcomego/ios",
+      "version": "0.1.0-beta.14",
       "devDependencies": {
-        "@aiteamos/contracts": "workspace:*",
-        "@aiteamos/design-tokens": "workspace:*",
+        "@outcomego/contracts": "workspace:*",
+        "@outcomego/design-tokens": "workspace:*",
         "@novnc/novnc": "1.7.0",
         "dompurify": "3.4.14",
         "katex": "0.16.47",
@@ -133,11 +133,11 @@
       },
     },
     "apps/landing": {
-      "name": "@aiteamos/landing",
-      "version": "0.1.0-beta.13",
+      "name": "@outcomego/landing",
+      "version": "0.1.0-beta.14",
       "dependencies": {
-        "@aiteamos/contracts": "workspace:*",
-        "@aiteamos/design-tokens": "workspace:*",
+        "@outcomego/contracts": "workspace:*",
+        "@outcomego/design-tokens": "workspace:*",
         "@base-ui/react": "^1.7.0",
         "class-variance-authority": "^0.7.1",
         "clsx": "^2.1.1",
@@ -173,14 +173,14 @@
       },
     },
     "apps/server": {
-      "name": "@aiteamos/server",
-      "version": "0.1.0-beta.13",
+      "name": "@outcomego/server",
+      "version": "0.1.0-beta.14",
       "dependencies": {
-        "@aiteamos/contracts": "workspace:*",
-        "@aiteamos/db": "workspace:*",
-        "@aiteamos/messaging": "workspace:*",
-        "@aiteamos/plugin-sdk": "workspace:*",
-        "@aiteamos/plugins": "workspace:*",
+        "@outcomego/contracts": "workspace:*",
+        "@outcomego/db": "workspace:*",
+        "@outcomego/messaging": "workspace:*",
+        "@outcomego/plugin-sdk": "workspace:*",
+        "@outcomego/plugins": "workspace:*",
         "@modelcontextprotocol/sdk": "1.30.0",
         "better-auth": "1.7.2",
         "effect": "3.22.1",
@@ -194,29 +194,29 @@
       },
     },
     "apps/worker": {
-      "name": "@aiteamos/worker",
-      "version": "0.1.0-beta.13",
+      "name": "@outcomego/worker",
+      "version": "0.1.0-beta.14",
       "dependencies": {
-        "@aiteamos/contracts": "workspace:*",
-        "@aiteamos/db": "workspace:*",
-        "@aiteamos/messaging": "workspace:*",
-        "@aiteamos/plugin-sdk": "workspace:*",
+        "@outcomego/contracts": "workspace:*",
+        "@outcomego/db": "workspace:*",
+        "@outcomego/messaging": "workspace:*",
+        "@outcomego/plugin-sdk": "workspace:*",
         "effect": "3.22.1",
         "pg-boss": "12.28.0",
       },
     },
     "packages/client-core": {
-      "name": "@aiteamos/client-core",
-      "version": "0.1.0-beta.13",
+      "name": "@outcomego/client-core",
+      "version": "0.1.0-beta.14",
       "dependencies": {
-        "@aiteamos/contracts": "workspace:*",
+        "@outcomego/contracts": "workspace:*",
       },
     },
     "packages/contracts": {
-      "name": "@aiteamos/contracts",
-      "version": "0.1.0-beta.13",
+      "name": "@outcomego/contracts",
+      "version": "0.1.0-beta.14",
       "dependencies": {
-        "@aiteamos/plugin-sdk": "workspace:*",
+        "@outcomego/plugin-sdk": "workspace:*",
         "effect": "3.22.1",
         "semver": "7.8.5",
         "zod": "3.25.76",
@@ -226,8 +226,8 @@
       },
     },
     "packages/db": {
-      "name": "@aiteamos/db",
-      "version": "0.1.0-beta.13",
+      "name": "@outcomego/db",
+      "version": "0.1.0-beta.14",
       "dependencies": {
         "@prisma/adapter-pg": "7.10.0",
         "@prisma/client": "7.10.0",
@@ -241,20 +241,20 @@
       },
     },
     "packages/design-tokens": {
-      "name": "@aiteamos/design-tokens",
-      "version": "0.1.0-beta.13",
+      "name": "@outcomego/design-tokens",
+      "version": "0.1.0-beta.14",
       "dependencies": {
-        "@aiteamos/contracts": "workspace:*",
+        "@outcomego/contracts": "workspace:*",
       },
     },
     "packages/messaging": {
-      "name": "@aiteamos/messaging",
-      "version": "0.1.0-beta.13",
+      "name": "@outcomego/messaging",
+      "version": "0.1.0-beta.14",
       "dependencies": {
-        "@aiteamos/contracts": "workspace:*",
-        "@aiteamos/db": "workspace:*",
-        "@aiteamos/plugin-sdk": "workspace:*",
-        "@aiteamos/product-core": "workspace:*",
+        "@outcomego/contracts": "workspace:*",
+        "@outcomego/db": "workspace:*",
+        "@outcomego/plugin-sdk": "workspace:*",
+        "@outcomego/product-core": "workspace:*",
         "chokidar": "5.0.0",
         "cron-parser": "5.10.0",
         "pg-boss": "12.28.0",
@@ -263,8 +263,8 @@
       },
     },
     "packages/plugin-sdk": {
-      "name": "@aiteamos/plugin-sdk",
-      "version": "0.1.0-beta.13",
+      "name": "@outcomego/plugin-sdk",
+      "version": "0.1.0-beta.14",
       "dependencies": {
         "ajv": "8.20.0",
         "ajv-formats": "3.0.1",
@@ -279,10 +279,10 @@
       },
     },
     "packages/plugins": {
-      "name": "@aiteamos/plugins",
-      "version": "0.1.0-beta.13",
+      "name": "@outcomego/plugins",
+      "version": "0.1.0-beta.14",
       "dependencies": {
-        "@aiteamos/plugin-sdk": "workspace:*",
+        "@outcomego/plugin-sdk": "workspace:*",
         "@huggingface/tokenizers": "0.2.0",
         "@js-temporal/polyfill": "0.5.1",
         "@modelcontextprotocol/sdk": "1.30.0",
@@ -299,17 +299,17 @@
       },
     },
     "packages/product-core": {
-      "name": "@aiteamos/product-core",
-      "version": "0.1.0-beta.13",
+      "name": "@outcomego/product-core",
+      "version": "0.1.0-beta.14",
       "dependencies": {
-        "@aiteamos/contracts": "workspace:*",
+        "@outcomego/contracts": "workspace:*",
       },
     },
     "packages/shell-jobs": {
-      "name": "@aiteamos/shell-jobs",
-      "version": "0.1.0-beta.13",
+      "name": "@outcomego/shell-jobs",
+      "version": "0.1.0-beta.14",
       "dependencies": {
-        "@aiteamos/contracts": "workspace:*",
+        "@outcomego/contracts": "workspace:*",
         "re2js": "2.8.6",
       },
     },
@@ -331,37 +331,37 @@
     "ws": "8.21.3",
   },
   "packages": {
-    "@aiteamos/cli": ["@aiteamos/cli@workspace:apps/cli"],
+    "@outcomego/cli": ["@outcomego/cli@workspace:apps/cli"],
 
-    "@aiteamos/client-core": ["@aiteamos/client-core@workspace:packages/client-core"],
+    "@outcomego/client-core": ["@outcomego/client-core@workspace:packages/client-core"],
 
-    "@aiteamos/computer": ["@aiteamos/computer@workspace:apps/computer"],
+    "@outcomego/computer": ["@outcomego/computer@workspace:apps/computer"],
 
-    "@aiteamos/contracts": ["@aiteamos/contracts@workspace:packages/contracts"],
+    "@outcomego/contracts": ["@outcomego/contracts@workspace:packages/contracts"],
 
-    "@aiteamos/db": ["@aiteamos/db@workspace:packages/db"],
+    "@outcomego/db": ["@outcomego/db@workspace:packages/db"],
 
-    "@aiteamos/design-tokens": ["@aiteamos/design-tokens@workspace:packages/design-tokens"],
+    "@outcomego/design-tokens": ["@outcomego/design-tokens@workspace:packages/design-tokens"],
 
-    "@aiteamos/desktop": ["@aiteamos/desktop@workspace:apps/desktop"],
+    "@outcomego/desktop": ["@outcomego/desktop@workspace:apps/desktop"],
 
-    "@aiteamos/ios": ["@aiteamos/ios@workspace:apps/ios"],
+    "@outcomego/ios": ["@outcomego/ios@workspace:apps/ios"],
 
-    "@aiteamos/landing": ["@aiteamos/landing@workspace:apps/landing"],
+    "@outcomego/landing": ["@outcomego/landing@workspace:apps/landing"],
 
-    "@aiteamos/messaging": ["@aiteamos/messaging@workspace:packages/messaging"],
+    "@outcomego/messaging": ["@outcomego/messaging@workspace:packages/messaging"],
 
-    "@aiteamos/plugin-sdk": ["@aiteamos/plugin-sdk@workspace:packages/plugin-sdk"],
+    "@outcomego/plugin-sdk": ["@outcomego/plugin-sdk@workspace:packages/plugin-sdk"],
 
-    "@aiteamos/plugins": ["@aiteamos/plugins@workspace:packages/plugins"],
+    "@outcomego/plugins": ["@outcomego/plugins@workspace:packages/plugins"],
 
-    "@aiteamos/product-core": ["@aiteamos/product-core@workspace:packages/product-core"],
+    "@outcomego/product-core": ["@outcomego/product-core@workspace:packages/product-core"],
 
-    "@aiteamos/server": ["@aiteamos/server@workspace:apps/server"],
+    "@outcomego/server": ["@outcomego/server@workspace:apps/server"],
 
-    "@aiteamos/shell-jobs": ["@aiteamos/shell-jobs@workspace:packages/shell-jobs"],
+    "@outcomego/shell-jobs": ["@outcomego/shell-jobs@workspace:packages/shell-jobs"],
 
-    "@aiteamos/worker": ["@aiteamos/worker@workspace:apps/worker"],
+    "@outcomego/worker": ["@outcomego/worker@workspace:apps/worker"],
 
     "@alloc/quick-lru": ["@alloc/quick-lru@5.3.0", "", {}, "sha512-U4+70Pc5ZS9osnCBCE5Jha/ciHM+Yp+CNMNC/7HvYbNRk1Ldd+f7qO65W5qfhu/TCv+/ozljlXXe9Nj8419DMA=="],
 
@@ -3567,13 +3567,13 @@
 
     "zwitch": ["zwitch@2.0.4", "", {}, "sha512-bXE4cR/kVZhKZX/RjPEflHaKVhUVl85noU3v6b8apfQEc1x4A+zBxjZ4lN8LqGd6WZ3dl98pY4o717VFmoPp+A=="],
 
-    "@aiteamos/landing/@types/react": ["@types/react@19.2.14", "", { "dependencies": { "csstype": "^3.2.2" } }, "sha512-ilcTH/UniCkMdtexkoCN0bI7pMcJDvmQFPvuPvmEaYA/NSfFTAgdUSLAoVjaRJm7+6PvcM+q1zYOwS4wTYMF9w=="],
+    "@outcomego/landing/@types/react": ["@types/react@19.2.14", "", { "dependencies": { "csstype": "^3.2.2" } }, "sha512-ilcTH/UniCkMdtexkoCN0bI7pMcJDvmQFPvuPvmEaYA/NSfFTAgdUSLAoVjaRJm7+6PvcM+q1zYOwS4wTYMF9w=="],
 
-    "@aiteamos/landing/@vitejs/plugin-react": ["@vitejs/plugin-react@6.0.2", "", { "dependencies": { "@rolldown/pluginutils": "^1.0.0" }, "peerDependencies": { "@rolldown/plugin-babel": "^0.1.7 || ^0.2.0", "babel-plugin-react-compiler": "^1.0.0", "vite": "^8.0.0" }, "optionalPeers": ["@rolldown/plugin-babel", "babel-plugin-react-compiler"] }, "sha512-DlSMqo4WhThw4vB8Mpn0Woe9J+Jfq1geJ61AKW0QEgLzGMNwtIMdxbDUzLxcun8W7NbJO0e2Jg/Nxm3cCSVzzg=="],
+    "@outcomego/landing/@vitejs/plugin-react": ["@vitejs/plugin-react@6.0.2", "", { "dependencies": { "@rolldown/pluginutils": "^1.0.0" }, "peerDependencies": { "@rolldown/plugin-babel": "^0.1.7 || ^0.2.0", "babel-plugin-react-compiler": "^1.0.0", "vite": "^8.0.0" }, "optionalPeers": ["@rolldown/plugin-babel", "babel-plugin-react-compiler"] }, "sha512-DlSMqo4WhThw4vB8Mpn0Woe9J+Jfq1geJ61AKW0QEgLzGMNwtIMdxbDUzLxcun8W7NbJO0e2Jg/Nxm3cCSVzzg=="],
 
-    "@aiteamos/landing/lucide-react": ["lucide-react@1.40.0", "", { "peerDependencies": { "react": "^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0" } }, "sha512-MaG+8WnOXkDWz9XeElj7TnQ890tTZUB0a36i03aRRCKGWE6e7jJpmdCvtxxuxcjjdqyN6m4sL6qlHVuSUDtYgg=="],
+    "@outcomego/landing/lucide-react": ["lucide-react@1.40.0", "", { "peerDependencies": { "react": "^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0" } }, "sha512-MaG+8WnOXkDWz9XeElj7TnQ890tTZUB0a36i03aRRCKGWE6e7jJpmdCvtxxuxcjjdqyN6m4sL6qlHVuSUDtYgg=="],
 
-    "@aiteamos/landing/marked": ["marked@16.3.0", "", { "bin": { "marked": "bin/marked.js" } }, "sha512-K3UxuKu6l6bmA5FUwYho8CfJBlsUWAooKtdGgMcERSpF7gcBUrCGsLH7wDaaNOzwq18JzSUDyoEb/YsrqMac3w=="],
+    "@outcomego/landing/marked": ["marked@16.3.0", "", { "bin": { "marked": "bin/marked.js" } }, "sha512-K3UxuKu6l6bmA5FUwYho8CfJBlsUWAooKtdGgMcERSpF7gcBUrCGsLH7wDaaNOzwq18JzSUDyoEb/YsrqMac3w=="],
 
     "@aws-sdk/credential-provider-http/@smithy/node-http-handler": ["@smithy/node-http-handler@4.11.3", "", { "dependencies": { "@smithy/core": "^3.33.3", "@smithy/types": "^4.17.2", "tslib": "^2.6.2" } }, "sha512-2jY1tSpERfPfWqyBV2pH+iGFaghVsIJszJNsT7hxtQYhVJpWDyc0LqOWI+nXOxOAHaEfZ4PXXtp1wW1TGpHhkA=="],
 

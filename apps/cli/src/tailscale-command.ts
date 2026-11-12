@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import type { TailscaleStatus } from "@aiteamos/contracts/tailscale";
+import type { TailscaleStatus } from "@outcomego/contracts/tailscale";
 import type { CliOptions } from "./arguments";
 import {
   installationExists,
@@ -46,9 +46,9 @@ export async function tailscaleStatus(
   verify = false
 ): Promise<TailscaleStatus> {
   const env = parseEnvironment(readFileSync(paths.environment, "utf8"));
-  const enabled = env.get("AITEAMOS_ACCESS_MODE") === "tailscale";
-  const publicUrl = env.get("AITEAMOS_PUBLIC_URL") || "";
-  const backendPort = env.get("AITEAMOS_API_PORT") || "8787";
+  const enabled = env.get("OUTCOMEGO_ACCESS_MODE") === "tailscale";
+  const publicUrl = env.get("OUTCOMEGO_PUBLIC_URL") || "";
+  const backendPort = env.get("OUTCOMEGO_API_PORT") || "8787";
   const result: TailscaleStatus = {
     enabled,
     publicUrl,
@@ -76,8 +76,8 @@ export async function tailscaleStatus(
           (r) => tailscaleRoute(serve, r.host, r.backendPort, r.port) === "occupied"
         );
         result.issue = changed
-          ? "An old aiTeamOS-managed mapping changed externally and was preserved. Inspect tailscale serve status before removing it manually."
-          : "Old aiTeamOS-managed mappings remain. Run aiteamos tailscale disable to clean them up.";
+          ? "An old OutcomeGo-managed mapping changed externally and was preserved. Inspect tailscale serve status before removing it manually."
+          : "Old OutcomeGo-managed mappings remain. Run outcomego tailscale disable to clean them up.";
       }
       return result;
     }
@@ -87,7 +87,7 @@ export async function tailscaleStatus(
     if (inspected.issue || !inspected.node) return result;
     if (url.protocol !== "https:" || url.hostname !== inspected.node.host)
       throw new CliError(
-        "The configured Tailscale hostname no longer matches this node. Run aiteamos tailscale enable to update it, then reconnect your apps."
+        "The configured Tailscale hostname no longer matches this node. Run outcomego tailscale enable to update it, then reconnect your apps."
       );
     const route = tailscaleRoute(
       readTailscaleServe(runner),
@@ -97,22 +97,22 @@ export async function tailscaleStatus(
     );
     result.route = route === "free" ? "missing" : route === "occupied" ? "conflict" : "matching";
     result.ownership = routes.some((r) => sameRoute(r, target))
-      ? "aiteamos"
+      ? "outcomego"
       : route === "matching"
         ? "external"
         : "none";
     if (route !== "matching")
       throw new CliError(
         route === "free"
-          ? "The Tailscale Serve mapping is missing. Run aiteamos tailscale enable to restore it."
-          : "The Tailscale Serve mapping changed or conflicts with another route. Inspect tailscale serve status; use aiteamos tailscale enable --https-port <free-port>."
+          ? "The Tailscale Serve mapping is missing. Run outcomego tailscale enable to restore it."
+          : "The Tailscale Serve mapping changed or conflicts with another route. Inspect tailscale serve status; use outcomego tailscale enable --https-port <free-port>."
       );
     if (
-      env.get("AITEAMOS_BIND_HOST") !== "127.0.0.1" ||
-      env.get("AITEAMOS_VIEWER_BIND_HOST") !== "127.0.0.1"
+      env.get("OUTCOMEGO_BIND_HOST") !== "127.0.0.1" ||
+      env.get("OUTCOMEGO_VIEWER_BIND_HOST") !== "127.0.0.1"
     )
       throw new CliError(
-        "Tailscale mode requires loopback backend ports. Run aiteamos tailscale enable to repair the configuration."
+        "Tailscale mode requires loopback backend ports. Run outcomego tailscale enable to repair the configuration."
       );
     if (verify) {
       await verifyTailscaleEndpoint(publicUrl);
@@ -130,7 +130,7 @@ export async function verifyTailscaleEndpoint(url: string): Promise<void> {
     .map((c) => c!.detail);
   if (errors.length || !readiness.tls)
     throw new CliError(
-      `Tailscale HTTPS verification failed: ${errors.join("; ") || "TLS was not checked"}. Check Tailscale connectivity and run aiteamos tailscale status.`
+      `Tailscale HTTPS verification failed: ${errors.join("; ") || "TLS was not checked"}. Check Tailscale connectivity and run outcomego tailscale status.`
     );
 }
 
@@ -142,18 +142,18 @@ export async function configureTailscale(
   httpsPort?: string,
   dependencies = { health: checkHealth, verify: verifyTailscaleEndpoint, waitMs: 180_000 }
 ): Promise<void> {
-  if (!installationExists(paths)) throw new CliError("Install aiTeamOS with aiteamos setup first.");
+  if (!installationExists(paths)) throw new CliError("Install OutcomeGo with outcomego setup first.");
   const release = acquireUpdateLock(paths);
   try {
     const manifest = readManifest(paths)!;
     if (!manifest.ownerUsername)
-      throw new CliError("Finish account setup with aiteamos setup before enabling remote access.");
+      throw new CliError("Finish account setup with outcomego setup before enabling remote access.");
     const previous = readFileSync(paths.environment, "utf8");
     const env = parseEnvironment(previous);
     const oldRoutes = managedTailscaleRoutes(paths);
-    const backendPort = env.get("AITEAMOS_API_PORT") || "8787";
-    const enabled = env.get("AITEAMOS_ACCESS_MODE") === "tailscale";
-    const oldUrl = env.get("AITEAMOS_PUBLIC_URL") || "";
+    const backendPort = env.get("OUTCOMEGO_API_PORT") || "8787";
+    const enabled = env.get("OUTCOMEGO_ACCESS_MODE") === "tailscale";
+    const oldUrl = env.get("OUTCOMEGO_PUBLIC_URL") || "";
     const node =
       action === "enable"
         ? requireTailscale(
@@ -173,12 +173,12 @@ export async function configureTailscale(
     assertOwnServer(runner, await dependencies.health(paths), running, env);
     const url = node ? `https://${tailscaleHttpsHost(node)}` : `http://127.0.0.1:${backendPort}`;
     const values = {
-      AITEAMOS_ACCESS_MODE: node ? "tailscale" : "local",
-      AITEAMOS_BIND_HOST: "127.0.0.1",
-      AITEAMOS_VIEWER_BIND_HOST: "127.0.0.1",
-      AITEAMOS_PUBLIC_HOST: "127.0.0.1",
-      AITEAMOS_PUBLIC_URL: url,
-      AITEAMOS_AUTH_URL: url,
+      OUTCOMEGO_ACCESS_MODE: node ? "tailscale" : "local",
+      OUTCOMEGO_BIND_HOST: "127.0.0.1",
+      OUTCOMEGO_VIEWER_BIND_HOST: "127.0.0.1",
+      OUTCOMEGO_PUBLIC_HOST: "127.0.0.1",
+      OUTCOMEGO_PUBLIC_URL: url,
+      OUTCOMEGO_AUTH_URL: url,
       COMPOSE_PROFILES: "direct",
     };
     let next = previous;
@@ -201,7 +201,7 @@ export async function configureTailscale(
         await new Promise((resolve) => setTimeout(resolve, 1_000));
         health = await dependencies.health(paths);
       }
-      if (!health.ok) throw new CliError(`aiTeamOS did not become ready: ${health.detail}`);
+      if (!health.ok) throw new CliError(`OutcomeGo did not become ready: ${health.detail}`);
       if (node) {
         ensureManagedTailscaleRoute(paths, runner, node, backendPort);
         await dependencies.verify(url);
@@ -211,7 +211,7 @@ export async function configureTailscale(
       writeFileAtomic(paths.environment, previous, 0o600);
       const restored = !applied || project.run(["up", "--detach", "--remove-orphans"]).status === 0;
       throw new CliError(
-        `${error instanceof Error ? error.message : error} Previous configuration restored${restored ? "" : "; restart failed, run aiteamos start"}.${cleanupErrors.length ? ` Route cleanup needs attention: ${cleanupErrors.join("; ")}` : ""}`,
+        `${error instanceof Error ? error.message : error} Previous configuration restored${restored ? "" : "; restart failed, run outcomego start"}.${cleanupErrors.length ? ` Route cleanup needs attention: ${cleanupErrors.join("; ")}` : ""}`,
         2
       );
     }
@@ -225,7 +225,7 @@ export async function configureTailscale(
       );
     } catch (error) {
       throw new CliError(
-        `Connection is configured at ${url}, but an old route was preserved: ${error instanceof Error ? error.message : error} Run aiteamos tailscale status.`,
+        `Connection is configured at ${url}, but an old route was preserved: ${error instanceof Error ? error.message : error} Run outcomego tailscale status.`,
         2
       );
     }
@@ -239,7 +239,7 @@ export async function tailscaleCommand(
   options: CliOptions,
   runner: CommandRunner
 ): Promise<void> {
-  if (!installationExists(paths)) throw new CliError("Install aiTeamOS with aiteamos setup first.");
+  if (!installationExists(paths)) throw new CliError("Install OutcomeGo with outcomego setup first.");
   if (options.command !== "tailscale-status")
     await configureTailscale(
       paths,
@@ -266,7 +266,7 @@ export async function tailscaleCommand(
     if (status.issue) console.log(status.issue);
     if (status.managedRoutes)
       console.log(
-        cliTranslate("aiTeamOS-managed mappings: {count}", { count: status.managedRoutes })
+        cliTranslate("OutcomeGo-managed mappings: {count}", { count: status.managedRoutes })
       );
     if (options.command !== "tailscale-status")
       console.log(

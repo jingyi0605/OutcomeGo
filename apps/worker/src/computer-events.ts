@@ -1,5 +1,5 @@
-import type { ComputerEvent } from "@aiteamos/contracts";
-import { parseComputerEvent } from "@aiteamos/contracts/service-protocol";
+import type { ComputerEvent } from "@outcomego/contracts";
+import { parseComputerEvent } from "@outcomego/contracts/service-protocol";
 
 /** The computer owns a live turn until its stream completes or is cancelled. */
 export async function consumeComputerEvents(

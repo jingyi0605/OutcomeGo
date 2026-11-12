@@ -3,13 +3,13 @@ import { mkdir } from "node:fs/promises";
 import { resolve } from "node:path";
 import { chromium } from "../../computer/node_modules/playwright-core";
 import { createPluginFlowFixture } from "../../server/test/plugin/fixtures/plugin-flow";
-import { createAiTeamOSClient } from "../../../packages/client-core/src";
+import { createOutcomeGoClient } from "../../../packages/client-core/src";
 
-const databaseUrl = process.env.AITEAMOS_TEST_DATABASE_URL;
+const databaseUrl = process.env.OUTCOMEGO_TEST_DATABASE_URL;
 if (!databaseUrl)
-  throw new Error("AITEAMOS_TEST_DATABASE_URL must name a disposable test database");
+  throw new Error("OUTCOMEGO_TEST_DATABASE_URL must name a disposable test database");
 const fixture = await createPluginFlowFixture(databaseUrl);
-const client = createAiTeamOSClient({ baseUrl: fixture.server.url.origin });
+const client = createOutcomeGoClient({ baseUrl: fixture.server.url.origin });
 const output = resolve(process.argv[2] ?? "findings/plugin-flow-parity-2026-09-16");
 await mkdir(output, { recursive: true });
 const browser = await chromium.launch({

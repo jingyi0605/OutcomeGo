@@ -1,10 +1,10 @@
 import { expect, test } from "bun:test";
 import { Effect } from "effect";
-import { createPrismaClient } from "@aiteamos/db";
+import { createPrismaClient } from "@outcomego/db";
 import { InternalToolService } from "../../src/services/internal-tool-service";
 import { PluginService } from "../../src/services/plugin-service";
 
-const databaseUrl = process.env.AITEAMOS_TEST_DATABASE_URL;
+const databaseUrl = process.env.OUTCOMEGO_TEST_DATABASE_URL;
 test.skipIf(!databaseUrl)(
   "a routine run manages installed plugins with nobody watching",
   async () => {

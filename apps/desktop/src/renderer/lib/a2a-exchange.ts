@@ -1,4 +1,4 @@
-export { deriveA2AExchange } from "@aiteamos/product-core/messages";
+export { deriveA2AExchange } from "@outcomego/product-core/messages";
 
 export type A2AExchangePhase = "entering" | "open" | "exiting";
 

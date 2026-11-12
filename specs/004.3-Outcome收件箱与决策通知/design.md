@@ -182,14 +182,14 @@ POST /api/v0/decisions/:decisionId/withdraw
 
 ## 10. 客户端深链
 
-沿用现有 `packages/contracts/src/app-deep-links.ts` 的 `aiteamos://app/v1/...` 格式，只增加路径，不新增 URL scheme：
+沿用现有 `packages/contracts/src/app-deep-links.ts` 的 `outcomego://app/v1/...` 格式，只增加路径，不新增 URL scheme：
 
 ```text
-aiteamos://app/v1/outcomes?id=<outcomeId>
-aiteamos://app/v1/outcomes/decision?id=<decisionId>
+outcomego://app/v1/outcomes?id=<outcomeId>
+outcomego://app/v1/outcomes/decision?id=<decisionId>
 ```
 
-原因：Android Manifest 和 iOS 工程当前只注册 `aiteamos` scheme，`004.1` 也规定该 scheme 作为稳定标识保留。新增 `outcomego` scheme 需要同时修改三端注册并保持旧 scheme，属于 `004.1` 的可选后续迁移，不在本阶段实现。Desktop 可使用现有窗口打开机制；深链只携带 ID，不携带 Decision 文本、token 或凭据。
+原因：Android Manifest 和 iOS 工程当前只注册 `outcomego` scheme，`004.1` 也规定该 scheme 作为稳定标识保留。新增 `outcomego` scheme 需要同时修改三端注册并保持旧 scheme，属于 `004.1` 的可选后续迁移，不在本阶段实现。Desktop 可使用现有窗口打开机制；深链只携带 ID，不携带 Decision 文本、token 或凭据。
 
 ## 11. 设计文件影响
 
@@ -204,12 +204,12 @@ aiteamos://app/v1/outcomes/decision?id=<decisionId>
 - `apps/server/src/services/notification-service.ts`
 - `apps/server/src/event-wakeup.ts`（只核对，通常无需修改）
 - `packages/messaging/src/notifications.ts`
-- `apps/desktop/src/renderer/components/aiteamos/outcomes/OutcomeInbox.tsx`
+- `apps/desktop/src/renderer/components/outcomego/outcomes/OutcomeInbox.tsx`
 - `apps/desktop/src/main/notifications.ts`
 - `apps/ios/Sources/Core/NotificationPresence.swift`
 - `apps/ios/Sources/App/NativeNotifications.swift`
-- `apps/android/app/src/main/kotlin/com/aiteamos/platform/AndroidNotifications.kt`
-- `apps/android/app/src/main/kotlin/com/aiteamos/features/LiveFeatureGateway.kt` 或 Outcome API gateway
+- `apps/android/app/src/main/kotlin/com/outcomego/platform/AndroidNotifications.kt`
+- `apps/android/app/src/main/kotlin/com/outcomego/features/LiveFeatureGateway.kt` 或 Outcome API gateway
 
 ## 12. 验证策略
 
@@ -392,7 +392,7 @@ outcome.completed:<outcomeId>:<acceptedRevision>
   "category": "decision_pending",
   "title": "需要决定下一步",
   "body": "技术方案中有一项范围需要确认",
-  "deepLink": "aiteamos://app/v1/outcomes/decision?id=<decisionId>"
+  "deepLink": "outcomego://app/v1/outcomes/decision?id=<decisionId>"
 }
 ```
 
@@ -437,7 +437,7 @@ Desktop 深链处理器读取 `outcomeId`/`decisionId`，验证格式后打开�
 
 ### Android
 
-Android 继续使用现有 `aiteamos` scheme，在现有 App Link 解析中增加 `outcomes` 路径。Intent extras 只保存 ID；用户未登录时先完成现有认证，再恢复 deep link。
+Android 继续使用现有 `outcomego` scheme，在现有 App Link 解析中增加 `outcomes` 路径。Intent extras 只保存 ID；用户未登录时先完成现有认证，再恢复 deep link。
 
 ### iOS
 
@@ -478,7 +478,7 @@ apps/desktop/test/fixtures/outcome-inbox/
 - `apps/worker/src/push-notifications.ts`
 - `apps/desktop/src/main/notifications.ts`
 - `apps/ios/Sources/App/NativeNotifications.swift`
-- `apps/android/app/src/main/kotlin/com/aiteamos/platform/AndroidNotifications.kt`
+- `apps/android/app/src/main/kotlin/com/outcomego/platform/AndroidNotifications.kt`
 
 ## 23. 验收和回滚
 
@@ -675,7 +675,7 @@ find open/presented Decision where expiresAt <= now
   "category": "decision_pending",
   "title": "需要处理一个 Outcome",
   "body": "有一项范围需要确认",
-  "deepLink": "aiteamos://app/v1/outcomes/decision?id=<decisionId>"
+  "deepLink": "outcomego://app/v1/outcomes/decision?id=<decisionId>"
 }
 ```
 

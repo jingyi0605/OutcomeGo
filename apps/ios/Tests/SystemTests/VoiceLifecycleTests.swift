@@ -1,6 +1,6 @@
 import AVFoundation
 import XCTest
-@testable import OpenTeamNative
+@testable import OutcomeGoNative
 
 #if targetEnvironment(simulator)
 /// Exercise the production notification/recording state machine with real AAC

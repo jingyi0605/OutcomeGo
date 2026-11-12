@@ -1,6 +1,6 @@
 import XCTest
 
-@testable import OpenTeamCore
+@testable import OutcomeGoCore
 
 final class VoiceRunTimelineTests: XCTestCase {
   func message(_ id: String, session: String? = nil) -> Message {

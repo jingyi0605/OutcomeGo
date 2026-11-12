@@ -1,7 +1,7 @@
 import { constants } from "node:fs";
 import { access } from "node:fs/promises";
 import type { PgBoss } from "pg-boss";
-import type { PrismaClient } from "@aiteamos/db";
+import type { PrismaClient } from "@outcomego/db";
 
 export const WORKER_QUEUES = [
   "bot-wake",
@@ -28,7 +28,7 @@ export const checkWorkerDependencies = async (worker: {
     );
   const checks = await Promise.allSettled([
     (async () => {
-      await worker.prisma.$queryRaw`SELECT 1 FROM "Bot" LIMIT 0`;
+      await worker.prisma.$queryRaw`SELECT 1 FROM "outcomego_bot" LIMIT 0`;
       const rows = await worker.prisma.$queryRaw<
         Array<{ count: number }>
       >`SELECT count(*)::int AS count FROM pgboss.queue WHERE name IN ('bot-wake','bot-provision','transcript-project','routine-dispatch')`;

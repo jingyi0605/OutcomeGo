@@ -60,17 +60,17 @@ abstract class DebugLauncherIconTask : DefaultTask() {
 }
 
 android {
-    namespace = "com.aiteamos.android"
+    namespace = "com.outcomego.android"
     compileSdk = 36
 
-    val appLinkHost = (project.findProperty("aiteamosAppLinkHost") as String?)
+    val appLinkHost = (project.findProperty("outcomegoAppLinkHost") as String?)
         ?.trim()
         ?.lowercase()
         ?.removeSuffix(".")
         ?.takeIf(String::isNotEmpty)
-        ?: "aiteamos.example.com"
+        ?: "outcomego.example.com"
     require(Regex("^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z]{2,63}$").matches(appLinkHost)) {
-        "aiteamosAppLinkHost must be a public DNS host without a scheme, path, port, or credentials"
+        "outcomegoAppLinkHost must be a public DNS host without a scheme, path, port, or credentials"
     }
 
     // The root package.json is the single release version (see scripts/release/version.ts).
@@ -86,13 +86,13 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.teambots.android"
+        applicationId = "com.outcomego.android"
         minSdk = 26
         targetSdk = 35
-        versionCode = (project.findProperty("aiteamosVersionCode") as String?)?.toInt() ?: computedVersionCode
+        versionCode = (project.findProperty("outcomegoVersionCode") as String?)?.toInt() ?: computedVersionCode
         versionName = releaseVersion
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        manifestPlaceholders["aiteamosAppLinkHost"] = appLinkHost
+        manifestPlaceholders["outcomegoAppLinkHost"] = appLinkHost
         ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64") }
     }
 

@@ -6,9 +6,9 @@ import {
   type CreateBotInput,
   resolveBotAvatarMark,
   type UpdateBotInput,
-} from "@aiteamos/contracts";
-import { COMPUTER_API_PATHS } from "@aiteamos/contracts/service-protocol";
-import { Prisma, type PrismaClient } from "@aiteamos/db";
+} from "@outcomego/contracts";
+import { COMPUTER_API_PATHS } from "@outcomego/contracts/service-protocol";
+import { Prisma, type PrismaClient } from "@outcomego/db";
 import {
   type AgentDataStore,
   type AgentMessaging,
@@ -16,7 +16,7 @@ import {
   stopRequestProgress,
   type BotFileTarget,
   buildSafeTranscript,
-} from "@aiteamos/messaging";
+} from "@outcomego/messaging";
 import { fromPrisma, type PgBoss } from "pg-boss";
 import {
   appendEvent,

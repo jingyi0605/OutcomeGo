@@ -1,10 +1,10 @@
 import { notificationAvatarDataUrl } from "./notification-avatar";
 import { translateCurrent } from "./i18n-catalog";
-import type { ChannelHistoryPage, ChannelMessageView, ClientSnapshot } from "@aiteamos/contracts";
+import type { ChannelHistoryPage, ChannelMessageView, ClientSnapshot } from "@outcomego/contracts";
 import type {
   ChannelNotificationState,
   DesktopNotificationTarget,
-} from "@aiteamos/contracts/notification-content";
+} from "@outcomego/contracts/notification-content";
 
 /** Resolve legacy banners by sequence without downloading a channel's history. */
 export async function resolveNotificationMessage(

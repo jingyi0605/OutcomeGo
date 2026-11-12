@@ -42,7 +42,7 @@ VPN applications may still need service configuration.
 
 ## What restarts and updates keep
 
-When aiTeamOS updates, or recreates the computer after a settings change, the computer starts again from a fresh image and keeps only these:
+When OutcomeGo updates, or recreates the computer after a settings change, the computer starts again from a fresh image and keeps only these:
 
 - The bots' home folder and `/workspace`. This includes each bot's browser profile: sign-ins, history, bookmarks, settings and extension data. Tabs that were open aren't reopened.
 - `/usr/local`, where `sudo pip install`, `sudo npm install -g`, `make install` and hand-copied tools go.
@@ -51,11 +51,11 @@ When aiTeamOS updates, or recreates the computer after a settings change, the co
 
 Everything else, such as `/tmp`, manual changes under `/etc`, and files in `/opt` or other folders, starts fresh. The image's own tools and libraries always come back as the image's version, so an update's fixes reach every bot. Commands bots add to `/usr/local/bin` or their home folder run by name, but a copy with the same name as one of the system's tools doesn't replace it, in login shells and `sudo` too; bots call such a copy by its full path.
 
-If a package can't come back (its apt source is gone, or it was installed from a `.deb` that wasn't kept), each bot is told once, and the computer tries again only after its image changes. Bots run `aiteamos-installs` to see what's recorded and `sudo aiteamos-installs forget NAME` to stop tracking a package: it isn't reinstalled at start and no bot is told about it, until it's removed and installed again. An apt source a bot removes stays removed. To start over with no installed software, stop aiTeamOS and remove the `aiteamos_aiteamos_computer_local` volume.
+If a package can't come back (its apt source is gone, or it was installed from a `.deb` that wasn't kept), each bot is told once, and the computer tries again only after its image changes. Bots run `outcomego-installs` to see what's recorded and `sudo outcomego-installs forget NAME` to stop tracking a package: it isn't reinstalled at start and no bot is told about it, until it's removed and installed again. An apt source a bot removes stays removed. To start over with no installed software, stop OutcomeGo and remove the `outcomego_outcomego_computer_local` volume.
 
 ## Use your own computer
 
-The desktop app can connect your own computer to aiTeamOS, so bots can work with local files and tools. The app makes an outgoing connection, so you don't need to open any ports.
+The desktop app can connect your own computer to OutcomeGo, so bots can work with local files and tools. The app makes an outgoing connection, so you don't need to open any ports.
 
 With your permission, a bot can:
 
@@ -68,14 +68,14 @@ Bots don't get a view of your screen or control of your mouse and keyboard. They
 
 Bots execute commands, transfers, and available native tools directly on enrolled computers. To stop access, disable the computer from its **…** menu under **Settings → Server → Manage devices** or close the desktop app.
 
-Your computer may ask you to grant aiTeamOS permissions, such as access to Contacts.
+Your computer may ask you to grant OutcomeGo permissions, such as access to Contacts.
 
 ### Messages on a Mac
 
 Bots can use Messages only on a Mac where you turn it on:
 
 1. On that Mac, open **Settings → Computer** in the desktop app and turn on **Use Messages**, or choose **Set up** next to **Messages** under **This Mac** in **Marketplace**.
-2. A window lists the macOS permissions Messages needs. Choose **Allow** next to each: **Automation** lets bots send through Messages, **Contacts** lets them find people by name, and **Full Disk Access** lets them search your texts. macOS doesn't ask for Full Disk Access, so **Allow** opens System Settings, where you turn on aiTeamOS. Reopen the window any time from **macOS permissions** in the same section. If a bot needs a permission you haven't granted, the window opens on that Mac.
+2. A window lists the macOS permissions Messages needs. Choose **Allow** next to each: **Automation** lets bots send through Messages, **Contacts** lets them find people by name, and **Full Disk Access** lets them search your texts. macOS doesn't ask for Full Disk Access, so **Allow** opens System Settings, where you turn on OutcomeGo. Reopen the window any time from **macOS permissions** in the same section. If a bot needs a permission you haven't granted, the window opens on that Mac.
 
 Before a bot sends a text, a **Send this message?** card shows the recipient, the text and the Mac it goes out from, in the desktop and iPhone apps. Choose **Send**, **Discard**, or **Always allow** to let bots text that person from that Mac without asking. **Send Without Asking** skips the card for every text. **Allowed recipients** under **Settings → Computer → Messages** lists the people you've allowed, with a button to remove each. Turning Messages off and on again clears both.
 
@@ -87,23 +87,23 @@ Keep the desktop app open while a bot works on your computer. When you give a ta
 
 Applications on the bot computer can use an enrolled Mac or Linux computer's internet connection while they continue running on your server. This includes browsers, terminal commands and plugins running in that container. Websites see the selected computer's connection; browser profiles and sign-ins stay on the bot computer. Other server containers and the host keep their own networks.
 
-1. Update the aiTeamOS server, computer runtime, and desktop app together.
+1. Update the OutcomeGo server, computer runtime, and desktop app together.
 2. On the computer that will provide the connection, open **Settings → Server** and find **Computer network**. Turn on **Share this computer’s connection**. Check the server address before allowing it. The computer automatically joins the saved connection priority.
 3. Drag connections by their handles, or focus a handle and use Space, arrow keys, then Space to drop (Escape cancels). Choose **Apply** to save a new order. The same priority applies across the bot computer.
 
-On iPhone or iPad, open **Settings → Server → Browser network** to manage the same list using drag handles or **Move up / Move down** actions, then choose **Apply** and confirm. The phone cannot provide a connection. **Server connection** can be placed anywhere in the list. aiTeamOS uses the highest available connection: for example, **MacBook Air → Mac mini → Server connection**. A computer below the server will not be used while the server is available.
+On iPhone or iPad, open **Settings → Server → Browser network** to manage the same list using drag handles or **Move up / Move down** actions, then choose **Apply** and confirm. The phone cannot provide a connection. **Server connection** can be placed anywhere in the list. OutcomeGo uses the highest available connection: for example, **MacBook Air → Mac mini → Server connection**. A computer below the server will not be used while the server is available.
 
 The list shows connection availability and an **In use** label. On desktop, **(current)** identifies the computer you're using. **Exit IP** and **Location** show the active computer connection's public address and approximate location. Select each value to reveal or hide it. The lookup uses ipwho.is through ordinary bot-computer networking and runs only while these settings are open; results are cached for two minutes.
 
-Keep provider computers awake with aiTeamOS running. Closing a MacBook's lid so it sleeps, quitting the app, losing its channel, or stopping sharing makes that computer unavailable. Ranked mode moves to the next available entry; if every computer is offline, it reaches the server's entry. A returning higher-priority computer must stay online for 30 seconds before taking over, to avoid repeated switches on an unstable connection. An unresponsive connection loses eligibility when its 6-second lease expires. Individual website failures do not trigger source hopping.
+Keep provider computers awake with OutcomeGo running. Closing a MacBook's lid so it sleeps, quitting the app, losing its channel, or stopping sharing makes that computer unavailable. Ranked mode moves to the next available entry; if every computer is offline, it reaches the server's entry. A returning higher-priority computer must stay online for 30 seconds before taking over, to avoid repeated switches on an unstable connection. An unresponsive connection loses eligibility when its 6-second lease expires. Individual website failures do not trigger source hopping.
 
-Failover runs independently of the settings screen. If a computer cannot apply a new route within six seconds, aiTeamOS disconnects that channel and tries the next ranked connection. Repeated short disconnects slow reconnect attempts until the connection stays stable. Your saved priority stays unchanged. Status labels can lag behind a route change.
+Failover runs independently of the settings screen. If a computer cannot apply a new route within six seconds, OutcomeGo disconnects that channel and tries the next ranked connection. Repeated short disconnects slow reconnect attempts until the connection stays stable. Your saved priority stays unchanged. Status labels can lag behind a route change.
 
 Use **Connection test → Test** in Server settings on desktop or iOS to check the active computer exit. It shows latency and approximate download/upload speed through the complete route to Cloudflare's public test endpoint, including relay overhead. It uses about 1.25 MiB of data, runs only when requested, and caches results for one minute. These small samples are estimates, not maximum-bandwidth measurements. A failed test does not change your ranking or retry website requests.
 
 To prefer the server, move **Server connection** to the top and apply. Closing only the desktop window may leave the app running and sharing active. Existing server/device selections migrate to a ranked list preserving their previous first choice, with the server included as fallback.
 
-Changing connections interrupts active downloads and website connections. Pages stay open. aiTeamOS does not replay requests or submissions; check the outcome before retrying an action.
+Changing connections interrupts active downloads and website connections. Pages stay open. OutcomeGo does not replay requests or submissions; check the outcome before retrying an action.
 
 The selected route applies to the bot computer's applications, including ordinary commands, browser uploads/downloads and website WebSockets. Model requests, WebFetch and plugins running in other containers keep those containers' connections. Device routing allows public TCP destinations; local/private destinations are blocked. DNS uses encrypted DNS-over-HTTPS through the selected exit. Other UDP and ICMP are unsupported. If the relay or routing interface fails, application traffic is blocked rather than escaping over the container's normal network. Narrow management connections remain available, and your explicit ranked server fallback still applies. Sharing does not provide access to the device's local files or import its browser cookies. Windows and phones cannot provide this connection yet.
 
@@ -113,4 +113,4 @@ To stop sharing locally, turn off the sharing switch or quit the app. To revoke 
 
 ## If the screen won't load
 
-Check that the server is running with `aiteamos status`. If the preview says **Computer setup needs attention**, choose **Retry setup**. For work on your own computer, check that the desktop app is open and connected. See [troubleshooting](../manage/troubleshooting.md#the-screen-doesnt-load).
+Check that the server is running with `outcomego status`. If the preview says **Computer setup needs attention**, choose **Retry setup**. For work on your own computer, check that the desktop app is open and connected. See [troubleshooting](../manage/troubleshooting.md#the-screen-doesnt-load).

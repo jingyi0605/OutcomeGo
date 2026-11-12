@@ -14,7 +14,7 @@ test("shell waits accept captured numeric spellings and preserve the delivery en
   expect(Schema.decodeUnknownSync(ShellToolInput)(normalizeMainToolArguments("Shell",{command:"true",block_until_ms:"8000000"}))).toMatchObject({block_until_ms:8_000_000});
 });
 test("email routine triggers parse, describe, and validate against the model-facing schema", async () => {
-  const { createToolValidator } = await import("@aiteamos/plugin-sdk/json-schema");
+  const { createToolValidator } = await import("@outcomego/plugin-sdk/json-schema");
   const validate = createToolValidator(UPDATE_ROUTINE_TOOL.inputSchema);
   const trigger = { type: "email", inbox: "bot@raghav.sh", from: ["me@raghav.sh", "@partner.com"] };
   const input = { action: "create", name: "Reply to mail", prompt: "Answer the sender.", trigger };
@@ -37,7 +37,7 @@ test("email routine triggers parse, describe, and validate against the model-fac
   expect(describeTrigger({ ...trigger, requireAuthPass: false })).toBe("When email arrives at bot@raghav.sh, including unauthenticated senders");
   expect(describeTrigger({ type: "group", listeners: [{ type: "cron", schedule: "0 9 * * 1-5" }, trigger] })).toContain("or when email arrives at bot@raghav.sh");
 });
-test("parsers keep the reference arguments aiTeamOS supports", async () => {
+test("parsers keep the reference arguments outcomeGo supports", async () => {
   const { renderControlResult } = await import("../src/tool-results");
   expect(normalizeMainToolArguments("ReactToMessage", { message_address: "t3u", emoji: "👍", end_turn: true })).toEqual({ message_address: "t3u", emoji: "👍", end_turn: true });
   const handoff = { instruction: "Sign in", domain: "example.com", idp_domain: "accounts.example.com", url: "https://app.example.com/login" };

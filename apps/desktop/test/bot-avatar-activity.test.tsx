@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import type { ChannelView, RunView } from "@aiteamos/contracts";
+import type { ChannelView, RunView } from "@outcomego/contracts";
 import { renderToStaticMarkup } from "react-dom/server";
 import {
   BotAvatarActivityProvider,
   useBotAvatarMode,
-} from "../src/renderer/components/aiteamos/bot-avatar-activity";
+} from "../src/renderer/components/outcomego/bot-avatar-activity";
 
 const channel = { id: "group", members: [{ botId: "one" }, { botId: "two" }] } as ChannelView;
 function Probe({ botId, channelId }: { botId: string; channelId?: string }) {

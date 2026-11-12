@@ -447,7 +447,7 @@ private struct OnboardingWizard: View {
       title: healthy
         ? "All systems go" : stalled ? "Something isn't running yet" : "Checking your server",
       detail: stalled
-        ? "Run `openteam doctor` on your server to see why."
+        ? "Run `outcomego doctor` on your server to see why."
         : healthy ? "Everything on your server is running." : "This takes a few seconds.")
     let details = [
       "server": "Answers your apps", "database": "Keeps your chats and bots",
@@ -1416,7 +1416,7 @@ private struct OnboardingWizard: View {
     } else if hadBots {
       WizardHeader(
         title: "You're all set",
-        detail: "Your server already has bots. Open OpenTeam to chat with them.")
+        detail: "Your server already has bots. Open OutcomeGo to chat with them.")
     } else {
       WizardHeader(
         title: "Create your first bot",
@@ -1635,7 +1635,7 @@ private struct OnboardingWizard: View {
           busy: creating, disabled: trimmedName.isEmpty || store.syncingState
         ) { Task { await createBot() } }
       } else {
-        WizardPrimaryButton(title: "Open OpenTeam") {
+        WizardPrimaryButton(title: "Open OutcomeGo") {
           NativeHaptics.play(.light, source: "onboarding.open")
           finish()
         }

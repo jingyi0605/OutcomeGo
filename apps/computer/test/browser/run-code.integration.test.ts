@@ -14,7 +14,7 @@ test("run-code contract uses the code-only schema and is exposed to browser work
  expect((tool.inputSchema.properties as any).code.maxLength).toBe(16384);
 });
 
-test.skipIf(!process.env.AITEAMOS_BROWSER_TEST_EXECUTABLE)("batched Playwright scripts, fresh globals, tab selection, failures and limits on real Chromium", async () => {
+test.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)("batched Playwright scripts, fresh globals, tab selection, failures and limits on real Chromium", async () => {
  const root = await mkdtemp(join(tmpdir(), "run-code-"));
  const html = (body:string) => new Response(body, {headers:{"content-type":"text/html"}});
  const server = Bun.serve({port:0,fetch:request=>{
@@ -32,7 +32,7 @@ test.skipIf(!process.env.AITEAMOS_BROWSER_TEST_EXECUTABLE)("batched Playwright s
  const driver = await outOfProcessPlaywright();
  const profile = join(root,"profile");
  const context = await driver.playwright.chromium.launchPersistentContext(profile, {
-  executablePath:process.env.AITEAMOS_BROWSER_TEST_EXECUTABLE, headless:true, args:["--remote-debugging-port=0"],
+  executablePath:process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE, headless:true, args:["--remote-debugging-port=0"],
  });
  context.on("dialog",()=>{});
  try {

@@ -110,7 +110,7 @@ function sampleFileContent(scenario: (typeof examples)[number]) {
     ? "Service,Uptime,Usage change,Status\n" +
         scenario.rows.map((row) => row.join(",")).join("\n") +
         "\n"
-    : `# ${scenario.heading}\n\n${scenario.reply}\n\n${scenario.id === "code" ? diff : table + "\n\n## Why Northstar\nThe required SSO feature is included. It costs $72 less per year than Meridian and $144 less than Orbit. Meridian requires an add-on; Orbit exceeds the sample budget.\n\n## Sample source notes\nNorthstar pricing page; Meridian plan documentation; Orbit SSO documentation. These are fictional vendors in a product demonstration, not live citations."}\n\n---\nSample output from the aiTeamOS interactive product demo. All data is illustrative.\n`;
+    : `# ${scenario.heading}\n\n${scenario.reply}\n\n${scenario.id === "code" ? diff : table + "\n\n## Why Northstar\nThe required SSO feature is included. It costs $72 less per year than Meridian and $144 less than Orbit. Meridian requires an add-on; Orbit exceeds the sample budget.\n\n## Sample source notes\nNorthstar pricing page; Meridian plan documentation; Orbit SSO documentation. These are fictional vendors in a product demonstration, not live citations."}\n\n---\nSample output from the OutcomeGo interactive product demo. All data is illustrative.\n`;
 }
 
 function TrafficLights() {
@@ -487,7 +487,7 @@ function DesktopScreenCanvas({ scenario }: { scenario: (typeof examples)[number]
       width={1280}
       height={800}
       unoptimized
-      alt={`Actual aiTeamOS Linux desktop showing ${scenario.name.toLowerCase()}'s sample ${scenario.heading.toLowerCase()}`}
+      alt={`Actual OutcomeGo Linux desktop showing ${scenario.name.toLowerCase()}'s sample ${scenario.heading.toLowerCase()}`}
     />
   );
 }

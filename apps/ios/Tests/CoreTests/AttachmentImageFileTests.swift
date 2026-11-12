@@ -2,7 +2,7 @@ import CoreGraphics
 import ImageIO
 import XCTest
 
-@testable import OpenTeamCore
+@testable import OutcomeGoCore
 
 @MainActor final class AttachmentImageFileTests: XCTestCase {
   func testPreviewReservesMetadataSizeAndDefaultsMissingDimensions() {

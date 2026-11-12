@@ -1,9 +1,9 @@
 import {
   attachmentSizeRejection,
   attachmentRejectionMessage,
-} from "@aiteamos/contracts/media-input";
-import { MAX_PARALLEL_UPLOADS, mapWithConcurrency } from "@aiteamos/client-core";
-import { attachmentAssetKind } from "@aiteamos/product-core/attachments";
+} from "@outcomego/contracts/media-input";
+import { MAX_PARALLEL_UPLOADS, mapWithConcurrency } from "@outcomego/client-core";
+import { attachmentAssetKind } from "@outcomego/product-core/attachments";
 import {
   classifyDurableSendError,
   createDurableSendController,
@@ -13,14 +13,14 @@ import {
   type DurableStagedAttachment,
   messageDeliveryAcceptance,
   type MessageDeliveryAcceptance,
-} from "@aiteamos/product-core/durable-delivery";
+} from "@outcomego/product-core/durable-delivery";
 import { getAuthSnapshot, subscribeAuthSnapshot } from "../client/auth";
 import { API_BASE } from "../client/http";
-import { api } from "../client/aiteamos-api";
+import { api } from "../client/outcomego-api";
 import { translateCurrent } from "./i18n-catalog";
 import { recordPerformance } from "./performance";
 
-export const DURABLE_SEND_ACCEPTED_EVENT = "aiteamos:durable-send-accepted";
+export const DURABLE_SEND_ACCEPTED_EVENT = "outcomego:durable-send-accepted";
 
 const controllers = new Map<string, DurableSendController>();
 const controllerCleanups = new Map<DurableSendController, () => void>();
@@ -56,11 +56,11 @@ const accountScope = (): string => {
   return `desktop:${API_BASE}:${auth.user?.id ?? (auth.mode === "disabled" ? "local" : "signed-out")}`;
 };
 
-const storageKey = (scope: string): string => `aiteamos:send-journal:v1:${scope}`;
+const storageKey = (scope: string): string => `outcomego:send-journal:v1:${scope}`;
 
 const storageFor = (scope: string) => ({
   read: async (): Promise<unknown> => {
-    const host = window.aiteamos?.deliveryJournal;
+    const host = window.outcomego?.deliveryJournal;
     if (host) return host.read(scope).catch(() => null);
     // Browser dev mode has no host bridge; the journal lives in localStorage.
     const encoded = localStorage.getItem(storageKey(scope));
@@ -72,7 +72,7 @@ const storageFor = (scope: string) => ({
     }
   },
   write: async (journal: DurableSendJournal): Promise<void> => {
-    const host = window.aiteamos?.deliveryJournal;
+    const host = window.outcomego?.deliveryJournal;
     if (host) return host.write(scope, journal);
     localStorage.setItem(storageKey(scope), JSON.stringify(journal));
   },
@@ -96,8 +96,8 @@ export const stageDesktopDeliveryFile = async (
   }
   const stagingId = crypto.randomUUID();
   const mimeType = file.type || "application/octet-stream";
-  if (window.aiteamos?.files) {
-    await window.aiteamos.files.stageDelivery({ stagingId, bytes: await file.arrayBuffer() });
+  if (window.outcomego?.files) {
+    await window.outcomego.files.stageDelivery({ stagingId, bytes: await file.arrayBuffer() });
   } else {
     ephemeralStages.set(stagingId, file);
   }
@@ -111,7 +111,7 @@ export const stageDesktopDeliveryFile = async (
     kind,
     ...(kind === "image"
       ? {
-          previewUri: `aiteamos-staged://file/${stagingId}?mime=${encodeURIComponent(mimeType)}`,
+          previewUri: `outcomego-staged://file/${stagingId}?mime=${encodeURIComponent(mimeType)}`,
           ...(size ?? {}),
         }
       : {}),
@@ -136,7 +136,7 @@ export const discardDesktopDeliveryStages = async (
 ): Promise<void> => {
   const ids = attachments.map(({ stagingId }) => stagingId);
   for (const id of ids) ephemeralStages.delete(id);
-  if (ids.length > 0) await window.aiteamos?.files.discardDeliveryStages(ids);
+  if (ids.length > 0) await window.outcomego?.files.discardDeliveryStages(ids);
 };
 
 const readDesktopDeliveryStage = async (attachment: DurableStagedAttachment): Promise<Blob> => {
@@ -144,7 +144,7 @@ const readDesktopDeliveryStage = async (attachment: DurableStagedAttachment): Pr
   if (ephemeral) return ephemeral;
   let bytes: Uint8Array | undefined;
   try {
-    bytes = await window.aiteamos?.files.readDeliveryStage(attachment.stagingId);
+    bytes = await window.outcomego?.files.readDeliveryStage(attachment.stagingId);
   } catch (cause) {
     const message = cause instanceof Error ? cause.message : String(cause);
     if (/ENOENT|no such file|not found/i.test(message)) {

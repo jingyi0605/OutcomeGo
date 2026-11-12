@@ -1,8 +1,8 @@
-import { ApnsSettingsStore } from "@aiteamos/db/apns-settings";
+import { ApnsSettingsStore } from "@outcomego/db/apns-settings";
 import { MachineService } from "./services/machine-service";
 import { AutomationWebhooksService } from "./services/automation-webhooks";
-import { ApiError, type UpdateUserTimeZoneInput, type UploadAssetInput } from "@aiteamos/contracts";
-import { createPrismaClient, Prisma, type PrismaClient } from "@aiteamos/db";
+import { ApiError, type UpdateUserTimeZoneInput, type UploadAssetInput } from "@outcomego/contracts";
+import { createPrismaClient, Prisma, type PrismaClient } from "@outcomego/db";
 import {
   AgentDataStore,
   AgentMessaging,
@@ -11,7 +11,7 @@ import {
   type RoutineMutationInput,
   RoutineService,
   userTimeZoneView,
-} from "@aiteamos/messaging";
+} from "@outcomego/messaging";
 import { Effect } from "effect";
 import { join, resolve } from "node:path";
 import { TranscriptionService } from "./transcription/service";
@@ -102,17 +102,17 @@ export class AppService {
     });
     this.machines = new MachineService(
       this.prisma,
-      process.env.AITEAMOS_CONTROL_TOKEN ?? "local-compose-only-change-me",
+      process.env.OUTCOMEGO_CONTROL_TOKEN ?? "local-compose-only-change-me",
       undefined,
       undefined,
       authMode === "disabled"
     );
     this.boss = new PgBoss(databaseUrl ?? "");
     this.eventWakeup = new EventWakeup(databaseUrl ?? "");
-    this.computerUrl = process.env.AITEAMOS_COMPUTER_URL ?? "http://127.0.0.1:8790";
-    this.controlToken = process.env.AITEAMOS_CONTROL_TOKEN ?? "local-compose-only-change-me";
-    this.workspaceRoot = resolve(process.env.AITEAMOS_WORKSPACE_ROOT ?? "/workspace");
-    this.screenViewerHost = process.env.AITEAMOS_SCREEN_VIEWER_HOST ?? "127.0.0.1";
+    this.computerUrl = process.env.OUTCOMEGO_COMPUTER_URL ?? "http://127.0.0.1:8790";
+    this.controlToken = process.env.OUTCOMEGO_CONTROL_TOKEN ?? "local-compose-only-change-me";
+    this.workspaceRoot = resolve(process.env.OUTCOMEGO_WORKSPACE_ROOT ?? "/workspace");
+    this.screenViewerHost = process.env.OUTCOMEGO_SCREEN_VIEWER_HOST ?? "127.0.0.1";
     this.agentData = new AgentDataStore(this.prisma, {
       workspaceRoot: this.workspaceRoot,
     });
@@ -374,7 +374,7 @@ export class AppService {
     // transcript bytes and could briefly duplicate a very large history in RAM.
     const candidates = await this.prisma.$queryRaw<Array<{ assetId: string | null }>>(Prisma.sql`
       SELECT DISTINCT candidate #>> '{}' AS "assetId"
-      FROM "ChannelMessage" AS message
+      FROM "outcomego_channel_message" AS message
       CROSS JOIN LATERAL jsonb_path_query(
         coalesce(message."metadata", '{}'::jsonb),
         '$.**.assetId'::jsonpath
@@ -389,7 +389,7 @@ export class AppService {
 
   createBot = forwardServiceMethod(() => this.bots.create);
 
-  broadcast = (input: import("@aiteamos/contracts").AdminBroadcastInput) =>
+  broadcast = (input: import("@outcomego/contracts").AdminBroadcastInput) =>
     serviceEffect(() => this.messaging.broadcast(input));
 
   listBots = (includeHidden = false) => this.bots.list(includeHidden);
@@ -685,13 +685,13 @@ export class AppService {
   async browserNetworkQuality() {
     const response = await this.computerFetch("/v1/browser-network/quality", { method: "POST", body: "{}", signal: AbortSignal.timeout(24_000) });
     if (!response.ok) throw new ApiError(503, "network_quality_unavailable", "Could not test the active browser connection");
-    return await response.json() as import("@aiteamos/contracts/browser-network").NetworkQuality;
+    return await response.json() as import("@outcomego/contracts/browser-network").NetworkQuality;
   }
 
   async browserNetworkEgress() {
     const response = await this.computerFetch("/v1/browser-network/egress", { method: "POST", body: "{}" });
     if (!response.ok) throw new ApiError(503, "network_egress_unavailable", "Could not check browser exit connection");
-    return await response.json() as import("@aiteamos/contracts/browser-network").NetworkEgress;
+    return await response.json() as import("@outcomego/contracts/browser-network").NetworkEgress;
   }
 
   private computerFetch(path: string, init: RequestInit): Promise<Response> {

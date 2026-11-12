@@ -1,10 +1,10 @@
 import { oauthCallbackMode, MANUAL_OAUTH_REDIRECT } from "../../plugins/oauth-callback";
-import { createToolValidator } from "@aiteamos/plugin-sdk/json-schema";
-import type { PluginConnectionView } from "@aiteamos/contracts";
-import { ApiError } from "@aiteamos/contracts";
-import type { Prisma } from "@aiteamos/db";
+import { createToolValidator } from "@outcomego/plugin-sdk/json-schema";
+import type { PluginConnectionView } from "@outcomego/contracts";
+import { ApiError } from "@outcomego/contracts";
+import type { Prisma } from "@outcomego/db";
 import { toJson } from "../service-utils";
-import { pluginIconUrl, substituteConfiguration, fieldsForConnector, validateValues, type ConfigValue, type PluginDefinition, type PluginToolDefinition } from "@aiteamos/plugin-sdk";
+import { pluginIconUrl, substituteConfiguration, fieldsForConnector, validateValues, type ConfigValue, type PluginDefinition, type PluginToolDefinition } from "@outcomego/plugin-sdk";
 
 export function runtimeConfiguration(connection: {
   configuration: Prisma.JsonValue;
@@ -245,7 +245,7 @@ export const boundPluginResult = (
     object[key.slice(0, 1000)] = boundPluginResult(nested, depth + 1, budget);
   }
   if (Object.keys(value as JsonObject).length > entries.length) {
-    object._aiteamosOmitted = "Additional object fields were omitted";
+    object._outcomegoOmitted = "Additional object fields were omitted";
   }
   return object;
 };

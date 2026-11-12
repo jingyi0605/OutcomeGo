@@ -1,32 +1,32 @@
 #!/bin/sh
 set -eu
-# aiTeamOS's own processes never search /usr/local or the home folder, which
+# outcomeGo's own processes never search /usr/local or the home folder, which
 # bots install into; bot shells get those back (agent-process.ts).
-PATH=/usr/lib/aiteamos/bin:/usr/sbin:/usr/bin:/sbin:/bin
-NODE_PATH=/usr/lib/aiteamos/node/lib/node_modules
+PATH=/usr/lib/outcomego/bin:/usr/sbin:/usr/bin:/sbin:/bin
+NODE_PATH=/usr/lib/outcomego/node/lib/node_modules
 export PATH NODE_PATH
 
-agent_dir=${AITEAMOS_PI_AGENT_DIR:-/home/box/.pi/agent}
-data_root=${AITEAMOS_AGENT_DATA_CANONICAL_ROOT:-/home/box/sand-data}
-data_alias=${AITEAMOS_AGENT_DATA_ROOT:-/home/box/agent-data}
-agent_uid=${AITEAMOS_AGENT_UID:-1000}
-agent_gid=${AITEAMOS_AGENT_GID:-1000}
+agent_dir=${OUTCOMEGO_PI_AGENT_DIR:-/home/box/.pi/agent}
+data_root=${OUTCOMEGO_AGENT_DATA_CANONICAL_ROOT:-/home/box/sand-data}
+data_alias=${OUTCOMEGO_AGENT_DATA_ROOT:-/home/box/agent-data}
+agent_uid=${OUTCOMEGO_AGENT_UID:-1000}
+agent_gid=${OUTCOMEGO_AGENT_GID:-1000}
 # Keep ordinary commands non-root; allow administrator commands through sudo.
 case "$agent_uid" in
-  ''|0|*[!0-9]*) echo "invalid AITEAMOS_AGENT_UID" >&2; exit 1 ;;
+  ''|0|*[!0-9]*) echo "invalid OUTCOMEGO_AGENT_UID" >&2; exit 1 ;;
 esac
-printf '#%s ALL=(ALL:ALL) NOPASSWD: ALL\n' "$agent_uid" > /etc/sudoers.d/aiteamos-runner
-chown 0:0 /etc/sudoers.d/aiteamos-runner
-chmod 0440 /etc/sudoers.d/aiteamos-runner
+printf '#%s ALL=(ALL:ALL) NOPASSWD: ALL\n' "$agent_uid" > /etc/sudoers.d/outcomego-runner
+chown 0:0 /etc/sudoers.d/outcomego-runner
+chmod 0440 /etc/sudoers.d/outcomego-runner
 
 umask 0022
 
 # One-off provider login/import commands also use this image without a running
 # computer or helper. They do not launch desktops and must remain usable.
-if [ "${1:-}" = /usr/lib/aiteamos/bin/bun ] && [ "${2:-}" = /app/apps/computer/dist/main.js ]; then
-  /usr/bin/python3 -I -S /usr/lib/aiteamos/bin/aiteamos-memory-setup.py
-  if [ "${AITEAMOS_COMPUTER_NETWORK:-}" = 1 ]; then
-    /usr/bin/python3 -I -S /usr/lib/aiteamos/bin/aiteamos-computer-network.py "${AITEAMOS_SERVER_URL:-http://server:8787}"
+if [ "${1:-}" = /usr/lib/outcomego/bin/bun ] && [ "${2:-}" = /app/apps/computer/dist/main.js ]; then
+  /usr/bin/python3 -I -S /usr/lib/outcomego/bin/outcomego-memory-setup.py
+  if [ "${OUTCOMEGO_COMPUTER_NETWORK:-}" = 1 ]; then
+    /usr/bin/python3 -I -S /usr/lib/outcomego/bin/outcomego-computer-network.py "${OUTCOMEGO_SERVER_URL:-http://server:8787}"
   fi
 fi
 
@@ -41,7 +41,7 @@ chown "$agent_uid:$agent_gid" /home/box "$data_root" /workspace /workspace/slide
 chmod 0700 /home/box "$data_root"
 chmod 0755 /workspace /workspace/slides /home/box/Downloads /home/box/Documents
 # apt keeps its package lists and downloads in the /usr/local volume.
-mkdir -p /usr/local/var/lib/aiteamos/apt/archives/partial /usr/local/var/lib/aiteamos/apt/lists/partial
+mkdir -p /usr/local/var/lib/outcomego/apt/archives/partial /usr/local/var/lib/outcomego/apt/lists/partial
 
 # The supervisor owns credentials; bot processes start as box but can read
 # these files through sudo. File ownership is not an isolation boundary.
@@ -71,11 +71,11 @@ fi
 
 cd /workspace
 
-if [ "${1:-}" = /usr/lib/aiteamos/bin/bun ] && [ "${2:-}" = /app/apps/computer/dist/main.js ]; then
+if [ "${1:-}" = /usr/lib/outcomego/bin/bun ] && [ "${2:-}" = /app/apps/computer/dist/main.js ]; then
   # Reinstall the apt packages bots installed before this container existed,
   # and rebuild language packages after a Python or Node version change.
-  # It runs in the background; its log is /usr/local/var/lib/aiteamos/replay.log.
-  (/usr/lib/aiteamos/bin/bun /app/apps/computer/dist/installs-cli.js replay >/dev/null 2>&1 &)
+  # It runs in the background; its log is /usr/local/var/lib/outcomego/replay.log.
+  (/usr/lib/outcomego/bin/bun /app/apps/computer/dist/installs-cli.js replay >/dev/null 2>&1 &)
 fi
 
 # Match the writable kernel filesystems inside the bot computer's namespaces.

@@ -41,8 +41,8 @@ async function inject(value: any) {
   // Some simulator runtimes reject silent pushes even with a badge. Report that
   // capability separately from a cleanup failure; never replace it with an alert.
   const payload = {
-  aps: background ? { "content-available": 1, badge: badgeCount } : { alert: { title: "OpenTeam Push QA", body: value.qaID }, badge: value.badgeOverride ?? badgeCount, "content-available": 1, "mutable-content": 1, "thread-id": value.channelId }, data };
-  const process = Bun.spawn(["xcrun", "simctl", "push", udid!, "dev.openteam.mobile.swift", "-"], { stdin: new Blob([JSON.stringify(payload)]), stdout: "pipe", stderr: "pipe" });
+  aps: background ? { "content-available": 1, badge: badgeCount } : { alert: { title: "OutcomeGo Push QA", body: value.qaID }, badge: value.badgeOverride ?? badgeCount, "content-available": 1, "mutable-content": 1, "thread-id": value.channelId }, data };
+  const process = Bun.spawn(["xcrun", "simctl", "push", udid!, "dev.outcomego.mobile.swift", "-"], { stdin: new Blob([JSON.stringify(payload)]), stdout: "pipe", stderr: "pipe" });
   const result = await process.exited;
   if (result) {
     const failure = await new Response(process.stderr).text();

@@ -1,8 +1,8 @@
 import { test, expect } from "bun:test";
-import { createPrismaClient } from "@aiteamos/db";
+import { createPrismaClient } from "@outcomego/db";
 import { PluginConnectors } from "../../src/services/plugin/connectors";
 import { Effect } from "effect";
-const databaseUrl = process.env.AITEAMOS_TEST_DATABASE_URL;
+const databaseUrl = process.env.OUTCOMEGO_TEST_DATABASE_URL;
 test.skipIf(!databaseUrl)(
   "native delivery executes directly, binds staged bytes, and cannot replay sends",
   async () => {

@@ -6,12 +6,12 @@ import { createCipheriv, createHash, pbkdf2Sync } from "node:crypto";
 import { Database } from "bun:sqlite";
 import { ChromeCookies, decryptChromeCookie } from "../../src/main/host/chrome-cookies";
 import { MacMessages } from "../../src/main/host/messages";
-import { validateMessageSend } from "@aiteamos/contracts/messages-send";
+import { validateMessageSend } from "@outcomego/contracts/messages-send";
 import { nativeCommand } from "../../src/main/host/native-command";
 import { HostCapabilities } from "../../src/main/host/capabilities";
 
 test("Chrome import decrypts only requested profile/host pairs, verifies v24 domain hash, and preserves cookie metadata", async () => {
-  const root = await mkdtemp(join(tmpdir(), "aiteamos-chrome-test-"));
+  const root = await mkdtemp(join(tmpdir(), "outcomego-chrome-test-"));
   const password = "synthetic-keychain-password";
   const encrypt = (domain: string, value: string) => {
     const cipher = createCipheriv(
@@ -160,7 +160,7 @@ test("a missing macOS grant names itself and opens the permissions dialog instea
     access: access as never,
     onGrantMissing: () => { prompts++; },
   });
-  await expect(host.handle({ tool: "ChatItems", botId: "b", arguments: {} })).rejects.toThrow("has not granted aiTeamOS Full Disk Access");
+  await expect(host.handle({ tool: "ChatItems", botId: "b", arguments: {} })).rejects.toThrow("has not granted OutcomeGo Full Disk Access");
   await expect(host.handle({ tool: "FindContacts", botId: "b", arguments: { query: "Alex" } })).rejects.toThrow("hasn't been asked for Contacts access yet");
   expect(prompts).toBe(2);
   permissions = { fullDiskAccess: true, automation: "notAsked", contacts: "notAsked" };
@@ -170,6 +170,6 @@ test("a missing macOS grant names itself and opens the permissions dialog instea
   });
   await expect(host.handle({ tool: "ChatItems", botId: "b", arguments: {} })).resolves.toMatchObject({ kind: "items" });
   permissions = { fullDiskAccess: true, automation: "denied", contacts: "granted" };
-  await expect(host.handle({ tool: "SendIMessage", botId: "b", callId: "c", arguments: { text: "hi", to: "+15555550100" } })).rejects.toThrow("has not granted aiTeamOS Automation for Messages");
+  await expect(host.handle({ tool: "SendIMessage", botId: "b", callId: "c", arguments: { text: "hi", to: "+15555550100" } })).rejects.toThrow("has not granted OutcomeGo Automation for Messages");
   expect(prompts).toBe(3);
 });

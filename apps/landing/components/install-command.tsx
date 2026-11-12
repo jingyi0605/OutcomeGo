@@ -6,7 +6,11 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { copyText } from "@/lib/copy-text";
 
-const COMMAND_PARTS = ["curl -fsSL", "https://openteam.so/install", "| sh"];
+const COMMAND_PARTS = [
+  "curl -fsSL",
+  "https://github.com/jingyi0605/OutcomeGo/releases/latest/download/install.sh",
+  "| sh",
+];
 export const INSTALL_COMMAND = COMMAND_PARTS.join(" ");
 
 export function InstallCommand() {

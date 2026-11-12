@@ -4,7 +4,7 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Server } from "node:http";
-import { ApiError } from "@aiteamos/contracts";
+import { ApiError } from "@outcomego/contracts";
 import { createPrismaClient } from "../../../../packages/db/src";
 import { MachineService } from "../../../server/src/services/machine-service";
 import { MachineRelay } from "../../../server/src/machine-relay";
@@ -27,8 +27,8 @@ async function eventually(check: () => Promise<boolean>, description: string) {
 }
 const digest = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
 
-test.skipIf(!process.env.AITEAMOS_TEST_DATABASE_URL)("two desktops enroll, stream operations, reconnect and revoke without replay", async () => {
-  const db = createPrismaClient(process.env.AITEAMOS_TEST_DATABASE_URL!);
+test.skipIf(!process.env.OUTCOMEGO_TEST_DATABASE_URL)("two desktops enroll, stream operations, reconnect and revoke without replay", async () => {
+  const db = createPrismaClient(process.env.OUTCOMEGO_TEST_DATABASE_URL!);
   const root = await mkdtemp(join(tmpdir(), "enrollment-e2e-"));
   const userId = crypto.randomUUID(), sessionId = crypto.randomUUID();
   const botId = crypto.randomUUID(), channelId = crypto.randomUUID();
@@ -95,7 +95,7 @@ test.skipIf(!process.env.AITEAMOS_TEST_DATABASE_URL)("two desktops enroll, strea
     await expect(machines.enroll({machineId:crypto.randomUUID(),label:"Unauthorized",},null)).rejects.toThrow("Sign in");
     expect((await fetch(`${api.url.origin}/api/v0/machines/enroll`, { method: "POST", body: "{}" })).status).toBe(401);
     const firstCredential = credentials.get(first.machineId)!;
-    const deviceHeaders = (id: string, credential: string) => ({ authorization: `Bearer ${credential}`, "x-aiteamos-machine-id": id });
+    const deviceHeaders = (id: string, credential: string) => ({ authorization: `Bearer ${credential}`, "x-outcomego-machine-id": id });
     expect((await fetch(`${api.url.origin}/api/v0/internal/machines`, { headers: deviceHeaders(first.machineId, firstCredential) })).status).toBe(401);
     expect((await fetch(`${api.url.origin}/api/v0/machines/channel/connect`, { method: "POST", headers: deviceHeaders(second.machineId, firstCredential) })).status).toBe(401);
 

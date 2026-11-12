@@ -1,8 +1,8 @@
 import React, { useState } from "react";
-import { createAiTeamOSAuthClient } from "@aiteamos/client-core/auth";
+import { createOutcomeGoAuthClient } from "@outcomego/client-core/auth";
 import { createRoot } from "react-dom/client";
 import "../../src/renderer/styles.css";
-import { AuthGate } from "../../src/renderer/components/aiteamos/auth-gate";
+import { AuthGate } from "../../src/renderer/components/outcomego/auth-gate";
 import { signOut } from "../../src/renderer/client/auth";
 
 // Optional startup-only bridge failure. A later attempt uses synthetic in-memory storage.
@@ -11,7 +11,7 @@ if (storageScenario.has("storage-error") || storageScenario.has("storage-hang"))
   let failRead = true;
   let token: string | null = null;
   const stored = () => ({ token, persistence: "memory", backend: "qa" });
-  window.aiteamos = {
+  window.outcomego = {
     versions: { app: "0.0.0" },
     updates: {
       status: async () => null,
@@ -37,11 +37,11 @@ if (storageScenario.has("storage-error") || storageScenario.has("storage-hang"))
         return stored();
       },
       signIn: (baseUrl: string, username: string, password: string) =>
-        createAiTeamOSAuthClient({ baseUrl }).signIn(username, password),
+        createOutcomeGoAuthClient({ baseUrl }).signIn(username, password),
       signOut: (baseUrl: string, currentToken: string) =>
-        createAiTeamOSAuthClient({ baseUrl }).signOut(currentToken),
+        createOutcomeGoAuthClient({ baseUrl }).signOut(currentToken),
     },
-  } as unknown as typeof window.aiteamos;
+  } as unknown as typeof window.outcomego;
 }
 
 function QA() {

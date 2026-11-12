@@ -42,8 +42,8 @@ describe("client documentation search", () => {
   test("searches body text, tables, and code with direct section links", () => {
     expect(search("oauth callback")[0].href).toBe("/docs/integrations/accounts#sign-in-callback");
     expect(search("8787").some((entry) => entry.href.endsWith("#requirements"))).toBe(true);
-    expect(search("AITEAMOS_HOME").some((entry) => entry.href.endsWith("#where-aiteamos-is-installed"))).toBe(true);
-    expect(search("how do I install aiTeamOS").some((entry) => entry.href.includes("/getting-started/installation#"))).toBe(true);
+    expect(search("OUTCOMEGO_HOME").some((entry) => entry.href.endsWith("#where-outcomego-is-installed"))).toBe(true);
+    expect(search("how do I install OutcomeGo").some((entry) => entry.href.includes("/getting-started/installation#"))).toBe(true);
   });
 
   test("requires all significant terms and handles arbitrary input safely", () => {

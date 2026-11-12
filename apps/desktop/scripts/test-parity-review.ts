@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url); const electron = require('electron') as string;
-const directory = await mkdtemp(join(tmpdir(), 'aiteamos-parity-review-'));
+const directory = await mkdtemp(join(tmpdir(), 'outcomego-parity-review-'));
 const artifacts = resolve(import.meta.dir, '../../../findings/grokbot-context-2026-09-12/parity-research/review-ui');
 try {
  await mkdir(artifacts, { recursive: true });

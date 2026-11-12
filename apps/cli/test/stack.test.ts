@@ -41,7 +41,7 @@ const withListener = async (run: (port: number) => Promise<void>, hostname = "12
 
 describe("stack inspection", () => {
   test("detects a Tailscale API listener even when Docker claims the server is running", async () => {
-    const runner = new DockerPsRunner({ "8787": "aiteamos-server-1\taiteamos" });
+    const runner = new DockerPsRunner({ "8787": "outcomego-server-1\toutcomego" });
     runner.tailscale = {
       status: 0,
       stdout: JSON.stringify({ TCP: { "8787": { TCPForward: "127.0.0.1:8787" } } }),
@@ -50,14 +50,14 @@ describe("stack inspection", () => {
     const conflict = await findPortConflict(
       runner,
       portRequirementsFromEnvironment(
-        new Map([["AITEAMOS_BIND_HOST", "0.0.0.0"]]),
+        new Map([["OUTCOMEGO_BIND_HOST", "0.0.0.0"]]),
         new Set(["server", "computer"])
       )
     );
     expect(conflict).toEqual({ port: 8787, host: "0.0.0.0", tailscale: true });
     expect(portConflictMessage(conflict!)).toContain("Tailscale Serve already uses port 8787");
     expect(portConflictMessage(conflict!)).toContain("tailscale serve status");
-    expect(portConflictMessage(conflict!)).not.toContain("docker compose -p aiteamos down");
+    expect(portConflictMessage(conflict!)).not.toContain("docker compose -p outcomego down");
     expect(runner.calls.find((call) => call.command === "tailscale")?.options?.timeoutMs).toBe(
       3_000
     );
@@ -89,7 +89,7 @@ describe("stack inspection", () => {
       stderr: "",
     };
     const requirements = portRequirementsFromEnvironment(
-      new Map([["AITEAMOS_VIEWER_BIND_HOST", "0.0.0.0"]]),
+      new Map([["OUTCOMEGO_VIEWER_BIND_HOST", "0.0.0.0"]]),
       new Set(["server", "computer", "caddy"])
     );
     expect(await findPortConflict(runner, requirements)).toMatchObject({
@@ -104,7 +104,7 @@ describe("stack inspection", () => {
   test("ignores unrelated rules, service VIPs, and unavailable or invalid Tailscale output", async () => {
     const runner = new DockerPsRunner();
     const requirements = portRequirementsFromEnvironment(
-      new Map([["AITEAMOS_BIND_HOST", "0.0.0.0"]]),
+      new Map([["OUTCOMEGO_BIND_HOST", "0.0.0.0"]]),
       new Set(["server", "computer"])
     );
     for (const result of [
@@ -143,8 +143,8 @@ describe("stack inspection", () => {
     await withListener(async (port) => {
       const runner = new DockerPsRunner({ [String(port)]: "openteam-dev-server-1\topenteam-dev" });
       const environment = new Map([
-        ["AITEAMOS_BIND_HOST", "0.0.0.0"],
-        ["AITEAMOS_API_PORT", String(port)],
+        ["OUTCOMEGO_BIND_HOST", "0.0.0.0"],
+        ["OUTCOMEGO_API_PORT", String(port)],
       ]);
 
       const conflict = await findPortConflict(
@@ -183,7 +183,7 @@ describe("stack inspection", () => {
       const conflict = await findPortConflict(
         runner,
         portRequirementsFromEnvironment(
-          new Map([["AITEAMOS_API_PORT", String(port)]]),
+          new Map([["OUTCOMEGO_API_PORT", String(port)]]),
           new Set(["computer"])
         )
       );
@@ -226,13 +226,13 @@ describe("stack inspection", () => {
         project: "openteam-dev",
       })
     ).toBe(
-      "aiTeamOS cannot start because port 6200 is already in use by container openteam-dev-computer-1 (Compose project openteam-dev). Stop that stack with `docker compose -p openteam-dev down`; the screen-viewer range 6200-6299 is fixed."
+      "OutcomeGo cannot start because port 6200 is already in use by container openteam-dev-computer-1 (Compose project openteam-dev). Stop that stack with `docker compose -p openteam-dev down`; the screen-viewer range 6200-6299 is fixed."
     );
     expect(portConflictMessage({ port: 8787, host: "127.0.0.1" })).toBe(
-      "aiTeamOS cannot start because port 8787 is already in use by another process on this machine. Find it with `lsof -nP -iTCP:8787 -sTCP:LISTEN` and stop it, or choose another API port with aiteamos setup --advanced."
+      "OutcomeGo cannot start because port 8787 is already in use by another process on this machine. Find it with `lsof -nP -iTCP:8787 -sTCP:LISTEN` and stop it, or choose another API port with outcomego setup --advanced."
     );
     expect(portConflictMessage({ port: 443, host: "0.0.0.0", container: "nginx" })).toBe(
-      "aiTeamOS cannot start because port 443 is already in use by container nginx. Stop it with `docker stop nginx`, or rerun setup and choose Existing HTTPS proxy."
+      "OutcomeGo cannot start because port 443 is already in use by container nginx. Stop it with `docker stop nginx`, or rerun setup and choose Existing HTTPS proxy."
     );
   });
 
@@ -243,8 +243,8 @@ describe("stack inspection", () => {
     expect(foreignServerDetected({ ...health, ok: false }, new Set())).toBe(false);
 
     const runner = new DockerPsRunner({ "8787": "openteam-dev-server-1\topenteam-dev" });
-    expect(foreignServerMessage(runner, health, new Map([["AITEAMOS_API_PORT", "8787"]]))).toBe(
-      "Another aiTeamOS server is answering at http://127.0.0.1:8787, but this installation's server is not running. It is container openteam-dev-server-1 (Compose project openteam-dev). Stop that stack with `docker compose -p openteam-dev down`, or choose another API port with aiteamos setup --advanced."
+    expect(foreignServerMessage(runner, health, new Map([["OUTCOMEGO_API_PORT", "8787"]]))).toBe(
+      "Another OutcomeGo server is answering at http://127.0.0.1:8787, but this installation's server is not running. It is container openteam-dev-server-1 (Compose project openteam-dev). Stop that stack with `docker compose -p openteam-dev down`, or choose another API port with outcomego setup --advanced."
     );
     expect(foreignServerMessage(new DockerPsRunner(), health, new Map())).toContain(
       "Stop it, or choose another API port"

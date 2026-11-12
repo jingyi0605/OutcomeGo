@@ -19,13 +19,13 @@ afterEach(async () => {
   home = undefined;
 });
 const fixture = async () => {
-  home = await mkdtemp(join(tmpdir(), "aiteamos-authority-persistence-"));
+  home = await mkdtemp(join(tmpdir(), "outcomego-authority-persistence-"));
   const broker = new BrowserBroker(home) as unknown as Persistence;
   await broker.load();
   return {
     broker,
-    directory: join(home, ".aiteamos"),
-    path: join(home, ".aiteamos", "browser-authority.json.enc"),
+    directory: join(home, ".outcomego"),
+    path: join(home, ".outcomego", "browser-authority.json.enc"),
   };
 };
 const origin = "https://fixture.invalid";

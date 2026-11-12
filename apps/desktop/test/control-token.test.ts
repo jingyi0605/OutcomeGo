@@ -8,7 +8,7 @@ import { resolveControlToken } from "../src/main/control-token";
 const temporaryDirectories: string[] = [];
 
 const temporaryDirectory = async () => {
-  const directory = await mkdtemp(join(tmpdir(), "aiteamos-control-token-"));
+  const directory = await mkdtemp(join(tmpdir(), "outcomego-control-token-"));
   temporaryDirectories.push(directory);
   return directory;
 };
@@ -25,20 +25,20 @@ describe("desktop control token", () => {
       "apps",
       "desktop",
       "release",
-      "aiTeamOS.app",
+      "OutcomeGo.app",
       "Contents",
       "Resources",
       "app.asar"
     );
     const userDataPath = join(root, "user-data");
     mkdirSync(join(root, "apps", "desktop", "release"), { recursive: true });
-    writeFileSync(join(root, ".env"), "AITEAMOS_CONTROL_TOKEN=project-secret\n");
+    writeFileSync(join(root, ".env"), "OUTCOMEGO_CONTROL_TOKEN=project-secret\n");
 
     expect(
       resolveControlToken({
         cwd: "/",
         appPath,
-        executablePath: join(root, "aiTeamOS"),
+        executablePath: join(root, "OutcomeGo"),
         userDataPath,
       })
     ).toBe("project-secret");
@@ -56,8 +56,8 @@ describe("desktop control token", () => {
     expect(
       resolveControlToken({
         cwd: "/",
-        appPath: "/Applications/aiTeamOS.app/Contents/Resources/app.asar",
-        executablePath: "/Applications/aiTeamOS.app/Contents/MacOS/aiTeamOS",
+        appPath: "/Applications/OutcomeGo.app/Contents/Resources/app.asar",
+        executablePath: "/Applications/OutcomeGo.app/Contents/MacOS/OutcomeGo",
         userDataPath,
       })
     ).toBe("persisted-secret");

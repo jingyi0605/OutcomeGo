@@ -46,10 +46,10 @@ public enum MobilePluginAuthorization {
     return Array(steps.prefix(2)) + [
       callbackMode == "server"
         ? "Create a Web application OAuth client in Google Cloud. Add the exact callback address shown in Sign-in setup as an authorized redirect URI."
-        : "Create a Desktop app OAuth client in Google Cloud. That is Google’s client type name; it does not require the OpenTeam desktop app unless you choose the desktop listener method.",
-      "Copy the client ID and client secret into OpenTeam’s setup fields and save. These come from Google Cloud; they are not your Google password.",
+        : "Create a Desktop app OAuth client in Google Cloud. That is Google’s client type name; it does not require the OutcomeGo desktop app unless you choose the desktop listener method.",
+      "Copy the client ID and client secret into OutcomeGo’s setup fields and save. These come from Google Cloud; they are not your Google password.",
       callbackMode == "desktop"
-        ? "Finish signing in in the OpenTeam desktop app. The connected account will then work on your iPhone too."
+        ? "Finish signing in in the OutcomeGo desktop app. The connected account will then work on your iPhone too."
         : "Sign in on this device and follow the on-screen steps. When the account says Connected, choose which bots may use it.",
     ]
   }

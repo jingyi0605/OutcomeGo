@@ -7,7 +7,7 @@ import {
   type NotificationSender,
   isAgentNotificationKind,
   type DesktopNotificationTarget,
-} from "@aiteamos/contracts/notification-content";
+} from "@outcomego/contracts/notification-content";
 
 export const parseNotificationTarget = (value: unknown): DesktopNotificationTarget | null => {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;

@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
-import { createPrismaClient } from "@aiteamos/db";
-import { FETCH_PROVIDER_LIST, SEARCH_PROVIDER_LIST } from "@aiteamos/contracts/web-search";
+import { createPrismaClient } from "@outcomego/db";
+import { FETCH_PROVIDER_LIST, SEARCH_PROVIDER_LIST } from "@outcomego/contracts/web-search";
 import {
   parseWebProviderSettings,
   WebProviderSettingsService,
@@ -69,7 +69,7 @@ test("provider settings validate tools, providers and fields without echoing the
   });
 });
 
-const databaseUrl = process.env.AITEAMOS_TEST_DATABASE_URL;
+const databaseUrl = process.env.OUTCOMEGO_TEST_DATABASE_URL;
 const reset = async (prisma: ReturnType<typeof createPrismaClient>) => {
   await prisma.webSearchSettings.deleteMany();
   await prisma.webFetchSettings.deleteMany();
@@ -222,11 +222,11 @@ test.skipIf(!databaseUrl)("database constraints accept every catalog provider an
   try {
     await reset(prisma);
     for (const provider of SEARCH_PROVIDER_LIST) {
-      await prisma.webSearchSettings.upsert({ where: { id: "global" }, create: { id: "global", provider: provider.id }, update: { provider: provider.id } });
+      await prisma.webSearchSettings.upsert({ where: { id: "global" }, create: { id: "global", providers: [provider.id] }, update: { providers: [provider.id] } });
       await prisma.webToolProvider.create({ data: { tool: "search", provider: provider.id } });
     }
     for (const provider of FETCH_PROVIDER_LIST) {
-      await prisma.webFetchSettings.upsert({ where: { id: "global" }, create: { id: "global", provider: provider.id }, update: { provider: provider.id } });
+      await prisma.webFetchSettings.upsert({ where: { id: "global" }, create: { id: "global", providers: [provider.id] }, update: { providers: [provider.id] } });
       await prisma.webToolProvider.create({ data: { tool: "fetch", provider: provider.id } });
     }
     for (const data of [
@@ -239,6 +239,12 @@ test.skipIf(!databaseUrl)("database constraints accept every catalog provider an
       { tool: "fetch", provider: "cloudflare" },
     ])
       await expect(Promise.resolve(prisma.webToolProvider.create({ data }))).rejects.toThrow();
+    await expect(
+      Promise.resolve(prisma.webSearchSettings.update({ where: { id: "global" }, data: { providers: ["not-a-search-provider"] } }))
+    ).rejects.toThrow();
+    await expect(
+      Promise.resolve(prisma.webFetchSettings.update({ where: { id: "global" }, data: { providers: ["not-a-fetch-provider"] } }))
+    ).rejects.toThrow();
     const exa = { tool_provider: { tool: "search", provider: "exa" } };
     await expect(Promise.resolve(prisma.webToolProvider.update({ where: exa, data: { secret: " " } }))).rejects.toThrow();
     await expect(Promise.resolve(prisma.webToolProvider.update({ where: exa, data: { checkStatus: "maybe", checkedAt: new Date() } }))).rejects.toThrow();

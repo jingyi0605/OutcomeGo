@@ -1,7 +1,7 @@
-import { ApiError } from "@aiteamos/contracts";
-import { parseReadTranscriptInput } from "@aiteamos/contracts/read-transcript";
-import { Prisma, type PrismaClient } from "@aiteamos/db";
-import { redactSensitiveText } from "@aiteamos/product-core/redaction";
+import { ApiError } from "@outcomego/contracts";
+import { parseReadTranscriptInput } from "@outcomego/contracts/read-transcript";
+import { Prisma, type PrismaClient } from "@outcomego/db";
+import { redactSensitiveText } from "@outcomego/product-core/redaction";
 
 const uuid = /^[\da-f]{8}(-[\da-f]{4}){3}-[\da-f]{12}$/i;
 const unavailable = () => new ApiError(404, "transcript_unavailable", "Transcript is not available to this agent");
@@ -10,7 +10,7 @@ const object = (value: unknown): Record<string, unknown> => value && typeof valu
 // page observations as well as an action receipt; preserve that evidence just
 // like snapshots. Review cards and credential/form-entry payloads stay excluded.
 const observations = new Set([
-  "Shell", "Read", "WebFetch", "WebSearch", "Computer", "Screenshot", "browser_snapshot", "browser_take_screenshot",
+  "Shell", "Read", "WebFetch", "WebSearch", "outcomego_computer", "Screenshot", "browser_snapshot", "browser_take_screenshot",
   "browser_tabs", "browser_console_messages", "browser_network_requests",
   "browser_navigate", "browser_click", "browser_press_key",
   "browser_hover", "browser_wait_for", "browser_find",
@@ -77,13 +77,13 @@ export async function readTranscript(db: PrismaClient, context: {botId: string; 
     const includeTools = worker || botId === context.botId;
     const messageQuery = worker ? Prisma.sql`
       SELECT id::text, "createdAt" AS at, role::text AS kind, to_jsonb(content) AS body, status::text
-      FROM "Message" WHERE "botId" = ${botId}::uuid AND role::text IN ('user', 'assistant')`
+      FROM "message" WHERE "botId" = ${botId}::uuid AND role::text IN ('user', 'assistant')`
       : Prisma.sql`
       SELECT id::text, "createdAt" AS at, sender::text AS kind, to_jsonb(content) AS body, 'completed'::text AS status
-      FROM "ChannelMessage" WHERE "channelId" IN (${Prisma.join(channelIds.map(id => Prisma.sql`${id}::uuid`))}) AND sender::text IN ('user', 'agent')`;
+      FROM "outcomego_channel_message" WHERE "channelId" IN (${Prisma.join(channelIds.map(id => Prisma.sql`${id}::uuid`))}) AND sender::text IN ('user', 'agent')`;
     const toolQuery = includeTools ? Prisma.sql` UNION ALL
       SELECT i.id::text, i."createdAt" AS at, i.kind::text, i.content AS body, i.status::text
-      FROM "RunItem" i JOIN "Run" r ON r.id = i."runId"
+      FROM "outcomego_run_item" i JOIN "outcomego_run" r ON r.id = i."runId"
       WHERE r."botId" = ${botId}::uuid AND i.kind::text IN ('command', 'tool', 'file_change')
       AND (i.title IS NULL OR i.title <> 'promptFingerprint')
       ${worker ? Prisma.empty : Prisma.sql`AND r."channelId" IN (${Prisma.join(channelIds.map(id => Prisma.sql`${id}::uuid`))})`}` : Prisma.empty;

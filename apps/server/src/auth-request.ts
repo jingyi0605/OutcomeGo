@@ -47,7 +47,7 @@ export const authRequestWithClientIp = (
   const headers = new Headers(request.headers);
   const proxyAuthenticated =
     proxySecret.length >= 32 &&
-    equalSecret(request.headers.get("x-aiteamos-proxy") ?? "", proxySecret);
+    equalSecret(request.headers.get("x-outcomego-proxy") ?? "", proxySecret);
   // Trust only the hop nearest the directly connected proxy. A client can prepend
   // arbitrary X-Forwarded-For values when a custom proxy appends instead of replaces.
   const forwarded = request.headers.get("x-forwarded-for")?.split(",").at(-1)?.trim() ?? "";
@@ -55,7 +55,7 @@ export const authRequestWithClientIp = (
   const trustedForwarder =
     proxyAuthenticated || (options.trustPrivateForwarder && isPrivateAddress(direct));
   const clientIp = trustedForwarder && isIP(forwarded) ? forwarded : direct;
-  headers.delete("x-aiteamos-proxy");
+  headers.delete("x-outcomego-proxy");
   headers.delete("x-forwarded-for");
   headers.delete("x-forwarded-host");
   headers.delete("x-forwarded-proto");
@@ -64,8 +64,8 @@ export const authRequestWithClientIp = (
     headers.set("origin", options.fallbackOrigin);
   }
   if (options.stripCookies) headers.delete("cookie");
-  if (isIP(clientIp)) headers.set("x-aiteamos-client-ip", clientIp);
-  else headers.delete("x-aiteamos-client-ip");
+  if (isIP(clientIp)) headers.set("x-outcomego-client-ip", clientIp);
+  else headers.delete("x-outcomego-client-ip");
   if (body !== undefined) {
     return new Request(url ?? request.url, { method: request.method, headers, body });
   }

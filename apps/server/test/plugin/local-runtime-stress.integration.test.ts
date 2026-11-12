@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { createPrismaClient } from "@aiteamos/db";
+import { createPrismaClient } from "@outcomego/db";
 import { Effect } from "effect";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -7,7 +7,7 @@ import { join } from "node:path";
 import { StdioMcpManager } from "../../../computer/src/mcp-manager";
 import { PluginService } from "../../src/services/plugin-service";
 
-const databaseUrl = process.env.AITEAMOS_TEST_DATABASE_URL;
+const databaseUrl = process.env.OUTCOMEGO_TEST_DATABASE_URL;
 const integration = test.skipIf(!databaseUrl);
 function gate() {
   let release!: () => void;
@@ -38,7 +38,7 @@ async function harness(run: (context: {
     const id = path.split("/")[4]!;
     if (init?.method === "GET") return Response.json(manager.status(id));
     if (init?.method === "DELETE") {
-      const header = new Headers(init.headers).get("x-aiteamos-mcp-generation");
+      const header = new Headers(init.headers).get("x-outcomego-mcp-generation");
       await manager.close(id, header === null ? undefined : Number(header));
       return Response.json({});
     }

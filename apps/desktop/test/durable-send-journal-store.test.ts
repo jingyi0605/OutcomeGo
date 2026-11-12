@@ -15,7 +15,7 @@ afterEach(async () => {
 });
 
 const fixture = async () => {
-  const directory = await mkdtemp(join(tmpdir(), "aiteamos-delivery-journal-"));
+  const directory = await mkdtemp(join(tmpdir(), "outcomego-delivery-journal-"));
   temporaryDirectories.push(directory);
   return { directory, store: new DurableSendJournalStore(directory) };
 };

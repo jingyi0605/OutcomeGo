@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { Effect, Schema } from "effect";
-import { ScreenClipboardInput } from "@aiteamos/contracts";
-import type { PrismaClient } from "@aiteamos/db";
+import { ScreenClipboardInput } from "@outcomego/contracts";
+import type { PrismaClient } from "@outcomego/db";
 import { ScreenService } from "../src/services/screen-service";
 import { botRoutes } from "../src/routes/bot";
 import type { RouteContext } from "../src/routes/context";

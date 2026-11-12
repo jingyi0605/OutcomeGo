@@ -24,7 +24,7 @@ function archive(bytes: Uint8Array): Record<string, Uint8Array> {
 async function processText(command: string[], cwd: string, timeout = 25_000) {
   let child: Bun.Subprocess<'ignore', 'pipe', 'pipe'>;
   try { child = Bun.spawn(command, { cwd, stdout: 'pipe', stderr: 'pipe', stdin: 'ignore', env: { PATH: process.env.PATH ?? '/usr/local/bin:/usr/bin:/bin', LANG: 'C.UTF-8' } }); }
-  catch { throw new Error(`Document extraction requires ${command[0]}, included in the current aiTeamOS computer image. Update the computer from the app.`); }
+  catch { throw new Error(`Document extraction requires ${command[0]}, included in the current OutcomeGo computer image. Update the computer from the app.`); }
   const timer = setTimeout(() => child.kill(), timeout);
   try {
     const [status, stdout, stderr] = await Promise.all([child.exited, new Response(child.stdout).text(), new Response(child.stderr).text()]);
@@ -79,7 +79,7 @@ export async function extractContent(bytes: Uint8Array, mimeType: string): Promi
     throw new Error('The document archive does not contain recognized content');
   }
   if (mimeType === 'application/pdf' || mimeType === 'application/msword' || /^image\/(png|jpe?g)$/.test(mimeType)) {
-    const directory = await mkdtemp(join(tmpdir(), 'aiteamos-drive-extract-'));
+    const directory = await mkdtemp(join(tmpdir(), 'outcomego-drive-extract-'));
     try {
       const deadline = Date.now() + 45_000;
       const run = (command: string[]) => {

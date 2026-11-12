@@ -8,7 +8,7 @@ import { agentWriteStream } from "../src/agent-file-stream";
 import { ScreenBroker } from "../src/screen-broker";
 import { NativeToolExecutor } from "../src/native-tool-executor";
 
-const enabled = process.platform === "linux" && process.getuid?.() === 0 && process.env.AITEAMOS_TEST_DROPPED_IDENTITY === "1";
+const enabled = process.platform === "linux" && process.getuid?.() === 0 && process.env.OUTCOMEGO_TEST_DROPPED_IDENTITY === "1";
 
 test.skipIf(!enabled)("dropped child identity, private-file denial, cancellation and scoped ownership", async () => {
   expect(process.umask()).toBe(0o022);
@@ -89,9 +89,9 @@ test.skipIf(!enabled)("native shell keeps its dropped identity and persists envi
   await chown(working, 1000, 1000);
   const executor = new NativeToolExecutor({ agentDir: host, controlToken: "synthetic-test-token" });
   try {
-    const first = await executor.shell({ command: "id -u; export AITEAMOS_QA_VALUE=runtime923", block_until_ms: 5_000 }, working, undefined, undefined, "identity-test");
+    const first = await executor.shell({ command: "id -u; export OUTCOMEGO_QA_VALUE=runtime923", block_until_ms: 5_000 }, working, undefined, undefined, "identity-test");
     expect(JSON.stringify(first.content)).toContain("1000");
-    const next = await executor.shell({ command: 'printf "%s" "$AITEAMOS_QA_VALUE"', block_until_ms: 5_000 }, working, undefined, undefined, "identity-test");
+    const next = await executor.shell({ command: 'printf "%s" "$OUTCOMEGO_QA_VALUE"', block_until_ms: 5_000 }, working, undefined, undefined, "identity-test");
     expect(JSON.stringify(next.content)).toContain("runtime923");
   } finally { await rm(directory, { recursive: true, force: true }); }
 }, 15_000);

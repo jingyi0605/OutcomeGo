@@ -1,64 +1,64 @@
-name: aiteamos
+name: outcomego
 
-x-aiteamos-labels: &aiteamos-labels
-  com.aiteamos.environment: production
+x-outcomego-labels: &outcomego-labels
+  com.outcomego.environment: production
 
-x-aiteamos-logging: &aiteamos-logging
+x-outcomego-logging: &outcomego-logging
   driver: json-file
   options:
-    max-size: "${AITEAMOS_LOG_MAX_SIZE:-10m}"
-    max-file: "${AITEAMOS_LOG_MAX_FILES:-3}"
+    max-size: "${OUTCOMEGO_LOG_MAX_SIZE:-10m}"
+    max-file: "${OUTCOMEGO_LOG_MAX_FILES:-3}"
 
 services:
   postgres:
-    labels: *aiteamos-labels
-    logging: *aiteamos-logging
+    labels: *outcomego-labels
+    logging: *outcomego-logging
     image: postgres:17-alpine@sha256:18cfe3ef5e6815560c98237d6216d1e5119702fb0f3894c8785dd58b8bbe5d73
     environment:
-      POSTGRES_DB: aiteamos
-      POSTGRES_USER: aiteamos
-      POSTGRES_PASSWORD: ${AITEAMOS_POSTGRES_PASSWORD:?AITEAMOS_POSTGRES_PASSWORD is required}
+      POSTGRES_DB: outcomego
+      POSTGRES_USER: outcomego
+      POSTGRES_PASSWORD: ${OUTCOMEGO_POSTGRES_PASSWORD:?OUTCOMEGO_POSTGRES_PASSWORD is required}
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U aiteamos -d aiteamos"]
+      test: ["CMD-SHELL", "pg_isready -U outcomego -d outcomego"]
       interval: 2s
       timeout: 3s
       retries: 30
     restart: unless-stopped
     volumes:
-      - aiteamos_postgres:/var/lib/postgresql/data
+      - outcomego_postgres:/var/lib/postgresql/data
 
   migrate:
-    labels: *aiteamos-labels
-    logging: *aiteamos-logging
-    image: ${AITEAMOS_IMAGE_PREFIX:?AITEAMOS_IMAGE_PREFIX is required}-migrate:${AITEAMOS_VERSION:?AITEAMOS_VERSION is required}
+    labels: *outcomego-labels
+    logging: *outcomego-logging
+    image: ${OUTCOMEGO_IMAGE_PREFIX:?OUTCOMEGO_IMAGE_PREFIX is required}-migrate:${OUTCOMEGO_VERSION:?OUTCOMEGO_VERSION is required}
     environment:
-      DATABASE_URL: postgresql://aiteamos:${AITEAMOS_POSTGRES_PASSWORD}@postgres:5432/aiteamos
+      DATABASE_URL: postgresql://outcomego:${OUTCOMEGO_POSTGRES_PASSWORD}@postgres:5432/outcomego
     depends_on:
       postgres:
         condition: service_healthy
     restart: "no"
 
   agent-data-init:
-    labels: *aiteamos-labels
-    logging: *aiteamos-logging
+    labels: *outcomego-labels
+    logging: *outcomego-logging
     image: alpine:3.22@sha256:14358309a308569c32bdc37e2e0e9694be33a9d99e68afb0f5ff33cc1f695dce
     command: ["sh", "-c", "chown -R 1000:1000 /sand-data && chmod 0700 /sand-data"]
     restart: "no"
     volumes:
-      - aiteamos_agent_data:/sand-data
+      - outcomego_agent_data:/sand-data
 
   asset-store-init:
-    labels: *aiteamos-labels
-    logging: *aiteamos-logging
+    labels: *outcomego-labels
+    logging: *outcomego-logging
     image: alpine:3.22@sha256:14358309a308569c32bdc37e2e0e9694be33a9d99e68afb0f5ff33cc1f695dce
     command: ["sh", "-c", "chown -R 1000:1000 /asset-store && chmod 0700 /asset-store"]
     restart: "no"
     volumes:
-      - aiteamos_assets:/asset-store
+      - outcomego_assets:/asset-store
 
   computer-home-init:
-    labels: *aiteamos-labels
-    logging: *aiteamos-logging
+    labels: *outcomego-labels
+    logging: *outcomego-logging
     image: alpine:3.22@sha256:14358309a308569c32bdc37e2e0e9694be33a9d99e68afb0f5ff33cc1f695dce
     command:
       - sh
@@ -69,48 +69,48 @@ services:
         chown -h 0:0 /home/box/agent-data
     restart: "no"
     volumes:
-      - aiteamos_computer_home:/home/box
-      - aiteamos_agent_data:/home/box/sand-data
+      - outcomego_computer_home:/home/box
+      - outcomego_agent_data:/home/box/sand-data
 
   box-store-init:
-    labels: *aiteamos-labels
-    logging: *aiteamos-logging
+    labels: *outcomego-labels
+    logging: *outcomego-logging
     image: alpine:3.22@sha256:14358309a308569c32bdc37e2e0e9694be33a9d99e68afb0f5ff33cc1f695dce
     command: ["sh", "-c", "chown -R 1000:1000 /box-store && chmod 0700 /box-store"]
     restart: "no"
     volumes:
-      - aiteamos_box_store:/box-store
+      - outcomego_box_store:/box-store
 
   workspace-init:
-    labels: *aiteamos-labels
-    logging: *aiteamos-logging
+    labels: *outcomego-labels
+    logging: *outcomego-logging
     image: alpine:3.22@sha256:14358309a308569c32bdc37e2e0e9694be33a9d99e68afb0f5ff33cc1f695dce
     command: ["sh", "-c", "chown -R 1000:1000 /workspace && chmod 0755 /workspace"]
     restart: "no"
     volumes:
-      - aiteamos_workspace:/workspace
+      - outcomego_workspace:/workspace
 
   computer:
-    labels: *aiteamos-labels
-    logging: *aiteamos-logging
-    image: ${AITEAMOS_IMAGE_PREFIX:?AITEAMOS_IMAGE_PREFIX is required}-computer:${AITEAMOS_VERSION:?AITEAMOS_VERSION is required}
+    labels: *outcomego-labels
+    logging: *outcomego-logging
+    image: ${OUTCOMEGO_IMAGE_PREFIX:?OUTCOMEGO_IMAGE_PREFIX is required}-computer:${OUTCOMEGO_VERSION:?OUTCOMEGO_VERSION is required}
     cgroup: private
     # Shutdown closes bot browsers and saves their profiles before exiting.
     stop_grace_period: 30s
-    mem_limit: ${AITEAMOS_COMPUTER_MEMORY_LIMIT:-12g}
-    memswap_limit: ${AITEAMOS_COMPUTER_MEMORY_LIMIT:-12g}
-    hostname: aiteamos
+    mem_limit: ${OUTCOMEGO_COMPUTER_MEMORY_LIMIT:-12g}
+    memswap_limit: ${OUTCOMEGO_COMPUTER_MEMORY_LIMIT:-12g}
+    hostname: outcomego
     environment:
-      AITEAMOS_DESKTOP_MEMORY_LIMIT: ${AITEAMOS_DESKTOP_MEMORY_LIMIT:-10g}
-      AITEAMOS_COMPUTER_PORT: 8790
-      AITEAMOS_CONTROL_TOKEN: ${AITEAMOS_CONTROL_TOKEN:?AITEAMOS_CONTROL_TOKEN is required}
-      AITEAMOS_WORKSPACE_ROOT: /workspace
-      AITEAMOS_SERVER_URL: http://server:8787
-      AITEAMOS_PI_AGENT_DIR: /home/box/.pi/agent
-      AITEAMOS_AGENT_DATA_ROOT: /home/box/agent-data
-      AITEAMOS_AGENT_DATA_CANONICAL_ROOT: /home/box/sand-data
-      AITEAMOS_BOX_STORE_ROOT: /box-store
-      AITEAMOS_BOX_COPY_IN: ${AITEAMOS_BOX_COPY_IN:-0}
+      OUTCOMEGO_DESKTOP_MEMORY_LIMIT: ${OUTCOMEGO_DESKTOP_MEMORY_LIMIT:-10g}
+      OUTCOMEGO_COMPUTER_PORT: 8790
+      OUTCOMEGO_CONTROL_TOKEN: ${OUTCOMEGO_CONTROL_TOKEN:?OUTCOMEGO_CONTROL_TOKEN is required}
+      OUTCOMEGO_WORKSPACE_ROOT: /workspace
+      OUTCOMEGO_SERVER_URL: http://server:8787
+      OUTCOMEGO_PI_AGENT_DIR: /home/box/.pi/agent
+      OUTCOMEGO_AGENT_DATA_ROOT: /home/box/agent-data
+      OUTCOMEGO_AGENT_DATA_CANONICAL_ROOT: /home/box/sand-data
+      OUTCOMEGO_BOX_STORE_ROOT: /box-store
+      OUTCOMEGO_BOX_COPY_IN: ${OUTCOMEGO_BOX_COPY_IN:-0}
     depends_on:
       agent-data-init:
         condition: service_completed_successfully
@@ -129,28 +129,28 @@ services:
     devices:
       - /dev/net/tun:/dev/net/tun
     healthcheck:
-      test: ["CMD", "/usr/lib/aiteamos/bin/bun", "-e", "const r=await fetch('http://127.0.0.1:8790/health');process.exit(r.ok?0:1)"]
+      test: ["CMD", "/usr/lib/outcomego/bin/bun", "-e", "const r=await fetch('http://127.0.0.1:8790/health');process.exit(r.ok?0:1)"]
       interval: 3s
       timeout: 5s
       retries: 30
     restart: unless-stopped
     ports:
-      - "${AITEAMOS_VIEWER_BIND_HOST:-127.0.0.1}:${AITEAMOS_VIEWER_PORT_START:-6200}-${AITEAMOS_VIEWER_PORT_END:-6299}:6200-6299"
+      - "${OUTCOMEGO_VIEWER_BIND_HOST:-127.0.0.1}:${OUTCOMEGO_VIEWER_PORT_START:-6200}-${OUTCOMEGO_VIEWER_PORT_END:-6299}:6200-6299"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
-      - aiteamos_computer_home:/home/box
-      - aiteamos_agent_data:/home/box/sand-data
-      - aiteamos_workspace:/workspace
-      - aiteamos_box_store:/box-store
+      - outcomego_computer_home:/home/box
+      - outcomego_agent_data:/home/box/sand-data
+      - outcomego_workspace:/workspace
+      - outcomego_box_store:/box-store
       # Bots' system-wide installs (sudo pip and npm -g, make install, copied tools) and the record of their apt packages.
-      - aiteamos_computer_local:/usr/local
+      - outcomego_computer_local:/usr/local
 
   computer-memory-init:
-    labels: *aiteamos-labels
-    logging: *aiteamos-logging
-    image: ${AITEAMOS_IMAGE_PREFIX:?AITEAMOS_IMAGE_PREFIX is required}-computer:${AITEAMOS_VERSION:?AITEAMOS_VERSION is required}
-    entrypoint: ["/usr/lib/aiteamos/bin/aiteamos-memory-init"]
+    labels: *outcomego-labels
+    logging: *outcomego-logging
+    image: ${OUTCOMEGO_IMAGE_PREFIX:?OUTCOMEGO_IMAGE_PREFIX is required}-computer:${OUTCOMEGO_VERSION:?OUTCOMEGO_VERSION is required}
+    entrypoint: ["/usr/lib/outcomego/bin/outcomego-memory-init"]
     pid: service:computer
     network_mode: none
     depends_on:
@@ -170,27 +170,27 @@ services:
     restart: unless-stopped
 
   server:
-    labels: *aiteamos-labels
-    logging: *aiteamos-logging
-    image: ${AITEAMOS_IMAGE_PREFIX:?AITEAMOS_IMAGE_PREFIX is required}-server:${AITEAMOS_VERSION:?AITEAMOS_VERSION is required}
+    labels: *outcomego-labels
+    logging: *outcomego-logging
+    image: ${OUTCOMEGO_IMAGE_PREFIX:?OUTCOMEGO_IMAGE_PREFIX is required}-server:${OUTCOMEGO_VERSION:?OUTCOMEGO_VERSION is required}
     environment:
-      AITEAMOS_VERSION: ${AITEAMOS_VERSION:?AITEAMOS_VERSION is required}
-      AITEAMOS_UPDATE_CHANNEL: ${AITEAMOS_UPDATE_CHANNEL:-stable}
-      DATABASE_URL: postgresql://aiteamos:${AITEAMOS_POSTGRES_PASSWORD}@postgres:5432/aiteamos
-      AITEAMOS_PORT: 8787
-      AITEAMOS_COMPUTER_URL: http://computer:8790
-      AITEAMOS_CONTROL_TOKEN: ${AITEAMOS_CONTROL_TOKEN:?AITEAMOS_CONTROL_TOKEN is required}
-      AITEAMOS_AUTH_SECRET: ${AITEAMOS_AUTH_SECRET:?AITEAMOS_AUTH_SECRET is required}
-      AITEAMOS_PROXY_SECRET: ${AITEAMOS_PROXY_SECRET:?AITEAMOS_PROXY_SECRET is required}
-      AITEAMOS_AUTH_MODE: ${AITEAMOS_AUTH_MODE:-required}
-      AITEAMOS_ACCESS_MODE: ${AITEAMOS_ACCESS_MODE:-local}
-      AITEAMOS_AUTH_URL: ${AITEAMOS_AUTH_URL:-http://127.0.0.1:8787}
-      AITEAMOS_PUBLIC_URL: ${AITEAMOS_PUBLIC_URL:-http://127.0.0.1:8787}
-      AITEAMOS_WORKSPACE_ROOT: /workspace
-      AITEAMOS_SCREEN_VIEWER_HOST: ${AITEAMOS_PUBLIC_HOST:-127.0.0.1}
-      AITEAMOS_AGENT_DATA_ROOT: /home/box/agent-data
-      AITEAMOS_ASSET_ROOT: /asset-store
-      AITEAMOS_MARKETPLACE_FILE: ${AITEAMOS_MARKETPLACE_FILE:-}
+      OUTCOMEGO_VERSION: ${OUTCOMEGO_VERSION:?OUTCOMEGO_VERSION is required}
+      OUTCOMEGO_UPDATE_CHANNEL: ${OUTCOMEGO_UPDATE_CHANNEL:-stable}
+      DATABASE_URL: postgresql://outcomego:${OUTCOMEGO_POSTGRES_PASSWORD}@postgres:5432/outcomego
+      OUTCOMEGO_PORT: 8787
+      OUTCOMEGO_COMPUTER_URL: http://computer:8790
+      OUTCOMEGO_CONTROL_TOKEN: ${OUTCOMEGO_CONTROL_TOKEN:?OUTCOMEGO_CONTROL_TOKEN is required}
+      OUTCOMEGO_AUTH_SECRET: ${OUTCOMEGO_AUTH_SECRET:?OUTCOMEGO_AUTH_SECRET is required}
+      OUTCOMEGO_PROXY_SECRET: ${OUTCOMEGO_PROXY_SECRET:?OUTCOMEGO_PROXY_SECRET is required}
+      OUTCOMEGO_AUTH_MODE: ${OUTCOMEGO_AUTH_MODE:-required}
+      OUTCOMEGO_ACCESS_MODE: ${OUTCOMEGO_ACCESS_MODE:-local}
+      OUTCOMEGO_AUTH_URL: ${OUTCOMEGO_AUTH_URL:-http://127.0.0.1:8787}
+      OUTCOMEGO_PUBLIC_URL: ${OUTCOMEGO_PUBLIC_URL:-http://127.0.0.1:8787}
+      OUTCOMEGO_WORKSPACE_ROOT: /workspace
+      OUTCOMEGO_SCREEN_VIEWER_HOST: ${OUTCOMEGO_PUBLIC_HOST:-127.0.0.1}
+      OUTCOMEGO_AGENT_DATA_ROOT: /home/box/agent-data
+      OUTCOMEGO_ASSET_ROOT: /asset-store
+      OUTCOMEGO_MARKETPLACE_FILE: ${OUTCOMEGO_MARKETPLACE_FILE:-}
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -199,7 +199,7 @@ services:
       computer:
         condition: service_healthy
     ports:
-      - "${AITEAMOS_BIND_HOST:-127.0.0.1}:${AITEAMOS_API_PORT:-8787}:8787"
+      - "${OUTCOMEGO_BIND_HOST:-127.0.0.1}:${OUTCOMEGO_API_PORT:-8787}:8787"
     healthcheck:
       test: ["CMD", "bun", "-e", "const r=await fetch('http://127.0.0.1:8787/api/v0/health');const b=await r.json();process.exit(r.ok&&b.status==='ready'?0:1)"]
       interval: 3s
@@ -207,24 +207,24 @@ services:
       retries: 30
     restart: unless-stopped
     volumes:
-      - aiteamos_agent_data:/home/box/agent-data
-      - aiteamos_assets:/asset-store
-      - aiteamos_workspace:/workspace:ro
+      - outcomego_agent_data:/home/box/agent-data
+      - outcomego_assets:/asset-store
+      - outcomego_workspace:/workspace:ro
 
   caddy:
-    labels: *aiteamos-labels
-    logging: *aiteamos-logging
+    labels: *outcomego-labels
+    logging: *outcomego-logging
     image: caddy:2.11.4-alpine@sha256:5f5c8640aae01df9654968d946d8f1a56c497f1dd5c5cda4cf95ab7c14d58648
     profiles: ["https"]
     command:
       - caddy
       - reverse-proxy
       - --from
-      - ${AITEAMOS_PUBLIC_URL:?AITEAMOS_PUBLIC_URL is required}
+      - ${OUTCOMEGO_PUBLIC_URL:?OUTCOMEGO_PUBLIC_URL is required}
       - --to
       - server:8787
       - --header-up
-      - "X-aiTeamOS-Proxy: ${AITEAMOS_PROXY_SECRET:?AITEAMOS_PROXY_SECRET is required}"
+      - "X-outcomeGo-Proxy: ${OUTCOMEGO_PROXY_SECRET:?OUTCOMEGO_PROXY_SECRET is required}"
       - --header-down
       - "Strict-Transport-Security: max-age=31536000"
     depends_on:
@@ -242,26 +242,26 @@ services:
     tmpfs:
       - /tmp:rw,noexec,nosuid,size=64m
     volumes:
-      - aiteamos_caddy_data:/data
-      - aiteamos_caddy_config:/config
+      - outcomego_caddy_data:/data
+      - outcomego_caddy_config:/config
 
   worker:
-    labels: *aiteamos-labels
-    logging: *aiteamos-logging
-    image: ${AITEAMOS_IMAGE_PREFIX:?AITEAMOS_IMAGE_PREFIX is required}-worker:${AITEAMOS_VERSION:?AITEAMOS_VERSION is required}
+    labels: *outcomego-labels
+    logging: *outcomego-logging
+    image: ${OUTCOMEGO_IMAGE_PREFIX:?OUTCOMEGO_IMAGE_PREFIX is required}-worker:${OUTCOMEGO_VERSION:?OUTCOMEGO_VERSION is required}
     environment:
-      DATABASE_URL: postgresql://aiteamos:${AITEAMOS_POSTGRES_PASSWORD}@postgres:5432/aiteamos
-      AITEAMOS_COMPUTER_URL: http://computer:8790
-      AITEAMOS_CONTROL_TOKEN: ${AITEAMOS_CONTROL_TOKEN:?AITEAMOS_CONTROL_TOKEN is required}
-      AITEAMOS_AUTH_MODE: ${AITEAMOS_AUTH_MODE:-required}
-      AITEAMOS_APNS_KEY_ID: ${AITEAMOS_APNS_KEY_ID:-}
-      AITEAMOS_APNS_TEAM_ID: ${AITEAMOS_APNS_TEAM_ID:-}
-      AITEAMOS_APNS_TOPIC: ${AITEAMOS_APNS_TOPIC:-dev.aiteamos.mobile}
-      AITEAMOS_APNS_PRIVATE_KEY: ${AITEAMOS_APNS_PRIVATE_KEY:-}
-      AITEAMOS_WORKER_CONCURRENCY: ${AITEAMOS_WORKER_CONCURRENCY:-8}
-      AITEAMOS_WORKSPACE_ROOT: /workspace
-      AITEAMOS_AGENT_DATA_ROOT: /home/box/agent-data
-      AITEAMOS_ASSET_ROOT: /asset-store
+      DATABASE_URL: postgresql://outcomego:${OUTCOMEGO_POSTGRES_PASSWORD}@postgres:5432/outcomego
+      OUTCOMEGO_COMPUTER_URL: http://computer:8790
+      OUTCOMEGO_CONTROL_TOKEN: ${OUTCOMEGO_CONTROL_TOKEN:?OUTCOMEGO_CONTROL_TOKEN is required}
+      OUTCOMEGO_AUTH_MODE: ${OUTCOMEGO_AUTH_MODE:-required}
+      OUTCOMEGO_APNS_KEY_ID: ${OUTCOMEGO_APNS_KEY_ID:-}
+      OUTCOMEGO_APNS_TEAM_ID: ${OUTCOMEGO_APNS_TEAM_ID:-}
+      OUTCOMEGO_APNS_TOPIC: ${OUTCOMEGO_APNS_TOPIC:-dev.outcomego.mobile}
+      OUTCOMEGO_APNS_PRIVATE_KEY: ${OUTCOMEGO_APNS_PRIVATE_KEY:-}
+      OUTCOMEGO_WORKER_CONCURRENCY: ${OUTCOMEGO_WORKER_CONCURRENCY:-8}
+      OUTCOMEGO_WORKSPACE_ROOT: /workspace
+      OUTCOMEGO_AGENT_DATA_ROOT: /home/box/agent-data
+      OUTCOMEGO_ASSET_ROOT: /asset-store
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -279,17 +279,17 @@ services:
     stop_grace_period: 45s
     restart: unless-stopped
     volumes:
-      - aiteamos_agent_data:/home/box/agent-data
-      - aiteamos_assets:/asset-store
-      - aiteamos_workspace:/workspace:ro
+      - outcomego_agent_data:/home/box/agent-data
+      - outcomego_assets:/asset-store
+      - outcomego_workspace:/workspace:ro
 
 volumes:
-  aiteamos_postgres:
-  aiteamos_computer_home:
-  aiteamos_computer_local:
-  aiteamos_agent_data:
-  aiteamos_assets:
-  aiteamos_workspace:
-  aiteamos_box_store:
-  aiteamos_caddy_data:
-  aiteamos_caddy_config:
+  outcomego_postgres:
+  outcomego_computer_home:
+  outcomego_computer_local:
+  outcomego_agent_data:
+  outcomego_assets:
+  outcomego_workspace:
+  outcomego_box_store:
+  outcomego_caddy_data:
+  outcomego_caddy_config:

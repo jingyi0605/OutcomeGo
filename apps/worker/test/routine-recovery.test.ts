@@ -133,14 +133,14 @@ describe("routine execution restart reconciliation", () => {
   });
 
   test("repairs a nonterminal execution whose linked run died during restart", async () => {
-    const databaseUrl = process.env.AITEAMOS_TEST_DATABASE_URL;
+    const databaseUrl = process.env.OUTCOMEGO_TEST_DATABASE_URL;
     if (!databaseUrl) return;
 
-    const temporary = await mkdtemp(join(tmpdir(), "aiteamos-routine-recovery-"));
+    const temporary = await mkdtemp(join(tmpdir(), "outcomego-routine-recovery-"));
     const workspace = join(temporary, "workspace");
     process.env.DATABASE_URL = databaseUrl;
-    process.env.AITEAMOS_WORKSPACE_ROOT = workspace;
-    process.env.AITEAMOS_AGENT_DATA_ROOT = join(temporary, "agent-data");
+    process.env.OUTCOMEGO_WORKSPACE_ROOT = workspace;
+    process.env.OUTCOMEGO_AGENT_DATA_ROOT = join(temporary, "agent-data");
     await mkdir(workspace, { recursive: true });
     const worker = new WakeWorker();
     const botId = crypto.randomUUID();

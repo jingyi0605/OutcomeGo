@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { ChannelMessageView, ChannelView, RunView } from "@aiteamos/contracts";
+import type { ChannelMessageView, ChannelView, RunView } from "@outcomego/contracts";
 import {
   groupSidebarRows,
   reconcileSidebarRows,

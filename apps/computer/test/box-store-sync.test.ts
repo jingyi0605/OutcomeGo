@@ -13,9 +13,9 @@ afterEach(async () => {
   root = null;
 });
 
-describe("aiTeamOS-compatible box-store synchronization", () => {
+describe("OutcomeGo-compatible box-store synchronization", () => {
   test("stat reuse detects same-size content changes even when mtime is restored", async () => {
-    root = await mkdtemp(join(tmpdir(), "aiteamos-box-store-signature-safety-"));
+    root = await mkdtemp(join(tmpdir(), "outcomego-box-store-signature-safety-"));
     const home = join(root, "home");
     const sandRoot = join(home, "sand-data");
     const workspaceRoot = join(root, "workspace");
@@ -42,7 +42,7 @@ describe("aiTeamOS-compatible box-store synchronization", () => {
   });
 
   test("coalesces a burst during an active snapshot into one merged rerun", async () => {
-    root = await mkdtemp(join(tmpdir(), "aiteamos-box-store-coalescing-"));
+    root = await mkdtemp(join(tmpdir(), "outcomego-box-store-coalescing-"));
     let signalStarted: (() => void) | undefined;
     const started = new Promise<void>((resolve) => {
       signalStarted = resolve;
@@ -100,7 +100,7 @@ describe("aiTeamOS-compatible box-store synchronization", () => {
   });
 
   test("partial snapshots preserve clean roots and retain exact deletion tombstones", async () => {
-    root = await mkdtemp(join(tmpdir(), "aiteamos-box-store-dirty-paths-"));
+    root = await mkdtemp(join(tmpdir(), "outcomego-box-store-dirty-paths-"));
     const sourceHome = join(root, "source-home");
     const sourceSand = join(sourceHome, "sand-data");
     const sourceWorkspace = join(root, "source-workspace");
@@ -169,7 +169,7 @@ describe("aiTeamOS-compatible box-store synchronization", () => {
   });
 
   test("snapshotting an unstarted agent store does not create WAL sidecars", async () => {
-    root = await mkdtemp(join(tmpdir(), "aiteamos-box-store-unstarted-"));
+    root = await mkdtemp(join(tmpdir(), "outcomego-box-store-unstarted-"));
     const sourceHome = join(root, "source-home");
     const sourceSand = join(sourceHome, "sand-data");
     const sourceWorkspace = join(root, "source-workspace");
@@ -193,7 +193,7 @@ describe("aiTeamOS-compatible box-store synchronization", () => {
   });
 
   test("snapshots WAL databases with VACUUM and hydrates by hash without pruning extras", async () => {
-    root = await mkdtemp(join(tmpdir(), "aiteamos-box-store-"));
+    root = await mkdtemp(join(tmpdir(), "outcomego-box-store-"));
     const sourceHome = join(root, "source-home");
     const sourceSand = join(sourceHome, "sand-data");
     const sourceWorkspace = join(root, "source-workspace");
@@ -289,7 +289,7 @@ describe("aiTeamOS-compatible box-store synchronization", () => {
   });
 
   test("propagates tombstones, recursively repairs transfer temps, and refuses live DB clobbers", async () => {
-    root = await mkdtemp(join(tmpdir(), "aiteamos-box-store-recovery-"));
+    root = await mkdtemp(join(tmpdir(), "outcomego-box-store-recovery-"));
     const sourceHome = join(root, "source-home");
     const sourceSand = join(sourceHome, "sand-data");
     const sourceWorkspace = join(root, "source-workspace");
@@ -379,7 +379,7 @@ describe("aiTeamOS-compatible box-store synchronization", () => {
   });
 
   test("skips Chromium caches in profiles while keeping sign-in state and same-named workspace folders", async () => {
-    root = await mkdtemp(join(tmpdir(), "aiteamos-box-store-chrome-caches-"));
+    root = await mkdtemp(join(tmpdir(), "outcomego-box-store-chrome-caches-"));
     const home = join(root, "home");
     const sandRoot = join(home, "sand-data");
     const workspaceRoot = join(root, "workspace");
@@ -408,7 +408,7 @@ describe("aiTeamOS-compatible box-store synchronization", () => {
   });
 
   test("snapshots a running browser's profile at most once per interval, and on browser requests and exit", async () => {
-    root = await mkdtemp(join(tmpdir(), "aiteamos-box-store-live-profile-"));
+    root = await mkdtemp(join(tmpdir(), "outcomego-box-store-live-profile-"));
     const home = join(root, "home");
     const sandRoot = join(home, "sand-data");
     const workspaceRoot = join(root, "workspace");
@@ -417,7 +417,7 @@ describe("aiTeamOS-compatible box-store synchronization", () => {
     await mkdir(sandRoot, { recursive: true });
     await mkdir(workspaceRoot, { recursive: true });
     // Chromium holds this symlink for as long as it runs and removes it on exit.
-    await symlink("aiteamos-1234", join(profile, "SingletonLock"));
+    await symlink("outcomego-1234", join(profile, "SingletonLock"));
     const preferences = join(profile, "Default", "Preferences");
     const note = join(workspaceRoot, "note.txt");
     const sync = new BoxStoreSync({ storeRoot: join(root, "store"), home, sandRoot, workspaceRoot });
@@ -454,7 +454,7 @@ describe("aiTeamOS-compatible box-store synchronization", () => {
       workspaceRoot,
       chromeProfileIntervalMs: 1_000,
     });
-    await symlink("aiteamos-1234", join(profile, "SingletonLock"));
+    await symlink("outcomego-1234", join(profile, "SingletonLock"));
     await shortInterval.snapshotOut();
     await writeFile(preferences, "v5");
     expect(await saved(await shortInterval.snapshotOut(), profilePath)).toBe("v4");
@@ -463,7 +463,7 @@ describe("aiTeamOS-compatible box-store synchronization", () => {
   });
 
   test("keeps a pending browser request when a periodic full snapshot absorbs it", async () => {
-    root = await mkdtemp(join(tmpdir(), "aiteamos-box-store-chrome-merge-"));
+    root = await mkdtemp(join(tmpdir(), "outcomego-box-store-chrome-merge-"));
     let releaseFirst: (() => void) | undefined;
     const firstGate = new Promise<void>((resolve) => {
       releaseFirst = resolve;
@@ -502,7 +502,7 @@ describe("aiTeamOS-compatible box-store synchronization", () => {
   });
 
   test("a turn's browser request captures only that bot's running profile", async () => {
-    root = await mkdtemp(join(tmpdir(), "aiteamos-box-store-profile-request-"));
+    root = await mkdtemp(join(tmpdir(), "outcomego-box-store-profile-request-"));
     const home = join(root, "home");
     const sandRoot = join(home, "sand-data");
     const workspaceRoot = join(root, "workspace");
@@ -513,7 +513,7 @@ describe("aiTeamOS-compatible box-store synchronization", () => {
     for (const name of ["chrome-profile", "chrome-profile-2"]) {
       await mkdir(join(home, name, "Default"), { recursive: true });
       // Both browsers are running.
-      await symlink("aiteamos-1234", join(home, name, "SingletonLock"));
+      await symlink("outcomego-1234", join(home, name, "SingletonLock"));
     }
     const write = (path: string, value: string) => writeFile(join(home, path.slice("home/box/".length)), value);
     const sync = new BoxStoreSync({ storeRoot: join(root, "store"), home, sandRoot, workspaceRoot });
@@ -538,7 +538,7 @@ describe("aiTeamOS-compatible box-store synchronization", () => {
   });
 
   test("keeps a pending profile request when a periodic full snapshot absorbs it", async () => {
-    root = await mkdtemp(join(tmpdir(), "aiteamos-box-store-profile-merge-"));
+    root = await mkdtemp(join(tmpdir(), "outcomego-box-store-profile-merge-"));
     const hints: BoxStoreDirtyHint[] = [];
     class RecordingSync extends BoxStoreSync {
       override async snapshotOut(hint: BoxStoreDirtyHint = { all: true }): Promise<BoxStoreManifest> {

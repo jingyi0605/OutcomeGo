@@ -1,4 +1,4 @@
-import { HOST_BRIDGE_PATHS } from "@aiteamos/contracts/service-protocol";
+import { HOST_BRIDGE_PATHS } from "@outcomego/contracts/service-protocol";
 
 interface RelayRequest { id: string; method: string; path: string; headers: Record<string, string>; hasBody: boolean }
 export interface DesktopEnrollmentConnection { credential: string; connectionId: string; serverUrl: string }
@@ -54,7 +54,7 @@ export class DesktopMachineEnrollment {
   }
 
   private headers(enrollment: Pick<Enrollment, "credential" | "connectionId">) {
-    return { authorization: `Bearer ${enrollment.credential}`, "x-aiteamos-machine-id": this.options.machineId, "x-aiteamos-connection-id": enrollment.connectionId };
+    return { authorization: `Bearer ${enrollment.credential}`, "x-outcomego-machine-id": this.options.machineId, "x-outcomego-connection-id": enrollment.connectionId };
   }
 
   private channel(enrollment: Enrollment, path: string, init: RequestInit = {}) {
@@ -169,7 +169,7 @@ export class DesktopMachineEnrollment {
       signal.throwIfAborted();
       response = Response.json({ error: "The local operation failed or disconnected; inspect its result before retrying" }, { status: 502 });
     }
-    const headers = new Headers({ "x-aiteamos-status": String(response.status) });
+    const headers = new Headers({ "x-outcomego-status": String(response.status) });
     for (const key of ["content-type", "content-length"]) if (response.headers.has(key)) headers.set(key, response.headers.get(key)!);
     const receipt = await this.channel(enrollment, `/requests/${operation.id}/response`, {
       method: "POST", headers, body: response.body, signal, duplex: "half",

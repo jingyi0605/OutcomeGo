@@ -1,9 +1,9 @@
 import { expect, test } from "bun:test";
 import { readFile } from "node:fs/promises";
 import { posix } from "node:path";
-import { parseSkillMarkdown } from "@aiteamos/plugin-sdk/skill-markdown";
-import { parsePluginRuntimeComponents, type PluginRuntimePackage } from "@aiteamos/plugin-sdk";
-import { exportPackageArchive, importPackageArchive } from "@aiteamos/plugin-sdk/archive";
+import { parseSkillMarkdown } from "@outcomego/plugin-sdk/skill-markdown";
+import { parsePluginRuntimeComponents, type PluginRuntimePackage } from "@outcomego/plugin-sdk";
+import { exportPackageArchive, importPackageArchive } from "@outcomego/plugin-sdk/archive";
 import { pluginCatalog } from "../../../../packages/plugins/src";
 import { expandPluginAgent, pluginComponentsExtension } from "../../src/runtime/plugin-components";
 
@@ -125,7 +125,7 @@ test("original command names dispatch without ambiguous flat names", async () =>
   );
 });
 
-test.skipIf(process.env.AITEAMOS_TEST_UPSTREAM_SOURCES !== "1")(
+test.skipIf(process.env.OUTCOMEGO_TEST_UPSTREAM_SOURCES !== "1")(
   "all original Granola commands and its agent dispatch from the pinned provider source",
   async () => {
     const { resolveUpstreamPlugin } = await import("../../../server/src/plugins/upstream-package");

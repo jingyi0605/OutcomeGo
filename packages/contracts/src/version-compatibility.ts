@@ -1,13 +1,13 @@
-export const AITEAMOS_API_PROTOCOL_VERSION = 2;
+export const OUTCOMEGO_API_PROTOCOL_VERSION = 2;
 
-export interface AiTeamOSClientCompatibilityPolicy {
+export interface OutcomeGoClientCompatibilityPolicy {
   minimumClientVersion?: string | null;
   maximumClientVersionExclusive?: string | null;
   recommendedClientVersion?: string | null;
   minimumServerVersion?: string | null;
 }
 
-interface ParsedAiTeamOSVersion {
+interface ParsedOutcomeGoVersion {
   major: number;
   minor: number;
   patch: number;
@@ -18,7 +18,7 @@ interface ParsedAiTeamOSVersion {
 const VERSION_PATTERN =
   /^v?(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*))*))?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
 
-const parseAiTeamOSVersion = (value: string | null | undefined): ParsedAiTeamOSVersion | null => {
+const parseOutcomeGoVersion = (value: string | null | undefined): ParsedOutcomeGoVersion | null => {
   if (!value) return null;
   const match = value.trim().match(VERSION_PATTERN);
   if (!match) return null;
@@ -43,8 +43,8 @@ const compareNumericIdentifiers = (left: string, right: string) =>
   left.length === right.length ? (left < right ? -1 : 1) : left.length - right.length;
 
 const compareParsedVersions = (
-  left: ParsedAiTeamOSVersion,
-  right: ParsedAiTeamOSVersion
+  left: ParsedOutcomeGoVersion,
+  right: ParsedOutcomeGoVersion
 ): number => {
   for (const key of ["major", "minor", "patch"] as const) {
     if (left[key] !== right[key]) return left[key] - right[key];
@@ -71,15 +71,15 @@ const compareParsedVersions = (
   return 0;
 };
 
-export const normalizeAiTeamOSVersion = (value: string): string | null =>
-  parseAiTeamOSVersion(value)?.normalized ?? null;
+export const normalizeOutcomeGoVersion = (value: string): string | null =>
+  parseOutcomeGoVersion(value)?.normalized ?? null;
 
-export const isAiTeamOSVersion = (value: string): boolean =>
-  normalizeAiTeamOSVersion(value) !== null;
+export const isOutcomeGoVersion = (value: string): boolean =>
+  normalizeOutcomeGoVersion(value) !== null;
 
-export const compareAiTeamOSVersions = (left: string, right: string): number | null => {
-  const a = parseAiTeamOSVersion(left);
-  const b = parseAiTeamOSVersion(right);
+export const compareOutcomeGoVersions = (left: string, right: string): number | null => {
+  const a = parseOutcomeGoVersion(left);
+  const b = parseOutcomeGoVersion(right);
   return a && b ? compareParsedVersions(a, b) : null;
 };
 
@@ -90,10 +90,10 @@ export const compareAiTeamOSVersions = (left: string, right: string): number | n
  * is `X.Y.0-0`, the smallest prerelease of the line. A bound of plain `X.Y.0` would reject every
  * beta of its own line, including a client and server on the identical version.
  */
-export const defaultAiTeamOSCompatibilityWindow = (
+export const defaultOutcomeGoCompatibilityWindow = (
   releaseVersion: string
 ): { minimum: string; maximumExclusive: string } | null => {
-  const parsed = parseAiTeamOSVersion(releaseVersion);
+  const parsed = parseOutcomeGoVersion(releaseVersion);
   if (!parsed) return null;
   return {
     minimum: `${parsed.major}.${parsed.minor}.0-0`,
@@ -101,39 +101,39 @@ export const defaultAiTeamOSCompatibilityWindow = (
   };
 };
 
-export type AiTeamOSCompatibilityState =
+export type OutcomeGoCompatibilityState =
   | "compatible"
   | "update-recommended"
   | "client-update-required"
   | "server-update-required"
   | "unknown";
 
-export const aiTeamOSCompatibility = (
+export const outcomeGoCompatibility = (
   clientVersion: string,
   serverVersion: string | null,
-  serverProtocolVersion: number | null = AITEAMOS_API_PROTOCOL_VERSION,
-  policy: AiTeamOSClientCompatibilityPolicy = {}
-): AiTeamOSCompatibilityState => {
-  const client = parseAiTeamOSVersion(clientVersion);
-  const server = parseAiTeamOSVersion(serverVersion);
+  serverProtocolVersion: number | null = OUTCOMEGO_API_PROTOCOL_VERSION,
+  policy: OutcomeGoClientCompatibilityPolicy = {}
+): OutcomeGoCompatibilityState => {
+  const client = parseOutcomeGoVersion(clientVersion);
+  const server = parseOutcomeGoVersion(serverVersion);
   if (!client || !server || !Number.isInteger(serverProtocolVersion)) return "unknown";
 
-  if ((serverProtocolVersion as number) > AITEAMOS_API_PROTOCOL_VERSION) {
+  if ((serverProtocolVersion as number) > OUTCOMEGO_API_PROTOCOL_VERSION) {
     return "client-update-required";
   }
-  if ((serverProtocolVersion as number) < AITEAMOS_API_PROTOCOL_VERSION) {
+  if ((serverProtocolVersion as number) < OUTCOMEGO_API_PROTOCOL_VERSION) {
     return "server-update-required";
   }
 
-  const serverWindow = defaultAiTeamOSCompatibilityWindow(server.normalized);
-  const clientWindow = defaultAiTeamOSCompatibilityWindow(client.normalized);
-  const minimumClient = parseAiTeamOSVersion(
+  const serverWindow = defaultOutcomeGoCompatibilityWindow(server.normalized);
+  const clientWindow = defaultOutcomeGoCompatibilityWindow(client.normalized);
+  const minimumClient = parseOutcomeGoVersion(
     policy.minimumClientVersion ?? serverWindow?.minimum ?? ""
   );
-  const maximumClient = parseAiTeamOSVersion(
+  const maximumClient = parseOutcomeGoVersion(
     policy.maximumClientVersionExclusive ?? serverWindow?.maximumExclusive ?? ""
   );
-  const minimumServer = parseAiTeamOSVersion(
+  const minimumServer = parseOutcomeGoVersion(
     policy.minimumServerVersion ?? clientWindow?.minimum ?? ""
   );
   if (!minimumClient || !maximumClient || !minimumServer) return "unknown";

@@ -1,7 +1,7 @@
 import AppIntents
 import CoreSpotlight
 import XCTest
-@testable import OpenTeamNative
+@testable import OutcomeGoNative
 
 /// Run on an isolated simulator with parity-server.ts on port 20084. These tests
 /// call the actual intent implementations, using only synthetic accounts/data.
@@ -15,14 +15,14 @@ class SystemIntentFixture: XCTestCase {
 
   override func setUp() async throws {
     continueAfterFailure = true
-    XCTAssertEqual(ProcessInfo.processInfo.environment["AITEAMOS_SYSTEM_TEST_HOST"], "1")
+    XCTAssertEqual(ProcessInfo.processInfo.environment["OUTCOMEGO_SYSTEM_TEST_HOST"], "1")
     _ = try await API(server: server).request("/__qa/reset", method: "POST", body: .object([:]))
     UserDefaults.standard.removeObject(forKey: LocalDataReset.pendingKey)
     UserDefaults.standard.set(false, forKey: "system-discovery-" + scope)
     try SecureSession.save(session)
     await SystemDiscovery.shared.clearAndWait()
     let root = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-      .appendingPathComponent("OpenTeam")
+      .appendingPathComponent("OutcomeGo")
     try DiskStore(directory: root, scope: scope).clear()
   }
 
@@ -64,7 +64,7 @@ final class SystemIntentTests: SystemIntentFixture {
       _ = try await intent.perform()
       XCTFail("A saved Shortcut crossed accounts")
     } catch {
-      XCTAssertTrue(error.localizedDescription.contains("different OpenTeam account"))
+      XCTAssertTrue(error.localizedDescription.contains("different OutcomeGo account"))
     }
     let state = try await client.api.request("/__qa/state")
     XCTAssertFalse(state["requests"].array.contains { $0["path"].string.hasSuffix("/messages") && $0["method"].string == "POST" })

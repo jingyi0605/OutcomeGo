@@ -3,7 +3,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 
 /** A server whose listing mixes sloppy and invalid tool definitions with good ones. */
-const server = new Server({ name: "aiteamos-sloppy-fixture", version: "1.0.0" }, { capabilities: { tools: {} } });
+const server = new Server({ name: "outcomego-sloppy-fixture", version: "1.0.0" }, { capabilities: { tools: {} } });
 server.setRequestHandler(ListToolsRequestSchema, async () => ({
   tools: [
     { name: "echo", description: "Echo text.", inputSchema: { type: "object", properties: { text: { type: "string" } } } },

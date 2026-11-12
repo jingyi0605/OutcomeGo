@@ -6,11 +6,11 @@ const outputDirectory = resolve(cliRoot, "release");
 const entrypoint = resolve(cliRoot, "src/main.ts");
 
 const targets = [
-  ["bun-darwin-arm64", "aiteamos-darwin-arm64"],
-  ["bun-darwin-x64", "aiteamos-darwin-x64"],
-  ["bun-linux-arm64", "aiteamos-linux-arm64"],
-  ["bun-linux-x64-baseline", "aiteamos-linux-x64"],
-  ["bun-windows-x64-baseline", "aiteamos-windows-x64.exe"],
+  ["bun-darwin-arm64", "outcomego-darwin-arm64"],
+  ["bun-darwin-x64", "outcomego-darwin-x64"],
+  ["bun-linux-arm64", "outcomego-linux-arm64"],
+  ["bun-linux-x64-baseline", "outcomego-linux-x64"],
+  ["bun-windows-x64-baseline", "outcomego-windows-x64.exe"],
 ] as const;
 
 await rm(outputDirectory, { recursive: true, force: true });

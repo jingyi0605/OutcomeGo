@@ -1,4 +1,4 @@
-import { ApiError } from "@aiteamos/contracts";
+import { ApiError } from "@outcomego/contracts";
 import {
   environmentFields,
   fieldsForConnector,
@@ -6,8 +6,8 @@ import {
   validateValues,
   type ConfigValue,
   type PluginDefinition,
-} from "@aiteamos/plugin-sdk";
-import type { PrismaClient } from "@aiteamos/db";
+} from "@outcomego/plugin-sdk";
+import type { PrismaClient } from "@outcomego/db";
 import { appendEvent, serviceEffect, toJson } from "../service-utils";
 import { definitionFromManifest, hasPlaceholder, manifestJson } from "./values";
 import { resolveUpstreamPlugin } from "../../plugins/upstream-package";
@@ -317,7 +317,7 @@ export class PluginInstallations {
       return this.prisma.$transaction(async (tx) => {
         // Serializes with uninstall so a replaced secret cannot outlive its plugin.
         const [installation] = await tx.$queryRaw<Array<{ manifest: unknown }>>`
-          SELECT "manifest" FROM "PluginInstallation" WHERE "pluginKey" = ${pluginKey} FOR UPDATE`;
+          SELECT "manifest" FROM "outcomego_plugin_installation" WHERE "pluginKey" = ${pluginKey} FOR UPDATE`;
         if (!installation) throw new ApiError(404, "plugin_not_installed", "Plugin not installed");
         const plugin = definitionFromManifest(installation.manifest);
         if (!plugin) throw new ApiError(409, "plugin_manifest_invalid", "Plugin package is invalid");
@@ -342,7 +342,7 @@ export class PluginInstallations {
         )
       );
       await this.prisma.$transaction(async (tx) => {
-        await tx.$queryRaw`SELECT 1 FROM "PluginInstallation" WHERE "id" = ${installation.id} FOR UPDATE`;
+        await tx.$queryRaw`SELECT 1 FROM "outcomego_plugin_installation" WHERE "id" = ${installation.id} FOR UPDATE`;
         await tx.pluginActivity.create({
           data: {
             kind: "plugin.uninstalled",

@@ -7,7 +7,7 @@ export function GET() {
     headers: {
       "Cache-Control": "public, max-age=300, s-maxage=300",
       "Content-Type": "text/plain; charset=utf-8",
-      "Content-Disposition": 'inline; filename="aiteamos-install.ps1"',
+      "Content-Disposition": 'inline; filename="outcomego-install.ps1"',
       "X-Content-Type-Options": "nosniff",
     },
   });

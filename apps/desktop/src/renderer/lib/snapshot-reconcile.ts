@@ -2,4 +2,4 @@ export {
   createSnapshotCaches,
   reconcileClientSnapshot,
   type SnapshotCaches,
-} from "@aiteamos/product-core/snapshot-reconcile";
+} from "@outcomego/product-core/snapshot-reconcile";

@@ -290,7 +290,7 @@ public final class LiveVoiceAudio {
     onPlaybackAck: ((UInt32, UInt32) -> Void)? = nil
   ) throws {
     throw NSError(
-      domain: "OpenTeam.LiveVoice", code: 1,
+      domain: "OutcomeGo.LiveVoice", code: 1,
       userInfo: [NSLocalizedDescriptionKey: "Live voice audio is only available on iOS."]
     )
   }

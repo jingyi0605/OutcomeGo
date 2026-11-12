@@ -1,10 +1,10 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { ResultSchema, ToolListChangedNotificationSchema, ToolSchema } from "@modelcontextprotocol/sdk/types.js";
-import { discoverAllTools, MCP_TOOL_CALL_TIMEOUT_MS, objectValue, repairedToolsPage, scopedProcessEnvironment } from "@aiteamos/plugin-sdk";
+import { discoverAllTools, MCP_TOOL_CALL_TIMEOUT_MS, objectValue, repairedToolsPage, scopedProcessEnvironment } from "@outcomego/plugin-sdk";
 import { join } from "node:path";
 import { PluginPackageCache } from "./plugin-package-cache";
-import { SecretRedactor } from "@aiteamos/shell-jobs";
+import { SecretRedactor } from "@outcomego/shell-jobs";
 import { McpDiagnostics } from "./mcp-diagnostics";
 
 export interface StdioMcpConfiguration {
@@ -64,7 +64,7 @@ export class StdioMcpManager {
   private readonly packages: PluginPackageCache;
 
   constructor(
-    cacheDirectory = join(process.env.AITEAMOS_AGENT_DATA_ROOT ?? "/agent-data", "plugin-runtimes"),
+    cacheDirectory = join(process.env.OUTCOMEGO_AGENT_DATA_ROOT ?? "/agent-data", "plugin-runtimes"),
     private readonly startupTimeoutMs = 300_000
   ) {
     this.packages = new PluginPackageCache(cacheDirectory);
@@ -175,7 +175,7 @@ export class StdioMcpManager {
       return this.get(connectionId, input, generation);
     }
     if (existing) throw new Error("MCP configuration changed; reconnect to apply it");
-    const client = new Client({ name: "aiteamos-computer", version: "0.0.0" });
+    const client = new Client({ name: "outcomego-computer", version: "0.0.0" });
     const managed: ManagedStdioClient = {
       fingerprint,
       launchFingerprint,

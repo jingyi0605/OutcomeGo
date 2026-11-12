@@ -18,7 +18,7 @@ app
     );
     for (const channel of invokeChannels) {
       ipcMain.handle(channel, () => {
-        if (channel === "aiteamos:notifications:status")
+        if (channel === "outcomego:notifications:status")
           return { supported: true, authorized: true, settingsAvailable: false };
         if (channel.includes("activity")) return { active: false, idleSeconds: 0 };
         if (channel.includes("updates"))
@@ -50,18 +50,18 @@ app
           // without showing a banner in the developer's Notification Center.
           const native = new Notification({ title: event.title, body: event.body, silent: true });
           native.once("click", () =>
-            win.webContents.send("aiteamos:notification-click", parseNotificationTarget(event))
+            win.webContents.send("outcomego:notification-click", parseNotificationTarget(event))
           );
           native.emit("click");
         },
       },
       () => clock
     );
-    ipcMain.on("aiteamos:notifications:sync", (_event, snapshot) => {
+    ipcMain.on("outcomego:notifications:sync", (_event, snapshot) => {
       clock += 6000;
       manager.sync(snapshot);
     });
-    ipcMain.on("aiteamos:notifications:clear", () => manager.clear());
+    ipcMain.on("outcomego:notifications:clear", () => manager.clear());
     const js = (source) => win.webContents.executeJavaScript(source);
     const until = async (source, timeout = 8000) => {
       const started = Date.now();
@@ -289,7 +289,7 @@ app
         });
         await test("legacy channel-only click opens a loaded latest message", async () => {
           const channelId = await js("notificationFixture.channelId");
-          win.webContents.send("aiteamos:notification-click", { channelId });
+          win.webContents.send("outcomego:notification-click", { channelId });
           await until(visible("notice-180"));
         });
         await test("malformed click targets are rejected by preload", async () => {
@@ -300,7 +300,7 @@ app
             { channelId, messageId: "" },
             { channelId, messageSequence: "invalid" },
           ]) {
-            win.webContents.send("aiteamos:notification-click", payload);
+            win.webContents.send("outcomego:notification-click", payload);
           }
           await pause(150);
           await check(

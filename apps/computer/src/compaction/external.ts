@@ -5,7 +5,7 @@ import { imageParts, isInjectedReminder, isSummary, isUserInfo, messageText, xml
  * transcript goes to the model with its own prompt, and the in-progress request stays verbatim. */
 export const SUMMARIZATION_SYSTEM_PROMPT = `You are an intelligent assistant, tasked with summarizing the following conversation. You MUST follow the instructions given in the <summarization_request> tags and summarize the conversation. This summary will be provided to another AI assistant to continue the task at hand, so you should align the summary with the task in the conversation.`;
 
-// Reference MORE_PROMPT, verbatim except item 10 (event subscriptions): aiTeamOS has no subscribe tools.
+// Reference MORE_PROMPT, verbatim except item 10 (event subscriptions): OutcomeGo has no subscribe tools.
 export const EXTERNAL_SUMMARY_REQUEST = `What you see above is the conversation so far, rendered as a transcript. Previous user messages, previous assistant messages, and tool calls are shown in tags, while the original system prompt has been removed. The content in the tags has been rendered exactly as it was in the original conversation.
 
 Your task is to create a detailed summary of the conversation so far, paying close attention to the user's explicit requests and your previous actions. This summary will be provided to another AI assistant to continue the task at hand, so you should align the summary with the task in the conversation above. So you should NEVER refer to summarization in your summary, just an output that could be used to continue the task.

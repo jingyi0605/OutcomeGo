@@ -6,7 +6,7 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {BrowserUseSession} from '../src/browser/use';
 import {outOfProcessPlaywright} from '../src/browser/playwright-driver';
-const executable=process.env.AITEAMOS_BROWSER_TEST_EXECUTABLE;if(!executable)throw Error('Set AITEAMOS_BROWSER_TEST_EXECUTABLE');
+const executable=process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE;if(!executable)throw Error('Set OUTCOMEGO_BROWSER_TEST_EXECUTABLE');
 const root=await mkdtemp(join(tmpdir(),'browser-upload-'));const workspace=join(root,'workspace');await mkdir(workspace);
 const file=join(workspace,'résumé #1.txt');await writeFile(file,'café 日本語\n');
 const outside=join(root,'outside.txt');await writeFile(outside,'outside');await symlink(outside,join(workspace,'alias.txt'));

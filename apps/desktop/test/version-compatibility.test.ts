@@ -1,41 +1,41 @@
 import { describe, expect, test } from "bun:test";
 import {
-  compareAiTeamOSVersions,
-  defaultAiTeamOSCompatibilityWindow,
-  isAiTeamOSVersion,
-  normalizeAiTeamOSVersion,
-  aiTeamOSCompatibility,
-} from "@aiteamos/contracts/version-compatibility";
+  compareOutcomeGoVersions,
+  defaultOutcomeGoCompatibilityWindow,
+  isOutcomeGoVersion,
+  normalizeOutcomeGoVersion,
+  outcomeGoCompatibility,
+} from "@outcomego/contracts/version-compatibility";
 
-describe("aiTeamOS release compatibility", () => {
+describe("OutcomeGo release compatibility", () => {
   test("blocks incompatible lines while allowing patch-skewed releases", () => {
-    expect(aiTeamOSCompatibility("1.3.0", "1.2.0")).toBe("server-update-required");
-    expect(aiTeamOSCompatibility("1.2.0", "1.3.0")).toBe("client-update-required");
-    expect(aiTeamOSCompatibility("1.3.0", "1.3.0")).toBe("compatible");
-    expect(aiTeamOSCompatibility("1.3.1", "1.3.0")).toBe("update-recommended");
-    expect(aiTeamOSCompatibility("1.3.0", "1.3.1")).toBe("update-recommended");
-    expect(aiTeamOSCompatibility("1.3.0", "1.3.0", null)).toBe("unknown");
-    expect(aiTeamOSCompatibility("1.3.0", "1.3.0", 3)).toBe("client-update-required");
-    expect(aiTeamOSCompatibility("1.3.0", "1.3.0", 0)).toBe("server-update-required");
+    expect(outcomeGoCompatibility("1.3.0", "1.2.0")).toBe("server-update-required");
+    expect(outcomeGoCompatibility("1.2.0", "1.3.0")).toBe("client-update-required");
+    expect(outcomeGoCompatibility("1.3.0", "1.3.0")).toBe("compatible");
+    expect(outcomeGoCompatibility("1.3.1", "1.3.0")).toBe("update-recommended");
+    expect(outcomeGoCompatibility("1.3.0", "1.3.1")).toBe("update-recommended");
+    expect(outcomeGoCompatibility("1.3.0", "1.3.0", null)).toBe("unknown");
+    expect(outcomeGoCompatibility("1.3.0", "1.3.0", 3)).toBe("client-update-required");
+    expect(outcomeGoCompatibility("1.3.0", "1.3.0", 0)).toBe("server-update-required");
   });
 
   test("prereleases of one minor line are compatible with each other", () => {
     // A bound of plain X.Y.0 sorts above X.Y.0-beta.N, which used to reject a client and server
     // on the identical beta version as "client-update-required".
-    expect(aiTeamOSCompatibility("0.1.0-beta.1", "0.1.0-beta.1")).toBe("compatible");
-    expect(aiTeamOSCompatibility("0.1.0-beta.3", "0.1.0-beta.1")).toBe("update-recommended");
-    expect(aiTeamOSCompatibility("0.1.0-beta.1", "0.1.0-beta.3")).toBe("update-recommended");
-    expect(aiTeamOSCompatibility("0.1.0", "0.1.0-beta.1")).toBe("update-recommended");
-    expect(aiTeamOSCompatibility("0.1.0-beta.1", "0.1.0")).toBe("update-recommended");
+    expect(outcomeGoCompatibility("0.1.0-beta.1", "0.1.0-beta.1")).toBe("compatible");
+    expect(outcomeGoCompatibility("0.1.0-beta.3", "0.1.0-beta.1")).toBe("update-recommended");
+    expect(outcomeGoCompatibility("0.1.0-beta.1", "0.1.0-beta.3")).toBe("update-recommended");
+    expect(outcomeGoCompatibility("0.1.0", "0.1.0-beta.1")).toBe("update-recommended");
+    expect(outcomeGoCompatibility("0.1.0-beta.1", "0.1.0")).toBe("update-recommended");
     // Other minor lines are still blocked, in the right direction.
-    expect(aiTeamOSCompatibility("0.2.0-beta.1", "0.1.0-beta.3")).toBe("server-update-required");
-    expect(aiTeamOSCompatibility("0.1.0-beta.3", "0.2.0-beta.1")).toBe("client-update-required");
-    expect(aiTeamOSCompatibility("0.0.15", "0.1.0-beta.1")).toBe("client-update-required");
+    expect(outcomeGoCompatibility("0.2.0-beta.1", "0.1.0-beta.3")).toBe("server-update-required");
+    expect(outcomeGoCompatibility("0.1.0-beta.3", "0.2.0-beta.1")).toBe("client-update-required");
+    expect(outcomeGoCompatibility("0.0.15", "0.1.0-beta.1")).toBe("client-update-required");
   });
 
   test("honors a server-provided overlapping compatibility window", () => {
     expect(
-      aiTeamOSCompatibility("1.3.9", "1.4.0", 2, {
+      outcomeGoCompatibility("1.3.9", "1.4.0", 2, {
         minimumClientVersion: "1.3.0",
         maximumClientVersionExclusive: "1.5.0",
       })
@@ -43,17 +43,17 @@ describe("aiTeamOS release compatibility", () => {
   });
 
   test("compares prereleases without accepting arbitrary update targets", () => {
-    expect(compareAiTeamOSVersions("2.0.0", "2.0.0-rc.1")).toBe(1);
-    expect(compareAiTeamOSVersions("2.0.0-rc.2", "2.0.0-rc.1")).toBeGreaterThan(0);
-    expect(isAiTeamOSVersion("latest")).toBe(false);
+    expect(compareOutcomeGoVersions("2.0.0", "2.0.0-rc.1")).toBe(1);
+    expect(compareOutcomeGoVersions("2.0.0-rc.2", "2.0.0-rc.1")).toBeGreaterThan(0);
+    expect(isOutcomeGoVersion("latest")).toBe(false);
   });
 
   test("implements strict SemVer normalization without the full parser dependency", () => {
-    expect(normalizeAiTeamOSVersion(" v1.2.3+desktop.7 ")).toBe("1.2.3");
-    expect(normalizeAiTeamOSVersion("1.2.3-rc.01")).toBeNull();
-    expect(normalizeAiTeamOSVersion("01.2.3")).toBeNull();
-    expect(normalizeAiTeamOSVersion("9007199254740992.0.0")).toBeNull();
-    expect(defaultAiTeamOSCompatibilityWindow("2.9.4-rc.1")).toEqual({
+    expect(normalizeOutcomeGoVersion(" v1.2.3+desktop.7 ")).toBe("1.2.3");
+    expect(normalizeOutcomeGoVersion("1.2.3-rc.01")).toBeNull();
+    expect(normalizeOutcomeGoVersion("01.2.3")).toBeNull();
+    expect(normalizeOutcomeGoVersion("9007199254740992.0.0")).toBeNull();
+    expect(defaultOutcomeGoCompatibilityWindow("2.9.4-rc.1")).toEqual({
       minimum: "2.9.0-0",
       maximumExclusive: "2.10.0-0",
     });
@@ -69,7 +69,7 @@ describe("aiTeamOS release compatibility", () => {
       "1.0.0",
     ];
     for (let index = 1; index < precedence.length; index += 1) {
-      expect(compareAiTeamOSVersions(precedence[index - 1] ?? "", precedence[index] ?? "")).toBe(
+      expect(compareOutcomeGoVersions(precedence[index - 1] ?? "", precedence[index] ?? "")).toBe(
         -1
       );
     }

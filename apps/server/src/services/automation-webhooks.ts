@@ -1,15 +1,15 @@
 import { randomBytes, randomUUID } from "node:crypto";
-import { ApiError } from "@aiteamos/contracts";
-import type { PrismaClient } from "@aiteamos/db";
+import { ApiError } from "@outcomego/contracts";
+import type { PrismaClient } from "@outcomego/db";
 import {
   AUTOMATION_WEBHOOK_PROVIDERS,
   type AutomationWebhookPublicUrlCheck,
   type AutomationWebhookPublicUrlView,
   type AutomationWebhookInput,
   type AutomationWebhookView,
-} from "@aiteamos/contracts/automation-webhooks";
+} from "@outcomego/contracts/automation-webhooks";
 import { receiveAutomationWebhook, type AutomationWebhookBinding } from "../automation-webhooks";
-import type { AutomationEvent } from "@aiteamos/messaging";
+import type { AutomationEvent } from "@outcomego/messaging";
 import { toJson } from "./service-utils";
 const uuid = /^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/i;
 const configurationKeys: Record<string, string[]> = {

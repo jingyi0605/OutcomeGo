@@ -439,7 +439,7 @@ struct ComposerVideoViewer: View {
   private func save() async {
     do {
       guard await PHPhotoLibrary.requestAuthorization(for: .addOnly) == .authorized else {
-        throw APIError("Allow OpenTeam to add to Photos in Settings to save this video.")
+        throw APIError("Allow OutcomeGo to add to Photos in Settings to save this video.")
       }
       let url = try namedCopy()
       try await PHPhotoLibrary.shared().performChanges {

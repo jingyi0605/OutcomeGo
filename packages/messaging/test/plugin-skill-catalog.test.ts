@@ -13,7 +13,7 @@ const manifest = {
   key: "fixture",
   name: "Fixture",
   version: "1",
-  publisher: "aiTeamOS",
+  publisher: "outcomeGo",
   files: { "skills/main-only/reference.md": "Reference notes." },
   skills: [
     { name: "main-only", description: "Main", body: "Main agent workflow.", path: "skills/main-only" },
@@ -31,7 +31,7 @@ const installation = { name: "Fixture", pluginKey: "fixture", version: "1", mani
 
 let root = "";
 beforeEach(async () => {
-  root = await mkdtemp(join(tmpdir(), "aiteamos-skill-catalog-"));
+  root = await mkdtemp(join(tmpdir(), "outcomego-skill-catalog-"));
 });
 afterEach(async () => {
   await rm(root, { recursive: true, force: true });

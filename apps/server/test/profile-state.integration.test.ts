@@ -3,17 +3,17 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { Schema } from "effect";
-import { createPrismaClient } from "@aiteamos/db";
-import { UpdateProfileToolInput } from "@aiteamos/contracts";
-import { AgentDataStore } from "@aiteamos/messaging";
+import { createPrismaClient } from "@outcomego/db";
+import { UpdateProfileToolInput } from "@outcomego/contracts";
+import { AgentDataStore } from "@outcomego/messaging";
 import { DurableStateService } from "../src/update-state";
 
-const url = process.env.AITEAMOS_TEST_DATABASE_URL;
+const url = process.env.OUTCOMEGO_TEST_DATABASE_URL;
 test.skipIf(!url)(
   "captured named colors and long profile titles survive file reconciliation",
   async () => {
     const db = createPrismaClient(url!);
-    const root = await mkdtemp(join(tmpdir(), "aiteamos-profile-state-"));
+    const root = await mkdtemp(join(tmpdir(), "outcomego-profile-state-"));
     const botId = crypto.randomUUID();
     try {
       await db.bot.create({

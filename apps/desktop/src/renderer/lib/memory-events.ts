@@ -1,4 +1,4 @@
-import type { ProductEvent } from "@aiteamos/contracts";
+import type { ProductEvent } from "@outcomego/contracts";
 
 const listeners = new Set<(botId: string | null) => void>();
 const changedBots = new Set<string>();

@@ -138,7 +138,7 @@ interface FakeRepo { [name: string]: Array<{ version: string; uri: string; suite
  * path without downloading only from its cache folder.
  */
 async function fakeSystem(installed: Record<string, string>, repos: FakeRepo, options: { cached?: Set<string>; deps?: Record<string, string[]>; broken?: Set<string>; offlineNetwork?: boolean; unreachable?: Set<string> } = {}) {
-  const root = await mkdtemp(join(tmpdir(), "aiteamos-installs-"));
+  const root = await mkdtemp(join(tmpdir(), "outcomego-installs-"));
   const paths = installsPaths(join(root, "state"));
   const system = (path: string) => join(root, "system", path);
   const image = { baseline: join(root, "image/apt-baseline"), sourcesBaseline: join(root, "image/apt-sources-baseline"), buildId: join(root, "image/build-id") };
@@ -272,7 +272,7 @@ test("a source the bot removes stays removed after `apt-get update` or a shutdow
   await keepSources(options);
   expect(await restoreSources(options)).toEqual([]);
   // apt runs the same step after every `apt-get update`.
-  expect(await readFile(join(import.meta.dir, "../../../docker/apt-keep-installs.conf"), "utf8")).toContain('APT::Update::Post-Invoke { "/usr/lib/aiteamos/bin/bun /app/apps/computer/dist/installs-cli.js sources || true"; };');
+  expect(await readFile(join(import.meta.dir, "../../../docker/apt-keep-installs.conf"), "utf8")).toContain('APT::Update::Post-Invoke { "/usr/lib/outcomego/bin/bun /app/apps/computer/dist/installs-cli.js sources || true"; };');
 });
 
 test("replay installs offline when it can, and from its own lists otherwise", async () => {
@@ -303,7 +303,7 @@ test("replay installs offline when it can, and from its own lists otherwise", as
 
 test("while a bot's sources are configured, the image's packages can't come from them", async () => {
   expect(imagePackagePins(["bash", "curl"], ["cli.github.com"])).toBe(
-    "Explanation: aiTeamOS replay: the image's packages never come from a source a bot added.\nPackage: bash curl\nPin: origin \"cli.github.com\"\nPin-Priority: -1\n"
+    "Explanation: outcomeGo replay: the image's packages never come from a source a bot added.\nPackage: bash curl\nPin: origin \"cli.github.com\"\nPin-Priority: -1\n"
   );
   const fake = await fakeSystem({ bash: "5" }, { jq: [{ version: "1", uri: DEBIAN, suite: "trixie" }] });
   await writeFile(fake.system("etc/apt/sources.list.d/gh.list"), `deb ${GH} stable main\n`);
@@ -435,7 +435,7 @@ test("each bot hears once what the last start couldn't bring back", async () => 
   const claimed = await notice.claim("bot-a");
   expect(claimed?.content).toContain("could not reinstall these apt packages installed on it earlier: glow (it was installed from a .deb file that was not kept); vanished (no apt source the computer has offers it any more).");
   expect(claimed?.content).toContain("It won't try again until the computer's image changes.");
-  expect(claimed?.content).toContain("`sudo aiteamos-installs forget glow vanished`");
+  expect(claimed?.content).toContain("`sudo outcomego-installs forget glow vanished`");
   // Never the advice that can't work for a package whose source is gone.
   expect(claimed?.content).not.toContain("sudo apt-get install");
   await notice.commit("bot-a", claimed!.episode);

@@ -1,4 +1,4 @@
-import { APP_SETTINGS_ANCHORS } from "@aiteamos/contracts/app-deep-links";
+import { APP_SETTINGS_ANCHORS } from "@outcomego/contracts/app-deep-links";
 
 export const SETTINGS_ANCHORS = APP_SETTINGS_ANCHORS;
 
@@ -12,7 +12,7 @@ export type SettingsView =
   | "server"
   | "providers"
   | "updates";
-export const AITEAMOS_DEEP_LINK_EVENT = "aiteamos:deep-link";
+export const OUTCOMEGO_DEEP_LINK_EVENT = "outcomego:deep-link";
 
 const settingsAnchorSet = new Set<string>(SETTINGS_ANCHORS);
 
@@ -33,20 +33,20 @@ const viewByAnchor: Record<SettingsAnchor, SettingsView> = {
   "web-fetch-provider": "providers",
 };
 
-export type AiTeamOSDeepLink =
+export type OutcomeGoDeepLink =
   | { kind: "settings"; anchor: SettingsAnchor }
   | { kind: "plugin"; pluginId: string };
 
 export const settingsViewForAnchor = (anchor: SettingsAnchor): SettingsView => viewByAnchor[anchor];
 
-export const parseAiTeamOSDeepLink = (value: string): AiTeamOSDeepLink | null => {
+export const parseOutcomeGoDeepLink = (value: string): OutcomeGoDeepLink | null => {
   let url: URL;
   try {
     url = new URL(value);
   } catch {
     return null;
   }
-  if (url.protocol !== "aiteamos:" || url.hostname !== "app") return null;
+  if (url.protocol !== "outcomego:" || url.hostname !== "app") return null;
 
   const id = url.searchParams.get("id")?.trim() ?? "";
   if (url.pathname === "/v1/settings") {

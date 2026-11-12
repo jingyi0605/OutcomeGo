@@ -8,18 +8,18 @@ import {
   toggleSidebarUnread,
   type SidebarPreferences,
   type SidebarSectionPreference,
-} from "@aiteamos/contracts/client-preferences";
+} from "@outcomego/contracts/client-preferences";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { api } from "../client/aiteamos-api";
+import { api } from "../client/outcomego-api";
 
-const STORAGE_KEY = "aiteamos:sidebar-preferences";
+const STORAGE_KEY = "outcomego:sidebar-preferences";
 const REMOTE_SAVE_DELAY_MS = 250;
 
 export const PINNED_GROUP_ID = "__pinned";
 export const UNASSIGNED_GROUP_ID = "__unassigned";
 
 export type SidebarSection = SidebarSectionPreference;
-export type { SidebarPreferences } from "@aiteamos/contracts/client-preferences";
+export type { SidebarPreferences } from "@outcomego/contracts/client-preferences";
 
 const EMPTY_PREFERENCES = emptySidebarPreferences();
 

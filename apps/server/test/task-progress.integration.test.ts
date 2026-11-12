@@ -3,7 +3,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Effect } from "effect";
-import { createPrismaClient } from "@aiteamos/db";
+import { createPrismaClient } from "@outcomego/db";
 import {
   AgentDataStore,
   AgentMessaging,
@@ -14,10 +14,10 @@ import {
   initialTaskProgress,
   automationBackgroundWorkRunning,
   type ToolContext,
-} from "@aiteamos/messaging";
+} from "@outcomego/messaging";
 import { SubagentService } from "../src/services/subagent/service";
 
-const url = process.env.AITEAMOS_TEST_DATABASE_URL;
+const url = process.env.OUTCOMEGO_TEST_DATABASE_URL;
 
 test.skipIf(!url)("resuming a stopped task retains permission revocation before the new scope", () => fixture(async f => {
   const service = new SubagentService(f.db, f.messaging, { cancel: () => Effect.succeed({}) } as never,

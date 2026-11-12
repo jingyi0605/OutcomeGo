@@ -5,11 +5,11 @@ import {join} from 'node:path';
 import {BrowserUseSession} from '../../src/browser/use';
 import {outOfProcessPlaywright} from '../../src/browser/playwright-driver';
 
-test.skipIf(!process.env.AITEAMOS_BROWSER_TEST_EXECUTABLE)('hover reveals menu; console captures exceptions, bounds history and isolates tabs; snapshot marks non-editable controls', async () => {
+test.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)('hover reveals menu; console captures exceptions, bounds history and isolates tabs; snapshot marks non-editable controls', async () => {
  const root=await mkdtemp(join(tmpdir(),'hover-console-'));
  const server=Bun.serve({port:0,fetch:()=>new Response(`<style>#menu{display:none}#hover:hover #menu{display:block}</style><div id="hover" aria-label="Hover area">Hover area<button id="menu">Revealed menu</button></div><div role="textbox" aria-label="Static editor">unchanged</div><input readonly aria-label="Read only"><div>DIV-RECEIPT <span>COUNT-1</span></div><pre>PRE-RECEIPT</pre><output>OUTPUT-RECEIPT</output><script>console.error('fixture-secret original error');setTimeout(()=>{throw new Error('fixture exception')},10)</script>`,{headers:{'content-type':'text/html'}})});
  const driver=await outOfProcessPlaywright();
- const browser=await driver.playwright.chromium.launch({headless:true,executablePath:process.env.AITEAMOS_BROWSER_TEST_EXECUTABLE});
+ const browser=await driver.playwright.chromium.launch({headless:true,executablePath:process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE});
  const context=await browser.newContext();
  const session=new (BrowserUseSession as any)(browser,context,root) as BrowserUseSession;
  const text=(result:any): string=>result.content.filter((b:any)=>b.type==='text').map((b:any)=>b.text).join('\n');
@@ -42,10 +42,10 @@ test.skipIf(!process.env.AITEAMOS_BROWSER_TEST_EXECUTABLE)('hover reveals menu; 
  }finally{await browser.close();await driver.stop();server.stop(true);await rm(root,{recursive:true,force:true});}
 },30_000);
 
-test.skipIf(!process.env.AITEAMOS_BROWSER_TEST_EXECUTABLE)('waits observe delayed visibility, disappearance, timeout and cancellation without replaying actions', async () => {
+test.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)('waits observe delayed visibility, disappearance, timeout and cancellation without replaying actions', async () => {
  const root=await mkdtemp(join(tmpdir(),'browser-wait-'));
  const driver=await outOfProcessPlaywright();
- const browser=await driver.playwright.chromium.launch({headless:true,executablePath:process.env.AITEAMOS_BROWSER_TEST_EXECUTABLE});
+ const browser=await driver.playwright.chromium.launch({headless:true,executablePath:process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE});
  const session=new (BrowserUseSession as any)(browser,await browser.newContext(),root) as BrowserUseSession;
  try {
   await session.execute('browser_navigate',{url:'about:blank'});
@@ -70,10 +70,10 @@ test.skipIf(!process.env.AITEAMOS_BROWSER_TEST_EXECUTABLE)('waits observe delaye
  } finally {await browser.close();await driver.stop();await rm(root,{recursive:true,force:true});}
 },30_000);
 
-test.skipIf(!process.env.AITEAMOS_BROWSER_TEST_EXECUTABLE)('snapshot exposes focusable hover containers and inherited disabled state without hiding child controls', async () => {
+test.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)('snapshot exposes focusable hover containers and inherited disabled state without hiding child controls', async () => {
  const root=await mkdtemp(join(tmpdir(),'browser-focusable-'));
  const driver=await outOfProcessPlaywright();
- const browser=await driver.playwright.chromium.launch({headless:true,executablePath:process.env.AITEAMOS_BROWSER_TEST_EXECUTABLE});
+ const browser=await driver.playwright.chromium.launch({headless:true,executablePath:process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE});
  const session=new (BrowserUseSession as any)(browser,await browser.newContext(),root) as BrowserUseSession;
  const text=(result:any):string=>result.content.filter((b:any)=>b.type==='text').map((b:any)=>b.text).join('\n');
  try {

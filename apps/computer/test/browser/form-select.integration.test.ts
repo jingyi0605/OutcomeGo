@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { BrowserUseSession } from "../../src/browser/use";
 import { outOfProcessPlaywright } from "../../src/browser/playwright-driver";
 import { UserFormHost, type FormBrowser } from "../../src/user-form-host";
-import type { UserForm } from "@aiteamos/contracts";
+import type { UserForm } from "@outcomego/contracts";
 
 const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
   .map((name, i) => `<option value="${String(i + 1).padStart(2, "0")}">${String(i + 1).padStart(2, "0")} - ${name}</option>`).join("");
@@ -16,11 +16,11 @@ const page = `<!doctype html>
 <label for="country">Country</label><select id="country"><option value="CA">Canada</option><option value="US">United States</option></select>
 <label for="plan">Plan</label><select id="plan"><option value="basic">Basic plan</option><option value="pro">Pro plan</option></select>`;
 
-test.skipIf(!process.env.AITEAMOS_BROWSER_TEST_EXECUTABLE)("form values fill native dropdowns by expiry, country code, number, and visible label", async () => {
+test.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)("form values fill native dropdowns by expiry, country code, number, and visible label", async () => {
   const root = await mkdtemp(join(tmpdir(), "form-select-"));
   const server = Bun.serve({ hostname: "127.0.0.1", port: 0, fetch: () => new Response(page, { headers: { "content-type": "text/html" } }) });
   const driver = await outOfProcessPlaywright();
-  const browser = await driver.playwright.chromium.launch({ headless: true, executablePath: process.env.AITEAMOS_BROWSER_TEST_EXECUTABLE, args: ["--no-sandbox"] });
+  const browser = await driver.playwright.chromium.launch({ headless: true, executablePath: process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE, args: ["--no-sandbox"] });
   const session = new (BrowserUseSession as any)(browser, await browser.newContext(), root) as BrowserUseSession;
   const adapter: FormBrowser = {
     prepare: async form => { const [binding] = await session.formPages(form.domain!); return { binding: binding!, ...await session.prepareForm(binding!, form) }; },

@@ -20,7 +20,7 @@ export function directDynamicToolsExtension(names: DirectToolNames): {
   factory: ExtensionFactory;
 } {
   return {
-    name: "aiteamos-direct-dynamic-tools",
+    name: "outcomego-direct-dynamic-tools",
     hidden: true,
     factory(pi) {
       pi.on("message_end", async (event) => {

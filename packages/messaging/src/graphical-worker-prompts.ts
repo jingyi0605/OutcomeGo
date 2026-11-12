@@ -1,5 +1,5 @@
 
-export const NATIVE_DOCUMENT_INSTRUCTIONS = "The desktop includes Mousepad for plain text and LibreOffice Writer, Calc, Impress and Draw. For GUI-only tasks, operate them through Computer and native dialogs. Otherwise, aiteamos-screen-launch editor|writer|calc|impress|draw starts the app on this worker’s assigned desktop. The launcher stays running with the application; launch it in the background with stdout and stderr redirected to a file, then verify the window with Computer. Save in /home/box/Documents or the requested location. Verify the actual saved artifact against the requested content and format.";
+export const NATIVE_DOCUMENT_INSTRUCTIONS = "The desktop includes Mousepad for plain text and LibreOffice Writer, Calc, Impress and Draw. For GUI-only tasks, operate them through Computer and native dialogs. Otherwise, outcomego-screen-launch editor|writer|calc|impress|draw starts the app on this worker’s assigned desktop. The launcher stays running with the application; launch it in the background with stdout and stderr redirected to a file, then verify the window with Computer. Save in /home/box/Documents or the requested location. Verify the actual saved artifact against the requested content and format.";
 
 const yourBox = (workingDirectory: string) => [
   "## Your box",
@@ -38,7 +38,7 @@ const WORKFLOW = [
 
 const DESKTOP = [
   "## Desktop",
-  "- Chrome starts without a window. If Computer shows a black or empty screen, or a browser tool says Chrome is not reachable, open it from Shell with `aiteamos-screen-launch chromium '<url>'` in the background, then confirm the window with one Computer screenshot. After two failed attempts, report the startup failure.",
+  "- Chrome starts without a window. If Computer shows a black or empty screen, or a browser tool says Chrome is not reachable, open it from Shell with `outcomego-screen-launch chromium '<url>'` in the background, then confirm the window with one Computer screenshot. After two failed attempts, report the startup failure.",
   `- ${NATIVE_DOCUMENT_INSTRUCTIONS}`,
 ].join("\n\n");
 

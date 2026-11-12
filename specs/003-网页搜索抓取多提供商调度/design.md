@@ -46,7 +46,7 @@
 | `packages/db/prisma/schema.prisma` | 保存 schedule 和轮询状态 | JSON/字段 | PostgreSQL rows |
 | `apps/computer/src/search-provider.ts` | Search adapter、DeepSeek adapter 和调度 | Search credentials、query | Search result |
 | `apps/computer/src/fetch-provider.ts` | Fetch adapter、DeepSeek adapter 和调度 | Fetch credentials、URL | Fetch result |
-| `apps/desktop/src/renderer/components/aiteamos/settings/providers.tsx` | 多 provider 编辑、排序和策略选择 | WebProvidersView | WebProvidersInput |
+| `apps/desktop/src/renderer/components/outcomego/settings/providers.tsx` | 多 provider 编辑、排序和策略选择 | WebProvidersView | WebProvidersInput |
 | `apps/desktop/src/renderer/assets/web-providers` | DeepSeek provider 图标 | brand | image asset |
 
 ### 2.3 关键流程

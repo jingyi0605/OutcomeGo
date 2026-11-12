@@ -177,7 +177,7 @@ describe("API contracts", () => {
     ).toMatchObject({ fileName: "upload.png", bytesBase64: "AQID" });
   });
 
-  test("matches aiTeamOS's file, HTTPS, and data URL image schema for direct A2A", () => {
+  test("matches outcomeGo's file, HTTPS, and data URL image schema for direct A2A", () => {
     expect(
       Schema.decodeUnknownSync(SendToAgentInput)({
         target_id: "f9853a2e-3c07-49a3-854c-fdee0588e68d",
@@ -460,15 +460,15 @@ describe("API contracts", () => {
     expect(sendToAgent!.inputSchema).toEqual(referenceTool('SendToAgent').inputSchema);
   });
 
-  test("SendToUser is the reference's concise main-agent render with only aiTeamOS's adaptations", () => {
+  test("SendToUser is the reference's concise main-agent render with only outcomeGo's adaptations", () => {
     // The capture is the concise variant the reference's main agent gets: end_turn on, and no
     // credential requests, in-app actions, link items, cards, threaded replies or task threads.
     const captured = toolReference.SendToUser;
-    // Every captured tool takes aiTeamOS's product name and link scheme.
+    // Every captured tool takes outcomeGo's product name and link scheme.
     const [, scheme] = /\]\((\w+):\/\/app\/v1\/settings\?id=update-channel\)/.exec(captured.description)!;
     const [, product] = /only in (.+) chat, never through a connector\./.exec(captured.description)!;
     const expected = JSON.parse(
-      JSON.stringify(captured).replaceAll(product!, "aiTeamOS").replaceAll(`${scheme}://`, "aiteamos://")
+      JSON.stringify(captured).replaceAll(product!, "outcomeGo").replaceAll(`${scheme}://`, "outcomego://")
     );
     const properties = expected.inputSchema.properties;
     const texts: Record<string, { description: string }> = {
@@ -490,18 +490,18 @@ describe("API contracts", () => {
       // The app links only its own settings rows; there are no recovery, Bot template, agent or tab links.
       [
         "tool",
-        "[Update Track](aiteamos://app/v1/settings?id=update-channel)",
-        "[Web search provider](aiteamos://app/v1/settings?id=web-search-provider)",
+        "[Update Track](outcomego://app/v1/settings?id=update-channel)",
+        "[Web search provider](outcomego://app/v1/settings?id=web-search-provider)",
       ],
       [
         "tool",
         /one of: [^.]+\. When stuck, link update-computer before reset-computer\./,
         `one of: ${APP_SETTINGS_ANCHORS.join(", ")}.`,
       ],
-      ["tool", " Bot template: [label](aiteamos://app/v1/bot-template?id=<share id>).", ""],
+      ["tool", " Bot template: [label](outcomego://app/v1/bot-template?id=<share id>).", ""],
       [
         "tool",
-        " Another bot: [label](aiteamos://app/v1/agent?id=<id>). Your tab: [label](aiteamos://app/v1/sidebar?tab=<overview|routines|media|computer|members>).",
+        " Another bot: [label](outcomego://app/v1/agent?id=<id>). Your tab: [label](outcomego://app/v1/sidebar?tab=<overview|routines|media|computer|members>).",
         "",
       ],
       // No cloud agents, and no Slack thread syntax in channel addresses.
@@ -545,7 +545,7 @@ describe("API contracts", () => {
     );
   });
 
-  test("tool texts follow the newest reference, minus what aiTeamOS does not have", () => {
+  test("tool texts follow the newest reference, minus what outcomeGo does not have", () => {
     const routine = referenceTool("UpdateRoutine");
     expect(routine.description).toContain("- create needs name, prompt, and schedule or trigger; update takes only the fields to change; get returns the saved prompt and trigger.");
     expect(routine.description).toEndWith("\nA change you suggest to save usage waits for the user's yes.");

@@ -4,7 +4,7 @@ import { readFile, rename, writeFile, rm, stat } from "node:fs/promises";
 import { join } from "node:path";
 
 /** Dedicated fd 3 carries environment state, never tool output or transcript data. */
-export const SHELL_ENVIRONMENT_CAPTURE = `trap '__aiteamos_status=$?; for __aiteamos_name in $(compgen -e); do printf "%s=%s\\0" "$__aiteamos_name" "${"${!__aiteamos_name}"}"; done >&3; exit "$__aiteamos_status"' EXIT`;
+export const SHELL_ENVIRONMENT_CAPTURE = `trap '__outcomego_status=$?; for __outcomego_name in $(compgen -e); do printf "%s=%s\\0" "$__outcomego_name" "${"${!__outcomego_name}"}"; done >&3; exit "$__outcomego_status"' EXIT`;
 
 export async function loadShellEnvironment(
   directory: string,

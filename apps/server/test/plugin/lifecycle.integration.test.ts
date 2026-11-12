@@ -1,11 +1,11 @@
 import { createUtilityPluginFixture } from "./fixtures/utility-plugin";
 import { expect, test } from "bun:test";
-import { createPrismaClient } from "@aiteamos/db";
-import { createPluginTemplate } from "@aiteamos/plugin-sdk";
+import { createPrismaClient } from "@outcomego/db";
+import { createPluginTemplate } from "@outcomego/plugin-sdk";
 import { Effect } from "effect";
 import { PluginService } from "../../src/services/plugin-service";
 
-const databaseUrl = process.env.AITEAMOS_TEST_DATABASE_URL;
+const databaseUrl = process.env.OUTCOMEGO_TEST_DATABASE_URL;
 
 test("plugin install, connection, discovery, direct call, and removal lifecycle", async () => {
   if (!databaseUrl) return;
@@ -19,7 +19,7 @@ test("plugin install, connection, discovery, direct call, and removal lifecycle"
   let skillDraftId = "";
   let utilityDraftId = "";
   try {
-    await prisma.$executeRawUnsafe('TRUNCATE TABLE "PluginInstallation", "Bot", "Event" CASCADE');
+    await prisma.$executeRawUnsafe('TRUNCATE TABLE "outcomego_plugin_installation", "outcomego_bot", "outcomego_event" CASCADE');
     await prisma.bot.create({
       data: {
         id: botId,

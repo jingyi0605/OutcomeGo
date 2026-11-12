@@ -1,5 +1,5 @@
-import { BrowserNetworkClient } from "@aiteamos/plugin-sdk/browser-network/client";
-import { createBrowserProxy } from "@aiteamos/plugin-sdk/browser-network/socks";
+import { BrowserNetworkClient } from "@outcomego/plugin-sdk/browser-network/client";
+import { createBrowserProxy } from "@outcomego/plugin-sdk/browser-network/socks";
 import { createQualityProbe } from "./browser-network-quality";
 import { createEgressProbe } from "./browser-network-egress";
 import { createInterface } from "node:readline";

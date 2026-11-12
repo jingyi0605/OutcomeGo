@@ -45,12 +45,12 @@ export type ModelRow = {
 const requireInstallation = (paths: InstallationPaths): InstallationManifest => {
   if (!installationExists(paths)) {
     throw new CliError(
-      `aiTeamOS is not installed at ${paths.directory}. Run aiteamos install first.`
+      `OutcomeGo is not installed at ${paths.directory}. Run outcomego install first.`
     );
   }
   const manifest = readManifest(paths);
   if (!manifest)
-    throw new CliError(`aiTeamOS installation manifest is missing at ${paths.manifest}`);
+    throw new CliError(`OutcomeGo installation manifest is missing at ${paths.manifest}`);
   return manifest;
 };
 
@@ -63,7 +63,7 @@ const authCommand = (args: readonly string[]): string[] => [
   "exec",
   "--no-TTY",
   "computer",
-  "aiteamos-pi-auth",
+  "outcomego-pi-auth",
   ...args,
 ];
 
@@ -77,7 +77,7 @@ const jsonCommand = <T>(project: ComposeProject, args: readonly string[]): T => 
   try {
     return JSON.parse(result.stdout) as T;
   } catch {
-    throw new CliError("aiTeamOS received invalid AI provider data");
+    throw new CliError("OutcomeGo received invalid AI provider data");
   }
 };
 
@@ -199,7 +199,7 @@ export const providerLoginCommand = async (
       if (providerId === "openai-codex") {
         printMessage("If you are connected over SSH, choose Device code login at the next prompt.");
       }
-      project.runOrThrow(["exec", "computer", "aiteamos-pi-auth", "login", providerId, "oauth"], {
+      project.runOrThrow(["exec", "computer", "outcomego-pi-auth", "login", providerId, "oauth"], {
         inherit: true,
       });
     }
@@ -211,7 +211,7 @@ export const providerLoginCommand = async (
   );
   if (!connected) {
     throw new CliError(
-      `${providerDisplayName(provider)} sign-in did not complete. Retry aiteamos provider login ${providerId} in an interactive terminal and finish the provider sign-in.`,
+      `${providerDisplayName(provider)} sign-in did not complete. Retry outcomego provider login ${providerId} in an interactive terminal and finish the provider sign-in.`,
       2
     );
   }

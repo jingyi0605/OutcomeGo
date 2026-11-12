@@ -4,13 +4,13 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { WakeWorker } from "../src/worker";
 
-const databaseUrl = process.env.AITEAMOS_TEST_DATABASE_URL;
+const databaseUrl = process.env.OUTCOMEGO_TEST_DATABASE_URL;
 
 test.skipIf(!databaseUrl)("a wake cut off by a typed message runs again after it, up to its limit, and the message gets the unfinished-tasks reminder", async () => {
   const root = await mkdtemp(join(tmpdir(), "superseded-wake-"));
-  const keys = ["DATABASE_URL", "AITEAMOS_WORKSPACE_ROOT", "AITEAMOS_AGENT_DATA_ROOT"] as const;
+  const keys = ["DATABASE_URL", "OUTCOMEGO_WORKSPACE_ROOT", "OUTCOMEGO_AGENT_DATA_ROOT"] as const;
   const previous = Object.fromEntries(keys.map((key) => [key, process.env[key]]));
-  Object.assign(process.env, { DATABASE_URL: databaseUrl, AITEAMOS_WORKSPACE_ROOT: root, AITEAMOS_AGENT_DATA_ROOT: join(root, "data") });
+  Object.assign(process.env, { DATABASE_URL: databaseUrl, OUTCOMEGO_WORKSPACE_ROOT: root, OUTCOMEGO_AGENT_DATA_ROOT: join(root, "data") });
   const worker = new WakeWorker() as any;
   const db = worker.prisma;
   const botId = crypto.randomUUID();

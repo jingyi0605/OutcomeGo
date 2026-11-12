@@ -2,15 +2,15 @@ import { expect, test } from "bun:test";
 import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createAiTeamOSClient } from "../../../packages/client-core/src/client";
-import { AgentDataStore } from "@aiteamos/messaging";
+import { createOutcomeGoClient } from "../../../packages/client-core/src/client";
+import { AgentDataStore } from "@outcomego/messaging";
 import { memoryLogicalId } from "../../../packages/messaging/src/memory-facts";
 import { AppService } from "../src/app-service";
 import { clientRoutes } from "../src/routes/client";
 import { eventRoutes } from "../src/routes/event";
 import { errorResponse } from "../src/http";
 
-const databaseUrl = process.env.AITEAMOS_TEST_DATABASE_URL;
+const databaseUrl = process.env.OUTCOMEGO_TEST_DATABASE_URL;
 const dbTest = databaseUrl ? test : test.skip;
 
 async function fixture(
@@ -20,14 +20,14 @@ async function fixture(
     botId: string;
     peerId: string;
     root: string;
-    client: ReturnType<typeof createAiTeamOSClient>;
+    client: ReturnType<typeof createOutcomeGoClient>;
   }) => Promise<void>
 ) {
   const root = await mkdtemp(join(tmpdir(), "memory-controls-"));
   const env = {
     DATABASE_URL: databaseUrl!,
-    AITEAMOS_WORKSPACE_ROOT: root,
-    AITEAMOS_AGENT_DATA_ROOT: join(root, "data"),
+    OUTCOMEGO_WORKSPACE_ROOT: root,
+    OUTCOMEGO_AGENT_DATA_ROOT: join(root, "data"),
   };
   const previous = Object.fromEntries(Object.keys(env).map((key) => [key, process.env[key]]));
   Object.assign(process.env, env);
@@ -43,7 +43,7 @@ async function fixture(
   const store = app.agentData;
   const botId = crypto.randomUUID();
   const peerId = crypto.randomUUID();
-  const client = createAiTeamOSClient({
+  const client = createOutcomeGoClient({
     baseUrl: "http://memory-test.invalid",
     fetch: async (input, init) => {
       const request = new Request(input, init);

@@ -29,7 +29,7 @@ const architecture = (await run(["docker", "info", "--format", "{{.Architecture}
 const arm = ["aarch64", "arm64"].includes(architecture);
 if (!arm && !["x86_64", "amd64"].includes(architecture))
   throw new Error(`Unsupported engine: ${architecture}`);
-const filename = `aiteamos-linux-${arm ? "arm64" : "x64"}`;
+const filename = `outcomego-linux-${arm ? "arm64" : "x64"}`;
 console.log("Building the standalone Linux CLI and fresh test environment…");
 await run([
   process.execPath,
@@ -43,12 +43,12 @@ await run([
 const binary = new Uint8Array(await Bun.file(resolve(assets, filename)).arrayBuffer());
 await Bun.write(resolve(assets, `${filename}.gz`), Bun.gzipSync(binary));
 const compose =
-  "name: aiteamos\nservices:\n  server:\n    image: busybox:1.37\n    labels:\n      test.release: ${AITEAMOS_VERSION}\nvolumes:\n  aiteamos_workspace:\n";
-writeFileSync(resolve(assets, "aiteamos-compose.yaml"), compose);
+  "name: outcomego\nservices:\n  server:\n    image: busybox:1.37\n    labels:\n      test.release: ${OUTCOMEGO_VERSION}\nvolumes:\n  outcomego_workspace:\n";
+writeFileSync(resolve(assets, "outcomego-compose.yaml"), compose);
 writeFileSync(
   resolve(assets, "SHA256SUMS"),
   `${createHash("sha256").update(binary).digest("hex")}  ${filename}\n` +
-    `${createHash("sha256").update(compose).digest("hex")}  aiteamos-compose.yaml\n`
+    `${createHash("sha256").update(compose).digest("hex")}  outcomego-compose.yaml\n`
 );
 writeFileSync(resolve(assets, "bad-checksums"), `${"0".repeat(64)}  ${filename}\n`);
 writeFileSync(resolve(assets, "latest.json"), JSON.stringify({ tag_name: "v0.0.1" }));
@@ -58,7 +58,7 @@ copyFileSync(
   resolve(output, "fresh-install.py")
 );
 
-const id = `aiteamos-preflight-${randomUUID().slice(0, 8)}`;
+const id = `outcomego-preflight-${randomUUID().slice(0, 8)}`;
 const engine = `${id}-engine`;
 try {
   await run([
@@ -67,7 +67,7 @@ try {
     "-f",
     "apps/cli/test/fixtures/fresh-install.Dockerfile",
     "-t",
-    "aiteamos-preflight-test:local",
+    "outcomego-preflight-test:local",
     "apps/cli/test/fixtures",
   ]);
   await run(["docker", "network", "create", id]);
@@ -112,7 +112,7 @@ try {
     `type=bind,src=${output},dst=/fixtures,readonly`,
     "--mount",
     `type=bind,src=${recordings},dst=/recordings`,
-    "aiteamos-preflight-test:local",
+    "outcomego-preflight-test:local",
   ]);
   writeFileSync(resolve(output, "results.txt"), result.stdout);
   console.log(result.stdout.trim());

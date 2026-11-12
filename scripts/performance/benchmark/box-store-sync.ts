@@ -48,7 +48,7 @@ const legacyRepairWalk = async (roots: readonly string[]) => {
   return { directoriesVisited, entriesInspected };
 };
 
-const temporary = await mkdtemp(join(tmpdir(), "aiteamos-box-store-ab-"));
+const temporary = await mkdtemp(join(tmpdir(), "outcomego-box-store-ab-"));
 const databases: Database[] = [];
 try {
   const home = join(temporary, "home");

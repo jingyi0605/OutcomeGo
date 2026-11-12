@@ -1,7 +1,7 @@
 export {
   formatOfflineDeliveryLabel,
   formatOfflineDeliveryTimestamp,
-} from "@aiteamos/product-core/timestamps";
+} from "@outcomego/product-core/timestamps";
 
 // Desktop transcript separators follow the reference's fifteen-minute/day break.
 export const IDLE_GAP_MS = 15 * 60 * 1_000;

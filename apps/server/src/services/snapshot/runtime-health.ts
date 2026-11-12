@@ -1,5 +1,5 @@
-import { formatPiModelRef, type ServerInferenceSettings, type Snapshot } from "@aiteamos/contracts";
-import type { PrismaClient } from "@aiteamos/db";
+import { formatPiModelRef, type ServerInferenceSettings, type Snapshot } from "@outcomego/contracts";
+import type { PrismaClient } from "@outcomego/db";
 
 export const COMPUTER_ID = "00000000-0000-0000-0000-000000000001";
 
@@ -45,7 +45,7 @@ export class RuntimeHealth {
     };
     const databaseProbe = bounded(
       this.once("database", async () => {
-        await this.prisma.$queryRaw`SELECT 1 FROM "Bot" LIMIT 0`;
+        await this.prisma.$queryRaw`SELECT 1 FROM "outcomego_bot" LIMIT 0`;
         return "ready" as const;
       }),
       "unavailable" as "ready" | "unavailable"
@@ -108,7 +108,7 @@ export class RuntimeHealth {
     const response = await fetch(healthUrl, {
       signal,
       headers: {
-        authorization: `Bearer ${process.env.AITEAMOS_CONTROL_TOKEN ?? "local-compose-only-change-me"}`,
+        authorization: `Bearer ${process.env.OUTCOMEGO_CONTROL_TOKEN ?? "local-compose-only-change-me"}`,
       },
     });
     const body = (await response.json()) as {

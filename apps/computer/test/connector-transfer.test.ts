@@ -6,7 +6,7 @@ import { createHash } from "node:crypto";
 import { RuntimeTools } from "../src/runtime/tools";
 
 test("discovered file tools move real box bytes over the private bridge and return metadata only", async () => {
-  const root = await realpath(await mkdtemp(join(tmpdir(), "aiteamos-file-runtime-")));
+  const root = await realpath(await mkdtemp(join(tmpdir(), "outcomego-file-runtime-")));
   const sourcePath = join(root, "fixture.bin");
   const bytes = Buffer.from([0, 255, 128, 12, 37, 50, 9]);
   await writeFile(sourcePath, bytes);
@@ -18,7 +18,7 @@ test("discovered file tools move real box bytes over the private bridge and retu
       if (request.method !== "POST") return new Response(null, { status: 404 });
       expect(request.headers.get("authorization")).toBe("Bearer synthetic-control");
       const streaming=new URL(request.url).pathname.endsWith("/connector-transfer");
-      const body = streaming ? JSON.parse(Buffer.from(request.headers.get("x-aiteamos-transfer")!,"base64url").toString()) : await request.json() as any;
+      const body = streaming ? JSON.parse(Buffer.from(request.headers.get("x-outcomego-transfer")!,"base64url").toString()) : await request.json() as any;
       calls.push(body);
       if (body.tool === "PrepareConnectorTransfer") {
         expect(body.arguments.bytesBase64).toBeUndefined();
@@ -35,7 +35,7 @@ test("discovered file tools move real box bytes over the private bridge and retu
         expect(body.arguments.sha256).toBe(createHash("sha256").update(bytes).digest("hex"));
         return Response.json({ id: "file-1", name: "fixture.bin", sizeBytes: bytes.length });
       }
-      return new Response(new Uint8Array(bytes),{headers:{"x-aiteamos-transfer-result":Buffer.from(JSON.stringify({id:"file-1",name:"download.bin",sizeBytes:bytes.length})).toString("base64url")}});
+      return new Response(new Uint8Array(bytes),{headers:{"x-outcomego-transfer-result":Buffer.from(JSON.stringify({id:"file-1",name:"download.bin",sizeBytes:bytes.length})).toString("base64url")}});
     },
   });
   const runtime = new RuntimeTools({} as never, server.url.origin, "synthetic-control", root, root);

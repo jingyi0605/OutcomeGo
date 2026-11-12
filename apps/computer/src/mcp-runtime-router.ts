@@ -1,4 +1,4 @@
-import { assertComputerMcpRuntime } from "@aiteamos/plugin-sdk";
+import { assertComputerMcpRuntime } from "@outcomego/plugin-sdk";
 import { StdioMcpManager } from "./mcp-manager";
 
 /** Packaged MCPs run on the bot computer; retired desktop configs fail closed. */

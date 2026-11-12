@@ -1,8 +1,8 @@
 import { translateCurrent } from "./i18n-catalog";
 
-export const MICROPHONE_STORAGE_KEY = "aiteamos:microphone";
-export const MICROPHONE_CHANGE_EVENT = "aiteamos:microphone-change";
-export const MICROPHONE_ACCESS_EVENT = "aiteamos:microphone-access";
+export const MICROPHONE_STORAGE_KEY = "outcomego:microphone";
+export const MICROPHONE_CHANGE_EVENT = "outcomego:microphone-change";
+export const MICROPHONE_ACCESS_EVENT = "outcomego:microphone-access";
 
 // Hardware identifiers belong to this client, never to server/account settings.
 export const readMicrophonePreference = (): string => {

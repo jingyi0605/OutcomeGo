@@ -85,7 +85,7 @@ export function importPackage(files: Record<string, string>): PackagePreview {
     return {
       definition: parsePluginDefinition(definition),
       warnings: parsePluginRuntimeComponents(definition.files).warnings,
-      format: "openteam",
+      format: "outcomego",
     };
   }
   const runtimeComponents = parsePluginRuntimeComponents(files);
@@ -150,11 +150,11 @@ export function importPackage(files: Record<string, string>): PackagePreview {
       );
       if (fixedClient)
         warnings.push(
-          `MCP server ${key}: configure your own OAuth client in aiTeamOS. The upstream client identity and callback settings were not adopted.`
+          `MCP server ${key}: configure your own OAuth client in OutcomeGo. The upstream client identity and callback settings were not adopted.`
         );
       if (http && !hasOAuth && !Object.keys(objectValue(server.headers)).length)
         warnings.push(
-          `MCP server ${key}: this package does not declare authentication. If the service requires sign-in, configure OAuth in the plugin definition before installing, or use its aiTeamOS registry package.`
+          `MCP server ${key}: this package does not declare authentication. If the service requires sign-in, configure OAuth in the plugin definition before installing, or use its OutcomeGo registry package.`
         );
       connections.push({
         key,

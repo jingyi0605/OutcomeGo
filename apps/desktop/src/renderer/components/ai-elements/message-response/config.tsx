@@ -10,12 +10,12 @@ import {
 } from "streamdown";
 import { useAuthenticatedResource } from "../../../hooks/use-authenticated-resource";
 import { useResourceActive } from "../../../hooks/resource-activity";
-import { AITEAMOS_DEEP_LINK_EVENT } from "../../../lib/app-deep-links";
+import { OUTCOMEGO_DEEP_LINK_EVENT } from "../../../lib/app-deep-links";
 import { useI18n } from "../../../lib/i18n";
-import { SANITIZED_MESSAGE_LINK_PREFIX, SANITIZED_AITEAMOS_LINK_PREFIX } from "./markdown-source";
+import { SANITIZED_MESSAGE_LINK_PREFIX, SANITIZED_OUTCOMEGO_LINK_PREFIX } from "./markdown-source";
 export { messageRemarkPlugins, prepareMessageMarkdown } from "./markdown-source";
 
-export { AITEAMOS_DEEP_LINK_EVENT } from "../../../lib/app-deep-links";
+export { OUTCOMEGO_DEEP_LINK_EVENT } from "../../../lib/app-deep-links";
 
 export const streamdownControls: ControlsConfig = {
   code: { copy: true, download: false },
@@ -59,7 +59,7 @@ export const botMermaidOptions: MermaidOptions = {
 };
 
 export const messageUrlTransform: UrlTransform = (url, key, node) =>
-  url.startsWith(SANITIZED_MESSAGE_LINK_PREFIX) || url.startsWith(SANITIZED_AITEAMOS_LINK_PREFIX)
+  url.startsWith(SANITIZED_MESSAGE_LINK_PREFIX) || url.startsWith(SANITIZED_OUTCOMEGO_LINK_PREFIX)
     ? url
     : defaultUrlTransform(url, key, node);
 
@@ -109,17 +109,17 @@ function MessageLink({ children, className, href, node: _node, ...props }: Markd
     );
   }
 
-  const aiTeamOSPath = href?.startsWith(SANITIZED_AITEAMOS_LINK_PREFIX)
-    ? href.slice(SANITIZED_AITEAMOS_LINK_PREFIX.length)
+  const outcomeGoPath = href?.startsWith(SANITIZED_OUTCOMEGO_LINK_PREFIX)
+    ? href.slice(SANITIZED_OUTCOMEGO_LINK_PREFIX.length)
     : null;
-  if (aiTeamOSPath) {
-    const url = `aiteamos:${aiTeamOSPath}`;
+  if (outcomeGoPath) {
+    const url = `outcomego:${outcomeGoPath}`;
     return (
       <button
         aria-label={t("Open {name}", { name: String(children) })}
         className="message-jump-chip"
         onClick={() =>
-          window.dispatchEvent(new CustomEvent(AITEAMOS_DEEP_LINK_EVENT, { detail: { url } }))
+          window.dispatchEvent(new CustomEvent(OUTCOMEGO_DEEP_LINK_EVENT, { detail: { url } }))
         }
         type="button"
       >

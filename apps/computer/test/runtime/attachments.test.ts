@@ -32,8 +32,8 @@ test("media paths accept workspace and owner uploads but reject sibling and syml
 
 test("a worker receives uploaded image bytes directly from its trusted parent's attachment directory", async () => {
   const dir = await realpath(await mkdtemp(join(tmpdir(), "attachment-image-")));
-  const previous = process.env.AITEAMOS_AGENT_DATA_ROOT;
-  process.env.AITEAMOS_AGENT_DATA_ROOT = dir;
+  const previous = process.env.OUTCOMEGO_AGENT_DATA_ROOT;
+  process.env.OUTCOMEGO_AGENT_DATA_ROOT = dir;
   const owner = "11111111-1111-4111-8111-111111111111";
   try {
     const root = attachmentRoots(owner)[1]!;
@@ -47,17 +47,17 @@ test("a worker receives uploaded image bytes directly from its trusted parent's 
     const alias = dir + "-alias";
     await symlink(dir, alias);
     try {
-      process.env.AITEAMOS_AGENT_DATA_ROOT = alias;
+      process.env.OUTCOMEGO_AGENT_DATA_ROOT = alias;
       const aliasedPath = join(attachmentRoots(owner)[1]!, "fixture.png");
       expect((await loadAttachmentImages("/workspace", [aliasedPath], owner)).images).toEqual(loaded.images);
     } finally {
-      process.env.AITEAMOS_AGENT_DATA_ROOT = dir;
+      process.env.OUTCOMEGO_AGENT_DATA_ROOT = dir;
       await rm(alias);
     }
     await expect(loadAttachmentImages("/workspace", [path], "22222222-2222-4222-8222-222222222222")).rejects.toThrow("owning agent");
   } finally {
-    if (previous === undefined) delete process.env.AITEAMOS_AGENT_DATA_ROOT;
-    else process.env.AITEAMOS_AGENT_DATA_ROOT = previous;
+    if (previous === undefined) delete process.env.OUTCOMEGO_AGENT_DATA_ROOT;
+    else process.env.OUTCOMEGO_AGENT_DATA_ROOT = previous;
     await rm(dir, { recursive:true, force:true });
   }
 });

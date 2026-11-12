@@ -174,7 +174,7 @@ struct UpdatesSettingsView: View {
       Section {
         Label {
           VStack(alignment: .leading, spacing: 4) {
-            Text("OpenTeam server").font(.headline)
+            Text("OutcomeGo server").font(.headline)
             Text(host).font(.subheadline).foregroundStyle(.secondary)
               .textSelection(.enabled)
           }
@@ -312,7 +312,7 @@ struct UpdatesSettingsView: View {
         VStack(alignment: .leading, spacing: 6) {
           Text("Enable updates on your server").font(.headline)
           Text("Run this once on the server computer:").foregroundStyle(.secondary)
-          Text("openteam update --version \(target)").font(.callout.monospaced())
+          Text("outcomego update --version \(target)").font(.callout.monospaced())
             .textSelection(.enabled)
         }
       }

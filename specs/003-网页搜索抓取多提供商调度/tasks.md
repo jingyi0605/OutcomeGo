@@ -120,7 +120,7 @@
   - 做完你能看到什么：用户可以在对应页面配置多个 provider，页面重开后顺序和策略仍然显示。
   - 先依赖什么：2.4
   - 开始前先看：`requirements.md` 需求 2、3；`design.md` §2.2、§3.2；现有 providers.tsx
-  - 主要改哪里：`apps/desktop/src/renderer/components/aiteamos/settings/providers.tsx`、web provider icons、DeepSeek 图标和 i18n
+  - 主要改哪里：`apps/desktop/src/renderer/components/outcomego/settings/providers.tsx`、web provider icons、DeepSeek 图标和 i18n
   - 这一步先不做什么：不增加新的 Web tool。
   - 怎么算完成：当前 tool 能显示已加入 entries 和可添加 provider；顺序、策略、API Key 和删除状态都能保存；单 provider 旧配置仍能编辑。
   - 怎么验证：desktop typecheck、settings UI test script、手工走查 Search 和 Fetch 页面
@@ -133,7 +133,7 @@
   - 做完你能看到什么：已有 Search 配置不会被误判为未配置，Fetch 默认 built-in 行为保持不变。
   - 先依赖什么：3.1
   - 开始前先看：`requirements.md` 需求 2、4；onboarding.tsx 和 providers.tsx
-  - 主要改哪里：`apps/desktop/src/renderer/components/aiteamos/onboarding.tsx`、providers.tsx
+  - 主要改哪里：`apps/desktop/src/renderer/components/outcomego/onboarding.tsx`、providers.tsx
   - 这一步先不做什么：不把 onboarding 改成完整多 provider 管理器。
   - 怎么算完成：总览显示首选 provider 或 Off；onboarding 能根据 schedule 是否为空判断 Search 是否开启。
   - 怎么验证：onboarding tests、provider settings tests
@@ -164,7 +164,7 @@
   - 主要改哪里：当前 Spec 涉及的全部代码和测试
   - 这一步先不做什么：不处理无关的预存工作区修改。
   - 怎么算完成：相关测试通过；已知限制和未执行的环境测试被记录。
-  - 怎么验证：`bun run typecheck`、相关 package tests、`bun --filter @aiteamos/desktop build`
+  - 怎么验证：`bun run typecheck`、相关 package tests、`bun --filter @outcomego/desktop build`
   - 对应需求：全部需求
   - 对应设计：全部相关章节
 

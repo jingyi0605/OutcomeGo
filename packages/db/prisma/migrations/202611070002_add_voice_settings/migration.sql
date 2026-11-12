@@ -1,4 +1,4 @@
-CREATE TABLE "VoiceSettings" (
+CREATE TABLE "outcomego_voice_settings" (
   "id" TEXT NOT NULL DEFAULT 'global',
   "enabled" BOOLEAN NOT NULL DEFAULT false,
   "provider" TEXT NOT NULL DEFAULT 'volcengine',
@@ -16,5 +16,6 @@ CREATE TABLE "VoiceSettings" (
   "language" TEXT NOT NULL DEFAULT 'en-US',
   "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   "updatedAt" TIMESTAMP(3) NOT NULL,
-  CONSTRAINT "VoiceSettings_pkey" PRIMARY KEY ("id")
+  CONSTRAINT "outcomego_voice_settings_pkey" PRIMARY KEY ("id"),
+  CONSTRAINT "outcomego_voice_settings_provider_valid" CHECK ("provider" IN ('volcengine', 'deepgram'))
 );

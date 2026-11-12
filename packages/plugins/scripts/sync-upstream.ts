@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import { importPackage, parsePluginDefinition } from "@aiteamos/plugin-sdk";
+import { importPackage, parsePluginDefinition } from "@outcomego/plugin-sdk";
 
 const root = join(import.meta.dir, "..");
 const check = process.argv.includes("--check");

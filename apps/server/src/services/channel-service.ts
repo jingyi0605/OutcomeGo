@@ -1,18 +1,18 @@
-import { nextMessageAddress, lockGroupExecution, supersedeGroupUserTurns } from "@aiteamos/messaging";
+import { nextMessageAddress, lockGroupExecution, supersedeGroupUserTurns } from "@outcomego/messaging";
 import {
   ApiError,
   type ReactToChannelMessageInput,
   type RenameChannelInput,
   type SendMessageInput,
-} from "@aiteamos/contracts";
-import { COMPUTER_API_PATHS } from "@aiteamos/contracts/service-protocol";
-import type { PrismaClient } from "@aiteamos/db";
+} from "@outcomego/contracts";
+import { COMPUTER_API_PATHS } from "@outcomego/contracts/service-protocol";
+import type { PrismaClient } from "@outcomego/db";
 import {
   type AgentDataStore,
   type AgentMessaging,
   type AssetStore,
   PRIORITY,
-} from "@aiteamos/messaging";
+} from "@outcomego/messaging";
 import { cancelSkippedBootstrap } from "./channel/delivery";
 import { renameDirectChannel } from "./channel/direct-profile";
 import {

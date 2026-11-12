@@ -75,13 +75,13 @@ test("acknowledgement reminders fire during work, with silent/worker exclusions"
   expect(communicationReminder(messages, { ...active, subagentType: "executor" })).toBeNull();
   expect(
     communicationReminder(
-      [...messages, { role: "custom", customType: "aiteamos-communication-reminder" }],
+      [...messages, { role: "custom", customType: "outcomego-communication-reminder" }],
       active
     )
   ).toBeNull();
 });
 
-const reminderNote = (content: string) => ({ role: "custom", customType: "aiteamos-communication-reminder", content });
+const reminderNote = (content: string) => ({ role: "custom", customType: "outcomego-communication-reminder", content });
 /** Runs the hook before each step the way the context hook does, appending what it injects. */
 const simulate = (steps: Array<ReturnType<typeof call>>) => {
   const messages: any[] = [user];
@@ -171,7 +171,7 @@ test("a reaction that went through acknowledges the user; a widget or failed rea
 test("a newer real user message starts a new acknowledgement window", () => {
   expect(communicationReminder([user, call("SendToUser", { type: "text" }), call("Read"), user, call("Read"), call("Read")], active)?.kind).toBe("ack");
   // Injected reminder blocks are skipped when looking back for the ack.
-  const hold = { role: "custom", customType: "aiteamos-end-turn-hold", content: "<system_reminder>\nYour turn did not end.\n</system_reminder>" };
+  const hold = { role: "custom", customType: "outcomego-end-turn-hold", content: "<system_reminder>\nYour turn did not end.\n</system_reminder>" };
   expect(communicationReminder([user, call("SendToUser", { type: "text" }), hold, call("Read"), call("Read")], active)).toBeNull();
 });
 

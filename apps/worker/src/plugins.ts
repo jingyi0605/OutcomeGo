@@ -1,22 +1,22 @@
-import type { PluginDynamicNamespace } from "@aiteamos/contracts";
+import type { PluginDynamicNamespace } from "@outcomego/contracts";
 import {
   connectionNamespaces,
   parsePluginRuntimeComponents,
   pluginWorkflowRoot,
   type PluginRuntimePackage,
   type PluginSkillAgent,
-} from "@aiteamos/plugin-sdk";
-import { PLUGIN_WORKFLOW_HOST_CONTEXT } from "@aiteamos/contracts/plugin-workflows";
-import { connectorCustomInstructionsSection, pluginDynamicNamespaces } from "@aiteamos/contracts/plugin-namespaces";
+} from "@outcomego/plugin-sdk";
+import { PLUGIN_WORKFLOW_HOST_CONTEXT } from "@outcomego/contracts/plugin-workflows";
+import { connectorCustomInstructionsSection, pluginDynamicNamespaces } from "@outcomego/contracts/plugin-namespaces";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { PrismaClient } from "@aiteamos/db";
+import type { PrismaClient } from "@outcomego/db";
 import {
   cachedPluginPackage,
   pluginPackageRevision,
   pluginSkillsForAgent,
   type PluginSkillCache,
-} from "@aiteamos/messaging";
+} from "@outcomego/messaging";
 
 type JsonObject = Record<string, unknown>;
 
@@ -25,7 +25,7 @@ const objectValue = (value: unknown): JsonObject =>
 
 type Installation = Awaited<ReturnType<PrismaClient["pluginInstallation"]["findMany"]>>[number];
 
-const agentDataRoot = (): string => process.env.AITEAMOS_AGENT_DATA_ROOT ?? "/agent-data";
+const agentDataRoot = (): string => process.env.OUTCOMEGO_AGENT_DATA_ROOT ?? "/agent-data";
 
 const readSkillCache = (): Promise<PluginSkillCache> =>
   readFile(join(agentDataRoot(), "plugin-skills/cache.json"), "utf8")

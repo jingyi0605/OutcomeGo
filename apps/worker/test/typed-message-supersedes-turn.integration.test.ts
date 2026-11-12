@@ -4,11 +4,11 @@ import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Effect } from "effect";
-import { UNFINISHED_TASKS_REMINDER } from "@aiteamos/messaging";
+import { UNFINISHED_TASKS_REMINDER } from "@outcomego/messaging";
 import { ChannelService } from "../../server/src/services/channel-service";
 import { turnCompletionFailure, turnContentWithNotes, WakeWorker } from "../src/worker";
 
-const databaseUrl = process.env.AITEAMOS_TEST_DATABASE_URL;
+const databaseUrl = process.env.OUTCOMEGO_TEST_DATABASE_URL;
 
 const waitUntil = async (predicate: () => boolean | Promise<boolean>, label: string) => {
   const deadline = Date.now() + 15_000;
@@ -19,7 +19,7 @@ const waitUntil = async (predicate: () => boolean | Promise<boolean>, label: str
   throw new Error(`timed out waiting for ${label}`);
 };
 
-const keys = ["DATABASE_URL", "AITEAMOS_WORKSPACE_ROOT", "AITEAMOS_AGENT_DATA_ROOT", "AITEAMOS_PI_AGENT_DIR"] as const;
+const keys = ["DATABASE_URL", "OUTCOMEGO_WORKSPACE_ROOT", "OUTCOMEGO_AGENT_DATA_ROOT", "OUTCOMEGO_PI_AGENT_DIR"] as const;
 const previous = Object.fromEntries(keys.map((key) => [key, process.env[key]]));
 let root = "";
 let worker: any;
@@ -39,8 +39,8 @@ beforeAll(async () => {
   if (!databaseUrl) return;
   root = await mkdtemp(join(tmpdir(), "supersede-turn-"));
   Object.assign(process.env, {
-    DATABASE_URL: databaseUrl, AITEAMOS_WORKSPACE_ROOT: root,
-    AITEAMOS_AGENT_DATA_ROOT: join(root, "data"), AITEAMOS_PI_AGENT_DIR: join(root, "pi"),
+    DATABASE_URL: databaseUrl, OUTCOMEGO_WORKSPACE_ROOT: root,
+    OUTCOMEGO_AGENT_DATA_ROOT: join(root, "data"), OUTCOMEGO_PI_AGENT_DIR: join(root, "pi"),
   });
   await mkdir(join(root, "data"), { recursive: true });
   worker = new WakeWorker();
@@ -48,7 +48,7 @@ beforeAll(async () => {
   await worker.boss.start();
   for (const queue of ["bot-wake", "transcript-project"]) await worker.boss.createQueue(queue);
   computer = Bun.spawn(["bun", join(import.meta.dir, "fixtures/supersede-computer.ts")], {
-    env: { ...process.env, AITEAMOS_PI_AGENT_DIR: join(root, "pi"), AITEAMOS_WORKSPACE_ROOT: root, AITEAMOS_AGENT_DATA_ROOT: join(root, "data") },
+    env: { ...process.env, OUTCOMEGO_PI_AGENT_DIR: join(root, "pi"), OUTCOMEGO_WORKSPACE_ROOT: root, OUTCOMEGO_AGENT_DATA_ROOT: join(root, "data") },
     stdout: "pipe", stderr: "ignore",
   });
   const reader = (computer.stdout as ReadableStream<Uint8Array>).getReader();

@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
-import type { BusyBotsView } from "@aiteamos/contracts";
-import { updateBusyMessage } from "@aiteamos/contracts/server-updates";
+import type { BusyBotsView } from "@outcomego/contracts";
+import { updateBusyMessage } from "@outcomego/contracts/server-updates";
 import type { CliOptions } from "./arguments";
 import { type InstallationPaths, parseEnvironment } from "./config";
 import { CliError } from "./errors";
@@ -10,7 +10,7 @@ import { healthUrl } from "./health";
 export const updateWaitsForIdle = (
   options: CliOptions,
   environment: NodeJS.ProcessEnv = process.env
-): boolean => options.whenIdle || environment.AITEAMOS_UPDATE_WHEN_IDLE === "1";
+): boolean => options.whenIdle || environment.OUTCOMEGO_UPDATE_WHEN_IDLE === "1";
 
 /** Desktop shows this refusal as it is. */
 export class UpdateBusyError extends CliError {
@@ -28,7 +28,7 @@ export const assertNoAgentWorking = async (
   fetcher: typeof fetch = fetch
 ): Promise<void> => {
   const token =
-    parseEnvironment(readFileSync(paths.environment, "utf8")).get("AITEAMOS_CONTROL_TOKEN") ?? "";
+    parseEnvironment(readFileSync(paths.environment, "utf8")).get("OUTCOMEGO_CONTROL_TOKEN") ?? "";
   const response = await fetcher(new URL("/api/v0/internal/busy-bots", healthUrl(paths)), {
     headers: { authorization: `Bearer ${token}` },
     redirect: "error",

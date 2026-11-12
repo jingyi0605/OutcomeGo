@@ -3,4 +3,4 @@ export {
   type A2AProjection,
   a2aProjectionFor,
   collapseA2ATimeline,
-} from "@aiteamos/product-core/messages";
+} from "@outcomego/product-core/messages";

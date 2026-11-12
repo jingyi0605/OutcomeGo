@@ -2,17 +2,17 @@ import { expect, test } from "bun:test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import type { UserForm } from "@aiteamos/contracts";
+import type { UserForm } from "@outcomego/contracts";
 import { BrowserUseSession } from "../../src/browser/use";
 import { snapshotAcrossFrames, frameRefsByPage } from "../../src/browser/reference-driver";
 import { outOfProcessPlaywright } from "../../src/browser/playwright-driver";
 
-test.skipIf(!process.env.AITEAMOS_BROWSER_TEST_EXECUTABLE)("stable refs survive find and scoped observations, retire on navigation, and upgrade live positional documents", async () => {
+test.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)("stable refs survive find and scoped observations, retire on navigation, and upgrade live positional documents", async () => {
   const root = await mkdtemp(join(tmpdir(), "stable-ref-lifetime-"));
   const child = Bun.serve({ hostname: "0.0.0.0", port: 0, fetch: () => new Response('<button id="child">Child button</button>', { headers: { "content-type": "text/html" } }) });
   const server = Bun.serve({ hostname: "127.0.0.1", port: 0, fetch: () => new Response(`<button id="main">Main button</button><div id="recovery"></div><label for="otp">Enter verification code</label><input id="otp" autocomplete="one-time-code"><iframe src="http://localhost:${child.port}"></iframe>`, { headers: { "content-type": "text/html" } }) });
   const driver = await outOfProcessPlaywright();
-  const browser = await driver.playwright.chromium.launch({ headless: true, executablePath: process.env.AITEAMOS_BROWSER_TEST_EXECUTABLE, args: ["--no-sandbox"] });
+  const browser = await driver.playwright.chromium.launch({ headless: true, executablePath: process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE, args: ["--no-sandbox"] });
   const context = await browser.newContext();
   const session = new (BrowserUseSession as any)(browser, context, root) as BrowserUseSession;
   const internal = session as any;

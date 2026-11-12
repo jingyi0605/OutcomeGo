@@ -1,24 +1,24 @@
-export const RELEASES_URL = "https://github.com/jingyi0605/ai-TeamOS/releases";
-const LATEST_RELEASE_API = "https://api.github.com/repos/jingyi0605/ai-TeamOS/releases/latest";
+export const RELEASES_URL = "https://github.com/jingyi0605/OutcomeGo/releases";
+const LATEST_RELEASE_API = "https://api.github.com/repos/jingyi0605/OutcomeGo/releases/latest";
 
 export const desktopTargets = [
   {
     id: "mac-arm64",
     label: "macOS",
     detail: "Apple silicon",
-    assetPattern: /^aiTeamOS-.*-mac-arm64\.dmg$/i,
+    assetPattern: /^OutcomeGo-.*-mac-arm64\.dmg$/i,
   },
   {
     id: "windows-x64",
     label: "Windows",
     detail: "x64 installer",
-    assetPattern: /^aiTeamOS-.*-win-x64\.exe$/i,
+    assetPattern: /^OutcomeGo-.*-win-x64\.exe$/i,
   },
   {
     id: "linux-x64",
     label: "Linux",
     detail: "x64 AppImage",
-    assetPattern: /^aiTeamOS-.*-linux-(?:x64|x86_64)\.AppImage$/i,
+    assetPattern: /^OutcomeGo-.*-linux-(?:x64|x86_64)\.AppImage$/i,
   },
 ] as const;
 
@@ -71,7 +71,7 @@ export async function getLatestDesktopRelease(): Promise<DesktopRelease> {
   const response = await fetch(LATEST_RELEASE_API, {
     headers: {
       Accept: "application/vnd.github+json",
-      "User-Agent": "aiteamos-download-page",
+      "User-Agent": "outcomego-download-page",
       "X-GitHub-Api-Version": "2022-11-28",
     },
     next: { revalidate: 300 },

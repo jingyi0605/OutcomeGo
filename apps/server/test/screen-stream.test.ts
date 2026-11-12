@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { Effect } from "effect";
-import type { PrismaClient } from "@aiteamos/db";
+import type { PrismaClient } from "@outcomego/db";
 import { ScreenService } from "../src/services/screen-service";
 
 test("screen stream passes bytes incrementally and propagates reader cancellation", async () => {

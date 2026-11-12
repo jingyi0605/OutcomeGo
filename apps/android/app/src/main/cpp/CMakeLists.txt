@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22.1)
-project(aiteamos_opus LANGUAGES C CXX)
+project(outcomego_opus LANGUAGES C CXX)
 
 set(OPUS_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/vendor/opus")
 file(GLOB CELT_SOURCES CONFIGURE_DEPENDS "${OPUS_ROOT}/celt/*.c")
@@ -21,7 +21,7 @@ target_include_directories(opus PRIVATE
 target_compile_definitions(opus PRIVATE OPUS_BUILD FIXED_POINT USE_ALLOCA)
 target_compile_options(opus PRIVATE -fvisibility=hidden -Wno-unused-parameter -Wno-sign-compare)
 
-add_library(aiteamos_opus SHARED aiteamos_opus.cpp)
-target_include_directories(aiteamos_opus PRIVATE "${OPUS_ROOT}/include")
-target_link_libraries(aiteamos_opus opus log)
-target_compile_features(aiteamos_opus PRIVATE cxx_std_17)
+add_library(outcomego_opus SHARED outcomego_opus.cpp)
+target_include_directories(outcomego_opus PRIVATE "${OPUS_ROOT}/include")
+target_link_libraries(outcomego_opus opus log)
+target_compile_features(outcomego_opus PRIVATE cxx_std_17)

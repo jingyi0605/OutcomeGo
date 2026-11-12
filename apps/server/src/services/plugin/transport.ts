@@ -1,10 +1,10 @@
 import type { OAuthClientInformationMixed } from "@modelcontextprotocol/sdk/shared/auth.js";
 import { auth } from "@modelcontextprotocol/sdk/client/auth.js";
-import { ApiError } from "@aiteamos/contracts";
-import { connectorHostTools, MCP_TOOL_CALL_TIMEOUT_MS, type PluginToolDefinition } from "@aiteamos/plugin-sdk";
-import type { Prisma, PrismaClient } from "@aiteamos/db";
+import { ApiError } from "@outcomego/contracts";
+import { connectorHostTools, MCP_TOOL_CALL_TIMEOUT_MS, type PluginToolDefinition } from "@outcomego/plugin-sdk";
+import type { Prisma, PrismaClient } from "@outcomego/db";
 import type { McpHttpClientManager } from "../../plugins/mcp-client-manager";
-import { AiTeamOSOAuthProvider, type StoredOAuthState } from "../../plugins/oauth-provider";
+import { OutcomeGoOAuthProvider, type StoredOAuthState } from "../../plugins/oauth-provider";
 import {
   beginPackagedOAuth,
   finishPackagedOAuth,
@@ -27,7 +27,7 @@ import {
 } from "./values";
 
 /** MCP tool `_meta` key marking a tool the host calls and Bots must not see. */
-export const HOST_ONLY_TOOL_META = "aiteamos/hostOnly";
+export const HOST_ONLY_TOOL_META = "outcomego/hostOnly";
 
 type OAuthConnection = {
   id: string;
@@ -174,19 +174,19 @@ export class PluginTransport {
       typeof configuration.clientId === "string"
         ? configuration.clientId
         : (process.env[
-            `AITEAMOS_${connection.connectorKey.toUpperCase().replaceAll("-", "_")}_OAUTH_CLIENT_ID`
-          ] ?? process.env.AITEAMOS_MCP_OAUTH_CLIENT_ID);
+            `OUTCOMEGO_${connection.connectorKey.toUpperCase().replaceAll("-", "_")}_OAUTH_CLIENT_ID`
+          ] ?? process.env.OUTCOMEGO_MCP_OAUTH_CLIENT_ID);
     const clientSecret =
       typeof configuration.clientSecret === "string"
         ? configuration.clientSecret
         : (process.env[
-            `AITEAMOS_${connection.connectorKey.toUpperCase().replaceAll("-", "_")}_OAUTH_CLIENT_SECRET`
-          ] ?? process.env.AITEAMOS_MCP_OAUTH_CLIENT_SECRET);
+            `OUTCOMEGO_${connection.connectorKey.toUpperCase().replaceAll("-", "_")}_OAUTH_CLIENT_SECRET`
+          ] ?? process.env.OUTCOMEGO_MCP_OAUTH_CLIENT_SECRET);
     const clientInformation: OAuthClientInformationMixed | undefined = clientId
       ? { client_id: clientId, ...(clientSecret ? { client_secret: clientSecret } : {}) }
       : undefined;
     const callbackUrl = oauth.redirectUrl ?? oauthRedirectUrl(this.publicUrl, connection.id);
-    const provider = new AiTeamOSOAuthProvider({
+    const provider = new OutcomeGoOAuthProvider({
       redirectUrl: callbackUrl,
       scope: typeof configuration.scope === "string" ? configuration.scope : undefined,
       authorizationParameters: stringRecord(configuration.oauthAuthorizationParameters),
@@ -204,7 +204,7 @@ export class PluginTransport {
         saveOverride ??
         (async (state) => {
           await this.prisma.$transaction(async (tx) => {
-            await tx.$queryRaw`SELECT id FROM "PluginConnection" WHERE id = ${connection.id}::uuid FOR UPDATE`;
+            await tx.$queryRaw`SELECT id FROM "outcomego_plugin_connection" WHERE id = ${connection.id}::uuid FOR UPDATE`;
             const latest = await tx.pluginConnection.findUnique({
               where: { id: connection.id },
               select: { credentials: true, runtimeGeneration: true },
@@ -374,7 +374,7 @@ export class PluginTransport {
     // A database lock serializes refreshes across server processes, including rotating tokens.
     const result = await this.prisma.$transaction(
       async (tx) => {
-        await tx.$queryRaw`SELECT id FROM "PluginConnection" WHERE id = ${connection.id}::uuid FOR UPDATE`;
+        await tx.$queryRaw`SELECT id FROM "outcomego_plugin_connection" WHERE id = ${connection.id}::uuid FOR UPDATE`;
         const current = await tx.pluginConnection.findUniqueOrThrow({
           where: { id: connection.id },
           include: { installation: { select: { manifest: true } } },
@@ -436,7 +436,7 @@ export class PluginTransport {
           command: configuration.command,
           args: configuration.args,
           cwd: configuration.cwd,
-          env: { ...env, AITEAMOS_PLUGIN_ACCOUNT_ID: current.id },
+          env: { ...env, OUTCOMEGO_PLUGIN_ACCOUNT_ID: current.id },
           packageFiles: definition?.files ?? {},
           packageBinaryFiles: definition?.binaryFiles ?? {},
         } };
@@ -453,7 +453,7 @@ export class PluginTransport {
     if(current.status!=="ready")throw new Error("Connection is no longer ready");
     if(current.transport==="stdio")return this.fileAccessToken(current);
     const token=current.authType==="oauth"?await this.prisma.$transaction(async tx=>{
-      await tx.$queryRaw`SELECT id FROM "PluginConnection" WHERE id = ${connectionId}::uuid FOR UPDATE`;
+      await tx.$queryRaw`SELECT id FROM "outcomego_plugin_connection" WHERE id = ${connectionId}::uuid FOR UPDATE`;
       const latest=await tx.pluginConnection.findUniqueOrThrow({where:{id:connectionId}});
       if(latest.status!=="ready")throw new Error("Connection is no longer ready");
       const state=jsonObject(jsonObject(latest.credentials).oauth) as StoredOAuthState;
@@ -489,7 +489,7 @@ export class PluginTransport {
         : { runtimeGeneration: generation };
       await this.computerFetch(`/v1/mcp/connections/${connectionId}`, {
         method: "DELETE",
-        headers: connection ? { "x-aiteamos-mcp-generation": String(connection.runtimeGeneration) } : undefined,
+        headers: connection ? { "x-outcomego-mcp-generation": String(connection.runtimeGeneration) } : undefined,
       }).catch(
         () => undefined
       );

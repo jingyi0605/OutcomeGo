@@ -381,12 +381,12 @@
         }
       }
     },
-    "Alerts pause while you’re using your Mac, unless OpenTeam is open here. They resume after five minutes of Mac inactivity.": {
+    "Alerts pause while you’re using your Mac, unless OutcomeGo is open here. They resume after five minutes of Mac inactivity.": {
       "localizations": {
         "zh-CN": {
           "stringUnit": {
             "state": "translated",
-            "value": "使用 Mac 时 iPhone 提醒会暂停，除非 OpenTeam 正在此处打开。Mac 闲置五分钟后恢复。"
+            "value": "使用 Mac 时 iPhone 提醒会暂停，除非 OutcomeGo 正在此处打开。Mac 闲置五分钟后恢复。"
           }
         }
       }
@@ -511,12 +511,12 @@
         }
       }
     },
-    "Approve access in your browser, then return to OpenTeam.": {
+    "Approve access in your browser, then return to OutcomeGo.": {
       "localizations": {
         "zh-CN": {
           "stringUnit": {
             "state": "translated",
-            "value": "在浏览器中批准访问，然后返回 OpenTeam。"
+            "value": "在浏览器中批准访问，然后返回 OutcomeGo。"
           }
         }
       }
@@ -621,12 +621,12 @@
         }
       }
     },
-    "Authorize OpenTeam": {
+    "Authorize OutcomeGo": {
       "localizations": {
         "zh-CN": {
           "stringUnit": {
             "state": "translated",
-            "value": "授权 OpenTeam"
+            "value": "授权 OutcomeGo"
           }
         }
       }
@@ -771,12 +771,12 @@
         }
       }
     },
-    "Bots do the work in OpenTeam. Create one to get started.": {
+    "Bots do the work in OutcomeGo. Create one to get started.": {
       "localizations": {
         "zh-CN": {
           "stringUnit": {
             "state": "translated",
-            "value": "机器人在 OpenTeam 中完成工作。创建一个机器人即可开始。"
+            "value": "机器人在 OutcomeGo 中完成工作。创建一个机器人即可开始。"
           }
         }
       }
@@ -2371,12 +2371,12 @@
         }
       }
     },
-    "Find OpenTeam messages": {
+    "Find OutcomeGo messages": {
       "localizations": {
         "zh-CN": {
           "stringUnit": {
             "state": "translated",
-            "value": "查找 OpenTeam 消息"
+            "value": "查找 OutcomeGo 消息"
           }
         }
       }
@@ -2421,12 +2421,12 @@
         }
       }
     },
-    "Forgot it? Run `openteam account update -⁠-⁠password` on your server.": {
+    "Forgot it? Run `outcomego account update -⁠-⁠password` on your server.": {
       "localizations": {
         "zh-CN": {
           "stringUnit": {
             "state": "translated",
-            "value": "忘记了？在服务器上运行 `openteam account update -⁠-⁠password`。"
+            "value": "忘记了？在服务器上运行 `outcomego account update -⁠-⁠password`。"
           }
         }
       }
@@ -2641,12 +2641,12 @@
         }
       }
     },
-    "Host/VM CPU & RAM · OpenTeam data disk": {
+    "Host/VM CPU & RAM · OutcomeGo data disk": {
       "localizations": {
         "zh-CN": {
           "stringUnit": {
             "state": "translated",
-            "value": "主机/虚拟机 CPU 与内存 · OpenTeam 数据磁盘"
+            "value": "主机/虚拟机 CPU 与内存 · OutcomeGo 数据磁盘"
           }
         }
       }
@@ -3331,12 +3331,12 @@
         }
       }
     },
-    "Lost it? Run `openteam status` on your server.": {
+    "Lost it? Run `outcomego status` on your server.": {
       "localizations": {
         "zh-CN": {
           "stringUnit": {
             "state": "translated",
-            "value": "丢失了？在服务器上运行 `openteam status`。"
+            "value": "丢失了？在服务器上运行 `outcomego status`。"
           }
         }
       }
@@ -4091,12 +4091,12 @@
         }
       }
     },
-    "Open OpenTeam": {
+    "Open OutcomeGo": {
       "localizations": {
         "zh-CN": {
           "stringUnit": {
             "state": "translated",
-            "value": "打开 OpenTeam"
+            "value": "打开 OutcomeGo"
           }
         }
       }
@@ -4131,12 +4131,12 @@
         }
       }
     },
-    "Open a chosen Bot's conversation in OpenTeam. Save the Bot in a shortcut to use it with Back Tap or the Action button.": {
+    "Open a chosen Bot's conversation in OutcomeGo. Save the Bot in a shortcut to use it with Back Tap or the Action button.": {
       "localizations": {
         "zh-CN": {
           "stringUnit": {
             "state": "translated",
-            "value": "在 OpenTeam 中打开所选机器人的会话。将机器人保存到快捷指令后，即可通过轻点背面或操作按钮使用。"
+            "value": "在 OutcomeGo 中打开所选机器人的会话。将机器人保存到快捷指令后，即可通过轻点背面或操作按钮使用。"
           }
         }
       }
@@ -4151,12 +4151,12 @@
         }
       }
     },
-    "Open a draft for review in a specific existing OpenTeam conversation. Appends to any existing draft and never sends it.": {
+    "Open a draft for review in a specific existing OutcomeGo conversation. Appends to any existing draft and never sends it.": {
       "localizations": {
         "zh-CN": {
           "stringUnit": {
             "state": "translated",
-            "value": "在特定现有 OpenTeam 会话中打开草稿以供审阅。会附加到现有草稿，且绝不会发送。"
+            "value": "在特定现有 OutcomeGo 会话中打开草稿以供审阅。会附加到现有草稿，且绝不会发送。"
           }
         }
       }
@@ -4171,12 +4171,12 @@
         }
       }
     },
-    "Open an existing Bot or group conversation in OpenTeam.": {
+    "Open an existing Bot or group conversation in OutcomeGo.": {
       "localizations": {
         "zh-CN": {
           "stringUnit": {
             "state": "translated",
-            "value": "在 OpenTeam 中打开现有的机器人或群组会话。"
+            "value": "在 OutcomeGo 中打开现有的机器人或群组会话。"
           }
         }
       }
@@ -4261,12 +4261,12 @@
         }
       }
     },
-    "Open the OpenTeam desktop app on a computer and sign in to add it here.": {
+    "Open the OutcomeGo desktop app on a computer and sign in to add it here.": {
       "localizations": {
         "zh-CN": {
           "stringUnit": {
             "state": "translated",
-            "value": "在电脑上打开 OpenTeam 桌面应用并登录，即可在此添加。"
+            "value": "在电脑上打开 OutcomeGo 桌面应用并登录，即可在此添加。"
           }
         }
       }
@@ -4321,42 +4321,42 @@
         }
       }
     },
-    "OpenTeam %@ · Build %@": {
+    "OutcomeGo %@ · Build %@": {
       "localizations": {
         "zh-CN": {
           "stringUnit": {
             "state": "translated",
-            "value": "OpenTeam %@ · 版本号 %@"
+            "value": "OutcomeGo %@ · 版本号 %@"
           }
         }
       }
     },
-    "OpenTeam follows your iPhone’s language and text size. Your bots use your timezone for routines and their computer’s clock.": {
+    "OutcomeGo follows your iPhone’s language and text size. Your bots use your timezone for routines and their computer’s clock.": {
       "localizations": {
         "zh-CN": {
           "stringUnit": {
             "state": "translated",
-            "value": "OpenTeam 会跟随 iPhone 的语言和文字大小。机器人的例程使用你的时区，电脑使用其自身的时钟。"
+            "value": "OutcomeGo 会跟随 iPhone 的语言和文字大小。机器人的例程使用你的时区，电脑使用其自身的时钟。"
           }
         }
       }
     },
-    "OpenTeam is ready": {
+    "OutcomeGo is ready": {
       "localizations": {
         "zh-CN": {
           "stringUnit": {
             "state": "translated",
-            "value": "OpenTeam 已就绪"
+            "value": "OutcomeGo 已就绪"
           }
         }
       }
     },
-    "OpenTeam server": {
+    "OutcomeGo server": {
       "localizations": {
         "zh-CN": {
           "stringUnit": {
             "state": "translated",
-            "value": "OpenTeam 服务器"
+            "value": "OutcomeGo 服务器"
           }
         }
       }
@@ -5551,12 +5551,12 @@
         }
       }
     },
-    "Run an OpenTeam routine": {
+    "Run an OutcomeGo routine": {
       "localizations": {
         "zh-CN": {
           "stringUnit": {
             "state": "translated",
-            "value": "运行 OpenTeam 例程"
+            "value": "运行 OutcomeGo 例程"
           }
         }
       }
@@ -5921,12 +5921,12 @@
         }
       }
     },
-    "Search committed messages on the connected OpenTeam server, including messages older than the recent on-device index. Returns matching messages, not a generated answer.": {
+    "Search committed messages on the connected OutcomeGo server, including messages older than the recent on-device index. Returns matching messages, not a generated answer.": {
       "localizations": {
         "zh-CN": {
           "stringUnit": {
             "state": "translated",
-            "value": "在已连接的 OpenTeam 服务器上搜索已提交的消息，包括早于本机近期索引的消息。返回匹配的消息，而不是生成的回答。"
+            "value": "在已连接的 OutcomeGo 服务器上搜索已提交的消息，包括早于本机近期索引的消息。返回匹配的消息，而不是生成的回答。"
           }
         }
       }
@@ -6101,22 +6101,22 @@
         }
       }
     },
-    "Send instructions to an OpenTeam Bot. The Bot keeps working on your server.": {
+    "Send instructions to an OutcomeGo Bot. The Bot keeps working on your server.": {
       "localizations": {
         "zh-CN": {
           "stringUnit": {
             "state": "translated",
-            "value": "向 OpenTeam 机器人发送指令。机器人会在你的服务器上继续工作。"
+            "value": "向 OutcomeGo 机器人发送指令。机器人会在你的服务器上继续工作。"
           }
         }
       }
     },
-    "Send instructions, text and files to one specific existing OpenTeam conversation. Use this for a named group even when another group has the same members. The returned message acknowledges acceptance; Bot work continues asynchronously.": {
+    "Send instructions, text and files to one specific existing OutcomeGo conversation. Use this for a named group even when another group has the same members. The returned message acknowledges acceptance; Bot work continues asynchronously.": {
       "localizations": {
         "zh-CN": {
           "stringUnit": {
             "state": "translated",
-            "value": "向一个特定的现有 OpenTeam 会话发送指令、文本和文件。即使其他群组有相同成员，也可用此项指定名称的群组。返回的消息表示已接受；机器人的工作会异步继续。"
+            "value": "向一个特定的现有 OutcomeGo 会话发送指令、文本和文件。即使其他群组有相同成员，也可用此项指定名称的群组。返回的消息表示已接受；机器人的工作会异步继续。"
           }
         }
       }
@@ -6291,12 +6291,12 @@
         }
       }
     },
-    "Show a specific existing message in its original OpenTeam conversation.": {
+    "Show a specific existing message in its original OutcomeGo conversation.": {
       "localizations": {
         "zh-CN": {
           "stringUnit": {
             "state": "translated",
-            "value": "在其原始 OpenTeam 会话中显示指定的现有消息。"
+            "value": "在其原始 OutcomeGo 会话中显示指定的现有消息。"
           }
         }
       }
@@ -6381,22 +6381,22 @@
         }
       }
     },
-    "Sign in on the provider's page. OpenTeam finishes the connection for you.": {
+    "Sign in on the provider's page. OutcomeGo finishes the connection for you.": {
       "localizations": {
         "zh-CN": {
           "stringUnit": {
             "state": "translated",
-            "value": "在服务商页面登录。OpenTeam 会为你完成连接。"
+            "value": "在服务商页面登录。OutcomeGo 会为你完成连接。"
           }
         }
       }
     },
-    "Sign in on this device, then copy the browser’s final address back into OpenTeam. For Google, choose “Desktop app” when creating the OAuth client in Google Cloud. That is Google’s client type name; you can still sign in entirely on your iPhone.": {
+    "Sign in on this device, then copy the browser’s final address back into OutcomeGo. For Google, choose “Desktop app” when creating the OAuth client in Google Cloud. That is Google’s client type name; you can still sign in entirely on your iPhone.": {
       "localizations": {
         "zh-CN": {
           "stringUnit": {
             "state": "translated",
-            "value": "在此设备上登录，然后把浏览器最终的地址复制回 OpenTeam。使用 Google 时，请在 Google Cloud 创建 OAuth 客户端时选择“桌面应用”。这只是 Google 的客户端类型名称，你仍可完全在 iPhone 上登录。"
+            "value": "在此设备上登录，然后把浏览器最终的地址复制回 OutcomeGo。使用 Google 时，请在 Google Cloud 创建 OAuth 客户端时选择“桌面应用”。这只是 Google 的客户端类型名称，你仍可完全在 iPhone 上登录。"
           }
         }
       }
@@ -6651,12 +6651,12 @@
         }
       }
     },
-    "Start an existing saved routine once on your OpenTeam server. This starts asynchronous work; it does not change its schedule or return completed results.": {
+    "Start an existing saved routine once on your OutcomeGo server. This starts asynchronous work; it does not change its schedule or return completed results.": {
       "localizations": {
         "zh-CN": {
           "stringUnit": {
             "state": "translated",
-            "value": "在你的 OpenTeam 服务器上运行一次现有的已保存例程。这会启动异步工作，不会更改其计划，也不会返回完成结果。"
+            "value": "在你的 OutcomeGo 服务器上运行一次现有的已保存例程。这会启动异步工作，不会更改其计划，也不会返回完成结果。"
           }
         }
       }
@@ -6681,12 +6681,12 @@
         }
       }
     },
-    "Started %@ on your OpenTeam server.": {
+    "Started %@ on your OutcomeGo server.": {
       "localizations": {
         "zh-CN": {
           "stringUnit": {
             "state": "translated",
-            "value": "已在你的 OpenTeam 服务器上启动%@。"
+            "value": "已在你的 OutcomeGo 服务器上启动%@。"
           }
         }
       }
@@ -7101,12 +7101,12 @@
         }
       }
     },
-    "The existing OpenTeam Bot that should receive the task.": {
+    "The existing OutcomeGo Bot that should receive the task.": {
       "localizations": {
         "zh-CN": {
           "stringUnit": {
             "state": "translated",
-            "value": "要接收该任务的现有 OpenTeam 机器人。"
+            "value": "要接收该任务的现有 OutcomeGo 机器人。"
           }
         }
       }
@@ -7201,12 +7201,12 @@
         }
       }
     },
-    "This account uses the desktop sign-in method. To sign in on this iPhone, open Connection settings, expand Sign-in setup, and choose Automatic. Or finish signing in in the OpenTeam desktop app.": {
+    "This account uses the desktop sign-in method. To sign in on this iPhone, open Connection settings, expand Sign-in setup, and choose Automatic. Or finish signing in in the OutcomeGo desktop app.": {
       "localizations": {
         "zh-CN": {
           "stringUnit": {
             "state": "translated",
-            "value": "此账户使用桌面端登录方式。要在此 iPhone 上登录，请打开“连接设置”，展开“登录设置”，然后选择“自动”。或在 OpenTeam 桌面应用中完成登录。"
+            "value": "此账户使用桌面端登录方式。要在此 iPhone 上登录，请打开“连接设置”，展开“登录设置”，然后选择“自动”。或在 OutcomeGo 桌面应用中完成登录。"
           }
         }
       }
@@ -7341,12 +7341,12 @@
         }
       }
     },
-    "Tools and skills for OpenTeam": {
+    "Tools and skills for OutcomeGo": {
       "localizations": {
         "zh-CN": {
           "stringUnit": {
             "state": "translated",
-            "value": "OpenTeam 的工具与技能"
+            "value": "OutcomeGo 的工具与技能"
           }
         }
       }
@@ -8001,12 +8001,12 @@
         }
       }
     },
-    "Welcome to OpenTeam": {
+    "Welcome to OutcomeGo": {
       "localizations": {
         "zh-CN": {
           "stringUnit": {
             "state": "translated",
-            "value": "欢迎使用 OpenTeam"
+            "value": "欢迎使用 OutcomeGo"
           }
         }
       }
@@ -8281,12 +8281,12 @@
         }
       }
     },
-    "Your server already has bots. Open OpenTeam to chat with them.": {
+    "Your server already has bots. Open OutcomeGo to chat with them.": {
       "localizations": {
         "zh-CN": {
           "stringUnit": {
             "state": "translated",
-            "value": "你的服务器已有机器人。打开 OpenTeam 与它们聊天。"
+            "value": "你的服务器已有机器人。打开 OutcomeGo 与它们聊天。"
           }
         }
       }
@@ -8391,12 +8391,12 @@
         }
       }
     },
-    "You’ll copy one address back into OpenTeam to finish connecting.": {
+    "You’ll copy one address back into OutcomeGo to finish connecting.": {
       "localizations": {
         "zh-CN": {
           "stringUnit": {
             "state": "translated",
-            "value": "你将把一个地址复制回 OpenTeam 以完成连接。"
+            "value": "你将把一个地址复制回 OutcomeGo 以完成连接。"
           }
         }
       }

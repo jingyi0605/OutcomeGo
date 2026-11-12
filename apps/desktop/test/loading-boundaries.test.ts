@@ -7,7 +7,7 @@ describe("desktop packaging and content security policy", () => {
     const html = await readDesktopFile("index.html");
 
     expect(html).toContain("connect-src 'self' http: https:");
-    expect(html).toContain("img-src 'self' data: blob: aiteamos-staged: http: https:");
+    expect(html).toContain("img-src 'self' data: blob: outcomego-staged: http: https:");
     expect(html).toContain("frame-src http: https:");
     expect(html).toContain("script-src 'self' 'wasm-unsafe-eval'");
     expect(html).not.toContain("script-src 'self' 'unsafe-eval'");

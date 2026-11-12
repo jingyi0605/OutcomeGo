@@ -8,11 +8,11 @@ export type {
   RoutineExecutionView,
   RoutineView,
   SidebarPreferences,
-} from "@aiteamos/contracts";
+} from "@outcomego/contracts";
 export {
   resolveSidebarSync,
   sidebarPreferencesFromRootSettings,
-} from "@aiteamos/contracts/client-preferences";
+} from "@outcomego/contracts/client-preferences";
 export * from "./auth";
 export * from "./account";
 export * from "./async";

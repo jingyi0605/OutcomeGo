@@ -306,7 +306,7 @@ import XCTest
     let proceed = app.buttons["plugin-continue-to-provider"]
     XCTAssertTrue(proceed.waitForExistence(timeout: 8))
     XCTAssertTrue(app.staticTexts["Copy the final address"].exists)
-    XCTAssertTrue(app.staticTexts["Return to OpenTeam"].exists)
+    XCTAssertTrue(app.staticTexts["Return to OutcomeGo"].exists)
     XCTAssertEqual(app.state, .runningForeground)
     var snapshot = try await state()
     XCTAssertEqual(snapshot["browserOpenCount"] as? Int, 0)

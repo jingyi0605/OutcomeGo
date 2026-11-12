@@ -24,11 +24,11 @@ To connect or switch providers later, open **Settings → Model** on desktop or 
 - **ChatGPT and Claude:** the sign-in page opens in your browser. When you finish, the app connects on its own. If another app is using the sign-in's return address on your computer, copy the address your browser lands on and paste it into the app. On iPhone, ChatGPT shows a code to enter on its sign-in page instead.
 - **API keys:** paste the key when the app asks for it.
 
-On a server without a screen, you can also sign in on the host with `aiteamos provider login <provider>`. If you've already signed in to Codex or Claude Code there, `aiteamos provider login` can reuse that sign-in.
+On a server without a screen, you can also sign in on the host with `outcomego provider login <provider>`. If you've already signed in to Codex or Claude Code there, `outcomego provider login` can reuse that sign-in.
 
 ## Choose a model
 
-In **Settings → Model**, pick a model and reasoning effort, and choose **Apply**. The app saves your choice, then sends a short test message to check that the model works. Or run `aiteamos model` on the host for an interactive picker.
+In **Settings → Model**, pick a model and reasoning effort, and choose **Apply**. The app saves your choice, then sends a short test message to check that the model works. Or run `outcomego model` on the host for an interactive picker.
 
 The model picker shows recommendations and lets you search long model lists by name or model ID. On desktop, you can also search by model maker. Selecting a model in settings waits for **Apply** before saving.
 
@@ -43,8 +43,8 @@ If the test message fails, the app says why. Choose a different model, or a diff
 To script the change:
 
 ```sh
-aiteamos model list
-aiteamos model use <provider> <model> --thinking medium
+outcomego model list
+outcomego model use <provider> <model> --thinking medium
 ```
 
 ## Use OpenRouter
@@ -58,21 +58,21 @@ You can connect any server that speaks one of these APIs: OpenAI Chat Completion
 The server must be reachable from the bots' computer, which runs in Docker. Inside Docker, `localhost` means the container, not your host. Use `host.docker.internal` to reach a server running on the host, such as [Ollama](https://ollama.com). On Linux, the server must listen on more than `127.0.0.1`; for Ollama, set `OLLAMA_HOST=0.0.0.0`.
 
 ```sh
-aiteamos provider add local --name "Local models" \
+outcomego provider add local --name "Local models" \
   --base-url http://host.docker.internal:11434/v1 \
   --api openai-completions --no-auth
-aiteamos model list local
-aiteamos model
+outcomego model list local
+outcomego model
 ```
 
 If your endpoint needs a key, leave out `--no-auth` and the CLI will ask for it. The `--api` option accepts `openai-completions`, `openai-responses`, `anthropic-messages`, or `google-generative-ai`.
 
 ## Check the connection
 
-Choose **Test** in **Settings → Model** to send a short message to your model and see whether it replies. On the host, `aiteamos doctor` runs the same kind of check. A model can appear in the list and still fail if your account has no quota left.
+Choose **Test** in **Settings → Model** to send a short message to your model and see whether it replies. On the host, `outcomego doctor` runs the same kind of check. A model can appear in the list and still fail if your account has no quota left.
 
 If no model is connected, or the connection stops working, the app shows a warning with a shortcut to these settings. Bots can't reply until you fix it.
 
-If your sign-in expires, choose **Disconnect** and connect again in **Settings → Model**, or run `aiteamos provider login`.
+If your sign-in expires, choose **Disconnect** and connect again in **Settings → Model**, or run `outcomego provider login`.
 
 Web search and voice transcription use their own credentials. See [web search](web-search.md) and [voice notes](transcription.md).

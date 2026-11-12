@@ -42,7 +42,7 @@ for i,arg in enumerate(args):
 os.execv('/usr/bin/curl',['curl',*args])
 ''')
 (TOOLS / 'curl').chmod(0o755)
-binary_asset = next(p for p in Path('/fixtures/assets').glob('aiteamos-linux-*') if p.suffix != '.gz')
+binary_asset = next(p for p in Path('/fixtures/assets').glob('outcomego-linux-*') if p.suffix != '.gz')
 ansi = re.compile(r'\x1b\[[0-?]*[ -/]*[@-~]')
 passed = []
 
@@ -65,8 +65,8 @@ def environment(name, docker=False, compose=False):
         (plugins / 'docker-compose').symlink_to('/opt/docker/docker-compose')
     env = {**os.environ, 'PATH': f'{tools}:{TOOLS}:/usr/bin:/bin',
            'DOCKER_CONFIG': str(config), 'DOCKER_HOST': 'tcp://engine:2375',
-           'TERM': 'xterm-256color', 'NO_COLOR': '1', 'AITEAMOS_VERSION': '0.0.1',
-           'AITEAMOS_BIN_DIR': str(directory / 'bin'), 'SHELL': '/bin/bash'}
+           'TERM': 'xterm-256color', 'NO_COLOR': '1', 'OUTCOMEGO_VERSION': '0.0.1',
+           'OUTCOMEGO_BIN_DIR': str(directory / 'bin'), 'SHELL': '/bin/bash'}
     return directory, env
 
 def execute(args, env, terminal=False, columns=80, cancel_at=None, timeout=45,
@@ -136,7 +136,7 @@ def bootstrap(name, env_options=None, terminal=False, missing_gzip=False, bad=Fa
     check(not re.search(r'\\u[0-9a-fA-F]{4}', output), 'Bundled installer printed literal Unicode escapes', output)
     if not bad and not missing_gzip:
         check('✓ Download verified' in ansi.sub('', output), 'Installer status glyph did not render', output)
-    cli = directory / 'bin/aiteamos'
+    cli = directory / 'bin/outcomego'
     check(code == (1 if bad or missing_gzip else 2), 'Wrong bootstrap exit code', output)
     flat = ' '.join(ansi.sub('', output).split())
     if missing_gzip:
@@ -149,7 +149,7 @@ def bootstrap(name, env_options=None, terminal=False, missing_gzip=False, bad=Fa
         check(hashlib.sha256(cli.read_bytes()).digest() == hashlib.sha256(binary_asset.read_bytes()).digest(), 'CLI checksum changed')
         check('CLI installed' in output and 'Docker is required.' in flat, 'Missing installed/Docker distinction', output)
         check('Install Docker Engine' in flat, 'Missing recovery instructions', output)
-        check('to your PATH in ~/.bashrc. Open a new terminal to use aiteamos.' in flat, 'Installer did not add the CLI to PATH', output)
+        check('to your PATH in ~/.bashrc. Open a new terminal to use outcomego.' in flat, 'Installer did not add the CLI to PATH', output)
         check(f"export PATH='{cli.parent}':\"$PATH\"" in (BASE / '.bashrc').read_text(), 'PATH line missing from ~/.bashrc')
         if not terminal:
             # Narrow terminals wrap the link and path; check them where they fit on one line.
@@ -205,7 +205,7 @@ directory, env = environment('resume-missing-docker')
 target = directory / 'installation'
 target.mkdir()
 files = {'installation.json': json.dumps({'schemaVersion': 1, 'repository': 'example/test', 'version': '0.0.1', 'composeUrl': 'https://example.test/compose.yaml', 'installedAt': '2026-01-01T00:00:00Z', 'updatedAt': '2026-01-01T00:00:00Z'}),
-         'compose.yaml': 'name: aiteamos\nservices: {}\n', '.env': '# untouched fixture\n'}
+         'compose.yaml': 'name: outcomego\nservices: {}\n', '.env': '# untouched fixture\n'}
 for name, body in files.items(): (target / name).write_text(body)
 code, output = execute([str(cli), 'setup', '--dir', str(target)], env)
 check(code == 2 and 'Install Docker Engine' in ' '.join(output.split()), 'Resumed setup missed preflight', output)
@@ -229,7 +229,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 server = http.server.ThreadingHTTPServer(('127.0.0.1', 0), Handler)
 threading.Thread(target=server.serve_forever, daemon=True).start()
 url = f'http://127.0.0.1:{server.server_port}'
-release = ['--compose-url', url + '/aiteamos-compose.yaml', '--checksum-url', url + '/SHA256SUMS', '--allow-unsigned']
+release = ['--compose-url', url + '/outcomego-compose.yaml', '--checksum-url', url + '/SHA256SUMS', '--allow-unsigned']
 
 for name, key in [('escape', b'\x1b'), ('q', b'q'), ('ctrl-c', b'\x03')]:
     cancel_directory, cancel_env = environment('countdown-' + name, docker=True, compose=True)
@@ -241,7 +241,7 @@ for name, key in [('escape', b'\x1b'), ('q', b'q'), ('ctrl-c', b'\x03')]:
         recording='installer-cancel' if name == 'escape' else None)
     check(code == 0 and 'Setup cancelled' in output, 'Countdown cancellation failed', output)
     check('setup' in output and not target.exists(), 'Cancelled install changed server files', output)
-    check((cancel_directory / 'bin/aiteamos').is_file(), 'Cancellation removed the CLI', output)
+    check((cancel_directory / 'bin/outcomego').is_file(), 'Cancellation removed the CLI', output)
     check('Starting setup…' not in output, 'Cancelled countdown continued', output)
     record('countdown-cancel-' + name, output)
 

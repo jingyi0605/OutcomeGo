@@ -1,11 +1,11 @@
 /** Disposable database and the real plugin dialog: setup-card fields must be saved before Connect. */
-import { createPluginTemplate } from "@aiteamos/plugin-sdk";
+import { createPluginTemplate } from "@outcomego/plugin-sdk";
 import { chromium } from "../../computer/node_modules/playwright-core";
 import { createPluginFlowFixture } from "../../server/test/plugin/fixtures/plugin-flow";
 
-if (!process.env.AITEAMOS_TEST_DATABASE_URL) throw new Error("A disposable test database is required");
-const uiOrigin = process.env.AITEAMOS_TEST_UI_ORIGIN ?? "http://127.0.0.1:63387";
-const fixture = await createPluginFlowFixture(process.env.AITEAMOS_TEST_DATABASE_URL, { packaged: true });
+if (!process.env.OUTCOMEGO_TEST_DATABASE_URL) throw new Error("A disposable test database is required");
+const uiOrigin = process.env.OUTCOMEGO_TEST_UI_ORIGIN ?? "http://127.0.0.1:63387";
+const fixture = await createPluginFlowFixture(process.env.OUTCOMEGO_TEST_DATABASE_URL, { packaged: true });
 // A packaged connector whose only setup is a non-secret value, like a Mac's SSH address.
 const plugin = createPluginTemplate("packaged-mcp", `flow-address-${crypto.randomUUID()}`);
 plugin.name = "Flow Address";

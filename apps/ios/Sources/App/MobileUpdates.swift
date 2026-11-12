@@ -9,7 +9,7 @@ final class MobileUpdates {
   private(set) var openError: String?
   private var lastChecked: Date?
   private var checking = false
-  private let cacheKey = "aiteamos.mobile-release"
+  private let cacheKey = "outcomego.mobile-release"
   private let installedVersion: String
   private let installedBuild: String
 

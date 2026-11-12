@@ -2,13 +2,13 @@ import { defaultRemarkPlugins, type StreamdownProps } from "streamdown";
 import { normalizeMessageMath } from "./math-markdown";
 
 export const SANITIZED_MESSAGE_LINK_PREFIX = "streamdown:sand-msg:";
-export const SANITIZED_AITEAMOS_LINK_PREFIX = "streamdown:aiteamos:";
+export const SANITIZED_OUTCOMEGO_LINK_PREFIX = "streamdown:outcomego:";
 
 /** Source normalization is independent of browser rendering and authentication. */
 export const prepareMessageMarkdown = (markdown: string) =>
   normalizeMessageMath(markdown)
     .replace(/(\]\(\s*)sand-msg:/gi, `$1${SANITIZED_MESSAGE_LINK_PREFIX}`)
-    .replace(/(\]\(\s*)aiteamos:/gi, `$1${SANITIZED_AITEAMOS_LINK_PREFIX}`);
+    .replace(/(\]\(\s*)outcomego:/gi, `$1${SANITIZED_OUTCOMEGO_LINK_PREFIX}`);
 
 type MarkdownNode = { type: string; value?: string; children?: MarkdownNode[] };
 

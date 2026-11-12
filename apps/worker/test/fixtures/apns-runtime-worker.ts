@@ -1,7 +1,7 @@
 import { createInterface } from "node:readline";
 import { verify } from "node:crypto";
-import { createPrismaClient } from "@aiteamos/db";
-import { ApnsSettingsStore } from "@aiteamos/db/apns-settings";
+import { createPrismaClient } from "@outcomego/db";
+import { ApnsSettingsStore } from "@outcomego/db/apns-settings";
 import { ApnsClient } from "../../src/apns";
 
 const prisma = createPrismaClient();

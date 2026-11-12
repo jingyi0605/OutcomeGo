@@ -5,7 +5,7 @@ import type {
   PluginDefinition,
   PluginField,
   PluginSetup,
-} from "@aiteamos/plugin-sdk";
+} from "@outcomego/plugin-sdk";
 
 const Scalar = Schema.Union(
   Schema.String.pipe(Schema.maxLength(20_000)),

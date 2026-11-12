@@ -2,7 +2,7 @@ import {expect,test} from "bun:test";
 import {mkdtemp,readFile,readdir,rm,writeFile} from "node:fs/promises";
 import {join} from "node:path";
 import {tmpdir} from "node:os";
-import {spoolFile} from "@aiteamos/plugin-sdk/file-spool";
+import {spoolFile} from "@outcomego/plugin-sdk/file-spool";
 import {agentWriteStream} from "../src/agent-file-stream";
 
 test("cancelled stalled transfers release the source and preserve the previous file",async()=>{

@@ -12,7 +12,7 @@ function fixture(response: Record<string, unknown>) {
       return await tools.callControlPlaneToolRequest(turn, id, name, args);
     } finally { globalThis.fetch = originalFetch; }
   };
-  const call = (id: string, args: any, name = "ReactToMessage") => tools.executeAiTeamOSTool(active, id, name, args);
+  const call = (id: string, args: any, name = "ReactToMessage") => tools.executeOutcomeGoTool(active, id, name, args);
   return { active, calls, call };
 }
 

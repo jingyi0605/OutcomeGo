@@ -1,9 +1,9 @@
 import {
   createJsonTransport,
-  AiTeamOSClientError,
-  type AiTeamOSFetch,
-  type AiTeamOSTransportOptions,
-} from "@aiteamos/client-core";
+  OutcomeGoClientError,
+  type OutcomeGoFetch,
+  type OutcomeGoTransportOptions,
+} from "@outcomego/client-core";
 import { recordPerformance } from "../lib/performance";
 import { expireAuthToken, getAuthToken } from "./auth";
 import { resolveConfiguredApiBase } from "./runtime-url";
@@ -11,10 +11,10 @@ import { resolveConfiguredApiBase } from "./runtime-url";
 export const API_BASE = resolveConfiguredApiBase(
   window.location.href,
   localStorage,
-  import.meta.env.VITE_AITEAMOS_API_URL
+  import.meta.env.VITE_OUTCOMEGO_API_URL
 );
 
-const instrumentedFetch: AiTeamOSFetch = async (input, init) => {
+const instrumentedFetch: OutcomeGoFetch = async (input, init) => {
   const startedAt = performance.now();
   try {
     const response = await fetch(input, init);
@@ -42,7 +42,7 @@ const instrumentedFetch: AiTeamOSFetch = async (input, init) => {
   }
 };
 
-export const desktopTransportOptions: AiTeamOSTransportOptions = {
+export const desktopTransportOptions: OutcomeGoTransportOptions = {
   baseUrl: API_BASE,
   fetch: instrumentedFetch,
   getAuthToken,
@@ -52,4 +52,4 @@ export const desktopTransportOptions: AiTeamOSTransportOptions = {
 const transport = createJsonTransport(desktopTransportOptions);
 
 export const request = transport.request;
-export { AiTeamOSClientError as ClientError };
+export { OutcomeGoClientError as ClientError };

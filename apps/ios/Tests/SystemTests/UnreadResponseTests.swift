@@ -1,5 +1,5 @@
 import XCTest
-@testable import OpenTeamNative
+@testable import OutcomeGoNative
 
 @MainActor
 final class UnreadResponseTests: SystemIntentFixture {

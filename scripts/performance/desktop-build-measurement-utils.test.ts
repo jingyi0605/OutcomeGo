@@ -13,7 +13,7 @@ import {
 } from "./desktop-build-measurement-utils";
 
 test.skipIf(process.platform !== "darwin")("re-signing preserves executable equivalence but changed or invalid code does not", async () => {
-  const root = await mkdtemp(join(tmpdir(), "aiteamos-signature-test-"));
+  const root = await mkdtemp(join(tmpdir(), "outcomego-signature-test-"));
   const run = (args: string[]) => expect(Bun.spawnSync(args).exitCode).toBe(0);
   try {
     const input = join(root, "main.c"), original = join(root, "original"), resigned = join(root, "resigned");
@@ -42,24 +42,24 @@ test("packaged license must match source metadata", () => {
 describe("desktop build measurement utilities", () => {
   test("discovers release artifacts without assuming version or architecture", () => {
     expect(
-      releaseArtifactKind("/release/mac-universal/aiTeamOS.app/Contents/Resources/app.asar")
+      releaseArtifactKind("/release/mac-universal/OutcomeGo.app/Contents/Resources/app.asar")
     ).toBe("asar");
-    expect(releaseArtifactKind("/release/aiTeamOS-9.7.0-mac-x64.zip")).toBe("zip");
-    expect(releaseArtifactKind("/release/aiTeamOS-9.7.0-arm64.dmg")).toBe("dmg");
-    expect(releaseArtifactKind("/release/aiTeamOS-9.7.0.AppImage")).toBe("appImage");
-    expect(releaseArtifactKind("C:\\release\\aiTeamOS Setup 9.7.0.exe")).toBe("nsis");
+    expect(releaseArtifactKind("/release/OutcomeGo-9.7.0-mac-x64.zip")).toBe("zip");
+    expect(releaseArtifactKind("/release/OutcomeGo-9.7.0-arm64.dmg")).toBe("dmg");
+    expect(releaseArtifactKind("/release/OutcomeGo-9.7.0.AppImage")).toBe("appImage");
+    expect(releaseArtifactKind("C:\\release\\outcomeGo Setup 9.7.0.exe")).toBe("nsis");
     expect(releaseArtifactKind("/release/latest-mac.yml")).toBeNull();
     expect(expectedReleaseArtifactKinds("darwin")).toEqual(["zip", "dmg"]);
     expect(expectedReleaseArtifactKinds("linux")).toEqual(["appImage"]);
     expect(expectedReleaseArtifactKinds("win32")).toEqual(["nsis"]);
-    expect(isReleaseArtifactLocation("aiTeamOS Setup 9.7.0.exe", "nsis")).toBe(true);
-    expect(isReleaseArtifactLocation("win-unpacked/aiTeamOS.exe", "nsis")).toBe(false);
+    expect(isReleaseArtifactLocation("outcomeGo Setup 9.7.0.exe", "nsis")).toBe(true);
+    expect(isReleaseArtifactLocation("win-unpacked/outcomeGo.exe", "nsis")).toBe(false);
     expect(isReleaseArtifactLocation("win-unpacked/resources/app.asar", "asar")).toBe(true);
     expect(
       zipAsarEntries(
-        "aiTeamOS.app/Contents/Resources/app.asar\nAiTeamOS.app/Contents/Frameworks/Electron.framework/Resources/default_app.asar\n"
+        "OutcomeGo.app/Contents/Resources/app.asar\nOutcomeGo.app/Contents/Frameworks/Electron.framework/Resources/default_app.asar\n"
       )
-    ).toEqual(["aiTeamOS.app/Contents/Resources/app.asar"]);
+    ).toEqual(["OutcomeGo.app/Contents/Resources/app.asar"]);
   });
 
   test("enforces the packaged top-level allow-list", () => {
@@ -75,10 +75,10 @@ describe("desktop build measurement utilities", () => {
 
   test("accepts only pruned package metadata with a packaged main", () => {
     const expected = {
-      author: "aiTeamOS contributors",
+      author: "outcomeGo contributors",
       description: "Desktop",
       main: "dist-electron/main.js",
-      name: "@aiteamos/desktop",
+      name: "@outcomego/desktop",
       private: true,
       type: "module",
       version: "2.0.0",

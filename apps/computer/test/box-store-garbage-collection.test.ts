@@ -55,7 +55,7 @@ test('separate operations serialize and release their lock after an exception',a
  await new Promise(resolve=>setTimeout(resolve,60));expect(order).toEqual(['first']);release.resolve();await Promise.all([first,second]);expect(order).toEqual(['first','second']);
 });
 test('another process holds the lock and process death releases it without stealing',async()=>{
- const root=await fixture();const modulePath=process.env.AITEAMOS_TEST_GC_MODULE ?? new URL('../src/box-store/garbage-collection.ts',import.meta.url).href;
+ const root=await fixture();const modulePath=process.env.OUTCOMEGO_TEST_GC_MODULE ?? new URL('../src/box-store/garbage-collection.ts',import.meta.url).href;
  const child=Bun.spawn([process.execPath,'-e',`import {withBoxStoreOperation} from ${JSON.stringify(modulePath)}; await withBoxStoreOperation(${JSON.stringify(root)},async()=>{console.log('LOCKED');await new Promise(()=>{});});`],{stdout:'pipe',stderr:'pipe'});
  try {
   const reader=child.stdout.getReader();const chunk=await reader.read();expect(new TextDecoder().decode(chunk.value)).toContain('LOCKED');reader.releaseLock();

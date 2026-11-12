@@ -1,19 +1,19 @@
-# OpenTeam for iOS
+# OutcomeGo for iOS
 
 The native SwiftUI iPhone/iPad client lives in `apps/ios`. The React Native app and
 its Expo/Android build have been retired. Native notification- and share-extension
 sources, QA fixtures, asset generators, and the Xcode project are all owned here.
 
-Debug installs as **aiTeamOS Swift** (`dev.openteam.mobile.swift`) with an isolated
-Keychain and `aiteamos-swift://` links. Release installs as **aiTeamOS**
-(`dev.aiteamos.mobile`) with `aiteamos://` links. Version, build number, bundle ID and
+Debug installs as **OutcomeGo Swift** (`dev.outcomego.mobile.swift`) with an isolated
+Keychain and `outcomego-swift://` links. Release installs as **OutcomeGo**
+(`dev.outcomego.mobile`) with `outcomego://` links. Version, build number, bundle ID and
 signing team are configured in `release.json`.
 
 ## Build and run
 
 Use macOS with Xcode 27.3 beta or later and Swift 6; the deployment target is iOS 18. Open
-`OpenTeamNative.xcodeproj`, select the `OpenTeamNative` scheme and an iOS simulator,
-and Run. Connect to your OpenTeam server using its reachable HTTP or HTTPS address.
+`OutcomeGoNative.xcodeproj`, select the `OutcomeGoNative` scheme and an iOS simulator,
+and Run. Connect to your OutcomeGo server using its reachable HTTP or HTTPS address.
 The native target has no Expo, React Native or CocoaPods runtime dependency. Its only
 packages are `ThinkingOrbsKit` and `VoiceGlowKit` from
 [Libraries.dev](https://github.com/Jakubantalik/Libraries.dev) (MIT), pinned to one
@@ -24,9 +24,9 @@ From the repository root:
 
 ```sh
 bun install --frozen-lockfile
-bun --filter @aiteamos/ios generate
-xcodebuild -project apps/ios/OpenTeamNative.xcodeproj \
-  -scheme OpenTeamNative -destination 'generic/platform=iOS Simulator' \
+bun --filter @outcomego/ios generate
+xcodebuild -project apps/ios/OutcomeGoNative.xcodeproj \
+  -scheme OutcomeGoNative -destination 'generic/platform=iOS Simulator' \
   -derivedDataPath apps/ios/.build-ios CODE_SIGNING_ALLOWED=NO build
 swift test --package-path apps/ios -c release
 ```
@@ -73,14 +73,14 @@ and [app skills guide](https://developer.apple.com/documentation/appintents/orch
 After building, verify compiler output with:
 
 ```sh
-python3 apps/ios/scripts/check-siri-skills.py <path-to-OpenTeamNative.app>
+python3 apps/ios/scripts/check-siri-skills.py <path-to-OutcomeGoNative.app>
 ```
 
 The opt-in `SiriSkills` scheme compiles device-only `SiriEvaluations` tests for
 server search, named-group drafting and a conversational follow-up. Use an
 isolated QA account with a group named `Release review`. Enable
-`AITEAMOS_LIVE_SIRI_TESTS=1` in the test runner's environment and provide
-`AITEAMOS_SIRI_QA_CONVERSATION_ID` with that group's full account-scoped entity ID
+`OUTCOMEGO_LIVE_SIRI_TESTS=1` in the test runner's environment and provide
+`OUTCOMEGO_SIRI_QA_CONVERSATION_ID` with that group's full account-scoped entity ID
 (the `TeamConversationEntity` ID, not the raw server channel ID). Without opt-in,
 the tests skip. These cases open drafts; review and clear the QA drafts between
 runs. Also verify on device that "this conversation" follows the visible chat,
@@ -124,7 +124,7 @@ HTTP/HTTPS installation (fixtures 20032, 20043 and 20039). `MotionPerformance`
 covers composer motion and history performance (fixtures 20070 and 19996); run
 it after other simulator suites finish. Optional Xcode schemes cover
 message motion/performance, widgets, settings, and VNC. See
-`Tests/UITests` and `OpenTeamNative.xcodeproj/xcshareddata/xcschemes` for the current
+`Tests/UITests` and `OutcomeGoNative.xcodeproj/xcshareddata/xcschemes` for the current
 checks; optional live-server tests require their own isolated backend. For an
 isolated `FunctionalFlowUITests` rerun, set
 `TEST_RUNNER_FUNCTIONAL_FLOW_SERVER=http://127.0.0.1:<fixture-port>` when invoking
@@ -141,7 +141,7 @@ Record the simulator concurrently with `idb video --fps 120 --udid <udid> <file>
 and inspect actual frame timestamps and the reported screen refresh limit;
 requesting 120 fps does not establish physical-device 120 Hz performance.
 
-The `OpenTeamShare` extension adds OpenTeam to the system share sheet. It reads the
+The `OutcomeGoShare` extension adds OutcomeGo to the system share sheet. It reads the
 app's saved session from the shared Keychain group and posts directly to the server.
 Simulators never show its per-Bot conversation suggestions, because they don't start
 `coreduetd`. Run `bash apps/ios/scripts/enable-share-suggestions.sh <simulator-udid>`
@@ -182,7 +182,7 @@ unexpired, approved and in external beta testing in the public TestFlight group;
 the update feed targets that build. Build 65 is not advertised. Recheck before
 uploading: source metadata does not reserve a build number or establish TestFlight
 availability. Release archives and exports are built locally
-with Xcode on macOS. Follow [Releasing OpenTeam](../../.github/RELEASING.md) for
+with Xcode on macOS. Follow [Releasing OutcomeGo](../../.github/RELEASING.md) for
 release preparation and publication boundaries; tag pushes do not build releases.
 `ci-testflight.sh` is for an ephemeral CI runner, not a developer's personal keychain.
 Besides the app and notification profiles, it needs `IOS_SHARE_PROFILE_BASE64`.
@@ -202,7 +202,7 @@ To turn it on, host a JSON file such as the one below, set `feedURL` to its HTTP
   "release": {
     "version": "0.1.0",
     "buildNumber": "66",
-    "bundleIdentifier": "dev.aiteamos.mobile"
+    "bundleIdentifier": "dev.outcomego.mobile"
   }
 }
 ```
@@ -215,7 +215,7 @@ visible until a new app build is installed or the published notice is withdrawn.
 
 For local distribution, archive the Release scheme in Xcode using the configured
 team and distribute the archive through Organizer. The app and its
-`OpenTeamNotifications` and `OpenTeamShare` extensions each require a matching
+`OutcomeGoNotifications` and `OutcomeGoShare` extensions each require a matching
 provisioning profile. The share extension's App ID is the app's bundle ID plus
 `.share`; it needs no capabilities beyond the team's Keychain access group.
 
@@ -225,17 +225,17 @@ provisioning profile. The share extension's App ID is the app's bundle ID plus
 
 App Shortcuts expose **Open a Bot**, **Record a voice note to a Bot**,
 **Send a task to a Bot**, **Open a conversation**,
-**Run an OpenTeam routine**, and **Find OpenTeam messages** on iOS 18 and later.
-For example, say “Send a task with OpenTeam” or “Run a routine in OpenTeam”;
+**Run an OutcomeGo routine**, and **Find OutcomeGo messages** on iOS 18 and later.
+For example, say “Send a task with OutcomeGo” or “Run a routine in OutcomeGo”;
 Siri asks for the Bot/routine and any required instructions. Debug builds use the
-app name “OpenTeam Swift”. These actions require device authentication and the
+app name “OutcomeGo Swift”. These actions require device authentication and the
 saved server session. Task submission returns the accepted message immediately;
 the agent continues on the server. Sending, searching, and exporting require a
 reachable server over LAN, VPN, or the configured remote address.
 
 To bind a specific Bot to Back Tap or the iPhone Action button:
 
-1. In **Shortcuts**, create a shortcut and add OpenTeam's **Open a Bot** or
+1. In **Shortcuts**, create a shortcut and add OutcomeGo's **Open a Bot** or
    **Record a voice note to a Bot** action. Choose the Bot in its parameter and save.
 2. For Back Tap, go to **Settings → Accessibility → Touch → Back Tap**, choose
    **Double Tap** or **Triple Tap**, and select the saved shortcut under **Shortcuts**.
@@ -244,7 +244,7 @@ To bind a specific Bot to Back Tap or the iPhone Action button:
 
 Choose a fixed Bot when saving each shortcut instead of **Ask Each Time**, and
 run it once to grant any required permissions. Both actions require an unlocked,
-authenticated device. Back Tap invokes the same saved shortcut; OpenTeam does
+authenticated device. Back Tap invokes the same saved shortcut; OutcomeGo does
 not need to be open first. See Apple's [Back Tap setup guide](https://support.apple.com/guide/shortcuts/run-shortcuts-tapping-iphone-apd897693606/ios).
 
 The opening action goes straight to that Bot's chat. The recording action opens
@@ -269,7 +269,7 @@ fields cannot break the Bot picker. Sending and exporting still validate against
 the server. Device unlock, Shortcuts dispatch, app startup, and microphone
 permission can still add delay.
 
-The `aiteamos://chat/<channel-id>` URL scheme (`openteam-swift://` in Debug)
+The `outcomego://chat/<channel-id>` URL scheme (`outcomego-swift://` in Debug)
 also resumes a link received before the saved account finishes restoring.
 
 On iOS 27, the Messages App Schemas additionally expose drafting and sending
@@ -309,7 +309,7 @@ SWIFT_PARITY_PORT=20084 bun apps/ios/scripts/parity-server.ts
 # Terminal 2
 node apps/ios/scripts/send-upload-proxy.cjs
 # Terminal 3
-xcodebuild -project apps/ios/OpenTeamNative.xcodeproj -scheme SystemIntents \
+xcodebuild -project apps/ios/OutcomeGoNative.xcodeproj -scheme SystemIntents \
   -destination 'platform=iOS Simulator,id=<simulator-udid>' \
   -parallel-testing-enabled NO CODE_SIGN_IDENTITY=- test
 ```
@@ -352,7 +352,7 @@ the photographed iPhone was not available, so its failing server field is unknow
   opt-out, sign-out cleanup, and discovery settings across cold launches.
 - **Chat URLs:** fixed queued chat links being lost when restoring an existing
   session. Invalid routes cannot replace the latest queued valid chat link.
-- **Share extension:** opened OpenTeam from Safari's actual system share sheet,
+- **Share extension:** opened OutcomeGo from Safari's actual system share sheet,
   selected Research, sent a URL, and verified exactly one matching message in
   Research's fixture conversation. Per-conversation system suggestions still
   require the separately documented device/coreduet checks.
@@ -376,7 +376,7 @@ not publish an iOS build; installed iPhones need a subsequent release of the fix
 `SystemIntegrationUITests` verifies the discovery setting through the real
 signed-in UI, persistence across cold launches, and sending a chat message with
 onscreen context enabled. Run a separate fixture on port 20085 and select that
-class in the `OpenTeamNative` scheme. Use isolated simulators: these checks save
+class in the `OutcomeGoNative` scheme. Use isolated simulators: these checks save
 synthetic sessions in Keychain and clear the app's Spotlight index.
 
 Verify Siri AI language understanding on a supported physical iPhone with Apple

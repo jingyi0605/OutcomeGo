@@ -9,17 +9,17 @@ import { terminalTextWidth } from "../src/terminal";
 // All non-diagnostic commands fail closed: these tests must never pull images,
 // inspect credentials, read running services, or mutate a Docker installation.
 const docker = `#!/bin/sh
-printf '%s\\n' "$*" >> "$AITEAMOS_TEST_CALLS"
+printf '%s\\n' "$*" >> "$OUTCOMEGO_TEST_CALLS"
 case "$*" in
   --version) printf 'Docker version 29.0.0\\n' ;;
   'info --format {{.ServerVersion}}')
-    if [ "$AITEAMOS_TEST_CASE" = stopped ]; then
+    if [ "$OUTCOMEGO_TEST_CASE" = stopped ]; then
       printf 'Cannot connect to the Docker daemon at unix:///var/run/docker.sock.\\n' >&2; exit 1
     fi
     printf '29.0.0\\n' ;;
   'compose version')
-    if [ "$AITEAMOS_TEST_CASE" = compose-missing ]; then exit 1; fi
-    if [ "$AITEAMOS_TEST_CASE" = compose-old ]; then printf 'Docker Compose version v1.29.2\\n'; else printf 'Docker Compose version v5.1.3\\n'; fi ;;
+    if [ "$OUTCOMEGO_TEST_CASE" = compose-missing ]; then exit 1; fi
+    if [ "$OUTCOMEGO_TEST_CASE" = compose-old ]; then printf 'Docker Compose version v1.29.2\\n'; else printf 'Docker Compose version v5.1.3\\n'; fi ;;
   *) printf 'Unexpected Docker command\\n' >&2; exit 99 ;;
 esac
 `;
@@ -33,7 +33,7 @@ describe.skipIf(process.platform === "win32")("install and setup preflight", () 
         ["compose-missing", "Neither the Docker Compose plugin"],
         ["compose-old", "2.20.0"],
       ])(`${command}, ${installed ? "resumed" : "fresh"}, %s stops before changes`, async (scenario, message) => {
-        const directory = mkdtempSync(join(tmpdir(), "aiteamos-preflight-"));
+        const directory = mkdtempSync(join(tmpdir(), "outcomego-preflight-"));
         try {
           const bin = join(directory, "bin");
           mkdirSync(bin);
@@ -71,8 +71,8 @@ describe.skipIf(process.platform === "win32")("install and setup preflight", () 
                 ...process.env,
                 PATH: bin,
                 NO_COLOR: "1",
-                AITEAMOS_TEST_CASE: scenario,
-                AITEAMOS_TEST_CALLS: calls,
+                OUTCOMEGO_TEST_CASE: scenario,
+                OUTCOMEGO_TEST_CALLS: calls,
               },
               stdin: "ignore",
               stdout: "pipe",
@@ -94,11 +94,11 @@ describe.skipIf(process.platform === "win32")("install and setup preflight", () 
                 ? "Install Docker Engine and the Compose plugin: https://docs.docker.com/engine/install/"
                 : "Install Docker Desktop: https://www.docker.com/products/docker-desktop/"
             );
-            expect(output).toContain("Then run: aiteamos setup --dir");
+            expect(output).toContain("Then run: outcomego setup --dir");
             expect(output).not.toContain("NEXT STEPS");
           } else {
             expect(output).toContain("NEXT STEPS");
-            expect(output).toContain("aiteamos setup --dir");
+            expect(output).toContain("outcomego setup --dir");
             expect(output).toContain("paused");
           }
           expect(output).not.toContain("Unexpected Docker command");
@@ -121,7 +121,7 @@ describe.skipIf(process.platform === "win32")("install and setup preflight", () 
   }
 
   test("fresh setup runs preflight and asks for a terminal before downloading", async () => {
-    const directory = mkdtempSync(join(tmpdir(), "aiteamos-setup-first-run-"));
+    const directory = mkdtempSync(join(tmpdir(), "outcomego-setup-first-run-"));
     try {
       const bin = join(directory, "bin");
       mkdirSync(bin);
@@ -134,7 +134,7 @@ describe.skipIf(process.platform === "win32")("install and setup preflight", () 
             ...process.env,
             PATH: bin,
             NO_COLOR: "1",
-            AITEAMOS_TEST_CALLS: join(directory, "calls"),
+            OUTCOMEGO_TEST_CALLS: join(directory, "calls"),
           },
           stdin: "ignore",
           stdout: "pipe",
@@ -163,7 +163,7 @@ describe.skipIf(process.platform === "win32" || !python)("preflight terminal out
     test.each([
       24, 40, 80,
     ])(`${command} explains missing Docker in a %s-column terminal`, async (columns) => {
-      const directory = mkdtempSync(join(tmpdir(), "aiteamos-preflight-pty-"));
+      const directory = mkdtempSync(join(tmpdir(), "outcomego-preflight-pty-"));
       try {
         const child = Bun.spawn(
           [
@@ -191,7 +191,7 @@ describe.skipIf(process.platform === "win32" || !python)("preflight terminal out
         expect(stderr).toBe("");
         const output = stripVTControlCharacters(stdout).replace(/\r/g, "");
         expect(output.replace(/\s+/g, " ")).toContain("Docker is required.");
-        expect(output.replace(/\s+/g, " ")).toContain("Then run: aiteamos setup --dir");
+        expect(output.replace(/\s+/g, " ")).toContain("Then run: outcomego setup --dir");
         expect(output.split("\n").every((line) => terminalTextWidth(line) <= columns)).toBe(true);
       } finally {
         rmSync(directory, { recursive: true, force: true });

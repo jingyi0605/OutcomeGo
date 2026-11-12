@@ -73,7 +73,7 @@ describe("local action matching", () => {
     expect(searchTextMatches("channel settings", "Chat settings")).toBe(false);
   });
 
-  test("matches and ranks settings using aiTeamOS's fuzzy label and keyword rules", () => {
+  test("matches and ranks settings using OutcomeGo's fuzzy label and keyword rules", () => {
     const commands = [
       ...SETTINGS_PALETTE_SECTIONS.map((settings) => ({
         title: `Settings: ${settings.label}`,
@@ -142,7 +142,7 @@ describe("local action matching", () => {
     ]);
   });
 
-  test("mirrors aiTeamOS's stateful update command labels", () => {
+  test("mirrors OutcomeGo's stateful update command labels", () => {
     expect(updatePalettePresentation("idle").title).toBe("Check for Updates");
     expect(updatePalettePresentation("checking").title).toBe("Checking for Updates…");
     expect(updatePalettePresentation("available").title).toBe("Downloading Update…");

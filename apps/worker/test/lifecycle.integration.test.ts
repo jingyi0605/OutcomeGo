@@ -6,12 +6,12 @@ import { Effect } from "effect";
 import { AppService } from "../../server/src/app-service";
 import { WakeWorker } from "../src/worker";
 
-const databaseUrl = process.env.AITEAMOS_TEST_DATABASE_URL;
+const databaseUrl = process.env.OUTCOMEGO_TEST_DATABASE_URL;
 
 test("durable bot mailboxes preserve Pi sessions, agent DMs, and ordered group rounds", async () => {
   if (!databaseUrl) return;
 
-  const workspace = join(tmpdir(), `aiteamos-integration-${crypto.randomUUID()}`);
+  const workspace = join(tmpdir(), `outcomego-integration-${crypto.randomUUID()}`);
   await mkdir(workspace, { recursive: true });
   interface TurnInput {
     runId: string;
@@ -114,7 +114,7 @@ test("durable bot mailboxes preserve Pi sessions, agent DMs, and ordered group r
         await onTurn(input);
         turnNumber += 1;
         const sessionPath =
-          input.sessionPath ?? `/var/lib/aiteamos/pi/${input.contextSessionId}.jsonl`;
+          input.sessionPath ?? `/var/lib/outcomego/pi/${input.contextSessionId}.jsonl`;
         const turnId = `turn-${turnNumber}`;
         const itemId = `agent-${turnNumber}`;
         const text = `durable answer ${turnNumber}`;
@@ -174,13 +174,13 @@ test("durable bot mailboxes preserve Pi sessions, agent DMs, and ordered group r
     },
   });
 
-  const envKeys = ["DATABASE_URL", "AITEAMOS_COMPUTER_URL", "AITEAMOS_CONTROL_TOKEN", "AITEAMOS_WORKSPACE_ROOT", "AITEAMOS_AGENT_DATA_ROOT"] as const;
+  const envKeys = ["DATABASE_URL", "OUTCOMEGO_COMPUTER_URL", "OUTCOMEGO_CONTROL_TOKEN", "OUTCOMEGO_WORKSPACE_ROOT", "OUTCOMEGO_AGENT_DATA_ROOT"] as const;
   const previousEnv = Object.fromEntries(envKeys.map((key) => [key, process.env[key]]));
   process.env.DATABASE_URL = databaseUrl;
-  process.env.AITEAMOS_COMPUTER_URL = `http://127.0.0.1:${fakeComputer.port}`;
-  process.env.AITEAMOS_CONTROL_TOKEN = "integration-control-token";
-  process.env.AITEAMOS_WORKSPACE_ROOT = workspace;
-  process.env.AITEAMOS_AGENT_DATA_ROOT = join(workspace, "agent-data");
+  process.env.OUTCOMEGO_COMPUTER_URL = `http://127.0.0.1:${fakeComputer.port}`;
+  process.env.OUTCOMEGO_CONTROL_TOKEN = "integration-control-token";
+  process.env.OUTCOMEGO_WORKSPACE_ROOT = workspace;
+  process.env.OUTCOMEGO_AGENT_DATA_ROOT = join(workspace, "agent-data");
 
   let app: AppService | null = null;
   let restoreTimeZone = async () => {};
@@ -200,7 +200,7 @@ test("durable bot mailboxes preserve Pi sessions, agent DMs, and ordered group r
       if (previousZone) await app!.prisma.userTimeZoneSettings.create({ data: previousZone });
     };
     await app.prisma.$executeRawUnsafe(
-      'TRUNCATE TABLE "Computer", "Bot", "OutboxDelivery", "Event", "IdempotencyRecord" CASCADE'
+      'TRUNCATE TABLE "outcomego_computer", "outcomego_bot", "outcomego_outbox_delivery", "outcomego_event", "outcomego_idempotency_record" CASCADE'
     );
     await Effect.runPromise(app.boot());
     await app.agentData.writeInferenceSettings({
@@ -355,7 +355,7 @@ test("durable bot mailboxes preserve Pi sessions, agent DMs, and ordered group r
     const secondSnapshot = await waitFor(second.run.id);
     expect(seenTurns.map((turn) => ({ sessionPath: turn.sessionPath, content: turnBody(turn.content) }))).toEqual([
       { sessionPath: null, content: "first" },
-      { sessionPath: `/var/lib/aiteamos/pi/${firstSeenTurn.contextSessionId}.jsonl`, content: "second" },
+      { sessionPath: `/var/lib/outcomego/pi/${firstSeenTurn.contextSessionId}.jsonl`, content: "second" },
     ]);
     expect(preflightContexts).toEqual(seenTurns.map((turn) => turn.contextSessionId));
     expect(seenTurns[1]?.cwd).toBe(bot.defaultDirectory);
@@ -407,7 +407,7 @@ test("durable bot mailboxes preserve Pi sessions, agent DMs, and ordered group r
 
     let peerId = "";
     onTurn = async (input) => {
-      if (input.content.includes("[aiTeamOS first start]")) {
+      if (input.content.includes("[outcomeGo first start]")) {
         await Effect.runPromise(
           app!.handleDynamicTool({
             runId: input.runId,
@@ -752,7 +752,7 @@ test("durable bot mailboxes preserve Pi sessions, agent DMs, and ordered group r
     ).toBe(true);
     expect(
       groupTurns.every(
-        (turn, index) => turn.sessionPath === (groupTurns.findIndex((candidate) => candidate.contextSessionId === turn.contextSessionId) === index ? null : `/var/lib/aiteamos/pi/${turn.contextSessionId}.jsonl`)
+        (turn, index) => turn.sessionPath === (groupTurns.findIndex((candidate) => candidate.contextSessionId === turn.contextSessionId) === index ? null : `/var/lib/outcomego/pi/${turn.contextSessionId}.jsonl`)
       )
     ).toBe(true);
     expect(new Set(groupTurns.map((turn) => turn.contextSessionId)).size).toBe(3);

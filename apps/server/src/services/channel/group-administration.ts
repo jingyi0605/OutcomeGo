@@ -6,10 +6,10 @@ import {
   type SetChannelHiddenInput,
   type SetChannelMembersInput,
   type UpdateChannelProfileInput,
-} from "@aiteamos/contracts";
-import { COMPUTER_API_PATHS } from "@aiteamos/contracts/service-protocol";
-import type { PrismaClient } from "@aiteamos/db";
-import { type AgentDataStore, type AgentMessaging, GROUP_MAX_MEMBERS } from "@aiteamos/messaging";
+} from "@outcomego/contracts";
+import { COMPUTER_API_PATHS } from "@outcomego/contracts/service-protocol";
+import type { PrismaClient } from "@outcomego/db";
+import { type AgentDataStore, type AgentMessaging, GROUP_MAX_MEMBERS } from "@outcomego/messaging";
 import { lstat, mkdir, readdir, readFile, realpath, rename, rm, writeFile } from "node:fs/promises";
 import { extname, join, relative, sep } from "node:path";
 import { provisionDirectories } from "../provision-directories";

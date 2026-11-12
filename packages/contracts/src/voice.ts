@@ -1,7 +1,7 @@
 import { Schema } from "effect";
 
 export const VOICE_PROTOCOL_VERSION = 1 as const;
-export const VOICE_PROTOCOL = "aiteamos-voice.v1" as const;
+export const VOICE_PROTOCOL = "outcomego-voice.v1" as const;
 export const VOICE_FRAME_HEADER_BYTES = 18 as const;
 export const VOICE_MAX_FRAME_BYTES = 1500 as const;
 export const VOICE_MAX_OPUS_PACKET_BYTES = 1275 as const;

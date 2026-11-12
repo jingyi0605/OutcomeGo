@@ -1,9 +1,9 @@
-import type { BotView, ChannelMessageView, ChannelView, ClientSnapshot } from "@aiteamos/contracts";
-import { CLIENT_CAPABILITIES } from "@aiteamos/contracts/capabilities";
+import type { BotView, ChannelMessageView, ChannelView, ClientSnapshot } from "@outcomego/contracts";
+import { CLIENT_CAPABILITIES } from "@outcomego/contracts/capabilities";
 import { Fragment, StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { api } from "../../src/renderer/client/aiteamos-api";
-import { ChatPane } from "../../src/renderer/components/aiteamos/chat-pane";
+import { api } from "../../src/renderer/client/outcomego-api";
+import { ChatPane } from "../../src/renderer/components/outcomego/chat-pane";
 import { TooltipProvider } from "../../src/renderer/components/ui/tooltip";
 import "../../src/renderer/styles.css";
 import { desktopDurableSendController } from "../../src/renderer/lib/durable-sends";

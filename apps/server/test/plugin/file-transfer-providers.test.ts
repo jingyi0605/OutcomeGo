@@ -3,7 +3,7 @@ import {
   FileTransferProvider,
   appendDraftAttachment,
 } from "../../src/services/plugin/file-transfer-providers";
-import { CONNECTOR_TRANSFER_TOOLS, parseConnectorTransfer } from "@aiteamos/contracts/connector-transfers";
+import { CONNECTOR_TRANSFER_TOOLS, parseConnectorTransfer } from "@outcomego/contracts/connector-transfers";
 
 test("retired file providers cannot issue requests and are absent from tool guidance", async () => {
   const provider = new FileTransferProvider("fixture", (async (_url: any, _init?: RequestInit): Promise<Response> => {

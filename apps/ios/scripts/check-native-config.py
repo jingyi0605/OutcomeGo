@@ -8,9 +8,9 @@ from pathlib import Path
 root = Path(__file__).resolve().parent.parent
 release = json.loads((root / 'release.json').read_text())
 package = json.loads((root / 'package.json').read_text())
-project = (root / 'OpenTeamNative.xcodeproj/project.pbxproj').read_text()
+project = (root / 'OutcomeGoNative.xcodeproj/project.pbxproj').read_text()
 info = plistlib.loads((root / 'Resources/Info.plist').read_bytes())
-entitlements = plistlib.loads((root / 'Resources/OpenTeam.entitlements').read_bytes())
+entitlements = plistlib.loads((root / 'Resources/OutcomeGo.entitlements').read_bytes())
 extension = plistlib.loads((root / 'NotificationService/Info.plist').read_bytes())
 share = plistlib.loads((root / 'ShareExtension/Info.plist').read_bytes())
 share_entitlements = plistlib.loads((root / 'ShareExtension/ShareExtension.entitlements').read_bytes())
@@ -38,7 +38,7 @@ assert share['NSExtension']['NSExtensionAttributes']['IntentsSupported'] == ['IN
 assert isinstance(share['NSExtension']['NSExtensionAttributes']['NSExtensionActivationRule'], dict), 'App Review rejects TRUEPREDICATE'
 # The extension reads the app's session item, which lives in the app's default access group.
 assert share_entitlements['keychain-access-groups'] == ['$(AppIdentifierPrefix)$(APP_BUNDLE_IDENTIFIER)']
-assert 'APP_BUNDLE_IDENTIFIER' in project and 'OpenTeamShare.appex' in project
+assert 'APP_BUNDLE_IDENTIFIER' in project and 'OutcomeGoShare.appex' in project
 for key in ['NSCameraUsageDescription', 'NSMicrophoneUsageDescription', 'NSLocalNetworkUsageDescription', 'NSPhotoLibraryAddUsageDescription']:
     assert info.get(key), f'Missing usage description: {key}'
 assert 'NSSpeechRecognitionUsageDescription' not in info
@@ -46,7 +46,7 @@ assert '../mobile/' not in project and 'mobile-swift' not in project
 # Remote Swift packages stay pinned to one revision, and Package.resolved agrees with the project.
 pins = re.findall(r'repositoryURL = "([^"]+)"; requirement = \{ kind = "([^"]+)"; revision = "([0-9a-f]{40})"; \}', project)
 assert pins and project.count('XCRemoteSwiftPackageReference') == len(pins), 'Pin every remote Swift package to a revision'
-resolved = json.loads((root / 'OpenTeamNative.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved').read_text())
+resolved = json.loads((root / 'OutcomeGoNative.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved').read_text())
 locked = {pin['location']: pin['state'].get('revision') for pin in resolved['pins']}
 for url, kind, revision in pins:
     assert kind == 'revision' and locked.get(url) == revision, f'Package.resolved disagrees with the pinned {url}'

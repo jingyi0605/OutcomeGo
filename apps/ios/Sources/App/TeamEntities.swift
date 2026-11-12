@@ -50,7 +50,7 @@ struct TeamBotQuery: EntityStringQuery, EnumerableEntityQuery {
     let directory = try await SavedBotDirectory.liveEntities(matching: "")
     return try identifiers.map { value in
       guard let entity = directory.first(where: { $0.id == value }) else {
-        throw APIError("This conversation is no longer available in OpenTeam.")
+        throw APIError("This conversation is no longer available in OutcomeGo.")
       }
       return entity
     }
@@ -153,7 +153,7 @@ struct TeamMessageQuery: EntityStringQuery {
     let messages = try await client.messages(for: identifiers)
     return messages.map { message in
       TeamMessageEntity(message,
-        name: client.destinations.first { $0.id == message.channelId }?.name ?? "OpenTeam",
+        name: client.destinations.first { $0.id == message.channelId }?.name ?? "OutcomeGo",
         scope: client.scope)
     }
   }
@@ -161,7 +161,7 @@ struct TeamMessageQuery: EntityStringQuery {
     let client = try await SystemIntentClient.connect()
     return client.bootstrap.latestMessages.prefix(10).map { message in
       TeamMessageEntity(message,
-        name: client.destinations.first { $0.id == message.channelId }?.name ?? "OpenTeam",
+        name: client.destinations.first { $0.id == message.channelId }?.name ?? "OutcomeGo",
         scope: client.scope)
     }
   }
@@ -170,7 +170,7 @@ struct TeamMessageQuery: EntityStringQuery {
     let messages = try await client.searchMessages(string)
     return messages.map { message in
       TeamMessageEntity(message,
-        name: client.destinations.first { $0.id == message.channelId }?.name ?? "OpenTeam",
+        name: client.destinations.first { $0.id == message.channelId }?.name ?? "OutcomeGo",
         scope: client.scope)
     }
   }

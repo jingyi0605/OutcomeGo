@@ -9,9 +9,9 @@ if [[ -n "$GIT_DIR" && "$GIT_DIR" != /* ]]; then
   GIT_DIR="$ROOT_DIR/$GIT_DIR"
 fi
 if [[ -n "$GIT_DIR" ]]; then
-  LAST_TARGET_FILE="$GIT_DIR/aiteamos-last-adb-target"
+  LAST_TARGET_FILE="$GIT_DIR/outcomego-last-adb-target"
 else
-  LAST_TARGET_FILE="${XDG_STATE_HOME:-$HOME/.local/state}/aiteamos/last-adb-target"
+  LAST_TARGET_FILE="${XDG_STATE_HOME:-$HOME/.local/state}/outcomego/last-adb-target"
 fi
 
 ADB="${ADB:-}"

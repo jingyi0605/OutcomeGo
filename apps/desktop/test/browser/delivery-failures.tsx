@@ -1,18 +1,18 @@
 /** Shipping UI + controller + HTTP client; only the remote service is synthetic. */
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { createRoot } from "react-dom/client";
-import { createAiTeamOSClient } from "@aiteamos/client-core";
+import { createOutcomeGoClient } from "@outcomego/client-core";
 import {
   createDurableSendController,
   classifyDurableSendError,
   messageDeliveryAcceptance,
   type DurableSendPayload,
-} from "@aiteamos/product-core/durable-delivery";
+} from "@outcomego/product-core/durable-delivery";
 import { PromptInput } from "../../src/renderer/components/ai-elements/prompt-input";
-import { DeliveryFooter } from "../../src/renderer/components/aiteamos/delivery-footer";
-import { ExternalDraftCard } from "../../src/renderer/components/aiteamos/external-draft-card";
+import { DeliveryFooter } from "../../src/renderer/components/outcomego/delivery-footer";
+import { ExternalDraftCard } from "../../src/renderer/components/outcomego/external-draft-card";
 import { TooltipProvider } from "../../src/renderer/components/ui/tooltip";
-import { api } from "../../src/renderer/client/aiteamos-api";
+import { api } from "../../src/renderer/client/outcomego-api";
 import "../../src/renderer/styles.css";
 
 const params = new URLSearchParams(location.search);
@@ -22,9 +22,9 @@ if (params.has("reset")) {
   params.delete("reset");
   history.replaceState(null, "", `${location.pathname}?${params}`);
 }
-if (!server || new URL(server).hostname !== "127.0.0.1" || window.aiteamos)
+if (!server || new URL(server).hostname !== "127.0.0.1" || window.outcomego)
   throw new Error("Use a disposable loopback fixture in a browser");
-const client = createAiTeamOSClient({ baseUrl: server });
+const client = createOutcomeGoClient({ baseUrl: server });
 Object.assign(api, client);
 let clock = Date.now();
 let storageFailure = false;

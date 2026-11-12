@@ -1,14 +1,18 @@
-# aiTeamOS (fork of OpenTeam)
+# OutcomeGo (fork of OpenTeam)
 
-aiTeamOS is an **unofficial fork** of [OpenTeam](https://github.com/raghavpillai/openteam)
+OutcomeGo (formerly aiTeamOS), an independent fork of OpenTeam, not affiliated with or endorsed by upstream.
+
+OutcomeGo is an **unofficial fork** of [OpenTeam](https://github.com/raghavpillai/openteam)
 by Raghav Pillai. It is not affiliated with or endorsed by the upstream project.
-The "OpenTeam" name and logo belong to the upstream author. This fork uses the name
-"aiTeamOS" only to state its origin.
+The "OpenTeam" name and logo belong to the upstream author. The historical name
+"aiTeamOS" is retained only to explain the project origin.
 
 ## Attribution
 
 - Upstream: https://github.com/raghavpillai/openteam (`upstream` remote, `main` branch)
-- This fork: https://github.com/jingyi0605/ai-TeamOS
+- This fork: https://github.com/jingyi0605/OutcomeGo
+- The repository was renamed from `ai-TeamOS` to `OutcomeGo` on 2026-11-12. The default branch
+  is `OutcomeGo`; the old repository web URL redirects to the new slug.
 - Copyright in the upstream code belongs to its authors. Copyright in this fork's changes
   belongs to their respective contributors (see `git log`).
 
@@ -25,11 +29,11 @@ some plugins) keep their own licenses.
 | Branch | Purpose |
 |---|---|
 | `main` | Mirror of `upstream/main`. Fast-forward only, no local commits. Source for pull requests to upstream. |
-| `ai-TeamOS` | Default branch and product line. Upstream merged in regularly. Releases are tagged here. |
-| `feat/*`, `fix/*` | Short-lived branches. Generic fixes start from `main`; fork-specific work starts from `ai-TeamOS`. |
+| `OutcomeGo` | Current GitHub default and source branch for the fork. |
+| `feat/*`, `fix/*` | Short-lived branches. Generic fixes start from `main`; fork-specific work starts from the current fork source branch. |
 
-Upstream changes reach `ai-TeamOS` only through `git merge upstream/main` (or the
-automated "sync upstream" pull request). Do not rebase `ai-TeamOS`. Upstream changes we do
+Upstream changes reach the fork source branch only through `git merge upstream/main` (or the
+automated "sync upstream" pull request). Do not rebase the fork source branch. Upstream changes we do
 not want are merged and then reverted, so the same commits do not return as conflicts.
 
 ## Upstream tracking
@@ -42,29 +46,30 @@ not want are merged and then reverted, so the same commits do not return as conf
 | Not synced from v0.0.16 | Version bump and release metadata (`ae9f7ebb`). They conflict with this fork's own version line and add nothing to it. |
 
 When the fork needs only part of an upstream release, cherry-pick the fix and rename
-`openteam-*` identifiers to their `aiteamos-*` forms (for example the image retention tag
-prefix `aiteamos-retention-`). Do not merge upstream version bumps. `git cherry -v HEAD
+`openteam-*` identifiers to their `outcomego-*` forms (for example the image retention tag
+prefix `outcomego-retention-`). Do not merge upstream version bumps. `git cherry -v HEAD
 upstream/main` lists upstream commits that are not yet applied, but it matches by patch
 content. A pick that needed renaming, such as #258, still shows as `+`, so use the table above
 as the record of what has been synced.
 
 ## Current release
 
-The current published release is `v0.1.0-beta.12`. Release tags are created from
-`ai-TeamOS`, and the GitHub Release contains the server installers, CLI binaries, desktop
-artifacts, Android APK, update manifest and checksums. iOS remains source-built in this fork.
+The latest published release is `v0.1.0-beta.13`, built with the former product name and internal
+identities. `v0.1.0-beta.14` is not published. Its Android signed APK and macOS arm64 signed and
+notarized packages are local candidates only. Release publication remains blocked on other candidate
+assets and checks described in the 004.1 release decision. iOS release is deferred.
 
 ## Naming and identifiers
 
 | Item | Upstream | This fork |
 |---|---|---|
-| Product display name | OpenTeam | aiTeamOS |
-| Android `applicationId` | `com.openteam.android` | `com.teambots.android` |
-| Android `namespace` and Kotlin package | `com.openteam.android` | unchanged, to keep merges with upstream small |
+| Product display name | OpenTeam | OutcomeGo |
+| Android `applicationId` | `com.openteam.android` | `com.outcomego.android` |
+| Android `namespace` and Kotlin package | `com.openteam.android` | `com.outcomego.android` |
 
 Because the `applicationId` differs, the fork installs next to an official OpenTeam build
 and does not upgrade it. Push, app-link and Firebase configuration must be created for
-`com.teambots.android`.
+`com.outcomego.android`.
 
 This fork has its own version line, starting at `0.1.0-beta.1`, independent of upstream's
 version numbers. Tags are `v<version>` and every package, `bun.lock` and the iOS `release.json`
@@ -73,7 +78,7 @@ must match (`bun scripts/release/version.ts check`). See `.github/RELEASING.md`.
 ## Modifications relative to upstream
 
 Based on upstream `main` at v0.0.15, plus selected fixes from v0.0.16 (see
-[Upstream tracking](#upstream-tracking)). Compare with `git diff upstream/main...ai-TeamOS`.
+[Upstream tracking](#upstream-tracking)). Compare with `git diff upstream/main...OutcomeGo`.
 
 - **Synced upstream fix** (`apps/cli`): cleanup of retired Docker images that were pulled by
   digest, from upstream v0.0.16
@@ -94,9 +99,9 @@ Based on upstream `main` at v0.0.15, plus selected fixes from v0.0.16 (see
 - **Android update channel** (`apps/android`, `scripts/android`, `.github/workflows/release.yml`):
   signed APK releases include a signed update manifest. The client verifies the manifest,
   checksum, package ID, version code and APK signing certificate before installation. Debug
-  builds use `com.teambots.android.debug` so they can coexist with the release app.
+  builds use `com.outcomego.android.debug` so they can coexist with the release app.
 - **Cross-client polish**: Android haptic feedback for chat, sessions, sign-in, settings and
-  routines; corrected iOS realtime-voice settings grouping; and unified aiTeamOS icon artwork.
+  routines; corrected iOS realtime-voice settings grouping; and unified OutcomeGo icon artwork.
 - **Shared skills**: server-saved skills are now shared across all bots, while bots can still
   keep their own skills. Existing private skill data is migrated into the shared skill library.
 - **Reliability**: schema deployment handles existing installations compatibly, server-update
@@ -117,7 +122,7 @@ replacement of upstream-only release infrastructure.
 
 ## Release and contribution notes
 
-- Releases are built from tagged commits on `ai-TeamOS`; run
+- Releases are built from tagged commits on the fork source branch; run
   `bun scripts/release/version.ts check` before creating a tag.
 - Android sideload updates require the release workflow's private manifest-signing secret.
   The matching public key is compiled into the Android client and key rotation requires a

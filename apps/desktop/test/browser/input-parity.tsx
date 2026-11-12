@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { createRoot } from "react-dom/client";
 import "../../src/renderer/styles.css";
-if (window.aiteamos) throw new Error("Use the isolated browser fixture.");
+if (window.outcomego) throw new Error("Use the isolated browser fixture.");
 window.fetch = async () => {
   throw new Error("No network calls in this fixture.");
 };

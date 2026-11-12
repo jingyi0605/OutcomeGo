@@ -13,7 +13,7 @@ const result = await runSetupSession({
   check: async (configuration) => {
     attempts.push(configuration.apiPort);
     return attempts.length === 1
-      ? "aiTeamOS cannot start because port 8787 is already in use by another process on this machine."
+      ? "OutcomeGo cannot start because port 8787 is already in use by another process on this machine."
       : null;
   },
 });

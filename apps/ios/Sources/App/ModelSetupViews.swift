@@ -103,7 +103,7 @@ struct ModelSignInProgress: View {
         }.font(.footnote).foregroundStyle(NativePalette.muted)
       }.task(id: code.userCode) { copied = false }
     } else if session.capturableRedirect != nil {
-      Text("Sign in on the provider's page. OpenTeam finishes the connection for you.")
+      Text("Sign in on the provider's page. OutcomeGo finishes the connection for you.")
         .font(.subheadline).foregroundStyle(NativePalette.muted)
         .fixedSize(horizontal: false, vertical: true)
     } else if session.prompt == nil || session.automaticAnswer != nil {

@@ -2,7 +2,7 @@ import CoreGraphics
 import Foundation
 import ImageIO
 import XCTest
-@testable import OpenTeamCore
+@testable import OutcomeGoCore
 
 final class LaunchScreenCacheTests: XCTestCase {
   private var folder: URL!

@@ -8,7 +8,7 @@ export function inferenceMetricsExtension(runId: string): {
   factory: ExtensionFactory;
 } {
   return {
-    name: "aiteamos-inference-metrics",
+    name: "outcomego-inference-metrics",
     hidden: true,
     factory(pi) {
       let request: Record<string, unknown> | null = null;

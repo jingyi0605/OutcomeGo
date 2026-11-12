@@ -131,7 +131,7 @@ test("Node DNS reuses bounded TLS, fences epochs, cancels queued/late dials and 
   const { mkdtemp, rm } = await import("node:fs/promises");
   const { tmpdir } = await import("node:os");
   const { join } = await import("node:path");
-  const directory = await mkdtemp(join(tmpdir(), "aiteamos-dns-pool-"));
+  const directory = await mkdtemp(join(tmpdir(), "outcomego-dns-pool-"));
   try {
     const cert = join(directory, "cert.pem"),
       key = join(directory, "key.pem");

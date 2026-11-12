@@ -12,8 +12,8 @@ import {
   UpdateRoutineToolInput,
   UpdateSkillToolInput,
   type UpdateStateInput,
-} from "@aiteamos/contracts";
-import type { Prisma, PrismaClient } from "@aiteamos/db";
+} from "@outcomego/contracts";
+import type { Prisma, PrismaClient } from "@outcomego/db";
 import type { AutomationWebhooksService } from "./services/automation-webhooks";
 import {
   appendAgentTimelineEvent,
@@ -21,7 +21,7 @@ import {
   type AgentDataStore,
   type RoutineService,
   type TimelineEventWakeHost,
-} from "@aiteamos/messaging";
+} from "@outcomego/messaging";
 
 const requiredText = (
   value: string | undefined,

@@ -3,12 +3,12 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Effect } from "effect";
-import { createPrismaClient } from "@aiteamos/db";
-import { AgentDataStore, AgentMessaging, reconcileRoutineExecution, saveSilentAutomationResult } from "@aiteamos/messaging";
-import { AUTOMATION_PARENT_ONLY_TOOLS } from "@aiteamos/contracts";
+import { createPrismaClient } from "@outcomego/db";
+import { AgentDataStore, AgentMessaging, reconcileRoutineExecution, saveSilentAutomationResult } from "@outcomego/messaging";
+import { AUTOMATION_PARENT_ONLY_TOOLS } from "@outcomego/contracts";
 import { InternalToolService } from "../src/services/internal-tool-service";
 
-const databaseUrl = process.env.AITEAMOS_TEST_DATABASE_URL;
+const databaseUrl = process.env.OUTCOMEGO_TEST_DATABASE_URL;
 test.skipIf(!databaseUrl)(
   "WakeParent atomically queues once; silent results survive restart and acknowledge only delivered audience receipts",
   async () => {

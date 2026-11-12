@@ -1,8 +1,8 @@
 import { useEffect } from "react";
 import { createRoot } from "react-dom/client";
-import { CLIENT_CAPABILITIES } from "@aiteamos/contracts/capabilities";
-import { api, aiTeamOSClient } from "../../src/renderer/client/aiteamos-api";
-import { useAiTeamOS } from "../../src/renderer/state/use-aiteamos";
+import { CLIENT_CAPABILITIES } from "@outcomego/contracts/capabilities";
+import { api, outcomeGoClient } from "../../src/renderer/client/outcomego-api";
+import { useOutcomeGo } from "../../src/renderer/state/use-outcomego";
 import { installWindowVisibility, isWindowActive } from "../../src/renderer/lib/window-visibility";
 import { syncDesktopNotificationSnapshot } from "../../src/renderer/lib/notifications";
 import { desktopDurableSendController } from "../../src/renderer/lib/durable-sends";
@@ -52,7 +52,7 @@ let bootstrap = {
 } as any;
 api.bootstrap = async () => { bootstraps++; return structuredClone(bootstrap); };
 api.runtime = async () => { runtimeReads++; return { runtime } as never; };
-aiTeamOSClient.listenForEvents = async (cursor, handlers, signal) => {
+outcomeGoClient.listenForEvents = async (cursor, handlers, signal) => {
   connections++; cursors.push(cursor); eventHandlers = handlers;
   handlers.onOpen?.();
   return new Promise<void>(resolve => {
@@ -68,10 +68,10 @@ api.sendChannelMessage = async (channelId, content, _attachments, _reply, option
   return { message: acceptedMessage } as never;
 };
 installWindowVisibility();
-let state: ReturnType<typeof useAiTeamOS>;
+let state: ReturnType<typeof useOutcomeGo>;
 function Probe() {
-  state = useAiTeamOS();
-  useEffect(() => { syncDesktopNotificationSnapshot(window.aiteamos?.notifications, state.snapshot); }, [state.snapshot]);
+  state = useOutcomeGo();
+  useEffect(() => { syncDesktopNotificationSnapshot(window.outcomego?.notifications, state.snapshot); }, [state.snapshot]);
   return <div>Background sync fixture</div>;
 }
 const root = createRoot(document.getElementById("root")!);

@@ -23,7 +23,7 @@ for directory in skills.iterdir():
     assert fields['name'] == directory.name
     assert 0 < len(fields['description']) <= 1024
     assert body.strip() and len(body) <= 10_000
-project = (root / 'OpenTeamNative.xcodeproj/project.pbxproj').read_text()
+project = (root / 'OutcomeGoNative.xcodeproj/project.pbxproj').read_text()
 assert 'Resources/Skills.skillsbundle' in project and 'wrapper.skillsbundle' in project
 if len(sys.argv) > 1:
     metadata = Path(sys.argv[1]) / 'Metadata.appintents'
@@ -34,7 +34,7 @@ if len(sys.argv) > 1:
     compiled = plistlib.loads((metadata / 'Skills.skillsc').read_bytes())
     assert set(compiled['SKILLS']) == expected, 'Compiled skills differ from source'
     tools = {'SendBotTaskIntent', 'FindTeamMessagesIntent', 'RunTeamRoutineIntent',
-             'OpenTeamBotIntent', 'OpenTeamConversationIntent', 'OpenTeamMessageIntent',
+             'OutcomeGoBotIntent', 'OutcomeGoConversationIntent', 'OutcomeGoMessageIntent',
              'SendTeamConversationMessageIntent', 'DraftTeamConversationMessageIntent'}
     for name in tools:
         action = intents[name]

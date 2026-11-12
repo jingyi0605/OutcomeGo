@@ -1,6 +1,6 @@
 # Desktop performance-audit harness
 
-This directory starts a disposable aiTeamOS stack for renderer and Electron stress testing. It does not use the normal aiTeamOS database or agent-data volume.
+This directory starts a disposable OutcomeGo stack for renderer and Electron stress testing. It does not use the normal OutcomeGo database or agent-data volume.
 
 ## Client CPU and smoothness profiling
 
@@ -10,9 +10,9 @@ GC heap sizes. It observes the app; it never clicks, types, or scrolls. Perform
 those actions through CUA while the script prints `PROFILE_READY`:
 
 ```sh
-AITEAMOS_AUDIT_CDP_URL=http://127.0.0.1:9334 \
-AITEAMOS_AUDIT_PROFILE_MS=60000 \
-AITEAMOS_AUDIT_OUTPUT=/tmp/aiteamos-profile \
+OUTCOMEGO_AUDIT_CDP_URL=http://127.0.0.1:9334 \
+OUTCOMEGO_AUDIT_PROFILE_MS=60000 \
+OUTCOMEGO_AUDIT_OUTPUT=/tmp/outcomego-profile \
   bun scripts/performance/profile-desktop-runtime.ts
 ```
 
@@ -24,9 +24,9 @@ window. Inspect the recorded app-event count rather than assuming every action
 in a long CUA session occurred before the profiler stopped.
 
 `benchmark/client-models.ts` measures synchronous, renderer-neutral algorithms,
-not device interaction latency. It accepts `AITEAMOS_PERF_CORE_MODULE` and
-`AITEAMOS_PERF_NOTIFICATION_MODULE` paths to frozen baseline modules, plus
-`AITEAMOS_MODEL_SAMPLES` and `AITEAMOS_AUDIT_OUTPUT`. Alternate baseline/candidate
+not device interaction latency. It accepts `OUTCOMEGO_PERF_CORE_MODULE` and
+`OUTCOMEGO_PERF_NOTIFICATION_MODULE` paths to frozen baseline modules, plus
+`OUTCOMEGO_MODEL_SAMPLES` and `OUTCOMEGO_AUDIT_OUTPUT`. Alternate baseline/candidate
 order, and do not run these CPU-heavy loops during UI frame measurements. Bun's
 `--cpu-prof --cpu-prof-md` options retain attributable CPU samples.
 
@@ -42,19 +42,19 @@ sdk=$(xcrun --sdk iphonesimulator --show-sdk-path)
 xcrun clang -dynamiclib -fobjc-arc -O2 -isysroot "$sdk" \
   -target arm64-apple-ios16.4-simulator \
   -framework Foundation -framework UIKit -framework QuartzCore \
-  scripts/performance/ios-frame-probe.m -o /tmp/aiteamos-frame-probe.dylib
-codesign --force --sign - /tmp/aiteamos-frame-probe.dylib
+  scripts/performance/ios-frame-probe.m -o /tmp/outcomego-frame-probe.dylib
+codesign --force --sign - /tmp/outcomego-frame-probe.dylib
 
 # Use a dedicated simulator, an Xcode-built Release app, and synthetic data.
-SIMCTL_CHILD_DYLD_INSERT_LIBRARIES=/tmp/aiteamos-frame-probe.dylib \
-SIMCTL_CHILD_AITEAMOS_FRAME_PROBE_LABEL=baseline-scroll \
-SIMCTL_CHILD_AITEAMOS_FRAME_PROBE_SECONDS=60 \
-SIMCTL_CHILD_AITEAMOS_FRAME_PROBE_DELAY=2 \
-  xcrun simctl launch "$device" dev.openteam.mobile
+SIMCTL_CHILD_DYLD_INSERT_LIBRARIES=/tmp/outcomego-frame-probe.dylib \
+SIMCTL_CHILD_OUTCOMEGO_FRAME_PROBE_LABEL=baseline-scroll \
+SIMCTL_CHILD_OUTCOMEGO_FRAME_PROBE_SECONDS=60 \
+SIMCTL_CHILD_OUTCOMEGO_FRAME_PROBE_DELAY=2 \
+  xcrun simctl launch "$device" dev.outcomego.mobile
 ```
 
 The JSON is written to the isolated app's Documents directory. Obtain its path
-with `xcrun simctl get_app_container "$device" dev.openteam.mobile data`.
+with `xcrun simctl get_app_container "$device" dev.outcomego.mobile data`.
 Use the **same probe and release native binary** for both arms. Preserve Xcode's
 simulated entitlements and identifier; isolation comes from the dedicated
 simulator, not from editing a compiled identifier. Never disable system security
@@ -136,17 +136,17 @@ or substitute for a long-duration memory profile.
 
 Safety properties:
 
-- Compose project name: `aiteamos-performance-audit`
-- Database name: `aiteamos_perf_audit`
+- Compose project name: `outcomego-performance-audit`
+- Database name: `outcomego_perf_audit`
 - Server bind: `127.0.0.1:8877`
 - Renderer bind: `127.0.0.1:5174`
-- `seed.sql` refuses to run unless the connected database is exactly `aiteamos_perf_audit`
+- `seed.sql` refuses to run unless the connected database is exactly `outcomego_perf_audit`
 - The computer service is a local stub, so no real graphical-computer sessions are created
 
 ## Native iOS performance
 
 Run `bun run ios:performance` on macOS for the Release Swift history benchmarks.
-Use the Xcode `MessagePerformance` scheme in `apps/ios/OpenTeamNative.xcodeproj`
+Use the Xcode `MessagePerformance` scheme in `apps/ios/OutcomeGoNative.xcodeproj`
 for simulator scroll CPU/memory measurements, with the inert parity server running.
 See [the iOS guide](../../apps/ios/README.md). Core timings and simulator metrics
 are not physical-device frame-rate measurements.
@@ -156,7 +156,7 @@ are not physical-device frame-rate measurements.
 Build the production renderer and start the isolated backend:
 
 ```sh
-bun --filter @aiteamos/desktop build
+bun --filter @outcomego/desktop build
 docker compose -f scripts/performance/docker-compose.yml up --build -d server
 ```
 
@@ -164,7 +164,7 @@ Seed a scale point. The script is incremental and deterministic, so increasing t
 
 ```sh
 docker compose -f scripts/performance/docker-compose.yml exec -T postgres \
-  psql -U aiteamos -d aiteamos_perf_audit \
+  psql -U outcomego -d outcomego_perf_audit \
   -v bot_count=1000 \
   -v messages_per_bot=20 \
   -v group_count=100 \
@@ -190,7 +190,7 @@ baseline:
 
 ```sh
 docker compose -f scripts/performance/docker-compose.yml exec -T postgres \
-  psql -U aiteamos -d aiteamos_perf_audit \
+  psql -U outcomego -d outcomego_perf_audit \
   -v bot_count=1000 \
   -v messages_per_bot=20 \
   -v group_count=100 \
@@ -245,16 +245,16 @@ bun scripts/performance/serve-renderer.ts
 Launch Electron with a disposable Chromium profile in a third terminal:
 
 ```sh
-audit_user_data="$(mktemp -d /tmp/aiteamos-perf-electron.XXXXXX)"
-AITEAMOS_RENDERER_URL='http://127.0.0.1:5174/?profile=1' \
-AITEAMOS_HOST_BRIDGE_PORT=8891 \
+audit_user_data="$(mktemp -d /tmp/outcomego-perf-electron.XXXXXX)"
+OUTCOMEGO_RENDERER_URL='http://127.0.0.1:5174/?profile=1' \
+OUTCOMEGO_HOST_BRIDGE_PORT=8891 \
 apps/desktop/node_modules/.bin/electron \
   --remote-debugging-port=9333 \
   --user-data-dir="$audit_user_data" \
   apps/desktop
 ```
 
-`?profile=1` exposes the existing `window.aiteamosPerformance` diagnostics. Read `window.aiteamosPerformance.snapshot()` directly during long sessions; the DOM-published summary becomes stale after the 200-entry ring is full.
+`?profile=1` exposes the existing `window.outcomegoPerformance` diagnostics. Read `window.outcomegoPerformance.snapshot()` directly during long sessions; the DOM-published summary becomes stale after the 200-entry ring is full.
 
 ## Direct snapshot timing
 
@@ -273,12 +273,12 @@ zero-result query. The benchmark validates category correctness and reports
 end-to-end and `Server-Timing` min/p50/p95/max/mean values:
 
 ```sh
-AITEAMOS_AUDIT_OUTPUT=audit/search-current.json \
+OUTCOMEGO_AUDIT_OUTPUT=audit/search-current.json \
   bun scripts/performance/benchmark/search.ts
 ```
 
-Override `AITEAMOS_PERF_BASE_URL`, `AITEAMOS_SEARCH_WARMUPS`, or
-`AITEAMOS_SEARCH_SAMPLES` when measuring a different isolated arm.
+Override `OUTCOMEGO_PERF_BASE_URL`, `OUTCOMEGO_SEARCH_WARMUPS`, or
+`OUTCOMEGO_SEARCH_SAMPLES` when measuring a different isolated arm.
 
 ## API scale timing
 
@@ -286,11 +286,11 @@ Measure the bounded bootstrap/runtime/history paths and the compatibility
 snapshot against the same heavy fixture:
 
 ```sh
-AITEAMOS_AUDIT_OUTPUT=audit/api-current.json \
+OUTCOMEGO_AUDIT_OUTPUT=audit/api-current.json \
   bun scripts/performance/benchmark/api.ts
 ```
 
-Override `AITEAMOS_API_WARMUPS` or `AITEAMOS_API_SAMPLES` to change the sample
+Override `OUTCOMEGO_API_WARMUPS` or `OUTCOMEGO_API_SAMPLES` to change the sample
 count. The harness records response sizes and both end-to-end and Server-Timing
 durations where the endpoint exposes them.
 
@@ -302,16 +302,16 @@ runtime response. The benchmark alternates arms and requires byte-for-byte
 response parity:
 
 ```sh
-AITEAMOS_AUTH_USERNAME=audit_owner \
-AITEAMOS_AUTH_PASSWORD='local-audit-password' \
-AITEAMOS_AUDIT_OUTPUT=audit/auth-overhead.json \
+OUTCOMEGO_AUTH_USERNAME=audit_owner \
+OUTCOMEGO_AUTH_PASSWORD='local-audit-password' \
+OUTCOMEGO_AUDIT_OUTPUT=audit/auth-overhead.json \
   bun scripts/performance/benchmark/auth.ts
 ```
 
 The disabled arm defaults to `127.0.0.1:8877` and the required arm to
-`127.0.0.1:8878`. Override `AITEAMOS_AUTH_DISABLED_BASE_URL`,
-`AITEAMOS_AUTH_REQUIRED_BASE_URL`, `AITEAMOS_AUTH_WARMUPS`, or
-`AITEAMOS_AUTH_SAMPLES` as needed.
+`127.0.0.1:8878`. Override `OUTCOMEGO_AUTH_DISABLED_BASE_URL`,
+`OUTCOMEGO_AUTH_REQUIRED_BASE_URL`, `OUTCOMEGO_AUTH_WARMUPS`, or
+`OUTCOMEGO_AUTH_SAMPLES` as needed.
 
 ## Cleanup
 

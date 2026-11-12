@@ -1,6 +1,6 @@
 import AppIntents
 import XCTest
-@testable import OpenTeamNative
+@testable import OutcomeGoNative
 
 @MainActor
 final class BotLaunchTests: SystemIntentFixture {
@@ -19,7 +19,7 @@ final class BotLaunchTests: SystemIntentFixture {
     store.navigation = [try XCTUnwrap(client.bootstrap.bots.first).dmChannelId]
     var draft = Draft(); draft.text = "Keep my unsent instructions"
     store.saveDraft(draft, channel: bot.dmChannelId)
-    var intent = OpenTeamBotIntent()
+    var intent = OutcomeGoBotIntent()
     intent.store = store
     intent.target = TeamBotEntity(bot, scope: scope)
     _ = try await intent.perform()
@@ -35,9 +35,9 @@ final class BotLaunchTests: SystemIntentFixture {
     let first = try XCTUnwrap(store.bots.first)
     let latest = try XCTUnwrap(store.bots.last)
     let cold = AppStore()
-    await cold.deepLink(try XCTUnwrap(URL(string: "openteam-swift://chat/" + first.dmChannelId)))
-    await cold.deepLink(try XCTUnwrap(URL(string: "openteam-swift://chat/" + latest.dmChannelId)))
-    await cold.deepLink(try XCTUnwrap(URL(string: "openteam-swift://unsupported/value")))
+    await cold.deepLink(try XCTUnwrap(URL(string: "outcomego-swift://chat/" + first.dmChannelId)))
+    await cold.deepLink(try XCTUnwrap(URL(string: "outcomego-swift://chat/" + latest.dmChannelId)))
+    await cold.deepLink(try XCTUnwrap(URL(string: "outcomego-swift://unsupported/value")))
     await cold.start()
     XCTAssertEqual(cold.navigation, [latest.dmChannelId])
     cold.setForeground(false)
@@ -116,7 +116,7 @@ final class BotLaunchTests: SystemIntentFixture {
     }
     XCTAssertEqual(store.botVoiceLaunch.pending?.channelID, bot.dmChannelId)
     XCTAssertEqual(store.navigation, [bot.dmChannelId])
-    var open = OpenTeamBotIntent()
+    var open = OutcomeGoBotIntent()
     open.store = store; open.target = voice.bot
     _ = try await open.perform()
     XCTAssertNil(store.botVoiceLaunch.pending)
@@ -133,7 +133,7 @@ final class BotLaunchTests: SystemIntentFixture {
     var other = session; other.userID = "different-account"
     try SecureSession.save(other)
     do { _ = try await intent.perform(); XCTFail("Accepted another account's Bot") }
-    catch { XCTAssertTrue(error.localizedDescription.contains("different OpenTeam account")) }
+    catch { XCTAssertTrue(error.localizedDescription.contains("different OutcomeGo account")) }
     XCTAssertTrue(store.navigation.isEmpty)
     XCTAssertNil(store.botVoiceLaunch.pending)
   }
@@ -172,7 +172,7 @@ final class BotLaunchTests: SystemIntentFixture {
     _ = try await voice.perform()
     await store.start()
     let latest = try XCTUnwrap(bootstrap.bots.last)
-    var open = OpenTeamBotIntent()
+    var open = OutcomeGoBotIntent()
     open.store = store; open.target = TeamBotEntity(latest, scope: scope)
     _ = try await open.perform()
     for _ in 0..<5 { await Task.yield() }
@@ -235,7 +235,7 @@ final class BotLaunchTests: SystemIntentFixture {
     let entity = TeamBotEntity(bot, scope: scope)
     _ = try await API(server: server).request("/__qa/control", method: "POST",
       body: .object(["offline": .bool(true)]))
-    var open = OpenTeamBotIntent()
+    var open = OutcomeGoBotIntent()
     open.store = store; open.target = entity
     _ = try await open.perform()
     XCTAssertEqual(store.navigation, [bot.dmChannelId])
@@ -254,7 +254,7 @@ final class BotLaunchTests: SystemIntentFixture {
     let suggestions = try await TeamBotQuery().suggestedEntities()
     XCTAssertTrue(suggestions.contains { $0.id == entity.id })
     let root = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-      .appendingPathComponent("OpenTeam")
+      .appendingPathComponent("OutcomeGo")
     let disk = try DiskStore(directory: root, scope: scope)
     try Data("invalid-cache".utf8).write(to: disk.url)
     let recovered = try await TeamBotQuery().entities(for: [entity.id])
@@ -268,7 +268,7 @@ final class BotLaunchTests: SystemIntentFixture {
     store.flushPersistence()
     let bot = try XCTUnwrap(store.bots.first)
     let root = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-      .appendingPathComponent("OpenTeam")
+      .appendingPathComponent("OutcomeGo")
     let disk = try DiskStore(directory: root, scope: scope)
     var cache = try JSONDecoder().decode(JSON.self, from: Data(contentsOf: disk.url))
     cache["bootstrap"]["runtime"] = .string("new-runtime-format")
@@ -302,7 +302,7 @@ final class BotLaunchTests: SystemIntentFixture {
       state.bootstrap?.channels[index].members = []
     }
     let root = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-      .appendingPathComponent("OpenTeam")
+      .appendingPathComponent("OutcomeGo")
     try DiskStore(directory: root, scope: scope).save(state)
     let suggestions = try await TeamBotQuery().suggestedEntities()
     XCTAssertEqual(suggestions.map(\.name), [try XCTUnwrap(state.bootstrap?.bots.last).name])
@@ -343,7 +343,7 @@ final class BotLaunchTests: SystemIntentFixture {
     var other = session; other.userID = "another-account"
     try SecureSession.save(other)
     do { _ = try await TeamBotQuery().entities(for: [entity.id]); XCTFail("Resolved another account's cached Bot") }
-    catch { XCTAssertTrue(error.localizedDescription.contains("different OpenTeam account")) }
+    catch { XCTAssertTrue(error.localizedDescription.contains("different OutcomeGo account")) }
     try SecureSession.save(session)
     UserDefaults.standard.set(true, forKey: LocalDataReset.pendingKey)
     defer { UserDefaults.standard.removeObject(forKey: LocalDataReset.pendingKey) }
@@ -356,10 +356,10 @@ final class BotLaunchTests: SystemIntentFixture {
     let entity = TeamBotEntity(try XCTUnwrap(store.state.bootstrap?.bots.first), scope: scope)
     var replaced = session; replaced.token = "replacement-fixture-token"
     try SecureSession.save(replaced)
-    var intent = OpenTeamBotIntent()
+    var intent = OutcomeGoBotIntent()
     intent.store = store; intent.target = entity
     do { _ = try await intent.perform(); XCTFail("Opened stale authenticated app state") }
-    catch { XCTAssertTrue(error.localizedDescription.contains("Connect to this OpenTeam account")) }
+    catch { XCTAssertTrue(error.localizedDescription.contains("Connect to this OutcomeGo account")) }
     XCTAssertTrue(store.navigation.isEmpty)
   }
 
@@ -501,7 +501,7 @@ final class BotLaunchTests: SystemIntentFixture {
     connected.flushPersistence()
     let bot = try XCTUnwrap(connected.state.bootstrap?.bots.first)
     let store = AppStore()
-    var intent = OpenTeamBotIntent()
+    var intent = OutcomeGoBotIntent()
     intent.store = store; intent.target = TeamBotEntity(bot, scope: scope)
     _ = try await intent.perform()
     store.cancelPendingVoiceRecording()

@@ -215,7 +215,7 @@ export function parsePluginDefinition(value: unknown): PluginDefinition {
         for (const [nestedKey, nested] of Object.entries(value)) inspectSecrets(nested, nestedKey);
     };
     inspectSecrets(connector.configuration);
-    if (connector.transport === "builtin" && connector.endpoint !== "aiteamos://utility-lab")
+    if (connector.transport === "builtin" && connector.endpoint !== "outcomego://utility-lab")
       throw new Error("Unknown builtin connector");
     if (connector.transport === "stdio" && typeof connector.configuration?.command !== "string")
       throw new Error("Local MCP connector must declare a command");

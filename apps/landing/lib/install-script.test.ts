@@ -24,11 +24,13 @@ describe("install script", () => {
   });
 
   test("preserves version overrides and an interactive terminal", () => {
-    expect(installScript).toContain("printenv AITEAMOS_VERSION");
+    expect(installScript).toContain("printenv OUTCOMEGO_VERSION");
     expect(installScript).toContain("releases/latest");
-    expect(installScript).toContain('asset_name="aiteamos-$binary_os-$architecture"');
+    expect(installScript).toContain("jingyi0605/OutcomeGo");
+    expect(installScript).toContain('asset_name="outcomego-$binary_os-$architecture"');
     expect(installScript).toContain("SHA256SUMS");
-    expect(installScript).toContain('installed_binary="$bin_directory/aiteamos"');
+    expect(installScript).toContain('installed_binary="$bin_directory/outcomego"');
+    expect(installScript).toContain('installed_alias="$bin_directory/aiteamos"');
     expect(installScript).toContain('"$installed_binary" install "$@" </dev/tty');
   });
 
@@ -41,9 +43,11 @@ describe("install script", () => {
   });
 
   test("ships a checksum-verified Windows installer", () => {
-    expect(powerShellInstallScript).toContain('"aiteamos-windows-x64.exe"');
+    expect(powerShellInstallScript).toContain('"outcomego-windows-x64.exe"');
     expect(powerShellInstallScript).toContain("Get-FileHash -Algorithm SHA256");
-    expect(powerShellInstallScript).toContain('Join-Path $env:LOCALAPPDATA "aiTeamOS\\bin"');
+    expect(powerShellInstallScript).toContain('Join-Path $env:LOCALAPPDATA "OutcomeGo\\bin"');
+    expect(powerShellInstallScript).toContain('Join-Path $binDirectory "aiteamos.exe"');
+    expect(powerShellInstallScript).toContain("Copy-Item -Force $binaryPath $installedAlias");
     expect(powerShellInstallScript).toContain("& $installedBinary install @args");
   });
 
@@ -62,7 +66,7 @@ describe("install script", () => {
     expect(downloads).toHaveLength(4);
     for (const line of downloads) expect(line).toContain("--speed-limit 1 --speed-time 20");
     expect(installScript).toContain(
-      'fail "could not look up the latest aiTeamOS release on GitHub. Check your internet connection and try again, or set AITEAMOS_VERSION to install a specific version."'
+      'fail "could not look up the latest OutcomeGo release on GitHub. Check your internet connection and try again, or set OUTCOMEGO_VERSION to install a specific version."'
     );
   });
 
@@ -79,7 +83,7 @@ describe("install script", () => {
       '[Environment]::SetEnvironmentVariable("Path", $newPath, "User")'
     );
     expect(powerShellInstallScript).toContain("$env:Path =");
-    expect(powerShellInstallScript).toContain('$env:AITEAMOS_NO_MODIFY_PATH -ne "1"');
+    expect(powerShellInstallScript).toContain('$env:OUTCOMEGO_NO_MODIFY_PATH -ne "1"');
   });
 });
 
@@ -103,7 +107,7 @@ const runInstaller = async (
     onPath?: boolean;
   } = {}
 ) => {
-  const root = mkdtempSync(join(tmpdir(), "aiteamos-installer-"));
+  const root = mkdtempSync(join(tmpdir(), "outcomego-installer-"));
   temporaryDirectories.push(root);
   const home = join(root, "home");
   const tools = join(root, "tools");
@@ -112,7 +116,7 @@ const runInstaller = async (
   const cli = "#!/bin/sh\nprintf 'handoff %s\\n' \"$*\"\n";
   const checksum = createHash("sha256").update(cli).digest("hex");
   const names = ["darwin", "linux"].flatMap((os) =>
-    ["x64", "arm64"].map((arch) => `aiteamos-${os}-${arch}`)
+    ["x64", "arm64"].map((arch) => `outcomego-${os}-${arch}`)
   );
   // Like a real release: each binary and its gzip copy.
   for (const name of names) {
@@ -152,11 +156,11 @@ cp "$source" "$output"
   const env: Record<string, string> = {
     HOME: home,
     PATH: `${tools}:/usr/bin:/bin${options.onPath ? `:${binDirectory}` : ""}`,
-    AITEAMOS_VERSION: "0.0.1",
+    OUTCOMEGO_VERSION: "0.0.1",
     NO_COLOR: "1",
     TERM: "dumb",
     ...(options.shell ? { SHELL: options.shell } : {}),
-    ...(options.binDirectory ? { AITEAMOS_BIN_DIR: binDirectory } : {}),
+    ...(options.binDirectory ? { OUTCOMEGO_BIN_DIR: binDirectory } : {}),
     ...options.env?.(home),
   };
   const run = async () => {
@@ -178,8 +182,8 @@ cp "$source" "$output"
   return { home, binDirectory, run, read };
 };
 
-const resolvesAiTeamOS = async (shell: string, profile: string, home: string) => {
-  const child = Bun.spawn([shell, "-c", `. '${profile}'; command -v aiteamos`], {
+const resolvesOutcomeGo = async (shell: string, profile: string, home: string) => {
+  const child = Bun.spawn([shell, "-c", `. '${profile}'; command -v outcomego`], {
     env: { HOME: home, PATH: "/usr/bin:/bin" },
     stdout: "pipe",
     stderr: "pipe",
@@ -198,15 +202,18 @@ describe.skipIf(process.platform === "win32")("installer PATH setup", () => {
     const first = await installer.run();
     expect(first.code).toBe(0);
     expect(first.output).toContain(
-      "Added ~/.local/bin to your PATH in ~/.zshrc. Open a new terminal to use aiteamos."
+      "Added ~/.local/bin to your PATH in ~/.zshrc. Open a new terminal to use outcomego."
     );
     expect(first.output).toContain("handoff install --dir");
+    expect(realpathSync(join(installer.binDirectory, "outcomego"))).toBe(
+      realpathSync(join(installer.binDirectory, "outcomego"))
+    );
     const profile = installer.read(".zshrc");
     expect(profile).toBe(
-      `# Added by the aiTeamOS installer\nexport PATH='${installer.binDirectory}':"$PATH"\n`
+      `# Added by the OutcomeGo installer\nexport PATH='${installer.binDirectory}':"$PATH"\n`
     );
     const second = await installer.run();
-    expect(second.output).toContain("Open a new terminal to use aiteamos.");
+    expect(second.output).toContain("Open a new terminal to use outcomego.");
     expect(second.output).not.toContain("Added ~/.local/bin");
     expect(installer.read(".zshrc")).toBe(profile);
 
@@ -217,7 +224,7 @@ describe.skipIf(process.platform === "win32")("installer PATH setup", () => {
     });
     expect((await custom.run()).output).toContain("in ~/zsh-config/.zshrc.");
     expect(custom.read("zsh-config/.zshrc")).toStartWith(
-      "alias ll='ls -l'\n# Added by the aiTeamOS installer\nexport PATH="
+      "alias ll='ls -l'\n# Added by the OutcomeGo installer\nexport PATH="
     );
     expect(custom.read(".zshrc")).toBeNull();
   });
@@ -227,7 +234,7 @@ describe.skipIf(process.platform === "win32")("installer PATH setup", () => {
     expect((await fresh.run()).output).toContain(
       "Added ~/.local/bin to your PATH in ~/.bashrc and ~/.bash_profile."
     );
-    expect(fresh.read(".bash_profile")).toContain("# Added by the aiTeamOS installer");
+    expect(fresh.read(".bash_profile")).toContain("# Added by the OutcomeGo installer");
 
     // Creating .bash_profile would stop bash from reading an existing .profile.
     const existing = await runInstaller({
@@ -238,7 +245,7 @@ describe.skipIf(process.platform === "win32")("installer PATH setup", () => {
     expect((await existing.run()).output).toContain("in ~/.bashrc and ~/.profile.");
     expect(existing.read(".bash_profile")).toBeNull();
     expect(existing.read(".profile")).toStartWith(
-      "export EDITOR=vi\n\n# Added by the aiTeamOS installer\n"
+      "export EDITOR=vi\n\n# Added by the OutcomeGo installer\n"
     );
   });
 
@@ -258,14 +265,14 @@ describe.skipIf(process.platform === "win32")("installer PATH setup", () => {
   test("fish gets a conf.d snippet using fish_add_path", async () => {
     const fish = await runInstaller({ shell: "/opt/homebrew/bin/fish" });
     expect((await fish.run()).output).toContain(
-      "Added ~/.local/bin to your PATH in ~/.config/fish/conf.d/aiteamos.fish."
+      "Added ~/.local/bin to your PATH in ~/.config/fish/conf.d/outcomego.fish."
     );
-    expect(fish.read(".config/fish/conf.d/aiteamos.fish")).toBe(
-      `# Added by the aiTeamOS installer\nfish_add_path -g '${fish.binDirectory}'\n`
+    expect(fish.read(".config/fish/conf.d/outcomego.fish")).toBe(
+      `# Added by the OutcomeGo installer\nfish_add_path -g '${fish.binDirectory}'\n`
     );
   });
 
-  test("the written line resolves aiteamos, even for a directory with spaces and quotes", async () => {
+  test("the written line resolves outcomego, even for a directory with spaces and quotes", async () => {
     const installer = await runInstaller({
       shell: "/bin/sh",
       binDirectory: (home) => join(home, "tools dir", "it's here"),
@@ -273,22 +280,22 @@ describe.skipIf(process.platform === "win32")("installer PATH setup", () => {
     const { output, code } = await installer.run();
     expect(code).toBe(0);
     expect(output).toContain("~/tools dir/it's here to your PATH in ~/.profile.");
-    const resolved = await resolvesAiTeamOS(
+    const resolved = await resolvesOutcomeGo(
       "/bin/sh",
       join(installer.home, ".profile"),
       installer.home
     );
-    expect(realpathSync(resolved)).toBe(realpathSync(join(installer.binDirectory, "aiteamos")));
+    expect(realpathSync(resolved)).toBe(realpathSync(join(installer.binDirectory, "outcomego")));
   });
 
   test("leaves profiles alone when opted out or already on PATH", async () => {
     const optedOut = await runInstaller({
       shell: "/bin/zsh",
-      env: () => ({ AITEAMOS_NO_MODIFY_PATH: "1" }),
+      env: () => ({ OUTCOMEGO_NO_MODIFY_PATH: "1" }),
     });
     const skipped = await optedOut.run();
     expect(skipped.output).toContain(
-      `Add ${optedOut.binDirectory} to PATH to run aiteamos from new terminals.`
+      `Add ${optedOut.binDirectory} to PATH to run outcomego from new terminals.`
     );
     expect(optedOut.read(".zshrc")).toBeNull();
 

@@ -1,12 +1,12 @@
-import { isAiTeamOSVersion } from "@aiteamos/contracts/version-compatibility";
+import { isOutcomeGoVersion } from "@outcomego/contracts/version-compatibility";
 
 type CacheStorage = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 export interface ServerUpdateSnapshot {
-  status: AiTeamOSServerUpdateStatus;
+  status: OutcomeGoServerUpdateStatus;
   observedAt: number;
   startedAt: number | null;
 }
-const key = (server: string) => `aiteamos:server-update:${server}`;
+const key = (server: string) => `outcomego:server-update:${server}`;
 const MAX_AGE = 24 * 60 * 60 * 1000;
 
 /** A last-known active job, never evidence that a server is currently healthy. */
@@ -28,7 +28,7 @@ export function readServerUpdateSnapshot(
     if (
       status?.serverUrl !== server ||
       status.status !== "updating" ||
-      !isAiTeamOSVersion(status.targetVersion ?? "")
+      !isOutcomeGoVersion(status.targetVersion ?? "")
     )
       return null;
     if (

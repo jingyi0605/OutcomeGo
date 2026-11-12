@@ -1,4 +1,4 @@
-import { safeErrorMessage } from "@aiteamos/product-core/redaction";
+import { safeErrorMessage } from "@outcomego/product-core/redaction";
 
 export class CliError extends Error {
   constructor(

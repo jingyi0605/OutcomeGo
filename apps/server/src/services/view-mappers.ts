@@ -1,6 +1,6 @@
-import type { ChannelMessageView } from "@aiteamos/contracts";
-import { type BotView, type ChannelView, resolveBotAvatarMark } from "@aiteamos/contracts";
-import type { Prisma } from "@aiteamos/db";
+import type { ChannelMessageView } from "@outcomego/contracts";
+import { type BotView, type ChannelView, resolveBotAvatarMark } from "@outcomego/contracts";
+import type { Prisma } from "@outcomego/db";
 
 export const serialize = <T>(value: T): T =>
   JSON.parse(

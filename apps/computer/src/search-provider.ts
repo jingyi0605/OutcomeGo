@@ -1,7 +1,7 @@
 /** Search provider APIs, verified against each provider's official documentation (2026-09). */
-import { SEARCH_PROVIDERS, type SearchProvider } from "@aiteamos/contracts/web-search";
+import { SEARCH_PROVIDERS, type SearchProvider } from "@outcomego/contracts/web-search";
 import { setTimeout as waitForSearchRetry } from "node:timers/promises";
-export { SEARCH_PROVIDERS, type SearchProvider } from "@aiteamos/contracts/web-search";
+export { SEARCH_PROVIDERS, type SearchProvider } from "@outcomego/contracts/web-search";
 export interface SearchConfiguration {
   provider?: SearchProvider | null;
   apiKey?: string;

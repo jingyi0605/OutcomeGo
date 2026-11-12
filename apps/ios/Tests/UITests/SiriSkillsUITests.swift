@@ -11,19 +11,19 @@ import SiriEvaluations
 @MainActor
 final class SiriSkillsUITests: XCTestCase {
   override func setUpWithError() throws {
-    guard ProcessInfo.processInfo.environment["AITEAMOS_LIVE_SIRI_TESTS"] == "1" else {
+    guard ProcessInfo.processInfo.environment["OUTCOMEGO_LIVE_SIRI_TESTS"] == "1" else {
       throw XCTSkip("Opt-in only: use a development-signed iPhone with Siri AI preview and an isolated QA account")
     }
   }
 
   private var definitions: IntentDefinitions {
-    IntentDefinitions(bundleIdentifier: "dev.openteam.mobile.swift")
+    IntentDefinitions(bundleIdentifier: "dev.outcomego.mobile.swift")
   }
 
   func testServerMessageSearchTool() async throws {
     let find = definitions.intents["FindTeamMessagesIntent"]
     try await evaluate(SiriScenario {
-      UserTurn("Find messages in OpenTeam matching deployment") {
+      UserTurn("Find messages in OutcomeGo matching deployment") {
         Calls { find.expect(query: .equals("deployment")) }
       }
     })
@@ -33,7 +33,7 @@ final class SiriSkillsUITests: XCTestCase {
     let draft = definitions.intents["DraftTeamConversationMessageIntent"]
     let conversation = definitions.entities["TeamConversationEntity"].expectIdentifier(try qaConversationID())
     try await evaluate(SiriScenario {
-      UserTurn("Draft a message in OpenTeam to the Release review group saying Please review the release") {
+      UserTurn("Draft a message in OutcomeGo to the Release review group saying Please review the release") {
         Calls {
           draft.expect(conversation: conversation,
             text: .equals("Please review the release"))
@@ -51,7 +51,7 @@ final class SiriSkillsUITests: XCTestCase {
     let draft = definitions.intents["DraftTeamConversationMessageIntent"]
     let conversation = definitions.entities["TeamConversationEntity"].expectIdentifier(try qaConversationID())
     try await evaluate(SiriScenario {
-      UserTurn("Draft a message in OpenTeam to the Release review group saying Please review the release") {
+      UserTurn("Draft a message in OutcomeGo to the Release review group saying Please review the release") {
         Calls { draft.expect(conversation: conversation) }
       }
       UserTurn("Also add: check the deployment notes") {
@@ -66,7 +66,7 @@ final class SiriSkillsUITests: XCTestCase {
   }
 
   private func qaConversationID() throws -> String {
-    guard let id = ProcessInfo.processInfo.environment["AITEAMOS_SIRI_QA_CONVERSATION_ID"], !id.isEmpty else {
+    guard let id = ProcessInfo.processInfo.environment["OUTCOMEGO_SIRI_QA_CONVERSATION_ID"], !id.isEmpty else {
       throw XCTSkip("Supply the scoped entity ID for the isolated Release review QA conversation")
     }
     return id

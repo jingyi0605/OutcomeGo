@@ -1,4 +1,4 @@
-import type { ComputerEvent } from "@aiteamos/contracts";
+import type { ComputerEvent } from "@outcomego/contracts";
 import { AsyncQueue } from "../../../apps/computer/src/async-queue";
 import { ComputerEventQueue } from "../../../apps/computer/src/computer-event-queue";
 import { computerEventStream } from "../../../apps/computer/src/computer-event-stream";
@@ -159,7 +159,7 @@ const output = JSON.stringify(
   null,
   2
 );
-if (process.env.AITEAMOS_AUDIT_OUTPUT) {
-  await Bun.write(process.env.AITEAMOS_AUDIT_OUTPUT, `${output}\n`);
+if (process.env.OUTCOMEGO_AUDIT_OUTPUT) {
+  await Bun.write(process.env.OUTCOMEGO_AUDIT_OUTPUT, `${output}\n`);
 }
 console.log(output);

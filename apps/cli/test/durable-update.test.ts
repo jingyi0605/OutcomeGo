@@ -30,7 +30,7 @@ afterEach(() => {
 });
 
 const fixture = () => {
-  const directory = mkdtempSync(join(tmpdir(), "aiteamos-durable-update-"));
+  const directory = mkdtempSync(join(tmpdir(), "outcomego-durable-update-"));
   temporaryDirectories.push(directory);
   return installationPaths(directory);
 };
@@ -42,7 +42,7 @@ const state = (jobId: string, status: "running" | "complete", phase: "checking" 
   phase,
   fromVersion: "1.2.3",
   targetVersion: "1.3.0",
-  message: phase === "complete" ? "aiTeamOS is now running 1.3.0" : "Checking this server",
+  message: phase === "complete" ? "OutcomeGo is now running 1.3.0" : "Checking this server",
   startedAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
 });
@@ -51,26 +51,26 @@ describe("durable one-command update", () => {
   test("relaunches the same CLI command under Node, Electron-as-Node, and a compiled binary", () => {
     expect(
       updateWorkerArguments(
-        ["/usr/bin/node", "/app/aiteamos.js", "update", "--version", "1.3.0"],
+        ["/usr/bin/node", "/app/outcomego.js", "update", "--version", "1.3.0"],
         "/usr/bin/node"
       )
-    ).toEqual(["/app/aiteamos.js", "update", "--version", "1.3.0"]);
+    ).toEqual(["/app/outcomego.js", "update", "--version", "1.3.0"]);
     expect(
       updateWorkerArguments(
-        ["/Applications/aiTeamOS", "/resources/aiteamos-cli.js", "update"],
-        "/Applications/aiTeamOS"
+        ["/Applications/OutcomeGo", "/resources/outcomego-cli.js", "update"],
+        "/Applications/OutcomeGo"
       )
-    ).toEqual(["/resources/aiteamos-cli.js", "update"]);
+    ).toEqual(["/resources/outcomego-cli.js", "update"]);
     expect(
       updateWorkerArguments(
-        ["/usr/local/bin/aiteamos", "/usr/local/bin/aiteamos", "update"],
-        "/usr/local/bin/aiteamos"
+        ["/usr/local/bin/outcomego", "/usr/local/bin/outcomego", "update"],
+        "/usr/local/bin/outcomego"
       )
     ).toEqual(["update"]);
     expect(
       updateWorkerArguments(
-        ["/usr/local/bin/aiteamos", "/$bunfs/root/aiteamos", "update"],
-        "/usr/local/bin/aiteamos",
+        ["/usr/local/bin/outcomego", "/$bunfs/root/outcomego", "update"],
+        "/usr/local/bin/outcomego",
         true
       )
     ).toEqual(["update"]);
@@ -95,7 +95,7 @@ describe("durable one-command update", () => {
         parseArguments(["update", "--version", "1.3.0", "--json-progress"]),
         {
           executable: "/usr/bin/node",
-          argv: ["/usr/bin/node", "/app/aiteamos.js", "update", "--version", "1.3.0"],
+          argv: ["/usr/bin/node", "/app/outcomego.js", "update", "--version", "1.3.0"],
           spawnWorker: (_executable, args, options) => {
             spawnedArguments = args;
             detached = options.detached;
@@ -118,12 +118,12 @@ describe("durable one-command update", () => {
       log.mockRestore();
     }
 
-    expect(spawnedArguments).toEqual(["/app/aiteamos.js", "update", "--version", "1.3.0"]);
+    expect(spawnedArguments).toEqual(["/app/outcomego.js", "update", "--version", "1.3.0"]);
     expect(detached).toBe(true);
     expect(unrefCalled).toBe(true);
     expect(messages.some((message) => message.includes('"safeToCloseDesktop":true'))).toBe(true);
     expect(messages.some((message) => message.includes('"phase":"complete"'))).toBe(true);
-    expect(messages.every((message) => message.startsWith("@@AITEAMOS_UPDATE@@"))).toBe(true);
+    expect(messages.every((message) => message.startsWith("@@OUTCOMEGO_UPDATE@@"))).toBe(true);
     expect(messages.some((message) => message.includes("\x1b"))).toBe(false);
   });
 
@@ -154,12 +154,12 @@ describe("durable one-command update", () => {
       schemaVersion: 1,
       repository: "owner/repo",
       version: "1.2.3",
-      composeUrl: "https://example.com/aiteamos-compose.yaml",
+      composeUrl: "https://example.com/outcomego-compose.yaml",
       installedAt: now,
       updatedAt: now,
     });
-    const installed = "/usr/local/bin/aiteamos";
-    const candidate = "/usr/local/bin/.aiteamos.update-1.3.0-test";
+    const installed = "/usr/local/bin/outcomego";
+    const candidate = "/usr/local/bin/.outcomego.update-1.3.0-test";
     let launchedExecutable = "";
     let launchedArguments: readonly string[] = [];
     let launchedEnvironment: NodeJS.ProcessEnv = {};
@@ -219,12 +219,12 @@ describe("durable one-command update", () => {
       schemaVersion: 1,
       repository: "owner/repo",
       version: "1.2.3",
-      composeUrl: "https://example.com/aiteamos-compose.yaml",
+      composeUrl: "https://example.com/outcomego-compose.yaml",
       installedAt: now,
       updatedAt: now,
     });
     let serverCommandRan = false;
-    const installed = "/usr/local/bin/aiteamos";
+    const installed = "/usr/local/bin/outcomego";
     const jobId = randomUUID();
     await expect(
       runUpdateWorker(
@@ -266,11 +266,11 @@ describe("durable one-command update", () => {
       schemaVersion: 1,
       repository: "owner/repo",
       version: "1.3.0",
-      composeUrl: "https://example.com/aiteamos-compose.yaml",
+      composeUrl: "https://example.com/outcomego-compose.yaml",
       installedAt: now,
       updatedAt: now,
     });
-    const installed = "/usr/local/bin/aiteamos";
+    const installed = "/usr/local/bin/outcomego";
     const jobId = randomUUID();
     let staged = false;
     await expect(
@@ -292,7 +292,7 @@ describe("durable one-command update", () => {
           },
         }
       )
-    ).rejects.toThrow("Refusing to downgrade aiTeamOS 1.3.0 to 1.2.0");
+    ).rejects.toThrow("Refusing to downgrade OutcomeGo 1.3.0 to 1.2.0");
     expect(staged).toBe(false);
     expect(readUpdateState(paths)).toMatchObject({
       jobId,
@@ -301,7 +301,7 @@ describe("durable one-command update", () => {
       fromVersion: "1.3.0",
       targetVersion: "1.2.0",
       message:
-        "Refusing to downgrade aiTeamOS 1.3.0 to 1.2.0. Use --allow-downgrade only for an intentional recovery.",
+        "Refusing to downgrade OutcomeGo 1.3.0 to 1.2.0. Use --allow-downgrade only for an intentional recovery.",
     });
   });
 
@@ -320,17 +320,17 @@ describe("durable one-command update", () => {
         parseArguments(["update", "--version", "1.3.0"]),
         { run: () => ({ status: 1, stdout: "", stderr: "unexpected runner call" }) },
         randomUUID(),
-        { executable: "/usr/bin/node", argv: ["/usr/bin/node", "/app/aiteamos.js", "update"] }
+        { executable: "/usr/bin/node", argv: ["/usr/bin/node", "/app/outcomego.js", "update"] }
       )
-    ).rejects.toThrow("Another aiTeamOS setup or update is already running");
+    ).rejects.toThrow("Another OutcomeGo setup or update is already running");
     expect(readUpdateState(paths)).toMatchObject({ jobId: activeJob, status: "running" });
   });
 
   test("recovers a wrapped worker error from the update log", () => {
     const log = [
-      "Updating aiTeamOS 1.2.3 → 1.3.0…",
+      "Updating OutcomeGo 1.2.3 → 1.3.0…",
       "  ╭──────────────────────────────╮",
-      "  │ AITEAMOS / error             │",
+      "  │ OutcomeGo / error             │",
       "  │ COMMAND FAILED               │",
       "  ╰──────────────────────────────╯",
       "",
@@ -341,7 +341,7 @@ describe("durable one-command update", () => {
     expect(updateLogFailure(log)).toBe(
       "Refusing prerelease 1.4.0-beta.1 on the stable channel. Use --allow-prerelease to opt in."
     );
-    expect(updateLogFailure("aiteamos: worker crashed\n")).toBe("worker crashed");
+    expect(updateLogFailure("outcomego: worker crashed\n")).toBe("worker crashed");
     expect(updateLogFailure("\n\n")).toBeNull();
   });
 });

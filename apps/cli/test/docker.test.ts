@@ -55,11 +55,11 @@ describe("Docker Compose command selection", () => {
   });
 
   test("always scopes lifecycle calls to the installation and project", () => {
-    const directory = mkdtempSync(join(tmpdir(), "aiteamos-cli-docker-"));
+    const directory = mkdtempSync(join(tmpdir(), "outcomego-cli-docker-"));
     try {
       const paths = installationPaths(directory);
-      writeFileSync(paths.compose, "name: aiteamos\n");
-      writeFileSync(paths.environment, "AITEAMOS_VERSION=1.3.0\nAITEAMOS_CONTROL_TOKEN=secret\n");
+      writeFileSync(paths.compose, "name: outcomego\n");
+      writeFileSync(paths.environment, "OUTCOMEGO_VERSION=1.3.0\nOUTCOMEGO_CONTROL_TOKEN=secret\n");
       const runner = new RecordingRunner(true);
       const command = findCompose(runner);
       expect(command).not.toBeNull();
@@ -70,7 +70,7 @@ describe("Docker Compose command selection", () => {
       expect(call?.args).toEqual([
         "compose",
         "--project-name",
-        "aiteamos",
+        "outcomego",
         "--project-directory",
         directory,
         "--env-file",
@@ -82,11 +82,11 @@ describe("Docker Compose command selection", () => {
       expect(
         composeProcessEnvironment(paths, {
           PATH: "/usr/bin",
-          AITEAMOS_VERSION: "1.2.3",
-          AITEAMOS_CONTROL_TOKEN: "stale",
+          OUTCOMEGO_VERSION: "1.2.3",
+          OUTCOMEGO_CONTROL_TOKEN: "stale",
         })
       ).toEqual({ PATH: "/usr/bin" });
-      expect(call?.options?.env?.AITEAMOS_VERSION).toBeUndefined();
+      expect(call?.options?.env?.OUTCOMEGO_VERSION).toBeUndefined();
     } finally {
       rmSync(directory, { recursive: true, force: true });
     }
@@ -126,11 +126,11 @@ describe("Docker Compose failure diagnosis", () => {
   }
 
   const withProject = (runner: CommandRunner, check: (project: ComposeProject) => void) => {
-    const directory = mkdtempSync(join(tmpdir(), "aiteamos-cli-docker-"));
+    const directory = mkdtempSync(join(tmpdir(), "outcomego-cli-docker-"));
     try {
       const paths = installationPaths(directory);
-      writeFileSync(paths.compose, "name: aiteamos\n");
-      writeFileSync(paths.environment, "AITEAMOS_VERSION=1.3.0\n");
+      writeFileSync(paths.compose, "name: outcomego\n");
+      writeFileSync(paths.environment, "OUTCOMEGO_VERSION=1.3.0\n");
       const command = findCompose(runner);
       if (!command) throw new Error("expected Docker Compose to be available");
       check(new ComposeProject(paths, command, runner));

@@ -206,7 +206,7 @@ export const renderSetupHeader = (input: {
 }): string => {
   const styled = input.color ?? false;
   const width = Math.max(32, Math.min(96, measuredWidth(input.width)));
-  const heading = ` AITEAMOS SETUP · v${input.version} `;
+  const heading = ` OutcomeGo SETUP · v${input.version} `;
   const markerFor = (index: number): "done" | "active" | "pending" => {
     if (index === input.activeStage) return "active";
     const done = input.completed ? Boolean(input.completed[index]) : index < input.activeStage;
@@ -489,7 +489,7 @@ export const createSetupPresentation = (input: {
     start() {
       write(header());
       for (const line of wrapText(
-        cliTranslate("A few quick choices, then aiTeamOS will check the rest."),
+        cliTranslate("A few quick choices, then OutcomeGo will check the rest."),
         width
       )) {
         write(paint(styled, line, ANSI.dim));

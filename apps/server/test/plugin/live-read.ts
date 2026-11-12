@@ -1,6 +1,6 @@
 // Opt-in acceptance checks against connected accounts, never part of bun test.
-// Run with the server's DATABASE_URL, AITEAMOS_COMPUTER_URL, and AITEAMOS_CONTROL_TOKEN.
-import { createPrismaClient } from "@aiteamos/db";
+// Run with the server's DATABASE_URL, OUTCOMEGO_COMPUTER_URL, and OUTCOMEGO_CONTROL_TOKEN.
+import { createPrismaClient } from "@outcomego/db";
 import { Effect } from "effect";
 import { PluginService } from "../../src/services/plugin-service";
 
@@ -12,7 +12,7 @@ if (!flags.has("--live") || [...flags].some((flag) => flag !== "--live")) {
   );
   process.exit(2);
 }
-for (const key of ["DATABASE_URL", "AITEAMOS_COMPUTER_URL", "AITEAMOS_CONTROL_TOKEN"]) {
+for (const key of ["DATABASE_URL", "OUTCOMEGO_COMPUTER_URL", "OUTCOMEGO_CONTROL_TOKEN"]) {
   if (!process.env[key]) {
     console.error(`Missing server environment variable: ${key}`);
     process.exit(2);
@@ -22,9 +22,9 @@ for (const key of ["DATABASE_URL", "AITEAMOS_COMPUTER_URL", "AITEAMOS_CONTROL_TO
 const prisma = createPrismaClient(process.env.DATABASE_URL!);
 const service = new PluginService(prisma, (path, init) => {
   const headers = new Headers(init?.headers);
-  headers.set("authorization", `Bearer ${process.env.AITEAMOS_CONTROL_TOKEN}`);
+  headers.set("authorization", `Bearer ${process.env.OUTCOMEGO_CONTROL_TOKEN}`);
   headers.set("content-type", "application/json");
-  return fetch(`${process.env.AITEAMOS_COMPUTER_URL}${path}`, {
+  return fetch(`${process.env.OUTCOMEGO_COMPUTER_URL}${path}`, {
     ...init,
     headers,
     signal: AbortSignal.timeout(45_000),
@@ -83,7 +83,7 @@ try {
     ],
     ["slack", "slack_search_channels", { query: "general", limit: 1, response_format: "concise" }],
     ["github", "get_me", {}],
-    ["github", "search_repositories", { query: "aiteamos in:name", perPage: 1 }],
+    ["github", "search_repositories", { query: "outcomego in:name", perPage: 1 }],
     ["gmail", "get_profile", {}],
     ["gmail", "list_labels", {}],
     ["gmail", "search_messages", { query: "in:inbox", maxResults: 1 }],
@@ -104,7 +104,7 @@ try {
     ["linear", "get_workspace", {}],
     ["linear", "list_teams", { limit: 1 }],
     ["notion", "notion-get-users", { user_id: "self", page_size: 1 }],
-    ["notion", "notion-search", { query: "aiTeamOS", page_size: 1, max_highlight_length: 0 }],
+    ["notion", "notion-search", { query: "outcomeGo", page_size: 1, max_highlight_length: 0 }],
   ];
   for (const [plugin, tool, args] of checks) await check(plugin, tool, args);
   console.log(JSON.stringify({ passed, failed }));

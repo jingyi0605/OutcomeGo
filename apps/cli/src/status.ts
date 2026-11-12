@@ -59,11 +59,11 @@ export const collectStatus = async (
   if (!files.some(existsSync)) {
     report.issue = {
       label: "Installation",
-      detail: cliTranslate("aiTeamOS has not been installed in this directory."),
+      detail: cliTranslate("OutcomeGo has not been installed in this directory."),
       notInstalled: true,
     };
     report.nextDetail = cliTranslate(
-      "Install aiTeamOS, or use --dir to select an existing installation."
+      "Install OutcomeGo, or use --dir to select an existing installation."
     );
     report.next = command("install");
     return report;
@@ -91,16 +91,16 @@ export const collectStatus = async (
     owner = manifest.ownerUsername;
     report.username = owner?.trim() || undefined;
     environment = parseEnvironment(readFileSync(paths.environment, "utf8"));
-    const access = environment.get("AITEAMOS_ACCESS_MODE") || "local";
+    const access = environment.get("OUTCOMEGO_ACCESS_MODE") || "local";
     report.connection = ACCESS_MODES.includes(access as AccessMode)
       ? accessLabel(access as AccessMode)
       : access;
-    report.server = environment.get("AITEAMOS_PUBLIC_URL") || cliTranslate("Not configured");
+    report.server = environment.get("OUTCOMEGO_PUBLIC_URL") || cliTranslate("Not configured");
     report.expected = expectedServices(environment);
   } catch (error) {
     return blocked(
       "Configuration",
-      cliTranslate("aiTeamOS's installation configuration could not be read."),
+      cliTranslate("OutcomeGo's installation configuration could not be read."),
       cliTranslate(
         "Check file access and restore damaged configuration from a known-good backup. Run {command} for details.",
         { command: command("doctor") }
@@ -109,7 +109,7 @@ export const collectStatus = async (
     );
   }
 
-  if (environment.get("AITEAMOS_ACCESS_MODE") === "tailscale") {
+  if (environment.get("OUTCOMEGO_ACCESS_MODE") === "tailscale") {
     const status = await tailscaleStatus(paths, runner);
     if (status.issue)
       return blocked(
@@ -153,7 +153,7 @@ export const collectStatus = async (
   } catch (error) {
     return blocked(
       "Containers",
-      cliTranslate("aiTeamOS could not read its container states."),
+      cliTranslate("OutcomeGo could not read its container states."),
       cliTranslate(
         "Run docker info to check the engine, then {command} to inspect Compose and configuration errors.",
         { command: command("doctor") }
@@ -206,7 +206,7 @@ export const collectStatus = async (
     );
     report.next = command("status");
   } else if (!owner?.trim()) {
-    report.nextDetail = cliTranslate("Finish account setup before using aiTeamOS:");
+    report.nextDetail = cliTranslate("Finish account setup before using OutcomeGo:");
     report.next = command("setup");
   } else if (
     state === "STOPPED" ||
@@ -243,7 +243,7 @@ export const collectStatus = async (
     }
   } else if (report.health.inference !== "ready") {
     report.nextDetail = cliTranslate(
-      "Containers and server are ready. Connect a model in the aiTeamOS app under Settings → Server before starting AI tasks. On a server without the app, run:"
+      "Containers and server are ready. Connect a model in the OutcomeGo app under Settings → Server before starting AI tasks. On a server without the app, run:"
     );
     report.next = command("model");
   } else {
@@ -262,8 +262,8 @@ export const statusCommand = async (
     throw new CliError(
       report.issue?.detail ||
         (report.health && !report.health.ok
-          ? cliTranslate("aiTeamOS is not healthy: {detail}", { detail: report.health.detail })
-          : cliTranslate("aiTeamOS services need attention.")),
+          ? cliTranslate("OutcomeGo is not healthy: {detail}", { detail: report.health.detail })
+          : cliTranslate("OutcomeGo services need attention.")),
       2,
       true
     );

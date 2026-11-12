@@ -52,7 +52,7 @@
   - 主要改哪里：`packages/contracts/src/outcomes.ts`、`index.ts`、`service-protocol.ts`
   - 这一步先不做什么：不加入未使用的权限等级和未来模型。
   - 怎么算完成：所有公共类型有 schema 校验、错误路径和测试。
-  - 怎么验证：`bun --filter @aiteamos/contracts typecheck`、聚焦 contracts tests。
+  - 怎么验证：`bun --filter @outcomego/contracts typecheck`、聚焦 contracts tests。
   - 对应需求：需求 1、需求 2、需求 3、需求 4、需求 5
   - 对应设计：`design.md` §9、§10、§11
 
@@ -62,7 +62,7 @@
   - 主要改哪里：`packages/db/prisma/schema.prisma`、生成 migration、数据库集成测试
   - 这一步先不做什么：不删除或重命名现有 Channel/Run/Message 表。
   - 怎么算完成：Outcome、revision、criterion、evidence、review、work item 可迁移，唯一约束生效。
-  - 怎么验证：`bun --filter @aiteamos/db db:generate`、一次性 PostgreSQL migration、历史数据读取。
+  - 怎么验证：`bun --filter @outcomego/db db:generate`、一次性 PostgreSQL migration、历史数据读取。
   - 对应需求：需求 1、需求 7、需求 8、需求 9
   - 对应设计：`design.md` §9、§13
 
@@ -91,7 +91,7 @@
 - [ ] 2.2 实现 Desktop Planning 页面
   - 状态：TODO
   - 先依赖什么：2.1
-  - 主要改哪里：`apps/desktop/src/renderer/components/aiteamos/outcomes/`、`chat-pane.tsx`、API client
+  - 主要改哪里：`apps/desktop/src/renderer/components/outcomego/outcomes/`、`chat-pane.tsx`、API client
   - 这一步先不做什么：不替换聊天历史，不展示完整运行日志。
   - 怎么算完成：用户可以输入任务、逐维度多选、自定义、看到冲突并确认草案。
   - 怎么验证：Desktop typecheck、组件测试、浏览器 UI fixture。

@@ -56,7 +56,7 @@ const fixture = Bun.serve({
 });
 const vite = await createServer({
   root: join(repo, "apps/desktop"),
-  cacheDir: join(await mkdtemp(join(tmpdir(), "aiteamos-model-settings-")), "vite"),
+  cacheDir: join(await mkdtemp(join(tmpdir(), "outcomego-model-settings-")), "vite"),
   server: { host: "127.0.0.1", port: 0, proxy: { "/api": { target: fixture.url.origin } } },
 });
 let browser: Awaited<ReturnType<typeof chromium.launch>> | undefined;

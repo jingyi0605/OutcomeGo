@@ -2,7 +2,7 @@ import { createRoot } from "react-dom/client";
 import { signIn } from "../../src/renderer/client/auth";
 import { useAuthenticatedResource } from "../../src/renderer/hooks/use-authenticated-resource";
 import { MessageResponse } from "../../src/renderer/components/ai-elements/message";
-import { FileAttachmentCard } from "../../src/renderer/components/aiteamos/file-attachment";
+import { FileAttachmentCard } from "../../src/renderer/components/outcomego/file-attachment";
 import "../../src/renderer/styles.css";
 function PrivateImage({ alias }: { alias: string }) {
   const source = useAuthenticatedResource(`${alias}${"a".repeat(64)}`);

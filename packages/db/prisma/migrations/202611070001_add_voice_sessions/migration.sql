@@ -1,7 +1,7 @@
-CREATE TYPE "VoiceSessionStatus" AS ENUM ('created', 'active', 'closing', 'ended', 'failed');
-CREATE TYPE "VoiceTurnStatus" AS ENUM ('listening', 'processing', 'speaking', 'output_paused', 'completed', 'superseded', 'interrupted', 'cancelled', 'failed');
+CREATE TYPE "outcomego_voice_session_status" AS ENUM ('created', 'active', 'closing', 'ended', 'failed');
+CREATE TYPE "outcomego_voice_turn_status" AS ENUM ('listening', 'processing', 'speaking', 'output_paused', 'completed', 'superseded', 'interrupted', 'cancelled', 'failed');
 
-CREATE TABLE "VoiceSession" (
+CREATE TABLE "outcomego_voice_session" (
   "id" UUID NOT NULL,
   "botId" UUID NOT NULL,
   "conversationId" UUID NOT NULL,
@@ -10,20 +10,20 @@ CREATE TABLE "VoiceSession" (
   "clientPlatform" TEXT NOT NULL,
   "clientInstanceId" TEXT NOT NULL,
   "provider" TEXT NOT NULL,
-  "status" "VoiceSessionStatus" NOT NULL DEFAULT 'created',
+  "status" "outcomego_voice_session_status" NOT NULL DEFAULT 'created',
   "expiresAt" TIMESTAMP(3) NOT NULL,
   "endedAt" TIMESTAMP(3),
   "closeReason" TEXT,
   "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   "updatedAt" TIMESTAMP(3) NOT NULL,
-  CONSTRAINT "VoiceSession_pkey" PRIMARY KEY ("id")
+  CONSTRAINT "outcomego_voice_session_pkey" PRIMARY KEY ("id")
 );
-CREATE TABLE "VoiceTurn" (
+CREATE TABLE "outcomego_voice_turn" (
   "id" UUID NOT NULL,
   "sessionId" UUID NOT NULL,
   "runId" UUID,
   "userMessageId" TEXT,
-  "status" "VoiceTurnStatus" NOT NULL DEFAULT 'listening',
+  "status" "outcomego_voice_turn_status" NOT NULL DEFAULT 'listening',
   "transcript" TEXT,
   "durationMs" INTEGER NOT NULL DEFAULT 0,
   "language" TEXT,
@@ -33,17 +33,17 @@ CREATE TABLE "VoiceTurn" (
   "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   "completedAt" TIMESTAMP(3),
   "updatedAt" TIMESTAMP(3) NOT NULL,
-  CONSTRAINT "VoiceTurn_pkey" PRIMARY KEY ("id")
+  CONSTRAINT "outcomego_voice_turn_pkey" PRIMARY KEY ("id")
 );
-CREATE UNIQUE INDEX "VoiceTurn_runId_key" ON "VoiceTurn"("runId");
-CREATE INDEX "VoiceSession_ownerSessionId_status_expiresAt_idx" ON "VoiceSession"("ownerSessionId", "status", "expiresAt");
-CREATE INDEX "VoiceSession_botId_status_expiresAt_idx" ON "VoiceSession"("botId", "status", "expiresAt");
-CREATE INDEX "VoiceSession_channelId_createdAt_idx" ON "VoiceSession"("channelId", "createdAt");
-CREATE INDEX "VoiceTurn_sessionId_createdAt_idx" ON "VoiceTurn"("sessionId", "createdAt");
-CREATE INDEX "VoiceTurn_sessionId_status_idx" ON "VoiceTurn"("sessionId", "status");
-ALTER TABLE "VoiceSession" ADD CONSTRAINT "VoiceSession_botId_fkey" FOREIGN KEY ("botId") REFERENCES "Bot"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "VoiceSession" ADD CONSTRAINT "VoiceSession_conversationId_fkey" FOREIGN KEY ("conversationId") REFERENCES "Conversation"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "VoiceSession" ADD CONSTRAINT "VoiceSession_channelId_fkey" FOREIGN KEY ("channelId") REFERENCES "Channel"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "VoiceSession" ADD CONSTRAINT "VoiceSession_ownerSessionId_fkey" FOREIGN KEY ("ownerSessionId") REFERENCES "session"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "VoiceTurn" ADD CONSTRAINT "VoiceTurn_sessionId_fkey" FOREIGN KEY ("sessionId") REFERENCES "VoiceSession"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "VoiceTurn" ADD CONSTRAINT "VoiceTurn_runId_fkey" FOREIGN KEY ("runId") REFERENCES "Run"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+CREATE UNIQUE INDEX "outcomego_voice_turn_run_id_key" ON "outcomego_voice_turn"("runId");
+CREATE INDEX "outcomego_voice_session_owner_session_id_status_expires_at_idx" ON "outcomego_voice_session"("ownerSessionId", "status", "expiresAt");
+CREATE INDEX "outcomego_voice_session_bot_id_status_expires_at_idx" ON "outcomego_voice_session"("botId", "status", "expiresAt");
+CREATE INDEX "outcomego_voice_session_channel_id_created_at_idx" ON "outcomego_voice_session"("channelId", "createdAt");
+CREATE INDEX "outcomego_voice_turn_session_id_created_at_idx" ON "outcomego_voice_turn"("sessionId", "createdAt");
+CREATE INDEX "outcomego_voice_turn_session_id_status_idx" ON "outcomego_voice_turn"("sessionId", "status");
+ALTER TABLE "outcomego_voice_session" ADD CONSTRAINT "outcomego_voice_session_bot_id_fkey" FOREIGN KEY ("botId") REFERENCES "outcomego_bot"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "outcomego_voice_session" ADD CONSTRAINT "outcomego_voice_session_conversation_id_fkey" FOREIGN KEY ("conversationId") REFERENCES "outcomego_conversation"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "outcomego_voice_session" ADD CONSTRAINT "outcomego_voice_session_channel_id_fkey" FOREIGN KEY ("channelId") REFERENCES "outcomego_channel"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "outcomego_voice_session" ADD CONSTRAINT "outcomego_voice_session_owner_session_id_fkey" FOREIGN KEY ("ownerSessionId") REFERENCES "session"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "outcomego_voice_turn" ADD CONSTRAINT "outcomego_voice_turn_session_id_fkey" FOREIGN KEY ("sessionId") REFERENCES "outcomego_voice_session"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "outcomego_voice_turn" ADD CONSTRAINT "outcomego_voice_turn_run_id_fkey" FOREIGN KEY ("runId") REFERENCES "outcomego_run"("id") ON DELETE SET NULL ON UPDATE CASCADE;

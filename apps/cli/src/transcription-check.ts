@@ -6,7 +6,7 @@ import { healthUrl } from "./health";
 export async function checkTranscription(paths: InstallationPaths): Promise<DoctorCheck> {
   try {
     const environment = parseEnvironment(readFileSync(paths.environment, "utf8"));
-    const token = environment.get("AITEAMOS_CONTROL_TOKEN");
+    const token = environment.get("OUTCOMEGO_CONTROL_TOKEN");
     if (!token) throw new Error("Missing installation control token.");
     const response = await fetch(
       new URL("/api/v0/internal/server-settings/transcription/check", healthUrl(paths)),
@@ -26,7 +26,7 @@ export async function checkTranscription(paths: InstallationPaths): Promise<Doct
       label: "Transcription",
       level: "fail",
       detail:
-        "Could not check transcription through the aiTeamOS server. Check the server connection and installation credentials.",
+        "Could not check transcription through the OutcomeGo server. Check the server connection and installation credentials.",
     };
   }
 }

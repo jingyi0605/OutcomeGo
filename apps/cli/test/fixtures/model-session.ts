@@ -174,7 +174,7 @@ export const modelFixture = () => {
   const session = new ModelSession(
     api,
     "1.2.3",
-    (p) => `aiteamos provider login ${p} --dir /tmp/model-test`
+    (p) => `outcomego provider login ${p} --dir /tmp/model-test`
   );
   return { session, api, calls };
 };

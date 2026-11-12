@@ -11,9 +11,9 @@ test("an Automation refusal leaves the send free to run once allowed; other fail
   expect(other).toBeInstanceOf(NativeCommandError);
   expect(other.reason).toBe("failed");
   expect(other.message).not.toContain("secret-detail");
-  const error = new NativeCommandError("macOS refused to let aiTeamOS control Messages (Automation)", "automation_denied");
+  const error = new NativeCommandError("macOS refused to let OutcomeGo control Messages (Automation)", "automation_denied");
 
-  const root = await mkdtemp(join(tmpdir(), "aiteamos-receipts-"));
+  const root = await mkdtemp(join(tmpdir(), "outcomego-receipts-"));
   try {
     const receipts = new NativeActionReceipts(join(root, "receipts.json"));
     let runs = 0;

@@ -39,7 +39,7 @@ test("delivery allows ordinary nested files and denies actual private state incl
   const state=join(root,"state");
   const store=new AssetStore({root:join(root,"assets"),allowedFileRoots:[root],agentDataRoot:state});
   try {
-    for(const relative of ["accessqa/public.txt","agents/bot/accessqa/store.db","agents/bot/store.db","agents/bot/store.db-wal","settings.json","transcription.json","connector-secrets/test.json",".aiteamos/marker.json"]) {
+    for(const relative of ["accessqa/public.txt","agents/bot/accessqa/store.db","agents/bot/store.db","agents/bot/store.db-wal","settings.json","transcription.json","connector-secrets/test.json",".outcomego/marker.json"]) {
       const path=join(state,relative);await mkdir(join(path,".."),{recursive:true});await writeFile(path,"harmless test fixture");
       if(relative.startsWith("accessqa/")||relative.includes("/accessqa/")) expect((await store.ingestSource({url:pathToFileURL(path).href})).byteSize).toBeGreaterThan(0);
       else await expect(store.ingestSource({url:pathToFileURL(path).href})).rejects.toMatchObject({code:"asset_path_protected"});

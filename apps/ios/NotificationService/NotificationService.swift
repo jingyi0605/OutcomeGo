@@ -4,7 +4,7 @@ import UIKit
 import UserNotifications
 
 final class NotificationService: UNNotificationServiceExtension {
-  private let logger = Logger(subsystem: "dev.openteam.notifications", category: "communication")
+  private let logger = Logger(subsystem: "dev.outcomego.notifications", category: "communication")
   private let lock = NSLock()
   private var handler: ((UNNotificationContent) -> Void)?
   private var fallback: UNNotificationContent?
@@ -15,7 +15,7 @@ final class NotificationService: UNNotificationServiceExtension {
     handler = contentHandler
     fallback = request.content
     lock.unlock()
-    // OpenTeam's custom APNs fields live under data.
+    // OutcomeGo's custom APNs fields live under data.
     let data = request.content.userInfo["data"] as? [String: Any] ?? [:]
     guard ["message", "reaction"].contains(data["kind"] as? String ?? ""),
           let botId = data["botId"] as? String,
@@ -33,7 +33,7 @@ final class NotificationService: UNNotificationServiceExtension {
                           contactIdentifier: nil, customIdentifier: botId)
     let intent = INSendMessageIntent(recipients: nil, outgoingMessageType: .outgoingMessageText,
                                     content: content.body, speakableGroupName: nil,
-                                    conversationIdentifier: channelId, serviceName: "OpenTeam",
+                                    conversationIdentifier: channelId, serviceName: "OutcomeGo",
                                     sender: sender, attachments: nil)
     content.title = name
     content.threadIdentifier = channelId

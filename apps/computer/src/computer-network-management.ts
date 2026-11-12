@@ -38,7 +38,7 @@ export function startManagementDiscovery(
           [
             "-I",
             "-S",
-            options.helper ?? "/usr/lib/aiteamos/bin/aiteamos-computer-network.py",
+            options.helper ?? "/usr/lib/outcomego/bin/outcomego-computer-network.py",
             "--management",
             serverUrl,
             JSON.stringify(addresses),

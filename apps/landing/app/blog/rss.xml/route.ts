@@ -31,9 +31,9 @@ export function GET() {
   const feed = `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">
   <channel>
-    <title>aiTeamOS blog</title>
+    <title>OutcomeGo blog</title>
     <link>${SITE_URL}/blog</link>
-    <description>Comparisons, guides, and engineering notes from the team building aiTeamOS.</description>
+    <description>Comparisons, guides, and engineering notes from the team building OutcomeGo.</description>
     <language>en</language>
     <atom:link href="${SITE_URL}/blog/rss.xml" rel="self" type="application/rss+xml" />
 ${blogPosts[0] ? `    <lastBuildDate>${new Date(`${blogPosts[0].updated ?? blogPosts[0].date}T12:00:00Z`).toUTCString()}</lastBuildDate>\n` : ""}${items.join("\n")}

@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { ROBOT_AVATAR_SHAPES } from "@aiteamos/contracts/robot-avatar";
+import { ROBOT_AVATAR_SHAPES } from "@outcomego/contracts/robot-avatar";
 import {
   ROBOT_AVATAR_ARTWORK,
   type RobotAvatarNode,

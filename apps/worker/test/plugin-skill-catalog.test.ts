@@ -2,14 +2,14 @@ import { afterEach, beforeEach, expect, test } from "bun:test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { AgentDataStore } from "@aiteamos/messaging";
+import { AgentDataStore } from "@outcomego/messaging";
 import { pluginRuntimeContext, pluginSkillInstructions } from "../src/plugins";
 
 const manifest = {
   key: "fixture",
   name: "Fixture",
   version: "1",
-  publisher: "aiTeamOS",
+  publisher: "outcomeGo",
   files: {},
   skills: [
     { name: "main-only", description: "Main", body: "Main agent workflow.", path: "skills/main-only" },
@@ -29,20 +29,20 @@ const prisma = {
 } as any;
 
 let root = "";
-const previousRoot = process.env.AITEAMOS_AGENT_DATA_ROOT;
+const previousRoot = process.env.OUTCOMEGO_AGENT_DATA_ROOT;
 beforeEach(async () => {
-  root = await mkdtemp(join(tmpdir(), "aiteamos-worker-skills-"));
-  process.env.AITEAMOS_AGENT_DATA_ROOT = root;
+  root = await mkdtemp(join(tmpdir(), "outcomego-worker-skills-"));
+  process.env.OUTCOMEGO_AGENT_DATA_ROOT = root;
 });
 afterEach(async () => {
-  if (previousRoot === undefined) delete process.env.AITEAMOS_AGENT_DATA_ROOT;
-  else process.env.AITEAMOS_AGENT_DATA_ROOT = previousRoot;
+  if (previousRoot === undefined) delete process.env.OUTCOMEGO_AGENT_DATA_ROOT;
+  else process.env.OUTCOMEGO_AGENT_DATA_ROOT = previousRoot;
   await rm(root, { recursive: true, force: true });
 });
 
 const syncCache = () =>
   new AgentDataStore({} as never, { root, workspaceRoot: join(root, "workspace") }).syncPluginSkillCache([
-    { id: "fixture", name: "Fixture", version: "1", publisher: "aiTeamOS", skills: manifest.skills, files: manifest.files },
+    { id: "fixture", name: "Fixture", version: "1", publisher: "outcomeGo", skills: manifest.skills, files: manifest.files },
   ]);
 
 test("cataloged plugin skills leave only provider-workflow notes in the main agent's instructions", async () => {

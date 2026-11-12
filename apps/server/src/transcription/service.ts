@@ -1,11 +1,11 @@
-import { isTranscriptionModel } from "@aiteamos/contracts/model-kind";
-import { ApiError } from "@aiteamos/contracts";
+import { isTranscriptionModel } from "@outcomego/contracts/model-kind";
+import { ApiError } from "@outcomego/contracts";
 import {
   MAX_VOICE_NOTE_BYTES,
   type TranscriptionCheck,
   type TranscriptionResult,
   type TranscriptionSettings,
-} from "@aiteamos/contracts/transcription";
+} from "@outcomego/contracts/transcription";
 import type { TranscriptionStore } from "./store";
 
 const AUDIO_FORMATS: Record<string, string> = {
@@ -243,7 +243,7 @@ export class TranscriptionService {
       return {
         level: "pass",
         status: "ready",
-        detail: `${settings.model} is listed and reachable from the aiTeamOS server. No audio was sent.`,
+        detail: `${settings.model} is listed and reachable from the OutcomeGo server. No audio was sent.`,
       };
     } catch (error) {
       return {

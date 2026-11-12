@@ -661,7 +661,7 @@ describe("snapshot pagination", () => {
     expect(rawSql(capturedLatestQuery)).toContain('message."clientId"');
     expect(rawSql(capturedLatestQuery)).toContain('ORDER BY message."sequence" DESC');
     expect(capturedLatestQuery.values).toEqual([[channelId]]);
-    expect(rawSql(capturedUnreadQuery)).toContain('LEFT JOIN "ChannelReadState"');
+    expect(rawSql(capturedUnreadQuery)).toContain('LEFT JOIN "outcomego_channel_read_state"');
     expect(rawSql(capturedUnreadQuery)).toContain(
       'message."sequence" > COALESCE(state."lastReadSequence", 0)'
     );

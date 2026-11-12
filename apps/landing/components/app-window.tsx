@@ -1,4 +1,4 @@
-import type { RobotAvatarShape } from "@aiteamos/contracts/robot-avatar";
+import type { RobotAvatarShape } from "@outcomego/contracts/robot-avatar";
 import { BotAvatar } from "./bot-avatar";
 import { Check, Mic, Monitor, Plus, Search } from "lucide-react";
 
@@ -126,7 +126,7 @@ export function AppWindow() {
   return (
     <div
       className="w-full overflow-hidden rounded-[14px] bg-surface text-left shadow-window"
-      aria-label="The aiTeamOS desktop app showing a bot at work"
+      aria-label="The OutcomeGo desktop app showing a bot at work"
       role="img"
     >
       {/* title bar */}
@@ -136,7 +136,7 @@ export function AppWindow() {
           <span className="h-2.5 w-2.5 rounded-full bg-[#febc2e]" />
           <span className="h-2.5 w-2.5 rounded-full bg-[#28c840]" />
         </div>
-        <div className="flex-1 text-center text-[12px] font-medium text-ink-2">aiTeamOS</div>
+        <div className="flex-1 text-center text-[12px] font-medium text-ink-2">OutcomeGo</div>
         <div className="w-[38px]" />
       </div>
 

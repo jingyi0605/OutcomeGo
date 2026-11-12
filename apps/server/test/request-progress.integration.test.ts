@@ -3,7 +3,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Effect } from "effect";
-import { createPrismaClient } from "@aiteamos/db";
+import { createPrismaClient } from "@outcomego/db";
 import {
   AgentDataStore,
   AgentMessaging,
@@ -16,10 +16,10 @@ import {
   requestProgressSnapshot,
   requestWakeAllowed,
   type ToolContext,
-} from "@aiteamos/messaging";
+} from "@outcomego/messaging";
 import { SubagentService } from "../src/services/subagent/service";
 
-const url = process.env.AITEAMOS_TEST_DATABASE_URL;
+const url = process.env.OUTCOMEGO_TEST_DATABASE_URL;
 
 test.skipIf(!url)("an approval reply resuming the same worker retains its original broader request without requiring the model to repeat its ID", () => fixture(async f => {
   await f.service.task(f.context, { description: "Approved one-message step", subagent_type: "computerUse", prompt: "Send the approved message once, then read the receipt." });

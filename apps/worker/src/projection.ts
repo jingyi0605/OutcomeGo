@@ -1,11 +1,11 @@
-import { agentNotificationPresentation, type ComputerEvent } from "@aiteamos/contracts";
-import type { Prisma, PrismaClient, RunItemKind, RunItemStatus } from "@aiteamos/db";
+import { agentNotificationPresentation, type ComputerEvent } from "@outcomego/contracts";
+import type { Prisma, PrismaClient, RunItemKind, RunItemStatus } from "@outcomego/db";
 import {
   type AgentDataStore,
   saveSilentAutomationResult,
   publishChannelNotification,
   publishMessageNotification,
-} from "@aiteamos/messaging";
+} from "@outcomego/messaging";
 import { postgresJson } from "./postgres-json";
 
 const json = (value: unknown): Prisma.InputJsonValue =>
@@ -221,7 +221,7 @@ export class Projection {
         // the same RunItem added three redundant database round trips per
         // coalesced fragment.
         await this.prisma.$executeRaw`
-          INSERT INTO "Message" (
+          INSERT INTO "message" (
             "id", "botId", "conversationId", "runId", "upstreamItemId",
             "role", "content", "status", "createdAt", "updatedAt"
           ) VALUES (
@@ -230,17 +230,17 @@ export class Projection {
             ${conversationId}::uuid,
             ${runId}::uuid,
             ${event.itemId},
-            'assistant'::"MessageRole",
+            'assistant'::"outcomego_message_role",
             ${event.delta},
-            'streaming'::"MessageStatus",
+            'streaming'::"outcomego_message_status",
             CURRENT_TIMESTAMP,
             CURRENT_TIMESTAMP
           )
           ON CONFLICT ("conversationId", "upstreamItemId") DO UPDATE SET
-            "content" = "Message"."content" || EXCLUDED."content",
-            "status" = 'streaming'::"MessageStatus",
+            "content" = "message"."content" || EXCLUDED."content",
+            "status" = 'streaming'::"outcomego_message_status",
             "updatedAt" = CURRENT_TIMESTAMP
-          WHERE "Message"."status" <> 'completed'::"MessageStatus"
+          WHERE "message"."status" <> 'completed'::"outcomego_message_status"
         `;
         // Product clients refresh on durable item/run boundaries. A global
         // Event row for every fragment would only create write amplification.

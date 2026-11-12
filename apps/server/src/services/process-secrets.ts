@@ -1,5 +1,5 @@
-import { validateProcessSecretName, ApiError } from "@aiteamos/contracts";
-import type { Prisma, PrismaClient } from "@aiteamos/db";
+import { validateProcessSecretName, ApiError } from "@outcomego/contracts";
+import type { Prisma, PrismaClient } from "@outcomego/db";
 
 type Database = PrismaClient | Prisma.TransactionClient;
 

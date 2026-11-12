@@ -3,7 +3,7 @@ import {
   startNotificationPresence,
   type DesktopActivity,
 } from "../src/renderer/lib/notification-presence";
-import type { NotificationPresenceInput } from "@aiteamos/contracts/notification-presence";
+import type { NotificationPresenceInput } from "@outcomego/contracts/notification-presence";
 import { syncDesktopNotificationSnapshot } from "../src/renderer/lib/notifications";
 
 test("sign-out clears the native notification state", () => {

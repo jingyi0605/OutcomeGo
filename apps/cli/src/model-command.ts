@@ -12,15 +12,15 @@ import { printMessage } from "./terminal";
 export const modelCommand = async (paths: InstallationPaths): Promise<void> => {
   if (!process.stdin.isTTY || !process.stdout.isTTY)
     throw new CliError(
-      "aiteamos model needs an interactive terminal. Use aiteamos model list or aiteamos model use <provider> <model> for scripts; use aiteamos model --help for details."
+      "outcomego model needs an interactive terminal. Use outcomego model list or outcomego model use <provider> <model> for scripts; use outcomego model --help for details."
     );
   if (process.env.TERM === "dumb")
     throw new CliError(
-      "The model editor needs a terminal with cursor support. Open a regular terminal, or use aiteamos model list and aiteamos model use <provider> <model>."
+      "The model editor needs a terminal with cursor support. Open a regular terminal, or use outcomego model list and outcomego model use <provider> <model>."
     );
   if (!installationExists(paths))
     throw new CliError(
-      `aiTeamOS is not installed at ${paths.directory}. Run aiteamos install first, or select an installation with --dir.`
+      `OutcomeGo is not installed at ${paths.directory}. Run outcomego install first, or select an installation with --dir.`
     );
   const session = new ModelSession(createModelSettingsAPI(paths), CLI_VERSION, (provider) =>
     installationCommand(paths, `provider login ${provider}`)

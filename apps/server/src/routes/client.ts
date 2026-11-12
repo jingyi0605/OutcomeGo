@@ -7,7 +7,7 @@ import {
   UpdateUserTimeZoneInput,
   type SearchCategory,
   UploadAssetInput,
-} from "@aiteamos/contracts";
+} from "@outcomego/contracts";
 import { json, parseBody } from "../http";
 import {
   assetUploadByteLimit,
@@ -25,7 +25,7 @@ export async function clientRoutes(context: RouteContext): Promise<Response | un
   if (request.method === "POST" && path === "/api/notification-devices") {
     if (authMode === "required" && !authenticatedSessionId) {
       return json(
-        { error: { code: "unauthorized", message: "Sign in to aiTeamOS to continue" } },
+        { error: { code: "unauthorized", message: "Sign in to OutcomeGo to continue" } },
         401
       );
     }
@@ -42,7 +42,7 @@ export async function clientRoutes(context: RouteContext): Promise<Response | un
     );
   }
   if (path === "/api/notification-presence" && request.method === "POST") {
-    if (authMode === "required" && !authenticatedSessionId) return json({ error: { code: "unauthorized", message: "Sign in to aiTeamOS to continue" } }, 401);
+    if (authMode === "required" && !authenticatedSessionId) return json({ error: { code: "unauthorized", message: "Sign in to OutcomeGo to continue" } }, 401);
     return json(await run(app.notifications.updatePresence(
       await parseBody(request, UpdateNotificationPresenceInput),
       authMode === "required" ? { mode: "required", sessionId: authenticatedSessionId! } : { mode: "disabled" }

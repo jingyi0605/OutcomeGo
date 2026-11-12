@@ -1,5 +1,5 @@
 import { beforeEach, expect, test } from "bun:test";
-import { SERVER_UPDATE_STEPS, serverUpdateProgress } from "@aiteamos/contracts/server-updates";
+import { SERVER_UPDATE_STEPS, serverUpdateProgress } from "@outcomego/contracts/server-updates";
 import { setCurrentLocale, translate } from "../src/renderer/lib/i18n-catalog";
 import {
   localizeDesktopUpdateMessage,
@@ -18,8 +18,8 @@ const PREVIOUS = "0.1.0-beta.10";
 const serverMessages: ReadonlyArray<readonly [string, string]> = [
   ["Updates this connected server", "用于更新当前连接的服务器"],
   [
-    "Run aiteamos start on the server to enable updates from the app.",
-    "请在服务器上运行 aiteamos start，以启用从应用内更新。",
+    "Run outcomego start on the server to enable updates from the app.",
+    "请在服务器上运行 outcomego start，以启用从应用内更新。",
   ],
   ["Waiting for the server updater to reconnect…", "正在等待服务器更新器重新连接…"],
   ["Update requested. Waiting for the server updater…", "已请求更新，正在等待服务器更新器…"],
@@ -35,38 +35,38 @@ const serverMessages: ReadonlyArray<readonly [string, string]> = [
     "Update accepted; it will continue if this window closes",
     "已接受更新；关闭此窗口后更新仍会继续",
   ],
-  ["Checking the latest aiTeamOS release", "正在检查最新的 aiTeamOS 版本"],
-  [`Downloading and verifying aiTeamOS ${VERSION}`, `正在下载并校验 aiTeamOS ${VERSION}`],
-  [`Pulling aiTeamOS ${VERSION} container images`, `正在拉取 aiTeamOS ${VERSION} 容器镜像`],
+  ["Checking the latest OutcomeGo release", "正在检查最新的 OutcomeGo 版本"],
+  [`Downloading and verifying OutcomeGo ${VERSION}`, `正在下载并校验 OutcomeGo ${VERSION}`],
+  [`Pulling OutcomeGo ${VERSION} container images`, `正在拉取 OutcomeGo ${VERSION} 容器镜像`],
   [
-    `Backing up the aiTeamOS database before ${VERSION}`,
-    `正在备份更新前的 aiTeamOS 数据库（${VERSION}）`,
+    `Backing up the OutcomeGo database before ${VERSION}`,
+    `正在备份更新前的 OutcomeGo 数据库（${VERSION}）`,
   ],
   ["Restarting the server, worker, and computer", "正在重启服务器、worker 和电脑"],
-  [`aiTeamOS ${VERSION} passed its readiness checks`, `aiTeamOS ${VERSION} 已通过就绪检查`],
-  [`Installing aiTeamOS ${VERSION} command-line tools`, `正在安装 aiTeamOS ${VERSION} 命令行工具`],
+  [`OutcomeGo ${VERSION} passed its readiness checks`, `OutcomeGo ${VERSION} 已通过就绪检查`],
+  [`Installing OutcomeGo ${VERSION} command-line tools`, `正在安装 OutcomeGo ${VERSION} 命令行工具`],
   [
-    `aiTeamOS ${VERSION} and its command-line tools are up to date`,
-    `aiTeamOS ${VERSION} 及其命令行工具均为最新版本`,
+    `OutcomeGo ${VERSION} and its command-line tools are up to date`,
+    `OutcomeGo ${VERSION} 及其命令行工具均为最新版本`,
   ],
-  [`aiTeamOS ${VERSION} is already installed`, `aiTeamOS ${VERSION} 已安装`],
+  [`OutcomeGo ${VERSION} is already installed`, `OutcomeGo ${VERSION} 已安装`],
   [
-    `aiTeamOS and its command-line tools are now running ${VERSION}.`,
-    `aiTeamOS 及其命令行工具现在运行 ${VERSION}。`,
+    `OutcomeGo and its command-line tools are now running ${VERSION}.`,
+    `OutcomeGo 及其命令行工具现在运行 ${VERSION}。`,
   ],
-  [`aiTeamOS is now running ${VERSION}.`, `aiTeamOS 现在运行 ${VERSION}。`],
-  [`Updating aiTeamOS ${PREVIOUS} → ${VERSION}…`, `正在更新 aiTeamOS ${PREVIOUS} → ${VERSION}…`],
+  [`OutcomeGo is now running ${VERSION}.`, `OutcomeGo 现在运行 ${VERSION}。`],
+  [`Updating OutcomeGo ${PREVIOUS} → ${VERSION}…`, `正在更新 OutcomeGo ${PREVIOUS} → ${VERSION}…`],
   [
-    "The update failed; restoring the previous aiTeamOS configuration",
-    "更新失败；正在恢复之前的 aiTeamOS 配置",
+    "The update failed; restoring the previous OutcomeGo configuration",
+    "更新失败；正在恢复之前的 OutcomeGo 配置",
   ],
   [
     `Refusing prerelease ${VERSION} on the stable channel. Use --allow-prerelease to opt in.`,
     `稳定通道不接受预发布版本 ${VERSION}。如需使用，请添加 --allow-prerelease。`,
   ],
   [
-    `Refusing to downgrade aiTeamOS ${VERSION} to ${PREVIOUS}. Use --allow-downgrade only for an intentional recovery.`,
-    `拒绝将 aiTeamOS 从 ${VERSION} 降级到 ${PREVIOUS}。仅在有意恢复时才使用 --allow-downgrade。`,
+    `Refusing to downgrade OutcomeGo ${VERSION} to ${PREVIOUS}. Use --allow-downgrade only for an intentional recovery.`,
+    `拒绝将 OutcomeGo 从 ${VERSION} 降级到 ${PREVIOUS}。仅在有意恢复时才使用 --allow-downgrade。`,
   ],
   [
     "Update failed and the previous Compose configuration was restored; the running services were never stopped: compose exited 1",
@@ -163,7 +163,7 @@ test("translates the desktop updater's own status text", () => {
   const cases: ReadonlyArray<readonly [string, string]> = [
     ["You’re up to date", "已是最新版本"],
     ["No published desktop release is available yet.", "尚未发布可用的桌面端版本。"],
-    ["Restart aiTeamOS to finish installing the update", "重启 aiTeamOS 以完成更新安装"],
+    ["Restart OutcomeGo to finish installing the update", "重启 OutcomeGo 以完成更新安装"],
     ["Downloading 42%", "正在下载 42%"],
     [
       "Desktop 0.0.12 is available. This copy can’t update itself, so download the new version to replace it.",
@@ -184,11 +184,11 @@ test("translates the desktop updater's own status text", () => {
 
 test("keeps the English source for the default locale", () => {
   setCurrentLocale("en-US");
-  expect(localizeServerUpdateMessage("Checking the latest aiTeamOS release")).toBe(
-    "Checking the latest aiTeamOS release"
+  expect(localizeServerUpdateMessage("Checking the latest OutcomeGo release")).toBe(
+    "Checking the latest OutcomeGo release"
   );
-  expect(localizeServerUpdateMessage(`Pulling aiTeamOS ${VERSION} container images`)).toBe(
-    `Pulling aiTeamOS ${VERSION} container images`
+  expect(localizeServerUpdateMessage(`Pulling OutcomeGo ${VERSION} container images`)).toBe(
+    `Pulling OutcomeGo ${VERSION} container images`
   );
   expect(localizedStillWorking(["Scout", "Orion"])).toBe("Scout and Orion are still working");
   expect(localizeDesktopUpdateMessage("Downloading 42%")).toBe("Downloading 42%");

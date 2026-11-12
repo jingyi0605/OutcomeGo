@@ -16,10 +16,10 @@ import {
   type VoiceSessionTicketView,
   type VoiceSessionView,
   type VoiceTurnView,
-} from "@aiteamos/contracts";
-import type { PrismaClient } from "@aiteamos/db";
+} from "@outcomego/contracts";
+import type { PrismaClient } from "@outcomego/db";
 import { Effect } from "effect";
-import { GROUP_MAX_MEMBERS, resolveVoiceResponders } from "@aiteamos/messaging";
+import { GROUP_MAX_MEMBERS, resolveVoiceResponders } from "@outcomego/messaging";
 import type { ChannelService } from "./channel-service";
 import type { RunService } from "./run-service";
 import { VoiceReplySource } from "./voice-reply";
@@ -35,7 +35,7 @@ import type { StreamingStt, StreamingTts } from "./voice-provider";
 
 type Ticket = { sessionId: string; ownerSessionId: string | null; origin: string | null; expiresAt: number };
 
-const nativeOrigin = (value: string | null) => value === "null" || value === "file://" || value === "http://aiteamos-vnc.invalid" ? null : value;
+const nativeOrigin = (value: string | null) => value === "null" || value === "file://" || value === "http://outcomego-vnc.invalid" ? null : value;
 const providerId = (value: string): VoiceProviderId => value === "deepgram" ? "deepgram" : "volcengine";
 
 /** Sessions that have already been greeted, so a reconnect does not greet again. */

@@ -4,7 +4,7 @@ import {
   validateApnsConfiguration,
   type ApnsConfiguration,
   type ApnsStatus,
-} from "@aiteamos/db/apns-settings";
+} from "@outcomego/db/apns-settings";
 import type { CliOptions } from "./arguments";
 import type { InstallationPaths } from "./config";
 import { CliError } from "./errors";
@@ -100,7 +100,7 @@ export async function notificationsCommand(
   )
     throw new CliError(
       cliTranslate(
-        "The server returned invalid APNs status. Update aiTeamOS to a release supporting live notification configuration."
+        "The server returned invalid APNs status. Update OutcomeGo to a release supporting live notification configuration."
       )
     );
   // Only known metadata is printed. Never serialize a server response wholesale.
@@ -125,7 +125,7 @@ export async function notificationsCommand(
   );
   console.log(
     cliTranslate(
-      "Run aiteamos doctor to check worker configuration and registrations. Apple acceptance and phone delivery require a real notification."
+      "Run outcomego doctor to check worker configuration and registrations. Apple acceptance and phone delivery require a real notification."
     )
   );
 }

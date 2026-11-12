@@ -1,6 +1,6 @@
 {
-  "name": "@aiteamos/plugins",
-  "version": "0.1.0-beta.13",
+  "name": "@outcomego/plugins",
+  "version": "0.1.0-beta.14",
   "license": "GPL-3.0-only",
   "private": true,
   "type": "module",
@@ -19,7 +19,7 @@
     "@huggingface/tokenizers": "0.2.0",
     "@js-temporal/polyfill": "0.5.1",
     "@modelcontextprotocol/sdk": "1.30.0",
-    "@aiteamos/plugin-sdk": "workspace:*",
+    "@outcomego/plugin-sdk": "workspace:*",
     "fflate": "0.8.3",
     "html-to-text": "9.0.5",
     "imapflow": "2.4.2",

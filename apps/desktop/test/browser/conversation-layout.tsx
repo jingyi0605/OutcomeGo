@@ -8,7 +8,7 @@ import {
   glideConversationToBottom,
   isConversationGliding,
 } from "../../src/renderer/components/ai-elements/conversation";
-import { VirtualizedTimeline } from "../../src/renderer/components/aiteamos/virtualized-timeline";
+import { VirtualizedTimeline } from "../../src/renderer/components/outcomego/virtualized-timeline";
 import { useVirtualWindow } from "../../src/renderer/hooks/use-virtual-window";
 
 type Entry = { id: string; type: string; height: number };

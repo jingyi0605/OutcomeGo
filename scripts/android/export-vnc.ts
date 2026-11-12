@@ -39,11 +39,11 @@ canvas{outline:none}
 </style>
 </head>
 <body>
-<div id="screen" aria-label="aiTeamOS computer screen"></div>
+<div id="screen" aria-label="OutcomeGo computer screen"></div>
 <script type="module">${source}</script>
 </body>
 </html>`;
 
-const output = resolve(root, "apps/android/app/src/main/assets/aiteamos-vnc/index.html");
+const output = resolve(root, "apps/android/app/src/main/assets/outcomego-vnc/index.html");
 await Bun.write(output, html);
 console.log(`Generated ${output} (${Buffer.byteLength(html)} bytes).`);

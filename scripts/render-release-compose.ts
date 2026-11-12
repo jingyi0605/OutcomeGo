@@ -8,19 +8,19 @@ if (!sourcePath || !outputPath || !digestDirectory) {
 const services = ["server", "worker", "migrate", "computer"] as const;
 let compose = await Bun.file(sourcePath).text();
 for (const service of services) {
-  const digest = (await Bun.file(`${digestDirectory}/aiteamos-${service}.digest`).text()).trim();
+  const digest = (await Bun.file(`${digestDirectory}/outcomego-${service}.digest`).text()).trim();
   if (!/^sha256:[a-f0-9]{64}$/.test(digest)) {
-    throw new Error(`Invalid aiteamos-${service} digest: ${digest || "missing"}`);
+    throw new Error(`Invalid outcomego-${service} digest: ${digest || "missing"}`);
   }
-  const taggedImage = `\${AITEAMOS_IMAGE_PREFIX:?AITEAMOS_IMAGE_PREFIX is required}-${service}:\${AITEAMOS_VERSION:?AITEAMOS_VERSION is required}`;
-  const pinnedImage = `\${AITEAMOS_IMAGE_PREFIX:?AITEAMOS_IMAGE_PREFIX is required}-${service}@${digest}`;
+  const taggedImage = `\${OUTCOMEGO_IMAGE_PREFIX:?OUTCOMEGO_IMAGE_PREFIX is required}-${service}:\${OUTCOMEGO_VERSION:?OUTCOMEGO_VERSION is required}`;
+  const pinnedImage = `\${OUTCOMEGO_IMAGE_PREFIX:?OUTCOMEGO_IMAGE_PREFIX is required}-${service}@${digest}`;
   if (!compose.includes(taggedImage)) {
     throw new Error(`Could not find the ${service} release image in ${sourcePath}`);
   }
   compose = compose.replaceAll(taggedImage, pinnedImage);
 }
 
-if (/^\s*image:.*-(?:server|worker|migrate|computer):\$\{AITEAMOS_VERSION/m.test(compose)) {
-  throw new Error("The rendered release Compose file still contains mutable aiTeamOS image tags");
+if (/^\s*image:.*-(?:server|worker|migrate|computer):\$\{OUTCOMEGO_VERSION/m.test(compose)) {
+  throw new Error("The rendered release Compose file still contains mutable OutcomeGo image tags");
 }
 await Bun.write(outputPath, compose);

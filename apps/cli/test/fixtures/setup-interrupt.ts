@@ -18,12 +18,12 @@ const health = Bun.serve({
     Response.json({ status: "ready", runtime: {}, release: { releaseVersion: "1.2.3" } }),
 });
 const port = String(health.port);
-writeFileAtomic(paths.compose, "name: aiteamos\nservices:\n  server:\n    image: example/server\n");
+writeFileAtomic(paths.compose, "name: outcomego\nservices:\n  server:\n    image: example/server\n");
 writeFileAtomic(
   paths.environment,
   replaceEnvironmentValue(
     createEnvironment({ version: "1.2.3", workerConcurrency: "8" }),
-    "AITEAMOS_API_PORT",
+    "OUTCOMEGO_API_PORT",
     port
   )
 );
@@ -32,7 +32,7 @@ writeManifest(paths, {
   schemaVersion: 1,
   repository: "owner/repo",
   version: "1.2.3",
-  composeUrl: "https://example.com/aiteamos-compose.yaml",
+  composeUrl: "https://example.com/outcomego-compose.yaml",
   installedAt: now,
   updatedAt: now,
 });

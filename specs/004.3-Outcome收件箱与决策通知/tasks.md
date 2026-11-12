@@ -57,7 +57,7 @@
 - [ ] 2.1 实现 Desktop Inbox 和 Decision 卡片
   - 状态：TODO
   - 先依赖什么：1.2
-  - 主要改哪里：`apps/desktop/src/renderer/components/aiteamos/outcomes/`、API client
+  - 主要改哪里：`apps/desktop/src/renderer/components/outcomego/outcomes/`、API client
   - 这一步先不做什么：不把完整日志默认放在首屏。
   - 怎么算完成：默认摘要、三段式内容、展开详情、选项和 custom resolve 可用。
   - 怎么验证：Desktop typecheck、component/browser tests、无障碍检查。
@@ -294,7 +294,7 @@
   - 先依赖什么：2.2、2.3
   - 主要改哪里：`notification-service.ts`、`packages/contracts/src/app-deep-links.ts`、三端深链解析
   - 这一步先不做什么：不新增 URL scheme，不新增通知偏好设置项。
-  - 怎么算完成：关闭通知偏好后不推送但 Inbox 可见；`aiteamos://app/v1/outcomes...` 三端可打开。
+  - 怎么算完成：关闭通知偏好后不推送但 Inbox 可见；`outcomego://app/v1/outcomes...` 三端可打开。
   - 怎么验证：偏好开关测试；三端深链测试，设备不可用时记录 PENDING。
   - 对应需求：需求 7、需求 16
   - 对应设计：`design.md` §10、§43

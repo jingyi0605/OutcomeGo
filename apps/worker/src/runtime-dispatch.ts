@@ -1,5 +1,5 @@
-import type { PrismaClient } from "@aiteamos/db";
-import { TASK_RECOVERY_LOCK } from "@aiteamos/messaging";
+import type { PrismaClient } from "@outcomego/db";
+import { TASK_RECOVERY_LOCK } from "@outcomego/messaging";
 
 /** Fence the gap between claiming a run and the computer accepting it. Startup
  * must either see and stop that turn, or invalidate it before it is dispatched.

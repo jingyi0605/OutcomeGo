@@ -84,7 +84,7 @@ test("calls cut off by a stop read as interrupted instead of aborted or unanswer
 });
 
 test("the finished-todos reminder follows the fenced TodoWrite list, outside the fence", async () => {
-  const { renderControlResult, todoCleanupReminder } = await import("@aiteamos/contracts/tool-results");
+  const { renderControlResult, todoCleanupReminder } = await import("@outcomego/contracts/tool-results");
   const todos = [
     ...Array.from({ length: 21 }, (_, index) => ({ id: `done-${index}`, content: `Done ${index}`, status: "completed" })),
     { id: "21", content: "t21", status: "pending" },

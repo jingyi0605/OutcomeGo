@@ -1,6 +1,6 @@
-import { ApiError } from "@aiteamos/contracts";
-import { attachmentLimitForName } from "@aiteamos/contracts/media-input";
-import { VIDEO_ASSET_LIMIT } from "@aiteamos/messaging";
+import { ApiError } from "@outcomego/contracts";
+import { attachmentLimitForName } from "@outcomego/contracts/media-input";
+import { VIDEO_ASSET_LIMIT } from "@outcomego/messaging";
 
 export const MAX_ASSET_BYTES = VIDEO_ASSET_LIMIT;
 

@@ -1,8 +1,8 @@
 import { test, expect } from "bun:test";
-import { createPrismaClient } from "@aiteamos/db";
+import { createPrismaClient } from "@outcomego/db";
 import { createHmac } from "node:crypto";
 import { AutomationWebhooksService } from "../src/services/automation-webhooks";
-const url = process.env.AITEAMOS_TEST_DATABASE_URL;
+const url = process.env.OUTCOMEGO_TEST_DATABASE_URL;
 test.skipIf(!url)(
   "subscriptions persist private keys, provision remote callbacks, renew Graph, and revoke delivery",
   async () => {

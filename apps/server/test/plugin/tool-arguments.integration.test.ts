@@ -1,9 +1,9 @@
 import { expect, test } from "bun:test";
-import { createPrismaClient } from "@aiteamos/db";
+import { createPrismaClient } from "@outcomego/db";
 import { Effect } from "effect";
 import { PluginService } from "../../src/services/plugin-service";
 
-const databaseUrl = process.env.AITEAMOS_TEST_DATABASE_URL;
+const databaseUrl = process.env.OUTCOMEGO_TEST_DATABASE_URL;
 test.skipIf(!databaseUrl)(
   "direct authentication replays the exact newly created account",
   async () => {

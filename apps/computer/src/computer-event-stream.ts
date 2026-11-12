@@ -1,4 +1,4 @@
-import type { ComputerEvent } from "@aiteamos/contracts";
+import type { ComputerEvent } from "@outcomego/contracts";
 
 /**
  * Converts runtime events to NDJSON one pull at a time. The previous async

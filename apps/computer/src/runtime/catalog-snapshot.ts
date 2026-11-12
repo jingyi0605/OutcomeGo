@@ -1,6 +1,6 @@
 import { renderCursorNamespaceStatement, renderDynamicToolCatalog, type CatalogNamespace } from "./prompt-context";
 
-const ENTRY = "aiteamos-dynamic-tool-catalog";
+const ENTRY = "outcomego-dynamic-tool-catalog";
 
 interface PinnedCatalog {
   epoch: number;

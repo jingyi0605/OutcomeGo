@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { ChannelMessageView } from "@aiteamos/contracts";
+import type { ChannelMessageView } from "@outcomego/contracts";
 import { createChannelHistoryStore } from "../src/channel-history";
 import {
   createDurableSendEchoResolver,

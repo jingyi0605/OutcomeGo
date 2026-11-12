@@ -179,7 +179,7 @@ const output = JSON.stringify(
   null,
   2
 );
-if (process.env.AITEAMOS_AUDIT_OUTPUT) {
-  await Bun.write(process.env.AITEAMOS_AUDIT_OUTPUT, `${output}\n`);
+if (process.env.OUTCOMEGO_AUDIT_OUTPUT) {
+  await Bun.write(process.env.OUTCOMEGO_AUDIT_OUTPUT, `${output}\n`);
 }
 console.log(output);

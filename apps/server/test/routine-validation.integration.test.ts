@@ -7,7 +7,7 @@ import { AppService } from "../src/app-service";
 import { errorResponse } from "../src/http";
 import { routineRoutes } from "../src/routes/routine";
 
-const databaseUrl = process.env.AITEAMOS_TEST_DATABASE_URL;
+const databaseUrl = process.env.OUTCOMEGO_TEST_DATABASE_URL;
 
 test.skipIf(!databaseUrl)(
   "bot and group routine routes reject invalid schedules without changing saved routines",
@@ -15,9 +15,9 @@ test.skipIf(!databaseUrl)(
     const root = await mkdtemp(join(tmpdir(), "routine-validation-"));
     const environment = {
       DATABASE_URL: databaseUrl,
-      AITEAMOS_WORKSPACE_ROOT: root,
-      AITEAMOS_AGENT_DATA_ROOT: join(root, "data"),
-      AITEAMOS_ENFORCE_AUTOMATION_MINIMUM: "true",
+      OUTCOMEGO_WORKSPACE_ROOT: root,
+      OUTCOMEGO_AGENT_DATA_ROOT: join(root, "data"),
+      OUTCOMEGO_ENFORCE_AUTOMATION_MINIMUM: "true",
     };
     const previous = Object.fromEntries(
       Object.keys(environment).map((key) => [key, process.env[key]])

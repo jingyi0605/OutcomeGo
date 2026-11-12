@@ -1,10 +1,10 @@
 import React, { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import type { BotView, ChannelMessageView, ChannelView, RunView } from "@aiteamos/contracts";
-import { CLIENT_CAPABILITIES } from "@aiteamos/contracts/capabilities";
-import { api } from "../../src/renderer/client/aiteamos-api";
-import { ChatPane } from "../../src/renderer/components/aiteamos/chat-pane";
-import { SearchDialog } from "../../src/renderer/components/aiteamos/search-dialog";
+import type { BotView, ChannelMessageView, ChannelView, RunView } from "@outcomego/contracts";
+import { CLIENT_CAPABILITIES } from "@outcomego/contracts/capabilities";
+import { api } from "../../src/renderer/client/outcomego-api";
+import { ChatPane } from "../../src/renderer/components/outcomego/chat-pane";
+import { SearchDialog } from "../../src/renderer/components/outcomego/search-dialog";
 import { PromptInput } from "../../src/renderer/components/ai-elements/prompt-input";
 import { TooltipProvider } from "../../src/renderer/components/ui/tooltip";
 import "../../src/renderer/styles.css";

@@ -1,11 +1,11 @@
 import { expect, test } from "bun:test";
-import { createPrismaClient } from "@aiteamos/db";
+import { createPrismaClient } from "@outcomego/db";
 import { networkStore } from "../src/services/browser-network-service";
 
-test.skipIf(!process.env.AITEAMOS_TEST_DATABASE_URL)(
+test.skipIf(!process.env.OUTCOMEGO_TEST_DATABASE_URL)(
   "ranked settings initialize, persist, migrate legacy selections and reject conflicting changes",
   async () => {
-    const db = createPrismaClient(process.env.AITEAMOS_TEST_DATABASE_URL!);
+    const db = createPrismaClient(process.env.OUTCOMEGO_TEST_DATABASE_URL!);
     const store = networkStore(db);
     try {
       const initial = await store.read();

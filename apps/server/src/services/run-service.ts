@@ -1,9 +1,9 @@
 import {
   ApiError,
-} from "@aiteamos/contracts";
-import { COMPUTER_API_PATHS } from "@aiteamos/contracts/service-protocol";
-import type { PrismaClient } from "@aiteamos/db";
-import type { AgentMessaging } from "@aiteamos/messaging";
+} from "@outcomego/contracts";
+import { COMPUTER_API_PATHS } from "@outcomego/contracts/service-protocol";
+import type { PrismaClient } from "@outcomego/db";
+import type { AgentMessaging } from "@outcomego/messaging";
 import { appendEvent, type ComputerFetch, serviceEffect } from "./service-utils";
 
 export class RunService {

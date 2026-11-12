@@ -183,7 +183,7 @@ export const retainStackImages = (
         : [...new Set([...(raw?.current ?? []), ...before])],
     owned: [...new Set([...(raw?.owned ?? []), ...before, ...after])],
   };
-  const retentionRepository = `aiteamos-retention-${ledger.owner}`;
+  const retentionRepository = `outcomego-retention-${ledger.owner}`;
   const tag = (id: string) => `${retentionRepository}:${id.slice(7)}`;
   const keep = new Set([...ledger.rollback, ...after]);
   for (const id of keep) {
@@ -289,11 +289,11 @@ export const retainDatabaseBackups = (
 ): void => {
   const setting =
     parseEnvironment(readFileSync(paths.environment, "utf8"))
-      .get("AITEAMOS_BACKUP_RETENTION_COUNT")
+      .get("OUTCOMEGO_BACKUP_RETENTION_COUNT")
       ?.trim() || String(DATABASE_BACKUPS_TO_KEEP);
   if (!/^(0|[1-9][0-9]*)$/.test(setting) || !Number.isSafeInteger(Number(setting))) {
     throw new Error(
-      "AITEAMOS_BACKUP_RETENTION_COUNT must be a non-negative whole number; backups preserved"
+      "OUTCOMEGO_BACKUP_RETENTION_COUNT must be a non-negative whole number; backups preserved"
     );
   }
   const count = Number(setting);
@@ -341,7 +341,7 @@ export const maintenanceWarning = (action: string, operation: () => void): void 
     operation();
   } catch (error) {
     console.warn(
-      `aiTeamOS disk maintenance skipped (${action}): ${error instanceof Error ? error.message : String(error)}`
+      `OutcomeGo disk maintenance skipped (${action}): ${error instanceof Error ? error.message : String(error)}`
     );
   }
 };

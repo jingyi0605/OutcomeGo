@@ -31,7 +31,7 @@ import WebKit
     ready = false
     guard let url = Bundle.main.url(forResource: "ComputerVNC", withExtension: "html"),
       let html = try? String(contentsOf: url, encoding: .utf8) else {
-      failure = "The computer viewer is missing. Reinstall OpenTeam."
+      failure = "The computer viewer is missing. Reinstall OutcomeGo."
       return
     }
     webView.loadHTMLString(html, baseURL: nil)
@@ -105,7 +105,7 @@ import WebKit
               return
             }
             if error.status == 404 || error.status == 501 {
-              failure = "Update your OpenTeam server to use the computer."
+              failure = "Update your OutcomeGo server to use the computer."
               return
             }
           }

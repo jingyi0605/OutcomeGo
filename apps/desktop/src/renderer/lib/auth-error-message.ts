@@ -1,1 +1,1 @@
-export { authErrorMessage } from "@aiteamos/product-core/auth-feedback";
+export { authErrorMessage } from "@outcomego/product-core/auth-feedback";

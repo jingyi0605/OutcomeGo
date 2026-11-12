@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { ROBOT_AVATAR_SHAPES } from "@aiteamos/contracts/robot-avatar";
+import { ROBOT_AVATAR_SHAPES } from "@outcomego/contracts/robot-avatar";
 import { notificationAvatarSvg } from "../src/renderer/lib/notification-avatar";
 
 test("notification icons use each profile shape and its selected color safely", () => {

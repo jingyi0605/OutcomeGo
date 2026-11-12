@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 
 // Run against a built computer image with scripts/test-computer-image.sh IMAGE.
 // This exercises the packaged gateway and binaries, rather than a mocked capability.
-const gateway = process.env.AITEAMOS_COMPUTER_TEST_URL;
+const gateway = process.env.OUTCOMEGO_COMPUTER_TEST_URL;
 
 test.skipIf(!gateway)(
   "the packaged computer advertises its desktop to Task workers",
@@ -12,7 +12,7 @@ test.skipIf(!gateway)(
     while (!response) {
       try {
         response = await fetch(new URL("/v1/task-capabilities", gateway), {
-          headers: { authorization: `Bearer ${process.env.AITEAMOS_CONTROL_TOKEN}` },
+          headers: { authorization: `Bearer ${process.env.OUTCOMEGO_CONTROL_TOKEN}` },
           signal: AbortSignal.timeout(2_000),
         });
       } catch (error) {

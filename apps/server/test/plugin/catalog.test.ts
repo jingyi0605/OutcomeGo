@@ -1,7 +1,7 @@
 import { createUtilityPluginFixture } from "./fixtures/utility-plugin";
 import { describe, expect, test } from "bun:test";
-import { validatePluginCatalog } from "@aiteamos/plugin-sdk";
-import { pluginCatalog } from "@aiteamos/plugins";
+import { validatePluginCatalog } from "@outcomego/plugin-sdk";
+import { pluginCatalog } from "@outcomego/plugins";
 import { boundPluginResult } from "../../src/services/plugin-service";
 import { PLUGIN_RESULT_TEXT_LIMIT } from "../../src/services/plugin/values";
 

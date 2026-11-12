@@ -1,20 +1,20 @@
 {
-  "name": "@aiteamos/desktop",
-  "version": "0.1.0-beta.13",
+  "name": "@outcomego/desktop",
+  "version": "0.1.0-beta.14",
   "license": "GPL-3.0-only",
-  "author": "aiTeamOS contributors",
+  "author": "OutcomeGo contributors",
   "main": "dist-electron/main.js",
   "devDependencies": {
     "@dnd-kit/dom": "^0.5.0",
     "@dnd-kit/react": "^0.5.0",
     "@modelcontextprotocol/sdk": "1.30.0",
     "@novnc/novnc": "1.7.0",
-    "@aiteamos/client-core": "workspace:*",
-    "@aiteamos/contracts": "workspace:*",
-    "@aiteamos/design-tokens": "workspace:*",
-    "@aiteamos/plugin-sdk": "workspace:*",
-    "@aiteamos/product-core": "workspace:*",
-    "@aiteamos/shell-jobs": "workspace:*",
+    "@outcomego/client-core": "workspace:*",
+    "@outcomego/contracts": "workspace:*",
+    "@outcomego/design-tokens": "workspace:*",
+    "@outcomego/plugin-sdk": "workspace:*",
+    "@outcomego/product-core": "workspace:*",
+    "@outcomego/shell-jobs": "workspace:*",
     "@shikijs/themes": "3.23.0",
     "@streamdown/cjk": "1.0.3",
     "@streamdown/math": "1.0.2",
@@ -54,12 +54,12 @@
     "xlsx": "file:../../vendor/sheetjs/xlsx-0.20.3.tgz"
   },
   "build": {
-    "appId": "dev.aiteamos.desktop",
-    "productName": "aiTeamOS",
-    "executableName": "aiteamos",
+    "appId": "dev.outcomego.desktop",
+    "productName": "OutcomeGo",
+    "executableName": "outcomego",
     "asar": true,
     "asarUnpack": [
-      "dist-electron/aiteamos-cli.js"
+      "dist-electron/outcomego-cli.js"
     ],
     "npmRebuild": false,
     "directories": {
@@ -72,14 +72,14 @@
       "package.json"
     ],
     "mac": {
-      "icon": "../../packages/design-tokens/assets/aiTeamOS.icon",
+      "icon": "../../packages/design-tokens/assets/outcomego.icon",
       "identity": "-",
       "hardenedRuntime": false,
       "extendInfo": {
-        "NSMicrophoneUsageDescription": "aiTeamOS uses the microphone when you record a voice note or test your input. Only voice notes are sent to your server for transcription.",
-        "NSContactsUsageDescription": "aiTeamOS searches Contacts to find a person when needed for your task.",
-        "NSAppleEventsUsageDescription": "aiTeamOS reads and sends Messages to carry out your tasks.",
-        "NSLocalNetworkUsageDescription": "aiTeamOS connects to your aiTeamOS server on your local network."
+        "NSMicrophoneUsageDescription": "OutcomeGo uses the microphone when you record a voice note or test your input. Only voice notes are sent to your server for transcription.",
+        "NSContactsUsageDescription": "OutcomeGo searches Contacts to find a person when needed for your task.",
+        "NSAppleEventsUsageDescription": "OutcomeGo reads and sends Messages to carry out your tasks.",
+        "NSLocalNetworkUsageDescription": "OutcomeGo connects to your OutcomeGo server on your local network."
       },
       "category": "public.app-category.productivity",
       "target": [
@@ -88,7 +88,7 @@
       ]
     },
     "linux": {
-      "icon": "../../packages/design-tokens/assets/aiteamos-desktop-light.png",
+      "icon": "../../packages/design-tokens/assets/outcomego-desktop-light.png",
       "target": [
         "AppImage"
       ]
@@ -106,7 +106,7 @@
     "publish": {
       "provider": "github",
       "owner": "jingyi0605",
-      "repo": "ai-TeamOS"
+      "repo": "OutcomeGo"
     }
   },
   "description": "A self-hosted desktop for durable Pi agents with configurable inference providers.",
@@ -116,7 +116,7 @@
     "clean:release": "bun run scripts/clean-release.ts",
     "build:main": "bun build src/main/index.ts --outdir dist-electron --entry-naming main.js --chunk-naming 'chunks/[name]-[hash].[ext]' --splitting --target node --format esm --external electron --minify --keep-names",
     "build:utility": "bun build src/main/host/utility.ts --outfile dist-electron/host-utility.js --target node --format esm --external electron --minify",
-    "build:server-updater": "bun build ../cli/src/main.ts --outfile dist-electron/aiteamos-cli.js --target node --format esm --minify",
+    "build:server-updater": "bun build ../cli/src/main.ts --outfile dist-electron/outcomego-cli.js --target node --format esm --minify",
     "build:preload": "bun build src/preload/index.ts --outfile dist-electron/preload.cjs --target node --format cjs --external electron --minify --keep-names",
     "build:electron": "bun run build:main && bun run build:utility && bun run build:server-updater && bun run build:preload",
     "build": "bun run clean && vite build && bun run build:electron",

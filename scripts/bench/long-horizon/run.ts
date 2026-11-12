@@ -22,13 +22,13 @@ const arg = (name: string, fallback: string) => {
 const base = process.env.BENCH_BASE ?? "http://127.0.0.1:18896";
 const site = process.env.BENCH_SITE ?? "http://127.0.0.1:7462";
 const visibleSite = process.env.BENCH_VISIBLE_SITE ?? "http://host.docker.internal:7462";
-const pg = process.env.BENCH_PG ?? "aiteamos-support-hill-postgres-1";
-const computer = process.env.BENCH_COMPUTER ?? "aiteamos-support-hill-computer-1";
+const pg = process.env.BENCH_PG ?? "outcomego-support-hill-postgres-1";
+const computer = process.env.BENCH_COMPUTER ?? "outcomego-support-hill-computer-1";
 const workflow = arg("workflow", "return") as Workflow;
 const variant = arg("variant", "normal");
 const fault = arg("fault", "none");
 const runId = arg("id", `${workflow}-${variant}-${Date.now()}`);
-const root = process.env.BENCH_OUT ?? "/tmp/aiteamos-long-horizon-runs";
+const root = process.env.BENCH_OUT ?? "/tmp/outcomego-long-horizon-runs";
 const out = join(root, runId);
 mkdirSync(out, { recursive: true });
 const lock = join(root, `${new URL(base).port}.lock`);
@@ -46,7 +46,7 @@ const log = (type: string, value: unknown) =>
 const sql = (query: string) =>
   execFileSync(
     "docker",
-    ["exec", "-i", pg, "psql", "-U", "aiteamos", "-d", "aiteamos", "-At", "-c", query],
+    ["exec", "-i", pg, "psql", "-U", "outcomego", "-d", "outcomego", "-At", "-c", query],
     { encoding: "utf8", maxBuffer: 64 << 20 }
   ).trim();
 const api = async (path: string, body?: unknown) => {
@@ -100,7 +100,7 @@ try {
   for (let i = 0; i < 60; i++) {
     if (
       sql(
-        `select count(*) from "ChannelMessage" where "channelId"='${bot.dmChannelId}' and sender='agent'`
+        `select count(*) from "outcomego_channel_message" where "channelId"='${bot.dmChannelId}' and sender='agent'`
       ) !== "0"
     )
       break;
@@ -155,12 +155,12 @@ try {
         "fault.before",
         JSON.parse(
           sql(
-            `select coalesce(json_agg(row_to_json(s)),'[]'::json) from "Subagent" s where "parentBotId"='${bot.id}'`
+            `select coalesce(json_agg(row_to_json(s)),'[]'::json) from "outcomego_subagent" s where "parentBotId"='${bot.id}'`
           )
         )
       );
       const project = computer.replace(/-computer-1$/, "");
-      if (!["aiteamos-support-hill", "aiteamos-support-oct26"].includes(project))
+      if (!["outcomego-support-hill", "outcomego-support-oct26"].includes(project))
         throw new Error("Fault injection is restricted to the benchmark stacks");
       const targets = fault === "server-only" ? [`${project}-server-1`] : [`${project}-worker-1`, `${project}-server-1`, computer];
       execFileSync("docker", ["kill", "--signal", "KILL", ...targets]);
@@ -179,7 +179,7 @@ try {
     }
     const messages = JSON.parse(
       sql(
-        `select coalesce(json_agg(row_to_json(m) order by m."createdAt"),'[]'::json) from (select id,sender,content,metadata,"createdAt" from "ChannelMessage" where "channelId"='${bot.dmChannelId}') m`
+        `select coalesce(json_agg(row_to_json(m) order by m."createdAt"),'[]'::json) from (select id,sender,content,metadata,"createdAt" from "outcomego_channel_message" where "channelId"='${bot.dmChannelId}') m`
       )
     );
     for (const m of messages) {
@@ -230,7 +230,7 @@ try {
     }
     const idle =
       sql(
-        `select count(*) from "Run" where status in ('queued','running') and ("botId"='${bot.id}' or "botId" in (select "childBotId" from "Subagent" where "parentBotId"='${bot.id}'))`
+        `select count(*) from "outcomego_run" where status in ('queued','running') and ("botId"='${bot.id}' or "botId" in (select "childBotId" from "outcomego_subagent" where "parentBotId"='${bot.id}'))`
       ) === "0";
     const stopCondition =
       provider.stage === "complete" ||
@@ -238,7 +238,7 @@ try {
       (["fee", "changedterms", "narrow"].includes(variant) && provider.stage === "question") ||
       (variant === "cancel" && provider.stage === "question");
     const unfinishedAutomaticWork = provider.stage === "complete" && Number(sql(
-      `select (select count(*) from "Subagent" where "parentBotId"='${bot.id}' and status::text not in ('completed','failed','stopped')) + (select count(*) from "Routine" where "botId"='${bot.id}' and enabled=true and "deletedAt" is null)`
+      `select (select count(*) from "outcomego_subagent" where "parentBotId"='${bot.id}' and status::text not in ('completed','failed','stopped')) + (select count(*) from "outcomego_routine" where "botId"='${bot.id}' and enabled=true and "deletedAt" is null)`
     )) > 0;
     if (stopCondition && idle && !unfinishedAutomaticWork) {
       terminalAt ||= Date.now();
@@ -248,22 +248,22 @@ try {
   }
   const subs = JSON.parse(
     sql(
-      `select coalesce(json_agg(row_to_json(s)),'[]'::json) from "Subagent" s where "parentBotId"='${bot.id}'`
+      `select coalesce(json_agg(row_to_json(s)),'[]'::json) from "outcomego_subagent" s where "parentBotId"='${bot.id}'`
     )
   );
   const routines = JSON.parse(sql(
-    `select coalesce(json_agg(row_to_json(r)),'[]'::json) from "Routine" r where "botId"='${bot.id}'`
+    `select coalesce(json_agg(row_to_json(r)),'[]'::json) from "outcomego_routine" r where "botId"='${bot.id}'`
   ));
   writeFileSync(join(out, "routines-at-end.json"), JSON.stringify(routines, null, 2));
-  const workWhere = `("botId"='${bot.id}' or "botId" in (select "childBotId" from "Subagent" where "parentBotId"='${bot.id}'))`;
+  const workWhere = `("botId"='${bot.id}' or "botId" in (select "childBotId" from "outcomego_subagent" where "parentBotId"='${bot.id}'))`;
   writeFileSync(
     join(out, "runs.json"),
-    sql(`select coalesce(json_agg(row_to_json(r)),'[]'::json) from "Run" r where ${workWhere}`)
+    sql(`select coalesce(json_agg(row_to_json(r)),'[]'::json) from "outcomego_run" r where ${workWhere}`)
   );
   writeFileSync(
     join(out, "tool-timeline.json"),
     sql(
-      `select coalesce(json_agg(to_jsonb(i)-'content' || jsonb_build_object('tool',i.content->>'tool') order by i."createdAt"),'[]'::json) from "RunItem" i where i."runId" in (select id from "Run" where ${workWhere})`
+      `select coalesce(json_agg(to_jsonb(i)-'content' || jsonb_build_object('tool',i.content->>'tool') order by i."createdAt"),'[]'::json) from "outcomego_run_item" i where i."runId" in (select id from "outcomego_run" where ${workWhere})`
     )
   );
   const success =
@@ -290,8 +290,8 @@ try {
       "Required: review timeline against provider state; success here grades actions only.",
   };
   try {
-    const contexts = sql(`select id from "ContextSession" where ${workWhere}`).split("\n");
-    const directory = "/home/box/.pi/agent/sessions/aiteamos";
+    const contexts = sql(`select id from "outcomego_context_session" where ${workWhere}`).split("\n");
+    const directory = "/home/box/.pi/agent/sessions/outcomego";
     const files = execFileSync("docker", ["exec", "-u", "root", computer, "ls", "-1", directory], {
       encoding: "utf8",
     }).split("\n");

@@ -65,7 +65,7 @@ enum VideoPoster {
     guard let api = store.api, asset.byteSize > 0 else { return nil }
     let loader = RangedAssetLoader(api: api, path: "/api/v0/assets/\(API.segment(asset.assetId))",
       byteSize: Int64(asset.byteSize), mimeType: asset.mimeType)
-    let video = AVURLAsset(url: URL(string: "openteam-asset://video/\(asset.assetId)")!)
+    let video = AVURLAsset(url: URL(string: "outcomego-asset://video/\(asset.assetId)")!)
     video.resourceLoader.setDelegate(loader, queue: RangedAssetLoader.queue)
     let generator = AVAssetImageGenerator(asset: video)
     generator.appliesPreferredTrackTransform = true
@@ -81,7 +81,7 @@ enum VideoPoster {
 
 /// Serves AVFoundation's reads of a server asset with authenticated Range requests.
 final class RangedAssetLoader: NSObject, AVAssetResourceLoaderDelegate, Sendable {
-  static let queue = DispatchQueue(label: "openteam.ranged-asset")
+  static let queue = DispatchQueue(label: "outcomego.ranged-asset")
   /// AVFoundation asks again for whatever a shorter answer leaves out.
   private static let chunk: Int64 = 512 * 1024
   let api: API
@@ -517,7 +517,7 @@ struct NativePhotoGallery: View {
     do {
       let status = await PHPhotoLibrary.requestAuthorization(for: .addOnly)
       guard status == .authorized || status == .limited else {
-        throw APIError("Allow OpenTeam to add photos in iPhone Settings, then try again.")
+        throw APIError("Allow OutcomeGo to add photos in iPhone Settings, then try again.")
       }
       try await PhotoLibraryWriter.save(file.url)
       NativeHaptics.play(.success, source: "attachment.save")

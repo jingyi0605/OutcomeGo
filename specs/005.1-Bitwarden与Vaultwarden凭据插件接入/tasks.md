@@ -56,11 +56,11 @@
     - `design.md` §3.2、§3.3
     - `apps/server/src/services/plugin/installations.ts`
     - `apps/server/src/services/process-secrets.ts`
-    - `apps/desktop/src/renderer/components/aiteamos/plugin-detail-view.tsx`
+    - `apps/desktop/src/renderer/components/outcomego/plugin-detail-view.tsx`
   - 主要改哪里：
     - `apps/server/src/services/plugin/installations.ts`
     - `apps/server/src/services/plugin/queries.ts`
-    - `apps/desktop/src/renderer/components/aiteamos/plugin-detail-view.tsx`
+    - `apps/desktop/src/renderer/components/outcomego/plugin-detail-view.tsx`
     - 相关 contracts 和测试文件
   - 这一步先不做什么：不把 runtime field 明文返回给 API，不重做插件设置页面。
   - 怎么算完成：

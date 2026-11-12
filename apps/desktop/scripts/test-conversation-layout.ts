@@ -7,7 +7,7 @@ import { createRequire } from "node:module";
 // Run separately from DOM-independent unit tests; requires the Electron runtime.
 const require = createRequire(import.meta.url);
 const electron = require("electron") as string;
-const directory = await mkdtemp(join(tmpdir(), "aiteamos-conversation-layout-"));
+const directory = await mkdtemp(join(tmpdir(), "outcomego-conversation-layout-"));
 const mode = process.argv.includes("--development") ? "development" : "production";
 try {
   const build = await Bun.build({

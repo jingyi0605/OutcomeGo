@@ -7,8 +7,8 @@
         android:shortcutLongLabel="@string/shortcut_find_messages_long"
         android:shortcutShortLabel="@string/shortcut_find_messages">
         <intent
-            android:action="com.aiteamos.android.action.FIND_MESSAGES"
-            android:targetClass="com.aiteamos.android.MainActivity"
+            android:action="com.outcomego.android.action.FIND_MESSAGES"
+            android:targetClass="com.outcomego.android.MainActivity"
             android:targetPackage="${applicationId}" />
     </shortcut>
 </shortcuts>

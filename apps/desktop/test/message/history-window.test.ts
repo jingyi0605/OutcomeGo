@@ -3,9 +3,9 @@ import type {
   ChannelHistoryPage,
   ChannelMessageContextView,
   ChannelMessageView,
-} from "@aiteamos/contracts";
-import { emptyLoadedChannelHistory } from "@aiteamos/product-core/history";
-import { messageRetainedByteSize } from "@aiteamos/product-core/message-window";
+} from "@outcomego/contracts";
+import { emptyLoadedChannelHistory } from "@outcomego/product-core/history";
+import { messageRetainedByteSize } from "@outcomego/product-core/message-window";
 import {
   applyPrimaryHistoryPage,
   clearMessageContext,

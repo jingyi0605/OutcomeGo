@@ -15,13 +15,13 @@ export interface ReleaseArtifact {
 }
 
 export const releaseComposeUrl = (repository: string, version: string): string =>
-  `https://github.com/${normalizeRepository(repository)}/releases/download/v${normalizeVersion(version)}/aiteamos-compose.yaml`;
+  `https://github.com/${normalizeRepository(repository)}/releases/download/v${normalizeVersion(version)}/outcomego-compose.yaml`;
 
 const fetchText = async (url: string, accept = "text/plain"): Promise<string> => {
   let response: Response;
   try {
     response = await fetch(url, {
-      headers: { accept, "user-agent": "aiteamos-cli" },
+      headers: { accept, "user-agent": "outcomego-cli" },
       redirect: "follow",
       signal: AbortSignal.timeout(30_000),
     });
@@ -70,10 +70,20 @@ export const verifyArtifactSignature = async (options: {
     throw new CliError("The release signature bundle is not valid JSON");
   }
   const keyHint = bundle.verificationMaterial?.publicKey?.hint;
+  const normalizedRepository = normalizeRepository(options.repository);
+  if (keyHint === LOCAL_RELEASE_KEY_ID && normalizedRepository === "jingyi0605/OutcomeGo") {
+    throw new CliError(
+      "The historical local release signature is bound to raghavpillai/openteam and cannot authenticate an OutcomeGo release"
+    );
+  }
+  if (!bundle.verificationMaterial?.tlogEntries?.length) {
+    throw new CliError("The release signature bundle has no transparency-log entry");
+  }
+  if (keyHint !== undefined && keyHint !== LOCAL_RELEASE_KEY_ID) {
+    throw new CliError("Untrusted local release signing key");
+  }
   const identity = `https://github.com/${normalizeRepository(options.repository)}/.github/workflows/release.yml@refs/tags/v${normalizeVersion(options.version)}`;
   try {
-    if (keyHint !== undefined && keyHint !== LOCAL_RELEASE_KEY_ID)
-      throw new Error("Untrusted local release signing key");
     const local = keyHint === LOCAL_RELEASE_KEY_ID;
     await withBunCryptoVerifyCompatibility(() =>
       verify(bundle, local ? localReleaseSigningPayload(options.repository, options.version, options.artifact) : Buffer.from(options.artifact), local ? {
@@ -89,7 +99,7 @@ export const verifyArtifactSignature = async (options: {
     );
   } catch (error) {
     throw new CliError(
-      `Sigstore verification failed for aiTeamOS ${options.version}: ${error instanceof Error ? error.message : error}`
+      `Sigstore verification failed for OutcomeGo ${options.version}: ${error instanceof Error ? error.message : error}`
     );
   }
 };
@@ -106,11 +116,11 @@ export const validateCompose = (contents: string): void => {
   if (contents.length < 100 || contents.length > 1_000_000) {
     throw new CliError("The downloaded Compose file has an unexpected size");
   }
-  if (!/^name:\s*aiteamos\s*$/m.test(contents)) {
-    throw new CliError("The downloaded Compose file is not an aiTeamOS release bundle");
+  if (!/^name:\s*outcomego\s*$/m.test(contents)) {
+    throw new CliError("The downloaded Compose file is not an OutcomeGo release bundle");
   }
-  if (!contents.includes("AITEAMOS_VERSION") || !contents.includes("aiteamos_workspace")) {
-    throw new CliError("The downloaded Compose file is missing required aiTeamOS configuration");
+  if (!contents.includes("OUTCOMEGO_VERSION") || !contents.includes("outcomego_workspace")) {
+    throw new CliError("The downloaded Compose file is missing required OutcomeGo configuration");
   }
 };
 

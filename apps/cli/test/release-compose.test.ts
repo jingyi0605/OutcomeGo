@@ -18,19 +18,19 @@ test("the development stack gives the worker time for its graceful stop", async 
 });
 
 describe("release Compose rendering", () => {
-  test("replaces every aiTeamOS tag with its immutable multi-architecture digest", async () => {
-    const directory = mkdtempSync(join(tmpdir(), "aiteamos-release-compose-"));
+  test("replaces every OutcomeGo tag with its immutable multi-architecture digest", async () => {
+    const directory = mkdtempSync(join(tmpdir(), "outcomego-release-compose-"));
     temporaryDirectories.push(directory);
     const digestDirectory = join(directory, "digests");
     mkdirSync(digestDirectory);
     const services = ["server", "worker", "migrate", "computer"];
     for (const [index, service] of services.entries()) {
       await Bun.write(
-        join(digestDirectory, `aiteamos-${service}.digest`),
+        join(digestDirectory, `outcomego-${service}.digest`),
         `sha256:${String(index + 1).repeat(64)}\n`
       );
     }
-    const output = join(directory, "aiteamos-compose.yaml");
+    const output = join(directory, "outcomego-compose.yaml");
     const child = Bun.spawn(
       [
         process.execPath,
@@ -47,43 +47,43 @@ describe("release Compose rendering", () => {
       expect(rendered).toContain(`-${service}@sha256:${String(index + 1).repeat(64)}`);
     }
     expect(rendered.match(/-computer@sha256:4{64}/g)).toHaveLength(2);
-    expect(rendered).toContain("AITEAMOS_DESKTOP_MEMORY_LIMIT: ${AITEAMOS_DESKTOP_MEMORY_LIMIT:-10g}");
-    expect(rendered).toContain("mem_limit: ${AITEAMOS_COMPUTER_MEMORY_LIMIT:-12g}");
+    expect(rendered).toContain("OUTCOMEGO_DESKTOP_MEMORY_LIMIT: ${OUTCOMEGO_DESKTOP_MEMORY_LIMIT:-10g}");
+    expect(rendered).toContain("mem_limit: ${OUTCOMEGO_COMPUTER_MEMORY_LIMIT:-12g}");
     expect(rendered).not.toMatch(
-      /^\s*image:.*-(?:server|worker|migrate|computer):\$\{AITEAMOS_VERSION/m
+      /^\s*image:.*-(?:server|worker|migrate|computer):\$\{OUTCOMEGO_VERSION/m
     );
     const yaml = Bun.YAML.parse(rendered) as { services: Record<string, { logging: unknown }> };
     for (const service of Object.values(yaml.services)) {
       expect(service.logging).toEqual({
         driver: "json-file",
         options: {
-          "max-size": "${AITEAMOS_LOG_MAX_SIZE:-10m}",
-          "max-file": "${AITEAMOS_LOG_MAX_FILES:-3}",
+          "max-size": "${OUTCOMEGO_LOG_MAX_SIZE:-10m}",
+          "max-file": "${OUTCOMEGO_LOG_MAX_FILES:-3}",
         },
       });
     }
     expect(rendered).toContain('profiles: ["https"]');
     expect(rendered).toContain("caddy:2.11.4-alpine@sha256:");
     expect(rendered).toContain(
-      "${AITEAMOS_VIEWER_BIND_HOST:-127.0.0.1}:${AITEAMOS_VIEWER_PORT_START:-6200}-${AITEAMOS_VIEWER_PORT_END:-6299}"
+      "${OUTCOMEGO_VIEWER_BIND_HOST:-127.0.0.1}:${OUTCOMEGO_VIEWER_PORT_START:-6200}-${OUTCOMEGO_VIEWER_PORT_END:-6299}"
     );
-    expect(rendered).toContain("AITEAMOS_AUTH_URL: ${AITEAMOS_AUTH_URL");
+    expect(rendered).toContain("OUTCOMEGO_AUTH_URL: ${OUTCOMEGO_AUTH_URL");
     const worker = rendered.split("  worker:")[1]!.split("\n  caddy:")[0]!;
-    expect(worker).toContain("AITEAMOS_APNS_KEY_ID: ${AITEAMOS_APNS_KEY_ID:-}");
-    expect(worker).toContain("AITEAMOS_APNS_TEAM_ID: ${AITEAMOS_APNS_TEAM_ID:-}");
-    expect(worker).toContain("AITEAMOS_APNS_TOPIC: ${AITEAMOS_APNS_TOPIC:-dev.aiteamos.mobile}");
-    expect(worker).toContain("AITEAMOS_APNS_PRIVATE_KEY: ${AITEAMOS_APNS_PRIVATE_KEY:-}");
+    expect(worker).toContain("OUTCOMEGO_APNS_KEY_ID: ${OUTCOMEGO_APNS_KEY_ID:-}");
+    expect(worker).toContain("OUTCOMEGO_APNS_TEAM_ID: ${OUTCOMEGO_APNS_TEAM_ID:-}");
+    expect(worker).toContain("OUTCOMEGO_APNS_TOPIC: ${OUTCOMEGO_APNS_TOPIC:-dev.outcomego.mobile}");
+    expect(worker).toContain("OUTCOMEGO_APNS_PRIVATE_KEY: ${OUTCOMEGO_APNS_PRIVATE_KEY:-}");
     // Longer than pg-boss's 30 s graceful stop, so stopping never kills the worker.
     expect(worker).toContain("stop_grace_period: 45s");
-    expect(rendered).not.toContain("AITEAMOS_WEB_SEARCH_");
-    expect(rendered).not.toContain("AITEAMOS_PI_PROVIDER");
-    expect(rendered).not.toContain("AITEAMOS_PI_MODEL");
-    expect(rendered).not.toContain("AITEAMOS_PI_THINKING");
+    expect(rendered).not.toContain("OUTCOMEGO_WEB_SEARCH_");
+    expect(rendered).not.toContain("OUTCOMEGO_PI_PROVIDER");
+    expect(rendered).not.toContain("OUTCOMEGO_PI_MODEL");
+    expect(rendered).not.toContain("OUTCOMEGO_PI_THINKING");
     expect(rendered).toContain('cap_add: ["ALL"]');
     expect(rendered).toContain("systempaths=unconfined");
     expect(rendered).toContain("/dev/net/tun:/dev/net/tun");
     // Bots' system-wide installs live in a volume, which an update's `up` creates.
-    expect(rendered).toContain("- aiteamos_computer_local:/usr/local");
-    expect(rendered).toMatch(/^ {2}aiteamos_computer_local:$/m);
+    expect(rendered).toContain("- outcomego_computer_local:/usr/local");
+    expect(rendered).toMatch(/^ {2}outcomego_computer_local:$/m);
   });
 });

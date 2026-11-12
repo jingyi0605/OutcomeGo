@@ -1,6 +1,6 @@
 import Foundation
 import XCTest
-@testable import OpenTeamCore
+@testable import OutcomeGoCore
 
 final class LocalDataResetTests: XCTestCase {
   func testClearsContentsWithoutRemovingProtectedSandboxRoot() throws {

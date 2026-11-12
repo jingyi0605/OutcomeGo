@@ -77,7 +77,7 @@ import XCTest
     try wait { start.isEnabled }
     try openUpdateConfirmation(app)
     app.alerts.buttons["server-update-confirm"].firstMatch.tap()
-    try wait { app.staticTexts["Pulling OpenTeam 0.0.11 container images"].exists }
+    try wait { app.staticTexts["Pulling OutcomeGo 0.0.11 container images"].exists }
     XCTAssertTrue(app.staticTexts["Step 2 of 5"].exists)
     XCTAssertTrue(app.staticTexts["Downloading update"].exists)
     let requests = try await updates()
@@ -182,7 +182,7 @@ import XCTest
     try await control(["serverUpdate": ["updaterAvailable": false]])
     let app = launch(appearance: "light")
     try tap(app.buttons["updates-settings"], app)
-    XCTAssertTrue(app.staticTexts["openteam update --version 0.0.11"].waitForExistence(timeout: 8))
+    XCTAssertTrue(app.staticTexts["outcomego update --version 0.0.11"].waitForExistence(timeout: 8))
     XCTAssertFalse(app.buttons["server-update-start"].exists)
     try await control([
       "serverUpdate": ["updaterAvailable": true],

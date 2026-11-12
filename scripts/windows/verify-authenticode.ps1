@@ -5,9 +5,9 @@ param(
   [string] $SubjectPattern
 )
 
-$files = Get-ChildItem -Path $Path -Filter "aiTeamOS-*.exe" -File
+$files = Get-ChildItem -Path $Path -Filter "OutcomeGo-*.exe" -File
 if ($files.Count -eq 0) {
-  throw "No aiTeamOS installer executable was found under $Path."
+  throw "No OutcomeGo installer executable was found under $Path."
 }
 
 foreach ($file in $files) {

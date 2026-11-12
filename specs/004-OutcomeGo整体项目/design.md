@@ -62,7 +62,7 @@ OutcomeGo 不创建第二套 Agent Runtime、第二套数据库或独立编排�
 
 ## 6. 发布顺序
 
-1. 完成 `004.1` 的只读盘点、品牌修改、升级测试和下一版本发布。
+1. 完成 `004.1` 的只读盘点、品牌修改、新实例与手动备份导入验收，再按发布门槛发布下一版本。
 2. 完成 `004.2` 的模型、规划、执行和验收主链路。
 3. 完成 `004.3`、`004.4` 和 `004.5` 的阶段能力。
 4. 通过父 Spec 最终验收后再进行完整 Beta 发布。
@@ -70,7 +70,7 @@ OutcomeGo 不创建第二套 Agent Runtime、第二套数据库或独立编排�
 ## 7. 全局验证
 
 - 阶段退出条件必须由子 Spec 的最终检查点提供证据。
-- 父 Spec 的最终检查必须复现一条完整流程，并覆盖升级、执行、验收和人工任务。
+- 父 Spec 的最终检查必须复现一条完整流程，并覆盖新实例初始化、手动备份导入、执行、验收和人工任务；不要求旧安装原地升级。
 - 不把未实现的设计建议标记为完成。
 
 ## 8. 当前代码映射、现有代码所有权和文件影响清单
@@ -114,11 +114,11 @@ eventId / idempotencyKey
 
 ## 10. 版本和数据库策略
 
-- 下一版本品牌发布沿用当前版本线；当前根版本为 `0.1.0-beta.13`，目标版本由 `004.1` 的发布任务固定为下一可用版本。
-- 数据库变更必须使用 `packages/db/prisma/migrations/` 的增量迁移或仓库现有部署机制。
-- 新字段在旧客户端不理解时必须保持可选，旧客户端仍能读取原有模型。
-- Event 和 API 载荷必须有 `schemaVersion` 或明确的兼容解析分支。
-- 不删除旧字段作为品牌更名的一部分；深层标识迁移必须与用户数据迁移分开。
+- 下一版本品牌发布沿用当前版本线；发布前根版本为 `0.1.0-beta.13`，`004.1` 已将本地候选版本设为 `0.1.0-beta.14`，实际发布仍以版本脚本、tag 和 Release 证据为准。
+- `004.1` 全量名称迁移的新实例直接从包含全部最新字段的单一 `outcomego-v1` Prisma/raw schema 初始化；不执行旧产品数据库字段、表名或 schema 的自动转换。
+- Outcome 产品功能新增的数据库字段仍按本父 Spec 的 API 和数据兼容规则设计；`004.1` 品牌迁移不要求对 beta.13 数据库原地升级。
+- Outcome 相关 Event 和 API 载荷必须有 `schemaVersion` 或明确的兼容解析分支。
+- 旧数据保留流程是用户手动备份后导入符合最新 schema 的备份；仓库校验器拒绝旧格式且不改写输入文件。
 - 所有发布验证必须记录构建版本、数据库迁移版本、客户端版本和测试环境。
 
 ## 11. 全局验证策略和测试分层
@@ -139,7 +139,7 @@ eventId / idempotencyKey
 - 每个必需 AcceptanceCriterion 必须有 Review 结果。
 - 人工 WorkItem 没有人工回执时不能完成。
 - 同一个业务 idempotency key 不能产生两个业务结果。
-- 品牌字符串变化不能改变既有数据主键、签名身份或上游来源记录。
+- 品牌字符串变化不能改变 Outcome 业务数据主键或上游来源记录。`004.1` 新版使用全新 OutcomeGo 身份与数据库 schema；旧签名只能按其原仓库来源验证，不能作为 OutcomeGo 的信任根。
 
 ## 13. 阶段级设计约束
 
@@ -150,11 +150,11 @@ eventId / idempotencyKey
 | 对象 | 事实来源 | 变化类型 | 失败时的保护 |
 |---|---|---|---|
 | 根版本 | `package.json`、`bun.lock`、`apps/ios/release.json` | 下一版本递增 | `version.ts check` 阻止不一致发布 |
-| CLI 默认仓库 | `apps/cli/src/constants.ts` | 指向新仓库或兼容解析 | 旧仓库 metadata fixture |
-| Desktop 名称 | `apps/desktop/package.json`、About | 用户可见变化 | 旧数据目录和 updater 保留 |
-| Android 名称 | Manifest、strings、Release asset | 用户可见变化 | application ID 和签名不变 |
-| iOS 名称 | Release 工程和文案 | 用户可见变化 | bundle ID、APNs、extensions 不变 |
-| Compose/镜像 | `docker-compose.yml`、workflow | 公开显示名或标签 | 数据卷和服务连接兼容 |
+| CLI 默认仓库 | `apps/cli/src/constants.ts` | 指向 `jingyi0605/OutcomeGo` | 新仓库 tag、Release 和签名 identity fixture |
+| Desktop 名称 | `apps/desktop/package.json`、About | 新安装身份与用户可见名称 | 历史 artifact prefix 按 updater 证据保留 |
+| Android 名称 | Manifest、strings、Release asset | 新 application ID 与新安装身份 | 更新清单仍须匹配固定公钥 |
+| iOS 名称 | Release 工程和文案 | 新 bundle ID、APNs、extensions 和显示名 | 新安装身份；签名和商店发布单独验收 |
+| Compose/镜像 | `docker-compose.yml`、workflow | 新运行身份和数据库 schema | 新 volume/database；旧数据手动备份导入 |
 | 许可证/Fork 关系 | `FORK.md`、README、LICENSE | 说明更新 | 保留上游署名和 GPL 文件 |
 
 阶段结束时父规格只能引用已生成的发布和升级证据，不能引用“未来会验证”的设计判断。
@@ -286,7 +286,7 @@ interface OutcomeEventEnvelope<T> {
 
 ## 18. 权限和身份边界
 
-本项目不新增组织级 RBAC，但所有新 API 仍必须使用当前服务端 owner/session 鉴权。当前服务端是单 owner 模型，`AITEAMOS_AUTH_MODE=disabled` 时没有 session，具体规则见 §44：
+本项目不新增组织级 RBAC，但所有新 API 仍必须使用当前服务端 owner/session 鉴权。当前服务端是单 owner 模型，`OUTCOMEGO_AUTH_MODE=disabled` 时没有 session，具体规则见 §44：
 
 1. API 从当前认证上下文取得 owner identity，不能信任请求体中的 ownerId。
 2. Outcome、Decision、WorkItem、Evidence 和回执查询必须沿关系验证归属。
@@ -511,14 +511,14 @@ specs/004-OutcomeGo整体项目/docs/fixtures/
 
 ## 30. 数据迁移验收矩阵
 
-| 迁移 | 新安装 | 旧数据升级 | 旧客户端读 | 回滚 |
+| 迁移 | 新安装 | 手动备份导入 | 旧客户端读 | 回滚 |
 |---|---:|---:|---:|---:|
-| 品牌/版本 | ✓ | ✓ | ✓ | ✓ |
-| Outcome tables | ✓ | 可选 | ✓ | migration-specific |
-| Contract revision | ✓ | 无历史对象 | ✓ | 保留新表 |
-| Decision/Inbox | ✓ | 无历史对象 | fallback | 保留事实 |
-| Human WorkItem | ✓ | 无历史对象 | fallback | 保留回执 |
-| Checkpoint | ✓ | 只对新 Outcome | ✓ | 保留审计 |
+| 品牌/版本 | ✓ | 手动重新安装 | 不适用 | 保留 beta.13 旧资产 |
+| Outcome tables | ✓ | 当前 schema 备份导入 | 不适用 | 保留源备份 |
+| Contract revision | ✓ | 按当前 schema 校验 | 不适用 | 保留源备份 |
+| Decision/Inbox | ✓ | 按当前 schema 校验 | 不适用 | 保留源备份 |
+| Human WorkItem | ✓ | 按当前 schema 校验 | 不适用 | 保留源备份 |
+| Checkpoint | ✓ | 按当前 schema 校验 | 不适用 | 保留源备份 |
 
 每个 migration 任务必须记录：
 
@@ -705,7 +705,7 @@ elapsedMs
 | 决策 | 本项目结论 | 状态 | 影响的子 Spec |
 |---|---|---|---|
 | D01 规划自动化 | 第一版采用 A：每个 Outcome 都走三维规划和一次明确批准。B（模板复用）和 C（预授权自动规划）不在本项目实现。 | 默认基线 | `004.2` |
-| D02 公开名称和仓库 | 下一版本启用 OutcomeGo 用户可见名称；GitHub 仓库是否重命名由 `004.1` 任务 6.2 单独决定。 | 名称已确认；仓库待 6.2 | `004.1` |
+| D02 公开名称和仓库 | 下一版本启用 OutcomeGo 用户可见名称；仓库 slug 为 `jingyi0605/OutcomeGo`，fork 默认分支命名为 `OutcomeGo`，上游 `main` 保持不变。 | 已确认；分支同步和默认分支切换随本次执行 | `004.1` |
 | D03 Contract Schema | Contract 只包含 goal、acceptance、boundaries 三部分，加可选 `budget`（不填默认值）和执行 Bot；批准人和验收人都是当前 owner；任何目标、验收、边界变化都生成新 revision。原规划六部分中的 Authority 和 Recovery 不进入 Contract。 | 默认基线 | `004.2` |
 | D04 权限动作矩阵 | 不实施，见 §40。 | 已确认（用户要求先完整实现功能） | 全部 |
 | D05 第一个试点 | Agent 试点：“比较两个备份方案并给出选型建议”（`004.2` 需求 10）。现实任务试点：`004.4` 的现场网络检查 fixture。两者都只使用虚构数据。 | 默认基线 | `004.2`、`004.4` |
@@ -721,7 +721,7 @@ elapsedMs
 | 资料项目范围 | 第一版 `projectScope = bot:<botId>`，与 `AgentFileState.botId` 对齐；不新增 Project 表。 |
 | 规划候选项来源 | 服务端调用 computer 现有 `/v1/infer`，新增 `kind="planning"`，见 `004.2` §31。 |
 | Agent 请求用户决策 | 新增内部工具 `RequestOutcomeDecision`，只在带 Outcome 上下文的 Run 中提供，见 `004.3` §41。 |
-| 深链格式 | 沿用现有 `aiteamos://app/v1/...` scheme，见 `004.3` §10。 |
+| 深链格式 | 沿用现有 `outcomego://app/v1/...` scheme，见 `004.3` §10。 |
 
 ## 40. 授权门禁处理决定
 
@@ -807,12 +807,12 @@ cancelled > accepted > decision_pending > human_action_pending
 
 1. 生产者使用 `apps/server/src/services/service-utils.ts` 的 `appendEvent`，与业务写入放在同一事务。业务写入本身由 `IdempotencyRecord` 或唯一约束去重，因此同一业务事实只产生一个事件。
 2. 消费者按 `sequence` 递增读取，使用 `IdempotencyRecord(scope="outcome-event:<handler>", key=eventId)` 记录已处理事件，重复投递不会重复生效。
-3. 新事件通过现有 `EventWakeup`（`apps/server/src/event-wakeup.ts`，LISTEN 通道 `aiteamos_events`）唤醒，不新增队列。
+3. 新事件通过现有 `EventWakeup`（`apps/server/src/event-wakeup.ts`，LISTEN 通道 `aiteamos_events`）唤醒，不新增队列。该通道是固定保留的运行接口，数据库表和索引命名仍使用 OutcomeGo schema。
 4. 实现前必须核对 `apps/server/src/event-stream.ts` 对 topic 的过滤，确保新增的 `outcome.*` 等 topic 不改变现有客户端事件流的行为。
 
 ## 44. 身份和归属
 
-当前服务端是单 owner 系统：`owner-credentials.ts` 以第一个 `User` 作为 owner，`AITEAMOS_AUTH_MODE=disabled` 时没有 session，API 也可以通过 token 或 loopback 访问。因此：
+当前服务端是单 owner 系统：`owner-credentials.ts` 以第一个 `User` 作为 owner，`OUTCOMEGO_AUTH_MODE=disabled` 时没有 session，API 也可以通过 token 或 loopback 访问。因此：
 
 1. Outcome 相关表不增加 `ownerId` 列。访问控制沿用现有 API 认证：请求能通过现有中间件，就能访问全部 Outcome。
 2. 批准、验收、Decision 解决和回执提交记录 `actorRef`：有 session 时为 `user:<User.id>`，认证关闭、token 或 loopback 访问时为 `owner:local`；Agent 动作为 `bot:<botId>`；系统动作为 `system:<service>`。

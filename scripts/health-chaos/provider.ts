@@ -26,12 +26,12 @@ Bun.serve({
                 type: "function",
                 function: {
                   name: "SendToUser",
-                  arguments: JSON.stringify({ type: "text", content: "AITEAMOS_CHAOS_OK" }),
+                  arguments: JSON.stringify({ type: "text", content: "OUTCOMEGO_CHAOS_OK" }),
                 },
               },
             ],
           }
-        : { role: "assistant", content: "AITEAMOS_CHAOS_OK" };
+        : { role: "assistant", content: "OUTCOMEGO_CHAOS_OK" };
     const chunk = {
       id: "chaos-canary",
       object: "chat.completion.chunk",

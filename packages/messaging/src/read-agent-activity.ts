@@ -1,6 +1,6 @@
-import { type AgentActivityBounds, parseReadAgentActivityInput } from "@aiteamos/contracts/read-agent-activity";
-import type { PrismaClient } from "@aiteamos/db";
-import { redactSensitiveText } from "@aiteamos/product-core/redaction";
+import { type AgentActivityBounds, parseReadAgentActivityInput } from "@outcomego/contracts/read-agent-activity";
+import type { PrismaClient } from "@outcomego/db";
+import { redactSensitiveText } from "@outcomego/product-core/redaction";
 
 export interface AgentActivitySummary {
   agentId: string;

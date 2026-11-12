@@ -9,7 +9,7 @@ struct SessionRecord: Codable, Sendable {
 
   var displayName: String {
     let name = userName.trimmingCharacters(in: .whitespacesAndNewlines)
-    return name.isEmpty ? "OpenTeam owner" : name
+    return name.isEmpty ? "OutcomeGo owner" : name
   }
 
   /// Persist identity changes while connected so a later offline launch has the same name.

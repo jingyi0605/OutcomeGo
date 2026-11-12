@@ -18,7 +18,7 @@ afterEach(() => rm(root, { recursive: true, force: true }));
 
 const processEntry = async (pid: number, input: { shellId?: string; comm: string; ppid: number; state?: string; startTime?: string }) => {
   await mkdir(join(proc, String(pid)), { recursive: true });
-  const environment = ["PATH=/usr/bin", ...(input.shellId ? [`AITEAMOS_SHELL_ID=${input.shellId}`] : [])].join("\0");
+  const environment = ["PATH=/usr/bin", ...(input.shellId ? [`OUTCOMEGO_SHELL_ID=${input.shellId}`] : [])].join("\0");
   await writeFile(join(proc, String(pid), "environ"), `${environment}\0`);
   // Field 22 is the start time; a name with spaces and parentheses must not shift the fields.
   const tail = [input.state ?? "S", input.ppid, ...Array.from({ length: 17 }, () => 0), input.startTime ?? `${pid}00`, 0, 0];

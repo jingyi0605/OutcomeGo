@@ -2,7 +2,7 @@ import Foundation
 
 /// SemVer ordering shared with contracts/version-compatibility.ts. Build metadata
 /// does not affect ordering; malformed versions never become update targets.
-public struct OpenTeamVersion: Comparable, Sendable {
+public struct OutcomeGoVersion: Comparable, Sendable {
   public let major: Int
   public let minor: Int
   public let patch: Int
@@ -119,14 +119,14 @@ public struct ServerUpdatePolicy: Sendable {
   public let targetVersion: String?
 
   public init(clientVersion: String, release: ServerRelease?) {
-    guard let client = OpenTeamVersion(clientVersion), let release,
-      let server = OpenTeamVersion(release.releaseVersion),
+    guard let client = OutcomeGoVersion(clientVersion), let release,
+      let server = OutcomeGoVersion(release.releaseVersion),
       let protocolVersion = release.apiProtocolVersion,
-      let minimum = OpenTeamVersion(
+      let minimum = OutcomeGoVersion(
         release.minimumClientVersion ?? "\(server.major).\(server.minor).0-0"),
-      let maximum = OpenTeamVersion(
+      let maximum = OutcomeGoVersion(
         release.maximumClientVersionExclusive ?? "\(server.major).\(server.minor + 1).0-0"),
-      let minimumServer = OpenTeamVersion("\(client.major).\(client.minor).0-0")
+      let minimumServer = OutcomeGoVersion("\(client.major).\(client.minor).0-0")
     else {
       compatibility = .unknown
       targetVersion = nil
@@ -162,14 +162,14 @@ public struct ServerUpdateSnapshot: Codable, Sendable {
 }
 
 public enum ServerUpdateCache {
-  private static func key(_ server: String) -> String { "openteam-server-update:" + server }
+  private static func key(_ server: String) -> String { "outcomego-server-update:" + server }
   public static func load(server: String, defaults: UserDefaults = .standard, now: Date = Date())
     -> ServerUpdateSnapshot?
   {
     guard let data = defaults.data(forKey: key(server)),
       let snapshot = try? JSONDecoder().decode(ServerUpdateSnapshot.self, from: data),
       snapshot.update.updating,
-      snapshot.update.targetVersion.flatMap(OpenTeamVersion.init) != nil,
+      snapshot.update.targetVersion.flatMap(OutcomeGoVersion.init) != nil,
       snapshot.observedAt <= now,
       now.timeIntervalSince(snapshot.observedAt) <= 86400,
       snapshot.startedAt.map({ $0 <= now }) ?? true

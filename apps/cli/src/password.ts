@@ -22,12 +22,12 @@ export interface AccountUpdateOptions {
 const requireInstallation = (paths: InstallationPaths): InstallationManifest => {
   if (!installationExists(paths)) {
     throw new CliError(
-      `aiTeamOS is not installed at ${paths.directory}. Run aiteamos install first.`
+      `OutcomeGo is not installed at ${paths.directory}. Run outcomego install first.`
     );
   }
   const manifest = readManifest(paths);
   if (!manifest)
-    throw new CliError(`aiTeamOS installation manifest is missing at ${paths.manifest}`);
+    throw new CliError(`OutcomeGo installation manifest is missing at ${paths.manifest}`);
   return manifest;
 };
 
@@ -47,7 +47,7 @@ export const accountUpdateCommand = async (
   let password: string | undefined;
   try {
     printMessage(
-      `Change the aiTeamOS sign-in${
+      `Change the OutcomeGo sign-in${
         manifest.ownerUsername ? ` for ${manifest.ownerUsername}` : ""
       }.`
     );

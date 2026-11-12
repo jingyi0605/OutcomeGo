@@ -21,8 +21,8 @@ const require = createRequire(import.meta.url);
 const electronPath = require("electron") as string;
 const waitOn = require("wait-on") as WaitOn;
 const environment = resolveDevElectronEnvironment({
-  AITEAMOS_DEV_HOST: process.env.AITEAMOS_DEV_HOST,
-  AITEAMOS_RENDERER_URL: process.env.AITEAMOS_RENDERER_URL,
+  OUTCOMEGO_DEV_HOST: process.env.OUTCOMEGO_DEV_HOST,
+  OUTCOMEGO_RENDERER_URL: process.env.OUTCOMEGO_RENDERER_URL,
 });
 
 const bundleCommands = [
@@ -59,7 +59,7 @@ const bundleCommands = [
     "build",
     "../cli/src/main.ts",
     "--outfile",
-    "dist-electron/aiteamos-cli.js",
+    "dist-electron/outcomego-cli.js",
     "--target",
     "node",
     "--format",
@@ -156,7 +156,7 @@ const spawnElectron = () => {
     cwd: desktopRoot,
     env: {
       ...process.env,
-      AITEAMOS_RENDERER_URL: environment.rendererUrl,
+      OUTCOMEGO_RENDERER_URL: environment.rendererUrl,
     },
     stdin: "inherit",
     stdout: "inherit",

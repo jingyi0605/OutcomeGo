@@ -79,7 +79,7 @@ struct VoiceNotesSettingsView: View {
         } footer: {
           SettingsFooter(
             draft.settings.provider == .compatible
-              ? "Use an OpenAI-compatible audio service reachable from your OpenTeam server."
+              ? "Use an OpenAI-compatible audio service reachable from your OutcomeGo server."
               : "Choose the transcription model for recorded messages.")
         }
         Section {

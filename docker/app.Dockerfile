@@ -22,7 +22,7 @@ COPY packages/plugins/package.json packages/plugins/package.json
 COPY patches ./patches
 COPY vendor/sheetjs/xlsx-0.20.3.tgz vendor/sheetjs/xlsx-0.20.3.tgz
 
-RUN bun install --frozen-lockfile --production --filter @aiteamos/server --filter @aiteamos/worker --filter @aiteamos/db
+RUN bun install --frozen-lockfile --production --filter @outcomego/server --filter @outcomego/worker --filter @outcomego/db
 COPY apps/server ./apps/server
 COPY apps/worker ./apps/worker
 COPY packages/contracts ./packages/contracts
@@ -31,8 +31,8 @@ COPY packages/plugins ./packages/plugins
 COPY packages/db ./packages/db
 COPY packages/messaging ./packages/messaging
 COPY packages/product-core ./packages/product-core
-RUN bun --filter @aiteamos/db db:generate
-RUN bun --filter @aiteamos/server build && bun --filter @aiteamos/worker build
+RUN bun --filter @outcomego/db db:generate
+RUN bun --filter @outcomego/server build && bun --filter @outcomego/worker build
 
 # The schema sync only needs packages/db and its dependencies (Prisma CLI, its schema
 # engine, and pg), so it gets its own slim stage instead of inheriting the full build stage.
@@ -58,7 +58,7 @@ COPY packages/plugins/package.json packages/plugins/package.json
 COPY patches ./patches
 COPY vendor/sheetjs/xlsx-0.20.3.tgz vendor/sheetjs/xlsx-0.20.3.tgz
 ENV PRISMA_CLI_BINARY_TARGETS=debian-openssl-3.0.x,linux-arm64-openssl-3.0.x
-RUN bun install --frozen-lockfile --production --filter @aiteamos/db \
+RUN bun install --frozen-lockfile --production --filter @outcomego/db \
   && rm -rf /root/.bun/install/cache
 COPY packages/db/prisma.config.ts packages/db/prisma.config.ts
 COPY packages/db/prisma packages/db/prisma
@@ -71,7 +71,7 @@ ENV HOME=/tmp
 ENV XDG_CACHE_HOME=/tmp/.cache
 ENV CHECKPOINT_DISABLE=1
 USER 1000:1000
-CMD ["bun", "--filter", "@aiteamos/db", "db:deploy"]
+CMD ["bun", "--filter", "@outcomego/db", "db:deploy"]
 
 FROM oven/bun:1.4.2-slim@sha256:cb3bbbb08e13a4a2ff400f24c7a2a1d5efa83f6ef8544d52d95a519631e2fc61 AS server
 WORKDIR /app

@@ -1,5 +1,5 @@
-import { ApiError, type WakeParentInput } from "@aiteamos/contracts";
-import { Prisma } from "@aiteamos/db";
+import { ApiError, type WakeParentInput } from "@outcomego/contracts";
+import { Prisma } from "@outcomego/db";
 import { renderAutomationHandoffPrompt, type AgentMessaging, type ToolContext, type WakeInput } from "./index";
 
 export function automationContextRunId(runId: string, payload: unknown): string {
@@ -215,7 +215,7 @@ export async function wakeAutomationParent(
       "message must contain the complete handoff"
     );
   return messaging.prisma.$transaction(async (tx) => {
-    await tx.$executeRaw`SELECT 1 FROM "Run" WHERE "id" = ${context.runId}::uuid FOR UPDATE`;
+    await tx.$executeRaw`SELECT 1 FROM "outcomego_run" WHERE "id" = ${context.runId}::uuid FOR UPDATE`;
     const run = await tx.run.findUnique({
       where: { id: context.runId },
       include: { inboxEvents: { take: 1, select: { payload: true } } },

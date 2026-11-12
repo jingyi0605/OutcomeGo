@@ -8,7 +8,7 @@ required=(IOS_DISTRIBUTION_P12_BASE64 IOS_DISTRIBUTION_P12_PASSWORD IOS_APP_PROF
 for name in "${required[@]}"; do
   [[ -n "${!name:-}" ]] || { echo "Missing CI secret: $name" >&2; exit 1; }
 done
-signing_dir="$(mktemp -d "${RUNNER_TEMP:?}/openteam-ios-signing.XXXXXX")"
+signing_dir="$(mktemp -d "${RUNNER_TEMP:?}/outcomego-ios-signing.XXXXXX")"
 export SIGNING_DIR="$signing_dir"
 keychain="$signing_dir/signing.keychain-db"
 keychain_password="$(openssl rand -hex 24)"
@@ -66,19 +66,19 @@ options = dict(method='app-store-connect', destination='upload', signingStyle='m
                uploadSymbols=True)
 (root / 'ExportOptions.plist').write_bytes(plistlib.dumps(options))
 PY
-output="${RUNNER_TEMP}/openteam-ios-release"
+output="${RUNNER_TEMP}/outcomego-ios-release"
 mkdir -p "$output"
 # VoiceGlowKit's Metal shader needs Xcode's separately downloaded Metal toolchain.
 xcodebuild -showComponent MetalToolchain 2>/dev/null | grep -q 'Status: installed' \
   || xcodebuild -downloadComponent MetalToolchain
-xcodebuild -project apps/ios/OpenTeamNative.xcodeproj -scheme OpenTeamNative \
+xcodebuild -project apps/ios/OutcomeGoNative.xcodeproj -scheme OutcomeGoNative \
   -configuration Release -destination 'generic/platform=iOS' \
-  -archivePath "$output/OpenTeam.xcarchive" \
+  -archivePath "$output/OutcomeGo.xcarchive" \
   CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY='Apple Distribution' \
   APP_PROVISIONING_PROFILE="$(cat "$signing_dir/app.uuid")" \
   EXTENSION_PROVISIONING_PROFILE="$(cat "$signing_dir/extension.uuid")" \
   SHARE_PROVISIONING_PROFILE="$(cat "$signing_dir/share.uuid")" archive
-xcodebuild -exportArchive -archivePath "$output/OpenTeam.xcarchive" \
+xcodebuild -exportArchive -archivePath "$output/OutcomeGo.xcarchive" \
   -exportPath "$output/export" -exportOptionsPlist "$signing_dir/ExportOptions.plist" \
   -authenticationKeyPath "$signing_dir/AuthKey.p8" \
   -authenticationKeyID "$APP_STORE_CONNECT_KEY_ID" \

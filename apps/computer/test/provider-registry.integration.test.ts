@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
 test("custom endpoint: add without a model or key, discover, select, restart, infer, and revoke access", async () => {
-  const directory = await mkdtemp(join(tmpdir(), "aiteamos-provider-integration-"));
+  const directory = await mkdtemp(join(tmpdir(), "outcomego-provider-integration-"));
   const requests: Array<{ path: string; auth: string | null; body?: Record<string, unknown> }> = [];
   let status = 200;
   const server = Bun.serve({
@@ -50,7 +50,7 @@ test("custom endpoint: add without a model or key, discover, select, restart, in
     PATH: process.env.PATH!,
     HOME: directory,
     PI_OFFLINE: "1",
-    AITEAMOS_PI_AGENT_DIR: directory,
+    OUTCOMEGO_PI_AGENT_DIR: directory,
   };
   async function run(args: string[], input?: object) {
     const child = Bun.spawn([process.execPath, ...args], {
@@ -95,7 +95,7 @@ test("custom endpoint: add without a model or key, discover, select, restart, in
       "-e",
       `
       import {ModelRuntime} from '@earendil-works/pi-coding-agent';
-      const dir = process.env.AITEAMOS_PI_AGENT_DIR;
+      const dir = process.env.OUTCOMEGO_PI_AGENT_DIR;
       const runtime = await ModelRuntime.create({authPath: dir+'/auth.json', modelsPath: dir+'/models.json', modelsStorePath: dir+'/models-store.json', allowModelNetwork: false});
       const model = runtime.getModel('local','local-chat');
       if (!model) throw new Error('Selected model did not survive restart');
@@ -112,7 +112,7 @@ test("custom endpoint: add without a model or key, discover, select, restart, in
     expect(requests.find((r) => r.path === "/v1/chat/completions")?.body?.model).toBe("local-chat");
     expect(requests.filter((r) => r.path === "/v1/models").every((r) => !r.auth)).toBe(true);
     expect(requests.find((r) => r.path === "/v1/chat/completions")?.auth).toBe(
-      "Bearer aiteamos-no-auth"
+      "Bearer outcomego-no-auth"
     );
     const duplicate = await cli(["add-custom"], {
       id: "local",
@@ -138,7 +138,7 @@ test("custom endpoint: add without a model or key, discover, select, restart, in
 
 test("OpenRouter: discover a new namespaced model, select, restart and infer with its own API key", async () => {
   const { writeFile } = await import("node:fs/promises");
-  const directory = await mkdtemp(join(tmpdir(), "aiteamos-openrouter-integration-"));
+  const directory = await mkdtemp(join(tmpdir(), "outcomego-openrouter-integration-"));
   const requests: Array<{ path: string; auth: string | null; model?: string }> = [];
   const server = Bun.serve({
     hostname: "127.0.0.1",
@@ -178,8 +178,8 @@ test("OpenRouter: discover a new namespaced model, select, restart and infer wit
     PATH: process.env.PATH!,
     HOME: directory,
     PI_OFFLINE: "1",
-    AITEAMOS_PI_AGENT_DIR: directory,
-    AITEAMOS_AGENT_DATA_ROOT: directory,
+    OUTCOMEGO_PI_AGENT_DIR: directory,
+    OUTCOMEGO_AGENT_DATA_ROOT: directory,
   };
   async function run(args: string[]) {
     const child = Bun.spawn([process.execPath, ...args], {
@@ -231,7 +231,7 @@ test("OpenRouter: discover a new namespaced model, select, restart and infer wit
       "-e",
       `
       import { createModelRuntime } from './src/model-runtime';
-      const dir = process.env.AITEAMOS_PI_AGENT_DIR;
+      const dir = process.env.OUTCOMEGO_PI_AGENT_DIR;
       const runtime = await createModelRuntime({ authPath: dir+'/auth.json', modelsPath: dir+'/models.json', modelsStorePath: dir+'/models-store.json', allowModelNetwork: false });
       const model = runtime.getModel('openrouter','author/new-tool-model');
       if (!model || model.api !== 'openai-completions' || model.contextWindow !== 64000) throw new Error('Model snapshot was lost');

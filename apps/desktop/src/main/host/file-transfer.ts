@@ -6,7 +6,7 @@ import { basename, dirname, resolve } from "node:path";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import {
   type HostTransferRequest,
-} from "@aiteamos/contracts/service-protocol";
+} from "@outcomego/contracts/service-protocol";
 
 type Permit = { path: string; direction: "read" | "write"; bytes?: number; expires: number };
 
@@ -58,7 +58,7 @@ export class HostFileTransfers {
     let bytes = 0;
     if ((await realpath(dirname(permit.path))) !== dirname(permit.path))
       throw new Error("The approved destination directory changed");
-    const temporary = resolve(dirname(permit.path), `.aiteamos-transfer-${randomUUID()}`);
+    const temporary = resolve(dirname(permit.path), `.outcomego-transfer-${randomUUID()}`);
     try {
       const file = await open(temporary, "wx", 0o600);
       try {

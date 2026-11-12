@@ -1,5 +1,5 @@
-import type { BotView } from "@aiteamos/contracts";
-import type { BotRecipe } from "@aiteamos/contracts/bot-recipe";
+import type { BotView } from "@outcomego/contracts";
+import type { BotRecipe } from "@outcomego/contracts/bot-recipe";
 import { translateCurrent } from "./i18n-catalog";
 import { describeRoutineSchedules, routineScheduleDrafts, type RoutineView } from "./routines";
 

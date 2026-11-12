@@ -5,10 +5,10 @@ const directory = process.env.RESOURCE_LIFECYCLE_DIR;
 app.setPath("userData", path.join(directory, "profile"));
 let visible = true;
 let active = true;
-ipcMain.handle("aiteamos:window-visibility", () => visible);
-ipcMain.handle("aiteamos:window-activity", () => active);
-ipcMain.handle("aiteamos:delivery-journal:read", () => null);
-ipcMain.handle("aiteamos:delivery-journal:write", () => {});
+ipcMain.handle("outcomego:window-visibility", () => visible);
+ipcMain.handle("outcomego:window-activity", () => active);
+ipcMain.handle("outcomego:delivery-journal:read", () => null);
+ipcMain.handle("outcomego:delivery-journal:write", () => {});
 app.whenReady().then(async () => {
   const win = new BrowserWindow({
     show: false,
@@ -45,8 +45,8 @@ app.whenReady().then(async () => {
   const signal = async (shown, focused) => {
     visible = shown;
     active = shown && focused;
-    win.webContents.send("aiteamos:window-visibility-changed", visible);
-    win.webContents.send("aiteamos:window-activity-changed", active);
+    win.webContents.send("outcomego:window-visibility-changed", visible);
+    win.webContents.send("outcomego:window-activity-changed", active);
     await waitFor((value) => value.visible === visible && value.active === active);
     await pause();
   };

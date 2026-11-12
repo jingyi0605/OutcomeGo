@@ -19,7 +19,7 @@ describe("installation health URL", () => {
   test.each([
     200, 503,
   ])("rejects unavailable dependencies even if the API says ready (HTTP %s)", async (httpStatus) => {
-    const directory = mkdtempSync(join(tmpdir(), "aiteamos-cli-health-"));
+    const directory = mkdtempSync(join(tmpdir(), "outcomego-cli-health-"));
     temporaryDirectories.push(directory);
     const paths = installationPaths(directory);
     const server = Bun.serve({
@@ -34,7 +34,7 @@ describe("installation health URL", () => {
         ),
     });
     servers.push(server);
-    writeFileAtomic(paths.environment, `AITEAMOS_API_PORT=${server.port}\n`);
+    writeFileAtomic(paths.environment, `OUTCOMEGO_API_PORT=${server.port}\n`);
     const result = await checkHealth(paths);
     expect(result.ok).toBe(false);
     expect(result.detail).toContain("database: unavailable");
@@ -42,15 +42,15 @@ describe("installation health URL", () => {
     expect(result.components?.computer).toBe("ready");
   });
   test("uses loopback to inspect a service bound to every interface", () => {
-    const directory = mkdtempSync(join(tmpdir(), "aiteamos-cli-health-"));
+    const directory = mkdtempSync(join(tmpdir(), "outcomego-cli-health-"));
     temporaryDirectories.push(directory);
     const paths = installationPaths(directory);
-    writeFileAtomic(paths.environment, "AITEAMOS_BIND_HOST=0.0.0.0\nAITEAMOS_API_PORT=9444\n");
+    writeFileAtomic(paths.environment, "OUTCOMEGO_BIND_HOST=0.0.0.0\nOUTCOMEGO_API_PORT=9444\n");
     expect(healthUrl(paths)).toBe("http://127.0.0.1:9444/api/v0/health");
   });
 
   test("requires ready status and the exact target release", async () => {
-    const directory = mkdtempSync(join(tmpdir(), "aiteamos-cli-health-"));
+    const directory = mkdtempSync(join(tmpdir(), "outcomego-cli-health-"));
     temporaryDirectories.push(directory);
     const paths = installationPaths(directory);
     let status = "degraded";
@@ -60,7 +60,7 @@ describe("installation health URL", () => {
       fetch: () => Response.json({ status, release: { releaseVersion: version } }),
     });
     servers.push(server);
-    writeFileAtomic(paths.environment, `AITEAMOS_API_PORT=${server.port}\n`);
+    writeFileAtomic(paths.environment, `OUTCOMEGO_API_PORT=${server.port}\n`);
 
     expect((await checkHealth(paths)).detail).toBe("runtime is degraded");
     status = "ready";
@@ -70,12 +70,12 @@ describe("installation health URL", () => {
   });
 
   test("distinguishes connection failures from an HTTP readiness failure and prints the cause", async () => {
-    const directory = mkdtempSync(join(tmpdir(), "aiteamos-cli-health-"));
+    const directory = mkdtempSync(join(tmpdir(), "outcomego-cli-health-"));
     temporaryDirectories.push(directory);
     const paths = installationPaths(directory);
     const server = Bun.serve({ port: 0, fetch: () => new Response("starting", { status: 503 }) });
     servers.push(server);
-    writeFileAtomic(paths.environment, `AITEAMOS_API_PORT=${server.port}\n`);
+    writeFileAtomic(paths.environment, `OUTCOMEGO_API_PORT=${server.port}\n`);
     expect(await checkHealth(paths)).toMatchObject({ ok: false, detail: "HTTP 503" });
     expect((await checkHealth(paths)).connectionFailed).toBeUndefined();
     server.stop(true);
@@ -98,7 +98,7 @@ describe("installation health URL", () => {
   });
 
   test("does not print failed probes while a starting server becomes ready", async () => {
-    const directory = mkdtempSync(join(tmpdir(), "aiteamos-cli-health-"));
+    const directory = mkdtempSync(join(tmpdir(), "outcomego-cli-health-"));
     temporaryDirectories.push(directory);
     const paths = installationPaths(directory);
     let requests = 0;
@@ -110,7 +110,7 @@ describe("installation health URL", () => {
           : Response.json({ status: "ready" }),
     });
     servers.push(server);
-    writeFileAtomic(paths.environment, `AITEAMOS_API_PORT=${server.port}\n`);
+    writeFileAtomic(paths.environment, `OUTCOMEGO_API_PORT=${server.port}\n`);
 
     const output: string[] = [];
     const writer = spyOn(process.stdout, "write").mockImplementation((chunk) => {

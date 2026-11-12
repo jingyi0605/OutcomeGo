@@ -1,8 +1,8 @@
 import { expect, test } from "bun:test";
-import { createPrismaClient } from "@aiteamos/db";
+import { createPrismaClient } from "@outcomego/db";
 import { PluginEventPoller, parsePollResult } from "../src/services/plugin/events";
 
-const url = process.env.AITEAMOS_TEST_DATABASE_URL;
+const url = process.env.OUTCOMEGO_TEST_DATABASE_URL;
 const text = (value: unknown) => ({ content: [{ type: "text", text: JSON.stringify(value) }] });
 
 test("poll results accept MCP text or structured content and surface tool errors", () => {

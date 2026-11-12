@@ -217,8 +217,8 @@ export const renderStatus = (input: StatusReport, options: TerminalOptions = {})
       input.health.inference === "ready"
         ? cliTranslate("Connected")
         : input.health.inference === "missing"
-          ? cliTranslate("Not connected · connect one in the aiTeamOS app")
-          : cliTranslate("Not ready ({status}) · check it in the aiTeamOS app", {
+          ? cliTranslate("Not connected · connect one in the OutcomeGo app")
+          : cliTranslate("Not ready ({status}) · check it in the OutcomeGo app", {
               status: input.health.inference ?? cliTranslate("Unknown"),
             }),
       { tone: input.health.inference === "ready" ? "muted" : "warning" }

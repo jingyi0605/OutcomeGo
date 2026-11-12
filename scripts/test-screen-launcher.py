@@ -17,16 +17,16 @@ class NativeDocumentLauncherTest(unittest.TestCase):
             chrome = root / "google-chrome"
             chrome.write_text("#!/usr/bin/env python3\nimport json,sys\nprint(json.dumps(sys.argv[1:]))\n")
             chrome.chmod(0o700)
-            launcher = root / "aiteamos-screen-launch"
-            launcher.write_bytes((directory_root / "aiteamos-screen-launch").read_bytes())
+            launcher = root / "outcomego-screen-launch"
+            launcher.write_bytes((directory_root / "outcomego-screen-launch").read_bytes())
             launcher.chmod(0o700)
-            env = dict(os.environ, PATH=str(root) + os.pathsep + os.environ["PATH"], AITEAMOS_TOOLS_DIR=str(root),
-                       AITEAMOS_BROWSER_PROFILE=str(root / "desktop profile"), AITEAMOS_BROWSER_DEBUG_PORT="9444")
+            env = dict(os.environ, PATH=str(root) + os.pathsep + os.environ["PATH"], OUTCOMEGO_TOOLS_DIR=str(root),
+                       OUTCOMEGO_BROWSER_PROFILE=str(root / "desktop profile"), OUTCOMEGO_BROWSER_DEBUG_PORT="9444")
             for headless in ("--headless", "--headless=new"):
                 for extra in ([], ["--user-data-dir=" + str(root / "explicit profile")]):
                     args = [headless, *extra, "--dump-dom", "file:///workspace/report 日本語.html"]
                     for command in (["sh", str(launcher), "chromium"],
-                                    ["sh", str(directory_root / "aiteamos-browser")]):
+                                    ["sh", str(directory_root / "outcomego-browser")]):
                         with self.subTest(args=args, command=command):
                             result = subprocess.run([*command, *args], env=env, text=True, capture_output=True, timeout=5)
                             self.assertEqual(result.returncode, 0, result.stderr)
@@ -39,16 +39,16 @@ class NativeDocumentLauncherTest(unittest.TestCase):
             chrome = root / "google-chrome"
             chrome.write_text("#!/usr/bin/env python3\nimport json,sys\nprint(json.dumps(sys.argv[1:]))\n")
             chrome.chmod(0o700)
-            launcher = root / "aiteamos-screen-launch"
-            launcher.write_bytes((directory_root / "aiteamos-screen-launch").read_bytes())
+            launcher = root / "outcomego-screen-launch"
+            launcher.write_bytes((directory_root / "outcomego-screen-launch").read_bytes())
             launcher.chmod(0o700)
-            env = dict(os.environ, PATH=str(root) + os.pathsep + os.environ["PATH"], AITEAMOS_TOOLS_DIR=str(root),
-                       AITEAMOS_BROWSER_PROFILE=str(root / "screen profile"), AITEAMOS_BROWSER_DEBUG_PORT="9444")
+            env = dict(os.environ, PATH=str(root) + os.pathsep + os.environ["PATH"], OUTCOMEGO_TOOLS_DIR=str(root),
+                       OUTCOMEGO_BROWSER_PROFILE=str(root / "screen profile"), OUTCOMEGO_BROWSER_DEBUG_PORT="9444")
             for urls in ([], ["https://example.com/a?q=one&v=two"],
                          ["file:///workspace/report 日本語.html", "https://example.com/second"],
                          ["https://example.com/quote'$(literal)"]):
                 for command in (["sh", str(launcher), "chromium"],
-                                ["sh", str(directory_root / "aiteamos-browser")]):
+                                ["sh", str(directory_root / "outcomego-browser")]):
                     with self.subTest(urls=urls, command=command):
                         result = subprocess.run([*command, *urls], env=env, text=True, capture_output=True, timeout=5)
                         self.assertEqual(result.returncode, 0, result.stderr)
@@ -58,7 +58,7 @@ class NativeDocumentLauncherTest(unittest.TestCase):
                         self.assertEqual(args[args.index("--new-window") + 1:], urls or ["about:blank"])
 
     def test_editor_preserves_file_arguments(self):
-        launcher = Path(__file__).resolve().parents[1] / "docker/aiteamos-screen-launch"
+        launcher = Path(__file__).resolve().parents[1] / "docker/outcomego-screen-launch"
         with tempfile.TemporaryDirectory(prefix="editor-launcher-test-") as directory:
             root = Path(directory)
             executable = root / "mousepad"
@@ -85,7 +85,7 @@ class NativeDocumentLauncherTest(unittest.TestCase):
                     self.assertEqual(json.loads(result.stdout), ["--disable-server", *files])
 
     def test_preserves_documents_and_isolated_profile(self):
-        launcher = Path(__file__).resolve().parents[1] / "docker/aiteamos-screen-launch"
+        launcher = Path(__file__).resolve().parents[1] / "docker/outcomego-screen-launch"
         with tempfile.TemporaryDirectory(prefix="screen-launcher-test-") as directory:
             root = Path(directory)
             executable = root / "libreoffice"
@@ -97,7 +97,7 @@ class NativeDocumentLauncherTest(unittest.TestCase):
             executable.chmod(0o700)
             browser_profile = root / "isolated profile"
             env = dict(os.environ, PATH=str(root) + os.pathsep + os.environ["PATH"])
-            env["AITEAMOS_BROWSER_PROFILE"] = str(browser_profile)
+            env["OUTCOMEGO_BROWSER_PROFILE"] = str(browser_profile)
             for kind in ("writer", "calc", "impress", "draw"):
                 for documents in (
                     [],

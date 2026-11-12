@@ -315,7 +315,7 @@ struct WizardHeader<Accessory: View>: View {
     .animation(animation, value: title)
     .animation(animation, value: detail)
   }
-  /// Commands such as `openteam doctor` show as code; other text is shown as is.
+  /// Commands such as `outcomego doctor` show as code; other text is shown as is.
   static func styled(_ text: String) -> AttributedString {
     guard text.contains("`"),
       let value = try? AttributedString(

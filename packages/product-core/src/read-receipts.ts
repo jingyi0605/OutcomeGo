@@ -1,4 +1,4 @@
-import type { MarkChannelReadView } from "@aiteamos/contracts";
+import type { MarkChannelReadView } from "@outcomego/contracts";
 
 const numericSequence = (value: string | undefined): bigint | null =>
   value !== undefined && /^\d+$/.test(value) ? BigInt(value) : null;

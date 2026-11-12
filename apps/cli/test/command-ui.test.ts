@@ -66,7 +66,7 @@ const status = {
     { Service: "worker", State: "running" },
   ],
   health: { ok: true, detail: "ready", inference: "ready" },
-  next: "aiteamos doctor",
+  next: "outcomego doctor",
 };
 const plain = (value: string) => value.replace(/\x1b\[[0-9;]*m/g, "");
 
@@ -90,7 +90,7 @@ describe("CLI presentation", () => {
           options
         ),
         renderCommandError(
-          "Unknown model. Run aiteamos model list to see available models.",
+          "Unknown model. Run outcomego model list to see available models.",
           options
         ),
         renderUpdateEvent(
@@ -159,7 +159,7 @@ describe("CLI presentation", () => {
     expect(text).toContain("accessible chat models");
     expect(text).toContain("Reconnect Anthropic");
     expect(text).toContain("openai-codex");
-    expect(text).toContain("aiteamos provider list");
+    expect(text).toContain("outcomego provider list");
   });
   test("shows stopped, missing, unhealthy and failed-initialization states accurately", () => {
     expect(
@@ -216,46 +216,46 @@ describe("CLI name in hints", () => {
   });
 
   test("uses the absolute path until the installed directory is on PATH", () => {
-    const root = mkdtempSync(join(tmpdir(), "aiteamos-cli-name-"));
+    const root = mkdtempSync(join(tmpdir(), "outcomego-cli-name-"));
     directories.push(root);
     const bin = join(root, "bin");
     const linked = join(root, "linked");
     mkdirSync(bin);
     mkdirSync(linked);
-    const executable = join(bin, "aiteamos");
+    const executable = join(bin, "outcomego");
     writeFileSync(executable, "", { mode: 0o755 });
-    symlinkSync(executable, join(linked, "aiteamos"));
+    symlinkSync(executable, join(linked, "outcomego"));
     const program = (path: string) =>
       cliProgram({ executable, standalone: true, path, platform: "linux" });
 
     expect(program("/usr/bin:/bin")).toBe(executable);
-    expect(program(`/usr/bin:${bin}`)).toBe("aiteamos");
-    expect(program(`${linked}:/usr/bin`)).toBe("aiteamos");
+    expect(program(`/usr/bin:${bin}`)).toBe("outcomego");
+    expect(program(`${linked}:/usr/bin`)).toBe("outcomego");
     // Another name for the same file, like a Windows short name (RUNNER~1), still counts.
     const aliased = join(root, "aliased");
     mkdirSync(aliased);
-    linkSync(executable, join(aliased, "aiteamos"));
-    expect(program(`/usr/bin:${aliased}`)).toBe("aiteamos");
+    linkSync(executable, join(aliased, "outcomego"));
+    expect(program(`/usr/bin:${aliased}`)).toBe("outcomego");
     // Running from source, or bundled in the desktop app, keeps the short name.
-    expect(cliProgram({ executable, standalone: false, path: "" })).toBe("aiteamos");
+    expect(cliProgram({ executable, standalone: false, path: "" })).toBe("outcomego");
   });
 
   test("quotes paths the shell would split", () => {
     expect(
       cliProgram({
-        executable: "/home/Jane Doe/.local/bin/aiteamos",
+        executable: "/home/Jane Doe/.local/bin/outcomego",
         standalone: true,
         path: "",
         platform: "linux",
       })
-    ).toBe("'/home/Jane Doe/.local/bin/aiteamos'");
+    ).toBe("'/home/Jane Doe/.local/bin/outcomego'");
     expect(
       cliProgram({
-        executable: "C:\\Users\\Jane Doe\\AppData\\Local\\aiTeamOS\\bin\\aiteamos.exe",
+        executable: "C:\\Users\\Jane Doe\\AppData\\Local\\OutcomeGo\\bin\\outcomego.exe",
         standalone: true,
         path: "",
         platform: "win32",
       })
-    ).toBe("& 'C:\\Users\\Jane Doe\\AppData\\Local\\aiTeamOS\\bin\\aiteamos.exe'");
+    ).toBe("& 'C:\\Users\\Jane Doe\\AppData\\Local\\OutcomeGo\\bin\\outcomego.exe'");
   });
 });

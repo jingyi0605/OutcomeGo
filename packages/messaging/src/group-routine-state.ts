@@ -1,4 +1,4 @@
-import type { Prisma } from "@aiteamos/db";
+import type { Prisma } from "@outcomego/db";
 
 /** Include late worker continuations and the peer rounds their results start. */
 export async function groupRoutineState(tx: Prisma.TransactionClient, rootMessageId: string) {

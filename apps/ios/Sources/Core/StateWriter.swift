@@ -3,7 +3,7 @@ import Foundation
 /// One serial writer per account. Critical sends wait for the atomic commit;
 /// routine cache/draft saves run off the UI thread without reordering commits.
 public final class StateWriter: @unchecked Sendable {
-  private let queue = DispatchQueue(label: "dev.openteam.state-writer", qos: .utility)
+  private let queue = DispatchQueue(label: "dev.outcomego.state-writer", qos: .utility)
   private let disk: DiskStore
   public init(disk: DiskStore) { self.disk = disk }
   public func saveNow(_ snapshot: SavedState) throws {

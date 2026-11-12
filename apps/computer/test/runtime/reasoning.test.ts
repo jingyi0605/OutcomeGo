@@ -160,7 +160,7 @@ describe("Codex reasoning request semantics", () => {
   });
 
   test("normal ComputerRuntime sessions send none through the actual Pi request pipeline", async () => {
-    const directory = await mkdtemp(join(tmpdir(), "aiteamos-reasoning-"));
+    const directory = await mkdtemp(join(tmpdir(), "outcomego-reasoning-"));
     directories.push(directory);
     const modelRuntime = await ModelRuntime.create({
       credentials: new InMemoryCredentialStore(),

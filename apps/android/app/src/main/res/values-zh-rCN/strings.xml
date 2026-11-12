@@ -1,9 +1,9 @@
 <resources>
-    <string name="app_name">aiTeamOS</string>
-    <string name="login_welcome_title">欢迎使用 aiTeamOS</string>
+    <string name="app_name">OutcomeGo</string>
+    <string name="login_welcome_title">欢迎使用 OutcomeGo</string>
     <string name="login_welcome_detail">连接到你的服务器并设置第一个机器人，整个过程大约需要两分钟。</string>
     <string name="login_install_server">安装服务器</string>
-    <string name="login_install_command">curl -fsSL https://openteam.so/install | sh</string>
+    <string name="login_install_command">curl -fsSL https://github.com/jingyi0605/OutcomeGo/releases/latest/download/install.sh | sh</string>
     <string name="login_install_detail">在运行机器人服务器的电脑上执行此命令，然后返回这里。</string>
     <string name="login_get_started">开始使用</string>
     <string name="login_install_hint">我还需要安装服务器</string>
@@ -17,7 +17,7 @@
     <string name="login_clear_server">清除服务器地址</string>
     <string name="login_connecting">正在连接…</string>
     <string name="login_server_found">已找到服务器：%1$s</string>
-    <string name="login_server_hint">找不到地址？在服务器上运行 `aiteamos status`。</string>
+    <string name="login_server_hint">找不到地址？在服务器上运行 `outcomego status`。</string>
     <string name="login_http_warning">HTTP 未加密。请只通过你信任的网络或 VPN 连接。</string>
     <string name="login_connect">连接</string>
     <string name="login_connection_successful">连接成功</string>
@@ -29,7 +29,7 @@
     <string name="login_credential">密码</string>
     <string name="login_show">显示</string>
     <string name="login_hide">隐藏</string>
-    <string name="login_forgot">忘记密码？在服务器上运行 `aiteamos account update --password`。</string>
+    <string name="login_forgot">忘记密码？在服务器上运行 `outcomego account update --password`。</string>
     <string name="login_credential_http_warning">你的密码将不会通过 HTTPS 保护传输。</string>
     <string name="login_signing_in">正在登录…</string>
     <string name="login_sign_in">登录</string>
@@ -75,7 +75,7 @@
     <string name="directory_no_messages">还没有消息</string>
     <string name="directory_section_unassigned">未分组</string>
     <string name="shortcut_find_messages">查找消息</string>
-    <string name="shortcut_find_messages_long">搜索 aiTeamOS 消息</string>
+    <string name="shortcut_find_messages_long">搜索 OutcomeGo 消息</string>
     <string name="directory_pin">置顶</string>
     <string name="directory_unpin">取消置顶</string>
     <string name="directory_move_to_section">移动到「%1$s」</string>

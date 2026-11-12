@@ -61,7 +61,7 @@ def validate(path: Path, package_name: str, template: bool) -> int:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("path", type=Path)
-    parser.add_argument("--package", default="com.teambots.android")
+    parser.add_argument("--package", default="com.outcomego.android")
     parser.add_argument("--host")
     parser.add_argument("--template", action="store_true")
     args = parser.parse_args()

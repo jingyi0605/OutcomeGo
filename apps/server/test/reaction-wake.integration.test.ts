@@ -3,18 +3,18 @@ import { randomUUID } from "node:crypto";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createPrismaClient } from "@aiteamos/db";
-import { AgentDataStore, AgentMessaging } from "@aiteamos/messaging";
+import { createPrismaClient } from "@outcomego/db";
+import { AgentDataStore, AgentMessaging } from "@outcomego/messaging";
 import { Effect } from "effect";
 import { ChannelService } from "../src/services/channel-service";
 
-const databaseUrl = process.env.AITEAMOS_TEST_DATABASE_URL;
+const databaseUrl = process.env.OUTCOMEGO_TEST_DATABASE_URL;
 
 test("a user reaction wakes the authoring Bot as priority user input", async () => {
   if (!databaseUrl) return;
 
   const prisma = createPrismaClient(databaseUrl);
-  const temporary = await mkdtemp(join(tmpdir(), "aiteamos-reaction-wake-"));
+  const temporary = await mkdtemp(join(tmpdir(), "outcomego-reaction-wake-"));
   const botId = randomUUID();
   const conversationId = randomUUID();
   const channelId = randomUUID();

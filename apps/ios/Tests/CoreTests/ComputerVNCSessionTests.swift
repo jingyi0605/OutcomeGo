@@ -1,11 +1,11 @@
 import XCTest
-@testable import OpenTeamCore
+@testable import OutcomeGoCore
 
 final class ComputerVNCSessionTests: XCTestCase {
   private func grant(path: String = "/api/v0/bots/test-bot/screen/vnc", ticket: String? = nil) throws -> ComputerVNCSession {
     let data = try JSONEncoder().encode(JSON.object([
       "path": .string(path), "password": .string("disposable-vnc"),
-      "protocols": .array([.string("openteam-vnc"), .string(ticket ?? "ticket." + String(repeating: "a", count: 43))]),
+      "protocols": .array([.string("outcomego-vnc"), .string(ticket ?? "ticket." + String(repeating: "a", count: 43))]),
     ]))
     return try JSONDecoder().decode(ComputerVNCSession.self, from: data)
   }

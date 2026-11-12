@@ -1,4 +1,4 @@
-import type { ChannelMessageView } from "@aiteamos/contracts";
+import type { ChannelMessageView } from "@outcomego/contracts";
 import { compareEntitySequence, sortedUniqueMessages } from "./history";
 import { replyTargetId } from "./messages";
 

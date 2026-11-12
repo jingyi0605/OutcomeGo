@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { createRoot } from "react-dom/client";
-import { NotificationSettings } from "../../src/renderer/components/aiteamos/settings/notifications";
-import { SmartNotificationSettings } from "../../src/renderer/components/aiteamos/settings/smart-notifications";
-import { SettingsHeading } from "../../src/renderer/components/aiteamos/settings/ui";
+import { NotificationSettings } from "../../src/renderer/components/outcomego/settings/notifications";
+import { SmartNotificationSettings } from "../../src/renderer/components/outcomego/settings/smart-notifications";
+import { SettingsHeading } from "../../src/renderer/components/outcomego/settings/ui";
 import "../../src/renderer/styles.css";
 
 const fixture = { enableCalls: 0, setPermission: (_permission: "allowed" | "blocked") => {} };

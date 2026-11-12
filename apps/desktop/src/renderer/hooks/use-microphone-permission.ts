@@ -16,7 +16,7 @@ export function useMicrophonePermission() {
     const check = async () => {
       const session = ++sequence;
       try {
-        const native = await window.aiteamos?.microphone?.status();
+        const native = await window.outcomego?.microphone?.status();
         if (!active || session !== sequence) return;
         setCanOpenSettings(native?.canOpenSettings ?? false);
         setCanRequestPermission(native?.canRequestPermission ?? false);
@@ -72,7 +72,7 @@ export function useMicrophonePermission() {
     request.current = abort;
     try {
       if (canRequestPermission) {
-        await window.aiteamos!.microphone.requestPermission();
+        await window.outcomego!.microphone.requestPermission();
         if (!abort.signal.aborted) window.dispatchEvent(new Event(MICROPHONE_ACCESS_EVENT));
       } else {
         const { stream } = await openMicrophone({ signal: abort.signal });
@@ -89,6 +89,6 @@ export function useMicrophonePermission() {
     canOpenSettings,
     enable,
     refresh: () => refresh.current(),
-    openSettings: () => window.aiteamos!.microphone.openSettings(),
+    openSettings: () => window.outcomego!.microphone.openSettings(),
   };
 }

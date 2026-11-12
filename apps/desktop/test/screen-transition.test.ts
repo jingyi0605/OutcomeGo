@@ -2,7 +2,7 @@ import { afterEach, expect, test } from "bun:test";
 import {
   changeScreen,
   entrance,
-} from "../src/renderer/components/aiteamos/setup/screen-transition";
+} from "../src/renderer/components/outcomego/setup/screen-transition";
 
 const realDocument = globalThis.document;
 afterEach(() => {

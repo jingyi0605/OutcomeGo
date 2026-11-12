@@ -2,14 +2,14 @@
 
 Bots use two web tools. **Search** finds information online. **Fetch** reads a web page without opening the bot's browser. You configure them separately in **Settings → Providers**, on desktop or iPhone. Each tool has its own page, its own list of providers and its own keys.
 
-Out of the box, search is **off** and fetch uses aiTeamOS's **built-in** reader. Every other provider needs an API key from that provider. Both defaults show a warning: with search off, bots can't search the web, and the built-in reader only handles basic pages. Nothing is sent to a third-party service until you choose one.
+Out of the box, search is **off** and fetch uses OutcomeGo's **built-in** reader. Every other provider needs an API key from that provider. Both defaults show a warning: with search off, bots can't search the web, and the built-in reader only handles basic pages. Nothing is sent to a third-party service until you choose one.
 
 ## Choose a provider
 
 1. Open **Settings → Providers**. It shows the provider each tool is using, or **Off**.
 2. Choose **Search** or **Fetch**.
 3. Choose a provider and enter its API key. **Get a key** opens the provider's page for creating one.
-4. Choose **Check**. aiTeamOS runs a real test search, or reads example.com, with the saved key. A check mark shows when it works. The result is saved, so you'll still see it next time you open Settings. Changing the key clears the check.
+4. Choose **Check**. OutcomeGo runs a real test search, or reads example.com, with the saved key. A check mark shows when it works. The result is saved, so you'll still see it next time you open Settings. Changing the key clears the check.
 5. Select the provider to use it.
 
 If you use Exa or another provider for both tools, enter its key on each page.

@@ -13,9 +13,9 @@ const integerSetting = (name: string, fallback: number) => {
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
 };
 
-const baseUrl = (process.env.AITEAMOS_PERF_BASE_URL ?? "http://127.0.0.1:8877").replace(/\/$/, "");
-const warmupCount = integerSetting("AITEAMOS_API_WARMUPS", 2);
-const sampleCount = Math.max(1, integerSetting("AITEAMOS_API_SAMPLES", 10));
+const baseUrl = (process.env.OUTCOMEGO_PERF_BASE_URL ?? "http://127.0.0.1:8877").replace(/\/$/, "");
+const warmupCount = integerSetting("OUTCOMEGO_API_WARMUPS", 2);
+const sampleCount = Math.max(1, integerSetting("OUTCOMEGO_API_SAMPLES", 10));
 
 const percentile = (values: number[], fraction: number) => {
   const sorted = [...values].sort((left, right) => left - right);
@@ -116,7 +116,7 @@ const output = JSON.stringify(
   null,
   2
 );
-if (process.env.AITEAMOS_AUDIT_OUTPUT) {
-  await Bun.write(process.env.AITEAMOS_AUDIT_OUTPUT, `${output}\n`);
+if (process.env.OUTCOMEGO_AUDIT_OUTPUT) {
+  await Bun.write(process.env.OUTCOMEGO_AUDIT_OUTPUT, `${output}\n`);
 }
 console.log(output);

@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test';
 import { utils, write } from 'xlsx';
-import { createToolValidator } from '@aiteamos/plugin-sdk/json-schema';
+import { createToolValidator } from '@outcomego/plugin-sdk/json-schema';
 import { referenceTools } from '../../../_shared/reference';
 import { driveTools } from '../server';
 import { lineRange as range } from '../content';

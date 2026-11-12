@@ -1,12 +1,12 @@
-import type { RoutineExecutionView, RoutineView } from "@aiteamos/contracts";
+import type { RoutineExecutionView, RoutineView } from "@outcomego/contracts";
 import {
   formatRoutineExecutionCalendarTime,
   routineOrdinalLabel,
-} from "@aiteamos/product-core/routines";
-import { isTransientRoutineExecutionStatus } from "@aiteamos/product-core/statuses";
+} from "@outcomego/product-core/routines";
+import { isTransientRoutineExecutionStatus } from "@outcomego/product-core/statuses";
 import { translateCurrent } from "./i18n-catalog";
 
-export type { RoutineExecutionView, RoutineView } from "@aiteamos/contracts";
+export type { RoutineExecutionView, RoutineView } from "@outcomego/contracts";
 
 /**
  * The routine summary refreshes while it is visible. Preserve the current

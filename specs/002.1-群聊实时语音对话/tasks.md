@@ -100,7 +100,7 @@
     4. 语音群聊投递拿到 `voiceTurnPrompt`
   - 怎么验证：
     - `bun test packages/messaging/test/group-execution.integration.test.ts`
-    - 结果：未配置 `AITEAMOS_TEST_DATABASE_URL`，13 个集成测试全部跳过，0 fail
+    - 结果：未配置 `OUTCOMEGO_TEST_DATABASE_URL`，13 个集成测试全部跳过，0 fail
     - `bun test apps/worker/test/voice-prompt.test.ts`
     - 结果：通过（1 pass，0 fail）
   - 对应需求：`requirements.md` 需求 3，非功能需求 3
@@ -129,7 +129,7 @@
     - `bun test apps/server/test/voice-route.test.ts`
     - 结果：通过（3 pass，0 fail）
     - `bun test apps/server/test/group-supersession.integration.test.ts`
-    - 结果：未配置 `AITEAMOS_TEST_DATABASE_URL`，5 个集成测试全部跳过，0 fail
+    - 结果：未配置 `OUTCOMEGO_TEST_DATABASE_URL`，5 个集成测试全部跳过，0 fail
   - 对应需求：`requirements.md` 需求 1、需求 3、需求 4，非功能需求 1、2
   - 对应设计：`design.md` §2.3、§5.3、§6.3
 
@@ -147,7 +147,7 @@
     - `apps/desktop/src/renderer/App.tsx`
     - `apps/desktop/src/renderer/hooks/use-live-voice.ts`
     - `apps/desktop/src/renderer/lib/live-voice-transport.ts`
-    - `apps/desktop/src/renderer/components/aiteamos/live-voice/live-voice-layer.tsx`
+    - `apps/desktop/src/renderer/components/outcomego/live-voice/live-voice-layer.tsx`
   - 这一步先不做什么：不在通话中改成员，不改直接语音的外观。
   - 怎么算完成：
     1. 直接私聊入口不变
@@ -190,7 +190,7 @@
     - `cd apps/worker && bun test test/voice-prompt.test.ts`
     - 结果：通过（2 pass，0 fail）
     - `cd packages/messaging && bun test`、`cd apps/server && bun run test`、`cd apps/worker && bun test`
-    - 结果：通过（messaging 258 pass，server 477 pass，worker 125 pass，均 0 fail；集成测试因未配置 `AITEAMOS_TEST_DATABASE_URL` 跳过）
+    - 结果：通过（messaging 258 pass，server 477 pass，worker 125 pass，均 0 fail；集成测试因未配置 `OUTCOMEGO_TEST_DATABASE_URL` 跳过）
     - 未完成：在 `group-execution.integration.test.ts` 补语音接力、被点名兜底（含 `SendToUser` 与 `(pass)` 不兜底）的集成测试，需要配置测试数据库后运行
     - 未完成：桌面端人工验证（“你们两个”、`@` 接力、`@名字` 不读出、`@小菲 你怎么不说话`），项目规则禁止启动开发服务，需要用户自行重启本地 debug 栈后验证
   - 对应需求：`requirements.md` 需求 2、3、4
@@ -209,7 +209,7 @@
     - `apps/worker/src/worker.ts`
     - `apps/computer/src/runtime.ts`、`apps/computer/src/runtime/voice-stream.ts`
     - `apps/server/src/services/voice-service.ts`、`voice-session.ts`、`voice-media.ts`、`voice-opening.ts`
-    - `apps/desktop/src/renderer/components/aiteamos/live-voice/live-voice-layer.tsx`、`live-voice.css`
+    - `apps/desktop/src/renderer/components/outcomego/live-voice/live-voice-layer.tsx`、`live-voice.css`
     - `apps/desktop/src/renderer/hooks/use-live-voice.ts`、`apps/desktop/src/renderer/lib/live-voice-audio.ts`、`apps/desktop/src/renderer/lib/i18n-catalog.ts`
     - 测试：`apps/computer/test/runtime/voice-stream.test.ts`、`apps/server/test/voice-group-stream.test.ts`、`voice-generation.test.ts`、`voice-opening.test.ts`
   - 这一步先不做什么：不做旁白；不让下一位 Bot 在上一位还在写的时候并行启动；不改单 Bot 通话的界面和朗读行为。

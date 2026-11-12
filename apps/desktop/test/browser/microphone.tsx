@@ -1,9 +1,9 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
-import { renderMicrophoneControl } from "../../src/renderer/components/aiteamos/settings/general";
-import { MicrophoneSettings } from "../../src/renderer/components/aiteamos/settings/microphone";
+import { renderMicrophoneControl } from "../../src/renderer/components/outcomego/settings/general";
+import { MicrophoneSettings } from "../../src/renderer/components/outcomego/settings/microphone";
 import { PromptInput } from "../../src/renderer/components/ai-elements/prompt-input";
-import { api } from "../../src/renderer/client/aiteamos-api";
+import { api } from "../../src/renderer/client/outcomego-api";
 import { MICROPHONE_STORAGE_KEY } from "../../src/renderer/lib/microphone";
 
 const root = createRoot(document.getElementById("root")!);
@@ -70,7 +70,7 @@ let systemPermission = "not-determined";
 let permissionRequests = 0;
 let settingsOpened = 0;
 let nativeStatusFails = false;
-Object.defineProperty(window, "aiteamos", {
+Object.defineProperty(window, "outcomego", {
   configurable: true,
   value: {
     microphone: {
@@ -195,8 +195,8 @@ async function run() {
     () => document.body.textContent!.includes("Unknown"),
     "Failed native check must not report allowed"
   );
-  const nativeBridge = (window as any).aiteamos.microphone;
-  (window as any).aiteamos.microphone = undefined;
+  const nativeBridge = (window as any).outcomego.microphone;
+  (window as any).outcomego.microphone = undefined;
   window.dispatchEvent(new Event("focus"));
   await waitFor(
     () => document.body.textContent!.includes("Allowed"),
@@ -206,7 +206,7 @@ async function run() {
     document.body.textContent!.includes("Allowed") && !button("System settings"),
     "Browser-only permission did not fall back to browser status"
   );
-  (window as any).aiteamos.microphone = nativeBridge;
+  (window as any).outcomego.microphone = nativeBridge;
   nativeStatusFails = false;
   window.dispatchEvent(new Event("focus"));
   await waitFor(() => Boolean(button("System settings")), "Native settings action recovered");

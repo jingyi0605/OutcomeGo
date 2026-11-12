@@ -1,14 +1,14 @@
-name: aiteamos-performance-audit
+name: outcomego-performance-audit
 
 services:
   postgres:
     image: postgres:17-alpine
     environment:
-      POSTGRES_DB: aiteamos_perf_audit
-      POSTGRES_USER: aiteamos
-      POSTGRES_PASSWORD: aiteamos-perf-local-only
+      POSTGRES_DB: outcomego_perf_audit
+      POSTGRES_USER: outcomego
+      POSTGRES_PASSWORD: outcomego-perf-local-only
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U aiteamos -d aiteamos_perf_audit"]
+      test: ["CMD-SHELL", "pg_isready -U outcomego -d outcomego_perf_audit"]
       interval: 1s
       timeout: 3s
       retries: 60
@@ -21,7 +21,7 @@ services:
       dockerfile: docker/app.Dockerfile
       target: migrate
     environment:
-      DATABASE_URL: postgresql://aiteamos:aiteamos-perf-local-only@postgres:5432/aiteamos_perf_audit
+      DATABASE_URL: postgresql://outcomego:outcomego-perf-local-only@postgres:5432/outcomego_perf_audit
     depends_on:
       postgres:
         condition: service_healthy
@@ -45,7 +45,7 @@ services:
     image: oven/bun:1.4.2-slim
     command: ["bun", "/audit/stub-computer.ts"]
     environment:
-      AITEAMOS_COMPUTER_PORT: 8790
+      OUTCOMEGO_COMPUTER_PORT: 8790
     volumes:
       - ./stub-computer.ts:/audit/stub-computer.ts:ro
 
@@ -55,16 +55,16 @@ services:
       dockerfile: docker/app.Dockerfile
       target: server
     environment:
-      DATABASE_URL: postgresql://aiteamos:aiteamos-perf-local-only@postgres:5432/aiteamos_perf_audit
-      AITEAMOS_PORT: 8787
-      AITEAMOS_COMPUTER_URL: http://computer:8790
-      AITEAMOS_CONTROL_TOKEN: performance-audit-local-only
-      AITEAMOS_AUTH_SECRET: performance-audit-auth-secret-local-only
-      AITEAMOS_AUTH_MODE: disabled
-      AITEAMOS_WORKSPACE_ROOT: /workspace
-      AITEAMOS_AGENT_DATA_ROOT: /home/aiteamos/agent-data
-      AITEAMOS_ASSET_ROOT: /asset-store
-      AITEAMOS_SCREEN_VIEWER_HOST: 127.0.0.1
+      DATABASE_URL: postgresql://outcomego:outcomego-perf-local-only@postgres:5432/outcomego_perf_audit
+      OUTCOMEGO_PORT: 8787
+      OUTCOMEGO_COMPUTER_URL: http://computer:8790
+      OUTCOMEGO_CONTROL_TOKEN: performance-audit-local-only
+      OUTCOMEGO_AUTH_SECRET: performance-audit-auth-secret-local-only
+      OUTCOMEGO_AUTH_MODE: disabled
+      OUTCOMEGO_WORKSPACE_ROOT: /workspace
+      OUTCOMEGO_AGENT_DATA_ROOT: /home/outcomego/agent-data
+      OUTCOMEGO_ASSET_ROOT: /asset-store
+      OUTCOMEGO_SCREEN_VIEWER_HOST: 127.0.0.1
     depends_on:
       agent-data-init:
         condition: service_completed_successfully
@@ -77,7 +77,7 @@ services:
     ports:
       - "127.0.0.1:8877:8787"
     volumes:
-      - agent-data:/home/aiteamos/agent-data
+      - agent-data:/home/outcomego/agent-data
       - asset-store:/asset-store
 
 volumes:

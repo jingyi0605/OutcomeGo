@@ -10,9 +10,9 @@ const lifetime = 24 * 60 * 60 * 1000;
 /** Account-scoped snapshots keep large results intact across OAuth process restarts. */
 export class ResultStore {
   private readonly directory: string;
-  constructor(provider: string, account = process.env.AITEAMOS_PLUGIN_ACCOUNT_ID ?? process.env.GOOGLE_ACCESS_TOKEN ?? "anonymous", root = tmpdir()) {
+  constructor(provider: string, account = process.env.OUTCOMEGO_PLUGIN_ACCOUNT_ID ?? process.env.GOOGLE_ACCESS_TOKEN ?? "anonymous", root = tmpdir()) {
     const scope = createHash("sha256").update(`${provider}\0${account}`).digest("hex");
-    this.directory = join(root, "aiteamos-plugin-results", scope);
+    this.directory = join(root, "outcomego-plugin-results", scope);
   }
   async capture(value: unknown): Promise<unknown> {
     const json = JSON.stringify(value);

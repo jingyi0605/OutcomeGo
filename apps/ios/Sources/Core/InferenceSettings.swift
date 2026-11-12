@@ -419,7 +419,7 @@ public enum ProviderErrorText {
     return ModelTestFailure(message: plain(text), transient: false)
   }
 
-  /// A readable message without an exception's class name ("OpenTeamClientError: …");
+  /// A readable message without an exception's class name ("OutcomeGoClientError: …");
   /// raw JSON or nothing at all becomes a generic sentence.
   static func plain(_ raw: String) -> String {
     let stripped = raw.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(

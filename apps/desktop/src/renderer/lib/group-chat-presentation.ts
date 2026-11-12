@@ -4,12 +4,12 @@ import type {
   ChannelView,
   RunItemView,
   RunView,
-} from "@aiteamos/contracts";
+} from "@outcomego/contracts";
 import {
   BOT_AVATAR_COLORS,
   BOT_AVATAR_COLOR_NAMES,
   resolveBotAvatarColorName,
-} from "@aiteamos/contracts/bot-avatar";
+} from "@outcomego/contracts/bot-avatar";
 import { thinkingActivity } from "./thinking-activity";
 import { translateCurrent } from "./i18n-catalog";
 

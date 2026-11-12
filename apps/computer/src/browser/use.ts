@@ -14,10 +14,10 @@ import { homedir } from "node:os";
 import { BrowserDownloads } from "./downloads";
 import type { Browser, BrowserContext, CDPSession, Dialog, ElementHandle, Frame, Locator, Page } from "playwright-core";
 import { outOfProcessPlaywright } from "./playwright-driver";
-import { normalizeFormDomain, formFieldIsSecret, type UserForm, type UserFormField } from "@aiteamos/contracts";
+import { normalizeFormDomain, formFieldIsSecret, type UserForm, type UserFormField } from "@outcomego/contracts";
 import type { FormPageBinding } from "../user-form-host";
 import { onSite, webHost, type BoxHelpPage } from "../box-help-page";
-import { redactSecrets } from "@aiteamos/shell-jobs";
+import { redactSecrets } from "@outcomego/shell-jobs";
 
 type JsonObject = Record<string, unknown>;
 const textResult = (
@@ -407,17 +407,17 @@ export class BrowserUseSession {
   // to the same live document works; a reload or browser restart cannot match.
   private async formDocumentId(frame: Frame): Promise<string> {
     return frame.evaluate(token => {
-      const doc = document as Document & { __aiteamosFormDocumentId?: string };
-      return doc.__aiteamosFormDocumentId ??= token;
+      const doc = document as Document & { __outcomegoFormDocumentId?: string };
+      return doc.__outcomegoFormDocumentId ??= token;
     }, randomUUID());
   }
 
   private async verifyFormDocument(page: Page, binding: FormPageBinding, field: UserFormField, handle: ElementHandle<HTMLElement>) {
     const expected = binding.fieldDocuments?.[field.id];
-    const live = await page.evaluate(() => (document as Document & { __aiteamosFormDocumentId?: string }).__aiteamosFormDocumentId);
+    const live = await page.evaluate(() => (document as Document & { __outcomegoFormDocumentId?: string }).__outcomegoFormDocumentId);
     const matches = expected && binding.documentId && live === binding.documentId &&
       await handle.evaluate((node, token) => node.isConnected &&
-        (node.ownerDocument as Document & { __aiteamosFormDocumentId?: string }).__aiteamosFormDocumentId === token, expected).catch(() => false);
+        (node.ownerDocument as Document & { __outcomegoFormDocumentId?: string }).__outcomegoFormDocumentId === token, expected).catch(() => false);
     if (!matches) throw Object.assign(new Error("The reviewed form document changed; inspect the page and explicitly remap"), { kind: "page_moved" });
   }
 
@@ -931,7 +931,7 @@ export class BrowserUseSession {
         const options = {
           timeout: remaining, type: "png" as const,
           // Refresh every mask after frame churn; never drop masking to recover.
-          mask: page.frames().map(frame => frame.locator('[data-aiteamos-private="true"]')),
+          mask: page.frames().map(frame => frame.locator('[data-outcomego-private="true"]')),
         };
         return bounded(target ? target.screenshot(options) : page.screenshot({ ...options, fullPage }), "capture", remaining);
       };
@@ -1093,9 +1093,9 @@ export class BrowserUseSession {
     // A target ref scopes the snapshot to that element's subtree.
     const root = typeof args.target === "string" ? await this.requireRef(page, args.target) : undefined;
     const marker = randomUUID();
-    if (root) await root.evaluate((node, value) => node.setAttribute("data-aiteamos-snapshot-root", value), marker);
-    const result = await this.captureSnapshot(page, root ? { ...args, selector: `[data-aiteamos-snapshot-root="${marker}"]` } : args)
-      .finally(() => root?.evaluate((node) => node.removeAttribute("data-aiteamos-snapshot-root")).catch(() => undefined));
+    if (root) await root.evaluate((node, value) => node.setAttribute("data-outcomego-snapshot-root", value), marker);
+    const result = await this.captureSnapshot(page, root ? { ...args, selector: `[data-outcomego-snapshot-root="${marker}"]` } : args)
+      .finally(() => root?.evaluate((node) => node.removeAttribute("data-outcomego-snapshot-root")).catch(() => undefined));
     const output = await this.pageState(page, `Captured page snapshot (${result.refCount} interactive refs)`, false, result.lines.join("\n"), "snapshot");
     output.details = { ...output.details, refs: result.refCount, unreachableFrames: result.unreachableFrames, ...(result.selector ? { selectorMatched: result.selector.matched, selectorClosedShadow: result.selector.closedShadow } : {}) };
     return output;

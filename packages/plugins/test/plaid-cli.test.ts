@@ -18,7 +18,7 @@ async function fixture(run: (root: string, target: string) => Promise<void>) {
 
 async function execute(target: string, mode: string, env: Record<string, string> = {}) {
   const child = Bun.spawn(["bash", script, mode], {
-    env: { ...process.env, AITEAMOS_PLAID_CLI_DIR: target, ...env },
+    env: { ...process.env, OUTCOMEGO_PLAID_CLI_DIR: target, ...env },
     stdout: "pipe",
     stderr: "pipe",
   });

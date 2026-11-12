@@ -281,7 +281,7 @@
     4. 重连前通过票据路由申请新票据。
     5. 抢话后丢弃旧 `generation` 的在途帧。
   - 验证方式：传输单元测试和模拟服务端集成测试。
-  - 进展证据：已增加桌面端能力入口、HTTP ticket API、hello/client_ready 握手、二进制帧传输、generation 过滤、WASM Opus 编解码、播放确认回调和清理；同一 Electron 客户端根据 `window.aiteamos.platform` 将 Windows 标识为 `clientPlatform: "windows"`，macOS 保持 `"macos"`。传输单元测试和重连测试尚未完成。
+  - 进展证据：已增加桌面端能力入口、HTTP ticket API、hello/client_ready 握手、二进制帧传输、generation 过滤、WASM Opus 编解码、播放确认回调和清理；同一 Electron 客户端根据 `window.outcomego.platform` 将 Windows 标识为 `clientPlatform: "windows"`，macOS 保持 `"macos"`。传输单元测试和重连测试尚未完成。
 
 - [ ] 4.2 增加桌面端音频采集、编解码和播放
   - 状态：IN_PROGRESS

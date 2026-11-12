@@ -11,7 +11,7 @@ Google requires every app that accesses these services to be registered, so you'
 
 ## 1. Add the plugin
 
-In aiTeamOS, open **Marketplace** and choose **Add** on the Google plugin you want. Keep the plugin's page open. You'll need its **Required provider scopes** in the next step, and on an HTTPS server, its **Authorized redirect URI**.
+In OutcomeGo, open **Marketplace** and choose **Add** on the Google plugin you want. Keep the plugin's page open. You'll need its **Required provider scopes** in the next step, and on an HTTPS server, its **Authorized redirect URI**.
 
 ## 2. Create a Google Cloud app
 
@@ -26,12 +26,12 @@ In aiTeamOS, open **Marketplace** and choose **Add** on the Google plugin you wa
 
 Google's guide to [creating credentials](https://developers.google.com/workspace/guides/create-credentials) has more detail on each step.
 
-## 3. Connect in aiTeamOS
+## 3. Connect in OutcomeGo
 
 1. On the plugin's page, paste the client ID and secret, then choose **Save credentials and continue**.
 2. Sign in:
-   - **HTTPS server:** your browser opens. Choose your Google account and approve access. When the page says **Plugin connected**, close the tab and return to aiTeamOS.
-   - **HTTP server:** choose **Continue to Google**, then choose your account and approve access. Your browser ends on a page that doesn't load; that's expected. Copy the full address from the address bar, paste it into **Paste the browser address here** in aiTeamOS, and choose **Complete sign-in**.
+   - **HTTPS server:** your browser opens. Choose your Google account and approve access. When the page says **Plugin connected**, close the tab and return to OutcomeGo.
+   - **HTTP server:** choose **Continue to Google**, then choose your account and approve access. Your browser ends on a page that doesn't load; that's expected. Copy the full address from the address bar, paste it into **Paste the browser address here** in OutcomeGo, and choose **Complete sign-in**.
 
    If Google warns that it hasn't verified the app, continue anyway; it's the app you just created.
 Installed plugins and their connected accounts are available to all bots.
@@ -51,7 +51,7 @@ Repeat for each plugin. To connect another Google account, choose **Add Another 
 
 ## What bots can do
 
-- **Gmail:** search and read email, create and apply labels, move messages to trash or spam and back, and write, edit and delete Gmail drafts. To send, a bot posts a draft card in its chat; when you choose **Send**, aiTeamOS sends it from your Gmail address, threaded under the original for replies. The card's **From** menu lists your verified **Send mail as** addresses, and your Gmail signature is added under the message. See [Approve before it sends](email.md#approve-before-it-sends) for the approval menu. Bots can't send Gmail any other way.
+- **Gmail:** search and read email, create and apply labels, move messages to trash or spam and back, and write, edit and delete Gmail drafts. To send, a bot posts a draft card in its chat; when you choose **Send**, OutcomeGo sends it from your Gmail address, threaded under the original for replies. The card's **From** menu lists your verified **Send mail as** addresses, and your Gmail signature is added under the message. See [Approve before it sends](email.md#approve-before-it-sends) for the approval menu. Bots can't send Gmail any other way.
 - **Calendar:** find events, check availability, create, update, or delete events, and respond to invitations. Bots can set an event's reminders, remove them, or use your calendar's default reminders. On Google Workspace accounts, they can also set your working location, including an office building, floor, and desk. Unless you name other dates, event lists cover the next seven days. Changes can notify attendees, so review them first.
 - **Drive:** search for files, browse folders, and read Docs, Sheets, Slides, and text files. Bots can download files or export Google files as PDF and other formats, create folders and files (including turning Markdown into a Google Doc or CSV into a Google Sheet), replace a file's text, and move, rename, copy, or trash files. They can see who has access, share a file with a person, group, or domain you name, and read, add, reply to, or resolve comments. Google limits changes to the files and folders bots created through this plugin, so bots can't edit, move, share, trash, or comment on your other files, or add files to folders they didn't create. Trashed files stay recoverable for about 30 days, and bots can't delete anything permanently. Downloads and exports are limited to 10 MB, and other file operations to 64 MB.
 
@@ -67,7 +67,7 @@ Bots can only reach what your Google account can.
 
 While an **External** app's publishing status is **Testing**, Google expires refresh tokens after seven days and you'll need to sign in again. For a longer-lasting connection, configure the app for **In production**, meeting Google's applicable requirements, then sign in again to obtain a new grant. Production grants can still be revoked, for example after access is removed or a Gmail account's password changes. See [Google's token expiration rules](https://developers.google.com/identity/protocols/oauth2#expiration).
 
-aiTeamOS renews short-lived access tokens automatically. If Google rejects the refresh token, the affected account shows **Sign-in needed**. Select **Sign in** for that account and complete authorization. Restarting the connector cannot repair a revoked grant. Other connected accounts keep their own credentials.
+OutcomeGo renews short-lived access tokens automatically. If Google rejects the refresh token, the affected account shows **Sign-in needed**. Select **Sign in** for that account and complete authorization. Restarting the connector cannot repair a revoked grant. Other connected accounts keep their own credentials.
 
 If you change your server's address, update the redirect URI in Google Cloud to match.
 
@@ -75,7 +75,7 @@ If you change your server's address, update the redirect URI in Google Cloud to 
 
 | Problem | What to do |
 | --- | --- |
-| `redirect_uri_mismatch` | Make sure the client type matches your server: **Web application** for HTTPS, **Desktop app** for HTTP. For a Web application client, compare the redirect URI with the one aiTeamOS shows. |
+| `redirect_uri_mismatch` | Make sure the client type matches your server: **Web application** for HTTPS, **Desktop app** for HTTP. For a Web application client, compare the redirect URI with the one OutcomeGo shows. |
 | Access denied or blocked | Check that your account is a test user, the API is enabled, and the scopes are added. Workspace accounts may need administrator approval. |
 | Sign-in expires every week | Check whether your app is in **Testing**. See [keep the connection working](#keep-the-connection-working). |
 | Authorization expired or was revoked | Select **Sign in** for the affected account. If an older installation shows a connection error, use **Reauthorize** in that account's settings. |

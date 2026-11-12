@@ -66,6 +66,8 @@ jobs:
 
   ci:
     uses: ./.github/workflows/ci.yml
+    with:
+      run_docker: false
 
   # ── Server images ────────────────────────────────────────────────────────────
   # Each architecture builds natively and is pushed by digest; merge-images joins them.
@@ -174,7 +176,7 @@ jobs:
           digest=$(docker buildx imagetools inspect "$IMAGE:$VERSION" --format '{{json .Manifest}}' | jq -r .digest)
           [[ "$digest" =~ ^sha256:[a-f0-9]{64}$ ]] || { echo "Unexpected digest: $digest" >&2; exit 1; }
           mkdir out
-          printf '%s\n' "$digest" > "out/aiteamos-${{ matrix.image }}.digest"
+          printf '%s\n' "$digest" > "out/outcomego-${{ matrix.image }}.digest"
           echo "$IMAGE@$digest"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -201,7 +203,7 @@ jobs:
           set -euo pipefail
           failed=0
           for image in server worker migrate computer; do
-            digest=$(cat "digests/aiteamos-$image.digest")
+            digest=$(cat "digests/outcomego-$image.digest")
             if ! docker pull "$PREFIX-$image@$digest"; then
               echo "::error::Anonymous pull of $PREFIX-$image failed. Make the package public: ${GITHUB_SERVER_URL}/users/${GITHUB_REPOSITORY_OWNER}/packages/container/ai-teamos-$image/settings"
               failed=1
@@ -257,19 +259,19 @@ jobs:
           merge-multiple: true
       - name: Render the digest-pinned Compose file and installers
         run: |
-          bun scripts/render-release-compose.ts deploy/compose.yaml dist/core/aiteamos-compose.yaml digests
+          bun scripts/render-release-compose.ts deploy/compose.yaml dist/core/outcomego-compose.yaml digests
           bun scripts/release/render-installers.ts dist/core
       - name: Sign the Compose file and the raw CLI binaries
         env:
-          AITEAMOS_RELEASE_SIGNING_MODE: keyless
+          OUTCOMEGO_RELEASE_SIGNING_MODE: keyless
         run: |
           bun apps/cli/scripts/sign-release.ts \
-            dist/core/aiteamos-compose.yaml \
-            dist/core/aiteamos-darwin-arm64 \
-            dist/core/aiteamos-darwin-x64 \
-            dist/core/aiteamos-linux-arm64 \
-            dist/core/aiteamos-linux-x64 \
-            dist/core/aiteamos-windows-x64.exe
+            dist/core/outcomego-compose.yaml \
+            dist/core/outcomego-darwin-arm64 \
+            dist/core/outcomego-darwin-x64 \
+            dist/core/outcomego-linux-arm64 \
+            dist/core/outcomego-linux-x64 \
+            dist/core/outcomego-windows-x64.exe
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: core
@@ -304,10 +306,10 @@ jobs:
         run: |
           set -euo pipefail
           if [ -z "$WINDOWS_CERTIFICATE_BASE64" ] || [ -z "$WINDOWS_CERTIFICATE_PASSWORD" ]; then
-            echo "Windows signing credentials are not configured; publishing an unsigned installer."
+            echo "::warning::Windows signing credentials are not configured; publishing an unsigned installer."
             exit 0
           fi
-          certificate="$RUNNER_TEMP/aiTeamOS-windows-signing.pfx"
+          certificate="$RUNNER_TEMP/OutcomeGo-windows-signing.pfx"
           printf '%s' "$WINDOWS_CERTIFICATE_BASE64" | base64 --decode > "$certificate"
           echo "WIN_CSC_LINK=$certificate" >> "$GITHUB_ENV"
           echo "WIN_CSC_KEY_PASSWORD=$WINDOWS_CERTIFICATE_PASSWORD" >> "$GITHUB_ENV"
@@ -368,9 +370,9 @@ jobs:
         run: |
           set -euo pipefail
           umask 077
-          signing_keychain="$RUNNER_TEMP/aiTeamOS-signing.keychain-db"
+          signing_keychain="$RUNNER_TEMP/OutcomeGo-signing.keychain-db"
           signing_keychain_password="$(openssl rand -hex 32)"
-          signing_certificate="$RUNNER_TEMP/aiTeamOS-signing.p12"
+          signing_certificate="$RUNNER_TEMP/OutcomeGo-signing.p12"
           printf '%s' "$MACOS_CERTIFICATE_BASE64" | base64 --decode > "$signing_certificate"
           security create-keychain -p "$signing_keychain_password" "$signing_keychain"
           security set-keychain-settings -lut 21600 "$signing_keychain"
@@ -440,7 +442,7 @@ jobs:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-          AITEAMOS_APP_LINK_HOST: ${{ vars.ANDROID_APP_LINK_HOST }}
+          OUTCOMEGO_APP_LINK_HOST: ${{ vars.ANDROID_APP_LINK_HOST }}
         run: bash scripts/android/package-release.sh
       - name: Release gate (device, performance and Play checks stay pending)
         env:
@@ -470,8 +472,6 @@ jobs:
           fi
           test -x "$apksigner_path" || { echo "apksigner was not found" >&2; exit 1; }
           certificate_sha256="$($apksigner_path verify --print-certs "$apk" 2>&1 | sed -nE 's/.*SHA-256 digest:[[:space:]]*//p' | head -n 1)"
-          certificate_sha256="$("$apksigner_path" verify --print-certs "$apk" | awk -F': ' '/Signer #1 certificate SHA-256 digest:/ {print $2; exit}')"
-          certificate_sha256="$($apksigner_path verify --print-certs "$apk" 2>&1 | sed -nE 's/.*SHA-256 digest:[[:space:]]*//p' | head -n 1)"
           test -n "$certificate_sha256" || { echo "Could not read the APK certificate digest" >&2; exit 1; }
           aapt2_path="$(find "$sdk_root/build-tools" -type f -name aapt2 | sort -V | tail -n 1)"
           test -x "$aapt2_path" || { echo "aapt2 was not found" >&2; exit 1; }
@@ -480,8 +480,8 @@ jobs:
           python3 scripts/android/create-update-manifest.py \
             --version "$VERSION" \
             --version-code "$version_code" \
-            --application-id com.teambots.android \
-            --apk-url "$SERVER_URL/$REPOSITORY/releases/download/$REF_NAME/aiTeamOS-$VERSION-android.apk" \
+            --application-id com.outcomego.android \
+            --apk-url "$SERVER_URL/$REPOSITORY/releases/download/$REF_NAME/OutcomeGo-$VERSION-android.apk" \
             --apk "$apk" \
             --certificate-sha256 "$certificate_sha256" \
             --private-key "$private_key" \
@@ -491,7 +491,7 @@ jobs:
           VERSION: ${{ needs.meta.outputs.version }}
         run: |
           mkdir -p dist
-          cp apps/android/app/build/outputs/apk/release/androidApp-release.apk "dist/aiTeamOS-$VERSION-android.apk"
+          cp apps/android/app/build/outputs/apk/release/androidApp-release.apk "dist/OutcomeGo-$VERSION-android.apk"
           test -s dist/android-update.json
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -529,7 +529,7 @@ jobs:
           import json, os
           path = 'apps/ios/release.json'
           release = json.load(open(path))
-          assert release['bundleIdentifier'] == 'dev.aiteamos.mobile', 'apps/ios/release.json must use this fork\'s bundle identifier'
+          assert release['bundleIdentifier'] == 'dev.outcomego.mobile', 'apps/ios/release.json must use this fork\'s bundle identifier'
           assert release['teamIdentifier'] == '828JR8JA8V', 'apps/ios/release.json must use this fork\'s Apple team'
           release['buildNumber'] = os.environ['BUILD_NUMBER']
           json.dump(release, open(path, 'w'), indent=2)
@@ -587,7 +587,7 @@ jobs:
             [ -d "$directory" ] && cp -n "$directory"/* release-files/
           done
           cd release-files
-          for required in aiteamos-compose.yaml aiteamos-compose.yaml.sigstore.json install.sh aiteamos-linux-x64.gz; do
+          for required in outcomego-compose.yaml outcomego-compose.yaml.sigstore.json install.sh outcomego-linux-x64.gz; do
             [ -f "$required" ] || { echo "Missing release file: $required" >&2; exit 1; }
           done
           if [ "${{ needs.android.result }}" = "success" ]; then
@@ -640,6 +640,6 @@ jobs:
             --repo "$GITHUB_REPOSITORY" \
             --verify-tag \
             --latest \
-            --title "aiTeamOS $VERSION" \
+            --title "OutcomeGo $VERSION" \
             --notes-file notes.md \
             --generate-notes

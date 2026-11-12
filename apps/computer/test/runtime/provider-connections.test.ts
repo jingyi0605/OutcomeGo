@@ -45,7 +45,7 @@ test("capacity, deletion and shutdown bound retained resources", () => {
 });
 
 test("actual Pi session disposal can retain transport while replacing all agent listeners", async () => {
-  const directory = await mkdtemp(join(tmpdir(), "aiteamos-connection-"));
+  const directory = await mkdtemp(join(tmpdir(), "outcomego-connection-"));
   const releases: string[] = [];
   const unregister = registerSessionResourceCleanup((id) => {
     releases.push(id!);

@@ -111,7 +111,7 @@ export const dockerFailureCheck = (
     };
   }
 
-  let detail = "Docker is installed, but aiTeamOS could not connect to its engine.";
+  let detail = "Docker is installed, but OutcomeGo could not connect to its engine.";
   let action =
     platform === "darwin"
       ? "Start your Docker runtime. For Docker Desktop, run open -a Docker and finish any first-run setup. Wait for the engine to be ready, then run docker info. If it still fails, run docker context ls and check DOCKER_HOST and DOCKER_CONTEXT point to the intended engine."

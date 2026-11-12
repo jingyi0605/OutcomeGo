@@ -1,4 +1,4 @@
-import type { PrismaClient } from "@aiteamos/db";
+import type { PrismaClient } from "@outcomego/db";
 import { normalizeVoiceText, splitVoiceSentences } from "./voice-text";
 
 export interface VoiceReplySink {

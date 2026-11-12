@@ -1,4 +1,4 @@
-import type { PrismaClient } from "@aiteamos/db";
+import type { PrismaClient } from "@outcomego/db";
 export const clientBots = (prisma: PrismaClient) =>
   prisma.bot.findMany({
     where: {

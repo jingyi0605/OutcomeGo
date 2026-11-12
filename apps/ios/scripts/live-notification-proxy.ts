@@ -21,10 +21,10 @@ const proxy = Bun.serve({ hostname: "127.0.0.1", port: 20023, idleTimeout: 255, 
     if (!registration) return Response.json({ error: "Register first" }, { status: 409 });
     const value: any = await request.json();
     const payload = {
-      aps: { alert: { title: "OpenTeam live QA", body: value.qaID }, "content-available": 1, "thread-id": value.channelId },
+      aps: { alert: { title: "OutcomeGo live QA", body: value.qaID }, "content-available": 1, "thread-id": value.channelId },
       data: { schemaVersion: 1, notificationScope: registration.notificationScope, kind: "message", ...value },
     };
-    const child = Bun.spawn(["xcrun", "simctl", "push", udid, "dev.openteam.mobile.swift", "-"], {
+    const child = Bun.spawn(["xcrun", "simctl", "push", udid, "dev.outcomego.mobile.swift", "-"], {
       stdin: new Blob([JSON.stringify(payload)]), stdout: "pipe", stderr: "pipe",
     });
     if (await child.exited) throw new Error(await new Response(child.stderr).text());

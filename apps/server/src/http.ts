@@ -1,4 +1,4 @@
-import { ApiError } from "@aiteamos/contracts";
+import { ApiError } from "@outcomego/contracts";
 import { Cause, Option, Runtime, Schema } from "effect";
 
 export const corsHeaders = {

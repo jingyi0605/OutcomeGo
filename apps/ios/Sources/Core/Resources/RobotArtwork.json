@@ -14,9 +14,9 @@
     "#878787"
   ],
   "sources": {
-    "packages/design-tokens/src/robot-avatar-artwork.ts": "fe28026bbffda305a011d6465a40953210ce192dc95389916b20462a6237beed",
+    "packages/design-tokens/src/robot-avatar-artwork.ts": "1c166560ea8cc8927c79c2d5722955dab46494a8e0eb9b44af2ff2b125c0cef4",
     "packages/design-tokens/src/robot-avatar.css": "3566895791ef5b016feb9dc08c649ab51509597e2d5e44dbeb23229e25840d08",
-    "packages/design-tokens/src/robot-avatar-motion.ts": "54c9922fd2f02b00fa09eb2715fb599fe017886792450c8aa7bf5b6aa5bb8421",
+    "packages/design-tokens/src/robot-avatar-motion.ts": "f31525d08536a4ad551ce9d4757ec2a9cb0436213d029e64e5345f8ad3ae9867",
     "packages/contracts/src/robot-avatar.ts": "cb45920f496162658559c7e280315352138d631a5a70d2418d5a631a6a4441f4",
     "packages/contracts/src/bot-avatar.ts": "c29f68e89d5c06ef63f84220d03f197039c2695903069cf5b328fab1e7522f7c"
   },

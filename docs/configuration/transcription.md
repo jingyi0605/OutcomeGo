@@ -23,11 +23,11 @@ Check names, numbers, and instructions in the transcript before sending, especia
 
 Voice notes need a transcription service. Set it up once on the server and it works in all your apps.
 
-1. On desktop or iPhone, open **Settings → Voice notes**. Or run `aiteamos model` on the server host and select the **Transcription** tab.
+1. On desktop or iPhone, open **Settings → Voice notes**. Or run `outcomego model` on the server host and select the **Transcription** tab.
 2. Choose **OpenAI**, **Deepgram**, or **Custom / OpenAI-compatible**.
 3. For OpenAI or Deepgram, enter that service's API key; the base URL and model are filled in (`gpt-transcribe` for OpenAI, `nova-3` for Deepgram). For another service, enter its base URL, model, and API key if it needs one. Leave **Language** blank to detect it automatically. Deepgram also accepts `multi` for supported languages mixed within one recording.
 4. Turn on **Voice notes**.
-5. Choose **Save**, then **Test connection**. In `aiteamos model`, use **Save transcription** and **Test saved connection**.
+5. Choose **Save**, then **Test connection**. In `outcomego model`, use **Save transcription** and **Test saved connection**.
 6. Record a short note to check that it works.
 
 Transcription uses its own API key. A ChatGPT or Claude sign-in for chat doesn't cover it. Changing the default model for new selections does not migrate an existing saved model.
@@ -35,17 +35,17 @@ Transcription uses its own API key. A ChatGPT or Claude sign-in for chat doesn't
 Saved keys stay on your server. The apps show only the last four characters of a saved key; very short keys remain fully hidden. Leaving the key field blank keeps the saved key when you change the model, language, or enabled setting. To replace it, enter a new key and save. To remove it, choose **Delete key**, then **Save**; **Undo deletion** cancels a pending deletion. Changing providers or endpoints requires a replacement key or explicit deletion, so the saved key is never silently removed or sent to a different service.
 
 To choose a microphone on desktop, open **Settings → General → System → Microphone**.
-The **Microphone access** row shows whether permission is allowed, blocked, or not yet requested. Choose **Enable microphone** to request access, or **System settings** to manage it on macOS or Windows. The status refreshes when you return to aiTeamOS.
+The **Microphone access** row shows whether permission is allowed, blocked, or not yet requested. Choose **Enable microphone** to request access, or **System settings** to manage it on macOS or Windows. The status refreshes when you return to OutcomeGo.
 
 ## Use your own transcription service
 
-Any service with an OpenAI-compatible transcription API works, as long as the aiTeamOS server can reach it.
+Any service with an OpenAI-compatible transcription API works, as long as the OutcomeGo server can reach it.
 
 The bundled local MLX / Parakeet service is configured under **Custom / OpenAI-compatible**. Set its reachable base URL (for example, `http://audio-server:18080/v1`), model `mlx-community/parakeet-tdt-0.6b-v3`, and the key used to start the service. Selecting a custom provider does not start or install the local service.
 
 ## Troubleshooting
 
 - **The microphone button is unavailable:** transcription is turned off or not set up on the server.
-- **Recording doesn't start:** check that aiTeamOS has microphone permission in your device's settings.
+- **Recording doesn't start:** check that OutcomeGo has microphone permission in your device's settings.
 - **No speech was detected:** check the selected microphone, connection, mute control, and system input volume. Use your system’s sound settings to check whether the input meter moves while you speak. An allowed permission status does not verify that the microphone captures sound.
-- **Transcription fails:** choose **Test connection** in **Settings → Voice notes** (or **Test saved connection** in `aiteamos model`), then try a short recording. If a note fails, retry or discard it; it wasn't sent.
+- **Transcription fails:** choose **Test connection** in **Settings → Voice notes** (or **Test saved connection** in `outcomego model`), then try a short recording. If a note fails, retry or discard it; it wasn't sent.

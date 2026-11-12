@@ -8,8 +8,8 @@ import {
   MessageResponse,
   MessageRendererBoundary,
 } from "../../src/renderer/components/ai-elements/message";
-import { VirtualizedTimeline } from "../../src/renderer/components/aiteamos/virtualized-timeline";
-import { MessageImageGallery } from "../../src/renderer/components/aiteamos/image-attachment";
+import { VirtualizedTimeline } from "../../src/renderer/components/outcomego/virtualized-timeline";
+import { MessageImageGallery } from "../../src/renderer/components/outcomego/image-attachment";
 import "../../src/renderer/styles.css";
 
 const root = createRoot(document.getElementById("root")!);
@@ -27,7 +27,7 @@ const waitFor = async (condition: () => boolean) => {
   throw new Error("Timed out waiting for layout");
 };
 const FileCards = lazy(() =>
-  import("../../src/renderer/components/aiteamos/file-attachment").then((module) => ({
+  import("../../src/renderer/components/outcomego/file-attachment").then((module) => ({
     default: module.MessageFileAttachments,
   }))
 );

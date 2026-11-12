@@ -21,7 +21,7 @@ export function Wordmark({
         mode={animated ? undefined : "still"}
         className="ot-brand-bot"
       />
-      <span style={{ fontSize: textSize, lineHeight: 1 }}>aiTeamOS</span>
+      <span style={{ fontSize: textSize, lineHeight: 1 }}>OutcomeGo</span>
     </span>
   );
 }

@@ -1,4 +1,4 @@
-import type { ProductEvent } from "@aiteamos/contracts";
+import type { ProductEvent } from "@outcomego/contracts";
 
 export const SSE_EVENT_BATCH_SIZE = 64;
 export const EVENT_POLL_MAX_WAIT_MS = 25_000;

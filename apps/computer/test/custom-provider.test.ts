@@ -12,7 +12,7 @@ afterEach(async () => {
 });
 
 const service = async () => {
-  const dir = await mkdtemp(join(tmpdir(), "aiteamos-custom-provider-"));
+  const dir = await mkdtemp(join(tmpdir(), "outcomego-custom-provider-"));
   dirs.push(dir);
   const path = join(dir, "models.json");
   const loggedOut: string[] = [];

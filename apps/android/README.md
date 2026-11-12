@@ -1,4 +1,4 @@
-# aiTeamOS Android QA and release foundation
+# OutcomeGo Android QA and release foundation
 
 The Android app is being brought to parity with the native iOS client in stages. The QA surface is deliberately split by execution environment:
 
@@ -47,7 +47,7 @@ cannot wake a process that Android has terminated, so it does not replace FCM
 for reliable background delivery.
 
 To enable FCM, add the Firebase Android app configuration through the deployment
-build process, typically as `google-services.json` for the `com.teambots.android`
+build process, typically as `google-services.json` for the `com.outcomego.android`
 application, and keep the worker credentials outside the repository. Verify
 both the credential-free payload tests and a real device delivery test before
 calling Android notifications complete.
@@ -56,7 +56,7 @@ calling Android notifications complete.
 
 Android Studio ships a committed run configuration named **Xiaomi Debug** that targets the Xiaomi `M154FF` device (`serial=a657db70`) and deploys the debug APK without a device chooser:
 
-- `.idea/runConfigurations/Xiaomi_Debug.xml` — Android App configuration for `:mobile:androidApp` (`aiteamos-mobile.mobile.androidApp.main`)
+- `.idea/runConfigurations/Xiaomi_Debug.xml` — Android App configuration for `:mobile:androidApp` (`outcomego-mobile.mobile.androidApp.main`)
 - `.idea/deploymentTargetSelector.xml` — pins the deployment target to that device
 
 After the first successful Gradle sync, select **Xiaomi Debug** in the run widget and press Run (or Debug). If the configuration shows `<no module>` or `Error: Module not specified`, restart Android Studio, choose `GRADLE_LOCAL_JAVA_HOME` under the Gradle settings, then run **Sync Project with Gradle Files**. The project uses `GRADLE_LOCAL_JAVA_HOME`, configured in `.gradle/config.properties` to use the installed OpenJDK 21, because Gradle 8.14.3 cannot compile this Kotlin DSL project on the bundled JBR 25. From a terminal the equivalent is:
@@ -102,8 +102,8 @@ public key is compiled into `AndroidUpdateManifest.kt`. Rotate it only with a co
 release, because older clients cannot verify manifests signed by a new key.
 
 Users can check and install the update from **Settings → Updates**. Android may ask the user to
-allow installs from aiTeamOS before the system installer can continue. The APK must keep the same
-`com.teambots.android` application ID and Android signing key across releases.
+allow installs from OutcomeGo before the system installer can continue. The APK must keep the same
+`com.outcomego.android` application ID and Android signing key across releases.
 
 The reproducible release gate is:
 

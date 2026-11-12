@@ -1,5 +1,5 @@
 import { test, expect } from "bun:test";
-import { createPrismaClient } from "@aiteamos/db";
+import { createPrismaClient } from "@outcomego/db";
 import { listSiblingThreads, renderOtherActiveConversations, type SiblingThread } from "../src/sibling-threads";
 import { readTranscript } from "../src/read-transcript";
 
@@ -28,8 +28,8 @@ test("other active conversations list recent sessions for ReadTranscript, bounde
   expect(renderOtherActiveConversations([thread("stale", new Date(now - 15 * day))], now)).toBe("");
 });
 
-test.skipIf(!process.env.AITEAMOS_TEST_DATABASE_URL)("other conversations list visible sessions that ReadTranscript reads, never the current, archived, left or agent-to-agent ones", async () => {
-  const db=createPrismaClient(process.env.AITEAMOS_TEST_DATABASE_URL!);
+test.skipIf(!process.env.OUTCOMEGO_TEST_DATABASE_URL)("other conversations list visible sessions that ReadTranscript reads, never the current, archived, left or agent-to-agent ones", async () => {
+  const db=createPrismaClient(process.env.OUTCOMEGO_TEST_DATABASE_URL!);
   const botId=crypto.randomUUID(), peerId=crypto.randomUUID();
   const ids=[crypto.randomUUID(),crypto.randomUUID(),crypto.randomUUID()];
   try {

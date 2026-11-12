@@ -9,7 +9,7 @@ import {
   voiceReach,
   voiceShape,
   voiceSidePeaks,
-} from "../src/renderer/components/aiteamos/voice-memo/glow-motion";
+} from "../src/renderer/components/outcomego/voice-memo/glow-motion";
 
 describe("voice glow geometry", () => {
   test("mobile lobes flow horizontally with a continuous wrap", () => {

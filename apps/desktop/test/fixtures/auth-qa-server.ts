@@ -6,7 +6,7 @@ const user = {
   username: "qa",
   image: null,
 };
-const token = "aiteamos-local-qa-session";
+const token = "outcomego-local-qa-session";
 Bun.serve({
   hostname: "127.0.0.1",
   port: 18787,
@@ -22,12 +22,12 @@ Bun.serve({
     const json = (value: unknown, status = 200, more = {}) =>
       Response.json(value, { status, headers: { ...headers, ...more } });
     if (request.method === "OPTIONS") return new Response(null, { headers });
-    if (url.pathname === "/") return new Response("aiTeamOS local auth QA fixture", { headers });
+    if (url.pathname === "/") return new Response("OutcomeGo local auth QA fixture", { headers });
     if (url.pathname.includes("/slow/")) await Bun.sleep(20_000);
     else await Bun.sleep(200);
     if (url.pathname.endsWith("/api/auth/config")) {
       if (url.pathname.includes("/wrong-server/"))
-        return new Response("<html>Not aiTeamOS</html>", { headers });
+        return new Response("<html>Not OutcomeGo</html>", { headers });
       if (url.pathname.includes("/unavailable/"))
         return new Response("Maintenance", { status: 503, headers });
       return json({ mode: url.pathname.includes("/no-auth/") ? "disabled" : "required" });

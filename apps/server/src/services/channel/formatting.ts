@@ -1,4 +1,4 @@
-import { parseGroupMentions } from "@aiteamos/messaging";
+import { parseGroupMentions } from "@outcomego/messaging";
 import { metadataRecord } from "../service-utils";
 
 export type ReplyTarget = {

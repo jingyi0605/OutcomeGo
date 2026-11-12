@@ -1,5 +1,5 @@
-import type { ChannelMessageView } from "@aiteamos/contracts";
-import { attachmentsPreviewText, messagePreviewText } from "@aiteamos/contracts/message-preview";
+import type { ChannelMessageView } from "@outcomego/contracts";
+import { attachmentsPreviewText, messagePreviewText } from "@outcomego/contracts/message-preview";
 import { messageDisplayProjection, messageMetadata } from "./messages";
 
 export interface ChannelNameChangedEvent {

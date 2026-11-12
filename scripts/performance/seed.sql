@@ -22,13 +22,13 @@
 
 DO $guard$
 BEGIN
-  IF current_database() <> 'aiteamos_perf_audit' THEN
+  IF current_database() <> 'outcomego_perf_audit' THEN
     RAISE EXCEPTION 'Refusing to seed unexpected database: %', current_database();
   END IF;
 END
 $guard$;
 
-INSERT INTO "Bot" (
+INSERT INTO "outcomego_bot" (
   "id", "name", "title", "description", "instructions", "icon", "color", "namedBy",
   "notificationsEnabled", "hiddenFromSidebar", "defaultDirectory", "status",
   "onboardingStatus", "onboardingCompletedAt", "createdAt", "updatedAt"
@@ -56,7 +56,7 @@ SELECT
 FROM generate_series(1, :bot_count) AS bot_number
 ON CONFLICT ("id") DO NOTHING;
 
-INSERT INTO "Conversation" ("id", "botId", "continuity", "createdAt", "updatedAt")
+INSERT INTO "outcomego_conversation" ("id", "botId", "continuity", "createdAt", "updatedAt")
 SELECT
   md5('perf-conversation-' || bot_number)::uuid,
   md5('perf-bot-' || bot_number)::uuid,
@@ -66,7 +66,7 @@ SELECT
 FROM generate_series(1, :bot_count) AS bot_number
 ON CONFLICT ("id") DO NOTHING;
 
-INSERT INTO "Channel" (
+INSERT INTO "outcomego_channel" (
   "id", "kind", "name", "directKey", "workingDirectory", "createdAt", "updatedAt"
 )
 SELECT
@@ -80,7 +80,7 @@ SELECT
 FROM generate_series(1, :bot_count) AS bot_number
 ON CONFLICT ("id") DO NOTHING;
 
-INSERT INTO "ChannelMember" ("channelId", "botId", "ordinal", "createdAt")
+INSERT INTO "outcomego_channel_member" ("channelId", "botId", "ordinal", "createdAt")
 SELECT
   md5('perf-channel-' || bot_number)::uuid,
   md5('perf-bot-' || bot_number)::uuid,
@@ -89,20 +89,20 @@ SELECT
 FROM generate_series(1, :bot_count) AS bot_number
 ON CONFLICT ("channelId", "botId") DO NOTHING;
 
-INSERT INTO "ChannelMessage" (
+INSERT INTO "outcomego_channel_message" (
   "id", "channelId", "sender", "senderBotId", "content", "metadata", "createdAt"
 )
 SELECT
   md5('perf-message-' || bot_number || '-' || message_number)::uuid,
   md5('perf-channel-' || bot_number)::uuid,
-  CASE WHEN message_number % 2 = 0 THEN 'agent'::"ChannelMessageSender"
-       ELSE 'user'::"ChannelMessageSender" END,
+  CASE WHEN message_number % 2 = 0 THEN 'agent'::"outcomego_channel_message_sender"
+       ELSE 'user'::"outcomego_channel_message_sender" END,
   CASE WHEN message_number % 2 = 0 THEN md5('perf-bot-' || bot_number)::uuid ELSE null END,
   CASE
     WHEN message_number % 20 = 0 THEN
       E'Synthetic rich response for renderer profiling.\n\n```ts\nconst sample = ' || message_number || E';\n```\n\n- alpha\n- beta\n- gamma'
     WHEN message_number % 17 = 0 THEN
-      'Synthetic performance link https://aiteamos.dev/audit/' || bot_number || '/' || message_number
+      'Synthetic performance link https://outcomego.dev/audit/' || bot_number || '/' || message_number
     ELSE
       'Synthetic performance message ' || message_number || ' for Audit Bot ' ||
       lpad(bot_number::text, 4, '0') || '. ' || repeat('Representative plain text payload. ', 4)
@@ -128,10 +128,10 @@ CROSS JOIN generate_series(1, :messages_per_bot) AS message_number
 ON CONFLICT ("id") DO UPDATE SET
   "content" = EXCLUDED."content",
   "metadata" = EXCLUDED."metadata"
-WHERE "ChannelMessage"."content" IS DISTINCT FROM EXCLUDED."content"
-   OR "ChannelMessage"."metadata" IS DISTINCT FROM EXCLUDED."metadata";
+WHERE "outcomego_channel_message"."content" IS DISTINCT FROM EXCLUDED."content"
+   OR "outcomego_channel_message"."metadata" IS DISTINCT FROM EXCLUDED."metadata";
 
-INSERT INTO "Channel" (
+INSERT INTO "outcomego_channel" (
   "id", "kind", "name", "directKey", "workingDirectory", "createdAt", "updatedAt"
 )
 SELECT
@@ -145,7 +145,7 @@ SELECT
 FROM generate_series(1, :group_count) AS group_number
 ON CONFLICT ("id") DO NOTHING;
 
-INSERT INTO "ChannelMember" ("channelId", "botId", "ordinal", "createdAt")
+INSERT INTO "outcomego_channel_member" ("channelId", "botId", "ordinal", "createdAt")
 SELECT
   md5('perf-group-' || group_number)::uuid,
   md5('perf-bot-' || (((group_number + member_offset - 2) % :bot_count) + 1))::uuid,
@@ -157,7 +157,7 @@ ON CONFLICT ("channelId", "botId") DO NOTHING;
 
 -- Exercise both bot-owned and group-owned routine search/visibility paths at
 -- the same scale as the sidebar fixture.
-INSERT INTO "Routine" (
+INSERT INTO "outcomego_routine" (
   "id", "botId", "channelId", "slug", "name", "prompt", "trigger",
   "scheduleText", "scheduleKind", "intervalSeconds", "timezone", "createdAt", "updatedAt"
 )
@@ -170,7 +170,7 @@ SELECT
   'Prepare a bounded synthetic performance report for bot ' || bot_number,
   '{"kind":"schedule"}'::jsonb,
   'Every hour',
-  'interval'::"RoutineScheduleKind",
+  'interval'::"outcomego_routine_schedule_kind",
   3600,
   'UTC',
   timestamp '2026-06-02 00:00:00' + bot_number * interval '1 second',
@@ -178,7 +178,7 @@ SELECT
 FROM generate_series(1, :bot_count) AS bot_number
 ON CONFLICT ("id") DO NOTHING;
 
-INSERT INTO "Routine" (
+INSERT INTO "outcomego_routine" (
   "id", "botId", "channelId", "slug", "name", "prompt", "trigger",
   "scheduleText", "scheduleKind", "intervalSeconds", "timezone", "createdAt", "updatedAt"
 )
@@ -191,7 +191,7 @@ SELECT
   'Summarize synthetic group performance for channel ' || group_number,
   '{"kind":"schedule"}'::jsonb,
   'Every two hours',
-  'interval'::"RoutineScheduleKind",
+  'interval'::"outcomego_routine_schedule_kind",
   7200,
   'UTC',
   timestamp '2026-06-03 00:00:00' + group_number * interval '1 second',
@@ -199,14 +199,14 @@ SELECT
 FROM generate_series(1, :group_count) AS group_number
 ON CONFLICT ("id") DO NOTHING;
 
-INSERT INTO "ChannelMessage" (
+INSERT INTO "outcomego_channel_message" (
   "id", "channelId", "sender", "senderBotId", "content", "metadata", "createdAt"
 )
 SELECT
   md5('perf-group-message-' || group_number || '-' || message_number)::uuid,
   md5('perf-group-' || group_number)::uuid,
-  CASE WHEN message_number % 3 = 0 THEN 'user'::"ChannelMessageSender"
-       ELSE 'agent'::"ChannelMessageSender" END,
+  CASE WHEN message_number % 3 = 0 THEN 'user'::"outcomego_channel_message_sender"
+       ELSE 'agent'::"outcomego_channel_message_sender" END,
   CASE WHEN message_number % 3 = 0 THEN null
        ELSE md5('perf-bot-' || (((group_number + message_number - 2) % :bot_count) + 1))::uuid END,
   'Synthetic group message ' || message_number || ' in Audit Group ' || lpad(group_number::text, 4, '0') ||
@@ -217,14 +217,14 @@ FROM generate_series(1, :group_count) AS group_number
 CROSS JOIN generate_series(1, :messages_per_bot) AS message_number
 ON CONFLICT ("id") DO NOTHING;
 
-INSERT INTO "ChannelMessage" (
+INSERT INTO "outcomego_channel_message" (
   "id", "channelId", "sender", "senderBotId", "content", "metadata", "createdAt"
 )
 SELECT
   md5('perf-long-message-' || message_number)::uuid,
   md5('perf-channel-1')::uuid,
-  CASE WHEN message_number % 2 = 0 THEN 'agent'::"ChannelMessageSender"
-       ELSE 'user'::"ChannelMessageSender" END,
+  CASE WHEN message_number % 2 = 0 THEN 'agent'::"outcomego_channel_message_sender"
+       ELSE 'user'::"outcomego_channel_message_sender" END,
   CASE WHEN message_number % 2 = 0 THEN md5('perf-bot-1')::uuid ELSE null END,
   CASE
     WHEN message_number % 25 = 0 THEN
@@ -239,14 +239,14 @@ ON CONFLICT ("id") DO NOTHING;
 
 -- A small, stable feature gallery keeps lazy-boundary and visual-parity checks independent
 -- of the selected scale point. Audit Bot 0002 is the gallery channel.
-INSERT INTO "ChannelMessage" (
+INSERT INTO "outcomego_channel_message" (
   "id", "channelId", "sender", "senderBotId", "content", "metadata", "createdAt"
 )
 VALUES
   (
     md5('perf-gallery-plain')::uuid,
     md5('perf-channel-2')::uuid,
-    'agent'::"ChannelMessageSender",
+    'agent'::"outcomego_channel_message_sender",
     md5('perf-bot-2')::uuid,
     'Feature gallery: plain text remains on the fast rendering path.',
     '{}'::jsonb,
@@ -255,16 +255,16 @@ VALUES
   (
     md5('perf-gallery-markdown')::uuid,
     md5('perf-channel-2')::uuid,
-    'agent'::"ChannelMessageSender",
+    'agent'::"outcomego_channel_message_sender",
     md5('perf-bot-2')::uuid,
-    E'## Markdown gallery\n\n| Capability | Status |\n|---|---|\n| links | [aiTeamOS](https://aiteamos.dev) |\n| CJK | 日本語、简体中文、한국어 |\n\n> Quoted text with **strong emphasis** and `inline code`.',
+    E'## Markdown gallery\n\n| Capability | Status |\n|---|---|\n| links | [outcomeGo](https://outcomego.dev) |\n| CJK | 日本語、简体中文、한국어 |\n\n> Quoted text with **strong emphasis** and `inline code`.',
     '{}'::jsonb,
     timestamp '2027-01-01 00:00:02'
   ),
   (
     md5('perf-gallery-code')::uuid,
     md5('perf-channel-2')::uuid,
-    'agent'::"ChannelMessageSender",
+    'agent'::"outcomego_channel_message_sender",
     md5('perf-bot-2')::uuid,
     E'```ts\ntype FrameBudget = 16.67;\nconst smooth = (durationMs: number) => durationMs < 50;\n```',
     '{}'::jsonb,
@@ -273,7 +273,7 @@ VALUES
   (
     md5('perf-gallery-math')::uuid,
     md5('perf-channel-2')::uuid,
-    'agent'::"ChannelMessageSender",
+    'agent'::"outcomego_channel_message_sender",
     md5('perf-bot-2')::uuid,
     E'Math loads only for math content:\n\n$$\\sum_{i=1}^{n} i = \\frac{n(n+1)}{2}$$',
     '{}'::jsonb,
@@ -282,7 +282,7 @@ VALUES
   (
     md5('perf-gallery-mermaid')::uuid,
     md5('perf-channel-2')::uuid,
-    'agent'::"ChannelMessageSender",
+    'agent'::"outcomego_channel_message_sender",
     md5('perf-bot-2')::uuid,
     E'```mermaid\nflowchart LR\n  Input --> Worker\n  Worker --> SmoothUI\n```',
     '{}'::jsonb,
@@ -291,7 +291,7 @@ VALUES
   (
     md5('perf-gallery-combined')::uuid,
     md5('perf-channel-2')::uuid,
-    'agent'::"ChannelMessageSender",
+    'agent'::"outcomego_channel_message_sender",
     md5('perf-bot-2')::uuid,
     E'### Combined capability parity\n\n日本語 text and $E = mc^2$.\n\n```js\nrequestAnimationFrame(() => console.log("paint"));\n```\n\n```mermaid\nsequenceDiagram\n  Renderer->>Utility: bounded job\n  Utility-->>Renderer: result\n```',
     '{}'::jsonb,
@@ -306,7 +306,7 @@ BEGIN;
 -- Opt-in, deterministic fixtures for native iOS CUA. Keeping these behind a
 -- switch preserves the historical desktop scale points while making the
 -- expensive mobile edge cases exactly reproducible.
-INSERT INTO "Bot" (
+INSERT INTO "outcomego_bot" (
   "id", "name", "title", "description", "instructions", "icon", "color", "namedBy",
   "notificationsEnabled", "hiddenFromSidebar", "defaultDirectory", "status",
   "onboardingStatus", "onboardingCompletedAt", "createdAt", "updatedAt"
@@ -346,7 +346,7 @@ ON CONFLICT ("id") DO UPDATE SET
   "createdAt" = EXCLUDED."createdAt",
   "updatedAt" = EXCLUDED."updatedAt";
 
-INSERT INTO "Conversation" ("id", "botId", "continuity", "createdAt", "updatedAt")
+INSERT INTO "outcomego_conversation" ("id", "botId", "continuity", "createdAt", "updatedAt")
 VALUES (
   md5('perf-ios-stress-conversation')::uuid,
   md5('perf-ios-stress-bot')::uuid,
@@ -360,7 +360,7 @@ ON CONFLICT ("id") DO UPDATE SET
   "createdAt" = EXCLUDED."createdAt",
   "updatedAt" = EXCLUDED."updatedAt";
 
-INSERT INTO "Channel" (
+INSERT INTO "outcomego_channel" (
   "id", "kind", "name", "description", "directKey", "workingDirectory", "createdAt", "updatedAt"
 )
 VALUES (
@@ -383,7 +383,7 @@ ON CONFLICT ("id") DO UPDATE SET
   "createdAt" = EXCLUDED."createdAt",
   "updatedAt" = EXCLUDED."updatedAt";
 
-INSERT INTO "ChannelMember" ("channelId", "botId", "ordinal", "createdAt")
+INSERT INTO "outcomego_channel_member" ("channelId", "botId", "ordinal", "createdAt")
 VALUES (
   md5('perf-ios-stress-channel')::uuid,
   md5('perf-ios-stress-bot')::uuid,
@@ -394,7 +394,7 @@ ON CONFLICT ("channelId", "botId") DO UPDATE SET
   "ordinal" = EXCLUDED."ordinal",
   "createdAt" = EXCLUDED."createdAt";
 
-INSERT INTO "Channel" (
+INSERT INTO "outcomego_channel" (
   "id", "kind", "name", "description", "directKey", "workingDirectory", "createdAt", "updatedAt"
 )
 VALUES (
@@ -417,7 +417,7 @@ ON CONFLICT ("id") DO UPDATE SET
   "createdAt" = EXCLUDED."createdAt",
   "updatedAt" = EXCLUDED."updatedAt";
 
-INSERT INTO "ChannelMember" ("channelId", "botId", "ordinal", "createdAt")
+INSERT INTO "outcomego_channel_member" ("channelId", "botId", "ordinal", "createdAt")
 VALUES (
   md5('perf-ios-routine-group')::uuid,
   md5('perf-ios-stress-bot')::uuid,
@@ -430,7 +430,7 @@ ON CONFLICT ("channelId", "botId") DO UPDATE SET
 
 -- A 125-edge chain deliberately crosses the 100-message ancestor-context
 -- ceiling. Its newest leaf is a stable deep-link target for truncation checks.
-INSERT INTO "ChannelMessage" (
+INSERT INTO "outcomego_channel_message" (
   "id", "channelId", "sender", "senderBotId", "content", "metadata", "createdAt"
 )
 VALUES (
@@ -450,14 +450,14 @@ ON CONFLICT ("id") DO UPDATE SET
   "metadata" = EXCLUDED."metadata",
   "createdAt" = EXCLUDED."createdAt";
 
-INSERT INTO "ChannelMessage" (
+INSERT INTO "outcomego_channel_message" (
   "id", "channelId", "sender", "senderBotId", "content", "metadata", "createdAt"
 )
 SELECT
   md5('perf-ios-deep-thread-reply-' || reply_number)::uuid,
   md5('perf-ios-stress-channel')::uuid,
-  CASE WHEN reply_number % 2 = 0 THEN 'agent'::"ChannelMessageSender"
-       ELSE 'user'::"ChannelMessageSender" END,
+  CASE WHEN reply_number % 2 = 0 THEN 'agent'::"outcomego_channel_message_sender"
+       ELSE 'user'::"outcomego_channel_message_sender" END,
   CASE WHEN reply_number % 2 = 0 THEN md5('perf-ios-stress-bot')::uuid ELSE null END,
   'iOS deep-chain reply ' || lpad(reply_number::text, 3, '0') || ' of 125.',
   jsonb_build_object(
@@ -485,13 +485,13 @@ WITH markdown_parts AS (
   SELECT
     E'# iOS 200 KB Markdown Stress\n\nA deterministic oversized Markdown fixture.\n\n' AS header,
     E'\n\n_End of deterministic 200,000-byte fixture._\n' AS footer,
-    E'- [ ] bounded list item with **strong text**, `inline code`, and [aiTeamOS](https://aiteamos.dev/audit)\n' AS filler
+    E'- [ ] bounded list item with **strong text**, `inline code`, and [outcomeGo](https://outcomego.dev/audit)\n' AS filler
 ), markdown_payload AS (
   SELECT
     header || rpad('', 200000 - length(header) - length(footer), filler) || footer AS content
   FROM markdown_parts
 )
-INSERT INTO "ChannelMessage" (
+INSERT INTO "outcomego_channel_message" (
   "id", "channelId", "sender", "senderBotId", "content", "metadata", "createdAt"
 )
 SELECT
@@ -513,7 +513,7 @@ ON CONFLICT ("id") DO UPDATE SET
 
 -- Every reply points straight at this root. The last 100 messages therefore
 -- load one bounded slice of a single 250-reply thread on first channel entry.
-INSERT INTO "ChannelMessage" (
+INSERT INTO "outcomego_channel_message" (
   "id", "channelId", "sender", "senderBotId", "content", "metadata", "createdAt"
 )
 VALUES (
@@ -533,14 +533,14 @@ ON CONFLICT ("id") DO UPDATE SET
   "metadata" = EXCLUDED."metadata",
   "createdAt" = EXCLUDED."createdAt";
 
-INSERT INTO "ChannelMessage" (
+INSERT INTO "outcomego_channel_message" (
   "id", "channelId", "sender", "senderBotId", "content", "metadata", "createdAt"
 )
 SELECT
   md5('perf-ios-wide-thread-reply-' || reply_number)::uuid,
   md5('perf-ios-stress-channel')::uuid,
-  CASE WHEN reply_number % 2 = 0 THEN 'agent'::"ChannelMessageSender"
-       ELSE 'user'::"ChannelMessageSender" END,
+  CASE WHEN reply_number % 2 = 0 THEN 'agent'::"outcomego_channel_message_sender"
+       ELSE 'user'::"outcomego_channel_message_sender" END,
   CASE WHEN reply_number % 2 = 0 THEN md5('perf-ios-stress-bot')::uuid ELSE null END,
   'iOS direct thread reply ' || lpad(reply_number::text, 3, '0') || ' of 250. ' ||
     repeat('Bounded native thread payload. ', 2),
@@ -559,7 +559,7 @@ ON CONFLICT ("id") DO UPDATE SET
   "metadata" = EXCLUDED."metadata",
   "createdAt" = EXCLUDED."createdAt";
 
-INSERT INTO "ChannelMessage" (
+INSERT INTO "outcomego_channel_message" (
   "id", "channelId", "sender", "senderBotId", "content", "metadata", "createdAt"
 )
 VALUES (
@@ -579,7 +579,7 @@ ON CONFLICT ("id") DO UPDATE SET
   "metadata" = EXCLUDED."metadata",
   "createdAt" = EXCLUDED."createdAt";
 
-INSERT INTO "Routine" (
+INSERT INTO "outcomego_routine" (
   "id", "botId", "channelId", "slug", "name", "prompt", "trigger", "provenance",
   "scheduleText", "scheduleKind", "intervalSeconds", "timezoneMode", "timezone", "enabled",
   "revision", "nextRunAt", "lastRunAt", "deletedAt", "createdAt", "updatedAt"
@@ -632,7 +632,7 @@ ON CONFLICT ("id") DO UPDATE SET
 -- Completed internal messages back 101 completed channel runs. Keeping them
 -- non-active avoids bloating bootstrap while channel-state must still select
 -- and truncate the recent activity window.
-INSERT INTO "Message" (
+INSERT INTO "message" (
   "id", "botId", "conversationId", "role", "content", "status", "createdAt", "updatedAt"
 )
 SELECT
@@ -654,7 +654,7 @@ ON CONFLICT ("id") DO UPDATE SET
   "createdAt" = EXCLUDED."createdAt",
   "updatedAt" = EXCLUDED."updatedAt";
 
-INSERT INTO "Run" (
+INSERT INTO "outcomego_run" (
   "id", "botId", "conversationId", "userMessageId", "status", "origin", "channelId",
   "startedAt", "completedAt", "createdAt", "updatedAt"
 )
@@ -683,7 +683,7 @@ ON CONFLICT ("id") DO UPDATE SET
   "createdAt" = EXCLUDED."createdAt",
   "updatedAt" = EXCLUDED."updatedAt";
 
-INSERT INTO "RunItem" (
+INSERT INTO "outcomego_run_item" (
   "id", "runId", "upstreamItemId", "kind", "status", "title", "content",
   "startedAt", "completedAt", "createdAt", "updatedAt"
 )
@@ -714,7 +714,7 @@ ON CONFLICT ("id") DO UPDATE SET
 
 -- Dedicated hidden children avoid converting any existing audit bot into a
 -- subagent identity, which would otherwise remove it from the visible fixture.
-INSERT INTO "Bot" (
+INSERT INTO "outcomego_bot" (
   "id", "name", "title", "description", "instructions", "icon", "color", "namedBy",
   "notificationsEnabled", "hiddenFromSidebar", "defaultDirectory", "status",
   "onboardingStatus", "onboardingCompletedAt", "createdAt", "updatedAt"
@@ -754,7 +754,7 @@ ON CONFLICT ("id") DO UPDATE SET
   "createdAt" = EXCLUDED."createdAt",
   "updatedAt" = EXCLUDED."updatedAt";
 
-INSERT INTO "Subagent" (
+INSERT INTO "outcomego_subagent" (
   "id", "parentBotId", "childBotId", "parentRunId", "parentChannelId", "currentRunId",
   "launchCallId", "description", "prompt", "subagentType", "model", "fileAttachments",
   "runInBackground", "status", "result", "error", "outputPath", "startedAt", "completedAt",
@@ -807,7 +807,7 @@ ON CONFLICT ("id") DO UPDATE SET
   "createdAt" = EXCLUDED."createdAt",
   "updatedAt" = EXCLUDED."updatedAt";
 
-INSERT INTO "SubagentAttempt" (
+INSERT INTO "outcomego_subagent_attempt" (
   "id", "subagentId", "parentRunId", "parentChannelId", "parentToolCallId", "childRunId",
   "description", "prompt", "fileAttachments", "runInBackground", "status", "result", "error",
   "startedAt", "completedAt", "stoppedAt", "createdAt", "updatedAt"
@@ -861,14 +861,14 @@ DECLARE
   deep_depth integer;
 BEGIN
   SELECT octet_length("content") INTO markdown_bytes
-  FROM "ChannelMessage"
+  FROM "outcomego_channel_message"
   WHERE "id" = md5('perf-ios-markdown-200kb')::uuid;
   IF markdown_bytes IS DISTINCT FROM 200000 THEN
     RAISE EXCEPTION 'Expected 200000-byte iOS Markdown fixture, got %', markdown_bytes;
   END IF;
 
   SELECT count(*) INTO actual_count
-  FROM "ChannelMessage"
+  FROM "outcomego_channel_message"
   WHERE "id" IN (
     SELECT md5('perf-ios-wide-thread-reply-' || reply_number)::uuid
     FROM generate_series(1, 250) AS reply_number
@@ -881,14 +881,14 @@ BEGIN
 
   WITH RECURSIVE ancestry AS (
     SELECT "id", "metadata", 0 AS depth
-    FROM "ChannelMessage"
+    FROM "outcomego_channel_message"
     WHERE "id" = md5('perf-ios-deep-thread-reply-125')::uuid
 
     UNION ALL
 
     SELECT parent."id", parent."metadata", ancestry.depth + 1
     FROM ancestry
-    INNER JOIN "ChannelMessage" AS parent
+    INNER JOIN "outcomego_channel_message" AS parent
       ON parent."id" = (ancestry."metadata" ->> 'replyTo')::uuid
     WHERE ancestry.depth < 126
       AND ancestry."metadata" -> 'branched' = 'true'::jsonb
@@ -899,7 +899,7 @@ BEGIN
   END IF;
 
   SELECT count(*) INTO actual_count
-  FROM "Routine"
+  FROM "outcomego_routine"
   WHERE "id" IN (
     SELECT md5('perf-ios-group-routine-' || routine_number)::uuid
     FROM generate_series(1, 250) AS routine_number
@@ -911,7 +911,7 @@ BEGIN
   END IF;
 
   SELECT count(*) INTO actual_count
-  FROM "Run"
+  FROM "outcomego_run"
   WHERE "id" IN (
     SELECT md5('perf-ios-activity-run-' || run_number)::uuid
     FROM generate_series(1, 101) AS run_number
@@ -922,7 +922,7 @@ BEGIN
   END IF;
 
   SELECT count(*) INTO actual_count
-  FROM "RunItem"
+  FROM "outcomego_run_item"
   WHERE "id" IN (
     SELECT md5('perf-ios-activity-run-item-' || item_number)::uuid
     FROM generate_series(1, 1001) AS item_number
@@ -933,7 +933,7 @@ BEGIN
   END IF;
 
   SELECT count(*) INTO actual_count
-  FROM "SubagentAttempt"
+  FROM "outcomego_subagent_attempt"
   WHERE "id" IN (
     SELECT md5('perf-ios-activity-subagent-attempt-' || subagent_number)::uuid
     FROM generate_series(1, 101) AS subagent_number
@@ -945,11 +945,11 @@ BEGIN
 END
 $ios_fixture_guard$;
 
-ANALYZE "Message";
-ANALYZE "Run";
-ANALYZE "RunItem";
-ANALYZE "Subagent";
-ANALYZE "SubagentAttempt";
+ANALYZE "message";
+ANALYZE "outcomego_run";
+ANALYZE "outcomego_run_item";
+ANALYZE "outcomego_subagent";
+ANALYZE "outcomego_subagent_attempt";
 
 COMMIT;
 
@@ -966,7 +966,7 @@ SELECT
 -- Seeded routines must be runnable from the same editor exercised by the UI
 -- acceptance pass. A Routine without its current immutable revision can be
 -- listed and edited, but Run now cannot create a valid execution.
-INSERT INTO "RoutineRevision" (
+INSERT INTO "outcomego_routine_revision" (
   "id", "routineId", "revision", "name", "prompt", "scheduleText", "scheduleKind",
   "cronExpression", "intervalSeconds", "timezoneMode", "timezone", "enabled", "source",
   "createdAt"
@@ -986,10 +986,10 @@ SELECT
   routine."enabled",
   'performance-seed',
   routine."createdAt"
-FROM "Routine" AS routine
+FROM "outcomego_routine" AS routine
 ON CONFLICT ("routineId", "revision") DO NOTHING;
 
-INSERT INTO "Event" ("topic", "entityId", "payload", "createdAt")
+INSERT INTO "outcomego_event" ("topic", "entityId", "payload", "createdAt")
 VALUES (
   'performance.fixture.updated',
   md5('perf-bot-1')::uuid,
@@ -1002,19 +1002,19 @@ VALUES (
   now()
 );
 
-ANALYZE "Bot";
-ANALYZE "Conversation";
-ANALYZE "Channel";
-ANALYZE "ChannelMember";
-ANALYZE "ChannelMessage";
-ANALYZE "Routine";
-ANALYZE "SearchDocument";
-ANALYZE "Event";
+ANALYZE "outcomego_bot";
+ANALYZE "outcomego_conversation";
+ANALYZE "outcomego_channel";
+ANALYZE "outcomego_channel_member";
+ANALYZE "outcomego_channel_message";
+ANALYZE "outcomego_routine";
+ANALYZE "outcomego_search_document";
+ANALYZE "outcomego_event";
 
 SELECT
-  (SELECT count(*) FROM "Bot") AS bots,
-  (SELECT count(*) FROM "Channel") AS channels,
-  (SELECT count(*) FROM "ChannelMessage") AS channel_messages,
-  (SELECT count(*) FROM "Routine") AS routines,
-  (SELECT count(*) FROM "SearchDocument") AS search_documents,
+  (SELECT count(*) FROM "outcomego_bot") AS bots,
+  (SELECT count(*) FROM "outcomego_channel") AS channels,
+  (SELECT count(*) FROM "outcomego_channel_message") AS channel_messages,
+  (SELECT count(*) FROM "outcomego_routine") AS routines,
+  (SELECT count(*) FROM "outcomego_search_document") AS search_documents,
   pg_size_pretty(pg_database_size(current_database())) AS database_size;

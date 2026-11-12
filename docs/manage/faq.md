@@ -1,10 +1,10 @@
 # FAQ
 
-Quick answers to common questions about aiTeamOS.
+Quick answers to common questions about OutcomeGo.
 
 ## Do I have to host it myself?
 
-Yes. aiTeamOS runs on a machine you control, such as your own computer, a home server, or a cloud VM. The [quickstart](../getting-started/quickstart.md) walks you through it.
+Yes. OutcomeGo runs on a machine you control, such as your own computer, a home server, or a cloud VM. The [quickstart](../getting-started/quickstart.md) walks you through it.
 
 ## Does it keep working when I close the app?
 
@@ -12,7 +12,7 @@ Yes. Bots and routines run on the server, so you can close the app and check bac
 
 ## What does it cost?
 
-aiTeamOS is open source under the GPL-3.0 license, and its code is on [GitHub](https://github.com/raghavpillai/aiteamos). You pay for the machine it runs on and for the services you connect, such as your model provider, web search, and transcription. Routines and `aiteamos doctor` also use your model provider.
+OutcomeGo is open source under the GPL-3.0 license, and its code is on [GitHub](https://github.com/jingyi0605/OutcomeGo). You pay for the machine it runs on and for the services you connect, such as your model provider, web search, and transcription. Routines and `outcomego doctor` also use your model provider.
 
 ## Can several bots work at the same time?
 
@@ -48,4 +48,4 @@ There's an iPhone app in beta that you build from source, and an Android app. Se
 
 ## Do updates back up my data?
 
-Only partly. `aiteamos update` backs up the database so it can roll back a failed update. It doesn't back up files, sign-ins, or attachments. See [backups and restore](backups.md).
+Only partly. `outcomego update` backs up the database so it can roll back a failed update. It doesn't back up files, sign-ins, or attachments. See [backups and restore](backups.md).

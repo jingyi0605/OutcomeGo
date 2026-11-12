@@ -3,11 +3,11 @@ import { mkdtemp, rm, mkdir, writeFile, readFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createPrismaClient } from "@aiteamos/db";
+import { createPrismaClient } from "@outcomego/db";
 import { AgentDataStore } from "../src/agent-data";
 import { AgentMessaging } from "../src/index";
 
-const databaseUrl = process.env.AITEAMOS_TEST_DATABASE_URL;
+const databaseUrl = process.env.OUTCOMEGO_TEST_DATABASE_URL;
 
 test.skipIf(!databaseUrl)("first-message attachments do not deadlock concurrent file initialization", async () => {
   const db = createPrismaClient(databaseUrl!);

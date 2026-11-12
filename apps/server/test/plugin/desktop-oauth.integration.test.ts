@@ -1,10 +1,10 @@
 import { expect, test } from "bun:test";
 import { Effect } from "effect";
-import { createAiTeamOSClient } from "../../../../packages/client-core/src";
+import { createOutcomeGoClient } from "../../../../packages/client-core/src";
 import { DesktopPluginOAuth, type PluginOAuthResult } from "../../../desktop/src/main/plugin-oauth";
 import { createPluginFlowFixture } from "./fixtures/plugin-flow";
 
-const databaseUrl = process.env.AITEAMOS_TEST_DATABASE_URL;
+const databaseUrl = process.env.OUTCOMEGO_TEST_DATABASE_URL;
 async function approve(authorizationUrl: string, account = "Account A") {
   const url = new URL(authorizationUrl);
   url.pathname = "/approve";
@@ -26,7 +26,7 @@ test.skipIf(!databaseUrl)(
   "desktop listener → backend routes → provider → database completes and refreshes without desktop",
   async () => {
     const f = await createPluginFlowFixture(databaseUrl!, { callbackMode: "desktop" });
-    const client = createAiTeamOSClient({ baseUrl: f.server.url.origin });
+    const client = createOutcomeGoClient({ baseUrl: f.server.url.origin });
     const results: PluginOAuthResult[] = [];
     const desktop = new DesktopPluginOAuth((result) => results.push(result));
     try {
@@ -91,7 +91,7 @@ test.skipIf(!databaseUrl)(
   "desktop callback is bound to session/redirect/state; public callback cannot redeem it; duplicate completion claims once",
   async () => {
     const f = await createPluginFlowFixture(databaseUrl!);
-    const client = createAiTeamOSClient({ baseUrl: f.server.url.origin });
+    const client = createOutcomeGoClient({ baseUrl: f.server.url.origin });
     try {
       const key = f.definitions[0]!.key;
       await client.installPlugin(key);
@@ -168,7 +168,7 @@ test.skipIf(!databaseUrl)(
   "API rejects arbitrary redirect addresses and expired/replaced attempts; configuration persists callback mode",
   async () => {
     const f = await createPluginFlowFixture(databaseUrl!);
-    const client = createAiTeamOSClient({ baseUrl: f.server.url.origin });
+    const client = createOutcomeGoClient({ baseUrl: f.server.url.origin });
     try {
       const key = f.definitions[0]!.key;
       await client.installPlugin(key);

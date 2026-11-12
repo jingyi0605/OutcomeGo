@@ -12,7 +12,7 @@ const catalog = [
   const name = ["gmail", "google-calendar", "google-drive", "granola"][index];
   const logoUrl = name ? "data:image/png;base64," + readFileSync(new URL(`../../../packages/plugins/${name}/assets/icon.png`, import.meta.url)).toString("base64") : null;
   return { ...p, featured: index < 4, category: "Team plugins", logoUrl,
-    publisher: "OpenTeam QA", version: "1.0.0", setupFields: [], hasSkills: false };
+    publisher: "OutcomeGo QA", version: "1.0.0", setupFields: [], hasSkills: false };
 });
 let installed = new Set<string>();
 let status = "needs_auth";
@@ -77,7 +77,7 @@ const server = Bun.serve({ hostname: "127.0.0.1", port, idleTimeout: 40, async f
   if (path === "/__settings/state") return Response.json({ requests, settings: settings(), access: Object.fromEntries(access), authCount, browserOpenCount });
   if (path === "/__settings/oauth") {
     browserOpenCount++;
-    return new Response("<!doctype html><title>Isolated QA authorization</title><p>Inert authorization handoff. No credentials are requested and no provider is contacted. Return to OpenTeam Swift.</p>", { headers: { "content-type": "text/html", "cache-control": "no-store" } });
+    return new Response("<!doctype html><title>Isolated QA authorization</title><p>Inert authorization handoff. No credentials are requested and no provider is contacted. Return to OutcomeGo Swift.</p>", { headers: { "content-type": "text/html", "cache-control": "no-store" } });
   }
   if (path.startsWith("/api/v0/plugin")) {
     requests.push({ method, path, query: url.search, input });

@@ -12,13 +12,13 @@ import {
 
 const scopedCommands = (text: string, result: DoctorResult): string => {
   const program = cliCommand();
-  if (!result.commandDirectory && program === "aiteamos") return text;
+  if (!result.commandDirectory && program === "outcomego") return text;
   const path = result.commandDirectory
     ? ` --dir '${result.commandDirectory.replace(/'/g, result.platform === "win32" ? "''" : "'\\''")}'`
     : "";
   return text.replace(
-    // Skip names inside a path the hint already resolved, such as /home/me/.local/bin/aiteamos.
-    /(?<![\w./\\'-])aiteamos (provider list|model list|install|setup|start|status|doctor|logs|update)\b(?! --dir\b)/g,
+    // Skip names inside a path the hint already resolved, such as /home/me/.local/bin/outcomego.
+    /(?<![\w./\\'-])outcomego (provider list|model list|install|setup|start|status|doctor|logs|update)\b(?! --dir\b)/g,
     (_command, name: string) => `${program} ${name}${path}`
   );
 };
@@ -27,16 +27,16 @@ const checkAction = (check: DoctorCheck): string | undefined => {
   if (check.action) return check.action;
   switch (check.label) {
     case "Platform":
-      return cliTranslate("Install the aiTeamOS server on an x64 or arm64 host.");
+      return cliTranslate("Install the OutcomeGo server on an x64 or arm64 host.");
     case "Memory":
-      return cliTranslate("Use a host with at least 8 GiB of RAM for the aiTeamOS server.");
+      return cliTranslate("Use a host with at least 8 GiB of RAM for the OutcomeGo server.");
     case "Disk":
       return cliTranslate(
-        "Free space on the installation disk. For a new installation, choose a disk with more space using aiteamos install --dir <path>."
+        "Free space on the installation disk. For a new installation, choose a disk with more space using outcomego install --dir <path>."
       );
     case "Installation directory":
       return cliTranslate(
-        "Check that your user can write to the reported directory, or choose a writable directory with aiteamos install --dir <path>."
+        "Check that your user can write to the reported directory, or choose a writable directory with outcomego install --dir <path>."
       );
     case "Docker CLI":
       return cliTranslate(
@@ -54,18 +54,18 @@ const checkAction = (check: DoctorCheck): string | undefined => {
     case "Installation":
       return check.level === "fail"
         ? cliTranslate(
-            "Restore the missing or invalid installation files from a known-good backup, or use aiteamos install --dir <path> for a separate new installation."
+            "Restore the missing or invalid installation files from a known-good backup, or use outcomego install --dir <path> for a separate new installation."
           )
         : undefined;
     case "Local ports":
       return check.level === "fail"
         ? cliTranslate(
-            "Identify which application is using the reported port. Stop it if appropriate, or choose another API port during guided installation or aiteamos setup; the screen-viewer ports must be available."
+            "Identify which application is using the reported port. Stop it if appropriate, or choose another API port during guided installation or outcomego setup; the screen-viewer ports must be available."
           )
         : undefined;
     case "Secrets":
       return cliTranslate(
-        "Restrict the reported configuration file to owner-only access before starting aiTeamOS."
+        "Restrict the reported configuration file to owner-only access before starting OutcomeGo."
       );
     case "Secret values":
       return cliTranslate(
@@ -74,43 +74,43 @@ const checkAction = (check: DoctorCheck): string | undefined => {
     case "Configuration":
     case "Compose configuration":
       return cliTranslate(
-        "Correct the reported error in the installation's configuration files, or restore them from a known-good backup before starting aiTeamOS."
+        "Correct the reported error in the installation's configuration files, or restore them from a known-good backup before starting OutcomeGo."
       );
     case "Owner account":
-      return cliTranslate("Run aiteamos setup to create your account.");
+      return cliTranslate("Run outcomego setup to create your account.");
     case "Network exposure":
       return check.level === "fail"
         ? cliTranslate(
-            "Run aiteamos setup to repair the access mode, public URL, and bind addresses."
+            "Run outcomego setup to repair the access mode, public URL, and bind addresses."
           )
         : cliTranslate(
-            "Keep plain HTTP on a trusted LAN or VPN. For access from anywhere, choose an HTTPS connection with aiteamos setup."
+            "Keep plain HTTP on a trusted LAN or VPN. For access from anywhere, choose an HTTPS connection with outcomego setup."
           );
     case "Compose services":
       if (!/^not running:/i.test(check.detail))
         return cliTranslate(
-          "Docker could not list the services. Run docker info, then inspect the reported Compose error before trying aiteamos status again."
+          "Docker could not list the services. Run docker info, then inspect the reported Compose error before trying outcomego status again."
         );
       return cliTranslate(
-        "Run aiteamos start to start the missing services. If startup fails, inspect aiteamos logs."
+        "Run outcomego start to start the missing services. If startup fails, inspect outcomego logs."
       );
     case "Container health":
-    case "aiTeamOS health":
+    case "OutcomeGo health":
       if (/expected release|was not reported/i.test(check.detail))
         return cliTranslate(
-          "Run aiteamos status to check which server release is running. Verify the API port belongs to this installation before using aiteamos update to align its release."
+          "Run outcomego status to check which server release is running. Verify the API port belongs to this installation before using outcomego update to align its release."
         );
       if (/another.*(?:server|instance)|different.*instance|foreign/i.test(check.detail))
         return cliTranslate(
-          "Identify the aiTeamOS instance using the reported API port. Use the intended installation's --dir path, or choose an unused API port in aiteamos setup."
+          "Identify the OutcomeGo instance using the reported API port. Use the intended installation's --dir path, or choose an unused API port in outcomego setup."
         );
       return cliTranslate(
-        "Run aiteamos status and inspect aiteamos logs for unhealthy or stopped services; resolve the reported startup or connection error."
+        "Run outcomego status and inspect outcomego logs for unhealthy or stopped services; resolve the reported startup or connection error."
       );
     case "Schema setup":
     case "Database":
       return cliTranslate(
-        "Inspect aiteamos logs migrate and aiteamos logs postgres for database startup or migration errors."
+        "Inspect outcomego logs migrate and outcomego logs postgres for database startup or migration errors."
       );
     case "Pending jobs":
     case "Run leases":
@@ -118,7 +118,7 @@ const checkAction = (check: DoctorCheck): string | undefined => {
     case "Queue round trip":
       if (/authenticated computer API/i.test(check.detail))
         return cliTranslate(
-          "Inspect aiteamos logs computer and confirm the worker and computer use the same installation control token."
+          "Inspect outcomego logs computer and confirm the worker and computer use the same installation control token."
         );
       if (/storage access/i.test(check.detail))
         return cliTranslate(
@@ -126,59 +126,59 @@ const checkAction = (check: DoctorCheck): string | undefined => {
         );
       if (/database\/schema/i.test(check.detail))
         return cliTranslate(
-          "Inspect aiteamos logs postgres and aiteamos logs migrate; the worker needs the application tables and job queues."
+          "Inspect outcomego logs postgres and outcomego logs migrate; the worker needs the application tables and job queues."
         );
       return cliTranslate(
-        "Inspect aiteamos logs worker for stalled jobs, expired leases, or database connection errors."
+        "Inspect outcomego logs worker for stalled jobs, expired leases, or database connection errors."
       );
     case "Computer API":
       if (/HTTP (401|403)/i.test(check.detail))
         return cliTranslate(
-          "The computer rejected the server's credentials. Check that both services use the installation's AITEAMOS_CONTROL_TOKEN, then recreate the affected service with the corrected configuration."
+          "The computer rejected the server's credentials. Check that both services use the installation's OUTCOMEGO_CONTROL_TOKEN, then recreate the affected service with the corrected configuration."
         );
-      return cliTranslate("Inspect aiteamos logs computer for startup or connection errors.");
+      return cliTranslate("Inspect outcomego logs computer for startup or connection errors.");
     case "Public DNS":
       return cliTranslate(
         "Check that the public hostname resolves to this server's reachable address, then retry after the DNS change has propagated."
       );
     case "TLS certificate":
       return cliTranslate(
-        "Check the public hostname and certificate on your HTTPS proxy. For bundled HTTPS, inspect aiteamos logs caddy and verify inbound ports 80 and 443 are reachable."
+        "Check the public hostname and certificate on your HTTPS proxy. For bundled HTTPS, inspect outcomego logs caddy and verify inbound ports 80 and 443 are reachable."
       );
     case "Public endpoint":
       return cliTranslate(
-        "Check the public URL, firewall, and reverse proxy; verify the proxy forwards HTTP and WebSocket traffic to aiTeamOS's configured API port."
+        "Check the public URL, firewall, and reverse proxy; verify the proxy forwards HTTP and WebSocket traffic to OutcomeGo's configured API port."
       );
     case "Inference":
     case "AI connection":
       // Models are managed in the apps; the model command covers servers without one.
       if (/429|quota|billing|rate.?limit/i.test(check.detail))
         return cliTranslate(
-          "Check the model provider's quota or billing, or wait for its rate limit to reset. To switch models, use Settings → Server in the aiTeamOS app, or run aiteamos model."
+          "Check the model provider's quota or billing, or wait for its rate limit to reset. To switch models, use Settings → Server in the OutcomeGo app, or run outcomego model."
         );
       if (/401|403|invalid.*(?:key|token)|unauthorized|authentication/i.test(check.detail))
         return cliTranslate(
-          "Reconnect the provider in the aiTeamOS app under Settings → Server. On a server without the app, run aiteamos model."
+          "Reconnect the provider in the OutcomeGo app under Settings → Server. On a server without the app, run outcomego model."
         );
       if (/timed out|timeout|ECONNREFUSED|ENOTFOUND|network|connection refused/i.test(check.detail))
         return cliTranslate(
-          "Check network access from the server and computer services to the model provider, including proxy or VPN settings. Inspect aiteamos logs computer and retry aiteamos doctor."
+          "Check network access from the server and computer services to the model provider, including proxy or VPN settings. Inspect outcomego logs computer and retry outcomego doctor."
         );
       if (/model.*(?:unavailable|not found|does not exist|not supported)/i.test(check.detail))
         return cliTranslate(
-          "Choose an available model in the aiTeamOS app under Settings → Server. On a server without the app, run aiteamos model list to see the models this account can use."
+          "Choose an available model in the OutcomeGo app under Settings → Server. On a server without the app, run outcomego model list to see the models this account can use."
         );
       if (/\bmissing\b/i.test(check.detail))
         return cliTranslate(
-          "Connect a model in the aiTeamOS app under Settings → Server. On a server without the app, run aiteamos model."
+          "Connect a model in the OutcomeGo app under Settings → Server. On a server without the app, run outcomego model."
         );
       return cliTranslate(
-        "Check the model connection in the aiTeamOS app under Settings → Server. On a server without the app, run aiteamos provider list and aiteamos model list."
+        "Check the model connection in the OutcomeGo app under Settings → Server. On a server without the app, run outcomego provider list and outcomego model list."
       );
     case "Transcription":
       if (/server connection|installation credentials/i.test(check.detail))
         return cliTranslate(
-          "Run aiteamos status and check the server connection and installation control token. Inspect aiteamos logs server before testing transcription again."
+          "Run outcomego status and check the server connection and installation control token. Inspect outcomego logs server before testing transcription again."
         );
       return cliTranslate(
         "Open Settings → Server → Transcription, check the provider URL, model and key, then use Test connection."
@@ -189,28 +189,28 @@ const checkAction = (check: DoctorCheck): string | undefined => {
       );
     case "iOS push credentials":
       return cliTranslate(
-        "Run aiteamos notifications configure --config ./apns.json to import the APNs key and apply it live. The topic must match the iOS app bundle ID (dev.aiteamos.mobile for the distributed app). Then run aiteamos notifications status and aiteamos doctor."
+        "Run outcomego notifications configure --config ./apns.json to import the APNs key and apply it live. The topic must match the iOS app bundle ID (dev.outcomego.mobile for the distributed app). Then run outcomego notifications status and outcomego doctor."
       );
     case "iOS push delivery":
       return cliTranslate(
-        "Inspect aiteamos logs worker for APNs delivery errors and check the push credentials and device registration. Verify a real alert on the iPhone with the conversation closed and Focus allowing aiTeamOS."
+        "Inspect outcomego logs worker for APNs delivery errors and check the push credentials and device registration. Verify a real alert on the iPhone with the conversation closed and Focus allowing OutcomeGo."
       );
   }
   if (check.label.includes("storage"))
     return cliTranslate(
-      "Check that the reported volume is writable by the service's user and has free space. Inspect aiteamos logs for storage errors."
+      "Check that the reported volume is writable by the service's user and has free space. Inspect outcomego logs for storage errors."
     );
   if (check.label.endsWith(" container")) {
     const service = check.label.slice(0, -" container".length);
     if (["postgres", "server", "worker", "computer", "caddy"].includes(service))
       return cliTranslate(
-        "Inspect aiteamos logs {service} to identify why the container stopped or became unhealthy.",
+        "Inspect outcomego logs {service} to identify why the container stopped or became unhealthy.",
         { service }
       );
   }
   return check.level === "fail"
     ? cliTranslate(
-        "Review the reported {label} error and inspect aiteamos logs for further details.",
+        "Review the reported {label} error and inspect outcomego logs for further details.",
         { label: check.label }
       )
     : undefined;
@@ -247,7 +247,7 @@ export const doctorNextSteps = (
     if (failed("Owner account") && check.label === "Compose services") continue;
     if (
       ["Inference", "AI connection"].includes(check.label) &&
-      (failed("aiTeamOS health") || failed("Owner account"))
+      (failed("OutcomeGo health") || failed("Owner account"))
     )
       continue;
     if (isSkippedDoctorCheck(check)) continue;
@@ -257,11 +257,11 @@ export const doctorNextSteps = (
   if (!result.installed && (!options.installInProgress || !result.ok))
     steps.push(
       result.ok
-        ? cliTranslate("Run aiteamos install to complete the installation.")
-        : cliTranslate("After resolving the failed checks, run aiteamos install again.")
+        ? cliTranslate("Run outcomego install to complete the installation.")
+        : cliTranslate("After resolving the failed checks, run outcomego install again.")
     );
   else if (!result.ok)
-    steps.push(cliTranslate("After completing these steps, run aiteamos doctor again."));
+    steps.push(cliTranslate("After completing these steps, run outcomego doctor again."));
   return [...new Set(steps)].map((step) => clean(scopedCommands(step, result)));
 };
 
@@ -327,7 +327,7 @@ const group = ({ label }: DoctorCheck): string => {
     [
       "Container health",
       "Compose services",
-      "aiTeamOS health",
+      "OutcomeGo health",
       "Computer API",
       "Database",
       "Pending jobs",
@@ -372,7 +372,7 @@ export const renderDoctor = (
   const lines = [
     "",
     `  ${paint("╭" + "─".repeat(width - 4) + "╮", 36)}`,
-    frame(paint("AITEAMOS", 1) + paint(width < 30 ? " / doctor" : "  /  doctor", 90)),
+    frame(paint("OutcomeGo", 1) + paint(width < 30 ? " / doctor" : "  /  doctor", 90)),
     frame(paint(cliTranslate(state), tone)),
     `  ${paint("╰" + "─".repeat(width - 4) + "╯", 36)}`,
   ];

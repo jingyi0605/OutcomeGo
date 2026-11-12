@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { createHash } from "node:crypto";
-import { importPackage, type PluginDefinition } from "@aiteamos/plugin-sdk";
-import { exportPackageArchive, importPackageArchive } from "@aiteamos/plugin-sdk/archive";
+import { importPackage, type PluginDefinition } from "@outcomego/plugin-sdk";
+import { exportPackageArchive, importPackageArchive } from "@outcomego/plugin-sdk/archive";
 import { resolveUpstreamPlugin } from "../../src/plugins/upstream-package";
 
 const originals = {

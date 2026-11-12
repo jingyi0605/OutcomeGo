@@ -13,27 +13,27 @@ describe("browser authority recovery set", () => {
   });
 
   test("backs up encrypted live state, native profile state, and client certificates", async () => {
-    root = await mkdtemp(join(tmpdir(), "aiteamos-browser-recovery-"));
+    root = await mkdtemp(join(tmpdir(), "outcomego-browser-recovery-"));
     const home = join(root, "home");
     const workspace = join(root, "workspace");
     const storeRoot = join(root, "box-store");
     const sandRoot = join(home, "sand-data");
     await Promise.all([
-      mkdir(join(home, ".aiteamos", "browser-profile-authority", "current"), {
+      mkdir(join(home, ".outcomego", "browser-profile-authority", "current"), {
         recursive: true,
       }),
-      mkdir(join(home, ".aiteamos", "browser-authority.parts"), { recursive: true }),
+      mkdir(join(home, ".outcomego", "browser-authority.parts"), { recursive: true }),
       mkdir(join(home, ".pki", "nssdb"), { recursive: true }),
       mkdir(join(home, ".pi", "agent"), { recursive: true }),
       mkdir(sandRoot, { recursive: true }),
       mkdir(workspace, { recursive: true }),
     ]);
     await Promise.all([
-      writeFile(join(home, ".aiteamos", "browser-authority.key"), "encrypted-key"),
-      writeFile(join(home, ".aiteamos", "browser-authority.json.enc"), "encrypted-state"),
-      writeFile(join(home, ".aiteamos", "browser-authority.parts", "a".repeat(64)), "encrypted-part"),
+      writeFile(join(home, ".outcomego", "browser-authority.key"), "encrypted-key"),
+      writeFile(join(home, ".outcomego", "browser-authority.json.enc"), "encrypted-state"),
+      writeFile(join(home, ".outcomego", "browser-authority.parts", "a".repeat(64)), "encrypted-part"),
       writeFile(
-        join(home, ".aiteamos", "browser-profile-authority", "current", "manifest.json"),
+        join(home, ".outcomego", "browser-profile-authority", "current", "manifest.json"),
         "{}"
       ),
       writeFile(join(home, ".pki", "nssdb", "cert9.db"), "certificate-db"),
@@ -43,21 +43,21 @@ describe("browser authority recovery set", () => {
     const manifest = await sync.snapshotOut();
     const paths = new Set(manifest.files.map((file) => file.path));
 
-    expect(paths.has("home/box/.aiteamos/browser-authority.key")).toBeTrue();
-    expect(paths.has("home/box/.aiteamos/browser-authority.json.enc")).toBeTrue();
+    expect(paths.has("home/box/.outcomego/browser-authority.key")).toBeTrue();
+    expect(paths.has("home/box/.outcomego/browser-authority.json.enc")).toBeTrue();
     expect(
-      paths.has("home/box/.aiteamos/browser-profile-authority/current/manifest.json")
+      paths.has("home/box/.outcomego/browser-profile-authority/current/manifest.json")
     ).toBeTrue();
     expect(paths.has("home/box/.pki/nssdb/cert9.db")).toBeTrue();
-    expect(paths.has(`home/box/.aiteamos/browser-authority.parts/${"a".repeat(64)}`)).toBeTrue();
+    expect(paths.has(`home/box/.outcomego/browser-authority.parts/${"a".repeat(64)}`)).toBeTrue();
 
     // Browser-only snapshots pick up new parts and drop removed ones.
-    await rm(join(home, ".aiteamos", "browser-authority.parts", "a".repeat(64)));
-    await writeFile(join(home, ".aiteamos", "browser-authority.parts", "b".repeat(64)), "next-part");
+    await rm(join(home, ".outcomego", "browser-authority.parts", "a".repeat(64)));
+    await writeFile(join(home, ".outcomego", "browser-authority.parts", "b".repeat(64)), "next-part");
     const browserOnly = await sync.snapshotOut({ all: false, chrome: true });
     const parts = browserOnly.files
       .map((file) => file.path)
       .filter((path) => path.includes("browser-authority.parts/"));
-    expect(parts).toEqual([`home/box/.aiteamos/browser-authority.parts/${"b".repeat(64)}`]);
+    expect(parts).toEqual([`home/box/.outcomego/browser-authority.parts/${"b".repeat(64)}`]);
   });
 });

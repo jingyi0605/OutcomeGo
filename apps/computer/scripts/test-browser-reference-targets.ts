@@ -9,7 +9,7 @@ const driver = await outOfProcessPlaywright();
 let context: any, session: BrowserUseSession | undefined;
 const text = (r: any) => r.content.filter((x: any) => x.type === "text").map((x: any) => x.text).join("\n");
 try {
-  context = await driver.playwright.chromium.launchPersistentContext(root, {headless:true, executablePath:process.env.AITEAMOS_BROWSER_TEST_EXECUTABLE, args:["--remote-debugging-port=0", ...(process.platform === "linux" ? ["--no-sandbox"] : [])]});
+  context = await driver.playwright.chromium.launchPersistentContext(root, {headless:true, executablePath:process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE, args:["--remote-debugging-port=0", ...(process.platform === "linux" ? ["--no-sandbox"] : [])]});
   const port = (await readFile(join(root,"DevToolsActivePort"),"utf8")).split("\n")[0];
   session = await BrowserUseSession.connect(`http://127.0.0.1:${port}`,join(root,"artifacts"),false,join(root,"downloads"));
   const page = await (session as any).ensurePage();

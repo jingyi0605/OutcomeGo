@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
-import { isAiTeamOSVersion } from "@aiteamos/contracts/version-compatibility";
+import { isOutcomeGoVersion } from "@outcomego/contracts/version-compatibility";
 
 interface Installation {
   directory: string;
@@ -15,14 +15,14 @@ const defaultInstallDirectory = (
   platform = process.platform,
   home = homedir()
 ) => {
-  if (environment.AITEAMOS_HOME?.trim()) return resolve(environment.AITEAMOS_HOME.trim());
+  if (environment.OUTCOMEGO_HOME?.trim()) return resolve(environment.OUTCOMEGO_HOME.trim());
   if (platform === "win32") {
-    return resolve(environment.LOCALAPPDATA?.trim() || join(home, "AppData", "Local"), "aiTeamOS");
+    return resolve(environment.LOCALAPPDATA?.trim() || join(home, "AppData", "Local"), "OutcomeGo");
   }
   if (environment.XDG_CONFIG_HOME?.trim()) {
-    return resolve(environment.XDG_CONFIG_HOME.trim(), "aiteamos");
+    return resolve(environment.XDG_CONFIG_HOME.trim(), "outcomego");
   }
-  return resolve(home, ".aiteamos");
+  return resolve(home, ".outcomego");
 };
 
 const environmentValues = (contents: string) => {
@@ -57,12 +57,12 @@ export const readManagedInstallation = (
       version?: unknown;
       ownerUsername?: unknown;
     };
-    if (typeof manifest.version !== "string" || !isAiTeamOSVersion(manifest.version)) return null;
+    if (typeof manifest.version !== "string" || !isOutcomeGoVersion(manifest.version)) return null;
     const values = environmentValues(readFileSync(environmentPath, "utf8"));
     return {
       directory,
       version: manifest.version,
-      apiPort: values.get("AITEAMOS_API_PORT") || "8787",
+      apiPort: values.get("OUTCOMEGO_API_PORT") || "8787",
       ...(typeof manifest.ownerUsername === "string" && manifest.ownerUsername
         ? { ownerUsername: manifest.ownerUsername }
         : {}),

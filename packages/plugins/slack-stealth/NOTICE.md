@@ -11,5 +11,5 @@ license; its complete copyright and license notice is retained in
 The original source and dependency information are available at the pinned
 [upstream revision](https://github.com/korotovsky/slack-mcp-server/tree/a079b3cd4d5836d791c942a9fc107987e7865b37).
 [connector/release.json](connector/release.json) records the build provenance and
-executable checksums. aiTeamOS's launcher and plugin configuration are separate
+executable checksums. OutcomeGo's launcher and plugin configuration are separate
 from the upstream server. Dependencies retain their respective licenses.

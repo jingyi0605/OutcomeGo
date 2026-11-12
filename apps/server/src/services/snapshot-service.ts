@@ -1,4 +1,4 @@
-import { notificationRouting, channelNotificationStates } from "@aiteamos/messaging";
+import { notificationRouting, channelNotificationStates } from "@outcomego/messaging";
 import {
   ApiError,
   type ChannelClientState,
@@ -10,8 +10,8 @@ import {
   type ClientSnapshot,
   type ServerInferenceSettings,
   type Snapshot,
-} from "@aiteamos/contracts";
-import { Prisma, type PrismaClient } from "@aiteamos/db";
+} from "@outcomego/contracts";
+import { Prisma, type PrismaClient } from "@outcomego/db";
 import { serviceEffect } from "./service-utils";
 import {
   channelUnreadCounts,
@@ -303,7 +303,7 @@ export class SnapshotService {
                   message."content",
                   message."metadata",
                   message."createdAt"
-                FROM "ChannelMessage" AS message
+                FROM "outcomego_channel_message" AS message
                 WHERE message."channelId" = requested."channelId"
                 ORDER BY message."sequence" DESC
                 LIMIT 1
@@ -645,12 +645,12 @@ export class SnapshotService {
     return this.prisma.$executeRaw`
       WITH retention_floor AS (
         SELECT "sequence"
-        FROM "Event"
+        FROM "outcomego_event"
         ORDER BY "sequence" DESC
         OFFSET ${MAX_RETAINED_EVENTS - 1}
         LIMIT 1
       )
-      DELETE FROM "Event"
+      DELETE FROM "outcomego_event"
       WHERE "sequence" < (SELECT "sequence" FROM retention_floor)
     `;
   }

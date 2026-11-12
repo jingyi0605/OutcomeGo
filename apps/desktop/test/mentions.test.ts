@@ -7,12 +7,12 @@ import {
   shouldRefreshMentionPickerOnKeyUp,
 } from "../src/renderer/lib/mentions";
 
-describe("aiTeamOS-compatible mentions", () => {
+describe("OutcomeGo-compatible mentions", () => {
   test("uses the compact lowercase name as the routed handle", () => {
     expect(mentionHandleFor("Parity Probe v3")).toBe("parityprobev3");
   });
 
-  test("persists mention chips as aiTeamOS-compatible flattened ProseMirror text", () => {
+  test("persists mention chips as OutcomeGo-compatible flattened ProseMirror text", () => {
     const segments = [
       { type: "text" as const, text: "Ask " },
       {

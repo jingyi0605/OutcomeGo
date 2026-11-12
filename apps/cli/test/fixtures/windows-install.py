@@ -126,12 +126,12 @@ try:
                 continue
             check(os.environ.get('GITHUB_ACTIONS') == 'true',
                   'Run this suite on a disposable Windows runner without Docker on PATH.')
-            hidden = executable.with_name(executable.name + '.aiteamos-test-disabled')
+            hidden = executable.with_name(executable.name + '.outcomego-test-disabled')
             check(not hidden.exists(), 'A previous test already hid ' + str(executable))
             executable.rename(hidden)
             hidden_tools.append((executable, hidden))
             print('Temporarily hiding runner Docker CLI: ' + str(executable), flush=True)
-    with tempfile.TemporaryDirectory(prefix='aiteamos Windows install ') as temporary:
+    with tempfile.TemporaryDirectory(prefix='outcomego Windows install ') as temporary:
         base = Path(temporary)
         wrapper = base / 'bootstrap.ps1'
         wrapper.write_text(r'''
@@ -166,8 +166,8 @@ Invoke-Expression ([System.IO.File]::ReadAllText($env:NATIVE_INSTALL_SCRIPT))
                 # PowerShell 7 runner's module path breaks 5.1's Get-FileHash autoload.
                 env = {key: value for key, value in os.environ.items()
                        if key.upper() not in ('PATH', 'PSMODULEPATH')}
-                env.update({'PATH': path, 'AITEAMOS_HOME': str(installation),
-                            'AITEAMOS_BIN_DIR': str(bin_directory), 'AITEAMOS_VERSION': '0.0.1',
+                env.update({'PATH': path, 'OUTCOMEGO_HOME': str(installation),
+                            'OUTCOMEGO_BIN_DIR': str(bin_directory), 'OUTCOMEGO_VERSION': '0.0.1',
                             'NATIVE_ASSET_URL': asset_url,
                             'NATIVE_INSTALL_SCRIPT': str(OUTPUT / 'install.ps1'),
                             'NATIVE_DOCKER_MODE': scenario, 'TERM': 'xterm-256color',
@@ -182,7 +182,7 @@ Invoke-Expression ([System.IO.File]::ReadAllText($env:NATIVE_INSTALL_SCRIPT))
                      '-File', str(wrapper)], env, terminal=cancel,
                     key=KEYS[scenario.removeprefix('cancel-')] if cancel else None)
                 (OUTPUT / (name + '.log')).write_text(output, encoding='utf-8')
-                cli = bin_directory / 'aiteamos.exe'
+                cli = bin_directory / 'outcomego.exe'
                 cleaned = ' '.join(ANSI.sub('', output).split())
                 if scenario == 'missing-gzip-rejected':
                     check(code != 0 and not cli.exists() and 'gzip unavailable' in cleaned,
@@ -193,7 +193,7 @@ Invoke-Expression ([System.IO.File]::ReadAllText($env:NATIVE_INSTALL_SCRIPT))
                 else:
                     check(cli.is_file(), 'CLI was not installed', output)
                     check(hashlib.sha256(cli.read_bytes()).digest() ==
-                          hashlib.sha256((ASSETS / 'aiteamos-windows-x64.exe').read_bytes()).digest(),
+                          hashlib.sha256((ASSETS / 'outcomego-windows-x64.exe').read_bytes()).digest(),
                           'Installed CLI differs from verified asset')
                     check('CLI installed' in cleaned and 'Download verified' in cleaned,
                           'Installer progress is missing', output)
@@ -201,7 +201,7 @@ Invoke-Expression ([System.IO.File]::ReadAllText($env:NATIVE_INSTALL_SCRIPT))
                           'Installer printed escaped glyphs', output)
                     if cancel:
                         check(code == 0 and 'Setup cancelled' in cleaned and
-                              'aiteamos setup' in cleaned, 'Cancellation was not actionable', output)
+                              'outcomego setup' in cleaned, 'Cancellation was not actionable', output)
                     else:
                         expected = {
                             'missing-docker': 'Install Docker Desktop',

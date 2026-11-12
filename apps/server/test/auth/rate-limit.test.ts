@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, test } from "bun:test";
 
-process.env.AITEAMOS_AUTH_SECRET ??= "aiteamos-test-auth-secret-that-is-at-least-32-characters";
-process.env.DATABASE_URL ??= "postgresql://aiteamos:aiteamos@127.0.0.1:1/aiteamos";
+process.env.OUTCOMEGO_AUTH_SECRET ??= "outcomego-test-auth-secret-that-is-at-least-32-characters";
+process.env.DATABASE_URL ??= "postgresql://outcomego:outcomego@127.0.0.1:1/outcomego";
 
 const { auth, authPrisma } = await import("../../src/auth");
 

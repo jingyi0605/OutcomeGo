@@ -1,9 +1,9 @@
 import { expect, test } from "bun:test";
 import { randomUUID } from "node:crypto";
-import { createPrismaClient } from "@aiteamos/db";
+import { createPrismaClient } from "@outcomego/db";
 import { RoutineService } from "../src/routines";
 
-const databaseUrl = process.env.AITEAMOS_TEST_DATABASE_URL;
+const databaseUrl = process.env.OUTCOMEGO_TEST_DATABASE_URL;
 
 test.skipIf(!databaseUrl)("interval and weekday routines can be created, test-run, and dispatched when due", async () => {
 

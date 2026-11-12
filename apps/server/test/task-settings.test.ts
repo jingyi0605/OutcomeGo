@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { Effect } from "effect";
 import { SettingsService } from "../src/services/settings-service";
-import { defaultTaskConfiguration, type TaskConfiguration } from "@aiteamos/contracts/task-configuration";
+import { defaultTaskConfiguration, type TaskConfiguration } from "@outcomego/contracts/task-configuration";
 
 test("Task settings verify every model before changing the saved configuration", async () => {
   let saved = defaultTaskConfiguration();

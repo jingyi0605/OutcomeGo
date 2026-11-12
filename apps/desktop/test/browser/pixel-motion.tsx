@@ -1,8 +1,8 @@
-import type { BotRecipe } from "@aiteamos/contracts";
+import type { BotRecipe } from "@outcomego/contracts";
 import { StrictMode, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import "../../src/renderer/styles.css";
-import { TemplateDetails } from "../../src/renderer/components/aiteamos/template-details";
+import { TemplateDetails } from "../../src/renderer/components/outcomego/template-details";
 
 // Only the shipping presentation component and the existing fictional reference
 // facts are used. This fixture cannot publish, call a server, or change a bot.

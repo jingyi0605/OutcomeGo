@@ -152,13 +152,13 @@ class SetupRunner implements CommandRunner {
 
 /** Calls that would read, connect, or change a model provider. */
 const providerCalls = (runner: SetupRunner) =>
-  runner.calls.filter((call) => call.args.includes("aiteamos-pi-auth"));
+  runner.calls.filter((call) => call.args.includes("outcomego-pi-auth"));
 
 const localConfiguration = (input: {
   current: ReadonlyMap<string, string>;
   currentOwnerUsername?: string;
 }): SetupConfiguration => {
-  const apiPort = input.current.get("AITEAMOS_API_PORT") ?? "8787";
+  const apiPort = input.current.get("OUTCOMEGO_API_PORT") ?? "8787";
   return {
     accessMode: "local",
     bindHost: "127.0.0.1",
@@ -166,7 +166,7 @@ const localConfiguration = (input: {
     publicHost: "127.0.0.1",
     publicUrl: `http://127.0.0.1:${apiPort}`,
     composeProfiles: "direct",
-    ownerUsername: input.currentOwnerUsername ?? "aiteamos",
+    ownerUsername: input.currentOwnerUsername ?? "outcomego",
     apiPort,
     workerConcurrency: "8",
   };
@@ -186,7 +186,7 @@ const sessionPrompter = (overrides: Partial<SetupConfiguration>): SetupPrompter 
 };
 
 const createSetupFixture = (options: { authenticated?: boolean; owner?: boolean } = {}) => {
-  const directory = mkdtempSync(join(tmpdir(), "aiteamos-cli-provider-setup-"));
+  const directory = mkdtempSync(join(tmpdir(), "outcomego-cli-provider-setup-"));
   temporaryDirectories.push(directory);
   const paths = installationPaths(directory);
   const state = {
@@ -216,12 +216,12 @@ const createSetupFixture = (options: { authenticated?: boolean; owner?: boolean 
   servers.push(server);
   const environment = replaceEnvironmentValue(
     createEnvironment({ version: "1.2.3", workerConcurrency: "8" }),
-    "AITEAMOS_API_PORT",
+    "OUTCOMEGO_API_PORT",
     String(server.port)
   );
   writeFileAtomic(
     paths.compose,
-    "name: aiteamos\nservices:\n  server:\n    image: example/server\n  computer:\n    image: example/computer\n"
+    "name: outcomego\nservices:\n  server:\n    image: example/server\n  computer:\n    image: example/computer\n"
   );
   writeFileAtomic(paths.environment, environment);
   const now = new Date().toISOString();
@@ -229,7 +229,7 @@ const createSetupFixture = (options: { authenticated?: boolean; owner?: boolean 
     schemaVersion: 1,
     repository: "owner/repo",
     version: "1.2.3",
-    composeUrl: "https://example.com/aiteamos-compose.yaml",
+    composeUrl: "https://example.com/outcomego-compose.yaml",
     installedAt: now,
     updatedAt: now,
     ownerUsername: options.owner === false ? undefined : "existing.owner",
@@ -304,11 +304,11 @@ describe("interactive setup", () => {
       replaceEnvironmentValue(
         replaceEnvironmentValue(
           createEnvironment({ version: "1.2.3", workerConcurrency: "8" }),
-          "AITEAMOS_ACCESS_MODE",
+          "OUTCOMEGO_ACCESS_MODE",
           "private"
         ),
-        "AITEAMOS_PUBLIC_HOST",
-        "aiteamos.lan"
+        "OUTCOMEGO_PUBLIC_HOST",
+        "outcomego.lan"
       )
     );
     const prompter = new AnswerPrompter([
@@ -326,8 +326,8 @@ describe("interactive setup", () => {
       accessMode: "private",
       bindHost: "0.0.0.0",
       viewerBindHost: "0.0.0.0",
-      publicHost: "aiteamos.lan",
-      publicUrl: "http://aiteamos.lan:8787",
+      publicHost: "outcomego.lan",
+      publicUrl: "http://outcomego.lan:8787",
       composeProfiles: "direct",
       ownerUsername: "Sam-Pillai",
       ownerPassword: "correct horse battery staple",
@@ -336,11 +336,11 @@ describe("interactive setup", () => {
     });
     expect(prompter.prompts).toEqual([
       "Connection [1]: ",
-      "aiTeamOS username: ",
-      "aiTeamOS username: ",
-      "aiTeamOS username: ",
-      "aiTeamOS password: ",
-      "Confirm aiTeamOS password: ",
+      "OutcomeGo username: ",
+      "OutcomeGo username: ",
+      "OutcomeGo username: ",
+      "OutcomeGo password: ",
+      "Confirm OutcomeGo password: ",
     ]);
   });
 
@@ -350,8 +350,8 @@ describe("interactive setup", () => {
     );
     const prompter = new AnswerPrompter([
       "private",
-      "https://aiteamos",
-      "aiteamos.lan",
+      "https://outcomego",
+      "outcomego.lan",
       "invalid",
       "9444",
       "0",
@@ -369,8 +369,8 @@ describe("interactive setup", () => {
       accessMode: "private",
       bindHost: "0.0.0.0",
       viewerBindHost: "0.0.0.0",
-      publicHost: "aiteamos.lan",
-      publicUrl: "http://aiteamos.lan:9444",
+      publicHost: "outcomego.lan",
+      publicUrl: "http://outcomego.lan:9444",
       composeProfiles: "direct",
       ownerUsername: "sam",
       ownerPassword: "correct horse battery staple",
@@ -527,12 +527,12 @@ describe("interactive setup", () => {
     const updatedContents = readFileSync(fixture.paths.environment, "utf8");
     const updated = parseEnvironment(updatedContents);
     const before = parseEnvironment(fixture.environment);
-    expect(updated.get("AITEAMOS_WORKER_CONCURRENCY")).toBe("4");
-    expect(updated.get("AITEAMOS_CONTROL_TOKEN")).toBe(before.get("AITEAMOS_CONTROL_TOKEN"));
-    expect(updated.get("AITEAMOS_POSTGRES_PASSWORD")).toBe(
-      before.get("AITEAMOS_POSTGRES_PASSWORD")
+    expect(updated.get("OUTCOMEGO_WORKER_CONCURRENCY")).toBe("4");
+    expect(updated.get("OUTCOMEGO_CONTROL_TOKEN")).toBe(before.get("OUTCOMEGO_CONTROL_TOKEN"));
+    expect(updated.get("OUTCOMEGO_POSTGRES_PASSWORD")).toBe(
+      before.get("OUTCOMEGO_POSTGRES_PASSWORD")
     );
-    expect(updatedContents).not.toMatch(/AITEAMOS_PI_|OPENAI_API_KEY|ANTHROPIC/);
+    expect(updatedContents).not.toMatch(/OUTCOMEGO_PI_|OPENAI_API_KEY|ANTHROPIC/);
     if (process.platform !== "win32")
       expect(statSync(fixture.paths.environment).mode & 0o077).toBe(0);
 
@@ -543,7 +543,7 @@ describe("interactive setup", () => {
     expect(runner.index("pull")).toBeGreaterThan(runner.index("config"));
     expect(runner.index("up")).toBeGreaterThan(runner.index("pull"));
     expect(output).toContain(
-      "Downloading aiTeamOS (about 1.5 GB). This can take a few minutes; no more input is needed."
+      "Downloading OutcomeGo (about 1.5 GB). This can take a few minutes; no more input is needed."
     );
     const ownerCall = runner.calls.find((call) => call.args.includes("owner-credentials"));
     expect(ownerCall?.args).not.toContain("correct horse battery staple");
@@ -572,8 +572,8 @@ describe("interactive setup", () => {
     );
 
     const environment = parseEnvironment(readFileSync(fixture.paths.environment, "utf8"));
-    expect(environment.get("AITEAMOS_ACCESS_MODE")).toBe("private");
-    expect(environment.get("AITEAMOS_PUBLIC_HOST")).toBe("100.100.10.5");
+    expect(environment.get("OUTCOMEGO_ACCESS_MODE")).toBe("private");
+    expect(environment.get("OUTCOMEGO_PUBLIC_HOST")).toBe("100.100.10.5");
     expect(prompter.prompts).toEqual(["Connection [2]: ", "Apply this configuration? [Y/n/back] "]);
     expect(fixture.state.inference).toEqual(inference);
     expect(fixture.state.requests.every((request) => request === "GET /api/v0/health")).toBe(true);
@@ -584,7 +584,7 @@ describe("interactive setup", () => {
 
   test("a busy port keeps the typed answers and returns to the start prompt", async () => {
     const fixture = createSetupFixture();
-    const port = parseEnvironment(fixture.environment).get("AITEAMOS_API_PORT")!;
+    const port = parseEnvironment(fixture.environment).get("OUTCOMEGO_API_PORT")!;
     const runner = new SetupRunner();
     runner.tailscale = JSON.stringify({ TCP: { [port]: { TCPForward: `127.0.0.1:${port}` } } });
     const prompter = new AnswerPrompter(["1", "yes", "no"]);
@@ -612,7 +612,7 @@ describe("interactive setup", () => {
 
   test("the interactive session runs startup checks before it returns its answers", async () => {
     const fixture = createSetupFixture();
-    const port = parseEnvironment(fixture.environment).get("AITEAMOS_API_PORT")!;
+    const port = parseEnvironment(fixture.environment).get("OUTCOMEGO_API_PORT")!;
     const runner = new SetupRunner();
     runner.tailscale = JSON.stringify({ TCP: { [port]: { TCPForward: `127.0.0.1:${port}` } } });
     const issues: Array<string | null> = [];
@@ -649,7 +649,7 @@ describe("interactive setup", () => {
 
   test("still refuses a conflict that appears after the session's own check", async () => {
     const fixture = createSetupFixture({ authenticated: true });
-    const port = parseEnvironment(fixture.environment).get("AITEAMOS_API_PORT")!;
+    const port = parseEnvironment(fixture.environment).get("OUTCOMEGO_API_PORT")!;
     const runner = new SetupRunner();
     runner.tailscale = JSON.stringify({ TCP: { [port]: { TCPForward: `127.0.0.1:${port}` } } });
 
@@ -685,26 +685,26 @@ describe("interactive setup", () => {
           bindHost: "0.0.0.0",
           viewerBindHost: "0.0.0.0",
           publicHost: "100.94.42.50",
-          publicUrl: `http://100.94.42.50:${parseEnvironment(fixture.environment).get("AITEAMOS_API_PORT")}`,
-          ownerUsername: "aiteamos",
+          publicUrl: `http://100.94.42.50:${parseEnvironment(fixture.environment).get("OUTCOMEGO_API_PORT")}`,
+          ownerUsername: "outcomego",
           ownerPassword: "correct horse battery staple",
         })
       )
     );
 
-    const port = parseEnvironment(fixture.environment).get("AITEAMOS_API_PORT");
-    expect(output.slice(output.indexOf("aiTeamOS is ready"))).toEqual([
-      "aiTeamOS is ready",
+    const port = parseEnvironment(fixture.environment).get("OUTCOMEGO_API_PORT");
+    expect(output.slice(output.indexOf("OutcomeGo is ready"))).toEqual([
+      "OutcomeGo is ready",
       `Server: http://100.94.42.50:${port}`,
-      "Username: aiteamos",
-      "Next: open the aiTeamOS app and sign in with this server and username.",
-      "Desktop and Android: https://github.com/jingyi0605/ai-TeamOS/releases/latest",
+      "Username: outcomego",
+      "Next: open the OutcomeGo app and sign in with this server and username.",
+      "Desktop and Android: https://github.com/jingyi0605/OutcomeGo/releases/latest",
       "The app will help you connect a model and create your first bot.",
     ]);
     // The connection was just chosen and models belong to the app, so neither is flagged.
     expect(printed).not.toContain("Network exposure");
     expect(printed).not.toContain("Inference");
-    expect(printed).not.toContain("aiteamos setup");
+    expect(printed).not.toContain("outcomego setup");
     // Memory and disk come from the machine running the test, so they may add warnings.
     expect(printed).toMatch(/All checks passed\.|Checks passed with \d+ warnings?\./);
   });
@@ -721,7 +721,7 @@ describe("interactive setup", () => {
         { presentation: silentPresentation },
         sessionPrompter({ ownerPassword: "correct horse battery staple" })
       )
-    ).rejects.toThrow("Could not download aiTeamOS");
+    ).rejects.toThrow("Could not download OutcomeGo");
 
     expect(readFileSync(fixture.paths.environment, "utf8")).toBe(fixture.environment);
     expect(runner.index("up")).toBe(-1);
@@ -771,11 +771,11 @@ describe("interactive setup", () => {
 
     expect(error).toMatchObject({ exitCode: 130 });
     expect((error as Error).message).toMatch(
-      /^Setup was interrupted\. Run .*setup.* to finish setting up aiTeamOS\.$/
+      /^Setup was interrupted\. Run .*setup.* to finish setting up OutcomeGo\.$/
     );
     // The next run offers the same answers.
     expect(
-      parseEnvironment(readFileSync(fixture.paths.environment, "utf8")).get("AITEAMOS_WORKER_CONCURRENCY")
+      parseEnvironment(readFileSync(fixture.paths.environment, "utf8")).get("OUTCOMEGO_WORKER_CONCURRENCY")
     ).toBe("4");
     expect(runner.index("up")).toBe(-1);
     expect(existsSync(fixture.paths.updateLock)).toBe(false);
@@ -786,7 +786,7 @@ describe("interactive setup", () => {
   });
 
   test("Ctrl-C that a Docker command fails on still ends setup with the advice and exit 130", async () => {
-    const directory = mkdtempSync(join(tmpdir(), "aiteamos-cli-setup-interrupt-"));
+    const directory = mkdtempSync(join(tmpdir(), "outcomego-cli-setup-interrupt-"));
     temporaryDirectories.push(directory);
     const child = Bun.spawn(
       [process.execPath, join(import.meta.dir, "fixtures/setup-interrupt.ts"), directory],
@@ -840,7 +840,7 @@ describe("interactive setup", () => {
         })
       )
     ).rejects.toThrow(
-      /^aiTeamOS did not start: Docker Compose failed: startup failed\. Fix the problem, then run .*setup.* again\.$/
+      /^OutcomeGo did not start: Docker Compose failed: startup failed\. Fix the problem, then run .*setup.* again\.$/
     );
 
     expect(readFileSync(fixture.paths.environment, "utf8")).toBe(fixture.environment);
@@ -894,7 +894,7 @@ describe("interactive setup", () => {
         sessionPrompter({ ownerPassword: "correct horse battery staple" })
       )
     ).rejects.toThrow(
-      "Could not download aiTeamOS: Docker Compose failed: pull failed. Check your"
+      "Could not download OutcomeGo: Docker Compose failed: pull failed. Check your"
     );
   });
 
@@ -923,18 +923,18 @@ describe("interactive setup", () => {
     expect(output).toContain("Installed server release: v1.2.3");
   });
 
-  test("an existing installation refuses setup while another aiTeamOS server answers on its port", async () => {
+  test("an existing installation refuses setup while another OutcomeGo server answers on its port", async () => {
     const fixture = createSetupFixture({ authenticated: true });
     const runner = new SetupRunner();
     runner.running = ["postgres"];
-    const port = parseEnvironment(fixture.environment).get("AITEAMOS_API_PORT");
+    const port = parseEnvironment(fixture.environment).get("OUTCOMEGO_API_PORT");
     runner.publishedBy = { [String(port)]: "openteam-dev-server-1\topenteam-dev" };
     const prompter = new AnswerPrompter([]);
 
     await expect(
       setupCommand(fixture.paths, runner, { presentation: silentPresentation }, prompter)
     ).rejects.toThrow(
-      "Another aiTeamOS server is answering at http://127.0.0.1:" +
+      "Another OutcomeGo server is answering at http://127.0.0.1:" +
         `${port}, but this installation's server is not running. It is container openteam-dev-server-1 (Compose project openteam-dev).`
     );
     expect(prompter.prompts).toHaveLength(0);
@@ -942,12 +942,12 @@ describe("interactive setup", () => {
     expect(runner.index("up")).toBe(-1);
   });
 
-  test("a new installation moves to a free port when another aiTeamOS server has the default", async () => {
+  test("a new installation moves to a free port when another OutcomeGo server has the default", async () => {
     const fixture = createSetupFixture({ owner: false });
     const runner = new SetupRunner();
     runner.running = ["postgres"];
-    const port = parseEnvironment(fixture.environment).get("AITEAMOS_API_PORT");
-    runner.publishedBy = { [String(port)]: "aiteamos-server-1\taiteamos" };
+    const port = parseEnvironment(fixture.environment).get("OUTCOMEGO_API_PORT");
+    runner.publishedBy = { [String(port)]: "outcomego-server-1\toutcomego" };
     const seen: Array<Parameters<NonNullable<SetupPrompter["session"]>>[0]> = [];
     const answers = new AnswerPrompter([]);
     const prompter: SetupPrompter = {
@@ -962,7 +962,7 @@ describe("interactive setup", () => {
 
     await setupCommand(fixture.paths, runner, { presentation: silentPresentation }, prompter);
 
-    const offered = seen[0]?.current.get("AITEAMOS_API_PORT");
+    const offered = seen[0]?.current.get("OUTCOMEGO_API_PORT");
     expect(offered).toBeDefined();
     expect(offered).not.toBe(port);
     expect(seen[0]?.notes?.map((note) => note.text)).toContain(
@@ -1096,18 +1096,18 @@ describe("interactive setup", () => {
 
     expect(output).toContain("Setup cancelled; no configuration was changed.");
     expect(output.at(-1)).toMatch(
-      /^Run .*setup.* when you're ready to finish setting up aiTeamOS\.$/
+      /^Run .*setup.* when you're ready to finish setting up OutcomeGo\.$/
     );
     expect(readFileSync(fixture.paths.environment, "utf8")).toBe(fixture.environment);
   });
 
   test("password-only account updates pass the secret over stdin and never command arguments", async () => {
-    const directory = mkdtempSync(join(tmpdir(), "aiteamos-cli-password-"));
+    const directory = mkdtempSync(join(tmpdir(), "outcomego-cli-password-"));
     temporaryDirectories.push(directory);
     const paths = installationPaths(directory);
     writeFileAtomic(
       paths.compose,
-      "name: aiteamos\nservices:\n  server:\n    image: example/server\n"
+      "name: outcomego\nservices:\n  server:\n    image: example/server\n"
     );
     writeFileAtomic(paths.environment, createEnvironment({ version: "1.2.3" }));
     const now = new Date().toISOString();
@@ -1115,10 +1115,10 @@ describe("interactive setup", () => {
       schemaVersion: 1,
       repository: "owner/repo",
       version: "1.2.3",
-      composeUrl: "https://example.com/aiteamos-compose.yaml",
+      composeUrl: "https://example.com/outcomego-compose.yaml",
       installedAt: now,
       updatedAt: now,
-      ownerUsername: "aiteamos",
+      ownerUsername: "outcomego",
     });
     const runner = new SetupRunner();
     await accountUpdateCommand(
@@ -1135,12 +1135,12 @@ describe("interactive setup", () => {
   });
 
   test("account update can change the username alone or both credentials", async () => {
-    const directory = mkdtempSync(join(tmpdir(), "aiteamos-cli-account-"));
+    const directory = mkdtempSync(join(tmpdir(), "outcomego-cli-account-"));
     temporaryDirectories.push(directory);
     const paths = installationPaths(directory);
     writeFileAtomic(
       paths.compose,
-      "name: aiteamos\nservices:\n  server:\n    image: example/server\n"
+      "name: outcomego\nservices:\n  server:\n    image: example/server\n"
     );
     writeFileAtomic(paths.environment, createEnvironment({ version: "1.2.3" }));
     const now = new Date().toISOString();
@@ -1148,10 +1148,10 @@ describe("interactive setup", () => {
       schemaVersion: 1,
       repository: "owner/repo",
       version: "1.2.3",
-      composeUrl: "https://example.com/aiteamos-compose.yaml",
+      composeUrl: "https://example.com/outcomego-compose.yaml",
       installedAt: now,
       updatedAt: now,
-      ownerUsername: "aiteamos",
+      ownerUsername: "outcomego",
     });
 
     const usernameRunner = new SetupRunner();

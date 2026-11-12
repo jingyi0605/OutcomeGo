@@ -110,4 +110,4 @@ export function calendarTools(api = new GoogleApi('https://www.googleapis.com/ca
     }, { properties: { calendarIds: strings('Legacy calendar IDs'), timeMin: string('Legacy start time'), timeMax: string('Legacy end time'), maxResults: page.maxResults }, required: [], anyOf: [{ required: ['attendeeEmails', 'startTime', 'endTime'] }, { required: ['timeMin', 'timeMax'] }] }),
   ];
 }
-if (import.meta.main) await servePlugin('aiteamos-google-calendar', calendarTools());
+if (import.meta.main) await servePlugin('outcomego-google-calendar', calendarTools());

@@ -7,14 +7,14 @@ import type {
   RunItemView,
   RunView,
   SubagentActivityView,
-} from "@aiteamos/contracts";
+} from "@outcomego/contracts";
 import {
   createSnapshotIndex,
   indexA2AAgentNames,
   type SnapshotIndex,
   selectActiveRun,
-} from "@aiteamos/product-core/snapshot";
-import { ACTIVE_RUN_STATUSES } from "@aiteamos/product-core/statuses";
+} from "@outcomego/product-core/snapshot";
+import { ACTIVE_RUN_STATUSES } from "@outcomego/product-core/statuses";
 import { useMemo, useRef } from "react";
 
 export { ACTIVE_RUN_STATUSES, createSnapshotIndex, type SnapshotIndex };

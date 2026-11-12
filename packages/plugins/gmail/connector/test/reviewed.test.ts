@@ -17,7 +17,7 @@ const original = { id: 'msg-1', threadId: 'thread-9', payload: { mimeType: 'text
 test('reviewed sending is hidden from Bots and verifies the account, aliases, signature and replied-to message', async () => {
   const h = harness(gmailTools, [profile, sendAs, { id: 'msg-1', threadId: 'thread-9', payload: { headers: [{ name: 'Subject', value: 'Invoice' }, { name: 'From', value: 'Ann <ann@example.com>' }] } }]);
   const tool = h.tools.find(t => t.name === 'send_reviewed_email')!;
-  expect(tool._meta).toEqual({ 'aiteamos/hostOnly': true });
+  expect(tool._meta).toEqual({ 'outcomego/hostOnly': true });
   const verified = await h.call('send_reviewed_email', { action: 'verify', draft: { from: 'team@example.com', to: ['ann@example.com'], subject: 'Re: Invoice', body: 'x', replyToMessageId: 'msg-1' } });
   expect(verified).toEqual({
     identity: 'me@gmail.com',

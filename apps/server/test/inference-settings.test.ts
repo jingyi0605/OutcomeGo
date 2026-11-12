@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { Effect } from "effect";
 import { SettingsService } from "../src/services/settings-service";
-import { defaultServerInferenceSettings } from "@aiteamos/contracts";
+import { defaultServerInferenceSettings } from "@outcomego/contracts";
 
 test("unconfigured installations can browse models without saving a selection", async () => {
   let saves = 0;

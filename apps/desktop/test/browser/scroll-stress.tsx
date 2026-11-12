@@ -4,13 +4,13 @@ import {
   Conversation,
   ConversationContent,
 } from "../../src/renderer/components/ai-elements/conversation";
-import { VirtualizedTimeline } from "../../src/renderer/components/aiteamos/virtualized-timeline";
-import { MessageImageGallery } from "../../src/renderer/components/aiteamos/image-attachment";
+import { VirtualizedTimeline } from "../../src/renderer/components/outcomego/virtualized-timeline";
+import { MessageImageGallery } from "../../src/renderer/components/outcomego/image-attachment";
 import { MessageResponse } from "../../src/renderer/components/ai-elements/message";
-import { ChatPane } from "../../src/renderer/components/aiteamos/chat-pane";
+import { ChatPane } from "../../src/renderer/components/outcomego/chat-pane";
 import { TooltipProvider } from "../../src/renderer/components/ui/tooltip";
-import { api } from "../../src/renderer/client/aiteamos-api";
-import { CLIENT_CAPABILITIES } from "@aiteamos/contracts/capabilities";
+import { api } from "../../src/renderer/client/outcomego-api";
+import { CLIENT_CAPABILITIES } from "@outcomego/contracts/capabilities";
 import { mobileFixture } from "../../../ios/scripts/fixtures/snapshot";
 import "../../src/renderer/styles.css";
 

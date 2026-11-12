@@ -10,7 +10,7 @@
 
 ## 术语表
 
-- **System**：aiTeamOS 服务端、computer runtime 和桌面端设置界面。
+- **System**：outcomeGo 服务端、computer runtime 和桌面端设置界面。
 - **Web tool**：Search 或 Fetch 能力。
 - **Provider entry**：某个 Web tool 下的一个已配置提供商及其排序位置。
 - **轮询**：每次请求只调用一个提供商，按配置顺序轮换起始位置。

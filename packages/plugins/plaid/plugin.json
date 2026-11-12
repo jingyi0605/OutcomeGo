@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "name": "Plaid",
   "description": "Connect banks from any device and query balances, transactions, recurring payments, investments, and loans with your own Plaid credentials.",
-  "publisher": "aiTeamOS",
+  "publisher": "OutcomeGo",
   "category": "Finance and Legal",
   "featured": false,
   "components": ["skills"],

@@ -41,7 +41,7 @@ test("skill frontmatter keeps unknown compatible fields", () => {
 });
 
 test("automation parser supports paused cron, event groups, and operational runs", async () => {
-  const root = await mkdtemp(join(tmpdir(), "aiteamos-automation-"));
+  const root = await mkdtemp(join(tmpdir(), "outcomego-automation-"));
   try {
     const automation = join(root, "automation.json");
     await atomicWrite(
@@ -52,7 +52,7 @@ test("automation parser supports paused cron, event groups, and operational runs
         trigger: {
           type: "group",
           listeners: [
-            { type: "github", repo: "aiteamos/aiteamos", events: ["pr-opened"] },
+            { type: "github", repo: "outcomego/outcomego", events: ["pr-opened"] },
             { type: "slack", channel: "#ops", match: { kind: "message" } },
           ],
         },
@@ -145,7 +145,7 @@ test("automation serialization preserves grouped cron scheduling and disk ledger
       trigger: {
         type: "group",
         listeners: [
-          { type: "github", repository: "aiteamos" },
+          { type: "github", repository: "outcomego" },
           { type: "cron", schedule: "0 11 * * 1-5" },
         ],
       },

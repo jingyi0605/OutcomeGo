@@ -82,7 +82,7 @@ import XCTest
   private func background(_ app: XCUIApplication) throws {
     XCUIDevice.shared.press(.home)
     guard app.wait(for: .runningBackground, timeout: 4) || app.state == .runningBackgroundSuspended else {
-      throw XCTSkip("This simulator keeps OpenTeam active after Home. Background lifecycle coverage requires a runtime that actually backgrounds the app.")
+      throw XCTSkip("This simulator keeps OutcomeGo active after Home. Background lifecycle coverage requires a runtime that actually backgrounds the app.")
     }
   }
   private func openNotification(_ notification: XCUIElement, in app: XCUIApplication) {
@@ -98,7 +98,7 @@ import XCTest
       if app.wait(for: .runningForeground, timeout: 4) { return }
       print("Notification Center is still visible; resolving its selected alert again")
     }
-    XCTFail("Selecting the notification did not activate OpenTeam. " + springboard.debugDescription)
+    XCTFail("Selecting the notification did not activate OutcomeGo. " + springboard.debugDescription)
   }
   private func selectNotification(_ body: String, in app: XCUIApplication) -> Date {
     let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
@@ -197,7 +197,7 @@ import XCTest
     let registration = try await waitRegistered()
     XCTAssertEqual(registration["provider"] as? String, "apns")
     XCTAssertEqual(registration["apnsEnvironment"] as? String, "development")
-    XCTAssertEqual(registration["apnsTopic"] as? String, "dev.openteam.mobile.swift")
+    XCTAssertEqual(registration["apnsTopic"] as? String, "dev.outcomego.mobile.swift")
     let bootstrap = try await request("/api/v0/client-bootstrap")
     let channels = try XCTUnwrap(bootstrap["channels"] as? [[String: Any]])
     let c1 = try XCTUnwrap(channels.first?["id"] as? String)

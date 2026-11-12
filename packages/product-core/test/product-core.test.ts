@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { ChannelMessageView, ClientSnapshot } from "@aiteamos/contracts";
+import type { ChannelMessageView, ClientSnapshot } from "@outcomego/contracts";
 import {
   a2aProjectionFor,
   collapseA2ATimeline,

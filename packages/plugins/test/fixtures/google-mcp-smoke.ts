@@ -39,7 +39,7 @@ try {
    const unauthorized=await client.callTool({name:read,arguments:{}});assert.equal(unauthorized.isError,true);assert.match(JSON.stringify(unauthorized),/not authorized/);
   }catch(error){throw new Error(key+': '+String(error)+'\n'+stderr);}finally{await client.close();}
   const connected=new Client({name:'package-fixture',version:'1.0.0'});
-  const fixture=new StdioClientTransport({command:process.execPath,args:['--preload',mock,entry],cwd:root,env:{GOOGLE_ACCESS_TOKEN:'synthetic-token',AITEAMOS_PLUGIN_ACCOUNT_ID:'smoke-account-'+key},stderr:'pipe'});
+  const fixture=new StdioClientTransport({command:process.execPath,args:['--preload',mock,entry],cwd:root,env:{GOOGLE_ACCESS_TOKEN:'synthetic-token',OUTCOMEGO_PLUGIN_ACCOUNT_ID:'smoke-account-'+key},stderr:'pipe'});
   fixture.stderr?.on('data',data=>{stderr+=String(data);});
   try{
    await connected.connect(fixture);

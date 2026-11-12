@@ -33,7 +33,7 @@ struct MobileUpdateNotice: View {
             .background(NativePalette.link.opacity(0.1), in: RoundedRectangle(cornerRadius: 11))
           VStack(alignment: .leading, spacing: 3) {
             Text("Update available").font(.subheadline.weight(.semibold))
-            Text("OpenTeam \(release.version) · Build \(release.buildNumber)")
+            Text("OutcomeGo \(release.version) · Build \(release.buildNumber)")
               .font(.caption).foregroundStyle(NativePalette.muted)
           }
         }

@@ -34,7 +34,7 @@ def load(argv):
     if "--simulator" in argv:
         udid = argv[argv.index("--simulator") + 1]
         container = subprocess.check_output(
-            ["xcrun", "simctl", "get_app_container", udid, "dev.openteam.mobile.swift", "data"], text=True).strip()
+            ["xcrun", "simctl", "get_app_container", udid, "dev.outcomego.mobile.swift", "data"], text=True).strip()
         return json.load(open(container + "/tmp/scroll-frames.json"))
     return json.load(open(next(a for a in argv[1:] if not a.startswith("--"))))
 

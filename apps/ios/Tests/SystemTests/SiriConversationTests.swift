@@ -3,7 +3,7 @@ import CoreSpotlight
 import CoreTransferable
 import UniformTypeIdentifiers
 import XCTest
-@testable import OpenTeamNative
+@testable import OutcomeGoNative
 
 @MainActor
 final class SiriConversationTests: SystemIntentFixture {

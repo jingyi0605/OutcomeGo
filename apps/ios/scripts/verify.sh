@@ -31,7 +31,7 @@ bun test ./packages/client-core/test > "$result_dir/client-tests.log" 2>&1
 test_status=0
 # SystemIntegrationUITests exercise real Keychain persistence; keep simulator
 # entitlements with ad hoc signing rather than disabling signing for this run.
-xcodebuild -project apps/ios/OpenTeamNative.xcodeproj -scheme OpenTeamNative \
+xcodebuild -project apps/ios/OutcomeGoNative.xcodeproj -scheme OutcomeGoNative \
   -destination "platform=iOS Simulator,id=$simulator_id" \
   -derivedDataPath apps/ios/.build-ios \
   -parallel-testing-enabled NO -resultBundlePath "$result_dir/Native.xcresult" \

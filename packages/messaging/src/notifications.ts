@@ -1,13 +1,13 @@
-import { normalizeRobotAvatarShape } from "@aiteamos/contracts/robot-avatar";
+import { normalizeRobotAvatarShape } from "@outcomego/contracts/robot-avatar";
 import {
   type AgentNotificationPayload,
   type ChannelNotificationState,
   type ChannelNotificationView,
   agentNotificationPresentation,
   truncateNotificationText,
-} from "@aiteamos/contracts";
-import { channelMessageSummary } from "@aiteamos/product-core/channel-events";
-import { Prisma } from "@aiteamos/db";
+} from "@outcomego/contracts";
+import { channelMessageSummary } from "@outcomego/product-core/channel-events";
+import { Prisma } from "@outcomego/db";
 
 type NotificationInput = Omit<AgentNotificationPayload, "badgeCount" | "notificationSequence">;
 
@@ -50,7 +50,7 @@ export const publishChannelNotification = async (
   };
   // Serialize activity allocation with reads in this channel. NO KEY UPDATE is
   // compatible with the foreign-key locks already held by message inserts.
-  await tx.$executeRaw`SELECT 1 FROM "Channel" WHERE id = ${input.channelId}::uuid FOR NO KEY UPDATE`;
+  await tx.$executeRaw`SELECT 1 FROM "outcomego_channel" WHERE id = ${input.channelId}::uuid FOR NO KEY UPDATE`;
   const created = await tx.channelNotification.createMany({
     data: {
       key,
@@ -76,7 +76,7 @@ export const publishChannelNotification = async (
       payload: payload as unknown as Prisma.InputJsonValue,
     },
   });
-  const disabledAuth = process.env.AITEAMOS_AUTH_MODE?.trim().toLowerCase() === "disabled";
+  const disabledAuth = process.env.OUTCOMEGO_AUTH_MODE?.trim().toLowerCase() === "disabled";
   const devices = await tx.pushDevice.findMany({
     where: disabledAuth
       ? { enabled: true, authRequired: false }
@@ -179,11 +179,11 @@ export const channelNotificationStates = async (
   >(Prisma.sql`
     SELECT requested."channelId", COALESCE(state."lastReadSequence", 0) AS "lastReadSequence",
       COALESCE(state."lastReadNotificationSequence", 0) AS "lastReadNotificationSequence",
-      COALESCE((SELECT MAX(n."sequence") FROM "ChannelNotification" n
+      COALESCE((SELECT MAX(n."sequence") FROM "outcomego_channel_notification" n
         WHERE n."channelId" = requested."channelId"), 0) AS "notificationCursor",
       COALESCE((SELECT jsonb_agg(alert.payload || jsonb_build_object('notificationSequence', alert.sequence::text))
-        FROM (SELECT n.payload, n.sequence FROM "ChannelNotification" n
-          JOIN "Bot" bot ON bot.id = n."botId"
+        FROM (SELECT n.payload, n.sequence FROM "outcomego_channel_notification" n
+          JOIN "outcomego_bot" bot ON bot.id = n."botId"
           WHERE n."channelId" = requested."channelId" AND NOT n.revoked
             AND n.kind IN ('message', 'reaction')
             AND bot."notificationsEnabled" AND NOT bot."hiddenFromSidebar"
@@ -191,12 +191,12 @@ export const channelNotificationStates = async (
               THEN n.sequence > COALESCE(state."lastReadNotificationSequence", 0)
               ELSE n."messageSequence" > COALESCE(state."lastReadSequence", 0) END
           ORDER BY n.sequence DESC LIMIT 100) alert), '[]'::jsonb) AS notifications,
-      (SELECT COUNT(*) FROM "ChannelNotification" n WHERE n."channelId" = requested."channelId"
+      (SELECT COUNT(*) FROM "outcomego_channel_notification" n WHERE n."channelId" = requested."channelId"
         AND NOT n.revoked AND n.kind = 'reaction'
-        AND EXISTS (SELECT 1 FROM "Bot" b WHERE b.id = n."botId" AND b."notificationsEnabled" AND NOT b."hiddenFromSidebar")
+        AND EXISTS (SELECT 1 FROM "outcomego_bot" b WHERE b.id = n."botId" AND b."notificationsEnabled" AND NOT b."hiddenFromSidebar")
         AND n.sequence > COALESCE(state."lastReadNotificationSequence", 0)) AS "activityUnreadCount"
     FROM unnest(${channelIds}::uuid[]) requested("channelId")
-    LEFT JOIN "ChannelReadState" state ON state."channelId" = requested."channelId"
+    LEFT JOIN "outcomego_channel_read_state" state ON state."channelId" = requested."channelId"
   `);
   return new Map(
     rows.map((row) => [

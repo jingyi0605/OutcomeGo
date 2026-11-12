@@ -1,4 +1,4 @@
-import type { VoiceProviderId } from "@aiteamos/contracts";
+import type { VoiceProviderId } from "@outcomego/contracts";
 import { DeepgramVoiceProvider } from "./voice-providers/deepgram";
 import { VolcengineVoiceProvider } from "./voice-providers/volcengine";
 import type { VoiceProvider } from "./voice-provider";

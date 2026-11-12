@@ -140,7 +140,7 @@ describe.skipIf(process.platform === "win32" || !python)(
       const f = modelServer();
       try {
         const { code } = await drive(f.paths.directory, 24, [
-          { expect: "AITEAMOS / model" },
+          { expect: "OutcomeGo / model" },
           { send: keys.end + keys.enter, expect: "SAVED SETTINGS" },
         ]);
         expect(code).toBe(0);
@@ -176,7 +176,7 @@ describe.skipIf(process.platform === "win32" || !python)("shared setup terminal 
         JSON.stringify({
           columns: 90,
           steps: [
-            { expect: "AITEAMOS" },
+            { expect: "OutcomeGo" },
             { send: keys.right, expect: "Create the username and password" },
             { send: keys.esc, expect: "Setup cancelled without changes." },
           ],

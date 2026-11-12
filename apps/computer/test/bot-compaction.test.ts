@@ -40,7 +40,7 @@ afterEach(async () => {
 });
 
 const workspace = async (): Promise<string> => {
-  const path = await mkdtemp(join(tmpdir(), "aiteamos-bot-compaction-"));
+  const path = await mkdtemp(join(tmpdir(), "outcomego-bot-compaction-"));
   directories.push(path);
   return path;
 };

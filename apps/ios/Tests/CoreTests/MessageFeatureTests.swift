@@ -1,5 +1,5 @@
 import XCTest
-@testable import OpenTeamCore
+@testable import OutcomeGoCore
 
 final class MessageFeatureTests: XCTestCase {
   private func json(_ source: String) throws -> JSON { try JSONDecoder().decode(JSON.self, from: Data(source.utf8)) }

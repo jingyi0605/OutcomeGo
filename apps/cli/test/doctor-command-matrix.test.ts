@@ -35,15 +35,15 @@ const cases: Array<[string, string, boolean?]> = [
   ["env-permissions", "owner-only", true],
   ["missing-secrets", "credentials must remain consistent", true],
   ["compose-invalid", "configuration files", true],
-  ["services-stopped", "aiteamos start", true],
-  ["migration-failed", "aiteamos logs migrate", true],
-  ["database-down", "aiteamos logs postgres", true],
+  ["services-stopped", "outcomego start", true],
+  ["migration-failed", "outcomego logs migrate", true],
+  ["database-down", "outcomego logs postgres", true],
   ["storage-permission", "service's user", true],
   ["probe-invalid", "invalid diagnostic response", true],
   ["health-503", "HTTP 503", true],
   ["health-invalid", "readiness is unknown", true],
   ["health-version", "API port belongs to this installation", true],
-  ["model-401", "Reconnect the provider in the aiTeamOS app", true],
+  ["model-401", "Reconnect the provider in the OutcomeGo app", true],
   ["model-quota", "quota or billing", true],
   ["model-timeout", "network access", true],
   ["healthy", "READY WITH NOTES", true],
@@ -55,10 +55,10 @@ const stub = `#!${process.execPath}
 import { appendFileSync } from 'node:fs';
 import { SERVER_PROBE, WORKER_PROBE, STORAGE_PROBE } from ${JSON.stringify(resolve(import.meta.dir, "../src/doctor-probes.ts"))};
 import { NOTIFICATION_STATE_PROBE, APNS_CONFIGURATION_PROBE } from ${JSON.stringify(resolve(import.meta.dir, "../src/doctor-notifications.ts"))};
-const scenario = process.env.AITEAMOS_TEST_SCENARIO;
+const scenario = process.env.OUTCOMEGO_TEST_SCENARIO;
 const args = process.argv.slice(2);
 const standalone = process.argv[1].endsWith('docker-compose');
-appendFileSync(process.env.AITEAMOS_TEST_CALLS, JSON.stringify({ standalone, args }) + '\\n');
+appendFileSync(process.env.OUTCOMEGO_TEST_CALLS, JSON.stringify({ standalone, args }) + '\\n');
 const ok = stdout => { console.log(stdout); process.exit(0); };
 const fail = stderr => { console.error(stderr); process.exit(1); };
 if (args[0] === '--version') {
@@ -103,7 +103,7 @@ if (args.includes('exec')) {
   }
   if (scenario === 'probe-invalid') ok('{broken');
   if (script.includes(NOTIFICATION_STATE_PROBE)) ok(JSON.stringify({ total: 0, eligible: 0, invalid: 0, topics: [], failed: 0, waiting: 0 }));
-  if (script.includes(APNS_CONFIGURATION_PROBE)) ok(JSON.stringify({ missing: ['AITEAMOS_APNS_KEY_ID','AITEAMOS_APNS_TEAM_ID','AITEAMOS_APNS_PRIVATE_KEY'], issue: null, topic: 'dev.openteam.mobile.swift' }));
+  if (script.includes(APNS_CONFIGURATION_PROBE)) ok(JSON.stringify({ missing: ['OUTCOMEGO_APNS_KEY_ID','OUTCOMEGO_APNS_TEAM_ID','OUTCOMEGO_APNS_PRIVATE_KEY'], issue: null, topic: 'dev.openteam.mobile.swift' }));
   const labels = script.includes(SERVER_PROBE) ? ['Database','Pending jobs','Run leases','Computer API']
     : script.includes(WORKER_PROBE) ? ['Worker heartbeat','Queue round trip']
     : script.includes(STORAGE_PROBE) ? args.includes('computer') ? ['workspace'] : ['agents','assets'] : [];
@@ -121,7 +121,7 @@ describe.skipIf(process.platform === "win32")("doctor command failure matrix", (
   test.each(cases)(
     "%s produces an understandable report without changing the installation",
     async (id, recommendation, installed = false) => {
-      const directory = mkdtempSync(join(tmpdir(), "aiteamos-doctor-matrix-"));
+      const directory = mkdtempSync(join(tmpdir(), "outcomego-doctor-matrix-"));
       const server = Bun.serve({
         hostname: "127.0.0.1",
         port: 0,
@@ -162,11 +162,11 @@ describe.skipIf(process.platform === "win32")("doctor command failure matrix", (
           mkdirSync(paths.directory);
           let environment = replaceEnvironmentValue(
             createEnvironment({ version: "1.2.3" }),
-            "AITEAMOS_API_PORT",
+            "OUTCOMEGO_API_PORT",
             String(server.port)
           );
           if (id === "missing-secrets")
-            environment = replaceEnvironmentValue(environment, "AITEAMOS_CONTROL_TOKEN", "short");
+            environment = replaceEnvironmentValue(environment, "OUTCOMEGO_CONTROL_TOKEN", "short");
           writeFileSync(paths.environment, environment, {
             mode: id === "env-permissions" ? 0o644 : 0o600,
           });
@@ -204,8 +204,8 @@ describe.skipIf(process.platform === "win32")("doctor command failure matrix", (
               ...process.env,
               PATH: bin,
               NO_COLOR: "1",
-              AITEAMOS_TEST_SCENARIO: id,
-              AITEAMOS_TEST_CALLS: calls,
+              OUTCOMEGO_TEST_SCENARIO: id,
+              OUTCOMEGO_TEST_CALLS: calls,
             },
             stdout: "pipe",
             stderr: "pipe",

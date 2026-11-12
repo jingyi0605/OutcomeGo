@@ -1,10 +1,10 @@
-import type { ChannelView, ClientSnapshot } from "@aiteamos/contracts";
+import type { ChannelView, ClientSnapshot } from "@outcomego/contracts";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { api } from "../client/aiteamos-api";
+import { api } from "../client/outcomego-api";
 import { activeAgentIdForChannel, restoredActiveChannelId } from "../lib/channel-selection";
 import { measureUntilNextPaint } from "../lib/performance";
 
-const SELECTED_CHANNEL_KEY = "aiteamos:selected-channel";
+const SELECTED_CHANNEL_KEY = "outcomego:selected-channel";
 
 export function useChannelSelection(
   snapshot: ClientSnapshot | null,

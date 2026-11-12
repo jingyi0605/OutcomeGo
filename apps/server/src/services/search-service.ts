@@ -3,8 +3,8 @@ import type {
   SearchResponse,
   SearchResultKind,
   SearchResultView,
-} from "@aiteamos/contracts";
-import { Prisma, type PrismaClient } from "@aiteamos/db";
+} from "@outcomego/contracts";
+import { Prisma, type PrismaClient } from "@outcomego/db";
 import { serviceEffect } from "./service-utils";
 
 const RESULT_LIMIT = 24;
@@ -128,24 +128,24 @@ export class SearchService {
       const rows = await this.prisma.$queryRaw<SearchRow[]>(Prisma.sql`
           WITH visible_bots AS MATERIALIZED (
             SELECT bot."id"
-            FROM "Bot" AS bot
+            FROM "outcomego_bot" AS bot
             WHERE bot."status" <> 'archived'
               AND NOT EXISTS (
-                SELECT 1 FROM "Subagent" AS subagent
+                SELECT 1 FROM "outcomego_subagent" AS subagent
                 WHERE subagent."childBotId" = bot."id"
               )
           ),
           visible_channels AS MATERIALIZED (
             SELECT DISTINCT channel."id"
-            FROM "Channel" AS channel
-            INNER JOIN "ChannelMember" AS member ON member."channelId" = channel."id"
+            FROM "outcomego_channel" AS channel
+            INNER JOIN "outcomego_channel_member" AS member ON member."channelId" = channel."id"
             INNER JOIN visible_bots AS bot ON bot."id" = member."botId"
             WHERE channel."archivedAt" IS NULL
           ),
           recent_documents AS MATERIALIZED (
             SELECT
               ${candidateColumns}
-            FROM "SearchDocument" AS document
+            FROM "outcomego_search_document" AS document
             ${eligibleDocumentPredicate}
             -- A common prefix can match tens of thousands of rows. Rank only a
             -- bounded, recent candidate window.
@@ -155,7 +155,7 @@ export class SearchService {
           exact_title_documents AS MATERIALIZED (
             SELECT
               ${candidateColumns}
-            FROM "SearchDocument" AS document
+            FROM "outcomego_search_document" AS document
             ${eligibleDocumentPredicate}
               -- The hash expression has a compact B-tree index. Rechecking the
               -- complete lowercase title makes collisions harmless.
@@ -209,12 +209,12 @@ export class SearchService {
                   CASE channel."kind"
                     WHEN 'bot_dm' THEN
                       CASE
-                        WHEN document."botId" IS NOT NULL THEN coalesce(bot."name", 'Bot') || ' to you'
+                        WHEN document."botId" IS NOT NULL THEN coalesce(bot."name", 'outcomego_bot') || ' to you'
                         ELSE 'You to ' || channel."name"
                       END
                     ELSE concat_ws(' in ',
                       CASE
-                        WHEN document."botId" IS NOT NULL THEN coalesce(bot."name", 'Bot')
+                        WHEN document."botId" IS NOT NULL THEN coalesce(bot."name", 'outcomego_bot')
                         ELSE 'You'
                       END,
                       channel."name"
@@ -243,12 +243,12 @@ export class SearchService {
             END AS "url",
             document."createdAt"
           FROM ranked AS document
-          LEFT JOIN "Channel" AS channel ON channel."id" = document."channelId"
-          LEFT JOIN "Bot" AS bot ON bot."id" = document."botId"
+          LEFT JOIN "outcomego_channel" AS channel ON channel."id" = document."channelId"
+          LEFT JOIN "outcomego_bot" AS bot ON bot."id" = document."botId"
           LEFT JOIN LATERAL (
             SELECT member."channelId"
-            FROM "ChannelMember" AS member
-            INNER JOIN "Channel" AS candidate ON candidate."id" = member."channelId"
+            FROM "outcomego_channel_member" AS member
+            INNER JOIN "outcomego_channel" AS candidate ON candidate."id" = member."channelId"
             WHERE member."botId" = document."botId"
               AND candidate."kind" = 'bot_dm'
               AND candidate."archivedAt" IS NULL

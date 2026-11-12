@@ -2,11 +2,11 @@
 import PackageDescription
 
 let package = Package(
-    name: "OpenTeamCore",
+    name: "OutcomeGoCore",
     platforms: [.macOS(.v14), .iOS(.v18)],
-    products: [.library(name: "OpenTeamCore", targets: ["OpenTeamCore"])],
+    products: [.library(name: "OutcomeGoCore", targets: ["OutcomeGoCore"])],
     targets: [
-        .target(name: "OpenTeamCore", path: "Sources/Core", resources: [.process("Resources")]),
-        .testTarget(name: "OpenTeamCoreTests", dependencies: ["OpenTeamCore"], path: "Tests/CoreTests", resources: [.copy("Fixtures")])
+        .target(name: "OutcomeGoCore", path: "Sources/Core", resources: [.process("Resources")]),
+        .testTarget(name: "OutcomeGoCoreTests", dependencies: ["OutcomeGoCore"], path: "Tests/CoreTests", resources: [.copy("Fixtures")])
     ]
 )

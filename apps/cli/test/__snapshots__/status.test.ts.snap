@@ -3,7 +3,7 @@
 exports[`status and health reports healthy: All containers healthy: healthy 1`] = `
 "
   ╭──────────────────────────────────────────────────────────────────────────────────────╮
-  │ AITEAMOS / status                                                                    │
+  │ OutcomeGo / status                                                                   │
   │ RUNNING                                                                              │
   ╰──────────────────────────────────────────────────────────────────────────────────────╯
 
@@ -30,14 +30,14 @@ exports[`status and health reports healthy: All containers healthy: healthy 1`] 
 
   NEXT ──────────────────────────────────────────────────────────────────────────────────
   For deeper database, queue, storage, and model checks:
-  aiteamos doctor --dir '/tmp/status-preview/installation'\\''s space'
+  outcomego doctor --dir '/tmp/status-preview/installation'\\''s space'
 "
 `;
 
 exports[`status and health reports live-ready: Live dependencies healthy: live-ready 1`] = `
 "
   ╭──────────────────────────────────────────────────────────────────────────────────────╮
-  │ AITEAMOS / status                                                                    │
+  │ OutcomeGo / status                                                                   │
   │ RUNNING                                                                              │
   ╰──────────────────────────────────────────────────────────────────────────────────────╯
 
@@ -67,14 +67,14 @@ exports[`status and health reports live-ready: Live dependencies healthy: live-r
 
   NEXT ──────────────────────────────────────────────────────────────────────────────────
   For deeper database, queue, storage, and model checks:
-  aiteamos doctor --dir '/tmp/status-preview/installation'\\''s space'
+  outcomego doctor --dir '/tmp/status-preview/installation'\\''s space'
 "
 `;
 
 exports[`status and health reports database-unavailable: Database is unreachable: database-unavailable 1`] = `
 "
   ╭──────────────────────────────────────────────────────────────────────────────────────╮
-  │ AITEAMOS / status                                                                    │
+  │ OutcomeGo / status                                                                   │
   │ NEEDS ATTENTION                                                                      │
   ╰──────────────────────────────────────────────────────────────────────────────────────╯
 
@@ -82,9 +82,9 @@ exports[`status and health reports database-unavailable: Database is unreachable
 
   NEXT STEPS ────────────────────────────────────────────────────────────────────────────
   The server cannot use its database or job queues. Inspect database logs, then run
-  aiteamos doctor --dir '/tmp/status-preview/installation'\\''s space' to check schema
+  outcomego doctor --dir '/tmp/status-preview/installation'\\''s space' to check schema
   setup and queue processing.
-  aiteamos logs postgres --dir '/tmp/status-preview/installation'\\''s space'
+  outcomego logs postgres --dir '/tmp/status-preview/installation'\\''s space'
 
   CONTAINERS ────────────────────────────────────────────────────────────────────────────
   ✓ postgres                Running · healthy
@@ -109,21 +109,21 @@ exports[`status and health reports database-unavailable: Database is unreachable
 "
 `;
 
-exports[`status and health reports not-installed: aiTeamOS not installed: not-installed 1`] = `
+exports[`status and health reports not-installed: OutcomeGo not installed: not-installed 1`] = `
 "
   ╭──────────────────────────────────────────────────────────────────────────────────────╮
-  │ AITEAMOS / status                                                                    │
+  │ OutcomeGo / status                                                                   │
   │ NOT INSTALLED                                                                        │
   ╰──────────────────────────────────────────────────────────────────────────────────────╯
 
-  aiTeamOS has not been installed in this directory.
+  OutcomeGo has not been installed in this directory.
 
   NEXT STEPS ────────────────────────────────────────────────────────────────────────────
-  Install aiTeamOS, or use --dir to select an existing installation.
-  aiteamos install --dir '/tmp/status-preview/installation'\\''s space'
+  Install OutcomeGo, or use --dir to select an existing installation.
+  outcomego install --dir '/tmp/status-preview/installation'\\''s space'
 
   CHECK BLOCKED ─────────────────────────────────────────────────────────────────────────
-  ✗ Installation            aiTeamOS has not been installed in this directory.
+  ✗ Installation            OutcomeGo has not been installed in this directory.
 
   CONTAINERS ────────────────────────────────────────────────────────────────────────────
   Not checked. Resolve the issue above, then run status again.
@@ -142,21 +142,21 @@ exports[`status and health reports not-installed: aiTeamOS not installed: not-in
 exports[`status and health reports invalid-json: Docker returns malformed container output: invalid-json 1`] = `
 "
   ╭──────────────────────────────────────────────────────────────────────────────────────╮
-  │ AITEAMOS / status                                                                    │
+  │ OutcomeGo / status                                                                   │
   │ STATUS UNKNOWN                                                                       │
   ╰──────────────────────────────────────────────────────────────────────────────────────╯
 
-  aiTeamOS could not read its container states.
+  OutcomeGo could not read its container states.
 
   NEXT STEPS ────────────────────────────────────────────────────────────────────────────
-  Run docker info to check the engine, then aiteamos doctor --dir
+  Run docker info to check the engine, then outcomego doctor --dir
   '/tmp/status-preview/installation'\\''s space' to inspect Compose and configuration
   errors.
-  aiteamos status --dir '/tmp/status-preview/installation'\\''s space'
+  outcomego status --dir '/tmp/status-preview/installation'\\''s space'
 
   CHECK BLOCKED ─────────────────────────────────────────────────────────────────────────
-  ✗ Containers              aiTeamOS could not read its container states.
-  Could not inspect aiTeamOS services: Docker Compose returned invalid service state.
+  ✗ Containers              OutcomeGo could not read its container states.
+  Could not inspect OutcomeGo services: Docker Compose returned invalid service state.
 
   CONTAINERS ────────────────────────────────────────────────────────────────────────────
   Not checked. Resolve the issue above, then run status again.
@@ -177,7 +177,7 @@ exports[`status and health reports invalid-json: Docker returns malformed contai
 exports[`status and health reports stopped: All containers stopped cleanly: stopped 1`] = `
 "
   ╭──────────────────────────────────────────────────────────────────────────────────────╮
-  │ AITEAMOS / status                                                                    │
+  │ OutcomeGo / status                                                                   │
   │ STOPPED                                                                              │
   ╰──────────────────────────────────────────────────────────────────────────────────────╯
 
@@ -185,7 +185,7 @@ exports[`status and health reports stopped: All containers stopped cleanly: stop
 
   NEXT STEPS ────────────────────────────────────────────────────────────────────────────
   Start the missing or stopped services, then check status again:
-  aiteamos start --dir '/tmp/status-preview/installation'\\''s space'
+  outcomego start --dir '/tmp/status-preview/installation'\\''s space'
 
   CONTAINERS ────────────────────────────────────────────────────────────────────────────
   ! postgres                Stopped · exit 0
@@ -210,7 +210,7 @@ exports[`status and health reports stopped: All containers stopped cleanly: stop
 exports[`status and health reports starting: Container health checks starting: starting 1`] = `
 "
   ╭────────────────────────────────────╮
-  │ AITEAMOS / status                  │
+  │ OutcomeGo / status                 │
   │ STARTING                           │
   ╰────────────────────────────────────╯
 
@@ -220,11 +220,11 @@ exports[`status and health reports starting: Container health checks starting: s
   NEXT STEPS ──────────────────────────
   Setup or health checks are still in
   progress. Wait a moment and check
-  again. If this persists, run aiteamos
+  again. If this persists, run outcomego
   doctor --dir
   '/tmp/status-preview/installation'\\''s
   space'.
-  aiteamos status --dir
+  outcomego status --dir
   '/tmp/status-preview/installation'\\''s
   space'
 
@@ -268,16 +268,16 @@ exports[`status and health reports starting: Container health checks starting: s
 exports[`status and health reports job-failed: Database migration failed: job-failed 1`] = `
 "
   ╭──────────────────────────────────────────────────────────────────────────────────────╮
-  │ AITEAMOS / status                                                                    │
+  │ OutcomeGo / status                                                                   │
   │ NEEDS ATTENTION                                                                      │
   ╰──────────────────────────────────────────────────────────────────────────────────────╯
 
   4/4 containers running · 4 passing Docker health checks
 
   NEXT STEPS ────────────────────────────────────────────────────────────────────────────
-  Inspect migrate logs to find why it is not ready. For a deeper diagnosis, run aiteamos
+  Inspect migrate logs to find why it is not ready. For a deeper diagnosis, run outcomego
   doctor --dir '/tmp/status-preview/installation'\\''s space'.
-  aiteamos logs migrate --dir '/tmp/status-preview/installation'\\''s space'
+  outcomego logs migrate --dir '/tmp/status-preview/installation'\\''s space'
 
   CONTAINERS ────────────────────────────────────────────────────────────────────────────
   ✓ postgres                Running · healthy

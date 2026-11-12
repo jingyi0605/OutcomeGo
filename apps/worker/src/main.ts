@@ -29,4 +29,4 @@ const shutdown = async () => {
 process.once("SIGINT", shutdown);
 process.once("SIGTERM", shutdown);
 
-console.log("aiTeamOS wake worker is ready");
+console.log("OutcomeGo wake worker is ready");

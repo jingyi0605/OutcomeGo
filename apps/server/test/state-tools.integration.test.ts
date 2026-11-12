@@ -3,12 +3,12 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Effect } from "effect";
-import { createPrismaClient } from "@aiteamos/db";
-import { AgentDataStore, RoutineService } from "@aiteamos/messaging";
+import { createPrismaClient } from "@outcomego/db";
+import { AgentDataStore, RoutineService } from "@outcomego/messaging";
 import { InternalToolService } from "../src/services/internal-tool-service";
 import { DurableStateService } from "../src/update-state";
 
-const databaseUrl = process.env.AITEAMOS_TEST_DATABASE_URL;
+const databaseUrl = process.env.OUTCOMEGO_TEST_DATABASE_URL;
 const databaseTest = databaseUrl ? test : test.skip;
 // A 1x1 transparent PNG.
 const PNG = Buffer.from(

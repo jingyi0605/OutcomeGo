@@ -1,13 +1,13 @@
-import type { BotTranscriptView, BotView } from "@aiteamos/contracts";
+import type { BotTranscriptView, BotView } from "@outcomego/contracts";
 import { useCallback, useState } from "react";
-import { api } from "../client/aiteamos-api";
-import type { BotRowAction } from "../components/aiteamos/sidebar";
-import type { AiTeamOSMutation } from "../state/use-aiteamos";
+import { api } from "../client/outcomego-api";
+import type { BotRowAction } from "../components/outcomego/sidebar";
+import type { OutcomeGoMutation } from "../state/use-outcomego";
 
 export type InspectorMode = "summary" | "settings" | "routine";
 
 export function useBotRowActions(options: {
-  mutate: AiTeamOSMutation;
+  mutate: OutcomeGoMutation;
   setSelectedId: (id: string | null) => void;
   setDetailsOpen: (open: boolean) => void;
   setInspectorMode: (mode: InspectorMode) => void;

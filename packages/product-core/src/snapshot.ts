@@ -7,7 +7,7 @@ import type {
   RunItemView,
   RunView,
   SubagentActivityView,
-} from "@aiteamos/contracts";
+} from "@outcomego/contracts";
 import { a2aProjectionFor } from "./messages";
 import { ACTIVE_RUN_STATUSES, isActiveRunStatus } from "./statuses";
 

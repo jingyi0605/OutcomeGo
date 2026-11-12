@@ -94,7 +94,7 @@ struct PluginConnectionView: View {
                   .font(.footnote).foregroundStyle(NativePalette.muted)
                 } else {
                   Text(
-                    "Sign in on this device, then copy the browser’s final address back into OpenTeam. For Google, choose “Desktop app” when creating the OAuth client in Google Cloud. That is Google’s client type name; you can still sign in entirely on your iPhone."
+                    "Sign in on this device, then copy the browser’s final address back into OutcomeGo. For Google, choose “Desktop app” when creating the OAuth client in Google Cloud. That is Google’s client type name; you can still sign in entirely on your iPhone."
                   )
                   .font(.footnote).foregroundStyle(NativePalette.muted)
                   Text(configuration["manualCallbackUrl"].string).font(.footnote.monospaced())

@@ -1,11 +1,11 @@
-import type { ChannelMessageView, ClientSnapshot } from "@aiteamos/contracts";
+import type { ChannelMessageView, ClientSnapshot } from "@outcomego/contracts";
 import {
   compareEntitySequence as compareSequence,
   type LoadedChannelHistory,
   mergeBootstrapActivityStates,
   uniqueEntitiesById as mergeEntities,
-} from "@aiteamos/product-core/history";
-import type { ChannelClientState, ClientBootstrapView } from "../client/aiteamos-api";
+} from "@outcomego/product-core/history";
+import type { ChannelClientState, ClientBootstrapView } from "../client/outcomego-api";
 import {
   type ChannelMessageWindowState,
   emptyChannelMessageWindow,

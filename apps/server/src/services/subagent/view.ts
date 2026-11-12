@@ -1,4 +1,4 @@
-import type { Snapshot } from "@aiteamos/contracts";
+import type { Snapshot } from "@outcomego/contracts";
 
 type StoredAttempt = {
   id: string;

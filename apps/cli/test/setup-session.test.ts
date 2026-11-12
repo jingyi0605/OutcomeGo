@@ -330,12 +330,12 @@ describe("interactive setup session", () => {
 
     setup.checking();
     expect(setup.view().notice).toEqual({ text: "Checking startup ports…", tone: "info" });
-    setup.returnWithIssue("aiTeamOS cannot start because port 8787 is already in use.");
+    setup.returnWithIssue("OutcomeGo cannot start because port 8787 is already in use.");
     expect(setup.view().title).toBe("1. Connection");
     expect(highlighted(setup)).toBe("access:private");
     expect(setup.rows()[0]).toEqual({
       kind: "note",
-      text: "aiTeamOS cannot start because port 8787 is already in use.",
+      text: "OutcomeGo cannot start because port 8787 is already in use.",
       tone: "warning",
     });
     press(setup, "end");
@@ -370,7 +370,7 @@ describe("interactive setup session", () => {
     expect(setup.view().title).toBe("3. Review");
 
     // A busy port reopens Connection with the API port; Enter keeps each answer up to Account.
-    setup.returnWithIssue("aiTeamOS cannot start because port 8787 is already in use.");
+    setup.returnWithIssue("OutcomeGo cannot start because port 8787 is already in use.");
     enter(setup);
     enter(setup);
     expect(highlighted(setup)).toBe("apiPort");
@@ -385,7 +385,7 @@ describe("interactive setup session", () => {
 
   test("reconfiguration keeps an existing owner and asks nothing about models", () => {
     const setup = session({
-      current: environment({ AITEAMOS_ACCESS_MODE: "local", AITEAMOS_BIND_HOST: "127.0.0.1" }),
+      current: environment({ OUTCOMEGO_ACCESS_MODE: "local", OUTCOMEGO_BIND_HOST: "127.0.0.1" }),
       fresh: false,
       ownerConfigured: true,
       currentOwnerUsername: "existing.owner",
@@ -412,7 +412,7 @@ describe("interactive setup session", () => {
 
   test("launch notes surface port fallbacks and the cancel action ends without changes", () => {
     const setup = session({
-      current: environment({ AITEAMOS_API_PORT: "8788" }),
+      current: environment({ OUTCOMEGO_API_PORT: "8788" }),
       notes: [{ text: "Port 8787 is already in use; using 8788.", tone: "info" }],
     });
     press(setup, "right");
@@ -449,9 +449,9 @@ describe.skipIf(process.platform === "win32" || !python)("setup terminal startup
           columns: 90,
           rows: 40,
           steps: [
-            { expect: "AITEAMOS" },
+            { expect: "OutcomeGo" },
             { send: "\x1b[C", expect: "existing account" },
-            { send: "\x1b[C", expect: "Start aiTeamOS" },
+            { send: "\x1b[C", expect: "Start OutcomeGo" },
             { send: "\r", expect: "already in use" },
             { send: "\x1b[F8788\r", expect: "2. Account" },
             { send: "\x1b[C", expect: "8788" },
@@ -489,7 +489,7 @@ describe.skipIf(process.platform === "win32" || !python)("setup terminal startup
         JSON.stringify({
           columns: 90,
           rows: 40,
-          steps: [{ expect: "AITEAMOS" }, { send: "\x03", expect: "Applied" }],
+          steps: [{ expect: "OutcomeGo" }, { send: "\x03", expect: "Applied" }],
         }),
         process.execPath,
         resolve(import.meta.dir, "fixtures/setup-check-pty.ts"),

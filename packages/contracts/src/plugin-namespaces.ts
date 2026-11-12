@@ -1,4 +1,4 @@
-import { fileTransferCapabilities } from "@aiteamos/plugin-sdk";
+import { fileTransferCapabilities } from "@outcomego/plugin-sdk";
 import type { PluginDynamicNamespace } from "./index";
 import { getDefaultMcpCustomInstruction } from "./reference-formatters";
 

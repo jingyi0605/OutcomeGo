@@ -1,4 +1,4 @@
-import { ROBOT_AVATAR_SHAPES, type RobotAvatarShape } from "@aiteamos/contracts/robot-avatar";
+import { ROBOT_AVATAR_SHAPES, type RobotAvatarShape } from "@outcomego/contracts/robot-avatar";
 
 /** SVG primitives as data: no React, DOM, or native runtime dependency. */
 export interface RobotAvatarNode {

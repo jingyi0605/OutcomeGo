@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { createRoot } from "react-dom/client";
 import { PromptInput } from "../../src/renderer/components/ai-elements/prompt-input";
-import { api } from "../../src/renderer/client/aiteamos-api";
+import { api } from "../../src/renderer/client/outcomego-api";
 import "../../src/renderer/styles.css";
 
 const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -73,7 +73,7 @@ function Demo() {
           padding: "28px 20px",
         }}
       >
-        <div style={{ fontWeight: 600, fontSize: 18, marginBottom: 34 }}>aiTeamOS</div>
+        <div style={{ fontWeight: 600, fontSize: 18, marginBottom: 34 }}>OutcomeGo</div>
         <div style={{ color: "#777", fontSize: 12, marginBottom: 12 }}>CHATS</div>
         <div style={{ background: "#242424", padding: "10px 12px", borderRadius: 9 }}>Research</div>
       </aside>

@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
-"""Rename OpenTeam to aiTeamOS across the working tree. Re-runnable after every upstream merge.
+"""Rename OpenTeam to outcomeGo across the working tree. Re-runnable after every upstream merge.
 
     python3 scripts/rename/rename.py --dry-run      # report only
     python3 scripts/rename/rename.py                # rewrite files, then git mv paths
 
 Case mapping:
-    OPENTEAM  -> AITEAMOS      (environment variables, constants)
-    OpenTeam  -> aiTeamOS      (the product name as a word)
-    OpenTeam* -> AiTeamOS*     (inside identifiers: createOpenTeamClient -> createAiTeamOSClient)
-    openTeam  -> aiTeamOS      (camelCase identifiers)
-    openteam  -> aiteamos      (package scope, paths, binary, docker names)
+    OPENTEAM  -> OUTCOMEGO      (environment variables, constants)
+    OpenTeam  -> outcomeGo      (the product name as a word)
+    OpenTeam* -> OutcomeGo*     (inside identifiers: createOpenTeamClient -> createOutcomeGoClient)
+    openTeam  -> outcomeGo      (camelCase identifiers)
+    openteam  -> outcomego      (package scope, paths, binary, docker names)
 
 Some names are stored in existing data or pinned by signatures. Renaming them would make saved
 secrets undecryptable or break verification, so they are protected below and never rewritten.
@@ -52,7 +52,7 @@ PROTECTED = [
     "openteam-local-release-2026-10-03",  # pinned release signing key id
     "@openteam.invalid", "openteam.owner@", "openteam.invalid",  # owner e-mail stored by the auth tables
     'format: "openteam"', '"openteam" | "agent-plugin" | "cursor-plugin"',  # plugin package format
-    "dev.openteam.mobile", "dev.openbot.mobile", "OpenTeamNative",  # iOS bundle ids and targets
+    "dev.openteam.mobile", "dev.openbot.mobile", "OutcomeGoNative",  # iOS bundle ids and targets
     "OpenTeam release signature v1",     # signed payload format: existing signatures and fixtures bind to it
     "x-openteam-signature-256",          # header configured by external webhook senders
     "openTeam-desktop-client.json",      # stored OAuth client file, referenced from saved records
@@ -92,18 +92,18 @@ def transform(rel, text, counts):
     protected = re.compile("|".join(re.escape(token) for token in sorted(PROTECTED, key=len, reverse=True)))
     text = protected.sub(hold, text)
     before = text
-    text = text.replace("@openteam/", "@aiteamos/")
-    text = re.sub(r"OPENTEAM", "AITEAMOS", text)
+    text = text.replace("@openteam/", "@outcomego/")
+    text = re.sub(r"OPENTEAM", "OUTCOMEGO", text)
     if ios:
         # Server-generated links must open the app, so the URL scheme follows the rest of the product.
-        text = text.replace("openteam://", "aiteamos://")
+        text = text.replace("openteam://", "outcomego://")
     if not ios:
         text = re.sub(
-            r"(?<![A-Za-z0-9])OpenTeam(?![A-Za-z0-9])", "aiTeamOS", text
+            r"(?<![A-Za-z0-9])OpenTeam(?![A-Za-z0-9])", "outcomeGo", text
         )
-        text = text.replace("OpenTeam", "AiTeamOS")
-        text = text.replace("openTeam", "aiTeamOS")
-        text = text.replace("openteam", "aiteamos")
+        text = text.replace("OpenTeam", "OutcomeGo")
+        text = text.replace("openTeam", "outcomeGo")
+        text = text.replace("openteam", "outcomego")
     if text != before:
         counts[rel] += 1
     for key, value in holders.items():
@@ -114,7 +114,7 @@ def transform(rel, text, counts):
 def rewrite_lockfile(dry):
     path = ROOT / "bun.lock"
     text = path.read_text(encoding="utf8")
-    new = text.replace("@openteam/", "@aiteamos/").replace('"name": "openteam"', '"name": "aiteamos"')
+    new = text.replace("@openteam/", "@outcomego/").replace('"name": "openteam"', '"name": "outcomego"')
     if not dry and new != text:
         path.write_text(new, encoding="utf8")
     return text != new
@@ -126,9 +126,9 @@ def path_renames(files):
         if rel.startswith(PATH_SKIP):
             continue
         new = rel
-        new = re.sub(r"OpenTeam", "AiTeamOS", new)
-        new = re.sub(r"openTeam", "aiTeamOS", new)
-        new = re.sub(r"openteam", "aiteamos", new)
+        new = re.sub(r"OpenTeam", "OutcomeGo", new)
+        new = re.sub(r"openTeam", "outcomeGo", new)
+        new = re.sub(r"openteam", "outcomego", new)
         if new != rel:
             moves.append((rel, new))
     return moves

@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import type { ChannelMessageView, ClientBootstrapView } from "@aiteamos/contracts";
-import type { LoadedChannelHistory } from "@aiteamos/product-core/history";
-import type { ChannelClientState } from "../../src/renderer/client/aiteamos-api";
+import type { ChannelMessageView, ClientBootstrapView } from "@outcomego/contracts";
+import type { LoadedChannelHistory } from "@outcomego/product-core/history";
+import type { ChannelClientState } from "../../src/renderer/client/outcomego-api";
 import {
   backgroundHistoryNeed,
   bootstrapSnapshot,

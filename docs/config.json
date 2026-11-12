@@ -1,8 +1,8 @@
 {
   "title": "Documentation",
-  "description": "Get started with aiTeamOS, work with bots, and manage your own server.",
-  "repository": "https://github.com/raghavpillai/aiteamos",
-  "branch": "main",
+  "description": "Get started with OutcomeGo, work with bots, and manage your own server.",
+  "repository": "https://github.com/jingyi0605/OutcomeGo",
+  "branch": "OutcomeGo",
   "home": "overview/introduction",
   "groups": [
     {

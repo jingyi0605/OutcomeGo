@@ -3,7 +3,7 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ShellJobRegistry, validateShellWait, renderShellAwaitResult, terminalFooter } from "../src";
-import { parseHostAwaitShellRequest } from "@aiteamos/contracts/service-protocol";
+import { parseHostAwaitShellRequest } from "@outcomego/contracts/service-protocol";
 
 const roots: string[] = [];
 afterEach(async () => {

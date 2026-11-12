@@ -1,6 +1,6 @@
 import XCTest
 
-@testable import OpenTeamCore
+@testable import OutcomeGoCore
 
 @MainActor
 final class SessionRecordTests: XCTestCase {
@@ -37,7 +37,7 @@ final class SessionRecordTests: XCTestCase {
       fetch: { self.response(name: "  \n") },
       save: { XCTAssertEqual($0.userName, "Known Owner") })
     XCTAssertEqual(refreshed.displayName, "Known Owner")
-    XCTAssertEqual(migrated.displayName, "OpenTeam owner")
+    XCTAssertEqual(migrated.displayName, "OutcomeGo owner")
   }
 
   func testExpiredOrMismatchedAccountCannotRestoreCachedIdentity() async throws {

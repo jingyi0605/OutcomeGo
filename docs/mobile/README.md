@@ -1,14 +1,14 @@
-# aiTeamOS 移动端
+# OutcomeGo 移动端
 
 中文 | [English](README.en.md)
 
-aiTeamOS 移动端是你的服务端的客户端：登录同一个服务器后，手机上看到的 bot 和对话与桌面端一致。
+OutcomeGo 移动端是你的服务端的客户端：登录同一个服务器后，手机上看到的 bot 和对话与桌面端一致。
 
 ## 支持的平台
 
 | 平台 | 要求 | 获取方式 | 说明 |
 | --- | --- | --- | --- |
-| Android | Android 8.0（API 26）及以上 | 从 [GitHub Releases](https://github.com/jingyi0605/ai-TeamOS/releases/latest) 下载已签名的 APK，或从源码构建 | [apps/android/README.md](../../apps/android/README.md) |
+| Android | Android 8.0（API 26）及以上 | 从源码构建；beta.14 尚未发布 | [apps/android/README.md](../../apps/android/README.md) |
 | iPhone / iPad | iOS 18 及以上 | 暂不提供安装包，只能从源码构建（测试版） | [apps/ios/README.md](../../apps/ios/README.md) |
 
 iOS 暂时没有安装包，也不提供 TestFlight 或 App Store 下载。
@@ -24,18 +24,18 @@ iOS 暂时没有安装包，也不提供 TestFlight 或 App Store 下载。
 
 ## 连接服务端
 
-1. 在服务端主机上运行 `openteam status`，记下**服务器地址**。
-2. 在手机上打开 aiTeamOS，输入该地址，并用设置时创建的用户名和密码登录。
+1. 在服务端主机上运行 `outcomego status`，记下**服务器地址**。
+2. 在手机上打开 OutcomeGo，输入该地址，并用设置时创建的用户名和密码登录。
 3. 手机必须能访问这个地址：
    - 在家里使用局域网地址，例如 `http://192.168.1.20:8787`。
    - 在外面使用 Tailscale 等 VPN，或给服务端配置 HTTPS 地址。
    - `localhost` 和 `127.0.0.1` 只在服务端本机有效，手机上不能使用。
 
-更多方式参见[远程访问](https://openteam.so/docs/configuration/remote-access)（上游英文文档）。
+更多方式参见[远程访问](../configuration/remote-access.md)。
 
 ## Android
 
-- 下载 Release 里的 `aiTeamOS-<版本>-android.apk`，在手机上允许“安装未知来源应用”后安装。已安装的应用会校验更新清单的签名、APK 校验和与签名证书后再提示更新。
+- beta.14 尚未发布。beta.13 APK 使用旧产品名称和内部身份，不能当作 OutcomeGo beta.14 安装。发布后，应用会在安装前校验更新清单签名、APK 校验和与签名证书。
 - 自己构建一个调试 APK：`bash scripts/android/package-debug.sh`，在 macOS 上也可以双击 `scripts/android/package-debug.command`。
 - 生成的文件是 `apps/android/app/build/outputs/apk/debug/androidApp-debug.apk`。
 - 在小米设备上一键安装并运行：`bash scripts/android/run-xiaomi.sh`，详见 [Xiaomi 一键运行调试](../android/20261031-Xiaomi一键运行调试.md)。
@@ -43,8 +43,8 @@ iOS 暂时没有安装包，也不提供 TestFlight 或 App Store 下载。
 
 ## iPhone / iPad
 
-- 使用 macOS、Xcode 和 Swift 6 打开 `apps/ios/OpenTeamNative.xcodeproj`，选择 `OpenTeamNative` 运行。
-- Release 版显示为 **aiTeamOS**，使用 `aiteamos://` 链接。构建步骤和签名配置见 [apps/ios/README.md](../../apps/ios/README.md)。
+- 使用 macOS、Xcode 和 Swift 6 打开 `apps/ios/OutcomeGoNative.xcodeproj`，选择 `OutcomeGoNative` 运行。
+- Release 版显示为 **OutcomeGo**，使用 `outcomego://` 链接。构建步骤和签名配置见 [apps/ios/README.md](../../apps/ios/README.md)。
 - iOS 18 及以上支持 Shortcuts、Siri 和 Spotlight。
 
 ## 相关文档

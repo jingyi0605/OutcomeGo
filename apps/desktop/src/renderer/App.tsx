@@ -4,7 +4,7 @@ import { useI18n } from "./lib/i18n";
 import { authHeaders, changeServer } from "./client/auth";
 import { API_BASE } from "./client/http";
 import type { PromptDraft } from "./components/ai-elements/prompt-input";
-import { BotAvatarActivityProvider } from "./components/aiteamos/bot-avatar-activity";
+import { BotAvatarActivityProvider } from "./components/outcomego/bot-avatar-activity";
 import type {
   BotView,
   ChannelMessageView,
@@ -12,26 +12,26 @@ import type {
   CreateBotInput,
   SearchResultView,
   UpdateBotInput,
-} from "@aiteamos/contracts";
-import { createReadReceiptController } from "@aiteamos/product-core/read-receipts";
-import type { DesktopNotificationTarget } from "@aiteamos/contracts/notification-content";
+} from "@outcomego/contracts";
+import { createReadReceiptController } from "@outcomego/product-core/read-receipts";
+import type { DesktopNotificationTarget } from "@outcomego/contracts/notification-content";
 import { CircleAlert, LoaderCircle, RefreshCw } from "lucide-react";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { api } from "./client/aiteamos-api";
+import { api } from "./client/outcomego-api";
 import { preloadMessageRenderers } from "./components/ai-elements/message";
-import { ChatPane } from "./components/aiteamos/chat-pane";
-import { DesktopHeader } from "./components/aiteamos/desktop-header";
-import type { SearchAction } from "./components/aiteamos/search-dialog";
-import { Sidebar } from "./components/aiteamos/sidebar";
-import { FirstRunShell } from "./components/aiteamos/first-run-shell";
+import { ChatPane } from "./components/outcomego/chat-pane";
+import { DesktopHeader } from "./components/outcomego/desktop-header";
+import type { SearchAction } from "./components/outcomego/search-dialog";
+import { Sidebar } from "./components/outcomego/sidebar";
+import { FirstRunShell } from "./components/outcomego/first-run-shell";
 import {
   clearLandingRow,
   LANDING_HOLD_MS,
   landingStep,
   markLandingRow,
-} from "./components/aiteamos/landing";
-import { ModelStatusBanner } from "./components/aiteamos/model-status-banner";
-import { VersionMismatchBanner } from "./components/aiteamos/version-mismatch-banner";
+} from "./components/outcomego/landing";
+import { ModelStatusBanner } from "./components/outcomego/model-status-banner";
+import { VersionMismatchBanner } from "./components/outcomego/version-mismatch-banner";
 import { Button } from "./components/ui/button";
 import { LoadingOrb } from "./components/ui/loading-orb";
 import { TooltipProvider } from "./components/ui/tooltip";
@@ -47,8 +47,8 @@ import {
   startA2AExchange,
 } from "./lib/a2a-exchange";
 import {
-  AITEAMOS_DEEP_LINK_EVENT,
-  parseAiTeamOSDeepLink,
+  OUTCOMEGO_DEEP_LINK_EVENT,
+  parseOutcomeGoDeepLink,
   type SettingsAnchor,
 } from "./lib/app-deep-links";
 import { activeAsyncTaskChannelIds, activeAsyncTasksForBot } from "./lib/async-tasks";
@@ -83,65 +83,65 @@ import { useSnapshotIndex } from "./lib/snapshot-index";
 import { SidebarBotOrderContext } from "./lib/sidebar-bot-order";
 import { sidebarChannelOrder } from "./lib/sidebar-rows";
 import { readThemePreference, setThemePreference, THEME_CHANGE_EVENT } from "./lib/theme";
-import { useAiTeamOS } from "./state/use-aiteamos";
-import { MessagesGrantsPrompt } from "./components/aiteamos/settings/messages-permissions-dialog";
+import { useOutcomeGo } from "./state/use-outcomego";
+import { MessagesGrantsPrompt } from "./components/outcomego/settings/messages-permissions-dialog";
 
 const Onboarding = lazy(() =>
-  import("./components/aiteamos/onboarding").then((module) => ({ default: module.Onboarding }))
+  import("./components/outcomego/onboarding").then((module) => ({ default: module.Onboarding }))
 );
 const A2AExchangeSheet = lazy(() =>
-  import("./components/aiteamos/a2a-exchange-sheet").then((module) => ({
+  import("./components/outcomego/a2a-exchange-sheet").then((module) => ({
     default: module.A2AExchangeSheet,
   }))
 );
 const AsyncTasksPanel = lazy(() =>
-  import("./components/aiteamos/async-tasks-panel").then((module) => ({
+  import("./components/outcomego/async-tasks-panel").then((module) => ({
     default: module.AsyncTasksPanel,
   }))
 );
 const DesktopDialogs = lazy(() =>
-  import("./components/aiteamos/desktop-dialogs").then((module) => ({
+  import("./components/outcomego/desktop-dialogs").then((module) => ({
     default: module.DesktopDialogs,
   }))
 );
 const Inspector = lazy(() =>
-  import("./components/aiteamos/inspector").then((module) => ({ default: module.Inspector }))
+  import("./components/outcomego/inspector").then((module) => ({ default: module.Inspector }))
 );
 const NewBotScreen = lazy(() =>
-  import("./components/aiteamos/new-bot-screen").then((module) => ({
+  import("./components/outcomego/new-bot-screen").then((module) => ({
     default: module.NewBotScreen,
   }))
 );
 const PluginDialog = lazy(() =>
-  import("./components/aiteamos/plugin-settings").then((module) => ({
+  import("./components/outcomego/plugin-settings").then((module) => ({
     default: module.PluginDialog,
   }))
 );
 const EMPTY_MESSAGES: ChannelMessageView[] = [];
-const loadSearchDialog = () => import("./components/aiteamos/search-dialog");
+const loadSearchDialog = () => import("./components/outcomego/search-dialog");
 const preloadSearchDialog = () => void loadSearchDialog();
 const SearchDialog = lazy(() =>
   loadSearchDialog().then((module) => ({
     default: module.SearchDialog,
   }))
 );
-const AboutPanel = lazy(() => import("./components/aiteamos/settings/about"));
+const AboutPanel = lazy(() => import("./components/outcomego/settings/about"));
 const LiveVoiceLayer = lazy(() =>
-  import("./components/aiteamos/live-voice/live-voice-layer").then((module) => ({
+  import("./components/outcomego/live-voice/live-voice-layer").then((module) => ({
     default: module.LiveVoiceLayer,
   }))
 );
 const SettingsPanel = lazy(async () => {
   const [module] = await Promise.all([
-    import("./components/aiteamos/settings/panel"),
-    import("./components/aiteamos/settings/general"),
+    import("./components/outcomego/settings/panel"),
+    import("./components/outcomego/settings/general"),
   ]);
   return {
     default: module.SettingsPanel,
   };
 });
 
-const INSPECTOR_WIDTH_KEY = "aiteamos:inspector-width";
+const INSPECTOR_WIDTH_KEY = "outcomego:inspector-width";
 const DEFAULT_INSPECTOR_WIDTH = 320;
 const DEFAULT_SIDEBAR_WIDTH = 280;
 const clampInspectorWidth = (width: number, windowWidth: number, sidebarWidth: number) =>
@@ -178,7 +178,7 @@ export default function App() {
     setHistoryViewport,
     threadContextMessageIdsByChannel,
     searchContextMessageIdsByChannel,
-  } = useAiTeamOS();
+  } = useOutcomeGo();
   const index = useSnapshotIndex(snapshot);
   // Previews and unread state include each channel's newest message from
   // bootstrap. Transcripts wait until a history read places it in order.
@@ -206,7 +206,7 @@ export default function App() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const onboardingKey = `aiteamos:onboarding-finished:${API_BASE}`;
+  const onboardingKey = `outcomego:onboarding-finished:${API_BASE}`;
   const [onboardingFinished, setOnboardingFinished] = useState(
     () => localStorage.getItem(onboardingKey) === "1"
   );
@@ -232,7 +232,7 @@ export default function App() {
   const channelByIdRef = useRef(index.channelById);
   channelByIdRef.current = index.channelById;
   const [themePreference, setThemePreferenceState] = useState(readThemePreference);
-  const [paletteUpdateStatus, setPaletteUpdateStatus] = useState<AiTeamOSUpdateStatus | null>(null);
+  const [paletteUpdateStatus, setPaletteUpdateStatus] = useState<OutcomeGoUpdateStatus | null>(null);
   const [pluginsOpen, setPluginsOpen] = useState(false);
   const [settingsTarget, setSettingsTarget] = useState<{
     anchor: SettingsAnchor;
@@ -389,13 +389,13 @@ export default function App() {
   useEffect(
     () => () => {
       // Cancel avatar work and reset native presence/cursors across sign-out or server changes.
-      syncDesktopNotificationSnapshot(window.aiteamos?.notifications, null);
+      syncDesktopNotificationSnapshot(window.outcomego?.notifications, null);
     },
     []
   );
 
   useEffect(() => {
-    const native = window.aiteamos;
+    const native = window.outcomego;
     if (
       !appReady ||
       !native ||
@@ -439,7 +439,7 @@ export default function App() {
     const handleDeepLink = (event: Event) => {
       const url = (event as CustomEvent<{ url?: string }>).detail?.url;
       if (!url) return;
-      const target = parseAiTeamOSDeepLink(url);
+      const target = parseOutcomeGoDeepLink(url);
       if (target?.kind === "settings") {
         setSettingsTarget({ anchor: target.anchor, nonce: Date.now() });
         setSettingsOpen(true);
@@ -449,8 +449,8 @@ export default function App() {
         setPluginsOpen(true);
       }
     };
-    window.addEventListener(AITEAMOS_DEEP_LINK_EVENT, handleDeepLink);
-    return () => window.removeEventListener(AITEAMOS_DEEP_LINK_EVENT, handleDeepLink);
+    window.addEventListener(OUTCOMEGO_DEEP_LINK_EVENT, handleDeepLink);
+    return () => window.removeEventListener(OUTCOMEGO_DEEP_LINK_EVENT, handleDeepLink);
   }, []);
   const openDesktopNotification = useCallback((target: DesktopNotificationTarget) => {
     const { channelId } = target;
@@ -499,18 +499,18 @@ export default function App() {
     setSelectedId,
     snapshot,
   ]);
-  useEffect(() => window.aiteamos?.onNotificationClick(openDesktopNotification), [openDesktopNotification]);
+  useEffect(() => window.outcomego?.onNotificationClick(openDesktopNotification), [openDesktopNotification]);
   useEffect(() => {
     if (selectedId && notificationOpening?.target.channelId !== selectedId
       && searchMessageTarget?.channelId !== selectedId) void loadChannel(selectedId).catch(() => undefined);
   }, [loadChannel, notificationOpening, searchMessageTarget?.channelId, selectedId]);
   useEffect(() => {
-    syncDesktopNotificationSnapshot(window.aiteamos?.notifications, snapshot);
+    syncDesktopNotificationSnapshot(window.outcomego?.notifications, snapshot);
   }, [snapshot]);
   useEffect(() => {
     const publishVisibleChannel = () => {
       const focused = document.hasFocus();
-      window.aiteamos?.notifications.setVisibleChannel(focused ? selectedId : null);
+      window.outcomego?.notifications.setVisibleChannel(focused ? selectedId : null);
       if (focused && selectedId) markChannelRead(selectedId);
     };
     publishVisibleChannel();
@@ -577,13 +577,13 @@ export default function App() {
     return () => window.removeEventListener(THEME_CHANGE_EVENT, syncThemePreference);
   }, []);
   useEffect(() => {
-    if (!searchOpen || !window.aiteamos) return;
+    if (!searchOpen || !window.outcomego) return;
     let active = true;
-    void window.aiteamos.updates
+    void window.outcomego.updates
       .status()
       .then((status) => active && setPaletteUpdateStatus(status))
       .catch(() => undefined);
-    const unsubscribe = window.aiteamos.updates.onClientProgress((status) => {
+    const unsubscribe = window.outcomego.updates.onClientProgress((status) => {
       if (active) setPaletteUpdateStatus(status);
     });
     return () => {
@@ -824,7 +824,7 @@ export default function App() {
   const openSettings = useCallback(() => openSettingsTarget(null), [openSettingsTarget]);
   useEffect(
     () =>
-      window.aiteamos?.onMenuAction?.((action) => {
+      window.outcomego?.onMenuAction?.((action) => {
         if (action === "about") openAbout();
         else if (action === "updates") openSettingsTarget("update-status");
         else openSettings();
@@ -1193,7 +1193,7 @@ export default function App() {
         current: themePreference === theme.preference,
         run: () => setThemePreference(theme.preference),
       })),
-      ...(window.aiteamos
+      ...(window.outcomego
         ? [
             {
               id: "update:app",
@@ -1211,7 +1211,7 @@ export default function App() {
                   !paletteUpdateStatus ||
                   ["idle", "up-to-date", "error"].includes(paletteUpdateStatus.status)
                 ) {
-                  void window.aiteamos?.updates
+                  void window.outcomego?.updates
                     .check()
                     .then(setPaletteUpdateStatus)
                     .catch(() => undefined);
@@ -1285,7 +1285,7 @@ export default function App() {
       <main className="grid h-screen place-items-center bg-background text-foreground">
         <div className="text-center">
           <LoadingOrb aria-hidden className="mx-auto" size={28} />
-          <p className="mt-3 text-sm">{t("Connecting to aiTeamOS…")}</p>
+          <p className="mt-3 text-sm">{t("Connecting to OutcomeGo…")}</p>
           {problem && <p className="mt-2 max-w-sm text-xs text-destructive">{problem}</p>}
           {problem && (
             <button
@@ -1730,7 +1730,7 @@ export default function App() {
                                 setRoutineReturnMode(inspectorMode === "settings" ? "settings" : "summary");
                               setInspectorMode(mode);
                             }}
-                            onAiTeamOS={openInspectorBot}
+                            onOutcomeGo={openInspectorBot}
                             onRetryBot={retryInspectorBot}
                             onSetGroupAvatar={setChannelAvatar}
                             onSetMembers={setChannelMembers}
@@ -1753,7 +1753,7 @@ export default function App() {
               <div className="grid flex-1 place-items-center text-sm text-muted-foreground">
                 {snapshot.bots.length === 0 ? (
                   <div className="flex flex-col items-center gap-3">
-                    <span>{t("Bots do the work in aiTeamOS. Create one to get started.")}</span>
+                    <span>{t("Bots do the work in OutcomeGo. Create one to get started.")}</span>
                     <Button onClick={() => void createNewBot()} size="sm">
                       {t("Create a bot")}
                     </Button>

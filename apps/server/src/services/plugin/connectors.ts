@@ -1,8 +1,8 @@
 import {deliverExternalFiles, type ExternalFile} from "./external-files";
 import {createHash} from "node:crypto";
-import { ApiError } from "@aiteamos/contracts";
-import type { PrismaClient } from "@aiteamos/db";
-import type { AgentDataStore } from "@aiteamos/messaging";
+import { ApiError } from "@outcomego/contracts";
+import type { PrismaClient } from "@outcomego/db";
+import type { AgentDataStore } from "@outcomego/messaging";
 import { Effect } from "effect";
 import type { McpHttpClientManager } from "../../plugins/mcp-client-manager";
 import { toJson } from "../service-utils";

@@ -12,7 +12,7 @@ header{height:68px;background:#234e75;padding:16px;display:flex;justify-content:
 textarea{display:block;width:100%;height:150px;padding:14px;font:26px system-ui;resize:none}
 #target{height:1300px;background:repeating-linear-gradient(#244365 0 96px,#305880 96px 192px);padding:24px}
 #pulse{background:#03cda0;padding:10px;border-radius:8px;color:#061524}
-</style><header>OpenTeam • actual Linux desktop <span id="pulse">Frame 0</span></header>
+</style><header>OutcomeGo • actual Linux desktop <span id="pulse">Frame 0</span></header>
 <textarea id="input" aria-label="Remote input" placeholder="Keyboard and clipboard validation"></textarea>
 <div id="target">Touch target — scroll to move the numbered bands</div><script>
 window.receipt={clicks:0,rightClicks:0,moves:0,keys:[],events:[]};

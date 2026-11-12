@@ -15,7 +15,7 @@ export function InstallCard() {
   return (
     <div className="ot-install-card">
       <InstallCommand />
-      <ol className="ot-install-steps" aria-label="Set up aiTeamOS">
+      <ol className="ot-install-steps" aria-label="Set up OutcomeGo">
         {steps.map(([title, description], index) => (
           <li key={title}>
             <span className="ot-install-step-number" aria-hidden="true">

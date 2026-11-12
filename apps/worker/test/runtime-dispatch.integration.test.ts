@@ -1,9 +1,9 @@
 import { expect, test } from "bun:test";
-import { createPrismaClient } from "@aiteamos/db";
-import { TASK_RECOVERY_LOCK } from "@aiteamos/messaging";
+import { createPrismaClient } from "@outcomego/db";
+import { TASK_RECOVERY_LOCK } from "@outcomego/messaging";
 import { dispatchComputerTurn } from "../src/runtime-dispatch";
 
-const url = process.env.AITEAMOS_RECOVERY_TEST_DATABASE_URL;
+const url = process.env.OUTCOMEGO_RECOVERY_TEST_DATABASE_URL;
 const deferred = () => {
   let resolve!: () => void;
   const promise = new Promise<void>((r) => (resolve = r));

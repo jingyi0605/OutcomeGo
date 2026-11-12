@@ -5,11 +5,11 @@ import type {
   ChannelMessageView,
   ClientBootstrapView,
   ProductEvent,
-} from "@aiteamos/contracts";
+} from "@outcomego/contracts";
 import {
   CommittedEventCursor,
   createLiveSyncController,
-  createAiTeamOSClient,
+  createOutcomeGoClient,
   shouldRefreshForEvent,
   synchronizeClientSnapshot,
 } from "../../../packages/client-core/src";
@@ -160,7 +160,7 @@ const fixture = () => {
     },
   });
   type FixturePeer = {
-    client: ReturnType<typeof createAiTeamOSClient>;
+    client: ReturnType<typeof createOutcomeGoClient>;
     sync: ReturnType<typeof createLiveSyncController>;
     received: string[];
     readonly history: ChannelMessageView[];
@@ -170,7 +170,7 @@ const fixture = () => {
   };
   const peers: FixturePeer[] = [];
   function peer(eventTransport: "stream" | "long-poll"): FixturePeer {
-    const client = createAiTeamOSClient({ baseUrl: server.url.toString(), eventTransport });
+    const client = createOutcomeGoClient({ baseUrl: server.url.toString(), eventTransport });
     const cursor = new CommittedEventCursor();
     let history: ChannelMessageView[] = [];
     let healthy = false;

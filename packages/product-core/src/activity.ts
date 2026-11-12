@@ -1,4 +1,4 @@
-import type { RunItemView, RunView, SubagentActivityView } from "@aiteamos/contracts";
+import type { RunItemView, RunView, SubagentActivityView } from "@outcomego/contracts";
 
 /** Attempts that can currently execute; parked children still retain ownership. */
 export const EXECUTING_ASYNC_TASK_STATUSES = new Set<SubagentActivityView["status"]>([

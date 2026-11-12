@@ -4,8 +4,8 @@ set -euo pipefail
 ROOT_DIR=$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)
 STRICT="${ANDROID_RELEASE_GATE_STRICT:-0}"
 APP_LINKS="$ROOT_DIR/docs/android/assetlinks.json.template"
-PACKAGE_NAME="${ANDROID_APPLICATION_ID:-com.teambots.android}"
-APP_LINK_HOST="${AITEAMOS_APP_LINK_HOST:-aiteamos.example.com}"
+PACKAGE_NAME="${ANDROID_APPLICATION_ID:-com.outcomego.android}"
+APP_LINK_HOST="${OUTCOMEGO_APP_LINK_HOST:-outcomego.example.com}"
 APK_PATH="${ANDROID_APK:-}"
 AAB_PATH="${ANDROID_AAB:-}"
 MANIFEST_PATH="$ROOT_DIR/apps/android/app/src/main/AndroidManifest.xml"
@@ -34,7 +34,7 @@ sha256() {
 }
 
 check_static() {
-  python3 "$ROOT_DIR/scripts/android/parity-report.py" --check --output /tmp/aiteamos-release-parity.md
+  python3 "$ROOT_DIR/scripts/android/parity-report.py" --check --output /tmp/outcomego-release-parity.md
   python3 "$ROOT_DIR/scripts/android/check-assetlinks.py" "$APP_LINKS" --template --package "$PACKAGE_NAME" --host "$APP_LINK_HOST"
   python3 "$ROOT_DIR/scripts/android/live-parity.py" --contract
   bash "$ROOT_DIR/scripts/android/fcm-verify.sh" payload
@@ -95,7 +95,7 @@ check_signing() {
     if ! command -v apksigner >/dev/null 2>&1; then
       pending "apksigner is unavailable"
     else
-      apksigner verify --verbose "$APK_PATH" >/tmp/aiteamos-apksigner.txt
+      apksigner verify --verbose "$APK_PATH" >/tmp/outcomego-apksigner.txt
       pass "apksigner verification"
     fi
   else
@@ -105,7 +105,7 @@ check_signing() {
     if ! command -v jarsigner >/dev/null 2>&1; then
       pending "jarsigner is unavailable for AAB verification"
     else
-      jarsigner -verify "$AAB_PATH" >/tmp/aiteamos-jarsigner.txt
+      jarsigner -verify "$AAB_PATH" >/tmp/outcomego-jarsigner.txt
       pass "AAB jarsigner verification"
     fi
   else

@@ -54,14 +54,14 @@ export const defaultInstallDirectory = (
   platform = process.platform,
   home = homedir()
 ): string => {
-  if (environment.AITEAMOS_HOME?.trim()) return resolve(environment.AITEAMOS_HOME.trim());
+  if (environment.OUTCOMEGO_HOME?.trim()) return resolve(environment.OUTCOMEGO_HOME.trim());
   if (platform === "win32") {
-    return resolve(environment.LOCALAPPDATA?.trim() || join(home, "AppData", "Local"), "aiTeamOS");
+    return resolve(environment.LOCALAPPDATA?.trim() || join(home, "AppData", "Local"), "outcomeGo");
   }
   if (environment.XDG_CONFIG_HOME?.trim()) {
-    return resolve(environment.XDG_CONFIG_HOME.trim(), "aiteamos");
+    return resolve(environment.XDG_CONFIG_HOME.trim(), "outcomego");
   }
-  return resolve(home, ".aiteamos");
+  return resolve(home, ".outcomego");
 };
 
 export const installationPaths = (directory: string): InstallationPaths => ({
@@ -84,7 +84,7 @@ const assertSingleLine = (name: string, value: string): string => {
 export const normalizeVersion = (value: string): string => {
   const version = value.trim().replace(/^v/, "");
   if (!/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(version)) {
-    throw new CliError(`Invalid aiTeamOS version: ${value}`);
+    throw new CliError(`Invalid OutcomeGo version: ${value}`);
   }
   return version;
 };
@@ -125,23 +125,23 @@ export const createEnvironment = (options: {
     throw new CliError("worker concurrency must be between 1 and 64");
   }
   return [
-    `AITEAMOS_VERSION=${version}`,
-    `AITEAMOS_IMAGE_PREFIX=${imagePrefix}`,
-    `AITEAMOS_POSTGRES_PASSWORD=${randomBytes(32).toString("hex")}`,
-    `AITEAMOS_CONTROL_TOKEN=${randomBytes(32).toString("hex")}`,
-    `AITEAMOS_AUTH_SECRET=${randomBytes(32).toString("hex")}`,
-    `AITEAMOS_PROXY_SECRET=${randomBytes(32).toString("hex")}`,
-    "AITEAMOS_AUTH_MODE=required",
-    "AITEAMOS_ACCESS_MODE=local",
-    "AITEAMOS_BIND_HOST=127.0.0.1",
-    "AITEAMOS_VIEWER_BIND_HOST=127.0.0.1",
-    "AITEAMOS_PUBLIC_HOST=127.0.0.1",
-    "AITEAMOS_PUBLIC_URL=http://127.0.0.1:8787",
-    "AITEAMOS_AUTH_URL=http://127.0.0.1:8787",
-    "AITEAMOS_API_PORT=8787",
-    `AITEAMOS_UPDATE_CHANNEL=${version.includes("-") ? "beta" : "stable"}`,
+    `OUTCOMEGO_VERSION=${version}`,
+    `OUTCOMEGO_IMAGE_PREFIX=${imagePrefix}`,
+    `OUTCOMEGO_POSTGRES_PASSWORD=${randomBytes(32).toString("hex")}`,
+    `OUTCOMEGO_CONTROL_TOKEN=${randomBytes(32).toString("hex")}`,
+    `OUTCOMEGO_AUTH_SECRET=${randomBytes(32).toString("hex")}`,
+    `OUTCOMEGO_PROXY_SECRET=${randomBytes(32).toString("hex")}`,
+    "OUTCOMEGO_AUTH_MODE=required",
+    "OUTCOMEGO_ACCESS_MODE=local",
+    "OUTCOMEGO_BIND_HOST=127.0.0.1",
+    "OUTCOMEGO_VIEWER_BIND_HOST=127.0.0.1",
+    "OUTCOMEGO_PUBLIC_HOST=127.0.0.1",
+    "OUTCOMEGO_PUBLIC_URL=http://127.0.0.1:8787",
+    "OUTCOMEGO_AUTH_URL=http://127.0.0.1:8787",
+    "OUTCOMEGO_API_PORT=8787",
+    `OUTCOMEGO_UPDATE_CHANNEL=${version.includes("-") ? "beta" : "stable"}`,
     "COMPOSE_PROFILES=direct",
-    `AITEAMOS_WORKER_CONCURRENCY=${workerConcurrency}`,
+    `OUTCOMEGO_WORKER_CONCURRENCY=${workerConcurrency}`,
     "",
   ].join("\n");
 };
@@ -172,17 +172,17 @@ export const replaceEnvironmentValue = (contents: string, key: string, value: st
 export const ensureAuthenticationSecret = (contents: string): string => {
   let updated = contents;
   const current = parseEnvironment(updated);
-  if ((current.get("AITEAMOS_AUTH_SECRET")?.length ?? 0) < 32) {
+  if ((current.get("OUTCOMEGO_AUTH_SECRET")?.length ?? 0) < 32) {
     updated = replaceEnvironmentValue(
       updated,
-      "AITEAMOS_AUTH_SECRET",
+      "OUTCOMEGO_AUTH_SECRET",
       randomBytes(32).toString("hex")
     );
   }
-  if ((current.get("AITEAMOS_PROXY_SECRET")?.length ?? 0) < 32) {
+  if ((current.get("OUTCOMEGO_PROXY_SECRET")?.length ?? 0) < 32) {
     updated = replaceEnvironmentValue(
       updated,
-      "AITEAMOS_PROXY_SECRET",
+      "OUTCOMEGO_PROXY_SECRET",
       randomBytes(32).toString("hex")
     );
   }

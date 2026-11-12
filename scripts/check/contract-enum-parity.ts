@@ -4,17 +4,17 @@ const root = resolve(import.meta.dir, "../..");
 const contracts = await Bun.file(resolve(root, "packages/contracts/src/index.ts")).text();
 const prisma = await Bun.file(resolve(root, "packages/db/prisma/schema.prisma")).text();
 const names = [
-  "BotStatus",
-  "OnboardingStatus",
-  "ConversationContinuity",
-  "MessageRole",
-  "ChannelKind",
-  "ChannelMessageSender",
-  "RunOrigin",
-  "RunStatus",
-  "PushDevicePlatform",
-  "RunItemKind",
-  "TodoStatus",
+  "outcomego_bot_status",
+  "onboardingStatus",
+  "outcomego_conversation_continuity",
+  "outcomego_message_role",
+  "outcomego_channel_kind",
+  "outcomego_channel_message_sender",
+  "outcomego_run_origin",
+  "outcomego_run_status",
+  "outcomego_push_device_platform",
+  "outcomego_run_item_kind",
+  "outcomego_todo_status",
 ] as const;
 
 const contractValues = (name: string): string[] => {

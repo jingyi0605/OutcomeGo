@@ -15,18 +15,18 @@ Your data lives in a database and several Docker volumes. Back them up together,
 | `workspace` volume | Files in `/workspace` |
 | `assets` volume | Attachments |
 | `box_store` volume | Snapshots of the bots' computer files |
-| [Install directory](../getting-started/installation.md#where-aiteamos-is-installed) | Settings and generated secrets |
+| [Install directory](../getting-started/installation.md#where-outcomego-is-installed) | Settings and generated secrets |
 
 Backups include sign-ins to websites and services. Store them somewhere private.
 
-The database backup that `aiteamos update` makes is for rolling back a failed update. It isn't a full backup.
+The database backup that `outcomego update` makes is for rolling back a failed update. It isn't a full backup.
 
 ## Update backups
 
-Before each update, `aiteamos update` saves a copy of the database in the `backups` folder of your install directory, named `postgres-<old version>-before-<new version>-<time>-<UUID>.sql`. If the new version doesn't start, the updater restores the copy it just made and restarts the previous version.
+Before each update, `outcomego update` saves a copy of the database in the `backups` folder of your install directory, named `postgres-<old version>-before-<new version>-<time>-<UUID>.sql`. If the new version doesn't start, the updater restores the copy it just made and restarts the previous version.
 
 - **Database only.** Update backups don't include the Docker volumes (workspace files, browser sign-ins, attachments, software bots installed) and don't roll them back. The updater restores the previous `.env` and `compose.yaml` itself, from copies it holds during the update. Use [Make a backup](#make-a-backup) for everything else.
-- **The three newest registered dumps are kept by default**, plus the current rollback dump if outside those three. After a successful update, only older dumps explicitly registered by the updater are eligible for deletion; missing or empty dumps do not count as retained restore points. A failed update deletes nothing. Manual and unregistered legacy dumps and subdirectories stay untouched. Set `AITEAMOS_BACKUP_RETENTION_COUNT=0` in the install directory's `.env` before updating to disable deletion, or use a larger positive count to retain more. To keep a particular dump indefinitely, copy it to private off-host storage or a manual subdirectory under `backups/` before the next successful update. Its registered top-level copy remains eligible for deletion.
+- **The three newest registered dumps are kept by default**, plus the current rollback dump if outside those three. After a successful update, only older dumps explicitly registered by the updater are eligible for deletion; missing or empty dumps do not count as retained restore points. A failed update deletes nothing. Manual and unregistered legacy dumps and subdirectories stay untouched. Set `OUTCOMEGO_BACKUP_RETENTION_COUNT=0` in the install directory's `.env` before updating to disable deletion, or use a larger positive count to retain more. To keep a particular dump indefinitely, copy it to private off-host storage or a manual subdirectory under `backups/` before the next successful update. Its registered top-level copy remains eligible for deletion.
 - **Private.** The copies include plugin sign-ins and saved keys. Only your user can read them.
 
 ## Make a backup
@@ -34,66 +34,66 @@ Before each update, `aiteamos update` saves a copy of the database in the `backu
 These commands work in Bash or zsh on macOS and Linux. They pause your bots while the backup runs, so let active work finish first.
 
 ```sh
-D=~/.aiteamos
-OUT=~/aiteamos-backup-$(date -u +%Y%m%dT%H%M%SZ)
+D=~/.outcomego
+OUT=~/outcomego-backup-$(date -u +%Y%m%dT%H%M%SZ)
 mkdir -p "$OUT"
-oc() { docker compose --project-name aiteamos --project-directory "$D" -f "$D/compose.yaml" "$@"; }
+oc() { docker compose --project-name outcomego --project-directory "$D" -f "$D/compose.yaml" "$@"; }
 
 # Stop the bots, but keep the database running
 oc stop server worker computer
 
 # Back up the database
-oc exec -T postgres pg_dump -U aiteamos -d aiteamos --format=custom > "$OUT/postgres.dump"
+oc exec -T postgres pg_dump -U outcomego -d outcomego --format=custom > "$OUT/postgres.dump"
 
 # Back up the volumes
 for v in computer_home computer_local agent_data assets workspace box_store; do
-  docker run --rm -v "aiteamos_aiteamos_$v:/source:ro" -v "$OUT:/backup" alpine:3.22 \
-    tar -czf "/backup/aiteamos_$v.tar.gz" -C /source .
+  docker run --rm -v "outcomego_outcomego_$v:/source:ro" -v "$OUT:/backup" alpine:3.22 \
+    tar -czf "/backup/outcomego_$v.tar.gz" -C /source .
 done
 
 # Back up the install directory
 cp "$D/.env" "$D/compose.yaml" "$D/installation.json" "$OUT/"
 
-aiteamos start
+outcomego start
 ```
 
-If you installed aiTeamOS somewhere else, set `D` to that directory: `$AITEAMOS_HOME` if you set it, `$XDG_CONFIG_HOME/aiteamos` if you set `XDG_CONFIG_HOME`, or the path you passed to `--dir` (then also run `aiteamos start --dir "$D"`). Keep backups outside the install directory.
+If you installed OutcomeGo somewhere else, set `D` to that directory: `$OUTCOMEGO_HOME` if you set it, `$XDG_CONFIG_HOME/outcomego` if you set `XDG_CONFIG_HOME`, or the path you passed to `--dir` (then also run `outcomego start --dir "$D"`). Keep backups outside the install directory.
 
 If you use automatic HTTPS, your certificates aren't included. On a new machine, the proxy requests new ones once your domain points there.
 
 ## Restore a backup
 
-Restoring replaces all the data in the target server. To move to a new machine, first [install aiTeamOS](../getting-started/installation.md) there.
+Restoring replaces all the data in the target server. To move to a new machine, first [install OutcomeGo](../getting-started/installation.md) there.
 
 ```sh
-D=~/.aiteamos
-OUT=~/aiteamos-backup-20260101T000000Z   # the backup to restore
-oc() { docker compose --project-name aiteamos --project-directory "$D" -f "$D/compose.yaml" "$@"; }
+D=~/.outcomego
+OUT=~/outcomego-backup-20260101T000000Z   # the backup to restore
+oc() { docker compose --project-name outcomego --project-directory "$D" -f "$D/compose.yaml" "$@"; }
 
 # Stop the server and remove its current database
 oc down
-docker volume rm aiteamos_aiteamos_postgres
+docker volume rm outcomego_outcomego_postgres
 
 # Put back the install directory, then restore the database
 cp "$OUT/.env" "$OUT/compose.yaml" "$OUT/installation.json" "$D/"
 oc up -d --wait postgres
-oc exec -T postgres pg_restore -U aiteamos -d aiteamos < "$OUT/postgres.dump"
+oc exec -T postgres pg_restore -U outcomego -d outcomego < "$OUT/postgres.dump"
 
 # Restore the volumes
 for v in computer_home computer_local agent_data assets workspace box_store; do
-  docker run --rm -v "aiteamos_aiteamos_$v:/target" -v "$OUT:/backup:ro" alpine:3.22 \
-    sh -c "find /target -mindepth 1 -delete && tar -xzf /backup/aiteamos_$v.tar.gz -C /target"
+  docker run --rm -v "outcomego_outcomego_$v:/target" -v "$OUT:/backup:ro" alpine:3.22 \
+    sh -c "find /target -mindepth 1 -delete && tar -xzf /backup/outcomego_$v.tar.gz -C /target"
 done
 
-aiteamos start
+outcomego start
 ```
 
-The restore recreates the database so that it uses the password saved in your backup's `.env`. Then run `aiteamos status` and open a bot to check that its conversations, memory, and files are back.
+The restore recreates the database so that it uses the password saved in your backup's `.env`. Then run `outcomego status` and open a bot to check that its conversations, memory, and files are back.
 
-On a new machine, the restored settings still use the old machine's address. Run `aiteamos setup --advanced` and enter the new address. If you use a domain name, you can point it at the new machine instead. Then update the server URL in your apps, and the callback URL for any plugin that uses one, such as [Google](../integrations/google.md) or [Slack](../integrations/slack.md).
+On a new machine, the restored settings still use the old machine's address. Run `outcomego setup --advanced` and enter the new address. If you use a domain name, you can point it at the new machine instead. Then update the server URL in your apps, and the callback URL for any plugin that uses one, such as [Google](../integrations/google.md) or [Slack](../integrations/slack.md).
 
 ## Changing Docker setups
 
 Docker volumes belong to the Docker engine that created them. If you switch Docker contexts, reinstall Docker Desktop, or move to a different engine, your data doesn't come with you. Back up first, then restore on the new engine before removing the old one.
 
-Restarting the server or the host keeps your data. Only deleting the Docker volumes or running `aiteamos uninstall --purge` removes it.
+Restarting the server or the host keeps your data. Only deleting the Docker volumes or running `outcomego uninstall --purge` removes it.

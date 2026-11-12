@@ -2,9 +2,9 @@ import {
   MAX_VOICE_NOTE_BYTES,
   MAX_VOICE_NOTE_MS,
   MIN_VOICE_NOTE_MS,
-} from "@aiteamos/contracts/transcription";
+} from "@outcomego/contracts/transcription";
 import { useEffect, useRef, useState } from "react";
-import { api } from "../client/aiteamos-api";
+import { api } from "../client/outcomego-api";
 import {
   microphoneDisconnected,
   microphoneFallback,

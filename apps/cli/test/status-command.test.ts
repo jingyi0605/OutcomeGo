@@ -11,8 +11,8 @@ import { appendFileSync } from 'node:fs';
 import { StatusScenarioRunner } from ${JSON.stringify(resolve(import.meta.dir, "fixtures/status-scenarios.ts"))};
 const args = process.argv.slice(2);
 const command = process.argv[1].endsWith('docker-compose') ? 'docker-compose' : 'docker';
-appendFileSync(process.env.AITEAMOS_TEST_CALLS, JSON.stringify({command,args}) + '\\n');
-const result = new StatusScenarioRunner(process.env.AITEAMOS_TEST_SCENARIO).run(command,args);
+appendFileSync(process.env.OUTCOMEGO_TEST_CALLS, JSON.stringify({command,args}) + '\\n');
+const result = new StatusScenarioRunner(process.env.OUTCOMEGO_TEST_SCENARIO).run(command,args);
 process.stdout.write(result.stdout); process.stderr.write(result.stderr || result.error?.message || '');
 process.exit(result.status);
 `;
@@ -31,8 +31,8 @@ const installStub = (f: ReturnType<typeof statusFixture>, id: string) => {
     PATH: bin,
     NO_COLOR: "1",
     TERM: "dumb",
-    AITEAMOS_TEST_SCENARIO: id,
-    AITEAMOS_TEST_CALLS: join(f.directory, "calls.jsonl"),
+    OUTCOMEGO_TEST_SCENARIO: id,
+    OUTCOMEGO_TEST_CALLS: join(f.directory, "calls.jsonl"),
   };
 };
 
@@ -72,15 +72,15 @@ describe.skipIf(process.platform === "win32")("actual status and health CLI comm
         ]);
         expect(code).toBe(0);
         expect(stderr).toBe("");
-        expect(output.startsWith("@@AITEAMOS_UPDATE@@")).toBe(true);
-        expect(JSON.parse(output.slice("@@AITEAMOS_UPDATE@@".length))).toMatchObject({
+        expect(output.startsWith("@@OUTCOMEGO_UPDATE@@")).toBe(true);
+        expect(JSON.parse(output.slice("@@OUTCOMEGO_UPDATE@@".length))).toMatchObject({
           phase: "pulling",
           version: "1.2.4",
         });
         outputs.push(output);
       }
       expect(outputs[0]).toBe(outputs[1]);
-      expect(existsSync(env.AITEAMOS_TEST_CALLS)).toBe(false);
+      expect(existsSync(env.OUTCOMEGO_TEST_CALLS)).toBe(false);
       expect(f.requests).toEqual([]);
     } finally {
       f.cleanup();
@@ -118,8 +118,8 @@ describe.skipIf(process.platform === "win32")("actual status and health CLI comm
         expect(outputs[0]).toBe(outputs[1]);
         for (const [file, content] of f.before) expect(readFileSync(file, "utf8")).toBe(content);
         expect(f.requests).toEqual(f.requests.map(() => "/api/v0/health"));
-        if (existsSync(env.AITEAMOS_TEST_CALLS)) {
-          const calls = readFileSync(env.AITEAMOS_TEST_CALLS, "utf8")
+        if (existsSync(env.OUTCOMEGO_TEST_CALLS)) {
+          const calls = readFileSync(env.OUTCOMEGO_TEST_CALLS, "utf8")
             .trim()
             .split("\n")
             .map((line) => JSON.parse(line));

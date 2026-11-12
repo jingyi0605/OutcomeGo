@@ -1,6 +1,6 @@
-import { ApiError } from "@aiteamos/contracts";
-import { connectorHostTools } from "@aiteamos/plugin-sdk";
-import type { PrismaClient } from "@aiteamos/db";
+import { ApiError } from "@outcomego/contracts";
+import { connectorHostTools } from "@outcomego/plugin-sdk";
+import type { PrismaClient } from "@outcomego/db";
 import { appendEvent, toJson } from "../service-utils";
 import { loadConnectionNamespaces } from "./namespaces";
 import type { PluginTransport } from "./transport";

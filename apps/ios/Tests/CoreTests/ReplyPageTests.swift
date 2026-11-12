@@ -1,5 +1,5 @@
 import XCTest
-@testable import OpenTeamCore
+@testable import OutcomeGoCore
 
 final class ReplyPageTests: XCTestCase {
   private func message(_ id: String, reply: String? = nil, branch: Bool = false, sender: String = "user") -> Message {

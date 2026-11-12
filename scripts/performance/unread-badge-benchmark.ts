@@ -8,14 +8,14 @@ await client.connect();
 
 const visibleChannelsSql = `
   SELECT channel."id", coalesce(read_state."lastReadSequence", 0) AS "lastReadSequence"
-  FROM "Channel" AS channel
-  LEFT JOIN "ChannelReadState" AS read_state ON read_state."channelId" = channel."id"
+  FROM "outcomego_channel" AS channel
+  LEFT JOIN "outcomego_channel_read_state" AS read_state ON read_state."channelId" = channel."id"
   WHERE channel."archivedAt" IS NULL
     AND EXISTS (
       SELECT 1
-      FROM "ChannelMember" AS membership
-      INNER JOIN "Bot" AS bot ON bot."id" = membership."botId"
-      LEFT JOIN "Subagent" AS subagent ON subagent."childBotId" = bot."id"
+      FROM "outcomego_channel_member" AS membership
+      INNER JOIN "outcomego_bot" AS bot ON bot."id" = membership."botId"
+      LEFT JOIN "outcomego_subagent" AS subagent ON subagent."childBotId" = bot."id"
       WHERE membership."channelId" = channel."id"
         AND bot."hiddenFromSidebar" = false
         AND subagent."id" IS NULL
@@ -24,9 +24,9 @@ const visibleChannelsSql = `
 
 const unreadSql = `
   SELECT count(*)::bigint AS "count"
-  FROM "ChannelMessage" AS message
-  INNER JOIN "Channel" AS channel ON channel."id" = message."channelId"
-  LEFT JOIN "ChannelReadState" AS read_state ON read_state."channelId" = channel."id"
+  FROM "outcomego_channel_message" AS message
+  INNER JOIN "outcomego_channel" AS channel ON channel."id" = message."channelId"
+  LEFT JOIN "outcomego_channel_read_state" AS read_state ON read_state."channelId" = channel."id"
   WHERE channel."archivedAt" IS NULL
     AND message."sender" = 'agent'
     AND message."sequence" > coalesce(read_state."lastReadSequence", 0)
@@ -34,9 +34,9 @@ const unreadSql = `
     AND NOT (message."metadata" ? 'toAgent')
     AND EXISTS (
       SELECT 1
-      FROM "ChannelMember" AS membership
-      INNER JOIN "Bot" AS bot ON bot."id" = membership."botId"
-      LEFT JOIN "Subagent" AS subagent ON subagent."childBotId" = bot."id"
+      FROM "outcomego_channel_member" AS membership
+      INNER JOIN "outcomego_bot" AS bot ON bot."id" = membership."botId"
+      LEFT JOIN "outcomego_subagent" AS subagent ON subagent."childBotId" = bot."id"
       WHERE membership."channelId" = channel."id"
         AND bot."hiddenFromSidebar" = false
         AND subagent."id" IS NULL
@@ -54,7 +54,7 @@ const legacyCount = async () => {
     metadata: Record<string, unknown> | null;
   }>(
     `SELECT "channelId", "sequence", "metadata"
-     FROM "ChannelMessage"
+     FROM "outcomego_channel_message"
      WHERE "sender" = 'agent' AND "channelId" = ANY($1::uuid[])`,
     [channels.rows.map((channel) => channel.id)]
   );

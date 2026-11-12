@@ -4,7 +4,7 @@ import { join, resolve } from "node:path";
 import { createRequire } from "node:module";
 import { createServer } from "vite";
 
-const directory = await mkdtemp(join(tmpdir(), "aiteamos-composer-buttons-"));
+const directory = await mkdtemp(join(tmpdir(), "outcomego-composer-buttons-"));
 const server = await createServer({
   root: resolve(import.meta.dir, ".."),
   configFile: resolve(import.meta.dir, "../vite.config.ts"),

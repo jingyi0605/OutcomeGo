@@ -1,7 +1,7 @@
 import { createHmac, createHash, timingSafeEqual } from "node:crypto";
 import { readFile } from "node:fs/promises";
-import { parseAutomationEvent, type AutomationEvent } from "@aiteamos/messaging";
-import { ApiError } from "@aiteamos/contracts";
+import { parseAutomationEvent, type AutomationEvent } from "@outcomego/messaging";
+import { ApiError } from "@outcomego/contracts";
 
 export interface AutomationWebhookBinding {
   id: string;
@@ -33,7 +33,7 @@ const record = (raw: unknown): Record<string, any> =>
 export async function automationWebhookBinding(
   id: string
 ): Promise<AutomationWebhookBinding | undefined> {
-  const path = process.env.AITEAMOS_AUTOMATION_WEBHOOKS_FILE;
+  const path = process.env.OUTCOMEGO_AUTOMATION_WEBHOOKS_FILE;
   if (!path) return undefined;
   const contents = await readFile(path, "utf8");
   if (contents.length > 200_000) return reject(500, "Webhook configuration is too large");
@@ -45,7 +45,7 @@ export async function automationWebhookBinding(
     !["slack", "github", "webhook"].includes(binding.source) ||
     !["bot", "group"].includes(binding.owner?.kind) ||
     !/^[a-f0-9-]{36}$/i.test(binding.owner.id) ||
-    !/^AITEAMOS_EVENT_[A-Z0-9_]+$/.test(binding.secretEnv ?? "") ||
+    !/^OUTCOMEGO_EVENT_[A-Z0-9_]+$/.test(binding.secretEnv ?? "") ||
     (binding.source === "slack" && !binding.teamId) ||
     (binding.source === "github" && !binding.repository)
   )

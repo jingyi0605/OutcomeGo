@@ -1,6 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
-@import "@aiteamos/design-tokens/robot-avatar.css";
+@import "@outcomego/design-tokens/robot-avatar.css";
 @import "shadcn/tailwind.css";
 
 @custom-variant dark (&:is(.dark *));

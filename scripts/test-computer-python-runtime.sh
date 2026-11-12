@@ -20,7 +20,7 @@ python3 -m venv /workspace/qa-venv
 /workspace/qa-venv/bin/python -m pip --version
 printf 'Runner package paths, venv and credential isolation passed\n'
 RUNNER
-exec /usr/lib/aiteamos/bin/aiteamos-computer-entrypoint runuser -u runner -- sh /tmp/runner-check.sh
+exec /usr/lib/outcomego/bin/outcomego-computer-entrypoint runuser -u runner -- sh /tmp/runner-check.sh
 CONTAINER
 
 docker run --rm -i --network none --entrypoint sh "$image" <<'CONTAINER'
@@ -28,7 +28,7 @@ set -eu
 mkdir -p /home/box/.cache /home/box/.pi/agent
 chmod 700 /home/box/.pi/agent
 ln -s /home/box/.pi/agent /home/box/.cache/pip
-if /usr/lib/aiteamos/bin/aiteamos-computer-entrypoint true; then
+if /usr/lib/outcomego/bin/outcomego-computer-entrypoint true; then
   echo 'Unexpectedly accepted a redirected package directory' >&2
   exit 1
 fi

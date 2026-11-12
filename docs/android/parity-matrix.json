@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "source": "apps/ios/OpenTeamNative.xcodeproj/xcshareddata/xcschemes",
+  "source": "apps/ios/OutcomeGoNative.xcodeproj/xcshareddata/xcschemes",
   "latestValidation": {
     "date": "2026-10-31",
     "runner": "Android-capable core runner on V1916A",
@@ -185,7 +185,7 @@
       "id": "rich-content-and-attachments",
       "area": "Message features",
       "iosSchemes": ["MessageParity", "QAAudit"],
-      "androidChecks": ["com.aiteamos.features message tests"],
+      "androidChecks": ["com.outcomego.features message tests"],
       "status": "scaffolded",
       "owner": "features",
       "risk": "high",

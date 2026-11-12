@@ -5,13 +5,13 @@
  * untranslated key still renders readable English. Adding a locale means adding
  * a catalog object here and registering it in the shared locale contract.
  */
-import { DEFAULT_LOCALE, type Locale } from "@aiteamos/contracts/localization";
+import { DEFAULT_LOCALE, type Locale } from "@outcomego/contracts/localization";
 
 export type TranslationValues = Record<string, string | number | null | undefined>;
 
 export const sourceTranslations: Record<string, string> = {
   Settings: "设置",
-  "Configure aiTeamOS and application updates.": "配置 aiTeamOS 和应用更新。",
+  "Configure OutcomeGo and application updates.": "配置 OutcomeGo 和应用更新。",
   General: "常规",
   Computer: "电脑",
   Model: "模型",
@@ -207,7 +207,7 @@ export const sourceTranslations: Record<string, string> = {
   Connectivity: "连接状态",
   "HTTPS endpoint for webhook routines.\nExternal services use it to reach your bots.":
     "Webhook 例程使用的 HTTPS 地址。\n外部服务通过它访问你的机器人。",
-  "Saved in aiTeamOS settings.": "已保存在 aiTeamOS 设置中。",
+  "Saved in OutcomeGo settings.": "已保存在 OutcomeGo 设置中。",
   "Using the server environment value.": "正在使用服务器环境变量中的值。",
   "No public webhook URL is configured.": "尚未配置公开 Webhook 地址。",
   "Saved and applied immediately. Updated {count} existing routine webhook(s).":
@@ -224,8 +224,8 @@ export const sourceTranslations: Record<string, string> = {
   "Set a public HTTPS address.": "设置公开 HTTPS 地址。",
   "Remove the saved URL.\nThe server environment value will be used if available.":
     "移除已保存的地址。\n如果可用，将使用服务器环境变量中的值。",
-  "Run Test to check this address from the aiTeamOS server.":
-    "运行“测试”，从 aiTeamOS 服务器检查此地址。",
+  "Run Test to check this address from the OutcomeGo server.":
+    "运行“测试”，从 OutcomeGo 服务器检查此地址。",
   "Set a public HTTPS address.\nRun Test before creating a webhook routine.":
     "设置公开 HTTPS 地址。\n创建 Webhook 例程前请先运行“测试”。",
   "Remote access": "远程访问",
@@ -233,7 +233,7 @@ export const sourceTranslations: Record<string, string> = {
   "Use HTTPS to connect devices privately.\nTailscale must run on the server and each device.":
     "使用 HTTPS 私密连接设备。\n服务器和每台设备都必须运行 Tailscale。",
   "Checking Tailscale…": "正在检查 Tailscale…",
-  "Run these commands on your aiTeamOS server host.": "请在 aiTeamOS 服务器主机上运行这些命令。",
+  "Run these commands on your OutcomeGo server host.": "请在 OutcomeGo 服务器主机上运行这些命令。",
   "Configuring and verifying HTTPS…": "正在配置并验证 HTTPS…",
   "Switching to local access…": "正在切换到本地访问…",
   "Server address: {url}.\nReconnect your apps using this address.\n{followUp}":
@@ -248,7 +248,7 @@ export const sourceTranslations: Record<string, string> = {
     "请在主机上启动 Tailscale，以检测 HTTPS 地址。",
   "Tailscale HTTPS configured": "Tailscale HTTPS 已配置",
   "Enable Tailscale HTTPS": "启用 Tailscale HTTPS",
-  "HTTPS endpoint verified.\nManaged by aiTeamOS.": "HTTPS 端点已验证。\n由 aiTeamOS 管理。",
+  "HTTPS endpoint verified.\nManaged by OutcomeGo.": "HTTPS 端点已验证。\n由 OutcomeGo 管理。",
   "HTTPS endpoint verified.\nUses an existing user-managed route.":
     "HTTPS 端点已验证。\n使用现有的用户管理路由。",
   "HTTPS endpoint verified.": "HTTPS 端点已验证。",
@@ -268,7 +268,7 @@ export const sourceTranslations: Record<string, string> = {
   "Unavailable · retrying": "不可用 · 正在重试",
   "Every 5 seconds": "每 5 秒",
   "Connecting…": "正在连接…",
-  "Host/VM CPU & RAM · aiTeamOS data disk": "主机/虚拟机 CPU 和 RAM · aiTeamOS 数据磁盘",
+  "Host/VM CPU & RAM · OutcomeGo data disk": "主机/虚拟机 CPU 和 RAM · OutcomeGo 数据磁盘",
   unavailable: "不可用",
   "{label}: {status}": "{label}：{status}",
   "{percent}% used": "已使用 {percent}%",
@@ -302,11 +302,11 @@ export const sourceTranslations: Record<string, string> = {
   "Save display": "保存显示设置",
   "Applies to newly opened box desktops. Restart an existing box desktop to apply it there.":
     "仅应用于新打开的 Box 桌面。\n重启已有 Box 桌面后才会生效。",
-  "Open the aiTeamOS desktop app on a computer and sign in to add it here.":
-    "在电脑上打开 aiTeamOS 桌面应用并登录，即可在此添加。",
+  "Open the OutcomeGo desktop app on a computer and sign in to add it here.":
+    "在电脑上打开 OutcomeGo 桌面应用并登录，即可在此添加。",
   "Pause mobile alerts while using this desktop": "使用此桌面端时暂停手机提醒",
-  "Alerts resume after 5 minutes of inactivity or when you open aiTeamOS on Mobile.":
-    "闲置 5 分钟后，或在手机上打开 aiTeamOS 时恢复提醒。",
+  "Alerts resume after 5 minutes of inactivity or when you open OutcomeGo on Mobile.":
+    "闲置 5 分钟后，或在手机上打开 OutcomeGo 时恢复提醒。",
   "Couldn’t save notification settings. Try again.": "无法保存通知设置，请重试。",
   "Choose the AI provider and model for all bots on this server.":
     "选择此服务器上所有机器人的 AI 服务商和模型。",
@@ -389,8 +389,8 @@ export const sourceTranslations: Record<string, string> = {
     "还没有私有技能。创建一个，或让机器人帮你创建。",
   "Loading private skills…": "正在加载私有技能…",
   "This Mac": "此 Mac",
-  "aiTeamOS asks the first time it needs each one, or you can allow them now":
-    "aiTeamOS 第一次需要这些权限时会询问，你也可以现在允许",
+  "OutcomeGo asks the first time it needs each one, or you can allow them now":
+    "OutcomeGo 第一次需要这些权限时会询问，你也可以现在允许",
   "Read and reply to texts": "读取并回复短信",
   "Account settings": "账户设置",
   "New account label": "新账户标签",
@@ -416,11 +416,11 @@ export const sourceTranslations: Record<string, string> = {
   Routines: "例程",
   "No routines yet": "还没有例程",
   "Add routine": "添加例程",
-  "About aiTeamOS": "关于 aiTeamOS",
+  "About OutcomeGo": "关于 OutcomeGo",
   "Check for Updates…": "检查更新…",
   "Settings…": "设置…",
-  "Hide aiTeamOS": "隐藏 aiTeamOS",
-  "Quit aiTeamOS": "退出 aiTeamOS",
+  "Hide OutcomeGo": "隐藏 OutcomeGo",
+  "Quit OutcomeGo": "退出 OutcomeGo",
   File: "文件",
   View: "显示",
   Window: "窗口",
@@ -430,8 +430,8 @@ export const sourceTranslations: Record<string, string> = {
   Copy: "复制",
   Paste: "粘贴",
   "Select All": "全选",
-  "Browse, install, connect, and configure aiTeamOS plugins.":
-    "浏览、安装、连接和配置 aiTeamOS 插件。",
+  "Browse, install, connect, and configure OutcomeGo plugins.":
+    "浏览、安装、连接和配置 OutcomeGo 插件。",
   "Manage plugins": "管理插件",
   "Loading settings…": "正在加载设置…",
   "Open {name}": "打开 {name}",
@@ -510,9 +510,9 @@ export const sourceTranslations: Record<string, string> = {
   "After you sign in, copy the address your browser lands on and paste it here.":
     "登录后，复制浏览器跳转到的地址并粘贴到这里。",
   "All systems go": "一切就绪",
-  "Allow aiTeamOS to use your plan": "允许 aiTeamOS 使用你的套餐",
+  "Allow OutcomeGo to use your plan": "允许 OutcomeGo 使用你的套餐",
   "Answers your apps": "响应你的应用",
-  "Back in aiTeamOS": "已回到 aiTeamOS",
+  "Back in OutcomeGo": "已回到 OutcomeGo",
   "Bot computer": "机器人电脑",
   "Bots look things up with a search service. Paste your {provider} API key to turn it on.":
     "机器人通过搜索服务查找信息。粘贴你的 {provider} API 密钥即可开启。",
@@ -595,7 +595,7 @@ export const sourceTranslations: Record<string, string> = {
   "One key, hundreds of models": "一个密钥，数百个模型",
   "One tap, nothing to paste": "一键完成，无需粘贴",
   "Only your server sees it": "只有你的服务器能看到它",
-  "Open aiTeamOS": "打开 aiTeamOS",
+  "Open OutcomeGo": "打开 OutcomeGo",
   "Open it": "打开",
   "Open it again": "再次打开",
   "Open sign-in page": "打开登录页面",
@@ -675,7 +675,7 @@ export const sourceTranslations: Record<string, string> = {
   "Welcome back. What should we work on?": "欢迎回来。我们从什么开始？",
   "What should we work on?": "我们从什么开始？",
   Writer: "写作者",
-  "You can close this tab and return to aiTeamOS": "你可以关闭此标签页并返回 aiTeamOS",
+  "You can close this tab and return to OutcomeGo": "你可以关闭此标签页并返回 OutcomeGo",
   "You're all set": "一切就绪",
   "You're already connected": "你已经连接好了",
   "You're signed in": "你已登录",
@@ -688,7 +688,7 @@ export const sourceTranslations: Record<string, string> = {
     "你的服务器会用 {provider} 检查它，然后保存在服务器上。",
   "Your server is ready for bots.": "你的服务器已准备好运行机器人。",
   "Your team": "你的团队",
-  "aiTeamOS continues as soon as you're done": "完成登录后 aiTeamOS 会自动继续",
+  "OutcomeGo continues as soon as you're done": "完成登录后 OutcomeGo 会自动继续",
   next: "下一步",
   "on your server to see why.": "在你的服务器上查看原因。",
   "your AI": "你的 AI",
@@ -775,8 +775,8 @@ export const sourceTranslations: Record<string, string> = {
   "Export the validated bundle, add its files using GitHub’s web editor, and open a pull request. Include setup instructions and the connection tests you ran. Saved account credentials are never added to an exported installation.":
     "导出已验证的打包文件，使用 GitHub 的网页编辑器添加其文件，然后发起拉取请求。请附上设置说明和你运行过的连接测试。已保存的账户凭据绝不会被加入导出的安装包。",
   "Loading connection setup…": "正在加载连接设置…",
-  "Runs on your local computer through aiTeamOS desktop":
-    "通过 aiTeamOS 桌面端在你的本地电脑上运行",
+  "Runs on your local computer through OutcomeGo desktop":
+    "通过 OutcomeGo 桌面端在你的本地电脑上运行",
   "Runs on your Bot computer": "在你的机器人电脑上运行",
   "Connects to the configured server": "连接到已配置的服务器",
   "Open provider setup guide": "打开服务商设置指南",
@@ -794,8 +794,8 @@ export const sourceTranslations: Record<string, string> = {
   "This provider requires HTTPS. Configure Tailscale Serve or your own HTTPS domain before authorizing.":
     "此服务商要求 HTTPS。请在授权前配置 Tailscale Serve 或你自己的 HTTPS 域名。",
   "OAuth callback URL": "OAuth 回调地址",
-  "Use an OAuth client that permits loopback redirects. For Google, create a Desktop app client. After authorization, paste the full returned URL into aiTeamOS.":
-    "请使用允许回环重定向的 OAuth 客户端。对于 Google，请创建桌面应用客户端。授权后，将返回的完整地址粘贴到 aiTeamOS。",
+  "Use an OAuth client that permits loopback redirects. For Google, create a Desktop app client. After authorization, paste the full returned URL into OutcomeGo.":
+    "请使用允许回环重定向的 OAuth 客户端。对于 Google，请创建桌面应用客户端。授权后，将返回的完整地址粘贴到 OutcomeGo。",
   "Register this exact URL with the provider’s Web application client.":
     "将此确切地址注册到服务商的 Web 应用客户端。",
   "Keep saved value": "保留已保存的值",
@@ -867,14 +867,14 @@ export const sourceTranslations: Record<string, string> = {
   "{name} is connected": "{name} 已连接",
   "Setup guide": "设置指南",
   "{count} tools are available from this account.": "此账户有 {count} 个工具可用。",
-  "This provider requires an HTTPS aiTeamOS address. Configure Tailscale Serve or your own HTTPS domain before signing in. Callback paste is not supported.":
-    "此服务商要求 HTTPS 的 aiTeamOS 地址。请在登录前配置 Tailscale Serve 或你自己的 HTTPS 域名。不支持粘贴回调。",
+  "This provider requires an HTTPS OutcomeGo address. Configure Tailscale Serve or your own HTTPS domain before signing in. Callback paste is not supported.":
+    "此服务商要求 HTTPS 的 OutcomeGo 地址。请在登录前配置 Tailscale Serve 或你自己的 HTTPS 域名。不支持粘贴回调。",
   "Manual callback URI": "手动回调 URI",
   "Authorized redirect URI": "已授权的重定向 URI",
-  "Your server uses HTTP. For Google, create a Desktop app OAuth client. Approve access in your browser, then paste the complete callback URL into aiTeamOS on this device.":
-    "你的服务器使用 HTTP。对于 Google，请创建桌面应用 OAuth 客户端。在浏览器中批准访问，然后将完整的回调地址粘贴到此设备上的 aiTeamOS。",
-  "Approve access in your browser, then paste the complete callback URL into aiTeamOS on this device, even if the localhost page cannot load.":
-    "在浏览器中批准访问，然后将完整的回调地址粘贴到此设备上的 aiTeamOS，即使 localhost 页面无法加载。",
+  "Your server uses HTTP. For Google, create a Desktop app OAuth client. Approve access in your browser, then paste the complete callback URL into OutcomeGo on this device.":
+    "你的服务器使用 HTTP。对于 Google，请创建桌面应用 OAuth 客户端。在浏览器中批准访问，然后将完整的回调地址粘贴到此设备上的 OutcomeGo。",
+  "Approve access in your browser, then paste the complete callback URL into OutcomeGo on this device, even if the localhost page cannot load.":
+    "在浏览器中批准访问，然后将完整的回调地址粘贴到此设备上的 OutcomeGo，即使 localhost 页面无法加载。",
   "Register this exact URL with your provider’s Web application OAuth client. HTTPS sign-in returns automatically on desktop or iOS.":
     "将此确切地址注册到服务商的 Web 应用 OAuth 客户端。HTTPS 登录会在桌面端或 iOS 上自动返回。",
   "Required provider scopes ({count})": "所需服务商权限范围（{count}）",
@@ -1128,7 +1128,7 @@ export const sourceTranslations: Record<string, string> = {
   "Your answer": "你的回答",
   "Your answer didn't go through. Check your connection and try again.":
     "你的回答未送达。请检查网络连接后重试。",
-  "aiTeamOS's Computer": "aiTeamOS 的电脑",
+  "OutcomeGo's Computer": "OutcomeGo 的电脑",
   "another agent": "另一个智能体",
   "your computer": "你的电脑",
   "{action} {recipient}": "{action} {recipient}",
@@ -1291,7 +1291,7 @@ export const sourceTranslations: Record<string, string> = {
   "Open the screen": "打开屏幕",
   "Open the sign-in page and enter this code:": "打开登录页面并输入此代码：",
   "Paste your API key": "粘贴你的 API 密钥",
-  "People with access to this aiTeamOS installation": "有权访问此 aiTeamOS 安装的人",
+  "People with access to this OutcomeGo installation": "有权访问此 OutcomeGo 安装的人",
   Profile: "资料",
   Public: "公开",
   "Public after publishing": "发布后公开",
@@ -1371,8 +1371,8 @@ export const sourceTranslations: Record<string, string> = {
   "Update Desktop": "更新桌面端",
   "Update server": "更新服务器",
   "Update started": "更新已开始",
-  "Update your aiTeamOS server to use clipboard sharing.":
-    "请更新 aiTeamOS 服务器以使用剪贴板共享。",
+  "Update your OutcomeGo server to use clipboard sharing.":
+    "请更新 OutcomeGo 服务器以使用剪贴板共享。",
   "Use template": "使用模板",
   "Version compatibility warning": "版本兼容性警告",
   "View Details": "查看详情",
@@ -1392,7 +1392,7 @@ export const sourceTranslations: Record<string, string> = {
   "Your bots can't reply until you connect it again.": "在你重新连接之前，机器人无法回复。",
   "Your model stopped working": "你的模型已停止工作",
   "Your server can't reach its model service right now.": "你的服务器目前无法连接到模型服务。",
-  "aiTeamOS is updating the server.": "aiTeamOS 正在更新服务器。",
+  "OutcomeGo is updating the server.": "OutcomeGo 正在更新服务器。",
   and: "至",
   at: "于",
   between: "在",
@@ -1423,8 +1423,8 @@ export const sourceTranslations: Record<string, string> = {
   "Save this connection priority? Changing the active connection interrupts downloads and network connections across the bot computer. Apps stay open; requests are not replayed.":
     "保存此连接优先级？更改当前连接会中断机器人电脑上的下载和网络连接。应用会保持打开，请求不会被重放。",
   "Could not change computer connection": "无法更改电脑连接",
-  "Allow all apps and commands on the bot computer at {server} to use this computer's internet connection while aiTeamOS is open? Public TCP connections and DNS are supported. Other UDP traffic and local and private network destinations remain blocked.":
-    "允许机器人电脑（{server}）上的所有应用和命令在 aiTeamOS 打开期间使用此电脑的网络连接？支持公共 TCP 连接和 DNS。其他 UDP 流量以及本地和私有网络目标仍会被阻止。",
+  "Allow all apps and commands on the bot computer at {server} to use this computer's internet connection while OutcomeGo is open? Public TCP connections and DNS are supported. Other UDP traffic and local and private network destinations remain blocked.":
+    "允许机器人电脑（{server}）上的所有应用和命令在 OutcomeGo 打开期间使用此电脑的网络连接？支持公共 TCP 连接和 DNS。其他 UDP 流量以及本地和私有网络目标仍会被阻止。",
   "this server": "此服务器",
   "Could not change network sharing": "无法更改网络共享",
   "exit IP": "出口 IP",
@@ -1434,15 +1434,15 @@ export const sourceTranslations: Record<string, string> = {
   "Could not retry connection": "无法重试连接",
   "Use Messages": "使用“信息”",
   "Send Without Asking": "无需询问即可发送",
-  "aiTeamOS needs macOS permissions to send texts, find contacts by name, and search your texts when asked":
-    "aiTeamOS 需要 macOS 权限才能发送短信、按名称查找联系人，以及在被要求时搜索你的短信",
+  "OutcomeGo needs macOS permissions to send texts, find contacts by name, and search your texts when asked":
+    "OutcomeGo 需要 macOS 权限才能发送短信、按名称查找联系人，以及在被要求时搜索你的短信",
   "macOS didn't show the permission prompt. Open Messages, then try again.":
     "macOS 未显示权限提示。请打开“信息”后重试。",
   "macOS didn't show the permission prompt. Try again.": "macOS 未显示权限提示，请重试。",
-  "macOS is blocking Messages Automation. Turn on Messages under aiTeamOS in Privacy & Security → Automation.":
-    "macOS 正在阻止“信息”自动化。请在“隐私与安全性”→“自动化”中为 aiTeamOS 打开“信息”。",
-  "macOS is blocking Contacts. Turn on aiTeamOS in Privacy & Security → Contacts.":
-    "macOS 正在阻止“通讯录”。请在“隐私与安全性”→“通讯录”中打开 aiTeamOS。",
+  "macOS is blocking Messages Automation. Turn on Messages under OutcomeGo in Privacy & Security → Automation.":
+    "macOS 正在阻止“信息”自动化。请在“隐私与安全性”→“自动化”中为 OutcomeGo 打开“信息”。",
+  "macOS is blocking Contacts. Turn on OutcomeGo in Privacy & Security → Contacts.":
+    "macOS 正在阻止“通讯录”。请在“隐私与安全性”→“通讯录”中打开 OutcomeGo。",
   Done: "完成",
   "Open System Settings for {name}": "为 {name} 打开系统设置",
   "Allow {name}": "允许 {name}",
@@ -1451,9 +1451,9 @@ export const sourceTranslations: Record<string, string> = {
   Automation: "自动化",
   Contacts: "通讯录",
   "Full Disk Access": "完全磁盘访问权限",
-  "Lets aiTeamOS send texts through Messages": "允许 aiTeamOS 通过“信息”发送短信",
-  "Lets aiTeamOS find people by name": "允许 aiTeamOS 按名称查找联系人",
-  "Lets aiTeamOS search your texts": "允许 aiTeamOS 搜索你的短信",
+  "Lets OutcomeGo send texts through Messages": "允许 OutcomeGo 通过“信息”发送短信",
+  "Lets OutcomeGo find people by name": "允许 OutcomeGo 按名称查找联系人",
+  "Lets OutcomeGo search your texts": "允许 OutcomeGo 搜索你的短信",
   "Could not load provider settings": "无法加载服务商设置",
   "Could not save provider settings": "无法保存服务商设置",
   "Could not run the check": "无法运行检查",
@@ -1469,8 +1469,8 @@ export const sourceTranslations: Record<string, string> = {
     "服务器 {server} 无法支持桌面端 {desktop}。请更新下方连接的服务器。",
   "Desktop {desktop} is outside server {server}'s supported range. Update the desktop app.":
     "桌面端 {desktop} 超出服务器 {server} 的支持范围。请更新桌面应用。",
-  "aiTeamOS could not verify that the desktop and server releases match. Update the server first if it does not report a version.":
-    "aiTeamOS 无法确认桌面端与服务器版本是否匹配。如果服务器未报告版本，请先更新服务器。",
+  "OutcomeGo could not verify that the desktop and server releases match. Update the server first if it does not report a version.":
+    "OutcomeGo 无法确认桌面端与服务器版本是否匹配。如果服务器未报告版本，请先更新服务器。",
   "Server update available. You can keep working.": "有可用的服务器更新，你可以继续工作。",
   "Your server is newer than this desktop.": "你的服务器比此桌面端更新。",
   "View update": "查看更新",
@@ -1498,8 +1498,8 @@ export const sourceTranslations: Record<string, string> = {
   "Keep this screen open while the update starts.": "更新开始前请保持此屏幕打开。",
   // Status text reported by the connected server and the update pipeline on its host.
   "Updates this connected server": "用于更新当前连接的服务器",
-  "Run aiteamos start on the server to enable updates from the app.":
-    "请在服务器上运行 aiteamos start，以启用从应用内更新。",
+  "Run outcomego start on the server to enable updates from the app.":
+    "请在服务器上运行 outcomego start，以启用从应用内更新。",
   "Waiting for the server updater to reconnect…": "正在等待服务器更新器重新连接…",
   "Update requested. Waiting for the server updater…": "已请求更新，正在等待服务器更新器…",
   "Choose a newer server release.": "请选择更新的服务器版本。",
@@ -1511,27 +1511,27 @@ export const sourceTranslations: Record<string, string> = {
   "The server updater stopped. Retry the update.": "服务器更新器已停止，请重试更新。",
   "The server requested an invalid update version.": "服务器请求了无效的更新版本。",
   "Update accepted; it will continue if this window closes": "已接受更新；关闭此窗口后更新仍会继续",
-  "Checking the latest aiTeamOS release": "正在检查最新的 aiTeamOS 版本",
-  "Downloading and verifying aiTeamOS {version}": "正在下载并校验 aiTeamOS {version}",
-  "Pulling aiTeamOS {version} container images": "正在拉取 aiTeamOS {version} 容器镜像",
-  "Backing up the aiTeamOS database before {version}":
-    "正在备份更新前的 aiTeamOS 数据库（{version}）",
+  "Checking the latest OutcomeGo release": "正在检查最新的 OutcomeGo 版本",
+  "Downloading and verifying OutcomeGo {version}": "正在下载并校验 OutcomeGo {version}",
+  "Pulling OutcomeGo {version} container images": "正在拉取 OutcomeGo {version} 容器镜像",
+  "Backing up the OutcomeGo database before {version}":
+    "正在备份更新前的 OutcomeGo 数据库（{version}）",
   "Restarting the server, worker, and computer": "正在重启服务器、worker 和电脑",
-  "aiTeamOS {version} passed its readiness checks": "aiTeamOS {version} 已通过就绪检查",
-  "Installing aiTeamOS {version} command-line tools": "正在安装 aiTeamOS {version} 命令行工具",
-  "aiTeamOS {version} and its command-line tools are up to date":
-    "aiTeamOS {version} 及其命令行工具均为最新版本",
-  "aiTeamOS {version} is already installed": "aiTeamOS {version} 已安装",
-  "aiTeamOS and its command-line tools are now running {version}.":
-    "aiTeamOS 及其命令行工具现在运行 {version}。",
-  "aiTeamOS is now running {version}.": "aiTeamOS 现在运行 {version}。",
-  "Updating aiTeamOS {from} → {to}…": "正在更新 aiTeamOS {from} → {to}…",
-  "The update failed; restoring the previous aiTeamOS configuration":
-    "更新失败；正在恢复之前的 aiTeamOS 配置",
+  "OutcomeGo {version} passed its readiness checks": "OutcomeGo {version} 已通过就绪检查",
+  "Installing OutcomeGo {version} command-line tools": "正在安装 OutcomeGo {version} 命令行工具",
+  "OutcomeGo {version} and its command-line tools are up to date":
+    "OutcomeGo {version} 及其命令行工具均为最新版本",
+  "OutcomeGo {version} is already installed": "OutcomeGo {version} 已安装",
+  "OutcomeGo and its command-line tools are now running {version}.":
+    "OutcomeGo 及其命令行工具现在运行 {version}。",
+  "OutcomeGo is now running {version}.": "OutcomeGo 现在运行 {version}。",
+  "Updating OutcomeGo {from} → {to}…": "正在更新 OutcomeGo {from} → {to}…",
+  "The update failed; restoring the previous OutcomeGo configuration":
+    "更新失败；正在恢复之前的 OutcomeGo 配置",
   "Refusing prerelease {version} on the stable channel. Use --allow-prerelease to opt in.":
     "稳定通道不接受预发布版本 {version}。如需使用，请添加 --allow-prerelease。",
-  "Refusing to downgrade aiTeamOS {current} to {target}. Use --allow-downgrade only for an intentional recovery.":
-    "拒绝将 aiTeamOS 从 {current} 降级到 {target}。仅在有意恢复时才使用 --allow-downgrade。",
+  "Refusing to downgrade OutcomeGo {current} to {target}. Use --allow-downgrade only for an intentional recovery.":
+    "拒绝将 OutcomeGo 从 {current} 降级到 {target}。仅在有意恢复时才使用 --allow-downgrade。",
   "Update failed and the previous Compose configuration was restored; the running services were never stopped: {cause}":
     "更新失败，已恢复之前的 Compose 配置；正在运行的服务从未被停止：{cause}",
   "Update failed and the previous Compose configuration was restored and restarted: {cause}":
@@ -1561,7 +1561,7 @@ export const sourceTranslations: Record<string, string> = {
   "Restoring the previous version": "正在恢复之前的版本",
   // Status text the desktop main process reports for its own update.
   "No published desktop release is available yet.": "尚未发布可用的桌面端版本。",
-  "Restart aiTeamOS to finish installing the update": "重启 aiTeamOS 以完成更新安装",
+  "Restart OutcomeGo to finish installing the update": "重启 OutcomeGo 以完成更新安装",
   "Desktop {version} is available. This copy can’t update itself, so download the new version to replace it.":
     "桌面端 {version} 可用。当前版本无法自行更新，请下载新版本进行替换。",
   "The desktop update service is unavailable": "桌面端更新服务不可用",
@@ -1580,21 +1580,21 @@ export const sourceTranslations: Record<string, string> = {
   "Unread activity": "未读动态",
   "Could not restart to update.": "无法重启以完成更新。",
   "Update ready": "更新已就绪",
-  "Restart to finish installing aiTeamOS {version}. Your Bots and work will be right where you left them.":
-    "重启以完成安装 aiTeamOS {version}。你的机器人和工作内容都会保持原样。",
-  "Restart to finish installing aiTeamOS. Your Bots and work will be right where you left them.":
-    "重启以完成安装 aiTeamOS。你的机器人和工作内容都会保持原样。",
+  "Restart to finish installing OutcomeGo {version}. Your Bots and work will be right where you left them.":
+    "重启以完成安装 OutcomeGo {version}。你的机器人和工作内容都会保持原样。",
+  "Restart to finish installing OutcomeGo. Your Bots and work will be right where you left them.":
+    "重启以完成安装 OutcomeGo。你的机器人和工作内容都会保持原样。",
   "Not now": "稍后",
   "Restarting…": "正在重启…",
   "Restart to update": "重启以更新",
   "Downloading update": "正在下载更新",
   "Ready to restart": "可以重启",
-  "Restarting aiTeamOS…": "正在重启 aiTeamOS…",
+  "Restarting OutcomeGo…": "正在重启 OutcomeGo…",
   "Update available": "有可用更新",
   "Your work will be right here.": "你的工作内容都会在这里。",
   "Finishing up your update": "正在完成更新",
-  "aiTeamOS {version}": "aiTeamOS {version}",
-  "A new version of aiTeamOS": "aiTeamOS 有新版本",
+  "OutcomeGo {version}": "OutcomeGo {version}",
+  "A new version of OutcomeGo": "OutcomeGo 有新版本",
   "See you in a moment": "稍后见",
   "You can keep working": "你可以继续工作",
   "Preparing…": "正在准备…",
@@ -1604,13 +1604,13 @@ export const sourceTranslations: Record<string, string> = {
   Group: "群组",
   "To:": "收件人：",
   "Loading workspace…": "正在加载工作区…",
-  "Could not sign in to aiTeamOS": "无法登录 aiTeamOS",
-  "Found aiTeamOS {version}": "已找到 aiTeamOS {version}",
-  "Found aiTeamOS": "已找到 aiTeamOS",
-  "Could not connect to this aiTeamOS server": "无法连接到此 aiTeamOS 服务器",
+  "Could not sign in to OutcomeGo": "无法登录 OutcomeGo",
+  "Found OutcomeGo {version}": "已找到 OutcomeGo {version}",
+  "Found OutcomeGo": "已找到 OutcomeGo",
+  "Could not connect to this OutcomeGo server": "无法连接到此 OutcomeGo 服务器",
   "I still need to install the server": "我还需要安装服务器",
-  "Welcome to aiTeamOS": "欢迎使用 aiTeamOS",
-  "aiTeamOS is running on this computer.": "aiTeamOS 正在此电脑上运行。",
+  "Welcome to OutcomeGo": "欢迎使用 OutcomeGo",
+  "OutcomeGo is running on this computer.": "OutcomeGo 正在此电脑上运行。",
   "Copy the install command": "复制安装命令",
   "Where's your server?": "你的服务器在哪里？",
   "Use the account you created in the terminal.": "使用你在终端中创建的账户。",
@@ -1625,7 +1625,7 @@ export const sourceTranslations: Record<string, string> = {
   "Theme: {theme}": "主题：{theme}",
   "Settings · Appearance": "设置 · 外观",
   "Couldn't load your server. Try again.": "无法加载你的服务器，请重试。",
-  "Connecting to aiTeamOS…": "正在连接 aiTeamOS…",
+  "Connecting to OutcomeGo…": "正在连接 OutcomeGo…",
   "Use a different server": "使用其他服务器",
   "Opening message": "正在打开消息",
   "Loading new Bot": "正在加载新机器人",
@@ -1633,8 +1633,8 @@ export const sourceTranslations: Record<string, string> = {
   "{name} joined your team": "{name} 已加入你的团队",
   "{name} agent exchange": "{name} 智能体交流",
   "Resize details": "调整详情面板大小",
-  "Bots do the work in aiTeamOS. Create one to get started.":
-    "机器人在 aiTeamOS 中完成工作。创建一个机器人即可开始。",
+  "Bots do the work in OutcomeGo. Create one to get started.":
+    "机器人在 OutcomeGo 中完成工作。创建一个机器人即可开始。",
   "Create a bot": "创建机器人",
   "Choose a chat, or press + to create a bot.": "选择一个聊天，或按 + 创建机器人。",
   "{count} chats": "{count} 个聊天",
@@ -1654,15 +1654,15 @@ export const sourceTranslations: Record<string, string> = {
   "Add computer": "添加电脑",
   "Add the API key to use {name} for {tool}.": "添加 API 密钥，以便 {tool} 使用 {name}。",
   "All available Bots are selected.": "已选择所有可用机器人。",
-  "Allow aiTeamOS in system settings.": "在系统设置中允许 aiTeamOS。",
-  "Allow aiTeamOS to Use Messages": "允许 aiTeamOS 使用“信息”",
+  "Allow OutcomeGo in system settings.": "在系统设置中允许 OutcomeGo。",
+  "Allow OutcomeGo to Use Messages": "允许 OutcomeGo 使用“信息”",
   "Allow microphone access in your browser’s site settings.":
     "在浏览器的站点设置中允许麦克风访问权限。",
   "Allow microphone access to record voice notes.": "允许麦克风访问权限以录制语音消息。",
   "Allowed recipients": "允许的收件人",
-  "An aiTeamOS update is available.": "有可用的 aiTeamOS 更新。",
-  "An audio service reachable from your aiTeamOS server.":
-    "可从你的 aiTeamOS 服务器访问的音频服务。",
+  "An OutcomeGo update is available.": "有可用的 OutcomeGo 更新。",
+  "An audio service reachable from your OutcomeGo server.":
+    "可从你的 OutcomeGo 服务器访问的音频服务。",
   Authenticate: "身份验证",
   "Authentication is off": "身份验证已关闭",
   "Automation, Contacts and Full Disk Access are allowed": "已允许自动化、通讯录和完全磁盘访问权限",
@@ -1684,7 +1684,7 @@ export const sourceTranslations: Record<string, string> = {
   "Connector instructions": "连接器说明",
   "Copy conversation ID": "复制对话 ID",
   "Copy version info": "复制版本信息",
-  "Copyright © 2026 aiTeamOS contributors": "版权所有 © 2026 aiTeamOS 贡献者",
+  "Copyright © 2026 OutcomeGo contributors": "版权所有 © 2026 OutcomeGo 贡献者",
   "Could not check for updates": "无法检查更新",
   "Could not check for updates. Try again from Settings.": "无法检查更新。请从设置中重试。",
   "Could not check transcription. Try again.": "无法检查转写服务。请重试。",
@@ -1717,7 +1717,7 @@ export const sourceTranslations: Record<string, string> = {
   "Describe what your Bot does": "描述你的机器人做什么",
   "Desktop app {version}": "桌面应用 {version}",
   "Desktop callback port (0 = automatic)": "桌面回调端口（0 = 自动）",
-  "Downloading aiTeamOS update{progress}.": "正在下载 aiTeamOS 更新{progress}。",
+  "Downloading OutcomeGo update{progress}.": "正在下载 OutcomeGo 更新{progress}。",
   "Downloading {percent}%": "正在下载 {percent}%",
   "Drag chats here": "将聊天拖到这里",
   "Durable instructions": "常驻指令",
@@ -1731,7 +1731,7 @@ export const sourceTranslations: Record<string, string> = {
   "Finish in your browser. If you closed it, reopen the same sign-in below.":
     "在浏览器中完成。如果你关闭了它，请在下面重新打开同一次登录。",
   "Get a key": "获取密钥",
-  "Get aiTeamOS for mobile": "获取移动端 aiTeamOS",
+  "Get OutcomeGo for mobile": "获取移动端 OutcomeGo",
   "Instructions, e.g. reply in threads": "指令，例如在话题中回复",
   "It gets one durable Pi session with the selected inference provider, persistent chat, and its own Linux screen on the shared computer.":
     "它会获得一个使用所选推理服务商的持久 Pi 会话、持久聊天，以及共享电脑上属于自己的 Linux 屏幕。",
@@ -1745,7 +1745,7 @@ export const sourceTranslations: Record<string, string> = {
   "Leave empty to use the recommended value.": "留空以使用推荐值。",
   "Let's connect to your server and set up your first bot. It takes about two minutes.":
     "让我们连接你的服务器并设置你的第一个机器人，大约需要两分钟。",
-  "Lets aiTeamOS read and send texts on this Mac": "允许 aiTeamOS 在此 Mac 上读取和发送短信",
+  "Lets OutcomeGo read and send texts on this Mac": "允许 OutcomeGo 在此 Mac 上读取和发送短信",
   "Live captions": "实时字幕",
   "Live progress": "实时进度",
   "Loading channel creation form.": "正在加载频道创建表单。",
@@ -1808,10 +1808,10 @@ export const sourceTranslations: Record<string, string> = {
   "Replace API key": "替换 API 密钥",
   "Replace or delete the saved key to change endpoints.": "要更改端点，请替换或删除已保存的密钥。",
   Restarting: "正在重启",
-  "Restarting aiTeamOS to install the update.": "正在重启 aiTeamOS 以安装更新。",
+  "Restarting OutcomeGo to install the update.": "正在重启 OutcomeGo 以安装更新。",
   "Restore realtime voice": "恢复实时语音",
-  "Return to aiTeamOS, paste the address below, then select Complete sign-in.":
-    "返回 aiTeamOS，在下方粘贴地址，然后选择“完成登录”。",
+  "Return to OutcomeGo, paste the address below, then select Complete sign-in.":
+    "返回 OutcomeGo，在下方粘贴地址，然后选择“完成登录”。",
   Review: "审核",
   "Same as the bot": "与机器人相同",
   "Save callback settings": "保存回调设置",
@@ -1848,7 +1848,7 @@ export const sourceTranslations: Record<string, string> = {
   "The browser may say it can’t open the page. That’s expected. Copy the entire address starting with 127.0.0.1 from the address bar.":
     "浏览器可能会提示无法打开页面，这是预期情况。请从地址栏复制以 127.0.0.1 开头的完整地址。",
   "The change could not be applied. Try again.": "无法应用更改。请重试。",
-  "The key is stored encrypted on the aiTeamOS server.": "密钥会加密存储在 aiTeamOS 服务器上。",
+  "The key is stored encrypted on the OutcomeGo server.": "密钥会加密存储在 OutcomeGo 服务器上。",
   "The saved key will be deleted when you save.": "保存时将删除已保存的密钥。",
   "This can't be undone.": "此操作无法撤销。",
   "This permanently deletes the Bot and its chat history.": "这会永久删除该机器人及其聊天记录。",
@@ -1872,21 +1872,21 @@ export const sourceTranslations: Record<string, string> = {
   Unread: "未读",
   "Up to six Bots can join a group chat.": "一个群聊最多可有六个机器人。",
   "Update desktop": "更新桌面端",
-  "Update ready. Restart to update aiTeamOS.": "更新已就绪。重启以更新 aiTeamOS。",
+  "Update ready. Restart to update OutcomeGo.": "更新已就绪。重启以更新 OutcomeGo。",
   "Update stages": "更新阶段",
   "Update this bot's identity and durable instructions.": "更新此机器人的身份和常驻指令。",
   Updating: "正在更新",
   "Version {version}": "版本 {version}",
   "What should this bot own?": "这个机器人负责什么？",
   "Will be removed": "将被移除",
-  "You can sign back in with your aiTeamOS username and password. Your Bots and chats stay on this server.":
-    "你可以使用 aiTeamOS 用户名和密码重新登录。你的机器人和聊天记录会保留在此服务器上。",
+  "You can sign back in with your OutcomeGo username and password. Your Bots and chats stay on this server.":
+    "你可以使用 OutcomeGo 用户名和密码重新登录。你的机器人和聊天记录会保留在此服务器上。",
   "You · listening": "你 · 正在聆听",
-  "aiTeamOS Updates": "aiTeamOS 更新",
-  "aiTeamOS can text these people without asking first":
-    "aiTeamOS 可以直接给这些人发短信，无需先询问",
-  "aiTeamOS could not create this Bot": "aiTeamOS 无法创建此机器人",
-  "aiTeamOS version and copyright information.": "aiTeamOS 版本和版权信息。",
+  "OutcomeGo Updates": "OutcomeGo 更新",
+  "OutcomeGo can text these people without asking first":
+    "OutcomeGo 可以直接给这些人发短信，无需先询问",
+  "OutcomeGo could not create this Bot": "OutcomeGo 无法创建此机器人",
+  "OutcomeGo version and copyright information.": "OutcomeGo 版本和版权信息。",
   elapsed: "已用时间",
   "just now": "刚刚",
   "macOS permissions": "macOS 权限",
@@ -1959,9 +1959,9 @@ export const sourceTranslations: Record<string, string> = {
   "Could not load memories. Try again.": "无法加载记忆。请重试。",
   "Could not load message context": "无法加载消息内容",
   "Could not load this conversation": "无法加载此对话",
-  "Could not reach this aiTeamOS server. Check the endpoint and your connection.":
-    "无法连接到此 aiTeamOS 服务器。请检查服务器地址和网络连接。",
-  "Could not refresh aiTeamOS": "无法刷新 aiTeamOS",
+  "Could not reach this OutcomeGo server. Check the endpoint and your connection.":
+    "无法连接到此 OutcomeGo 服务器。请检查服务器地址和网络连接。",
+  "Could not refresh OutcomeGo": "无法刷新 OutcomeGo",
   "Could not restore your sign-in. Please sign in again.": "无法恢复你的登录状态。请重新登录。",
   "Could not start the microphone. Check its connection and try again.":
     "无法启动麦克风。请检查麦克风连接后重试。",
@@ -2003,8 +2003,8 @@ export const sourceTranslations: Record<string, string> = {
   "Realtime voice is disabled or not configured on the server.": "服务器上未启用或未配置实时语音。",
   "Realtime voice is unavailable": "实时语音不可用",
   "Restart to Update": "重启以更新",
-  "Run aiteamos update once on this server to enable updates from the app.":
-    "请在此服务器上运行一次 aiteamos update，以启用从应用内更新。",
+  "Run outcomego update once on this server to enable updates from the app.":
+    "请在此服务器上运行一次 outcomego update，以启用从应用内更新。",
   "Running commands": "正在执行命令",
   "Searching the web": "正在搜索网络",
   "Selected microphone unavailable. Using system default.":
@@ -2043,7 +2043,7 @@ export const sourceTranslations: Record<string, string> = {
   "Waiting on another Bot": "正在等待其他机器人",
   "Your server stopped this sign-in, for example by restarting. Try again.":
     "你的服务器中止了本次登录，例如服务器重启。请重试。",
-  "aiTeamOS could not complete this change": "aiTeamOS 无法完成此更改",
+  "OutcomeGo could not complete this change": "OutcomeGo 无法完成此更改",
   "selected computer": "所选电脑",
   "{provider} didn't answer in time. Try again.": "{provider} 未及时响应。请重试。",
   Audiobook: "有声书",

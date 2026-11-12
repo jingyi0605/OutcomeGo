@@ -1,5 +1,5 @@
-import { protectedAgentDataPath } from "@aiteamos/contracts/agent-file-access";
-import { HOST_TRANSFER_MAX_BYTES } from "@aiteamos/contracts/service-protocol";
+import { protectedAgentDataPath } from "@outcomego/contracts/agent-file-access";
+import { HOST_TRANSFER_MAX_BYTES } from "@outcomego/contracts/service-protocol";
 import { spawnAgentProcess as spawn, agentProcessIdentity, sanitizedAgentEnvironment } from "./agent-process";
 import { nodeBinary } from "./node-runtime";
 
@@ -47,7 +47,7 @@ process.on('SIGTERM', () => { cancellation.abort(); process.stdin.destroy(new Er
    } finally { await file.close(); }
  } else {
    await fs.mkdir(path.dirname(target), {recursive:true});
-   const temporary = path.join(path.dirname(target), '.aiteamos-transfer-' + crypto.randomUUID());
+   const temporary = path.join(path.dirname(target), '.outcomego-transfer-' + crypto.randomUUID());
    try {
      const file = await fs.open(temporary, 'wx', 0o600); let size = 0;
      const digest = crypto.createHash('sha256');

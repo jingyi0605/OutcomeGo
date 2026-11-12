@@ -5,10 +5,10 @@ import {join} from 'node:path';
 import {BrowserUseSession} from '../../src/browser/use';
 import {outOfProcessPlaywright} from '../../src/browser/playwright-driver';
 
-test.skipIf(!process.env.AITEAMOS_BROWSER_TEST_EXECUTABLE)('custom range values expose actual transitions and preserve private-value redaction', async () => {
+test.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)('custom range values expose actual transitions and preserve private-value redaction', async () => {
  const root=await mkdtemp(join(tmpdir(),'range-states-'));
  const driver=await outOfProcessPlaywright();
- const browser=await driver.playwright.chromium.launch({headless:true,executablePath:process.env.AITEAMOS_BROWSER_TEST_EXECUTABLE,args:process.platform==='linux'?['--no-sandbox']:[]});
+ const browser=await driver.playwright.chromium.launch({headless:true,executablePath:process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE,args:process.platform==='linux'?['--no-sandbox']:[]});
  const session=new (BrowserUseSession as any)(browser,await browser.newContext(),root) as BrowserUseSession;
  const text=(r:any):string=>r.content.filter((c:any)=>c.type==='text').map((c:any)=>c.text).join('\n');
  const line=(snapshot:string,name:string)=>snapshot.split('\n').find(l=>l.includes(JSON.stringify(name)))!;

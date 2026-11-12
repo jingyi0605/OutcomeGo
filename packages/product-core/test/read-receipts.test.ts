@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { MarkChannelReadView } from "@aiteamos/contracts";
+import type { MarkChannelReadView } from "@outcomego/contracts";
 import { createReadReceiptController, readReceiptTarget } from "../src/read-receipts";
 
 const deferred = <T>() => {

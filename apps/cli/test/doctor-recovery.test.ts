@@ -21,7 +21,7 @@ describe("doctor recovery advice", () => {
   test.skipIf(process.platform === "win32")(
     "reproduces a stopped engine through the actual install and doctor CLI without starting services",
     async () => {
-      const directory = mkdtempSync(join(tmpdir(), "aiteamos-docker-recovery-"));
+      const directory = mkdtempSync(join(tmpdir(), "outcomego-docker-recovery-"));
       try {
         const bin = join(directory, "bin");
         const installDirectory = join(directory, "installation");
@@ -30,7 +30,7 @@ describe("doctor recovery advice", () => {
         writeFileSync(
           join(bin, "docker"),
           `#!/bin/sh
-printf '%s\\n' "$*" >> "$AITEAMOS_TEST_DOCKER_CALLS"
+printf '%s\\n' "$*" >> "$OUTCOMEGO_TEST_DOCKER_CALLS"
 case "$*" in
   --version) printf '%s\\n' 'Docker version 28.2.2, build e6534b4' ;;
   'compose version') printf '%s\\n' 'Docker Compose version v5.1.3' ;;
@@ -54,7 +54,7 @@ esac
                 ...process.env,
                 PATH: `${bin}:${process.env.PATH}`,
                 NO_COLOR: "1",
-                AITEAMOS_TEST_DOCKER_CALLS: callsFile,
+                OUTCOMEGO_TEST_DOCKER_CALLS: callsFile,
               },
               stdout: "pipe",
               stderr: "pipe",
@@ -68,14 +68,14 @@ esac
           const output = `${stdout}\n${stderr}`.replace(/\s+/g, " ");
           expect(exitCode).toBe(2);
           expect(output).toContain(
-            "Docker is installed, but aiTeamOS could not connect to its engine."
+            "Docker is installed, but OutcomeGo could not connect to its engine."
           );
           expect(output).toContain(unavailable);
           expect(output).toContain("NEXT STEPS");
           expect(output).toContain("docker info");
           expect(output).toContain("docker context ls");
           if (process.platform === "darwin") expect(output).toContain("open -a Docker");
-          expect(output.replace(/\s/g, "")).toContain(`aiteamosinstall--dir'${installDirectory}'`);
+          expect(output.replace(/\s/g, "")).toContain(`outcomegoinstall--dir'${installDirectory}'`);
           expect(output).not.toContain("Fix the doctor failures above");
           expect(existsSync(installDirectory)).toBe(false);
         }
@@ -180,7 +180,7 @@ esac
   });
 
   test("keeps both Compose command errors and recommends updating an unsupported version", async () => {
-    const directory = mkdtempSync(join(tmpdir(), "aiteamos-compose-recovery-"));
+    const directory = mkdtempSync(join(tmpdir(), "outcomego-compose-recovery-"));
     try {
       for (const legacy of [false, true]) {
         const runner: CommandRunner = {
@@ -194,7 +194,7 @@ esac
               : failure("compose is not a docker command");
           },
         };
-        const result = await runDoctor(installationPaths(directory), runner, "aiteamos", {
+        const result = await runDoctor(installationPaths(directory), runner, "outcomego", {
           checkInstallPorts: false,
         });
         const check = result.checks.find((c) => c.label === "Docker Compose")!;
@@ -244,7 +244,7 @@ test.each([
   ],
   ["Queue round trip", "Worker dependencies unavailable: storage access", "volume permissions"],
   ["Queue round trip", "Worker dependencies unavailable: database/schema", "logs postgres"],
-  ["Computer API", "Computer readiness failed (HTTP 401)", "AITEAMOS_CONTROL_TOKEN"],
+  ["Computer API", "Computer readiness failed (HTTP 401)", "OUTCOMEGO_CONTROL_TOKEN"],
 ])("explains dependency recovery for %s: %s", (label, detail, action) => {
   const output = renderDoctor(
     { ok: false, installed: true, checks: [{ level: "fail", label, detail }] },

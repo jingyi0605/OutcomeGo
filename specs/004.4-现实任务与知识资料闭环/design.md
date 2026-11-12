@@ -179,11 +179,11 @@ draft → planning → pending_approval → approved → running → accepted
 - `apps/server/src/services/human-work-service.ts`（新增）
 - `apps/server/src/routes/human-work.ts`（新增）
 - `apps/server/src/services/asset-service.ts`
-- `apps/desktop/src/renderer/components/aiteamos/outcomes/HumanActionCard.tsx`（新增）
-- `apps/desktop/src/renderer/components/aiteamos/outcomes/ReceiptForm.tsx`（新增）
-- `apps/desktop/src/renderer/client/aiteamos-api.ts`
+- `apps/desktop/src/renderer/components/outcomego/outcomes/HumanActionCard.tsx`（新增）
+- `apps/desktop/src/renderer/components/outcomego/outcomes/ReceiptForm.tsx`（新增）
+- `apps/desktop/src/renderer/client/outcomego-api.ts`
 - `apps/ios/Sources/App/` 中的 Outcome/receipt 页面（按现有导航组织）
-- `apps/android/app/src/main/kotlin/com/aiteamos/features/` 中的 Outcome/receipt 页面（按现有导航组织）
+- `apps/android/app/src/main/kotlin/com/outcomego/features/` 中的 Outcome/receipt 页面（按现有导航组织）
 
 ## 12. 验证策略
 
@@ -434,13 +434,13 @@ interface WorkItemView {
 
 ### Desktop/mobile
 
-- `apps/desktop/src/renderer/components/aiteamos/outcomes/HumanActionCard.tsx`
-- `apps/desktop/src/renderer/components/aiteamos/outcomes/ReceiptForm.tsx`
-- `apps/desktop/src/renderer/components/aiteamos/outcomes/KnowledgeReferences.tsx`
-- `apps/desktop/src/renderer/client/aiteamos-api.ts`
-- `apps/android/app/src/main/kotlin/com/aiteamos/features/`
+- `apps/desktop/src/renderer/components/outcomego/outcomes/HumanActionCard.tsx`
+- `apps/desktop/src/renderer/components/outcomego/outcomes/ReceiptForm.tsx`
+- `apps/desktop/src/renderer/components/outcomego/outcomes/KnowledgeReferences.tsx`
+- `apps/desktop/src/renderer/client/outcomego-api.ts`
+- `apps/android/app/src/main/kotlin/com/outcomego/features/`
 - `apps/ios/Sources/App/`
-- `mobile/shared/src/commonMain/kotlin/com/aiteamos/mobile/core/Models.kt`（仅当共享 DTO 确实需要）
+- `mobile/shared/src/commonMain/kotlin/com/outcomego/mobile/core/Models.kt`（仅当共享 DTO 确实需要）
 
 ## 24. 客户端行为
 

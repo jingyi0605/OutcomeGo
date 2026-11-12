@@ -1,7 +1,7 @@
 import { realpath } from "node:fs/promises";
 import { relative, resolve, sep } from "node:path";
 import type { ExtensionFactory } from "@earendil-works/pi-coding-agent";
-import type { PluginHook, PluginHookEvent, PluginRuntimePackage } from "@aiteamos/plugin-sdk";
+import type { PluginHook, PluginHookEvent, PluginRuntimePackage } from "@outcomego/plugin-sdk";
 import {
   spawnAgentProcess as spawn,
   signalAgentProcess,
@@ -9,7 +9,7 @@ import {
   sanitizedAgentEnvironment,
 } from "../agent-process";
 import type { ActiveTurn } from "./types";
-import { PLUGIN_WORKFLOW_HOST_CONTEXT } from "@aiteamos/contracts/plugin-workflows";
+import { PLUGIN_WORKFLOW_HOST_CONTEXT } from "@outcomego/contracts/plugin-workflows";
 
 type ObjectValue = Record<string, any>;
 const object = (value: unknown): ObjectValue =>
@@ -37,7 +37,7 @@ export async function runPluginCommand(
       env: sanitizedAgentEnvironment(process.env, {
         CURSOR_PLUGIN_ROOT: cwd,
         CURSOR_PROJECT_DIR: input.cwd,
-        AITEAMOS_PLUGIN_ROOT: cwd,
+        OUTCOMEGO_PLUGIN_ROOT: cwd,
       }),
       detached: process.platform !== "win32",
       stdio: ["pipe", "pipe", "pipe"],
@@ -118,7 +118,7 @@ export function pluginComponentsExtension(
   let started = false;
   let loops = 0;
   return {
-    name: "aiteamos-plugin-components",
+    name: "outcomego-plugin-components",
     hidden: true,
     factory(pi) {
       const inject = (source: string, text: string) =>
@@ -146,7 +146,7 @@ export function pluginComponentsExtension(
               workspace_roots: [active.cwd],
               cwd: active.cwd,
               hook_event_name: event,
-              cursor_version: "aiteamos",
+              cursor_version: "outcomego",
               ...data,
             };
             let output: ObjectValue;
@@ -154,7 +154,7 @@ export function pluginComponentsExtension(
               {
                 const root = await realpath(pkg.installPath);
                 const allowed = await realpath(
-                  resolve(process.env.AITEAMOS_AGENT_DATA_ROOT ?? "/agent-data", "plugins/cache")
+                  resolve(process.env.OUTCOMEGO_AGENT_DATA_ROOT ?? "/agent-data", "plugins/cache")
                 );
                 if (!root.startsWith(allowed + sep))
                   throw new Error("Plugin hook is outside the installed package cache");

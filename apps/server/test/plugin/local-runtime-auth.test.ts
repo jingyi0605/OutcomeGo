@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import type { PrismaClient } from "@aiteamos/db";
+import type { PrismaClient } from "@outcomego/db";
 import { Effect } from "effect";
 import { PluginService } from "../../src/services/plugin-service";
 

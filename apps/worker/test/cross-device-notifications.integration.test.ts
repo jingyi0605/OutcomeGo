@@ -1,20 +1,20 @@
 import { generateKeyPairSync } from "node:crypto";
 import { ApnsClient } from "../src/apns";
 import { expect, test } from "bun:test";
-import { createPrismaClient } from "@aiteamos/db";
+import { createPrismaClient } from "@outcomego/db";
 import {
   AgentMessaging,
   channelNotificationStates,
   publishMessageNotification,
   unreadBadgeCount,
   unreadChannelCount,
-} from "@aiteamos/messaging";
+} from "@outcomego/messaging";
 import { Effect } from "effect";
 import { NotificationService } from "../../server/src/services/notification-service";
 import { DesktopNotificationManager } from "../../desktop/src/main/notifications";
 import { PushNotificationDispatcher } from "../src/push-notifications";
 
-const databaseUrl = process.env.AITEAMOS_TEST_DATABASE_URL;
+const databaseUrl = process.env.OUTCOMEGO_TEST_DATABASE_URL;
 
 test.skipIf(!databaseUrl)(
   "messages and old-message reactions fan out, synchronize reads, and cancel stale alerts",
@@ -22,8 +22,8 @@ test.skipIf(!databaseUrl)(
     const prisma = createPrismaClient(databaseUrl!);
     // Other integration files may leave durable unread channels in this test DB.
     const initialBadgeCount = await unreadBadgeCount(prisma);
-    const previousAuth = process.env.AITEAMOS_AUTH_MODE;
-    process.env.AITEAMOS_AUTH_MODE = "disabled";
+    const previousAuth = process.env.OUTCOMEGO_AUTH_MODE;
+    process.env.OUTCOMEGO_AUTH_MODE = "disabled";
     const bot = await prisma.bot.create({
       data: { name: "Notification QA", icon: "pod", color: "#ff6600", defaultDirectory: "/tmp/notification-qa" },
     });
@@ -252,8 +252,8 @@ test.skipIf(!databaseUrl)(
       await prisma.channel.delete({ where: { id: channel.id } });
       await prisma.bot.delete({ where: { id: bot.id } });
       await prisma.$disconnect();
-      if (previousAuth === undefined) delete process.env.AITEAMOS_AUTH_MODE;
-      else process.env.AITEAMOS_AUTH_MODE = previousAuth;
+      if (previousAuth === undefined) delete process.env.OUTCOMEGO_AUTH_MODE;
+      else process.env.OUTCOMEGO_AUTH_MODE = previousAuth;
     }
   },
   30_000

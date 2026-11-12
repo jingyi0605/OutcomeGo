@@ -1,0 +1,164 @@
+import AppIntents
+import SwiftUI
+
+@main
+struct OutcomeGoApp: App {
+  @UIApplicationDelegateAdaptor(NotificationAppDelegate.self) private var notificationDelegate
+  @State private var store: AppStore
+  @State private var mobileUpdates = MobileUpdates()
+  @AppStorage("appearance") private var appearance = "system"
+  @AppStorage("accent") private var accent = "black"
+  @AppStorage("language") private var language = AppLanguage.default.rawValue
+  @Environment(\.scenePhase) private var scenePhase
+  init() {
+    let store = AppStore()
+    _store = State(initialValue: store)
+    AppDependencyManager.shared.add(dependency: store)
+    if !Self.systemTestHost { TeamAppShortcuts.updateAppShortcutParameters() }
+  }
+  var body: some Scene {
+    WindowGroup {
+      Group {
+        #if DEBUG
+          if Self.systemTestHost {
+            // Hosted unit tests own their sessions and app stores. Starting the
+            // normal scene would poll/write the same account during assertions.
+            Color.clear
+          } else if ProcessInfo.processInfo.arguments.contains("--composer-latency-control") {
+            ComposerLatencyControl()
+          } else if ProcessInfo.processInfo.arguments.contains("--bot-motion-lab") {
+            RobotMotionLab()
+          } else {
+            LaunchContentView()
+          }
+        #else
+          LaunchContentView()
+        #endif
+      }
+      .environment(store)
+      .environment(mobileUpdates)
+      .foregroundStyle(NativePalette.text, NativePalette.muted, NativePalette.faint)
+      .tint(accent == "blue" ? NativePalette.link : NativePalette.text)
+      .toggleStyle(SwitchToggleStyle(tint: NativePalette.toggle))
+      .preferredColorScheme(selectedAppearance)
+      .environment(\.locale, AppLanguage.normalized(language).locale)
+      .onChange(of: scenePhase) { _, phase in
+        store.setForeground(phase == .active)
+        // iOS caches a launch picture for a new appearance or orientation at launch.
+        if phase == .background {
+          store.cancelPendingVoiceRecording()
+          Self.syncLaunchScreen(appearance)
+        }
+      }
+      .onChange(of: appearance, initial: true) { _, value in Self.syncLaunchScreen(value) }
+      .task(id: scenePhase) {
+        guard scenePhase == .active, !Self.systemTestHost else { return }
+        repeat {
+          await mobileUpdates.refresh()
+          do { try await Task.sleep(for: .seconds(6 * 60 * 60)) } catch { return }
+        } while !Task.isCancelled
+      }
+      .onOpenURL { url in Task { await store.deepLink(url) } }
+      .sheet(item: $store.systemDraft) { draft in
+        SystemDraftPicker(draft: draft).environment(store)
+      }
+    }
+  }
+  private static var systemTestHost: Bool {
+    #if DEBUG
+      ProcessInfo.processInfo.environment["OUTCOMEGO_SYSTEM_TEST_HOST"] == "1"
+    #else
+      false
+    #endif
+  }
+  private static let launchScreenQueue = DispatchQueue(label: "launch-screen", qos: .utility)
+  /// Keeps the picture iOS shows before launch in the chosen appearance, so a
+  /// forced Day or Night no longer opens on the phone's color first.
+  private static func syncLaunchScreen(_ value: String) {
+    guard
+      let library = FileManager.default.urls(for: .libraryDirectory, in: .userDomainMask).first,
+      let bundleID = Bundle.main.bundleIdentifier
+    else { return }
+    let appearance = LaunchScreenCache.Appearance(rawValue: value) ?? .system
+    launchScreenQueue.async {
+      LaunchScreenCache.sync(
+        appearance, directory: LaunchScreenCache.directory(library: library, bundleID: bundleID))
+    }
+  }
+  private var selectedAppearance: ColorScheme? {
+    #if DEBUG
+      if ProcessInfo.processInfo.arguments.contains("--bot-motion-lab") {
+        return ProcessInfo.processInfo.arguments.contains("--lab-dark") ? .dark : .light
+      }
+    #endif
+    return appearance == "dark" ? .dark : appearance == "light" ? .light : nil
+  }
+}
+
+extension Color {
+  init(hex: String) {
+    let h = hex.replacingOccurrences(of: "#", with: "")
+    let value = UInt64(h, radix: 16) ?? 0xFD6A3A
+    self.init(
+      red: Double((value >> 16) & 255) / 255, green: Double((value >> 8) & 255) / 255,
+      blue: Double(value & 255) / 255)
+  }
+}
+struct RobotAvatar: View {
+  var color: Color = Color(hex: "FD6A3A")
+  var size: CGFloat = 48
+  var group = false
+  var body: some View { BotGlyph(color: color, kind: group ? "owl" : "chip", size: size) }
+}
+struct ChannelAvatar: View {
+  @Environment(AppStore.self) private var store
+  let channel: Channel
+  var size: CGFloat = 48
+  var artworkScale: CGFloat = 1
+  var groupStyle: GroupAvatarLayout.Style = .cluster
+  var showsActivity = true
+  var animatesWhenInactive = false
+  @State private var photo: UIImage?
+  var body: some View {
+    let bot = store.bot(for: channel)
+    let runs = store.activeRuns(channel.id)
+    func motion(_ botID: String?) -> RobotAvatarMode {
+      guard showsActivity, store.activeChannel == channel.id || animatesWhenInactive, let botID,
+        channel.members.contains(where: { $0.botId == botID })
+      else { return .still }
+      return runs.contains { $0.botId == botID && ["running", "queued"].contains($0.status) }
+        ? .thinking : .idle
+    }
+    return Group {
+      if let photo {
+        Image(uiImage: photo).resizable().scaledToFill().frame(width: size, height: size).clipShape(
+          Circle())
+          .accessibilityIdentifier("channel-photo-" + channel.id)
+      } else if channel.isGroup {
+        GroupChannelAvatar(channel: channel, size: size, style: groupStyle)
+      } else {
+        BotGlyph(
+          color: Color(hex: bot?.color ?? "7C5CFC"), kind: bot?.icon ?? "chip", size: size,
+          mode: motion(bot?.id))
+          .scaleEffect(artworkScale)
+      }
+    }.overlay(alignment: .bottomTrailing) {
+      if showsActivity, size <= 30, !runs.isEmpty, !channel.isGroup {
+        Circle().fill(Color(hex: "29A665")).frame(width: 9, height: 9)
+          .overlay(Circle().stroke(NativePalette.background, lineWidth: 1))
+          .offset(x: 1, y: 1).accessibilityHidden(true)
+      }
+    }.task(
+      id:
+        "\(bot?.id ?? channel.id)-\(bot?.hasAvatar ?? channel.hasAvatar)-\(bot?.updatedAt ?? channel.updatedAt)-\(bot?.icon ?? "")-\(bot?.color ?? "")"
+    ) {
+      photo = nil
+      guard bot?.hasAvatar ?? channel.hasAvatar, let api = store.api else { return }
+      let path = bot.map { "/api/v0/bots/\(API.segment($0.id))/avatar" }
+        ?? "/api/v0/channels/\(API.segment(channel.id))/avatar"
+      if let (data, _) = try? await api.raw(path), !Task.isCancelled {
+        photo = UIImage(data: data)
+      }
+    }
+  }
+}

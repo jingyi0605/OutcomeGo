@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import type { ChannelMessageView } from "@aiteamos/contracts";
+import type { ChannelMessageView } from "@outcomego/contracts";
 import { messageDisplayProjection } from "../src/messages";
 
 test("a pending message exposes every staged filename through the twenty-file limit", () => {

@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { BrowserUseSession } from "../../src/browser/use";
 import { outOfProcessPlaywright } from "../../src/browser/playwright-driver";
 
-test.skipIf(!process.env.AITEAMOS_BROWSER_TEST_EXECUTABLE)("script recovery preserves frames, tab selection, logs and upload handoffs", async () => {
+test.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)("script recovery preserves frames, tab selection, logs and upload handoffs", async () => {
   const root = await mkdtemp(join(tmpdir(), "script-recovery-"));
   let frameLoads = 0;
   const server = Bun.serve({port: 0, hostname:'127.0.0.1', fetch: request => {
@@ -26,7 +26,7 @@ test.skipIf(!process.env.AITEAMOS_BROWSER_TEST_EXECUTABLE)("script recovery pres
   const driver = await outOfProcessPlaywright();
   const profile = join(root,"profile");
   const context = await driver.playwright.chromium.launchPersistentContext(profile, {
-    executablePath:process.env.AITEAMOS_BROWSER_TEST_EXECUTABLE, headless:true, args:["--remote-debugging-port=0"],
+    executablePath:process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE, headless:true, args:["--remote-debugging-port=0"],
   });
   context.on("dialog",()=>{});
   try {

@@ -1,11 +1,11 @@
 // Source-owned adaptation of AI Elements prompt-input.tsx.
 // https://elements.ai-sdk.dev/components/prompt-input
-import { MAX_PARALLEL_UPLOADS, mapWithConcurrency } from "@aiteamos/client-core";
-import type { AssetRef, ClientCapabilities } from "@aiteamos/contracts";
-import { CLIENT_CAPABILITIES } from "@aiteamos/contracts/capabilities";
-import { remainingAttachmentCapacity, selectAttachments } from "@aiteamos/product-core/attachments";
-import type { DurableStagedAttachment } from "@aiteamos/product-core/durable-delivery";
-import { clientErrorMessage } from "@aiteamos/product-core/redaction";
+import { MAX_PARALLEL_UPLOADS, mapWithConcurrency } from "@outcomego/client-core";
+import type { AssetRef, ClientCapabilities } from "@outcomego/contracts";
+import { CLIENT_CAPABILITIES } from "@outcomego/contracts/capabilities";
+import { remainingAttachmentCapacity, selectAttachments } from "@outcomego/product-core/attachments";
+import type { DurableStagedAttachment } from "@outcomego/product-core/durable-delivery";
+import { clientErrorMessage } from "@outcomego/product-core/redaction";
 import { Paperclip, X } from "lucide-react";
 import type {
   ClipboardEvent,
@@ -32,10 +32,10 @@ import { useI18n } from "../../lib/i18n";
 import { fileDragContainsFiles, filesFromClipboard } from "../../lib/file-drop";
 import type { MentionOption } from "../../lib/mentions";
 import { insertVoiceTranscript, voiceInsertionRange } from "../../lib/voice-insertion";
-import { FileGlyph, fileGlyphVariant, formatAttachmentSize } from "../aiteamos/attachment-visuals";
-import { ImageAttachment } from "../aiteamos/image-attachment";
-import { MentionEditor } from "../aiteamos/mention-editor";
-import type { VoiceMemoMode } from "../aiteamos/voice-memo/voice-memo-layer";
+import { FileGlyph, fileGlyphVariant, formatAttachmentSize } from "../outcomego/attachment-visuals";
+import { ImageAttachment } from "../outcomego/image-attachment";
+import { MentionEditor } from "../outcomego/mention-editor";
+import type { VoiceMemoMode } from "../outcomego/voice-memo/voice-memo-layer";
 import { Button } from "../ui/button";
 import "./composer-motion.css";
 import {
@@ -61,9 +61,9 @@ const VOICE_ACTION_CLASS =
 const SEND_ACTION_CLASS =
   "size-7 rounded-full bg-[#070707] text-[#fcfcfc] shadow-none hover:bg-[#070707] hover:opacity-90 disabled:opacity-40 dark:bg-[#fafafa] dark:text-[#141414] dark:hover:bg-[#fafafa]";
 // The voice memo layer carries the glow library, so it loads on first need.
-let voiceMemoLayer: Promise<typeof import("../aiteamos/voice-memo/voice-memo-layer")> | undefined;
+let voiceMemoLayer: Promise<typeof import("../outcomego/voice-memo/voice-memo-layer")> | undefined;
 const loadVoiceMemoLayer = () =>
-  (voiceMemoLayer ??= import("../aiteamos/voice-memo/voice-memo-layer"));
+  (voiceMemoLayer ??= import("../outcomego/voice-memo/voice-memo-layer"));
 const VoiceMemoLayer = lazy(loadVoiceMemoLayer);
 // Recording collapses an expanded composer back to its single-line pill.
 const VOICE_SURFACE = { height: 44, radius: 22 };

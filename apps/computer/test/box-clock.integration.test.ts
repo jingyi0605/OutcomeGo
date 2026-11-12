@@ -3,11 +3,11 @@ import { spawnSync } from "node:child_process";
 import { readFileSync, realpathSync } from "node:fs";
 
 // Run inside a built computer image with scripts/test-computer-image.sh IMAGE, which
-// passes the user's zone as AITEAMOS_TEST_TIME_ZONE. The computer applies a turn's zone
+// passes the user's zone as OUTCOMEGO_TEST_TIME_ZONE. The computer applies a turn's zone
 // with the clock script, as below. Box shells get no TZ variable (as the Shell tool's do
 // not), so every reading below comes from the box clock itself.
-const zone = process.env.AITEAMOS_TEST_TIME_ZONE;
-const inImage = Boolean(process.env.AITEAMOS_COMPUTER_TEST_URL && zone);
+const zone = process.env.OUTCOMEGO_TEST_TIME_ZONE;
+const inImage = Boolean(process.env.OUTCOMEGO_COMPUTER_TEST_URL && zone);
 
 const asBox = (script: string) => {
   const run = spawnSync("runuser", ["-u", "box", "--", "env", "-u", "TZ", "bash", "-c", script], { encoding: "utf8" });
@@ -15,7 +15,7 @@ const asBox = (script: string) => {
   return run.stdout.trim();
 };
 const applyZone = (value: string) =>
-  spawnSync("/usr/lib/aiteamos/bin/aiteamos-box-timezone", ["apply", value], { encoding: "utf8" });
+  spawnSync("/usr/lib/outcomego/bin/outcomego-box-timezone", ["apply", value], { encoding: "utf8" });
 
 /** `date +%z` style offset of the configured zone at a moment, from Intl's own data. */
 const offset = (date: Date, timeZone = zone!) => {
@@ -34,7 +34,7 @@ test.skipIf(inImage)("the computer image ships the clock script and zone data", 
   const file = (path: string) => Bun.file(new URL(`../../../${path}`, import.meta.url)).text();
   const dockerfile = await file("docker/computer.Dockerfile");
   expect(dockerfile).toMatch(/apt-get install[\s\S]*?\btzdata\b/);
-  expect(dockerfile).toContain("COPY docker/aiteamos-box-timezone /usr/lib/aiteamos/bin/aiteamos-box-timezone");
+  expect(dockerfile).toContain("COPY docker/outcomego-box-timezone /usr/lib/outcomego/bin/outcomego-box-timezone");
 });
 
 test.skipIf(!inImage)("the box clock runs in the configured time zone", () => {
@@ -68,7 +68,7 @@ test.skipIf(!inImage)("the clock script resolves letter case and refuses unknown
       expect(run.stderr).toContain("the box clock stays on UTC");
       expect(realpathSync("/etc/localtime")).toBe(realpathSync("/usr/share/zoneinfo/Etc/UTC"));
     }
-    expect(spawnSync("/usr/lib/aiteamos/bin/aiteamos-box-timezone", ["apply"]).status).toBe(2);
+    expect(spawnSync("/usr/lib/outcomego/bin/outcomego-box-timezone", ["apply"]).status).toBe(2);
   } finally {
     expect(applyZone(zone!).status).toBe(0);
   }

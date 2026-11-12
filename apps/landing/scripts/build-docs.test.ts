@@ -11,7 +11,7 @@ afterEach(() => {
 });
 
 function fixture() {
-  const directory = mkdtempSync(path.join(tmpdir(), "aiteamos-docs-"));
+  const directory = mkdtempSync(path.join(tmpdir(), "outcomego-docs-"));
   temporaryDirectories.push(directory);
   const docs = path.join(directory, "docs");
   mkdirSync(path.join(docs, "overview"), { recursive: true });
@@ -134,7 +134,7 @@ describe("documentation build", () => {
 describe("meta descriptions", () => {
   test("keep short text and whole sentences within 160 characters", () => {
     expect(metaDescription("Short and complete.")).toBe("Short and complete.");
-    const first = "aiTeamOS runs a team of AI bots on hardware you control.";
+    const first = "outcomeGo runs a team of AI bots on hardware you control.";
     const second = " Each bot gets its own screen, browser, and terminal on your server.";
     const third = " You give it work in chat and review the results.";
     expect(metaDescription(first + second + third)).toBe((first + second).trim());

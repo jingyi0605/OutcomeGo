@@ -14,7 +14,7 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "aiteamos-mobile"
+rootProject.name = "outcomego-mobile"
 include(":mobile:shared")
 include(":mobile:androidApp")
 project(":mobile:androidApp").projectDir = file("apps/android/app")

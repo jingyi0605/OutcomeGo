@@ -1,4 +1,4 @@
-import { clientErrorMessage } from "@aiteamos/product-core/redaction";
+import { clientErrorMessage } from "@outcomego/product-core/redaction";
 import { translateCurrent } from "./i18n-catalog";
 
 /**
@@ -24,9 +24,9 @@ const knownMessages: readonly MessageRule[] = [
     render: () => translateCurrent("Updates this connected server"),
   },
   {
-    pattern: /^Run aiteamos start on the server to enable updates from the app\.$/,
+    pattern: /^Run outcomego start on the server to enable updates from the app\.$/,
     render: () =>
-      translateCurrent("Run aiteamos start on the server to enable updates from the app."),
+      translateCurrent("Run outcomego start on the server to enable updates from the app."),
   },
   {
     pattern: /^Waiting for the server updater to reconnect…$/,
@@ -77,78 +77,78 @@ const knownMessages: readonly MessageRule[] = [
     render: () => translateCurrent("Update accepted; it will continue if this window closes"),
   },
   {
-    pattern: /^Checking the latest aiTeamOS release$/,
-    render: () => translateCurrent("Checking the latest aiTeamOS release"),
+    pattern: /^Checking the latest OutcomeGo release$/,
+    render: () => translateCurrent("Checking the latest OutcomeGo release"),
   },
   {
-    pattern: new RegExp(String.raw`^Downloading and verifying aiTeamOS ${VERSION}$`),
+    pattern: new RegExp(String.raw`^Downloading and verifying OutcomeGo ${VERSION}$`),
     render: (match) =>
-      translateCurrent("Downloading and verifying aiTeamOS {version}", { version: match[1] }),
+      translateCurrent("Downloading and verifying OutcomeGo {version}", { version: match[1] }),
   },
   {
-    pattern: new RegExp(String.raw`^Pulling aiTeamOS ${VERSION} container images$`),
+    pattern: new RegExp(String.raw`^Pulling OutcomeGo ${VERSION} container images$`),
     render: (match) =>
-      translateCurrent("Pulling aiTeamOS {version} container images", { version: match[1] }),
+      translateCurrent("Pulling OutcomeGo {version} container images", { version: match[1] }),
   },
   {
-    pattern: new RegExp(String.raw`^Backing up the aiTeamOS database before ${VERSION}$`),
+    pattern: new RegExp(String.raw`^Backing up the OutcomeGo database before ${VERSION}$`),
     render: (match) =>
-      translateCurrent("Backing up the aiTeamOS database before {version}", { version: match[1] }),
+      translateCurrent("Backing up the OutcomeGo database before {version}", { version: match[1] }),
   },
   {
     pattern: /^Restarting the server, worker, and computer$/,
     render: () => translateCurrent("Restarting the server, worker, and computer"),
   },
   {
-    pattern: new RegExp(String.raw`^aiTeamOS ${VERSION} passed its readiness checks$`),
+    pattern: new RegExp(String.raw`^OutcomeGo ${VERSION} passed its readiness checks$`),
     render: (match) =>
-      translateCurrent("aiTeamOS {version} passed its readiness checks", { version: match[1] }),
+      translateCurrent("OutcomeGo {version} passed its readiness checks", { version: match[1] }),
   },
   {
-    pattern: new RegExp(String.raw`^Installing aiTeamOS ${VERSION} command-line tools$`),
+    pattern: new RegExp(String.raw`^Installing OutcomeGo ${VERSION} command-line tools$`),
     render: (match) =>
-      translateCurrent("Installing aiTeamOS {version} command-line tools", { version: match[1] }),
+      translateCurrent("Installing OutcomeGo {version} command-line tools", { version: match[1] }),
   },
   {
     pattern: new RegExp(
-      String.raw`^aiTeamOS ${VERSION} and its command-line tools are up to date$`
+      String.raw`^OutcomeGo ${VERSION} and its command-line tools are up to date$`
     ),
     render: (match) =>
-      translateCurrent("aiTeamOS {version} and its command-line tools are up to date", {
+      translateCurrent("OutcomeGo {version} and its command-line tools are up to date", {
         version: match[1],
       }),
   },
   {
-    pattern: new RegExp(String.raw`^aiTeamOS ${VERSION} is already installed$`),
+    pattern: new RegExp(String.raw`^OutcomeGo ${VERSION} is already installed$`),
     render: (match) =>
-      translateCurrent("aiTeamOS {version} is already installed", { version: match[1] }),
+      translateCurrent("OutcomeGo {version} is already installed", { version: match[1] }),
   },
   {
     pattern: new RegExp(
-      String.raw`^aiTeamOS and its command-line tools are now running ${VERSION}\.$`
+      String.raw`^OutcomeGo and its command-line tools are now running ${VERSION}\.$`
     ),
     render: (match) =>
-      translateCurrent("aiTeamOS and its command-line tools are now running {version}.", {
+      translateCurrent("OutcomeGo and its command-line tools are now running {version}.", {
         version: match[1],
       }),
   },
   {
-    pattern: new RegExp(String.raw`^aiTeamOS is now running ${VERSION}\.$`),
+    pattern: new RegExp(String.raw`^OutcomeGo is now running ${VERSION}\.$`),
     render: (match) =>
-      translateCurrent("aiTeamOS is now running {version}.", { version: match[1] }),
+      translateCurrent("OutcomeGo is now running {version}.", { version: match[1] }),
   },
   {
-    pattern: new RegExp(String.raw`^Updating aiTeamOS ${VERSION} → ${VERSION}…$`),
+    pattern: new RegExp(String.raw`^Updating OutcomeGo ${VERSION} → ${VERSION}…$`),
     render: (match) =>
-      translateCurrent("Updating aiTeamOS {from} → {to}…", {
+      translateCurrent("Updating OutcomeGo {from} → {to}…", {
         from: match[1],
         to: match[2],
       }),
   },
   {
-    pattern: /^The update failed; restoring the previous aiTeamOS configuration$/,
+    pattern: /^The update failed; restoring the previous OutcomeGo configuration$/,
     render: () =>
-      translateCurrent("The update failed; restoring the previous aiTeamOS configuration"),
+      translateCurrent("The update failed; restoring the previous OutcomeGo configuration"),
   },
 
   // Refusals and failures that end up in the job's error state.
@@ -164,11 +164,11 @@ const knownMessages: readonly MessageRule[] = [
   },
   {
     pattern: new RegExp(
-      String.raw`^Refusing to downgrade aiTeamOS ${VERSION} to ${VERSION}\. Use --allow-downgrade only for an intentional recovery\.$`
+      String.raw`^Refusing to downgrade OutcomeGo ${VERSION} to ${VERSION}\. Use --allow-downgrade only for an intentional recovery\.$`
     ),
     render: (match) =>
       translateCurrent(
-        "Refusing to downgrade aiTeamOS {current} to {target}. Use --allow-downgrade only for an intentional recovery.",
+        "Refusing to downgrade OutcomeGo {current} to {target}. Use --allow-downgrade only for an intentional recovery.",
         { current: match[1], target: match[2] }
       ),
   },
@@ -292,8 +292,8 @@ const desktopMessages: readonly MessageRule[] = [
     render: () => translateCurrent("No published desktop release is available yet."),
   },
   {
-    pattern: /^Restart aiTeamOS to finish installing the update$/,
-    render: () => translateCurrent("Restart aiTeamOS to finish installing the update"),
+    pattern: /^Restart OutcomeGo to finish installing the update$/,
+    render: () => translateCurrent("Restart OutcomeGo to finish installing the update"),
   },
   {
     pattern: /^Downloading (\d{1,3})%$/,

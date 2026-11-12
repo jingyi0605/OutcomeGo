@@ -18,7 +18,7 @@ struct SystemIntentClient {
   static func savedSession() throws -> SessionRecord {
     guard !UserDefaults.standard.bool(forKey: LocalDataReset.pendingKey),
       let session = try SecureSession.read() else {
-      throw APIError("Open OpenTeam and connect to your server first.")
+      throw APIError("Open OutcomeGo and connect to your server first.")
     }
     return session
   }
@@ -61,7 +61,7 @@ struct SystemIntentClient {
     guard !UserDefaults.standard.bool(forKey: LocalDataReset.pendingKey),
       let current = try SecureSession.read(), current.server == session.server,
       current.userID == session.userID, current.token == session.token else {
-      throw APIError("Your OpenTeam account changed. Choose the conversation again.")
+      throw APIError("Your OutcomeGo account changed. Choose the conversation again.")
     }
   }
 
@@ -70,7 +70,7 @@ struct SystemIntentClient {
   func identifier(_ value: String, kind: SystemEntityID.Kind) throws -> SystemEntityID {
     try validateSession()
     guard let id = SystemEntityID(value), id.matches(scope: scope, kind: kind) else {
-      throw APIError("This item belongs to a different OpenTeam account. Choose it again.")
+      throw APIError("This item belongs to a different OutcomeGo account. Choose it again.")
     }
     return id
   }
@@ -83,7 +83,7 @@ struct SystemIntentClient {
     let id = try identifier(value, kind: kind)
     guard let target = destinations.first(where: { $0.id == id.channelID }),
       kind != .bot || target.bot?.id == id.localID else {
-      throw APIError("This conversation is no longer available in OpenTeam.")
+      throw APIError("This conversation is no longer available in OutcomeGo.")
     }
     return target
   }
@@ -139,7 +139,7 @@ struct SystemIntentClient {
     let routines = try await api.get("/api/v0/\(owner)/routines", as: [Routine].self)
     try validateSession()
     guard let routine = routines.first(where: { $0.id == id.localID }) else {
-      throw APIError("This routine is no longer available in OpenTeam.")
+      throw APIError("This routine is no longer available in OutcomeGo.")
     }
     return routine
   }
@@ -200,7 +200,7 @@ struct SystemIntentClient {
 
   func exportAttachment(_ value: String) async throws -> URL {
     let (_, asset) = try await attachment(value)
-    let directory = FileManager.default.temporaryDirectory.appendingPathComponent("OpenTeamTransfers")
+    let directory = FileManager.default.temporaryDirectory.appendingPathComponent("OutcomeGoTransfers")
       .appendingPathComponent(UUID().uuidString, isDirectory: true)
     try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true,
       attributes: [.protectionKey: FileProtectionType.complete])

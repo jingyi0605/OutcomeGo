@@ -12,10 +12,10 @@ import {
   serverInferenceSettings,
   type ServerInferenceSettings,
   type ServerSettingsView,
-} from "@aiteamos/contracts";
-import type { AgentDataStore } from "@aiteamos/messaging";
-import { COMPUTER_API_PATHS } from "@aiteamos/contracts/service-protocol";
-import { parseTaskConfiguration } from "@aiteamos/contracts/task-configuration";
+} from "@outcomego/contracts";
+import type { AgentDataStore } from "@outcomego/messaging";
+import { COMPUTER_API_PATHS } from "@outcomego/contracts/service-protocol";
+import { parseTaskConfiguration } from "@outcomego/contracts/task-configuration";
 import { serviceEffect } from "./service-utils";
 const CONNECTION_CHECK_TIMEOUT_MS = 60_000;
 

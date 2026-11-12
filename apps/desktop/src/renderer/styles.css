@@ -856,7 +856,7 @@ textarea,
   animation: settings-anchor-pulse 1.8s ease-out;
 }
 
-.aiteamos-document-preview {
+.outcomego-document-preview {
   font:
     14px / 1.55 -apple-system,
     BlinkMacSystemFont,
@@ -865,58 +865,58 @@ textarea,
     sans-serif;
 }
 
-.aiteamos-document-preview h1,
-.aiteamos-document-preview h2,
-.aiteamos-document-preview h3 {
+.outcomego-document-preview h1,
+.outcomego-document-preview h2,
+.outcomego-document-preview h3 {
   margin: 1.3em 0 0.55em;
   font-weight: 650;
   line-height: 1.25;
 }
 
-.aiteamos-document-preview h1 {
+.outcomego-document-preview h1 {
   font-size: 24px;
 }
 
-.aiteamos-document-preview h2 {
+.outcomego-document-preview h2 {
   font-size: 19px;
 }
 
-.aiteamos-document-preview h3 {
+.outcomego-document-preview h3 {
   font-size: 16px;
 }
 
-.aiteamos-document-preview p,
-.aiteamos-document-preview ul,
-.aiteamos-document-preview ol,
-.aiteamos-document-preview table {
+.outcomego-document-preview p,
+.outcomego-document-preview ul,
+.outcomego-document-preview ol,
+.outcomego-document-preview table {
   margin: 0 0 0.85em;
 }
 
-.aiteamos-document-preview ul,
-.aiteamos-document-preview ol {
+.outcomego-document-preview ul,
+.outcomego-document-preview ol {
   padding-left: 1.5em;
 }
 
-.aiteamos-document-preview table {
+.outcomego-document-preview table {
   width: 100%;
   border-collapse: collapse;
   font-size: 12px;
 }
 
-.aiteamos-document-preview th,
-.aiteamos-document-preview td {
+.outcomego-document-preview th,
+.outcomego-document-preview td {
   border: 1px solid #d9d9d9;
   padding: 6px 8px;
   text-align: left;
   vertical-align: top;
 }
 
-.aiteamos-document-preview th {
+.outcomego-document-preview th {
   background: #f3f3f3;
   font-weight: 600;
 }
 
-.aiteamos-document-preview img {
+.outcomego-document-preview img {
   max-width: 100%;
   height: auto;
 }

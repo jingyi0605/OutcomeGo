@@ -7,7 +7,7 @@ import { computerEventStream } from "../../apps/computer/src/computer-event-stre
 import { WakeWorker } from "../../apps/worker/src/worker";
 
 const directory = process.argv[2]!;
-assert(directory.includes("aiteamos-transcription-e2e-"), "Disposable fixture directory required");
+assert(directory.includes("outcomego-transcription-e2e-"), "Disposable fixture directory required");
 const expected = JSON.parse(
   await readFile(join(directory, "delivery-expectations.json"), "utf8")
 ) as Array<{
@@ -40,10 +40,10 @@ const model = Bun.serve({
     );
   },
 });
-process.env.AITEAMOS_PI_AGENT_DIR = join(directory, "qa-pi");
-await mkdir(process.env.AITEAMOS_PI_AGENT_DIR, { recursive: true });
+process.env.OUTCOMEGO_PI_AGENT_DIR = join(directory, "qa-pi");
+await mkdir(process.env.OUTCOMEGO_PI_AGENT_DIR, { recursive: true });
 await writeFile(
-  join(process.env.AITEAMOS_PI_AGENT_DIR, "models.json"),
+  join(process.env.OUTCOMEGO_PI_AGENT_DIR, "models.json"),
   JSON.stringify({
     providers: {
       "voice-qa": {
@@ -66,7 +66,7 @@ await writeFile(
   })
 );
 await writeFile(
-  join(process.env.AITEAMOS_PI_AGENT_DIR, "auth.json"),
+  join(process.env.OUTCOMEGO_PI_AGENT_DIR, "auth.json"),
   JSON.stringify({ "voice-qa": { type: "api_key", key: "disposable-local-model" } })
 );
 const runtime = new ComputerRuntime();
@@ -93,7 +93,7 @@ const computer = Bun.serve({
     return new Response(null, { status: 404 });
   },
 });
-process.env.AITEAMOS_COMPUTER_URL = computer.url.origin;
+process.env.OUTCOMEGO_COMPUTER_URL = computer.url.origin;
 const worker = new WakeWorker();
 try {
   await worker.boss.start();

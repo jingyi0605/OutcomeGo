@@ -17,10 +17,10 @@ import { normalizeRepository, normalizeVersion } from "./config";
 import { CliError } from "./errors";
 import { verifyArtifactSignature } from "./release";
 
-export const CLI_UPDATE_SOURCE_ENV = "AITEAMOS_CLI_UPDATE_SOURCE";
-export const CLI_UPDATE_TARGET_ENV = "AITEAMOS_CLI_UPDATE_TARGET";
-export const CLI_UPDATE_VERSION_ENV = "AITEAMOS_CLI_UPDATE_VERSION";
-export const CLI_UPDATE_FOLLOWER_PID_ENV = "AITEAMOS_CLI_UPDATE_FOLLOWER_PID";
+export const CLI_UPDATE_SOURCE_ENV = "OUTCOMEGO_CLI_UPDATE_SOURCE";
+export const CLI_UPDATE_TARGET_ENV = "OUTCOMEGO_CLI_UPDATE_TARGET";
+export const CLI_UPDATE_VERSION_ENV = "OUTCOMEGO_CLI_UPDATE_VERSION";
+export const CLI_UPDATE_FOLLOWER_PID_ENV = "OUTCOMEGO_CLI_UPDATE_FOLLOWER_PID";
 
 const MAX_COMPRESSED_CLI_BYTES = 128 * 1024 * 1024;
 const MAX_CLI_BYTES = 256 * 1024 * 1024;
@@ -75,12 +75,12 @@ export const cliAssetName = (
   architecture: NodeJS.Architecture = process.arch
 ): string => {
   if (platform === "win32" && ["x64", "arm64"].includes(architecture)) {
-    return "aiteamos-windows-x64.exe";
+    return "outcomego-windows-x64.exe";
   }
   if (!["darwin", "linux"].includes(platform) || !["x64", "arm64"].includes(architecture)) {
-    throw new CliError(`aiTeamOS does not publish a CLI for ${platform}/${architecture}`);
+    throw new CliError(`OutcomeGo does not publish a CLI for ${platform}/${architecture}`);
   }
-  return `aiteamos-${platform}-${architecture}`;
+  return `outcomego-${platform}-${architecture}`;
 };
 
 export const cliReleaseAssetUrl = (repository: string, version: string, filename: string): string =>
@@ -89,7 +89,7 @@ export const cliReleaseAssetUrl = (repository: string, version: string, filename
 const fetchResponse = async (fetcher: Fetcher, url: string, accept: string): Promise<Response> => {
   try {
     return await fetcher(url, {
-      headers: { accept, "user-agent": "aiteamos-cli" },
+      headers: { accept, "user-agent": "outcomego-cli" },
       redirect: "follow",
       signal: AbortSignal.timeout(60_000),
     });
@@ -288,7 +288,7 @@ export const stageCliUpdate = async (options: {
     const output = result.stdout.trim();
     if (result.status !== 0 || output !== version) {
       const detail = result.detail || output || `exit ${result.status ?? "unknown"}`;
-      throw new CliError(`The staged aiTeamOS CLI did not report version ${version}: ${detail}`);
+      throw new CliError(`The staged OutcomeGo CLI did not report version ${version}: ${detail}`);
     }
     return { source, target, version };
   } catch (error) {
@@ -359,14 +359,14 @@ const scheduleWindowsRemoval = (path: string): void => {
         "-NoProfile",
         "-NonInteractive",
         "-Command",
-        "Wait-Process -Id $env:AITEAMOS_DELETE_PID -ErrorAction SilentlyContinue; Remove-Item -LiteralPath $env:AITEAMOS_DELETE_PATH -Force -ErrorAction SilentlyContinue",
+        "Wait-Process -Id $env:OUTCOMEGO_DELETE_PID -ErrorAction SilentlyContinue; Remove-Item -LiteralPath $env:OUTCOMEGO_DELETE_PATH -Force -ErrorAction SilentlyContinue",
       ],
       {
         detached: true,
         env: {
           ...process.env,
-          AITEAMOS_DELETE_PID: String(process.pid),
-          AITEAMOS_DELETE_PATH: path,
+          OUTCOMEGO_DELETE_PID: String(process.pid),
+          OUTCOMEGO_DELETE_PATH: path,
         },
         stdio: "ignore",
         windowsHide: true,
@@ -414,7 +414,7 @@ export const waitForCliFollowerToExit = async (
   const deadline = Date.now() + 30_000;
   while (processIsAlive(promotion.followerPid)) {
     if (Date.now() >= deadline) {
-      throw new CliError("The previous aiTeamOS CLI process did not exit for the Windows update");
+      throw new CliError("The previous OutcomeGo CLI process did not exit for the Windows update");
     }
     await new Promise<void>((resolvePromise) => setTimeout(resolvePromise, 100));
   }
@@ -422,7 +422,7 @@ export const waitForCliFollowerToExit = async (
 
 export const promoteStagedCli = (promotion: CliPromotion, platform = process.platform): string => {
   if (!existsSync(promotion.source) || !existsSync(promotion.target)) {
-    throw new CliError("The staged or installed aiTeamOS CLI is missing");
+    throw new CliError("The staged or installed OutcomeGo CLI is missing");
   }
   if (platform === "win32") {
     const backup = `${promotion.target}.previous`;

@@ -138,7 +138,7 @@ function noteSkippedDocuments(step, count) {
 
 async function markSecretFill(element, value) {
 	await element.evaluate(MARK_SECRET_FILL_FN, value);
- await element.evaluate(el => { el.dataset.aiteamosPrivate = "true"; const parent = el.parentElement?.parentElement; if (parent) for (const node of parent.querySelectorAll('input[maxlength="1"]')) node.dataset.aiteamosPrivate = "true"; });
+ await element.evaluate(el => { el.dataset.outcomegoPrivate = "true"; const parent = el.parentElement?.parentElement; if (parent) for (const node of parent.querySelectorAll('input[maxlength="1"]')) node.dataset.outcomegoPrivate = "true"; });
 }
 
 async function gotoWithRecovery(page, url, recovery) {

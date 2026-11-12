@@ -1,15 +1,15 @@
 import {
   createJsonTransport,
   normalizeBaseUrl,
-  AiTeamOSClientError,
-  type AiTeamOSFetch,
+  OutcomeGoClientError,
+  type OutcomeGoFetch,
 } from "./http";
 
-export type AiTeamOSAuthMode = "required" | "disabled";
-export type AiTeamOSAuthStatus = "checking" | "authenticated" | "signed-out";
-export type AiTeamOSAuthConnection = "unknown" | "online" | "offline";
+export type OutcomeGoAuthMode = "required" | "disabled";
+export type OutcomeGoAuthStatus = "checking" | "authenticated" | "signed-out";
+export type OutcomeGoAuthConnection = "unknown" | "online" | "offline";
 
-export interface AiTeamOSAuthUser {
+export interface OutcomeGoAuthUser {
   id: string;
   name: string;
   email: string;
@@ -17,28 +17,28 @@ export interface AiTeamOSAuthUser {
   image: string | null;
 }
 
-export interface AiTeamOSAuthSnapshot {
-  status: AiTeamOSAuthStatus;
-  mode: AiTeamOSAuthMode;
-  connection: AiTeamOSAuthConnection;
+export interface OutcomeGoAuthSnapshot {
+  status: OutcomeGoAuthStatus;
+  mode: OutcomeGoAuthMode;
+  connection: OutcomeGoAuthConnection;
   error: string | null;
-  user: AiTeamOSAuthUser | null;
+  user: OutcomeGoAuthUser | null;
 }
 
-export interface AiTeamOSAuthSession {
+export interface OutcomeGoAuthSession {
   session: unknown;
-  user: AiTeamOSAuthUser;
+  user: OutcomeGoAuthUser;
 }
 
-export interface AiTeamOSSignInResult {
+export interface OutcomeGoSignInResult {
   token: string;
-  user: AiTeamOSAuthUser | null;
+  user: OutcomeGoAuthUser | null;
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value);
 
-export const parseAuthUser = (value: unknown): AiTeamOSAuthUser | null => {
+export const parseAuthUser = (value: unknown): OutcomeGoAuthUser | null => {
   if (!isRecord(value)) return null;
   const id = typeof value.id === "string" ? value.id : "";
   const name = typeof value.name === "string" ? value.name.trim() : "";
@@ -77,25 +77,25 @@ export const authResponseError = async (response: Response): Promise<string> => 
   );
 };
 
-export interface AiTeamOSAuthClientOptions {
+export interface OutcomeGoAuthClientOptions {
   baseUrl: string;
-  fetch?: AiTeamOSFetch;
+  fetch?: OutcomeGoFetch;
   /** Includes receiving and parsing the response body, not just connecting. */
   timeoutMs?: number;
 }
 
-const invalidAiTeamOSServer = (status: number): AiTeamOSClientError =>
-  new AiTeamOSClientError(
-    "This endpoint is reachable, but it is not a compatible aiTeamOS server.",
+const invalidOutcomeGoServer = (status: number): OutcomeGoClientError =>
+  new OutcomeGoClientError(
+    "This endpoint is reachable, but it is not a compatible OutcomeGo server.",
     "invalid_server",
     status
   );
 
-const unavailableAiTeamOSServer = (status: number): AiTeamOSClientError =>
-  new AiTeamOSClientError("The aiTeamOS server is temporarily unavailable.", "offline", status);
+const unavailableOutcomeGoServer = (status: number): OutcomeGoClientError =>
+  new OutcomeGoClientError("The OutcomeGo server is temporarily unavailable.", "offline", status);
 
-const interruptedAiTeamOSServer = (status: number): AiTeamOSClientError =>
-  new AiTeamOSClientError(
+const interruptedOutcomeGoServer = (status: number): OutcomeGoClientError =>
+  new OutcomeGoClientError(
     "The connection dropped while checking this server. Try again.",
     "offline",
     status
@@ -104,7 +104,7 @@ const interruptedAiTeamOSServer = (status: number): AiTeamOSClientError =>
 /**
  * Reads a JSON object body. Unlike responseBody, a body that can't be read (the connection
  * dropped partway through the answer) throws, so it isn't mistaken for a body without
- * aiTeamOS's fields.
+ * OutcomeGo's fields.
  */
 const readResponseBody = async (response: Response): Promise<Record<string, unknown> | null> => {
   const text = await response.text();
@@ -120,7 +120,7 @@ const readResponseBody = async (response: Response): Promise<Record<string, unkn
  * Platform-neutral authentication protocol. Persistence and lifecycle policy stay
  * in the desktop/mobile adapters so secrets never cross into an unsafe storage API.
  */
-export const createAiTeamOSAuthClient = (options: AiTeamOSAuthClientOptions) => {
+export const createOutcomeGoAuthClient = (options: OutcomeGoAuthClientOptions) => {
   const transport = createJsonTransport(options);
 
   // A silent server (or stalled response body) must not leave onboarding permanently busy.
@@ -130,7 +130,7 @@ export const createAiTeamOSAuthClient = (options: AiTeamOSAuthClientOptions) => 
     const deadline = new Promise<never>((_, reject) => {
       timer = setTimeout(() => {
         reject(
-          new AiTeamOSClientError(
+          new OutcomeGoClientError(
             "The server took too long to respond. Please try again.",
             "timeout"
           )
@@ -145,14 +145,14 @@ export const createAiTeamOSAuthClient = (options: AiTeamOSAuthClientOptions) => 
     }
   };
 
-  const requestMode = (strict: boolean): Promise<AiTeamOSAuthMode> =>
+  const requestMode = (strict: boolean): Promise<OutcomeGoAuthMode> =>
     withDeadline(async (signal) => {
       const response = await transport.open("/api/auth/config", { signal });
       if (!response.ok) {
         if (strict) {
           throw response.status >= 500
-            ? unavailableAiTeamOSServer(response.status)
-            : invalidAiTeamOSServer(response.status);
+            ? unavailableOutcomeGoServer(response.status)
+            : invalidOutcomeGoServer(response.status);
         }
         return "required";
       }
@@ -163,18 +163,18 @@ export const createAiTeamOSAuthClient = (options: AiTeamOSAuthClientOptions) => 
         // The deadline cut it off and has already answered.
         if (signal.aborted) throw cause;
         // A cut-off answer is a connection problem, not proof of a different server.
-        if (strict) throw interruptedAiTeamOSServer(response.status);
+        if (strict) throw interruptedOutcomeGoServer(response.status);
         body = null;
       }
       if (body?.mode === "required" || body?.mode === "disabled") return body.mode;
-      if (strict) throw invalidAiTeamOSServer(response.status);
+      if (strict) throw invalidOutcomeGoServer(response.status);
       return "required";
     });
 
-  const discoverMode = (): Promise<AiTeamOSAuthMode> => requestMode(false);
-  const validateServer = (): Promise<AiTeamOSAuthMode> => requestMode(true);
+  const discoverMode = (): Promise<OutcomeGoAuthMode> => requestMode(false);
+  const validateServer = (): Promise<OutcomeGoAuthMode> => requestMode(true);
 
-  const signIn = (username: string, password: string): Promise<AiTeamOSSignInResult> =>
+  const signIn = (username: string, password: string): Promise<OutcomeGoSignInResult> =>
     withDeadline(async (signal) => {
       const response = await transport.open("/api/auth/login", {
         method: "POST",
@@ -183,22 +183,22 @@ export const createAiTeamOSAuthClient = (options: AiTeamOSAuthClientOptions) => 
       });
       if (!response.ok) throw new Error(await authResponseError(response));
       const token = response.headers.get("set-auth-token")?.trim() ?? "";
-      if (!token) throw new Error("The server did not return an aiTeamOS session token");
+      if (!token) throw new Error("The server did not return an OutcomeGo session token");
       const body = await responseBody(response);
       return { token, user: parseAuthUser(body?.user) };
     });
 
-  const getSession = (token: string): Promise<AiTeamOSAuthSession | null> =>
+  const getSession = (token: string): Promise<OutcomeGoAuthSession | null> =>
     withDeadline(async (signal) => {
       const response = await transport.open("/api/auth/get-session", {
         signal,
         headers: { authorization: `Bearer ${token}` },
       });
-      // A proxy or server error (e.g. while aiTeamOS restarts for an update)
+      // A proxy or server error (e.g. while OutcomeGo restarts for an update)
       // says nothing about the credential. Report it as unavailable so callers
       // keep the session instead of signing the device out.
       if (response.status >= 500 || response.status === 408 || response.status === 429) {
-        throw unavailableAiTeamOSServer(response.status);
+        throw unavailableOutcomeGoServer(response.status);
       }
       if (!response.ok) return null;
       const body = await responseBody(response);
@@ -219,7 +219,7 @@ export const createAiTeamOSAuthClient = (options: AiTeamOSAuthClientOptions) => 
         body: "{}",
       });
       if (!response.ok)
-        throw new AiTeamOSClientError(
+        throw new OutcomeGoClientError(
           "The server could not complete sign-out. Please try again.",
           "sign_out_failed",
           response.status
@@ -229,47 +229,47 @@ export const createAiTeamOSAuthClient = (options: AiTeamOSAuthClientOptions) => 
   return { baseUrl: transport.baseUrl, discoverMode, getSession, signIn, signOut, validateServer };
 };
 
-export type AiTeamOSAuthClient = ReturnType<typeof createAiTeamOSAuthClient>;
+export type OutcomeGoAuthClient = ReturnType<typeof createOutcomeGoAuthClient>;
 
-export interface AiTeamOSAuthAssessment {
-  status: Exclude<AiTeamOSAuthStatus, "checking">;
-  mode: AiTeamOSAuthMode;
-  connection: Exclude<AiTeamOSAuthConnection, "unknown">;
-  user: AiTeamOSAuthUser | null;
+export interface OutcomeGoAuthAssessment {
+  status: Exclude<OutcomeGoAuthStatus, "checking">;
+  mode: OutcomeGoAuthMode;
+  connection: Exclude<OutcomeGoAuthConnection, "unknown">;
+  user: OutcomeGoAuthUser | null;
   /** The server explicitly reported this mode, so a platform may cache it for offline starts. */
-  observedMode: AiTeamOSAuthMode | null;
+  observedMode: OutcomeGoAuthMode | null;
   /** Invalid and auth-disabled sessions must be removed from platform-secure storage. */
   clearCredentials: boolean;
 }
 
-export interface AssessAiTeamOSAuthSessionOptions {
-  client: AiTeamOSAuthClient;
+export interface AssessOutcomeGoAuthSessionOptions {
+  client: OutcomeGoAuthClient;
   loadToken: () => Promise<string | null>;
-  loadCachedMode?: () => Promise<AiTeamOSAuthMode | null>;
+  loadCachedMode?: () => Promise<OutcomeGoAuthMode | null>;
   isCurrent?: () => boolean;
 }
 
 export class AuthSessionSupersededError extends Error {
   constructor() {
-    super("The aiTeamOS server changed while authentication was in progress.");
+    super("The OutcomeGo server changed while authentication was in progress.");
     this.name = "AuthSessionSupersededError";
   }
 }
 
 /** Shared fail-closed session policy; platforms retain ownership of secure persistence. */
-export const assessAiTeamOSAuthSession = async ({
+export const assessOutcomeGoAuthSession = async ({
   client,
   loadToken,
   loadCachedMode = async () => null,
   isCurrent = () => true,
-}: AssessAiTeamOSAuthSessionOptions): Promise<AiTeamOSAuthAssessment> => {
+}: AssessOutcomeGoAuthSessionOptions): Promise<OutcomeGoAuthAssessment> => {
   const ensureCurrent = () => {
     if (!isCurrent()) throw new AuthSessionSupersededError();
   };
 
-  let mode: AiTeamOSAuthMode = "required";
-  let connection: Exclude<AiTeamOSAuthConnection, "unknown"> = "online";
-  let observedMode: AiTeamOSAuthMode | null = null;
+  let mode: OutcomeGoAuthMode = "required";
+  let connection: Exclude<OutcomeGoAuthConnection, "unknown"> = "online";
+  let observedMode: OutcomeGoAuthMode | null = null;
   try {
     mode = await client.discoverMode();
     ensureCurrent();
@@ -342,12 +342,12 @@ export const assessAiTeamOSAuthSession = async ({
   }
 };
 
-export const createAuthSnapshotStore = (initial: AiTeamOSAuthSnapshot) => {
+export const createAuthSnapshotStore = (initial: OutcomeGoAuthSnapshot) => {
   let snapshot = initial;
   const listeners = new Set<() => void>();
   return {
-    getSnapshot: (): AiTeamOSAuthSnapshot => snapshot,
-    publish: (next: AiTeamOSAuthSnapshot): AiTeamOSAuthSnapshot => {
+    getSnapshot: (): OutcomeGoAuthSnapshot => snapshot,
+    publish: (next: OutcomeGoAuthSnapshot): OutcomeGoAuthSnapshot => {
       snapshot = next;
       for (const listener of listeners) listener();
       return snapshot;

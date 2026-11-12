@@ -16,7 +16,7 @@ export function endTurnHoldExtension(active: ActiveTurn): {
   factory: ExtensionFactory;
 } {
   return {
-    name: "aiteamos-end-turn-hold",
+    name: "outcomego-end-turn-hold",
     hidden: true,
     factory(pi) {
       pi.on("tool_result", async (event) => {

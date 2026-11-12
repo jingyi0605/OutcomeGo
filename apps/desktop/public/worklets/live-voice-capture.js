@@ -1,4 +1,4 @@
-class AiTeamOSVoiceCapture extends AudioWorkletProcessor {
+class OutcomeGoVoiceCapture extends AudioWorkletProcessor {
   process(inputs) {
     const input = inputs[0]?.[0];
     if (input) this.port.postMessage(new Float32Array(input));
@@ -6,4 +6,4 @@ class AiTeamOSVoiceCapture extends AudioWorkletProcessor {
   }
 }
 
-registerProcessor("aiteamos-voice-capture", AiTeamOSVoiceCapture);
+registerProcessor("outcomego-voice-capture", OutcomeGoVoiceCapture);

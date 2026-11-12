@@ -1,16 +1,16 @@
-import type { BotView } from "@aiteamos/contracts";
+import type { BotView } from "@outcomego/contracts";
 import React from "react";
 import { createRoot } from "react-dom/client";
 import "../../src/renderer/styles.css";
-import { Onboarding } from "../../src/renderer/components/aiteamos/onboarding";
-import { SettingsPanel } from "../../src/renderer/components/aiteamos/settings/panel";
+import { Onboarding } from "../../src/renderer/components/outcomego/onboarding";
+import { SettingsPanel } from "../../src/renderer/components/outcomego/settings/panel";
 import { TooltipProvider } from "../../src/renderer/components/ui/tooltip";
 import { I18nProvider } from "../../src/renderer/lib/i18n";
-import ServerSettings from "../../src/renderer/components/aiteamos/settings/server";
+import ServerSettings from "../../src/renderer/components/outcomego/settings/server";
 
 // Renders the first-run wizard or Settings → Server against a server (or fixture)
 // behind the Vite /api proxy. ?view=settings, ?computer=down, ?offline=1, ?bots=1, ?voice=on,
-// ?theme=dark, ?createFails=1. window.aiteamosQA.addBot(name) makes a bot "on another
+// ?theme=dark, ?createFails=1. window.outcomegoQA.addBot(name) makes a bot "on another
 // device" while the wizard is open.
 const params = new URL(window.location.href).searchParams;
 document.documentElement.dataset.theme = params.get("theme") === "dark" ? "dark" : "light";
@@ -55,7 +55,7 @@ function QA() {
     params.get("bots") === "1" ? [fakeBot("Atlas", 0)] : []
   );
   React.useEffect(() => {
-    (window as unknown as { aiteamosQA: unknown }).aiteamosQA = {
+    (window as unknown as { outcomegoQA: unknown }).outcomegoQA = {
       addBot: (name: string) =>
         setBots((current) => [...current, fakeBot(name, current.length + 1)]),
     };

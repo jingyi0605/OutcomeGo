@@ -1,4 +1,4 @@
-import type { BotMemoryList } from "@aiteamos/contracts";
+import type { BotMemoryList } from "@outcomego/contracts";
 import { translateCurrent } from "./i18n-catalog";
 
 export interface MemoryViewState {

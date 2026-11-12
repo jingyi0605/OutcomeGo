@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 
 type ShortcutDelegate =
-  typeof import("../src/renderer/components/aiteamos/rich-message").createRichWidgetShortcutDelegate;
+  typeof import("../src/renderer/components/outcomego/rich-message").createRichWidgetShortcutDelegate;
 
 const originalWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
 const originalLocalStorage = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
@@ -22,7 +22,7 @@ beforeAll(async () => {
     },
   });
   ({ createRichWidgetShortcutDelegate } = await import(
-    "../src/renderer/components/aiteamos/rich-message"
+    "../src/renderer/components/outcomego/rich-message"
   ));
 });
 

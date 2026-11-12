@@ -3,7 +3,7 @@ import CoreSpotlight
 import CoreTransferable
 import UniformTypeIdentifiers
 import XCTest
-@testable import OpenTeamNative
+@testable import OutcomeGoNative
 
 @MainActor
 final class SystemIntentEdgeTests: SystemIntentFixture {
@@ -116,7 +116,7 @@ final class SystemIntentEdgeTests: SystemIntentFixture {
     let client = try await SystemIntentClient.connect()
     let target = try XCTUnwrap(client.destinations.first)
     let appStore = AppStore() // Has not started: exercise the pending-open path.
-    var intent = OpenTeamConversationIntent()
+    var intent = OutcomeGoConversationIntent()
     intent.target = TeamConversationEntity(target, scope: scope)
     intent.store = appStore
     _ = try await intent.perform()

@@ -5,9 +5,9 @@ import {
 } from "@modelcontextprotocol/sdk/client/auth.js";
 import type { FetchLike } from "@modelcontextprotocol/sdk/shared/transport.js";
 import { InvalidGrantError } from "@modelcontextprotocol/sdk/server/auth/errors.js";
-import { ApiError } from "@aiteamos/contracts";
-import type { PluginConnectorDefinition } from "@aiteamos/plugin-sdk";
-import { AiTeamOSOAuthProvider } from "./oauth-provider";
+import { ApiError } from "@outcomego/contracts";
+import type { PluginConnectorDefinition } from "@outcomego/plugin-sdk";
+import { OutcomeGoOAuthProvider } from "./oauth-provider";
 
 type PackagedOAuth = NonNullable<PluginConnectorDefinition["oauth"]>;
 
@@ -17,7 +17,7 @@ export class OAuthReauthorizationRequiredError extends ApiError {
     super(401, "plugin_auth_required", "Authorization expired or was revoked. Sign in to this account again.");
   }
 }
-const metadata = (oauth: PackagedOAuth, provider: AiTeamOSOAuthProvider) => {
+const metadata = (oauth: PackagedOAuth, provider: OutcomeGoOAuthProvider) => {
   if (!oauth.authorizationServer) throw new Error("Packaged OAuth server is missing");
   return {
     issuer: oauth.authorizationServer.issuer,
@@ -30,7 +30,7 @@ const metadata = (oauth: PackagedOAuth, provider: AiTeamOSOAuthProvider) => {
     ],
   };
 };
-const client = (provider: AiTeamOSOAuthProvider) => {
+const client = (provider: OutcomeGoOAuthProvider) => {
   const value = provider.clientInformation();
   if (!value) throw new Error("Configure an OAuth client ID before authorizing this account");
   return value;
@@ -42,7 +42,7 @@ const fetchWithTimeout: FetchLike = (input, init) =>
     redirect: "error",
   });
 
-export async function beginPackagedOAuth(provider: AiTeamOSOAuthProvider, oauth: PackagedOAuth) {
+export async function beginPackagedOAuth(provider: OutcomeGoOAuthProvider, oauth: PackagedOAuth) {
   const server = metadata(oauth, provider);
   await provider.saveIssuer(server.issuer);
   const result = await startAuthorization(server.issuer, {
@@ -58,7 +58,7 @@ export async function beginPackagedOAuth(provider: AiTeamOSOAuthProvider, oauth:
 }
 
 export async function finishPackagedOAuth(
-  provider: AiTeamOSOAuthProvider,
+  provider: OutcomeGoOAuthProvider,
   oauth: PackagedOAuth,
   code: string
 ) {
@@ -75,7 +75,7 @@ export async function finishPackagedOAuth(
   );
 }
 
-export async function packagedAccessToken(provider: AiTeamOSOAuthProvider, oauth: PackagedOAuth) {
+export async function packagedAccessToken(provider: OutcomeGoOAuthProvider, oauth: PackagedOAuth) {
   const tokens = provider.tokens();
   if (!tokens) throw new OAuthReauthorizationRequiredError();
   const expiresAt = provider.snapshot().tokensExpireAt;

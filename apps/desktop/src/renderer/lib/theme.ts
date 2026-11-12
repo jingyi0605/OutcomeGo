@@ -3,17 +3,17 @@ import {
   resolveTheme,
   type ThemePreference,
   type ResolvedTheme,
-} from "@aiteamos/design-tokens/appearance";
+} from "@outcomego/design-tokens/appearance";
 
 export {
   normalizeThemePreference,
   resolveTheme,
   type ThemePreference,
   type ResolvedTheme,
-} from "@aiteamos/design-tokens/appearance";
+} from "@outcomego/design-tokens/appearance";
 
-export const THEME_STORAGE_KEY = "aiteamos:theme";
-export const THEME_CHANGE_EVENT = "aiteamos:theme-change";
+export const THEME_STORAGE_KEY = "outcomego:theme";
+export const THEME_CHANGE_EVENT = "outcomego:theme-change";
 
 export const readThemePreference = (): ThemePreference =>
   normalizeThemePreference(localStorage.getItem(THEME_STORAGE_KEY));

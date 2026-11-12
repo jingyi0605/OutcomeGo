@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { lastOpened } from "../../src/renderer/components/aiteamos/settings/last-opened";
+import { lastOpened } from "../../src/renderer/components/outcomego/settings/last-opened";
 
 test("offline computers say when they were last opened, in words", () => {
   const now = Date.parse("2026-10-28T12:00:00Z");

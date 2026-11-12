@@ -6,12 +6,12 @@ import { Effect } from "effect";
 import { AppService } from "../../server/src/app-service";
 import { WakeWorker } from "../src/worker";
 
-const databaseUrl = process.env.AITEAMOS_TEST_DATABASE_URL;
+const databaseUrl = process.env.OUTCOMEGO_TEST_DATABASE_URL;
 
 test("live 1:1 A2A mirrors both home stores and wakes both agents without a pair store", async () => {
   if (!databaseUrl) return;
 
-  const workspace = join(tmpdir(), `aiteamos-a2a-live-${crypto.randomUUID()}`);
+  const workspace = join(tmpdir(), `outcomego-a2a-live-${crypto.randomUUID()}`);
   await mkdir(workspace, { recursive: true });
   const parityImagePath = join(workspace, "parity-pixel.png");
   await writeFile(
@@ -162,7 +162,7 @@ test("live 1:1 A2A mirrors both home stores and wakes both agents without a pair
         const turnId = `turn-${turnNumber}`;
         const itemId = `agent-${turnNumber}`;
         const sessionPath =
-          input.sessionPath ?? `/var/lib/aiteamos/pi/${input.contextSessionId}.jsonl`;
+          input.sessionPath ?? `/var/lib/outcomego/pi/${input.contextSessionId}.jsonl`;
         const text = `turn ${turnNumber} complete`;
         const events = [
           {
@@ -214,13 +214,13 @@ test("live 1:1 A2A mirrors both home stores and wakes both agents without a pair
     },
   });
 
-  const envKeys = ["DATABASE_URL", "AITEAMOS_COMPUTER_URL", "AITEAMOS_CONTROL_TOKEN", "AITEAMOS_WORKSPACE_ROOT", "AITEAMOS_AGENT_DATA_ROOT"] as const;
+  const envKeys = ["DATABASE_URL", "OUTCOMEGO_COMPUTER_URL", "OUTCOMEGO_CONTROL_TOKEN", "OUTCOMEGO_WORKSPACE_ROOT", "OUTCOMEGO_AGENT_DATA_ROOT"] as const;
   const previousEnv = Object.fromEntries(envKeys.map((key) => [key, process.env[key]]));
   process.env.DATABASE_URL = databaseUrl;
-  process.env.AITEAMOS_COMPUTER_URL = `http://127.0.0.1:${fakeComputer.port}`;
-  process.env.AITEAMOS_CONTROL_TOKEN = "a2a-live-control-token";
-  process.env.AITEAMOS_WORKSPACE_ROOT = workspace;
-  process.env.AITEAMOS_AGENT_DATA_ROOT = join(workspace, "agent-data");
+  process.env.OUTCOMEGO_COMPUTER_URL = `http://127.0.0.1:${fakeComputer.port}`;
+  process.env.OUTCOMEGO_CONTROL_TOKEN = "a2a-live-control-token";
+  process.env.OUTCOMEGO_WORKSPACE_ROOT = workspace;
+  process.env.OUTCOMEGO_AGENT_DATA_ROOT = join(workspace, "agent-data");
 
   try {
     app = new AppService();
@@ -230,7 +230,7 @@ test("live 1:1 A2A mirrors both home stores and wakes both agents without a pair
       if (previousZone) await app!.prisma.userTimeZoneSettings.create({ data: previousZone });
     };
     await app.prisma.$executeRawUnsafe(
-      'TRUNCATE TABLE "Computer", "Bot", "OutboxDelivery", "Event", "IdempotencyRecord" CASCADE'
+      'TRUNCATE TABLE "outcomego_computer", "outcomego_bot", "outcomego_outbox_delivery", "outcomego_event", "outcomego_idempotency_record" CASCADE'
     );
     await Effect.runPromise(app.boot());
     await app.agentData.writeInferenceSettings({
@@ -404,7 +404,7 @@ Current routines and their runtime status. This snapshot is authoritative for th
       sourceProjection.map((message) => message.content)
     );
     const capture = {
-      run: "aiteamos-live-a2a-capture",
+      run: "outcomego-live-a2a-capture",
       agents: {
         source: { id: sourceId, name: "Source", homeChannelId: source.dmChannelId },
         probe: { id: probeId, name: "Parity Probe", homeChannelId: probe.dmChannelId },
@@ -438,10 +438,10 @@ Current routines and their runtime status. This snapshot is authoritative for th
       clientSourceHomeStore: clientSourceRows,
     };
     const captureJson = `${JSON.stringify(capture, null, 2)}\n`;
-    if (process.env.AITEAMOS_A2A_CAPTURE_PATH) {
-      await writeFile(process.env.AITEAMOS_A2A_CAPTURE_PATH, captureJson, "utf8");
+    if (process.env.OUTCOMEGO_A2A_CAPTURE_PATH) {
+      await writeFile(process.env.OUTCOMEGO_A2A_CAPTURE_PATH, captureJson, "utf8");
     }
-    if (process.env.AITEAMOS_A2A_PRINT_CAPTURE === "1") console.log(captureJson.trimEnd());
+    if (process.env.OUTCOMEGO_A2A_PRINT_CAPTURE === "1") console.log(captureJson.trimEnd());
   } finally {
     if (worker) await worker.stop();
     worker = null;

@@ -1,7 +1,7 @@
 import type {
   AgentDirectoryRecord,
   AgentDirectorySnapshot,
-} from "@aiteamos/contracts/service-protocol";
+} from "@outcomego/contracts/service-protocol";
 import { createHash } from "node:crypto";
 import { readdir, readFile, stat } from "node:fs/promises";
 import { join } from "node:path";

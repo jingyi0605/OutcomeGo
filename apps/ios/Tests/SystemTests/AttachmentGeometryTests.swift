@@ -3,7 +3,7 @@ import ImageIO
 import SwiftUI
 import XCTest
 
-@testable import OpenTeamNative
+@testable import OutcomeGoNative
 
 /// Hosted layout checks: no XCUIApplication, server, or authenticated session.
 @MainActor final class AttachmentGeometryTests: XCTestCase {

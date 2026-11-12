@@ -3,7 +3,7 @@ import {
   DEFAULT_FETCH_PROVIDER,
   FETCH_PROVIDERS,
   type FetchProvider,
-} from "@aiteamos/contracts/web-search";
+} from "@outcomego/contracts/web-search";
 import { boundedJson, ResponseTooLargeError, type SearchFetch } from "./search-provider";
 import { publicWebUrl, validatePublicWebUrl } from "./public-web-url";
 import { MAX_WEB_DOWNLOAD } from "./builtin-fetch";

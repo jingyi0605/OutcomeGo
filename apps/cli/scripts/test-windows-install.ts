@@ -14,7 +14,7 @@ async function run(args: string[]) {
   if ((await child.exited) !== 0) throw new Error(`${args[0]} failed`);
 }
 for (const [entry, name] of [
-  ["src/main.ts", "aiteamos-windows-x64.exe"],
+  ["src/main.ts", "outcomego-windows-x64.exe"],
   ["test/fixtures/setup-countdown.ts", "countdown.exe"],
   ["test/fixtures/windows-docker.ts", "docker.exe"],
 ]) {
@@ -25,13 +25,13 @@ for (const [entry, name] of [
     "--compile",
     "--minify",
     "--target=bun-windows-x64-baseline",
-    ...(process.env.AITEAMOS_TEST_BUN_EXECUTABLE
-      ? [`--compile-executable-path=${process.env.AITEAMOS_TEST_BUN_EXECUTABLE}`]
+    ...(process.env.OUTCOMEGO_TEST_BUN_EXECUTABLE
+      ? [`--compile-executable-path=${process.env.OUTCOMEGO_TEST_BUN_EXECUTABLE}`]
       : []),
     `--outfile=${resolve(assets, name!)}`,
   ]);
 }
-const filename = "aiteamos-windows-x64.exe";
+const filename = "outcomego-windows-x64.exe";
 const binary = new Uint8Array(await Bun.file(resolve(assets, filename)).arrayBuffer());
 await Bun.write(resolve(assets, `${filename}.gz`), Bun.gzipSync(binary));
 await Bun.write(

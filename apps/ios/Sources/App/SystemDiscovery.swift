@@ -7,7 +7,7 @@ import SwiftUI
 @MainActor @Observable
 final class SystemDiscovery {
   static let shared = SystemDiscovery()
-  nonisolated static let indexName = "dev.openteam.siri-content"
+  nonisolated static let indexName = "dev.outcomego.siri-content"
   private var revision = UUID()
   private var queued: Task<Void, Never>?
   private var debounce: Task<Void, Never>?
@@ -61,9 +61,9 @@ final class SystemDiscovery {
         manifest = [:]
         UserDefaults.standard.removeObject(forKey: manifestKey)
         failure = nil
-      } catch { failure = "Couldn’t remove Siri and Spotlight content. OpenTeam will retry when you reconnect." }
+      } catch { failure = "Couldn’t remove Siri and Spotlight content. OutcomeGo will retry when you reconnect." }
       if removeTransfers {
-        let transfers = FileManager.default.temporaryDirectory.appendingPathComponent("OpenTeamTransfers")
+        let transfers = FileManager.default.temporaryDirectory.appendingPathComponent("OutcomeGoTransfers")
         try? FileManager.default.removeItem(at: transfers)
       }
     }
@@ -161,7 +161,7 @@ final class SystemDiscovery {
       try await reconcile(snapshot.destinations.map { TeamConversationEntity($0, scope: scope) },
         signatures: conversationSignatures, session: session, epoch: epoch)
       try await reconcile(snapshot.messages.map {
-        TeamMessageEntity($0, name: targets[$0.channelId]?.name ?? "OpenTeam", scope: scope)
+        TeamMessageEntity($0, name: targets[$0.channelId]?.name ?? "OutcomeGo", scope: scope)
       }, signatures: messageSignatures, session: session, epoch: epoch)
     }
   }

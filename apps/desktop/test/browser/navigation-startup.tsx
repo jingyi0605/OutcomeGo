@@ -1,15 +1,15 @@
 import { StrictMode, useEffect } from "react";
 import { createRoot } from "react-dom/client";
-import { useAiTeamOS } from "../../src/renderer/state/use-aiteamos";
-import { api } from "../../src/renderer/client/aiteamos-api";
+import { useOutcomeGo } from "../../src/renderer/state/use-outcomego";
+import { api } from "../../src/renderer/client/outcomego-api";
 import { ClientError } from "../../src/renderer/client/http";
 import {
   Conversation,
   ConversationContent,
 } from "../../src/renderer/components/ai-elements/conversation";
-import { ChatPane } from "../../src/renderer/components/aiteamos/chat-pane";
+import { ChatPane } from "../../src/renderer/components/outcomego/chat-pane";
 import { TooltipProvider } from "../../src/renderer/components/ui/tooltip";
-import { CLIENT_CAPABILITIES } from "@aiteamos/contracts/capabilities";
+import { CLIENT_CAPABILITIES } from "@outcomego/contracts/capabilities";
 import { mobileFixture } from "../../../ios/scripts/fixtures/snapshot";
 import "../../src/renderer/styles.css";
 const root = createRoot(document.getElementById("root")!);
@@ -28,9 +28,9 @@ const bootstrap = {
   capabilities: CLIENT_CAPABILITIES,
 };
 const id = snapshot.channels[0]!.id;
-let state: ReturnType<typeof useAiTeamOS>;
+let state: ReturnType<typeof useOutcomeGo>;
 function Fixture() {
-  state = useAiTeamOS();
+  state = useOutcomeGo();
   useEffect(() => {
     if (state.snapshot) void state.loadChannel(id);
   }, [state.snapshot !== null]);

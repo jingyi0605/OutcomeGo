@@ -1,4 +1,4 @@
-import { referenceTool } from "@aiteamos/contracts/tool-contracts";
+import { referenceTool } from "@outcomego/contracts/tool-contracts";
 export interface BrowserUseToolDefinition {
   name: string;
   description: string;

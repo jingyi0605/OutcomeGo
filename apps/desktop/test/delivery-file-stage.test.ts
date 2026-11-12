@@ -20,7 +20,7 @@ afterEach(async () => {
 
 describe("desktop durable attachment staging", () => {
   test("atomically retains bytes until the delivery controller discards them", async () => {
-    const root = await mkdtemp(join(tmpdir(), "aiteamos-delivery-stage-"));
+    const root = await mkdtemp(join(tmpdir(), "outcomego-delivery-stage-"));
     temporaryDirectories.push(root);
     await stageDeliveryFile(root, {
       stagingId: "stage-file-1234",
@@ -35,7 +35,7 @@ describe("desktop durable attachment staging", () => {
   });
 
   test("rejects traversal and empty attachments", async () => {
-    const root = await mkdtemp(join(tmpdir(), "aiteamos-delivery-stage-"));
+    const root = await mkdtemp(join(tmpdir(), "outcomego-delivery-stage-"));
     temporaryDirectories.push(root);
     await expect(
       stageDeliveryFile(root, { stagingId: "../outside", bytes: new Uint8Array([1]) })

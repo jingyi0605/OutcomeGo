@@ -32,12 +32,12 @@
       "gap": "G5",
       "area": "Outcome delegation",
       "status": "existing instruction parity",
-      "evidence": "October21 box-desktop reference delegates outcome/constraints/values, while its Task roster still asks for a narrow self-contained step. Current aiTeamOS matches both surfaces: graphicalDelegationInstructions and taskUserInfo. Durable accepted scope is an extension; no assumption that the older October20 skill wording is the latest."
+      "evidence": "October21 box-desktop reference delegates outcome/constraints/values, while its Task roster still asks for a narrow self-contained step. Current outcomeGo matches both surfaces: graphicalDelegationInstructions and taskUserInfo. Durable accepted scope is an extension; no assumption that the older October20 skill wording is the latest."
     },
     {
       "gap": "G6",
       "area": "Approval and autonomy",
-      "status": "preserve aiTeamOS safety boundaries",
+      "status": "preserve outcomeGo safety boundaries",
       "evidence": "Explicit approval remains scoped to destination/purpose/limits. No new fee, changed commitment, read-only mutation or refusal workaround is authorized by progress or recovery."
     },
     {
@@ -56,7 +56,7 @@
       "gap": "G9",
       "area": "Delivery nudges",
       "status": "intentional bounded divergence",
-      "evidence": "aiTeamOS retains a bounded fallback when a user-origin turn produced no outward delivery. Hidden wakes and a successful background dispatch do not receive a closing nudge; delivery-failure tests cover this behavior."
+      "evidence": "outcomeGo retains a bounded fallback when a user-origin turn produced no outward delivery. Hidden wakes and a successful background dispatch do not receive a closing nudge; delivery-failure tests cover this behavior."
     },
     {
       "gap": "G10",
@@ -86,7 +86,7 @@
       "gap": "G14",
       "area": "Identity, acknowledgement, clocks and tool modality",
       "status": "mostly existing instruction parity with local tool adaptations",
-      "evidence": "Action-first acknowledgement, parent-owned private handoffs and clock context exist. Native browser and secure-form adapters remain aiTeamOS implementations; no claim of identical internals."
+      "evidence": "Action-first acknowledgement, parent-owned private handoffs and clock context exist. Native browser and secure-form adapters remain outcomeGo implementations; no claim of identical internals."
     }
   ],
   "securityAndPrivacyRetained": [
@@ -178,7 +178,7 @@
         "status": "started",
         "paired": false
       },
-      "controlledAiTeamOSPrimary": "Zero prompts; disk guard pending",
+      "controlledOutcomeGoPrimary": "Zero prompts; disk guard pending",
       "limits": "One0.78trial; separate from0.75pilot. Fictional provider approval and pending refund, not real card settlement. Native cloud model/reasoning/cost unknown.",
       "scoringDiagnostic": "Frozen lexical report gate missed accurate on-its-way-back wording. Raw terminal-no-report retained; independent manual provider/scope/report review passes. No task/customer/scoring or product wording changes."
     },
@@ -231,7 +231,7 @@
       "matched": false,
       "limits": "One unpaired native case; remote model/reasoning/cost unknown. Current status truth is separate from requested goal completion."
     },
-    "currentControlState": "Both matched-hour results are audited. aiTeamOS completed; native Grok missed its deadline and reopened a review, with no refund at95minutes. Controlled repetitions continue on frozenv4inputs. Own-account activity observation after native cleanup continues through04:01UTC.",
+    "currentControlState": "Both matched-hour results are audited. outcomeGo completed; native Grok missed its deadline and reopened a review, with no refund at95minutes. Controlled repetitions continue on frozenv4inputs. Own-account activity observation after native cleanup continues through04:01UTC.",
     "cleanupObservation": "Ownhourbenchmark bot removed through native confirmation, absent fromsidebar, no post-deletion ownaccount page activity at boundedcheck. Private-bot team-automation list returns featureoff, so cloudcascade semantics are not independently attested.",
     "nativeV4AccessReview": {
       "cohort": "long-horizon-round7",
@@ -523,11 +523,11 @@
       "limits": "Controlled semantic test, not a natural scheduling/latency/cost or production reliability experiment. Separate retained context from probe4."
     }
   },
-  "parentOwnershipExtension": "Separate requested-outcome tracking and bounded reconciliation are justified aiTeamOS extensions after a valid6fa failure; not claimed as an exact clone of unseen native cloud machinery. Terminating automation WakeParent semantics remain unchanged.",
+  "parentOwnershipExtension": "Separate requested-outcome tracking and bounded reconciliation are justified outcomeGo extensions after a valid6fa failure; not claimed as an exact clone of unseen native cloud machinery. Terminating automation WakeParent semantics remain unchanged.",
   "liveEvidenceUpdate": "Native0.78.1completed additional short S1/S2N cases, including an accurate report missed by the raw lexical detector. The matched-hour deadline failure and late recovery remain separate. New parent-runtime live validation is funding-blocked.",
   "currentRuntimeSource": "4b5529981383408f6396c3898cf41aa412cd7317",
   "currentSourceEvidence": "cooperative-round.json",
-  "currentSourceHourFinding": "Matched pair, one trial per product: aiTeamOS answered the required hour-delayed question and completed. Native0.78.1scheduled its next check after the10-minute reply window and missed it. Harness cleanup occurred before the next scheduled check, so later recovery was not tested. Keep finite watches and private parent delivery parity while aligning aiTeamOS durable checks with known response windows. No general vendor superiority estimate.",
+  "currentSourceHourFinding": "Matched pair, one trial per product: outcomeGo answered the required hour-delayed question and completed. Native0.78.1scheduled its next check after the10-minute reply window and missed it. Harness cleanup occurred before the next scheduled check, so later recovery was not tested. Keep finite watches and private parent delivery parity while aligning outcomeGo durable checks with known response windows. No general vendor superiority estimate.",
   "currentComparisonEvidence": "semantic-customer-round.json",
   "currentComparisonFinding": "Policy7short batch audited: seven primary-eligible trials and one holder false-positive retention exclusion. Provider-goal results and remaining explicit user decisions distinguished; no general vendor superiority or private native model/cost inference. Immutable4b source; security/privacy settings unchanged.",
   "historicalNativeCleanupFinding": "Earlier funding-invalid native case serial4-grok078-S2N-3bounded cleanup observation passed:494successfulsamples,0unavailable,6afterannounced13:00UTCcheck through13:05:32UTC, no post-delete activity. Observer exited. Separate from current efficacy cohort; no private backend cascade or arbitrary later-activity guarantee. See implementation.json historicalNativeCleanup."

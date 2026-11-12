@@ -1,18 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { api } from "../client/aiteamos-api";
+import { api } from "../client/outcomego-api";
 import { API_BASE } from "../client/http";
 import { translateCurrent } from "../lib/i18n-catalog";
 import { readServerUpdateSnapshot, saveServerUpdateSnapshot } from "../lib/server-update-cache";
-import { isAiTeamOSVersion } from "@aiteamos/contracts/version-compatibility";
+import { isOutcomeGoVersion } from "@outcomego/contracts/version-compatibility";
 import { isWindowActive } from "../lib/window-visibility";
 import { useWindowActive } from "./use-window-active";
 
 const manualCommand = (targetVersion: string | null) =>
-  targetVersion && isAiTeamOSVersion(targetVersion)
-    ? `aiteamos update --version ${targetVersion}${targetVersion.includes("-") ? " --allow-prerelease" : ""}`
-    : "aiteamos update";
+  targetVersion && isOutcomeGoVersion(targetVersion)
+    ? `outcomego update --version ${targetVersion}${targetVersion.includes("-") ? " --allow-prerelease" : ""}`
+    : "outcomego update";
 
-const unavailableStatus = (targetVersion: string | null): AiTeamOSServerUpdateStatus => ({
+const unavailableStatus = (targetVersion: string | null): OutcomeGoServerUpdateStatus => ({
   serverUrl: API_BASE,
   currentVersion: null,
   targetVersion,
@@ -24,7 +24,7 @@ const unavailableStatus = (targetVersion: string | null): AiTeamOSServerUpdateSt
   status: "unavailable",
   phase: null,
   message: translateCurrent(
-    "Run aiteamos update once on this server to enable updates from the app."
+    "Run outcomego update once on this server to enable updates from the app."
   ),
   manualCommand: manualCommand(targetVersion),
   jobId: null,
@@ -36,7 +36,7 @@ export function useServerUpdateStatus(targetVersion: string | null) {
   const [view, setView] = useState(() => {
     const cached = readServerUpdateSnapshot(API_BASE, localStorage);
     return {
-      status: cached?.status ?? (null as AiTeamOSServerUpdateStatus | null),
+      status: cached?.status ?? (null as OutcomeGoServerUpdateStatus | null),
       loading: !cached,
       reconnecting: Boolean(cached),
       startedAt: cached?.startedAt ?? null,

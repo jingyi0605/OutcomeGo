@@ -1,12 +1,12 @@
 # Desktop and mobile
 
-The aiTeamOS apps connect to your server. Sign in from as many devices as you like; they all show the same bots and conversations.
+The OutcomeGo apps connect to your server. Sign in from as many devices as you like; they all show the same bots and conversations.
 
 ## Desktop
 
-Download the desktop app from [openteam.so/download](https://openteam.so/download). It's available for macOS (Apple silicon) and Linux (x64 AppImage). Windows and Intel Mac builds aren't available yet.
+Choose a desktop build from the [GitHub Releases page](https://github.com/jingyi0605/OutcomeGo/releases). The latest published build is beta.13 and uses the previous product identity; OutcomeGo beta.14 is not published. Available builds depend on the selected release.
 
-1. Open the app, choose **Log In**, and enter your server URL under **Server address**. You can leave off `http://`. If you don't have it, run `aiteamos status` on the server and use the **Server** address under **Connection**. If the server runs on the same computer, the app finds it for you.
+1. Open the app, choose **Log In**, and enter your server URL under **Server address**. You can leave off `http://`. If you don't have it, run `outcomego status` on the server and use the **Server** address under **Connection**. If the server runs on the same computer, the app finds it for you.
 2. Sign in with the username and password you created during setup.
 3. The first time, a short setup checks your server, connects an AI model, offers voice notes, and creates your first bot, one screen at a time. See the [quickstart](quickstart.md).
 
@@ -35,7 +35,7 @@ On iPhone, ChatGPT sign-in shows a code to enter on the sign-in page. **Settings
 
 ### Shortcuts, Siri, and Spotlight
 
-On iOS 18 and later, aiTeamOS provides Shortcuts to open a Bot, record a voice note,
+On iOS 18 and later, OutcomeGo provides Shortcuts to open a Bot, record a voice note,
 send a task, open a conversation, run a saved routine, and find messages. Choose a
 fixed Bot in a saved shortcut to use it with Back Tap or the Action button. Known
 Bots can open from the connected account's cache while the server is unavailable;
@@ -64,7 +64,7 @@ Your phone or laptop needs an address it can reach the server at:
 
 A `localhost` or `127.0.0.1` address only works on the server itself. See [remote access](../configuration/remote-access.md) for all the options.
 
-aiTeamOS doesn't encrypt plain `http://` addresses. That's fine on your home network, and Tailscale encrypts traffic for you. Use HTTPS for anything reachable from the internet.
+OutcomeGo doesn't encrypt plain `http://` addresses. That's fine on your home network, and Tailscale encrypts traffic for you. Use HTTPS for anything reachable from the internet.
 
 ## Notifications
 

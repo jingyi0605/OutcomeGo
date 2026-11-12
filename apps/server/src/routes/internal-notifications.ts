@@ -1,4 +1,4 @@
-import { validateApnsConfiguration, type ApnsSettingsStore } from "@aiteamos/db/apns-settings";
+import { validateApnsConfiguration, type ApnsSettingsStore } from "@outcomego/db/apns-settings";
 
 /** Internal installation API: responses contain metadata only, never the key. */
 export async function internalNotificationsRoute(

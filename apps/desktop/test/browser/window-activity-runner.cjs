@@ -25,13 +25,13 @@ app.whenReady().then(async () => {
   const nativeMode = process.env.WINDOW_ACTIVITY_NATIVE === "1";
   const initialReplies = [];
   const initial = value => holdInitial ? new Promise(resolve => initialReplies.push(() => resolve(value))) : value;
-  ipcMain.handle("aiteamos:window-visibility", () => nativeMode ? win.isVisible() && !win.isMinimized() : initial(nativeVisible));
-  ipcMain.handle("aiteamos:window-activity", () => nativeMode ? win.isVisible() && !win.isMinimized() && win.isFocused() : initial(nativeActive));
+  ipcMain.handle("outcomego:window-visibility", () => nativeMode ? win.isVisible() && !win.isMinimized() : initial(nativeVisible));
+  ipcMain.handle("outcomego:window-activity", () => nativeMode ? win.isVisible() && !win.isMinimized() && win.isFocused() : initial(nativeActive));
   const signal = (visible, focused) => {
     nativeVisible = visible;
     nativeActive = visible && focused;
-    win.webContents.send("aiteamos:window-visibility-changed", nativeVisible);
-    win.webContents.send("aiteamos:window-activity-changed", nativeActive);
+    win.webContents.send("outcomego:window-visibility-changed", nativeVisible);
+    win.webContents.send("outcomego:window-activity-changed", nativeActive);
   };
   const evaluate = source => win.webContents.executeJavaScript(source);
   const read = () => evaluate(process.env.WINDOW_ACTIVITY_SYNC === "1" ? "window.syncProbe?.()" : "window.activityProbe?.()");
@@ -49,11 +49,11 @@ app.whenReady().then(async () => {
     const delivered = [], dismissed = [];
     const notifications = new DesktopNotificationManager({isFocused:()=>nativeActive,isSupported:()=>true,
       deliver:event=>delivered.push(event),dismiss:id=>dismissed.push(id),setBadge:()=>{}});
-    ipcMain.on("aiteamos:notifications:sync", (_event, snapshot) => notifications.sync(snapshot));
-    ipcMain.on("aiteamos:notifications:clear", () => notifications.clear());
+    ipcMain.on("outcomego:notifications:sync", (_event, snapshot) => notifications.sync(snapshot));
+    ipcMain.on("outcomego:notifications:clear", () => notifications.clear());
     let journal = null;
-    ipcMain.handle("aiteamos:delivery-journal:read", () => journal);
-    ipcMain.handle("aiteamos:delivery-journal:write", (_event, request) => { journal = request.journal; });
+    ipcMain.handle("outcomego:delivery-journal:read", () => journal);
+    ipcMain.handle("outcomego:delivery-journal:write", (_event, request) => { journal = request.journal; });
     const reports = [];
     const check = (condition, message) => {assert(condition,message); reports.push(message);};
     try {
@@ -107,7 +107,7 @@ app.whenReady().then(async () => {
       win.on(event, () => { events.push(event); void save(event).catch(console.error); setTimeout(() => save(`${event}-settled`).catch(console.error), 100); });
     }
     const cover = new BrowserWindow({show:false,width:400,height:220,title:"QA cover window",webPreferences:{preload:path.join(process.env.WINDOW_ACTIVITY_DIR,"preload.cjs")}});
-    await cover.loadURL('data:text/html,<h1>QA cover window</h1><button onclick="window.activityQA.restore()">Return to aiTeamOS QA</button><button onclick="window.activityQA.quit()">Finish native test</button>');
+    await cover.loadURL('data:text/html,<h1>QA cover window</h1><button onclick="window.activityQA.restore()">Return to OutcomeGo QA</button><button onclick="window.activityQA.quit()">Finish native test</button>');
     ipcMain.on("qa:cover", () => { cover.show(); cover.focus(); });
     ipcMain.on("qa:restore", () => { cover.hide(); win.restore(); win.show(); win.focus(); });
     ipcMain.on("qa:hide", () => { win.hide(); cover.show(); cover.focus(); });
@@ -119,7 +119,7 @@ app.whenReady().then(async () => {
     });
     win.on("close", event => { if (!finishing) { event.preventDefault(); win.hide(); cover.show(); } });
     await win.loadURL(process.env.WINDOW_ACTIVITY_URL);
-    win.setTitle("aiTeamOS Background QA");
+    win.setTitle("OutcomeGo Background QA");
     win.show();
     await pause(500);
     await save();

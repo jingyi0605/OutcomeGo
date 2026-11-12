@@ -1,15 +1,15 @@
-import { DEFAULT_LOCALE, normalizeLocale, type Locale } from "@aiteamos/contracts/localization";
+import { DEFAULT_LOCALE, normalizeLocale, type Locale } from "@outcomego/contracts/localization";
 
 /**
  * Interface language for the CLI.
  *
  * Only an explicit opt-in is honoured — `--language` (which sets
- * `AITEAMOS_LANGUAGE`) or that variable directly. Ambient `LANG`/`LC_ALL` is
+ * `OUTCOMEGO_LANGUAGE`) or that variable directly. Ambient `LANG`/`LC_ALL` is
  * deliberately ignored so scripts, piping, and test runs keep stable English
  * output; the interface language is a user choice, not an OS side effect.
  */
 export const cliLocale = (value?: string): Locale =>
-  normalizeLocale(value ?? process.env.AITEAMOS_LANGUAGE ?? DEFAULT_LOCALE);
+  normalizeLocale(value ?? process.env.OUTCOMEGO_LANGUAGE ?? DEFAULT_LOCALE);
 
 type Values = Record<string, string | number>;
 
@@ -24,16 +24,16 @@ const interpolate = (text: string, values?: Values): string =>
 const simplifiedChinese: Record<string, string> = {
   "Show container health and server readiness": "显示容器健康状态和服务器就绪状态",
   "Check for installation problems": "检查安装问题",
-  "Install the latest aiTeamOS release": "安装最新的 aiTeamOS 版本",
+  "Install the latest OutcomeGo release": "安装最新的 OutcomeGo 版本",
   "Configure private HTTPS with Tailscale": "使用 Tailscale 配置私有 HTTPS",
   "Manage AI accounts and connections": "管理 AI 账户和连接",
   "Choose inference and transcription models": "选择推理和转写模型",
   "Change your username or password": "更改用户名或密码",
   "View troubleshooting logs": "查看故障排查日志",
-  "Stop aiTeamOS": "停止 aiTeamOS",
-  "Start aiTeamOS after account setup": "账户设置后启动 aiTeamOS",
-  "Remove aiTeamOS services and CLI": "移除 aiTeamOS 服务和 CLI",
-  "Install aiTeamOS and run guided setup": "安装 aiTeamOS 并运行引导式设置",
+  "Stop OutcomeGo": "停止 OutcomeGo",
+  "Start OutcomeGo after account setup": "账户设置后启动 OutcomeGo",
+  "Remove OutcomeGo services and CLI": "移除 OutcomeGo 服务和 CLI",
+  "Install OutcomeGo and run guided setup": "安装 OutcomeGo 并运行引导式设置",
   "Set up or change the connection and account": "设置或更改连接与账户",
   "Configure iOS push credentials or show their status": "配置 iOS 推送凭据或查看其状态",
   Healthy: "健康",
@@ -67,7 +67,7 @@ const simplifiedChinese: Record<string, string> = {
   "All checks passed": "所有检查均已通过",
   "No problems found": "未发现问题",
   "Check again": "重新检查",
-  "Run aiteamos doctor to see what needs attention": "运行 aiteamos doctor 查看需要处理的问题",
+  "Run outcomego doctor to see what needs attention": "运行 outcomego doctor 查看需要处理的问题",
 
   // status
   "Completed · exit 0": "已完成 · 退出码 0",
@@ -111,9 +111,9 @@ const simplifiedChinese: Record<string, string> = {
   "Computer API": "电脑 API",
   "AI model": "AI 模型",
   Connected: "已连接",
-  "Not connected · connect one in the aiTeamOS app": "未连接 · 请在 aiTeamOS 应用中连接",
-  "Not ready ({status}) · check it in the aiTeamOS app":
-    "未就绪（{status}）· 请在 aiTeamOS 应用中检查",
+  "Not connected · connect one in the OutcomeGo app": "未连接 · 请在 OutcomeGo 应用中连接",
+  "Not ready ({status}) · check it in the OutcomeGo app":
+    "未就绪（{status}）· 请在 OutcomeGo 应用中检查",
   Connection: "连接",
   Access: "访问方式",
   "Compose project": "Compose 项目",
@@ -125,14 +125,14 @@ const simplifiedChinese: Record<string, string> = {
   STARTING: "正在启动",
   RUNNING: "运行中",
   "Not configured": "未配置",
-  "aiTeamOS has not been installed in this directory.": "此目录中尚未安装 aiTeamOS。",
-  "Install aiTeamOS, or use --dir to select an existing installation.":
-    "安装 aiTeamOS，或使用 --dir 选择已有安装。",
+  "OutcomeGo has not been installed in this directory.": "此目录中尚未安装 OutcomeGo。",
+  "Install OutcomeGo, or use --dir to select an existing installation.":
+    "安装 OutcomeGo，或使用 --dir 选择已有安装。",
   "Some installation files are missing.": "部分安装文件缺失。",
   "Check that --dir selects the right installation. Restore missing files from a known-good backup, then run {command}.":
     "请确认 --dir 指向正确的安装。从可信备份恢复缺失的文件，然后运行 {command}。",
   "Missing: {files}": "缺失：{files}",
-  "aiTeamOS's installation configuration could not be read.": "无法读取 aiTeamOS 的安装配置。",
+  "OutcomeGo's installation configuration could not be read.": "无法读取 OutcomeGo 的安装配置。",
   "Check file access and restore damaged configuration from a known-good backup. Run {command} for details.":
     "请检查文件访问权限，并从可信备份恢复损坏的配置。运行 {command} 查看详情。",
   "Run {command} on the server host.": "请在服务器主机上运行 {command}。",
@@ -141,7 +141,7 @@ const simplifiedChinese: Record<string, string> = {
   "Docker Compose could not run.": "无法运行 Docker Compose。",
   "Install or update Docker Desktop or the Docker Compose plugin to {version} or newer. Verify with docker compose version, then retry.":
     "请安装或更新 Docker Desktop 或 Compose 插件到 {version} 或更高版本。用 docker compose version 验证后重试。",
-  "aiTeamOS could not read its container states.": "aiTeamOS 无法读取容器状态。",
+  "OutcomeGo could not read its container states.": "OutcomeGo 无法读取容器状态。",
   "Run docker info to check the engine, then {command} to inspect Compose and configuration errors.":
     "运行 docker info 检查引擎，然后运行 {command} 查看 Compose 和配置错误。",
   "Resolve the server port conflict before starting this installation. Inspect the configuration with:":
@@ -150,7 +150,7 @@ const simplifiedChinese: Record<string, string> = {
     "查看 {service} 日志以找出未就绪的原因。如需更深入的诊断，请运行 {command}。",
   "Setup or health checks are still in progress. Wait a moment and check again. If this persists, run {command}.":
     "设置或健康检查仍在进行中。请稍候再检查。如果问题持续，请运行 {command}。",
-  "Finish account setup before using aiTeamOS:": "请先完成账户设置，再使用 aiTeamOS：",
+  "Finish account setup before using OutcomeGo:": "请先完成账户设置，再使用 OutcomeGo：",
   "Start the missing or stopped services, then check status again:":
     "启动缺失或已停止的服务，然后再次检查状态：",
   "The server cannot use its database or job queues. Inspect database logs, then run {command} to check schema setup and queue processing.":
@@ -159,106 +159,106 @@ const simplifiedChinese: Record<string, string> = {
     "电脑服务未就绪，或拒绝了服务器的凭据。请查看其日志，然后运行 {command} 检查连接和工作区。",
   "Containers are running, but the server is not ready. Check server logs; run {command} for a deeper diagnosis.":
     "容器正在运行，但服务器未就绪。请查看服务器日志；运行 {command} 进行更深入的诊断。",
-  "Containers and server are ready. Connect a model in the aiTeamOS app under Settings → Server before starting AI tasks. On a server without the app, run:":
-    "容器和服务器均已就绪。开始 AI 任务前，请在 aiTeamOS 应用的“设置 → 服务器”中连接模型。在没有该应用的服务器上，请运行：",
+  "Containers and server are ready. Connect a model in the OutcomeGo app under Settings → Server before starting AI tasks. On a server without the app, run:":
+    "容器和服务器均已就绪。开始 AI 任务前，请在 OutcomeGo 应用的“设置 → 服务器”中连接模型。在没有该应用的服务器上，请运行：",
   "For deeper database, queue, storage, and model checks:":
     "如需更深入的数据库、队列、存储和模型检查：",
-  "aiTeamOS is not healthy: {detail}": "aiTeamOS 状态不健康：{detail}",
-  "aiTeamOS services need attention.": "aiTeamOS 服务需要处理。",
+  "OutcomeGo is not healthy: {detail}": "OutcomeGo 状态不健康：{detail}",
+  "OutcomeGo services need attention.": "OutcomeGo 服务需要处理。",
 
   // doctor
-  "Install the aiTeamOS server on an x64 or arm64 host.":
-    "请在 x64 或 arm64 主机上安装 aiTeamOS 服务器。",
-  "Use a host with at least 8 GiB of RAM for the aiTeamOS server.":
-    "请使用至少有 8 GiB 内存的主机运行 aiTeamOS 服务器。",
-  "Free space on the installation disk. For a new installation, choose a disk with more space using aiteamos install --dir <path>.":
-    "请释放安装磁盘的空间。如需全新安装，请用 aiteamos install --dir <path> 选择空间更大的磁盘。",
-  "Check that your user can write to the reported directory, or choose a writable directory with aiteamos install --dir <path>.":
-    "请确认你的用户可写入所报告的目录，或用 aiteamos install --dir <path> 选择可写目录。",
+  "Install the OutcomeGo server on an x64 or arm64 host.":
+    "请在 x64 或 arm64 主机上安装 OutcomeGo 服务器。",
+  "Use a host with at least 8 GiB of RAM for the OutcomeGo server.":
+    "请使用至少有 8 GiB 内存的主机运行 OutcomeGo 服务器。",
+  "Free space on the installation disk. For a new installation, choose a disk with more space using outcomego install --dir <path>.":
+    "请释放安装磁盘的空间。如需全新安装，请用 outcomego install --dir <path> 选择空间更大的磁盘。",
+  "Check that your user can write to the reported directory, or choose a writable directory with outcomego install --dir <path>.":
+    "请确认你的用户可写入所报告的目录，或用 outcomego install --dir <path> 选择可写目录。",
   "Install or repair Docker, then open a new terminal and run docker --version.":
     "请安装或修复 Docker，然后打开新的终端运行 docker --version。",
   "Start your Docker runtime and wait for its engine to be ready. Run docker info; if it fails, inspect docker context ls and any DOCKER_HOST or DOCKER_CONTEXT overrides.":
     "请启动 Docker 运行时并等待其引擎就绪。运行 docker info；如果失败，请检查 docker context ls 以及 DOCKER_HOST 或 DOCKER_CONTEXT 覆盖设置。",
   "Install or update Docker Desktop or the Compose plugin to {version} or newer. Verify with docker compose version (or docker-compose version).":
     "请安装或更新 Docker Desktop 或 Compose 插件到 {version} 或更高版本。用 docker compose version（或 docker-compose version）验证。",
-  "Restore the missing or invalid installation files from a known-good backup, or use aiteamos install --dir <path> for a separate new installation.":
-    "请从可信备份恢复缺失或无效的安装文件，或用 aiteamos install --dir <path> 单独进行全新安装。",
-  "Identify which application is using the reported port. Stop it if appropriate, or choose another API port during guided installation or aiteamos setup; the screen-viewer ports must be available.":
-    "请查明哪个应用占用了所报告的端口。如合适请停止它，或在引导安装或 aiteamos setup 中选择其他 API 端口；屏幕查看端口必须可用。",
-  "Restrict the reported configuration file to owner-only access before starting aiTeamOS.":
-    "启动 aiTeamOS 前，请将所报告的配置文件限制为仅所有者可访问。",
+  "Restore the missing or invalid installation files from a known-good backup, or use outcomego install --dir <path> for a separate new installation.":
+    "请从可信备份恢复缺失或无效的安装文件，或用 outcomego install --dir <path> 单独进行全新安装。",
+  "Identify which application is using the reported port. Stop it if appropriate, or choose another API port during guided installation or outcomego setup; the screen-viewer ports must be available.":
+    "请查明哪个应用占用了所报告的端口。如合适请停止它，或在引导安装或 outcomego setup 中选择其他 API 端口；屏幕查看端口必须可用。",
+  "Restrict the reported configuration file to owner-only access before starting OutcomeGo.":
+    "启动 OutcomeGo 前，请将所报告的配置文件限制为仅所有者可访问。",
   "Restore the missing or invalid secrets from a known-good installation backup; the database and service credentials must remain consistent.":
     "请从可信的安装备份恢复缺失或无效的密钥；数据库和服务凭据必须保持一致。",
-  "Correct the reported error in the installation's configuration files, or restore them from a known-good backup before starting aiTeamOS.":
-    "请修正安装配置文件中报告的错误，或在启动 aiTeamOS 前从可信备份恢复这些文件。",
-  "Run aiteamos setup to create your account.": "运行 aiteamos setup 创建你的账户。",
-  "Run aiteamos setup to repair the access mode, public URL, and bind addresses.":
-    "运行 aiteamos setup 修复访问方式、公开 URL 和绑定地址。",
-  "Keep plain HTTP on a trusted LAN or VPN. For access from anywhere, choose an HTTPS connection with aiteamos setup.":
-    "请仅在可信局域网或 VPN 中使用明文 HTTP。如需随处访问，请用 aiteamos setup 选择 HTTPS 连接。",
-  "Docker could not list the services. Run docker info, then inspect the reported Compose error before trying aiteamos status again.":
-    "Docker 无法列出服务。请运行 docker info，查看所报告的 Compose 错误，然后再次尝试 aiteamos status。",
-  "Run aiteamos start to start the missing services. If startup fails, inspect aiteamos logs.":
-    "运行 aiteamos start 启动缺失的服务。如果启动失败，请查看 aiteamos logs。",
-  "Run aiteamos status to check which server release is running. Verify the API port belongs to this installation before using aiteamos update to align its release.":
-    "运行 aiteamos status 查看正在运行的服务端版本。使用 aiteamos update 对齐版本前，请确认 API 端口属于此安装。",
-  "Identify the aiTeamOS instance using the reported API port. Use the intended installation's --dir path, or choose an unused API port in aiteamos setup.":
-    "请查明占用所报告 API 端口的 aiTeamOS 实例。使用目标安装的 --dir 路径，或在 aiteamos setup 中选择未使用的 API 端口。",
-  "Run aiteamos status and inspect aiteamos logs for unhealthy or stopped services; resolve the reported startup or connection error.":
-    "运行 aiteamos status 并查看 aiteamos logs，找出不健康或已停止的服务；解决所报告的启动或连接错误。",
-  "Inspect aiteamos logs migrate and aiteamos logs postgres for database startup or migration errors.":
-    "查看 aiteamos logs migrate 和 aiteamos logs postgres，排查数据库启动或迁移错误。",
-  "Inspect aiteamos logs computer and confirm the worker and computer use the same installation control token.":
-    "查看 aiteamos logs computer，并确认 worker 和 computer 使用同一安装的控制令牌。",
+  "Correct the reported error in the installation's configuration files, or restore them from a known-good backup before starting OutcomeGo.":
+    "请修正安装配置文件中报告的错误，或在启动 OutcomeGo 前从可信备份恢复这些文件。",
+  "Run outcomego setup to create your account.": "运行 outcomego setup 创建你的账户。",
+  "Run outcomego setup to repair the access mode, public URL, and bind addresses.":
+    "运行 outcomego setup 修复访问方式、公开 URL 和绑定地址。",
+  "Keep plain HTTP on a trusted LAN or VPN. For access from anywhere, choose an HTTPS connection with outcomego setup.":
+    "请仅在可信局域网或 VPN 中使用明文 HTTP。如需随处访问，请用 outcomego setup 选择 HTTPS 连接。",
+  "Docker could not list the services. Run docker info, then inspect the reported Compose error before trying outcomego status again.":
+    "Docker 无法列出服务。请运行 docker info，查看所报告的 Compose 错误，然后再次尝试 outcomego status。",
+  "Run outcomego start to start the missing services. If startup fails, inspect outcomego logs.":
+    "运行 outcomego start 启动缺失的服务。如果启动失败，请查看 outcomego logs。",
+  "Run outcomego status to check which server release is running. Verify the API port belongs to this installation before using outcomego update to align its release.":
+    "运行 outcomego status 查看正在运行的服务端版本。使用 outcomego update 对齐版本前，请确认 API 端口属于此安装。",
+  "Identify the OutcomeGo instance using the reported API port. Use the intended installation's --dir path, or choose an unused API port in outcomego setup.":
+    "请查明占用所报告 API 端口的 OutcomeGo 实例。使用目标安装的 --dir 路径，或在 outcomego setup 中选择未使用的 API 端口。",
+  "Run outcomego status and inspect outcomego logs for unhealthy or stopped services; resolve the reported startup or connection error.":
+    "运行 outcomego status 并查看 outcomego logs，找出不健康或已停止的服务；解决所报告的启动或连接错误。",
+  "Inspect outcomego logs migrate and outcomego logs postgres for database startup or migration errors.":
+    "查看 outcomego logs migrate 和 outcomego logs postgres，排查数据库启动或迁移错误。",
+  "Inspect outcomego logs computer and confirm the worker and computer use the same installation control token.":
+    "查看 outcomego logs computer，并确认 worker 和 computer 使用同一安装的控制令牌。",
   "Check the worker's agent and asset volume permissions. The worker must be able to read and write both volumes.":
     "请检查 worker 的 agent 卷和资源卷权限。worker 必须能读写这两个卷。",
-  "Inspect aiteamos logs postgres and aiteamos logs migrate; the worker needs the application tables and job queues.":
-    "查看 aiteamos logs postgres 和 aiteamos logs migrate；worker 需要应用数据表和任务队列。",
-  "Inspect aiteamos logs worker for stalled jobs, expired leases, or database connection errors.":
-    "查看 aiteamos logs worker，排查停滞任务、过期租约或数据库连接错误。",
-  "The computer rejected the server's credentials. Check that both services use the installation's AITEAMOS_CONTROL_TOKEN, then recreate the affected service with the corrected configuration.":
-    "computer 拒绝了服务器的凭据。请确认两个服务都使用此安装的 AITEAMOS_CONTROL_TOKEN，然后用修正后的配置重新创建受影响的服务。",
-  "Inspect aiteamos logs computer for startup or connection errors.":
-    "查看 aiteamos logs computer，排查启动或连接错误。",
+  "Inspect outcomego logs postgres and outcomego logs migrate; the worker needs the application tables and job queues.":
+    "查看 outcomego logs postgres 和 outcomego logs migrate；worker 需要应用数据表和任务队列。",
+  "Inspect outcomego logs worker for stalled jobs, expired leases, or database connection errors.":
+    "查看 outcomego logs worker，排查停滞任务、过期租约或数据库连接错误。",
+  "The computer rejected the server's credentials. Check that both services use the installation's OUTCOMEGO_CONTROL_TOKEN, then recreate the affected service with the corrected configuration.":
+    "computer 拒绝了服务器的凭据。请确认两个服务都使用此安装的 OUTCOMEGO_CONTROL_TOKEN，然后用修正后的配置重新创建受影响的服务。",
+  "Inspect outcomego logs computer for startup or connection errors.":
+    "查看 outcomego logs computer，排查启动或连接错误。",
   "Check that the public hostname resolves to this server's reachable address, then retry after the DNS change has propagated.":
     "请确认公开主机名解析到此服务器的可达地址，待 DNS 变更生效后重试。",
-  "Check the public hostname and certificate on your HTTPS proxy. For bundled HTTPS, inspect aiteamos logs caddy and verify inbound ports 80 and 443 are reachable.":
-    "请检查 HTTPS 代理上的公开主机名和证书。使用内置 HTTPS 时，查看 aiteamos logs caddy，并确认入站端口 80 和 443 可访问。",
-  "Check the public URL, firewall, and reverse proxy; verify the proxy forwards HTTP and WebSocket traffic to aiTeamOS's configured API port.":
-    "请检查公开 URL、防火墙和反向代理；确认代理将 HTTP 和 WebSocket 流量转发到 aiTeamOS 配置的 API 端口。",
-  "Check the model provider's quota or billing, or wait for its rate limit to reset. To switch models, use Settings → Server in the aiTeamOS app, or run aiteamos model.":
-    "请检查模型服务商的配额或计费，或等待其速率限制重置。如需切换模型，请在 aiTeamOS 应用的“设置 → 服务器”中操作，或运行 aiteamos model。",
-  "Reconnect the provider in the aiTeamOS app under Settings → Server. On a server without the app, run aiteamos model.":
-    "请在 aiTeamOS 应用的“设置 → 服务器”中重新连接服务商。在没有该应用的服务器上，请运行 aiteamos model。",
-  "Check network access from the server and computer services to the model provider, including proxy or VPN settings. Inspect aiteamos logs computer and retry aiteamos doctor.":
-    "请检查服务器和 computer 服务到模型服务商的网络访问，包括代理或 VPN 设置。查看 aiteamos logs computer 后重试 aiteamos doctor。",
-  "Choose an available model in the aiTeamOS app under Settings → Server. On a server without the app, run aiteamos model list to see the models this account can use.":
-    "请在 aiTeamOS 应用的“设置 → 服务器”中选择可用模型。在没有该应用的服务器上，运行 aiteamos model list 查看此账户可用的模型。",
-  "Connect a model in the aiTeamOS app under Settings → Server. On a server without the app, run aiteamos model.":
-    "请在 aiTeamOS 应用的“设置 → 服务器”中连接模型。在没有该应用的服务器上，请运行 aiteamos model。",
-  "Check the model connection in the aiTeamOS app under Settings → Server. On a server without the app, run aiteamos provider list and aiteamos model list.":
-    "请在 aiTeamOS 应用的“设置 → 服务器”中检查模型连接。在没有该应用的服务器上，运行 aiteamos provider list 和 aiteamos model list。",
-  "Run aiteamos status and check the server connection and installation control token. Inspect aiteamos logs server before testing transcription again.":
-    "运行 aiteamos status，检查服务器连接和安装控制令牌。再次测试转写前，请查看 aiteamos logs server。",
+  "Check the public hostname and certificate on your HTTPS proxy. For bundled HTTPS, inspect outcomego logs caddy and verify inbound ports 80 and 443 are reachable.":
+    "请检查 HTTPS 代理上的公开主机名和证书。使用内置 HTTPS 时，查看 outcomego logs caddy，并确认入站端口 80 和 443 可访问。",
+  "Check the public URL, firewall, and reverse proxy; verify the proxy forwards HTTP and WebSocket traffic to OutcomeGo's configured API port.":
+    "请检查公开 URL、防火墙和反向代理；确认代理将 HTTP 和 WebSocket 流量转发到 OutcomeGo 配置的 API 端口。",
+  "Check the model provider's quota or billing, or wait for its rate limit to reset. To switch models, use Settings → Server in the OutcomeGo app, or run outcomego model.":
+    "请检查模型服务商的配额或计费，或等待其速率限制重置。如需切换模型，请在 OutcomeGo 应用的“设置 → 服务器”中操作，或运行 outcomego model。",
+  "Reconnect the provider in the OutcomeGo app under Settings → Server. On a server without the app, run outcomego model.":
+    "请在 OutcomeGo 应用的“设置 → 服务器”中重新连接服务商。在没有该应用的服务器上，请运行 outcomego model。",
+  "Check network access from the server and computer services to the model provider, including proxy or VPN settings. Inspect outcomego logs computer and retry outcomego doctor.":
+    "请检查服务器和 computer 服务到模型服务商的网络访问，包括代理或 VPN 设置。查看 outcomego logs computer 后重试 outcomego doctor。",
+  "Choose an available model in the OutcomeGo app under Settings → Server. On a server without the app, run outcomego model list to see the models this account can use.":
+    "请在 OutcomeGo 应用的“设置 → 服务器”中选择可用模型。在没有该应用的服务器上，运行 outcomego model list 查看此账户可用的模型。",
+  "Connect a model in the OutcomeGo app under Settings → Server. On a server without the app, run outcomego model.":
+    "请在 OutcomeGo 应用的“设置 → 服务器”中连接模型。在没有该应用的服务器上，请运行 outcomego model。",
+  "Check the model connection in the OutcomeGo app under Settings → Server. On a server without the app, run outcomego provider list and outcomego model list.":
+    "请在 OutcomeGo 应用的“设置 → 服务器”中检查模型连接。在没有该应用的服务器上，运行 outcomego provider list 和 outcomego model list。",
+  "Run outcomego status and check the server connection and installation control token. Inspect outcomego logs server before testing transcription again.":
+    "运行 outcomego status，检查服务器连接和安装控制令牌。再次测试转写前，请查看 outcomego logs server。",
   "Open Settings → Server → Transcription, check the provider URL, model and key, then use Test connection.":
     "请打开“设置 → 服务器 → 转写”，检查服务商 URL、模型和密钥，然后使用“测试连接”。",
   "Open the iPhone app connected to this server, sign in, and check Settings → Notifications. Retry notifications or turn them off and on to register again.":
     "请打开连接到此服务器的 iPhone 应用，登录后检查“设置 → 通知”。重试通知，或关闭再开启以重新注册。",
-  "Run aiteamos notifications configure --config ./apns.json to import the APNs key and apply it live. The topic must match the iOS app bundle ID (dev.aiteamos.mobile for the distributed app). Then run aiteamos notifications status and aiteamos doctor.":
-    "运行 aiteamos notifications configure --config ./apns.json 导入 APNs 密钥并立即生效。主题必须与 iOS 应用包 ID 一致（正式分发的应用为 dev.aiteamos.mobile）。然后运行 aiteamos notifications status 和 aiteamos doctor。",
-  "Inspect aiteamos logs worker for APNs delivery errors and check the push credentials and device registration. Verify a real alert on the iPhone with the conversation closed and Focus allowing aiTeamOS.":
-    "查看 aiteamos logs worker，排查 APNs 投递错误，并检查推送凭据和设备注册。请在关闭对话且“专注模式”允许 aiTeamOS 的 iPhone 上验证真实提醒。",
-  "Check that the reported volume is writable by the service's user and has free space. Inspect aiteamos logs for storage errors.":
-    "请确认所报告的卷对服务用户可写且有可用空间。查看 aiteamos logs 排查存储错误。",
-  "Inspect aiteamos logs {service} to identify why the container stopped or became unhealthy.":
-    "查看 aiteamos logs {service}，查明容器停止或变得不健康的原因。",
-  "Review the reported {label} error and inspect aiteamos logs for further details.":
-    "请查看所报告的 {label} 错误，并查看 aiteamos logs 了解详情。",
-  "Run aiteamos install to complete the installation.": "运行 aiteamos install 完成安装。",
-  "After resolving the failed checks, run aiteamos install again.":
-    "解决失败的检查后，请再次运行 aiteamos install。",
-  "After completing these steps, run aiteamos doctor again.":
-    "完成这些步骤后，请再次运行 aiteamos doctor。",
+  "Run outcomego notifications configure --config ./apns.json to import the APNs key and apply it live. The topic must match the iOS app bundle ID (dev.outcomego.mobile for the distributed app). Then run outcomego notifications status and outcomego doctor.":
+    "运行 outcomego notifications configure --config ./apns.json 导入 APNs 密钥并立即生效。主题必须与 iOS 应用包 ID 一致（正式分发的应用为 dev.outcomego.mobile）。然后运行 outcomego notifications status 和 outcomego doctor。",
+  "Inspect outcomego logs worker for APNs delivery errors and check the push credentials and device registration. Verify a real alert on the iPhone with the conversation closed and Focus allowing OutcomeGo.":
+    "查看 outcomego logs worker，排查 APNs 投递错误，并检查推送凭据和设备注册。请在关闭对话且“专注模式”允许 OutcomeGo 的 iPhone 上验证真实提醒。",
+  "Check that the reported volume is writable by the service's user and has free space. Inspect outcomego logs for storage errors.":
+    "请确认所报告的卷对服务用户可写且有可用空间。查看 outcomego logs 排查存储错误。",
+  "Inspect outcomego logs {service} to identify why the container stopped or became unhealthy.":
+    "查看 outcomego logs {service}，查明容器停止或变得不健康的原因。",
+  "Review the reported {label} error and inspect outcomego logs for further details.":
+    "请查看所报告的 {label} 错误，并查看 outcomego logs 了解详情。",
+  "Run outcomego install to complete the installation.": "运行 outcomego install 完成安装。",
+  "After resolving the failed checks, run outcomego install again.":
+    "解决失败的检查后，请再次运行 outcomego install。",
+  "After completing these steps, run outcomego doctor again.":
+    "完成这些步骤后，请再次运行 outcomego doctor。",
   "Details: {detail}": "详情：{detail}",
   "{count} blocking problem found.": "发现 {count} 个阻塞问题。",
   "{count} blocking problems found.": "发现 {count} 个阻塞问题。",
@@ -296,8 +296,8 @@ const simplifiedChinese: Record<string, string> = {
   STORAGE: "存储",
   "Checking host and Docker": "正在检查主机和 Docker",
   "Checking configuration and services": "正在检查配置和服务",
-  "Run aiteamos tailscale status on the server host.":
-    "请在服务器主机上运行 aiteamos tailscale status。",
+  "Run outcomego tailscale status on the server host.":
+    "请在服务器主机上运行 outcomego tailscale status。",
   "Testing database, computer, and worker": "正在测试数据库、电脑和 worker",
   "Checking notification registrations and push delivery": "正在检查通知注册和推送投递",
   "Verifying storage permissions": "正在验证存储权限",
@@ -305,73 +305,73 @@ const simplifiedChinese: Record<string, string> = {
   "Testing the saved AI model (up to 40s)": "正在测试已保存的 AI 模型（最多 40 秒）",
 
   // lifecycle
-  "aiTeamOS is not installed at {directory}. Run aiteamos install first.":
-    "aiTeamOS 未安装在 {directory}。请先运行 aiteamos install。",
-  "aiTeamOS installation manifest is missing at {path}": "aiTeamOS 安装清单缺失：{path}",
+  "OutcomeGo is not installed at {directory}. Run outcomego install first.":
+    "OutcomeGo 未安装在 {directory}。请先运行 outcomego install。",
+  "OutcomeGo installation manifest is missing at {path}": "OutcomeGo 安装清单缺失：{path}",
   "ALREADY RUNNING": "已在运行",
   READY: "就绪",
   "Network address": "网络地址",
-  "aiTeamOS is already running.": "aiTeamOS 已在运行。",
-  "aiTeamOS is ready.": "aiTeamOS 已就绪。",
-  "No model is connected yet. Connect one in the aiTeamOS app under Settings → Server, or run {command} on this server.":
-    "尚未连接模型。请在 aiTeamOS 应用的“设置 → 服务器”中连接，或在此服务器上运行 {command}。",
-  "AI is not ready ({status}). Check the model connection in the aiTeamOS app under Settings → Server, or run {command}.":
-    "AI 尚未就绪（{status}）。请在 aiTeamOS 应用的“设置 → 服务器”中检查模型连接，或运行 {command}。",
-  "To stop aiTeamOS, run: {command}": "如需停止 aiTeamOS，请运行：{command}",
+  "OutcomeGo is already running.": "OutcomeGo 已在运行。",
+  "OutcomeGo is ready.": "OutcomeGo 已就绪。",
+  "No model is connected yet. Connect one in the OutcomeGo app under Settings → Server, or run {command} on this server.":
+    "尚未连接模型。请在 OutcomeGo 应用的“设置 → 服务器”中连接，或在此服务器上运行 {command}。",
+  "AI is not ready ({status}). Check the model connection in the OutcomeGo app under Settings → Server, or run {command}.":
+    "AI 尚未就绪（{status}）。请在 OutcomeGo 应用的“设置 → 服务器”中检查模型连接，或运行 {command}。",
+  "To stop OutcomeGo, run: {command}": "如需停止 OutcomeGo，请运行：{command}",
   "Checking startup ports…": "正在检查启动端口…",
-  "aiTeamOS is stopped. Starting services…": "aiTeamOS 已停止。正在启动服务…",
-  "aiTeamOS is partially running. Starting or checking: {services}…":
-    "aiTeamOS 部分运行中。正在启动或检查：{services}…",
-  "aiTeamOS is running but not ready ({detail}). Checking services…":
-    "aiTeamOS 正在运行但未就绪（{detail}）。正在检查服务…",
-  "Waiting for aiTeamOS…": "正在等待 aiTeamOS…",
-  "aiTeamOS did not become healthy: {detail}": "aiTeamOS 未能进入健康状态：{detail}",
-  "Reinstalling aiTeamOS {version}; refreshing release configuration…":
-    "正在重新安装 aiTeamOS {version}；刷新发布配置…",
-  "aiTeamOS {version} is installed but setup is incomplete; resuming setup.":
-    "aiTeamOS {version} 已安装，但设置尚未完成；正在继续设置。",
-  "aiTeamOS {version} is already installed; starting it.": "aiTeamOS {version} 已安装；正在启动。",
+  "OutcomeGo is stopped. Starting services…": "OutcomeGo 已停止。正在启动服务…",
+  "OutcomeGo is partially running. Starting or checking: {services}…":
+    "OutcomeGo 部分运行中。正在启动或检查：{services}…",
+  "OutcomeGo is running but not ready ({detail}). Checking services…":
+    "OutcomeGo 正在运行但未就绪（{detail}）。正在检查服务…",
+  "Waiting for OutcomeGo…": "正在等待 OutcomeGo…",
+  "OutcomeGo did not become healthy: {detail}": "OutcomeGo 未能进入健康状态：{detail}",
+  "Reinstalling OutcomeGo {version}; refreshing release configuration…":
+    "正在重新安装 OutcomeGo {version}；刷新发布配置…",
+  "OutcomeGo {version} is installed but setup is incomplete; resuming setup.":
+    "OutcomeGo {version} 已安装，但设置尚未完成；正在继续设置。",
+  "OutcomeGo {version} is already installed; starting it.": "OutcomeGo {version} 已安装；正在启动。",
   "Docker is required.": "需要 Docker。",
   "Server requirements checked": "已检查服务器要求",
   "Server setup paused. The CLI is available. Fix the failed checks above, then run {command} again.":
     "服务器设置已暂停。CLI 仍可使用。请修复上方的失败检查，然后再次运行 {command}。",
   "Preflight checks passed. Guided setup needs an interactive terminal. Run {command} in a terminal to continue.":
     "预检已通过。引导式设置需要交互式终端。请在终端中运行 {command} 继续。",
-  "Downloading aiTeamOS {version} release configuration…": "正在下载 aiTeamOS {version} 发布配置…",
-  "Could not save the aiTeamOS configuration in {directory}: {error}. Free up disk space or fix the folder's permissions, then run {command} again.":
-    "无法在 {directory} 中保存 aiTeamOS 配置：{error}。请释放磁盘空间或修复文件夹权限，然后再次运行 {command}。",
-  "Pulling aiTeamOS container images…": "正在拉取 aiTeamOS 容器镜像…",
+  "Downloading OutcomeGo {version} release configuration…": "正在下载 OutcomeGo {version} 发布配置…",
+  "Could not save the OutcomeGo configuration in {directory}: {error}. Free up disk space or fix the folder's permissions, then run {command} again.":
+    "无法在 {directory} 中保存 OutcomeGo 配置：{error}。请释放磁盘空间或修复文件夹权限，然后再次运行 {command}。",
+  "Pulling OutcomeGo container images…": "正在拉取 OutcomeGo 容器镜像…",
   "Installation configuration: {directory}": "安装配置：{directory}",
   "Guided setup was skipped. Run {command} to finish setup.":
     "已跳过引导式设置。运行 {command} 完成设置。",
   "Doctor checks failed.": "诊断检查失败。",
-  "aiTeamOS is stopped. Its data and containers are preserved.":
-    "aiTeamOS 已停止。其数据和容器均已保留。",
-  "aiTeamOS is installed, but account setup is incomplete. Run aiteamos setup to create your sign-in, then retry aiteamos start.":
-    "aiTeamOS 已安装，但账户设置尚未完成。运行 aiteamos setup 创建登录信息，然后重试 aiteamos start。",
-  "Updating aiTeamOS {from} → {to}…": "正在更新 aiTeamOS {from} → {to}…",
-  "aiTeamOS {version} and its command-line tools are up to date.":
-    "aiTeamOS {version} 及其命令行工具均为最新版本。",
-  "aiTeamOS {version} is already installed.": "aiTeamOS {version} 已安装。",
-  "aiTeamOS and its command-line tools are now running {version}.":
-    "aiTeamOS 及其命令行工具现在运行 {version}。",
-  "aiTeamOS is now running {version}.": "aiTeamOS 现在运行 {version}。",
+  "OutcomeGo is stopped. Its data and containers are preserved.":
+    "OutcomeGo 已停止。其数据和容器均已保留。",
+  "OutcomeGo is installed, but account setup is incomplete. Run outcomego setup to create your sign-in, then retry outcomego start.":
+    "OutcomeGo 已安装，但账户设置尚未完成。运行 outcomego setup 创建登录信息，然后重试 outcomego start。",
+  "Updating OutcomeGo {from} → {to}…": "正在更新 OutcomeGo {from} → {to}…",
+  "OutcomeGo {version} and its command-line tools are up to date.":
+    "OutcomeGo {version} 及其命令行工具均为最新版本。",
+  "OutcomeGo {version} is already installed.": "OutcomeGo {version} 已安装。",
+  "OutcomeGo and its command-line tools are now running {version}.":
+    "OutcomeGo 及其命令行工具现在运行 {version}。",
+  "OutcomeGo is now running {version}.": "OutcomeGo 现在运行 {version}。",
   "Interactive confirmation is unavailable; pass --yes to confirm.":
     "无法进行交互式确认；请传入 --yes 确认。",
   "Continue? [y/N]": "继续？[y/N]",
-  "Permanently delete all aiTeamOS containers, volumes, configuration, sessions, and workspace data?":
-    "要永久删除所有 aiTeamOS 容器、卷、配置、会话和工作区数据吗？",
-  "Remove the aiTeamOS containers while preserving configuration and data?":
-    "要移除 aiTeamOS 容器并保留配置和数据吗？",
+  "Permanently delete all OutcomeGo containers, volumes, configuration, sessions, and workspace data?":
+    "要永久删除所有 OutcomeGo 容器、卷、配置、会话和工作区数据吗？",
+  "Remove the OutcomeGo containers while preserving configuration and data?":
+    "要移除 OutcomeGo 容器并保留配置和数据吗？",
   "Uninstall cancelled.": "已取消卸载。",
   REMOVED: "已移除",
   "CLI removed": "CLI 已移除",
-  "aiTeamOS and its local Docker data were permanently removed.":
-    "aiTeamOS 及其本地 Docker 数据已被永久删除。",
+  "OutcomeGo and its local Docker data were permanently removed.":
+    "OutcomeGo 及其本地 Docker 数据已被永久删除。",
   UNINSTALLED: "已卸载",
   "Data preserved": "数据已保留",
-  "Run the aiTeamOS installer again to restore the CLI and recreate the containers with the preserved data.":
-    "请再次运行 aiTeamOS 安装程序，以恢复 CLI 并使用保留的数据重建容器。",
+  "Run the OutcomeGo installer again to restore the CLI and recreate the containers with the preserved data.":
+    "请再次运行 OutcomeGo 安装程序，以恢复 CLI 并使用保留的数据重建容器。",
 
   // tailscale
   "Tailscale HTTPS: {state}": "Tailscale HTTPS：{state}",
@@ -380,7 +380,7 @@ const simplifiedChinese: Record<string, string> = {
   "Server: {url}": "服务器：{url}",
   "Backend: {url}": "后端：{url}",
   "Route: {route} ({ownership})": "路由：{route}（{ownership}）",
-  "aiTeamOS-managed mappings: {count}": "aiTeamOS 管理的映射：{count}",
+  "OutcomeGo-managed mappings: {count}": "OutcomeGo 管理的映射：{count}",
   "Reconnect your apps using the server address above. Reused user-managed Serve mappings are preserved.":
     "请使用上方的服务器地址重新连接应用。复用的用户自建 Serve 映射会被保留。",
 
@@ -396,8 +396,8 @@ const simplifiedChinese: Record<string, string> = {
   "Use --config ./apns.json, or --key-file with --key-id, --team-id and --topic.":
     "请使用 --config ./apns.json，或使用 --key-file 搭配 --key-id、--team-id 和 --topic。",
   "Invalid APNs configuration.": "APNs 配置无效。",
-  "The server returned invalid APNs status. Update aiTeamOS to a release supporting live notification configuration.":
-    "服务器返回了无效的 APNs 状态。请将 aiTeamOS 更新到支持实时通知配置的版本。",
+  "The server returned invalid APNs status. Update OutcomeGo to a release supporting live notification configuration.":
+    "服务器返回了无效的 APNs 状态。请将 OutcomeGo 更新到支持实时通知配置的版本。",
   "APNs configuration saved. Workers apply it before their next push; no restart needed.":
     "APNs 配置已保存。worker 会在下次推送前应用，无需重启。",
   "APNs configuration source: {source}": "APNs 配置来源：{source}",
@@ -406,8 +406,8 @@ const simplifiedChinese: Record<string, string> = {
   "Configuration needs attention: {issue}": "配置需要处理：{issue}",
   "APNs credentials are not fully configured.": "APNs 凭据尚未完整配置。",
   "Signing key and configuration are valid locally.": "签名密钥和配置在本地有效。",
-  "Run aiteamos doctor to check worker configuration and registrations. Apple acceptance and phone delivery require a real notification.":
-    "运行 aiteamos doctor 检查 worker 配置和注册情况。Apple 是否接受及手机能否收到，需要通过真实通知验证。",
+  "Run outcomego doctor to check worker configuration and registrations. Apple acceptance and phone delivery require a real notification.":
+    "运行 outcomego doctor 检查 worker 配置和注册情况。Apple 是否接受及手机能否收到，需要通过真实通知验证。",
 
   // commands and setup prompts
   "{connected} connected · {total} providers": "{connected} 个已连接 · {total} 个服务商",
@@ -456,8 +456,8 @@ const simplifiedChinese: Record<string, string> = {
   "not set": "未设置",
   "↑ {count} more": "↑ 还有 {count} 行",
   "↓ {count} more": "↓ 还有 {count} 行",
-  "A few quick choices, then aiTeamOS will check the rest.":
-    "只需几个简单选择，其余交给 aiTeamOS 检查。",
+  "A few quick choices, then OutcomeGo will check the rest.":
+    "只需几个简单选择，其余交给 OutcomeGo 检查。",
   "Type to edit · Enter save · Esc discard": "输入以编辑 · Enter 保存 · Esc 放弃",
   "Enter save · Esc discard": "Enter 保存 · Esc 放弃",
   "←/→ step · Esc cancel": "←/→ 切换步骤 · Esc 取消",

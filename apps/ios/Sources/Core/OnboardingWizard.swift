@@ -259,7 +259,7 @@ public enum ServerAddressText {
       ?? server.trimmingCharacters(in: .whitespacesAndNewlines)
   }
   public static func found(version: String?) -> String {
-    version.map { "Found OpenTeam " + $0 } ?? "Found OpenTeam"
+    version.map { "Found OutcomeGo " + $0 } ?? "Found OutcomeGo"
   }
 }
 

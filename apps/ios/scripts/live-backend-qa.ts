@@ -70,7 +70,7 @@ const computer = Bun.serve({
       at: new Date().toISOString(),
     });
     const routine = String(input.content).includes("SWIFT_SCHEDULE_CANARY");
-    const firstStart = String(input.content).includes("[OpenTeam first start]");
+    const firstStart = String(input.content).includes("[OutcomeGo first start]");
     const result = await fetch(actual + "/api/internal/tools/call", {
       method: "POST",
       headers: { "Content-Type": "application/json", authorization: `Bearer ${token}` },
@@ -120,21 +120,21 @@ const env = {
   PATH: process.env.PATH!,
   HOME: process.env.HOME!,
   DATABASE_URL: databaseUrl,
-  AITEAMOS_COMPUTER_URL: computer.url.origin,
-  AITEAMOS_CONTROL_TOKEN: token,
-  AITEAMOS_WORKSPACE_ROOT: join(root, "workspace"),
-  AITEAMOS_AGENT_DATA_ROOT: join(root, "agent-data"),
-  AITEAMOS_ASSET_ROOT: join(root, "assets"),
-  AITEAMOS_AUTH_MODE: "disabled",
-  AITEAMOS_AUTH_SECRET: "swift-disposable-qa-secret-0916-only",
-  AITEAMOS_AUTH_URL: actual,
-  AITEAMOS_PORT: "20005",
-  AITEAMOS_SERVER_HOST: "127.0.0.1",
+  OUTCOMEGO_COMPUTER_URL: computer.url.origin,
+  OUTCOMEGO_CONTROL_TOKEN: token,
+  OUTCOMEGO_WORKSPACE_ROOT: join(root, "workspace"),
+  OUTCOMEGO_AGENT_DATA_ROOT: join(root, "agent-data"),
+  OUTCOMEGO_ASSET_ROOT: join(root, "assets"),
+  OUTCOMEGO_AUTH_MODE: "disabled",
+  OUTCOMEGO_AUTH_SECRET: "swift-disposable-qa-secret-0916-only",
+  OUTCOMEGO_AUTH_URL: actual,
+  OUTCOMEGO_PORT: "20005",
+  OUTCOMEGO_SERVER_HOST: "127.0.0.1",
 };
 for (const p of [
-  env.AITEAMOS_WORKSPACE_ROOT,
-  env.AITEAMOS_AGENT_DATA_ROOT,
-  env.AITEAMOS_ASSET_ROOT,
+  env.OUTCOMEGO_WORKSPACE_ROOT,
+  env.OUTCOMEGO_AGENT_DATA_ROOT,
+  env.OUTCOMEGO_ASSET_ROOT,
 ])
   await mkdir(p, { recursive: true });
 const server = Bun.spawn([process.execPath, "apps/server/src/main.ts"], {

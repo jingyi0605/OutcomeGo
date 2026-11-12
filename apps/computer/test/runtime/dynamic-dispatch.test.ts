@@ -24,7 +24,7 @@ test("a connector tool runs without a prior GetDynamicTools lookup", async () =>
   const tools = runtimeTools();
   const calls: any[] = [];
   const result = await withControlPlane((tool, args) => { calls.push([tool, args]); return { content: [{ type: "text", text: "found 3" }] }; },
-    () => tools.executeAiTeamOSTool(turn({ pluginNamespaces: [connector()] }), "call", "CallDynamicTool", { namespace: "gmail", toolName: "search_threads", arguments: { query: "x" } }));
+    () => tools.executeOutcomeGoTool(turn({ pluginNamespaces: [connector()] }), "call", "CallDynamicTool", { namespace: "gmail", toolName: "search_threads", arguments: { query: "x" } }));
   expect(result.content).toEqual([{ type: "text", text: "found 3" }]);
   expect(calls).toEqual([["PluginCall", { connectionId: "c", namespace: "gmail", toolName: "search_threads", arguments: { query: "x" } }]]);
 });
@@ -34,10 +34,10 @@ test("CallDynamicTool on a tool the agent already has directly runs it natively"
   const searches: string[] = [];
   tools.webTools.search = async (query: string) => { searches.push(query); return { content: [{ type: "text", text: "results" }], details: {} }; };
   const executor = turn({ runtimeProfile: "subagent", subagentType: "executor" });
-  const result = await tools.executeAiTeamOSTool(executor, "call", "CallDynamicTool", { namespace: "cursor", toolName: "WebSearch", arguments: { search_term: "aiteamos" } });
+  const result = await tools.executeOutcomeGoTool(executor, "call", "CallDynamicTool", { namespace: "cursor", toolName: "WebSearch", arguments: { search_term: "outcomego" } });
   expect(result.content[0].text).toBe("results");
-  expect(searches).toEqual(["aiteamos"]);
-  await expect(tools.executeAiTeamOSTool(executor, "lookup", "GetDynamicTools", { namespace: "cursor", toolName: "WebSearch" })).rejects.toThrow(
+  expect(searches).toEqual(["outcomego"]);
+  await expect(tools.executeOutcomeGoTool(executor, "lookup", "GetDynamicTools", { namespace: "cursor", toolName: "WebSearch" })).rejects.toThrow(
     'Error: Tool "WebSearch" is already available directly and is not part of dynamic namespace "cursor". Invoke "WebSearch" directly instead of using dynamic tool discovery or invocation.'
   );
 });
@@ -45,29 +45,29 @@ test("CallDynamicTool on a tool the agent already has directly runs it natively"
 test("dynamic tool failures read Error: <message>, and a miss refreshes the catalog once", async () => {
   const tools = runtimeTools();
   const active = turn();
-  await expect(tools.executeAiTeamOSTool(active, "a", "CallDynamicTool", { namespace: "cursor", toolName: "Nope" })).rejects.toThrow(/^Error: Built-in tool "Nope" not found in namespace "cursor"\. Available tools: /);
+  await expect(tools.executeOutcomeGoTool(active, "a", "CallDynamicTool", { namespace: "cursor", toolName: "Nope" })).rejects.toThrow(/^Error: Built-in tool "Nope" not found in namespace "cursor"\. Available tools: /);
   const refreshed: string[] = [];
   const result = await withControlPlane((tool) => {
     refreshed.push(tool);
     return tool === "RefreshToolCatalog" ? { namespaces: [connector()] } : { content: [{ type: "text", text: "ok" }] };
-  }, () => tools.executeAiTeamOSTool(active, "b", "CallDynamicTool", { namespace: "gmail", toolName: "search_threads" }));
+  }, () => tools.executeOutcomeGoTool(active, "b", "CallDynamicTool", { namespace: "gmail", toolName: "search_threads" }));
   expect(result.content[0].text).toBe("ok");
   expect(refreshed).toEqual(["RefreshToolCatalog", "PluginCall"]);
   await expect(withControlPlane(() => ({ namespaces: [] }), () =>
-    tools.executeAiTeamOSTool(turn(), "c", "GetDynamicTools", { namespace: "slack" }))).rejects.toThrow(/^Error: namespace "slack" not found\. Available namespaces: cursor$/);
+    tools.executeOutcomeGoTool(turn(), "c", "GetDynamicTools", { namespace: "slack" }))).rejects.toThrow(/^Error: namespace "slack" not found\. Available namespaces: cursor$/);
 });
 
 test("a signed-out connector tells the main agent to authenticate and anyone else to report it", async () => {
   const tools = runtimeTools();
   const call = { namespace: "gmail", toolName: "search_threads", arguments: {} };
   const reason = "Error: This MCP server requires authentication before its tools can be used.";
-  await expect(tools.executeAiTeamOSTool(turn({ pluginNamespaces: [connector("needsAuth")] }), "a", "CallDynamicTool", call)).rejects.toThrow(
+  await expect(tools.executeOutcomeGoTool(turn({ pluginNamespaces: [connector("needsAuth")] }), "a", "CallDynamicTool", call)).rejects.toThrow(
     `${reason} Call AuthenticateMcpServer with server_id "gmail" to show the user its sign-in, then finish unrelated work and end your turn. Don't reach the service another way meanwhile.`
   );
-  await expect(tools.executeAiTeamOSTool(turn({ runtimeProfile: "subagent", subagentType: "executor", pluginNamespaces: [connector("needsAuth")] }), "b", "CallDynamicTool", call)).rejects.toThrow(
+  await expect(tools.executeOutcomeGoTool(turn({ runtimeProfile: "subagent", subagentType: "executor", pluginNamespaces: [connector("needsAuth")] }), "b", "CallDynamicTool", call)).rejects.toThrow(
     `${reason} You cannot do that from here, so report the status in your result instead of retrying.`
   );
-  await expect(tools.executeAiTeamOSTool(turn({ requestSource: "automation", pluginNamespaces: [connector("needsAuth")] }), "c", "CallDynamicTool", call)).rejects.toThrow(
+  await expect(tools.executeOutcomeGoTool(turn({ requestSource: "automation", pluginNamespaces: [connector("needsAuth")] }), "c", "CallDynamicTool", call)).rejects.toThrow(
     `${reason} You cannot do that from here, so report the status with WakeParent instead of retrying.`
   );
 });
@@ -111,7 +111,7 @@ test("connector call failures are classified like the reference's", async () => 
   const tools = runtimeTools();
   const original = globalThis.fetch;
   const respond = (status: number, error: Record<string, string>) => { globalThis.fetch = (async () => Response.json({ error }, { status })) as any; };
-  const call = (active: any, id: string) => tools.executeAiTeamOSTool(active, id, "CallDynamicTool", { namespace: "gmail", toolName: "search_threads", arguments: {} });
+  const call = (active: any, id: string) => tools.executeOutcomeGoTool(active, id, "CallDynamicTool", { namespace: "gmail", toolName: "search_threads", arguments: {} });
   try {
     respond(401, { code: "plugin_auth_required", message: "Authorization expired or was revoked. Sign in to this account again." });
     await expect(call(turn({ pluginNamespaces: [connector()] }), "a")).rejects.toThrow(
@@ -132,14 +132,14 @@ test("a failed WebFetch reads Error fetching URL, without a leading Error:, as i
   const tools = runtimeTools();
   tools.webTools.fetchContent = async () => { throw new Error("getaddrinfo ENOTFOUND"); };
   const url = "https://missing.invalid/";
-  const error = await tools.executeAiTeamOSTool(turn(), "f", "CallDynamicTool", { namespace: "cursor", toolName: "WebFetch", arguments: { url } }).then(() => null, (e: Error) => e);
+  const error = await tools.executeOutcomeGoTool(turn(), "f", "CallDynamicTool", { namespace: "cursor", toolName: "WebFetch", arguments: { url } }).then(() => null, (e: Error) => e);
   expect(error?.message).toBe(`Error fetching URL ${url}: getaddrinfo ENOTFOUND`);
 });
 
 test("ListMachines is looked up in the cursor namespace and lists the registered computers", async () => {
   const tools = runtimeTools();
   tools.nativeToolExecutor.listMachines = async () => ({ content: [{ type: "text", text: '{"machines":[]}' }], details: {} });
-  const result = await tools.executeAiTeamOSTool(turn(), "m", "CallDynamicTool", { namespace: "cursor", toolName: "ListMachines", arguments: {} });
+  const result = await tools.executeOutcomeGoTool(turn(), "m", "CallDynamicTool", { namespace: "cursor", toolName: "ListMachines", arguments: {} });
   expect(result.content[0].text).toBe('{"machines":[]}');
   expect(tools.customTools(turn()).map((tool: any) => tool.name)).not.toContain("ListMachines");
   const automation = turn({ requestSource: "automation" });

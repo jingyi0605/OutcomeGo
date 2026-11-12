@@ -1,4 +1,4 @@
-# Releasing aiTeamOS
+# Releasing OutcomeGo
 
 Releases are built by `.github/workflows/release.yml`. Pushing a tag builds every artifact and
 publishes one GitHub Release. The workflow file must keep its name: the CLI only trusts
@@ -17,14 +17,14 @@ bun scripts/release/version.ts check              # CI runs this on every push
 
 - Android reads the version from the root `package.json`. `versionCode` is derived from it
   (`0.1.0-beta.1` is `10001`, `0.1.0` is `10099`) and can be overridden with
-  `-PaiteamosVersionCode`.
+  `-PoutcomegoVersionCode`.
 - iOS marketing versions cannot carry a prerelease suffix, so `0.1.0-beta.1` ships as `0.1.0`.
   The build number is the workflow run number.
 - The tag must be `v<version>` exactly. A mismatch fails the first job.
 
 ## Cutting a release
 
-1. Set the version, commit, and merge to `ai-TeamOS`.
+1. Set the version, commit, and merge to the configured fork source branch `OutcomeGo`.
 2. `git tag v0.1.0-beta.1 && git push origin v0.1.0-beta.1`.
 3. Watch the run. Running the workflow manually from a branch is a dry run: it builds
    everything, pushes and signs nothing, and publishes nothing.
@@ -39,10 +39,10 @@ non-pre-release releases.
 |---|---|
 | `images` / `merge-images` | `ghcr.io/<owner>/ai-teamos-{server,worker,migrate,computer}:<version>` for linux/amd64 and linux/arm64 |
 | `verify-images` | Anonymous `docker pull` of every image by digest |
-| `cli-build` / `sign` | Five CLI binaries (raw and `.gz`), digest-pinned `aiteamos-compose.yaml`, `install.sh`, `install.ps1`, and a `.sigstore.json` for the Compose file and each raw binary |
+| `cli-build` / `sign` | Five CLI binaries (raw and `.gz`), digest-pinned `outcomego-compose.yaml`, `install.sh`, `install.ps1`, and a `.sigstore.json` for the Compose file and each raw binary |
 | `desktop` | Linux AppImage and Windows installer, with `latest*.yml` |
 | `macos` | Signed and notarized DMG and ZIP (needs `RELEASE_MACOS=true`) |
-| `android` | Signed `aiTeamOS-<version>-android.apk` (needs `RELEASE_ANDROID=true`) |
+| `android` | Signed `OutcomeGo-<version>-android.apk` (needs `RELEASE_ANDROID=true`) |
 | `ios` | TestFlight upload, no file on the release (needs `RELEASE_IOS=true`) |
 | `publish` | GitHub Release with `SHA256SUMS` and `DESKTOP_SHA256SUMS` |
 
@@ -98,16 +98,16 @@ be uploaded under upstream's app. Before enabling it:
    Store Connect app record.
 2. Create an Apple Distribution certificate and three App Store provisioning profiles.
 3. Update `release.json`, run `python3 apps/ios/scripts/generate-project.py`, set
-   `AITEAMOS_APNS_TOPIC` in `deploy/compose.yaml` to the new bundle identifier, and create the
+   `OUTCOMEGO_APNS_TOPIC` in `deploy/compose.yaml` to the new bundle identifier, and create the
    APNs key.
 
 The workflow stamps `buildNumber` with the run number, so it never collides with an earlier upload.
 
 ## Desktop notes
 
-The desktop app is `aiTeamOS` (bundle and app id `dev.aiteamos.desktop`, executable `aiteamos`, files named
-`aiTeamOS-<version>-<os>-<arch>.<ext>`). Icons come from `packages/design-tokens/assets/aiTeamOS.icon`.
-The local server data folder keeps the name `aiTeamOS`/`.aiteamos` because the CLI and desktop share it.
+The desktop app is `OutcomeGo` (bundle and app id `dev.outcomego.desktop`, executable `outcomego`, files named
+`aiTeamOS-<version>-<os>-<arch>.<ext>`). Keep this filename prefix until a v0.1.0-beta.13 updater fixture proves it resolves a renamed prefix. Icons come from `packages/design-tokens/assets/outcomego.icon`.
+The local server data folder is `.outcomego`; Desktop user data is pinned to its own `outcomego` directory.
 
 Windows installers are unsigned until a code-signing certificate is added, so SmartScreen will
 warn. Published Windows releases now require `WINDOWS_CERTIFICATE_BASE64`,

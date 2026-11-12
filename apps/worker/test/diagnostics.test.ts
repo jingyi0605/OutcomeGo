@@ -86,7 +86,7 @@ describe("worker diagnostics", () => {
     let source = "environment";
     const { paths, deleted } = await fixture("ready", 0, async () => ({
       source,
-      topic: "dev.aiteamos.mobile",
+      topic: "dev.outcomego.mobile",
       missing: [],
       issue: null,
     }));

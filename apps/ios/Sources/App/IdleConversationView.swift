@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Quiet empty-chat surface, using OpenTeam's packaged Classic vector artwork.
+/// Quiet empty-chat surface, using OutcomeGo's packaged Classic vector artwork.
 /// BotGlyph pauses offscreen/inactive and respects the system Reduce Motion setting.
 struct IdleConversationView: View {
   var body: some View {

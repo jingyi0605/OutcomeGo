@@ -1,4 +1,4 @@
-import { emailBodyHtmlTag, unwrapHardWrappedEmailBody } from "@aiteamos/plugin-sdk/email-body";
+import { emailBodyHtmlTag, unwrapHardWrappedEmailBody } from "@outcomego/plugin-sdk/email-body";
 import { parseExternalDraft, type ExternalDraft } from "./external-draft";
 
 // The reference's DraftExternalMessage body checks (draft-external-message-schema.ts).
@@ -64,7 +64,7 @@ export function draftBodyRefusal(draft: { platform?: unknown; body?: unknown }):
   if (draft.platform === "email") {
     const tag = emailBodyHtmlTag(draft.body);
     // The reference ends with "If the user asked for formatting, put the HTML version in
-    // htmlBody."; aiTeamOS drafts have no htmlBody.
+    // htmlBody."; OutcomeGo drafts have no htmlBody.
     return tag
       ? `body is plain text, so ${tag} would reach the recipient as literal text. Nothing was drafted. Rewrite body as plain text: blank lines between paragraphs, "- " before list items.`
       : undefined;

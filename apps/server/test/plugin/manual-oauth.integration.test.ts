@@ -1,10 +1,10 @@
 import { expect, test } from "bun:test";
 import { Effect } from "effect";
-import { createAiTeamOSClient } from "../../../../packages/client-core/src";
+import { createOutcomeGoClient } from "../../../../packages/client-core/src";
 import { MANUAL_OAUTH_REDIRECT } from "../../src/plugins/oauth-callback";
 import { createPluginFlowFixture } from "./fixtures/plugin-flow";
 
-const databaseUrl = process.env.AITEAMOS_TEST_DATABASE_URL;
+const databaseUrl = process.env.OUTCOMEGO_TEST_DATABASE_URL;
 async function approve(authorizationUrl: string, account = "Account A") {
   const url = new URL(authorizationUrl);
   url.pathname = "/approve";
@@ -21,7 +21,7 @@ test.skipIf(!databaseUrl)(
   "HTTP defaults to manual completion through the authenticated API and refreshes on the server",
   async () => {
     const f = await createPluginFlowFixture(databaseUrl!, { callbackMode: "auto" });
-    const client = createAiTeamOSClient({ baseUrl: f.server.url.origin });
+    const client = createOutcomeGoClient({ baseUrl: f.server.url.origin });
     try {
       const key = f.definitions[0]!.key;
       await client.installPlugin(key);
@@ -110,7 +110,7 @@ test.skipIf(!databaseUrl)(
   "manual completion is session-bound, expires, rejects issuer mismatch, and handles cancellation",
   async () => {
     const f = await createPluginFlowFixture(databaseUrl!, { callbackMode: "auto" });
-    const client = createAiTeamOSClient({ baseUrl: f.server.url.origin });
+    const client = createOutcomeGoClient({ baseUrl: f.server.url.origin });
     try {
       const key = f.definitions[0]!.key;
       await client.installPlugin(key);
@@ -172,10 +172,10 @@ test.skipIf(!databaseUrl)(
   "HTTPS selects a stable deployment callback and resolves the connection from state",
   async () => {
     const f = await createPluginFlowFixture(databaseUrl!, {
-      publicUrl: "https://aiteamos.example.test",
+      publicUrl: "https://outcomego.example.test",
       callbackMode: "auto",
     });
-    const client = createAiTeamOSClient({ baseUrl: f.server.url.origin });
+    const client = createOutcomeGoClient({ baseUrl: f.server.url.origin });
     try {
       const key = f.definitions[0]!.key;
       await client.installPlugin(key);
@@ -183,7 +183,7 @@ test.skipIf(!databaseUrl)(
         .connections[0]!.id;
       const started = await client.authenticatePlugin(id);
       expect(new URL(started.authorizationUrl).searchParams.get("redirect_uri")).toBe(
-        "https://aiteamos.example.test/api/v0/plugin-oauth/callback"
+        "https://outcomego.example.test/api/v0/plugin-oauth/callback"
       );
       const callback = new URL(await approve(started.authorizationUrl));
       expect(callback.searchParams.has("connectionId")).toBe(false);
@@ -207,7 +207,7 @@ test.skipIf(!databaseUrl)(
   "provider setup is distinct from installation and unsupported manual callbacks are blocked",
   async () => {
     const f = await createPluginFlowFixture(databaseUrl!, { callbackMode: "auto" });
-    const client = createAiTeamOSClient({ baseUrl: f.server.url.origin });
+    const client = createOutcomeGoClient({ baseUrl: f.server.url.origin });
     try {
       const definition = f.definitions[1]!;
       definition.connections[0]!.oauth = {

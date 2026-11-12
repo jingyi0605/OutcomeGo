@@ -2,7 +2,7 @@
 
 Give your bots their own mailbox. With the **Email** plugin, bots can search, read and send mail, and routines can run when new mail arrives, for example "reply to anything my accountant sends" or "file receipts and tell me the total."
 
-The plugin uses standard IMAP and SMTP, so it works with most mailbox providers. aiTeamOS doesn't host mail: your server signs in to the mailbox you connect.
+The plugin uses standard IMAP and SMTP, so it works with most mailbox providers. OutcomeGo doesn't host mail: your server signs in to the mailbox you connect.
 
 ## Choose a mailbox
 
@@ -23,9 +23,9 @@ Outlook.com and Microsoft 365 can't be used: Microsoft only lets mail apps sign 
 
 1. In **Marketplace**, choose **Add** on **Email**.
 2. Open the plugin's account settings and enter the **Email address** and the **App password**.
-3. Leave **IMAP server** and **SMTP server** set to `auto`. aiTeamOS finds them from the address, including custom domains hosted by Google, iCloud or Fastmail. For your own server or Proton Mail Bridge, enter them as `host:port`, or `imap://host:port` and `smtp://host:port` for a local bridge without TLS.
+3. Leave **IMAP server** and **SMTP server** set to `auto`. OutcomeGo finds them from the address, including custom domains hosted by Google, iCloud or Fastmail. For your own server or Proton Mail Bridge, enter them as `host:port`, or `imap://host:port` and `smtp://host:port` for a local bridge without TLS.
 4. Optionally, list the addresses you'll email the bot from under **Your own addresses**, separated by commas. Mail from them that passes the sender check (DMARC) is marked as coming from you, so the bot treats it as your request. All other mail is marked as outside information.
-5. Choose **Connect**. aiTeamOS signs in to check the password. A wrong password or blocked app password shows as an error on the account.
+5. Choose **Connect**. OutcomeGo signs in to check the password. A wrong password or blocked app password shows as an error on the account.
 
 To connect more mailboxes, add another account with a new name. Every bot can use every connected mailbox.
 
@@ -43,7 +43,7 @@ The bot saves a routine with an email trigger:
 
 - `from` limits which senders fire the routine. It takes addresses, or `@domain` for everyone at a domain. Leave it out to accept any sender.
 - By default, only mail whose sender passed DMARC (or an aligned DKIM signature) at your provider fires, so forged senders are ignored. A routine can turn this off with `"requireAuthPass": false`.
-- aiTeamOS checks each connected mailbox about once a minute. Only mail that arrives after you connect the account fires routines.
+- OutcomeGo checks each connected mailbox about once a minute. Only mail that arrives after you connect the account fires routines.
 - Several routines, on different bots, can watch the same mailbox. Each matching routine runs once per message.
 
 When a routine fires, the bot receives the message's headers and its conversation ID, and reads the conversation itself. Reading doesn't mark mail as read. The bot is told to treat email content as untrusted and not to reply to automated mail.

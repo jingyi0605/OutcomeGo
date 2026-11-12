@@ -1,5 +1,5 @@
 interface Window {
-  aiteamos?: {
+  outcomego?: {
     platform: string;
     clipboard?: {
       readText(): Promise<string>;
@@ -25,11 +25,11 @@ interface Window {
         serverUrl: string,
         username: string,
         password: string
-      ) => Promise<import("@aiteamos/client-core").AiTeamOSSignInResult>;
+      ) => Promise<import("@outcomego/client-core").OutcomeGoSignInResult>;
       signOut: (serverUrl: string, token: string) => Promise<void>;
-      readToken: () => Promise<AiTeamOSAuthTokenStorageResult>;
-      writeToken: (token: string) => Promise<AiTeamOSAuthTokenStorageResult>;
-      clearToken: () => Promise<AiTeamOSAuthTokenStorageResult>;
+      readToken: () => Promise<OutcomeGoAuthTokenStorageResult>;
+      writeToken: (token: string) => Promise<OutcomeGoAuthTokenStorageResult>;
+      clearToken: () => Promise<OutcomeGoAuthTokenStorageResult>;
     };
     pluginOAuth?: {
       start(
@@ -46,7 +46,7 @@ interface Window {
         }) => void
       ): () => void;
     };
-    /** An aiTeamOS server installed on this computer by the CLI, if any. */
+    /** An OutcomeGo server installed on this computer by the CLI, if any. */
     localServer?: {
       detect(): Promise<{ url: string; username?: string } | null>;
     };
@@ -64,19 +64,19 @@ interface Window {
     };
     computer: {
       network: () => Promise<
-        import("@aiteamos/contracts/browser-network").NetworkSharingStatus | null
+        import("@outcomego/contracts/browser-network").NetworkSharingStatus | null
       >;
       shareNetwork: (
         enabled: boolean
-      ) => Promise<import("@aiteamos/contracts/browser-network").NetworkSharingStatus>;
-      get: () => Promise<AiTeamOSComputerSettings>;
+      ) => Promise<import("@outcomego/contracts/browser-network").NetworkSharingStatus>;
+      get: () => Promise<OutcomeGoComputerSettings>;
       update: (request: {
         machineLabel?: string;
         messagesEnabled?: boolean;
-      }) => Promise<AiTeamOSComputerSettings>;
+      }) => Promise<OutcomeGoComputerSettings>;
       messagesPermissions: (
         request?: "fullDiskAccess" | "automation" | "contacts"
-      ) => Promise<AiTeamOSMessagesPermissions | null>;
+      ) => Promise<OutcomeGoMessagesPermissions | null>;
       messagesIcon?: () => Promise<string | null>;
       onMessagesGrantsNeeded?: (listener: () => void) => () => void;
     };
@@ -97,14 +97,14 @@ interface Window {
         serverUrl: string;
         action: "status" | "enable" | "disable";
         httpsPort?: string;
-      }) => Promise<import("@aiteamos/contracts/tailscale").DesktopTailscaleStatus>;
+      }) => Promise<import("@outcomego/contracts/tailscale").DesktopTailscaleStatus>;
     };
     updates: {
-      status: () => Promise<AiTeamOSUpdateStatus>;
-      check: () => Promise<AiTeamOSUpdateStatus>;
+      status: () => Promise<OutcomeGoUpdateStatus>;
+      check: () => Promise<OutcomeGoUpdateStatus>;
       openDownload: () => Promise<void>;
       installClient: () => Promise<void>;
-      onClientProgress: (listener: (status: AiTeamOSUpdateStatus) => void) => () => void;
+      onClientProgress: (listener: (status: OutcomeGoUpdateStatus) => void) => () => void;
     };
     microphone: {
       status: () => Promise<{
@@ -122,7 +122,7 @@ interface Window {
       sync: (snapshot: {
         cursor?: string;
         channels: Array<
-          import("@aiteamos/contracts/notification-content").ChannelNotificationState & {
+          import("@outcomego/contracts/notification-content").ChannelNotificationState & {
             unreadCount: number;
           }
         >;
@@ -143,20 +143,20 @@ interface Window {
     }>;
     onNotificationClick: (
       listener: (
-        target: import("@aiteamos/contracts/notification-content").DesktopNotificationTarget
+        target: import("@outcomego/contracts/notification-content").DesktopNotificationTarget
       ) => void
     ) => () => void;
     versions: Readonly<{ app: string; electron: string; chrome: string }>;
   };
 }
 
-interface AiTeamOSAuthTokenStorageResult {
+interface OutcomeGoAuthTokenStorageResult {
   token: string | null;
   persistence: "disk";
   backend: string;
 }
 
-interface AiTeamOSComputerSettings {
+interface OutcomeGoComputerSettings {
   version: 1;
   machine: {
     machineId: string;
@@ -166,13 +166,13 @@ interface AiTeamOSComputerSettings {
   messagesSupported: boolean;
 }
 
-interface AiTeamOSMessagesPermissions {
+interface OutcomeGoMessagesPermissions {
   fullDiskAccess: boolean;
   automation: "granted" | "denied" | "notAsked" | "unknown";
   contacts: "granted" | "denied" | "notAsked" | "unknown";
 }
 
-interface AiTeamOSUpdateStatus {
+interface OutcomeGoUpdateStatus {
   currentVersion: string;
   latestVersion: string | null;
   downloadUrl: string;
@@ -200,7 +200,7 @@ interface AiTeamOSUpdateStatus {
   track: "stable";
 }
 
-type AiTeamOSServerUpdateStatus = import("@aiteamos/contracts").ServerUpdateView & {
+type OutcomeGoServerUpdateStatus = import("@outcomego/contracts").ServerUpdateView & {
   serverUrl: string;
   currentVersion: string | null;
   apiProtocolVersion: number | null;

@@ -1,11 +1,11 @@
 import { expect, test } from "bun:test";
-import type { InferenceModelView } from "@aiteamos/contracts/inference";
+import type { InferenceModelView } from "@outcomego/contracts/inference";
 import {
   FILTER_AT,
   matchesQuery,
   modelOption,
   recommendedModelId,
-} from "../src/renderer/components/aiteamos/setup/model-picker";
+} from "../src/renderer/components/outcomego/setup/model-picker";
 import { shortHost } from "../src/renderer/lib/server-address";
 
 const model = (modelId: string, name: string, recommended?: boolean): InferenceModelView => ({

@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { Effect } from 'effect';
 import { AppService } from '../../server/src/app-service';
 import { WakeWorker } from '../src/worker';
-const databaseUrl = process.env.AITEAMOS_TEST_DATABASE_URL;
+const databaseUrl = process.env.OUTCOMEGO_TEST_DATABASE_URL;
 test.skipIf(!databaseUrl)('worker replays an unacknowledged user input and clears its watermark only after durable delivery', async () => {
  const root = await mkdtemp(join(tmpdir(), 'input-delivery-')); let app: AppService | undefined, worker: WakeWorker | undefined;
  const seen: any[] = []; let failed = false;
@@ -24,14 +24,14 @@ test.skipIf(!databaseUrl)('worker replays an unacknowledged user input and clear
   const input = await request.json() as any; seen.push(input);
   if (input.content.includes('This user input must survive') && !failed) { failed = true; return new Response('Synthetic pre-insertion interruption', { status: 503 }); }
   await Effect.runPromise(app!.handleDynamicTool({ runId: input.runId, botId: input.botId, conversationId: input.conversationId, channelId: input.channelId, deliveryId: input.deliveryId, callId: `delivery:${input.runId}`, tool: 'SendToUser', arguments: { type: 'text', content: 'Delivery fixture completed' } }));
-  const events = [{ type: 'session.attached', runtimeEngine: 'pi', inferenceProvider: 'openai-codex', contextSessionId: input.contextSessionId, sessionPath: input.sessionPath ?? `/var/lib/aiteamos/pi/${input.contextSessionId}.jsonl`, sessionId: input.contextSessionId, model: 'fake' }, { type: 'context.state', contextSessionId: input.contextSessionId, epoch: 0, archives: [] }, { type: 'turn.started', turnId: input.runId }, { type: 'prompt.delivered', turnId: input.runId }, { type: 'turn.completed', turnId: input.runId, status: 'completed' }];
+  const events = [{ type: 'session.attached', runtimeEngine: 'pi', inferenceProvider: 'openai-codex', contextSessionId: input.contextSessionId, sessionPath: input.sessionPath ?? `/var/lib/outcomego/pi/${input.contextSessionId}.jsonl`, sessionId: input.contextSessionId, model: 'fake' }, { type: 'context.state', contextSessionId: input.contextSessionId, epoch: 0, archives: [] }, { type: 'turn.started', turnId: input.runId }, { type: 'prompt.delivered', turnId: input.runId }, { type: 'turn.completed', turnId: input.runId, status: 'completed' }];
   return new Response(events.map((event) => JSON.stringify(event)).join('\n') + '\n', { headers: { 'content-type': 'application/x-ndjson' } });
  } });
- const keys = ['DATABASE_URL', 'AITEAMOS_COMPUTER_URL', 'AITEAMOS_CONTROL_TOKEN', 'AITEAMOS_WORKSPACE_ROOT', 'AITEAMOS_AGENT_DATA_ROOT'] as const; const saved = Object.fromEntries(keys.map((key) => [key, process.env[key]]));
+ const keys = ['DATABASE_URL', 'OUTCOMEGO_COMPUTER_URL', 'OUTCOMEGO_CONTROL_TOKEN', 'OUTCOMEGO_WORKSPACE_ROOT', 'OUTCOMEGO_AGENT_DATA_ROOT'] as const; const saved = Object.fromEntries(keys.map((key) => [key, process.env[key]]));
  try {
-  Object.assign(process.env, { DATABASE_URL: databaseUrl, AITEAMOS_COMPUTER_URL: fake.url.origin, AITEAMOS_CONTROL_TOKEN: 'synthetic-control', AITEAMOS_WORKSPACE_ROOT: root, AITEAMOS_AGENT_DATA_ROOT: join(root, 'data') });
+  Object.assign(process.env, { DATABASE_URL: databaseUrl, OUTCOMEGO_COMPUTER_URL: fake.url.origin, OUTCOMEGO_CONTROL_TOKEN: 'synthetic-control', OUTCOMEGO_WORKSPACE_ROOT: root, OUTCOMEGO_AGENT_DATA_ROOT: join(root, 'data') });
   app = new AppService();
-  await app.prisma.$executeRawUnsafe('TRUNCATE TABLE "Computer", "Bot", "OutboxDelivery", "Event", "IdempotencyRecord" CASCADE');
+  await app.prisma.$executeRawUnsafe('TRUNCATE TABLE "outcomego_computer", "outcomego_bot", "outcomego_outbox_delivery", "outcomego_event", "outcomego_idempotency_record" CASCADE');
   await Effect.runPromise(app.boot());
   await app.agentData.writeInferenceSettings({ providerId: 'openai-codex', modelId: 'fake', reasoning: 'medium' });
   worker = new WakeWorker(); await worker.start();

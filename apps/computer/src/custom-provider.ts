@@ -1,4 +1,4 @@
-import { normalizeInferenceModelId, normalizeInferenceProviderId } from "@aiteamos/contracts";
+import { normalizeInferenceModelId, normalizeInferenceProviderId } from "@outcomego/contracts";
 import { KEYLESS_API_KEY, modelsEndpoint } from "./chat-provider-registry";
 
 /** An icon is a file name in the bundled icon set, so it is never a path. */

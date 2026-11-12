@@ -1,7 +1,7 @@
 import Foundation
 import XCTest
 
-@testable import OpenTeamCore
+@testable import OutcomeGoCore
 
 final class OnboardingWizardTests: XCTestCase {
   func testStagesAndSteps() {
@@ -87,12 +87,12 @@ final class OnboardingWizardTests: XCTestCase {
     XCTAssertEqual(
       ServerAddressText.authority("raghav-agent-testing.tail658346.ts.net:8788"),
       "raghav-agent-testing.tail658346.ts.net:8788")
-    XCTAssertEqual(ServerAddressText.authority("https://openteam.example.com/"), "openteam.example.com")
+    XCTAssertEqual(ServerAddressText.authority("https://outcomego.example.com/"), "outcomego.example.com")
     XCTAssertEqual(ServerAddressText.authority(" not a URL "), "not a URL")
     XCTAssertEqual(ServerAddressText.host("http://192.168.1.20:8787"), "192.168.1.20")
     XCTAssertEqual(ServerAddressText.host("box.tail1234.ts.net:8788"), "box.tail1234.ts.net")
-    XCTAssertEqual(ServerAddressText.found(version: "0.0.5"), "Found OpenTeam 0.0.5")
-    XCTAssertEqual(ServerAddressText.found(version: nil), "Found OpenTeam")
+    XCTAssertEqual(ServerAddressText.found(version: "0.0.5"), "Found OutcomeGo 0.0.5")
+    XCTAssertEqual(ServerAddressText.found(version: nil), "Found OutcomeGo")
   }
 
   func testChatGPTAndClaudeOfferThePlanOrAKey() {

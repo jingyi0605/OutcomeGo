@@ -1,6 +1,6 @@
 // Source-owned adaptation of AI Elements message.tsx.
 // https://elements.ai-sdk.dev/components/message
-import { messageContainsMarkdownSyntax } from "@aiteamos/product-core/markdown";
+import { messageContainsMarkdownSyntax } from "@outcomego/product-core/markdown";
 import {
   Component,
   type ComponentProps,

@@ -8,12 +8,12 @@ export type ProviderSignInCapture =
 
 const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1"]);
 const SIGNED_IN_PAGE =
-  "<!doctype html><meta charset=utf-8><title>aiTeamOS</title>" +
+  "<!doctype html><meta charset=utf-8><title>OutcomeGo</title>" +
   '<body style="font:15px -apple-system,system-ui,sans-serif;display:grid;place-items:center;height:90vh;margin:0">' +
-  "<p>You're signed in. Return to aiTeamOS.</p>";
+  "<p>You're signed in. Return to OutcomeGo.</p>";
 
 /**
- * Model provider sign-in runs on the aiTeamOS server, so the provider's localhost
+ * Model provider sign-in runs on the OutcomeGo server, so the provider's localhost
  * redirect would land on the server's container instead of this computer. The
  * desktop listens on that same address for one redirect and hands it back, the
  * same way a person would paste the redirect URL.

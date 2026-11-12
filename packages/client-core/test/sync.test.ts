@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { ProductEvent } from "@aiteamos/contracts";
+import type { ProductEvent } from "@outcomego/contracts";
 import {
   TrailingAsyncCoalescer,
   createLiveSyncController,

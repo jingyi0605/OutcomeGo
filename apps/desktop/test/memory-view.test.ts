@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import type { BotMemoryList } from "@aiteamos/contracts";
+import type { BotMemoryList } from "@outcomego/contracts";
 import { createMemoryView, type MemoryViewState } from "../src/renderer/lib/memory-view";
 import { refreshMemoryViews, subscribeMemoryRefresh } from "../src/renderer/lib/memory-events";
 

@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { INFERENCE_PROVIDER_PRESETS } from "@aiteamos/contracts";
+import { INFERENCE_PROVIDER_PRESETS } from "@outcomego/contracts";
 import { getSupportedThinkingLevels } from "@earendil-works/pi-ai";
 import { ModelRuntime } from "@earendil-works/pi-coding-agent";
 import { ChatProviderRegistry } from "../src/chat-provider-registry";
@@ -10,7 +10,7 @@ import { createModelRuntime } from "../src/model-runtime";
 
 describe("preset catalog ids", () => {
   test("every catalog names a vendor in the runtime's built-in model table", async () => {
-    const dir = mkdtempSync(join(tmpdir(), "aiteamos-preset-catalog-"));
+    const dir = mkdtempSync(join(tmpdir(), "outcomego-preset-catalog-"));
     for (const file of ["auth.json", "models-store.json"]) writeFileSync(join(dir, file), "{}");
     const runtime = await ModelRuntime.create({
       authPath: join(dir, "auth.json"),
@@ -27,7 +27,7 @@ describe("preset catalog ids", () => {
 
 describe("a preset endpoint reuses its vendor's reasoning levels", () => {
   const setup = async (api: string) => {
-    const dir = mkdtempSync(join(tmpdir(), "aiteamos-preset-borrow-"));
+    const dir = mkdtempSync(join(tmpdir(), "outcomego-preset-borrow-"));
     writeFileSync(join(dir, "models-store.json"), "{}");
     writeFileSync(join(dir, "auth.json"), JSON.stringify({ "ds-test": { type: "api_key", key: "sk-test" } }));
     writeFileSync(

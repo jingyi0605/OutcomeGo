@@ -1,7 +1,7 @@
 import Foundation
 import XCTest
 
-@testable import OpenTeamCore
+@testable import OutcomeGoCore
 
 final class InferenceProviderPresetsTests: XCTestCase {
   private let json = """

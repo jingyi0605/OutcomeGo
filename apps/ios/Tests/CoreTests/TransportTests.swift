@@ -1,7 +1,7 @@
 import Foundation
 import XCTest
 
-@testable import OpenTeamCore
+@testable import OutcomeGoCore
 
 private func requestBody(_ request: URLRequest) throws -> Data {
   if let data = request.httpBody { return data }
@@ -118,11 +118,11 @@ final class TransportTests: XCTestCase, @unchecked Sendable {
     do { _ = try await api().signIn(username: "owner", password: "fixture"); XCTFail("A response without the session header is not authentication") }
     catch { XCTAssertTrue(error.localizedDescription.contains("did not complete sign-in")) }
   }
-  func testStrictServerDiscoveryRejectsReachableNonOpenTeamEndpoints() async throws {
+  func testStrictServerDiscoveryRejectsReachableNonOutcomeGoEndpoints() async throws {
     for body in ["<html>Sign in</html>", "{}", #"{"mode":"unknown"}"#] {
       MockProtocol.stub.set { _ in (200, [:], Data(body.utf8)) }
       do { _ = try await api().validateServer(); XCTFail("Must reject incompatible endpoint") }
-      catch { XCTAssertTrue(error.localizedDescription.contains("not a compatible OpenTeam")) }
+      catch { XCTAssertTrue(error.localizedDescription.contains("not a compatible OutcomeGo")) }
     }
     MockProtocol.stub.set { _ in (503, [:], Data()) }
     do { _ = try await api().validateServer(); XCTFail("Unavailable is not disabled authentication") }

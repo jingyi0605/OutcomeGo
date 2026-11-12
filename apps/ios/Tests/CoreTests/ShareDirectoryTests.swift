@@ -1,6 +1,6 @@
 import XCTest
 
-@testable import OpenTeamCore
+@testable import OutcomeGoCore
 
 final class ShareDirectoryTests: XCTestCase {
   /// Bots Research, Ops and Build, each with a direct chat.

@@ -14,7 +14,7 @@ import {
   VOICE_FRAME_MS,
   VOICE_INPUT_SAMPLE_RATE,
   VOICE_OUTPUT_SAMPLE_RATE,
-} from "@aiteamos/contracts/voice";
+} from "@outcomego/contracts/voice";
 
 const CAPTURE_WORKLET_URL = new URL(
   `${import.meta.env.BASE_URL}worklets/live-voice-capture.js`,
@@ -204,7 +204,7 @@ export class LiveVoiceAudio {
     if (!source || !sink || !audioWorklet)
       throw new Error(translateCurrent("Voice capture graph is unavailable"));
     await audioWorklet.addModule(CAPTURE_WORKLET_URL);
-    const node = new AudioWorkletNode(context, "aiteamos-voice-capture", {
+    const node = new AudioWorkletNode(context, "outcomego-voice-capture", {
       numberOfInputs: 1,
       numberOfOutputs: 1,
       outputChannelCount: [1],

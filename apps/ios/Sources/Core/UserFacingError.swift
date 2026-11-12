@@ -9,7 +9,7 @@ public enum UserFacingError {
       case .notConnectedToInternet, .networkConnectionLost, .cannotConnectToHost, .cannotFindHost,
         .dnsLookupFailed:
         return
-          "Could not reach your OpenTeam server. Check the address and your connection, then try again."
+          "Could not reach your OutcomeGo server. Check the address and your connection, then try again."
       case .secureConnectionFailed, .serverCertificateUntrusted, .serverCertificateHasBadDate,
         .serverCertificateHasUnknownRoot:
         return
@@ -58,7 +58,7 @@ public enum UserFacingError {
         "$1[REDACTED]$3"
       ),
       (
-        #"(?i)\b((?:AITEAMOS_[A-Z0-9_]*(?:PASSWORD|SECRET|TOKEN|KEY)|PASSWORD|PASSWD|API_KEY|AUTH_TOKEN)\s*[=:]\s*)(\"[^\"\r\n]*\"|'[^'\r\n]*'|[^\s,;]+)"#,
+        #"(?i)\b((?:OUTCOMEGO_[A-Z0-9_]*(?:PASSWORD|SECRET|TOKEN|KEY)|PASSWORD|PASSWD|API_KEY|AUTH_TOKEN)\s*[=:]\s*)(\"[^\"\r\n]*\"|'[^'\r\n]*'|[^\s,;]+)"#,
         "$1[REDACTED]"
       ),
       (#"(?i)(https?://[^\s:/@]+:)([^\s@/]+)(@)"#, "$1[REDACTED]$3"),

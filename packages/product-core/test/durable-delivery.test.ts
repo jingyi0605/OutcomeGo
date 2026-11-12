@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { AssetRef, ChannelMessageView } from "@aiteamos/contracts";
+import type { AssetRef, ChannelMessageView } from "@outcomego/contracts";
 import {
   createDurableSendController,
   classifyDurableSendError,

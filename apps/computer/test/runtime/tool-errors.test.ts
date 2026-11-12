@@ -15,7 +15,7 @@ function fixture(respond: (name: string, args: any) => Response) {
       return await tools.callControlPlaneToolRequest(turn, id, name, args);
     } finally { globalThis.fetch = originalFetch; }
   };
-  const call = (name: string, args: any) => tools.executeAiTeamOSTool(active, `call-${calls.length}`, name, args);
+  const call = (name: string, args: any) => tools.executeOutcomeGoTool(active, `call-${calls.length}`, name, args);
   const lookup = (toolName: string, args: any) => call("CallDynamicTool", { namespace: "cursor", toolName, arguments: args });
   return { tools, active, calls, call, lookup };
 }
@@ -91,8 +91,8 @@ test("a missing attachment is named before anything reaches the tool host", asyn
   const originalFetch = globalThis.fetch;
   globalThis.fetch = (async () => { throw new Error("the tool host must not be called"); }) as any;
   try {
-    await expect(tools.executeAiTeamOSTool(active, "call", "SendToUser", { type: "attachment", url: "file:///tmp/aiteamos-missing-deliverable.pdf" })).rejects.toThrow(
-      /^Failed to send the message to the user: No file at \/tmp\/aiteamos-missing-deliverable\.pdf on your box, so nothing was sent\./
+    await expect(tools.executeOutcomeGoTool(active, "call", "SendToUser", { type: "attachment", url: "file:///tmp/outcomego-missing-deliverable.pdf" })).rejects.toThrow(
+      /^Failed to send the message to the user: No file at \/tmp\/outcomego-missing-deliverable\.pdf on your box, so nothing was sent\./
     );
   } finally { globalThis.fetch = originalFetch; }
 });

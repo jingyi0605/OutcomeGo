@@ -26,9 +26,9 @@ import "./polish.css";
 import "./mobile-polish.css";
 import { WorkerProfiles } from "@/components/worker-showcase";
 
-const GITHUB = "https://github.com/jingyi0605/ai-TeamOS";
+const GITHUB = "https://github.com/jingyi0605/OutcomeGo";
 function GetStarted({
-  children = "Install aiTeamOS",
+  children = "Install OutcomeGo",
   className = "",
 }: {
   children?: React.ReactNode;
@@ -90,7 +90,7 @@ export default function Home() {
           </div>
           <SectionBot bot="research" />
         </section>
-        <nav className="ot-proof-strip ot-container" aria-label="Why run aiTeamOS">
+        <nav className="ot-proof-strip ot-container" aria-label="Why run OutcomeGo">
           <a href="#get-started">
             <Server size={19} />
             <span>

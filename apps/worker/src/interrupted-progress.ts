@@ -1,4 +1,4 @@
-import type { Prisma } from "@aiteamos/db";
+import type { Prisma } from "@outcomego/db";
 
 const object = (value: unknown): Record<string, any> =>
   value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, any> : {};

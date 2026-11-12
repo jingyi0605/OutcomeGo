@@ -17,13 +17,13 @@ const requestedIsDirectory = Boolean(
 const searchRoot = requestedIsDirectory && requested ? requested : releaseRoot;
 const discovered = existsSync(searchRoot)
   ? readdirSync(searchRoot, { recursive: true })
-      .filter((entry) => String(entry).toLowerCase().endsWith("aiteamos.app"))
+      .filter((entry) => String(entry).toLowerCase().endsWith("outcomego.app"))
       .map((entry) => resolve(searchRoot, String(entry)))
       .sort()
   : [];
 const appPath = requested && !requestedIsDirectory ? requested : discovered[0];
 if (!appPath || !existsSync(appPath)) {
-  throw new Error("The aiTeamOS app bundle was not found. Build the macOS package first.");
+  throw new Error("The outcomeGo app bundle was not found. Build the macOS package first.");
 }
 
 const verify = Bun.spawnSync([
@@ -35,45 +35,45 @@ const verify = Bun.spawnSync([
   appPath,
 ]);
 if (verify.exitCode !== 0) {
-  throw new Error(`aiTeamOS.app is not validly signed:\n${verify.stderr.toString().trim()}`);
+  throw new Error(`OutcomeGo.app is not validly signed:\n${verify.stderr.toString().trim()}`);
 }
 
 const details = Bun.spawnSync(["codesign", "-dv", "--verbose=4", appPath]);
 if (details.exitCode !== 0) {
   throw new Error(
-    `aiTeamOS.app signing details could not be read:\n${details.stderr.toString().trim()}`
+    `OutcomeGo.app signing details could not be read:\n${details.stderr.toString().trim()}`
   );
 }
 const output = `${details.stdout.toString()}\n${details.stderr.toString()}`;
-if (!output.includes("Identifier=dev.aiteamos.desktop")) {
+if (!output.includes("Identifier=dev.outcomego.desktop")) {
   throw new Error(`Unexpected signing identifier:\n${output.trim()}`);
 }
 const isAdHoc = output.includes("Signature=adhoc");
 if (!allowAdHoc && isAdHoc) {
-  throw new Error("aiTeamOS.app is only ad-hoc signed; release builds require a Developer ID.");
+  throw new Error("OutcomeGo.app is only ad-hoc signed; release builds require a Developer ID.");
 }
 if (!allowAdHoc && !/TeamIdentifier=(?!not set)\S+/.test(output)) {
   throw new Error(
-    "aiTeamOS.app has no Apple Team identifier; notification events are not reliable."
+    "OutcomeGo.app has no Apple Team identifier; notification events are not reliable."
   );
 }
 if (!allowAdHoc && !/^Authority=Developer ID Application:/m.test(output)) {
   throw new Error(
-    `aiTeamOS.app is not signed by a Developer ID Application identity:\n${output.trim()}`
+    `OutcomeGo.app is not signed by a Developer ID Application identity:\n${output.trim()}`
   );
 }
 if (!allowAdHoc && !/flags=.*\bruntime\b/.test(output)) {
-  throw new Error("aiTeamOS.app was not signed with the hardened runtime enabled.");
+  throw new Error("OutcomeGo.app was not signed with the hardened runtime enabled.");
 }
 if (allowAdHoc && !isAdHoc && !/TeamIdentifier=(?!not set)\S+/.test(output)) {
-  throw new Error("aiTeamOS.app has neither a Developer ID nor an ad-hoc signature.");
+  throw new Error("OutcomeGo.app has neither a Developer ID nor an ad-hoc signature.");
 }
 
 if (!allowAdHoc) {
   const entitlements = Bun.spawnSync(["codesign", "-d", "--entitlements", "-", "--xml", appPath]);
   if (entitlements.exitCode !== 0) {
     throw new Error(
-      `aiTeamOS.app entitlements could not be read:\n${entitlements.stderr.toString().trim()}`
+      `OutcomeGo.app entitlements could not be read:\n${entitlements.stderr.toString().trim()}`
     );
   }
   const entitlementOutput = `${entitlements.stdout.toString()}\n${entitlements.stderr.toString()}`;
@@ -87,7 +87,7 @@ if (!allowAdHoc) {
     const nextKey = entitlementOutput.indexOf("<key>", keyIndex + 1);
     const value = entitlementOutput.slice(keyIndex, nextKey === -1 ? undefined : nextKey);
     if (keyIndex === -1 || !/<true\s*\/>/.test(value)) {
-      throw new Error(`aiTeamOS.app is missing required entitlement: ${entitlement}`);
+      throw new Error(`OutcomeGo.app is missing required entitlement: ${entitlement}`);
     }
   }
 
@@ -101,14 +101,14 @@ if (!allowAdHoc) {
   ]);
   if (assessment.exitCode !== 0) {
     throw new Error(
-      `aiTeamOS.app is not accepted by Gatekeeper:\n${assessment.stderr.toString().trim()}`
+      `OutcomeGo.app is not accepted by Gatekeeper:\n${assessment.stderr.toString().trim()}`
     );
   }
 
   const notarization = Bun.spawnSync(["xcrun", "stapler", "validate", appPath]);
   if (notarization.exitCode !== 0) {
     throw new Error(
-      `aiTeamOS.app has no valid stapled notarization ticket:\n${notarization.stderr.toString().trim()}`
+      `OutcomeGo.app has no valid stapled notarization ticket:\n${notarization.stderr.toString().trim()}`
     );
   }
 }
@@ -123,9 +123,9 @@ const bundleId = Bun.spawnSync([
   "-",
   plist,
 ]);
-if (bundleId.exitCode !== 0 || bundleId.stdout.toString().trim() !== "dev.aiteamos.desktop") {
+if (bundleId.exitCode !== 0 || bundleId.stdout.toString().trim() !== "dev.outcomego.desktop") {
   throw new Error(
-    "The packaged app does not have the stable dev.aiteamos.desktop bundle identifier."
+    "The packaged app does not have the stable dev.outcomego.desktop bundle identifier."
   );
 }
 

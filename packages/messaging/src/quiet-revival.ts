@@ -1,4 +1,4 @@
-import type { Prisma } from "@aiteamos/db";
+import type { Prisma } from "@outcomego/db";
 
 // A background task started inside a routine reports back to that routine, which nobody is waiting on.
 export const QUIET_REVIVAL_INSTRUCTION =

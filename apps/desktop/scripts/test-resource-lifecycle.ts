@@ -9,7 +9,7 @@ const nativeFocus = process.argv.includes("--native-focus");
 if (nativeFocus && process.platform !== "darwin") {
   throw new Error("The native focus lifecycle suite requires macOS");
 }
-const directory = await mkdtemp(join(tmpdir(), "aiteamos-resource-lifecycle-"));
+const directory = await mkdtemp(join(tmpdir(), "outcomego-resource-lifecycle-"));
 const output =
   process.env.FOCUS_LIFECYCLE_OUTPUT ?? resolve(import.meta.dir, "../../../output/focus-lifecycle");
 let server: ReturnType<typeof Bun.serve> | undefined;

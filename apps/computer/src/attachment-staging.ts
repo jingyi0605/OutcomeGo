@@ -4,7 +4,7 @@ import { basename, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { Transform } from "node:stream";
 import { pipeline } from "node:stream/promises";
-import { attachmentLimitForName, missingAttachmentMessage, tooLargeAttachmentMessage } from "@aiteamos/contracts/media-input";
+import { attachmentLimitForName, missingAttachmentMessage, tooLargeAttachmentMessage } from "@outcomego/contracts/media-input";
 import { agentReadStream } from "./agent-file-stream";
 
 const within = (root: string, file: string) => {
@@ -39,7 +39,7 @@ export async function stageAttachment(
   const maximum = attachmentLimitForName(basename(source));
   if (!info.isFile()) throw new Error("Attachment must be a regular file");
   if (info.size > maximum) throw new Error(tooLargeAttachmentMessage(source));
-  const directory = await mkdtemp(join(options.workspace, ".aiteamos-delivery-"));
+  const directory = await mkdtemp(join(options.workspace, ".outcomego-delivery-"));
   const cleanup = () => rm(directory, { recursive: true, force: true });
   try {
     const target = join(directory, basename(source));

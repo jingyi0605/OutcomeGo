@@ -1,10 +1,10 @@
-# aiTeamOS app icons
+# OutcomeGo app icons
 
-`aiTeamOS.icon` is the shared, editable Icon Composer source for iOS and macOS.
-It holds one layer, `Assets/logo.png`, the aiTeamOS prism mark (trimmed from
-`apps/landing/public/ai-teamOS-concept-02-prism.png`), on a charcoal gradient
+`OutcomeGo.icon` is the shared, editable Icon Composer source for iOS and macOS.
+It holds one layer, `Assets/logo.png`, the OutcomeGo prism mark (trimmed from
+`apps/landing/public/outcomego-concept-02-prism.png`), on a charcoal gradient
 background. Colors are defined in `icon.json`. The robot artwork that upstream
-aiTeamOS ships here was removed in this fork.
+OutcomeGo ships here was removed in this fork.
 
 The prism layer's `position.scale` in `icon.json` is `1.26`, which makes the mark
 fill about 75% of the icon width (Icon Composer's scale `1` renders it at ~60%).
@@ -17,12 +17,12 @@ platform icons read the same value so every platform stays in sync.
   native app icon. Xcode packages it with the Swift app; it has no Expo fallback pipeline.
 - Android: `apps/android/app/src/main/res/mipmap-*/ic_launcher.png` holds the five
   launcher densities.
-- Desktop About screen: `apps/desktop/src/renderer/assets/ai-teamos-icon.png`.
+- Desktop About screen: `apps/desktop/src/renderer/assets/outcomego-icon.png`.
 - macOS: electron-builder compiles the `.icon` into `Assets.car`, includes a legacy
   ICNS, and writes the native icon keys into Info.plist. Do not replace it with
   `app.dock.setIcon`, which bypasses the system's appearance selection.
 - Windows: `icon.ico` includes 16, 24, 32, 48, 64, 128 and 256px representations.
-- Linux: `aiteamos-desktop-light.png` is the packaged icon. Windows and Linux use
+- Linux: `outcomego-desktop-light.png` is the packaged icon. Windows and Linux use
   static icons; light and dark PNG exports are available for both.
 
 The native PNGs here are flattened previews with platform masking. Do not use them

@@ -1,6 +1,6 @@
 import { mkdir, rm } from "node:fs/promises";
 import { join } from "node:path";
-import type { Prisma } from "@aiteamos/db";
+import type { Prisma } from "@outcomego/db";
 import { firstCronSchedule, parseStoredTrigger, triggerIdentity } from "./automation-trigger";
 import {
   atomicWrite,
@@ -126,7 +126,7 @@ export const parseAutomationFile = async (
   const schedule =
     cronSchedule !== null
       ? normalizeRoutineSchedule(cronSchedule, userZone, {
-          enforceMinimum: process.env.AITEAMOS_ENFORCE_AUTOMATION_MINIMUM !== "false",
+          enforceMinimum: process.env.OUTCOMEGO_ENFORCE_AUTOMATION_MINIMUM !== "false",
         })
       : null;
   let triggerPresentation: Record<string, unknown> | null = null;

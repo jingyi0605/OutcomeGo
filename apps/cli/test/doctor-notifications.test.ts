@@ -17,12 +17,12 @@ const state = {
   total: 1,
   eligible: 1,
   invalid: 0,
-  topics: ["dev.aiteamos.mobile"],
+  topics: ["dev.outcomego.mobile"],
   failed: 0,
   waiting: 0,
 };
-const config = { missing: [], issue: null, topic: "dev.aiteamos.mobile" };
-const missing = ["AITEAMOS_APNS_KEY_ID", "AITEAMOS_APNS_TEAM_ID", "AITEAMOS_APNS_PRIVATE_KEY"];
+const config = { missing: [], issue: null, topic: "dev.outcomego.mobile" };
+const missing = ["OUTCOMEGO_APNS_KEY_ID", "OUTCOMEGO_APNS_TEAM_ID", "OUTCOMEGO_APNS_PRIVATE_KEY"];
 const check = (checks: ReturnType<typeof notificationChecks>, label: string) =>
   checks.find((c) => c.label === label)!;
 
@@ -112,7 +112,7 @@ describe("Doctor notification readiness", () => {
     "{broken",
     "{}",
     "null",
-    '{"missing":["secret-token"],"issue":null,"topic":"dev.aiteamos.mobile"}',
+    '{"missing":["secret-token"],"issue":null,"topic":"dev.outcomego.mobile"}',
   ])("invalid probe output %s never passes or leaks its contents", (stdout) => {
     const project = { run: () => ({ status: 0, stdout, stderr: "" }) } as unknown as ComposeProject;
     const checks = runNotificationChecks(project, new Set(["server", "worker"]));
@@ -137,7 +137,7 @@ describe("Doctor notification readiness", () => {
 });
 
 const runConfig = async (socketPath: string) => {
-  const script = APNS_CONFIGURATION_PROBE.replace("/tmp/aiteamos-worker-doctor.sock", socketPath);
+  const script = APNS_CONFIGURATION_PROBE.replace("/tmp/outcomego-worker-doctor.sock", socketPath);
   const child = Bun.spawn(
     ["node", "-e", `(async () => {${script}})().catch(() => process.exitCode = 1)`],
     { env: { PATH: process.env.PATH }, stdout: "pipe", stderr: "pipe" }
@@ -148,7 +148,7 @@ const runConfig = async (socketPath: string) => {
 
 describe("real APNs worker configuration probe", () => {
   test("reads the worker's live APNs setting from its diagnostics socket", async () => {
-    const directory = mkdtempSync(join(tmpdir(), "aiteamos-apns-socket-"));
+    const directory = mkdtempSync(join(tmpdir(), "outcomego-apns-socket-"));
     const socket = join(directory, "doctor.sock");
     let issue: string | null = null;
     let status = 200;
@@ -178,7 +178,7 @@ describe("real APNs worker configuration probe", () => {
   });
 
   test("fails without a diagnostics socket", async () => {
-    const directory = mkdtempSync(join(tmpdir(), "aiteamos-apns-socket-"));
+    const directory = mkdtempSync(join(tmpdir(), "outcomego-apns-socket-"));
     try {
       expect(await runConfig(join(directory, "missing.sock"))).toEqual({ exitCode: 1, output: "" });
     } finally {

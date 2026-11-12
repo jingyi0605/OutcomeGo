@@ -3,8 +3,8 @@ import { compact, mapConcurrent, referenceTool, referenceTools } from '../../_sh
 import { assertAttachmentsComplete, searchCoverageNote, unwrappedBody, withIdNote } from './guards';
 import { draftMime, gmailDraftUrl, gmailViewUrl, headersOf, normalizeMessage, plainHtml } from './messages';
 
-/** Matches the server's HOST_ONLY_TOOL_META: aiTeamOS calls the tool, Bots never see it. */
-const HOST_ONLY = { 'aiteamos/hostOnly': true };
+/** Matches the server's HOST_ONLY_TOOL_META: OutcomeGo calls the tool, Bots never see it. */
+const HOST_ONLY = { 'outcomego/hostOnly': true };
 const escapeHtml = (text: string) => text.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
 
 const visibility: Record<string, string> = { LABEL_SHOW: 'labelShow', LABEL_SHOW_IF_UNREAD: 'labelShowIfUnread', LABEL_HIDE: 'labelHide', SHOW: 'show', HIDE: 'hide' };
@@ -156,7 +156,7 @@ export function gmailTools(api = new GoogleApi('https://gmail.googleapis.com/gma
     ref('delete_draft', withIdNote('draft', a => api.request(`/drafts/${segment(a.draftId)}`, {}, 'DELETE')), { risk: 'destructive' }),
     ref('update_message_labels', withIdNote('message', a => api.request(`/messages/${segment(a.messageId)}/modify`, {}, 'POST', { addLabelIds: a.addLabelIds ?? [], removeLabelIds: a.removeLabelIds ?? [] })), { risk: 'write' }),
   ];
-  // Card review: aiTeamOS verifies the route when a Bot drafts, then sends only after the user presses Send.
+  // Card review: OutcomeGo verifies the route when a Bot drafts, then sends only after the user presses Send.
   const sendingAs = async (from: string) => {
     const [profile, aliases] = await Promise.all([api.request('/profile'), api.request('/settings/sendAs')]);
     const account = String(profile.emailAddress ?? '').toLowerCase();
@@ -166,7 +166,7 @@ export function gmailTools(api = new GoogleApi('https://gmail.googleapis.com/gma
     return { account, addresses, alias };
   };
   const recipients = { type: 'array', items: { type: 'string' }, maxItems: 100 };
-  tools.push({ ...tool('send_reviewed_email', 'aiTeamOS calls this to verify a DraftExternalMessage card and, after the user presses Send, to send it from this Gmail account.', {
+  tools.push({ ...tool('send_reviewed_email', 'OutcomeGo calls this to verify a DraftExternalMessage card and, after the user presses Send, to send it from this Gmail account.', {
     action: string('verify checks the route; send delivers it', { enum: ['verify', 'send'] }),
     draft: { type: 'object', description: 'The reviewed draft', properties: { from: { type: 'string' }, to: recipients, cc: recipients, subject: { type: 'string' }, body: { type: 'string' }, html: { type: 'string' }, signatureHtml: { type: 'string' }, replyToMessageId: { type: 'string' } }, required: ['from', 'to', 'subject', 'body'], additionalProperties: false },
   }, ['action', 'draft'], async ({ action, draft }) => {
@@ -216,4 +216,4 @@ export function gmailTools(api = new GoogleApi('https://gmail.googleapis.com/gma
   }
   return tools;
 }
-if (import.meta.main) await servePlugin('aiteamos-gmail', gmailTools());
+if (import.meta.main) await servePlugin('outcomego-gmail', gmailTools());

@@ -140,8 +140,8 @@ Acceptance review
 | `apps/server/src/services/run-service.ts` | Run 取消/状态 | 增加 Outcome 关联查询或回调 |
 | `apps/server/src/services/internal-tool-service.ts` | Agent 可见输出 | 将 `sourceRunId` 输出转为 Outcome Output/Evidence 候选 |
 | `apps/worker/src/worker.ts` | Agent 回合执行 | 读取 Outcome context，不改变普通消息 prompt |
-| `apps/desktop/src/renderer/client/aiteamos-api.ts` | Desktop API 客户端 | Outcome API 和错误类型 |
-| `apps/desktop/src/renderer/components/aiteamos/chat-pane.tsx` | 当前聊天入口 | 从聊天输入进入 Planning UI |
+| `apps/desktop/src/renderer/client/outcomego-api.ts` | Desktop API 客户端 | Outcome API 和错误类型 |
+| `apps/desktop/src/renderer/components/outcomego/chat-pane.tsx` | 当前聊天入口 | 从聊天输入进入 Planning UI |
 | `packages/db/prisma/migrations/` | 增量迁移 | 生成实际迁移，不手工覆盖已有迁移 |
 
 ## 9. 数据库模型
@@ -404,9 +404,9 @@ Approved revision → Superseded by revision N+1
 
 ### Desktop
 
-- `apps/desktop/src/renderer/client/aiteamos-api.ts`
-- `apps/desktop/src/renderer/components/aiteamos/chat-pane.tsx`
-- `apps/desktop/src/renderer/components/aiteamos/outcomes/`（新增）
+- `apps/desktop/src/renderer/client/outcomego-api.ts`
+- `apps/desktop/src/renderer/components/outcomego/chat-pane.tsx`
+- `apps/desktop/src/renderer/components/outcomego/outcomes/`（新增）
 - `apps/desktop/test/outcome-planning.test.ts`（新增）
 
 ### 测试数据和文档

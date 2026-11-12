@@ -5,8 +5,8 @@ import { join, resolve } from "node:path";
 import { createServer } from "vite";
 
 const desktopRoot = resolve(import.meta.dir, "..");
-const artifacts = resolve(process.env.AITEAMOS_UI_ARTIFACTS ?? resolve(desktopRoot, "../../output/computer-update-ui"));
-const directory = await mkdtemp(join(tmpdir(), "aiteamos-computer-update-ui-"));
+const artifacts = resolve(process.env.OUTCOMEGO_UI_ARTIFACTS ?? resolve(desktopRoot, "../../output/computer-update-ui"));
+const directory = await mkdtemp(join(tmpdir(), "outcomego-computer-update-ui-"));
 const electron = createRequire(import.meta.url)("electron") as string;
 const server = await createServer({
   root: desktopRoot,

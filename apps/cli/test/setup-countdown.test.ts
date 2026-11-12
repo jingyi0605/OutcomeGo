@@ -44,7 +44,7 @@ describe.skipIf(!python || process.platform === "win32")("real terminal countdow
     "resize",
     "dumb",
   ])("%s restores terminal state and completes once", async (scenario) => {
-    const resultPath = join(tmpdir(), `aiteamos-countdown-${crypto.randomUUID()}.json`);
+    const resultPath = join(tmpdir(), `outcomego-countdown-${crypto.randomUUID()}.json`);
     const child = Bun.spawn(
       [
         python!,

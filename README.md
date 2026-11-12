@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="docs/images/ai-teamos-logo.png" alt="aiTeamOS 标志" height="180">
+  <img src="docs/images/outcomego-logo.png" alt="OutcomeGo 标志" height="180">
 </p>
 
-<h1 align="center">aiTeamOS</h1>
+<h1 align="center">OutcomeGo</h1>
 
 <p align="center">
   <b>把注意力留给真正需要你判断的事</b>
@@ -27,12 +27,13 @@
   中文 | <a href="README.en.md">English</a>
 </p>
 
-aiTeamOS 是 [OpenTeam](https://github.com/raghavpillai/openteam) 的独立长期分支，与上游项目没有隶属关系，
-也未获得其背书。署名、分支规则和改动清单见 [FORK.md](FORK.md)。
+OutcomeGo (formerly aiTeamOS), an independent fork of OpenTeam, not affiliated with or endorsed by upstream.
+
+OutcomeGo 是 OpenTeam 的独立 fork，与上游没有隶属关系，也未获得其背书。署名、分支规则和改动清单见 [FORK.md](FORK.md)。
 
 ## 致敬源项目
 
-aiTeamOS 之所以存在，是因为 OpenTeam 是一个非常出色的项目，我们想先说这一点。
+OutcomeGo 之所以存在，是因为 OpenTeam 是一个非常出色的项目，我们想先说这一点。
 [Raghav Pillai](https://github.com/raghavpillai) 构建了一套完整的自托管 AI Agent 工作方式：
 每个 bot 拥有真实的电脑，在任务之间保留记忆和登录状态，能在群聊中协作，按计划运行例行任务，
 并通过桌面端和移动端随时找到你。架构清晰，产品打磨精细，迭代速度令人惊叹。
@@ -80,25 +81,25 @@ AI 让每个人的能力边界不断扩展：一个人现在可以同时指挥�
 今天的工作散落在各个孤岛里：Agent 的对话、邮件、聊天软件、待办、笔记、自动化工具。
 你成了这些系统之间唯一的连接器，要亲手收集、关联、排序和跟进。
 
-aiTeamOS 选择另一条路：**不是在 Agent 周围再添更多工具，而是把这些工具中真正有用的能力
+OutcomeGo 选择另一条路：**不是在 Agent 周围再添更多工具，而是把这些工具中真正有用的能力
 集成进本项目，并让本项目成为唯一的数据源**，承载项目、任务、Agent 运行、对话和决策。
 不再需要另一套工作流引擎，不再需要第二个任务数据库，也不用笔记软件充当任务库。
 
-| 通常要靠多个外部工具提供的能力 | aiTeamOS 中的方向 |
+| 通常要靠多个外部工具提供的能力 | OutcomeGo 中的方向 |
 | --- | --- |
 | 任务与项目数据库 | 内置项目、任务和决策，与 bot、对话在同一个数据库中 |
 | 工作流自动化与定时调度 | 内置例行任务（Routine）、事件触发和 Agent 运行 |
 | Agent 状态采集 | Agent 运行本身就是一等记录，不需要抓取日志 |
 | 邮件与聊天收件箱 | 邮件和渠道连接器汇入同一条事件流 |
-| 人工审批 | 决策卡片，由服务端在工具执行前强制拦截 |
+| 人工决策 | 决策卡片汇总需要用户判断的事项 |
 | 笔记与知识 | 内置记忆、文件和覆盖以上所有内容的搜索 |
 | 提醒与日程 | 桌面端、iOS 和 Android 上的例行任务与通知 |
 
 外部服务仍然可以通过插件、MCP 服务器和渠道接入。它们是信息的来源和去向，不保存状态。
 
-![统一工作控制平面：Bot 与 Agent 运行、例行任务与事件、外部服务经过事件接入层，进入统一工作上下文引擎，再到驾驶舱和操作与调度层，全部在 aiTeamOS 内](docs/images/attention/work-control-plane.zh.png)
+![统一工作控制平面：Bot 与 Agent 运行、例行任务与事件、外部服务经过事件接入层，进入统一工作上下文引擎，再到驾驶舱和操作与调度层，全部在 OutcomeGo 内](docs/images/attention/work-control-plane.zh.png)
 
-<sub>示意图，表达的是方向而不是现状。外部服务只作为来源接入，状态保存在 aiTeamOS 中。</sub>
+<sub>示意图，表达的是方向而不是现状。外部服务只作为来源接入，状态保存在 OutcomeGo 中。</sub>
 
 #### 驾驶舱
 
@@ -130,9 +131,8 @@ aiTeamOS 选择另一条路：**不是在 Agent 周围再添更多工具，而�
 #### 有边界的自主
 
 Agent 可以自行读取已授权的数据、做调研、写草稿、更新内部任务状态。
-向客户发送内容、调整正式工作安排、修改生产环境、删除数据，则必须在工具**执行之前**获得审批，
-并由服务端强制执行，而不是依靠提示词约束。来自邮件、网页和聊天的文字一律视为不可信输入，不当作指令。
-上下文按项目隔离。
+需要用户判断的事项会进入决策流程；具体工具权限和执行门禁沿用 OpenTeam 现有行为，本项目不宣称提供
+工具级强制拦截。来自邮件、网页和聊天的文字一律视为不可信输入，不当作指令。上下文按项目隔离。
 
 #### 专注的节奏
 
@@ -196,21 +196,22 @@ Agent 可以自行读取已授权的数据、做调研、写草稿、更新内�
   更新清单、APK 校验和、应用 ID、版本号和签名证书后再安装；调试包使用独立的 `.debug`
   应用 ID，可以和正式版并存。
 - Android 设置、登录、会话、聊天和例程页面支持震动反馈；桌面端、iOS 和 Android 的
-  aiTeamOS 品牌图标已统一。
+  OutcomeGo 品牌图标已统一。
 - Magpie 多模态模型元数据（[#198](https://github.com/raghavpillai/openteam/pull/198)）和网络修复
   （[#250](https://github.com/raghavpillai/openteam/pull/250)、
   [#251](https://github.com/raghavpillai/openteam/pull/251)）。
 
 完整清单见 [FORK.md](FORK.md)。
 
-当前发布版本是 `v0.1.0-beta.12`。桌面端、Android APK、服务端安装器和 CLI
-都发布在 [GitHub Releases](https://github.com/jingyi0605/ai-TeamOS/releases)。
+当前 GitHub 最新发布版本为 `v0.1.0-beta.13`。`v0.1.0-beta.14` 尚未发布；Android 签名 APK 和 macOS arm64 签名/公证包只在本地构建。beta.13 仍以旧名称和旧内部身份构建，不是 OutcomeGo beta.14。GitHub 仓库现为
+[`jingyi0605/OutcomeGo`](https://github.com/jingyi0605/OutcomeGo)，旧网页地址会跳转到新 slug；beta.13 Release 正文中的安装器命令仍指向旧 slug。签名、CI 和发布门槛见 [FORK.md](FORK.md)
+与[发布决策记录](specs/004.1-项目更名与下一版本发布/docs/release-decision.md)。
 
 ## 分支
 
 | 分支 | 用途 |
 | --- | --- |
-| `ai-TeamOS` | 默认分支和产品主线，定期合并上游。 |
+| `OutcomeGo` | GitHub 默认分支和产品主线，定期合并上游。 |
 | `main` | 上游 `main` 的镜像，不接收本地提交。向上游提交 PR 从这里开始。 |
 
 ## OpenTeam 提供的能力
@@ -231,40 +232,42 @@ Agent 可以自行读取已授权的数据、做调研、写草稿、更新内�
 
 你需要一台 **x64 或 arm64 机器**，运行 **面向 Linux 容器的 Docker Engine** 和 **Docker Compose 2.20+**。
 建议 **8 GB 内存**和 **8 GB 可用磁盘**。在 macOS 和 Windows 上，Docker Desktop 会提供引擎和 Compose。
-参见[环境要求](https://openteam.so/docs/getting-started/installation#requirements)（上游英文文档）。
+参见[环境要求](docs/getting-started/installation.md#requirements)。
 
-### 1. 安装 aiTeamOS 服务端
+### 1. 安装服务端
+
+当前公开的 `latest` 安装器对应 beta.13 旧版身份，会安装旧版服务端和 CLI。OutcomeGo beta.14 尚未发布。请先在 [Releases](https://github.com/jingyi0605/OutcomeGo/releases) 确认目标版本，不要将 beta.13 当作 OutcomeGo beta.14 安装。
 
 在将要托管 bot 的机器上运行。
 
 **macOS / Linux**
 
 ```sh
-curl -fsSL https://github.com/jingyi0605/ai-TeamOS/releases/latest/download/install.sh | sh
+curl -fsSL https://github.com/jingyi0605/OutcomeGo/releases/latest/download/install.sh | sh
 ```
 
 **Windows PowerShell**
 
 ```powershell
-irm https://github.com/jingyi0605/ai-TeamOS/releases/latest/download/install.ps1 | iex
+irm https://github.com/jingyi0605/OutcomeGo/releases/latest/download/install.ps1 | iex
 ```
 
-安装器会下载 aiTeamOS CLI，把它加入 `PATH`，并启动引导式设置。不需要 Node.js 和 Bun。
+安装器会下载 OutcomeGo CLI，把它加入 `PATH`，并启动引导式设置。不需要 Node.js 和 Bun。
 
 ### 2. 完成设置
 
-选择连接方式，然后创建你的 aiTeamOS 用户名和密码。设置默认使用局域网或 VPN 上的私有连接，
+选择连接方式，然后创建你的 OutcomeGo 用户名和密码。设置默认使用局域网或 VPN 上的私有连接，
 启动服务端，并打印你的**服务器地址**。
 设置中包含私有 Tailscale HTTPS、公开 HTTPS 和已有代理等选项。使用
-`aiteamos setup --advanced` 可调整更多服务端设置。
+`outcomego setup --advanced` 可调整更多服务端设置。
 
 ### 3. 打开应用
 
-[下载桌面端](https://github.com/jingyi0605/ai-TeamOS/releases/latest)，输入设置时得到的服务器地址，并用刚创建的账号登录。
+[下载桌面端](https://github.com/jingyi0605/OutcomeGo/releases/latest)，输入设置时得到的服务器地址，并用刚创建的账号登录。
 应用随后会帮你用 ChatGPT 或 Claude 登录，或用 OpenAI、Anthropic、OpenRouter 的 API 密钥连接模型，并检查它能否回复。
 然后创建你的第一个 bot 并发给它一个任务。要使用自己的模型服务，请在桌面端的
-**设置 → 模型**中添加服务商；也可以在主机上执行 `aiteamos provider add`。
-标准协议、自定义服务商和本地模型的说明参见[模型服务商](https://openteam.so/docs/configuration/models#use-your-own-model-server)。
+**设置 → 模型**中添加服务商；也可以在主机上执行 `outcomego provider add`。
+标准协议、自定义服务商和本地模型的说明参见[模型服务商](docs/configuration/models.md#use-your-own-model-server)。
 
 主机和 Docker 必须保持运行，bot 和例行任务才能工作。关闭应用后，服务端的工作会继续。
 当 bot 需要访问你的物理电脑时，请保持桌面端打开。
@@ -273,8 +276,8 @@ irm https://github.com/jingyi0605/ai-TeamOS/releases/latest/download/install.ps1
 
 | 应用 | 获取方式 |
 | --- | --- |
-| macOS（Apple 芯片）、Linux（x64）和 Windows（x64）桌面端 | [GitHub Releases](https://github.com/jingyi0605/ai-TeamOS/releases/latest) |
-| Android 8.0+ | [GitHub Releases](https://github.com/jingyi0605/ai-TeamOS/releases/latest) 或[从源码构建](apps/android/README.md) |
+| macOS（Apple 芯片）、Linux（x64）和 Windows（x64）桌面端 | [GitHub Releases](https://github.com/jingyi0605/OutcomeGo/releases/latest) |
+| Android 8.0+ | [GitHub Releases](https://github.com/jingyi0605/OutcomeGo/releases/latest) 或[从源码构建](apps/android/README.md) |
 | iPhone / iPad（测试版） | [从源码构建](apps/ios/README.md) |
 
 所有应用都连接到你的服务端进行聊天和查看实时屏幕。大多数服务端设置（例如模型）都在桌面端里。
@@ -282,28 +285,28 @@ irm https://github.com/jingyi0605/ai-TeamOS/releases/latest/download/install.ps1
 ## 常用命令
 
 ```sh
-aiteamos status    # 检查服务端及其版本
-aiteamos doctor    # 诊断设置或连接问题
-aiteamos setup     # 更改连接方式
-aiteamos update    # 更新 CLI 和服务端，带备份和回滚
+outcomego status    # 检查服务端及其版本
+outcomego doctor    # 诊断设置或连接问题
+outcomego setup     # 更改连接方式
+outcomego update    # 更新 CLI 和服务端，带备份和回滚
 ```
 
-日常运维参见[服务端命令](https://openteam.so/docs/manage/server)、
-[远程访问](https://openteam.so/docs/configuration/remote-access)、
-[备份](https://openteam.so/docs/manage/backups)和[故障排查](https://openteam.so/docs/manage/troubleshooting)。
+日常运维参见[服务端命令](docs/manage/server.md)、
+[远程访问](docs/configuration/remote-access.md)、
+[备份](docs/manage/backups.md)和[故障排查](docs/manage/troubleshooting.md)。
 
 ## 文档
 
 - [FORK.md](FORK.md)：本分支的署名、分支规则、标识符和改动清单。
-- [服务端设置](https://openteam.so/docs/configuration/server)：设置完成后在哪里修改各项设置。
-- [插件](https://openteam.so/docs/usage/plugins)：连接账号并控制 bot 的访问权限。
-- [托管如何工作](https://openteam.so/docs/overview/architecture)：什么运行在哪里，什么必须保持开启。
-- [从源码开发](https://openteam.so/docs/development/from-source)：从源码运行并执行检查。
+- [服务端设置](docs/configuration/server.md)：设置完成后在哪里修改各项设置。
+- [插件](docs/usage/plugins.md)：连接账号并控制 bot 的访问权限。
+- [托管如何工作](docs/overview/architecture.md)：什么运行在哪里，什么必须保持开启。
+- [从源码开发](docs/development/from-source.md)：从源码运行并执行检查。
 
-更多功能指南和实现说明见[上游全部文档](https://openteam.so/docs)（英文）。
+OpenTeam 上游项目见 [github.com/raghavpillai/openteam](https://github.com/raghavpillai/openteam)。
 
 ## 许可证
 
-aiTeamOS 采用 [GNU 通用公共许可证 v3.0](LICENSE)，与 OpenTeam 相同。部分捆绑的第三方组件，
+OutcomeGo 采用 [GNU 通用公共许可证 v3.0](LICENSE)，与 OpenTeam 相同。部分捆绑的第三方组件，
 例如 noVNC、字体和少数插件，保留各自的许可证，许可证文件随组件一并提供。
 “OpenTeam”及其标志属于上游作者。

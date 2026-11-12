@@ -1,13 +1,13 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "../../src/renderer/styles.css";
-if (window.aiteamos) throw new Error("Synthetic fixture requires an isolated window");
+if (window.outcomego) throw new Error("Synthetic fixture requires an isolated window");
 window.fetch = async () => {
   throw new Error("Network disabled in update fixture");
 };
 window.open = () => null;
-const listeners = new Set<(status: AiTeamOSUpdateStatus) => void>();
-let state: AiTeamOSUpdateStatus = {
+const listeners = new Set<(status: OutcomeGoUpdateStatus) => void>();
+let state: OutcomeGoUpdateStatus = {
   currentVersion: "0.46.0",
   latestVersion: "0.47.0",
   status: "available",
@@ -27,8 +27,8 @@ declare global {
       failDownload: boolean;
       failInstall: boolean;
       ready?: boolean;
-      emit: (next: Partial<AiTeamOSUpdateStatus>) => void;
-      snapshot: () => AiTeamOSUpdateStatus;
+      emit: (next: Partial<OutcomeGoUpdateStatus>) => void;
+      snapshot: () => OutcomeGoUpdateStatus;
       reopen?: () => void;
     };
   }
@@ -39,7 +39,7 @@ const fixture = (window.fixture = {
   downloads: 0,
   failDownload: false,
   failInstall: false,
-  emit(next: Partial<AiTeamOSUpdateStatus>) {
+  emit(next: Partial<OutcomeGoUpdateStatus>) {
     state = { ...state, ...next };
     for (const listener of listeners) listener(state);
   },
@@ -47,12 +47,12 @@ const fixture = (window.fixture = {
     return state;
   },
 });
-window.aiteamos = {
+window.outcomego = {
   versions: { app: "0.46.0" },
   updates: {
     status: async () => state,
     check: async () => state,
-    onClientProgress(listener: (status: AiTeamOSUpdateStatus) => void) {
+    onClientProgress(listener: (status: OutcomeGoUpdateStatus) => void) {
       listeners.add(listener);
       return () => listeners.delete(listener);
     },
@@ -78,7 +78,7 @@ window.aiteamos = {
       return () => {};
     },
   },
-} as unknown as NonNullable<Window["aiteamos"]>;
+} as unknown as NonNullable<Window["outcomego"]>;
 const [
   { AccountMenu },
   { DesktopUpdateDialog },
@@ -87,11 +87,11 @@ const [
   { default: UpdatesSettings },
   { Button },
 ] = await Promise.all([
-  import("../../src/renderer/components/aiteamos/sidebar"),
-  import("../../src/renderer/components/aiteamos/desktop-update-dialog"),
+  import("../../src/renderer/components/outcomego/sidebar"),
+  import("../../src/renderer/components/outcomego/desktop-update-dialog"),
   import("../../src/renderer/components/ui/tooltip"),
   import("../../src/renderer/lib/desktop-update"),
-  import("../../src/renderer/components/aiteamos/settings/updates"),
+  import("../../src/renderer/components/outcomego/settings/updates"),
   import("../../src/renderer/components/ui/button"),
 ]);
 window.fixture.reopen = () => requestDesktopUpdateRestart(state);

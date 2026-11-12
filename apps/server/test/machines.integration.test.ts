@@ -1,9 +1,9 @@
 import {test,expect} from "bun:test";
-import {createPrismaClient} from "@aiteamos/db";
+import {createPrismaClient} from "@outcomego/db";
 import {MachineService} from "../src/services/machine-service";
 import {MachineDirectory} from "../../computer/src/machine-directory";
-test.skipIf(!process.env.AITEAMOS_TEST_DATABASE_URL)("registered machines survive disconnects and route selected computers",async()=>{
- const db=createPrismaClient(process.env.AITEAMOS_TEST_DATABASE_URL!);
+test.skipIf(!process.env.OUTCOMEGO_TEST_DATABASE_URL)("registered machines survive disconnects and route selected computers",async()=>{
+ const db=createPrismaClient(process.env.OUTCOMEGO_TEST_DATABASE_URL!);
  const id=crypto.randomUUID();let online=true;
  const bridge=Bun.serve({hostname:"127.0.0.1",port:0,fetch(request){expect(request.headers.get("authorization")).toBe("Bearer fixture");return online ? Response.json({machines:[{machineId:id,label:"Fixture laptop",}]}) : new Response(null,{status:503});}});
  const service=new MachineService(db,"fixture");
@@ -25,21 +25,21 @@ test.skipIf(!process.env.AITEAMOS_TEST_DATABASE_URL)("registered machines surviv
  }finally{service.relay.close();bridge.stop(true);api.stop(true);await service.remove(id);await db.$disconnect();}
 });
 
-test.skipIf(!process.env.AITEAMOS_TEST_DATABASE_URL)("auth-disabled enrollment is rejected after required authentication is enabled",async()=>{
- const db=createPrismaClient(process.env.AITEAMOS_TEST_DATABASE_URL!);
+test.skipIf(!process.env.OUTCOMEGO_TEST_DATABASE_URL)("auth-disabled enrollment is rejected after required authentication is enabled",async()=>{
+ const db=createPrismaClient(process.env.OUTCOMEGO_TEST_DATABASE_URL!);
  const disabled=new MachineService(db,"fixture",undefined,undefined,true),required=new MachineService(db,"fixture");
  const machineId=crypto.randomUUID();
  try{
   const result=await disabled.enroll({machineId,label:"Local fixture",},null);
-  const request=new Request("http://fixture/channel",{headers:{authorization:`Bearer ${result.credential}`,"x-aiteamos-machine-id":machineId}});
+  const request=new Request("http://fixture/channel",{headers:{authorization:`Bearer ${result.credential}`,"x-outcomego-machine-id":machineId}});
   expect((await disabled.authenticate(request)).machineId).toBe(machineId);
   await expect(required.authenticate(request)).rejects.toThrow("no longer authorized");
   await expect(required.assertRoutable(machineId)).rejects.toThrow("not available");
  }finally{disabled.relay.close();required.relay.close();await db.hostMachine.deleteMany({where:{machineId}});await db.$disconnect();}
 });
 
-test.skipIf(!process.env.AITEAMOS_TEST_DATABASE_URL)("Messages runs on a connected Mac that turned it on and fails over when one sleeps",async()=>{
- const db=createPrismaClient(process.env.AITEAMOS_TEST_DATABASE_URL!);
+test.skipIf(!process.env.OUTCOMEGO_TEST_DATABASE_URL)("Messages runs on a connected Mac that turned it on and fails over when one sleeps",async()=>{
+ const db=createPrismaClient(process.env.OUTCOMEGO_TEST_DATABASE_URL!);
  const service=new MachineService(db,"fixture",undefined,undefined,true);
  const air:string=crypto.randomUUID(),mini:string=crypto.randomUUID(),phone:string=crypto.randomUUID();
  const ready={enabled:true,fullDiskAccess:true,automation:"granted",contacts:"granted"};

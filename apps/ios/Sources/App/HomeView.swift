@@ -340,7 +340,7 @@ struct HomeView: View {
               if visible.isEmpty && store.bots.isEmpty && store.state.bootstrap != nil {
                 // Desktop's empty state: a server without bots has nothing to chat with yet.
                 VStack(alignment: .leading, spacing: 12) {
-                  Text("Bots do the work in OpenTeam. Create one to get started.")
+                  Text("Bots do the work in OutcomeGo. Create one to get started.")
                     .font(.subheadline).foregroundStyle(NativePalette.muted)
                     .fixedSize(horizontal: false, vertical: true)
                   Button("Create a bot") { if !store.syncingState { creation = .bot } }

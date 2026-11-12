@@ -1,4 +1,4 @@
-import type { Prisma } from "@aiteamos/db";
+import type { Prisma } from "@outcomego/db";
 
 /** Public transcript addresses are distinct from private database IDs. */
 export async function nextMessageAddress(tx: Prisma.TransactionClient, channelId: string, sender: "user" | "agent") {

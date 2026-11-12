@@ -1,4 +1,4 @@
-import { ApiError } from "@aiteamos/contracts";
+import { ApiError } from "@outcomego/contracts";
 import type { ComputerFetch } from "./service-utils";
 
 export async function provisionDirectories(computerFetch: ComputerFetch, paths: string[]) {

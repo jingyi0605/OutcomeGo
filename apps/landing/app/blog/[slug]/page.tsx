@@ -104,17 +104,17 @@ export default async function BlogPostPage({ params }: Props) {
           {showContents && <InlineTableOfContents headings={sections} />}
           {/* HTML is compiled from checked-in Markdown, with raw HTML escaped. */}
           <DocBody html={post.html} className="docs-prose blog-prose" />
-          <aside className="blog-cta" aria-label="Get aiTeamOS">
+          <aside className="blog-cta" aria-label="Get OutcomeGo">
             <div>
               <h2>Run your own AI team</h2>
               <p>
-                aiTeamOS is open source and self-hosted. Install the server with one command, then
+                OutcomeGo is open source and self-hosted. Install the server with one command, then
                 connect the desktop app.
               </p>
             </div>
             <div className="blog-cta-actions">
               <a className="ot-button" href="/download">
-                Install aiTeamOS <ArrowUpRight size={15} />
+                Install OutcomeGo <ArrowUpRight size={15} />
               </a>
               <Link className="blog-cta-secondary" href="/docs/getting-started/quickstart">
                 Read the quickstart

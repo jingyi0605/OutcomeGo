@@ -1,7 +1,7 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { installsPaths, readPackageSnapshot, readRecord, readReplayStatus, runCommand, type CommandRunner, type InstallsPaths, type ReplayStatus } from "../apt-packages";
 
-export const INSTALL_NOTICE_TYPE = "aiteamos-installs";
+export const INSTALL_NOTICE_TYPE = "outcomego-installs";
 
 /** What the last start couldn't bring back, leaving out packages installed again or forgotten since. */
 export function installNotice(status: ReplayStatus, installed: Record<string, string>, log: string, recorded?: ReadonlySet<string>): string | null {
@@ -13,7 +13,7 @@ export function installNotice(status: ReplayStatus, installed: Record<string, st
   if (failed.length)
     lines.push(
       `The computer restarted and could not reinstall these apt packages installed on it earlier: ${failed.map(({ name, reason }) => `${name} (${reason})`).join("; ")}. ` +
-        `It won't try again until the computer's image changes. If they are still needed, install them again another way; otherwise run \`sudo aiteamos-installs forget ${failed.map(({ name }) => name).join(" ")}\` so they stop being tracked.`
+        `It won't try again until the computer's image changes. If they are still needed, install them again another way; otherwise run \`sudo outcomego-installs forget ${failed.map(({ name }) => name).join(" ")}\` so they stop being tracked.`
     );
   if (pending.length)
     lines.push(`These apt packages installed earlier are not back yet, because the network or their apt source was unreachable at start: ${pending.join(", ")}. The computer tries again at its next start.`);
@@ -26,7 +26,7 @@ export function installNotice(status: ReplayStatus, installed: Record<string, st
     lines.push(node.rebuilt
       ? `The computer's Node.js changed from ${node.from} to ${node.to}, so global npm packages in /usr/local were rebuilt for it.`
       : `The computer's Node.js changed from ${node.from} to ${node.to}, and rebuilding global npm packages in /usr/local failed; packages with native code need \`sudo npm rebuild -g\` or a reinstall.`);
-  return lines.length ? `<system_reminder>\n${lines.join("\n")} The details are in ${log}; \`aiteamos-installs\` lists what the computer reinstalls.\n</system_reminder>` : null;
+  return lines.length ? `<system_reminder>\n${lines.join("\n")} The details are in ${log}; \`outcomego-installs\` lists what the computer reinstalls.\n</system_reminder>` : null;
 }
 
 /**

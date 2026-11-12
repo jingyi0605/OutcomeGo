@@ -8,7 +8,7 @@ import { createHash } from "node:crypto";
 import { compactionObservation, inferCompaction } from "../src/runtime/compaction";
 import { ComputerRuntime } from "../src/runtime";
 import { BotCompactionArchiveStore, BotCompactionCoordinator } from "../src/bot-compaction";
-import { replaceTaskProgressContext } from "@aiteamos/contracts/task-progress";
+import { replaceTaskProgressContext } from "@outcomego/contracts/task-progress";
 import { InMemoryCredentialStore } from "@earendil-works/pi-ai";
 import { streamSimple } from "@earendil-works/pi-ai/api/openai-completions";
 import { ModelRuntime, SessionManager } from "@earendil-works/pi-coding-agent";
@@ -25,7 +25,7 @@ if (!keyPath)
   );
 const key = readFileSync(keyPath, "utf8").trim();
 if (!key) throw Error("Inference key file is empty");
-const outputRoot = option("out", "/tmp/aiteamos-long-horizon-runs");
+const outputRoot = option("out", "/tmp/outcomego-long-horizon-runs");
 mkdirSync(outputRoot, { recursive: true });
 const root = join(outputRoot, id);
 mkdirSync(root, { recursive: false });
@@ -299,7 +299,7 @@ try {
       snapshots: manager
         .getEntries()
         .filter(
-          (e: any) => e.type === "custom_message" && e.customType === "aiteamos-task-progress"
+          (e: any) => e.type === "custom_message" && e.customType === "outcomego-task-progress"
         )
         .map((e: any) => ({ display: e.display, content: e.content })),
     };

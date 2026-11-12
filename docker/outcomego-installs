@@ -1,0 +1,4 @@
+#!/bin/sh
+# What the computer reinstalls at start: `outcomego-installs` lists it,
+# `sudo outcomego-installs forget NAME...` stops tracking a package.
+exec /usr/lib/outcomego/bin/bun /app/apps/computer/dist/installs-cli.js "${@:-status}"

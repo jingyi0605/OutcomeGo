@@ -5,11 +5,11 @@ import type {
   PiReasoningLevel,
   PluginDynamicNamespace,
   SubagentType,
-} from "@aiteamos/contracts";
+} from "@outcomego/contracts";
 import type { BotArchiveBlob, BotMessage } from "../bot-compaction";
 import type { ComputerEventQueue } from "../computer-event-queue";
 import type { DynamicToolDefinition } from "../dynamic-tool-gateway";
-import type { TaskConfiguration } from "@aiteamos/contracts/task-configuration";
+import type { TaskConfiguration } from "@outcomego/contracts/task-configuration";
 
 export type TurnStatus = "completed" | "failed" | "interrupted" | "cancelled";
 
@@ -17,7 +17,7 @@ export interface ActiveTurn {
   taskConfiguration?: TaskConfiguration;
   /** A connected Mac had Messages turned on when the turn started, so the Messages tools are offered. */
   messagesAvailable?: boolean;
-  pluginRuntimePackages?: readonly import("@aiteamos/plugin-sdk").PluginRuntimePackage[];
+  pluginRuntimePackages?: readonly import("@outcomego/plugin-sdk").PluginRuntimePackage[];
   pluginAbortController?: AbortController;
   closePluginSession?: () => Promise<void>;
   readOnly?: boolean;

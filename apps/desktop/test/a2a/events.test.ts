@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { ChannelMessageView } from "@aiteamos/contracts";
+import type { ChannelMessageView } from "@outcomego/contracts";
 import { a2aProjectionFor, collapseA2ATimeline } from "../../src/renderer/lib/a2a-events";
 
 const stamp = "2026-08-27T18:16:22.238Z";

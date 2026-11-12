@@ -1,6 +1,6 @@
 import XCTest
 
-@testable import OpenTeamCore
+@testable import OutcomeGoCore
 
 final class AuthorizationPresentationTests: XCTestCase {
   func testConnectTimeoutStillObservesLateDesktopApproval() {
@@ -98,7 +98,7 @@ final class AuthorizationPresentationTests: XCTestCase {
       connection["authorizationUrl"] = .string(url.url!.absoluteString)
       XCTAssertTrue(MobilePluginAuthorization.requiresDesktop(connection))
     }
-    connection["authorizationUrl"] = .string("https://accounts.example.test/start?state=one&redirect_uri=https%3A%2F%2Fopenteam.example.com%2Fcallback")
+    connection["authorizationUrl"] = .string("https://accounts.example.test/start?state=one&redirect_uri=https%3A%2F%2Foutcomego.example.com%2Fcallback")
     XCTAssertFalse(MobilePluginAuthorization.requiresDesktop(connection))
     connection["auth"] = .string("token")
     XCTAssertFalse(MobilePluginAuthorization.requiresDesktop(connection))

@@ -7,7 +7,7 @@ import { checkTranscription } from "../src/transcription-check";
 import { renderDoctor } from "../src/doctor-ui";
 
 test("doctor checks transcription through the authenticated server and reports optional setup", async () => {
-  const directory = await mkdtemp(join(tmpdir(), "aiteamos-transcription-doctor-"));
+  const directory = await mkdtemp(join(tmpdir(), "outcomego-transcription-doctor-"));
   const token = "private-installation-token";
   let response = Response.json({
     level: "warn",
@@ -32,7 +32,7 @@ test("doctor checks transcription through the authenticated server and reports o
     const paths = installationPaths(directory);
     await writeFile(
       paths.environment,
-      `AITEAMOS_CONTROL_TOKEN=${token}\nAITEAMOS_API_PORT=${server.port}\n`
+      `OUTCOMEGO_CONTROL_TOKEN=${token}\nOUTCOMEGO_API_PORT=${server.port}\n`
     );
     const missing = await checkTranscription(paths);
     expect(missing).toMatchObject({ label: "Transcription", level: "warn" });

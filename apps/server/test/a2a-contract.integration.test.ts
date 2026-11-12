@@ -5,12 +5,12 @@ import { join } from "node:path";
 import { Effect } from "effect";
 import { AppService } from "../src/app-service";
 
-const databaseUrl = process.env.AITEAMOS_TEST_DATABASE_URL;
+const databaseUrl = process.env.OUTCOMEGO_TEST_DATABASE_URL;
 
 test("source-verified Bot A2A errors, group rows, and channel updates run end to end", async () => {
   if (!databaseUrl) return;
 
-  const workspace = join(tmpdir(), `aiteamos-a2a-contract-${crypto.randomUUID()}`);
+  const workspace = join(tmpdir(), `outcomego-a2a-contract-${crypto.randomUUID()}`);
   await mkdir(workspace, { recursive: true });
   const fakeComputer = Bun.serve({
     hostname: "127.0.0.1",
@@ -43,15 +43,15 @@ test("source-verified Bot A2A errors, group rows, and channel updates run end to
   });
 
   process.env.DATABASE_URL = databaseUrl;
-  process.env.AITEAMOS_COMPUTER_URL = `http://127.0.0.1:${fakeComputer.port}`;
-  process.env.AITEAMOS_CONTROL_TOKEN = "a2a-contract-control-token";
-  process.env.AITEAMOS_WORKSPACE_ROOT = workspace;
-  process.env.AITEAMOS_AGENT_DATA_ROOT = join(workspace, "agent-data");
+  process.env.OUTCOMEGO_COMPUTER_URL = `http://127.0.0.1:${fakeComputer.port}`;
+  process.env.OUTCOMEGO_CONTROL_TOKEN = "a2a-contract-control-token";
+  process.env.OUTCOMEGO_WORKSPACE_ROOT = workspace;
+  process.env.OUTCOMEGO_AGENT_DATA_ROOT = join(workspace, "agent-data");
 
   const app = new AppService();
   try {
     await app.prisma.$executeRawUnsafe(
-      'TRUNCATE TABLE "Computer", "Bot", "OutboxDelivery", "Event", "IdempotencyRecord" CASCADE'
+      'TRUNCATE TABLE "outcomego_computer", "outcomego_bot", "outcomego_outbox_delivery", "outcomego_event", "outcomego_idempotency_record" CASCADE'
     );
     await Effect.runPromise(app.boot());
     const source = await Effect.runPromise(

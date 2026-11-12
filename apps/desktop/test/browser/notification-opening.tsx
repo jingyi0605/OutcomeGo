@@ -1,11 +1,11 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import type { ChannelMessageView } from "@aiteamos/contracts";
-import type { ProductEventHandlers } from "@aiteamos/client-core";
-import { CLIENT_CAPABILITIES } from "@aiteamos/contracts/capabilities";
-import { emptySidebarPreferences } from "@aiteamos/contracts/client-preferences";
+import type { ChannelMessageView } from "@outcomego/contracts";
+import type { ProductEventHandlers } from "@outcomego/client-core";
+import { CLIENT_CAPABILITIES } from "@outcomego/contracts/capabilities";
+import { emptySidebarPreferences } from "@outcomego/contracts/client-preferences";
 import { mobileFixture } from "../../../ios/scripts/fixtures/snapshot";
-import { api, aiTeamOSClient } from "../../src/renderer/client/aiteamos-api";
+import { api, outcomeGoClient } from "../../src/renderer/client/outcomego-api";
 import App from "../../src/renderer/App";
 import "../../src/renderer/styles.css";
 
@@ -37,7 +37,7 @@ document.documentElement.dataset.theme = parameters.get("theme") ?? "dark";
 Object.defineProperty(document, "hidden", { configurable: true, value: true });
 Object.defineProperty(document, "hasFocus", { configurable: true, value: () => true });
 localStorage.clear();
-localStorage.setItem("aiteamos:selected-channel", other.id);
+localStorage.setItem("outcomego:selected-channel", other.id);
 const calls: Array<{
   kind: string;
   channelId?: string;
@@ -91,7 +91,7 @@ window.fetch = async (input) => {
     return Response.json({});
   throw new Error(`Unexpected network access in isolated fixture: ${path}`);
 };
-aiTeamOSClient.listenForEvents = async (_after, handlers, signal) => {
+outcomeGoClient.listenForEvents = async (_after, handlers, signal) => {
   eventHandlers = handlers;
   handlers.onOpen?.();
   await new Promise<void>((resolve) => {
@@ -171,7 +171,7 @@ Object.assign(api, {
     };
   },
 });
-window.aiteamos!.onNotificationClick((target) => bridgeTargets.push(target));
+window.outcomego!.onNotificationClick((target) => bridgeTargets.push(target));
 Object.assign(window, {
   notificationFixture: {
     channelId: channel.id,
@@ -236,7 +236,7 @@ Object.assign(window, {
               ]
             : [],
       }));
-      window.aiteamos!.notifications.sync({ cursor: String(cursor), channels: projection });
+      window.outcomego!.notifications.sync({ cursor: String(cursor), channels: projection });
     },
   },
 });

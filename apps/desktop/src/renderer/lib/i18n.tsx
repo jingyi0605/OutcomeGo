@@ -1,9 +1,9 @@
-import { LOCALE_OPTIONS, normalizeLocale, type Locale } from "@aiteamos/contracts/localization";
+import { LOCALE_OPTIONS, normalizeLocale, type Locale } from "@outcomego/contracts/localization";
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { setCurrentLocale, translate, type TranslationValues } from "./i18n-catalog";
 
-const STORAGE_KEY = "aiteamos.locale";
-const CHANGE_EVENT = "aiteamos-locale-change";
+const STORAGE_KEY = "outcomego.locale";
+const CHANGE_EVENT = "outcomego-locale-change";
 
 type ContextValue = {
   locale: Locale;
@@ -44,7 +44,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   }, [locale]);
   useEffect(() => {
     // Keeps the native macOS/Windows menu in sync when a language was restored from storage.
-    void window.aiteamos?.setApplicationMenuLocale?.(locale).catch(() => undefined);
+    void window.outcomego?.setApplicationMenuLocale?.(locale).catch(() => undefined);
   }, [locale]);
   const value = useMemo(
     () => ({

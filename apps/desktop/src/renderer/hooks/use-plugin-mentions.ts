@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import type { MentionOption } from "@aiteamos/product-core/mentions";
-import { api } from "../client/aiteamos-api";
+import type { MentionOption } from "@outcomego/product-core/mentions";
+import { api } from "../client/outcomego-api";
 import { useWindowActive } from "./use-window-active";
 
 export function usePluginMentions(botId?: string, enabled = true): MentionOption[] {
@@ -13,9 +13,9 @@ export function usePluginMentions(botId?: string, enabled = true): MentionOption
     const refresh = () => { void api.pluginComposer(botId).then((result) => { if (active) setItems(result.items); }).catch(() => { if (active) setItems([]); }); };
     refresh();
     window.addEventListener("focus", refresh);
-    window.addEventListener("aiteamos:plugins-changed", refresh);
+    window.addEventListener("outcomego:plugins-changed", refresh);
     const timer = setInterval(refresh, 30_000);
-    return () => { active = false; clearInterval(timer); window.removeEventListener("focus", refresh); window.removeEventListener("aiteamos:plugins-changed", refresh); };
+    return () => { active = false; clearInterval(timer); window.removeEventListener("focus", refresh); window.removeEventListener("outcomego:plugins-changed", refresh); };
   }, [botId, enabled, windowActive]);
   return items;
 }

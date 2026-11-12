@@ -1,8 +1,8 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
 import { Message, MessageContent, MessageResponse } from "../../src/renderer/components/ai-elements/message";
-import { RichMessage } from "../../src/renderer/components/aiteamos/rich-message";
-import type { ChannelMessageView } from "@aiteamos/contracts";
+import { RichMessage } from "../../src/renderer/components/outcomego/rich-message";
+import type { ChannelMessageView } from "@outcomego/contracts";
 import "../../src/renderer/styles.css";
 
 document.documentElement.dataset.theme = "light";

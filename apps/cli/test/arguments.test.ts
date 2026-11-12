@@ -10,10 +10,10 @@ describe("CLI arguments", () => {
   });
 
   test("recognizes the interactive setup command", () => {
-    expect(parseArguments(["setup", "--advanced", "--dir", "/tmp/aiteamos"])).toMatchObject({
+    expect(parseArguments(["setup", "--advanced", "--dir", "/tmp/outcomego"])).toMatchObject({
       command: "setup",
       advanced: true,
-      directory: "/tmp/aiteamos",
+      directory: "/tmp/outcomego",
     });
   });
 
@@ -148,7 +148,7 @@ describe("CLI arguments", () => {
 
   test("points the removed password reset alias to account update", () => {
     expect(() => parseArguments(["password", "reset"])).toThrow(
-      "use aiteamos account update --password"
+      "use outcomego account update --password"
     );
   });
 
@@ -179,7 +179,7 @@ describe("CLI arguments", () => {
         "--version",
         "1.2.3",
         "--dir",
-        "/tmp/aiteamos",
+        "/tmp/outcomego",
         "--repository",
         "owner/repo",
         "--allow-prerelease",
@@ -187,7 +187,7 @@ describe("CLI arguments", () => {
     ).toMatchObject({
       command: "install",
       version: "1.2.3",
-      directory: "/tmp/aiteamos",
+      directory: "/tmp/outcomego",
       repository: "owner/repo",
       allowPrerelease: true,
     });

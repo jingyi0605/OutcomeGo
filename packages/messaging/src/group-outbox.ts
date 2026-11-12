@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
-import { ApiError } from "@aiteamos/contracts";
-import type { Prisma } from "@aiteamos/db";
+import { ApiError } from "@outcomego/contracts";
+import type { Prisma } from "@outcomego/db";
 import { GROUP_MAX_MEMBER_TURNS, GROUP_MAX_MESSAGES_PER_TURN } from "./group-routing";
 import { nextMessageAddress } from "./message-address";
 import { publishMessageNotification } from "./notifications";

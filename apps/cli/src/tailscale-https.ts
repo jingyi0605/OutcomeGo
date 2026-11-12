@@ -248,7 +248,7 @@ export function removeTailscaleRoute(
   if (route === "free") return;
   if (route !== "matching")
     throw new CliError(
-      `Tailscale Serve port ${port} changed since aiTeamOS created it. It was preserved; inspect tailscale serve status before removing it manually.`
+      `Tailscale Serve port ${port} changed since OutcomeGo created it. It was preserved; inspect tailscale serve status before removing it manually.`
     );
   execute(runner, ["serve", `--https=${port}`, "off"]);
   if (tailscaleRoute(readTailscaleServe(runner), node.host, backendPort, port) !== "free")

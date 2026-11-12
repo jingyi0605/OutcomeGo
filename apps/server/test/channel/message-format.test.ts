@@ -51,7 +51,7 @@ describe("channel message interaction prompts", () => {
     );
   });
 
-  test("caps the reaction wake quote at aiTeamOS's 80-character limit", () => {
+  test("caps the reaction wake quote at outcomeGo's 80-character limit", () => {
     const prompt = formatUserReactionPrompt("👍", "x".repeat(120));
     expect(prompt).toContain(`${JSON.stringify(`${"x".repeat(79)}…`)}`);
     expect(prompt).not.toContain("x".repeat(80));

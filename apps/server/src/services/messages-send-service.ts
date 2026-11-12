@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
-import { ApiError, messagesSendRecipient, validateMessageSend, type MessagesSend } from "@aiteamos/contracts";
-import { type PrismaClient } from "@aiteamos/db";
-import { type AgentMessaging, type ToolContext, PRIORITY } from "@aiteamos/messaging";
+import { ApiError, messagesSendRecipient, validateMessageSend, type MessagesSend } from "@outcomego/contracts";
+import { type PrismaClient } from "@outcomego/db";
+import { type AgentMessaging, type ToolContext, PRIORITY } from "@outcomego/messaging";
 import type { MachineService } from "./machine-service";
 import { appendEvent, metadataRecord, serviceEffect, toJson } from "./service-utils";
 import { toChannelMessageView } from "./view-mappers";
@@ -103,7 +103,7 @@ export class MessagesSendService {
     const metadata = metadataRecord(message.metadata);
     const stored = metadataRecord(metadata.imessage) as unknown as StoredSend;
     if (!this.machines.relay.connected(stored.machineId))
-      return this.reopen(messageId, `${stored.machineLabel} is offline. Open aiTeamOS on that Mac, then press Send again.`);
+      return this.reopen(messageId, `${stored.machineLabel} is offline. Open OutcomeGo on that Mac, then press Send again.`);
     let result: Record<string, unknown>;
     try {
       // The Mac keeps a receipt per call ID, so pressing Send again never texts twice.
@@ -113,8 +113,8 @@ export class MessagesSendService {
       if (/outcome is uncertain|disconnected|already dispatched/i.test(reason)) return this.settle(messageId, "unknown", UNCONFIRMED_OUTCOME, false, !wake);
       // Nothing was sent: the card stays open, worded for the user, who fixes the setting and presses Send again.
       if (/Messages is turned off/i.test(reason))
-        return this.reopen(messageId, `Messages is turned off on ${stored.machineLabel}. Turn on Use Messages in aiTeamOS Settings → Computer there, then press Send again.`);
-      if (/has not granted aiTeamOS/i.test(reason))
+        return this.reopen(messageId, `Messages is turned off on ${stored.machineLabel}. Turn on Use Messages in OutcomeGo Settings → Computer there, then press Send again.`);
+      if (/has not granted OutcomeGo/i.test(reason))
         return this.reopen(messageId, `${stored.machineLabel} needs a macOS permission to send texts. Allow it in the window that opened on that Mac, then press Send again.`);
       return this.settle(messageId, "failed", `Nothing was sent: ${stored.machineLabel} refused the text (${reason}).`, wake, !wake, { sendError: reason.slice(0, 500) });
     }

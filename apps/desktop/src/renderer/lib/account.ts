@@ -1,5 +1,5 @@
-import type { AiTeamOSAuthMode, AiTeamOSAuthUser } from "../client/auth";
-import { accountInitials, accountName } from "@aiteamos/client-core/account";
+import type { OutcomeGoAuthMode, OutcomeGoAuthUser } from "../client/auth";
+import { accountInitials, accountName } from "@outcomego/client-core/account";
 
 export interface AccountPresentation {
   name: string;
@@ -9,8 +9,8 @@ export interface AccountPresentation {
 }
 
 export const accountPresentation = (
-  user: AiTeamOSAuthUser | null,
-  mode: AiTeamOSAuthMode
+  user: OutcomeGoAuthUser | null,
+  mode: OutcomeGoAuthMode
 ): AccountPresentation => {
   if (!user) {
     return {

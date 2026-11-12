@@ -10,7 +10,7 @@ import { Client } from "pg";
  * SQL is idempotent, so this runs after every push and is a no-op once applied.
  */
 const connectionString =
-  process.env.DATABASE_URL ?? "postgresql://aiteamos:aiteamos@127.0.0.1:5432/aiteamos";
+  process.env.DATABASE_URL ?? "postgresql://outcomego:outcomego@127.0.0.1:5432/outcomego";
 
 const sql = await readFile(
   join(import.meta.dirname, "..", "prisma", "sql", "raw-schema.sql"),

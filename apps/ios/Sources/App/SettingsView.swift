@@ -44,7 +44,7 @@ struct SettingsView: View {
           } label: {
             VStack(alignment: .leading, spacing: 3) {
               Text("Plugins").font(.body)
-              Text("Tools and skills for OpenTeam").font(.system(size: 13))
+              Text("Tools and skills for OutcomeGo").font(.system(size: 13))
                 .foregroundStyle(NativePalette.muted)
             }.padding(.vertical, 3).frame(maxWidth: .infinity, alignment: .leading)
               .contentShape(Rectangle())
@@ -119,7 +119,7 @@ struct SettingsView: View {
         }
         Section {
           NavigationLink("More preferences") { NativePreferencesView() }
-          Link("Help Center", destination: URL(string: "https://github.com/raghavpillai/openteam#readme")!)
+          Link("Help Center", destination: URL(string: "https://github.com/jingyi0605/OutcomeGo/blob/OutcomeGo/README.md")!)
         }
         Section {
           Button(store.requiresAuthentication ? "Sign out" : "Disconnect", role: .destructive) {
@@ -280,7 +280,7 @@ struct ManageDevicesView: View {
       if let failure { InlineFailure(message: failure) }
       Section {
         if machines.isEmpty {
-          Text("Open the OpenTeam desktop app on a computer and sign in to add it here.")
+          Text("Open the OutcomeGo desktop app on a computer and sign in to add it here.")
             .font(.subheadline).foregroundStyle(NativePalette.muted)
         }
         ForEach(machines.indices, id: \.self) { index in

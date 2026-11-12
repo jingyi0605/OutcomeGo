@@ -1,10 +1,10 @@
-import { CLIENT_CAPABILITIES } from "@aiteamos/contracts/capabilities";
+import { CLIENT_CAPABILITIES } from "@outcomego/contracts/capabilities";
 import type {
   AssetKind,
   AssetRef,
   ChannelMessageView,
   MessageDeliveryStatusView,
-} from "@aiteamos/contracts";
+} from "@outcomego/contracts";
 import { clientErrorMessage } from "./redaction";
 
 export const DURABLE_SEND_SCHEMA_VERSION = 2;

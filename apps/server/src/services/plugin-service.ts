@@ -1,16 +1,16 @@
 import { createHash } from "node:crypto";
 import { equalOAuthState, validateDesktopCallback, parseManualCallback, oauthCallbackMode, MANUAL_OAUTH_REDIRECT, type PluginOAuthDesktopContext } from "../plugins/oauth-callback";
-import type { PluginOAuthCallbackInput } from "@aiteamos/contracts/plugin-management";
+import type { PluginOAuthCallbackInput } from "@outcomego/contracts/plugin-management";
 import { normalizeAccountLabel, pluginToolArguments } from "./plugin/tool-arguments";
-import { connectionNamespaces } from "@aiteamos/plugin-sdk";
-import type { ConfigurePluginConnectionInput, PluginTestInput, RunOrigin } from "@aiteamos/contracts";
-import { ApiError } from "@aiteamos/contracts";
-import type { Prisma, PrismaClient } from "@aiteamos/db";
-import type { AgentDataStore } from "@aiteamos/messaging";
+import { connectionNamespaces } from "@outcomego/plugin-sdk";
+import type { ConfigurePluginConnectionInput, PluginTestInput, RunOrigin } from "@outcomego/contracts";
+import { ApiError } from "@outcomego/contracts";
+import type { Prisma, PrismaClient } from "@outcomego/db";
+import type { AgentDataStore } from "@outcomego/messaging";
 import { Effect, Either } from "effect";
 import { McpHttpClientManager } from "../plugins/mcp-client-manager";
 import { OAuthReauthorizationRequiredError } from "../plugins/packaged-oauth";
-import { AiTeamOSMarketplaceSource } from "../plugins/aiteamos-marketplace";
+import { OutcomeGoMarketplaceSource } from "../plugins/outcomego-marketplace";
 import { PluginManagement } from "./plugin/management";
 import { PluginConfiguration } from "./plugin/configuration";
 import {
@@ -20,7 +20,7 @@ import {
   type ConfigValue,
   type PluginDefinition,
   type PluginToolDefinition,
-} from "@aiteamos/plugin-sdk";
+} from "@outcomego/plugin-sdk";
 import { PluginConnectors } from "./plugin/connectors";
 import type { PollableConnection } from "./plugin/events";
 import { PluginInstallations } from "./plugin/installations";
@@ -65,8 +65,8 @@ const USER_STARTED_RUN_ORIGINS: ReadonlySet<RunOrigin> = new Set(["user"]);
 export const describeInstallNotUserTurn = (displayName: string, origin?: RunOrigin) =>
   origin === "group"
     // Adapted: a user can start a room turn, so the reference's "did not start this turn" would be false there.
-    ? `Nothing was installed: this is a group-room turn, and installing adds ${displayName} to your user's account, which happens only when they ask for it in their own 1:1 chat with you. If your user wants ${displayName}, ask them to continue in your 1:1 chat (pass "to":"dm" on SendToUser to reach it) or to add it themselves in aiTeamOS.`
-    : `Nothing was installed: the user did not start this turn, and installing adds ${displayName} to their account. Only install when the user asks for it in their own chat with you, never on a turn a routine, another agent, or a Slack or Teams message started. Tell the user this needs ${displayName}, which they can add themselves in aiTeamOS.`;
+    ? `Nothing was installed: this is a group-room turn, and installing adds ${displayName} to your user's account, which happens only when they ask for it in their own 1:1 chat with you. If your user wants ${displayName}, ask them to continue in your 1:1 chat (pass "to":"dm" on SendToUser to reach it) or to add it themselves in OutcomeGo.`
+    : `Nothing was installed: the user did not start this turn, and installing adds ${displayName} to their account. Only install when the user asks for it in their own chat with you, never on a turn a routine, another agent, or a Slack or Teams message started. Tell the user this needs ${displayName}, which they can add themselves in OutcomeGo.`;
 
 export class PluginService {
   readonly fileTransfers: ConnectorFileTransfers;
@@ -87,10 +87,10 @@ export class PluginService {
   private healthTimer?: ReturnType<typeof setInterval>;
   private healthCheckRunning = false;
 
-  private readonly marketplace = new AiTeamOSMarketplaceSource();
+  private readonly marketplace = new OutcomeGoMarketplaceSource();
   private readonly publicUrl =
-    process.env.AITEAMOS_PUBLIC_URL ?? `http://127.0.0.1:${process.env.AITEAMOS_PORT ?? "8787"}`;
-  private readonly authMode = parseAuthMode(process.env.AITEAMOS_AUTH_MODE);
+    process.env.OUTCOMEGO_PUBLIC_URL ?? `http://127.0.0.1:${process.env.OUTCOMEGO_PORT ?? "8787"}`;
+  private readonly authMode = parseAuthMode(process.env.OUTCOMEGO_AUTH_MODE);
 
   constructor(
     private readonly prisma: PrismaClient,
@@ -471,8 +471,8 @@ export class PluginService {
         requiresUserAction: true,
         pluginId: connection.installation.pluginKey,
         accountLabel: connection.alias,
-        setupUrl: `aiteamos://app/v1/plugin/add?id=${encodeURIComponent(connection.installation.pluginKey)}`,
-        instructions: `Open this plugin in aiTeamOS and start sign-in for account ${JSON.stringify(connection.alias)}${force ? " (use Reauthorize in account settings for an already connected account)" : ""}. If an older sign-in is pending, select Start again. Complete sign-in there; do not paste the callback into chat.`,
+        setupUrl: `outcomego://app/v1/plugin/add?id=${encodeURIComponent(connection.installation.pluginKey)}`,
+        instructions: `Open this plugin in OutcomeGo and start sign-in for account ${JSON.stringify(connection.alias)}${force ? " (use Reauthorize in account settings for an already connected account)" : ""}. If an older sign-in is pending, select Start again. Complete sign-in there; do not paste the callback into chat.`,
       };
     }
     return runAuthentication(this.authenticate(connectionId, force));
@@ -487,7 +487,7 @@ export class PluginService {
         desktop = { redirectUrl: MANUAL_OAUTH_REDIRECT, sessionId, mode: "manual" };
     }
     if (desktop && this.authMode === "required" && !desktop.sessionId)
-      throw new ApiError(409, "plugin_oauth_session_required", "Open this connection in aiTeamOS and start sign-in from your signed-in session.");
+      throw new ApiError(409, "plugin_oauth_session_required", "Open this connection in OutcomeGo and start sign-in from your signed-in session.");
     if (desktop) validateDesktopCallback(desktop.redirectUrl);
     const existing = this.authenticationStarts.get(connectionId);
     if (existing) {
@@ -550,7 +550,7 @@ export class PluginService {
           credentials: toJson(next),
           runtimeGeneration: { increment: 1 },
           status: "needs_auth",
-          statusMessage: desktop?.mode === "manual" ? "Approve access in your browser, then paste the complete callback URL into aiTeamOS." : "Waiting for authorization in your browser.",
+          statusMessage: desktop?.mode === "manual" ? "Approve access in your browser, then paste the complete callback URL into OutcomeGo." : "Waiting for authorization in your browser.",
           lastCheckedAt: new Date(),
         },
       });
@@ -1060,7 +1060,7 @@ export class PluginService {
   updateReleasedPlugins = async (): Promise<string[]> => {
     const updated = await Effect.runPromise(this.management.updateReleased());
     for (const plugin of updated)
-      console.log(`Updated plugin ${plugin.key} ${plugin.from} -> ${plugin.to} with this aiTeamOS release`);
+      console.log(`Updated plugin ${plugin.key} ${plugin.from} -> ${plugin.to} with this OutcomeGo release`);
     return updated.flatMap((plugin) => plugin.reconnect);
   };
 
@@ -1141,7 +1141,7 @@ export class PluginService {
     activityKind = "connection.ready"
   ) {
     return this.prisma.$transaction(async (tx) => {
-      await tx.$queryRaw`SELECT id FROM "PluginConnection" WHERE id = ${connection.id}::uuid FOR UPDATE`;
+      await tx.$queryRaw`SELECT id FROM "outcomego_plugin_connection" WHERE id = ${connection.id}::uuid FOR UPDATE`;
       const current = await tx.pluginConnection.findUnique({
         where: { id: connection.id },
         include: { installation: true },

@@ -912,11 +912,11 @@ bun scripts/test-outcome-recovery.ts --scenario upgrade-from-beta-13
 
 | 区域 | 命令/检查 |
 |---|---|
-| Contracts | `bun --filter @aiteamos/contracts typecheck`、聚焦 tests |
-| DB | `bun --filter @aiteamos/db db:generate`、migration integration |
+| Contracts | `bun --filter @outcomego/contracts typecheck`、聚焦 tests |
+| DB | `bun --filter @outcomego/db db:generate`、migration integration |
 | Server | `bun test apps/server/test/outcome* apps/server/test/notification*` |
 | Worker | `bun test apps/worker/test/*outcome* apps/worker/test/*lifecycle*` |
-| Desktop | `bun --filter @aiteamos/desktop typecheck`、focused tests |
+| Desktop | `bun --filter @outcomego/desktop typecheck`、focused tests |
 | Android | `bash scripts/android/package-debug.sh`、`bash scripts/android/release-gate.sh check` |
 | iOS | package/core/native config checks |
 | Recovery | `bun scripts/test-outcome-recovery.ts --scenario ...` |

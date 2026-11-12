@@ -1,5 +1,5 @@
-import { MAX_INLINE_IMAGE_BYTES, MAX_TASK_ATTACHMENTS, MAX_TASK_IMAGE_BYTES, TASK_ATTACHMENT_LIMIT_MESSAGE, TASK_IMAGE_MIME_TYPES, TASK_VIDEO_EXTENSIONS, unreadableTaskImageMessage } from "@aiteamos/contracts/media-input";
-import type { RuntimeInlineImage } from "@aiteamos/contracts";
+import { MAX_INLINE_IMAGE_BYTES, MAX_TASK_ATTACHMENTS, MAX_TASK_IMAGE_BYTES, TASK_ATTACHMENT_LIMIT_MESSAGE, TASK_IMAGE_MIME_TYPES, TASK_VIDEO_EXTENSIONS, unreadableTaskImageMessage } from "@outcomego/contracts/media-input";
+import type { RuntimeInlineImage } from "@outcomego/contracts";
 import { chown, mkdtemp, readdir, readFile, realpath, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { extname, isAbsolute, join, resolve, relative, sep } from "node:path";
@@ -42,7 +42,7 @@ const within = (root: string, path: string) => path === root || path.startsWith(
 export const attachmentRoots = (ownerBotId?: string): string[] => {
   const roots = ["/workspace"];
   if (ownerBotId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(ownerBotId)) {
-    roots.push(join(process.env.AITEAMOS_AGENT_DATA_ROOT ?? "/home/box/agent-data", "agents", ownerBotId, "attachments"));
+    roots.push(join(process.env.OUTCOMEGO_AGENT_DATA_ROOT ?? "/home/box/agent-data", "agents", ownerBotId, "attachments"));
   }
   return roots;
 };
@@ -72,7 +72,7 @@ export async function loadAttachmentImages(
         throw IMAGE_MIME_TYPES[extname(value).toLowerCase()] && (error as NodeJS.ErrnoException).code === "ENOENT"
           ? new Error(unreadableTaskImageMessage(value)) : error;
       };
-      const path = await attachmentPath(cwd, value, attachmentRoots(ownerBotId), process.env.AITEAMOS_AGENT_DATA_ROOT ?? "/home/box/agent-data").catch(missingImage);
+      const path = await attachmentPath(cwd, value, attachmentRoots(ownerBotId), process.env.OUTCOMEGO_AGENT_DATA_ROOT ?? "/home/box/agent-data").catch(missingImage);
       const details = await stat(path).catch(missingImage);
       if (!details.isFile()) throw new Error(`Subagent attachment is not a file: ${value}`);
       const extension = extname(path).toLowerCase();
@@ -92,7 +92,7 @@ export async function loadAttachmentImages(
       if (details.size > 500 * 1024 * 1024) {
         throw new Error(`Subagent video attachment exceeds 500 MB: ${value}`);
       }
-      const directory = await mkdtemp(join(tmpdir(), "aiteamos-video-frames-"));
+      const directory = await mkdtemp(join(tmpdir(), "outcomego-video-frames-"));
       tempDirectories.push(directory);
       const identity = agentProcessIdentity();
       if (identity.uid !== undefined && identity.gid !== undefined) {

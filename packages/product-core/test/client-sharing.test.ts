@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import type { ChannelMessageView } from "@aiteamos/contracts";
-import { CLIENT_CAPABILITIES } from "@aiteamos/contracts/capabilities";
+import type { ChannelMessageView } from "@outcomego/contracts";
+import { CLIENT_CAPABILITIES } from "@outcomego/contracts/capabilities";
 import {
   activityContentSummary,
   attachmentByteLimit,

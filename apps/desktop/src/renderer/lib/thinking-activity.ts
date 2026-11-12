@@ -1,4 +1,4 @@
-import type { RunItemView } from "@aiteamos/contracts";
+import type { RunItemView } from "@outcomego/contracts";
 import { translateCurrent } from "./i18n-catalog";
 
 /** Project only active runtime items; never display tool arguments or reasoning text. */

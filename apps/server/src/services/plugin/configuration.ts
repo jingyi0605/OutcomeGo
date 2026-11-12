@@ -3,8 +3,8 @@ import {
   ApiError,
   type PluginConfigurationInput,
   type PluginConfigurationView,
-} from "@aiteamos/contracts";
-import type { PrismaClient } from "@aiteamos/db";
+} from "@outcomego/contracts";
+import type { PrismaClient } from "@outcomego/db";
 import {
   applySecretEdits,
   assertComputerMcpRuntime,
@@ -12,7 +12,7 @@ import {
   isSecretKey,
   validateValues,
   type PluginField,
-} from "@aiteamos/plugin-sdk";
+} from "@outcomego/plugin-sdk";
 import { serviceEffect, toJson } from "../service-utils";
 import { loadConnectionNamespaces } from "./namespaces";
 import {

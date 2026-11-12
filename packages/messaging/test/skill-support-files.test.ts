@@ -6,7 +6,7 @@ import { readSkillSupportFiles, writeSkillFile, writeSkillSupportFiles } from ".
 
 let root = "";
 beforeEach(async () => {
-  root = await mkdtemp(join(tmpdir(), "aiteamos-skill-support-"));
+  root = await mkdtemp(join(tmpdir(), "outcomego-skill-support-"));
 });
 afterEach(async () => {
   await rm(root, { recursive: true, force: true });

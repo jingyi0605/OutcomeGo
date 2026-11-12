@@ -1,9 +1,9 @@
 import { expect, test } from "bun:test";
-import { createPrismaClient } from "@aiteamos/db";
+import { createPrismaClient } from "@outcomego/db";
 import { readAgentActivity } from "../src/read-agent-activity";
 import { readTranscript } from "../src/read-transcript";
 
-const url = process.env.AITEAMOS_TEST_DATABASE_URL;
+const url = process.env.OUTCOMEGO_TEST_DATABASE_URL;
 
 test.skipIf(!url)("workers read no transcripts; activity covers the user's other recent bots", async () => {
   const db = createPrismaClient(url!);

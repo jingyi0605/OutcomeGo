@@ -1,4 +1,4 @@
-import { isAllowedEnvironmentName } from "@aiteamos/plugin-sdk/environment";
+import { isAllowedEnvironmentName } from "@outcomego/plugin-sdk/environment";
 
 export function validateProcessSecretName(name: unknown): string {
   if (!isAllowedEnvironmentName(name))

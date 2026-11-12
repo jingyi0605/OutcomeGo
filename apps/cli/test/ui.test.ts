@@ -116,7 +116,7 @@ describe("setup presentation", () => {
       color: false,
       width: 72,
     });
-    expect(header).toContain("AITEAMOS SETUP · v1.2.3");
+    expect(header).toContain("OutcomeGo SETUP · v1.2.3");
     expect(header).toContain("✓ Access");
     expect(header).toContain("● Owner");
     expect(header).toContain("○ Launch");
@@ -147,11 +147,11 @@ describe("setup presentation", () => {
     });
     presentation.start();
     presentation.stage(2);
-    presentation.summary("aiTeamOS is ready", [
+    presentation.summary("OutcomeGo is ready", [
       { label: "Server", value: "https://bot.example.com" },
-      { label: "Manage", value: "aiteamos status" },
+      { label: "Manage", value: "outcomego status" },
     ]);
-    expect(output.join("\n")).toContain("✓ aiTeamOS is ready");
+    expect(output.join("\n")).toContain("✓ OutcomeGo is ready");
     expect(output.join("\n")).toContain("https://bot.example.com");
   });
 
@@ -189,7 +189,7 @@ describe("setup presentation", () => {
       "warning"
     );
     presentation.summary("Configuration ready", [
-      { label: "Address", value: "https://an-intentionally-long-aiteamos-host.example.com" },
+      { label: "Address", value: "https://an-intentionally-long-outcomego-host.example.com" },
     ]);
 
     expect(output.join("\n")).toContain("     cloud load balancer you already");
@@ -222,7 +222,7 @@ describe("setup session frame", () => {
     { kind: "toggle", id: "httpAck", label: "I understand the risk", checked: false },
     { kind: "cycle", id: "thinking", label: "Reasoning effort", value: "high" },
     { kind: "note", text: "Caddy obtains the certificate.", tone: "info" },
-    { kind: "action", id: "apply", label: "Apply and start aiTeamOS", primary: true },
+    { kind: "action", id: "apply", label: "Apply and start OutcomeGo", primary: true },
   ];
 
   test("draws the section tabs, highlighted row, markers, and key hints", () => {
@@ -251,7 +251,7 @@ describe("setup session frame", () => {
     expect(frame.body).toContain("    [ ] I understand the risk");
     expect(frame.body).toContain("    Reasoning effort  ‹ high ›");
     expect(frame.body).toContain("  • Caddy obtains the certificate.");
-    expect(frame.body).toContain("    Apply and start aiTeamOS");
+    expect(frame.body).toContain("    Apply and start OutcomeGo");
     expect(frame.body[frame.cursorLine]).toBe("  ❯ Public domain     bot.example.com");
     expect(frame.footer.at(-1)).toBe(
       "  Type to enter · Enter edit · ↑/↓ move · ←/→ step · Esc cancel"
@@ -269,7 +269,7 @@ describe("setup session frame", () => {
       title: "2. Owner",
       description: "Create owner.",
       rows: [
-        { kind: "text", id: "username", label: "Username", value: "aiteamos" },
+        { kind: "text", id: "username", label: "Username", value: "outcomego" },
         {
           kind: "text",
           id: "password",

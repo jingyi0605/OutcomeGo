@@ -1,6 +1,6 @@
 {
-  "name": "@aiteamos/client-core",
-  "version": "0.1.0-beta.13",
+  "name": "@outcomego/client-core",
+  "version": "0.1.0-beta.14",
   "license": "GPL-3.0-only",
   "private": true,
   "type": "module",
@@ -23,6 +23,6 @@
     "test": "bun test"
   },
   "dependencies": {
-    "@aiteamos/contracts": "workspace:*"
+    "@outcomego/contracts": "workspace:*"
   }
 }

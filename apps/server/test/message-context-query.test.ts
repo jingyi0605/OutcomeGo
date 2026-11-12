@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { ApiError } from "@aiteamos/contracts";
+import { ApiError } from "@outcomego/contracts";
 import { messageContextExtents } from "../src/message-context-query";
 
 describe("message context query contract", () => {

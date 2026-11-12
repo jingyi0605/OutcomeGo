@@ -3,7 +3,7 @@ import {
   ApiError,
   PLUGIN_CONNECTION_ID_MAX_LENGTH,
   PLUGIN_CONNECTION_STATUS_MAX_IDS,
-} from "@aiteamos/contracts";
+} from "@outcomego/contracts";
 import { json } from "../http";
 import { type RouteContext, run } from "./context";
 import { dispatchRoutes, effectRoute } from "./dispatch";

@@ -5,10 +5,10 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import assert from "node:assert/strict";
 
-const context = process.env.AITEAMOS_TEST_DOCKER_CONTEXT;
+const context = process.env.OUTCOMEGO_TEST_DOCKER_CONTEXT;
 if (!context)
-  throw new Error("Set AITEAMOS_TEST_DOCKER_CONTEXT to a disposable Linux Docker context");
-const prefix = `aiteamos-egress-${process.pid}`;
+  throw new Error("Set OUTCOMEGO_TEST_DOCKER_CONTEXT to a disposable Linux Docker context");
+const prefix = `outcomego-egress-${process.pid}`;
 const directory = await mkdtemp(join(tmpdir(), prefix));
 const containers: string[] = [];
 const network = `${prefix}-net`;
@@ -55,7 +55,7 @@ try {
     naming: "fixture.mjs",
   });
   if (!build.success) throw new Error(String(build.logs));
-  for (const file of ["aiteamos-network-mark.c", "aiteamos-computer-network.py"])
+  for (const file of ["outcomego-network-mark.c", "outcomego-computer-network.py"])
     await cp(resolve("docker", file), join(directory, file));
   console.log("Building pinned TUN implementation");
   await run(
@@ -79,7 +79,7 @@ try {
 FROM debian:bookworm-slim@sha256:88200866dfff7ea7f5cbcb6ec7c8a701889efe6fe859fe64d6990e4b07ea4171
 RUN apt-get update && apt-get install -y --no-install-recommends nodejs python3 iproute2 nftables curl gcc libc6-dev sudo ca-certificates && rm -rf /var/lib/apt/lists/*
 COPY . /fixture/
-RUN gcc -shared -fPIC -Wall -Wextra -Werror /fixture/aiteamos-network-mark.c -o /fixture/network-mark.so && useradd -m -u 1000 box && echo 'box ALL=(ALL:ALL) NOPASSWD: ALL' > /etc/sudoers.d/box
+RUN gcc -shared -fPIC -Wall -Wextra -Werror /fixture/outcomego-network-mark.c -o /fixture/network-mark.so && useradd -m -u 1000 box && echo 'box ALL=(ALL:ALL) NOPASSWD: ALL' > /etc/sudoers.d/box
 CMD ["sleep", "600"]
 `
   );
@@ -135,8 +135,8 @@ CMD ["sleep", "600"]
     )
   );
   await check("fresh computer boots before management DNS/server exists", async () => {
-    await exec("python3", "/fixture/aiteamos-computer-network.py", "http://future-server:8787");
-    assert.equal(await exec("cat", "/run/aiteamos-management.json"), "[]");
+    await exec("python3", "/fixture/outcomego-computer-network.py", "http://future-server:8787");
+    assert.equal(await exec("cat", "/run/outcomego-management.json"), "[]");
   });
   await run(
     docker(
@@ -183,7 +183,7 @@ CMD ["sleep", "600"]
     );
   const discovered = async (ip: string) => {
     for (let attempt = 0; attempt < 100; attempt++) {
-      if (JSON.parse(await exec("cat", "/run/aiteamos-management.json")).includes(ip)) return;
+      if (JSON.parse(await exec("cat", "/run/outcomego-management.json")).includes(ip)) return;
       await Bun.sleep(100);
     }
     throw new Error("Management discovery did not publish the current server address");
@@ -201,7 +201,7 @@ CMD ["sleep", "600"]
     await launchFuture(`10.247.${subnet}.11`);
     await discovered(`10.247.${subnet}.11`);
     assert.ok(
-      !JSON.parse(await exec("cat", "/run/aiteamos-management.json")).includes(
+      !JSON.parse(await exec("cat", "/run/outcomego-management.json")).includes(
         `10.247.${subnet}.10`
       )
     );
@@ -221,7 +221,7 @@ for p in os.listdir('/proc'):
  if len(args)>2 and args[1]==b'/fixture/fixture.mjs' and args[2]==b'discovery': os.kill(int(p),signal.SIGTERM)`
   );
   await Bun.sleep(200);
-  await exec("python3", "/fixture/aiteamos-computer-network.py", `http://${targetIp}:8787`);
+  await exec("python3", "/fixture/outcomego-computer-network.py", `http://${targetIp}:8787`);
   const curl = ["curl", "--noproxy", "*", "-fsS", "--connect-timeout", "2", "--max-time", "4"];
   await check("startup blocks direct egress before any relay exists", () =>
     expectBlocked(...curl, `http://${targetIp}:8080`)
@@ -248,7 +248,7 @@ for p in os.listdir('/proc'):
       `${prefix}-computer`,
       "/fixture/tun2socks",
       "--device",
-      "tun://aiteamos0",
+      "tun://outcomego0",
       "--proxy",
       "socks5://127.0.0.1:18791",
       "--loglevel",
@@ -325,7 +325,7 @@ except OSError: print('udp-blocked')`
   await check("TUN process death blocks rather than using Docker egress", () =>
     expectBlocked(...curl, `http://${targetIp}:8080`)
   );
-  await exec("ip", "link", "del", "aiteamos0");
+  await exec("ip", "link", "del", "outcomego0");
   await check("interface removal cannot fall through to the main route", () =>
     expectBlocked(...curl, `http://${targetIp}:8080`)
   );
@@ -334,7 +334,7 @@ except OSError: print('udp-blocked')`
   });
   console.log(JSON.stringify({ passed: true, checks }, null, 2));
 } finally {
-  if (process.env.AITEAMOS_KEEP_NETWORK_TEST) {
+  if (process.env.OUTCOMEGO_KEEP_NETWORK_TEST) {
     console.log(`Kept test resources ${prefix}`);
   } else {
     for (const container of containers.reverse())

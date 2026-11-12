@@ -63,8 +63,8 @@ export const runConnectionProcess: AsyncProcess = (invocation, input, timeoutMs 
           reject(
             new CliError(
               error.killed
-                ? "The connection request timed out. Check aiteamos doctor, then retry."
-                : "The connection command failed. Check aiteamos doctor, then retry."
+                ? "The connection request timed out. Check outcomego doctor, then retry."
+                : "The connection command failed. Check outcomego doctor, then retry."
             )
           );
         else resolve(output);
@@ -80,10 +80,10 @@ export const runConnectionProcess: AsyncProcess = (invocation, input, timeoutMs 
 export const AUTH_REQUEST_SCRIPT = [
   "const input = JSON.parse(await new Response(Bun.stdin.stream()).text());",
   'if (!/^\\/v1\\/inference\\/(providers\\/[^/]+\\/auth-sessions|auth-sessions\\/[^/]+(?:\\/respond)?)$/.test(input.path)) throw new Error("Invalid auth route");',
-  "const port = Number(process.env.AITEAMOS_COMPUTER_PORT || 8790);",
+  "const port = Number(process.env.OUTCOMEGO_COMPUTER_PORT || 8790);",
   'const response = await fetch("http://127.0.0.1:" + port + input.path, {',
   'method: input.method, redirect: "error", signal: AbortSignal.timeout(10000),',
-  'headers: {authorization: "Bearer " + process.env.AITEAMOS_CONTROL_TOKEN, "content-type": "application/json"},',
+  'headers: {authorization: "Bearer " + process.env.OUTCOMEGO_CONTROL_TOKEN, "content-type": "application/json"},',
   "...(input.body === undefined ? {} : {body: JSON.stringify(input.body)})});",
   "console.log(JSON.stringify({status: response.status, body: await response.json().catch(() => null)}));",
 ].join("\n");
@@ -91,7 +91,7 @@ export const AUTH_REQUEST_SCRIPT = [
 const object = (value: unknown): value is Record<string, unknown> =>
   !!value && typeof value === "object" && !Array.isArray(value);
 const invalid = () =>
-  new CliError("The connection service returned invalid data. Update aiTeamOS and retry.");
+  new CliError("The connection service returned invalid data. Update OutcomeGo and retry.");
 
 export const parseAuthSession = (value: unknown): AuthSession => {
   if (
@@ -192,7 +192,7 @@ export const createProviderConnectionAPI = (
         );
       if (result.status === 401 || result.status === 403)
         throw new CliError(
-          "aiTeamOS could not access its connection service. Run aiteamos doctor."
+          "OutcomeGo could not access its connection service. Run outcomego doctor."
         );
       throw new CliError(
         "The connection service rejected the request (HTTP " +
@@ -264,7 +264,7 @@ export const createProviderConnectionAPI = (
             "exec",
             "--no-TTY",
             "computer",
-            "aiteamos-pi-auth",
+            "outcomego-pi-auth",
             "import",
             provider,
           ]),
@@ -280,7 +280,7 @@ export const createProviderConnectionAPI = (
       }
       // A successful subprocess exit alone does not prove that authentication was stored.
       const raw = await processRun(
-        project.invocation(["exec", "--no-TTY", "computer", "aiteamos-pi-auth", "providers"])
+        project.invocation(["exec", "--no-TTY", "computer", "outcomego-pi-auth", "providers"])
       );
       let providers: unknown;
       try {

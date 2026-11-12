@@ -5,7 +5,7 @@ import type {
   ChannelMessageView,
   ClientBootstrapView,
   ClientSnapshot,
-} from "@aiteamos/contracts";
+} from "@outcomego/contracts";
 
 export interface LoadedChannelHistory {
   messages: ChannelMessageView[];

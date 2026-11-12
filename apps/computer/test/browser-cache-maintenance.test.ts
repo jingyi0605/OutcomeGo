@@ -55,7 +55,7 @@ const caches = [
   "GPUCache/data",
 ];
 const fixture = () => {
-  const root = realpathSync(mkdtempSync(join(tmpdir(), "aiteamos-browser-cache-")));
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "outcomego-browser-cache-")));
   directories.push(root);
   const profile = join(root, "profile");
   mkdirSync(profile);

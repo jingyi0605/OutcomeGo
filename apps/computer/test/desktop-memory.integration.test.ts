@@ -4,8 +4,8 @@ import { readFile, access } from "node:fs/promises";
 import { desktopMemoryForSpawn, removeDesktopMemory } from "../src/desktop-memory";
 import { spawnAgentProcess } from "../src/agent-process";
 
-const enabled = process.env.AITEAMOS_TEST_DESKTOP_MEMORY === "1" && process.platform === "linux";
-const options = (id: string) => ({ env: { PATH: "/usr/bin:/bin", AITEAMOS_DESKTOP_ID: id }, stdio: ["ignore", "pipe", "pipe"] as ["ignore", "pipe", "pipe"] });
+const enabled = process.env.OUTCOMEGO_TEST_DESKTOP_MEMORY === "1" && process.platform === "linux";
+const options = (id: string) => ({ env: { PATH: "/usr/bin:/bin", OUTCOMEGO_DESKTOP_ID: id }, stdio: ["ignore", "pipe", "pipe"] as ["ignore", "pipe", "pipe"] });
 async function output(command: string, args: string[], id: string) {
   const child = spawnAgentProcess(command, args, options(id));
   const chunks: Buffer[] = [];
@@ -18,8 +18,8 @@ async function output(command: string, args: string[], id: string) {
 
 test.skipIf(!enabled)("10 GiB is per desktop and inherited by ordinary and sudo descendants", async () => {
   const ids = ["memory-a/../../supervisor", "memory-b"];
-  const before = process.env.AITEAMOS_DESKTOP_MEMORY_LIMIT;
-  process.env.AITEAMOS_DESKTOP_MEMORY_LIMIT = "10g";
+  const before = process.env.OUTCOMEGO_DESKTOP_MEMORY_LIMIT;
+  process.env.OUTCOMEGO_DESKTOP_MEMORY_LIMIT = "10g";
   try {
     const [a, b] = ids.map(id => desktopMemoryForSpawn(id)!);
     expect(a).not.toBe(b);
@@ -46,13 +46,13 @@ test.skipIf(!enabled)("10 GiB is per desktop and inherited by ordinary and sudo 
     await expect(access(a!)).rejects.toThrow();
   } finally {
     await Promise.all(ids.map(removeDesktopMemory));
-    process.env.AITEAMOS_DESKTOP_MEMORY_LIMIT = before;
+    process.env.OUTCOMEGO_DESKTOP_MEMORY_LIMIT = before;
   }
 }, 15_000);
 
 test.skipIf(!enabled)("an over-budget desktop OOM leaves its peer and supervisor alive", async () => {
-  const before = process.env.AITEAMOS_DESKTOP_MEMORY_LIMIT;
-  process.env.AITEAMOS_DESKTOP_MEMORY_LIMIT = "128m";
+  const before = process.env.OUTCOMEGO_DESKTOP_MEMORY_LIMIT;
+  process.env.OUTCOMEGO_DESKTOP_MEMORY_LIMIT = "128m";
   const ids = ["memory-overload", "memory-survivor"];
   const peer = spawnAgentProcess("/bin/sleep", ["60"], options(ids[1]!));
   const peerClosed = once(peer, "close");
@@ -73,7 +73,7 @@ test.skipIf(!enabled)("an over-budget desktop OOM leaves its peer and supervisor
     peer.kill("SIGTERM");
     await peerClosed;
     await Promise.all(ids.map(removeDesktopMemory));
-    process.env.AITEAMOS_DESKTOP_MEMORY_LIMIT = before;
+    process.env.OUTCOMEGO_DESKTOP_MEMORY_LIMIT = before;
   }
 }, 20_000);
 

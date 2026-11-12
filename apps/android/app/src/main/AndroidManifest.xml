@@ -13,14 +13,14 @@
     <application
         android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"
-        android:label="aiTeamOS"
+        android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher"
         android:theme="@android:style/Theme.Material.Light.NoActionBar"
         android:enableOnBackInvokedCallback="true"
         android:usesCleartextTraffic="true">
         <meta-data
-            android:name="com.aiteamos.android.APP_LINK_HOST"
-            android:value="${aiteamosAppLinkHost}" />
+            android:name="com.outcomego.android.APP_LINK_HOST"
+            android:value="${outcomegoAppLinkHost}" />
         <meta-data
             android:name="android.app.shortcuts"
             android:resource="@xml/shortcuts" />
@@ -37,19 +37,19 @@
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="aiteamos" />
+                <data android:scheme="outcomego" />
             </intent-filter>
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="https" android:host="${aiteamosAppLinkHost}" />
+                <data android:scheme="https" android:host="${outcomegoAppLinkHost}" />
             </intent-filter>
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="http" android:host="${aiteamosAppLinkHost}" />
+                <data android:scheme="http" android:host="${outcomegoAppLinkHost}" />
             </intent-filter>
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />
@@ -65,28 +65,28 @@
                 <data android:mimeType="*/*" />
             </intent-filter>
             <intent-filter>
-                <action android:name="com.aiteamos.android.action.RECORD_VOICE" />
-                <action android:name="com.aiteamos.android.action.OPEN_CONVERSATION" />
-                <action android:name="com.aiteamos.android.action.OPEN_BOT" />
-                <action android:name="com.aiteamos.android.action.SEND_BOT_TASK" />
-                <action android:name="com.aiteamos.android.action.FIND_MESSAGES" />
-                <action android:name="com.aiteamos.android.action.RUN_ROUTINE" />
+                <action android:name="com.outcomego.android.action.RECORD_VOICE" />
+                <action android:name="com.outcomego.android.action.OPEN_CONVERSATION" />
+                <action android:name="com.outcomego.android.action.OPEN_BOT" />
+                <action android:name="com.outcomego.android.action.SEND_BOT_TASK" />
+                <action android:name="com.outcomego.android.action.FIND_MESSAGES" />
+                <action android:name="com.outcomego.android.action.RUN_ROUTINE" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
         <service
-            android:name=".platform.AiTeamOSFirebaseMessagingService"
+            android:name=".platform.OutcomeGoFirebaseMessagingService"
             android:exported="false">
             <intent-filter>
                 <action android:name="com.google.firebase.MESSAGING_EVENT" />
             </intent-filter>
         </service>
         <service
-            android:name="com.aiteamos.platform.AndroidLiveVoiceForegroundService"
+            android:name="com.outcomego.platform.AndroidLiveVoiceForegroundService"
             android:exported="false"
             android:foregroundServiceType="microphone" />
         <receiver
-            android:name="com.aiteamos.platform.AndroidUpdateInstallReceiver"
+            android:name="com.outcomego.platform.AndroidUpdateInstallReceiver"
             android:exported="false" />
         <provider
             android:name="androidx.core.content.FileProvider"

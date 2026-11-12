@@ -6,7 +6,7 @@ import { createServer } from "vite";
 import { chromium } from "../../computer/node_modules/playwright-core";
 
 const root = resolve(import.meta.dir, "..");
-const output = process.env.NOTIFICATION_QA_OUTPUT ?? "/tmp/aiteamos-smart-notifications-ui";
+const output = process.env.NOTIFICATION_QA_OUTPUT ?? "/tmp/outcomego-smart-notifications-ui";
 await mkdir(output, { recursive: true });
 const server = await createServer({
   root,
@@ -59,7 +59,7 @@ try {
   );
   enabled = false; // Preference changed on the other device.
   await page.evaluate(() =>
-    window.dispatchEvent(new Event("aiteamos:notification-preferences-changed"))
+    window.dispatchEvent(new Event("outcomego:notification-preferences-changed"))
   );
   await page.waitForFunction(
     () => document.querySelector('[role="switch"]')?.getAttribute("aria-checked") === "false"

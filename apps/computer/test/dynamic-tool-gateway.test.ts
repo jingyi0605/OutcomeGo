@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { CallDynamicToolInput, GetDynamicToolsInput } from "@aiteamos/contracts";
+import type { CallDynamicToolInput, GetDynamicToolsInput } from "@outcomego/contracts";
 import {
   type DynamicNamespaceDefinition,
   DynamicLookupMiss,
@@ -15,7 +15,7 @@ const catalog = (
 ): DynamicNamespaceDefinition[] => [
   {
     name: "cursor",
-    description: "First-party aiTeamOS tools",
+    description: "First-party outcomeGo tools",
     kind: "first-party",
     namespaceStatus: "ready",
     tools: [
@@ -60,7 +60,7 @@ const discover = (input: GetDynamicToolsInput = {}, options = {}) =>
 const render = (input: GetDynamicToolsInput, status?: DynamicNamespaceDefinition["namespaceStatus"]) =>
   renderDynamicDiscovery(discoverDynamicTools(catalog(status), input), input) as any;
 
-describe("aiTeamOS dynamic tool gateway", () => {
+describe("outcomeGo dynamic tool gateway", () => {
   test("catalog summaries are bounded and sorted; connector namespaces always state their status", () => {
     const result = render({});
     expect(result.mode).toBe("catalog");

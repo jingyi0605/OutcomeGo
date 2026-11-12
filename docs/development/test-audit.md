@@ -20,7 +20,7 @@ Tests were not removed just because their names contain “compatibility” or �
 
 ## Verification
 
-- All 15 workspace test packages outside `@aiteamos/computer`: 2,233 passed, 170 skipped, zero failures with `bun x turbo run test --filter='!@aiteamos/computer' --concurrency=2`.
+- All 15 workspace test packages outside `@outcomego/computer`: 2,233 passed, 170 skipped, zero failures with `bun x turbo run test --filter='!@outcomego/computer' --concurrency=2`.
 - Changed computer suites: 100 passed, 2 skipped across 9 files.
 - All 143 computer test files run in separate Bun processes: 627 passed, 50 skipped, 0 failed; 0 failing file processes.
 - Swift core: 119 passed with `swift test -c release`.

@@ -2,7 +2,7 @@ import Foundation
 import Security
 
 enum SecureSession {
-  static let service = "dev.openteam.mobile.swift.session"
+  static let service = "dev.outcomego.mobile.swift.session"
   static func read() throws -> SessionRecord? {
     let query: [String: Any] = [
       kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service,

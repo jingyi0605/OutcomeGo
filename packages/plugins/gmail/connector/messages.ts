@@ -74,7 +74,7 @@ const safeHeader = (value: string) => {
 const foldedBase64 = (bytes: Buffer) => bytes.toString('base64').match(/.{1,76}/g)?.join('\r\n') ?? '';
 const textPart = (content: string, mime: string) => `Content-Type: ${mime}; charset=UTF-8\r\nContent-Transfer-Encoding: base64\r\n\r\n${foldedBase64(Buffer.from(content))}`;
 const multipart = (parts: string[], subtype: string) => {
-  const boundary = `aiteamos-${crypto.randomUUID()}`;
+  const boundary = `outcomego-${crypto.randomUUID()}`;
   return `Content-Type: multipart/${subtype}; boundary="${boundary}"\r\n\r\n${parts.map(p => `--${boundary}\r\n${p}\r\n`).join('')}--${boundary}--`;
 };
 export function draftMime(args: Args, original?: any) {

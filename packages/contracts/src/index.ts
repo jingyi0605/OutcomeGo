@@ -268,7 +268,7 @@ export interface BadgeSyncNotificationPayload {
 
 export type PushNotificationPayload = AgentNotificationPayload | BadgeSyncNotificationPayload;
 
-/** Transient multimodal payload used only between trusted aiTeamOS services. */
+/** Transient multimodal payload used only between trusted OutcomeGo services. */
 export const RuntimeInlineImage = Schema.Struct({
   url: Schema.String.pipe(
     Schema.maxLength(MAX_INLINE_IMAGE_URL_LENGTH),
@@ -283,7 +283,7 @@ export type RuntimeInlineImage = typeof RuntimeInlineImage.Type;
 export const AssetKind = Schema.Literal("image", "video", "audio", "pdf", "text", "file");
 export type AssetKind = typeof AssetKind.Type;
 
-/** Canonical persisted reference to bytes owned by aiTeamOS's content-addressed asset store. */
+/** Canonical persisted reference to bytes owned by OutcomeGo's content-addressed asset store. */
 export const AssetRef = Schema.Struct({
   assetId: Schema.String.pipe(Schema.pattern(/^[a-f0-9]{64}$/)),
   fileName: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(255)),
@@ -836,12 +836,12 @@ export type {
   PluginField as PluginCatalogSetupFieldView,
   PluginField as PluginSetupFieldView,
   PluginSetup as PluginSetupView,
-} from "@aiteamos/plugin-sdk";
+} from "@outcomego/plugin-sdk";
 import type {
   PluginField as PluginCatalogSetupFieldView,
   PluginField as PluginSetupFieldView,
   PluginSetup as PluginSetupView,
-} from "@aiteamos/plugin-sdk";
+} from "@outcomego/plugin-sdk";
 export * from "./plugin-management";
 
 export interface PluginCatalogItemView {
@@ -1329,7 +1329,7 @@ export const COMPUTER_TOOL = {
   type: "function",
   name: "Computer",
   description:
-    "Interact with your persistent aiTeamOS Linux graphical screen. Coordinates use the 1280x800 screenshot. Actions are move, click, type, key, scroll, open_app, and wait. Human takeover or emergency stop can temporarily reject input. A successful action returns a fresh screenshot.",
+    "Interact with your persistent OutcomeGo Linux graphical screen. Coordinates use the 1280x800 screenshot. Actions are move, click, type, key, scroll, open_app, and wait. Human takeover or emergency stop can temporarily reject input. A successful action returns a fresh screenshot.",
   inputSchema: {
     oneOf: [
       {

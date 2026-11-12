@@ -1,11 +1,11 @@
-import { CLIENT_CAPABILITIES } from "@aiteamos/contracts/capabilities";
+import { CLIENT_CAPABILITIES } from "@outcomego/contracts/capabilities";
 import type {
   AssetKind,
   AssetRef,
   BotView,
   ChannelMessageView,
   ChannelView,
-} from "@aiteamos/contracts";
+} from "@outcomego/contracts";
 import type { DurableStagedAttachment } from "./durable-delivery";
 import { shouldShowIdleGapTimestamp } from "./timestamps";
 

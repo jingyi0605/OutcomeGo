@@ -1,5 +1,5 @@
-import type { AssetKind, AssetRef, ClientCapabilities } from "@aiteamos/contracts";
-import { attachmentLimitForName, attachmentSizeRejection, attachmentRejectionMessage, videoMimeForName } from "@aiteamos/contracts/media-input";
+import type { AssetKind, AssetRef, ClientCapabilities } from "@outcomego/contracts";
+import { attachmentLimitForName, attachmentSizeRejection, attachmentRejectionMessage, videoMimeForName } from "@outcomego/contracts/media-input";
 
 export type AttachmentPreviewKind =
   | "video"

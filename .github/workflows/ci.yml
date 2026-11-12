@@ -6,9 +6,15 @@ name: CI
 
 on:
   push:
-    branches: [ai-TeamOS]
+    branches: ["**"]
   pull_request:
   workflow_call:
+    inputs:
+      run_docker:
+        description: "Build validation Docker images. Release disables this because release.yml builds and publishes them."
+        required: false
+        type: boolean
+        default: true
   workflow_dispatch:
 
 permissions:
@@ -35,6 +41,8 @@ jobs:
       - name: Release versions agree
         run: bun scripts/release/version.ts check
       - run: bun install --frozen-lockfile --ignore-scripts
+      - name: Validate release workflow graph and artifact names
+        run: bun run check:workflows
       - name: Architecture boundaries
         run: bun run check:architecture
       - run: bun run typecheck
@@ -46,6 +54,7 @@ jobs:
       - run: bun run build
 
   docker:
+    if: ${{ github.event_name != 'workflow_call' || inputs.run_docker }}
     # Builds the server, worker and migrate images for one architecture without pushing. The
     # larger computer image is built by the release workflow.
     runs-on: ubuntu-latest
@@ -67,22 +76,22 @@ jobs:
           cache-from: type=gha,scope=app-${{ matrix.target }}-amd64
           cache-to: type=gha,mode=max,scope=app-${{ matrix.target }}-amd64
 
-  database-upgrade:
-    # Exercise the real schema deployment against an existing database shape. The integration
-    # test creates and removes disposable databases inside this PostgreSQL service.
+  database-fresh-schema:
+    # Initialize the current schema in a disposable empty database; old database layouts are
+    # intentionally outside the installation and data-import contract.
     runs-on: ubuntu-latest
     timeout-minutes: 20
     services:
       postgres:
         image: postgres:17-alpine
         env:
-          POSTGRES_USER: aiteamos
-          POSTGRES_PASSWORD: aiteamos
+          POSTGRES_USER: outcomego
+          POSTGRES_PASSWORD: outcomego
           POSTGRES_DB: postgres
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U aiteamos -d postgres"
+          --health-cmd "pg_isready -U outcomego -d postgres"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 20
@@ -92,7 +101,7 @@ jobs:
         with:
           bun-version: 1.4.2
       - run: bun install --frozen-lockfile --ignore-scripts
-      - name: Verify upgrades from an existing database
+      - name: Verify fresh database initialization
         env:
-          AITEAMOS_TEST_DATABASE_URL: postgresql://aiteamos:aiteamos@127.0.0.1:5432/postgres
-        run: bun test packages/db/test/retire-auto-review.integration.test.ts
+          OUTCOMEGO_TEST_DATABASE_URL: postgresql://outcomego:outcomego@127.0.0.1:5432/postgres
+        run: bun test packages/db/test/fresh-schema.integration.test.ts

@@ -22,12 +22,12 @@ const entitlementsSource = Bun.file(
 ).text();
 
 describe("macOS distribution release", () => {
-  test("uses the aiTeamOS app icon on every desktop platform", async () => {
+  test("uses the OutcomeGo app icon on every desktop platform", async () => {
     const desktop = await packageJson;
     const assets = "../../packages/design-tokens/assets";
 
-    expect(desktop.build.mac.icon).toBe(`${assets}/aiTeamOS.icon`);
-    expect(desktop.build.linux.icon).toBe(`${assets}/aiteamos-desktop-light.png`);
+    expect(desktop.build.mac.icon).toBe(`${assets}/outcomego.icon`);
+    expect(desktop.build.linux.icon).toBe(`${assets}/outcomego-desktop-light.png`);
     expect(desktop.build.win.icon).toBe(`${assets}/icon.ico`);
     expect(desktop.build.dmg.icon).toBe(`${assets}/icon.icns`);
     for (const icon of [
@@ -35,7 +35,7 @@ describe("macOS distribution release", () => {
       desktop.build.linux.icon,
       desktop.build.win.icon,
       desktop.build.dmg.icon,
-      `${assets}/aiteamos-desktop-dark.png`,
+      `${assets}/outcomego-desktop-dark.png`,
     ]) {
       expect(await Bun.file(new URL(`../${icon}`, import.meta.url)).exists()).toBe(true);
     }
@@ -43,7 +43,7 @@ describe("macOS distribution release", () => {
 
   test("keeps the prism mark large within the app icon canvas", async () => {
     const manifest = (await Bun.file(
-      new URL("../../../packages/design-tokens/assets/aiTeamOS.icon/icon.json", import.meta.url)
+      new URL("../../../packages/design-tokens/assets/outcomego.icon/icon.json", import.meta.url)
     ).json()) as { groups: { layers: { position?: { scale?: number } }[] }[] };
     const scale = manifest.groups
       .flatMap((group) => group.layers)
@@ -78,14 +78,14 @@ describe("macOS distribution release", () => {
     expect(() => resolveMacosReleaseEnvironment({}, "darwin")).toThrow("CSC_NAME");
     expect(() =>
       resolveMacosReleaseEnvironment(
-        { CSC_NAME: "Developer ID Application: aiTeamOS", APPLE_ID: "release@example.com" },
+        { CSC_NAME: "Developer ID Application: OutcomeGo", APPLE_ID: "release@example.com" },
         "darwin"
       )
     ).toThrow("Incomplete macOS notarization credentials");
     expect(
       resolveMacosReleaseEnvironment(
         {
-          CSC_NAME: "Developer ID Application: aiTeamOS",
+          CSC_NAME: "Developer ID Application: OutcomeGo",
           APPLE_API_KEY: "/private/key.p8",
           APPLE_API_KEY_ID: "KEY123",
           APPLE_API_ISSUER: "issuer",
@@ -93,13 +93,13 @@ describe("macOS distribution release", () => {
         "darwin"
       )
     ).toEqual({
-      identity: "Developer ID Application: aiTeamOS",
+      identity: "Developer ID Application: OutcomeGo",
       notarizationMode: "api-key",
     });
     expect(
       resolveMacosReleaseEnvironment(
         {
-          CSC_NAME: "Developer ID Application: aiTeamOS",
+          CSC_NAME: "Developer ID Application: OutcomeGo",
           APPLE_TEAM_ID: "TEAM123",
           APPLE_API_KEY: "/private/key.p8",
           APPLE_API_KEY_ID: "KEY123",
@@ -111,8 +111,8 @@ describe("macOS distribution release", () => {
     expect(() =>
       resolveMacosReleaseEnvironment(
         {
-          CSC_NAME: "Developer ID Application: aiTeamOS",
-          APPLE_KEYCHAIN_PROFILE: "aiteamos-notary",
+          CSC_NAME: "Developer ID Application: OutcomeGo",
+          APPLE_KEYCHAIN_PROFILE: "outcomego-notary",
         },
         "linux"
       )
@@ -121,11 +121,11 @@ describe("macOS distribution release", () => {
 
   test("overrides every ad-hoc base setting in the signed release invocation", async () => {
     const desktop = await packageJson;
-    const args = macosReleaseBuilderArgs("Developer ID Application: aiTeamOS");
+    const args = macosReleaseBuilderArgs("Developer ID Application: OutcomeGo");
     const release = desktop.scripts["package:mac-release"];
 
     expect(args).toContain("-c.forceCodeSigning=true");
-    expect(args).toContain("-c.mac.identity=Developer ID Application: aiTeamOS");
+    expect(args).toContain("-c.mac.identity=Developer ID Application: OutcomeGo");
     expect(args).toContain("-c.mac.hardenedRuntime=true");
     expect(args).toContain("-c.mac.notarize=true");
     expect(args).toContain(`-c.mac.entitlements=${MACOS_RELEASE_ENTITLEMENTS}`);
@@ -148,7 +148,7 @@ describe("macOS distribution release", () => {
     expect(source).toContain('"spctl"');
     expect(source).toContain('"stapler"');
     expect(source).toContain('"validate"');
-    expect(source).toContain("dev.aiteamos.desktop");
+    expect(source).toContain("dev.outcomego.desktop");
     for (const entitlement of [
       "com.apple.security.device.audio-input",
       "com.apple.security.cs.allow-jit",

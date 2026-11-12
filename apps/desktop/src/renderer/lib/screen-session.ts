@@ -3,4 +3,4 @@ export {
   shouldLoadScreenStatus,
   shouldPollScreenStatus,
   shouldRefreshScreenFrame,
-} from "@aiteamos/client-core";
+} from "@outcomego/client-core";

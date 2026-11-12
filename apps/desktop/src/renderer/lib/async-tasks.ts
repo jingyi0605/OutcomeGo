@@ -4,4 +4,4 @@ export {
   activeAsyncTaskChannelIds,
   activeAsyncTasksForBot,
   asyncTaskElapsed,
-} from "@aiteamos/product-core/activity";
+} from "@outcomego/product-core/activity";

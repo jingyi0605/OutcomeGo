@@ -1,4 +1,4 @@
-import { parsePluginDefinition } from "@aiteamos/plugin-sdk";
+import { parsePluginDefinition } from "@outcomego/plugin-sdk";
 import definition from "./utility-plugin.json";
 
 export function createUtilityPluginFixture(key = "test-utility") {

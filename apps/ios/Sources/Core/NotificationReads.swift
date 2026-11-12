@@ -20,7 +20,7 @@ public struct NotificationReadMarker: Codable, Equatable, Sendable {
 
 public struct NativePush: Sendable {
   public let data: JSON
-  /// OpenTeam's custom APNs fields live under `data`.
+  /// OutcomeGo's custom APNs fields live under `data`.
   public init(_ payload: JSON) { data = payload["data"] }
   public var scope: String { data["notificationScope"].string }
   public var channelId: String { data["channelId"].string }

@@ -14,7 +14,7 @@ const option = (name: string) => {
   return args[index + 1];
 };
 const root = resolve(option("--root") ?? join(import.meta.dir, "../.."));
-const source = join(root, "packages/design-tokens/assets/aiTeamOS.icon");
+const source = join(root, "packages/design-tokens/assets/outcomego.icon");
 const output = resolve(option("--output") ?? join(root, "packages/design-tokens/assets"));
 if (process.platform !== "darwin")
   throw new Error("Native icon export requires macOS and Xcode 26 or later.");
@@ -53,7 +53,7 @@ function iconComposerTool() {
   return tool;
 }
 const ictool = iconComposerTool();
-const work = await mkdtemp(join(tmpdir(), "aiteamos-icon-export-"));
+const work = await mkdtemp(join(tmpdir(), "outcomego-icon-export-"));
 await mkdir(output, { recursive: true });
 
 try {
@@ -69,7 +69,7 @@ try {
         source,
         "--export-image",
         "--output-file",
-        join(output, `aiteamos-${stem}-${appearance}.png`),
+        join(output, `outcomego-${stem}-${appearance}.png`),
         "--platform",
         platform,
         "--rendition",
@@ -86,7 +86,7 @@ try {
 
   // macOS legacy ICNS uses an 824px rounded tile inside a 1024px canvas.
   // Icon Composer PNG exports are full bleed; applying the native inset prevents oversized Dock icons.
-  const iconset = join(work, "aiTeamOS.iconset");
+  const iconset = join(work, "outcomego.iconset");
   await mkdir(iconset);
   const compositor = join(work, "mac-icon-inset.swift");
   await writeFile(
@@ -119,7 +119,7 @@ for points in [16, 32, 128, 256, 512] {
 }
 `
   );
-  run("xcrun", ["swift", compositor, join(output, "aiteamos-desktop-light.png"), iconset]);
+  run("xcrun", ["swift", compositor, join(output, "outcomego-desktop-light.png"), iconset]);
   run("iconutil", ["--convert", "icns", iconset, "--output", join(output, "icon.icns")]);
 
   // Self-contained ICO writer: electron-builder's converter downloads a toolset
@@ -127,7 +127,7 @@ for points in [16, 32, 128, 256, 512] {
   run("xcrun", [
     "swift",
     join(import.meta.dir, "compose-windows-ico.swift"),
-    join(output, "aiteamos-desktop-light.png"),
+    join(output, "outcomego-desktop-light.png"),
     join(output, "icon.ico"),
   ]);
 

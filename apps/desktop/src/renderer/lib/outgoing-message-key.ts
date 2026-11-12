@@ -1,4 +1,4 @@
-import type { DurableSendRecord } from "@aiteamos/product-core/durable-delivery";
+import type { DurableSendRecord } from "@outcomego/product-core/durable-delivery";
 
 /** Keep a bubble mounted across safe retries, nonce rotation and transcript echoes. */
 export function retainOutgoingMessageKey(

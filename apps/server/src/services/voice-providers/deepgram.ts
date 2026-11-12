@@ -1,4 +1,4 @@
-import type { VoiceProviderId } from "@aiteamos/contracts";
+import type { VoiceProviderId } from "@outcomego/contracts";
 import type { SttEvent, StreamingStt, StreamingTts, VoiceProvider } from "../voice-provider";
 
 const boundedText = (value: unknown) => typeof value === "string" ? value.slice(0, 8_000) : "";

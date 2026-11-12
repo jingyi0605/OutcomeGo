@@ -9,7 +9,7 @@ import {
   providerRowIcon,
   type PiReasoningLevel,
   type ServerInferenceSettings,
-} from "@aiteamos/contracts";
+} from "@outcomego/contracts";
 import { CHAT_PROVIDER_DEFINITIONS } from "./chat-provider-definitions";
 import {
   availableInferenceModels,
@@ -19,7 +19,7 @@ import {
 
 export const CHAT_PROVIDERS = new Set(Object.keys(CHAT_PROVIDER_DEFINITIONS));
 const iconField = (icon: string | undefined) => (icon ? { icon } : {});
-export const KEYLESS_API_KEY = "aiteamos-no-auth";
+export const KEYLESS_API_KEY = "outcomego-no-auth";
 export type ChatModel = Model<Api> & {
   reasoningLevels?: PiReasoningLevel[];
   defaultReasoningLevel?: PiReasoningLevel;
@@ -491,7 +491,7 @@ export class ChatProviderRegistry {
     const provider = catalog.providers.find((p) => p.id === settings.providerId);
     if (!provider)
       throw new Error(
-        `Provider ${settings.providerId} is not in your registry. Connect a built-in provider, or add a custom endpoint with aiteamos provider add.`
+        `Provider ${settings.providerId} is not in your registry. Connect a built-in provider, or add a custom endpoint with outcomego provider add.`
       );
     const model = catalog.models.find((m) => m.id === settings.modelId);
     if (!model)

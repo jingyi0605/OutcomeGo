@@ -1,5 +1,5 @@
 import XCTest
-@testable import OpenTeamCore
+@testable import OutcomeGoCore
 
 final class SystemConversationProjectionTests: XCTestCase {
   private func bootstrap() throws -> Bootstrap {

@@ -4,15 +4,15 @@ import {
   normalizeRobotAvatarShape,
   type BotAvatarMode,
   type RobotAvatarShape,
-} from "@aiteamos/contracts/robot-avatar";
+} from "@outcomego/contracts/robot-avatar";
 import {
   ROBOT_AVATAR_ARTWORK,
   ROBOT_AVATAR_VIEW_BOX,
   robotAvatarFaceColor,
   robotAvatarTempo,
   type RobotAvatarNode,
-} from "@aiteamos/design-tokens/robot-avatar-artwork";
-import { createRobotAvatarMotion } from "@aiteamos/design-tokens/robot-avatar-motion";
+} from "@outcomego/design-tokens/robot-avatar-artwork";
+import { createRobotAvatarMotion } from "@outcomego/design-tokens/robot-avatar-motion";
 import {
   createElement,
   useEffect,

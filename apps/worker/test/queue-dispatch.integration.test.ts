@@ -1,9 +1,9 @@
 import { expect, test } from "bun:test";
-import { createPrismaClient } from "@aiteamos/db";
+import { createPrismaClient } from "@outcomego/db";
 import { PgBoss } from "pg-boss";
 import { workContinuously } from "../src/queue-dispatch";
 
-const databaseUrl = process.env.AITEAMOS_TEST_DATABASE_URL;
+const databaseUrl = process.env.OUTCOMEGO_TEST_DATABASE_URL;
 
 test.skipIf(!databaseUrl)("notification workers drain an existing backlog without new notifications", async () => {
   const schema = `dispatch_${crypto.randomUUID().replaceAll("-", "")}`;

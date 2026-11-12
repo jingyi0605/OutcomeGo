@@ -2,9 +2,9 @@ import AppIntents
 
 struct SendBotTaskIntent: AppIntent {
   static let title: LocalizedStringResource = "Send a task to a Bot"
-  static let description = IntentDescription("Send instructions to an OpenTeam Bot. The Bot keeps working on your server.")
+  static let description = IntentDescription("Send instructions to an OutcomeGo Bot. The Bot keeps working on your server.")
   static let authenticationPolicy: IntentAuthenticationPolicy = .requiresAuthentication
-  @Parameter(title: "Bot", description: "The existing OpenTeam Bot that should receive the task.") var bot: TeamBotEntity
+  @Parameter(title: "Bot", description: "The existing OutcomeGo Bot that should receive the task.") var bot: TeamBotEntity
   @Parameter(title: "Instructions", description: "The task to send now. Sending starts asynchronous work; it does not return the Bot’s completed answer.", inputConnectionBehavior: .connectToPreviousIntentResult) var instructions: String
   @Parameter(title: "Attachments", description: "Files the user wants the Bot to use for this task.", default: []) var attachments: [IntentFile]
   static var parameterSummary: some ParameterSummary {
@@ -19,8 +19,8 @@ struct SendBotTaskIntent: AppIntent {
   }
 }
 
-struct OpenTeamConversationIntent: OpenIntent {
-  static let description = IntentDescription("Open an existing Bot or group conversation in OpenTeam.")
+struct OutcomeGoConversationIntent: OpenIntent {
+  static let description = IntentDescription("Open an existing Bot or group conversation in OutcomeGo.")
   static let title: LocalizedStringResource = "Open a conversation"
   static let authenticationPolicy: IntentAuthenticationPolicy = .requiresAuthentication
   static let openAppWhenRun = true
@@ -34,9 +34,9 @@ struct OpenTeamConversationIntent: OpenIntent {
   }
 }
 
-struct OpenTeamBotIntent: OpenIntent {
+struct OutcomeGoBotIntent: OpenIntent {
   static let title: LocalizedStringResource = "Open a Bot"
-  static let description = IntentDescription("Open a chosen Bot's conversation in OpenTeam. Save the Bot in a shortcut to use it with Back Tap or the Action button.")
+  static let description = IntentDescription("Open a chosen Bot's conversation in OutcomeGo. Save the Bot in a shortcut to use it with Back Tap or the Action button.")
   static let authenticationPolicy: IntentAuthenticationPolicy = .requiresAuthentication
   static let openAppWhenRun = true
   @available(iOS 26.0, *)
@@ -67,8 +67,8 @@ struct RecordBotVoiceNoteIntent: AudioRecordingIntent {
   }
 }
 
-struct OpenTeamMessageIntent: OpenIntent {
-  static let description = IntentDescription("Show a specific existing message in its original OpenTeam conversation.")
+struct OutcomeGoMessageIntent: OpenIntent {
+  static let description = IntentDescription("Show a specific existing message in its original OutcomeGo conversation.")
   static let title: LocalizedStringResource = "Open a message"
   static let authenticationPolicy: IntentAuthenticationPolicy = .requiresAuthentication
   static let openAppWhenRun = true
@@ -81,8 +81,8 @@ struct OpenTeamMessageIntent: OpenIntent {
 }
 
 struct RunTeamRoutineIntent: AppIntent {
-  static let title: LocalizedStringResource = "Run an OpenTeam routine"
-  static let description = IntentDescription("Start an existing saved routine once on your OpenTeam server. This starts asynchronous work; it does not change its schedule or return completed results.")
+  static let title: LocalizedStringResource = "Run an OutcomeGo routine"
+  static let description = IntentDescription("Start an existing saved routine once on your OutcomeGo server. This starts asynchronous work; it does not change its schedule or return completed results.")
   static let authenticationPolicy: IntentAuthenticationPolicy = .requiresAuthentication
   @Parameter(title: "Routine", description: "The existing saved routine explicitly requested by the user.") var routine: TeamRoutineEntity
   static var parameterSummary: some ParameterSummary { Summary("Run \(\.$routine)") }
@@ -93,13 +93,13 @@ struct RunTeamRoutineIntent: AppIntent {
     _ = try await client.api.request("/api/v0/routines/\(API.segment(resolved.id))/test",
       method: "POST", body: .object(["clientId": .string(UUID().uuidString)]))
     try client.validateSession()
-    return .result(dialog: "Started \(resolved.name) on your OpenTeam server.")
+    return .result(dialog: "Started \(resolved.name) on your OutcomeGo server.")
   }
 }
 
 struct FindTeamMessagesIntent: AppIntent {
-  static let description = IntentDescription("Search committed messages on the connected OpenTeam server, including messages older than the recent on-device index. Returns matching messages, not a generated answer.")
-  static let title: LocalizedStringResource = "Find OpenTeam messages"
+  static let description = IntentDescription("Search committed messages on the connected OutcomeGo server, including messages older than the recent on-device index. Returns matching messages, not a generated answer.")
+  static let title: LocalizedStringResource = "Find OutcomeGo messages"
   static let authenticationPolicy: IntentAuthenticationPolicy = .requiresAuthentication
   @Parameter(title: "Search", description: "Words or a phrase to search for in existing messages.") var query: String
   static var parameterSummary: some ParameterSummary { Summary("Find messages matching \(\.$query)") }
@@ -110,7 +110,7 @@ struct FindTeamMessagesIntent: AppIntent {
 
 struct TeamAppShortcuts: AppShortcutsProvider {
   static var appShortcuts: [AppShortcut] {
-    AppShortcut(intent: OpenTeamBotIntent(), phrases: [
+    AppShortcut(intent: OutcomeGoBotIntent(), phrases: [
       "Open a bot in \(.applicationName)",
       "Open bot \(\.$target) in \(.applicationName)",
     ], shortTitle: "Open a Bot", systemImageName: "bubble.left")
@@ -122,7 +122,7 @@ struct TeamAppShortcuts: AppShortcutsProvider {
       "Send a task with \(.applicationName)",
       "Ask \(\.$bot) in \(.applicationName)",
     ], shortTitle: "Ask a Bot", systemImageName: "bubble.left.and.text.bubble.right")
-    AppShortcut(intent: OpenTeamConversationIntent(), phrases: [
+    AppShortcut(intent: OutcomeGoConversationIntent(), phrases: [
       "Open a conversation in \(.applicationName)",
       "Open \(\.$target) in \(.applicationName)",
     ], shortTitle: "Open conversation", systemImageName: "bubble.left.and.bubble.right")
@@ -146,15 +146,15 @@ extension RunTeamRoutineIntent: ToolIntent {}
 @available(iOS 27.3, *)
 extension FindTeamMessagesIntent: ToolIntent {}
 @available(iOS 27.3, *)
-extension OpenTeamBotIntent: ToolIntent {}
+extension OutcomeGoBotIntent: ToolIntent {}
 @available(iOS 27.3, *)
-extension OpenTeamConversationIntent: ToolIntent {}
+extension OutcomeGoConversationIntent: ToolIntent {}
 @available(iOS 27.3, *)
-extension OpenTeamMessageIntent: ToolIntent {}
+extension OutcomeGoMessageIntent: ToolIntent {}
 
 struct SendTeamConversationMessageIntent: AppIntent {
   static let title: LocalizedStringResource = "Send a message to a conversation"
-  static let description = IntentDescription("Send instructions, text and files to one specific existing OpenTeam conversation. Use this for a named group even when another group has the same members. The returned message acknowledges acceptance; Bot work continues asynchronously.")
+  static let description = IntentDescription("Send instructions, text and files to one specific existing OutcomeGo conversation. Use this for a named group even when another group has the same members. The returned message acknowledges acceptance; Bot work continues asynchronously.")
   static let authenticationPolicy: IntentAuthenticationPolicy = .requiresAuthentication
   @Parameter(title: "Conversation", description: "The exact existing Bot or group conversation to receive the message.") var conversation: TeamConversationEntity
   @Parameter(title: "Message", description: "Text to send now, including any requested links.") var text: String
@@ -171,7 +171,7 @@ struct SendTeamConversationMessageIntent: AppIntent {
 
 struct DraftTeamConversationMessageIntent: AppIntent {
   static let title: LocalizedStringResource = "Draft a message to a conversation"
-  static let description = IntentDescription("Open a draft for review in a specific existing OpenTeam conversation. Appends to any existing draft and never sends it.")
+  static let description = IntentDescription("Open a draft for review in a specific existing OutcomeGo conversation. Appends to any existing draft and never sends it.")
   static let authenticationPolicy: IntentAuthenticationPolicy = .requiresAuthentication
   static let openAppWhenRun = true
   @Parameter(title: "Conversation", description: "The exact existing Bot or group conversation for this draft.") var conversation: TeamConversationEntity

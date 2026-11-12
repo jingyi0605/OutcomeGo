@@ -13,7 +13,7 @@ app.setPath("userData", path.join(root, reduced ? "reduced-profile" : "profile")
 if (reduced) app.commandLine.appendSwitch("force-prefers-reduced-motion");
 const results = {
   method:
-    "Isolated offscreen Electron renderer of shipping aiTeamOS component. No desktop or GrokBot window recording.",
+    "Isolated offscreen Electron renderer of shipping OutcomeGo component. No desktop or GrokBot window recording.",
   reduced,
   scale,
   states: {},

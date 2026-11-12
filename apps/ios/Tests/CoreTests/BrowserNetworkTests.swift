@@ -1,5 +1,5 @@
 import XCTest
-@testable import OpenTeamCore
+@testable import OutcomeGoCore
 
 final class BrowserNetworkTests: XCTestCase {
   func view(_ state: String = "ready", connected: Bool = true, active: String = "air") throws -> BrowserNetworkView {

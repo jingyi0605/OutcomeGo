@@ -1,7 +1,7 @@
 import {
-  compareAiTeamOSVersions,
-  aiTeamOSCompatibility,
-} from "@aiteamos/contracts/version-compatibility";
+  compareOutcomeGoVersions,
+  outcomeGoCompatibility,
+} from "@outcomego/contracts/version-compatibility";
 import { useEffect, useState } from "react";
 import { translateCurrent } from "../lib/i18n-catalog";
 import { useServerUpdateStatus } from "./use-server-update-status";
@@ -11,8 +11,8 @@ import { useServerUpdateStatus } from "./use-server-update-status";
  * desktop release updates first and the server then updates to that version.
  */
 export function useServerUpdate() {
-  const clientVersion = window.aiteamos?.versions.app ?? "0.0.0";
-  const [clientUpdate, setClientUpdate] = useState<AiTeamOSUpdateStatus | null>(null);
+  const clientVersion = window.outcomego?.versions.app ?? "0.0.0";
+  const [clientUpdate, setClientUpdate] = useState<OutcomeGoUpdateStatus | null>(null);
   const {
     status: server,
     loading: serverLoading,
@@ -25,7 +25,7 @@ export function useServerUpdate() {
 
   useEffect(() => {
     let active = true;
-    window.aiteamos?.updates
+    window.outcomego?.updates
       .status()
       .then((value) => active && setClientUpdate(value))
       .catch(() => undefined);
@@ -34,9 +34,9 @@ export function useServerUpdate() {
     };
   }, []);
 
-  useEffect(() => window.aiteamos?.updates.onClientProgress(setClientUpdate), []);
+  useEffect(() => window.outcomego?.updates.onClientProgress(setClientUpdate), []);
 
-  const compatibility = aiTeamOSCompatibility(
+  const compatibility = outcomeGoCompatibility(
     clientVersion,
     server?.currentVersion ?? null,
     server?.apiProtocolVersion ?? null,
@@ -52,7 +52,7 @@ export function useServerUpdate() {
     compatibility === "server-update-required" ||
     (compatibility === "update-recommended" &&
       server?.currentVersion &&
-      (compareAiTeamOSVersions(clientVersion, server.currentVersion) ?? 0) > 0)
+      (compareOutcomeGoVersions(clientVersion, server.currentVersion) ?? 0) > 0)
       ? clientVersion
       : null;
   const serverNeedsUpdate =

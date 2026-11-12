@@ -1,4 +1,4 @@
-import { ApiError, PluginConfigurationInput, PluginDraftInput, PluginPackageInput, PluginSkillInput, PluginTestInput, PluginUpdateInput, PluginUrlInput } from "@aiteamos/contracts";
+import { ApiError, PluginConfigurationInput, PluginDraftInput, PluginPackageInput, PluginSkillInput, PluginTestInput, PluginUpdateInput, PluginUrlInput } from "@outcomego/contracts";
 import { json } from "../http";
 import { type RouteContext, run } from "./context";
 import { bodyRoute, dispatchRoutes, effectRoute } from "./dispatch";

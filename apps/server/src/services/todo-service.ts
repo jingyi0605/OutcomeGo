@@ -1,5 +1,5 @@
-import { type TodoWriteInput } from "@aiteamos/contracts";
-import type { PrismaClient } from "@aiteamos/db";
+import { type TodoWriteInput } from "@outcomego/contracts";
+import type { PrismaClient } from "@outcomego/db";
 import { appendEvent } from "./service-utils";
 
 /** Finished todos kept per bot, newest first, as in the reference. */

@@ -42,7 +42,7 @@ export const startTimeZoneReporting = (options: {
       .send(zone)
       .then(() => {
         reported = zone;
-        window.dispatchEvent(new Event("aiteamos:time-zone-changed"));
+        window.dispatchEvent(new Event("outcomego:time-zone-changed"));
       })
       .catch(() => undefined)
       .finally(() => {

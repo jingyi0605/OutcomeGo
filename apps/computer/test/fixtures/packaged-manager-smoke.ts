@@ -3,7 +3,7 @@ import { mkdtemp, readFile, realpath, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { StdioMcpManager } from "../../src/mcp-manager";
-process.env.AITEAMOS_CONTROL_TOKEN = "synthetic-parent-secret-must-not-reach-connector";
+process.env.OUTCOMEGO_CONTROL_TOKEN = "synthetic-parent-secret-must-not-reach-connector";
 
 const directory = await mkdtemp(join(tmpdir(), "plugin-runtime-"));
 let manager = new StdioMcpManager(directory);

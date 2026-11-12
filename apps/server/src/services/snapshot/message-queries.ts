@@ -1,4 +1,4 @@
-import { Prisma, type PrismaClient } from "@aiteamos/db";
+import { Prisma, type PrismaClient } from "@outcomego/db";
 
 export const MAX_THREAD_CONTEXT_MESSAGES = 100;
 
@@ -94,7 +94,7 @@ export async function threadContextFor(
           ARRAY[message."id"] AS path
         FROM seed
         CROSS JOIN input
-        INNER JOIN "ChannelMessage" AS message
+        INNER JOIN "outcomego_channel_message" AS message
           ON message."channelId" = input."channelId"
           AND message."id" = seed."id"
         WHERE NOT (message."id" = ANY(input."knownIds"))
@@ -125,7 +125,7 @@ export async function threadContextFor(
           current.path || parent."id"
         FROM ancestor AS current
         CROSS JOIN input
-        INNER JOIN "ChannelMessage" AS parent
+        INNER JOIN "outcomego_channel_message" AS parent
           ON parent."channelId" = input."channelId"
           AND parent."id" = current."replyToId"
         WHERE current."traversalDepth" < ${MAX_THREAD_CONTEXT_MESSAGES + 1}
@@ -183,8 +183,8 @@ export async function channelUnreadCounts(
         SELECT
           message."channelId" AS "channelId",
           COUNT(*)::int AS "unreadCount"
-        FROM "ChannelMessage" AS message
-        LEFT JOIN "ChannelReadState" AS state
+        FROM "outcomego_channel_message" AS message
+        LEFT JOIN "outcomego_channel_read_state" AS state
           ON state."channelId" = message."channelId"
         WHERE message."channelId" = ANY(${channelIds}::uuid[])
           AND message."sender" = 'agent'

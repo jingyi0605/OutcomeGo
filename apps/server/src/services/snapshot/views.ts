@@ -1,4 +1,4 @@
-import type { Snapshot, ChannelNotificationState } from "@aiteamos/contracts";
+import type { Snapshot, ChannelNotificationState } from "@outcomego/contracts";
 import { resolve } from "node:path";
 import { toChannelMessageView } from "../view-mappers";
 

@@ -51,7 +51,7 @@ import XCTest
     XCTAssertTrue(unread.waitForExistence(timeout: 20))
     XCTAssertEqual(unread.label, "2 unread conversations")
     XCTAssertTrue(app.buttons["settings-button"].isHittable)
-    XCTAssertFalse(app.buttons["settings-button"].label.contains("OpenTeam owner"))
+    XCTAssertFalse(app.buttons["settings-button"].label.contains("OutcomeGo owner"))
     verifyInboxControlPlacement(app)
     let hasSidebar = app.staticTexts["sidebar-account-name"].exists
     let unreadRow = app.buttons["channel-visual-6"]
@@ -523,7 +523,7 @@ import XCTest
   }
   func testFocusedExchangeMessageOpensTheReadOnlyConversation() async throws {
     let app = try await launch("exchange")
-    app.open(URL(string: "openteam-swift://chat/channel-research?messageId=exchange-in")!)
+    app.open(URL(string: "outcomego-swift://chat/channel-research?messageId=exchange-in")!)
     XCTAssertTrue(app.buttons["exchange-back"].waitForExistence(timeout: 10))
     XCTAssertTrue(app.staticTexts["Incoming exchange payload"].isHittable)
     XCTAssertTrue(app.staticTexts["Read-only"].exists)
@@ -531,7 +531,7 @@ import XCTest
   }
   func testOlderSearchContextLoadsForwardWithoutSkippingPages() async throws {
     let app = try await launch("history-pages", visual: true)
-    app.open(URL(string: "openteam-swift://chat/visual-chat?messageId=visual-message-visual-chat-20")!)
+    app.open(URL(string: "outcomego-swift://chat/visual-chat?messageId=visual-message-visual-chat-20")!)
     XCTAssertTrue(app.staticTexts["Page message 20"].waitForExistence(timeout: 10))
     XCTAssertFalse(app.staticTexts["Page message 180"].exists)
     let later = app.buttons["Load later messages"]

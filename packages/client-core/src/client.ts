@@ -1,8 +1,8 @@
-import type { ServerUpdateView } from "@aiteamos/contracts";
-import type { NotificationPresenceInput, NotificationRouting } from "@aiteamos/contracts/notification-presence";
-import type { BrowserNetworkView, NetworkSettingsUpdate, NetworkEgress, NetworkQuality } from "@aiteamos/contracts/browser-network";
-import type {AutomationWebhookInput,AutomationWebhookView} from "@aiteamos/contracts/automation-webhooks";
-import type { WebProviderCheckInput, WebProvidersInput, WebProvidersView } from "@aiteamos/contracts/web-search";
+import type { ServerUpdateView } from "@outcomego/contracts";
+import type { NotificationPresenceInput, NotificationRouting } from "@outcomego/contracts/notification-presence";
+import type { BrowserNetworkView, NetworkSettingsUpdate, NetworkEgress, NetworkQuality } from "@outcomego/contracts/browser-network";
+import type {AutomationWebhookInput,AutomationWebhookView} from "@outcomego/contracts/automation-webhooks";
+import type { WebProviderCheckInput, WebProvidersInput, WebProvidersView } from "@outcomego/contracts/web-search";
 import type {
   PluginComposerView,
   PluginTestInput,
@@ -13,7 +13,7 @@ import type {
   PluginSkillInput,
   PluginDraftView,
   PluginOAuthCallbackInput,
-} from "@aiteamos/contracts/plugin-management";
+} from "@outcomego/contracts/plugin-management";
 import type {
   AddCustomMcpInput,
   AddInferenceProviderInput,
@@ -71,24 +71,24 @@ import type {
   UpdateChannelProfileInput,
   UpdateRoutineInput,
   UploadAssetInput,
-} from "@aiteamos/contracts";
-import { PLUGIN_CONNECTION_STATUS_MAX_IDS } from "@aiteamos/contracts/plugin-settings";
+} from "@outcomego/contracts";
+import { PLUGIN_CONNECTION_STATUS_MAX_IDS } from "@outcomego/contracts/plugin-settings";
 import type {
   TranscriptionSettingsInput,
   TranscriptionSettingsView,
   TranscriptionCheck,
   TranscriptionResult,
-} from "@aiteamos/contracts/transcription";
+} from "@outcomego/contracts/transcription";
 import {
   consumeProductEventStream,
   type ProductEventHandlers,
   readProductEventBatch,
 } from "./events";
-import { createJsonTransport, type AiTeamOSTransportOptions } from "./http";
+import { createJsonTransport, type OutcomeGoTransportOptions } from "./http";
 
 /** A Mac's send settings: skip every approval card, or only for allowed recipients. */
 export interface MachineMessagesSettings { machineId: string; sendWithoutAsking: boolean; allowedRecipients: Array<{ recipient: string; recipientName: string | null }> }
-export interface AiTeamOSClientOptions extends AiTeamOSTransportOptions {
+export interface OutcomeGoClientOptions extends OutcomeGoTransportOptions {
   createId?: () => string;
   timeZone?: () => string;
   sourceMachineId?: () => string | undefined;
@@ -109,7 +109,7 @@ const fallbackId = (): string =>
 
 const fallbackTimeZone = (): string => Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
 
-export const createAiTeamOSClient = (options: AiTeamOSClientOptions) => {
+export const createOutcomeGoClient = (options: OutcomeGoClientOptions) => {
   const transport = createJsonTransport(options);
   const createId = options.createId ?? fallbackId;
   const timeZone = options.timeZone ?? fallbackTimeZone;
@@ -688,13 +688,13 @@ export const createAiTeamOSClient = (options: AiTeamOSClientOptions) => {
       ),
     mutateSharedTemplate: (messageId: string, action: "import" | "publish" | "unpublish", clientId?: string) =>
       transport.request<RichMessageMutationView & { botId?: string }>(`/api/v0/channel-messages/${encodeURIComponent(messageId)}/bot-template`, { method: "POST", body: JSON.stringify({ action, clientId }) }),
-    sharedTemplateRecipe: (messageId: string) => transport.request<import("@aiteamos/contracts").BotRecipe>(`/api/v0/channel-messages/${encodeURIComponent(messageId)}/bot-template/recipe`),
+    sharedTemplateRecipe: (messageId: string) => transport.request<import("@outcomego/contracts").BotRecipe>(`/api/v0/channel-messages/${encodeURIComponent(messageId)}/bot-template/recipe`),
     mutateIMessageSend: (messageId: string, action: "send" | "allow" | "cancel" | "refresh") =>
       transport.request<RichMessageMutationView>(`/api/v0/channel-messages/${encodeURIComponent(messageId)}/imessage-send`, { method: "POST", body: JSON.stringify({ action }) }),
     mutateExternalDraft: (messageId: string, action: "send" | "cancel" | "refresh", edits?: Record<string, unknown>) =>
       transport.request<RichMessageMutationView>(`/api/v0/channel-messages/${encodeURIComponent(messageId)}/external-draft`, { method: "POST", body: JSON.stringify({ action, edits }) }),
     /** Sets how the card's Bot gets later drafts approved; `edits` carries unsent recipient changes. */
-    setExternalDraftApproval: (messageId: string, mode: import("@aiteamos/contracts").ExternalDraftApprovalMode, edits?: Record<string, unknown>) =>
+    setExternalDraftApproval: (messageId: string, mode: import("@outcomego/contracts").ExternalDraftApprovalMode, edits?: Record<string, unknown>) =>
       transport.request<RichMessageMutationView>(`/api/v0/channel-messages/${encodeURIComponent(messageId)}/external-draft`, { method: "POST", body: JSON.stringify({ action: "approval", mode, edits }) }),
     submitUserForm: (messageId: string, values: Record<string, string | boolean>, saveToVault = false) =>
       transport.request<RichMessageMutationView>(`/api/v0/channel-messages/${encodeURIComponent(messageId)}/user-form`, {
@@ -830,4 +830,4 @@ export const createAiTeamOSClient = (options: AiTeamOSClientOptions) => {
   };
 };
 
-export type AiTeamOSClient = ReturnType<typeof createAiTeamOSClient>;
+export type OutcomeGoClient = ReturnType<typeof createOutcomeGoClient>;

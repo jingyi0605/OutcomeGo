@@ -2,12 +2,12 @@ import { test, expect } from 'bun:test';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { createPrismaClient } from '@aiteamos/db';
-import { AgentDataStore, AgentMessaging } from '@aiteamos/messaging';
+import { createPrismaClient } from '@outcomego/db';
+import { AgentDataStore, AgentMessaging } from '@outcomego/messaging';
 import { Effect } from 'effect';
 import { ExternalDraftService } from '../src/services/external-draft-service';
 import { loadConnectionNamespaces } from '../src/services/plugin/namespaces';
-const databaseUrl = process.env.AITEAMOS_TEST_DATABASE_URL;
+const databaseUrl = process.env.OUTCOMEGO_TEST_DATABASE_URL;
 
 /** A Bot chat plus a connector account that declares reviewed sending. */
 async function fixture(name: string) {
@@ -185,7 +185,7 @@ test('a draft made in a room becomes a card in the 1:1 chat', async () => {
   const message = await f.prisma.channelMessage.findUniqueOrThrow({ where: { id: card.message_id } });
   expect(message.channelId).not.toBe(room.id);
   expect((await f.prisma.channel.findUniqueOrThrow({ where: { id: message.channelId } })).kind).toBe('bot_dm');
-  const { renderControlResult } = await import('@aiteamos/contracts/tool-results');
+  const { renderControlResult } = await import('@outcomego/contracts/tool-results');
   expect(renderControlResult('DraftExternalMessage', card, draft)).toBe(
    `Draft email from me@example.com to ann@example.com is now an editable card in your own 1:1 chat with the user, not in this room (a room cannot hold draft cards); tell the room where it is (id: ${card.message_id}). Nothing has been sent; the user reviews, may edit, and sends or discards it from the card.`
   );

@@ -1,7 +1,7 @@
 import {expect, test} from "bun:test";
-import {createPrismaClient} from "@aiteamos/db";
+import {createPrismaClient} from "@outcomego/db";
 import {readTranscript} from "../src/read-transcript";
-const url = process.env.AITEAMOS_TEST_DATABASE_URL;
+const url = process.env.OUTCOMEGO_TEST_DATABASE_URL;
 test.skipIf(!url)("scoped persisted history: stopped workers, paging, append, compaction and private boundaries", async()=>{
  const db=createPrismaClient(url!); const botIds:string[]=[]; const channels:string[]=[];
  const bot=async()=>{const b=await db.bot.create({data:{name:'Transcript QA fixture',status:'active',defaultDirectory:'/tmp/transcript-qa',conversation:{create:{}}},include:{conversation:true}});botIds.push(b.id);return b;};

@@ -1,13 +1,13 @@
 import { afterAll, expect, test } from "bun:test";
 import { randomUUID } from "node:crypto";
 import { Effect } from "effect";
-import { createPrismaClient } from "@aiteamos/db";
-import { AgentDataStore, AgentMessaging, type ToolContext } from "@aiteamos/messaging";
+import { createPrismaClient } from "@outcomego/db";
+import { AgentDataStore, AgentMessaging, type ToolContext } from "@outcomego/messaging";
 import { ChannelService } from "../src/services/channel-service";
 import { WakeWorker } from "../../worker/src/worker";
 
-const db = process.env.AITEAMOS_TEST_DATABASE_URL
-  ? createPrismaClient(process.env.AITEAMOS_TEST_DATABASE_URL)
+const db = process.env.OUTCOMEGO_TEST_DATABASE_URL
+  ? createPrismaClient(process.env.OUTCOMEGO_TEST_DATABASE_URL)
   : null;
 afterAll(() => db?.$disconnect());
 

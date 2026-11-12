@@ -9,7 +9,7 @@ The pinned revision declares no redistribution license. `upstream.json` records
 its revision and file hashes; install or update fetches the originals directly
 from GitHub, verifies them, and saves an immutable installed snapshot under
 `upstream/`. Execution and unchanged-source updates reuse that snapshot. No
-workflow bodies are rewritten or replaced with aiTeamOS-authored versions.
+workflow bodies are rewritten or replaced with OutcomeGo-authored versions.
 
 Install or update in Plugins, connect an account, enable **Instructions and
 hooks** for a Bot, and grant the intended account. Shared runtime code resolves

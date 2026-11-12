@@ -242,7 +242,7 @@ export class ModelSession implements InteractiveSession<ModelExit> {
           ? [
               {
                 kind: "note" as const,
-                text: "Add a custom chat endpoint: aiteamos provider add --help",
+                text: "Add a custom chat endpoint: outcomego provider add --help",
                 tone: "muted" as const,
               },
             ]
@@ -294,7 +294,7 @@ export class ModelSession implements InteractiveSession<ModelExit> {
                 kind: "note",
                 text: provider
                   ? "Choose a subscription or API connection to load its chat models."
-                  : "The saved provider is not in your registry. Choose a connected provider, or add its custom endpoint with aiteamos provider add.",
+                  : "The saved provider is not in your registry. Choose a connected provider, or add its custom endpoint with outcomego provider add.",
                 tone: "warning",
               } as SessionRow,
             ]

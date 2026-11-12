@@ -5,7 +5,7 @@ import UIKit
 /// Sent-message donations let the share sheet suggest individual Bot conversations.
 /// The app and the share extension both donate; the extension reads `conversationIdentifier` back.
 enum ConversationDonation {
-  private static let logger = Logger(subsystem: "dev.openteam.share", category: "donation")
+  private static let logger = Logger(subsystem: "dev.outcomego.share", category: "donation")
   /// NSCache is thread-safe; keys include `updatedAt`, so a new upload replaces the old photo.
   nonisolated(unsafe) private static let photos = NSCache<NSString, UIImage>()
 
@@ -34,7 +34,7 @@ enum ConversationDonation {
     let intent = INSendMessageIntent(
       recipients: recipients, outgoingMessageType: .outgoingMessageText, content: nil,
       speakableGroupName: INSpeakableString(spokenPhrase: name), conversationIdentifier: channel.id,
-      serviceName: "OpenTeam", sender: nil, attachments: nil)
+      serviceName: "OutcomeGo", sender: nil, attachments: nil)
     intent.setImage(image, forParameterNamed: \.speakableGroupName)
     return intent
   }

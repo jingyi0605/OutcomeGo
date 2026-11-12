@@ -84,7 +84,7 @@ try {
         connected: true,
         sharingAllowed: false,
         providing: false,
-        serverUrl: "https://aiteamos.example",
+        serverUrl: "https://outcomego.example",
         deploymentId: "test-deployment",
         activeConnections: 0,
       },

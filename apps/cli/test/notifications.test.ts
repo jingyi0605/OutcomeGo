@@ -9,7 +9,7 @@ import { readApnsConfiguration } from "../src/notifications";
 const privateKey = generateKeyPairSync("ec", { namedCurve: "prime256v1" })
   .privateKey.export({ type: "pkcs8", format: "pem" })
   .toString();
-const metadata = { keyId: "ABCDE12345", teamId: "FGHIJ67890", topic: "dev.aiteamos.mobile" };
+const metadata = { keyId: "ABCDE12345", teamId: "FGHIJ67890", topic: "dev.outcomego.mobile" };
 describe("APNs configuration import", () => {
   test("parses nested commands, help and installation selection", () => {
     expect(parseArguments(["notifications", "status", "--dir", "/tmp/test"])).toMatchObject({
@@ -35,7 +35,7 @@ describe("APNs configuration import", () => {
     );
   });
   test("resolves a JSON key path against the configuration file, and supports direct flags", () => {
-    const directory = mkdtempSync(join(tmpdir(), "aiteamos-apns-import-"));
+    const directory = mkdtempSync(join(tmpdir(), "outcomego-apns-import-"));
     try {
       writeFileSync(join(directory, "key.p8"), privateKey, { mode: 0o600 });
       writeFileSync(
@@ -68,7 +68,7 @@ describe("APNs configuration import", () => {
     }
   });
   test("rejects ambiguous imports, unknown fields, malformed JSON and oversized files without exposing contents", () => {
-    const directory = mkdtempSync(join(tmpdir(), "aiteamos-apns-invalid-"));
+    const directory = mkdtempSync(join(tmpdir(), "outcomego-apns-invalid-"));
     const path = join(directory, "apns.json");
     const options = parseArguments(["notifications", "configure", "--config", path]);
     try {

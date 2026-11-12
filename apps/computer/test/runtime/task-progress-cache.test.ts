@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { InMemoryCredentialStore } from "@earendil-works/pi-ai";
 import { streamSimple } from "@earendil-works/pi-ai/api/openai-completions";
 import { ModelRuntime, SessionManager } from "@earendil-works/pi-coding-agent";
-import { replaceTaskProgressContext } from "@aiteamos/contracts/task-progress";
+import { replaceTaskProgressContext } from "@outcomego/contracts/task-progress";
 import { ComputerRuntime } from "../../src/runtime";
 import { BotCompactionArchiveStore, BotCompactionCoordinator } from "../../src/bot-compaction";
 
@@ -78,7 +78,7 @@ test("real provider requests retain their prefix when task snapshots are unchang
     }
     expect(JSON.stringify(requests[2])).toContain("Verified receipt revision 2");
     expect(JSON.stringify(requests[2])).toContain("Inspect the pending document without sending");
-    const snapshots = manager.getEntries().filter((entry: any) => entry.type === "custom_message" && entry.customType === "aiteamos-task-progress");
+    const snapshots = manager.getEntries().filter((entry: any) => entry.type === "custom_message" && entry.customType === "outcomego-task-progress");
     expect(snapshots).toHaveLength(2);
     expect(snapshots.every((entry: any) => entry.display === false)).toBe(true);
     // Recreate the Pi session as the worker does for a later wake. The latest

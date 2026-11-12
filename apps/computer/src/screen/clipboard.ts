@@ -1,6 +1,6 @@
 import type { ChildProcess } from "node:child_process";
 import { setTimeout as delay } from "node:timers/promises";
-import type { ScreenClipboardInput, ScreenClipboardView } from "@aiteamos/contracts";
+import type { ScreenClipboardInput, ScreenClipboardView } from "@outcomego/contracts";
 import { spawnAgentProcess as spawn, agentProcessIdentity } from "../agent-process";
 import { run } from "./processes";
 

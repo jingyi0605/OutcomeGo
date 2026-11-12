@@ -1,31 +1,31 @@
-export interface AiTeamOSPerformanceEntry {
+export interface OutcomeGoPerformanceEntry {
   name: string;
   duration: number;
   at: number;
   detail?: Record<string, number | string | boolean>;
 }
 
-export type AiTeamOSPerformanceScenario = Record<string, number | string | boolean>;
+export type OutcomeGoPerformanceScenario = Record<string, number | string | boolean>;
 
-export interface AiTeamOSPerformanceExport {
+export interface OutcomeGoPerformanceExport {
   exportedAt: number;
-  scenario: AiTeamOSPerformanceScenario;
-  entries: AiTeamOSPerformanceEntry[];
+  scenario: OutcomeGoPerformanceScenario;
+  entries: OutcomeGoPerformanceEntry[];
   summary: Record<string, { count: number; average: number; p95: number; max: number }>;
-  processes: Awaited<ReturnType<NonNullable<Window["aiteamos"]>["getProcessMetrics"]>> | null;
+  processes: Awaited<ReturnType<NonNullable<Window["outcomego"]>["getProcessMetrics"]>> | null;
 }
 
 const MAX_ENTRIES = 200;
-const fallbackEntries: AiTeamOSPerformanceEntry[] = [];
+const fallbackEntries: OutcomeGoPerformanceEntry[] = [];
 
 interface PerformanceStore {
-  entries: AiTeamOSPerformanceEntry[];
+  entries: OutcomeGoPerformanceEntry[];
   installed: boolean;
   revision: number;
-  scenario: AiTeamOSPerformanceScenario;
+  scenario: OutcomeGoPerformanceScenario;
 }
 
-const currentScenario = (): AiTeamOSPerformanceScenario => {
+const currentScenario = (): OutcomeGoPerformanceScenario => {
   const parameters = new URLSearchParams(window.location.search);
   return {
     name: parameters.get("scenario") ?? "interactive",
@@ -37,29 +37,29 @@ const currentScenario = (): AiTeamOSPerformanceScenario => {
     viewportWidth: window.innerWidth,
     viewportHeight: window.innerHeight,
     devicePixelRatio: window.devicePixelRatio,
-    platform: window.aiteamos?.platform ?? navigator.platform,
-    electron: window.aiteamos?.versions.electron ?? "browser",
-    chrome: window.aiteamos?.versions.chrome ?? "browser",
+    platform: window.outcomego?.platform ?? navigator.platform,
+    electron: window.outcomego?.versions.electron ?? "browser",
+    chrome: window.outcomego?.versions.chrome ?? "browser",
   };
 };
 
 const getStore = (): PerformanceStore | null => {
   if (typeof window === "undefined") return null;
-  if (!window.__aiteamosPerformanceStore) {
-    window.__aiteamosPerformanceStore = {
+  if (!window.__outcomegoPerformanceStore) {
+    window.__outcomegoPerformanceStore = {
       entries: [],
       installed: false,
       revision: 0,
       scenario: currentScenario(),
     };
   }
-  return window.__aiteamosPerformanceStore;
+  return window.__outcomegoPerformanceStore;
 };
 
 export function recordPerformance(
   name: string,
   duration: number,
-  detail?: AiTeamOSPerformanceEntry["detail"]
+  detail?: OutcomeGoPerformanceEntry["detail"]
 ) {
   const store = getStore();
   const entries = store?.entries ?? fallbackEntries;
@@ -68,7 +68,7 @@ export function recordPerformance(
   if (store) store.revision += 1;
 }
 
-export function measureUntilNextPaint(name: string, detail?: AiTeamOSPerformanceEntry["detail"]) {
+export function measureUntilNextPaint(name: string, detail?: OutcomeGoPerformanceEntry["detail"]) {
   const startedAt = performance.now();
   requestAnimationFrame(() => {
     window.setTimeout(() => recordPerformance(name, performance.now() - startedAt, detail), 0);
@@ -86,7 +86,7 @@ export function installPerformanceMonitoring() {
       store.revision += 1;
     },
     metadata: () => ({ ...store.scenario }),
-    setScenario: (metadata: AiTeamOSPerformanceScenario) => {
+    setScenario: (metadata: OutcomeGoPerformanceScenario) => {
       store.scenario = { ...store.scenario, ...metadata };
       store.revision += 1;
     },
@@ -112,17 +112,17 @@ export function installPerformanceMonitoring() {
         })
       );
     },
-    export: async (): Promise<AiTeamOSPerformanceExport> => ({
+    export: async (): Promise<OutcomeGoPerformanceExport> => ({
       exportedAt: Date.now(),
       scenario: { ...store.scenario },
       entries: store.entries.slice(),
       summary: debug.summary(),
-      processes: window.aiteamos?.getProcessMetrics
-        ? await window.aiteamos.getProcessMetrics().catch(() => null)
+      processes: window.outcomego?.getProcessMetrics
+        ? await window.outcomego.getProcessMetrics().catch(() => null)
         : null,
     }),
   };
-  Object.defineProperty(window, "aiteamosPerformance", {
+  Object.defineProperty(window, "outcomegoPerformance", {
     configurable: true,
     value: debug,
   });
@@ -132,11 +132,11 @@ export function installPerformanceMonitoring() {
     const publish = () => {
       if (publishedRevision === store.revision) return;
       publishedRevision = store.revision;
-      document.documentElement.dataset.aiteamosPerformance = JSON.stringify(debug.summary());
-      document.documentElement.dataset.aiteamosPerformanceRecent = JSON.stringify(
+      document.documentElement.dataset.outcomegoPerformance = JSON.stringify(debug.summary());
+      document.documentElement.dataset.outcomegoPerformanceRecent = JSON.stringify(
         store.entries.slice(-50)
       );
-      document.documentElement.dataset.aiteamosPerformanceScenario = JSON.stringify(
+      document.documentElement.dataset.outcomegoPerformanceScenario = JSON.stringify(
         debug.metadata()
       );
     };
@@ -187,14 +187,14 @@ export function installPerformanceMonitoring() {
 
 declare global {
   interface Window {
-    __aiteamosPerformanceStore?: PerformanceStore;
-    aiteamosPerformance?: {
-      snapshot: () => AiTeamOSPerformanceEntry[];
+    __outcomegoPerformanceStore?: PerformanceStore;
+    outcomegoPerformance?: {
+      snapshot: () => OutcomeGoPerformanceEntry[];
       clear: () => void;
-      metadata: () => AiTeamOSPerformanceScenario;
-      setScenario: (metadata: AiTeamOSPerformanceScenario) => void;
+      metadata: () => OutcomeGoPerformanceScenario;
+      setScenario: (metadata: OutcomeGoPerformanceScenario) => void;
       summary: () => Record<string, { count: number; average: number; p95: number; max: number }>;
-      export: () => Promise<AiTeamOSPerformanceExport>;
+      export: () => Promise<OutcomeGoPerformanceExport>;
     };
   }
 }

@@ -2,7 +2,7 @@ import type {
   PluginConnectionStatusesView,
   PluginConnectionView,
   PluginSettingsView,
-} from "@aiteamos/contracts";
+} from "@outcomego/contracts";
 
 const mergeConnectionStatus = (
   connection: PluginConnectionView,

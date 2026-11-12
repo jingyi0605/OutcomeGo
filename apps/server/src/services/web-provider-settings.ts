@@ -1,4 +1,4 @@
-import { ApiError } from "@aiteamos/contracts";
+import { ApiError } from "@outcomego/contracts";
 import {
   DEFAULT_FETCH_PROVIDER,
   WEB_PROVIDER_LISTS,
@@ -17,8 +17,8 @@ import {
   type WebToolSchedule,
   type WebToolStrategy,
   webProviderInfo,
-} from "@aiteamos/contracts/web-search";
-import type { PrismaClient } from "@aiteamos/db";
+} from "@outcomego/contracts/web-search";
+import type { PrismaClient } from "@outcomego/db";
 
 const invalid = (message: string) => new ApiError(400, "invalid_web_provider_settings", message);
 const ID = "global";
@@ -117,15 +117,11 @@ const missingKey = (info: WebProviderInfo, row: Row | undefined) => info.fields.
 const sameKey = (a: Row | undefined, b: Row | undefined) => (a?.secret ?? null) === (b?.secret ?? null);
 const validProviderIds = (tool: WebTool) => new Set(WEB_PROVIDER_LISTS[tool].map((info) => info.id));
 
-function providerIds(tool: WebTool, raw: unknown, legacy: string | null | undefined): string[] | null {
+function providerIds(tool: WebTool, raw: unknown): string[] | null {
   const allowed = validProviderIds(tool);
-  if (raw !== undefined && raw !== null) {
-    if (Array.isArray(raw) && raw.every((id) => typeof id === "string") && new Set(raw).size === raw.length && raw.every((id) => allowed.has(id)))
-      return raw as string[];
-    return null;
-  }
-  if (legacy && allowed.has(legacy)) return [legacy];
-  return tool === "fetch" ? [DEFAULT_FETCH_PROVIDER] : [];
+  if (Array.isArray(raw) && raw.every((id) => typeof id === "string") && new Set(raw).size === raw.length && raw.every((id) => allowed.has(id)))
+    return raw as string[];
+  return null;
 }
 
 function normalizeCursor(cursor: number, count: number): number {
@@ -146,8 +142,8 @@ export class WebProviderSettingsService {
       client.webFetchSettings.findUnique({ where: { id: ID } }),
       client.webToolProvider.findMany(),
     ]);
-    const searchProviders = providerIds("search", search?.providers, search?.provider);
-    const fetchProviders = providerIds("fetch", fetch?.providers, fetch?.provider);
+    const searchProviders = search ? providerIds("search", search.providers) : [];
+    const fetchProviders = fetch ? providerIds("fetch", fetch.providers) : [DEFAULT_FETCH_PROVIDER];
     if (
       !searchProviders ||
       !fetchProviders ||
@@ -213,7 +209,7 @@ export class WebProviderSettingsService {
       const table = tool === "search" ? tx.webSearchSettings : tx.webFetchSettings;
       await (table as typeof tx.webSearchSettings).upsert({
         where: { id: ID },
-        create: { id: ID, provider: providers[0] ?? null, providers, strategy: state.schedule.strategy, cursor: nextCursor },
+        create: { id: ID, providers, strategy: state.schedule.strategy, cursor: nextCursor },
         update: { cursor: nextCursor },
       });
       return {
@@ -272,8 +268,8 @@ export class WebProviderSettingsService {
           const table = tool === "search" ? tx.webSearchSettings : tx.webFetchSettings;
           await (table as typeof tx.webSearchSettings).upsert({
             where: { id: ID },
-            create: { id: ID, provider: current.selected, providers: current.schedule.providers, strategy: current.schedule.strategy, cursor: current.schedule.cursor },
-            update: { provider: current.selected, providers: current.schedule.providers, strategy: current.schedule.strategy, cursor: current.schedule.cursor },
+            create: { id: ID, providers: current.schedule.providers, strategy: current.schedule.strategy, cursor: current.schedule.cursor },
+            update: { providers: current.schedule.providers, strategy: current.schedule.strategy, cursor: current.schedule.cursor },
           });
         }
         return this.viewOf(state);
@@ -297,7 +293,7 @@ export class WebProviderSettingsService {
     try {
       result = await this.checker({ tool: tool as WebTool, provider: info.id, apiKey: before?.secret ?? null });
     } catch {
-      throw new ApiError(503, "web_provider_check_unavailable", "Couldn't reach the aiTeamOS computer to run the check. Try again shortly.");
+      throw new ApiError(503, "web_provider_check_unavailable", "Couldn't reach the OutcomeGo computer to run the check. Try again shortly.");
     }
     await this.prisma.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT pg_advisory_xact_lock(742310, 1)::text`;

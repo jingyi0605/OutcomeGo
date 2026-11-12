@@ -37,9 +37,9 @@ export const ACCESS_CHOICES = [
   },
 ] as const;
 export const SETUP_STAGES: readonly SetupStage[] = [
-  { label: "Connection", description: "Choose where you want to use aiTeamOS from." },
+  { label: "Connection", description: "Choose where you want to use OutcomeGo from." },
   { label: "Account", description: "Create the username and password you will sign in with." },
-  { label: "Review", description: "Check your choices, then start aiTeamOS." },
+  { label: "Review", description: "Check your choices, then start OutcomeGo." },
   { label: "Checks", description: "Make sure everything is ready." },
 ] as const;
 export const HTTP_WARNINGS = [
@@ -227,7 +227,7 @@ export const configuredAccessMode = (
   current: ReadonlyMap<string, string>,
   fresh: boolean
 ): AccessMode => {
-  const stored = current.get("AITEAMOS_ACCESS_MODE") as AccessMode | undefined;
+  const stored = current.get("OUTCOMEGO_ACCESS_MODE") as AccessMode | undefined;
   return !fresh && stored && ACCESS_MODES.includes(stored) ? stored : "private";
 };
 
@@ -242,8 +242,8 @@ const hostFromPublicUrl = (value: string | undefined): string | null => {
 };
 
 export const existingReachableHost = (current: ReadonlyMap<string, string>): string | null => {
-  const existingPublicHost = current.get("AITEAMOS_PUBLIC_HOST");
-  const existingUrlHost = hostFromPublicUrl(current.get("AITEAMOS_PUBLIC_URL"));
+  const existingPublicHost = current.get("OUTCOMEGO_PUBLIC_HOST");
+  const existingUrlHost = hostFromPublicUrl(current.get("OUTCOMEGO_PUBLIC_URL"));
   return existingUrlHost && existingUrlHost !== "127.0.0.1"
     ? existingUrlHost
     : existingPublicHost && existingPublicHost !== "127.0.0.1"
@@ -273,12 +273,12 @@ export const accessModeNotes = (
   const notes: Array<{ text: string; tone: "info" | "success" | "warning" }> = [];
   if (mode === "tailscale") {
     notes.push({
-      text: "aiTeamOS will configure Tailscale Serve. Keep Tailscale connected on all your devices. Backend ports stay on this machine only.",
+      text: "OutcomeGo will configure Tailscale Serve. Keep Tailscale connected on all your devices. Backend ports stay on this machine only.",
       tone: "info",
     });
   } else if (mode === "https") {
     notes.push({
-      text: "aiTeamOS will use ports 80 and 443 and keep the HTTPS certificate renewed.",
+      text: "OutcomeGo will use ports 80 and 443 and keep the HTTPS certificate renewed.",
       tone: "info",
     });
   } else if (mode === "proxy") {

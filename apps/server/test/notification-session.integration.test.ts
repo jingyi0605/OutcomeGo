@@ -1,14 +1,14 @@
 import { expect, test } from "bun:test";
-import { createPrismaClient } from "@aiteamos/db";
+import { createPrismaClient } from "@outcomego/db";
 import { Effect } from "effect";
 import { NotificationService } from "../src/services/notification-service";
 
-const databaseUrl = process.env.AITEAMOS_TEST_DATABASE_URL;
+const databaseUrl = process.env.OUTCOMEGO_TEST_DATABASE_URL;
 
 test.skipIf(!databaseUrl)(
   "sign-out disables only the retiring session's devices with a real PostgreSQL lock",
   async () => {
-    if (!databaseUrl) throw new Error("AITEAMOS_TEST_DATABASE_URL is required");
+    if (!databaseUrl) throw new Error("OUTCOMEGO_TEST_DATABASE_URL is required");
     const prisma = createPrismaClient(databaseUrl);
     const userId = crypto.randomUUID();
     const retiringSessionId = crypto.randomUUID();

@@ -1,11 +1,11 @@
 import Foundation
 import XCTest
 
-@testable import OpenTeamCore
+@testable import OutcomeGoCore
 
 final class MobileReleaseTests: XCTestCase {
   func release(_ version: String = "0.0.4", _ build: String = "51") -> MobileRelease {
-    MobileRelease(version: version, buildNumber: build, bundleIdentifier: "dev.aiteamos.mobile")
+    MobileRelease(version: version, buildNumber: build, bundleIdentifier: "dev.outcomego.mobile")
   }
 
   func testSameVersionTestFlightBuildIsAnUpdate() {
@@ -33,13 +33,13 @@ final class MobileReleaseTests: XCTestCase {
 
   func testFeedCanAdvertiseOrWithdrawARelease() throws {
     let data = Data(
-      #"{"release":{"version":"0.0.4","buildNumber":"51","bundleIdentifier":"dev.aiteamos.mobile"}}"#
+      #"{"release":{"version":"0.0.4","buildNumber":"51","bundleIdentifier":"dev.outcomego.mobile"}}"#
         .utf8)
     XCTAssertEqual(try MobileReleaseFeed.decode(data), release())
     XCTAssertNil(try MobileReleaseFeed.decode(Data(#"{"release":null}"#.utf8)))
     for invalid in [
       "{}", "[]", "not json", #"{"release":{"version":"0.0.4"}}"#,
-      #"{"release":{"version":"bad","buildNumber":"51","bundleIdentifier":"dev.aiteamos.mobile"}}"#,
+      #"{"release":{"version":"bad","buildNumber":"51","bundleIdentifier":"dev.outcomego.mobile"}}"#,
       #"{"release":{"version":"0.0.4","buildNumber":"51","bundleIdentifier":"another.app"}}"#,
     ] {
       XCTAssertThrowsError(try MobileReleaseFeed.decode(Data(invalid.utf8)))

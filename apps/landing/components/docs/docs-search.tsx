@@ -230,7 +230,7 @@ export function DocsSearchButton() {
           </div>
           <footer className="docs-search-footer">
             <span><kbd><ArrowUp size={12} /><ArrowDown size={12} /></kbd> navigate <kbd><CornerDownLeft size={12} /></kbd> open</span>
-            <span>aiTeamOS docs</span>
+            <span>OutcomeGo docs</span>
           </footer>
         </Dialog.Popup>
       </Dialog.Portal>

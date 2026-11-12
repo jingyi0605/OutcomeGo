@@ -1,8 +1,8 @@
-import { TaskProgressInput, RequestProgressInput } from "@aiteamos/contracts/task-progress";
-import { reportTaskProgress, reportRequestProgress, requestProgressSnapshot } from "@aiteamos/messaging";
-import { readAgentActivity, readTranscript } from "@aiteamos/messaging";
-import { normalizeMainToolArguments } from "@aiteamos/contracts/reference-main-parsers";
-import { subagentUsesParentConnectors } from "@aiteamos/contracts/task-configuration";
+import { TaskProgressInput, RequestProgressInput } from "@outcomego/contracts/task-progress";
+import { reportTaskProgress, reportRequestProgress, requestProgressSnapshot } from "@outcomego/messaging";
+import { readAgentActivity, readTranscript } from "@outcomego/messaging";
+import { normalizeMainToolArguments } from "@outcomego/contracts/reference-main-parsers";
+import { subagentUsesParentConnectors } from "@outcomego/contracts/task-configuration";
 import {
   AgentSendToUserInput,
   validateProcessSecretName,
@@ -24,9 +24,9 @@ import {
   UpdateAgentInput,
   UpdateChannelInput,
   isStateTool,
-} from "@aiteamos/contracts";
-import type { PrismaClient } from "@aiteamos/db";
-import { type AgentMessaging, validateSendToUserInput, wakeAutomationParent, automationContextRunId } from "@aiteamos/messaging";
+} from "@outcomego/contracts";
+import type { PrismaClient } from "@outcomego/db";
+import { type AgentMessaging, validateSendToUserInput, wakeAutomationParent, automationContextRunId } from "@outcomego/messaging";
 import { Schema } from "effect";
 import type { DurableStateService } from "../update-state";
 import { formatMemoryToolResult } from "../memory-tool-result";
@@ -54,7 +54,7 @@ export class InternalToolService {
     private readonly onSpeechChunk?: (runId: string, callId: string, text: string) => Promise<boolean>
   ) {}
 
-  execute = (request: DynamicToolCallRequest, transfer: {upload?:import("@aiteamos/plugin-sdk/file-spool").StagedFile;stream?:boolean} = {}) =>
+  execute = (request: DynamicToolCallRequest, transfer: {upload?:import("@outcomego/plugin-sdk/file-spool").StagedFile;stream?:boolean} = {}) =>
     serviceEffect(async (signal) => {
       const run = await this.prisma.run.findUnique({
         where: { id: request.runId },
@@ -154,7 +154,7 @@ export class InternalToolService {
         return typeof acknowledgement === "object" ? acknowledgement : { sent: true };
       }
       if (request.tool === "RecordUserFormRemap" && !childIdentity && this.richMessages) {
-        return this.richMessages.recordFormRemap(request.botId, request.arguments as import("@aiteamos/contracts").UserFormReceipt);
+        return this.richMessages.recordFormRemap(request.botId, request.arguments as import("@outcomego/contracts").UserFormReceipt);
       }
       const parentOnlyTools = new Set([
         "DraftExternalMessage", "CreateBotShareJson", "SendIMessage",

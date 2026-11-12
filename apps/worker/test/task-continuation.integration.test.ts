@@ -3,23 +3,23 @@ import { mkdtemp, mkdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Effect } from "effect";
-import type { ComputerTurnRequest } from "@aiteamos/contracts";
-import { dispatchTaskContinuations } from "@aiteamos/messaging";
+import type { ComputerTurnRequest } from "@outcomego/contracts";
+import { dispatchTaskContinuations } from "@outcomego/messaging";
 import { AppService } from "../../server/src/app-service";
 import { WakeWorker } from "../src/worker";
 
-const db = process.env.AITEAMOS_TEST_DATABASE_URL;
-const realTimeSoak = process.env.AITEAMOS_TASK_SOAK === "1";
+const db = process.env.OUTCOMEGO_TEST_DATABASE_URL;
+const realTimeSoak = process.env.OUTCOMEGO_TASK_SOAK === "1";
 test.skipIf(!db)(
   "real queue preserves delayed work across host recreation and reconciles an accepted action after lost completion",
   async () => {
     const root = await mkdtemp(join(tmpdir(), "task-continuation-worker-"));
     const keys = [
       "DATABASE_URL",
-      "AITEAMOS_COMPUTER_URL",
-      "AITEAMOS_CONTROL_TOKEN",
-      "AITEAMOS_WORKSPACE_ROOT",
-      "AITEAMOS_AGENT_DATA_ROOT",
+      "OUTCOMEGO_COMPUTER_URL",
+      "OUTCOMEGO_CONTROL_TOKEN",
+      "OUTCOMEGO_WORKSPACE_ROOT",
+      "OUTCOMEGO_AGENT_DATA_ROOT",
     ] as const;
     const previous = Object.fromEntries(keys.map((k) => [k, process.env[k]]));
     let app: AppService | undefined,
@@ -191,7 +191,7 @@ test.skipIf(!db)(
             inferenceProvider: "openai-codex",
             contextSessionId: input.contextSessionId,
             sessionPath:
-              input.sessionPath ?? `/var/lib/aiteamos/pi/${input.contextSessionId}.jsonl`,
+              input.sessionPath ?? `/var/lib/outcomego/pi/${input.contextSessionId}.jsonl`,
             sessionId: input.contextSessionId,
             model: "fixture",
           },
@@ -248,10 +248,10 @@ test.skipIf(!db)(
     try {
       Object.assign(process.env, {
         DATABASE_URL: db,
-        AITEAMOS_COMPUTER_URL: fake.url.origin,
-        AITEAMOS_CONTROL_TOKEN: "task-fixture",
-        AITEAMOS_WORKSPACE_ROOT: root,
-        AITEAMOS_AGENT_DATA_ROOT: join(root, "data"),
+        OUTCOMEGO_COMPUTER_URL: fake.url.origin,
+        OUTCOMEGO_CONTROL_TOKEN: "task-fixture",
+        OUTCOMEGO_WORKSPACE_ROOT: root,
+        OUTCOMEGO_AGENT_DATA_ROOT: join(root, "data"),
       });
       await boot();
       const bot = await Effect.runPromise(

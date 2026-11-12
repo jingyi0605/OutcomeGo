@@ -30,7 +30,7 @@ afterEach(() => {
 });
 const ok = (stdout = ""): RunResult => ({ status: 0, stdout, stderr: "" });
 function fixture() {
-  const dir = mkdtempSync(join(tmpdir(), "aiteamos-tailscale-"));
+  const dir = mkdtempSync(join(tmpdir(), "outcomego-tailscale-"));
   dirs.push(dir);
   const paths = installationPaths(dir);
   const original = createEnvironment({ version: "1.2.3" });
@@ -192,15 +192,15 @@ describe("connection lifecycle", () => {
     const other = structuredClone(f.serve.Web);
     await configureTailscale(f.paths, f.runner, "enable", "14443", f.dependencies);
     const env = parseEnvironment(readFileSync(f.paths.environment, "utf8"));
-    expect(env.get("AITEAMOS_ACCESS_MODE")).toBe("tailscale");
-    expect(env.get("AITEAMOS_PUBLIC_URL")).toBe(`https://${host}:14443`);
-    expect(env.get("AITEAMOS_AUTH_URL")).toBe(env.get("AITEAMOS_PUBLIC_URL"));
-    expect(env.get("AITEAMOS_AUTH_SECRET")).toBe(
-      parseEnvironment(f.original).get("AITEAMOS_AUTH_SECRET")
+    expect(env.get("OUTCOMEGO_ACCESS_MODE")).toBe("tailscale");
+    expect(env.get("OUTCOMEGO_PUBLIC_URL")).toBe(`https://${host}:14443`);
+    expect(env.get("OUTCOMEGO_AUTH_URL")).toBe(env.get("OUTCOMEGO_PUBLIC_URL"));
+    expect(env.get("OUTCOMEGO_AUTH_SECRET")).toBe(
+      parseEnvironment(f.original).get("OUTCOMEGO_AUTH_SECRET")
     );
     expect(await tailscaleStatus(f.paths, f.runner)).toMatchObject({
       route: "matching",
-      ownership: "aiteamos",
+      ownership: "outcomego",
       issue: null,
     });
     await configureTailscale(f.paths, f.runner, "enable", undefined, f.dependencies);
@@ -212,7 +212,7 @@ describe("connection lifecycle", () => {
     expect(f.serve.Web).toEqual(other);
     expect(managedTailscaleRoutes(f.paths)).toEqual([]);
     expect(
-      parseEnvironment(readFileSync(f.paths.environment, "utf8")).get("AITEAMOS_ACCESS_MODE")
+      parseEnvironment(readFileSync(f.paths.environment, "utf8")).get("OUTCOMEGO_ACCESS_MODE")
     ).toBe("local");
   });
 
@@ -293,7 +293,7 @@ describe("connection lifecycle", () => {
     f.setServe(mapping("14443", "9999"));
     expect(await tailscaleStatus(f.paths, f.runner)).toMatchObject({
       route: "conflict",
-      ownership: "aiteamos",
+      ownership: "outcomego",
     });
     await expect(
       configureTailscale(f.paths, f.runner, "disable", undefined, f.dependencies)
@@ -451,8 +451,8 @@ test("settings suggest the existing private HTTPS port before enabling", async (
 
 test("changing connection mode in quick setup asks for the new public hostname", async () => {
   const f = fixture();
-  let env = replaceEnvironmentValue(f.original, "AITEAMOS_ACCESS_MODE", "private");
-  env = replaceEnvironmentValue(env, "AITEAMOS_PUBLIC_URL", "http://100.100.10.5:8787");
+  let env = replaceEnvironmentValue(f.original, "OUTCOMEGO_ACCESS_MODE", "private");
+  env = replaceEnvironmentValue(env, "OUTCOMEGO_PUBLIC_URL", "http://100.100.10.5:8787");
   const answers = ["https", "bot.example.com"];
   const prompts: string[] = [];
   const config = await collectSetupConfiguration(

@@ -30,7 +30,7 @@ struct NativeErrorPresenter: UIViewControllerRepresentable {
             var top = root
             while let presented = top.presentedViewController, !presented.isBeingDismissed { top = presented }
             if !(top is UIAlertController), !top.isBeingPresented, !top.isBeingDismissed {
-              let alert = UIAlertController(title: "OpenTeam", message: message.wrappedValue, preferredStyle: .alert)
+              let alert = UIAlertController(title: "OutcomeGo", message: message.wrappedValue, preferredStyle: .alert)
               alert.addAction(UIAlertAction(title: "OK", style: .default) { _ in message.wrappedValue = nil })
               self.alert = alert
               top.present(alert, animated: true)

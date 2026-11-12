@@ -29,7 +29,7 @@ export async function readBrowserAuthority(path: string, key: Buffer): Promise<s
     );
     if (!match) {
       // Preserve compatibility with noncanonical JSON whitespace/key order.
-      // Every envelope written by aiTeamOS uses the streaming path above.
+      // Every envelope written by OutcomeGo uses the streaming path above.
       return await legacy();
     }
     const size = (await input.stat()).size;

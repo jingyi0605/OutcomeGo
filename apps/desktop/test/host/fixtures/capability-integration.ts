@@ -11,7 +11,7 @@ import { sqliteRows, nativeCommand } from "../../../src/main/host/native-command
 import { startHostBridge } from "../../../src/main/host/bridge";
 import { BrowserUseSession } from "../../../../computer/src/browser/use";
 import { outOfProcessPlaywright } from "../../../../computer/src/browser/playwright-driver";
-const root = await mkdtemp(join(tmpdir(), "aiteamos-native-e2e-"));
+const root = await mkdtemp(join(tmpdir(), "outcomego-native-e2e-"));
 let chrome: ReturnType<typeof spawn> | undefined;
 let bridge: Awaited<ReturnType<typeof startHostBridge>> | undefined;
 let driver: Awaited<ReturnType<typeof outOfProcessPlaywright>> | undefined;

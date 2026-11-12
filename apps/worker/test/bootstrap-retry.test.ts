@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { defaultTaskConfiguration } from "@aiteamos/contracts/task-configuration";
+import { defaultTaskConfiguration } from "@outcomego/contracts/task-configuration";
 import { BOOTSTRAP_ATTEMPT_LIMIT, BOOTSTRAP_RETRY_PROBE_MS, WakeWorker } from "../src/worker";
 
 const claimed = {
@@ -12,7 +12,7 @@ const claimed = {
   pluginBotId: "bot",
   conversationId: "conversation",
   ownerId: "owner",
-  content: "[aiTeamOS first start]",
+  content: "[outcomeGo first start]",
   images: [],
   clientId: "bot:bot:bootstrap:v1",
   cwd: "/workspace",

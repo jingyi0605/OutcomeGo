@@ -10,9 +10,9 @@ import {
   type ExternalDraft,
   type ExternalDraftApprovalMode,
   type ExternalDraftVerification,
-} from "@aiteamos/contracts";
-import { type PrismaClient } from "@aiteamos/db";
-import { type AgentMessaging, type ToolContext, PRIORITY } from "@aiteamos/messaging";
+} from "@outcomego/contracts";
+import { type PrismaClient } from "@outcomego/db";
+import { type AgentMessaging, type ToolContext, PRIORITY } from "@outcomego/messaging";
 import { loadConnectionNamespaces } from "./plugin/namespaces";
 import type { PluginService } from "./plugin-service";
 import { definitionFromManifest } from "./plugin/values";

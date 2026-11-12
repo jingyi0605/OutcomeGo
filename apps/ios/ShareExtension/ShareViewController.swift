@@ -376,8 +376,8 @@ struct ShareView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     case .signedOut:
       ContentUnavailableView(
-        "Connect OpenTeam First", systemImage: "person.crop.circle.badge.exclamationmark",
-        description: Text("Open OpenTeam, connect to your server, then share again."))
+        "Connect OutcomeGo First", systemImage: "person.crop.circle.badge.exclamationmark",
+        description: Text("Open OutcomeGo, connect to your server, then share again."))
     case .failed(let message):
       ContentUnavailableView {
         Label("Couldn’t Load Your Bots", systemImage: "wifi.exclamationmark")
@@ -393,7 +393,7 @@ struct ShareView: View {
       } else if rows.isEmpty {
         ContentUnavailableView(
           "No Bots Yet", systemImage: "person.crop.circle.badge.plus",
-          description: Text("Create a Bot in OpenTeam to share with it."))
+          description: Text("Create a Bot in OutcomeGo to share with it."))
       } else {
         List {
           Section {

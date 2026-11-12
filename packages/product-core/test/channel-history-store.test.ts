@@ -3,7 +3,7 @@ import type {
   ChannelHistoryPage,
   ChannelMessageContextView,
   ChannelMessageView,
-} from "@aiteamos/contracts";
+} from "@outcomego/contracts";
 import {
   createChannelHistoryStore,
   MESSAGE_HISTORY_MAX_MESSAGES,

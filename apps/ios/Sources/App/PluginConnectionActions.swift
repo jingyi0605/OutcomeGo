@@ -53,7 +53,7 @@ struct PluginConnectionActions: View {
     } else if requiresDesktop {
       Text("Sign in on desktop").font(.headline)
       Text(
-        "This account uses the desktop sign-in method. To sign in on this iPhone, open Connection settings, expand Sign-in setup, and choose Automatic. Or finish signing in in the OpenTeam desktop app."
+        "This account uses the desktop sign-in method. To sign in on this iPhone, open Connection settings, expand Sign-in setup, and choose Automatic. Or finish signing in in the OutcomeGo desktop app."
       )
       .font(.footnote).foregroundStyle(NativePalette.muted)
     } else if let session {
@@ -61,7 +61,7 @@ struct PluginConnectionActions: View {
         Text(
           session.expired
             ? "Start again when you’re ready. Your setup is saved."
-            : "Approve access in your browser, then return to OpenTeam."
+            : "Approve access in your browser, then return to OutcomeGo."
         ).font(.subheadline).foregroundStyle(.secondary)
       }
       if connection["oauthCallbackMode"].string == "manual", !session.expired {
@@ -123,13 +123,13 @@ struct PluginConnectionActions: View {
     NavigationStack {
       ScrollView {
         VStack(alignment: .leading, spacing: 24) {
-          Text("You’ll copy one address back into OpenTeam to finish connecting.")
+          Text("You’ll copy one address back into OutcomeGo to finish connecting.")
             .foregroundStyle(.secondary)
           manualStep(1, isGoogle ? "Sign in to Google" : "Sign in in your browser",
             "Choose your account and approve access.")
           manualStep(2, "Copy the final address",
             "Safari may say it can’t open the page. That’s expected. Touch and hold the address bar showing 127.0.0.1, then tap Copy.")
-          manualStep(3, "Return to OpenTeam",
+          manualStep(3, "Return to OutcomeGo",
             "Paste the entire address into the sign-in field, then tap Complete sign-in.")
         }.padding(24)
       }

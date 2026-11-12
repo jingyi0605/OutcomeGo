@@ -3,7 +3,7 @@ import { internalNotificationsRoute } from "./routes/internal-notifications";
 import { machineChannelResponse } from "./machine-http";
 import { connectorTransferResponse, boundedRequest } from "./connector-transfer-http";
 import { automationWebhookBinding, receiveAutomationWebhook } from "./automation-webhooks";
-import { AdminBroadcastInput, DynamicToolCallRequest, ShellCompletionInput } from "@aiteamos/contracts";
+import { AdminBroadcastInput, DynamicToolCallRequest, ShellCompletionInput } from "@outcomego/contracts";
 import { Effect } from "effect";
 import { timingSafeEqual } from "node:crypto";
 import { AppService } from "./app-service";
@@ -30,15 +30,15 @@ import { BrowserNetworkService, networkStore, type NetworkConnection } from "./s
 import { isVoiceStreamPath, voiceRoutes } from "./routes/voice";
 import type { VoiceConnectionData } from "./services/voice-session";
 
-const port = Number(process.env.AITEAMOS_PORT ?? 8787);
+const port = Number(process.env.OUTCOMEGO_PORT ?? 8787);
 
-const controlToken = process.env.AITEAMOS_CONTROL_TOKEN ?? "local-compose-only-change-me";
+const controlToken = process.env.OUTCOMEGO_CONTROL_TOKEN ?? "local-compose-only-change-me";
 
-const proxySecret = process.env.AITEAMOS_PROXY_SECRET ?? "";
+const proxySecret = process.env.OUTCOMEGO_PROXY_SECRET ?? "";
 
-const trustPrivateForwarder = ["proxy", "tailscale"].includes(process.env.AITEAMOS_ACCESS_MODE ?? "");
+const trustPrivateForwarder = ["proxy", "tailscale"].includes(process.env.OUTCOMEGO_ACCESS_MODE ?? "");
 
-const authMode = parseAuthMode(process.env.AITEAMOS_AUTH_MODE);
+const authMode = parseAuthMode(process.env.OUTCOMEGO_AUTH_MODE);
 
 const release = systemVersion();
 
@@ -90,7 +90,7 @@ const voiceWebsocket = app.voice.websocket();
 const isNetwork = (data: VncConnection | NetworkConnection | VoiceConnectionData): data is NetworkConnection => "kind" in data && data.kind === "browser-network";
 const isVoice = (data: VncConnection | NetworkConnection | VoiceConnectionData): data is VoiceConnectionData => "connection" in data && "sessionId" in data;
 const server = Bun.serve<VncConnection | NetworkConnection | VoiceConnectionData>({
-  hostname: process.env.AITEAMOS_SERVER_HOST ?? "0.0.0.0",
+  hostname: process.env.OUTCOMEGO_SERVER_HOST ?? "0.0.0.0",
   port,
   idleTimeout: 255,
   maxRequestBodySize: Number.MAX_SAFE_INTEGER,
@@ -248,7 +248,7 @@ const server = Bun.serve<VncConnection | NetworkConnection | VoiceConnectionData
         return json({error:{code:"not_found",message:"Not found"}},404);
       }
       if (request.method === "GET" && path === "/api/internal/busy-bots") {
-        // `aiteamos update --when-idle` asks with the installation's control token before it stops anything.
+        // `outcomego update --when-idle` asks with the installation's control token before it stops anything.
         if (!authorizedInternal(request)) return json({ error: { code: "unauthorized", message: "Unauthorized" } }, 401);
         return json(await run(app.busyBots()));
       }
@@ -308,7 +308,7 @@ const server = Bun.serve<VncConnection | NetworkConnection | VoiceConnectionData
         const session = await auth.api.getSession({ headers: request.headers });
         if (!session) {
           return json(
-            { error: { code: "unauthorized", message: "Sign in to aiTeamOS to continue" } },
+            { error: { code: "unauthorized", message: "Sign in to OutcomeGo to continue" } },
             401
           );
         }
@@ -373,4 +373,4 @@ process.once("SIGINT", shutdown);
 
 process.once("SIGTERM", shutdown);
 
-console.log(`aiTeamOS server listening on ${server.url}`);
+console.log(`OutcomeGo server listening on ${server.url}`);

@@ -5,11 +5,11 @@ import { join } from "node:path";
 import { BrowserUseSession } from "../../src/browser/use";
 import { outOfProcessPlaywright } from "../../src/browser/playwright-driver";
 
-test.skipIf(!process.env.AITEAMOS_BROWSER_TEST_EXECUTABLE)("textarea snapshots preserve line boundaries with bounded, redacted values", async () => {
+test.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)("textarea snapshots preserve line boundaries with bounded, redacted values", async () => {
   const root = await mkdtemp(join(tmpdir(), "textarea-snapshot-"));
   const server = Bun.serve({ port: 0, fetch: () => new Response('<textarea aria-label="Multiline"></textarea><textarea aria-label="Long"></textarea><textarea aria-label="Private" data-sand-secret-filled></textarea><textarea aria-label="Registered"></textarea>', { headers: { "content-type": "text/html" } }) });
   const driver = await outOfProcessPlaywright();
-  const browser = await driver.playwright.chromium.launch({ headless: true, executablePath: process.env.AITEAMOS_BROWSER_TEST_EXECUTABLE });
+  const browser = await driver.playwright.chromium.launch({ headless: true, executablePath: process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE });
   const context = await browser.newContext();
   const session = new (BrowserUseSession as any)(browser, context, root) as BrowserUseSession;
   const text = (r: any): string => r.content.filter((b: any) => b.type === "text").map((b: any) => b.text).join('\n');

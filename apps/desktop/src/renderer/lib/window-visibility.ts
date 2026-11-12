@@ -1,5 +1,5 @@
-export const WINDOW_VISIBILITY_EVENT = "aiteamos:visibility-change";
-export const WINDOW_ACTIVITY_EVENT = "aiteamos:window-activity-change";
+export const WINDOW_VISIBILITY_EVENT = "outcomego:visibility-change";
+export const WINDOW_ACTIVITY_EVENT = "outcomego:window-activity-change";
 let nativeVisible = true;
 let nativeActive: boolean | undefined;
 
@@ -30,11 +30,11 @@ export const installWindowVisibility = () => {
     publishActivity();
     window.dispatchEvent(new Event(WINDOW_VISIBILITY_EVENT));
   };
-  const unsubscribe = window.aiteamos?.visibility?.subscribe((visible) => {
+  const unsubscribe = window.outcomego?.visibility?.subscribe((visible) => {
     nativeVisible = visible;
     publish();
   });
-  const unsubscribeActivity = window.aiteamos?.visibility?.subscribeActivity?.((active) => {
+  const unsubscribeActivity = window.outcomego?.visibility?.subscribeActivity?.((active) => {
     nativeActive = active;
     publishActivity();
   });

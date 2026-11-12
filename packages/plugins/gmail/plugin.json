@@ -3,7 +3,7 @@
   "version": "1.5.3",
   "name": "Gmail",
   "description": "Search, read, draft, and manage email, and send reviewed drafts from your Gmail address.",
-  "publisher": "aiTeamOS",
+  "publisher": "OutcomeGo",
   "category": "Inbox & Collaboration",
   "featured": true,
   "components": ["mcp"],
@@ -17,9 +17,9 @@
     "steps": [
       "Create or select a Google Cloud project and enable the Gmail API.",
       "Configure an External OAuth consent screen and add your Google accounts as test users while the app is in Testing.",
-      "Use Automatic sign-in. With an HTTPS aiTeamOS address (Tailscale Serve or your own domain), create a Web application OAuth client and register the exact callback shown in account settings.",
-      "If your aiTeamOS address is HTTP, create a Desktop app OAuth client for the manual fallback. Sign in from either iOS or desktop, then paste the complete localhost callback URL into the dedicated aiTeamOS form, even if the browser page cannot load.",
-      "Save the client ID and secret in account settings. This completes provider setup; authorize your Google account next. aiTeamOS marks the account Connected only after authorization and tool discovery succeed."
+      "Use Automatic sign-in. With an HTTPS OutcomeGo address (Tailscale Serve or your own domain), create a Web application OAuth client and register the exact callback shown in account settings.",
+      "If your OutcomeGo address is HTTP, create a Desktop app OAuth client for the manual fallback. Sign in from either iOS or desktop, then paste the complete localhost callback URL into the dedicated OutcomeGo form, even if the browser page cannot load.",
+      "Save the client ID and secret in account settings. This completes provider setup; authorize your Google account next. OutcomeGo marks the account Connected only after authorization and tool discovery succeed."
     ],
     "fields": [
       {
@@ -36,7 +36,7 @@
         "placeholder": "Paste the client secret",
         "required": true,
         "secret": true,
-        "helpText": "Stored by your self-hosted aiTeamOS server and never returned to the desktop app."
+        "helpText": "Stored by your self-hosted OutcomeGo server and never returned to the desktop app."
       }
     ],
     "requiredScopes": [

@@ -14,7 +14,7 @@ const host = document.getElementById("screen");
 // arguments the caller actually supplied.
 const native = (method, ...args) => {
   try {
-    window.aiTeamOSNative?.[method]?.(...args);
+    window.outcomeGoNative?.[method]?.(...args);
   } catch {
     // The viewer can still render when the native bridge is unavailable.
   }
@@ -87,7 +87,7 @@ function normalizeProtocols(value) {
   return protocols;
 }
 
-window.aiTeamOSVnc = {
+window.outcomeGoVnc = {
   stop,
   control,
   async connect(session) {

@@ -37,7 +37,7 @@ struct ServerActivitySection: View {
         .font(.caption2)
       }.textCase(nil)
     } footer: {
-      Text("Host/VM CPU & RAM · OpenTeam data disk").font(.caption2)
+      Text("Host/VM CPU & RAM · OutcomeGo data disk").font(.caption2)
     }
     .onAppear { visible = true }
     .onDisappear { visible = false }

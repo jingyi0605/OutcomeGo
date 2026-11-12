@@ -231,7 +231,7 @@ export function renderControlResult(
   return JSON.stringify(output);
 }
 
-// The reference adds that the Library lists only the latest copy per path; aiTeamOS has no Library.
+// The reference adds that the Library lists only the latest copy per path; OutcomeGo has no Library.
 const FILE_SNAPSHOT_NOTE =
   "The user got a copy of the file as it is now. Later edits to the file do not reach them until you send it again; earlier copies stay in the chat unchanged.";
 const PICTURE_OR_VIDEO = /\.(?:avif|bmp|gif|ico|jpe?g|png|svg|webp|heic|heif|m4v|mov|mp4|ogv|webm)$/i;

@@ -5,7 +5,7 @@ import { createRequire } from "node:module";
 import { createServer } from "vite";
 
 const require = createRequire(import.meta.url);
-const directory = await mkdtemp(join(tmpdir(), "aiteamos-widget-parity-"));
+const directory = await mkdtemp(join(tmpdir(), "outcomego-widget-parity-"));
 const server = await createServer({
   root: resolve(import.meta.dir, ".."),
   configFile: resolve(import.meta.dir, "../vite.config.ts"),

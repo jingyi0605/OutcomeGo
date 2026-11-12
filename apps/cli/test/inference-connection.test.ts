@@ -148,8 +148,8 @@ describe("connection probe executed in Bun", () => {
       cmd: [process.execPath, "-e", calls[0]!.args.at(-1)!],
       env: {
         PATH: process.env.PATH,
-        AITEAMOS_COMPUTER_URL: server.url.href,
-        AITEAMOS_CONTROL_TOKEN: token,
+        OUTCOMEGO_COMPUTER_URL: server.url.href,
+        OUTCOMEGO_CONTROL_TOKEN: token,
       },
       stdin: "pipe",
       stdout: "pipe",

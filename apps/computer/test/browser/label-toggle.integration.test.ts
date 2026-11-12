@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { BrowserUseSession } from '../../src/browser/use';
 import { outOfProcessPlaywright } from '../../src/browser/playwright-driver';
 
-test.skipIf(!process.env.AITEAMOS_BROWSER_TEST_EXECUTABLE)('visible labels expose refs and checked state for styled native toggles', async () => {
+test.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)('visible labels expose refs and checked state for styled native toggles', async () => {
   const root = await mkdtemp(join(tmpdir(), 'label-toggle-'));
   const server = Bun.serve({ port: 0, fetch: () => new Response(`<!doctype html><style>input[type=radio]{display:none}</style>
     <input type="radio" name="period" id="short" checked><label for="short">Short period</label>
@@ -18,7 +18,7 @@ test.skipIf(!process.env.AITEAMOS_BROWSER_TEST_EXECUTABLE)('visible labels expos
     <label for="second-upload">Second upload</label>
     <label>Disabled upload<input type="file" disabled style="display:none"></label>`, { headers: { 'content-type': 'text/html' } }) });
   const driver = await outOfProcessPlaywright();
-  const browser = await driver.playwright.chromium.launch({ headless: true, executablePath: process.env.AITEAMOS_BROWSER_TEST_EXECUTABLE, args: process.platform === 'linux' ? ['--no-sandbox'] : [] });
+  const browser = await driver.playwright.chromium.launch({ headless: true, executablePath: process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE, args: process.platform === 'linux' ? ['--no-sandbox'] : [] });
   const session = new (BrowserUseSession as any)(browser, await browser.newContext(), root) as BrowserUseSession;
   const text = (r: any) => r.content.filter((c: any) => c.type === 'text').map((c: any) => c.text).join('\n');
   try {

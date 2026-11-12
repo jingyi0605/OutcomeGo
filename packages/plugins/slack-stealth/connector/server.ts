@@ -3,7 +3,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { gunzipSync } from "node:zlib";
-import { scopedProcessEnvironment } from "@aiteamos/plugin-sdk";
+import { scopedProcessEnvironment } from "@outcomego/plugin-sdk";
 import release from "./release.json";
 
 export const enabledTools = [
@@ -40,7 +40,7 @@ export async function executableBytes(
 ) {
   const key = `${platform}-${architecture}`;
   if (!(key in release.binaries))
-    throw new Error("Slack (stealth) requires an aiTeamOS Linux computer with x64 or arm64 architecture.");
+    throw new Error("Slack (stealth) requires an OutcomeGo Linux computer with x64 or arm64 architecture.");
   const binary = release.binaries[key as keyof typeof release.binaries];
   const archive = await readFile(join(packageRoot, binary.path));
   if (createHash("sha256").update(archive).digest("hex") !== binary.gzipSha256)
@@ -55,9 +55,9 @@ export async function runServer() {
   const env = sessionEnvironment(process.env);
   // Each connection gets a private executable and cache directory. Credentials stay in memory.
   const bytes = await executableBytes(join(import.meta.dir, ".."));
-  // aiTeamOS mounts /tmp with noexec. Keep the native executable under the user's
+  // OutcomeGo mounts /tmp with noexec. Keep the native executable under the user's
   // private cache, with a separate disposable directory for every connection.
-  const cache = join(homedir(), ".cache", "aiteamos", "slack-stealth");
+  const cache = join(homedir(), ".cache", "outcomego", "slack-stealth");
   await mkdir(cache, { recursive: true, mode: 0o700 });
   const directory = await mkdtemp(join(cache, "session-"));
   try {

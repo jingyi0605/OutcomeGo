@@ -21,7 +21,7 @@ async function until(check: () => boolean, ms = 2500) {
   }
 }
 async function fixture(identity: (attempt: number) => Response | Promise<Response>) {
-  const directory = await mkdtemp(join(tmpdir(), "aiteamos-network-recovery-"));
+  const directory = await mkdtemp(join(tmpdir(), "outcomego-network-recovery-"));
   cleanup.push(() => rm(directory, { recursive: true, force: true }));
   let attempts = 0;
   const server = Bun.serve({

@@ -2,17 +2,17 @@ import { expect, test } from "bun:test";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createPrismaClient } from "@aiteamos/db";
+import { createPrismaClient } from "@outcomego/db";
 import { AgentDataStore } from "../src/agent-data";
 import { memoryLogicalId } from "../src/memory-facts";
 
-const databaseUrl = process.env.AITEAMOS_TEST_DATABASE_URL;
+const databaseUrl = process.env.OUTCOMEGO_TEST_DATABASE_URL;
 
 test("profile, memory facts, and skills freeze independently per context epoch", async () => {
   if (!databaseUrl) return;
 
   const prisma = createPrismaClient(databaseUrl);
-  const temporary = await mkdtemp(join(tmpdir(), "aiteamos-context-snapshots-"));
+  const temporary = await mkdtemp(join(tmpdir(), "outcomego-context-snapshots-"));
   const root = join(temporary, "agent-data");
   const workspace = join(temporary, "workspace");
   const botId = crypto.randomUUID();
@@ -201,7 +201,7 @@ test("profile, memory facts, and skills freeze independently per context epoch",
 test("the routine status reminder is delivered once per change and again after a summary", async () => {
   if (!databaseUrl) return;
   const prisma = createPrismaClient(databaseUrl);
-  const temporary = await mkdtemp(join(tmpdir(), "aiteamos-automation-status-"));
+  const temporary = await mkdtemp(join(tmpdir(), "outcomego-automation-status-"));
   const botId = crypto.randomUUID();
   const conversationId = crypto.randomUUID();
   const contextId = crypto.randomUUID();

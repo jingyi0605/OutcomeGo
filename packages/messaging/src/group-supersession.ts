@@ -1,4 +1,4 @@
-import type { Prisma } from "@aiteamos/db";
+import type { Prisma } from "@outcomego/db";
 import { settleGroupOutbox } from "./group-outbox";
 
 // Use the same lock before advancing, publishing, or accepting a new room turn.
@@ -9,12 +9,12 @@ export async function lockGroupExecution(tx: Prisma.TransactionClient, channelId
 
 export async function lockGroupRound(tx: Prisma.TransactionClient, roundId: string) {
   await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('group-execution:' || "channelId"::text))
-    FROM "ChannelRound" WHERE id = ${roundId}::uuid`;
+    FROM "outcomego_channel_round" WHERE id = ${roundId}::uuid`;
 }
 
 export async function lockGroupDelivery(tx: Prisma.TransactionClient, deliveryId: string) {
   await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('group-execution:' || r."channelId"::text))
-    FROM "ChannelDelivery" d JOIN "ChannelRound" r ON r.id = d."roundId"
+    FROM "outcomego_channel_delivery" d JOIN "outcomego_channel_round" r ON r.id = d."roundId"
     WHERE d.id = ${deliveryId}::uuid`;
 }
 

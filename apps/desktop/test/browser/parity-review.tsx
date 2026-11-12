@@ -1,10 +1,10 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import { api } from '../../src/renderer/client/aiteamos-api';
-import { UserFormCard } from '../../src/renderer/components/aiteamos/user-form-card';
-import { ExternalDraftCard } from '../../src/renderer/components/aiteamos/external-draft-card';
-import { SharedTemplateCard } from '../../src/renderer/components/aiteamos/shared-template-card';
-import type { ChannelMessageView, UserForm, ExternalDraft } from '@aiteamos/contracts';
+import { api } from '../../src/renderer/client/outcomego-api';
+import { UserFormCard } from '../../src/renderer/components/outcomego/user-form-card';
+import { ExternalDraftCard } from '../../src/renderer/components/outcomego/external-draft-card';
+import { SharedTemplateCard } from '../../src/renderer/components/outcomego/shared-template-card';
+import type { ChannelMessageView, UserForm, ExternalDraft } from '@outcomego/contracts';
 const wait = (ms = 30) => new Promise((resolve) => setTimeout(resolve, ms));
 const assert = (condition: unknown, message: string) => { if (!condition) throw new Error(message); };
 const base = (id: string, metadata: unknown) => ({ id, content: '', metadata }) as ChannelMessageView;

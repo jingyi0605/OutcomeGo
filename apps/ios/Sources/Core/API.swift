@@ -100,7 +100,7 @@ public struct API: Sendable {
       let host = c.host, !host.isEmpty
     else {
       throw APIError(
-        "Enter your server address, such as 192.168.1.20:8787 or https://openteam.example.com."
+        "Enter your server address, such as 192.168.1.20:8787 or https://outcomego.example.com."
       )
     }
     guard c.user == nil, c.password == nil else {
@@ -229,18 +229,18 @@ public struct API: Sendable {
     do {
       let config = try await request("/api/auth/config")
       guard ["required", "disabled"].contains(config["mode"].string) else {
-        throw APIError("This address is reachable, but it is not a compatible OpenTeam server.")
+        throw APIError("This address is reachable, but it is not a compatible OutcomeGo server.")
       }
       return config["mode"].string
     } catch let error as APIError {
       if error.status >= 500 {
         throw APIError(
-          "The OpenTeam server is temporarily unavailable. Please try again shortly.",
+          "The OutcomeGo server is temporarily unavailable. Please try again shortly.",
           status: error.status)
       }
       if error.status > 0 || error.message == "The server returned an invalid response." {
         throw APIError(
-          "This address is reachable, but it is not a compatible OpenTeam server.",
+          "This address is reachable, but it is not a compatible OutcomeGo server.",
           status: error.status)
       }
       throw error

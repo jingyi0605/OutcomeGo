@@ -1,11 +1,11 @@
-import { spoolFile, type StagedFile } from "@aiteamos/plugin-sdk/file-spool";
+import { spoolFile, type StagedFile } from "@outcomego/plugin-sdk/file-spool";
 import { createHash } from "node:crypto";
-import type { PrismaClient } from "@aiteamos/db";
+import type { PrismaClient } from "@outcomego/db";
 import { loadConnectionNamespaces } from "./namespaces";
 import {
   parseConnectorTransfer,
   CONNECTOR_TRANSFER_MAX_BYTES,
-} from "@aiteamos/contracts/connector-transfers";
+} from "@outcomego/contracts/connector-transfers";
 import { canonicalJson, toolSnapshot } from "./values";
 import { toJson } from "../service-utils";
 import { FileTransferProvider } from "./file-transfer-providers";

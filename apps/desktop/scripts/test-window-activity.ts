@@ -5,7 +5,7 @@ import { createRequire } from "node:module";
 import { createServer } from "vite";
 
 const require = createRequire(import.meta.url);
-const directory = await mkdtemp(join(tmpdir(), "aiteamos-window-activity-"));
+const directory = await mkdtemp(join(tmpdir(), "outcomego-window-activity-"));
 const output = resolve(import.meta.dir, "../../../output/window-activity");
 const server = await createServer({
   root: resolve(import.meta.dir, ".."),

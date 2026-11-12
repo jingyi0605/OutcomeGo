@@ -25,7 +25,7 @@ afterEach(async () => {
 });
 
 const bridge = async () => {
-  const root = await mkdtemp(join(tmpdir(), "aiteamos-host-bridge-"));
+  const root = await mkdtemp(join(tmpdir(), "outcomego-host-bridge-"));
   roots.push(root);
   const computerSettings = createComputerSettingsStore(join(root, "permissions.json"));
   const server = await startHostBridge({

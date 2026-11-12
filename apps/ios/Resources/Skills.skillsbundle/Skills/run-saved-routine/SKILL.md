@@ -1,6 +1,6 @@
 ---
 name: run-saved-routine
-description: Start an explicitly requested existing OpenTeam routine once, without changing its saved prompt or schedule.
+description: Start an explicitly requested existing OutcomeGo routine once, without changing its saved prompt or schedule.
 ---
 Resolve the user's requested saved routine using its name and conversation. Routines can belong to a Bot or a group conversation. If the name matches more than one routine, ask which one to run. Never invent a routine, its identifier, or a schedule.
 

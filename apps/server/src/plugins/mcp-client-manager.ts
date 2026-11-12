@@ -3,7 +3,7 @@ import { auth, type OAuthClientProvider } from "@modelcontextprotocol/sdk/client
 import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { ResultSchema, ToolSchema } from "@modelcontextprotocol/sdk/types.js";
-import { discoverAllTools, MCP_TOOL_CALL_TIMEOUT_MS, repairedToolsPage, type PluginToolDefinition } from "@aiteamos/plugin-sdk";
+import { discoverAllTools, MCP_TOOL_CALL_TIMEOUT_MS, repairedToolsPage, type PluginToolDefinition } from "@outcomego/plugin-sdk";
 
 /** Bun's fetch otherwise gives up on a quiet tool call after 300 seconds, inside its own budget. */
 const LONG_CALL_INIT = { timeout: false } as RequestInit;
@@ -170,7 +170,7 @@ export class McpHttpClientManager {
     kind: "streamable-http" | "sse"
   ): Promise<ManagedHttpClient> {
     const client = new Client(
-      { name: "aiteamos", version: "0.0.0" },
+      { name: "outcomego", version: "0.0.0" },
       {
         capabilities: {},
         listChanged: {

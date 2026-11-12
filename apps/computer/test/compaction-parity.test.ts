@@ -24,7 +24,7 @@ import {
   TRANSCRIPT_LOCATION,
   botSummaryPrompt,
 } from "../src/bot-compaction";
-import { SEND_TO_USER_REPLY_NUDGE_PROMPT } from "@aiteamos/contracts";
+import { SEND_TO_USER_REPLY_NUDGE_PROMPT } from "@outcomego/contracts";
 
 const roots: string[] = [];
 const coordinators: { coordinator: BotCompactionCoordinator; contextSessionId: string }[] = [];

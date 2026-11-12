@@ -45,11 +45,11 @@ app.whenReady().then(async () => {
     const dispose = bindWindowActivity(main);
     main.once("closed", dispose);
     cover = new BrowserWindow({ show: false, width: 220, height: 150 });
-    await cover.loadURL("data:text/html,<title>aiTeamOS focus test cover</title><p>Focus test</p>");
-    ipcMain.handle("aiteamos:window-visibility", () => windowIsVisible(main));
-    ipcMain.handle("aiteamos:window-activity", () => windowIsActive(main));
-    ipcMain.handle("aiteamos:delivery-journal:read", () => null);
-    ipcMain.handle("aiteamos:delivery-journal:write", () => {});
+    await cover.loadURL("data:text/html,<title>OutcomeGo focus test cover</title><p>Focus test</p>");
+    ipcMain.handle("outcomego:window-visibility", () => windowIsVisible(main));
+    ipcMain.handle("outcomego:window-activity", () => windowIsActive(main));
+    ipcMain.handle("outcomego:delivery-journal:read", () => null);
+    ipcMain.handle("outcomego:delivery-journal:write", () => {});
     const evaluate = (source) => main.webContents.executeJavaScript(source);
     const probe = async () => {
       const value = await evaluate("window.resourceProbe?.()");

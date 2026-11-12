@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { Effect } from "effect";
-import { createPrismaClient } from "@aiteamos/db";
-import { pluginCatalog } from "@aiteamos/plugins";
+import { createPrismaClient } from "@outcomego/db";
+import { pluginCatalog } from "@outcomego/plugins";
 import { PluginInstallations } from "../../src/services/plugin/installations";
 import {
   processEnvironment,
@@ -9,7 +9,7 @@ import {
   storeProcessSecret,
 } from "../../src/services/process-secrets";
 
-const databaseUrl = process.env.AITEAMOS_TEST_DATABASE_URL;
+const databaseUrl = process.env.OUTCOMEGO_TEST_DATABASE_URL;
 
 test.skipIf(!databaseUrl)(
   "plugin setup secrets reach every Bot's processes, rotate, and leave with the plugin",

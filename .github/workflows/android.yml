@@ -2,6 +2,7 @@ name: Android QA
 
 on:
   push:
+    branches: ["**"]
     paths:
       - "apps/android/**"
       - "mobile/shared/**"

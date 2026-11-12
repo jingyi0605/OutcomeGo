@@ -2,13 +2,13 @@ import { test, expect } from 'bun:test';
 import { mkdtemp, mkdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { createPrismaClient } from '@aiteamos/db';
-import { AgentDataStore, AgentMessaging } from '@aiteamos/messaging';
+import { createPrismaClient } from '@outcomego/db';
+import { AgentDataStore, AgentMessaging } from '@outcomego/messaging';
 import { Effect } from 'effect';
 import { RichMessageService } from '../src/services/rich-message-service';
-import type { UserFormReceipt } from '@aiteamos/contracts';
+import type { UserFormReceipt } from '@outcomego/contracts';
 
-const databaseUrl=process.env.AITEAMOS_TEST_DATABASE_URL;
+const databaseUrl=process.env.OUTCOMEGO_TEST_DATABASE_URL;
 test('form response is value-free, durable, replayable until acknowledged, and idempotent',async()=>{
  if(!databaseUrl)return;
  const prisma=createPrismaClient(databaseUrl); const root=await mkdtemp(join(tmpdir(),'form-service-'));

@@ -6,7 +6,7 @@ import { BrowserUseSession } from "../../src/browser/use";
 import { outOfProcessPlaywright } from "../../src/browser/playwright-driver";
 
 // An isolated, unauthenticated Chromium profile and localhost page. Never adopts user tabs.
-test.skipIf(!process.env.AITEAMOS_BROWSER_TEST_EXECUTABLE)(
+test.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)(
   "reference browser actions execute against a real synthetic page",
   async () => {
     const root = await mkdtemp(join(tmpdir(), "tool-browser-reference-"));
@@ -21,7 +21,7 @@ test.skipIf(!process.env.AITEAMOS_BROWSER_TEST_EXECUTABLE)(
     const driver = await outOfProcessPlaywright();
     const browser = await driver.playwright.chromium.launch({
       headless: true,
-      executablePath: process.env.AITEAMOS_BROWSER_TEST_EXECUTABLE,
+      executablePath: process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE,
     });
     const context = await browser.newContext();
     const session = new (BrowserUseSession as any)(browser, context, root) as BrowserUseSession;

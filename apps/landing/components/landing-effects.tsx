@@ -14,7 +14,7 @@ export function LandingEffects() {
     let observer: IntersectionObserver | undefined;
     // Retire the removed page-level pause preference, including already-open previews.
     html.removeAttribute("data-motion-paused");
-    try { localStorage.removeItem("aiteamos-motion-paused"); } catch { /* Storage is optional. */ }
+    try { localStorage.removeItem("outcomego-motion-paused"); } catch { /* Storage is optional. */ }
     const targets = root.querySelectorAll<HTMLElement>(
       ".ot-section-heading h2, .ot-feature-copy h2, .ot-scene-copy h2, .ot-ownership h2, .dl-step-heading h2",
     );

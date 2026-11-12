@@ -40,7 +40,7 @@ export const SEARCH_PROVIDER_LIST = [
 ] as const satisfies readonly WebProviderInfo[];
 
 export const FETCH_PROVIDER_LIST = [
-  { id: "builtin", name: "Built-in", brand: "aiteamos", description: "Reads public pages from your server. Can't run JavaScript.", fields: [] },
+  { id: "builtin", name: "Built-in", brand: "outcomego", description: "Reads public pages from your server. Can't run JavaScript.", fields: [] },
   { id: "exa", name: "Exa", brand: "exa", description: "Live-crawled page text.", fields: [apiKey()], setupUrl: "https://dashboard.exa.ai/api-keys" },
   { id: "parallel", name: "Parallel", brand: "parallel", description: "Full page content, including PDFs.", fields: [apiKey()], setupUrl: "https://platform.parallel.ai" },
   { id: "firecrawl", name: "Firecrawl", brand: "firecrawl", description: "Renders JavaScript and returns clean Markdown.", fields: [apiKey()], setupUrl: "https://www.firecrawl.dev/app/api-keys" },
@@ -63,7 +63,7 @@ export const isFetchProvider = (value: unknown): value is FetchProvider => Boole
 export const SEARCH_PROVIDERS = Object.fromEntries(SEARCH_PROVIDER_LIST.map((p) => [p.id, p.name])) as Record<SearchProvider, string>;
 export const FETCH_PROVIDERS = Object.fromEntries(FETCH_PROVIDER_LIST.map((p) => [p.id, p.name])) as Record<FetchProvider, string>;
 
-/** Fresh installs read pages with aiTeamOS's own fetcher; search stays off until chosen. */
+/** Fresh installs read pages with OutcomeGo's own fetcher; search stays off until chosen. */
 export const DEFAULT_FETCH_PROVIDER: FetchProvider = "builtin";
 /** The search provider setup recommends: the most accurate results in our search benchmark.
  * It is only a recommendation; search stays off until the user checks and chooses a provider. */

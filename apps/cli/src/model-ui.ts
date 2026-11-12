@@ -6,7 +6,7 @@ export const renderModelSession = (
   options: TerminalOptions & { compact?: boolean } = {}
 ): SetupSessionFrame => {
   const header = new TerminalReport(options);
-  if (options.compact) header.text("AITEAMOS / model", "info");
+  if (options.compact) header.text("OutcomeGo / model", "info");
   else header.header("model", `VERSION ${input.version}`);
   const tabs = input.stages
     .map((stage, index) => (index === input.activeStage ? `[${stage.label}]` : stage.label))

@@ -32,7 +32,7 @@ enum SavedBotDirectory {
     let scope = SystemEntityID.scope(server: session.server, userID: session.userID)
     let ids = try values.map { value in
       guard let id = SystemEntityID(value), id.matches(scope: scope, kind: .bot) else {
-        throw APIError("This item belongs to a different OpenTeam account. Choose it again.")
+        throw APIError("This item belongs to a different OutcomeGo account. Choose it again.")
       }
       return id
     }
@@ -85,7 +85,7 @@ enum SavedBotDirectory {
 
   private static func directory(scope: String) -> Directory? {
     let root = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-      .appendingPathComponent("OpenTeam", isDirectory: true)
+      .appendingPathComponent("OutcomeGo", isDirectory: true)
     guard let disk = try? DiskStore(directory: root, scope: scope),
       let data = try? Data(contentsOf: disk.url, options: .mappedIfSafe),
       let directory = try? JSONDecoder().decode(Cache.self, from: data).bootstrap else { return nil }

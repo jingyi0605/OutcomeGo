@@ -1,4 +1,4 @@
-import type { ChannelView } from "@aiteamos/contracts";
+import type { ChannelView } from "@outcomego/contracts";
 
 export const activeAgentIdForChannel = (channel: ChannelView | undefined): string | null => {
   if (!channel) return null;

@@ -55,11 +55,11 @@ const importsFor = async (file: string): Promise<SourceImport[]> => {
 
 const failures: string[] = [];
 const serverOnlyPackages = new Set([
-  "@aiteamos/computer",
-  "@aiteamos/db",
-  "@aiteamos/messaging",
-  "@aiteamos/server",
-  "@aiteamos/worker",
+  "@outcomego/computer",
+  "@outcomego/db",
+  "@outcomego/messaging",
+  "@outcomego/server",
+  "@outcomego/worker",
 ]);
 const clientSourceDirectories = new Map<string, string[]>([
   ["desktop", [resolve(root, "apps", "desktop", "src")]],
@@ -79,19 +79,19 @@ for (const directories of clientSourceDirectories.values()) {
 }
 
 const neutralPackageImports = new Map<string, ReadonlySet<string>>([
-  ["contracts", new Set(["@aiteamos/plugin-sdk"])],
+  ["contracts", new Set(["@outcomego/plugin-sdk"])],
   ["plugin-sdk", new Set()],
-  ["plugins", new Set(["@aiteamos/plugin-sdk"])],
-  ["client-core", new Set(["@aiteamos/contracts"])],
-  ["product-core", new Set(["@aiteamos/contracts"])],
-  ["design-tokens", new Set(["@aiteamos/contracts"])],
+  ["plugins", new Set(["@outcomego/plugin-sdk"])],
+  ["client-core", new Set(["@outcomego/contracts"])],
+  ["product-core", new Set(["@outcomego/contracts"])],
+  ["design-tokens", new Set(["@outcomego/contracts"])],
 ]);
 const platformImportPrefixes = ["electron", "react"];
 for (const [packageName, allowedWorkspaceImports] of neutralPackageImports) {
   for (const file of await walk(resolve(root, "packages", packageName, "src"))) {
     for (const imported of await importsFor(file)) {
       if (
-        imported.specifier.startsWith("@aiteamos/") &&
+        imported.specifier.startsWith("@outcomego/") &&
         ![...allowedWorkspaceImports].some(
           (allowed) =>
             imported.specifier === allowed || imported.specifier.startsWith(`${allowed}/`)
@@ -122,9 +122,9 @@ for (const [packageName, allowedWorkspaceImports] of neutralPackageImports) {
 }
 
 const clientLayerPackages = new Set([
-  "@aiteamos/client-core",
-  "@aiteamos/design-tokens",
-  "@aiteamos/product-core",
+  "@outcomego/client-core",
+  "@outcomego/design-tokens",
+  "@outcomego/product-core",
 ]);
 for (const owner of ["computer", "server", "worker"] as const) {
   for (const file of await walk(resolve(root, "apps", owner, "src"))) {
@@ -166,7 +166,7 @@ for (const file of (await walk(resolve(root, "apps"))).filter((candidate) => {
 
 for (const file of await walk(resolve(root, "apps", "ios", "scripts"))) {
   for (const imported of await importsFor(file)) {
-    if (imported.specifier === "@aiteamos/contracts" && imported.runtimeNames.length > 0) {
+    if (imported.specifier === "@outcomego/contracts" && imported.runtimeNames.length > 0) {
       failures.push(
         `${relative(root, file)} imports root runtime values: ${imported.runtimeNames.join(", ")}`
       );

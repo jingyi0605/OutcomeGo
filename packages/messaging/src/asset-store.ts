@@ -1,4 +1,4 @@
-import { attachmentLimitForName, attachmentRejectionMessage, missingAttachmentMessage, tooLargeAttachmentMessage, videoMimeForName } from "@aiteamos/contracts/media-input";
+import { attachmentLimitForName, attachmentRejectionMessage, missingAttachmentMessage, tooLargeAttachmentMessage, videoMimeForName } from "@outcomego/contracts/media-input";
 import { createHash, randomUUID } from "node:crypto";
 import { lookup } from "node:dns/promises";
 import { createReadStream } from "node:fs";
@@ -7,9 +7,9 @@ import { link, mkdir, open, readdir, readFile, realpath, rm, stat } from "node:f
 import { isIP } from "node:net";
 import { basename, dirname, extname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
-import { ApiError, MAX_TURN_INLINE_IMAGE_BYTES, MAX_TURN_INLINE_IMAGES, type AssetKind, type AssetRef } from "@aiteamos/contracts";
-import { CLIENT_CAPABILITIES } from "@aiteamos/contracts/capabilities";
-import { protectedAgentDataPath } from "@aiteamos/contracts/agent-file-access";
+import { ApiError, MAX_TURN_INLINE_IMAGE_BYTES, MAX_TURN_INLINE_IMAGES, type AssetKind, type AssetRef } from "@outcomego/contracts";
+import { CLIENT_CAPABILITIES } from "@outcomego/contracts/capabilities";
+import { protectedAgentDataPath } from "@outcomego/contracts/agent-file-access";
 
 export const REGULAR_ASSET_LIMIT = CLIENT_CAPABILITIES.uploads.maxRegularBytes;
 export const VIDEO_ASSET_LIMIT = CLIENT_CAPABILITIES.uploads.maxVideoBytes;
@@ -398,11 +398,11 @@ export class AssetStore {
     this.agentDataRoot = options.agentDataRoot;
     this.root = resolve(
       options.root ??
-        process.env.AITEAMOS_ASSET_ROOT ??
-        join(process.env.AITEAMOS_WORKSPACE_ROOT ?? "/workspace", ".aiteamos", "assets")
+        process.env.OUTCOMEGO_ASSET_ROOT ??
+        join(process.env.OUTCOMEGO_WORKSPACE_ROOT ?? "/workspace", ".outcomego", "assets")
     );
     this.allowedFileRoots = (
-      options.allowedFileRoots ?? [process.env.AITEAMOS_WORKSPACE_ROOT ?? "/workspace"]
+      options.allowedFileRoots ?? [process.env.OUTCOMEGO_WORKSPACE_ROOT ?? "/workspace"]
     ).map((root) => resolve(root));
     this.fetchImpl = options.fetch ?? globalThis.fetch;
   }
@@ -578,7 +578,7 @@ export class AssetStore {
         throw new ApiError(
           400,
           "asset_path_outside_store",
-          `Attachment path is outside an allowed aiTeamOS directory. Copy the intended deliverable into ${this.allowedFileRoots.join(" or ")} and attach that verified file path. Do not broaden directory access or change permissions.`
+          `Attachment path is outside an allowed OutcomeGo directory. Copy the intended deliverable into ${this.allowedFileRoots.join(" or ")} and attach that verified file path. Do not broaden directory access or change permissions.`
         );
       }
       if (this.agentDataRoot) {

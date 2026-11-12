@@ -4,9 +4,9 @@ import {
   type PluginManagementView,
   type PluginPackageView,
   type PluginSkillInput,
-} from "@aiteamos/contracts";
-import type { PrismaClient } from "@aiteamos/db";
-import type { AgentDataStore } from "@aiteamos/messaging";
+} from "@outcomego/contracts";
+import type { PrismaClient } from "@outcomego/db";
+import type { AgentDataStore } from "@outcomego/messaging";
 import { Effect } from "effect";
 import {
   environmentFields,
@@ -18,9 +18,9 @@ import {
   validatePackageFiles,
   type PackagePreview,
   type PluginDefinition,
-} from "@aiteamos/plugin-sdk";
-import { exportPackageArchive, importPackageArchive } from "@aiteamos/plugin-sdk/archive";
-import { parseAiTeamOSMarketplace } from "../../plugins/aiteamos-marketplace";
+} from "@outcomego/plugin-sdk";
+import { exportPackageArchive, importPackageArchive } from "@outcomego/plugin-sdk/archive";
+import { parseOutcomeGoMarketplace } from "../../plugins/outcomego-marketplace";
 import { resolveUpstreamPlugin } from "../../plugins/upstream-package";
 import { serviceEffect, toJson } from "../service-utils";
 import { retainPluginEnvironment } from "../process-secrets";
@@ -58,7 +58,7 @@ async function fetchPackageResource(value: string): Promise<{ bytes: Uint8Array;
   }
   const response = await fetch(url, {
     signal: AbortSignal.timeout(30_000),
-    headers: { "User-Agent": "aiTeamOS-Plugins" },
+    headers: { "User-Agent": "OutcomeGo-Plugins" },
   });
   if (!response.ok)
     throw new ApiError(
@@ -133,7 +133,7 @@ export class PluginManagement {
     const plugins = new Map(bundled.map((plugin) => [plugin.key, plugin]));
     for (const source of sources) {
       try {
-        for (const plugin of parseAiTeamOSMarketplace(source.manifest).plugins)
+        for (const plugin of parseOutcomeGoMarketplace(source.manifest).plugins)
           if (!plugins.has(plugin.key))
             plugins.set(plugin.key, { ...plugin, sourceUrl: source.url });
       } catch {
@@ -172,7 +172,7 @@ export class PluginManagement {
           name: draft.name,
           definition: parsePluginDefinition(draft.definition),
           warnings: stringArray(draft.warnings),
-          format: "openteam",
+          format: "outcomego",
           sourceUrl: draft.sourceUrl,
           digest: pluginDigest(parsePluginDefinition(draft.definition)),
           updatedAt: draft.updatedAt.toISOString(),
@@ -222,7 +222,7 @@ export class PluginManagement {
         {
           definition: parsePluginDefinition(definition),
           warnings: stringArray(current.warnings),
-          format: "openteam",
+          format: "outcomego",
         },
         current.sourceUrl ?? undefined,
         id
@@ -265,7 +265,7 @@ export class PluginManagement {
     ]);
     const owners = new Map(bundled.map((plugin) => [plugin.key, "the bundled catalog"]));
     for (const source of sources)
-      for (const plugin of parseAiTeamOSMarketplace(source.manifest).plugins)
+      for (const plugin of parseOutcomeGoMarketplace(source.manifest).plugins)
         owners.set(plugin.key, source.name);
     for (const plugin of plugins) {
       const owner = owners.get(plugin.key);
@@ -281,7 +281,7 @@ export class PluginManagement {
   addSource = (url: string, name?: string) =>
     serviceEffect(async () => {
       const resource = await fetchPackageResource(url);
-      const manifest = parseAiTeamOSMarketplace(
+      const manifest = parseOutcomeGoMarketplace(
         JSON.parse(new TextDecoder().decode(resource.bytes))
       );
       await this.validateSourceKeys(manifest.plugins);
@@ -301,7 +301,7 @@ export class PluginManagement {
       const existing = await this.prisma.pluginSource.findUnique({ where: { id } });
       if (!existing) throw new ApiError(404, "plugin_source_missing", "Source not found");
       const resource = await fetchPackageResource(url);
-      const manifest = parseAiTeamOSMarketplace(
+      const manifest = parseOutcomeGoMarketplace(
         JSON.parse(new TextDecoder().decode(resource.bytes))
       );
       await this.validateSourceKeys(manifest.plugins, id);
@@ -324,7 +324,7 @@ export class PluginManagement {
       if (!source) throw new ApiError(404, "plugin_source_missing", "Source not found");
       try {
         const resource = await fetchPackageResource(source.url);
-        const manifest = parseAiTeamOSMarketplace(
+        const manifest = parseOutcomeGoMarketplace(
           JSON.parse(new TextDecoder().decode(resource.bytes))
         );
         await this.validateSourceKeys(manifest.plugins, id);
@@ -392,7 +392,7 @@ export class PluginManagement {
       };
     });
   /**
-   * Packages this release ships whole and no uploaded draft replaces. They update with aiTeamOS itself, so they
+   * Packages this release ships whole and no uploaded draft replaces. They update with OutcomeGo itself, so they
    * carry the release's trust; packages fetched from upstream at install time still need a reviewed update.
    */
   private async releasedPackages(): Promise<Map<string, PluginDefinition>> {
@@ -592,7 +592,7 @@ export class PluginManagement {
           data: {
             installationId: installation.id,
             kind: rollback ? "plugin.rolled_back" : "plugin.updated",
-            summary: `${rollback ? "Restored" : "Updated"} ${next.name} ${next.version}${automatic ? " with aiTeamOS" : ""}`,
+            summary: `${rollback ? "Restored" : "Updated"} ${next.name} ${next.version}${automatic ? " with OutcomeGo" : ""}`,
           },
         });
       });

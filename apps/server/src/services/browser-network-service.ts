@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { Server, ServerWebSocket, WebSocketHandler } from "bun";
-import { ApiError } from "@aiteamos/contracts";
+import { ApiError } from "@outcomego/contracts";
 import {
   decodeFrame,
   encodeFrame,
@@ -20,8 +20,8 @@ import {
   type NetworkEgress,
   type NetworkSettings,
   type NetworkMode,
-} from "@aiteamos/plugin-sdk/browser-network/protocol";
-import type { PrismaClient } from "@aiteamos/db";
+} from "@outcomego/plugin-sdk/browser-network/protocol";
+import type { PrismaClient } from "@outcomego/db";
 import type { MachineService } from "./machine-service";
 
 function validSourceOrder(value: unknown, ranked: boolean): value is string[] {
@@ -303,7 +303,7 @@ export class BrowserNetworkService {
       role,
       machineId,
       request,
-      connectionId: request.headers.get("x-aiteamos-connection-id") ?? undefined,
+      connectionId: request.headers.get("x-outcomego-connection-id") ?? undefined,
       sent: 0,
       received: 0,
       applied: null,

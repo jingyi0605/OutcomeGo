@@ -22,16 +22,16 @@ afterEach(() => {
   for (const dir of directories.splice(0)) rmSync(dir, { recursive: true, force: true });
 });
 const fixture = () => {
-  const directory = mkdtempSync(join(tmpdir(), "aiteamos-update-agent-"));
+  const directory = mkdtempSync(join(tmpdir(), "outcomego-update-agent-"));
   directories.push(directory);
   const paths = installationPaths(directory);
   writeFileSync(
     paths.environment,
-    "AITEAMOS_CONTROL_TOKEN=fixture-private-token\nAITEAMOS_API_PORT=9787\nAITEAMOS_UPDATE_CHANNEL=beta\n"
+    "OUTCOMEGO_CONTROL_TOKEN=fixture-private-token\nOUTCOMEGO_API_PORT=9787\nOUTCOMEGO_UPDATE_CHANNEL=beta\n"
   );
   writeManifest(paths, {
     schemaVersion: 1,
-    repository: "jingyi0605/ai-TeamOS",
+    repository: "jingyi0605/OutcomeGo",
     version: "1.2.3",
     composeUrl: "https://example.invalid/compose.yaml",
     installedAt: "now",
@@ -72,7 +72,7 @@ test("connected server request reaches only its own host updater, survives API r
     "--json-progress",
   ]);
   expect(f.launches[0]!.env[UPDATE_AGENT_ENV]).toBeUndefined();
-  expect(f.launches[0]!.env.AITEAMOS_UPDATE_WHEN_IDLE).toBe("1");
+  expect(f.launches[0]!.env.OUTCOMEGO_UPDATE_WHEN_IDLE).toBe("1");
   await agent.tick();
   expect(f.launches).toHaveLength(1);
   writeUpdateState(f.paths, {
@@ -140,7 +140,7 @@ test("rejects unsafe versions again on the host and reports spawn failures", asy
   expect(betaArguments).toContain("--allow-prerelease");
   writeFileSync(
     f.paths.environment,
-    "AITEAMOS_CONTROL_TOKEN=fixture-private-token\nAITEAMOS_API_PORT=9787\nAITEAMOS_UPDATE_CHANNEL=stable\n"
+    "OUTCOMEGO_CONTROL_TOKEN=fixture-private-token\nOUTCOMEGO_API_PORT=9787\nOUTCOMEGO_UPDATE_CHANNEL=stable\n"
   );
   expect(() => updateAgentArguments(f.paths, { ...request, targetVersion: "1.3.0-beta.2" })).toThrow(
     "invalid update version"
@@ -172,7 +172,7 @@ test("CLI daemon entrypoint authenticates to its installation without a desktop 
   });
   writeFileSync(
     f.paths.environment,
-    `AITEAMOS_CONTROL_TOKEN=fixture-private-token\nAITEAMOS_API_PORT=${server.port}\n`
+    `OUTCOMEGO_CONTROL_TOKEN=fixture-private-token\nOUTCOMEGO_API_PORT=${server.port}\n`
   );
   const child = Bun.spawn(
     [
@@ -201,14 +201,14 @@ test("CLI daemon entrypoint authenticates to its installation without a desktop 
 });
 
 test("a staged CLI starts its daemon from the promoted installation, and private daemons invoke that CLI", () => {
-  const target = "/tmp/aiteamos";
-  const source = `/tmp/.aiteamos.update-${CLI_VERSION}-fixture`;
+  const target = "/tmp/outcomego";
+  const source = `/tmp/.outcomego.update-${CLI_VERSION}-fixture`;
   expect(
     updateAgentExecutable(
       {
-        AITEAMOS_CLI_UPDATE_SOURCE: source,
-        AITEAMOS_CLI_UPDATE_TARGET: target,
-        AITEAMOS_CLI_UPDATE_VERSION: CLI_VERSION,
+        OUTCOMEGO_CLI_UPDATE_SOURCE: source,
+        OUTCOMEGO_CLI_UPDATE_TARGET: target,
+        OUTCOMEGO_CLI_UPDATE_VERSION: CLI_VERSION,
       },
       source
     )
@@ -219,7 +219,7 @@ test("a staged CLI starts its daemon from the promoted installation, and private
 });
 
 test("a Homebrew runtime starts the agent by a path that survives brew upgrade", () => {
-  const prefix = realpathSync(mkdtempSync(join(tmpdir(), "aiteamos-brew-")));
+  const prefix = realpathSync(mkdtempSync(join(tmpdir(), "outcomego-brew-")));
   directories.push(prefix);
   const versioned = join(prefix, "Cellar", "node@24", "24.13.1", "bin", "node");
   mkdirSync(join(versioned, ".."), { recursive: true });

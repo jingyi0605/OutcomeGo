@@ -6,7 +6,7 @@ import {
   validateSendToUserInput,
 } from "../src";
 
-describe("aiTeamOS-compatible rich delivery", () => {
+describe("OutcomeGo-compatible rich delivery", () => {
   test("keeps the source-verified channel failure and widget dismissal prompts exact", () => {
     expect(
       buildChannelDeliveryFailureWakePrompt({ channel: "slack:C123", error: "not connected" })

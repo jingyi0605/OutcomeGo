@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { api } from "../client/aiteamos-api";
+import { api } from "../client/outcomego-api";
 import { LiveVoiceAudio } from "../lib/live-voice-audio";
 import { translateCurrent } from "../lib/i18n-catalog";
 import { LiveVoiceTransport } from "../lib/live-voice-transport";
@@ -98,7 +98,7 @@ export function useLiveVoice(botId: string, channelId: string, participantBotIds
         },
       });
       audio.current = nextAudio;
-      const clientPlatform = window.aiteamos?.platform === "win32" ? "windows" : "macos";
+      const clientPlatform = window.outcomego?.platform === "win32" ? "windows" : "macos";
       const ticket = await api.voice.createSession({
         botId,
         channelId,

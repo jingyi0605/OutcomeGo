@@ -4,15 +4,15 @@ import { RuntimeTools } from "../src/runtime/tools";
 import type { ActiveTurn } from "../src/runtime/types";
 import { objectToolSchema } from "../src/tool-schema";
 import reference from "../../../packages/contracts/src/tool-reference.json";
-import { referenceTool } from "@aiteamos/contracts/tool-contracts";
-import { normalizeMainToolArguments } from "@aiteamos/contracts/reference-main-parsers";
+import { referenceTool } from "@outcomego/contracts/tool-contracts";
+import { normalizeMainToolArguments } from "@outcomego/contracts/reference-main-parsers";
 import { Type } from "typebox";
 import { Schema } from "effect";
-import { TodoWriteInput } from "@aiteamos/contracts";
+import { TodoWriteInput } from "@outcomego/contracts";
 import { Value } from "typebox/value";
-import { taskToolContract } from "@aiteamos/contracts/tool-contracts";
+import { taskToolContract } from "@outcomego/contracts/tool-contracts";
 import { enrichUserInfo } from "../src/runtime/prompt-context";
-import { APP_SETTINGS_ANCHORS } from "@aiteamos/contracts/app-deep-links";
+import { APP_SETTINGS_ANCHORS } from "@outcomego/contracts/app-deep-links";
 import { SETTINGS_ANCHORS } from "../../desktop/src/renderer/lib/app-deep-links";
 
 // The baseline is extracted from the captured external tool catalog, not our handlers.
@@ -93,7 +93,7 @@ describe("captured tool contract wiring", () => {
     expect(reference.Computer.inputSchema.properties.holdDurationMs.maximum).toBe(30_000);
   });
 
-  test("SendToUser keeps the captured concise instructions, drops features aiTeamOS lacks, and lists the app's real links", () => {
+  test("SendToUser keeps the captured concise instructions, drops features outcomeGo lacks, and lists the app's real links", () => {
     const actual = referenceTool("SendToUser");
     const captured = reference.SendToUser.description;
     expect(actual.description).toStartWith('Send a message to the user. Follow "How a turn works" in your instructions');

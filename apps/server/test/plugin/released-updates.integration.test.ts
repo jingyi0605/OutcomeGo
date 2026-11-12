@@ -1,11 +1,11 @@
 import { createUtilityPluginFixture } from "./fixtures/utility-plugin";
 import { expect, test } from "bun:test";
-import { createPrismaClient } from "@aiteamos/db";
+import { createPrismaClient } from "@outcomego/db";
 import { Effect } from "effect";
-import type { PluginDefinition } from "@aiteamos/plugin-sdk";
+import type { PluginDefinition } from "@outcomego/plugin-sdk";
 import { PluginService } from "../../src/services/plugin-service";
 
-const databaseUrl = process.env.AITEAMOS_TEST_DATABASE_URL;
+const databaseUrl = process.env.OUTCOMEGO_TEST_DATABASE_URL;
 const integration = test.skipIf(!databaseUrl);
 
 integration(
@@ -48,7 +48,7 @@ integration(
         where: { installation: { pluginKey: key }, kind: "plugin.updated" },
         orderBy: { createdAt: "desc" },
       });
-      expect(activity?.summary).toContain("1.1.0 with aiTeamOS");
+      expect(activity?.summary).toContain("1.1.0 with outcomeGo");
       // An uploaded draft of the same plugin is the administrator's choice: no automatic update.
       const draft = await prisma.pluginDraft.create({
         data: { name: "Uploaded copy", definition: JSON.parse(JSON.stringify(release("1.1.0"))) },

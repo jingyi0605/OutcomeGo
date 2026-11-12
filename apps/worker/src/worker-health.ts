@@ -3,8 +3,8 @@ import { request } from "node:http";
 
 export const checkWorkerHealth = async (
   paths = {
-    heartbeat: "/tmp/aiteamos-worker-heartbeat.json",
-    socket: "/tmp/aiteamos-worker-doctor.sock",
+    heartbeat: "/tmp/outcomego-worker-heartbeat.json",
+    socket: "/tmp/outcomego-worker-doctor.sock",
   },
   timeoutMs = 10_000
 ): Promise<void> => {
@@ -51,11 +51,11 @@ export const checkWorkerHealth = async (
               body.durationMs < 0
             )
               throw new Error(
-                "Worker dependencies or queue round trip failed; run aiteamos doctor"
+                "Worker dependencies or queue round trip failed; run outcomego doctor"
               );
             done();
           } catch {
-            done(new Error("Worker dependencies or queue round trip failed; run aiteamos doctor"));
+            done(new Error("Worker dependencies or queue round trip failed; run outcomego doctor"));
           }
         });
       }

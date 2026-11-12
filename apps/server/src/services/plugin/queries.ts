@@ -1,13 +1,13 @@
-import { rankPluginsLexically } from "@aiteamos/contracts/reference-formatters";
-import { PLUGIN_WORKFLOW_HOST_CONTEXT } from "@aiteamos/contracts/plugin-workflows";
-import { pluginDynamicNamespaces } from "@aiteamos/contracts/plugin-namespaces";
+import { rankPluginsLexically } from "@outcomego/contracts/reference-formatters";
+import { PLUGIN_WORKFLOW_HOST_CONTEXT } from "@outcomego/contracts/plugin-workflows";
+import { pluginDynamicNamespaces } from "@outcomego/contracts/plugin-namespaces";
 import type {
   PluginActivityView,
   PluginConnectionStatusesView,
   PluginDynamicNamespace,
   PluginInstallView,
   PluginSettingsView,
-} from "@aiteamos/contracts";
+} from "@outcomego/contracts";
 import { createHash } from "node:crypto";
 import {
   ApiError,
@@ -15,9 +15,9 @@ import {
   PLUGIN_BOT_ACCESS_QUERY_MAX_LENGTH,
   PLUGIN_CONNECTION_ID_MAX_LENGTH,
   PLUGIN_CONNECTION_STATUS_MAX_IDS,
-} from "@aiteamos/contracts";
-import { Prisma, type PrismaClient } from "@aiteamos/db";
-import type { PluginDefinition } from "@aiteamos/plugin-sdk";
+} from "@outcomego/contracts";
+import { Prisma, type PrismaClient } from "@outcomego/db";
+import type { PluginDefinition } from "@outcomego/plugin-sdk";
 import { loadConnectionNamespaces } from "./namespaces";
 import { serviceEffect } from "../service-utils";
 import {
@@ -140,7 +140,7 @@ export class PluginQueries {
                 )) FROM jsonb_array_elements(i."manifest"->'connections') connector
                   WHERE connector->>'key' = c."connectorKey"), '[]'::jsonb)
               ) AS "manifest"
-            FROM "PluginConnection" c JOIN "PluginInstallation" i ON i."id" = c."installationId"
+            FROM "outcomego_plugin_connection" c JOIN "outcomego_plugin_installation" i ON i."id" = c."installationId"
             WHERE c."id" IN (${Prisma.join(ids)}) ORDER BY c."id"
           `)
         ).map((connection) => ({
@@ -301,7 +301,7 @@ export class PluginQueries {
       const plugin = definitionFromManifest(installation.manifest);
       return (plugin?.skills ?? []).map(
         (skill) =>
-          `### ${plugin?.name}: ${skill.name}\n${skill.description}\n\n${skill.body}\n\nSupporting files: find pluginId ${JSON.stringify(installation.pluginKey)} and skill ${JSON.stringify(skill.name)} in ${process.env.AITEAMOS_AGENT_DATA_ROOT ?? "/agent-data"}/plugin-skills/cache.json. Resolve relative file links from that SKILL.md directory.`
+          `### ${plugin?.name}: ${skill.name}\n${skill.description}\n\n${skill.body}\n\nSupporting files: find pluginId ${JSON.stringify(installation.pluginKey)} and skill ${JSON.stringify(skill.name)} in ${process.env.OUTCOMEGO_AGENT_DATA_ROOT ?? "/agent-data"}/plugin-skills/cache.json. Resolve relative file links from that SKILL.md directory.`
       );
     });
     return sections.length ? `\n\n## Installed plugin skills\n\n${PLUGIN_WORKFLOW_HOST_CONTEXT}\n\n${sections.join("\n\n")}` : "";

@@ -1,24 +1,24 @@
-import { createPrismaClient } from "@aiteamos/db/client";
+import { createPrismaClient } from "@outcomego/db/client";
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { bearer, username } from "better-auth/plugins";
 
-const secret = process.env.AITEAMOS_AUTH_SECRET;
-const baseURL = process.env.AITEAMOS_AUTH_URL || "http://127.0.0.1:8787";
+const secret = process.env.OUTCOMEGO_AUTH_SECRET;
+const baseURL = process.env.OUTCOMEGO_AUTH_URL || "http://127.0.0.1:8787";
 
 if (!secret || secret.length < 32) {
-  throw new Error("AITEAMOS_AUTH_SECRET must contain at least 32 characters");
+  throw new Error("OUTCOMEGO_AUTH_SECRET must contain at least 32 characters");
 }
 
 export const authPrisma = createPrismaClient();
 
 export const auth = betterAuth({
-  appName: "aiTeamOS",
+  appName: "OutcomeGo",
   secret,
   baseURL,
   basePath: "/api/auth",
   advanced: {
-    ipAddress: { ipAddressHeaders: ["x-aiteamos-client-ip"] },
+    ipAddress: { ipAddressHeaders: ["x-outcomego-client-ip"] },
     useSecureCookies: baseURL.startsWith("https://"),
   },
   rateLimit: {
@@ -65,4 +65,4 @@ export const auth = betterAuth({
   ],
 });
 
-export type AiTeamOSSession = typeof auth.$Infer.Session;
+export type OutcomeGoSession = typeof auth.$Infer.Session;

@@ -11,7 +11,7 @@ import {
   UpdateChannelProfileInput,
   WidgetDismissInput,
   WidgetResponseInput,
-} from "@aiteamos/contracts";
+} from "@outcomego/contracts";
 import { corsHeaders, json, parseBody } from "../http";
 import { messageContextExtents } from "../message-context-query";
 import { type RouteContext, run } from "./context";

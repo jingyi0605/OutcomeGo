@@ -1,9 +1,9 @@
 /** Run against a dedicated, disposable database: a worker owns its whole queue. */
 import { resolve } from "node:path";
 
-if (!process.env.AITEAMOS_TEST_DATABASE_URL) {
+if (!process.env.OUTCOMEGO_TEST_DATABASE_URL) {
   throw new Error(
-    "Set AITEAMOS_TEST_DATABASE_URL to a dedicated test database with the current schema. Refusing to silently skip database and worker memory checks."
+    "Set OUTCOMEGO_TEST_DATABASE_URL to a dedicated test database with the current schema. Refusing to silently skip database and worker memory checks."
   );
 }
 const suites = [

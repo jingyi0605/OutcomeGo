@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { BotAgentStore } from "../src/bot-agent-store";
 
 test("concurrent transcript refreshes during bot provisioning publish a consistent snapshot", async () => {
-  const root = await mkdtemp(join(tmpdir(), "aiteamos-projection-race-"));
+  const root = await mkdtemp(join(tmpdir(), "outcomego-projection-race-"));
   const store = new BotAgentStore(root);
   const agentId = crypto.randomUUID();
   try {

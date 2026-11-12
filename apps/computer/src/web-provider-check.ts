@@ -5,13 +5,13 @@ import {
   type SearchProvider,
   type WebProviderCheckRequest,
   type WebProviderCheckResult,
-} from "@aiteamos/contracts/web-search";
+} from "@outcomego/contracts/web-search";
 import { builtinFetch } from "./builtin-fetch";
 import { FetchProviderClient } from "./fetch-provider";
 import { publicWebUrl } from "./public-web-url";
 import { SearchProviderClient, type SearchFetch } from "./search-provider";
 
-const CHECK_QUERY = "aiTeamOS open source AI agents";
+const CHECK_QUERY = "OutcomeGo open source AI agents";
 const CHECK_URL = "https://example.com/";
 
 export function parseWebProviderCheck(input: unknown): WebProviderCheckRequest {

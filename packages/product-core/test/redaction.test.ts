@@ -5,9 +5,9 @@ describe("diagnostic credential redaction", () => {
   test("removes bearer, environment, JSON, CLI, URL, and provider secrets", () => {
     const input = [
       "Authorization: Bearer abc.def.ghi",
-      "AITEAMOS_AUTH_SECRET=super-secret-value",
+      "OUTCOMEGO_AUTH_SECRET=super-secret-value",
       '\"password\":\"hunter2\"',
-      "aiteamos command --token ghp_abcdefghijklmnopqrstuvwxyz123456",
+      "outcomego command --token ghp_abcdefghijklmnopqrstuvwxyz123456",
       "https://owner:password@example.com/path",
       "sk-proj-abcdefghijklmnopqrstuvwxyz",
     ].join("\n");
@@ -27,8 +27,8 @@ describe("diagnostic credential redaction", () => {
   });
 
   test("redacts errors while preserving useful context", () => {
-    expect(safeErrorMessage(new Error("Docker failed: AITEAMOS_CONTROL_TOKEN=topsecret"))).toBe(
-      "Docker failed: AITEAMOS_CONTROL_TOKEN=[REDACTED]"
+    expect(safeErrorMessage(new Error("Docker failed: OUTCOMEGO_CONTROL_TOKEN=topsecret"))).toBe(
+      "Docker failed: OUTCOMEGO_CONTROL_TOKEN=[REDACTED]"
     );
   });
 
@@ -36,7 +36,7 @@ describe("diagnostic credential redaction", () => {
     expect(
       clientErrorMessage(
         new Error(
-          "Error invoking remote method 'aiteamos:updates:update-server': Error: Update failed"
+          "Error invoking remote method 'outcomego:updates:update-server': Error: Update failed"
         ),
         "Fallback"
       )
@@ -44,7 +44,7 @@ describe("diagnostic credential redaction", () => {
     expect(
       clientErrorMessage(
         new Error(
-          "Error invoking remote method 'aiteamos:auth:sign-in': AiTeamOSClientError: fetch failed"
+          "Error invoking remote method 'outcomego:auth:sign-in': OutcomeGoClientError: fetch failed"
         ),
         "Fallback"
       )
@@ -59,11 +59,11 @@ describe("diagnostic credential redaction", () => {
 
   test("fully removes quoted secrets that contain spaces", () => {
     const output = redactSensitiveText(
-      `AITEAMOS_AUTH_PASSWORD="correct horse battery staple" aiteamos auth-reset --password 'another secret phrase'`
+      `OUTCOMEGO_AUTH_PASSWORD="correct horse battery staple" outcomego auth-reset --password 'another secret phrase'`
     );
 
     expect(output).toBe(
-      "AITEAMOS_AUTH_PASSWORD=[REDACTED] aiteamos auth-reset --password [REDACTED]"
+      "OUTCOMEGO_AUTH_PASSWORD=[REDACTED] outcomego auth-reset --password [REDACTED]"
     );
     expect(output).not.toContain("battery staple");
     expect(output).not.toContain("secret phrase");

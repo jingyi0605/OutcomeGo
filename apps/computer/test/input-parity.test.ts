@@ -20,7 +20,7 @@ afterEach(async () => {
   await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })));
 });
 const temporary = async () => {
-  const root = await mkdtemp(join(tmpdir(), "aiteamos-input-parity-"));
+  const root = await mkdtemp(join(tmpdir(), "outcomego-input-parity-"));
   roots.push(root);
   return root;
 };

@@ -3,16 +3,16 @@ import {
   PUSH_DELIVERY_ADVISORY_LOCK,
   type PushDeviceView,
   type RegisterPushDeviceInput,
-} from "@aiteamos/contracts";
-import type { Prisma, PrismaClient } from "@aiteamos/db";
+} from "@outcomego/contracts";
+import type { Prisma, PrismaClient } from "@outcomego/db";
 import {
   unreadBadgeCount,
   unreadChannelCount,
   channelNotificationStates,
   notificationRouting,
-} from "@aiteamos/messaging";
+} from "@outcomego/messaging";
 import { appendEvent, serviceEffect } from "./service-utils";
-import { notificationPresenceLifetime, type NotificationPresenceInput } from "@aiteamos/contracts/notification-presence";
+import { notificationPresenceLifetime, type NotificationPresenceInput } from "@outcomego/contracts/notification-presence";
 
 const PUSH_DELIVERY_LOCK_TIMEOUT_MS = 20_000;
 
@@ -69,20 +69,20 @@ export class NotificationService {
       const sessionId = authentication.mode === "required" ? authentication.sessionId : null;
       if (sessionId) {
         const session = await tx.session.findUnique({ where: { id: sessionId } });
-        if (!session || session.expiresAt <= now) throw new ApiError(401, "unauthorized", "Sign in to aiTeamOS to continue");
+        if (!session || session.expiresAt <= now) throw new ApiError(401, "unauthorized", "Sign in to OutcomeGo to continue");
       }
       const expiresAt = new Date(now.getTime() + notificationPresenceLifetime(input));
       const required = authentication.mode === "required";
       // Sequence guards prevent late foreground/heartbeat requests reviving a released lease.
       // Bind the random lifecycle ID to its original session and platform.
       const changed = await tx.$executeRaw`
-        INSERT INTO "NotificationPresence" ("clientId", "sequence", "platform", "authRequired", "authSessionId", "expiresAt", "updatedAt")
+        INSERT INTO "outcomego_notification_presence" ("clientId", "sequence", "platform", "authRequired", "authSessionId", "expiresAt", "updatedAt")
         VALUES (${input.clientId}::uuid, ${input.sequence}, ${input.platform}, ${required}, ${sessionId}, ${expiresAt}, ${now})
         ON CONFLICT ("clientId") DO UPDATE SET "sequence" = EXCLUDED."sequence", "expiresAt" = EXCLUDED."expiresAt", "updatedAt" = EXCLUDED."updatedAt"
-        WHERE "NotificationPresence"."sequence" < EXCLUDED."sequence"
-          AND "NotificationPresence"."authRequired" = EXCLUDED."authRequired"
-          AND "NotificationPresence"."authSessionId" IS NOT DISTINCT FROM EXCLUDED."authSessionId"
-          AND "NotificationPresence"."platform" = EXCLUDED."platform"
+        WHERE "outcomego_notification_presence"."sequence" < EXCLUDED."sequence"
+          AND "outcomego_notification_presence"."authRequired" = EXCLUDED."authRequired"
+          AND "outcomego_notification_presence"."authSessionId" IS NOT DISTINCT FROM EXCLUDED."authSessionId"
+          AND "outcomego_notification_presence"."platform" = EXCLUDED."platform"
       `;
       if (changed && input.platform === "ios") await appendEvent(tx, "notification.presence.changed", null, {});
       if (input.sequence === 1) await tx.notificationPresence.deleteMany({
@@ -214,7 +214,7 @@ export class NotificationService {
       this.prisma.$transaction(
         async (tx) => {
           await tx.$executeRaw`SELECT pg_advisory_xact_lock(${PUSH_DELIVERY_ADVISORY_LOCK.namespace}, ${PUSH_DELIVERY_ADVISORY_LOCK.key})`;
-          await tx.$executeRaw`SELECT 1 FROM "Channel" WHERE id = ${channelId}::uuid FOR NO KEY UPDATE`;
+          await tx.$executeRaw`SELECT 1 FROM "outcomego_channel" WHERE id = ${channelId}::uuid FOR NO KEY UPDATE`;
           const channel = await tx.channel.findUnique({
             where: { id: channelId },
             select: { id: true },
@@ -256,19 +256,19 @@ export class NotificationService {
             requestedNotification < notificationEnd ? requestedNotification : notificationEnd;
           const previousState = await tx.channelReadState.findUnique({ where: { channelId } });
           await tx.$executeRaw`
-            INSERT INTO "ChannelReadState" ("channelId", "lastReadSequence", "lastReadNotificationSequence", "createdAt", "updatedAt")
+            INSERT INTO "outcomego_channel_read_state" ("channelId", "lastReadSequence", "lastReadNotificationSequence", "createdAt", "updatedAt")
             VALUES (${channelId}::uuid, ${target}, ${notificationTarget}, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
             ON CONFLICT ("channelId") DO UPDATE SET
               "lastReadSequence" = GREATEST(
-                "ChannelReadState"."lastReadSequence",
+                "outcomego_channel_read_state"."lastReadSequence",
                 EXCLUDED."lastReadSequence"
               ),
-              "lastReadNotificationSequence" = GREATEST("ChannelReadState"."lastReadNotificationSequence", EXCLUDED."lastReadNotificationSequence"),
+              "lastReadNotificationSequence" = GREATEST("outcomego_channel_read_state"."lastReadNotificationSequence", EXCLUDED."lastReadNotificationSequence"),
               "updatedAt" = CASE
-                WHEN EXCLUDED."lastReadSequence" > "ChannelReadState"."lastReadSequence"
-                  OR EXCLUDED."lastReadNotificationSequence" > "ChannelReadState"."lastReadNotificationSequence"
+                WHEN EXCLUDED."lastReadSequence" > "outcomego_channel_read_state"."lastReadSequence"
+                  OR EXCLUDED."lastReadNotificationSequence" > "outcomego_channel_read_state"."lastReadNotificationSequence"
                 THEN CURRENT_TIMESTAMP
-                ELSE "ChannelReadState"."updatedAt"
+                ELSE "outcomego_channel_read_state"."updatedAt"
               END
           `;
           const state = await tx.channelReadState.findUniqueOrThrow({ where: { channelId } });

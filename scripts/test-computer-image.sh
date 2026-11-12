@@ -3,7 +3,7 @@ set -euo pipefail
 
 image=${1:?Usage: bash scripts/test-computer-image.sh IMAGE}
 repo_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
-container="aiteamos-computer-capabilities-test-$$"
+container="outcomego-computer-capabilities-test-$$"
 cleanup() { docker rm -f "$container" >/dev/null 2>&1 || true; }
 trap cleanup EXIT
 
@@ -11,9 +11,9 @@ trap cleanup EXIT
 docker run -d --name "$container" --network none --cap-add ALL \
   --security-opt seccomp=unconfined --security-opt apparmor=unconfined --security-opt label=disable \
   --security-opt systempaths=unconfined --device /dev/net/tun:/dev/net/tun \
-  -e AITEAMOS_CONTROL_TOKEN=capabilities-test-only \
-  -e AITEAMOS_COMPUTER_TEST_URL=http://127.0.0.1:8790 \
-  -e AITEAMOS_TEST_TIME_ZONE=Asia/Kolkata \
+  -e OUTCOMEGO_CONTROL_TOKEN=capabilities-test-only \
+  -e OUTCOMEGO_COMPUTER_TEST_URL=http://127.0.0.1:8790 \
+  -e OUTCOMEGO_TEST_TIME_ZONE=Asia/Kolkata \
   --mount "type=bind,source=$repo_root/apps/computer/test/task-capabilities.integration.test.ts,target=/tmp/task-capabilities.integration.test.ts,readonly" \
   --mount "type=bind,source=$repo_root/apps/computer/test/box-clock.integration.test.ts,target=/tmp/box-clock.integration.test.ts,readonly" \
   "$image" >/dev/null

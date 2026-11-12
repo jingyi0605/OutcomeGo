@@ -5,8 +5,8 @@
    "expected": "Hi Dana,\n\nThanks for sending over the revised proposal yesterday. I went through the pricing section with the team this morning and we are aligned on the overall structure, but we would like to revisit the onboarding fee before we sign.\n\nBest,\nRaghav"
   },
   {
-   "body": "Hi team,\r\n\r\nHere is the plan for next week. We will start with the migration and\r\nthen move on to the cleanup work once the data has been verified by\r\nthe on-call engineer.\r\n\r\n- Monday: freeze writes and take the final snapshot of the database,\r\n  then run the migration script against staging\r\n- Tuesday: production cutover\r\n\r\nOrder: 12345\r\nStatus: confirmed\r\n\r\n-- \r\nRaghav Pillai\r\nAiTeamOS",
-   "expected": "Hi team,\n\nHere is the plan for next week. We will start with the migration and then move on to the cleanup work once the data has been verified by the on-call engineer.\n\n- Monday: freeze writes and take the final snapshot of the database, then run the migration script against staging\n- Tuesday: production cutover\n\nOrder: 12345\nStatus: confirmed\n\n-- \nRaghav Pillai\nAiTeamOS"
+   "body": "Hi team,\r\n\r\nHere is the plan for next week. We will start with the migration and\r\nthen move on to the cleanup work once the data has been verified by\r\nthe on-call engineer.\r\n\r\n- Monday: freeze writes and take the final snapshot of the database,\r\n  then run the migration script against staging\r\n- Tuesday: production cutover\r\n\r\nOrder: 12345\r\nStatus: confirmed\r\n\r\n-- \r\nRaghav Pillai\r\nOutcomeGo",
+   "expected": "Hi team,\n\nHere is the plan for next week. We will start with the migration and then move on to the cleanup work once the data has been verified by the on-call engineer.\n\n- Monday: freeze writes and take the final snapshot of the database, then run the migration script against staging\n- Tuesday: production cutover\n\nOrder: 12345\nStatus: confirmed\n\n-- \nRaghav Pillai\nOutcomeGo"
   },
   {
    "body": "Hi,\n\nSee you at 3.\nThanks!\nR",

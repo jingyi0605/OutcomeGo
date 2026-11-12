@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { Effect } from "effect";
 import { AppService } from "../../server/src/app-service";
 
-const databaseUrl = process.env.AITEAMOS_TEST_DATABASE_URL;
+const databaseUrl = process.env.OUTCOMEGO_TEST_DATABASE_URL;
 const databaseTest = databaseUrl ? test : test.skip;
 interface TurnInput {
   runId: string;
@@ -82,7 +82,7 @@ databaseTest(
             inferenceProvider: "openai-codex",
             contextSessionId: input.contextSessionId,
             sessionPath:
-              input.sessionPath ?? `/var/lib/aiteamos/pi/${input.contextSessionId}.jsonl`,
+              input.sessionPath ?? `/var/lib/outcomego/pi/${input.contextSessionId}.jsonl`,
             sessionId: input.contextSessionId,
             model: "fake",
           },
@@ -103,10 +103,10 @@ databaseTest(
     });
     const keys = [
       "DATABASE_URL",
-      "AITEAMOS_COMPUTER_URL",
-      "AITEAMOS_CONTROL_TOKEN",
-      "AITEAMOS_WORKSPACE_ROOT",
-      "AITEAMOS_AGENT_DATA_ROOT",
+      "OUTCOMEGO_COMPUTER_URL",
+      "OUTCOMEGO_CONTROL_TOKEN",
+      "OUTCOMEGO_WORKSPACE_ROOT",
+      "OUTCOMEGO_AGENT_DATA_ROOT",
     ] as const;
     const previous = Object.fromEntries(keys.map((key) => [key, process.env[key]]));
     const until = async (check: () => Promise<boolean>) => {
@@ -119,10 +119,10 @@ databaseTest(
     try {
       Object.assign(process.env, {
         DATABASE_URL: databaseUrl,
-        AITEAMOS_COMPUTER_URL: fake.url.origin,
-        AITEAMOS_CONTROL_TOKEN: "synthetic-control",
-        AITEAMOS_WORKSPACE_ROOT: root,
-        AITEAMOS_AGENT_DATA_ROOT: join(root, "data"),
+        OUTCOMEGO_COMPUTER_URL: fake.url.origin,
+        OUTCOMEGO_CONTROL_TOKEN: "synthetic-control",
+        OUTCOMEGO_WORKSPACE_ROOT: root,
+        OUTCOMEGO_AGENT_DATA_ROOT: join(root, "data"),
       });
       app = new AppService();
       await Effect.runPromise(app.boot());

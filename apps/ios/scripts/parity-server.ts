@@ -21,7 +21,7 @@ import { join } from "node:path";
 const port = Number(process.env.SWIFT_PARITY_PORT || 19997);
 // Dedicated key-parity scenarios exercise the production encrypted store.
 const keyQA = port === 20081;
-const keyDirectory = mkdtempSync(join(tmpdir(), "openteam-native-key-"));
+const keyDirectory = mkdtempSync(join(tmpdir(), "outcomego-native-key-"));
 process.on("exit", () => rmSync(keyDirectory, { recursive: true, force: true }));
 const keyStore = new TranscriptionStore(join(keyDirectory, "settings.json"), () => "qa-encryption-secret".repeat(3));
 const keyPatches: unknown[] = [];
@@ -150,7 +150,7 @@ function checkWebProvider(input: any): string | null {
   const passed = !row?.secret || row.secret.startsWith("good-");
   webProviders.rows[tool][info.id] = { secret: row?.secret ?? null, check: {
     status: passed ? "passed" : "failed", checkedAt: new Date().toISOString(),
-    message: !passed ? `${info.name} rejected the API key (HTTP 401).` : tool === "search" ? "Search works: 3 results for “OpenTeam”." : "Fetch works: read example.com (1,234 characters).",
+    message: !passed ? `${info.name} rejected the API key (HTTP 401).` : tool === "search" ? "Search works: 3 results for “OutcomeGo”." : "Fetch works: read example.com (1,234 characters).",
   } };
   return null;
 }
@@ -324,7 +324,7 @@ const server = Bun.serve({
         if (!serverUpdate.updaterAvailable) return response({ message: "The host updater is unavailable." }, 503);
         if (input.targetVersion !== "0.0.11") return response({ message: "Unexpected update target." }, 400);
         serverUpdateRequests.push(input);
-        Object.assign(serverUpdate, { status: "updating", phase: "pulling", targetVersion: input.targetVersion, message: "Pulling OpenTeam 0.0.11 container images", safeToCloseDesktop: true });
+        Object.assign(serverUpdate, { status: "updating", phase: "pulling", targetVersion: input.targetVersion, message: "Pulling OutcomeGo 0.0.11 container images", safeToCloseDesktop: true });
       }
       return response(serverUpdate);
     }

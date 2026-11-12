@@ -1,6 +1,6 @@
 export { ensureRequestForTask, reportRequestProgress, settleRequestProgress, recoverRequestProgress, dispatchRequestChecks, stopRequestProgress, requestProgressSnapshot, requestWakeAllowed } from "./request-progress";
 import { requestProgressSnapshot } from "./request-progress";
-import { renderTaskProgressContext } from "@aiteamos/contracts/task-progress";
+import { renderTaskProgressContext } from "@outcomego/contracts/task-progress";
 export { initialTaskProgress, settleTaskProgress, reportTaskProgress, dispatchTaskContinuations, taskProgress, taskProgressContext, notifyTaskProgress, recoverTaskInterruption, TASK_RECOVERY_LOCK } from "./task-progress";
 import { taskProgressContext, taskScopeContext } from "./task-progress";
 export { taskScopeContext, taskScopeUpdates } from "./task-progress";
@@ -24,8 +24,8 @@ import { AUTOMATION_RUN_INSTRUCTIONS, automationContinuationRoute } from "./auto
 import { join } from "node:path";
 import { publishChannelNotification, publishMessageNotification } from "./notifications";
 export { publishChannelNotification, publishMessageNotification, channelNotificationStates } from "./notifications";
-import { messagePreviewText } from "@aiteamos/contracts/message-preview";
-import { defaultTaskConfiguration, type TaskConfiguration } from "@aiteamos/contracts/task-configuration";
+import { messagePreviewText } from "@outcomego/contracts/message-preview";
+import { defaultTaskConfiguration, type TaskConfiguration } from "@outcomego/contracts/task-configuration";
 import { combinedGraphicalWorkerPrompt } from "./graphical-worker-prompts";
 import {
   type AdminBroadcastInput,
@@ -42,8 +42,8 @@ import {
   TODO_MAX_ITEMS,
   type TranscriptEventView,
   type UserTimeZoneView,
-} from "@aiteamos/contracts";
-import { Prisma, type PrismaClient } from "@aiteamos/db";
+} from "@outcomego/contracts";
+import { Prisma, type PrismaClient } from "@outcomego/db";
 import { fromPrisma, type PgBoss } from "pg-boss";
 import { AgentDataStore, type AgentPromptContext } from "./agent-data";
 import { AssetStore, MAX_MESSAGE_ASSETS, inlineTurnImages } from "./asset-store";
@@ -104,7 +104,7 @@ export interface MessageReaction {
   emoji: string;
 }
 
-/** aiTeamOS-compatible toggle semantics: each actor may hold multiple emoji. */
+/** OutcomeGo-compatible toggle semantics: each actor may hold multiple emoji. */
 export const toggleMessageReaction = (
   reactions: readonly MessageReaction[],
   emoji: string,
@@ -530,7 +530,7 @@ const groupPromptSender = (
 ): string => {
   if (sender === "user") {
     const name = compactName(senderName ?? "");
-    return name ? `${name} (user)` : "User";
+    return name ? `${name} (user)` : "outcomego_user";
   }
   if (sender === "system") return "System";
   const name = compactName(senderName || "Agent");
@@ -1232,7 +1232,7 @@ export class AgentMessaging {
     // Read onboarding/queue state only after concurrent provisioning commits.
     // Bot identity is unchanged. Permit foreign-key KEY SHARE locks taken by
     // concurrent file initialization while still serializing onboarding updates.
-    await tx.$queryRaw`SELECT "id" FROM "Bot" WHERE "id" = ${botId} FOR NO KEY UPDATE`;
+    await tx.$queryRaw`SELECT "id" FROM "outcomego_bot" WHERE "id" = ${botId} FOR NO KEY UPDATE`;
     const bot = await tx.bot.findUnique({
       where: { id: botId },
       include: { conversation: true },
@@ -1254,7 +1254,7 @@ export class AgentMessaging {
       .filter(Boolean)
       .join("\n");
     const content = [
-      "[aiTeamOS first start]",
+      "[OutcomeGo first start]",
       "",
       "This is your first turn after creation. The user did not send a message.",
       "Open your direct conversation using SendToUser. Do not represent this wake as a user message.",
@@ -1300,7 +1300,7 @@ export class AgentMessaging {
     // FOR UPDATE blocks file-state FK inserts; those can hold the attachment
     // advisory lock needed later in this acceptance transaction, forming a cycle.
     const [bot] = await tx.$queryRaw<Array<{ onboardingStatus: string }>>`
-      SELECT "onboardingStatus" FROM "Bot" WHERE "id" = ${botId} FOR NO KEY UPDATE`;
+      SELECT "onboardingStatus" FROM "outcomego_bot" WHERE "id" = ${botId} FOR NO KEY UPDATE`;
     if (!bot || !["pending", "queued", "running"].includes(bot.onboardingStatus)) return null;
     const pending = await tx.inboxEvent.findMany({
       where: {
@@ -2099,7 +2099,7 @@ export class AgentMessaging {
       const executor = type === "executor";
       const instructions = mediaReviewPrompt(type) ?? [
         [
-          `You are aiTeamOS running as the ${type} subagent.`,
+          `You are OutcomeGo running as the ${type} subagent.`,
           "Complete the delegated task autonomously, then end your turn with a concise final assistant message in plain text. Only that final assistant message is relayed back to the parent agent as your result; text from earlier assistant messages is not included. Put the outcome and any context the parent needs in that last message.",
           executor ? EXECUTOR_NO_USER_LINE : "You have no way to talk to the user directly; do not ask follow-up questions, just do the work and report what you found or did.",
           ...(bot.subagentIdentity.readOnly ? [WORKER_READONLY_LINE] : []),
@@ -2188,9 +2188,9 @@ export class AgentMessaging {
         this.prisma.$queryRaw<Array<{ id: string; content: string; metadata: Prisma.JsonValue }>>(
           Prisma.sql`
           SELECT message."id", message."content", message."metadata"
-          FROM "ChannelMessage" AS message
+          FROM "outcomego_channel_message" AS message
           WHERE message."senderBotId" = ${botId}::uuid
-            AND message."sender" = 'agent'::"ChannelMessageSender"
+            AND message."sender" = 'agent'::"outcomego_channel_message_sender"
             AND message."metadata"->>'type' IN ('widget', 'secret-request', 'computer-handoff', 'user-form', 'external-draft', 'imessage-send', 'bot-template')
             AND (
               (
@@ -2286,7 +2286,7 @@ export class AgentMessaging {
       disconnected.length > 0
         ? `Disconnected connector platforms: ${disconnected.map(({ platform }) => platform).join(", ")}`
         : "",
-      // aiTeamOS's peer messages and rooms; the reference keeps its rules in SendToAgent and the room wake.
+      // OutcomeGo's peer messages and rooms; the reference keeps its rules in SendToAgent and the room wake.
       `${frozen.sections.agent_directory}\n\n${A2A_PLATFORM_INSTRUCTIONS}`,
       frozen.sections.mcp_instructions,
       renderMainBoxSection(bot.defaultDirectory),
@@ -2349,7 +2349,7 @@ export class AgentMessaging {
     await this.agentData.acknowledgePlatformSections(botId, contextSessionId, acknowledgement.sections, acknowledgement.memory, acknowledgement.automationStatus);
     if (acknowledgement.dismissedMessageIds.length) {
       await this.prisma.$executeRaw(Prisma.sql`
-        UPDATE "ChannelMessage"
+        UPDATE "outcomego_channel_message"
         SET "metadata" = "metadata" || '{"widgetDismissedEchoed":true}'::jsonb
         WHERE "senderBotId" = ${botId}::uuid
           AND "id" IN (${Prisma.join(acknowledgement.dismissedMessageIds.map((id) => Prisma.sql`${id}::uuid`))})
@@ -2357,7 +2357,7 @@ export class AgentMessaging {
     }
     if (acknowledgement.unansweredMessageIds?.length) {
       await this.prisma.$executeRaw(Prisma.sql`
-        UPDATE "ChannelMessage"
+        UPDATE "outcomego_channel_message"
         SET "metadata" = "metadata" || '{"widgetUnansweredEchoed":true}'::jsonb
         WHERE "senderBotId" = ${botId}::uuid
           AND "id" IN (${Prisma.join(acknowledgement.unansweredMessageIds.map((id) => Prisma.sql`${id}::uuid`))})
@@ -2374,7 +2374,7 @@ export class AgentMessaging {
   async acknowledgeCardOutcomes(botId: string, receipts: Array<{ messageId: string; outcomeId: string }>) {
     for (const receipt of receipts) {
       await this.prisma.$executeRaw(Prisma.sql`
-        UPDATE "ChannelMessage" SET "metadata" = "metadata" || '{"outcomeEchoed":true,"respondedValueEchoed":true}'::jsonb
+        UPDATE "outcomego_channel_message" SET "metadata" = "metadata" || '{"outcomeEchoed":true,"respondedValueEchoed":true}'::jsonb
         WHERE "senderBotId" = ${botId}::uuid AND "id" = ${receipt.messageId}::uuid AND "metadata"->>'outcomeId' = ${receipt.outcomeId}
       `);
     }
@@ -3194,7 +3194,7 @@ export async function buildSafeTranscript(
             message.sender === "user" && typeof fromAgent?.name === "string"
               ? fromAgent.name
               : message.sender === "user"
-                ? "User"
+                ? "outcomego_user"
                 : message.sender === "system"
                   ? "System"
                   : (message.senderBot?.name ?? "Agent"),

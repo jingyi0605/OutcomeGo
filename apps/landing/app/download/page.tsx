@@ -15,14 +15,14 @@ import "./download.css";
 import "../monochrome.css";
 import "../alive.css";
 
-const GITHUB = "https://github.com/jingyi0605/ai-TeamOS";
-const INSTALL_COMMAND = "curl -fsSL https://openteam.so/install | sh";
-const WINDOWS_INSTALL_COMMAND = "irm https://openteam.so/install.ps1 | iex";
+const GITHUB = "https://github.com/jingyi0605/OutcomeGo";
+const INSTALL_COMMAND = "curl -fsSL https://github.com/jingyi0605/OutcomeGo/releases/latest/download/install.sh | sh";
+const WINDOWS_INSTALL_COMMAND = "irm https://github.com/jingyi0605/OutcomeGo/releases/latest/download/install.ps1 | iex";
 
 export const metadata = pageMetadata({
-  title: "Download aiTeamOS: install the server and desktop app",
+  title: "Download OutcomeGo: install the server and desktop app",
   description:
-    "Install the aiTeamOS server on macOS, Windows, or Linux, and download the desktop app for macOS or Linux.",
+    "Install the OutcomeGo server on macOS, Windows, or Linux, and download the desktop app for macOS or Linux.",
   path: "/download",
 });
 
@@ -66,6 +66,9 @@ export default function DownloadPage() {
             <p>Run guided setup on a VPS, home server, or spare machine. It sets up the connection and your account.</p>
           </div>
           <div className="dl-step-content">
+            <p className="dl-setup-note">
+              The latest public release is beta.13 and uses the former product identity. OutcomeGo beta.14 has not been published.
+            </p>
             <div className="dl-terminal">
               <div className="dl-terminal-title">
                 <Terminal size={17} />
@@ -124,6 +127,9 @@ export default function DownloadPage() {
             <p>Enter the server URL from setup, sign in, connect a model, and create your first agent.</p>
           </div>
           <div className="dl-step-content">
+            <p className="dl-setup-note">
+              The latest public desktop builds are beta.13 and predate the OutcomeGo rename. Beta.14 is not published yet.
+            </p>
             <DownloadOptions />
           </div>
           <SectionBot bot="operations" />
@@ -136,7 +142,7 @@ export default function DownloadPage() {
           </div>
           <div className="dl-phone-card">
             <div className="dl-phone-icon">
-              <Image src="/ai-teamOS-app-icon.png" alt="aiTeamOS app icon" width={52} height={52} unoptimized />
+              <Image src="/outcomego-app-icon.png" alt="OutcomeGo app icon" width={52} height={52} unoptimized />
             </div>
             <div>
               <h3>Beta, built from source.</h3>
@@ -146,7 +152,7 @@ export default function DownloadPage() {
               <div className="dl-phone-actions">
                 <Button
                   className="ot-button"
-                  render={<a href={`${GITHUB}/tree/ai-TeamOS/apps/ios`} />}
+                  render={<a href={`${GITHUB}/tree/OutcomeGo/apps/ios`} />}
                   nativeButton={false}
                 >
                   Build from source <ArrowUpRight size={16} />

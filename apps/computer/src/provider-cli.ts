@@ -17,7 +17,7 @@ import {
   normalizeInferenceProviderId,
   piModelRef,
   serverInferenceSettings,
-} from "@aiteamos/contracts";
+} from "@outcomego/contracts";
 import {
   CHAT_PROVIDERS,
   ChatProviderRegistry,
@@ -31,7 +31,7 @@ import {
   selectedAuthOption,
 } from "./provider-auth-prompt";
 
-const agentDir = resolve(process.env.AITEAMOS_PI_AGENT_DIR ?? "/home/box/.pi/agent");
+const agentDir = resolve(process.env.OUTCOMEGO_PI_AGENT_DIR ?? "/home/box/.pi/agent");
 const authPath = join(agentDir, "auth.json");
 const modelsPath = join(agentDir, "models.json");
 const modelsStorePath = join(agentDir, "models-store.json");
@@ -56,16 +56,16 @@ const writeJson = async (value: unknown): Promise<void> => {
 
 const usage = () => {
   console.error(`Usage:
-  aiteamos-pi-auth providers
-  aiteamos-pi-auth selection
-  aiteamos-pi-auth models [provider]
-  aiteamos-pi-auth catalog [provider]
-  aiteamos-pi-auth login <provider> <oauth|api_key>
-  aiteamos-pi-auth import <provider>   # reads OAuth tokens JSON from stdin
-  aiteamos-pi-auth logout <provider>
-  aiteamos-pi-auth verify <provider> <model> [reasoning]
-  aiteamos-pi-auth add-custom       # reads JSON from stdin
-  aiteamos-pi-auth remove-custom <provider>`);
+  outcomego-pi-auth providers
+  outcomego-pi-auth selection
+  outcomego-pi-auth models [provider]
+  outcomego-pi-auth catalog [provider]
+  outcomego-pi-auth login <provider> <oauth|api_key>
+  outcomego-pi-auth import <provider>   # reads OAuth tokens JSON from stdin
+  outcomego-pi-auth logout <provider>
+  outcomego-pi-auth verify <provider> <model> [reasoning]
+  outcomego-pi-auth add-custom       # reads JSON from stdin
+  outcomego-pi-auth remove-custom <provider>`);
 };
 
 const stdinText = async (): Promise<string> => {
@@ -270,7 +270,7 @@ const main = async (): Promise<void> => {
   if (command === "add-custom") return addCustomProvider();
   if (command === "selection") {
     const settingsPath = join(
-      resolve(process.env.AITEAMOS_AGENT_DATA_ROOT ?? "/home/box/agent-data"),
+      resolve(process.env.OUTCOMEGO_AGENT_DATA_ROOT ?? "/home/box/agent-data"),
       "settings.json"
     );
     const document = JSON.parse(await readFile(settingsPath, "utf8")) as {
@@ -296,7 +296,7 @@ const main = async (): Promise<void> => {
     const catalog = await registry.catalog(providerId);
     if (providerId && !catalog.providers.some((p) => p.id === providerId))
       throw new Error(
-        `Provider ${providerId} is not in your registry. Connect a built-in provider, or add a custom endpoint with aiteamos provider add.`
+        `Provider ${providerId} is not in your registry. Connect a built-in provider, or add a custom endpoint with outcomego provider add.`
       );
     const providers = catalog.providers.map(({ connected, modelCount, ...provider }) => ({
       ...provider,

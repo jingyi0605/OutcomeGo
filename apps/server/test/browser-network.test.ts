@@ -14,12 +14,12 @@ import {
   type NetworkStore,
 } from "../src/services/browser-network-service";
 import type { MachineService } from "../src/services/machine-service";
-import { BrowserNetworkClient } from "@aiteamos/plugin-sdk/browser-network/client";
+import { BrowserNetworkClient } from "@outcomego/plugin-sdk/browser-network/client";
 import {
   NETWORK_PROTOCOL,
   LEASE_MS,
   type NetworkSettings,
-} from "@aiteamos/plugin-sdk/browser-network/protocol";
+} from "@outcomego/plugin-sdk/browser-network/protocol";
 import {
   decodeFrame,
   encodeFrame,
@@ -28,8 +28,8 @@ import {
   jsonBytes,
   MAX_WINDOW,
   WINDOW,
-} from "@aiteamos/plugin-sdk/browser-network/protocol";
-import { createBrowserProxy } from "@aiteamos/plugin-sdk/browser-network/socks";
+} from "@outcomego/plugin-sdk/browser-network/protocol";
+import { createBrowserProxy } from "@outcomego/plugin-sdk/browser-network/socks";
 import { managedBrowserNetworkArguments } from "../../computer/src/browser-network";
 
 const browserPath = [
@@ -100,7 +100,7 @@ async function fixture(
       matchesConnection: (id: string, conn: string) => enabled.get(id) && conn === "connection",
     },
     authenticate: async (request: Request) => {
-      const id = request.headers.get("x-aiteamos-machine-id") ?? "";
+      const id = request.headers.get("x-outcomego-machine-id") ?? "";
       if (
         !enabled.get(id) ||
         request.headers.get("authorization") !== `Bearer ${credentials.get(id)}`
@@ -212,8 +212,8 @@ async function fixture(
       url: `ws://127.0.0.1:${server.port}/device`,
       headers: {
         authorization: `Bearer ${token}`,
-        "x-aiteamos-machine-id": id,
-        "x-aiteamos-connection-id": "connection",
+        "x-outcomego-machine-id": id,
+        "x-outcomego-connection-id": "connection",
       },
       dial: async (target, signal) => {
         deviceDials++;
@@ -572,7 +572,7 @@ describe("connected device browser network", () => {
     async () => {
       const f = await fixture();
       f.computer.stop();
-      const directory = await mkdtemp(join(tmpdir(), "aiteamos-browser-network-"));
+      const directory = await mkdtemp(join(tmpdir(), "outcomego-browser-network-"));
       cleanup.push(() => rm(directory, { recursive: true, force: true }));
       await writeFile(join(directory, "package.json"), '{"type":"module"}');
       const built = await Bun.build({
@@ -664,8 +664,8 @@ describe("connected device browser network", () => {
         url: `ws://127.0.0.1:${f.server.port}/device`,
         headers: {
           authorization: `Bearer ${credential}`,
-          "x-aiteamos-machine-id": "node-device",
-          "x-aiteamos-connection-id": "connection",
+          "x-outcomego-machine-id": "node-device",
+          "x-outcomego-connection-id": "connection",
         },
         machineId: "node-device",
         deploymentId: f.getSettings().deploymentId,
@@ -1156,10 +1156,10 @@ describe("browser network chaos", () => {
     stream.destroy();
   }, 15000);
 
-  const seeds = process.env.AITEAMOS_NETWORK_CHAOS_SEED
-    ? [Number(process.env.AITEAMOS_NETWORK_CHAOS_SEED)]
+  const seeds = process.env.OUTCOMEGO_NETWORK_CHAOS_SEED
+    ? [Number(process.env.OUTCOMEGO_NETWORK_CHAOS_SEED)]
     : [1, 42, 0x5eed];
-  const steps = Number(process.env.AITEAMOS_NETWORK_CHAOS_STEPS ?? 16);
+  const steps = Number(process.env.OUTCOMEGO_NETWORK_CHAOS_STEPS ?? 16);
   if (
     !Number.isSafeInteger(steps) ||
     steps < 1 ||

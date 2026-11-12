@@ -3,7 +3,7 @@ import { mkdtemp, mkdir, open, readdir, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { attachmentLimitForName } from "@aiteamos/contracts/media-input";
+import { attachmentLimitForName } from "@outcomego/contracts/media-input";
 import { stageAttachment } from "../src/attachment-staging";
 
 test("oversized and missing attachments name the file and the limit without staging or changing the source", async () => {

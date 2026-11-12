@@ -3,7 +3,7 @@ import {
   DEFAULT_LOCALE,
   normalizeLocale,
   SUPPORTED_LOCALES,
-} from "@aiteamos/contracts/localization";
+} from "@outcomego/contracts/localization";
 import {
   missingKeys,
   setCurrentLocale,

@@ -93,7 +93,7 @@ const result = JSON.parse(output) as {
 
 const failures: string[] = [];
 const requirePackage =
-  process.argv.includes("--release") || process.env.AITEAMOS_REQUIRE_PACKAGE === "1";
+  process.argv.includes("--release") || process.env.OUTCOMEGO_REQUIRE_PACKAGE === "1";
 const atMost = (label: string, actual: number, maximum: number) => {
   if (actual > maximum) failures.push(`${label}: ${actual} > ${maximum}`);
 };
@@ -197,7 +197,7 @@ electronFileBudget("preload.cjs", 10_000);
 // AwaitShell adds the bounded RE2 engine and durable job/environment receipts.
 // Measured unminified utility: 280,140 bytes; retain the total Electron ceiling.
 electronFileBudget("host-utility.js", 285_000);
-electronFileBudget("aiteamos-cli.js", 1_600_000);
+electronFileBudget("outcomego-cli.js", 1_600_000);
 if (result.renderer.violations.sourceMaps.length > 0) {
   failures.push(
     `renderer source maps: ${result.renderer.violations.sourceMaps.slice(0, 5).join(", ")}`

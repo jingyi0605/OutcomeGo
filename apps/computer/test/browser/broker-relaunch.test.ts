@@ -79,7 +79,7 @@ afterEach(async () => {
 });
 
 const setup = async () => {
-  const home = await mkdtemp(join(tmpdir(), "aiteamos-broker-relaunch-"));
+  const home = await mkdtemp(join(tmpdir(), "outcomego-broker-relaunch-"));
   cleanup.push(() => rm(home, { recursive: true, force: true }));
   const launch = async (botId: string, browser: ReturnType<typeof fakeBrowser>) => {
     cleanup.push(() => browser.stop());

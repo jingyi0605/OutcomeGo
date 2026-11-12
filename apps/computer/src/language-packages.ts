@@ -17,7 +17,7 @@ export interface LanguageRebuild {
   node?: { from: string; to: string; rebuilt: boolean };
 }
 
-export async function currentImage(run: CommandRunner = runCommand, buildIdPath = "/usr/lib/aiteamos/build-id"): Promise<ImageInfo> {
+export async function currentImage(run: CommandRunner = runCommand, buildIdPath = "/usr/lib/outcomego/build-id"): Promise<ImageInfo> {
   const [build, python, node] = await Promise.all([
     readFile(buildIdPath, "utf8").then((text) => text.trim(), () => "unknown"),
     run("/usr/bin/python3", ["-I", "-S", "-c", "import sys; print('%d.%d' % sys.version_info[:2])"]),
@@ -100,7 +100,7 @@ export async function rebuildLanguagePackages(previous: ImageInfo | null, curren
     await reinstall(await requestedDistributions(join(home, `.local/lib/python${previous.python}/site-packages`)),
       (names) => asAgent("/usr/bin/python3", [...pip, "--user", ...names]));
     for (const tool of await uvToolsOn(join(home, ".local/share/uv/tools"), previous.python))
-      ((await asAgent("/usr/lib/aiteamos/bin/uv", ["tool", "install", "--reinstall", "--python", "/usr/bin/python3", tool])).code === 0 ? reinstalled : failed).push(tool);
+      ((await asAgent("/usr/lib/outcomego/bin/uv", ["tool", "install", "--reinstall", "--python", "/usr/bin/python3", tool])).code === 0 ? reinstalled : failed).push(tool);
     if (reinstalled.length || failed.length) result.python = { from: previous.python, to: current.python, reinstalled, failed };
   }
 

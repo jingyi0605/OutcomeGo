@@ -1,7 +1,7 @@
 # Granola
 
 Granola's official MCP service and original Cursor plugin workflows: three
-skills, six commands, one agent, and one rule. aiTeamOS supplies account setup
+skills, six commands, one agent, and one rule. OutcomeGo supplies account setup
 and shared host compatibility.
 
 ## Workflows
@@ -16,8 +16,8 @@ Namespaced commands such as `/granola:granola-plan` and the earlier
 ## Connect through the UI
 
 1. Install **Granola** from **Plugins → Browse**.
-2. Open the plugin's account and choose **Continue to authorization** (or **Save and authorize** in the full settings workspace). No API key, developer application, client ID, or client secret is required. aiTeamOS registers a public OAuth client automatically and uses PKCE.
-3. Sign in with the email shown in your Granola app and review Granola's consent screen. Return to aiTeamOS to finish tool discovery.
+2. Open the plugin's account and choose **Continue to authorization** (or **Save and authorize** in the full settings workspace). No API key, developer application, client ID, or client secret is required. OutcomeGo registers a public OAuth client automatically and uses PKCE.
+3. Sign in with the email shown in your Granola app and review Granola's consent screen. Return to OutcomeGo to finish tool discovery.
 4. In **Manage → Accounts and settings → Installed**, run `get_account_info` with `{}` under **Test a tool**. Confirm the account and active workspace, then test `list_meetings` using its displayed schema.
 5. Enable the package for the intended Bot, enable its skills, and grant that Bot the account. Try “What decisions did we make in recent meetings?”
 
@@ -25,14 +25,14 @@ Use **Add Another Account** for another identity. Each account has separate OAut
 
 ## Tools and limits
 
-aiTeamOS discovers Granola's tools dynamically; the manifest does not pin their schemas. Granola currently documents semantic meeting queries, meeting lists, folder lists, note retrieval, transcripts, and account/workspace information. These are read capabilities; the connector does not record meetings, create or edit notes, or send follow-ups.
+OutcomeGo discovers Granola's tools dynamically; the manifest does not pin their schemas. Granola currently documents semantic meeting queries, meeting lists, folder lists, note retrieval, transcripts, and account/workspace information. These are read capabilities; the connector does not record meetings, create or edit notes, or send follow-ups.
 
 - **Basic:** personal notes from the last 30 days; some search, folder, and transcript capabilities require a paid plan.
 - **Business:** accessible personal and public notes in the active workspace.
 - **Enterprise:** workspace administrators control member MCP access to personal and public notes. Ordinary browser OAuth is supported; this package does not implement Enterprise-Managed Authorization through an organization's identity provider.
-- MCP follows the workspace selected in Granola. Multiple aiTeamOS accounts separate identities; they do not pin a Granola workspace or combine notes across workspaces.
+- MCP follows the workspace selected in Granola. Multiple OutcomeGo accounts separate identities; they do not pin a Granola workspace or combine notes across workspaces.
 - An existing Granola account is required. “User has not created a Granola account yet” usually means the wrong identity was selected. Empty results can also indicate a different active workspace or plan restrictions.
-- Google Workspace may require an organization-approved second factor before Granola sign-in. If Google says the account's sign-in settings do not meet its 2-Step Verification policy, complete verification with an approved method or have the workspace administrator resolve the account's enrollment. Reinstalling Granola or creating an aiTeamOS OAuth client cannot resolve an identity-provider policy error.
+- Google Workspace may require an organization-approved second factor before Granola sign-in. If Google says the account's sign-in settings do not meet its 2-Step Verification policy, complete verification with an approved method or have the workspace administrator resolve the account's enrollment. Reinstalling Granola or creating an OutcomeGo OAuth client cannot resolve an identity-provider policy error.
 
 Credentials remain in the user's deployment database and are not included in exported packages. No Granola desktop files or internal tokens are read. The deployment needs outbound HTTPS and a browser-reachable OAuth callback.
 

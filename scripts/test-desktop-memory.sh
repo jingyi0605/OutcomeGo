@@ -1,31 +1,31 @@
 #!/usr/bin/env bash
 # Opt-in real-kernel/headed-desktop checks. Requires Docker cgroup v2 and Bun.
-# Set AITEAMOS_MEMORY_TEST_SKIP_BUILD=1 to reuse AITEAMOS_MEMORY_TEST_IMAGE.
+# Set OUTCOMEGO_MEMORY_TEST_SKIP_BUILD=1 to reuse OUTCOMEGO_MEMORY_TEST_IMAGE.
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$root"
-export AITEAMOS_MEMORY_TEST_IMAGE="${AITEAMOS_MEMORY_TEST_IMAGE:-aiteamos-memory-test:local}"
-export AITEAMOS_MEMORY_TEST_OUTPUT="$root/output/desktop-memory-tests-$(date +%Y%m%d%H%M%S)-$$"
-mkdir -p "$AITEAMOS_MEMORY_TEST_OUTPUT"/{bundles,artifacts}
-project="aiteamos-memory-test-$$"
+export OUTCOMEGO_MEMORY_TEST_IMAGE="${OUTCOMEGO_MEMORY_TEST_IMAGE:-outcomego-memory-test:local}"
+export OUTCOMEGO_MEMORY_TEST_OUTPUT="$root/output/desktop-memory-tests-$(date +%Y%m%d%H%M%S)-$$"
+mkdir -p "$OUTCOMEGO_MEMORY_TEST_OUTPUT"/{bundles,artifacts}
+project="outcomego-memory-test-$$"
 compose=(docker compose -p "$project" -f apps/computer/test/fixtures/desktop-memory.compose.yaml)
 cleanup() {
-  "${compose[@]}" logs --no-color > "$AITEAMOS_MEMORY_TEST_OUTPUT/compose.log" 2>&1 || true
+  "${compose[@]}" logs --no-color > "$OUTCOMEGO_MEMORY_TEST_OUTPUT/compose.log" 2>&1 || true
   "${compose[@]}" down --volumes --remove-orphans || true
 }
 trap cleanup EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
 
-if [[ "${AITEAMOS_MEMORY_TEST_SKIP_BUILD:-0}" != 1 ]]; then
-  docker build -f docker/computer.Dockerfile -t "$AITEAMOS_MEMORY_TEST_IMAGE" .
+if [[ "${OUTCOMEGO_MEMORY_TEST_SKIP_BUILD:-0}" != 1 ]]; then
+  docker build -f docker/computer.Dockerfile -t "$OUTCOMEGO_MEMORY_TEST_IMAGE" .
 fi
 bun build \
   apps/computer/test/desktop-memory.integration.test.ts \
   apps/computer/test/desktop-memory-ui.integration.test.ts \
   --target bun --external playwright-core --external 'playwright-core/*' \
-  --outdir "$AITEAMOS_MEMORY_TEST_OUTPUT/bundles"
+  --outdir "$OUTCOMEGO_MEMORY_TEST_OUTPUT/bundles"
 
 ready() {
   for ((attempt = 0; attempt < 90; attempt++)); do
@@ -40,15 +40,15 @@ ready() {
 "${compose[@]}" up -d
 ready
 "${compose[@]}" exec -T \
-  -e AITEAMOS_TEST_DESKTOP_MEMORY=1 -e AITEAMOS_MEMORY_TEST_ARTIFACTS=/artifacts \
+  -e OUTCOMEGO_TEST_DESKTOP_MEMORY=1 -e OUTCOMEGO_MEMORY_TEST_ARTIFACTS=/artifacts \
   computer bun test \
   /app/apps/computer/test-bundles/desktop-memory.integration.test.js \
   /app/apps/computer/test-bundles/desktop-memory-ui.integration.test.js \
-  2>&1 | tee "$AITEAMOS_MEMORY_TEST_OUTPUT/tests.log"
+  2>&1 | tee "$OUTCOMEGO_MEMORY_TEST_OUTPUT/tests.log"
 
 "${compose[@]}" restart computer
 ready
-"${compose[@]}" exec -T -e AITEAMOS_TEST_DESKTOP_MEMORY=1 computer bun test \
+"${compose[@]}" exec -T -e OUTCOMEGO_TEST_DESKTOP_MEMORY=1 computer bun test \
   /app/apps/computer/test-bundles/desktop-memory.integration.test.js \
-  2>&1 | tee "$AITEAMOS_MEMORY_TEST_OUTPUT/post-restart.log"
-echo "Memory/desktop checks passed. Logs and screenshots: $AITEAMOS_MEMORY_TEST_OUTPUT"
+  2>&1 | tee "$OUTCOMEGO_MEMORY_TEST_OUTPUT/post-restart.log"
+echo "Memory/desktop checks passed. Logs and screenshots: $OUTCOMEGO_MEMORY_TEST_OUTPUT"

@@ -9,7 +9,7 @@
 
 -- Search projection -----------------------------------------------------------------
 
-CREATE TABLE IF NOT EXISTS "SearchDocument" (
+CREATE TABLE IF NOT EXISTS "outcomego_search_document" (
     "id" text NOT NULL,
     "kind" text NOT NULL,
     "sourceType" text NOT NULL,
@@ -29,56 +29,32 @@ CREATE TABLE IF NOT EXISTS "SearchDocument" (
       setweight(to_tsvector('simple'::regconfig, COALESCE("subtitle", ''::text)), 'B'::"char") ||
       setweight(to_tsvector('simple'::regconfig, COALESCE("content", ''::text)), 'C'::"char")
     ) STORED,
-    CONSTRAINT "SearchDocument_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "outcomego_search_document_pkey" PRIMARY KEY ("id")
 );
 
--- Prisma creates this table on fresh databases now that its introspected shape
--- is declared in schema.prisma, but it cannot express the generated tsvector
--- column or the kind constraint.
-DO $aiteamos$
-BEGIN
-  IF EXISTS (
-    SELECT 1
-    FROM information_schema.columns
-    WHERE table_schema = current_schema()
-      AND table_name = 'SearchDocument'
-      AND column_name = 'searchVector'
-      AND is_generated <> 'ALWAYS'
-  ) THEN
-    ALTER TABLE "SearchDocument" DROP COLUMN "searchVector";
-  END IF;
-END
-$aiteamos$;
-
-ALTER TABLE "SearchDocument" ADD COLUMN IF NOT EXISTS "searchVector" tsvector
-  GENERATED ALWAYS AS (
-    setweight(to_tsvector('simple'::regconfig, COALESCE("title", ''::text)), 'A'::"char") ||
-    setweight(to_tsvector('simple'::regconfig, COALESCE("subtitle", ''::text)), 'B'::"char") ||
-    setweight(to_tsvector('simple'::regconfig, COALESCE("content", ''::text)), 'C'::"char")
-  ) STORED;
-
-ALTER TABLE "SearchDocument" DROP CONSTRAINT IF EXISTS "SearchDocument_kind_check";
-ALTER TABLE "SearchDocument" ADD CONSTRAINT "SearchDocument_kind_check" CHECK (
+-- Prisma cannot express the generated tsvector column or the kind constraint.
+ALTER TABLE "outcomego_search_document" DROP CONSTRAINT IF EXISTS "outcomego_search_document_kind_check";
+ALTER TABLE "outcomego_search_document" ADD CONSTRAINT "outcomego_search_document_kind_check" CHECK (
   "kind" = ANY (ARRAY['message'::text, 'bot'::text, 'channel'::text, 'file'::text, 'link'::text, 'routine'::text])
 );
 
-CREATE INDEX IF NOT EXISTS "SearchDocument_kind_updatedAt_idx" ON "SearchDocument" USING btree ("kind", "updatedAt" DESC);
-CREATE INDEX IF NOT EXISTS "SearchDocument_searchVector_idx" ON "SearchDocument" USING gin ("searchVector");
-CREATE INDEX IF NOT EXISTS "SearchDocument_source_idx" ON "SearchDocument" USING btree ("sourceType", "sourceId");
-CREATE INDEX IF NOT EXISTS "SearchDocument_title_exact_hash_idx" ON "SearchDocument" USING btree (md5(lower("title")));
+CREATE INDEX IF NOT EXISTS "outcomego_search_document_kind_updated_at_idx" ON "outcomego_search_document" USING btree ("kind", "updatedAt" DESC);
+CREATE INDEX IF NOT EXISTS "outcomego_search_document_search_vector_idx" ON "outcomego_search_document" USING gin ("searchVector");
+CREATE INDEX IF NOT EXISTS "outcomego_search_document_source_idx" ON "outcomego_search_document" USING btree ("sourceType", "sourceId");
+CREATE INDEX IF NOT EXISTS "outcomego_search_document_title_exact_hash_idx" ON "outcomego_search_document" USING btree (md5(lower("title")));
 
 -- Constraints and defaults Prisma does not model -------------------------------------
 
 -- A routine belongs to exactly one owner: a bot or a channel, never both or neither.
-ALTER TABLE "Routine" DROP CONSTRAINT IF EXISTS "Routine_exactly_one_owner_check";
-ALTER TABLE "Routine" ADD CONSTRAINT "Routine_exactly_one_owner_check"
+ALTER TABLE "outcomego_routine" DROP CONSTRAINT IF EXISTS "outcomego_routine_exactly_one_owner_check";
+ALTER TABLE "outcomego_routine" ADD CONSTRAINT "outcomego_routine_exactly_one_owner_check"
   CHECK (("botId" IS NOT NULL) <> ("channelId" IS NOT NULL));
 
-ALTER TABLE "SubagentAttempt" ALTER COLUMN "id" SET DEFAULT gen_random_uuid();
+ALTER TABLE "outcomego_subagent_attempt" ALTER COLUMN "id" SET DEFAULT gen_random_uuid();
 
 -- Trigger functions ------------------------------------------------------------------
 
-CREATE OR REPLACE FUNCTION public.aiteamos_notify_event()
+CREATE OR REPLACE FUNCTION public.outcomego_notify_event()
  RETURNS trigger
  LANGUAGE plpgsql
 AS $function$
@@ -90,16 +66,16 @@ BEGIN
 END;
 $function$
 ;
-CREATE OR REPLACE FUNCTION public.aiteamos_refresh_bot_search()
+CREATE OR REPLACE FUNCTION public.outcomego_refresh_bot_search()
  RETURNS trigger
  LANGUAGE plpgsql
 AS $function$
 BEGIN
-  DELETE FROM "SearchDocument"
+  DELETE FROM "outcomego_search_document"
   WHERE "sourceType" = 'bot' AND "sourceId" = COALESCE(NEW."id", OLD."id");
 
   IF TG_OP <> 'DELETE' AND NEW."status" <> 'archived' THEN
-    INSERT INTO "SearchDocument" (
+    INSERT INTO "outcomego_search_document" (
       "id", "kind", "sourceType", "sourceId", "entityId", "botId",
       "title", "subtitle", "content", "createdAt", "updatedAt"
     ) VALUES (
@@ -113,16 +89,16 @@ BEGIN
 END;
 $function$
 ;
-CREATE OR REPLACE FUNCTION public.aiteamos_refresh_channel_search()
+CREATE OR REPLACE FUNCTION public.outcomego_refresh_channel_search()
  RETURNS trigger
  LANGUAGE plpgsql
 AS $function$
 BEGIN
-  DELETE FROM "SearchDocument"
+  DELETE FROM "outcomego_search_document"
   WHERE "sourceType" = 'channel' AND "sourceId" = COALESCE(NEW."id", OLD."id");
 
   IF TG_OP <> 'DELETE' AND NEW."archivedAt" IS NULL AND NEW."kind" = 'group' THEN
-    INSERT INTO "SearchDocument" (
+    INSERT INTO "outcomego_search_document" (
       "id", "kind", "sourceType", "sourceId", "entityId", "channelId",
       "title", "subtitle", "content", "createdAt", "updatedAt"
     ) VALUES (
@@ -136,7 +112,7 @@ BEGIN
 END;
 $function$
 ;
-CREATE OR REPLACE FUNCTION public.aiteamos_refresh_message_search()
+CREATE OR REPLACE FUNCTION public.outcomego_refresh_message_search()
  RETURNS trigger
  LANGUAGE plpgsql
 AS $function$
@@ -154,7 +130,7 @@ BEGIN
     RETURN NEW;
   END IF;
 
-  DELETE FROM "SearchDocument"
+  DELETE FROM "outcomego_search_document"
   WHERE "sourceType" = 'channel_message' AND "sourceId" = COALESCE(NEW."id", OLD."id");
 
   IF TG_OP = 'DELETE' THEN
@@ -162,7 +138,7 @@ BEGIN
   END IF;
 
   IF btrim(NEW."content") <> '' THEN
-    INSERT INTO "SearchDocument" (
+    INSERT INTO "outcomego_search_document" (
       "id", "kind", "sourceType", "sourceId", "entityId", "channelId", "messageId", "botId",
       "title", "content", "createdAt", "updatedAt"
     ) VALUES (
@@ -176,7 +152,7 @@ BEGIN
     LOOP
       clean_url := regexp_replace(matched[1], '[.,;:!?)}\]]+$', '');
       IF clean_url <> '' THEN
-        INSERT INTO "SearchDocument" (
+        INSERT INTO "outcomego_search_document" (
           "id", "kind", "sourceType", "sourceId", "entityId", "channelId", "messageId", "botId",
           "title", "subtitle", "content", "url", "createdAt", "updatedAt"
         ) VALUES (
@@ -193,7 +169,7 @@ BEGIN
     FOR attachment IN
       SELECT value FROM jsonb_array_elements(NEW."metadata"::jsonb -> 'attachments')
     LOOP
-      INSERT INTO "SearchDocument" (
+      INSERT INTO "outcomego_search_document" (
         "id", "kind", "sourceType", "sourceId", "entityId", "channelId", "messageId", "botId",
         "title", "subtitle", "content", "url", "createdAt", "updatedAt"
       ) VALUES (
@@ -217,16 +193,16 @@ BEGIN
 END;
 $function$
 ;
-CREATE OR REPLACE FUNCTION public.aiteamos_refresh_routine_search()
+CREATE OR REPLACE FUNCTION public.outcomego_refresh_routine_search()
  RETURNS trigger
  LANGUAGE plpgsql
 AS $function$
 BEGIN
-  DELETE FROM "SearchDocument"
+  DELETE FROM "outcomego_search_document"
   WHERE "sourceType" = 'routine' AND "sourceId" = COALESCE(NEW."id", OLD."id");
 
   IF TG_OP <> 'DELETE' AND NEW."deletedAt" IS NULL THEN
-    INSERT INTO "SearchDocument" (
+    INSERT INTO "outcomego_search_document" (
       "id", "kind", "sourceType", "sourceId", "entityId", "channelId", "botId",
       "title", "subtitle", "content", "createdAt", "updatedAt"
     ) VALUES (
@@ -242,55 +218,65 @@ $function$
 
 -- Triggers ---------------------------------------------------------------------------
 
-DROP TRIGGER IF EXISTS "Bot_search_refresh" ON "Bot";
-CREATE TRIGGER "Bot_search_refresh" AFTER INSERT OR DELETE OR UPDATE ON "Bot"
-  FOR EACH ROW EXECUTE FUNCTION aiteamos_refresh_bot_search();
+DROP TRIGGER IF EXISTS "outcomego_bot_search_refresh" ON "outcomego_bot";
+CREATE TRIGGER "outcomego_bot_search_refresh" AFTER INSERT OR DELETE OR UPDATE ON "outcomego_bot"
+  FOR EACH ROW EXECUTE FUNCTION outcomego_refresh_bot_search();
 
-DROP TRIGGER IF EXISTS "Channel_search_refresh" ON "Channel";
-CREATE TRIGGER "Channel_search_refresh" AFTER INSERT OR DELETE OR UPDATE ON "Channel"
-  FOR EACH ROW EXECUTE FUNCTION aiteamos_refresh_channel_search();
+DROP TRIGGER IF EXISTS "outcomego_channel_search_refresh" ON "outcomego_channel";
+CREATE TRIGGER "outcomego_channel_search_refresh" AFTER INSERT OR DELETE OR UPDATE ON "outcomego_channel"
+  FOR EACH ROW EXECUTE FUNCTION outcomego_refresh_channel_search();
 
-DROP TRIGGER IF EXISTS "Routine_search_refresh" ON "Routine";
-CREATE TRIGGER "Routine_search_refresh" AFTER INSERT OR DELETE OR UPDATE ON "Routine"
-  FOR EACH ROW EXECUTE FUNCTION aiteamos_refresh_routine_search();
+DROP TRIGGER IF EXISTS "outcomego_routine_search_refresh" ON "outcomego_routine";
+CREATE TRIGGER "outcomego_routine_search_refresh" AFTER INSERT OR DELETE OR UPDATE ON "outcomego_routine"
+  FOR EACH ROW EXECUTE FUNCTION outcomego_refresh_routine_search();
 
-DROP TRIGGER IF EXISTS "ChannelMessage_search_refresh" ON "ChannelMessage";
-CREATE TRIGGER "ChannelMessage_search_refresh" AFTER INSERT OR DELETE OR UPDATE ON "ChannelMessage"
-  FOR EACH ROW EXECUTE FUNCTION aiteamos_refresh_message_search();
+DROP TRIGGER IF EXISTS "outcomego_channel_message_search_refresh" ON "outcomego_channel_message";
+CREATE TRIGGER "outcomego_channel_message_search_refresh" AFTER INSERT OR DELETE OR UPDATE ON "outcomego_channel_message"
+  FOR EACH ROW EXECUTE FUNCTION outcomego_refresh_message_search();
 
-DROP TRIGGER IF EXISTS aiteamos_event_notify ON "Event";
-CREATE TRIGGER aiteamos_event_notify AFTER INSERT ON "Event"
-  FOR EACH ROW EXECUTE FUNCTION aiteamos_notify_event();
+DROP TRIGGER IF EXISTS outcomego_event_notify ON "outcomego_event";
+CREATE TRIGGER outcomego_event_notify AFTER INSERT ON "outcomego_event"
+  FOR EACH ROW EXECUTE FUNCTION outcomego_notify_event();
 
--- Web tools: ordered provider schedules per tool, and per-tool provider rows holding the API key
--- and last connection check. Provider lists match packages/contracts/src/web-search.ts.
-ALTER TABLE "WebSearchSettings"
-  ADD COLUMN IF NOT EXISTS "providers" JSONB NOT NULL DEFAULT '[]'::jsonb,
-  ADD COLUMN IF NOT EXISTS "strategy" TEXT NOT NULL DEFAULT 'failover',
-  ADD COLUMN IF NOT EXISTS "cursor" INTEGER NOT NULL DEFAULT 0;
-ALTER TABLE "WebFetchSettings"
-  ADD COLUMN IF NOT EXISTS "providers" JSONB NOT NULL DEFAULT '[]'::jsonb,
-  ADD COLUMN IF NOT EXISTS "strategy" TEXT NOT NULL DEFAULT 'failover',
-  ADD COLUMN IF NOT EXISTS "cursor" INTEGER NOT NULL DEFAULT 0;
-UPDATE "WebSearchSettings" SET "providers" = jsonb_build_array("provider")
-WHERE "provider" IS NOT NULL AND "providers" = '[]'::jsonb;
-UPDATE "WebFetchSettings" SET "providers" = jsonb_build_array("provider")
-WHERE "provider" IS NOT NULL AND "providers" = '[]'::jsonb;
-ALTER TABLE "WebSearchSettings" DROP CONSTRAINT IF EXISTS "WebSearchSettings_valid";
-ALTER TABLE "WebFetchSettings" DROP CONSTRAINT IF EXISTS "WebFetchSettings_valid";
-ALTER TABLE "WebToolProvider" DROP CONSTRAINT IF EXISTS "WebToolProvider_valid";
+-- The current Prisma schema owns the complete provider schedule shape. This script only
+-- installs constraints that Prisma cannot express; it does not convert older table shapes.
+ALTER TABLE "outcomego_web_search_settings" DROP CONSTRAINT IF EXISTS "outcomego_web_search_settings_valid";
+ALTER TABLE "outcomego_web_fetch_settings" DROP CONSTRAINT IF EXISTS "outcomego_web_fetch_settings_valid";
+ALTER TABLE "outcomego_web_tool_provider" DROP CONSTRAINT IF EXISTS "outcomego_web_tool_provider_valid";
 
-ALTER TABLE "WebSearchSettings" ADD CONSTRAINT "WebSearchSettings_valid" CHECK (
-  "id" = 'global' AND ("provider" IS NULL OR "provider" IN (
+CREATE OR REPLACE FUNCTION public.outcomego_valid_provider_schedule(schedule JSONB, allowed TEXT[])
+RETURNS BOOLEAN
+LANGUAGE SQL
+IMMUTABLE
+AS $function$
+  SELECT CASE
+    WHEN jsonb_typeof(schedule) IS DISTINCT FROM 'array' THEN FALSE
+    ELSE jsonb_array_length(schedule) = (
+      SELECT count(DISTINCT item.value)
+      FROM jsonb_array_elements(schedule) AS item(value)
+    ) AND NOT EXISTS (
+      SELECT 1
+      FROM jsonb_array_elements(schedule) AS item(value)
+      WHERE jsonb_typeof(item.value) <> 'string'
+         OR item.value #>> '{}' <> ALL (allowed)
+    )
+  END
+$function$;
+
+ALTER TABLE "outcomego_web_search_settings" ADD CONSTRAINT "outcomego_web_search_settings_valid" CHECK (
+  "id" = 'global' AND public.outcomego_valid_provider_schedule("providers", ARRAY[
     'exa', 'brave', 'parallel', 'firecrawl', 'bing-serpapi', 'perplexity', 'deepseek'
-  )) AND "strategy" IN ('round_robin', 'failover') AND "cursor" >= 0
+  ]) AND "strategy" IN ('round_robin', 'failover') AND "cursor" >= 0
 );
-ALTER TABLE "WebFetchSettings" ADD CONSTRAINT "WebFetchSettings_valid" CHECK (
-  "id" = 'global' AND ("provider" IS NULL OR "provider" IN (
+ALTER TABLE "outcomego_web_fetch_settings" ADD CONSTRAINT "outcomego_web_fetch_settings_valid" CHECK (
+  "id" = 'global' AND public.outcomego_valid_provider_schedule("providers", ARRAY[
     'builtin', 'exa', 'parallel', 'firecrawl', 'deepseek'
-  )) AND "strategy" IN ('round_robin', 'failover') AND "cursor" >= 0
+  ]) AND "strategy" IN ('round_robin', 'failover') AND "cursor" >= 0
 );
-ALTER TABLE "WebToolProvider" ADD CONSTRAINT "WebToolProvider_valid" CHECK (
+ALTER TABLE "outcomego_voice_settings" DROP CONSTRAINT IF EXISTS "outcomego_voice_settings_provider_valid";
+ALTER TABLE "outcomego_voice_settings" ADD CONSTRAINT "outcomego_voice_settings_provider_valid"
+  CHECK ("provider" IN ('volcengine', 'deepgram'));
+ALTER TABLE "outcomego_web_tool_provider" ADD CONSTRAINT "outcomego_web_tool_provider_valid" CHECK (
   (("tool" = 'search' AND "provider" IN (
     'exa', 'brave', 'parallel', 'firecrawl', 'bing-serpapi', 'perplexity', 'deepseek'
   )) OR ("tool" = 'fetch' AND "provider" IN (

@@ -2,7 +2,7 @@
 
 日期：2026-11-12
 
-依据：`data/20261110-OutcomeGo-项目总体规划与ai-TeamOS迁移方案-v1.1.md`（下称“原规划”）。
+依据：`data/20261110-OutcomeGo-项目总体规划与OutcomeGo迁移方案-v1.1.md`（下称“原规划”）。
 
 本文逐项列出原规划的需求、Issue、阶段、迁移步骤和测试场景在 Spec 004 中的落点。“不做”项必须同时出现在对应 Spec 的 Out of Scope 中。子 Spec 增删需求时必须同步更新本文（父 `requirements.md` 需求 12）。
 

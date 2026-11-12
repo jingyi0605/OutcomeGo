@@ -1,7 +1,7 @@
 import {expect,test} from "bun:test";
 import {Effect} from "effect";
 import {createHash} from "node:crypto";
-import {spoolFile,type StagedFile} from "@aiteamos/plugin-sdk/file-spool";
+import {spoolFile,type StagedFile} from "@outcomego/plugin-sdk/file-spool";
 import {connectorTransferResponse} from "../src/connector-transfer-http";
 
 test("the private connector route streams files above the former 64 MiB JSON limit and cleans its staging",async()=>{
@@ -18,7 +18,7 @@ test("the private connector route streams files above the former 64 MiB JSON lim
   return {file,id:"fixture",name:"large.bin",mimeType:"application/octet-stream",sizeBytes:size};
  })};
  const server=Bun.serve({hostname:"127.0.0.1",port:0,async fetch(request){expect(request.headers.get("authorization")).toBe("Bearer fixture");return connectorTransferResponse(request,service as never);}});
- const headers=(tool:string)=>({authorization:"Bearer fixture","x-aiteamos-transfer":Buffer.from(JSON.stringify({runId:"run",botId:"bot",conversationId:"conversation",channelId:"channel",deliveryId:null,callId:tool,tool:"ExecuteConnectorTransfer",arguments:{tool,sizeBytes:size,sha256}})).toString("base64url")});
+ const headers=(tool:string)=>({authorization:"Bearer fixture","x-outcomego-transfer":Buffer.from(JSON.stringify({runId:"run",botId:"bot",conversationId:"conversation",channelId:"channel",deliveryId:null,callId:tool,tool:"ExecuteConnectorTransfer",arguments:{tool,sizeBytes:size,sha256}})).toString("base64url")});
  try {
   const uploaded=await fetch(server.url,{method:"POST",headers:headers("UploadFile"),body:body()});
   expect(uploaded.ok).toBe(true);expect(await uploaded.json()).toMatchObject({sizeBytes:size});

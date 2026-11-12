@@ -4,7 +4,7 @@ import {
   VOICE_FRAME_MS,
   VOICE_MAX_OPUS_PACKET_BYTES,
   type VoiceFrame,
-} from "@aiteamos/contracts";
+} from "@outcomego/contracts";
 
 export interface OpusCodec {
   decode(packet: Uint8Array): Promise<Int16Array>;

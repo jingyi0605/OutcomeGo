@@ -1,5 +1,5 @@
-import type { RunStatus } from "@aiteamos/contracts";
-import type { RoutineExecutionView } from "@aiteamos/contracts/routine-types";
+import type { RunStatus } from "@outcomego/contracts";
+import type { RoutineExecutionView } from "@outcomego/contracts/routine-types";
 
 export type ActiveRunStatus = Extract<RunStatus, "queued" | "running">;
 export type TransientRoutineExecutionStatus = Extract<

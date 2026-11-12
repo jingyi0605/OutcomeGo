@@ -34,7 +34,7 @@ final class MobileUpdateUITests: XCTestCase {
     app.buttons["settings-button"].tap()
     let update = app.buttons["mobile-update-testflight"]
     XCTAssertTrue(update.waitForExistence(timeout: 5))
-    XCTAssertTrue(app.staticTexts["OpenTeam 0.2.0 · Build 51"].exists)
+    XCTAssertTrue(app.staticTexts["OutcomeGo 0.2.0 · Build 51"].exists)
     capture("mobile-update-settings-light", app)
     update.tap()
     XCTAssertTrue(update.exists)

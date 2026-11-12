@@ -17,9 +17,9 @@ Enter tokens and secrets only in the plugin's setup form. Never paste them into 
 
 ## Browser sign-in
 
-When you add the plugin, sign-in starts on its own. In your browser, choose the account and workspace you want aiTeamOS to use, and approve access. If your browser doesn't open, choose **Sign in** or **Reopen sign-in** under **Accounts** on the plugin's page.
+When you add the plugin, sign-in starts on its own. In your browser, choose the account and workspace you want OutcomeGo to use, and approve access. If your browser doesn't open, choose **Sign in** or **Reopen sign-in** under **Accounts** on the plugin's page.
 
-If your server URL starts with `http://`, choose **Continue to browser** and approve access. Your browser then ends on a page that doesn't load; that's expected. Copy the full address from the address bar, paste it into **Paste the browser address here** in aiTeamOS, and choose **Complete sign-in**.
+If your server URL starts with `http://`, choose **Continue to browser** and approve access. Your browser then ends on a page that doesn't load; that's expected. Copy the full address from the address bar, paste it into **Paste the browser address here** in OutcomeGo, and choose **Complete sign-in**.
 
 Granola uses whichever workspace is active in the Granola app. To work with a different workspace, switch to it in Granola.
 
@@ -35,13 +35,13 @@ The 1Password desktop app and browser extension are not used.
 
 ## Sign-in callback
 
-Plugins that sign in through the browser have a **Sign-in callback** setting. It controls how the service sends you back to aiTeamOS after you sign in. You'll find it in the account's settings on the plugin's page, or under **Marketplace → Manage → Accounts and settings**. It's set to **Automatic (recommended)**, and you rarely need to change it:
+Plugins that sign in through the browser have a **Sign-in callback** setting. It controls how the service sends you back to OutcomeGo after you sign in. You'll find it in the account's settings on the plugin's page, or under **Marketplace → Manage → Accounts and settings**. It's set to **Automatic (recommended)**, and you rarely need to change it:
 
 | Option | How it works |
 | --- | --- |
 | **Automatic** | Uses **Server callback** when your server has an HTTPS address, and **Paste callback URL** otherwise |
 | **Server callback** | The service returns you straight to `https://<your-server>/api/v0/plugin-oauth/callback`. Needs HTTPS. |
-| **Paste callback URL** | The service returns you to a local page that doesn't load. Copy the full address from your browser and paste it into aiTeamOS. Not available for Slack. |
+| **Paste callback URL** | The service returns you to a local page that doesn't load. Copy the full address from your browser and paste it into OutcomeGo. Not available for Slack. |
 | **Desktop listener (advanced)** | The desktop app receives the callback on your computer. Start sign-in from the desktop app. Doesn't work for Slack. |
 
 One callback URL works for every account on your server, so you don't need to register a new one for each account.
@@ -63,7 +63,7 @@ If the wrong account connected, sign out of the service in your browser, then ch
 
 | Problem | What to do |
 | --- | --- |
-| Redirect or callback mismatch | Register the exact callback shown in aiTeamOS. If you changed your server address, update it with the service too. |
+| Redirect or callback mismatch | Register the exact callback shown in OutcomeGo. If you changed your server address, update it with the service too. |
 | Wrong account connected | Sign out of the service in your browser, then choose **Reauthorize** under **Manage → Accounts and settings** |
 | Signed in, but a tool fails | Check the account's permissions, the app's scopes, and any workspace restrictions |
 | A bot can't use the tool | Check that the account is connected and the tool is available |

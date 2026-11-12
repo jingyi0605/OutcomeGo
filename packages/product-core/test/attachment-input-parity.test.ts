@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { CLIENT_CAPABILITIES } from "@aiteamos/contracts/capabilities";
+import { CLIENT_CAPABILITIES } from "@outcomego/contracts/capabilities";
 import {
   attachmentLimitForName,
   attachmentSizeRejection,
   mediaExtension,
-} from "@aiteamos/contracts/media-input";
+} from "@outcomego/contracts/media-input";
 import {
   attachmentTextPreview,
   selectAttachments,

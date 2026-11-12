@@ -56,7 +56,7 @@ test("over budget, each message keeps a fair share and the request text survives
   expect(externalPromptChars(2_000_000, 32_000)).toBe(2_800_000);
 });
 
-test("the carrier is the reference's previous-summary message with aiTeamOS's durable blocks", () => {
+test("the carrier is the reference's previous-summary message with outcomeGo's durable blocks", () => {
   const blocks = externalDurableBlocks([text("user", "<manually_attached_skills>A</manually_attached_skills>")], {
     transcriptPath: "/private", todoUpdate: "- **PENDING**: x (id: 1)", isRootProject: true, projectRoot: "/w",
   });

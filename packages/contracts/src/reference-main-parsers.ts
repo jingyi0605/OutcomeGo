@@ -534,7 +534,7 @@ var memoryParameters = external_exports.object({
   })
 });
 
-// The routines skill's trigger shapes, which an invalid trigger is answered with. aiTeamOS's
+// The routines skill's trigger shapes, which an invalid trigger is answered with. OutcomeGo's
 // email listener reads a connected Email plugin inbox, the cron example keeps a named time, and a
 // webhook URL is provisioned for the routine that owns the webhook trigger.
 var AUTOMATION_TRIGGER_SHAPE_LINES = [
@@ -1966,7 +1966,7 @@ const localSecretSchema = sendMessageObjectSchema.shape.secret.unwrap().extend({
     ctx.addIssue({code: "custom", message: "Use either name for an environment secret or connector and field for a connector credential"});
 });
 // end_turn belongs to the invocation envelope in the captured host. Preserve it
-// here because aiTeamOS receives that envelope together with the message fields.
+// here because OutcomeGo receives that envelope together with the message fields.
 const adaptedSendSchema = rejectingUnsupportedAttachmentFields(sendMessageObjectSchema.extend({
   type: sendMessageObjectSchema.shape.type.default("text"),
   secret: localSecretSchema.optional(),

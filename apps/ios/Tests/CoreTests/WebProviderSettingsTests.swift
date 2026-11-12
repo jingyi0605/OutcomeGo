@@ -1,7 +1,7 @@
 import Foundation
 import XCTest
 
-@testable import OpenTeamCore
+@testable import OutcomeGoCore
 
 final class WebProviderSettingsTests: XCTestCase {
   func json(_ value: String) throws -> JSON {

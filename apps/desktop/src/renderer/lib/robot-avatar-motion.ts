@@ -1,1 +1,1 @@
-export { createRobotAvatarMotion } from "@aiteamos/design-tokens/robot-avatar-motion";
+export { createRobotAvatarMotion } from "@outcomego/design-tokens/robot-avatar-motion";

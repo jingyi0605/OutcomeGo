@@ -2,13 +2,13 @@ import { ArrowUpRight } from "lucide-react";
 import Link from "next/link";
 import { Wordmark } from "./brand";
 
-const GITHUB = "https://github.com/jingyi0605/ai-TeamOS";
+const GITHUB = "https://github.com/jingyi0605/OutcomeGo";
 
 export function SiteFooter({ home = false }: { home?: boolean }) {
   return (
     <footer className="ot-footer ot-container">
       <div className="ot-footer-top">
-        <a href={home ? "#top" : "/"} className="ot-wordmark" aria-label="aiTeamOS home">
+        <a href={home ? "#top" : "/"} className="ot-wordmark" aria-label="OutcomeGo home">
           <Wordmark size={36} textSize={24} animated />
         </a>
         <p>Your AI team, running on your hardware.</p>

@@ -3,15 +3,15 @@ import { expect, test } from "bun:test";
 import { access, mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createPrismaClient } from "@aiteamos/db";
-import { AgentDataStore } from "@aiteamos/messaging";
+import { createPrismaClient } from "@outcomego/db";
+import { AgentDataStore } from "@outcomego/messaging";
 import { Effect } from "effect";
-import { importPackageArchive } from "@aiteamos/plugin-sdk/archive";
-import { createPluginTemplate } from "@aiteamos/plugin-sdk";
+import { importPackageArchive } from "@outcomego/plugin-sdk/archive";
+import { createPluginTemplate } from "@outcomego/plugin-sdk";
 import { PluginService } from "../../src/services/plugin-service";
 import { pluginRuntimeContext } from "../../../worker/src/plugins";
 
-const databaseUrl = process.env.AITEAMOS_TEST_DATABASE_URL;
+const databaseUrl = process.env.OUTCOMEGO_TEST_DATABASE_URL;
 const integration = test.skipIf(!databaseUrl);
 
 integration(
@@ -270,7 +270,7 @@ integration(
   "sources refresh in place, installed snapshots survive removal, and the skill library is shared by the UI and every Bot",
   async () => {
     const prisma = createPrismaClient(databaseUrl!);
-    const agentDataRoot = await mkdtemp(join(tmpdir(), "aiteamos-management-skills-"));
+    const agentDataRoot = await mkdtemp(join(tmpdir(), "outcomego-management-skills-"));
     const library = new AgentDataStore(prisma, {
       root: agentDataRoot,
       workspaceRoot: join(agentDataRoot, "workspace"),

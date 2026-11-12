@@ -14,9 +14,9 @@ export interface HealthResult {
 
 export const healthUrl = (paths: InstallationPaths): string => {
   const environment = parseEnvironment(readFileSync(paths.environment, "utf8"));
-  const configuredHost = environment.get("AITEAMOS_BIND_HOST") || "127.0.0.1";
+  const configuredHost = environment.get("OUTCOMEGO_BIND_HOST") || "127.0.0.1";
   const host = configuredHost === "0.0.0.0" ? "127.0.0.1" : configuredHost;
-  const port = environment.get("AITEAMOS_API_PORT") || "8787";
+  const port = environment.get("OUTCOMEGO_API_PORT") || "8787";
   return `http://${host}:${port}/api/v0/health`;
 };
 

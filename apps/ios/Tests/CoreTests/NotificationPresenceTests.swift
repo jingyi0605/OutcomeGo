@@ -1,5 +1,5 @@
 import XCTest
-@testable import OpenTeamCore
+@testable import OutcomeGoCore
 
 @MainActor final class NotificationPresenceTests: XCTestCase {
   func testBackgroundReleaseOvertakesInFlightForegroundWithoutChangingIdentity() async throws {

@@ -1,6 +1,6 @@
 import { basename, extname } from "node:path";
-import type { AssetRef } from "@aiteamos/contracts";
-import { videoMimeForName } from "@aiteamos/contracts/media-input";
+import type { AssetRef } from "@outcomego/contracts";
+import { videoMimeForName } from "@outcomego/contracts/media-input";
 
 // Types the server recognizes from a file's bytes, for uploads whose name has no extension.
 const EXTENSION_FROM_MIME: Readonly<Record<string, string>> = {

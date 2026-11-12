@@ -5,10 +5,10 @@ import { join } from "node:path";
 import { BrowserUseSession } from "../../src/browser/use";
 import { outOfProcessPlaywright } from "../../src/browser/playwright-driver";
 
-test.skipIf(!process.env.AITEAMOS_BROWSER_TEST_EXECUTABLE)("blocked clicks yield promptly without forcing or replaying; transient blockers still settle", async () => {
+test.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)("blocked clicks yield promptly without forcing or replaying; transient blockers still settle", async () => {
   const root = await mkdtemp(join(tmpdir(), "click-budget-"));
   const driver = await outOfProcessPlaywright();
-  const browser = await driver.playwright.chromium.launch({headless:true, executablePath:process.env.AITEAMOS_BROWSER_TEST_EXECUTABLE});
+  const browser = await driver.playwright.chromium.launch({headless:true, executablePath:process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE});
   const context = await browser.newContext();
   const session = new (BrowserUseSession as any)(browser, context, root) as BrowserUseSession;
   const server = Bun.serve({port:0,fetch:()=>new Response('<!doctype html><button id="target" onclick="window.clicks++">Target</button><div id="cover" style="display:none;position:fixed;inset:0;background:white">Cover</div><script>window.clicks=0</script>',{headers:{"content-type":"text/html"}})});

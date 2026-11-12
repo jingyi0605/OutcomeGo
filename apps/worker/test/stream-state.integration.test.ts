@@ -1,8 +1,8 @@
 import { expect, test } from "bun:test";
-import { createPrismaClient } from "@aiteamos/db";
+import { createPrismaClient } from "@outcomego/db";
 import { Projection } from "../src/projection";
 
-const url = process.env.AITEAMOS_TEST_DATABASE_URL;
+const url = process.env.OUTCOMEGO_TEST_DATABASE_URL;
 test.skipIf(!url)("started assistant text streams durably; replay and completion preserve it", async () => {
   const db = createPrismaClient(url!);
   const bot = await db.bot.create({ data: { name: "Streaming fixture", defaultDirectory: "/tmp", status: "active" } });

@@ -46,7 +46,7 @@ export interface SetupSessionInput {
   /** Informational notes shown above the launch summary, such as a port fallback. */
   notes?: ReadonlyArray<{ text: string; tone: MessageTone }>;
   /**
-   * Startup checks, such as free ports, run when the user starts aiTeamOS. A returned
+   * Startup checks, such as free ports, run when the user starts OutcomeGo. A returned
    * problem reopens Connection with every answer kept.
    */
   check?: (configuration: SetupConfiguration) => Promise<string | null>;
@@ -170,8 +170,8 @@ export const createSetupSession = (input: SetupSessionInput): SetupSession => {
     // There's no default account name: a new install asks for one.
     ownerUsername: input.currentOwnerUsername || "",
     ownerPassword: null,
-    apiPort: input.current.get("AITEAMOS_API_PORT") || String(API_PORT),
-    workerConcurrency: input.current.get("AITEAMOS_WORKER_CONCURRENCY") || "8",
+    apiPort: input.current.get("OUTCOMEGO_API_PORT") || String(API_PORT),
+    workerConcurrency: input.current.get("OUTCOMEGO_WORKER_CONCURRENCY") || "8",
     issue: null,
     editing: null,
     notice: null,
@@ -286,7 +286,7 @@ export const createSetupSession = (input: SetupSessionInput): SetupSession => {
         },
         {
           kind: "note",
-          text: "Run aiteamos account update if you want to change it.",
+          text: "Run outcomego account update if you want to change it.",
           tone: "muted",
         },
       ];
@@ -332,7 +332,7 @@ export const createSetupSession = (input: SetupSessionInput): SetupSession => {
     for (const problem of problems()) {
       rows.push({ kind: "note", text: problem.message, tone: "warning" });
     }
-    rows.push({ kind: "action", id: "apply", label: "Start aiTeamOS", primary: true });
+    rows.push({ kind: "action", id: "apply", label: "Start OutcomeGo", primary: true });
     rows.push({ kind: "action", id: "cancel", label: "Cancel without changes" });
     return rows;
   };

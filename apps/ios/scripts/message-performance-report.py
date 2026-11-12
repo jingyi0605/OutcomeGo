@@ -18,7 +18,7 @@ def results(paths):
     for path in paths.split(","):
         text = Path(path).read_text()
         statuses = dict(re.findall(
-            r"Test Case '-\[OpenTeamNativeUITests.MessagePerformanceUITests (test\w+)\]' (passed|failed)", text))
+            r"Test Case '-\[OutcomeGoNativeUITests.MessagePerformanceUITests (test\w+)\]' (passed|failed)", text))
         measured = {}
         pattern = r"MessagePerformanceUITests (test\w+)\]' measured \[(.*?)\] average: .*?values: \[([^]]+)\]"
         for test, metric, values in re.findall(pattern, text):

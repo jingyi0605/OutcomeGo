@@ -1,7 +1,7 @@
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
-import { createToolValidator } from "@aiteamos/plugin-sdk/json-schema";
+import { createToolValidator } from "@outcomego/plugin-sdk/json-schema";
 import { ResultStore } from "./results";
 
 export type Args = Record<string, any>;
@@ -16,7 +16,7 @@ export type Tool = {
     additionalProperties?: boolean;
   };
   annotations: { readOnlyHint: boolean; destructiveHint: boolean };
-  /** `{ "aiteamos/hostOnly": true }` hides a tool from Bots; only aiTeamOS calls it. */
+  /** `{ "outcomego/hostOnly": true }` hides a tool from Bots; only OutcomeGo calls it. */
   _meta?: Record<string, unknown>;
   run: (args: Args) => Promise<unknown>;
 };

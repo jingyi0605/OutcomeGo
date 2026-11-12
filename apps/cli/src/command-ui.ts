@@ -52,12 +52,18 @@ export const cliProgram = (
   const platform = options.platform ?? process.platform;
   const standalone =
     options.standalone ?? isStandaloneCliExecutable(options.argv ?? process.argv, running);
-  if (!standalone) return "aiteamos";
-  const name = platform === "win32" ? "aiteamos.exe" : "aiteamos";
+  if (!standalone) return "outcomego";
+  const executableName = executable
+    .split(/[\\/]/)
+    .at(-1)
+    ?.replace(/\.exe$/i, "")
+    .toLowerCase();
+const preferredName = executableName === "outcomego" ? "outcomego" : "outcomego";
+const names = platform === "win32" ? ["outcomego.exe", "aiteamos.exe"] : ["outcomego", "aiteamos"];
   const onPath = (options.path ?? searchPath(platform))
     .split(platform === "win32" ? ";" : delimiter)
-    .some((entry) => entry && sameFile(join(entry, name), executable, platform));
-  if (onPath) return "aiteamos";
+    .some((entry) => entry && names.some((name) => sameFile(join(entry, name), executable, platform)));
+  if (onPath) return preferredName;
   if (!/[^\w./:\\-]/.test(executable)) return executable;
   // PowerShell runs a quoted path only through its call operator.
   return `${platform === "win32" ? "& " : ""}${quoteArgument(executable, platform)}`;
@@ -283,7 +289,7 @@ export const renderUpdateEvent = (
 
 export const renderHelp = (source: string, options: TerminalOptions = {}): string => {
   const lines = source.split("\n");
-  const version = lines[0]?.match(/^aiTeamOS (.+)$/)?.[1];
+  const version = lines[0]?.match(/^OutcomeGo (.+)$/)?.[1];
   const view = new TerminalReport(options).header(
     "help",
     version ? cliTranslate("VERSION {version}", { version }) : undefined,
@@ -298,7 +304,7 @@ export const renderHelp = (source: string, options: TerminalOptions = {}): strin
     if (row)
       view.row(row[1]!, row[2]!, { labelWidth: row[1]!.startsWith("--") ? 25 : 15, active: true });
     else if (/^[^\s].*:$/.test(line)) view.section(line.slice(0, -1));
-    else view.text(line.trim(), line.trim().startsWith("aiteamos ") ? "info" : "muted");
+    else view.text(line.trim(), line.trim().startsWith("outcomego ") ? "info" : "muted");
   }
   view.lines.push("");
   return view.toString();

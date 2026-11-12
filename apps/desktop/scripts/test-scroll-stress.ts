@@ -4,7 +4,7 @@ import { join, resolve } from "node:path";
 import { createRequire } from "node:module";
 import { createServer } from "vite";
 const require = createRequire(import.meta.url);
-const temporary = await mkdtemp(join(tmpdir(), "aiteamos-scroll-stress-"));
+const temporary = await mkdtemp(join(tmpdir(), "outcomego-scroll-stress-"));
 const output = resolve(
   process.argv.find((arg) => arg.startsWith("--output="))?.slice(9) ??
     resolve(import.meta.dir, "../../../output/chat-scroll-stress")

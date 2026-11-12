@@ -9,7 +9,7 @@ const broker = new ScreenBroker("/tmp/swift-native-live-screen");
 await broker.ensure(id, "/workspace");
 const driver = await outOfProcessPlaywright();
 const browser = await driver.playwright.chromium.launch({
-  executablePath: "/usr/lib/aiteamos/bin/google-chrome",
+  executablePath: "/usr/lib/outcomego/bin/google-chrome",
   headless: false,
   env: (await broker.commandEnvironment(id, "/workspace")) as Record<string, string>,
   args: ["--no-sandbox", "--disable-dev-shm-usage", "--window-size=1280,800"],
@@ -57,7 +57,7 @@ const server = Bun.serve({
       if (path.endsWith("/screen/stream"))
         return new Response(await broker.stream(id, "/workspace", request.signal), {
           headers: {
-            "Content-Type": "multipart/x-mixed-replace; boundary=aiteamos-frame",
+            "Content-Type": "multipart/x-mixed-replace; boundary=outcomego-frame",
             "Cache-Control": "no-store",
           },
         });

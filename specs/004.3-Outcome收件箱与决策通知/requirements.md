@@ -24,7 +24,7 @@ Outcome Inbox 将用户真正需要处理的事项集中为待决策、待验收
 - 通用消息中心。
 - 全量替换现有聊天和通知系统。
 - 未经确认的复杂通知渠道编排。
-- 新的 `outcomego://` URL scheme（沿用 `aiteamos://app/v1/`，见 design.md §10）。
+- 新的 `outcomego://` URL scheme（沿用 `outcomego://app/v1/`，见 design.md §10）。
 - 自定义静默时间窗口和逾期升级规则（复用现有通知偏好开关，见 design.md §43）。
 
 ## 需求

@@ -1,8 +1,8 @@
 import { execFile } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { delimiter, join } from "node:path";
-import type { DesktopTailscaleStatus, TailscaleStatus } from "@aiteamos/contracts/tailscale";
-import { safeErrorMessage } from "@aiteamos/product-core/redaction";
+import type { DesktopTailscaleStatus, TailscaleStatus } from "@outcomego/contracts/tailscale";
+import { safeErrorMessage } from "@outcomego/product-core/redaction";
 import { canManageLocalInstallation, readManagedInstallation } from "./local-installation";
 
 export interface TailscaleRequest {
@@ -54,10 +54,10 @@ export function canManageTailscale(
   try {
     const env = readFileSync(join(installation.directory, ".env"), "utf8");
     const configured = env
-      .match(/^AITEAMOS_PUBLIC_URL=(.+)$/m)?.[1]
+      .match(/^OUTCOMEGO_PUBLIC_URL=(.+)$/m)?.[1]
       ?.trim()
       .replace(/^(['"])(.*)\1$/, "$2");
-    const mode = env.match(/^AITEAMOS_ACCESS_MODE=(.+)$/m)?.[1]?.trim();
+    const mode = env.match(/^OUTCOMEGO_ACCESS_MODE=(.+)$/m)?.[1]?.trim();
     return (
       mode === "tailscale" &&
       !!configured &&
@@ -86,12 +86,12 @@ export class TailscaleManager {
     if (!canManageTailscale(request.serverUrl, installation)) {
       if (request.action !== "status")
         throw new Error(
-          "Run aiteamos tailscale on the server host. This app cannot manage that installation locally."
+          "Run outcomego tailscale on the server host. This app cannot manage that installation locally."
         );
       return {
         canManage: false,
         status: null,
-        message: "Run these commands on your aiTeamOS server host to manage Tailscale HTTPS.",
+        message: "Run these commands on your OutcomeGo server host to manage Tailscale HTTPS.",
       };
     }
     if (this.busy)
@@ -155,7 +155,7 @@ export class TailscaleManager {
         !["matching", "missing", "conflict", "unavailable", "disabled"].includes(status.route)
       )
         throw new Error(
-          "The management CLI returned invalid Tailscale status. Update aiTeamOS and retry."
+          "The management CLI returned invalid Tailscale status. Update OutcomeGo and retry."
         );
       return { canManage: true, status, message: null };
     } finally {

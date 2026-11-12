@@ -1,13 +1,13 @@
-import { suppressMobileNotification } from "@aiteamos/contracts/notification-presence";
-import { notificationRouting, unreadBadgeCount } from "@aiteamos/messaging";
-import { ApnsSettingsStore } from "@aiteamos/db/apns-settings";
+import { suppressMobileNotification } from "@outcomego/contracts/notification-presence";
+import { notificationRouting, unreadBadgeCount } from "@outcomego/messaging";
+import { ApnsSettingsStore } from "@outcomego/db/apns-settings";
 import {
   PUSH_DELIVERY_ADVISORY_LOCK,
   type PushNotificationPayload,
   isAgentNotificationKind,
   notificationIsRead,
-} from "@aiteamos/contracts";
-import { Prisma, type PrismaClient } from "@aiteamos/db";
+} from "@outcomego/contracts";
+import { Prisma, type PrismaClient } from "@outcomego/db";
 import { ApnsClient } from "./apns";
 import { FcmClient } from "./fcm";
 
@@ -34,7 +34,7 @@ const errorMessage = (error: unknown): string =>
 export type PushAuthenticationMode = "disabled" | "required";
 
 export const pushAuthenticationModeFromEnvironment = (
-  value = process.env.AITEAMOS_AUTH_MODE
+  value = process.env.OUTCOMEGO_AUTH_MODE
 ): PushAuthenticationMode => (value?.trim().toLowerCase() === "disabled" ? "disabled" : "required");
 
 export const deliverablePushDeviceWhere = (
@@ -71,7 +71,7 @@ export const claimOutboxDeliveries = async (
   client.$queryRaw<ClaimedDelivery[]>(Prisma.sql`
     WITH candidates AS (
       SELECT delivery."id"
-      FROM "OutboxDelivery" AS delivery
+      FROM "outcomego_outbox_delivery" AS delivery
       WHERE delivery."topic" = ${topic}
         AND delivery."status" IN ('pending', 'failed')
         AND delivery."attempts" < ${MAX_ATTEMPTS}
@@ -80,7 +80,7 @@ export const claimOutboxDeliveries = async (
       FOR UPDATE SKIP LOCKED
       LIMIT ${Math.max(1, Math.min(1_000, Math.floor(limit)))}
     )
-    UPDATE "OutboxDelivery" AS delivery
+    UPDATE "outcomego_outbox_delivery" AS delivery
     SET "status" = 'delivering',
         "attempts" = delivery."attempts" + 1,
         "error" = NULL,
@@ -187,7 +187,7 @@ export class PushNotificationDispatcher {
             await tx.$queryRaw(
               Prisma.sql`
                 SELECT "id"
-                FROM "PushDevice"
+                FROM "outcomego_push_device"
                 WHERE "id"::text IN (${Prisma.join(deviceIds)})
                 ORDER BY "id"
                 FOR UPDATE

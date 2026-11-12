@@ -4,7 +4,7 @@ import { homedir, tmpdir } from "node:os";
 import { basename, join, sep } from "node:path";
 import { readFile, realpath, stat, mkdtemp, rm } from "node:fs/promises";
 import { nativeCommand, NativeCommandError, sqliteRows, sqlText, type NativeCommand } from "./native-command";
-import { validateMessageSend } from "@aiteamos/contracts/messages-send";
+import { validateMessageSend } from "@outcomego/contracts/messages-send";
 
 /** Page sizes and the per-result character budget every Messages read shares. */
 const PAGE_LIMITS = {
@@ -90,7 +90,7 @@ export class MacMessages {
         const status = await this.run("/usr/bin/osascript", ["-l", "JavaScript", "-e", "ObjC.import('Contacts'); Number($.CNContactStore.authorizationStatusForEntityType(0))"], signal);
         contacts = Number(status.trim()) === 3 ? "granted" : "denied";
       } catch { /* Permission metadata is unavailable. */ }
-      return { kind: "check-permissions", version: "aiteamos-messages-1", verbs: ["find-contacts", "find-chats", "items", "search", "activity", "fetch-attachment", "send", "check-permissions"], fullDiskAccess, automation, contacts };
+      return { kind: "check-permissions", version: "outcomego-messages-1", verbs: ["find-contacts", "find-chats", "items", "search", "activity", "fetch-attachment", "send", "check-permissions"], fullDiskAccess, automation, contacts };
     }
     if (name === "FindContacts") {
       const query = required(args, "query");
@@ -159,7 +159,7 @@ end run`;
         signal
       );
       if (submitted.trim() === "automation_denied")
-        throw new NativeCommandError("macOS refused to let aiTeamOS control Messages (Automation)", "automation_denied");
+        throw new NativeCommandError("macOS refused to let OutcomeGo control Messages (Automation)", "automation_denied");
       let verified = false;
       if (previousId !== null) {
         try {
@@ -204,7 +204,7 @@ end run`;
         item.mime_type === "image/heic" ||
         item.mime_type === "image/heif"
       ) {
-        const directory = await mkdtemp(join(tmpdir(), "aiteamos-message-image-"));
+        const directory = await mkdtemp(join(tmpdir(), "outcomego-message-image-"));
         try {
           const target = join(directory, "image.jpg");
           await this.run("/usr/bin/sips", ["-s", "format", "jpeg", path, "--out", target], signal);

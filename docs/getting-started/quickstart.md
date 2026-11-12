@@ -24,16 +24,16 @@ Run this on the machine that will host your bots.
 **macOS or Linux**
 
 ```sh
-curl -fsSL https://openteam.so/install | sh
+curl -fsSL https://github.com/jingyi0605/OutcomeGo/releases/latest/download/install.sh | sh
 ```
 
 **Windows PowerShell**
 
 ```powershell
-irm https://openteam.so/install.ps1 | iex
+irm https://github.com/jingyi0605/OutcomeGo/releases/latest/download/install.ps1 | iex
 ```
 
-The installer downloads the `aiteamos` command-line tool, adds it to your `PATH`, and opens guided setup. If Docker isn't installed, it tells you where to get it; install it, then run `aiteamos setup`.
+The current public latest release is beta.13 and its installer uses the previous product identity. OutcomeGo beta.14 has not been released. Check the [Releases page](https://github.com/jingyi0605/OutcomeGo/releases) before installing. The installer adds its CLI to your `PATH` and opens guided setup. If Docker isn't installed, it tells you where to get it; install it, then run the setup command it prints.
 
 ## 2. Finish setup
 
@@ -42,11 +42,11 @@ Setup asks two things:
 1. **How you'll connect.** The default is your private network. If setup can't find a private network address, it asks for the address your devices will use to reach the server.
 2. **Your account.** Choose a username and password. You'll use them to sign in from the apps.
 
-When you choose **Start aiTeamOS**, setup downloads the server, starts it, and prints your **server URL** and username. You'll need them in the next step. By default, the server is reachable from your local network or private VPN. To use it from anywhere, see [remote access](../configuration/remote-access.md).
+When you choose **Start OutcomeGo**, setup downloads the server, starts it, and prints your **server URL** and username. You'll need them in the next step. By default, the server is reachable from your local network or private VPN. To use it from anywhere, see [remote access](../configuration/remote-access.md).
 
 ## 3. Connect the desktop app and a model
 
-[Download the desktop app](https://openteam.so/download) and open it. Choose **Log In**, enter your server URL under **Server address**, and connect. You can leave off `http://`. Then sign in with the username and password you just created. If the server runs on the same computer, the app finds it and fills in your username.
+Open the [Releases page](https://github.com/jingyi0605/OutcomeGo/releases) and choose a desktop app. The latest public release is beta.13 and uses the previous product identity; beta.14 has not been released. Choose **Log In**, enter your server URL under **Server address**, and connect. You can leave off `http://`. Then sign in with the username and password you just created. If the server runs on the same computer, the app finds it and fills in your username.
 
 The app then walks you through four short steps, one screen at a time:
 
@@ -65,7 +65,7 @@ Follow its progress in the chat. When it finishes, open the attached file.
 
 To create more bots later, choose **New chat** (the **+** in the sidebar), then **Create new Bot**.
 
-If the bot doesn't respond, run `aiteamos doctor` on the server and see [troubleshooting](../manage/troubleshooting.md).
+If the bot doesn't respond, run `outcomego doctor` on the server and see [troubleshooting](../manage/troubleshooting.md).
 
 ## Next steps
 

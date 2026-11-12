@@ -1,7 +1,7 @@
 import Foundation
 import XCTest
 
-@testable import OpenTeamCore
+@testable import OutcomeGoCore
 
 final class ServerAddressTests: XCTestCase {
   func testAddsTheSchemePeopleLeaveOff() {
@@ -11,29 +11,29 @@ final class ServerAddressTests: XCTestCase {
     XCTAssertEqual(API.withDefaultScheme("mac-mini.local:8787"), "http://mac-mini.local:8787")
     XCTAssertEqual(API.withDefaultScheme("mac-mini:8787"), "http://mac-mini:8787")
     XCTAssertEqual(API.withDefaultScheme("[::1]:8787"), "http://[::1]:8787")
-    XCTAssertEqual(API.withDefaultScheme("openteam.example.com"), "https://openteam.example.com")
+    XCTAssertEqual(API.withDefaultScheme("outcomego.example.com"), "https://outcomego.example.com")
     XCTAssertEqual(API.withDefaultScheme("box.tail1234.ts.net"), "https://box.tail1234.ts.net")
     // An explicit port other than 443 is a private, plain-HTTP server (setup's Tailscale address).
     XCTAssertEqual(
       API.withDefaultScheme("box.tail1234.ts.net:8788"), "http://box.tail1234.ts.net:8788")
     XCTAssertEqual(
-      API.withDefaultScheme("openteam.example.com:443"), "https://openteam.example.com:443")
+      API.withDefaultScheme("outcomego.example.com:443"), "https://outcomego.example.com:443")
     XCTAssertEqual(API.withDefaultScheme("203.0.113.9:8787/"), "http://203.0.113.9:8787/")
     XCTAssertEqual(
-      API.withDefaultScheme("openteam.example.com/team"), "https://openteam.example.com/team")
+      API.withDefaultScheme("outcomego.example.com/team"), "https://outcomego.example.com/team")
     XCTAssertEqual(API.withDefaultScheme("[::1]"), "http://[::1]")
     XCTAssertEqual(
-      API.withDefaultScheme("http://openteam.example.com"), "http://openteam.example.com")
+      API.withDefaultScheme("http://outcomego.example.com"), "http://outcomego.example.com")
     XCTAssertEqual(API.withDefaultScheme(""), "")
-    XCTAssertEqual(API.withDefaultScheme("MAC-MINI.LOCAL/openteam"), "http://MAC-MINI.LOCAL/openteam")
+    XCTAssertEqual(API.withDefaultScheme("MAC-MINI.LOCAL/outcomego"), "http://MAC-MINI.LOCAL/outcomego")
     XCTAssertEqual(API.withDefaultScheme("100.68.177.69"), "http://100.68.177.69")
-    XCTAssertEqual(API.withDefaultScheme("HTTPS://openteam.example.com"), "HTTPS://openteam.example.com")
+    XCTAssertEqual(API.withDefaultScheme("HTTPS://outcomego.example.com"), "HTTPS://outcomego.example.com")
   }
   func testNormalizesBareAddressesAndKeepsValidation() throws {
     XCTAssertEqual(
       try API.normalize("192.168.1.20:8787/").absoluteString, "http://192.168.1.20:8787")
     XCTAssertEqual(
-      try API.normalize("OpenTeam.Example.com").absoluteString, "https://openteam.example.com")
+      try API.normalize("OutcomeGo.Example.com").absoluteString, "https://outcomego.example.com")
     XCTAssertEqual(try API.normalize("mac-mini:8787").absoluteString, "http://mac-mini:8787")
     XCTAssertEqual(
       try API.normalize("raghav-agent-testing.tail658346.ts.net:8788").absoluteString,
@@ -41,8 +41,8 @@ final class ServerAddressTests: XCTestCase {
     XCTAssertThrowsError(try API.normalize("not a URL")) { error in
       XCTAssertTrue((error as? APIError)?.message.contains("such as 192.168.1.20:8787") == true)
     }
-    XCTAssertThrowsError(try API.normalize("ftp://openteam.example.com"))
-    XCTAssertThrowsError(try API.normalize("user:secret@openteam.example.com")) { error in
+    XCTAssertThrowsError(try API.normalize("ftp://outcomego.example.com"))
+    XCTAssertThrowsError(try API.normalize("user:secret@outcomego.example.com")) { error in
       XCTAssertTrue((error as? APIError)?.message.contains("Remove the username") == true)
     }
     XCTAssertThrowsError(try API.normalize("192.168.1.20:8787?token=x"))
@@ -99,7 +99,7 @@ final class InferenceSettingsTests: XCTestCase {
       ProviderErrorText.sentence("The operation was aborted due to timeout"),
       "The AI took too long to answer. Try again.")
     XCTAssertEqual(
-      ProviderErrorText.sentence("OpenTeamClientError: fetch failed"),
+      ProviderErrorText.sentence("OutcomeGoClientError: fetch failed"),
       "Your server couldn't reach the AI right now. Check its internet connection and try again.")
     XCTAssertEqual(
       ProviderErrorText.sentence("TypeError: The model is overloaded."),
@@ -213,7 +213,7 @@ final class InferenceSettingsTests: XCTestCase {
       failure(APIError("Choose a model before testing it.", status: 409)),
       ModelTestFailure(message: "Choose a model before testing it.", transient: false))
     XCTAssertEqual(
-      failure(APIError("OpenTeamClientError: Unknown provider", status: 400)).message,
+      failure(APIError("OutcomeGoClientError: Unknown provider", status: 400)).message,
       "Unknown provider")
     XCTAssertFalse(
       failure(DecodingError.dataCorrupted(.init(codingPath: [], debugDescription: "x"))).transient)

@@ -5,10 +5,10 @@ import {join} from 'node:path';
 import {BrowserUseSession} from '../../src/browser/use';
 import {outOfProcessPlaywright} from '../../src/browser/playwright-driver';
 
-test.skipIf(!process.env.AITEAMOS_BROWSER_TEST_EXECUTABLE)('native numeric control constraints remain observable after keyboard changes', async () => {
+test.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)('native numeric control constraints remain observable after keyboard changes', async () => {
  const root=await mkdtemp(join(tmpdir(),'native-range-bounds-'));
  const driver=await outOfProcessPlaywright();
- const browser=await driver.playwright.chromium.launch({headless:true,executablePath:process.env.AITEAMOS_BROWSER_TEST_EXECUTABLE,args:process.platform==='linux'?['--no-sandbox']:[]});
+ const browser=await driver.playwright.chromium.launch({headless:true,executablePath:process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE,args:process.platform==='linux'?['--no-sandbox']:[]});
  const session=new (BrowserUseSession as any)(browser,await browser.newContext(),root) as BrowserUseSession;
  const text=(r:any):string=>r.content.filter((c:any)=>c.type==='text').map((c:any)=>c.text).join('\n');
  const line=(snapshot:string,name:string)=>snapshot.split('\n').find(l=>l.includes(JSON.stringify(name)))!;

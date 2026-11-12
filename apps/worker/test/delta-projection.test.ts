@@ -34,9 +34,9 @@ test("agent deltas append in SQL without emitting a global event per token", asy
   });
 
   expect(statements).toHaveLength(1);
-  expect(statements[0]).toContain('"Message"."content" || EXCLUDED."content"');
+  expect(statements[0]).toContain('"message"."content" || EXCLUDED."content"');
   expect(statements[0]).toContain("ON CONFLICT");
-  expect(statements[0]).toContain('WHERE "Message"."status" <> \'completed\'::"MessageStatus"');
+  expect(statements[0]).toContain('WHERE "message"."status" <> \'completed\'::"outcomego_message_status"');
   expect(eventCreates).toHaveLength(0);
   expect(transactions).toBe(0);
 });

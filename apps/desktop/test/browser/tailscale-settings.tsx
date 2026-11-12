@@ -1,5 +1,5 @@
 import { createRoot } from "react-dom/client";
-import { TailscaleSettings } from "../../src/renderer/components/aiteamos/settings/tailscale";
+import { TailscaleSettings } from "../../src/renderer/components/outcomego/settings/tailscale";
 import "../../src/renderer/styles.css";
 
 const calls: { action: string; httpsPort?: string }[] = [];
@@ -7,7 +7,7 @@ let enabled = false;
 let fail = false;
 let remote = false;
 let port = "443";
-(window as any).aiteamos = {
+(window as any).outcomego = {
   tailscale: {
     request: async (request: { action: string; httpsPort?: string }) => {
       calls.push(request);
@@ -18,7 +18,7 @@ let port = "443";
         return {
           canManage: false,
           status: null,
-          message: "Run these commands on your aiTeamOS server host.",
+          message: "Run these commands on your OutcomeGo server host.",
         };
       if (request.action === "enable") {
         enabled = true;
@@ -35,7 +35,7 @@ let port = "443";
           httpsPort: port,
           hostname: "qa.tail123.ts.net",
           route: enabled ? "matching" : "disabled",
-          ownership: enabled ? "aiteamos" : "none",
+          ownership: enabled ? "outcomego" : "none",
           verified: enabled,
           issue: null,
           managedRoutes: enabled ? 1 : 0,
@@ -108,7 +108,7 @@ const inputPort = (value: string) => {
   reports.push("failure feedback, disable, and mapping preservation notice");
   remote = true;
   render("remote");
-  await wait(() => document.body.textContent?.includes("aiteamos tailscale enable") === true);
+  await wait(() => document.body.textContent?.includes("outcomego tailscale enable") === true);
   check(!button("Enable"), "Remote settings must not expose local mutation controls");
   reports.push("remote host instructions without local mutation controls");
   (window as any).tailscaleSettingsResults = { reports };

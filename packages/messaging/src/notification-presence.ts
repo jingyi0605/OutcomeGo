@@ -1,7 +1,7 @@
-import type { NotificationRouting } from "@aiteamos/contracts/notification-presence";
-import type { Prisma } from "@aiteamos/db";
+import type { NotificationRouting } from "@outcomego/contracts/notification-presence";
+import type { Prisma } from "@outcomego/db";
 
-/** aiTeamOS provisions one owner per deployment, as do channel reads and bot preferences. */
+/** OutcomeGo provisions one owner per deployment, as do channel reads and bot preferences. */
 export async function notificationRouting(
   db: Pick<Prisma.TransactionClient, "notificationPresence" | "notificationPreferences">,
   authMode: "required" | "disabled",

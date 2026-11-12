@@ -3,16 +3,16 @@ import { generateKeyPairSync } from "node:crypto";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { createPrismaClient } from "@aiteamos/db";
-import { ApnsSettingsStore } from "@aiteamos/db/apns-settings";
+import { createPrismaClient } from "@outcomego/db";
+import { ApnsSettingsStore } from "@outcomego/db/apns-settings";
 import { internalNotificationsRoute } from "../../server/src/routes/internal-notifications";
 
-const databaseUrl = process.env.AITEAMOS_TEST_DATABASE_URL;
+const databaseUrl = process.env.OUTCOMEGO_TEST_DATABASE_URL;
 
 test.skipIf(!databaseUrl)(
   "CLI imports and rotates encrypted APNs keys while the same Node worker stays alive",
   async () => {
-    const directory = await mkdtemp(join(tmpdir(), "aiteamos-apns-runtime-"));
+    const directory = await mkdtemp(join(tmpdir(), "outcomego-apns-runtime-"));
     const prisma = createPrismaClient(databaseUrl!);
     const secret = "isolated-apns-runtime-test-control-token";
     const settings = new ApnsSettingsStore(prisma, () => secret);
@@ -29,7 +29,7 @@ test.skipIf(!databaseUrl)(
     let worker: ReturnType<typeof Bun.spawn> | undefined;
     try {
       await prisma.apnsSettings.deleteMany();
-      const environment = `AITEAMOS_CONTROL_TOKEN=${secret}\nAITEAMOS_API_PORT=${server.port}\nAITEAMOS_BIND_HOST=127.0.0.1\n`;
+      const environment = `OUTCOMEGO_CONTROL_TOKEN=${secret}\nOUTCOMEGO_API_PORT=${server.port}\nOUTCOMEGO_BIND_HOST=127.0.0.1\n`;
       await writeFile(join(directory, ".env"), environment, { mode: 0o600 });
       // Match production: bundled CLI and persistent Node worker are separate processes.
       const cliPath = join(directory, "cli.js");
@@ -47,14 +47,14 @@ test.skipIf(!databaseUrl)(
       await build(resolve(import.meta.dir, "../../cli/src/main.ts"), cliPath);
       await build(resolve(import.meta.dir, "fixtures/apns-runtime-worker.ts"), workerPath);
       worker = Bun.spawn(["node", workerPath], {
-        env: { ...process.env, DATABASE_URL: databaseUrl!, AITEAMOS_CONTROL_TOKEN: secret },
+        env: { ...process.env, DATABASE_URL: databaseUrl!, OUTCOMEGO_CONTROL_TOKEN: secret },
         stdin: "pipe",
         stdout: "pipe",
         stderr: "pipe",
       });
       const output = (worker.stdout as ReadableStream<Uint8Array>).getReader();
       let buffered = "";
-      const send = async (publicKey: string, topic = "dev.aiteamos.mobile") => {
+      const send = async (publicKey: string, topic = "dev.outcomego.mobile") => {
         (worker!.stdin as { write: (value: string) => unknown }).write(
           JSON.stringify({ publicKey, topic }) + "\n"
         );
@@ -77,7 +77,7 @@ test.skipIf(!databaseUrl)(
       };
       const first = keyPair(),
         second = keyPair();
-      const metadata = { keyId: "ABCDE12345", teamId: "FGHIJ67890", topic: "dev.aiteamos.mobile" };
+      const metadata = { keyId: "ABCDE12345", teamId: "FGHIJ67890", topic: "dev.outcomego.mobile" };
       await writeFile(
         join(directory, "apns.json"),
         JSON.stringify({ ...metadata, privateKeyFile: "AuthKey.p8" })

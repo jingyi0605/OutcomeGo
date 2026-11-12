@@ -27,7 +27,7 @@ export const thinkingFromContent = (content: unknown): string => {
 };
 
 export const boundedText = (value: string, limit = 100_000): string =>
-  value.length <= limit ? value : `${value.slice(0, limit)}\n… output truncated by aiTeamOS`;
+  value.length <= limit ? value : `${value.slice(0, limit)}\n… output truncated by OutcomeGo`;
 
 export const safeToolResult = (result: unknown, isError = false): unknown => {
   if (!result || typeof result !== "object") return result;

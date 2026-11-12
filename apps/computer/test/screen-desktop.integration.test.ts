@@ -5,7 +5,7 @@ import { outOfProcessPlaywright } from "../src/browser/playwright-driver";
 import { ScreenBroker } from "../src/screen-broker";
 
 // This starts the production desktop stack; opt in only in a disposable computer container.
-test.skipIf(process.env.AITEAMOS_CUA_DESKTOP_TESTS !== "1")(
+test.skipIf(process.env.OUTCOMEGO_CUA_DESKTOP_TESTS !== "1")(
   "full desktop multilingual typing",
   async () => {
     const home = await mkdtemp("/tmp/cua-full-");
@@ -18,7 +18,7 @@ test.skipIf(process.env.AITEAMOS_CUA_DESKTOP_TESTS !== "1")(
       const status = await broker.ensure("typing-probe", "/workspace");
       const env = await broker.commandEnvironment("typing-probe", "/workspace");
       browser = await chromium.launch({
-        executablePath: "/usr/lib/aiteamos/bin/google-chrome",
+        executablePath: "/usr/lib/outcomego/bin/google-chrome",
         headless: false,
         env: env as Record<string, string>,
         args: ["--no-sandbox", "--disable-dev-shm-usage", "--window-size=1280,800"],
@@ -29,12 +29,12 @@ test.skipIf(process.env.AITEAMOS_CUA_DESKTOP_TESTS !== "1")(
       );
       await page.bringToFront();
       viewerBrowser = await chromium.launch({
-        executablePath: "/usr/lib/aiteamos/bin/google-chrome",
+        executablePath: "/usr/lib/outcomego/bin/google-chrome",
         args: ["--no-sandbox"],
       });
       const view = await viewerBrowser.newPage();
       await view.goto(
-        `http://127.0.0.1:${status.viewerPort}/aiteamos.html#password=${status.viewerPassword}`
+        `http://127.0.0.1:${status.viewerPort}/outcomego.html#password=${status.viewerPassword}`
       );
       await view.waitForSelector('[data-connection-state="connected"]');
       const samples = [

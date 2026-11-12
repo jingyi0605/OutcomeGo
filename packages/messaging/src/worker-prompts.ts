@@ -1,9 +1,9 @@
-import type { SubagentType } from "@aiteamos/contracts";
+import type { SubagentType } from "@outcomego/contracts";
 import { formatTimeZoneWithOffset, resolveTimeZone } from "./timestamps";
 
 // The reference's worker prompt sections, adapted where they name what this computer lacks.
 
-/** The main agent and every worker write as the user when they act through their accounts (the reference adds their full name, which aiTeamOS does not keep). */
+/** The main agent and every worker write as the user when they act through their accounts (the reference adds their full name, which OutcomeGo does not keep). */
 export const USER_IDENTITY_LINE =
   "When acting through your user's accounts and apps, such as Slack, speak as them and never refer to them in the third person.";
 

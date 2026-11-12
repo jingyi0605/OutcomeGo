@@ -13,11 +13,11 @@
 set -euo pipefail
 
 root=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
-state_dir=${AITEAMOS_DEBUG_STATE_DIR:-$HOME/.openteam-dev}
+state_dir=${OUTCOMEGO_DEBUG_STATE_DIR:-$HOME/.outcomego-dev}
 mount_point=$state_dir/mnt
-remote_host=${AITEAMOS_DEBUG_REMOTE_HOST:-10.255.0.45}
-remote_user=${AITEAMOS_DEBUG_REMOTE_USER:-ubuntu}
-share=${AITEAMOS_DEBUG_SHARE:-openteam-debug}
+remote_host=${OUTCOMEGO_DEBUG_REMOTE_HOST:-10.255.0.45}
+remote_user=${OUTCOMEGO_DEBUG_REMOTE_USER:-ubuntu}
+share=${OUTCOMEGO_DEBUG_SHARE:-outcomego-debug}
 
 die() { echo "error: $*" >&2; exit 1; }
 
@@ -25,14 +25,14 @@ load_env() {
   [[ -f $root/.env ]] || die "$root/.env is missing"
   set -a; . "$root/.env"; set +a
   case "${DATABASE_URL:-}" in *FILL_IN*|"") die "set the database password in DATABASE_URL (.env)" ;; esac
-  # The server reports whatever AITEAMOS_VERSION holds. Follow the code unless .env pins a value,
+  # The server reports whatever OUTCOMEGO_VERSION holds. Follow the code unless .env pins a value,
   # so the debug stack never drifts from the installed desktop. "+dev" marks it as a source run
   # and is ignored by version-compatibility checks (same convention as scripts/compose.sh).
-  if [[ -z "${AITEAMOS_VERSION:-}" ]]; then
+  if [[ -z "${OUTCOMEGO_VERSION:-}" ]]; then
     local package_version
     package_version=$(sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' "$root/apps/server/package.json" | head -n 1)
     [[ -n $package_version ]] || die "cannot read the version from apps/server/package.json"
-    export AITEAMOS_VERSION="$package_version+dev"
+    export OUTCOMEGO_VERSION="$package_version+dev"
   fi
 }
 
@@ -53,14 +53,14 @@ check() {
   fail() { echo "FAIL  $*"; ok=0; }
   load_env
   mount_share >/dev/null 2>&1 && pass "share mounted at $mount_point" || fail "share not mounted"
-  [[ -d ${AITEAMOS_WORKSPACE_ROOT:-} && -d ${AITEAMOS_AGENT_DATA_ROOT:-} ]] \
+  [[ -d ${OUTCOMEGO_WORKSPACE_ROOT:-} && -d ${OUTCOMEGO_AGENT_DATA_ROOT:-} ]] \
     && pass "workspace and agent-data directories exist" || fail "workspace/agent-data path missing"
 
   local health
-  health=$(curl -s -m 8 "${AITEAMOS_COMPUTER_URL%/}/health" -H "authorization: Bearer ${AITEAMOS_CONTROL_TOKEN}") || true
-  [[ $health == *'"status":"ready"'* ]] && pass "computer ready at $AITEAMOS_COMPUTER_URL" \
-    || fail "computer not ready at $AITEAMOS_COMPUTER_URL"
-  [[ $health == *'"authenticated":false'* ]] && echo "note  computer has no model login yet (see aiteamos-pi-auth)"
+  health=$(curl -s -m 8 "${OUTCOMEGO_COMPUTER_URL%/}/health" -H "authorization: Bearer ${OUTCOMEGO_CONTROL_TOKEN}") || true
+  [[ $health == *'"status":"ready"'* ]] && pass "computer ready at $OUTCOMEGO_COMPUTER_URL" \
+    || fail "computer not ready at $OUTCOMEGO_COMPUTER_URL"
+  [[ $health == *'"authenticated":false'* ]] && echo "note  computer has no model login yet (see outcomego-pi-auth)"
 
   (cd "$root/packages/db" && bun -e '
     import pg from "pg";
@@ -68,14 +68,14 @@ check() {
     await c.connect(); await c.query("select 1"); await c.end();' >/dev/null 2>&1) \
     && pass "database reachable" || fail "database unreachable or bad credentials"
 
-  local mac_ip port=${AITEAMOS_PORT:-8788} listener
+  local mac_ip port=${OUTCOMEGO_PORT:-8788} listener
   mac_ip=$(ipconfig getifaddr "$(route -n get "$remote_host" 2>/dev/null | awk '/interface:/{print $2}')" 2>/dev/null || true)
   if [[ -n $mac_ip ]]; then
     local configured
     configured=$(ssh -o BatchMode=yes -o ConnectTimeout=6 "$remote_user@$remote_host" \
-      "sed -n 's/^AITEAMOS_DEBUG_SERVER_URL=//p' ~/openteam-debug/.env" 2>/dev/null || true)
+      "sed -n 's/^OUTCOMEGO_DEBUG_SERVER_URL=//p' ~/outcomego-debug/.env" 2>/dev/null || true)
     if [[ $configured == "http://$mac_ip:$port" ]]; then pass "computer calls back to $configured"
-    else fail "this Mac is $mac_ip but the computer calls ${configured:-<unknown>}; update ~/openteam-debug/.env and Samba 'hosts allow', then restart the computer"; fi
+    else fail "this Mac is $mac_ip but the computer calls ${configured:-<unknown>}; update ~/outcomego-debug/.env and Samba 'hosts allow', then restart the computer"; fi
   fi
   listener=$(lsof -nP -iTCP:"$port" -sTCP:LISTEN 2>/dev/null | awk 'NR==2{print $1" (pid "$2")"}' || true)
   [[ -z $listener ]] && pass "port $port is free" || echo "note  port $port is in use by $listener"
@@ -95,8 +95,8 @@ up() {
   trap 'for p in "${pids[@]}"; do kill_tree "$p"; done; wait 2>/dev/null || true' EXIT
   trap 'exit 130' INT
   trap 'exit 143' TERM
-  bun --filter @aiteamos/server dev & pids+=($!)
-  bun --filter @aiteamos/worker dev & pids+=($!)
+  bun --filter @outcomego/server dev & pids+=($!)
+  bun --filter @outcomego/worker dev & pids+=($!)
   # bash 3.2 (macOS) has no `wait -n`: stop everything as soon as either process exits.
   while kill -0 "${pids[@]}" 2>/dev/null; do sleep 1; done
 }
@@ -105,10 +105,10 @@ account() {
   prepare
   local user pass
   # "setup" creates the owner, or replaces the username and password of an existing one.
-  read -r -p "Owner username [aiteamos]: " user; user=${user:-aiteamos}
+  read -r -p "Owner username [outcomego]: " user; user=${user:-outcomego}
   read -r -s -p "Password (8-128 chars): " pass; echo
-  AITEAMOS_OWNER_USER=$user AITEAMOS_OWNER_PASS=$pass \
-    bun -e 'process.stdout.write(JSON.stringify({operation:"setup",username:process.env.AITEAMOS_OWNER_USER,password:process.env.AITEAMOS_OWNER_PASS}))' \
+  OUTCOMEGO_OWNER_USER=$user OUTCOMEGO_OWNER_PASS=$pass \
+    bun -e 'process.stdout.write(JSON.stringify({operation:"setup",username:process.env.OUTCOMEGO_OWNER_USER,password:process.env.OUTCOMEGO_OWNER_PASS}))' \
     | (cd apps/server && bun src/main.ts owner-credentials)
 }
 
@@ -116,12 +116,12 @@ case "${1:-}" in
   check)   check ;;
   mount)   mount_share ;;
   up)      up ;;
-  server)  prepare; exec bun --filter @aiteamos/server dev ;;
-  worker)  prepare; exec bun --filter @aiteamos/worker dev ;;
+  server)  prepare; exec bun --filter @outcomego/server dev ;;
+  worker)  prepare; exec bun --filter @outcomego/worker dev ;;
   # Some terminal hosts export ELECTRON_RUN_AS_NODE=1, which turns Electron into plain Node and
   # makes `import { BrowserWindow } from "electron"` fail.
-  desktop) prepare; unset ELECTRON_RUN_AS_NODE; exec bun --filter @aiteamos/desktop dev ;;
-  db-push) prepare; exec bun --filter @aiteamos/db db:push ;;
+  desktop) prepare; unset ELECTRON_RUN_AS_NODE; exec bun --filter @outcomego/desktop dev ;;
+  db-push) prepare; exec bun --filter @outcomego/db db:push ;;
   account) account ;;
   *) sed -n '2,12p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//' >&2; exit 2 ;;
 esac

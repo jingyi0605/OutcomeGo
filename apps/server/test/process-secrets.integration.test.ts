@@ -1,7 +1,7 @@
 import { test, expect } from "bun:test";
-import { createPrismaClient } from "@aiteamos/db";
+import { createPrismaClient } from "@outcomego/db";
 import { storeProcessSecret, processEnvironment } from "../src/services/process-secrets";
-const databaseUrl = process.env.AITEAMOS_TEST_DATABASE_URL;
+const databaseUrl = process.env.OUTCOMEGO_TEST_DATABASE_URL;
 test.skipIf(!databaseUrl)(
   "named process secrets require owner DM, inherit personal values, and bot overrides stay isolated",
   async () => {

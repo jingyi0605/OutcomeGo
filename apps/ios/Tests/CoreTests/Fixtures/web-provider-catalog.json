@@ -101,7 +101,7 @@
     {
       "id": "builtin",
       "name": "Built-in",
-      "brand": "aiteamos",
+      "brand": "outcomego",
       "description": "Reads public pages from your server. Can't run JavaScript.",
       "fields": [],
       "setupUrl": null

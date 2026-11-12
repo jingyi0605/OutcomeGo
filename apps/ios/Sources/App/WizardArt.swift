@@ -70,11 +70,11 @@ struct TerminalArt: View {
       }
       .padding(.horizontal, 12).padding(.vertical, 10)
       VStack(alignment: .leading, spacing: 7) {
-        Text("$ openteam setup").foregroundStyle(.white.opacity(0.45))
+        Text("$ outcomego setup").foregroundStyle(.white.opacity(0.45))
         Text("…").foregroundStyle(.white.opacity(0.3))
         HStack(spacing: 6) {
           Text("✓").foregroundStyle(Color(hex: "3DDC84"))
-          Text("OpenTeam is ready").foregroundStyle(.white.opacity(0.9))
+          Text("OutcomeGo is ready").foregroundStyle(.white.opacity(0.9))
         }
         line("Server", server, lit: highlight == .server)
         line("Username", username, lit: highlight == .username)
@@ -443,7 +443,7 @@ struct BrowserArt: View {
         ProviderGlyph(kind: kind, style: .mark)
           .wizardShared("mark-\(kind)", in: namespace)
           .frame(width: 40, height: 40)
-        Text("Authorize OpenTeam").font(.system(size: 15, weight: .semibold))
+        Text("Authorize OutcomeGo").font(.system(size: 15, weight: .semibold))
           .foregroundStyle(.primary)
         RoundedRectangle(cornerRadius: 9, style: .continuous)
           .fill(kind == .claude ? Color(hex: "C96442") : Color.primary)

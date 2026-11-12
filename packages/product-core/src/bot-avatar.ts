@@ -1,5 +1,5 @@
-import type { RunView } from "@aiteamos/contracts";
-import type { BotAvatarMode } from "@aiteamos/contracts/robot-avatar";
+import type { RunView } from "@outcomego/contracts";
+import type { BotAvatarMode } from "@outcomego/contracts/robot-avatar";
 
 /** Each conversation shows its own activity, including chats outside the open pane. */
 export function resolveBotAvatarMode({

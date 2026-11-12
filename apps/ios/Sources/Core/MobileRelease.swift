@@ -13,7 +13,7 @@ public struct MobileRelease: Codable, Equatable, Sendable {
   public static let feedURL: URL? = nil
   /// What the update notice opens. Required whenever `feedURL` is set.
   public static let downloadURL: URL? = nil
-  public static let expectedBundleIdentifier = "dev.aiteamos.mobile"
+  public static let expectedBundleIdentifier = "dev.outcomego.mobile"
 
   public init(version: String, buildNumber: String, bundleIdentifier: String) {
     self.version = version

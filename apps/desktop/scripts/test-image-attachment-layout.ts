@@ -5,7 +5,7 @@ import { createRequire } from "node:module";
 import { createServer } from "vite";
 
 const require = createRequire(import.meta.url);
-const directory = await mkdtemp(join(tmpdir(), "aiteamos-image-layout-"));
+const directory = await mkdtemp(join(tmpdir(), "outcomego-image-layout-"));
 const conversation = process.argv.includes("--conversation");
 const navigation = process.argv.includes("--navigation");
 const reducedMotion = process.argv.includes("--reduced-motion");
@@ -28,9 +28,9 @@ if (withoutRendererBoundary && !rendererFailure)
 const control = process.argv.find((arg) => arg.startsWith("--control-dir="))?.slice(14);
 if (control && !navigation) throw new Error("Source controls require --navigation");
 const controlFiles = new Set([
-  "src/renderer/state/use-aiteamos.ts",
-  "src/renderer/components/aiteamos/chat-pane.tsx",
-  "src/renderer/components/aiteamos/thread-tray.tsx",
+  "src/renderer/state/use-outcomego.ts",
+  "src/renderer/components/outcomego/chat-pane.tsx",
+  "src/renderer/components/outcomego/thread-tray.tsx",
 ]);
 const server = await createServer({
   root: resolve(import.meta.dir, ".."),
@@ -72,7 +72,7 @@ const server = await createServer({
               }
               if (
                 rendererFailure === "file" &&
-                path === "src/renderer/components/aiteamos/file-attachment.tsx"
+                path === "src/renderer/components/outcomego/file-attachment.tsx"
               ) {
                 return 'throw new Error("Injected file renderer failure"); export function MessageFileAttachments() {}';
               }

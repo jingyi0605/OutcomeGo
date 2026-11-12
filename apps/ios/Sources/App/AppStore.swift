@@ -26,7 +26,7 @@ final class AppStore {
   var authPath: [AuthStep] = []
   var authError: String?
   var validatedServer: String?
-  /// "✓ Found OpenTeam {version}" on the server screen, shown before it moves on.
+  /// "✓ Found OutcomeGo {version}" on the server screen, shown before it moves on.
   struct FoundServer: Equatable { var version: String? }
   private(set) var foundServer: FoundServer?
   private var authGeneration = UUID()
@@ -34,7 +34,7 @@ final class AppStore {
   var requiresAuthentication: Bool { record?.mode == "required" }
   var server = UserDefaults.standard.string(forKey: "server") ?? ""
   var userName = ""
-  var accountDisplayName: String { record?.displayName ?? "OpenTeam owner" }
+  var accountDisplayName: String { record?.displayName ?? "OutcomeGo owner" }
   var accountServer: String { record?.server ?? server }
   var state = SavedState()
   private(set) var sidebarPluginsVerified = false
@@ -376,7 +376,7 @@ final class AppStore {
       validatedServer = candidate.baseURL.absoluteString
       if mode == "required", username.isEmpty || password.isEmpty {
         authPath = [.endpoint, .credentials]
-        throw APIError("Enter your OpenTeam username and password.")
+        throw APIError("Enter your OutcomeGo username and password.")
       }
       try await completeConnection(
         candidate, mode: mode, username: username, password: password, epoch: epoch)
@@ -400,7 +400,7 @@ final class AppStore {
     let login: (token: String?, userID: String, name: String)
     if mode == "required" {
       guard !username.trimmingCharacters(in: .whitespaces).isEmpty, !password.isEmpty else {
-        throw APIError("Enter your OpenTeam username and password.")
+        throw APIError("Enter your OutcomeGo username and password.")
       }
       let response = try await candidate.signIn(username: username, password: password)
       guard !response.user["id"].string.isEmpty else {
@@ -466,7 +466,7 @@ final class AppStore {
       await self?.recordReachable(epoch: epoch)
     })
     let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-      .appendingPathComponent("OpenTeam", isDirectory: true)
+      .appendingPathComponent("OutcomeGo", isDirectory: true)
     let scope = SHA256.hash(data: Data((next.server + "\n" + next.userID).utf8)).map {
       String(format: "%02x", $0)
     }.joined()
@@ -1900,7 +1900,7 @@ final class AppStore {
   }
   func deepLink(_ url: URL) async {
     let parts = url.pathComponents.filter { $0 != "/" }
-    guard ["openteam", "openteam-swift"].contains(url.scheme ?? ""), url.host == "chat",
+    guard ["outcomego", "outcomego-swift"].contains(url.scheme ?? ""), url.host == "chat",
       parts.count == 1, let id = parts.first else { return }
     guard phase == .ready else {
       pendingDeepLink = url
@@ -1939,13 +1939,13 @@ final class AppStore {
     guard opening == systemOpenGeneration else { throw CancellationError() }
     guard let id = SystemEntityID(value), id.scope == client.scope,
       [.bot, .conversation, .message].contains(id.kind) else {
-      throw APIError("This item belongs to a different OpenTeam account. Choose it again.")
+      throw APIError("This item belongs to a different OutcomeGo account. Choose it again.")
     }
     let target = try client.destination(value, kind: id.kind)
     if recordVoiceNote {
       guard id.kind == .bot else { throw APIError("Choose a Bot to record a voice note.") }
       guard client.bootstrap.runtime["transcription"].string == "configured" else {
-        throw APIError("Configure voice notes in OpenTeam Settings before recording.")
+        throw APIError("Configure voice notes in OutcomeGo Settings before recording.")
       }
     }
     if phase == .starting {
@@ -1953,7 +1953,7 @@ final class AppStore {
       return
     }
     guard phase == .ready, systemScope == client.scope else {
-      throw APIError("Connect to this OpenTeam account before opening its content.")
+      throw APIError("Connect to this OutcomeGo account before opening its content.")
     }
     if id.kind == .bot, text == nil {
       guard try botVoiceLaunch.canOpen(target.id) else { return }
@@ -1984,7 +1984,7 @@ final class AppStore {
     let session = try SystemIntentClient.savedSession()
     let scope = SystemEntityID.scope(server: session.server, userID: session.userID)
     guard id.scope == scope else {
-      throw APIError("This item belongs to a different OpenTeam account. Choose it again.")
+      throw APIError("This item belongs to a different OutcomeGo account. Choose it again.")
     }
     if phase == .starting {
       pendingSystemItem = (value, nil, [], recordVoiceNote, .now, requestID)
@@ -1993,7 +1993,7 @@ final class AppStore {
     guard phase == .ready, systemScope == scope,
       record?.server == session.server, record?.userID == session.userID,
       record?.token == session.token else {
-      throw APIError("Connect to this OpenTeam account before opening its content.")
+      throw APIError("Connect to this OutcomeGo account before opening its content.")
     }
     guard let bootstrap = state.bootstrap,
       let target = ShareDirectory.destinations(bootstrap).first(where: {

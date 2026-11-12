@@ -87,10 +87,10 @@ test("development supervisor builds, reloads every entry and lazy chunk, and shu
       stderr: log.fd,
     });
     await until(() => starts() === 1);
-    expect(await bundleContains("aiteamos-cli.js", "initial updater")).toBe(true);
+    expect(await bundleContains("outcomego-cli.js", "initial updater")).toBe(true);
 
     for (const [source, artifact, marker] of [
-      ["../cli/src/main.ts", "aiteamos-cli.js", "updated updater"],
+      ["../cli/src/main.ts", "outcomego-cli.js", "updated updater"],
       ["src/main/host/utility.ts", "host-utility.js", "updated utility"],
       ["src/preload/index.ts", "preload.cjs", "updated preload"],
     ]) {

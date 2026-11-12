@@ -1138,7 +1138,7 @@ A screen without its data flow and failure handling does not satisfy parity.
   - What you will see when complete: iOS can consume shared transport and models
     while retaining SwiftUI and native extensions.
   - Dependencies: 1.9
-  - Read first: `apps/ios/OpenTeamNative.xcodeproj`, `API.swift`, `Models.swift`,
+  - Read first: `apps/ios/OutcomeGoNative.xcodeproj`, `API.swift`, `Models.swift`,
     `AppStore.swift`, `design.md` §2.1
   - Main areas: Xcode project, Swift adapter, build scripts
   - This does not do: Delete all Swift core code.

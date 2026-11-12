@@ -1,12 +1,12 @@
 {
   "display_information": {
-    "name": "aiTeamOS",
-    "description": "Connect a self-hosted aiTeamOS deployment to Slack.",
+    "name": "OutcomeGo",
+    "description": "Connect a self-hosted OutcomeGo deployment to Slack.",
     "background_color": "#26394d"
   },
   "oauth_config": {
     "redirect_urls": [
-      "https://YOUR-AITEAMOS-SERVER/api/v0/plugin-oauth/callback?connectionId=YOUR-CONNECTION-ID"
+      "https://YOUR-OUTCOMEGO-SERVER/api/v0/plugin-oauth/callback?connectionId=YOUR-CONNECTION-ID"
     ],
     "scopes": {
       "user": [

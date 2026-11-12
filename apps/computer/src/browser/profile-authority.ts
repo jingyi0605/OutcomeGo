@@ -51,7 +51,7 @@ export class BrowserProfileAuthority {
   private tail: Promise<void> = Promise.resolve();
 
   constructor(private readonly home: string) {
-    this.root = join(home, ".aiteamos", "browser-profile-authority");
+    this.root = join(home, ".outcomego", "browser-profile-authority");
     this.current = join(this.root, "current");
   }
 

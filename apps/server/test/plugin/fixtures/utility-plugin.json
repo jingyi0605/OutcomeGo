@@ -3,7 +3,7 @@
   "version": "1.0.1",
   "name": "Utility test fixture",
   "description": "Try plugin tools with simple calculations, notes, and sample data.",
-  "publisher": "aiTeamOS",
+  "publisher": "outcomeGo",
   "category": "Developer Tools",
   "featured": false,
   "components": [
@@ -16,7 +16,7 @@
       "name": "Utility test fixture",
       "transport": "builtin",
       "auth": "none",
-      "endpoint": "aiteamos://utility-lab",
+      "endpoint": "outcomego://utility-lab",
       "tools": [
         {
           "name": "echo",

@@ -7,7 +7,7 @@ import { streamSimple } from "@earendil-works/pi-ai/api/openai-completions";
 import { ModelRuntime, SessionManager } from "@earendil-works/pi-coding-agent";
 import { ComputerRuntime } from "../../src/runtime";
 import { BotCompactionArchiveStore, BotCompactionCoordinator } from "../../src/bot-compaction";
-import { replaceTaskProgressContext } from "@aiteamos/contracts/task-progress";
+import { replaceTaskProgressContext } from "@outcomego/contracts/task-progress";
 const deferred = () => {
   let resolve!: (v?: any) => void;
   const promise = new Promise<any>((r) => (resolve = r));
@@ -451,7 +451,7 @@ for (const timing of ["terminal-ready", "terminal-pending"] as const) {
           const measurements = manager
             .getEntries()
             .filter(
-              (e: any) => e.type === "custom" && e.customType === "aiteamos-compaction-usage"
+              (e: any) => e.type === "custom" && e.customType === "outcomego-compaction-usage"
             );
           expect(measurements).toHaveLength(round - 1);
           expect((measurements.at(-1) as any).data.inputTokens).toBe(90_000);

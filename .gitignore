@@ -14,13 +14,14 @@ packages/db/src/generated/
 apps/desktop/release/
 apps/cli/release/
 apps/desktop/release-cua/
+apps/desktop/release-signed-local/
 apps/desktop/release-local/
 /artifacts/
 /findings/
 /output/
 /launch/
 apps/landing/.generated/
-/.agents/skills/aiteamos-macos-release/
+/.agents/skills/outcomego-macos-release/
 packages/plugins/_generated/
 **/.cxx/
 data

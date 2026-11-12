@@ -10,8 +10,8 @@ const DELEGATING_ID = "delegating-and-multitasking";
 /** The reference's multitask section; it follows the agent profile and the user line. */
 export const DELEGATING_SECTION = platformPrompt.sections.find(({ id }) => id === DELEGATING_ID)!.text;
 
-/** aiTeamOS's provider selection; it extends the reference's web line in Where you work. */
-export const WEB_PROVIDERS_INSTRUCTIONS = "WebSearch and WebFetch use the providers the user chose in Settings → Providers. When WebSearch fails with 'Web search is not configured', tell the user search isn't set up and where to set it up; never claim a search happened, and say so if you research with the browser instead. WebFetch uses aiTeamOS's built-in fetcher unless the user chose another provider; 'Web fetch is turned off' means the user disabled it. When WebFetch reports that a site blocks automated fetching or needs JavaScript, open the page with the browser. Keep API keys out of chat. Report provider failures accurately.";
+/** OutcomeGo's provider selection; it extends the reference's web line in Where you work. */
+export const WEB_PROVIDERS_INSTRUCTIONS = "WebSearch and WebFetch use the providers the user chose in Settings → Providers. When WebSearch fails with 'Web search is not configured', tell the user search isn't set up and where to set it up; never claim a search happened, and say so if you research with the browser instead. WebFetch uses OutcomeGo's built-in fetcher unless the user chose another provider; 'Web fetch is turned off' means the user disabled it. When WebFetch reports that a site blocks automated fetching or needs JavaScript, open the page with the browser. Keep API keys out of chat. Report provider failures accurately.";
 
 /** The base through Untrusted content, in the reference's order. Authentication extends Security. */
 const baseSections = (omitted: ReadonlySet<string>, edit: (id: string, text: string) => string = (_id, text) => text) =>
@@ -72,8 +72,8 @@ export interface PlatformPromptFeatures {
 /** Prompt variants are feature combinations. Skillification moves workflow prose
  * into installed skills; default mode retains those instructions inline. */
 export function renderPlatformBaseSystemPrompt(features: PlatformPromptFeatures = {}): string {
-  const skillified = features.managedSkills ?? process.env.AITEAMOS_MANAGED_SKILLS !== "false";
-  const sharing = features.sharing ?? process.env.AITEAMOS_TEMPLATE_SHARING !== "false";
+  const skillified = features.managedSkills ?? process.env.OUTCOMEGO_MANAGED_SKILLS !== "false";
+  const sharing = features.sharing ?? process.env.OUTCOMEGO_TEMPLATE_SHARING !== "false";
   return [
     features.automationRun ? automationRunBase(features.automationRun) : PLATFORM_BASE_SYSTEM_PROMPT,
     // Skillified, the <agent_skills> catalog in user_info is the only pointer, as in the reference.
@@ -86,19 +86,19 @@ export function renderPlatformBaseSystemPrompt(features: PlatformPromptFeatures 
     .join("\n\n");
 }
 
-/** The reference's Agent profile file lines, after the name and description, for aiTeamOS's profile folder. */
+/** The reference's Agent profile file lines, after the name and description, for OutcomeGo's profile folder. */
 export function renderAgentProfileFiles(input: { agentDataRoot: string; botId: string }): string {
   const botDirectory = join(input.agentDataRoot, "agents", input.botId);
   return [
     `Your profile is a JSON config file at ${join(botDirectory, "profile.json")} with "name", "description", and "title" fields, which you can read with your shell tools. To rename yourself or rewrite your own description, use the UpdateProfile tool; it preserves every field you do not pass. Name and description edits are announced in a profile-update message for the current context and folded into this Agent profile section after the next conversation summary.`,
     "Your profile picture is a separate image file; set or clear it with UpdateAvatar. Never change your picture unless the user asks.",
     `Your per-agent settings are in ${join(botDirectory, "settings.json")} and change with UpdateProfile. Hiding yourself from the sidebar removes only your row: you keep your conversation, messages, routines, and unread count, and the user can still reach you through the Hidden Bots manager.`,
-    // Files are aiTeamOS's durable state; the reference keeps it on its host.
+    // Files are OutcomeGo's durable state; the reference keeps it on its host.
     `Your authoritative, hand-editable durable state is ${botDirectory}. Valid durable-file edits are imported before each turn. Files are the source of truth: deleting an avatar file, workflow folder, or automation folder deletes that state. Prefer UpdateRoutine and the other state tools so the operation is validated; do not invent fields or delete unrelated state.`,
   ].join("\n");
 }
 
-/** The reference's Routines section (skill-pointer variant), plus aiTeamOS's event adapters. */
+/** The reference's Routines section (skill-pointer variant), plus OutcomeGo's event adapters. */
 export const ROUTINES_SECTION = [
   "## Routines",
   'Routines are saved prompts that fire on a schedule or an outside event, even while the user is away. Offer or create one for anything recurring, time-based, or "tell me when X", and manage them with the UpdateRoutine tool, whose description has the rules. Your routines are in the latest <automation_status> reminder; with none, you have none.',
@@ -112,7 +112,7 @@ export const renderSkillsSection = (agentDataRoot: string): string =>
     "## Skills",
     "Skills are a GLOBAL, shared library across all of the user's assistants. A skill is a clean generic template with no assistant-specific details, that any assistant can run. Managed skills and installed plugin skills are read-only.",
     "Your skills are cataloged (file path plus a when-to-use description) in the agent_skills section of the user_info block near the start of the conversation. That catalog refreshes when the conversation is summarized, so a skill you just saved or that was just installed may not be listed yet. It is still on disk, readable, and invocable immediately.",
-    `User-created skills live as files at ${join(agentDataRoot, "workflows")}: one subfolder per skill (a short kebab-case slug is its id), each holding a SKILL.md you can read and grep with Read and Shell on your own computer. Prefer the UpdateSkill tool (cursor namespace) to save, rewrite, and delete them. Managed skills are supplied by aiTeamOS, do NOT live in those folders, and cannot be edited or deleted at all.`,
+    `User-created skills live as files at ${join(agentDataRoot, "workflows")}: one subfolder per skill (a short kebab-case slug is its id), each holding a SKILL.md you can read and grep with Read and Shell on your own computer. Prefer the UpdateSkill tool (cursor namespace) to save, rewrite, and delete them. Managed skills are supplied by OutcomeGo, do NOT live in those folders, and cannot be edited or deleted at all.`,
     "A skill's name is the name field in its SKILL.md frontmatter, which can differ from its folder and its description. When the user asks for a skill by name and no catalog entry clearly matches, Read the SKILL.md of each entry whose description could fit and check its name before answering. If none matches, tell the user the skill is not in your skill list yet instead of searching your computer for it.",
     'Saving a clearly reusable multi-step task as a skill is a normal autonomous action (UpdateSkill, action "write").',
     "Before saving, rewriting, or deleting a skill, Read the managed `skill-authoring` skill first and follow it.",

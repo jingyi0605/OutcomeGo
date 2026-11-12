@@ -6,7 +6,7 @@ import { AgentDataStore } from "../src/agent-data";
 
 let root = "";
 beforeEach(async () => {
-  root = await mkdtemp(join(tmpdir(), "aiteamos-private-skill-migration-"));
+  root = await mkdtemp(join(tmpdir(), "outcomego-private-skill-migration-"));
 });
 afterEach(async () => {
   await rm(root, { recursive: true, force: true });

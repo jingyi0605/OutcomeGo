@@ -1,9 +1,9 @@
 import {expect,test} from "bun:test";
-import {createPrismaClient} from "@aiteamos/db";
+import {createPrismaClient} from "@outcomego/db";
 import {AgentMessaging,nextMessageAddress,resolveMessageAddress} from "../src";
 
-test.skipIf(!process.env.AITEAMOS_TEST_DATABASE_URL)("delivery addresses survive concurrent sends, replies, reactions and a fresh messaging service",async()=>{
- const db=createPrismaClient(process.env.AITEAMOS_TEST_DATABASE_URL!);
+test.skipIf(!process.env.OUTCOMEGO_TEST_DATABASE_URL)("delivery addresses survive concurrent sends, replies, reactions and a fresh messaging service",async()=>{
+ const db=createPrismaClient(process.env.OUTCOMEGO_TEST_DATABASE_URL!);
  const botId=crypto.randomUUID(),channelId=crypto.randomUUID(),groupId=crypto.randomUUID(),conversationId=crypto.randomUUID();
  const messaging=()=>new AgentMessaging(db,{send:async()=>crypto.randomUUID(),sendDebounced:async()=>crypto.randomUUID()} as never);
  const context={botId,channelId,conversationId,runId:crypto.randomUUID(),deliveryId:null,origin:"user" as const,callId:"",isFork:false,replyToMessageId:null};

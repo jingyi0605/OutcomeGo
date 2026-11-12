@@ -2,7 +2,7 @@ import type { HelpTopic } from "./arguments";
 import { CLI_VERSION } from "./constants";
 import { cliLocale } from "./localization";
 
-const heading = (usage: string, summary: string): string => `aiTeamOS ${CLI_VERSION}
+const heading = (usage: string, summary: string): string => `OutcomeGo ${CLI_VERSION}
 
 Usage:
   ${usage}
@@ -13,26 +13,26 @@ const helpHint = "  --help, -h            Show this help";
 const directoryOption = "  --dir <path>          Use a different installation folder";
 
 const pages: Record<HelpTopic, string> = {
-  global: `aiTeamOS ${CLI_VERSION}
+  global: `OutcomeGo ${CLI_VERSION}
 
 Usage:
-  aiteamos <command> [options]
+  outcomego <command> [options]
 
 Getting started:
-  install       Install aiTeamOS and run guided setup
+  install       Install OutcomeGo and run guided setup
   setup         Set up or change the connection and account
 
 Your installation:
   status        Show container health and server readiness
   health        Alias for status
   doctor        Check for installation problems
-  update        Install the latest aiTeamOS release
-  start         Start aiTeamOS after account setup
-  stop          Stop aiTeamOS
+  update        Install the latest OutcomeGo release
+  start         Start OutcomeGo after account setup
+  stop          Stop OutcomeGo
   logs          View troubleshooting logs
   tailscale     Enable, inspect, or disable private Tailscale HTTPS
   notifications  Configure iOS push credentials or show their status
-  uninstall     Remove aiTeamOS services and CLI
+  uninstall     Remove OutcomeGo services and CLI
 
 Models and accounts:
   provider      Manage AI accounts and connections
@@ -44,19 +44,19 @@ ${directoryOption}
   --help, -h            Show help
   --version, -v         Show the CLI version
 
-Run "aiteamos <command> --help" for command options.`,
+Run "outcomego <command> --help" for command options.`,
 
-  tailscale: `${heading("aiteamos tailscale <enable|status|disable>", "Manage private HTTPS with Tailscale Serve on this server host.")}
+  tailscale: `${heading("outcomego tailscale <enable|status|disable>", "Manage private HTTPS with Tailscale Serve on this server host.")}
 
 Commands:
   enable        Configure and verify Tailscale HTTPS; restart the stack
   status        Inspect the mapping, prerequisites, and HTTPS endpoint
-  disable       Switch to local access and remove aiTeamOS-managed mappings
+  disable       Switch to local access and remove OutcomeGo-managed mappings
 
 Options:
 ${directoryOption}
 ${helpHint}`,
-  "tailscale-enable": `${heading("aiteamos tailscale enable [options]", "Configure Tailscale Serve and loopback backend ports, restart aiTeamOS, and verify HTTPS. Reuses matching private routes; never replaces another application's route or enables Funnel.")}
+  "tailscale-enable": `${heading("outcomego tailscale enable [options]", "Configure Tailscale Serve and loopback backend ports, restart OutcomeGo, and verify HTTPS. Reuses matching private routes; never replaces another application's route or enables Funnel.")}
 
 Options:
   --https-port <port>   HTTPS listener (default: current port or 443)
@@ -66,19 +66,19 @@ ${helpHint}
 
 Tailscale must be running and signed in, with MagicDNS and HTTPS certificates enabled.
 On failure the previous server configuration is restored. Reconnect apps to the new URL.`,
-  "tailscale-status": `${heading("aiteamos tailscale status [options]", "Read-only check of Tailscale, mapping ownership, and HTTPS readiness. Exit 2 if configured HTTPS needs attention.")}
+  "tailscale-status": `${heading("outcomego tailscale status [options]", "Read-only check of Tailscale, mapping ownership, and HTTPS readiness. Exit 2 if configured HTTPS needs attention.")}
 
 Options:
   --json                Print status as JSON
 ${directoryOption}
 ${helpHint}`,
-  "tailscale-disable": `${heading("aiteamos tailscale disable [options]", "Switch Tailscale mode to local-only access and restart aiTeamOS. Remove only unchanged aiTeamOS-managed mappings. Reused user-managed routes are preserved; remote apps must reconnect.")}
+  "tailscale-disable": `${heading("outcomego tailscale disable [options]", "Switch Tailscale mode to local-only access and restart OutcomeGo. Remove only unchanged OutcomeGo-managed mappings. Reused user-managed routes are preserved; remote apps must reconnect.")}
 
 Options:
   --json                Print status as JSON
 ${directoryOption}
 ${helpHint}`,
-  notifications: `${heading("aiteamos notifications <command>", "Manage iOS push delivery credentials on the running server.")}
+  notifications: `${heading("outcomego notifications <command>", "Manage iOS push delivery credentials on the running server.")}
 
 Commands:
   configure     Import APNs credentials and apply them live
@@ -86,7 +86,7 @@ Commands:
 
 ${directoryOption}
 ${helpHint}`,
-  "notifications-configure": `${heading("aiteamos notifications configure [options]", "Validate and save APNs credentials encrypted in the database. Workers read changes before their next push; no restart is needed.")}
+  "notifications-configure": `${heading("outcomego notifications configure [options]", "Validate and save APNs credentials encrypted in the database. Workers read changes before their next push; no restart is needed.")}
 
 Options:
   --config <file>        Import JSON with keyId, teamId, topic, privateKeyFile
@@ -99,17 +99,17 @@ ${directoryOption}
 ${helpHint}
 
 Example:
-  aiteamos notifications configure --key-file ./AuthKey.p8 --key-id ABCDE12345 --team-id FGHIJ67890 --topic dev.aiteamos.mobile
+  outcomego notifications configure --key-file ./AuthKey.p8 --key-id ABCDE12345 --team-id FGHIJ67890 --topic dev.outcomego.mobile
 
 Local validation checks the key format and signing ability. It does not prove Apple acceptance or phone delivery.`,
-  "notifications-status": `${heading("aiteamos notifications status [options]", "Show the saved APNs configuration source and local validation status. The signing key is never returned.")}
+  "notifications-status": `${heading("outcomego notifications status [options]", "Show the saved APNs configuration source and local validation status. The signing key is never returned.")}
 
 Options:
 ${directoryOption}
 ${helpHint}`,
   install: `${heading(
-    "aiteamos install [options]",
-    "Install the aiTeamOS server stack, run guided setup, and wait for it to become healthy."
+    "outcomego install [options]",
+    "Install the OutcomeGo server stack, run guided setup, and wait for it to become healthy."
   )}
 
 Options:
@@ -130,8 +130,8 @@ Advanced release/testing options:
   --image-prefix <prefix>    Override the container image prefix`,
 
   setup: `${heading(
-    "aiteamos setup [options]",
-    "Check prerequisites, install the server if needed, and set up its connection and your account.\nRun this again to change the connection. Connect a model in the aiTeamOS app under Settings → Server."
+    "outcomego setup [options]",
+    "Check prerequisites, install the server if needed, and set up its connection and your account.\nRun this again to change the connection. Connect a model in the OutcomeGo app under Settings → Server."
   )}
 
 Options:
@@ -140,7 +140,7 @@ ${directoryOption}
 ${helpHint}`,
 
   doctor: `${heading(
-    "aiteamos doctor [options]",
+    "outcomego doctor [options]",
     "Check container health, database/schema setup, worker heartbeat and queue processing, computer API, storage permissions, and host configuration.\nSends one short inference request using your saved provider, model, and thinking setting.\nFinishes without starting services or setup. Failed checks exit 2; warnings alone exit 0."
   )}
 
@@ -150,8 +150,8 @@ ${directoryOption}
 ${helpHint}`,
 
   status: `${heading(
-    "aiteamos status [options]",
-    "Show container states, Docker health checks, and server readiness.\nAlias: aiteamos health [options]. Both commands produce the same report.\nRead-only: does not start containers or send an AI request.\nExits 0 when services are ready; exits 2 when stopped, starting, unhealthy, or unable to check.\nUse aiteamos doctor for deeper database, queue, storage, and model checks."
+    "outcomego status [options]",
+    "Show container states, Docker health checks, and server readiness.\nAlias: outcomego health [options]. Both commands produce the same report.\nRead-only: does not start containers or send an AI request.\nExits 0 when services are ready; exits 2 when stopped, starting, unhealthy, or unable to check.\nUse outcomego doctor for deeper database, queue, storage, and model checks."
   )}
 
 Options:
@@ -159,7 +159,7 @@ ${directoryOption}
 ${helpHint}`,
 
   update: `${heading(
-    "aiteamos update [options]",
+    "outcomego update [options]",
     "Safely update the CLI and server stack in one durable job, with health checks and rollback."
   )}
 
@@ -186,8 +186,8 @@ Advanced release/testing options:
   --json-progress            Emit machine-readable progress`,
 
   start: `${heading(
-    "aiteamos start [options]",
-    "Requires completed account setup; run aiteamos setup first.\nCheck preflight and start services if needed. Healthy installations report already running.\nAI tasks require a connected provider; startup reports when inference is unavailable."
+    "outcomego start [options]",
+    "Requires completed account setup; run outcomego setup first.\nCheck preflight and start services if needed. Healthy installations report already running.\nAI tasks require a connected provider; startup reports when inference is unavailable."
   )}
 
 Options:
@@ -195,15 +195,15 @@ ${directoryOption}
 ${helpHint}`,
 
   stop: `${heading(
-    "aiteamos stop [options]",
-    "Stop aiTeamOS while preserving its containers and data."
+    "outcomego stop [options]",
+    "Stop OutcomeGo while preserving its containers and data."
   )}
 
 Options:
 ${directoryOption}
 ${helpHint}`,
 
-  logs: `${heading("aiteamos logs [service] [options]", "Show recent troubleshooting logs.")}
+  logs: `${heading("outcomego logs [service] [options]", "Show recent troubleshooting logs.")}
 
 Options:
 ${directoryOption}
@@ -213,7 +213,7 @@ ${directoryOption}
 ${helpHint}`,
 
   provider: `${heading(
-    "aiteamos provider <command> [options]",
+    "outcomego provider <command> [options]",
     "Manage AI account sign-ins and custom providers."
   )}
 
@@ -224,10 +224,10 @@ Commands:
   add <id>              Connect another compatible AI provider
   remove <id>           Remove a custom AI provider
 
-Run "aiteamos provider <command> --help" for command options.`,
+Run "outcomego provider <command> --help" for command options.`,
 
   "provider-list": `${heading(
-    "aiteamos provider list [options]",
+    "outcomego provider list [options]",
     "Show AI providers, model counts, and sign-in status."
   )}
 
@@ -236,7 +236,7 @@ ${directoryOption}
 ${helpHint}`,
 
   "provider-login": `${heading(
-    "aiteamos provider login [provider] [options]",
+    "outcomego provider login [provider] [options]",
     "Sign in through a browser or with an API key.\nThe active provider is used when omitted."
   )}
 
@@ -246,7 +246,7 @@ ${directoryOption}
 ${helpHint}`,
 
   "provider-logout": `${heading(
-    "aiteamos provider logout [provider] [options]",
+    "outcomego provider logout [provider] [options]",
     "Remove one provider credential. The active provider is used when omitted."
   )}
 
@@ -255,7 +255,7 @@ ${directoryOption}
 ${helpHint}`,
 
   "provider-add": `${heading(
-    "aiteamos provider add <id> [options]",
+    "outcomego provider add <id> [options]",
     "Add a custom chat endpoint, then authenticate and discover its models."
   )}
 
@@ -276,7 +276,7 @@ ${helpHint}
 Protocols: openai-completions, openai-responses, anthropic-messages, google-generative-ai`,
 
   "provider-remove": `${heading(
-    "aiteamos provider remove <id> [options]",
+    "outcomego provider remove <id> [options]",
     "Remove a custom AI provider. The active provider cannot be removed."
   )}
 
@@ -285,7 +285,7 @@ ${directoryOption}
 ${helpHint}`,
 
   model: `${heading(
-    "aiteamos model [command] [options]",
+    "outcomego model [command] [options]",
     "Open the interactive model editor. Use left/right to switch between Inference and Transcription.\nUse up/down to move, Enter to choose or edit, and Save to apply each tab.\nEsc goes back or asks to discard unsaved changes."
   )}
 
@@ -297,11 +297,11 @@ Options:
 ${directoryOption}
 ${helpHint}
 
-Bare \`aiteamos model\` requires an interactive terminal.
-Run "aiteamos model <command> --help" for scripting options.`,
+Bare \`outcomego model\` requires an interactive terminal.
+Run "outcomego model <command> --help" for scripting options.`,
 
   "model-list": `${heading(
-    "aiteamos model list [provider] [options]",
+    "outcomego model list [provider] [options]",
     "List accessible chat models from connected providers, grouped by provider."
   )}
 
@@ -310,7 +310,7 @@ ${directoryOption}
 ${helpHint}`,
 
   "model-use": `${heading(
-    "aiteamos model use <provider> <model> [options]",
+    "outcomego model use <provider> <model> [options]",
     "Select the installation-wide provider, model, and optional reasoning level."
   )}
 
@@ -320,17 +320,17 @@ ${directoryOption}
 ${helpHint}`,
 
   account: `${heading(
-    "aiteamos account <command> [options]",
-    "Change the aiTeamOS username or password. Changes sign out every app."
+    "outcomego account <command> [options]",
+    "Change the OutcomeGo username or password. Changes sign out every app."
   )}
 
 Commands:
   update                Change the username and/or password
 
-Run "aiteamos account update --help" for command options.`,
+Run "outcomego account update --help" for command options.`,
 
   "account-update": `${heading(
-    "aiteamos account update [options]",
+    "outcomego account update [options]",
     "Update the owner account and revoke all active desktop and mobile sessions.\nWith no credential flags, both are prompted."
   )}
 
@@ -341,8 +341,8 @@ ${directoryOption}
 ${helpHint}`,
 
   uninstall: `${heading(
-    "aiteamos uninstall [options]",
-    "Remove aiTeamOS services and CLI while preserving configuration and data by default."
+    "outcomego uninstall [options]",
+    "Remove OutcomeGo services and CLI while preserving configuration and data by default."
   )}
 
 Options:
@@ -355,7 +355,7 @@ ${helpHint}`,
 // The Chinese pages mirror the English ones line for line: same commands, flags,
 // argument placeholders, and URLs. Section headings keep an ASCII colon so
 // renderHelp still recognizes them as titles; sentences use Chinese punctuation.
-const zhHeading = (usage: string, summary: string): string => `aiTeamOS ${CLI_VERSION}
+const zhHeading = (usage: string, summary: string): string => `OutcomeGo ${CLI_VERSION}
 
 用法:
   ${usage}
@@ -366,26 +366,26 @@ const zhHelpHint = "  --help, -h            显示此帮助";
 const zhDirectoryOption = "  --dir <path>          使用其他安装文件夹";
 
 const simplifiedChinesePages: Record<HelpTopic, string> = {
-  global: `aiTeamOS ${CLI_VERSION}
+  global: `OutcomeGo ${CLI_VERSION}
 
 用法:
-  aiteamos <command> [options]
+  outcomego <command> [options]
 
 快速开始:
-  install       安装 aiTeamOS 并运行引导式设置
+  install       安装 OutcomeGo 并运行引导式设置
   setup         设置或更改连接与账户
 
 你的安装:
   status        显示容器健康状态和服务器就绪状态
   health        status 的别名
   doctor        检查安装问题
-  update        安装最新的 aiTeamOS 版本
-  start         账户设置后启动 aiTeamOS
-  stop          停止 aiTeamOS
+  update        安装最新的 OutcomeGo 版本
+  start         账户设置后启动 OutcomeGo
+  stop          停止 OutcomeGo
   logs          查看故障排查日志
   tailscale     启用、检查或禁用 Tailscale 私有 HTTPS
   notifications  配置 iOS 推送凭据或查看其状态
-  uninstall     移除 aiTeamOS 服务和 CLI
+  uninstall     移除 OutcomeGo 服务和 CLI
 
 模型与账户:
   provider      管理 AI 账户和连接
@@ -397,19 +397,19 @@ ${zhDirectoryOption}
   --help, -h            显示帮助
   --version, -v         显示 CLI 版本
 
-运行“aiteamos <command> --help”查看命令选项。`,
+运行“outcomego <command> --help”查看命令选项。`,
 
-  tailscale: `${zhHeading("aiteamos tailscale <enable|status|disable>", "在此服务器主机上使用 Tailscale Serve 管理私有 HTTPS。")}
+  tailscale: `${zhHeading("outcomego tailscale <enable|status|disable>", "在此服务器主机上使用 Tailscale Serve 管理私有 HTTPS。")}
 
 命令:
   enable        配置并验证 Tailscale HTTPS；重启整套服务
   status        检查映射、前提条件和 HTTPS 端点
-  disable       切换到本地访问，并移除 aiTeamOS 管理的映射
+  disable       切换到本地访问，并移除 OutcomeGo 管理的映射
 
 选项:
 ${zhDirectoryOption}
 ${zhHelpHint}`,
-  "tailscale-enable": `${zhHeading("aiteamos tailscale enable [options]", "配置 Tailscale Serve 和回环后端端口，重启 aiTeamOS，并验证 HTTPS。\n复用匹配的私有路由；绝不替换其他应用的路由，也不启用 Funnel。")}
+  "tailscale-enable": `${zhHeading("outcomego tailscale enable [options]", "配置 Tailscale Serve 和回环后端端口，重启 OutcomeGo，并验证 HTTPS。\n复用匹配的私有路由；绝不替换其他应用的路由，也不启用 Funnel。")}
 
 选项:
   --https-port <port>   HTTPS 监听端口（默认：当前端口或 443）
@@ -419,19 +419,19 @@ ${zhHelpHint}
 
 Tailscale 必须正在运行并已登录，且已启用 MagicDNS 和 HTTPS 证书。
 失败时会恢复之前的服务器配置。请使用新的 URL 重新连接应用。`,
-  "tailscale-status": `${zhHeading("aiteamos tailscale status [options]", "只读检查 Tailscale、映射归属和 HTTPS 就绪状态。\n已配置的 HTTPS 需要处理时，退出码为 2。")}
+  "tailscale-status": `${zhHeading("outcomego tailscale status [options]", "只读检查 Tailscale、映射归属和 HTTPS 就绪状态。\n已配置的 HTTPS 需要处理时，退出码为 2。")}
 
 选项:
   --json                以 JSON 输出状态
 ${zhDirectoryOption}
 ${zhHelpHint}`,
-  "tailscale-disable": `${zhHeading("aiteamos tailscale disable [options]", "将 Tailscale 模式切换为仅本地访问并重启 aiTeamOS。\n只移除未变更的 aiTeamOS 管理映射。复用的用户自管路由会保留；远程应用必须重新连接。")}
+  "tailscale-disable": `${zhHeading("outcomego tailscale disable [options]", "将 Tailscale 模式切换为仅本地访问并重启 OutcomeGo。\n只移除未变更的 OutcomeGo 管理映射。复用的用户自管路由会保留；远程应用必须重新连接。")}
 
 选项:
   --json                以 JSON 输出状态
 ${zhDirectoryOption}
 ${zhHelpHint}`,
-  notifications: `${zhHeading("aiteamos notifications <command>", "管理运行中服务器上的 iOS 推送投递凭据。")}
+  notifications: `${zhHeading("outcomego notifications <command>", "管理运行中服务器上的 iOS 推送投递凭据。")}
 
 命令:
   configure     导入 APNs 凭据并立即生效
@@ -439,7 +439,7 @@ ${zhHelpHint}`,
 
 ${zhDirectoryOption}
 ${zhHelpHint}`,
-  "notifications-configure": `${zhHeading("aiteamos notifications configure [options]", "校验 APNs 凭据并以加密方式保存到数据库。worker 会在下次推送前读取变更，无需重启。")}
+  "notifications-configure": `${zhHeading("outcomego notifications configure [options]", "校验 APNs 凭据并以加密方式保存到数据库。worker 会在下次推送前读取变更，无需重启。")}
 
 选项:
   --config <file>        导入包含 keyId、teamId、topic、privateKeyFile 的 JSON
@@ -452,17 +452,17 @@ ${zhDirectoryOption}
 ${zhHelpHint}
 
 示例:
-  aiteamos notifications configure --key-file ./AuthKey.p8 --key-id ABCDE12345 --team-id FGHIJ67890 --topic dev.aiteamos.mobile
+  outcomego notifications configure --key-file ./AuthKey.p8 --key-id ABCDE12345 --team-id FGHIJ67890 --topic dev.outcomego.mobile
 
 本地校验会检查密钥格式和签名能力，但不能证明 Apple 已接受或手机已收到。`,
-  "notifications-status": `${zhHeading("aiteamos notifications status [options]", "显示已保存的 APNs 配置来源和本地校验状态。签名密钥永远不会返回。")}
+  "notifications-status": `${zhHeading("outcomego notifications status [options]", "显示已保存的 APNs 配置来源和本地校验状态。签名密钥永远不会返回。")}
 
 选项:
 ${zhDirectoryOption}
 ${zhHelpHint}`,
   install: `${zhHeading(
-    "aiteamos install [options]",
-    "安装 aiTeamOS 服务器套件，运行引导式设置，并等待其进入健康状态。"
+    "outcomego install [options]",
+    "安装 OutcomeGo 服务器套件，运行引导式设置，并等待其进入健康状态。"
   )}
 
 选项:
@@ -483,8 +483,8 @@ ${zhHelpHint}
   --image-prefix <prefix>    覆盖容器镜像前缀`,
 
   setup: `${zhHeading(
-    "aiteamos setup [options]",
-    "检查前提条件，按需安装服务器，并设置其连接和你的账户。\n再次运行可更改连接。请在 aiTeamOS 应用的“设置 → 服务器”中连接模型。"
+    "outcomego setup [options]",
+    "检查前提条件，按需安装服务器，并设置其连接和你的账户。\n再次运行可更改连接。请在 OutcomeGo 应用的“设置 → 服务器”中连接模型。"
   )}
 
 选项:
@@ -493,7 +493,7 @@ ${zhDirectoryOption}
 ${zhHelpHint}`,
 
   doctor: `${zhHeading(
-    "aiteamos doctor [options]",
+    "outcomego doctor [options]",
     "检查容器健康状态、数据库和数据结构设置、worker 心跳与队列处理、\n电脑 API、存储权限以及主机配置。\n使用已保存的服务商、模型和思考强度发送一次简短的推理请求。\n结束时不会启动服务或设置。检查失败时退出码为 2；仅有警告时退出码为 0。"
   )}
 
@@ -503,8 +503,8 @@ ${zhDirectoryOption}
 ${zhHelpHint}`,
 
   status: `${zhHeading(
-    "aiteamos status [options]",
-    "显示容器状态、Docker 健康检查和服务器就绪状态。\n别名：aiteamos health [options]。两个命令生成相同的报告。\n只读：不会启动容器，也不会发送 AI 请求。\n服务就绪时退出码为 0；已停止、正在启动、不健康或无法检查时退出码为 2。\n如需更深入地检查数据库、队列、存储和模型，请使用 aiteamos doctor。"
+    "outcomego status [options]",
+    "显示容器状态、Docker 健康检查和服务器就绪状态。\n别名：outcomego health [options]。两个命令生成相同的报告。\n只读：不会启动容器，也不会发送 AI 请求。\n服务就绪时退出码为 0；已停止、正在启动、不健康或无法检查时退出码为 2。\n如需更深入地检查数据库、队列、存储和模型，请使用 outcomego doctor。"
   )}
 
 选项:
@@ -512,7 +512,7 @@ ${zhDirectoryOption}
 ${zhHelpHint}`,
 
   update: `${zhHeading(
-    "aiteamos update [options]",
+    "outcomego update [options]",
     "通过一个可持久化的任务安全地更新 CLI 和服务器套件，并带有健康检查和回滚。"
   )}
 
@@ -540,21 +540,21 @@ ${zhHelpHint}
   --json-progress            输出机器可读的进度`,
 
   start: `${zhHeading(
-    "aiteamos start [options]",
-    "需要先完成账户设置；请先运行 aiteamos setup。\n按需执行预检并启动服务。健康的安装会报告已在运行。\nAI 任务需要已连接的服务商；推理不可用时会报告。"
+    "outcomego start [options]",
+    "需要先完成账户设置；请先运行 outcomego setup。\n按需执行预检并启动服务。健康的安装会报告已在运行。\nAI 任务需要已连接的服务商；推理不可用时会报告。"
   )}
 
 选项:
 ${zhDirectoryOption}
 ${zhHelpHint}`,
 
-  stop: `${zhHeading("aiteamos stop [options]", "停止 aiTeamOS，同时保留其容器和数据。")}
+  stop: `${zhHeading("outcomego stop [options]", "停止 OutcomeGo，同时保留其容器和数据。")}
 
 选项:
 ${zhDirectoryOption}
 ${zhHelpHint}`,
 
-  logs: `${zhHeading("aiteamos logs [service] [options]", "显示最近的故障排查日志。")}
+  logs: `${zhHeading("outcomego logs [service] [options]", "显示最近的故障排查日志。")}
 
 选项:
 ${zhDirectoryOption}
@@ -564,7 +564,7 @@ ${zhDirectoryOption}
 ${zhHelpHint}`,
 
   provider: `${zhHeading(
-    "aiteamos provider <command> [options]",
+    "outcomego provider <command> [options]",
     "管理 AI 账户登录和自定义服务商。"
   )}
 
@@ -575,10 +575,10 @@ ${zhHelpHint}`,
   add <id>              连接其他兼容的 AI 服务商
   remove <id>           移除自定义 AI 服务商
 
-运行“aiteamos provider <command> --help”查看命令选项。`,
+运行“outcomego provider <command> --help”查看命令选项。`,
 
   "provider-list": `${zhHeading(
-    "aiteamos provider list [options]",
+    "outcomego provider list [options]",
     "显示 AI 服务商、模型数量和登录状态。"
   )}
 
@@ -587,7 +587,7 @@ ${zhDirectoryOption}
 ${zhHelpHint}`,
 
   "provider-login": `${zhHeading(
-    "aiteamos provider login [provider] [options]",
+    "outcomego provider login [provider] [options]",
     "通过浏览器或 API 密钥登录。\n省略时使用当前服务商。"
   )}
 
@@ -597,7 +597,7 @@ ${zhDirectoryOption}
 ${zhHelpHint}`,
 
   "provider-logout": `${zhHeading(
-    "aiteamos provider logout [provider] [options]",
+    "outcomego provider logout [provider] [options]",
     "移除一个服务商凭据。省略时使用当前服务商。"
   )}
 
@@ -606,7 +606,7 @@ ${zhDirectoryOption}
 ${zhHelpHint}`,
 
   "provider-add": `${zhHeading(
-    "aiteamos provider add <id> [options]",
+    "outcomego provider add <id> [options]",
     "添加自定义对话端点，然后认证并发现其模型。"
   )}
 
@@ -627,7 +627,7 @@ ${zhHelpHint}
 协议：openai-completions、openai-responses、anthropic-messages、google-generative-ai`,
 
   "provider-remove": `${zhHeading(
-    "aiteamos provider remove <id> [options]",
+    "outcomego provider remove <id> [options]",
     "移除自定义 AI 服务商。当前服务商无法移除。"
   )}
 
@@ -636,7 +636,7 @@ ${zhDirectoryOption}
 ${zhHelpHint}`,
 
   model: `${zhHeading(
-    "aiteamos model [command] [options]",
+    "outcomego model [command] [options]",
     "打开交互式模型编辑器。使用左/右方向键在“推理”和“转写”之间切换。\n使用上/下方向键移动，Enter 选择或编辑，用“保存”应用每个标签页。\nEsc 返回，或询问是否放弃未保存的更改。"
   )}
 
@@ -648,11 +648,11 @@ ${zhHelpHint}`,
 ${zhDirectoryOption}
 ${zhHelpHint}
 
-直接运行 \`aiteamos model\` 需要交互式终端。
-运行“aiteamos model <command> --help”查看脚本化选项。`,
+直接运行 \`outcomego model\` 需要交互式终端。
+运行“outcomego model <command> --help”查看脚本化选项。`,
 
   "model-list": `${zhHeading(
-    "aiteamos model list [provider] [options]",
+    "outcomego model list [provider] [options]",
     "按服务商分组列出已连接服务商中可访问的对话模型。"
   )}
 
@@ -661,7 +661,7 @@ ${zhDirectoryOption}
 ${zhHelpHint}`,
 
   "model-use": `${zhHeading(
-    "aiteamos model use <provider> <model> [options]",
+    "outcomego model use <provider> <model> [options]",
     "选择整个安装范围的服务商、模型和可选的推理级别。"
   )}
 
@@ -671,17 +671,17 @@ ${zhDirectoryOption}
 ${zhHelpHint}`,
 
   account: `${zhHeading(
-    "aiteamos account <command> [options]",
-    "更改 aiTeamOS 的用户名或密码。更改后所有应用都会退出登录。"
+    "outcomego account <command> [options]",
+    "更改 OutcomeGo 的用户名或密码。更改后所有应用都会退出登录。"
   )}
 
 命令:
   update                更改用户名和/或密码
 
-运行“aiteamos account update --help”查看命令选项。`,
+运行“outcomego account update --help”查看命令选项。`,
 
   "account-update": `${zhHeading(
-    "aiteamos account update [options]",
+    "outcomego account update [options]",
     "更新所有者账户，并撤销所有活动的桌面和移动会话。\n未提供任何凭据选项时，会提示输入两项。"
   )}
 
@@ -692,8 +692,8 @@ ${zhDirectoryOption}
 ${zhHelpHint}`,
 
   uninstall: `${zhHeading(
-    "aiteamos uninstall [options]",
-    "移除 aiTeamOS 服务和 CLI，默认保留配置和数据。"
+    "outcomego uninstall [options]",
+    "移除 OutcomeGo 服务和 CLI，默认保留配置和数据。"
   )}
 
 选项:

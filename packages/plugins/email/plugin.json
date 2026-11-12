@@ -3,7 +3,7 @@
   "version": "2.0.3",
   "name": "Email",
   "description": "Give your Bots an inbox over IMAP and SMTP: search threads, read conversations and attachments, reply through review cards, and run routines when mail arrives.",
-  "publisher": "aiTeamOS",
+  "publisher": "OutcomeGo",
   "category": "Inbox & Collaboration",
   "featured": true,
   "components": [
@@ -20,8 +20,8 @@
     "steps": [
       "Create or choose the mailbox the Bot will use. A separate account keeps your personal mail out of the Bot's reach.",
       "Turn on 2-Step Verification for that account, then create an app password (Google: myaccount.google.com/apppasswords; iCloud: account.apple.com, Sign-In and Security, App-Specific Passwords; Yahoo and Fastmail have the same option).",
-      "Enter the full email address and the app password. Leave the servers on auto; aiTeamOS finds them from the address. For your own server or Proton Mail Bridge, enter the IMAP and SMTP addresses.",
-      "Choose Connect. aiTeamOS signs in to check the password, then the account shows Connected.",
+      "Enter the full email address and the app password. Leave the servers on auto; OutcomeGo finds them from the address. For your own server or Proton Mail Bridge, enter the IMAP and SMTP addresses.",
+      "Choose Connect. OutcomeGo signs in to check the password, then the account shows Connected.",
       "Ask a Bot to set up a routine that watches this mailbox, for example: reply to mail from my address. List that address under Your own addresses so the Bot reads it as yours. Replies wait on a draft card for you to send. To let a Bot email someone without asking, choose Always allow in the card's approval menu."
     ],
     "fields": [

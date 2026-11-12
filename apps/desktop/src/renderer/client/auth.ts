@@ -1,36 +1,36 @@
 import {
-  assessAiTeamOSAuthSession,
+  assessOutcomeGoAuthSession,
   createAuthSnapshotStore,
-  createAiTeamOSAuthClient,
+  createOutcomeGoAuthClient,
   normalizeBaseUrl,
-  type AiTeamOSAuthSnapshot,
-  type AiTeamOSAuthUser,
-  AiTeamOSClientError,
+  type OutcomeGoAuthSnapshot,
+  type OutcomeGoAuthUser,
+  OutcomeGoClientError,
   parseAuthUser,
-} from "@aiteamos/client-core";
-import { authErrorMessage } from "@aiteamos/product-core/auth-feedback";
+} from "@outcomego/client-core";
+import { authErrorMessage } from "@outcomego/product-core/auth-feedback";
 import { translateCurrent } from "../lib/i18n-catalog";
 import { CONFIGURED_API_BASE_KEY, resolveConfiguredApiBase } from "./runtime-url";
 import { readNativeAuthWithDeadline } from "./native-auth-deadline";
 
 export type {
-  AiTeamOSAuthConnection,
-  AiTeamOSAuthMode,
-  AiTeamOSAuthSnapshot,
-  AiTeamOSAuthStatus,
-  AiTeamOSAuthUser,
-} from "@aiteamos/client-core";
-export { parseAuthUser } from "@aiteamos/client-core";
+  OutcomeGoAuthConnection,
+  OutcomeGoAuthMode,
+  OutcomeGoAuthSnapshot,
+  OutcomeGoAuthStatus,
+  OutcomeGoAuthUser,
+} from "@outcomego/client-core";
+export { parseAuthUser } from "@outcomego/client-core";
 
 const API_BASE = resolveConfiguredApiBase(
   window.location.href,
   localStorage,
-  import.meta.env.VITE_AITEAMOS_API_URL
+  import.meta.env.VITE_OUTCOMEGO_API_URL
 );
-const USER_KEY = "aiteamos:auth-user";
-export const AUTH_REQUIRED_EVENT = "aiteamos:auth-required";
+const USER_KEY = "outcomego:auth-user";
+export const AUTH_REQUIRED_EVENT = "outcomego:auth-required";
 
-const readCachedUser = (): AiTeamOSAuthUser | null => {
+const readCachedUser = (): OutcomeGoAuthUser | null => {
   try {
     return parseAuthUser(JSON.parse(localStorage.getItem(USER_KEY) ?? "null"));
   } catch {
@@ -38,7 +38,7 @@ const readCachedUser = (): AiTeamOSAuthUser | null => {
   }
 };
 
-const cacheUser = (user: AiTeamOSAuthUser | null): void => {
+const cacheUser = (user: OutcomeGoAuthUser | null): void => {
   if (user) localStorage.setItem(USER_KEY, JSON.stringify(user));
   else localStorage.removeItem(USER_KEY);
 };
@@ -60,10 +60,10 @@ export const getDesktopMachineId = () => desktopMachineId;
 let credentialGeneration = 0;
 export const getAuthCredentialGeneration = () => credentialGeneration;
 let tokenReadRequest: Promise<string | null> | null = null;
-let refreshRequest: Promise<AiTeamOSAuthSnapshot> | null = null;
+let refreshRequest: Promise<OutcomeGoAuthSnapshot> | null = null;
 
-const authClient = (baseUrl = API_BASE) => createAiTeamOSAuthClient({ baseUrl });
-const authBridge = () => window.aiteamos?.auth;
+const authClient = (baseUrl = API_BASE) => createOutcomeGoAuthClient({ baseUrl });
+const authBridge = () => window.outcomego?.auth;
 
 const requestSignIn = (baseUrl: string, username: string, password: string) => {
   const bridge = authBridge();
@@ -155,11 +155,11 @@ export const authHeaders = (): HeadersInit => {
   return currentToken ? { authorization: `Bearer ${currentToken}` } : {};
 };
 
-export const refreshAuthSession = (): Promise<AiTeamOSAuthSnapshot> => {
+export const refreshAuthSession = (): Promise<OutcomeGoAuthSnapshot> => {
   if (refreshRequest) return refreshRequest;
   authStore.publish({ ...authStore.getSnapshot(), status: "checking", error: null });
   refreshRequest = (async () => {
-    const assessment = await assessAiTeamOSAuthSession({
+    const assessment = await assessOutcomeGoAuthSession({
       client: authClient(),
       loadToken: loadAuthToken,
     });
@@ -206,7 +206,7 @@ export const refreshAuthSession = (): Promise<AiTeamOSAuthSnapshot> => {
   return refreshRequest;
 };
 
-export const signIn = async (username: string, password: string): Promise<AiTeamOSAuthSnapshot> => {
+export const signIn = async (username: string, password: string): Promise<OutcomeGoAuthSnapshot> => {
   const result = await requestSignIn(API_BASE, username, password);
   await persistAuthToken(result.token);
   cacheUser(result.user);
@@ -220,22 +220,22 @@ export const signIn = async (username: string, password: string): Promise<AiTeam
   return session;
 };
 
-export interface AiTeamOSServerConnection {
+export interface OutcomeGoServerConnection {
   baseUrl: string;
   mode: "required" | "disabled";
 }
 
 export const testServerConnection = async (
   serverUrl: string
-): Promise<AiTeamOSServerConnection> => {
+): Promise<OutcomeGoServerConnection> => {
   const baseUrl = normalizeBaseUrl(serverUrl);
   try {
     return { baseUrl, mode: await authClient(baseUrl).validateServer() };
   } catch (cause) {
-    if (cause instanceof AiTeamOSClientError && cause.code === "offline" && cause.status === 0) {
+    if (cause instanceof OutcomeGoClientError && cause.code === "offline" && cause.status === 0) {
       throw new Error(
         translateCurrent(
-          "Could not reach this aiTeamOS server. Check the endpoint and your connection."
+          "Could not reach this OutcomeGo server. Check the endpoint and your connection."
         )
       );
     }

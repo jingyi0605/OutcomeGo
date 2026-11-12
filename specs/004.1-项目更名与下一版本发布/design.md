@@ -9,27 +9,28 @@
 | 层级 | 处理方式 |
 |---|---|
 | 用户可见品牌 | 下一版本改为 OutcomeGo |
-| GitHub 仓库和 Release | 完成兼容盘点后修改并验证旧路径 |
-| CLI 入口 | 新入口可用，旧入口在过渡期保留 |
-| Bun package scope | 只有在依赖链验证完成后单独处理 |
+| GitHub 仓库和 Release | GitHub 仓库 slug 和 fork 默认分支均使用 OutcomeGo；上游 `main` 保持不变 |
+| CLI 入口 | `outcomego` 为正式入口；安装器可额外安装同一二进制的 `aiteamos` 兼容命令 |
+| Bun package scope | 全量改为 `@outcomego/*`，同步 workspace 和 lockfile |
 | Android 显示名 | 改为 OutcomeGo |
-| Android `applicationId` | 默认保持不变 |
-| iOS Bundle ID | 默认保持不变 |
-| 数据库和配置目录 | 默认保持不变，必要时提供迁移 |
-| 签名和更新身份 | 保持兼容，不因品牌变化轮换 |
+| Android `applicationId` | 改为 `com.outcomego.android`，旧 APK 通过手动迁移并行存在 |
+| iOS Bundle ID | 按全量身份方案使用 `dev.outcomego.mobile`、OutcomeGo APNs topic 和 extensions；签名/商店发布单独验收 |
+| 数据库和配置目录 | 改为 OutcomeGo 新名称；新实例直接使用单一最新 schema，用户手动备份后再按运行手册导入 |
+| 签名和更新身份 | 新平台身份按 OutcomeGo 构建；不得把 beta.13 历史签名当作新信任根；旧资产仅作为历史输入保留 |
 
-## 2. 迁移矩阵
+本阶段的范围决策已经由负责人确认：不考虑现有数据的平滑升级，也不实现旧数据库字段、旧表名或旧 schema 的自动转换。用户手动备份后导入新实例；本仓库只校验已经符合最新 schema 的备份制品。此前为保留旧内部身份而编写的兼容结论只适用于已完成的品牌预发布记录，不再约束本次全量内部迁移。
 
-迁移测试至少覆盖：
+## 2. 新实例验收矩阵
+
+全量重命名测试至少覆盖：
 
 - 全新安装。
-- 当前版本升级。
-- 登录和会话。
-- 已有 Bot、Routine 和配置。
-- Android 推送和通知深链。
-- 桌面更新。
-- 服务端安装器和更新清单。
-- 回滚到旧发布资产。
+- 新空数据库从当前完整 schema 初始化。
+- 最新 `outcomego-v1` portable 备份校验和关系校验。
+- 错误校验和和中断导入；源备份保持不变。
+- Android、iOS、Desktop 和 CLI 的新身份静态检查。
+- 新 Compose、数据库 schema、协议和更新清单。
+- 删除隔离的新实例后，从同一份源备份重新导入。
 
 ## 3. 发布流程
 
@@ -37,18 +38,21 @@
 只读盘点
   → 更新用户可见品牌
   → 构建下一版本
-  → 安装和升级验证
+  → 全新安装和手动备份导入验证
   → 签名与更新验证
   → 发布迁移说明
   → 发布 OutcomeGo 下一版本
 ```
 
-## 4. 兼容原则
+## 4. 迁移原则
 
 - 不对 `openteam` 做无差别全局替换。
-- 不因为显示名变化修改移动端覆盖升级所需的应用标识。
-- 不删除旧 CLI、配置键或更新路径，直到迁移周期结束。
-- 不把 GitHub 重定向当作所有外部系统兼容的证明。
+- OutcomeGo 使用独立的新安装身份；不读取或改写旧安装和旧数据库。
+- 新实例只从当前 Prisma/raw schema 初始化；用户手动备份由运行手册导入，源备份只读保留，仓库不转换旧字段。
+- 数据库部署入口只对空数据库执行当前 Prisma schema 的 `db push`，随后安装 raw SQL 对象；schema 标记与当前 Prisma/raw schema 指纹一致时视为已初始化。旧版标记或未标记的非空数据库一律拒绝，不执行原地 schema 升级。
+- beta.13 是旧身份历史版本；不得把旧仓库签名扩展为 OutcomeGo 信任根。
+
+本 Spec 不保留旧数据库的 Prisma 增量迁移链。部署只用当前完整 `schema.prisma` 和 `raw-schema.sql` 初始化新数据库；schema 指纹不匹配时停止并要求新建数据库，不尝试修补旧表或旧字段。
 
 ## 5. 回滚
 
@@ -61,44 +65,43 @@
 | 文件 | 设计动作 | 验证 |
 |---|---|---|
 | `package.json` | 保持根版本为单一来源，下一版本统一递增 | `bun scripts/release/version.ts check` |
-| `apps/*/package.json`、`packages/*/package.json` | 只更新 `description` 等用户可见文字和版本；`@aiteamos/*` 包名本阶段不改（§12、§22） | version check、lockfile 检查 |
+| `apps/*/package.json`、`packages/*/package.json` | 全量使用 `@outcomego/*` scope 和 `outcomego` 根包名 | version check、lockfile、frozen install |
 | `bun.lock` | 由版本脚本更新并检查工作区版本 | `git diff -- bun.lock`、version check |
 | `scripts/release/version.ts` | 保持版本同步逻辑，增加新产品名所需的可测试常量 | script unit test |
-| `apps/cli/src/constants.ts` | `PROJECT_NAME`（现有 Compose project 名，`status.ts`、`password.ts`、`providers.ts` 依赖它找到已安装实例）保持 `aiteamos`；`DEFAULT_REPOSITORY` 和 `DEFAULT_IMAGE_PREFIX` 只在任务 6.2 决定重命名仓库后才修改，因为签名身份（`release.ts` 的 workflow identity）由仓库地址生成；Release 资产名 `aiteamos-compose.yaml`、`aiteamos-<os>-<arch>` 保持不变，旧 CLI 按这些名字下载更新 | CLI update/signature test |
-| `apps/cli/package.json` | 新 `outcomego` binary/命令，保留旧 alias 入口 | fresh install and help test |
+| `apps/cli/src/constants.ts` | `DEFAULT_REPOSITORY=jingyi0605/OutcomeGo` 与新 Sigstore 证书身份同步；`DEFAULT_IMAGE_PREFIX` 继续保留 GHCR 稳定路径 | CLI update/signature test |
+| `apps/cli/package.json` | `outcomego` 和 `aiteamos` 都指向 `dist/outcomego.js`；只有 `outcomego` 是规范名称 | package metadata and installer tests |
 
 ### 6.2 Desktop
 
 `apps/desktop/package.json` 当前包含 `productName`、`executableName`、`appId`、artifact pattern、图标和权限说明。设计要求：
 
-1. `productName`、artifact 显示名、权限文本和 About 页面使用 OutcomeGo。
-2. `dev.aiteamos.desktop` 是否变化必须由升级测试决定；若保持不变，README 记录这是稳定安装身份而不是品牌遗漏。
-3. `aiteamos` 可执行文件和用户数据目录在兼容期保留，新增 `outcomego` 入口或迁移提示。
-4. Desktop updater 的旧 artifact pattern、新 artifact pattern 和 `/releases/latest` 解析都要有 fixture。
+1. `productName`、权限文本、应用菜单和 About 页面使用 OutcomeGo。
+2. 全量内部重命名按阶段 9 使用新的 appId 和 executable。Desktop `userData` 依固定标识保留为 `aiTeamOS`，且在任何读取前设置；桌面 artifact filename prefix 暂保留 `aiTeamOS`，直到 beta.13 updater metadata fixture 证明新前缀可解析。
+3. Desktop updater 和 electron-builder publish repo 使用 `OutcomeGo`。旧版本 updater 仍指向旧仓库，不承诺跨仓库自动更新；迁移指南要求从新仓库安装并手动导入备份。
+4. `app.setPath("userData", join(app.getPath("appData"), "aiTeamOS"))` 必须在读取 userData 前执行，并由测试固定历史数据目录名。
 
 ### 6.3 Android
 
 `apps/android/app/build.gradle.kts` 当前的 `namespace`、`applicationId`、App Link host 和 versionCode 推导必须分别处理：
 
 - `AndroidManifest.xml` 的 `android:label` 改为 OutcomeGo。
-- `applicationId=com.teambots.android` 默认保留，保证覆盖升级；不得只为品牌而更换。
-- `namespace=com.aiteamos.android` 可以在独立内部重构中迁移，但不属于本次下一版本品牌门槛。
-- App Link scheme、host、通知 action 和 update manifest 的旧值必须在兼容矩阵中验证。
+- `applicationId=com.outcomego.android` 和 `namespace=com.outcomego.android` 使用新身份；新 APK 与旧 APK 并行存在。
+- App Link scheme、host、通知 action 和 update manifest 使用新身份。
 - `scripts/android/package-debug.sh` 用于 debug 构建；正式包必须使用现有 release gate 和签名验证。
 
 ### 6.4 iOS
 
-`apps/ios/release.json` 与 Xcode 工程中的 bundle identifier、APNs extension、share extension 和应用显示名必须作为一组修改。应用显示名可以改为 OutcomeGo；bundle ID 和签名身份保持稳定，除非发布负责人提供新的 App Store 和迁移证据。
+`apps/ios/release.json` 与 Xcode 工程中的 bundle identifier、APNs topic、extension identifiers、URL scheme 和应用显示名必须作为一组修改，使用新的 OutcomeGo 身份。签名材料仍只从外部环境读取。
 
 ### 6.5 Server/Compose/CI
 
-`docker-compose.yml` 中的服务名、卷名、数据库名、健康检查用户名和 `/usr/lib/aiteamos` 是运行标识，不得无测试全量改名。新名称分三类：
+`docker-compose.yml` 中的服务名、卷名、数据库名、健康检查用户名和 `/usr/lib/outcomego` 是运行标识，全部使用新身份并通过静态 render 检查。数据库物理表和字段由 Prisma 映射为 `outcomego_*`。
 
 1. 对外名称：改为 OutcomeGo。
-2. 内部稳定运行名：保留并记录兼容原因。
-3. 全面迁移名：仅在独立迁移任务中修改，同时提供数据卷和 systemd/Compose 迁移。
+2. 运行身份：改为 `outcomego`、`OUTCOMEGO_*` 和 `/usr/lib/outcomego`。
+3. 旧卷和旧数据库不在新实例中复用；新实例直接从当前完整 Prisma schema 和 raw schema 创建。
 
-`.github/workflows/release.yml`、`.github/workflows/cli-installer.yml`、`.github/RELEASING.md` 必须同步更新仓库、Release 标题、资产前缀和签名身份，但不能破坏 workflow 文件名，因为 CLI 签名校验依赖它。
+`.github/workflows/release.yml`、`.github/workflows/cli-installer.yml`、`.github/RELEASING.md` 可以更新用户可见 Release 标题和 Android APK 显示名；workflow 文件名、固定 upstream `openteam` 标识、签名身份和受保护的发布资源按名称清单处理。仓库路径和外部发布迁移属于独立决策，不能由品牌文案变更隐式触发。
 
 ## 7. 下一版本发布流程
 
@@ -107,7 +110,7 @@ R0 只读盘点
   → R1 修改用户可见品牌
   → R2 更新包/CLI/仓库和 Release 引用
   → R3 构建所有候选资产
-  → R4 安装、覆盖升级、登录和数据回放
+  → R4 全新安装、手动备份导入、登录和数据回放
   → R5 签名、manifest、更新和回滚验证
   → R6 发布下一版本并保留旧资产
 ```
@@ -117,10 +120,24 @@ R0 只读盘点
 ## 8. 回滚设计
 
 - 代码回滚：恢复品牌和发布 Workflow 提交。
-- Desktop/CLI：保留旧 artifact 和旧入口，禁止清理旧下载地址。
-- Android：只有同一 application ID、签名链和可接受 versionCode 的包可以覆盖升级；否则停止发布。
-- iOS：保留旧 TestFlight/App Store 版本和服务端兼容路径，不能依赖安装旧包覆盖新包。
-- 数据库：本 Spec 不包含不可逆品牌数据库迁移。
+- Desktop/CLI：保留不可修改的 beta.13 历史资产；新安装使用 OutcomeGo 入口，可提供同一 parser 的 `aiteamos` 命令名别名，但不复用旧数据目录。
+- Android：新 application ID 与旧 APK 并存；失败时删除新实例并从源备份重新导入，不覆盖旧安装。
+- iOS：新 Bundle ID、Keychain 和 APNs 身份独立；失败时保留旧应用和源备份。
+- 数据库：从当前 Prisma/raw schema 创建新数据库；校验器只验证最新 schema 备份，禁止修改用户提供的源备份；失败时保留源备份并由运行手册重新导入。
+
+## 8.1 全量命名约定
+
+| 旧模式 | 新模式 | 适用范围 |
+|---|---|---|
+| `outcomeGo` / `OutcomeGo` | `OutcomeGo` / `OutcomeGo` | 用户文案、PascalCase 类型和历史品牌替换 |
+| `outcomego` | `outcomego` | 文件、目录、命令、包名、运行时服务名和 URL host |
+| `@outcomego/*` | `@outcomego/*` | Bun workspace package scope 和 imports |
+| `OUTCOMEGO_*` | `OUTCOMEGO_*` | 环境变量、配置键、CI 和 Compose |
+| `outcomego` | `outcomego` | GHCR、镜像前缀和发布路径 |
+| `com.outcomego` / `com.outcomego` / `dev.outcomego` | `dev.outcomego` / `com.outcomego` | Android、iOS、Desktop 新平台身份 |
+| `outcomego://` | `outcomego://` | Desktop、Android、iOS 深链 scheme |
+
+代码标识使用 `OutcomeGo`（PascalCase）、`outcomeGo`（camelCase）或 `outcomego`（lowercase）按语言惯例；数据库的产品身份标识使用 snake_case 的 `outcomego_*` 前缀。没有旧产品前缀的领域字段保留语义名称，避免把数据库领域模型改成不可读的机械前缀。
 
 ## 9. 文件影响清单
 
@@ -135,7 +152,7 @@ R0 只读盘点
 - `apps/cli/src/constants.ts`
 - `apps/cli/src/cli-update.ts`
 - `apps/desktop/package.json`
-- `apps/desktop/src/renderer/components/aiteamos/settings/about.tsx`
+- `apps/desktop/src/renderer/components/outcomego/settings/about.tsx`
 - `apps/desktop/src/main/update-status.ts`
 - `apps/android/app/build.gradle.kts`
 - `apps/android/app/src/main/AndroidManifest.xml`
@@ -150,10 +167,10 @@ R0 只读盘点
 
 ### 必须保留并记录原因的文件或标识
 
-- `apps/android` 的 `com.teambots.android` application ID。
-- `apps/android` 的 `com.aiteamos.android` namespace，除非独立迁移获批。
+- `apps/android` 的 `com.outcomego.android` application ID。
+- `apps/android` 的 `com.outcomego.android` namespace，除非独立迁移获批。
 - `apps/ios` 的 bundle identifier、APNs extension 和 share extension 标识。
-- `/usr/lib/aiteamos`、Compose 数据卷和数据库连接标识，除非迁移任务提供可回滚方案。
+- `/usr/lib/outcomego`、Compose 数据卷和数据库连接标识，除非迁移任务提供可回滚方案。
 - `.github/workflows/release.yml` 文件名，因为签名校验依赖其身份。
 
 ## 10. 验证策略
@@ -167,22 +184,22 @@ R0 只读盘点
 
 ### 构建和包检查
 
-- `bun --filter @aiteamos/cli test`
-- `bun --filter @aiteamos/desktop typecheck`
-- `bun --filter @aiteamos/desktop test`
+- `bun --filter @outcomego/cli test`
+- `bun --filter @outcomego/desktop typecheck`
+- `bun --filter @outcomego/desktop test`
 - `bash scripts/android/package-debug.sh`
 - `bash scripts/android/release-gate.sh check`
 - Release 候选资产的 SHA-256、APK manifest、签名和版本校验。
 
-### 升级和回滚
+### 新安装和回滚
 
-- 当前版本到候选版本的 Desktop、CLI、Android 和 server 升级。
-- 登录、历史消息、Bot、Routine、通知、配置和更新链路回放。
-- 失败安装、旧入口、旧下载地址和回滚资产检查。
+- Desktop、CLI、Android 和 server 新实例安装。
+- 登录、手动备份导入后的历史消息、Bot、Routine、通知、配置和更新链路回放。
+- 失败安装、旧入口、旧下载地址和回滚资产检查；不验证旧版原地升级。
 
 ### 通过标准
 
-所有静态检查、构建检查和升级矩阵必须有结果。外部账号或设备不可用时可以记录 `PENDING`，但不能将其标记为通过，也不能发布正式版本。
+所有静态检查、构建检查和新安装矩阵必须有结果。外部账号或设备不可用时可以记录 `PENDING`，但不能将其标记为通过，也不能发布正式版本。
 
 ## 11. 版本值和生成流程
 
@@ -229,19 +246,19 @@ iOS marketing version 使用不带 prerelease suffix 的基础版本，build num
 
 | 命中 | 当前用途 | 下一版本处理 | 验证方式 |
 |---|---|---|---|
-| `aiTeamOS` | 用户可见产品名 | 改为 OutcomeGo | UI、README、asset 检查 |
-| `aiteamos` | CLI、包 scope、服务运行路径 | 新入口/显示名改动；兼容入口和运行路径保留 | CLI、Compose、update test |
-| `@aiteamos/*` | workspace package scope | 本阶段保留；改名属于原规划 R4，需另立任务，不能与品牌发布绑定 | package graph/build |
-| `com.aiteamos.android` | Kotlin namespace | 默认保留 | Gradle compile |
-| `com.teambots.android` | Android application ID | 默认保留 | APK upgrade/signing |
-| `dev.aiteamos.desktop` | Desktop app identity | 默认保留 | updater/install test |
-| `dev.aiteamos.mobile` | iOS bundle ID | 默认保留 | iOS native config |
+| `outcomeGo` | 用户可见产品名 | 改为 OutcomeGo | UI、README、asset 检查 |
+| `outcomego` | CLI、包 scope、服务运行路径 | 全量新安装身份统一使用 | CLI、Compose、update test |
+| `@outcomego/*` | workspace package scope | 全量内部重命名使用 | package graph/build |
+| `com.outcomego.android` | Kotlin namespace | 全量新安装身份使用 | Gradle compile |
+| `com.outcomego.android` | Android application ID | 全量新安装身份使用 | APK manifest |
+| `dev.outcomego.desktop` | Desktop app identity | 全量新安装身份使用 | updater/install test |
+| `dev.outcomego.mobile` | iOS bundle ID | 全量新安装身份使用 | iOS native config |
 | `openteam` | 上游、协议、服务或目录 | 逐项保留或独立迁移 | classified grep |
-| `ai-TeamOS` | 仓库、Release、默认 repo | 改为新仓库或兼容重定向 | CLI/release workflow |
-| `ghcr.io/<owner>/ai-teamos-*` | 容器镜像路径（`DEFAULT_IMAGE_PREFIX`、release.yml `image_prefix`） | 默认保留；仓库重命名不会自动迁移 GHCR 包，若改名需同时推送新旧两个路径并保留旧路径至少一个版本周期 | CLI update、compose render |
-| `AITEAMOS_*` | 环境变量（约 219 个） | 保留；新增同名 `OUTCOMEGO_*` 别名不在本阶段实现 | `.env.example`、compose、server 启动 |
-| `aiteamos_events` | Postgres LISTEN 通道（`apps/server/src/event-wakeup.ts`） | 保留；改名会让新旧版本混跑时丢失唤醒 | event stream 测试 |
-| `aiteamos://` | 客户端 URL scheme（Android Manifest、iOS `APP_URL_SCHEME`、`app-deep-links.ts`） | 保留；`004.3` 的 Outcome 深链也使用该 scheme | 三端深链测试 |
+| `OutcomeGo` | 仓库、Release、fork 默认分支 | GitHub slug 和默认分支使用 `jingyi0605/OutcomeGo` / `OutcomeGo`；上游 `main` 独立保留 | repository/branch rename evidence、CLI/release workflow |
+| `ghcr.io/<owner>/ai-teamos-*` | 容器镜像路径（`DEFAULT_IMAGE_PREFIX`、release.yml `image_prefix`） | 保留稳定的 GHCR package path；仓库 slug 重命名不改变该镜像地址 | CLI update、compose render |
+| `OUTCOMEGO_*` | 环境变量（约 219 个） | 保留；新增同名 `OUTCOMEGO_*` 别名不在本阶段实现 | `.env.example`、compose、server 启动 |
+| `aiteamos_events` | Postgres LISTEN 通道（`apps/server/src/event-wakeup.ts`、raw schema） | `preserve`；它是 publisher/listener 间的运行接口，数据库表和索引仍采用 OutcomeGo 命名 | fresh-schema integration test |
+| `outcomego://` | 客户端 URL scheme（Android Manifest、iOS `APP_URL_SCHEME`、`app-deep-links.ts`） | 保留；`004.3` 的 Outcome 深链也使用该 scheme | 三端深链测试 |
 | `OpenTeam` | iOS 显示名（`apps/ios/scripts/generate-project.py` 的 `APP_DISPLAY_NAME`） | 改为 OutcomeGo | iOS native config |
 
 ## 13. CLI 和更新链路
@@ -261,43 +278,40 @@ iOS marketing version 使用不带 prerelease suffix 的基础版本，build num
 新命令和旧命令必须最终进入同一个参数解析、配置读取和更新服务。不要复制两套 CLI 行为。建议：
 
 ```text
-outcomego <args>
-  └─ canonical CLI entry
-
-aiteamos <args>
-  └─ compatibility alias → canonical CLI entry
+outcomego <args>  ─┐
+                    ├─ same dist/outcomego.js entry
+aiteamos <args>   ─┘
 ```
 
-如果可执行文件名不能在当前安装器中双轨提供，则旧命令由 shim 或迁移提示处理，但必须保留同一配置目录和 update state。
+两个命令进入同一个参数解析、配置和更新实现。`aiteamos` 只为用户脚本提供命令名过渡，不恢复旧配置目录、旧数据库或旧平台身份。
 
 ### 13.3 默认仓库和签名
 
-CLI 当前会根据 `DEFAULT_REPOSITORY` 和 Release 资产验证来源。迁移必须同时更新：
+CLI 当前会根据 `DEFAULT_REPOSITORY` 和 Release 资产验证来源。GitHub 仓库 slug 已由负责人批准并更改为 `jingyi0605/OutcomeGo`，因此该常量使用新仓库地址；`DEFAULT_IMAGE_PREFIX` 继续保留稳定 GHCR 路径。历史本地 P-256 签名只对 `raghavpillai/openteam` 旧资产有效，不得验证 OutcomeGo 资产；新仓库 Release 必须通过 `.github/workflows/release.yml` 的 OIDC/Sigstore 身份验证。下列稳定项不随本地名称修改：
 
-1. 默认仓库常量。
-2. Release API 请求路径。
-3. Compose 和 raw binary 资产名称。
-4. 签名验证中的 repository identity。
-5. 旧版本 verifier 对历史仓库和旧资产的兼容逻辑。
+1. CLI `PROJECT_NAME=outcomego`、`DEFAULT_REPOSITORY=jingyi0605/OutcomeGo` 和 `DEFAULT_IMAGE_PREFIX=ghcr.io/jingyi0605/ai-teamos`（负责人后续授权修改前两项，GHCR 路径保持原值）。
+2. `.github/workflows/release.yml` 文件名和 Sigstore workflow identity。
+3. GHCR `ai-teamos` 镜像路径。
+4. 旧版本 verifier 对历史仓库和旧资产的兼容逻辑；该兼容不得扩大到新仓库。
 
-测试必须覆盖错误仓库、错误 tag、错误签名、旧 Release 和新 Release。
+错误仓库/签名、错误 tag、错误 hash、旧 Release 和新 Release 都需要负例。Sigstore/TUF 透明日志测试若网络不可用，记录为 BLOCKED，不得标记为通过。
 
 ## 14. Desktop 更新链路
 
 `apps/desktop/package.json` 中的 `appId`、`productName`、`executableName`、artifactName、图标和权限文本不是同一层的标识。必须分别处理：
 
 - `productName`：改为 OutcomeGo。
-- `artifactName`：下一版本可以改为 OutcomeGo 前缀，但 updater 必须同时识别旧资产。
-- `executableName`：默认保留 `aiteamos`，或提供兼容启动器。
-- `appId`：默认保留，保证安装覆盖和系统通知身份。
-- 用户数据路径：必须保留。Electron 默认用 `productName` 推导 `app.getPath("userData")`，把 `productName` 从 `aiTeamOS` 改成 `OutcomeGo` 会把目录从 `~/Library/Application Support/aiTeamOS`（及 Windows/Linux 对应目录）切换到新目录，导致 `auth-session.json`、`machine-id`、`computer-settings.json`、`durable-send-journal` 等文件“丢失”。因此在 `apps/desktop/src/main/index.ts` 的 `app.whenReady()` 之前固定 `app.setPath("userData", join(app.getPath("appData"), "aiTeamOS"))`，并用测试断言打包后的 userData 目录名不变。不做数据目录迁移。
+- `artifactName`：只有 updater fixture 证明旧 v0.1.0-beta.13 metadata 能解析新前缀后才能修改；当前证据记录见 `docs/name-to-asset-matrix.md`。
+- `executableName`：使用全量新安装身份 `outcomego`。
+- `appId`：使用全量新安装身份 `dev.outcomego.desktop`。
+- 用户数据路径：在读取 userData 前固定为 `join(app.getPath("appData"), "aiTeamOS")`，并由测试断言目录不随产品显示名改变；该路径按固定决策保留。
 - macOS permissions 文本：改为 OutcomeGo，但保留实际权限语义。
-- `dist-electron/aiteamos-cli.js`：如果不改内部文件名，必须在迁移清单中说明。
+- `dist-electron/outcomego-cli.js`：如果不改内部文件名，必须在迁移清单中说明。
 
 Desktop 测试必须包含：
 
 - 新安装目录。
-- 旧安装覆盖升级。
+- 当前版本内部常规更新（如平台支持）。
 - 已登录状态。
 - 已打开的 server URL。
 - update manifest 旧/新资产匹配。
@@ -316,12 +330,12 @@ Desktop 测试必须包含：
 - `scripts/android/package-debug.sh`、`package-release.sh`、`release-gate.sh`。
 - `scripts/android/create-update-manifest.py`。
 
-用户可见名称修改不能改变：
+新实例身份采用负责人确认的全量重命名方案：
 
-- `applicationId=com.teambots.android`。
-- APK 覆盖升级所需的签名证书。
-- update manifest 的公钥信任链。
-- 深链处理所需的旧 scheme，除非新旧双解析已经测试。
+- `applicationId=com.outcomego.android` 和 `namespace=com.outcomego.android`。
+- 新 release keystore 和固定的 update-manifest public key 信任链；Android updater manifest 私钥缺失时，发布必须保持 BLOCKED。
+- URL scheme `outcomego://`，它已是当前 OutcomeGo scheme，不再按旧产品名处理。
+- 不要求对 `com.teambots.android` 或 `com.aiteamos.android` 覆盖安装；数据通过手动备份导入新实例。
 
 ### 15.2 Android 验收证据
 
@@ -353,17 +367,17 @@ update manifest signature
 7. 应用显示名和 URL scheme。
 8. 旧版本数据和 keychain 读取。
 
-应用显示名可改为 OutcomeGo；bundle identifiers 不因显示名变化而自动修改。若未来要改 bundle ID，必须另建迁移 Spec 或子任务，包含 App Store、Push、Keychain、深链和数据迁移证据。
+本阶段已批准并实现新的 OutcomeGo bundle identifiers、APNs、extensions 和显示名。iOS 签名构建与商店提交按负责人要求延期；native config 静态检查不能替代证书、profile、推送和商店验证。未来若再次更改这些身份，必须另建迁移 Spec 或子任务并提供对应验证证据。
 
 ## 17. Compose、镜像和服务运行标识
 
-`docker-compose.yml` 中的 `aiteamos_*` 名称可能同时是：
+`docker-compose.yml` 中的 `outcomego_*` 名称可能同时是：
 
 - Docker service label。
 - PostgreSQL database/user。
 - Docker volume。
 - hostname。
-- `/usr/lib/aiteamos` 安装路径。
+- `/usr/lib/outcomego` 安装路径。
 - agent data 和 workspace 路径。
 
 它们不能用同一个全局替换操作处理。迁移表必须为每个命中记录：
@@ -379,7 +393,7 @@ compatible action
 rollback action
 ```
 
-下一版本品牌发布最低要求是显示名、README、Release 和用户文案正确，稳定数据卷和内部路径继续可用。
+下一版本品牌发布最低要求是显示名、README、Release 和用户文案正确；OutcomeGo 新实例使用全量新运行身份和最新 schema，旧数据仅通过用户在外部手动备份并导入新实例保留。
 
 ## 18. GitHub Workflow 变更
 
@@ -392,18 +406,18 @@ rollback action
 
 不能修改 `.github/workflows/release.yml` 的文件名而不更新 CLI 对签名身份的信任规则。Workflow 的临时目录、secret 名称和外部签名配置不得写入 Spec 以外的日志或提交。
 
-## 19. 升级矩阵
+## 19. 新实例验收矩阵
 
 | 起点 | 目标 | 检查内容 | 失败处理 |
 |---|---|---|---|
-| 当前 Desktop | OutcomeGo Desktop | data dir、auth、update、About | 保留旧 asset，停止发布 |
-| 当前 CLI | OutcomeGo CLI | command、config、repository、signature | 保留旧 alias |
-| 当前 Android | OutcomeGo APK | app ID、cert、versionCode、data、deep link | 禁止正式发布 |
-| 当前 iOS | OutcomeGo app | bundle ID、keychain、APNs、deep link | 保留旧 App Store/TestFlight |
-| 当前 server | OutcomeGo server | DB、Compose、install script、health | 回退镜像和 manifest |
-| 旧仓库路径 | 新仓库路径 | clone/fetch/tag/Release/Actions | 发布迁移说明 |
+| Desktop 新安装 | OutcomeGo Desktop | 显示名、userData 固定路径、About、手动备份导入 | 保留源备份；修复后重建隔离的新实例 |
+| CLI 新安装 | OutcomeGo CLI | command alias、全新 config、repository、signature | 不读取旧 CLI 配置；修复新入口 |
+| Android 新安装 | OutcomeGo APK | 新 app ID、cert、versionCode、manifest、手动导入 | 保留旧 app 与备份；修复后重装新身份 |
+| iOS 新安装 | OutcomeGo app 新身份 | bundle ID、签名、APNs、deep link、手动导入 | iOS 发布延期；保留源备份 |
+| Server/Compose 新安装 | OutcomeGo server 新实例 | 新 DB/Compose、当前完整 schema、备份校验与手动导入 | 保留源备份；修复后重建新实例 |
+| 旧仓库路径 | 重命名后保留为 redirect/历史地址 | clone/fetch/tag/Release/Actions | 任务 6.2 已执行；旧网页 URL 和新 remote 已验证，SSH/Release 资产 redirect 仍待完整复核 |
 
-每个单元必须有：初始资产、操作步骤、预期结果、实际结果、日志位置、回滚方式和复核人。
+每个单元必须有：候选资产、操作步骤、预期结果、实际结果、日志位置、回滚方式和复核人。
 
 ## 20. 回滚实施
 
@@ -425,7 +439,7 @@ rollback action
 
 ### Compose/server 回滚
 
-保留旧镜像 digest、旧 Compose asset、旧 schema 版本和 migration 记录。品牌变更不应要求回退数据库结构。
+保留旧镜像 digest、旧 Compose asset、旧实例和源备份。新实例采用单一最新 schema；失败时保留源备份并重建隔离的新实例，不将新 schema 回写到旧实例，也不自动转换旧字段。
 
 ## 21. 迁移报告格式
 
@@ -433,14 +447,14 @@ rollback action
 版本：<old> → <new>
 目标仓库：<old> → <new>
 根提交：<commit>
-数据库 migration：<none or migration>
+database schema fingerprint：<sha256>
 Desktop：<result>
 CLI：<result>
 Android：<result>
 iOS：<result>
 Server/Compose：<result>
 签名验证：<result>
-升级验证：<result>
+新安装/备份导入验证：<result>
 回滚验证：<result>
 未完成外部证据：<list>
 发布结论：PASS / PENDING / FAIL
@@ -448,17 +462,7 @@ Server/Compose：<result>
 
 ## 22. 设计决策和未决事项
 
-必须在实现前记录：
-
-- 下一版本是否执行 GitHub repository rename，还是先使用用户可见品牌。
-- CLI 是否同时发布 `outcomego` 二进制和 `aiteamos` alias。
-- `@aiteamos/*` 是否在本阶段保持不变（已决定：保持不变，见 §12）。
-- Desktop `appId` 和 executable 是否保持不变。
-- Android application ID、iOS bundle ID 是否保持不变。
-- 旧 Release asset 的保留周期。
-- 迁移公告的发布时间和责任人。
-
-没有完成这些决定时，任务可以继续做只读盘点和品牌资源准备，但不能进行不可逆的仓库或签名迁移。
+负责人已确定以下决策，实施时不得再视为未决：GitHub slug 为 `jingyi0605/OutcomeGo`；新安装使用 `outcomego`、`@outcomego/*` 和新的 Desktop/Android/iOS identities；CLI 可额外提供同一 binary 的 `aiteamos` 命令别名；旧安装不要求覆盖升级，数据由用户手动备份并导入最新 schema；iOS 发布构建暂缓；GHCR `ai-teamos` 路径和 Desktop `aiTeamOS-*` artifact prefix 按名称清单保留。beta.13 历史 Release/asset 保留为旧身份输入。
 
 ## 23. 文件到验证命令映射
 
@@ -489,7 +493,7 @@ Server/Compose：<result>
 
 ### `images`/`merge-images`
 
-职责：构建 server、worker、migrate、computer 镜像，并生成 digest。镜像内部运行路径可以保持 `aiteamos`，但公开镜像仓库和 Release 文案必须按迁移决定处理。
+职责：构建 server、worker、migrate、computer 镜像，并生成 digest。镜像内部运行路径可以保持 `outcomego`，但公开镜像仓库和 Release 文案必须按迁移决定处理。
 
 验证：
 
@@ -500,12 +504,12 @@ Server/Compose：<result>
 
 ### `cli-build`/`sign`
 
-职责：构建 `outcomego` 主入口、兼容 `aiteamos` 入口、Compose、install scripts 和签名 metadata。
+职责：构建 `outcomego` 主入口、兼容 `outcomego` 入口、Compose、install scripts 和签名 metadata。
 
 验证：
 
 - `--help` 和 `--version` 显示新品牌。
-- 旧配置目录可以读取。
+- 新安装使用 OutcomeGo 配置目录；不自动读取旧配置目录。
 - 新旧入口生成同一 request/config 行为。
 - 签名 identity 与目标仓库/tag 一致。
 - 错误签名、错误仓库、错误 tag 都被拒绝。
@@ -523,19 +527,19 @@ Server/Compose：<result>
 
 ### `android`
 
-职责：构建 APK、更新 manifest 和签名。品牌改动不应触碰 application ID 或 APK signing certificate。
+职责：构建 APK、更新 manifest 和签名。全量新安装身份使用 OutcomeGo application ID；release keystore 按本地签名证据记录，update manifest 仍必须使用匹配固定公钥的私钥。
 
 验证：
 
 - versionCode 单调递增。
-- package ID 与旧包相同。
-- certificate digest 与旧包相同。
+- package ID 与 OutcomeGo 新身份一致；不要求与旧包相同。
+- certificate digest 与本地/CI 批准的 OutcomeGo release keystore 一致。
 - update manifest signature、公钥、HTTPS URL 和 SHA-256 正确。
 - `assetlinks.json` 仍匹配 package ID。
 
 ### `ios`
 
-职责：执行 iOS build/TestFlight workflow 和配置审计。应用显示名可以更新，bundle/profile/APNs 关系必须稳定。
+职责：执行 iOS build/TestFlight workflow 和配置审计。应用显示名及 bundle/profile/APNs 使用 OutcomeGo 新身份；发布构建本阶段延期。
 
 验证：
 
@@ -561,42 +565,30 @@ Server/Compose：<result>
 |---|---|---|---|---|
 | Server URL | 现有 CLI config | 是 | 否 | config test |
 | auth/session | 现有 auth store | 是 | 否 | login/status |
-| Compose file | `aiteamos-compose.yaml` | 新旧都读 | 可复制别名 | installer fixture |
-| user data | 现有用户目录 | 是 | 默认不迁移 | fresh/upgrade |
-| DB path | 现有服务数据 | 是 | 不变 | DB query |
-| update cache | 现有 update state | 是 | alias | update test |
-| command name | `aiteamos` | `outcomego` 主入口 | alias | help/e2e |
-| default repo | `jingyi0605/ai-TeamOS` | 新仓库 | metadata fallback | signature test |
+| Compose file | `outcomego-compose.yaml` | `outcomego` 安装读取 | 旧文件只留历史资产 | installer fixture |
+| user data | OutcomeGo 新用户目录 | 是 | 手动备份后新实例导入 | path/backup validator |
+| DB path | OutcomeGo 新 schema/volume | 是 | 不自动迁移旧 DB | schema validator |
+| update cache | OutcomeGo 新安装状态 | 是 | 旧 cache 不自动读取 | update test |
+| command name | `aiteamos` | `outcomego` 主入口；`aiteamos` 调用相同 binary | 单一实现 | help/e2e |
+| default repo | `jingyi0605/OutcomeGo` | OutcomeGo Release repository | 负责人已批准并更改 | signature identity test |
 
-配置迁移脚本必须是幂等的：
-
-```text
-read old config
-  → validate schema
-  → copy only missing new keys
-  → preserve old keys
-  → write atomically
-  → record migration version
-```
-
-不能在读取配置时直接删除旧键，也不能因为品牌变化重置认证或 server URL。
+本阶段不实现旧配置/旧数据目录的自动迁移脚本。用户若要保留业务数据，在仓库外手动备份，再使用新实例的最新 schema 导入；OutcomeGo 校验器只接受 `outcomego-v1`，且不得修改源文件。
 
 ## 26. GitHub 仓库重命名步骤
 
-如果 D02 批准仓库重命名，执行顺序为：
+负责人已批准将仓库 slug 改为 `jingyi0605/OutcomeGo`；GitHub Settings rename 已执行。执行和验证顺序记录如下：
 
 1. 完成名称命中清单。
 2. 完成 OutcomeGo 下一版本候选构建。
 3. 完成旧 clone/fetch/tag/Release/Issue/PR/Fork 检查。
 4. 记录当前默认分支、保护规则和 Actions secrets/environment。
-5. 更新 `DEFAULT_REPOSITORY`、README badges、submodules、webhooks 和 installer URLs。
-6. 由管理员执行 GitHub Settings rename。
-7. 验证旧地址重定向和新地址 API。
-8. 验证 Actions 外部引用；不假设旧路径会自动重定向。
-9. 验证 Release API、下载 manifest、CLI updater 和 Compose asset。
-10. 发布迁移公告并保留旧名称搜索入口。
+5. 更新 `DEFAULT_REPOSITORY`、README badges、submodules、webhooks 和 installer URLs；GHCR package path 按稳定资产规则处理。
+6. 管理员通过 GitHub Settings 执行 rename，并验证旧网页地址重定向和新仓库页面。
+7. 验证 Actions 外部引用；不假设旧路径会自动重定向。
+8. 验证 Release API、下载 manifest、CLI updater 和 Compose asset。
+9. 发布迁移公告并保留旧名称搜索入口。
 
-如果任一发布/签名/更新检查失败，停止仓库重命名，继续使用用户可见品牌和旧仓库地址完成下一版本。
+负责人已批准 GitHub fork 默认分支由 `ai-TeamOS` 更名为 `OutcomeGo`，上游同步仍使用独立的 `main`。本次需同步源代码、配置、分支规则和默认分支设置；完成后记录远端 SHA、默认分支及 ruleset，并继续等待 GitHub runner 验证本地 workflow。
 
 ## 27. 安装器和服务名称
 
@@ -605,61 +597,57 @@ read old config
 | 层级 | 推荐行为 |
 |---|---|
 | 安装包显示名 | OutcomeGo |
-| CLI 命令 | `outcomego` + `aiteamos` alias |
-| systemd service | 保留旧名，增加显示名迁移说明 |
-| Docker Compose project | 保留旧 project/data volume，避免数据丢失 |
-| server image | 可保留内部路径，公开 tag 按批准方案更新 |
-| user data directory | 保留旧路径 |
-| database name/user | 保留旧值，避免无必要迁移 |
-| desktop executable | 保留旧值或提供 shim |
+| CLI 命令 | `outcomego` + 同一 binary 的 `aiteamos` 别名 |
+| systemd service | 新 OutcomeGo 实例使用 OutcomeGo 名称 |
+| Docker Compose project | 新实例使用 OutcomeGo project 和 volume |
+| server image | 使用当前批准的 OutcomeGo release tag；GHCR package path 按名称清单保留 |
+| user data directory | 新实例使用 OutcomeGo 路径；旧目录不自动迁移 |
+| database name/user | 新实例使用 OutcomeGo 名称和最新 schema |
+| desktop executable | `outcomego` |
 
-## 28. 迁移安全检查不是新 Feature Gate
+## 28. 安装和来源检查不是新 Feature Gate
 
-本 Spec 的升级检查是发布功能的一部分。它们不应成为运行时通用 Feature Gate：
+本 Spec 的安装检查是发布功能的一部分。它们不应成为运行时通用 Feature Gate：
 
 - 版本检查只保护发布资产一致性。
-- application ID 检查只保护系统覆盖升级。
+- application ID 检查只核对新安装包身份。
 - 签名检查只保护安装包来源。
-- 数据目录检查只保护用户数据。
+- schema 指纹检查只确认数据库由当前 schema 初始化。
 - 旧入口检查只保护脚本兼容。
 
 这些检查不能被抽象成所有产品功能必须经过的通用策略系统。
 
-## 29. 具体升级回放
+## 29. 具体新安装和备份导入回放
 
 ### Desktop 回放
 
-1. 安装当前版本。
-2. 创建一个 Bot、一个 Routine、一个设置项和一条历史消息。
-3. 登录并关闭应用。
-4. 安装 OutcomeGo 候选版本覆盖升级。
-5. 打开应用，检查窗口标题、About、历史消息和设置。
-6. 执行一次基础 Bot 消息和一次 updater check。
-7. 中断更新，再次启动并检查状态恢复。
+1. 在隔离环境中准备 OutcomeGo 候选版本和符合最新 schema 的手动备份。
+2. 安装 OutcomeGo，检查 `userData`、窗口标题和 About。
+3. 按外部运行手册将符合最新 schema 的手动备份导入新实例。
+4. 检查导入后的历史消息、设置和登录流程。
+5. 执行一次基础 Bot 消息和一次 updater check。
+6. 中断新实例初始化或导入流程，确认源备份未被修改并可从头重试。
 
 ### CLI 回放
 
-1. 使用当前版本完成 setup。
-2. 保存 server URL、认证状态和自定义配置。
-3. 安装新 CLI 入口。
-4. 使用旧命令和新命令分别执行 `--help`、`status`、`update`。
-5. 检查配置文件和 update cache 未被清空。
+1. 在隔离目录使用 OutcomeGo CLI 完成新实例 setup。
+2. 保存新实例 server URL、认证状态和自定义配置。
+3. 验证 `outcomego` 与 `aiteamos` 别名进入同一 parser/config/update 实现。
+4. 分别执行 `--help`、`status` 和 update 来源校验。
+5. 检查新配置及 update cache；不要求自动读取旧目录或旧配置。
 
 ### Android 回放
 
-1. 安装旧 APK。
-2. 创建登录、Bot、通知注册和本地配置。
-3. 安装新 APK 覆盖升级。
-4. 验证 package ID、签名证书、数据、通知、App Link 和 update manifest。
-5. 断网后再次打开，确认本地状态可读。
+1. 安装 OutcomeGo package ID 的 APK 并验证 label、签名证书、通知、App Link 和 update manifest。
+3. 按外部运行手册为新实例配置服务端并导入符合最新 schema 的手动备份。
+4. 断网后再次打开，确认 OutcomeGo 本地状态可读，源备份仍未修改。
 
 ### iOS 回放
 
-1. 安装旧版本/TestFlight build。
-2. 登录、注册 Push、打开 Bot 和分享扩展。
-3. 安装/升级候选版本。
-4. 验证 keychain/session、Push、deep link、share extension 和设置。
-5. 记录无法在无实体设备环境验证的项目为 PENDING。
+1. 在设备分发和签名条件具备后安装 OutcomeGo 新 bundle identity 构建。
+3. 验证新身份登录、Push、deep link、share extension 和设置。
+4. 按外部运行手册导入新 schema 备份；不读取旧 app 数据或执行 Keychain 迁移。
+5. iOS 签名、profile、商店和实体设备检查按当前决定保持 PENDING，直到另行启用。
 
 ## 30. 发布证据目录
 
@@ -686,7 +674,7 @@ specs/004.1-项目更名与下一版本发布/docs/
 |---|---:|---|
 | 文案漏改 | 否，修复后继续 | 更新名称清单和测试 |
 | 内部路径未改 | 是，若兼容且有记录 | 标记 preserve |
-| CLI 旧入口失败 | 否 | 保留旧入口，修复 alias |
+| CLI `outcomego` 规范入口失败 | 否 | 修复唯一 parser/config/update 实现；不得用第二套实现绕过 |
 | Desktop 更新失败 | 否 | 保留旧 asset，停止发布 |
 | Android cert 不一致 | 否 | 禁止覆盖升级和发布 |
 | iOS profile 不匹配 | 否 | 保留旧 TestFlight/App Store |
@@ -700,8 +688,8 @@ specs/004.1-项目更名与下一版本发布/docs/
 - 实际根版本和目标版本已写入迁移报告。
 - 旧名称命中没有未分类项目。
 - 用户可见品牌和发布资产一致。
-- 旧入口、旧数据和旧更新链至少完成一轮验证。
-- Android/iOS 稳定标识的保留理由明确。
+- 新入口、最新 schema 手动备份校验和新身份更新链至少完成一轮验证。
+- Android/iOS 新身份及其签名材料状态明确；不要求旧应用标识覆盖升级。
 - GitHub rename 是否执行有明确结论。
 - 未完成的外部证据没有被写成通过。
 - 回滚资产和责任人已记录。
@@ -719,10 +707,10 @@ specs/004.1-项目更名与下一版本发布/docs/
 
 | 文件 | 处理 |
 |---|---|
-| `README.md`、`README.en.md` | 改为 OutcomeGo，首段说明 “OutcomeGo（formerly aiTeamOS），OpenTeam 的独立 Fork，与上游无隶属关系” |
+| `README.md`、`README.en.md` | 改为 OutcomeGo，首段说明 “OutcomeGo（formerly outcomeGo），OpenTeam 的独立 Fork，与上游无隶属关系” |
 | `FORK.md` | 增加更名记录，保留 OpenTeam 署名和分支规则 |
 | `CHANGELOG.md`（新增） | 从下一版本开始记录；第一条为品牌更名和兼容说明 |
-| `docs/` 下的迁移说明（新增，带日期的中文文件名，如 `docs/20261112-从aiTeamOS迁移到OutcomeGo.md`） | 说明哪些名称变了、哪些保留、旧 CLI 和旧下载地址的支持期、回滚方式 |
+| `docs/` 下的迁移说明（新增，带日期的中文文件名：`docs/20261112-从aiTeamOS迁移到OutcomeGo.md`） | 说明哪些名称变了、哪些保留、旧 CLI 和旧下载地址的支持期、手动备份/导入边界和回滚方式 |
 | `CONTRIBUTING.md` | 当前仓库不存在；本阶段不新增，贡献说明继续放在 README |
 
 原规划 §19.2 建议的 `docs/rfcs/`、`docs/specs/` 目录不采用；技术规格按仓库规则放在 `specs/`。

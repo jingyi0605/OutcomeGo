@@ -11,7 +11,7 @@ import {
   type InferenceProviderAuthSessionView,
   normalizeInferenceProviderId,
   type ServerInferenceSettings,
-} from "@aiteamos/contracts";
+} from "@outcomego/contracts";
 import { ChatProviderRegistry } from "./chat-provider-registry";
 import { customProviderEntry, customProviderInput } from "./custom-provider";
 

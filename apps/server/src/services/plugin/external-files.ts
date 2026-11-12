@@ -96,7 +96,7 @@ export async function deliverExternalFiles(
     if (!/^[^\s@<>,;:\r\n]+@[^\s@<>,;:\r\n]+\.[^\s@<>,;:\r\n]+$/.test(target))
       throw new Error("Gmail file delivery requires one exact recipient email");
     let mime: Buffer = Buffer.from(
-      `To: ${target}\r\nSubject: Files from aiTeamOS\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=utf-8\r\nContent-Transfer-Encoding: base64\r\n\r\n${Buffer.from(content).toString("base64")}\r\n`
+      `To: ${target}\r\nSubject: Files from OutcomeGo\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=utf-8\r\nContent-Transfer-Encoding: base64\r\n\r\n${Buffer.from(content).toString("base64")}\r\n`
     );
     for (const file of files)
       mime = appendDraftAttachment(mime, file.name, file.mimeType, file.bytes);

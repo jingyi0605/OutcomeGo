@@ -12,10 +12,10 @@ import {
 import { modelFixture } from "./model-session";
 
 export const modelServer = () => {
-  const directory = mkdtempSync(join(tmpdir(), "aiteamos-model-ui-"));
+  const directory = mkdtempSync(join(tmpdir(), "outcomego-model-ui-"));
   const paths = installationPaths(directory);
   const environment = createEnvironment({ version: "1.2.3" });
-  const token = parseEnvironment(environment).get("AITEAMOS_CONTROL_TOKEN");
+  const token = parseEnvironment(environment).get("OUTCOMEGO_CONTROL_TOKEN");
   const fixture = modelFixture();
   const requests: Array<{ method: string; path: string; provider: string | null }> = [];
   const state = { status: 200, invalid: false, delay: 0 };
@@ -59,7 +59,7 @@ export const modelServer = () => {
   });
   writeFileAtomic(
     paths.environment,
-    replaceEnvironmentValue(environment, "AITEAMOS_API_PORT", String(server.port))
+    replaceEnvironmentValue(environment, "OUTCOMEGO_API_PORT", String(server.port))
   );
   writeFileAtomic(paths.compose, "name: model-test\nservices: {}\n");
   const now = new Date().toISOString();

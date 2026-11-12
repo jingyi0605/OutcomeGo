@@ -14,7 +14,7 @@ import { spawn } from "node:child_process";
 import { copyFile, link, mkdir, readdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, resolve } from "node:path";
 
-export const INSTALLS_ROOT = "/usr/local/var/lib/aiteamos";
+export const INSTALLS_ROOT = "/usr/local/var/lib/outcomego";
 /** Cached downloads beyond this are evicted, the earliest downloaded first. Kept local .debs don't count. */
 export const APT_ARCHIVE_CAP_BYTES = 1024 ** 3;
 
@@ -37,9 +37,9 @@ export type InstallsPaths = ReturnType<typeof installsPaths>;
 
 /** What the image itself ships, written when it was built (docker/computer.Dockerfile). */
 export const imageFiles = (root = "/") => ({
-  baseline: join(root, "usr/share/aiteamos/apt-baseline"),
-  sourcesBaseline: join(root, "usr/share/aiteamos/apt-sources-baseline"),
-  buildId: join(root, "usr/lib/aiteamos/build-id"),
+  baseline: join(root, "usr/share/outcomego/apt-baseline"),
+  sourcesBaseline: join(root, "usr/share/outcomego/apt-sources-baseline"),
+  buildId: join(root, "usr/lib/outcomego/build-id"),
 });
 export type ImageFiles = ReturnType<typeof imageFiles>;
 
@@ -495,7 +495,7 @@ export async function recordAfterApt(options: AptOptions = {}) {
     for (const name of current) if (!untracked.has(name)) current.delete(name);
   });
 
-  await keepSources(options).catch((error) => console.error(`aiteamos installs: keeping apt sources failed: ${error}`));
+  await keepSources(options).catch((error) => console.error(`outcomego installs: keeping apt sources failed: ${error}`));
 
   const keptDebs = new Set(Object.values(next).flatMap((entry) => (entry.deb ? [entry.deb] : [])));
   for (const file of await readdir(paths.local).catch(() => [] as string[])) if (!keptDebs.has(file)) await rm(join(paths.local, file), { force: true });
@@ -724,7 +724,7 @@ export async function replayRecordedPackages(options: ReplayOptions = {}): Promi
     const seconds = ((now().getTime() - Date.parse(status.startedAt)) / 1000).toFixed(1);
     log(`Reinstalled ${status.restored.length} of ${missing.length} recorded apt packages in ${seconds} s; ${summary} (see ${paths.log})`);
   }
-  await options.afterApt?.(status).catch((error) => log(`aiteamos installs: ${error instanceof Error ? error.message : String(error)}`));
+  await options.afterApt?.(status).catch((error) => log(`outcomego installs: ${error instanceof Error ? error.message : String(error)}`));
   status.state = "done";
   status.finishedAt = now().toISOString();
   await writeAtomic(paths.status, JSON.stringify(status));
@@ -733,7 +733,7 @@ export async function replayRecordedPackages(options: ReplayOptions = {}): Promi
 
 /** apt preferences that keep the image's packages from coming from a source a bot added. */
 export function imagePackagePins(baseline: readonly string[], botHosts: readonly string[]): string {
-  return botHosts.map((host) => `Explanation: aiTeamOS replay: the image's packages never come from a source a bot added.\nPackage: ${baseline.join(" ")}\nPin: origin "${host}"\nPin-Priority: -1\n`).join("\n");
+  return botHosts.map((host) => `Explanation: OutcomeGo replay: the image's packages never come from a source a bot added.\nPackage: ${baseline.join(" ")}\nPin: origin "${host}"\nPin-Priority: -1\n`).join("\n");
 }
 
 /**

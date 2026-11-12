@@ -1,7 +1,7 @@
 import {
   NOTIFICATION_HEARTBEAT_MS,
   type NotificationPresenceInput,
-} from "@aiteamos/contracts/notification-presence";
+} from "@outcomego/contracts/notification-presence";
 
 export interface DesktopActivity {
   active: boolean;

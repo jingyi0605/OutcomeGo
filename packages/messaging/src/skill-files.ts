@@ -1,8 +1,8 @@
 import type { Dirent } from "node:fs";
 import { mkdir, readdir, rm, stat } from "node:fs/promises";
 import { join } from "node:path";
-import type { Prisma } from "@aiteamos/db";
-import { safePackagePath } from "@aiteamos/plugin-sdk";
+import type { Prisma } from "@outcomego/db";
+import { safePackagePath } from "@outcomego/plugin-sdk";
 import { parseDocument, stringify as stringifyYaml } from "yaml";
 import { atomicWrite, listDirectories, readText, safeFolderId, uniqueSlug } from "./file-state";
 

@@ -1,6 +1,6 @@
-import type { ProductEvent } from "@aiteamos/contracts";
-import { parseProductEvent } from "@aiteamos/contracts/event-protocol";
-import { AiTeamOSClientError } from "./http";
+import type { ProductEvent } from "@outcomego/contracts";
+import { parseProductEvent } from "@outcomego/contracts/event-protocol";
+import { OutcomeGoClientError } from "./http";
 
 export interface ProductEventHandlers {
   onEvent: (event: ProductEvent) => void;
@@ -10,7 +10,7 @@ export interface ProductEventHandlers {
 
 export const readProductEventBatch = async (response: Response): Promise<ProductEvent[]> => {
   if (!response.ok) {
-    throw new AiTeamOSClientError(
+    throw new OutcomeGoClientError(
       `Event poll failed (${response.status})`,
       "event_poll_failed",
       response.status
@@ -20,7 +20,7 @@ export const readProductEventBatch = async (response: Response): Promise<Product
   try {
     body = await response.json();
   } catch {
-    throw new AiTeamOSClientError("aiTeamOS returned an invalid event poll", "invalid_event");
+    throw new OutcomeGoClientError("OutcomeGo returned an invalid event poll", "invalid_event");
   }
   if (
     typeof body !== "object" ||
@@ -28,12 +28,12 @@ export const readProductEventBatch = async (response: Response): Promise<Product
     !("events" in body) ||
     !Array.isArray(body.events)
   ) {
-    throw new AiTeamOSClientError("aiTeamOS returned an invalid event poll", "invalid_event");
+    throw new OutcomeGoClientError("OutcomeGo returned an invalid event poll", "invalid_event");
   }
   try {
     return body.events.map(parseProductEvent);
   } catch {
-    throw new AiTeamOSClientError("aiTeamOS returned an invalid live event", "invalid_event");
+    throw new OutcomeGoClientError("OutcomeGo returned an invalid live event", "invalid_event");
   }
 };
 
@@ -63,7 +63,7 @@ const eventBlock = (block: string, handlers: ProductEventHandlers): void => {
   try {
     parsed = parseProductEvent(JSON.parse(payload));
   } catch {
-    throw new AiTeamOSClientError("aiTeamOS returned an invalid live event", "invalid_event");
+    throw new OutcomeGoClientError("OutcomeGo returned an invalid live event", "invalid_event");
   }
   handlers.onEvent(parsed);
 };
@@ -75,7 +75,7 @@ export const consumeProductEventStream = async (
   signal?: AbortSignal
 ): Promise<void> => {
   if (!response.ok || !response.body) {
-    throw new AiTeamOSClientError(
+    throw new OutcomeGoClientError(
       `Event stream failed (${response.status})`,
       "event_stream_failed",
       response.status

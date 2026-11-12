@@ -22,7 +22,7 @@ public enum LaunchScreenCache {
   }
 
   /// "<original>:<current>", each "dark" or "light".
-  static let attribute = "dev.openteam.launch-fill"
+  static let attribute = "dev.outcomego.launch-fill"
   /// Side of the square fill written in place of a picture.
   static let fillSide = 16
 

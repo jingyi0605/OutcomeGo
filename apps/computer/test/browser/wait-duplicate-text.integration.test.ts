@@ -5,10 +5,10 @@ import {join} from "node:path";
 import {BrowserUseSession} from "../../src/browser/use";
 import {outOfProcessPlaywright} from "../../src/browser/playwright-driver";
 
-test.skipIf(!process.env.AITEAMOS_BROWSER_TEST_EXECUTABLE)("text waits consider visible duplicates, not only the first match", async () => {
+test.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)("text waits consider visible duplicates, not only the first match", async () => {
   const root = await mkdtemp(join(tmpdir(), "browser-wait-duplicates-"));
   const driver = await outOfProcessPlaywright();
-  const browser = await driver.playwright.chromium.launch({headless: true, executablePath: process.env.AITEAMOS_BROWSER_TEST_EXECUTABLE});
+  const browser = await driver.playwright.chromium.launch({headless: true, executablePath: process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE});
   const session = new (BrowserUseSession as any)(browser, await browser.newContext(), root) as BrowserUseSession;
   try {
     await session.execute("browser_navigate", {url: "about:blank"});

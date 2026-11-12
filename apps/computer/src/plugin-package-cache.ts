@@ -6,7 +6,7 @@ import {
   safePackagePath,
   substituteConfiguration,
   validatePackageFiles,
-} from "@aiteamos/plugin-sdk";
+} from "@outcomego/plugin-sdk";
 
 /** Versioned executable assets contain package files only; connection secrets stay in memory. */
 export class PluginPackageCache {

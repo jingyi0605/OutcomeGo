@@ -131,7 +131,7 @@ export interface PluginDefinition {
 export interface PackagePreview {
   definition: PluginDefinition;
   warnings: string[];
-  format: "openteam" | "agent-plugin" | "cursor-plugin";
+  format: "outcomego" | "agent-plugin" | "cursor-plugin";
 }
 export type SecretEdit =
   | { action: "keep" }

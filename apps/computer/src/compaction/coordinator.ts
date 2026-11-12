@@ -144,7 +144,7 @@ export interface BotPreparedCompaction {
   tokensBefore: number;
   usage?: BotSummaryUsage;
   details: {
-    aiteamosBotCompaction: true;
+    outcomegoBotCompaction: true;
     id: string;
     contextSessionId: string;
     reason: BotCompactionReason;
@@ -976,7 +976,7 @@ export class BotCompactionCoordinator {
       tokensBefore: input.tokensBefore,
       usage: result.usage,
       details: {
-        aiteamosBotCompaction: true,
+        outcomegoBotCompaction: true,
         id: pending.id,
         contextSessionId: input.contextSessionId,
         reason: pending.reason,

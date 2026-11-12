@@ -1,12 +1,12 @@
 import { createRoot } from "react-dom/client";
 import { flushSync } from "react-dom";
 import { useVoiceNote } from "../../src/renderer/hooks/use-voice-note";
-import { BotAvatarGlyph } from "../../src/renderer/components/aiteamos/avatar-picker-icons";
-import VoiceMemoLayer from "../../src/renderer/components/aiteamos/voice-memo/voice-memo-layer";
+import { BotAvatarGlyph } from "../../src/renderer/components/outcomego/avatar-picker-icons";
+import VoiceMemoLayer from "../../src/renderer/components/outcomego/voice-memo/voice-memo-layer";
 import { LoadingOrb, preloadLoadingOrb } from "../../src/renderer/components/ui/loading-orb";
 import { usePluginMentions } from "../../src/renderer/hooks/use-plugin-mentions";
 import { useServerUpdateStatus } from "../../src/renderer/hooks/use-server-update-status";
-import { api } from "../../src/renderer/client/aiteamos-api";
+import { api } from "../../src/renderer/client/outcomego-api";
 import { installWindowVisibility, isWindowActive, isWindowVisible, WINDOW_ACTIVITY_EVENT } from "../../src/renderer/lib/window-visibility";
 import "../../src/renderer/styles.css";
 
@@ -133,7 +133,7 @@ const root = createRoot(document.getElementById("root")!);
 let recording = false;
 const render = () => root.render(
   <main>
-    {location.search.includes("native") && <div><h1>aiTeamOS background QA</h1>
+    {location.search.includes("native") && <div><h1>OutcomeGo background QA</h1>
       <button onClick={() => (window as any).activityQA.cover()}>Cover test window</button>{" "}
       <button onClick={() => (window as any).activityQA.hide()}>Hide test window</button>{" "}
       <button onClick={() => (window as any).activityQA.quit()}>Finish native test</button></div>}
@@ -174,7 +174,7 @@ Object.assign(window, {
     resources: {
       intervals: intervals.size, frames: frames.size,
       observers: Object.fromEntries(Object.entries(observers).map(([key, value]) => [key, value.size])),
-      listeners: Object.fromEntries([...listeners].filter(([key]) => /:focus:|:blur:|visibilitychange|aiteamos:window-activity-change/.test(key)).map(([key, value]) => [key, value.size])),
+      listeners: Object.fromEntries([...listeners].filter(([key]) => /:focus:|:blur:|visibilitychange|outcomego:window-activity-change/.test(key)).map(([key, value]) => [key, value.size])),
       visualizerTracks: [...visualizerTracks].filter(track => track.readyState === "live").length,
     },
   }),

@@ -3,7 +3,7 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
-      "@aiteamos/contracts": ["../contracts/src/index.ts"]
+      "@outcomego/contracts": ["../contracts/src/index.ts"]
     },
     "types": ["bun"]
   },

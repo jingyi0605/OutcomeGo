@@ -1,6 +1,6 @@
 import XCTest
 
-@testable import OpenTeamCore
+@testable import OutcomeGoCore
 
 final class RoutineScheduleTests: XCTestCase {
   func testDesktopPresetsRoundTripWithoutRoundingSavedTimes() {

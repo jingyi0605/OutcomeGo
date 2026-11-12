@@ -7,13 +7,13 @@ describe("shared onboarding error copy", () => {
     "Keychain unavailable",
   ])("hides native storage diagnostics: %s", (message) => {
     expect(authErrorMessage(new Error(message), "Could not sign in")).toBe(
-      "aiTeamOS could not access your saved sign-in. Restart the app and try again."
+      "OutcomeGo could not access your saved sign-in. Restart the app and try again."
     );
   });
   test.each([
-    "Enter a valid aiTeamOS server URL.",
-    "The aiTeamOS server URL must use HTTP or HTTPS.",
-    "aiTeamOS server URL is required",
+    "Enter a valid OutcomeGo server URL.",
+    "The OutcomeGo server URL must use HTTP or HTTPS.",
+    "OutcomeGo server URL is required",
   ])("gives an example for an invalid address: %s", (message) => {
     expect(authErrorMessage(new Error(message), "Invalid address")).toContain(
       "starting with http:// or https://"
@@ -45,13 +45,13 @@ describe("shared onboarding error copy", () => {
   });
   test("hides the error class Electron keeps from a main-process sign-in", () => {
     const remote = (message: string) =>
-      new Error(`Error invoking remote method 'aiteamos:auth:sign-in': ${message}`);
-    expect(authErrorMessage(remote("AiTeamOSClientError: fetch failed"), "Could not sign in")).toBe(
-      "Could not reach this aiTeamOS server. Check the address and your connection."
+      new Error(`Error invoking remote method 'outcomego:auth:sign-in': ${message}`);
+    expect(authErrorMessage(remote("OutcomeGoClientError: fetch failed"), "Could not sign in")).toBe(
+      "Could not reach this OutcomeGo server. Check the address and your connection."
     );
     expect(
       authErrorMessage(
-        remote("AiTeamOSClientError: The server took too long to respond. Please try again."),
+        remote("OutcomeGoClientError: The server took too long to respond. Please try again."),
         "Could not sign in"
       )
     ).toBe("The server took too long to respond. Please try again.");
@@ -59,7 +59,7 @@ describe("shared onboarding error copy", () => {
   test("turns a malformed sign-in success into a recovery action", () => {
     expect(
       authErrorMessage(
-        new Error("The server did not return an aiTeamOS session token"),
+        new Error("The server did not return an outcomeGo session token"),
         "Could not sign in"
       )
     ).toContain("contact your server administrator");

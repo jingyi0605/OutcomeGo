@@ -1,9 +1,9 @@
 import { expect, test } from "bun:test";
-import { createPrismaClient } from "@aiteamos/db";
+import { createPrismaClient } from "@outcomego/db";
 import { AgentMessaging } from "../src";
 
-test.skipIf(!process.env.AITEAMOS_TEST_DATABASE_URL)("pending cards stop their own turn without blocking later replies or delegated results", async () => {
-  const db = createPrismaClient(process.env.AITEAMOS_TEST_DATABASE_URL!);
+test.skipIf(!process.env.OUTCOMEGO_TEST_DATABASE_URL)("pending cards stop their own turn without blocking later replies or delegated results", async () => {
+  const db = createPrismaClient(process.env.OUTCOMEGO_TEST_DATABASE_URL!);
   const botId = crypto.randomUUID(), channelId = crypto.randomUUID(), conversationId = crypto.randomUUID(), runId = crypto.randomUUID();
   const messaging = new AgentMessaging(db, { send: async () => crypto.randomUUID(), sendDebounced: async () => crypto.randomUUID() } as never);
   try {

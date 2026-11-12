@@ -40,7 +40,7 @@ try {
   };
   context = await driver.playwright.chromium.launchPersistentContext(join(root, "profile"), {
     headless: false,
-    executablePath: "/usr/lib/aiteamos/bin/google-chrome",
+    executablePath: "/usr/lib/outcomego/bin/google-chrome",
     env,
     args: ["--no-sandbox", "--remote-debugging-port=0", "--window-size=1040,735"],
   });

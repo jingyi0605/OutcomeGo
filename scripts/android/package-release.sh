@@ -4,7 +4,7 @@
 # Signing material comes only from the environment and is never written to the repository:
 #   ANDROID_KEYSTORE_PATH, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD
 # Optional:
-#   AITEAMOS_APP_LINK_HOST   verified App Links host (otherwise the manifest placeholder is used)
+#   OUTCOMEGO_APP_LINK_HOST   verified App Links host (otherwise the manifest placeholder is used)
 #   ANDROID_VERSION_CODE     overrides the versionCode derived from the root package.json
 #
 # The script does not reset, clean, delete or commit files, and starts no servers.
@@ -69,8 +69,8 @@ if [[ -z "${ANDROID_HOME:-}" && -z "${ANDROID_SDK_ROOT:-}" && ! -f "$ROOT_DIR/lo
 fi
 
 gradle_args=(--no-daemon :mobile:androidApp:assembleRelease)
-[[ -n "${AITEAMOS_APP_LINK_HOST:-}" ]] && gradle_args+=("-PaiteamosAppLinkHost=$AITEAMOS_APP_LINK_HOST")
-[[ -n "${ANDROID_VERSION_CODE:-}" ]] && gradle_args+=("-PaiteamosVersionCode=$ANDROID_VERSION_CODE")
+[[ -n "${OUTCOMEGO_APP_LINK_HOST:-}" ]] && gradle_args+=("-PoutcomegoAppLinkHost=$OUTCOMEGO_APP_LINK_HOST")
+[[ -n "${ANDROID_VERSION_CODE:-}" ]] && gradle_args+=("-PoutcomegoVersionCode=$ANDROID_VERSION_CODE")
 
 echo "Repository: $ROOT_DIR"
 echo "Gradle JDK: $JAVA_HOME"

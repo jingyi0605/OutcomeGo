@@ -332,4 +332,4 @@ export function slidesTools(api = new GoogleApi('https://slides.googleapis.com')
     }),
   ];
 }
-if (import.meta.main) await servePlugin('aiteamos-google-slides', slidesTools());
+if (import.meta.main) await servePlugin('outcomego-google-slides', slidesTools());

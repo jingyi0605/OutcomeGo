@@ -12,6 +12,7 @@ enum ComputerStatus {
   ready
   unavailable
   degraded
+  @@map("outcomego_computer_status")
 }
 
 enum BotStatus {
@@ -19,6 +20,7 @@ enum BotStatus {
   active
   archived
   failed
+  @@map("outcomego_bot_status")
 }
 
 enum OnboardingStatus {
@@ -28,18 +30,21 @@ enum OnboardingStatus {
   completed
   failed
   skipped_by_user
+  @@map("outcomego_onboarding_status")
 }
 
 enum ConversationContinuity {
   empty
   attached
   detached
+  @@map("outcomego_conversation_continuity")
 }
 
 enum MessageRole {
   user
   assistant
   system
+  @@map("outcomego_message_role")
 }
 
 enum MessageStatus {
@@ -47,18 +52,21 @@ enum MessageStatus {
   streaming
   completed
   failed
+  @@map("outcomego_message_status")
 }
 
 enum ChannelKind {
   bot_dm
   agent_dm
   group
+  @@map("outcomego_channel_kind")
 }
 
 enum ChannelMessageSender {
   user
   agent
   system
+  @@map("outcomego_channel_message_sender")
 }
 
 enum ChannelRoundStatus {
@@ -66,6 +74,7 @@ enum ChannelRoundStatus {
   running
   completed
   failed
+  @@map("outcomego_channel_round_status")
 }
 
 enum ChannelDeliveryStatus {
@@ -75,6 +84,7 @@ enum ChannelDeliveryStatus {
   completed
   failed
   skipped
+  @@map("outcomego_channel_delivery_status")
 }
 
 enum RunOrigin {
@@ -88,17 +98,20 @@ enum RunOrigin {
   background_revival
   handoff_resume
   broadcast
+  @@map("outcomego_run_origin")
 }
 
 enum RoutineScheduleKind {
   cron
   interval
   event
+  @@map("outcomego_routine_schedule_kind")
 }
 
 enum RoutineExecutionKind {
   scheduled
   test
+  @@map("outcomego_routine_execution_kind")
 }
 
 enum RoutineExecutionStatus {
@@ -109,6 +122,7 @@ enum RoutineExecutionStatus {
   failed
   cancelled
   skipped
+  @@map("outcomego_routine_execution_status")
 }
 
 enum RunStatus {
@@ -119,6 +133,7 @@ enum RunStatus {
   failed
   cancelled
   interrupted
+  @@map("outcomego_run_status")
 }
 
 enum InboxStatus {
@@ -126,6 +141,7 @@ enum InboxStatus {
   processing
   completed
   failed
+  @@map("outcomego_inbox_status")
 }
 
 enum OutboxStatus {
@@ -133,11 +149,13 @@ enum OutboxStatus {
   delivering
   delivered
   failed
+  @@map("outcomego_outbox_status")
 }
 
 enum PushDevicePlatform {
   ios
   android
+  @@map("outcomego_push_device_platform")
 }
 
 enum RunItemKind {
@@ -148,6 +166,7 @@ enum RunItemKind {
   tool
   compaction
   error
+  @@map("outcomego_run_item_kind")
 }
 
 enum RunItemStatus {
@@ -157,6 +176,7 @@ enum RunItemStatus {
   completed
   failed
   cancelled
+  @@map("outcomego_run_item_status")
 }
 
 
@@ -165,17 +185,20 @@ enum IdempotencyStatus {
   processing
   completed
   failed
+  @@map("outcomego_idempotency_status")
 }
 
 enum MemoryScope {
   agent
   user
+  @@map("outcomego_memory_scope")
 }
 
 enum MemoryTier {
   profile
   log
   note
+  @@map("outcomego_memory_tier")
 }
 
 enum TodoStatus {
@@ -183,6 +206,7 @@ enum TodoStatus {
   in_progress
   completed
   cancelled
+  @@map("outcomego_todo_status")
 }
 
 enum SubagentStatus {
@@ -193,11 +217,13 @@ enum SubagentStatus {
   completed
   failed
   stopped
+  @@map("outcomego_subagent_status")
 }
 
 enum PluginInstallStatus {
   installed
   error
+  @@map("outcomego_plugin_install_status")
 }
 
 enum PluginConnectionStatus {
@@ -206,6 +232,7 @@ enum PluginConnectionStatus {
   ready
   error
   revoked
+  @@map("outcomego_plugin_connection_status")
 }
 
 
@@ -213,6 +240,7 @@ enum PluginInvocationStatus {
   running
   completed
   failed
+  @@map("outcomego_plugin_invocation_status")
 }
 
 enum VoiceSessionStatus {
@@ -221,6 +249,7 @@ enum VoiceSessionStatus {
   closing
   ended
   failed
+  @@map("outcomego_voice_session_status")
 }
 
 enum VoiceTurnStatus {
@@ -233,29 +262,31 @@ enum VoiceTurnStatus {
   interrupted
   cancelled
   failed
+  @@map("outcomego_voice_turn_status")
 }
 
 model Computer {
-  id           String         @id @default(uuid()) @db.Uuid
-  name         String         @default("aiTeamOS computer")
-  status       ComputerStatus @default(starting)
+  id String         @id @default(uuid()) @db.Uuid
+  name String         @default("OutcomeGo computer")
+  status ComputerStatus @default(starting)
   capabilities Json           @default("{}")
-  lastSeenAt   DateTime?
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
+  lastSeenAt DateTime?
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  @@map("outcomego_computer")
 }
 
 model Bot {
-  id               String       @id @default(uuid()) @db.Uuid
-  name             String
-  title            String       @default("")
-  description      String       @default("")
-  instructions     String       @default("")
-  voice            String       @default("")
-  templateRecipe   Json?
-  icon             String       @default("●")
-  color            String       @default("#4f7cff")
-  namedBy          String       @default("user")
+  id String       @id @default(uuid()) @db.Uuid
+  name String
+  title String       @default("")
+  description String       @default("")
+  instructions String       @default("")
+  voice String       @default("")
+  templateRecipe Json?
+  icon String       @default("●")
+  color String       @default("#4f7cff")
+  namedBy String       @default("user")
   notificationsEnabled Boolean  @default(true)
   hiddenFromSidebar Boolean     @default(false)
   /// Email and Slack drafts send without a review card.
@@ -264,17 +295,17 @@ model Bot {
   draftAllowedRecipients String[] @default([])
   /// Exchanges whose memory extraction has not finished; one left after a restart is reviewed with the next turn.
   pendingMemoryExchanges Json     @default("[]")
-  avatarPath       String?
+  avatarPath String?
   defaultDirectory String
-  status           BotStatus    @default(provisioning)
+  status BotStatus    @default(provisioning)
   onboardingStatus OnboardingStatus @default(pending)
   onboardingVersion Int         @default(1)
   onboardingCompletedAt DateTime?
   provisioningError Json?
-  runtimeEngine     String       @default("pi")
+  runtimeEngine String       @default("pi")
   inferenceProvider String?
-  inferenceModel    String?
-  runtimeSessionId  String?      @unique
+  inferenceModel String?
+  runtimeSessionId String?      @unique
   runtimeSessionPath String?     @unique
   conversation     Conversation?
   messages         Message[]
@@ -298,255 +329,265 @@ model Bot {
   voiceSessions VoiceSession[]
   contextSessions ContextSession[]
   processSecrets ProcessSecret[]
-  createdAt        DateTime     @default(now())
-  updatedAt        DateTime     @updatedAt
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
 
-  @@index([status, updatedAt])
+  @@index([status, updatedAt], map: "outcomego_bot_status_updated_at_idx")
+  @@map("outcomego_bot")
 }
 
 model TodoItem {
-  botId      String     @db.Uuid
+  botId String     @db.Uuid
   bot        Bot        @relation(fields: [botId], references: [id], onDelete: Cascade)
-  id         String
-  content    String
-  status     TodoStatus
-  position   Int
-  createdAt  DateTime   @default(now())
-  updatedAt  DateTime   @updatedAt
+  id String
+  content String
+  status TodoStatus
+  position Int
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
 
-  @@id([botId, id])
-  @@unique([botId, position])
-  @@index([botId, status, position])
+  @@id([botId, id], map: "outcomego_todo_item_bot_id_id_pkey")
+  @@unique([botId, position], map: "outcomego_todo_item_bot_id_position_key")
+  @@index([botId, status, position], map: "outcomego_todo_item_bot_id_status_position_idx")
+  @@map("outcomego_todo_item")
 }
 
 model Subagent {
-  id               String         @id @default(uuid()) @db.Uuid
-  parentBotId      String         @db.Uuid
+  id String         @id @default(uuid()) @db.Uuid
+  parentBotId String         @db.Uuid
   parentBot        Bot            @relation("ParentSubagents", fields: [parentBotId], references: [id], onDelete: Cascade)
-  childBotId       String         @unique @db.Uuid
+  childBotId String         @unique @db.Uuid
   childBot         Bot            @relation("ChildSubagent", fields: [childBotId], references: [id], onDelete: Cascade)
-  parentRunId      String         @db.Uuid
-  requestRunId     String?        @db.Uuid
+  parentRunId String         @db.Uuid
+  requestRunId String?        @db.Uuid
   requestRun       Run?           @relation("RequestSubagents", fields: [requestRunId], references: [id], onDelete: SetNull)
-  parentChannelId  String         @db.Uuid
-  currentRunId     String?        @unique @db.Uuid
-  launchCallId     String
-  description      String
-  prompt           String
-  subagentType     String
-  model            String?
-  reasoning        String?
+  parentChannelId String         @db.Uuid
+  currentRunId String?        @unique @db.Uuid
+  launchCallId String
+  description String
+  prompt String
+  subagentType String
+  model String?
+  reasoning String?
   taskConfiguration Json?
-  fileAttachments  Json           @default("[]")
-  readOnly         Boolean        @default(false)
-  status           SubagentStatus @default(provisioning)
+  fileAttachments Json           @default("[]")
+  readOnly Boolean        @default(false)
+  status SubagentStatus @default(provisioning)
   // Durable obligations survive a parked turn, process restart and context compaction.
-  progress         Json?
+  progress Json?
   progressRevision Int            @default(0)
-  scopeUpdates     Json           @default("[]")
+  scopeUpdates Json           @default("[]")
   recoveryAttempts Int            @default(0)
-  nextCheckAt      DateTime?
-  deadlineAt       DateTime?
-  result           String?
-  error            Json?
-  outputPath       String
-  startedAt        DateTime?
-  completedAt      DateTime?
-  stoppedAt        DateTime?
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
+  nextCheckAt DateTime?
+  deadlineAt DateTime?
+  result String?
+  error Json?
+  outputPath String
+  startedAt DateTime?
+  completedAt DateTime?
+  stoppedAt DateTime?
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
   attempts         SubagentAttempt[]
 
-  @@unique([parentBotId, launchCallId])
-  @@index([parentBotId, status, createdAt])
-  @@index([childBotId, status])
-  @@index([status, nextCheckAt])
-  @@index([requestRunId, status])
+  @@unique([parentBotId, launchCallId], map: "outcomego_subagent_parent_bot_id_launch_call_id_key")
+  @@index([parentBotId, status, createdAt], map: "outcomego_subagent_parent_bot_id_status_created_at_idx")
+  @@index([childBotId, status], map: "outcomego_subagent_child_bot_id_status_idx")
+  @@index([status, nextCheckAt], map: "outcomego_subagent_status_next_check_at_idx")
+  @@index([requestRunId, status], map: "outcomego_subagent_request_run_id_status_idx")
+  @@map("outcomego_subagent")
 }
 
 model SubagentAttempt {
-  id                String         @id @default(uuid()) @db.Uuid
-  subagentId        String         @db.Uuid
+  id String         @id @default(uuid()) @db.Uuid
+  subagentId String         @db.Uuid
   subagent          Subagent       @relation(fields: [subagentId], references: [id], onDelete: Cascade)
-  parentRunId       String         @db.Uuid
-  parentChannelId   String         @db.Uuid
-  parentToolCallId  String
-  childRunId        String?        @unique @db.Uuid
-  description       String
-  prompt            String
-  fileAttachments   Json           @default("[]")
-  status            SubagentStatus @default(provisioning)
-  result            String?
-  error             Json?
-  startedAt         DateTime?
-  completedAt       DateTime?
-  stoppedAt         DateTime?
-  createdAt         DateTime       @default(now())
-  updatedAt         DateTime       @updatedAt
+  parentRunId String         @db.Uuid
+  parentChannelId String         @db.Uuid
+  parentToolCallId String
+  childRunId String?        @unique @db.Uuid
+  description String
+  prompt String
+  fileAttachments Json           @default("[]")
+  status SubagentStatus @default(provisioning)
+  result String?
+  error Json?
+  startedAt DateTime?
+  completedAt DateTime?
+  stoppedAt DateTime?
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
 
-  @@unique([subagentId, parentToolCallId])
-  @@index([parentChannelId, createdAt])
-  @@index([subagentId, status, createdAt])
+  @@unique([subagentId, parentToolCallId], map: "outcomego_subagent_attempt_subagent_id_parent_tool_call_id_key")
+  @@index([parentChannelId, createdAt], map: "outcomego_subagent_attempt_parent_channel_id_created_at_idx")
+  @@index([subagentId, status, createdAt], map: "outcomego_subagent_attempt_subagent_id_status_created_at_idx")
+  @@map("outcomego_subagent_attempt")
 }
 
 model MemoryFact {
-  id             String      @id @default(uuid()) @db.Uuid
-  namespace      String
-  scope          MemoryScope
-  tier           MemoryTier  @default(log)
-  fact           String
-  factHash       String
-  logicalId      String      @default("")
+  id String      @id @default(uuid()) @db.Uuid
+  namespace String
+  scope MemoryScope
+  tier MemoryTier  @default(log)
+  fact String
+  factHash String
+  logicalId String      @default("")
   // Insertion order within the namespace; breaks createdAt ties.
-  sourceOrdinal  Int         @default(0)
-  importance     Float       @default(1)
+  sourceOrdinal Int         @default(0)
+  importance Float       @default(1)
   // How the fact was saved: tool, extract or template.
-  origin         String      @default("tool")
+  origin String      @default("tool")
   // The run that saved the fact, when there was one.
-  turnId         String?
+  turnId String?
   writtenByBotId String?      @db.Uuid
   writtenByBot   Bot?         @relation("MemoryFactWriter", fields: [writtenByBotId], references: [id], onDelete: SetNull)
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
 
-  @@index([namespace, logicalId, createdAt])
-  @@index([namespace, tier, updatedAt])
-  @@index([writtenByBotId, updatedAt])
+  @@index([namespace, logicalId, createdAt], map: "outcomego_memory_fact_namespace_logical_id_created_at_idx")
+  @@index([namespace, tier, updatedAt], map: "outcomego_memory_fact_namespace_tier_updated_at_idx")
+  @@index([writtenByBotId, updatedAt], map: "outcomego_memory_fact_written_by_bot_id_updated_at_idx")
+  @@map("outcomego_memory_fact")
 }
 
 model SavedSkill {
-  id          String   @id @default(uuid()) @db.Uuid
-  botId       String?  @db.Uuid
+  id String   @id @default(uuid()) @db.Uuid
+  botId String?  @db.Uuid
   bot         Bot?     @relation(fields: [botId], references: [id], onDelete: SetNull)
-  slug        String   @unique
-  name        String
+  slug String   @unique
+  name String
   description String
-  body        String
+  body String
   frontmatter Json     @default("{}")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  @@index([name])
-  @@index([updatedAt])
+  @@index([name], map: "outcomego_saved_skill_name_idx")
+  @@index([updatedAt], map: "outcomego_saved_skill_updated_at_idx")
+  @@map("outcomego_saved_skill")
 }
 
 model Routine {
-  id              String              @id @default(uuid()) @db.Uuid
-  botId           String?             @db.Uuid
+  id String              @id @default(uuid()) @db.Uuid
+  botId String?             @db.Uuid
   bot             Bot?                @relation(fields: [botId], references: [id], onDelete: Cascade)
-  channelId       String?             @db.Uuid
-  executorBotId   String?             @db.Uuid
+  channelId String?             @db.Uuid
+  executorBotId String?             @db.Uuid
   channel         Channel?            @relation(fields: [channelId], references: [id], onDelete: Cascade)
-  slug            String
-  name            String
-  prompt          String
-  trigger         Json                @default("{}")
+  slug String
+  name String
+  prompt String
+  trigger Json                @default("{}")
   triggerPresentation Json?
-  provenance      String              @default("untrusted")
-  scheduleText    String
-  scheduleKind    RoutineScheduleKind
-  cronExpression  String?
+  provenance String              @default("untrusted")
+  scheduleText String
+  scheduleKind RoutineScheduleKind
+  cronExpression String?
   intervalSeconds Int?
-  timezoneMode    String              @default("installation")
-  timezone        String
-  enabled         Boolean             @default(true)
-  revision        Int                 @default(1)
-  nextRunAt       DateTime?
-  lastRunAt       DateTime?
-  pausedAt        DateTime?
-  deletedAt       DateTime?
-  pendingNotices  Json                @default("[]")
-  raisedNotices   Json                @default("[]")
-  runLedger       Json                @default("[]")
+  timezoneMode String              @default("installation")
+  timezone String
+  enabled Boolean             @default(true)
+  revision Int                 @default(1)
+  nextRunAt DateTime?
+  lastRunAt DateTime?
+  pausedAt DateTime?
+  deletedAt DateTime?
+  pendingNotices Json                @default("[]")
+  raisedNotices Json                @default("[]")
+  runLedger Json                @default("[]")
   revisions       RoutineRevision[]
   executions      RoutineExecution[]
   webhook         AutomationWebhook?
-  createdAt       DateTime            @default(now())
-  updatedAt       DateTime            @updatedAt
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
 
-  @@index([enabled, nextRunAt])
-  @@index([botId, deletedAt, updatedAt])
-  @@index([channelId, deletedAt, updatedAt])
-  @@unique([botId, slug])
-  @@unique([channelId, slug])
+  @@index([enabled, nextRunAt], map: "outcomego_routine_enabled_next_run_at_idx")
+  @@index([botId, deletedAt, updatedAt], map: "outcomego_routine_bot_id_deleted_at_updated_at_idx")
+  @@index([channelId, deletedAt, updatedAt], map: "outcomego_routine_channel_id_deleted_at_updated_at_idx")
+  @@unique([botId, slug], map: "outcomego_routine_bot_id_slug_key")
+  @@unique([channelId, slug], map: "outcomego_routine_channel_id_slug_key")
+  @@map("outcomego_routine")
 }
 
 model RoutineRevision {
-  id              String              @id @default(uuid()) @db.Uuid
-  routineId       String              @db.Uuid
+  id String              @id @default(uuid()) @db.Uuid
+  routineId String              @db.Uuid
   routine         Routine             @relation(fields: [routineId], references: [id], onDelete: Cascade)
-  revision        Int
-  name            String
-  prompt          String
-  scheduleText    String
-  scheduleKind    RoutineScheduleKind
-  cronExpression  String?
+  revision Int
+  name String
+  prompt String
+  scheduleText String
+  scheduleKind RoutineScheduleKind
+  cronExpression String?
   intervalSeconds Int?
-  timezoneMode    String
-  timezone        String
-  enabled         Boolean
-  source          String
-  callId          String?
-  runId           String?             @db.Uuid
+  timezoneMode String
+  timezone String
+  enabled Boolean
+  source String
+  callId String?
+  runId String?             @db.Uuid
   executions      RoutineExecution[]
-  createdAt       DateTime            @default(now())
+  createdAt DateTime            @default(now())
 
-  @@unique([routineId, revision])
+  @@unique([routineId, revision], map: "outcomego_routine_revision_routine_id_revision_key")
+  @@map("outcomego_routine_revision")
 }
 
 model RoutineExecution {
-  id                String                 @id @default(uuid()) @db.Uuid
-  routineId         String                 @db.Uuid
+  id String                 @id @default(uuid()) @db.Uuid
+  routineId String                 @db.Uuid
   routine           Routine                @relation(fields: [routineId], references: [id], onDelete: Cascade)
   routineRevisionId String                 @db.Uuid
   routineRevision   RoutineRevision        @relation(fields: [routineRevisionId], references: [id], onDelete: Restrict)
-  runId             String?                @unique @db.Uuid
+  runId String?                @unique @db.Uuid
   run               Run?                   @relation(fields: [runId], references: [id], onDelete: SetNull)
-  channelMessageId  String?                @unique @db.Uuid
+  channelMessageId String?                @unique @db.Uuid
   channelMessage    ChannelMessage?        @relation("RoutineTriggerMessage", fields: [channelMessageId], references: [id], onDelete: SetNull)
-  kind              RoutineExecutionKind
-  status            RoutineExecutionStatus @default(queued)
-  dedupeKey         String                 @unique
-  scheduledFor      DateTime
-  enqueuedAt        DateTime?
-  startedAt         DateTime?
-  completedAt       DateTime?
-  skipReason        String?
-  error             Json?
+  kind RoutineExecutionKind
+  status RoutineExecutionStatus @default(queued)
+  dedupeKey String                 @unique
+  scheduledFor DateTime
+  enqueuedAt DateTime?
+  startedAt DateTime?
+  completedAt DateTime?
+  skipReason String?
+  error Json?
   // Listener events this execution's wake delivers, and the delivery keys it absorbed
   // while an earlier execution was queued or running.
-  events            Json?
-  coalescedKeys     String[]               @default([])
-  createdAt         DateTime               @default(now())
-  updatedAt         DateTime               @updatedAt
+  events Json?
+  coalescedKeys String[]               @default([])
+  createdAt DateTime               @default(now())
+  updatedAt DateTime               @updatedAt
 
-  @@index([routineId, createdAt])
-  @@index([status, createdAt])
+  @@index([routineId, createdAt], map: "outcomego_routine_execution_routine_id_created_at_idx")
+  @@index([status, createdAt], map: "outcomego_routine_execution_status_created_at_idx")
+  @@map("outcomego_routine_execution")
 }
 
 model BotConnectorState {
-  botId        String   @db.Uuid
+  botId String   @db.Uuid
   bot          Bot      @relation(fields: [botId], references: [id], onDelete: Cascade)
-  platform     String
-  connected    Boolean  @default(true)
+  platform String
+  connected Boolean  @default(true)
   disconnectedAt DateTime?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  @@id([botId, platform])
-  @@index([platform, connected])
+  @@id([botId, platform], map: "outcomego_bot_connector_state_bot_id_platform_pkey")
+  @@index([platform, connected], map: "outcomego_bot_connector_state_platform_connected_idx")
+  @@map("outcomego_bot_connector_state")
 }
 
 model Channel {
-  id          String           @id @default(uuid()) @db.Uuid
-  kind        ChannelKind
-  name        String
+  id String           @id @default(uuid()) @db.Uuid
+  kind ChannelKind
+  name String
   description String           @default("")
-  avatarPath  String?
-  directKey   String?          @unique
+  avatarPath String?
+  directKey String?          @unique
   workingDirectory String?
   hiddenFromSidebar Boolean    @default(false)
-  archivedAt  DateTime?
+  archivedAt DateTime?
   members     ChannelMember[]
   messages    ChannelMessage[]
   rounds      ChannelRound[]
@@ -554,20 +595,22 @@ model Channel {
   routines    Routine[]
   readState   ChannelReadState?
   notifications ChannelNotification[]
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
   voiceSessions VoiceSession[]
 
-  @@index([kind, updatedAt])
+  @@index([kind, updatedAt], map: "outcomego_channel_kind_updated_at_idx")
+  @@map("outcomego_channel")
 }
 
 model ChannelReadState {
-  channelId        String   @id @db.Uuid
+  channelId String   @id @db.Uuid
   channel          Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
   lastReadSequence BigInt   @default(0)
   lastReadNotificationSequence BigInt @default(0)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@map("outcomego_channel_read_state")
 }
 
 model ChannelNotification {
@@ -582,212 +625,223 @@ model ChannelNotification {
   revoked Boolean @default(false)
   createdAt DateTime @default(now())
 
-  @@index([channelId, sequence])
+  @@index([channelId, sequence], map: "outcomego_channel_notification_channel_id_sequence_idx")
+  @@map("outcomego_channel_notification")
 }
 
 model ChannelMember {
   channelId String   @db.Uuid
   channel   Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
-  botId     String   @db.Uuid
+  botId String   @db.Uuid
   bot       Bot      @relation(fields: [botId], references: [id], onDelete: Cascade)
-  ordinal   Int
+  ordinal Int
   createdAt DateTime @default(now())
 
-  @@id([channelId, botId])
-  @@unique([channelId, ordinal])
-  @@index([botId, channelId])
+  @@id([channelId, botId], map: "outcomego_channel_member_channel_id_bot_id_pkey")
+  @@unique([channelId, ordinal], map: "outcomego_channel_member_channel_id_ordinal_key")
+  @@index([botId, channelId], map: "outcomego_channel_member_bot_id_channel_id_idx")
+  @@map("outcomego_channel_member")
 }
 
 model ChannelMessage {
-  id             String               @id @default(uuid()) @db.Uuid
-  sequence       BigInt               @default(autoincrement())
-  channelId      String               @db.Uuid
+  id String               @id @default(uuid()) @db.Uuid
+  sequence BigInt               @default(autoincrement())
+  channelId String               @db.Uuid
   channel        Channel              @relation(fields: [channelId], references: [id], onDelete: Cascade)
-  sender         ChannelMessageSender
-  senderBotId    String?              @db.Uuid
+  sender ChannelMessageSender
+  senderBotId String?              @db.Uuid
   senderBot      Bot?                 @relation("ChannelMessageSenderBot", fields: [senderBotId], references: [id], onDelete: SetNull)
-  sourceRunId    String?              @db.Uuid
+  sourceRunId String?              @db.Uuid
   sourceRun      Run?                 @relation("VisibleRunMessage", fields: [sourceRunId], references: [id], onDelete: SetNull)
-  clientId       String?
-  content        String               @default("")
-  metadata       Json                 @default("{}")
+  clientId String?
+  content String               @default("")
+  metadata Json                 @default("{}")
   triggeredRound ChannelRound?        @relation("RoundTrigger")
   routineExecution RoutineExecution?  @relation("RoutineTriggerMessage")
-  createdAt      DateTime             @default(now())
+  createdAt DateTime             @default(now())
 
-  @@unique([channelId, clientId])
-  @@index([channelId, sequence])
-  @@index([senderBotId, createdAt])
+  @@unique([channelId, clientId], map: "outcomego_channel_message_channel_id_client_id_key")
+  @@index([channelId, sequence], map: "outcomego_channel_message_channel_id_sequence_idx")
+  @@index([senderBotId, createdAt], map: "outcomego_channel_message_sender_bot_id_created_at_idx")
+  @@map("outcomego_channel_message")
 }
 
 model ChannelRound {
-  id             String             @id @default(uuid()) @db.Uuid
-  channelId      String             @db.Uuid
+  id String             @id @default(uuid()) @db.Uuid
+  channelId String             @db.Uuid
   channel        Channel            @relation(fields: [channelId], references: [id], onDelete: Cascade)
   triggerMessageId String           @unique @db.Uuid
   triggerMessage ChannelMessage     @relation("RoundTrigger", fields: [triggerMessageId], references: [id], onDelete: Cascade)
-  rootMessageId  String             @db.Uuid
-  roundIndex     Int                @default(0)
+  rootMessageId String             @db.Uuid
+  roundIndex Int                @default(0)
   memberTurnOffset Int              @default(0)
   initiatorBotId String?            @db.Uuid
   initiatorBot   Bot?               @relation("ChannelRoundInitiator", fields: [initiatorBotId], references: [id], onDelete: SetNull)
-  status         ChannelRoundStatus @default(queued)
+  status ChannelRoundStatus @default(queued)
   currentOrdinal Int                @default(-1)
   deliveries     ChannelDelivery[]
-  completedAt    DateTime?
-  createdAt      DateTime           @default(now())
-  updatedAt      DateTime           @updatedAt
+  completedAt DateTime?
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
 
-  @@index([channelId, status, createdAt])
-  @@index([rootMessageId, roundIndex])
+  @@index([channelId, status, createdAt], map: "outcomego_channel_round_channel_id_status_created_at_idx")
+  @@index([rootMessageId, roundIndex], map: "outcomego_channel_round_root_message_id_round_index_idx")
+  @@map("outcomego_channel_round")
 }
 
 model ChannelDelivery {
-  id          String                @id @default(uuid()) @db.Uuid
-  roundId     String                @db.Uuid
+  id String                @id @default(uuid()) @db.Uuid
+  roundId String                @db.Uuid
   round       ChannelRound          @relation(fields: [roundId], references: [id], onDelete: Cascade)
-  botId       String                @db.Uuid
+  botId String                @db.Uuid
   bot         Bot                   @relation(fields: [botId], references: [id], onDelete: Cascade)
-  ordinal     Int
-  status      ChannelDeliveryStatus @default(pending)
+  ordinal Int
+  status ChannelDeliveryStatus @default(pending)
   run         Run?
-  startedAt   DateTime?
+  startedAt DateTime?
   completedAt DateTime?
-  error       Json?
-  createdAt   DateTime              @default(now())
-  updatedAt   DateTime              @updatedAt
+  error Json?
+  createdAt DateTime              @default(now())
+  updatedAt DateTime              @updatedAt
 
-  @@unique([roundId, botId])
-  @@unique([roundId, ordinal])
-  @@index([botId, status, createdAt])
+  @@unique([roundId, botId], map: "outcomego_channel_delivery_round_id_bot_id_key")
+  @@unique([roundId, ordinal], map: "outcomego_channel_delivery_round_id_ordinal_key")
+  @@index([botId, status, createdAt], map: "outcomego_channel_delivery_bot_id_status_created_at_idx")
+  @@map("outcomego_channel_delivery")
 }
 
 model Conversation {
-  id             String                 @id @default(uuid()) @db.Uuid
-  botId          String                 @unique @db.Uuid
+  id String                 @id @default(uuid()) @db.Uuid
+  botId String                 @unique @db.Uuid
   bot            Bot                    @relation(fields: [botId], references: [id], onDelete: Cascade)
-  continuity     ConversationContinuity @default(empty)
+  continuity ConversationContinuity @default(empty)
   compactionEpoch Int                   @default(0)
   messages       Message[]
   runs           Run[]
   voiceSessions  VoiceSession[]
   inboxEvents    InboxEvent[]
-  createdAt      DateTime               @default(now())
-  updatedAt      DateTime               @updatedAt
+  createdAt DateTime               @default(now())
+  updatedAt DateTime               @updatedAt
+  @@map("outcomego_conversation")
 }
 
 model ContextSession {
-  id                 String              @id @default(uuid()) @db.Uuid
-  botId              String              @db.Uuid
+  id String              @id @default(uuid()) @db.Uuid
+  botId String              @db.Uuid
   bot                Bot                 @relation(fields: [botId], references: [id], onDelete: Cascade)
-  scope              String
-  scopeId            String              @db.Uuid
-  runtimeSessionId   String?             @unique
+  scope String
+  scopeId String              @db.Uuid
+  runtimeSessionId String?             @unique
   runtimeSessionPath String?             @unique
-  inferenceProvider  String?
-  inferenceModel     String?
-  compactionEpoch    Int                 @default(0)
-  lastArchiveId      String?             @db.Uuid
+  inferenceProvider String?
+  inferenceModel String?
+  compactionEpoch Int                 @default(0)
+  lastArchiveId String?             @db.Uuid
   compactions        ContextCompaction[]
   promptSnapshot     ContextPromptSnapshot?
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
 
-  @@unique([botId, scope, scopeId])
-  @@index([botId, scope])
+  @@unique([botId, scope, scopeId], map: "outcomego_context_session_bot_id_scope_scope_id_key")
+  @@index([botId, scope], map: "outcomego_context_session_bot_id_scope_idx")
+  @@map("outcomego_context_session")
 }
 
 model ContextCompaction {
-  id               String         @id @db.Uuid
+  id String         @id @db.Uuid
   contextSessionId String         @db.Uuid
   contextSession   ContextSession @relation(fields: [contextSessionId], references: [id], onDelete: Cascade)
-  sequence         Int
-  reason           String
-  prefixDigest     String
-  summaryDigest    String
-  status           String         @default("adopted")
-  tokensBefore     Int?
-  tokensAfter      Int?
-  imageCount       Int            @default(0)
-  turnCount        Int            @default(0)
-  startedAt        DateTime
-  completedAt      DateTime?
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
+  sequence Int
+  reason String
+  prefixDigest String
+  summaryDigest String
+  status String         @default("adopted")
+  tokensBefore Int?
+  tokensAfter Int?
+  imageCount Int            @default(0)
+  turnCount Int            @default(0)
+  startedAt DateTime
+  completedAt DateTime?
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
 
-  @@unique([contextSessionId, sequence])
-  @@index([contextSessionId, status])
+  @@unique([contextSessionId, sequence], map: "outcomego_context_compaction_context_session_id_sequence_key")
+  @@index([contextSessionId, status], map: "outcomego_context_compaction_context_session_id_status_idx")
+  @@map("outcomego_context_compaction")
 }
 
 model ContextPromptSnapshot {
-  contextSessionId      String         @id @db.Uuid
+  contextSessionId String         @id @db.Uuid
   contextSession        ContextSession @relation(fields: [contextSessionId], references: [id], onDelete: Cascade)
-  profileEpoch          Int            @default(-1)
-  profileSection        String         @default("")
-  systemName            String         @default("")
-  systemDescription     String         @default("")
-  announcedName         String         @default("")
-  announcedDescription  String         @default("")
-  skillEpoch            Int            @default(-1)
-  skillRender           String         @default("")
-  promptSections        Json           @default("{}")
-  createdAt              DateTime       @default(now())
-  updatedAt              DateTime       @updatedAt
+  profileEpoch Int            @default(-1)
+  profileSection String         @default("")
+  systemName String         @default("")
+  systemDescription String         @default("")
+  announcedName String         @default("")
+  announcedDescription String         @default("")
+  skillEpoch Int            @default(-1)
+  skillRender String         @default("")
+  promptSections Json           @default("{}")
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  @@map("outcomego_context_prompt_snapshot")
 }
 
 model AgentFileState {
-  path          String   @id
-  botId         String?  @db.Uuid
+  path String   @id
+  botId String?  @db.Uuid
   bot           Bot?     @relation(fields: [botId], references: [id], onDelete: Cascade)
-  kind          String
-  digest        String?
-  validDigest   String?
-  exists        Boolean  @default(true)
-  error         String?
-  generation    Int      @default(0)
-  firstSeenAt   DateTime @default(now())
-  lastSeenAt    DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  kind String
+  digest String?
+  validDigest String?
+  exists Boolean  @default(true)
+  error String?
+  generation Int      @default(0)
+  firstSeenAt DateTime @default(now())
+  lastSeenAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  @@index([botId, kind])
-  @@index([kind, lastSeenAt])
+  @@index([botId, kind], map: "outcomego_agent_file_state_bot_id_kind_idx")
+  @@index([kind, lastSeenAt], map: "outcomego_agent_file_state_kind_last_seen_at_idx")
+  @@map("outcomego_agent_file_state")
 }
 
 model Message {
-  id             String        @id @default(uuid()) @db.Uuid
-  botId          String        @db.Uuid
+  id String        @id @default(uuid()) @db.Uuid
+  botId String        @db.Uuid
   bot            Bot           @relation(fields: [botId], references: [id], onDelete: Cascade)
   conversationId String        @db.Uuid
   conversation   Conversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  runId          String?       @db.Uuid
+  runId String?       @db.Uuid
   run            Run?          @relation("RunMessages", fields: [runId], references: [id], onDelete: SetNull)
-  clientId       String?
+  clientId String?
   upstreamItemId String?
-  role           MessageRole
-  content        String        @default("")
-  status         MessageStatus @default(queued)
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  role MessageRole
+  content String        @default("")
+  status MessageStatus @default(queued)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
 
-  @@unique([conversationId, clientId])
-  @@unique([conversationId, upstreamItemId])
-  @@index([conversationId, createdAt])
+  @@unique([conversationId, clientId], map: "outcomego_message_conversation_id_client_id_key")
+  @@unique([conversationId, upstreamItemId], map: "outcomego_message_conversation_id_upstream_item_id_key")
+  @@index([conversationId, createdAt], map: "outcomego_message_conversation_id_created_at_idx")
+  @@map("outcomego_message")
 }
 
 model Run {
-  id             String       @id @default(uuid()) @db.Uuid
-  botId          String       @db.Uuid
+  id String       @id @default(uuid()) @db.Uuid
+  botId String       @db.Uuid
   bot            Bot          @relation(fields: [botId], references: [id], onDelete: Cascade)
   conversationId String       @db.Uuid
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  userMessageId  String       @unique @db.Uuid
-  status         RunStatus    @default(queued)
-  runtimeTurnId  String?
+  userMessageId String       @unique @db.Uuid
+  status RunStatus    @default(queued)
+  runtimeTurnId String?
   inferenceProvider String?
   inferenceModel String?
   inferenceReasoning String?
   taskConfiguration Json?
-  origin         RunOrigin    @default(user)
+  origin RunOrigin    @default(user)
   // A parent request can outlive this model turn and several scoped workers.
   requestProgress Json?
   requestRevision Int @default(0)
@@ -795,14 +849,14 @@ model Run {
   requestReconciliations Int @default(0)
   requestStoppedAt DateTime?
   requestedSubagents Subagent[] @relation("RequestSubagents")
-  channelId      String?      @db.Uuid
+  channelId String?      @db.Uuid
   channel        Channel?     @relation(fields: [channelId], references: [id], onDelete: SetNull)
-  deliveryId     String?      @unique @db.Uuid
+  deliveryId String?      @unique @db.Uuid
   delivery       ChannelDelivery? @relation(fields: [deliveryId], references: [id], onDelete: SetNull)
-  error          Json?
+  error Json?
   inputDeliveredAt DateTime?
-  startedAt      DateTime?
-  completedAt    DateTime?
+  startedAt DateTime?
+  completedAt DateTime?
   messages       Message[]    @relation("RunMessages")
   visibleMessages ChannelMessage[] @relation("VisibleRunMessage")
   items          RunItem[]
@@ -811,328 +865,345 @@ model Run {
   routineExecution RoutineExecution?
   automationResult AutomationResult?
   pluginInvocations PluginInvocation[]
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
   voiceTurn      VoiceTurn?   @relation("VoiceTurnRun")
 
-  @@index([botId, status])
-  @@index([conversationId, createdAt])
-  @@index([channelId, createdAt])
-  @@index([requestNextCheckAt])
+  @@index([botId, status], map: "outcomego_run_bot_id_status_idx")
+  @@index([conversationId, createdAt], map: "outcomego_run_conversation_id_created_at_idx")
+  @@index([channelId, createdAt], map: "outcomego_run_channel_id_created_at_idx")
+  @@index([requestNextCheckAt], map: "outcomego_run_request_next_check_at_idx")
+  @@map("outcomego_run")
 }
 
 model AutomationResult {
-  runId          String   @id @db.Uuid
+  runId String   @id @db.Uuid
   run            Run      @relation(fields: [runId], references: [id], onDelete: Cascade)
-  message        String
-  wakeRunId      String?  @unique @db.Uuid
+  message String
+  wakeRunId String?  @unique @db.Uuid
   acknowledgedAt DateTime?
-  createdAt      DateTime @default(now())
+  createdAt DateTime @default(now())
 
-  @@index([acknowledgedAt, createdAt])
+  @@index([acknowledgedAt, createdAt], map: "outcomego_automation_result_acknowledged_at_created_at_idx")
+  @@map("outcomego_automation_result")
 }
 
 model VoiceSession {
-  id               String             @id @default(uuid()) @db.Uuid
-  botId            String             @db.Uuid
+  id String             @id @default(uuid()) @db.Uuid
+  botId String             @db.Uuid
   bot              Bot                @relation(fields: [botId], references: [id], onDelete: Cascade)
-  conversationId   String             @db.Uuid
+  conversationId String             @db.Uuid
   conversation     Conversation       @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  channelId        String             @db.Uuid
+  channelId String             @db.Uuid
   channel          Channel             @relation(fields: [channelId], references: [id], onDelete: Cascade)
-  ownerSessionId   String?
+  ownerSessionId String?
   ownerSession     Session?           @relation(fields: [ownerSessionId], references: [id], onDelete: Cascade)
-  clientPlatform   String
+  clientPlatform String
   clientInstanceId String
-  provider         String
-  voice            String
+  provider String
+  voice String
   participantBotIds String[]          @default([])
-  status           VoiceSessionStatus @default(created)
-  expiresAt        DateTime
-  endedAt          DateTime?
-  closeReason      String?
-  createdAt        DateTime           @default(now())
-  updatedAt        DateTime           @updatedAt
+  status VoiceSessionStatus @default(created)
+  expiresAt DateTime
+  endedAt DateTime?
+  closeReason String?
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
   turns            VoiceTurn[]
 
-  @@index([ownerSessionId, status, expiresAt])
-  @@index([botId, status, expiresAt])
-  @@index([channelId, createdAt])
+  @@index([ownerSessionId, status, expiresAt], map: "outcomego_voice_session_owner_session_id_status_expires_at_idx")
+  @@index([botId, status, expiresAt], map: "outcomego_voice_session_bot_id_status_expires_at_idx")
+  @@index([channelId, createdAt], map: "outcomego_voice_session_channel_id_created_at_idx")
+  @@map("outcomego_voice_session")
 }
 
 model VoiceTurn {
-  id                  String          @id @default(uuid()) @db.Uuid
-  sessionId           String          @db.Uuid
+  id String          @id @default(uuid()) @db.Uuid
+  sessionId String          @db.Uuid
   session             VoiceSession    @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  runId               String?         @unique @db.Uuid
+  runId String?         @unique @db.Uuid
   run                 Run?            @relation("VoiceTurnRun", fields: [runId], references: [id], onDelete: SetNull)
-  userMessageId       String?
-  status              VoiceTurnStatus @default(listening)
-  transcript          String?
-  durationMs          Int             @default(0)
-  language            String?
-  providerMetadata    Json?
+  userMessageId String?
+  status VoiceTurnStatus @default(listening)
+  transcript String?
+  durationMs Int             @default(0)
+  language String?
+  providerMetadata Json?
   assistantMessageIds String[]        @default([])
-  generation          Int             @default(0)
-  createdAt           DateTime        @default(now())
-  completedAt         DateTime?
-  updatedAt           DateTime        @updatedAt
+  generation Int             @default(0)
+  createdAt DateTime        @default(now())
+  completedAt DateTime?
+  updatedAt DateTime        @updatedAt
 
-  @@index([sessionId, createdAt])
-  @@index([sessionId, status])
+  @@index([sessionId, createdAt], map: "outcomego_voice_turn_session_id_created_at_idx")
+  @@index([sessionId, status], map: "outcomego_voice_turn_session_id_status_idx")
+  @@map("outcomego_voice_turn")
 }
 
 model VoiceSettings {
-  id                       String   @id @default("global")
-  enabled                  Boolean  @default(false)
-  provider                 String   @default("volcengine")
+  id String   @id @default("global")
+  enabled Boolean  @default(false)
+  provider String   @default("volcengine")
   encryptedVolcengineApiKey String?
-  volcengineBaseUrl        String   @default("https://openspeech.bytedance.com")
-  volcengineSttUrl         String?
-  volcengineTtsUrl         String?
-  volcengineSttResourceId  String   @default("volc.seedasr.sauc.duration")
-  volcengineTtsResourceId  String   @default("seed-tts-2.0")
-  encryptedDeepgramApiKey  String?
-  deepgramBaseUrl          String   @default("https://api.deepgram.com")
-  sttModel                 String   @default("nova-3")
-  ttsModel                 String   @default("aura-2-thalia-en")
-  voice                    String   @default("alloy")
-  language                 String   @default("en-US")
-  narrationModel           String   @default("")
-  createdAt                DateTime @default(now())
-  updatedAt                DateTime @updatedAt
+  volcengineBaseUrl String   @default("https://openspeech.bytedance.com")
+  volcengineSttUrl String?
+  volcengineTtsUrl String?
+  volcengineSttResourceId String   @default("volc.seedasr.sauc.duration")
+  volcengineTtsResourceId String   @default("seed-tts-2.0")
+  encryptedDeepgramApiKey String?
+  deepgramBaseUrl String   @default("https://api.deepgram.com")
+  sttModel String   @default("")
+  ttsModel String   @default("")
+  voice String   @default("")
+  language String   @default("")
+  narrationModel String   @default("")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@map("outcomego_voice_settings")
 }
 
 model InboxEvent {
-  id             String       @id @default(uuid()) @db.Uuid
-  botId          String       @db.Uuid
+  id String       @id @default(uuid()) @db.Uuid
+  botId String       @db.Uuid
   bot            Bot          @relation(fields: [botId], references: [id], onDelete: Cascade)
   conversationId String       @db.Uuid
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  runId          String       @db.Uuid
+  runId String       @db.Uuid
   run            Run          @relation(fields: [runId], references: [id], onDelete: Cascade)
   idempotencyKey String       @unique
-  type           String       
-  payload        Json
-  status         InboxStatus  @default(pending)
-  priority       Int          @default(0)
-  attempts       Int          @default(0)
-  availableAt    DateTime     @default(now())
-  claimedAt      DateTime?
-  completedAt    DateTime?
-  error          Json?
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  type String
+  payload Json
+  status InboxStatus  @default(pending)
+  priority Int          @default(0)
+  attempts Int          @default(0)
+  availableAt DateTime     @default(now())
+  claimedAt DateTime?
+  completedAt DateTime?
+  error Json?
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
 
-  @@index([botId, status, priority, availableAt, createdAt])
-  @@index([botId, status])
+  @@index([botId, status, priority, availableAt, createdAt], map: "outcomego_inbox_event_claim_idx")
+  @@index([botId, status], map: "outcomego_inbox_event_bot_id_status_idx")
+  @@map("outcomego_inbox_event")
 }
 
 model BotRunLease {
-  botId      String   @db.Uuid
-  scope      String   @default("foreground")
+  botId String   @db.Uuid
+  scope String   @default("foreground")
   bot        Bot      @relation(fields: [botId], references: [id], onDelete: Cascade)
-  runId      String   @unique @db.Uuid
+  runId String   @unique @db.Uuid
   run        Run      @relation(fields: [runId], references: [id], onDelete: Cascade)
-  ownerId    String
-  expiresAt  DateTime
+  ownerId String
+  expiresAt DateTime
   heartbeatAt DateTime @default(now())
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  @@id([botId, scope])
+  @@id([botId, scope], map: "outcomego_bot_run_lease_bot_id_scope_pkey")
+  @@map("outcomego_bot_run_lease")
 }
 
 model OutboxDelivery {
-  id          String       @id @default(uuid()) @db.Uuid
+  id String       @id @default(uuid()) @db.Uuid
   deliveryKey String       @unique
-  topic       String
-  target      String
-  payload     Json
-  status      OutboxStatus @default(pending)
-  attempts    Int          @default(0)
+  topic String
+  target String
+  payload Json
+  status OutboxStatus @default(pending)
+  attempts Int          @default(0)
   availableAt DateTime     @default(now())
   deliveredAt DateTime?
-  error       Json?
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  error Json?
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
 
-  @@index([status, availableAt])
+  @@index([status, availableAt], map: "outcomego_outbox_delivery_status_available_at_idx")
+  @@map("outcomego_outbox_delivery")
 }
 
 model PushDevice {
-  id             String             @id @default(uuid()) @db.Uuid
+  id String             @id @default(uuid()) @db.Uuid
   installationId String             @unique
-  platform       PushDevicePlatform
-  pushToken      String             @unique
-  provider       String             @default("apns")
+  platform PushDevicePlatform
+  pushToken String             @unique
+  provider String             @default("apns")
   apnsEnvironment String?
-  apnsTopic      String?
+  apnsTopic String?
   notificationScope String?
-  enabled        Boolean            @default(true)
-  authRequired   Boolean            @default(true)
-  authSessionId  String?
+  enabled Boolean            @default(true)
+  authRequired Boolean            @default(true)
+  authSessionId String?
   authSession    Session?           @relation(fields: [authSessionId], references: [id], onDelete: SetNull)
-  timeZone       String?
-  locale         String?
-  lastSeenAt     DateTime           @default(now())
-  createdAt      DateTime           @default(now())
-  updatedAt      DateTime           @updatedAt
+  timeZone String?
+  locale String?
+  lastSeenAt DateTime           @default(now())
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
 
-  @@index([enabled, platform, lastSeenAt])
-  @@index([enabled, authRequired, authSessionId])
+  @@index([enabled, platform, lastSeenAt], map: "outcomego_push_device_enabled_platform_last_seen_at_idx")
+  @@index([enabled, authRequired, authSessionId], map: "outcomego_push_device_enabled_auth_required_auth_session_id_idx")
+  @@map("outcomego_push_device")
 }
 
 model RunItem {
-  id             String        @id @default(uuid()) @db.Uuid
-  runId          String        @db.Uuid
+  id String        @id @default(uuid()) @db.Uuid
+  runId String        @db.Uuid
   run            Run           @relation(fields: [runId], references: [id], onDelete: Cascade)
   upstreamItemId String?
-  kind           RunItemKind
-  status         RunItemStatus @default(pending)
-  title          String?
-  content        Json          @default("{}")
-  startedAt      DateTime?
-  completedAt    DateTime?
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  kind RunItemKind
+  status RunItemStatus @default(pending)
+  title String?
+  content Json          @default("{}")
+  startedAt DateTime?
+  completedAt DateTime?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
 
-  @@unique([runId, upstreamItemId])
-  @@index([runId, createdAt])
+  @@unique([runId, upstreamItemId], map: "outcomego_run_item_run_id_upstream_item_id_key")
+  @@index([runId, createdAt], map: "outcomego_run_item_run_id_created_at_idx")
+  @@map("outcomego_run_item")
 }
 
 
 model Event {
-  sequence      BigInt   @id @default(autoincrement())
-  topic         String
-  entityId      String?  @db.Uuid
+  sequence BigInt   @id @default(autoincrement())
+  topic String
+  entityId String?  @db.Uuid
   schemaVersion Int      @default(1)
-  payload       Json
-  createdAt     DateTime @default(now())
+  payload Json
+  createdAt DateTime @default(now())
 
-  @@index([topic, sequence])
+  @@index([topic, sequence], map: "outcomego_event_topic_sequence_idx")
+  @@map("outcomego_event")
 }
 
 model IdempotencyRecord {
-  scope       String
-  key         String
+  scope String
+  key String
   requestHash String
-  response    Json?
-  status      IdempotencyStatus @default(processing)
-  createdAt   DateTime @default(now())
-  expiresAt   DateTime
+  response Json?
+  status IdempotencyStatus @default(processing)
+  createdAt DateTime @default(now())
+  expiresAt DateTime
 
-  @@id([scope, key])
-  @@index([expiresAt])
+  @@id([scope, key], map: "outcomego_idempotency_record_scope_key_pkey")
+  @@index([expiresAt], map: "outcomego_idempotency_record_expires_at_idx")
+  @@map("outcomego_idempotency_record")
 }
 
 model PluginInstallation {
-  id          String              @id @default(uuid()) @db.Uuid
-  pluginKey   String              @unique
-  version     String
-  name        String
+  id String              @id @default(uuid()) @db.Uuid
+  pluginKey String              @unique
+  version String
+  name String
   description String              @default("")
-  publisher   String
-  manifest    Json
+  publisher String
+  manifest Json
   previousManifest Json?
-  sourceId    String?
+  sourceId String?
   sourceDigest String?
   skillSyncStatus String          @default("pending")
   skillSyncError String?
-  status      PluginInstallStatus @default(installed)
+  status PluginInstallStatus @default(installed)
   installedAt DateTime            @default(now())
-  updatedAt   DateTime            @updatedAt
+  updatedAt DateTime            @updatedAt
   connections PluginConnection[]
   activities  PluginActivity[]
 
-  @@index([status, updatedAt])
+  @@index([status, updatedAt], map: "outcomego_plugin_installation_status_updated_at_idx")
+  @@map("outcomego_plugin_installation")
 }
 
 model PluginConnection {
-  id            String                 @id @default(uuid()) @db.Uuid
+  id String                 @id @default(uuid()) @db.Uuid
   installationId String                @db.Uuid
   installation  PluginInstallation     @relation(fields: [installationId], references: [id], onDelete: Cascade)
-  connectorKey  String
-  name          String
-  alias         String                 @default("default")
-  transport     String
-  authType      String
-  endpoint      String?
-  status        PluginConnectionStatus @default(disconnected)
+  connectorKey String
+  name String
+  alias String                 @default("default")
+  transport String
+  authType String
+  endpoint String?
+  status PluginConnectionStatus @default(disconnected)
   statusMessage String?
-  instructions  String                 @default("")
+  instructions String                 @default("")
   configuration Json                   @default("{}")
-  credentials   Json                   @default("{}")
+  credentials Json                   @default("{}")
   runtimeGeneration Int                @default(0)
-  toolSnapshot  Json                   @default("[]")
+  toolSnapshot Json                   @default("[]")
   /// Last cursor returned by the connector's declared event poll tool.
-  eventCursor   Json?
+  eventCursor Json?
   eventsPolledAt DateTime?
-  connectedAt   DateTime?
+  connectedAt DateTime?
   lastCheckedAt DateTime?
-  createdAt     DateTime               @default(now())
-  updatedAt     DateTime               @updatedAt
+  createdAt DateTime               @default(now())
+  updatedAt DateTime               @updatedAt
   activities    PluginActivity[]
   invocations   PluginInvocation[]
 
-  @@unique([installationId, connectorKey, alias])
-  @@index([status, updatedAt])
+  @@unique([installationId, connectorKey, alias], map: "outcomego_plugin_connection_identity_key")
+  @@index([status, updatedAt], map: "outcomego_plugin_connection_status_updated_at_idx")
+  @@map("outcomego_plugin_connection")
 }
 
 
 
 
 model PluginActivity {
-  id             String              @id @default(uuid()) @db.Uuid
+  id String              @id @default(uuid()) @db.Uuid
   installationId String?             @db.Uuid
   installation   PluginInstallation? @relation(fields: [installationId], references: [id], onDelete: SetNull)
-  connectionId   String?             @db.Uuid
+  connectionId String?             @db.Uuid
   connection     PluginConnection?   @relation(fields: [connectionId], references: [id], onDelete: SetNull)
-  botId          String?             @db.Uuid
+  botId String?             @db.Uuid
   bot            Bot?                @relation(fields: [botId], references: [id], onDelete: SetNull)
-  kind           String
-  summary        String
-  metadata       Json                @default("{}")
-  createdAt      DateTime            @default(now())
+  kind String
+  summary String
+  metadata Json                @default("{}")
+  createdAt DateTime            @default(now())
 
-  @@index([createdAt])
-  @@index([connectionId, createdAt])
-  @@index([botId, createdAt])
+  @@index([createdAt], map: "outcomego_plugin_activity_created_at_idx")
+  @@index([connectionId, createdAt], map: "outcomego_plugin_activity_connection_id_created_at_idx")
+  @@index([botId, createdAt], map: "outcomego_plugin_activity_bot_id_created_at_idx")
+  @@map("outcomego_plugin_activity")
 }
 
 model ConnectorFileTransfer {
-  callId       String @id
-  runId        String @db.Uuid
-  botId        String @db.Uuid
+  callId String @id
+  runId String @db.Uuid
+  botId String @db.Uuid
   connectionId String @db.Uuid
-  tool         String
-  fingerprint  String
-  status       String
-  result       Json?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  tool String
+  fingerprint String
+  status String
+  result Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@map("outcomego_connector_file_transfer")
 }
 
 model PluginInvocation {
-  id           String                 @id @default(uuid()) @db.Uuid
-  callId       String                 @unique
+  id String                 @id @default(uuid()) @db.Uuid
+  callId String                 @unique
   connectionId String                 @db.Uuid
   connection   PluginConnection       @relation(fields: [connectionId], references: [id], onDelete: Cascade)
-  botId        String                 @db.Uuid
+  botId String                 @db.Uuid
   bot          Bot                    @relation(fields: [botId], references: [id], onDelete: Cascade)
-  runId        String?                @db.Uuid
+  runId String?                @db.Uuid
   run          Run?                   @relation(fields: [runId], references: [id], onDelete: SetNull)
-  toolName     String
-  status       PluginInvocationStatus @default(running)
-  arguments    Json                   @default("{}")
-  result       Json?
-  error        String?
-  startedAt    DateTime               @default(now())
-  completedAt  DateTime?
+  toolName String
+  status PluginInvocationStatus @default(running)
+  arguments Json                   @default("{}")
+  result Json?
+  error String?
+  startedAt DateTime               @default(now())
+  completedAt DateTime?
 
-  @@index([botId, startedAt])
-  @@index([connectionId, startedAt])
-  @@index([runId, startedAt])
+  @@index([botId, startedAt], map: "outcomego_plugin_invocation_bot_id_started_at_idx")
+  @@index([connectionId, startedAt], map: "outcomego_plugin_invocation_connection_id_started_at_idx")
+  @@index([runId, startedAt], map: "outcomego_plugin_invocation_run_id_started_at_idx")
+  @@map("outcomego_plugin_invocation")
 }
 
 // PostgreSQL owns this trigger-maintained search projection. Keeping the
@@ -1140,28 +1211,29 @@ model PluginInvocation {
 // unknown on later deploys. Prisma Client does not expose the unsupported
 // tsvector field; application search continues to use the existing raw SQL.
 model SearchDocument {
-  id           String                   @id
-  kind         String
-  sourceType   String
-  sourceId     String                   @db.Uuid
-  entityId     String
-  channelId    String?                  @db.Uuid
-  messageId    String?                  @db.Uuid
-  botId        String?                  @db.Uuid
-  title        String                   @default("")
-  subtitle     String                   @default("")
-  content      String                   @default("")
-  url          String?
-  createdAt    DateTime                 @default(now()) @db.Timestamptz(6)
-  updatedAt    DateTime                 @default(now()) @db.Timestamptz(6)
+  id String                   @id
+  kind String
+  sourceType String
+  sourceId String                   @db.Uuid
+  entityId String
+  channelId String?                  @db.Uuid
+  messageId String?                  @db.Uuid
+  botId String?                  @db.Uuid
+  title String                   @default("")
+  subtitle String                   @default("")
+  content String                   @default("")
+  url String?
+  createdAt DateTime                 @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime                 @default(now()) @db.Timestamptz(6)
   searchVector Unsupported("tsvector")?
 
-  @@index([kind, updatedAt(sort: Desc)])
-  @@index([sourceType, sourceId], map: "SearchDocument_source_idx")
+  @@index([kind, updatedAt(sort: Desc)], map: "outcomego_search_document_kind_updated_at_sort_desc_idx")
+  @@index([sourceType, sourceId], map: "outcomego_search_document_source_idx")
   @@ignore
+  @@map("outcomego_search_document")
 }
 
-// Better Auth owns these four tables. aiTeamOS deliberately provisions only
+// Better Auth owns these four tables. outcomeGo deliberately provisions only
 // one credential account through the server CLI command.
 model ProcessSecret {
   ownerKey String
@@ -1170,108 +1242,112 @@ model ProcessSecret {
   bot Bot? @relation(fields: [botId], references: [id], onDelete: Cascade)
   value String
   updatedAt DateTime @updatedAt
-  @@id([ownerKey, name])
+  @@id([ownerKey, name], map: "outcomego_process_secret_owner_key_name_pkey")
+  @@map("outcomego_process_secret")
 }
 
 model User {
-  id            String    @id
-  name          String
-  email         String    @unique
+  id String    @id
+  name String
+  email String    @unique
   emailVerified Boolean   @default(false)
-  image         String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  username      String?   @unique
+  image String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  username String?   @unique
   sessions      Session[]
   accounts      Account[]
 
-  @@map("user")
+  @@map("outcomego_user")
 }
 
 model Session {
-  id        String   @id
+  id String   @id
   expiresAt DateTime
-  token     String   @unique
+  token String   @unique
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   ipAddress String?
   userAgent String?
-  userId    String
+  userId String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   pushDevices PushDevice[]
   notificationPresence NotificationPresence[]
   voiceSessions VoiceSession[]
 
-  @@index([userId])
-  @@map("session")
+  @@index([userId], map: "outcomego_session_user_id_idx")
+  @@map("outcomego_session")
 }
 
 model Account {
-  id                    String    @id
-  issuer                String
-  accountId             String
-  providerId            String
-  userId                String
+  id String    @id
+  issuer String
+  accountId String
+  providerId String
+  userId String
   user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  accessToken           String?
-  refreshToken          String?
-  idToken               String?
-  accessTokenExpiresAt  DateTime?
+  accessToken String?
+  refreshToken String?
+  idToken String?
+  accessTokenExpiresAt DateTime?
   refreshTokenExpiresAt DateTime?
-  scope                 String?
-  password              String?
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
+  scope String?
+  password String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
-  @@index([userId])
-  @@unique([issuer, accountId])
-  @@map("account")
+  @@index([userId], map: "outcomego_account_user_id_idx")
+  @@unique([issuer, accountId], map: "outcomego_account_issuer_account_id_key")
+  @@map("outcomego_account")
 }
 
 model Verification {
-  id         String   @id
+  id String   @id
   identifier String
-  value      String
-  expiresAt  DateTime
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  value String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  @@index([identifier])
-  @@map("verification")
+  @@index([identifier], map: "outcomego_verification_identifier_idx")
+  @@map("outcomego_verification")
 }
 
 // Sources and drafts are owned by this installation, without a hosted registry dependency.
 model PluginSource {
-  id         String   @id @default(uuid()) @db.Uuid
-  name       String
-  url        String   @unique
-  manifest   Json     @default("{}")
-  status     String   @default("pending")
-  error      String?
+  id String   @id @default(uuid()) @db.Uuid
+  name String
+  url String   @unique
+  manifest Json     @default("{}")
+  status String   @default("pending")
+  error String?
   refreshedAt DateTime?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@map("outcomego_plugin_source")
 }
 
 model PluginDraft {
-  id         String   @id @default(uuid()) @db.Uuid
-  name       String
+  id String   @id @default(uuid()) @db.Uuid
+  name String
   definition Json
-  warnings   Json     @default("[]")
-  sourceUrl  String?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  warnings Json     @default("[]")
+  sourceUrl String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@map("outcomego_plugin_draft")
 }
 
 model PluginPrivateSkill {
-  id         String   @id @default(uuid()) @db.Uuid
-  name       String   @unique
+  id String   @id @default(uuid()) @db.Uuid
+  name String   @unique
   description String @default("")
-  body       String
-  files      Json     @default("{}")
+  body String
+  files Json     @default("{}")
   enabledBotIds Json @default("[]")
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@map("outcomego_plugin_private_skill")
 }
 
 
@@ -1279,40 +1355,42 @@ model TaskSettings {
   id String @id @default("global")
   configuration Json
   updatedAt DateTime @updatedAt
+  @@map("outcomego_task_settings")
 }
 
-/// Search schedule and legacy first provider; an empty schedule means search is off. Credentials live in WebToolProvider.
+/// Search schedule; an empty schedule means search is off. Credentials live in WebToolProvider.
 model WebSearchSettings {
-  id         String   @id @default("global")
-  provider   String?
-  providers  Json     @default("[]")
-  strategy   String   @default("failover")
-  cursor     Int      @default(0)
-  updatedAt  DateTime @updatedAt
+  id String   @id @default("global")
+  providers Json     @default("[]")
+  strategy String   @default("failover")
+  cursor Int      @default(0)
+  updatedAt DateTime @updatedAt
+  @@map("outcomego_web_search_settings")
 }
 
-/// Fetch schedule and legacy first provider; a missing row defaults to built-in and an empty schedule turns fetch off.
+/// Fetch schedule; a missing row defaults to built-in and an empty schedule turns fetch off.
 model WebFetchSettings {
-  id         String   @id @default("global")
-  provider   String?  @default("builtin")
-  providers  Json     @default("[]")
-  strategy   String   @default("failover")
-  cursor     Int      @default(0)
-  updatedAt  DateTime @updatedAt
+  id String   @id @default("global")
+  providers Json     @default("[]")
+  strategy String   @default("failover")
+  cursor Int      @default(0)
+  updatedAt DateTime @updatedAt
+  @@map("outcomego_web_fetch_settings")
 }
 
 /// A provider's saved configuration for one web tool ("search" or "fetch"). Each tool keeps its
 /// own entries: the provider's API key and the last connection check.
 model WebToolProvider {
-  tool         String
-  provider     String
-  secret       String?
-  checkStatus  String?
+  tool String
+  provider String
+  secret String?
+  checkStatus String?
   checkMessage String?
-  checkedAt    DateTime?
-  updatedAt    DateTime  @updatedAt
+  checkedAt DateTime?
+  updatedAt DateTime  @updatedAt
 
-  @@id([tool, provider])
+  @@id([tool, provider], map: "outcomego_web_tool_provider_tool_provider_pkey")
+  @@map("outcomego_web_tool_provider")
 }
 
 model AutomationWebhook {
@@ -1334,13 +1412,15 @@ model AutomationWebhook {
   statusMessage String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  @@index([ownerKind,ownerId])
+  @@index([ownerKind,ownerId], map: "outcomego_automation_webhook_owner_kind_owner_id_idx")
+  @@map("outcomego_automation_webhook")
 }
 
 model AutomationWebhookSettings {
-  id        String   @id @default("global")
+  id String   @id @default("global")
   publicUrl String?
   updatedAt DateTime @updatedAt
+  @@map("outcomego_automation_webhook_settings")
 }
 
 // Single deployment owner's registered physical computers. Offline devices stay listed.
@@ -1362,6 +1442,7 @@ model HostMachine {
   messagesAllowedRecipients MessagesAllowedRecipient[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  @@map("outcomego_host_machine")
 }
 
 /// A handle the user allowed a Mac to text without an approval card.
@@ -1372,7 +1453,8 @@ model MessagesAllowedRecipient {
   recipientName String?
   createdAt DateTime @default(now())
 
-  @@id([machineId, recipient])
+  @@id([machineId, recipient], map: "outcomego_messages_allowed_recipient_machine_id_recipient_pkey")
+  @@map("outcomego_messages_allowed_recipient")
 }
 
 model ComputerDisplaySettings {
@@ -1380,6 +1462,7 @@ model ComputerDisplaySettings {
   width Int @default(1280)
   height Int @default(800)
   updatedAt DateTime @updatedAt
+  @@map("outcomego_computer_display_settings")
 }
 
 // Desired egress/order survives disconnects. Server fallback requires an explicit ranked entry.
@@ -1391,17 +1474,19 @@ model BrowserNetworkSettings {
   sourceOrder String[] @default(["server"])
   revision Int @default(1)
   updatedAt DateTime @updatedAt
+  @@map("outcomego_browser_network_settings")
 }
 
 // Deployment-wide APNs credentials. The signing key is encrypted using the
 // installation control token, which is shared by the server and worker.
 model ApnsSettings {
-  id                  String   @id @default("global")
-  keyId               String
-  teamId              String
-  topic               String
+  id String   @id @default("global")
+  keyId String
+  teamId String
+  topic String
   encryptedPrivateKey String
-  updatedAt           DateTime @updatedAt
+  updatedAt DateTime @updatedAt
+  @@map("outcomego_apns_settings")
 }
 
 // Ephemeral availability, distinct from push registration and read state.
@@ -1414,20 +1499,23 @@ model NotificationPresence {
   authSession Session? @relation(fields: [authSessionId], references: [id], onDelete: Cascade)
   expiresAt DateTime
   updatedAt DateTime @updatedAt
-  @@index([expiresAt])
-  @@index([authSessionId])
+  @@index([expiresAt], map: "outcomego_notification_presence_expires_at_idx")
+  @@index([authSessionId], map: "outcomego_notification_presence_auth_session_id_idx")
+  @@map("outcomego_notification_presence")
 }
 
 /// The user's time zone. The apps report the zone their device detects; an override chosen in
 /// Settings wins. Routines, the box clock and the prompt's Time section all use override ?? detected.
 model UserTimeZoneSettings {
-  id        String   @id @default("global")
-  detected  String?
-  override  String?
+  id String   @id @default("global")
+  detected String?
+  override String?
   updatedAt DateTime @updatedAt
+  @@map("outcomego_user_time_zone_settings")
 }
 
 model NotificationPreferences {
   id String @id @default("global")
   smartEnabled Boolean @default(true)
+  @@map("outcomego_notification_preferences")
 }

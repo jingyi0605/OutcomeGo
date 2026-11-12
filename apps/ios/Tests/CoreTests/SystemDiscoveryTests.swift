@@ -1,5 +1,5 @@
 import XCTest
-@testable import OpenTeamCore
+@testable import OutcomeGoCore
 
 final class SystemDiscoveryTests: XCTestCase {
   private func fixture() throws -> Bootstrap {

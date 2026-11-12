@@ -190,7 +190,7 @@ struct TeamSiriMessage: IndexedEntity, Transferable {
     } else if let bot = target.members.first(where: { $0.id == message.senderBotId }) ?? target.bot {
       author = TeamSiriPerson(bot, scope: scope)
     } else {
-      author = TeamSiriPerson(id: id, name: "OpenTeam")
+      author = TeamSiriPerson(id: id, name: "OutcomeGo")
     }
     isRead = SystemConversationProjection.isRead(message, channel: target.channel)
     attributes = []
@@ -304,7 +304,7 @@ typealias TeamSiriRecipients = [TeamSiriPerson]
         $0.channel.isGroup && Set($0.members.map(\.id)) == botIDs
       }
       guard !botIDs.isEmpty, groups.count == 1, let group = groups.first else {
-        throw APIError("Choose one Bot, or open the group conversation in OpenTeam.")
+        throw APIError("Choose one Bot, or open the group conversation in OutcomeGo.")
       }
       return group
     }
@@ -326,7 +326,7 @@ struct SendTeamSiriMessage: AppIntent {
   @MainActor func perform() async throws -> some ReturnsValue<[TeamSiriMessage]> & ProvidesDialog {
     // Never silently discard unsupported fields or send a scheduled message now.
     guard subject == nil, locations.isEmpty, scheduledDate == nil else {
-      throw APIError("OpenTeam supports immediate messages with text, links and attachments.")
+      throw APIError("OutcomeGo supports immediate messages with text, links and attachments.")
     }
     let client = try await SystemIntentClient.connect()
     let target = try destination.resolve(client)
@@ -355,7 +355,7 @@ struct DraftTeamSiriMessage: AppIntent {
   @Dependency var store: AppStore
   @MainActor func perform() async throws -> some IntentResult {
     guard subject == nil, locations.isEmpty, scheduledDate == nil else {
-      throw APIError("OpenTeam supports immediate messages with text, links and attachments.")
+      throw APIError("OutcomeGo supports immediate messages with text, links and attachments.")
     }
     let client = try await SystemIntentClient.connect()
     let text = ([content.map { String($0.characters) }] + links.map { Optional($0.absoluteString) })
@@ -373,7 +373,7 @@ struct DraftTeamSiriMessage: AppIntent {
 }
 
 @available(iOS 27.0, *)
-struct OpenTeamSiriConversation: OpenIntent {
+struct OutcomeGoSiriConversation: OpenIntent {
   static let title: LocalizedStringResource = "Open conversation"
   static let authenticationPolicy: IntentAuthenticationPolicy = .requiresAuthentication
   static let openAppWhenRun = true
@@ -386,7 +386,7 @@ struct OpenTeamSiriConversation: OpenIntent {
 }
 
 @available(iOS 27.0, *)
-struct OpenTeamSiriMessage: OpenIntent {
+struct OutcomeGoSiriMessage: OpenIntent {
   static let title: LocalizedStringResource = "Open message"
   static let authenticationPolicy: IntentAuthenticationPolicy = .requiresAuthentication
   static let openAppWhenRun = true
@@ -399,7 +399,7 @@ struct OpenTeamSiriMessage: OpenIntent {
 }
 
 @available(iOS 27.0, *)
-struct OpenTeamSiriBot: OpenIntent {
+struct OutcomeGoSiriBot: OpenIntent {
   static let title: LocalizedStringResource = "Open Bot"
   static let authenticationPolicy: IntentAuthenticationPolicy = .requiresAuthentication
   static let openAppWhenRun = true

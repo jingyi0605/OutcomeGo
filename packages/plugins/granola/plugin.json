@@ -4,7 +4,7 @@
   "version": "1.2.0",
   "name": "Granola",
   "description": "Bring meeting notes, decisions, and action items into your work.",
-  "publisher": "aiTeamOS",
+  "publisher": "OutcomeGo",
   "category": "Productivity",
   "featured": true,
   "components": ["mcp", "skills", "commands", "agents", "rules"],
@@ -19,7 +19,7 @@
     "steps": [
       "Check your account email and active workspace in Granola.",
       "Continue to Granola, sign in with that account, and review the requested access.",
-      "Return to aiTeamOS after authorization. Granola uses your active workspace; available notes and tools depend on your plan and workspace settings."
+      "Return to OutcomeGo after authorization. Granola uses your active workspace; available notes and tools depend on your plan and workspace settings."
     ],
     "fields": [],
     "requiredScopes": ["mcp"]

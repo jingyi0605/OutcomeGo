@@ -15,12 +15,12 @@ afterEach(() => {
 });
 
 test("only permits the client to manage its matching loopback installation", () => {
-  const home = mkdtempSync(join(tmpdir(), "aiteamos-desktop-updater-"));
+  const home = mkdtempSync(join(tmpdir(), "outcomego-desktop-updater-"));
   temporaryDirectories.push(home);
-  const directory = join(home, ".aiteamos");
+  const directory = join(home, ".outcomego");
   mkdirSync(directory, { recursive: true });
   writeFileSync(join(directory, "installation.json"), JSON.stringify({ version: "1.2.3" }));
-  writeFileSync(join(directory, ".env"), "AITEAMOS_API_PORT=9444\n");
+  writeFileSync(join(directory, ".env"), "OUTCOMEGO_API_PORT=9444\n");
   writeFileSync(join(directory, "compose.yaml"), "services: {}\n");
   const installation = readManagedInstallation({}, "darwin", home);
   expect(installation?.version).toBe("1.2.3");

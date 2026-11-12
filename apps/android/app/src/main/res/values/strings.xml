@@ -1,9 +1,9 @@
 <resources>
-    <string name="app_name">aiTeamOS</string>
-    <string name="login_welcome_title">Welcome to aiTeamOS</string>
+    <string name="app_name">OutcomeGo</string>
+    <string name="login_welcome_title">Welcome to OutcomeGo</string>
     <string name="login_welcome_detail">Connect to your server and set up your first bot. It takes about two minutes.</string>
     <string name="login_install_server">Install the server</string>
-    <string name="login_install_command">curl -fsSL https://openteam.so/install | sh</string>
+    <string name="login_install_command">curl -fsSL https://github.com/jingyi0605/OutcomeGo/releases/latest/download/install.sh | sh</string>
     <string name="login_install_detail">Run this on the computer that will host your bots, then come back here.</string>
     <string name="login_get_started">Get started</string>
     <string name="login_install_hint">I still need to install the server</string>
@@ -17,7 +17,7 @@
     <string name="login_clear_server">Clear server address</string>
     <string name="login_connecting">Connecting…</string>
     <string name="login_server_found">Server found: %1$s</string>
-    <string name="login_server_hint">Lost it? Run `aiteamos status` on your server.</string>
+    <string name="login_server_hint">Lost it? Run `outcomego status` on your server.</string>
     <string name="login_http_warning">HTTP is not encrypted. Only connect through a network or VPN you trust.</string>
     <string name="login_connect">Connect</string>
     <string name="login_connection_successful">Connection Successful</string>
@@ -29,7 +29,7 @@
     <string name="login_credential">Password</string>
     <string name="login_show">Show</string>
     <string name="login_hide">Hide</string>
-    <string name="login_forgot">Forgot it? Run `aiteamos account update --password` on your server.</string>
+    <string name="login_forgot">Forgot it? Run `outcomego account update --password` on your server.</string>
     <string name="login_credential_http_warning">Your password will be sent without HTTPS protection.</string>
     <string name="login_signing_in">Signing in…</string>
     <string name="login_sign_in">Sign in</string>
@@ -75,7 +75,7 @@
     <string name="directory_no_messages">No messages yet</string>
     <string name="directory_section_unassigned">Unassigned</string>
     <string name="shortcut_find_messages">Find messages</string>
-    <string name="shortcut_find_messages_long">Search aiTeamOS messages</string>
+    <string name="shortcut_find_messages_long">Search OutcomeGo messages</string>
     <string name="directory_pin">Pin to top</string>
     <string name="directory_unpin">Unpin</string>
     <string name="directory_move_to_section">Move to \"%1$s\"</string>

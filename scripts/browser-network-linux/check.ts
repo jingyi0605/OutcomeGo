@@ -200,7 +200,7 @@ try {
     const denied = await new Promise<number>((resolve, reject) => {
       const ws = new WebSocket(
         "ws://server:8787/api/v0/internal/browser-network/channel",
-        "aiteamos-browser-network.v1",
+        "outcomego-browser-network.v1",
         { headers: { authorization: "Bearer wrong" } }
       );
       ws.on("unexpected-response", (_req, response) => {

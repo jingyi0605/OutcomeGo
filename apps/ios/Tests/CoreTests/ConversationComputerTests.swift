@@ -1,6 +1,6 @@
 import XCTest
 
-@testable import OpenTeamCore
+@testable import OutcomeGoCore
 
 final class ConversationComputerTests: XCTestCase {
   private func fixture() throws -> (Channel, [Bot]) {

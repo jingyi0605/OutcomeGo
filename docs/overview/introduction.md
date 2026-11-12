@@ -1,11 +1,11 @@
 # Introduction
 
-aiTeamOS runs a team of AI bots on hardware you control. Each bot gets its own screen, browser, and terminal on your server, so it can research, work through websites, handle files, and use the apps you connect. You give it work in chat and review the results.
+OutcomeGo runs a team of AI bots on hardware you control. Each bot gets its own screen, browser, and terminal on your server, so it can research, work through websites, handle files, and use the apps you connect. You give it work in chat and review the results.
 
 ## How it fits together
 
 - **Your server** runs on a machine you choose: your own computer, a home server, or a cloud VM. It stores your data and runs your bots.
-- **A model provider** supplies the AI. Sign in with ChatGPT or Claude, add an API key, or point aiTeamOS at your own endpoint.
+- **A model provider** supplies the AI. Sign in with ChatGPT or Claude, add an API key, or point OutcomeGo at your own endpoint.
 - **The apps** connect to your server. Use the desktop app to chat with bots, watch their screens, and manage settings. The iPhone app is in beta on TestFlight. Closing an app doesn't stop work on the server.
 
 ## What a bot has
@@ -30,6 +30,6 @@ The bot opens the file, checks supplier websites in its browser, and writes the 
 
 ## Get started
 
-- **New to aiTeamOS?** Follow the [quickstart](../getting-started/quickstart.md).
+- **New to OutcomeGo?** Follow the [quickstart](../getting-started/quickstart.md).
 - **Deciding where to host?** Read [how hosting works](architecture.md).
 - **Looking for ideas?** Browse the [use cases](use-cases.md).

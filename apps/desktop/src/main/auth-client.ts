@@ -1,10 +1,10 @@
-import { createAiTeamOSAuthClient, normalizeBaseUrl } from "@aiteamos/client-core";
+import { createOutcomeGoAuthClient, normalizeBaseUrl } from "@outcomego/client-core";
 
 const authClient = (serverUrl: unknown) => {
   if (typeof serverUrl !== "string" || serverUrl.length > 8_192) {
-    throw new Error("aiTeamOS server URL is invalid");
+    throw new Error("OutcomeGo server URL is invalid");
   }
-  return createAiTeamOSAuthClient({
+  return createOutcomeGoAuthClient({
     baseUrl: normalizeBaseUrl(serverUrl),
     // Node fetch has no renderer Origin or cookie jar. Never forward login
     // credentials or a bearer token through an HTTP redirect.

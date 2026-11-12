@@ -55,7 +55,7 @@ export default defineConfig(async () => {
     },
     plugins: [
       {
-        name: "aiteamos-docs",
+        name: "outcomego-docs",
         configureServer(server: ViteDevServer) {
           server.watcher.add([docsDirectory, blogDirectory]);
           server.watcher.on("all", (_event, file) => {

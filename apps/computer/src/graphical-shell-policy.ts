@@ -1,4 +1,4 @@
-import type { SubagentType } from "@aiteamos/contracts";
+import type { SubagentType } from "@outcomego/contracts";
 
 interface DeniedGraphicalShellPattern {
   label: string;
@@ -16,13 +16,13 @@ const DENIED_GRAPHICAL_SHELL_PATTERNS: readonly DeniedGraphicalShellPattern[] = 
     pattern: /(?:^|[\s;&|()])(?:export\s+)?(?:DISPLAY|XAUTHORITY)\s*=|\/tmp\/\.X11-unix/i,
   },
   {
-    label: "aiTeamOS screen launcher",
-    pattern: /(^|[^A-Za-z0-9_])(?:aiteamos-screen-launch|box-chrome)(?=$|[^A-Za-z0-9_])/i,
+    label: "OutcomeGo screen launcher",
+    pattern: /(^|[^A-Za-z0-9_])(?:outcomego-screen-launch|box-chrome)(?=$|[^A-Za-z0-9_])/i,
   },
   {
     label: "browser debugging endpoint discovery",
     pattern:
-      /AITEAMOS_BROWSER_DEBUG_PORT|--remote-debugging-port|\/json\/(?:version|list|new|activate|close)|devtools\/browser/i,
+      /OUTCOMEGO_BROWSER_DEBUG_PORT|--remote-debugging-port|\/json\/(?:version|list|new|activate|close)|devtools\/browser/i,
   },
   {
     label: "browser debugging port access",
@@ -41,7 +41,7 @@ const DENIED_GRAPHICAL_SHELL_PATTERNS: readonly DeniedGraphicalShellPattern[] = 
   {
     label: "graphical process inspection",
     pattern:
-      /(?:^|[;&|]\s*|\s)(?:ps|pgrep|pidof)(?:\s+[^;&|]*)?(?:chrom(?:e|ium)|Xvfb|x11vnc|aiteamos-screen)/i,
+      /(?:^|[;&|]\s*|\s)(?:ps|pgrep|pidof)(?:\s+[^;&|]*)?(?:chrom(?:e|ium)|Xvfb|x11vnc|outcomego-screen)/i,
   },
 ];
 

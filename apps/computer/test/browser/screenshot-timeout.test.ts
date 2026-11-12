@@ -52,7 +52,7 @@ test('screenshot protocol timeouts settle without closing the shared browser or 
       };
       const owner = { context: { newCDPSession: async () => { await run('session setup'); return session; } } };
       const page = {
-        frames: () => [{ locator: (selector: string) => { expect(selector).toBe('[data-aiteamos-private="true"]'); return 'private-mask'; } }],
+        frames: () => [{ locator: (selector: string) => { expect(selector).toBe('[data-outcomego-private="true"]'); return 'private-mask'; } }],
         screenshot: async (options: any) => {
           expect(options.mask).toEqual(['private-mask']);
           await run('capture');

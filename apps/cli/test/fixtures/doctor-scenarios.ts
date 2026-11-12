@@ -14,19 +14,19 @@ const pass = (label: string, detail: string): DoctorCheck => ({ label, detail, l
 const healthy: DoctorCheck[] = [
   pass("Platform", "darwin/arm64"),
   pass("Memory", "64.0 GiB total, 2.9 GiB currently available"),
-  pass("Installation directory", "/Users/example/.aiteamos is writable"),
-  pass("Disk", "67.0 GiB available near /Users/example/.aiteamos"),
+  pass("Installation directory", "/Users/example/.outcomego is writable"),
+  pass("Disk", "67.0 GiB available near /Users/example/.outcomego"),
   pass("Docker CLI", "Docker version 28.2.2, build e6534b4"),
   pass("Docker daemon", "server 28.2.2"),
   pass("Docker Compose", "Docker Compose version v5.1.3"),
-  pass("Installation", "aiTeamOS 1.2.3 at /Users/example/.aiteamos"),
+  pass("Installation", "OutcomeGo 1.2.3 at /Users/example/.outcomego"),
   pass("Secrets", "configuration permissions are private"),
   pass("Secret values", "database, control, authentication, and proxy secrets are configured"),
   pass("Owner account", "configured for example"),
   pass("Network exposure", "API and screen viewers are loopback-only"),
   pass("Compose services", "postgres, server, worker, computer are running"),
   pass("Database", "Connected to PostgreSQL"),
-  pass("aiTeamOS health", "ready at http://127.0.0.1:8787/api/v0/health"),
+  pass("OutcomeGo health", "ready at http://127.0.0.1:8787/api/v0/health"),
   pass("AI connection", "example/model responded in 0.2s (thinking medium)"),
 ];
 
@@ -67,7 +67,7 @@ const fresh = (check?: DoctorCheck): DoctorResult => {
   checks.push(
     issue(
       "Installation",
-      "First-time setup: the aiTeamOS server has not been configured yet.",
+      "First-time setup: the OutcomeGo server has not been configured yet.",
       "warn"
     )
   );
@@ -301,7 +301,7 @@ export const doctorScenarios: DoctorScenario[] = [
     id: "first-install",
     title: "Ready for first-time setup",
     result: fresh(),
-    action: "aiteamos install",
+    action: "outcomego install",
   },
   scenario("healthy", "All checks pass", []),
   scenario(
@@ -318,13 +318,13 @@ export const doctorScenarios: DoctorScenario[] = [
   scenario(
     "compose-old",
     "Compose version is unsupported",
-    [issue("Docker Compose", "Docker Compose version v1.29.2; aiTeamOS requires 2.20.0+")],
+    [issue("Docker Compose", "Docker Compose version v1.29.2; OutcomeGo requires 2.20.0+")],
     "update Docker Desktop"
   ),
   scenario(
     "platform-unsupported",
     "Unsupported CPU architecture",
-    [issue("Platform", "linux/ia32 is not supported by aiTeamOS images")],
+    [issue("Platform", "linux/ia32 is not supported by OutcomeGo images")],
     "x64 or arm64"
   ),
   scenario(
@@ -336,13 +336,13 @@ export const doctorScenarios: DoctorScenario[] = [
   scenario(
     "low-disk",
     "Installation disk is nearly full",
-    [issue("Disk", "0.5 GiB available near /Users/example/.aiteamos", "warn")],
+    [issue("Disk", "0.5 GiB available near /Users/example/.outcomego", "warn")],
     "Free space"
   ),
   scenario(
     "directory-denied",
     "Installation directory is not writable",
-    [issue("Installation directory", "EACCES: permission denied, access '/opt/aiteamos'")],
+    [issue("Installation directory", "EACCES: permission denied, access '/opt/outcomego'")],
     "writable directory"
   ),
   scenario(
@@ -369,7 +369,7 @@ export const doctorScenarios: DoctorScenario[] = [
     [
       issue(
         "Installation",
-        "Invalid installation manifest at /Users/example/.aiteamos/installation.json"
+        "Invalid installation manifest at /Users/example/.outcomego/installation.json"
       ),
     ],
     "known-good backup"
@@ -377,13 +377,13 @@ export const doctorScenarios: DoctorScenario[] = [
   scenario(
     "world-readable-env",
     "Configuration can be read by other users",
-    [issue("Secrets", "/Users/example/.aiteamos/.env is readable by other users")],
+    [issue("Secrets", "/Users/example/.outcomego/.env is readable by other users")],
     "owner-only"
   ),
   scenario(
     "missing-secrets",
     "Service credentials are missing",
-    [issue("Secret values", "missing or too short: AITEAMOS_CONTROL_TOKEN")],
+    [issue("Secret values", "missing or too short: OUTCOMEGO_CONTROL_TOKEN")],
     "credentials must remain consistent"
   ),
   scenario(
@@ -395,7 +395,7 @@ export const doctorScenarios: DoctorScenario[] = [
   scenario(
     "missing-owner",
     "First-run account setup is incomplete",
-    [issue("Owner account", "not configured; run aiteamos setup")],
+    [issue("Owner account", "not configured; run outcomego setup")],
     "create your account"
   ),
   scenario(
@@ -406,43 +406,43 @@ export const doctorScenarios: DoctorScenario[] = [
   ),
   scenario(
     "services-stopped",
-    "aiTeamOS services are stopped",
+    "OutcomeGo services are stopped",
     [
       issue("Compose services", "not running: server, worker, computer"),
       issue("AI connection", "Not tested; server is not running", "warn"),
     ],
-    "aiteamos start"
+    "outcomego start"
   ),
   scenario(
     "service-query-error",
     "Docker cannot list service state",
     [issue("Compose services", "Docker API returned HTTP 500")],
     "could not list the services",
-    { avoid: "aiteamos start" }
+    { avoid: "outcomego start" }
   ),
   scenario(
     "container-unhealthy",
     "Server container fails its health check",
     [issue("server container", "running, health unhealthy")],
-    "aiteamos logs server"
+    "outcomego logs server"
   ),
   scenario(
     "restart-loop",
     "Worker repeatedly crashes",
     [issue("worker container", "running; 8 recent restarts")],
-    "aiteamos logs worker"
+    "outcomego logs worker"
   ),
   scenario(
     "migration-failed",
     "Database migration failed",
     [issue("Schema setup", "migrate exited with code 1")],
-    "aiteamos logs migrate"
+    "outcomego logs migrate"
   ),
   scenario(
     "database-down",
     "Database connection is refused",
     [issue("Database", "connect ECONNREFUSED 127.0.0.1:5432")],
-    "aiteamos logs postgres"
+    "outcomego logs postgres"
   ),
   scenario(
     "worker-stalled",
@@ -451,7 +451,7 @@ export const doctorScenarios: DoctorScenario[] = [
       issue("Worker heartbeat", "Worker heartbeat is stale by 120s"),
       issue("Queue round trip", "Not tested; resolve the worker heartbeat first", "warn"),
     ],
-    "aiteamos logs worker"
+    "outcomego logs worker"
   ),
   scenario(
     "storage-full",
@@ -469,21 +469,21 @@ export const doctorScenarios: DoctorScenario[] = [
     "health-refused",
     "Server health endpoint is unreachable",
     [
-      issue("aiTeamOS health", "http://127.0.0.1:8787/api/v0/health: Connection refused"),
+      issue("OutcomeGo health", "http://127.0.0.1:8787/api/v0/health: Connection refused"),
       issue("AI connection", "Not tested; resolve server health first", "warn"),
     ],
-    "aiteamos status"
+    "outcomego status"
   ),
   scenario(
     "health-http-503",
     "Server reports unavailable",
-    [issue("aiTeamOS health", "http://127.0.0.1:8787/api/v0/health: HTTP 503")],
-    "aiteamos logs"
+    [issue("OutcomeGo health", "http://127.0.0.1:8787/api/v0/health: HTTP 503")],
+    "outcomego logs"
   ),
   scenario(
     "health-wrong-version",
     "A different server release is responding",
-    [issue("aiTeamOS health", "expected release 1.2.3, but 1.1.0 is responding")],
+    [issue("OutcomeGo health", "expected release 1.2.3, but 1.1.0 is responding")],
     "API port belongs to this installation"
   ),
   scenario(
@@ -496,7 +496,7 @@ export const doctorScenarios: DoctorScenario[] = [
     "public-tls",
     "Public HTTPS certificate is invalid",
     [issue("TLS certificate", "certificate has expired")],
-    "aiteamos logs caddy"
+    "outcomego logs caddy"
   ),
   scenario(
     "public-proxy",
@@ -508,7 +508,7 @@ export const doctorScenarios: DoctorScenario[] = [
     "provider-expired",
     "Provider sign-in has expired",
     [issue("AI connection", "example/model: HTTP 401: unauthorized")],
-    "Reconnect the provider in the aiTeamOS app"
+    "Reconnect the provider in the OutcomeGo app"
   ),
   scenario(
     "provider-quota",
@@ -528,7 +528,7 @@ export const doctorScenarios: DoctorScenario[] = [
     "model-unavailable",
     "Saved model is unavailable",
     [issue("AI connection", "example/model: model is unavailable")],
-    "Choose an available model in the aiTeamOS app"
+    "Choose an available model in the OutcomeGo app"
   ),
   scenario(
     "transcription-error",
@@ -542,7 +542,7 @@ export const doctorScenarios: DoctorScenario[] = [
     [
       issue(
         "Transcription",
-        "Could not check transcription through the aiTeamOS server. Check the server connection and installation credentials."
+        "Could not check transcription through the OutcomeGo server. Check the server connection and installation credentials."
       ),
     ],
     "installation control token"
@@ -577,14 +577,14 @@ export const doctorScenarios: DoctorScenario[] = [
   scenario(
     "custom-directory",
     "Recovery targets a custom installation",
-    [issue("aiTeamOS health", "Connection refused")],
+    [issue("OutcomeGo health", "Connection refused")],
     "--dir '/srv/team'",
     { commandDirectory: "/srv/team" }
   ),
   scenario(
     "windows-directory",
     "PowerShell path contains an apostrophe",
-    [issue("aiTeamOS health", "Connection refused")],
+    [issue("OutcomeGo health", "Connection refused")],
     "--dir 'C:\\Users\\Sam''s Team'",
     { commandDirectory: "C:\\Users\\Sam's Team", platform: "win32" }
   ),

@@ -1,4 +1,4 @@
-import type { BotAvatarMode } from "@aiteamos/contracts/robot-avatar";
+import type { BotAvatarMode } from "@outcomego/contracts/robot-avatar";
 
 const TRANSITION_MS = 320;
 

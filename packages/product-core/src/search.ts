@@ -1,4 +1,4 @@
-import type { SearchCategory, SearchResultKind } from "@aiteamos/contracts";
+import type { SearchCategory, SearchResultKind } from "@outcomego/contracts";
 
 export const SEARCH_CACHE_LIMIT = 64;
 export const SEARCH_QUERY_MAX_LENGTH = 200;

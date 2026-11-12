@@ -32,7 +32,7 @@ test("relay leases isolate machines and never dispatch or consume a request twic
     expect(()=>relay.body("one","old-connection",id)).toThrow("disconnected");
     expect(await relay.body("one",first.connectionId,id).text()).toBe("payload");
     expect(()=>relay.body("one",first.connectionId,id)).toThrow("already delivered");
-    const receipt=relay.respond("one",first.connectionId,id,new Request("http://fixture/response",{method:"POST",headers:{"x-aiteamos-status":"200"},body:"result"}));
+    const receipt=relay.respond("one",first.connectionId,id,new Request("http://fixture/response",{method:"POST",headers:{"x-outcomego-status":"200"},body:"result"}));
     expect(await (await result).text()).toBe("result");expect((await receipt).status).toBe(204);
     const inflight=relay.forward("one","/v1/read",new Request("http://fixture/read",{method:"POST",body:"{}"})).catch(error=>error as Error);
     const old=await relay.poll("one",first.connectionId,[],new AbortController().signal);
@@ -51,7 +51,7 @@ test("disconnect cancels streaming responses and explicit failure promptly relea
     const id=(await relay.poll("one",connection.connectionId,[],new AbortController().signal)).requests[0]!.id;
     let cancelled=false;
     const stream=new ReadableStream({start(c){c.enqueue(new TextEncoder().encode("first"));},cancel(){cancelled=true;}});
-    const receipt=relay.respond("one",connection.connectionId,id,new Request("http://fixture/response",{method:"POST",headers:{"x-aiteamos-status":"200"},body:stream,duplex:"half"} as RequestInit));
+    const receipt=relay.respond("one",connection.connectionId,id,new Request("http://fixture/response",{method:"POST",headers:{"x-outcomego-status":"200"},body:stream,duplex:"half"} as RequestInit));
     const reader=(await result).body!.getReader();expect((await reader.read()).done).toBe(false);
     const pending=reader.read().catch(error=>error as Error);
     relay.disconnect("one");expect((await pending as Error).message).toContain("disconnected");await receipt;expect(cancelled).toBe(true);

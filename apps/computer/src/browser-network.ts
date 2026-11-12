@@ -1,15 +1,15 @@
-import type { NetworkEgress, NetworkQuality } from "@aiteamos/contracts/browser-network";
+import type { NetworkEgress, NetworkQuality } from "@outcomego/contracts/browser-network";
 import { randomUUID } from "node:crypto";
 import { spawn, type ChildProcess } from "node:child_process";
 import { join } from "node:path";
 import { existsSync, readFileSync } from "node:fs";
 import { nodeBinary } from "./node-runtime";
 
-export const browserProxyPort = Number(process.env.AITEAMOS_BROWSER_PROXY_PORT ?? 18791);
+export const browserProxyPort = Number(process.env.OUTCOMEGO_BROWSER_PROXY_PORT ?? 18791);
 if (!Number.isInteger(browserProxyPort) || browserProxyPort < 1024 || browserProxyPort > 65535)
   throw new Error("Invalid browser proxy port");
 export const managedBrowserNetworkArguments = (port = browserProxyPort) =>
-  process.env.AITEAMOS_COMPUTER_NETWORK === "1"
+  process.env.OUTCOMEGO_COMPUTER_NETWORK === "1"
     ? ["--disable-quic", "--force-webrtc-ip-handling-policy=disable_non_proxied_udp"]
     : [
         `--proxy-server=socks5://127.0.0.1:${port}`,
@@ -22,8 +22,8 @@ export const managedBrowserNetworkArguments = (port = browserProxyPort) =>
       ];
 
 export async function startBrowserNetwork(serverUrl: string, token: string) {
-  const computerNetwork = process.env.AITEAMOS_COMPUTER_NETWORK === "1";
-  if (computerNetwork && !existsSync("/run/aiteamos-network-ready"))
+  const computerNetwork = process.env.OUTCOMEGO_COMPUTER_NETWORK === "1";
+  if (computerNetwork && !existsSync("/run/outcomego-network-ready"))
     throw new Error("Computer network routing is not initialized");
   // Use the image's Node runtime for TCP streams. Bun versions in existing images
   // can discard pending TCP bytes on half-close; browser downloads must not depend on it.
@@ -58,10 +58,10 @@ export async function startBrowserNetwork(serverUrl: string, token: string) {
     if (!computerNetwork) return;
     if (!tun || tun.exitCode !== null || tun.signalCode !== null || !tun.pid) {
       tun = spawn(
-        "/usr/lib/aiteamos/bin/tun2socks",
+        "/usr/lib/outcomego/bin/tun2socks",
         [
           "--device",
-          "tun://aiteamos0",
+          "tun://outcomego0",
           "--proxy",
           `socks5://127.0.0.1:${browserProxyPort}`,
           "--mtu",
@@ -82,7 +82,7 @@ export async function startBrowserNetwork(serverUrl: string, token: string) {
     for (let attempt = 0; attempt < 100; attempt++) {
       if (stopping || !tun.pid || tun.exitCode !== null || tun.signalCode !== null) break;
       try {
-        if (readFileSync("/sys/class/net/aiteamos0/carrier", "utf8").trim() === "1") return;
+        if (readFileSync("/sys/class/net/outcomego0/carrier", "utf8").trim() === "1") return;
       } catch {
         /* A persistent but detached TUN reports no carrier. */
       }
@@ -121,7 +121,7 @@ export async function startBrowserNetwork(serverUrl: string, token: string) {
       const worker = spawn(nodeBinary(), [workerPath], {
         env: {
           PATH: process.env.PATH,
-          ...(computerNetwork ? { LD_PRELOAD: "/usr/lib/aiteamos/lib/network-mark.so" } : {}),
+          ...(computerNetwork ? { LD_PRELOAD: "/usr/lib/outcomego/lib/network-mark.so" } : {}),
         },
         stdio: ["pipe", "pipe", "pipe"],
       });

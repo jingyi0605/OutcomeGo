@@ -2,8 +2,8 @@ import {
   createLiveSyncController,
   type LiveSyncControllerOptions,
   shouldRefreshForEvent,
-} from "@aiteamos/client-core";
-import { aiTeamOSClient } from "./aiteamos-api";
+} from "@outcomego/client-core";
+import { outcomeGoClient } from "./outcomego-api";
 import { refreshMemoryViews } from "../lib/memory-events";
 
 export { shouldRefreshForEvent };
@@ -14,11 +14,11 @@ export const createDesktopLiveSyncController = (
   createLiveSyncController({
     ...options,
     listen: (cursor, eventHandlers, signal) =>
-      aiTeamOSClient.listenForEvents(cursor, {
+      outcomeGoClient.listenForEvents(cursor, {
         ...eventHandlers,
         onOpen: () => { eventHandlers.onOpen?.(); refreshMemoryViews(); },
         onEvent: (event) => {
-          if (event.topic === "notification.presence.changed") window.dispatchEvent(new Event("aiteamos:notification-preferences-changed"));
+          if (event.topic === "notification.presence.changed") window.dispatchEvent(new Event("outcomego:notification-preferences-changed"));
           eventHandlers.onEvent(event); refreshMemoryViews(event);
         },
       }, signal),

@@ -1,6 +1,6 @@
-import { COMPUTER_API_PATHS } from "@aiteamos/contracts/service-protocol";
+import { COMPUTER_API_PATHS } from "@outcomego/contracts/service-protocol";
 import { describe, expect, test } from "bun:test";
-import { AgentDataStore } from "@aiteamos/messaging";
+import { AgentDataStore } from "@outcomego/messaging";
 import { AUTOMATION_RECONCILE_BATCH_SIZE, WakeWorker } from "../src/worker";
 
 const uuidAt = (index: number): string =>
@@ -26,7 +26,7 @@ describe("bounded periodic reconciliation", () => {
         await work({ $executeRaw: async () => 0 });
       },
     };
-    const store = new AgentDataStore(prisma as never, { root: "/tmp/aiteamos-bounded-sweep" });
+    const store = new AgentDataStore(prisma as never, { root: "/tmp/outcomego-bounded-sweep" });
     Object.defineProperty(store, "reconcileAutomations", {
       value: async (_tx: unknown, botId: string) => {
         reconciled.push(botId);

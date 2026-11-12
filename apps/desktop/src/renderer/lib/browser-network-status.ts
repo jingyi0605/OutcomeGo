@@ -1,4 +1,4 @@
-import type { BrowserNetworkView } from "@aiteamos/contracts/browser-network";
+import type { BrowserNetworkView } from "@outcomego/contracts/browser-network";
 import { translateCurrent } from "./i18n-catalog";
 
 export function browserNetworkLabel(view: BrowserNetworkView) {

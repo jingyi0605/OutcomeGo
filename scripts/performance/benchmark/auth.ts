@@ -25,15 +25,15 @@ const requiredSetting = (name: string): string => {
 
 const normalizeBaseUrl = (value: string): string => value.replace(/\/$/, "");
 const disabledBaseUrl = normalizeBaseUrl(
-  process.env.AITEAMOS_AUTH_DISABLED_BASE_URL ?? "http://127.0.0.1:8877"
+  process.env.OUTCOMEGO_AUTH_DISABLED_BASE_URL ?? "http://127.0.0.1:8877"
 );
 const requiredBaseUrl = normalizeBaseUrl(
-  process.env.AITEAMOS_AUTH_REQUIRED_BASE_URL ?? "http://127.0.0.1:8878"
+  process.env.OUTCOMEGO_AUTH_REQUIRED_BASE_URL ?? "http://127.0.0.1:8878"
 );
-const username = requiredSetting("AITEAMOS_AUTH_USERNAME");
-const password = requiredSetting("AITEAMOS_AUTH_PASSWORD");
-const warmupCount = integerSetting("AITEAMOS_AUTH_WARMUPS", 10);
-const sampleCount = Math.max(1, integerSetting("AITEAMOS_AUTH_SAMPLES", 100));
+const username = requiredSetting("OUTCOMEGO_AUTH_USERNAME");
+const password = requiredSetting("OUTCOMEGO_AUTH_PASSWORD");
+const warmupCount = integerSetting("OUTCOMEGO_AUTH_WARMUPS", 10);
+const sampleCount = Math.max(1, integerSetting("OUTCOMEGO_AUTH_SAMPLES", 100));
 const targetPath = "/api/v0/client-runtime";
 
 const percentile = (values: number[], fraction: number) => {
@@ -168,7 +168,7 @@ const output = JSON.stringify(
   null,
   2
 );
-if (process.env.AITEAMOS_AUDIT_OUTPUT) {
-  await Bun.write(process.env.AITEAMOS_AUDIT_OUTPUT, `${output}\n`);
+if (process.env.OUTCOMEGO_AUDIT_OUTPUT) {
+  await Bun.write(process.env.OUTCOMEGO_AUDIT_OUTPUT, `${output}\n`);
 }
 console.log(output);

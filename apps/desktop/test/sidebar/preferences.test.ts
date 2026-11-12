@@ -3,7 +3,7 @@ import {
   addSidebarUnread,
   removeSidebarUnread,
   toggleSidebarUnread,
-} from "@aiteamos/contracts/client-preferences";
+} from "@outcomego/contracts/client-preferences";
 import type { SidebarPreferences } from "../../src/renderer/hooks/use-sidebar-preferences";
 
 const preferences = (unreadIds: string[]): SidebarPreferences => ({

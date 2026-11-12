@@ -1,6 +1,6 @@
 import XCTest
 
-@testable import OpenTeamCore
+@testable import OutcomeGoCore
 
 final class ServerUpdateTests: XCTestCase {
   func testActiveProgressSurvivesNewReaderAndIsScopedAndExpires() throws {
@@ -79,21 +79,21 @@ final class ServerUpdateTests: XCTestCase {
     for version in [
       "", "0.0", "00.0.11", "0.0.11-beta.01", "0.0.11;echo nope", "9007199254740992.0.0",
     ] {
-      XCTAssertNil(OpenTeamVersion(version), version)
+      XCTAssertNil(OutcomeGoVersion(version), version)
       XCTAssertNil(try policy(version).targetVersion, version)
       XCTAssertNil(try policy("0.0.10", client: version).targetVersion, version)
     }
   }
 
   func testSemverPrereleaseOrderingAndBuildNormalization() throws {
-    XCTAssertEqual(OpenTeamVersion("v1.2.3+build.2"), OpenTeamVersion("1.2.3"))
+    XCTAssertEqual(OutcomeGoVersion("v1.2.3+build.2"), OutcomeGoVersion("1.2.3"))
     let ordered = [
       "1.0.0-alpha", "1.0.0-alpha.1", "1.0.0-alpha.beta", "1.0.0-beta",
       "1.0.0-beta.2", "1.0.0-beta.11", "1.0.0-rc.1", "1.0.0", "1.0.1", "1.1.0", "2.0.0",
     ]
     for pair in zip(ordered, ordered.dropFirst()) {
       XCTAssertLessThan(
-        try XCTUnwrap(OpenTeamVersion(pair.0)), try XCTUnwrap(OpenTeamVersion(pair.1)))
+        try XCTUnwrap(OutcomeGoVersion(pair.0)), try XCTUnwrap(OutcomeGoVersion(pair.1)))
     }
     XCTAssertEqual(try policy("0.0.11-beta.2").targetVersion, "0.0.11")
   }

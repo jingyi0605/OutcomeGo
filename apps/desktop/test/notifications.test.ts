@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { ChannelHistoryPage, ChannelMessageView, ClientSnapshot } from "@aiteamos/contracts";
+import type { ChannelHistoryPage, ChannelMessageView, ClientSnapshot } from "@outcomego/contracts";
 import {
   deriveUnreadChannelIds,
   desktopNotificationSnapshot,

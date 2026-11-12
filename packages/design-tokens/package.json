@@ -1,6 +1,6 @@
 {
-  "name": "@aiteamos/design-tokens",
-  "version": "0.1.0-beta.13",
+  "name": "@outcomego/design-tokens",
+  "version": "0.1.0-beta.14",
   "license": "GPL-3.0-only",
   "private": true,
   "type": "module",
@@ -19,6 +19,6 @@
     "test": "bun test --pass-with-no-tests"
   },
   "dependencies": {
-    "@aiteamos/contracts": "workspace:*"
+    "@outcomego/contracts": "workspace:*"
   }
 }

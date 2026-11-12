@@ -4,7 +4,7 @@ import { delimiter, join } from "node:path";
 /** The computer image ships Node for subprocess integrations that require its streams. */
 export const nodeBinary = (): string => {
   const candidates = [
-    process.env.AITEAMOS_NODE_BINARY,
+    process.env.OUTCOMEGO_NODE_BINARY,
     "/usr/bin/node",
     "/opt/homebrew/bin/node",
     ...(process.env.PATH ?? "").split(delimiter).filter(Boolean).map(directory => join(directory, "node")),

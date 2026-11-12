@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { ComputerRuntime } from "../../src/runtime";
 
 test("diagnostics use the saved selection and leave new installs unconfigured", async () => {
-  const root = await mkdtemp(join(tmpdir(), "aiteamos-diagnostics-"));
+  const root = await mkdtemp(join(tmpdir(), "outcomego-diagnostics-"));
   try {
     const runtime = new ComputerRuntime();
     const internals = runtime as unknown as {
@@ -57,7 +57,7 @@ test("diagnostics use the saved selection and leave new installs unconfigured", 
 });
 
 test("a saved model the registry no longer has is reported, not thrown, and its provider can't be removed while in use", async () => {
-  const root = await mkdtemp(join(tmpdir(), "aiteamos-diagnostics-missing-"));
+  const root = await mkdtemp(join(tmpdir(), "outcomego-diagnostics-missing-"));
   try {
     const runtime = new ComputerRuntime();
     const internals = runtime as unknown as {

@@ -26,7 +26,7 @@
     "captureOwnedTracesOnly": true
   },
   "budget": {
-    "scope": "OpenRouter fixture/aiTeamOS usage only; native cloud cost unknown.",
+    "scope": "OpenRouter fixture/outcomeGo usage only; native cloud cost unknown.",
     "plannedAdditionalUsd": 25,
     "fundingRequired": true,
     "noBillingMutationAuthorizedOrPerformed": true,
@@ -63,7 +63,7 @@
     "Separate full-goal report latency from milestone latency; retain slow and failed results."
   ],
   "inference": {
-    "aiTeamOS": "openai/gpt-6.1-sol low",
+    "outcomeGo": "openai/gpt-6.1-sol low",
     "customer": "anthropic/claude-opus-5.5",
     "support": "deepseek/deepseek-v4.1-flash",
     "reasoning": "No default change; earlier low/medium ablation retained separately."

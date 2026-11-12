@@ -8,4 +8,4 @@ export {
   type RoutineChangedAction,
   type RoutineChangedEvent,
   type TurnInterruptedEvent,
-} from "@aiteamos/product-core/channel-events";
+} from "@outcomego/product-core/channel-events";

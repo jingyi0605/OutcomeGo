@@ -12,8 +12,8 @@ import { parseEndpoint, type MailSettings } from "../settings";
 
 // Run with a GreenMail server (auth disabled), for example:
 // docker run -p 3025:3025 -p 3143:3143 -e GREENMAIL_OPTS='-Dgreenmail.setup.test.all -Dgreenmail.hostname=0.0.0.0 -Dgreenmail.auth.disabled' greenmail/standalone:2.1.3
-// AITEAMOS_TEST_GREENMAIL=127.0.0.1 bun test email/connector/test/greenmail.test.ts
-const host = process.env.AITEAMOS_TEST_GREENMAIL;
+// OUTCOMEGO_TEST_GREENMAIL=127.0.0.1 bun test email/connector/test/greenmail.test.ts
+const host = process.env.OUTCOMEGO_TEST_GREENMAIL;
 const suite = host ? describe : describe.skip;
 
 const settingsFor = (address: string, owners: string[] = []): MailSettings => ({
@@ -274,7 +274,7 @@ suite("Email connector against an IMAP/SMTP server", () => {
       EMAIL_USERNAME: "auto",
       IMAP_SERVER: `imap://${host}:3143`,
       SMTP_SERVER: `smtp://${host}:3025`,
-      AITEAMOS_PLUGIN_ACCOUNT_ID: "11111111-2222-3333-4444-555555555555",
+      OUTCOMEGO_PLUGIN_ACCOUNT_ID: "11111111-2222-3333-4444-555555555555",
     };
     const start = async (overrides: Record<string, string> = {}) => {
       const client = new Client({ name: "test", version: "1.0.0" });
@@ -302,7 +302,7 @@ suite("Email connector against an IMAP/SMTP server", () => {
       ]);
       for (const name of ["send_reviewed_email", "poll_new_mail"])
         expect(listed.find((tool) => tool.name === name)?._meta).toEqual({
-          "aiteamos/hostOnly": true,
+          "outcomego/hostOnly": true,
         });
       expect(listed[0]!.description).toContain(
         "(providerIdentifier 11111111-2222-3333-4444-555555555555)"

@@ -75,11 +75,11 @@ export const portRequirementsFromEnvironment = (
   environment: ReadonlyMap<string, string>,
   running: ReadonlySet<string>
 ): PortRequirements => ({
-  apiHost: environment.get("AITEAMOS_BIND_HOST") || "127.0.0.1",
-  apiPort: Number(environment.get("AITEAMOS_API_PORT") || "8787"),
+  apiHost: environment.get("OUTCOMEGO_BIND_HOST") || "127.0.0.1",
+  apiPort: Number(environment.get("OUTCOMEGO_API_PORT") || "8787"),
   viewerHost:
-    environment.get("AITEAMOS_VIEWER_BIND_HOST") ||
-    environment.get("AITEAMOS_BIND_HOST") ||
+    environment.get("OUTCOMEGO_VIEWER_BIND_HOST") ||
+    environment.get("OUTCOMEGO_BIND_HOST") ||
     "127.0.0.1",
   https: (environment.get("COMPOSE_PROFILES") || "").split(",").includes("https"),
   running,
@@ -179,15 +179,15 @@ export const portConflictMessage = (occupant: PortOccupant): string => {
       port === 80 || port === 443 || (port >= VIEWER_PORT_START && port <= VIEWER_PORT_END)
         ? "choose a loopback connection with an existing proxy"
         : "choose a different API port or a loopback connection with an existing proxy";
-    return `aiTeamOS cannot start because Tailscale Serve already uses port ${port}, which conflicts with Docker binding ${occupant.host}:${port}. This can leave containers healthy while Docker cannot forward the port to this machine. Inspect the rule with \`tailscale serve status\`, then remove or move that listener, or use \`aiteamos setup --advanced\` to ${alternative}. Retry aiteamos start after resolving the conflict.`;
+    return `OutcomeGo cannot start because Tailscale Serve already uses port ${port}, which conflicts with Docker binding ${occupant.host}:${port}. This can leave containers healthy while Docker cannot forward the port to this machine. Inspect the rule with \`tailscale serve status\`, then remove or move that listener, or use \`outcomego setup --advanced\` to ${alternative}. Retry outcomego start after resolving the conflict.`;
   }
   const remedy =
     port === 80 || port === 443
       ? `${stopHint(occupant)}, or rerun setup and choose Existing HTTPS proxy.`
       : port >= VIEWER_PORT_START && port <= VIEWER_PORT_END
         ? `${stopHint(occupant)}; the screen-viewer range ${VIEWER_PORT_START}-${VIEWER_PORT_END} is fixed.`
-        : `${stopHint(occupant)}, or choose another API port with aiteamos setup --advanced.`;
-  return `aiTeamOS cannot start because port ${port} is already in use by ${holder(occupant)}. ${remedy}`;
+        : `${stopHint(occupant)}, or choose another API port with outcomego setup --advanced.`;
+  return `OutcomeGo cannot start because port ${port} is already in use by ${holder(occupant)}. ${remedy}`;
 };
 
 export const assertPortsAvailable = async (
@@ -209,14 +209,14 @@ export const foreignServerMessage = (
   health: HealthResult,
   environment: ReadonlyMap<string, string>
 ): string => {
-  const port = Number(environment.get("AITEAMOS_API_PORT") || "8787");
+  const port = Number(environment.get("OUTCOMEGO_API_PORT") || "8787");
   const occupant = describePortOccupant(runner, "127.0.0.1", port);
   const origin = health.url.replace(/\/api\/v0\/health$/, "");
   const who = occupant.container ? ` It is ${holder(occupant)}.` : "";
   const remedy = occupant.project
-    ? `Stop that stack with \`docker compose -p ${occupant.project} down\`, or choose another API port with aiteamos setup --advanced.`
-    : "Stop it, or choose another API port with aiteamos setup --advanced.";
-  return `Another aiTeamOS server is answering at ${origin}, but this installation's server is not running.${who} ${remedy}`;
+    ? `Stop that stack with \`docker compose -p ${occupant.project} down\`, or choose another API port with outcomego setup --advanced.`
+    : "Stop it, or choose another API port with outcomego setup --advanced.";
+  return `Another OutcomeGo server is answering at ${origin}, but this installation's server is not running.${who} ${remedy}`;
 };
 
 export const assertOwnServer = (

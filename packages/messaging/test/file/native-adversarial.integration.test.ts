@@ -13,14 +13,14 @@ import {
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createPrismaClient } from "@aiteamos/db";
+import { createPrismaClient } from "@outcomego/db";
 import { AgentDataStore } from "../../src/agent-data";
 import { atomicWrite, jsonFile } from "../../src/file-state";
 import { RoutineService } from "../../src/routines";
 import { parseSkillFile, renderSkillFile } from "../../src/skill-files";
 import { appendAgentTimelineEvent } from "../../src/timeline-events";
 
-const databaseUrl = process.env.AITEAMOS_TEST_DATABASE_URL;
+const databaseUrl = process.env.OUTCOMEGO_TEST_DATABASE_URL;
 
 const wait = (milliseconds: number) =>
   new Promise<void>((resolve) => setTimeout(resolve, milliseconds));
@@ -55,7 +55,7 @@ test("provisioning watches preserve Bot's exact three-file creation state", asyn
   if (!databaseUrl) return;
 
   const prisma = createPrismaClient(databaseUrl);
-  const temporary = await mkdtemp(join(tmpdir(), "aiteamos-provisioning-files-"));
+  const temporary = await mkdtemp(join(tmpdir(), "outcomego-provisioning-files-"));
   const root = join(temporary, "agent-data");
   const workspace = join(temporary, "workspace");
   const botId = randomUUID();
@@ -94,7 +94,7 @@ test("live filesystem watchers, snapshots, namespaces, and deletion authority ag
   if (!databaseUrl) return;
 
   const prisma = createPrismaClient(databaseUrl);
-  const temporary = await mkdtemp(join(tmpdir(), "aiteamos-live-files-"));
+  const temporary = await mkdtemp(join(tmpdir(), "outcomego-live-files-"));
   const root = join(temporary, "agent-data");
   const workspace = join(temporary, "workspace");
   const outsideAvatar = join(temporary, "outside.png");
@@ -127,8 +127,8 @@ test("live filesystem watchers, snapshots, namespaces, and deletion authority ag
   store.setTimelineEventSink((tx, input) => appendAgentTimelineEvent(tx, timelineHost, input));
 
   // This fixture owns its workflow corpus; the bundled catalog is tested separately.
-  const previousManagedSkills = process.env.AITEAMOS_MANAGED_SKILLS;
-  process.env.AITEAMOS_MANAGED_SKILLS = "false";
+  const previousManagedSkills = process.env.OUTCOMEGO_MANAGED_SKILLS;
+  process.env.OUTCOMEGO_MANAGED_SKILLS = "false";
   try {
     await prisma.bot.create({
       data: {
@@ -920,8 +920,8 @@ test("live filesystem watchers, snapshots, namespaces, and deletion authority ag
       "User fact written by watcher two."
     );
   } finally {
-    if (previousManagedSkills === undefined) delete process.env.AITEAMOS_MANAGED_SKILLS;
-    else process.env.AITEAMOS_MANAGED_SKILLS = previousManagedSkills;
+    if (previousManagedSkills === undefined) delete process.env.OUTCOMEGO_MANAGED_SKILLS;
+    else process.env.OUTCOMEGO_MANAGED_SKILLS = previousManagedSkills;
     await store.stopWatching();
     await prisma.channel.deleteMany({
       where: { id: { in: [firstChannelId, secondChannelId, groupId] } },

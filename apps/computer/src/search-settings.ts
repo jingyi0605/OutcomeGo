@@ -1,5 +1,5 @@
 import type { FetchConfiguration } from "./fetch-provider";
-import { isSearchProvider, isFetchProvider, WEB_TOOL_STRATEGIES } from "@aiteamos/contracts/web-search";
+import { isSearchProvider, isFetchProvider, WEB_TOOL_STRATEGIES } from "@outcomego/contracts/web-search";
 import type { SearchConfiguration, SearchFetch } from "./search-provider";
 
 /** Read for each search so saved DB changes take effect without restarting workers. */
@@ -43,7 +43,7 @@ function serverWebConfiguration(
       signal?.throwIfAborted();
       // Neither upstream errors nor response bodies may expose credentials.
       throw new Error(
-        `Web ${kind} settings could not be loaded from the aiTeamOS server, so nothing was ${kind === "search" ? "searched" : "fetched"}. Retry shortly; if it keeps failing, the server may need attention.`
+        `Web ${kind} settings could not be loaded from the OutcomeGo server, so nothing was ${kind === "search" ? "searched" : "fetched"}. Retry shortly; if it keeps failing, the server may need attention.`
       );
     }
   };

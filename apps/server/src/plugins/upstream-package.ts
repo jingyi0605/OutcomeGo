@@ -4,7 +4,7 @@ import {
   parsePluginDefinition,
   PACKAGE_MAX_BYTES,
   type PluginDefinition,
-} from "@aiteamos/plugin-sdk";
+} from "@outcomego/plugin-sdk";
 
 /** Download original provider assets into this installation, never into the shipped registry. */
 export async function resolveUpstreamPlugin(

@@ -8,7 +8,7 @@ afterEach(async () => {
   await Promise.all(directories.splice(0).map((p) => rm(p, { recursive: true, force: true })));
 });
 async function fixture() {
-  const dir = await mkdtemp(join(tmpdir(), "aiteamos-network-consent-"));
+  const dir = await mkdtemp(join(tmpdir(), "outcomego-network-consent-"));
   directories.push(dir);
   const path = join(dir, "consent.json");
   return { path, store: new NetworkConsentStore(path) };

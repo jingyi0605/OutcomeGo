@@ -5,11 +5,11 @@ import { join } from "node:path";
 import { BrowserUseSession } from "../../src/browser/use";
 import { outOfProcessPlaywright } from "../../src/browser/playwright-driver";
 
-test.skipIf(!process.env.AITEAMOS_BROWSER_TEST_EXECUTABLE)("DOM observations supply actionable refs, preserve private text masking, and allow explicit images", async () => {
+test.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)("DOM observations supply actionable refs, preserve private text masking, and allow explicit images", async () => {
   const root = await mkdtemp(join(tmpdir(), "dom-observation-"));
   const server = Bun.serve({hostname:"127.0.0.1",port:0,fetch:()=>new Response('<!doctype html><label>Name <input aria-label="Name"></label><input type="password" value="hidden-password"><button onclick="this.textContent=\'Saved\'">Save</button>',{headers:{"content-type":"text/html"}})});
   const driver = await outOfProcessPlaywright();
-  const browser = await driver.playwright.chromium.launch({headless:true, executablePath:process.env.AITEAMOS_BROWSER_TEST_EXECUTABLE});
+  const browser = await driver.playwright.chromium.launch({headless:true, executablePath:process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE});
   const context = await browser.newContext();
   const session = new (BrowserUseSession as any)(browser, context, root) as BrowserUseSession;
   const text = (result:any) => result.content.filter((c:any)=>c.type==='text').map((c:any)=>c.text).join('\n');

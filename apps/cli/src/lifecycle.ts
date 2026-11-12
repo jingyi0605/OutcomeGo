@@ -70,7 +70,7 @@ import {
 } from "./disk-maintenance";
 import { assertNoAgentWorking, UpdateBusyError, updateWaitsForIdle } from "./update-gate";
 
-export const UPDATE_PROGRESS_PREFIX = "@@AITEAMOS_UPDATE@@";
+export const UPDATE_PROGRESS_PREFIX = "@@OUTCOMEGO_UPDATE@@";
 export type UpdateProgressPhase =
   | "checking"
   | "downloading"
@@ -98,7 +98,7 @@ const reportUpdateProgress = (
 const requireInstallation = (paths: InstallationPaths): InstallationManifest => {
   if (!installationExists(paths)) {
     throw new CliError(
-      cliTranslate("aiTeamOS is not installed at {directory}. Run aiteamos install first.", {
+      cliTranslate("OutcomeGo is not installed at {directory}. Run outcomego install first.", {
         directory: paths.directory,
       })
     );
@@ -106,7 +106,7 @@ const requireInstallation = (paths: InstallationPaths): InstallationManifest => 
   const manifest = readManifest(paths);
   if (!manifest)
     throw new CliError(
-      cliTranslate("aiTeamOS installation manifest is missing at {path}", {
+      cliTranslate("OutcomeGo installation manifest is missing at {path}", {
         path: paths.manifest,
       })
     );
@@ -123,7 +123,7 @@ const printStartupReady = (
   alreadyRunning = false
 ): void => {
   const localUrl = health.url.replace(/\/api\/v0\/health$/, "");
-  const publicUrl = environment.get("AITEAMOS_PUBLIC_URL")?.trim().replace(/\/+$/, "");
+  const publicUrl = environment.get("OUTCOMEGO_PUBLIC_URL")?.trim().replace(/\/+$/, "");
   console.log(
     renderSummary(
       "start",
@@ -138,7 +138,7 @@ const printStartupReady = (
       [
         {
           text: cliTranslate(
-            alreadyRunning ? "aiTeamOS is already running." : "aiTeamOS is ready."
+            alreadyRunning ? "OutcomeGo is already running." : "OutcomeGo is ready."
           ),
           tone: "success",
         },
@@ -148,11 +148,11 @@ const printStartupReady = (
                 text:
                   health.inference === "missing"
                     ? cliTranslate(
-                        "No model is connected yet. Connect one in the aiTeamOS app under Settings → Server, or run {command} on this server.",
+                        "No model is connected yet. Connect one in the OutcomeGo app under Settings → Server, or run {command} on this server.",
                         { command: installationCommand(paths, "model") }
                       )
                     : cliTranslate(
-                        "AI is not ready ({status}). Check the model connection in the aiTeamOS app under Settings → Server, or run {command}.",
+                        "AI is not ready ({status}). Check the model connection in the OutcomeGo app under Settings → Server, or run {command}.",
                         {
                           status: health.inference,
                           command: installationCommand(paths, "doctor"),
@@ -163,7 +163,7 @@ const printStartupReady = (
             ]
           : []),
         {
-          text: cliTranslate("To stop aiTeamOS, run: {command}", {
+          text: cliTranslate("To stop OutcomeGo, run: {command}", {
             command: installationCommand(paths, "stop"),
           }),
           tone: "info",
@@ -195,16 +195,16 @@ const startProject = async (
       printStartupReady(paths, environment, health, true);
       return;
     }
-    if (state.stopped) printMessage(cliTranslate("aiTeamOS is stopped. Starting services…"));
+    if (state.stopped) printMessage(cliTranslate("OutcomeGo is stopped. Starting services…"));
     else if (state.notReady.length) {
       printMessage(
-        cliTranslate("aiTeamOS is partially running. Starting or checking: {services}…", {
+        cliTranslate("OutcomeGo is partially running. Starting or checking: {services}…", {
           services: state.notReady.join(", "),
         })
       );
     } else
       printMessage(
-        cliTranslate("aiTeamOS is running but not ready ({detail}). Checking services…", {
+        cliTranslate("OutcomeGo is running but not ready ({detail}). Checking services…", {
           detail: health.detail,
         })
       );
@@ -214,11 +214,11 @@ const startProject = async (
   project.runOrThrow(["up", "--detach", "--remove-orphans", "--wait", "--wait-timeout", "180"], {
     inherit: true,
   });
-  printMessage(cliTranslate("Waiting for aiTeamOS…"));
+  printMessage(cliTranslate("Waiting for OutcomeGo…"));
   const health = await waitForStartup(project, paths, expectedVersion);
   if (!health.ok)
     throw new CliError(
-      cliTranslate("aiTeamOS did not become healthy: {detail}", { detail: health.detail })
+      cliTranslate("OutcomeGo did not become healthy: {detail}", { detail: health.detail })
     );
   printStartupReady(paths, environment, health);
 };
@@ -259,12 +259,12 @@ export const installCommand = async (
     const existing = requireInstallation(paths);
     if (options.version && normalizeVersion(options.version) !== existing.version) {
       throw new CliError(
-        `aiTeamOS ${existing.version} is already installed. Use aiteamos update --version ${normalizeVersion(options.version)}.`
+        `OutcomeGo ${existing.version} is already installed. Use outcomego update --version ${normalizeVersion(options.version)}.`
       );
     }
     if (existing.uninstalledAt) {
       printMessage(
-        cliTranslate("Reinstalling aiTeamOS {version}; refreshing release configuration…", {
+        cliTranslate("Reinstalling OutcomeGo {version}; refreshing release configuration…", {
           version: existing.version,
         })
       );
@@ -285,7 +285,7 @@ export const installCommand = async (
     }
     if (!existing.ownerUsername && !options.noSetup) {
       console.log(
-        cliTranslate("aiTeamOS {version} is installed but setup is incomplete; resuming setup.", {
+        cliTranslate("OutcomeGo {version} is installed but setup is incomplete; resuming setup.", {
           version: existing.version,
         })
       );
@@ -302,7 +302,7 @@ export const installCommand = async (
       );
     } else {
       printMessage(
-        cliTranslate("aiTeamOS {version} is already installed; starting it.", {
+        cliTranslate("OutcomeGo {version} is already installed; starting it.", {
           version: existing.version,
         })
       );
@@ -366,7 +366,7 @@ export const installCommand = async (
 
   const version = normalizeVersion(options.version || CLI_VERSION);
   const repository = normalizeRepository(options.repository || DEFAULT_REPOSITORY);
-  printMessage(cliTranslate("Downloading aiTeamOS {version} release configuration…", { version }));
+  printMessage(cliTranslate("Downloading OutcomeGo {version} release configuration…", { version }));
   const release = await downloadRelease({
     repository,
     version,
@@ -397,7 +397,7 @@ export const installCommand = async (
     }
     throw new CliError(
       cliTranslate(
-        "Could not save the aiTeamOS configuration in {directory}: {error}. Free up disk space or fix the folder's permissions, then run {command} again.",
+        "Could not save the OutcomeGo configuration in {directory}: {error}. Free up disk space or fix the folder's permissions, then run {command} again.",
         {
           directory: paths.directory,
           error: error instanceof Error ? error.message : String(error),
@@ -409,7 +409,7 @@ export const installCommand = async (
 
   if (options.noSetup) {
     const project = requireComposeProject(paths, runner, projectName);
-    printMessage(cliTranslate("Pulling aiTeamOS container images…"));
+    printMessage(cliTranslate("Pulling OutcomeGo container images…"));
     project.runOrThrow(["pull"], { inherit: true });
     await startProject(project, paths, runner, version);
     printMessage(
@@ -469,7 +469,7 @@ export const stopCommand = (paths: InstallationPaths, runner: CommandRunner): vo
       [{ label: cliTranslate("Installation"), value: paths.directory }],
       [
         {
-          text: cliTranslate("aiTeamOS is stopped. Its data and containers are preserved."),
+          text: cliTranslate("OutcomeGo is stopped. Its data and containers are preserved."),
           tone: "success",
         },
         { text: installationCommand(paths, "start"), tone: "info" },
@@ -487,7 +487,7 @@ export const startCommand = async (
   if (!manifest.ownerUsername?.trim() && !options.allowIncompleteSetup) {
     throw new CliError(
       cliTranslate(
-        "aiTeamOS is installed, but account setup is incomplete. Run aiteamos setup to create your sign-in, then retry aiteamos start."
+        "OutcomeGo is installed, but account setup is incomplete. Run outcomego setup to create your sign-in, then retry outcomego start."
       ),
       2
     );
@@ -556,25 +556,25 @@ const updateCommandUnlocked = async (
       targetVersion: version ?? persisted.targetVersion,
     });
   };
-  report("checking", "Checking the latest aiTeamOS release");
+  report("checking", "Checking the latest OutcomeGo release");
   const target = await resolveUpdateTarget(manifest.version, options, repository);
   const cliPromotion = readCliPromotion(process.env, process.execPath, CLI_VERSION);
   persisted = writeUpdateState(paths, { ...persisted, targetVersion: target });
   if (target === manifest.version && !options.force) {
     if (cliPromotion) {
-      report("updating-cli", `Installing aiTeamOS ${target} command-line tools`, target);
+      report("updating-cli", `Installing OutcomeGo ${target} command-line tools`, target);
       await waitForCliFollowerToExit(cliPromotion);
       promoteStagedCli(cliPromotion);
     }
     const message = cliPromotion
-      ? `aiTeamOS ${target} and its command-line tools are up to date`
-      : `aiTeamOS ${target} is already installed`;
+      ? `OutcomeGo ${target} and its command-line tools are up to date`
+      : `OutcomeGo ${target} is already installed`;
     report("complete", message, target);
     console.log(
       cliTranslate(
         cliPromotion
-          ? "aiTeamOS {version} and its command-line tools are up to date."
-          : "aiTeamOS {version} is already installed.",
+          ? "OutcomeGo {version} and its command-line tools are up to date."
+          : "OutcomeGo {version} is already installed.",
         { version: target }
       )
     );
@@ -583,12 +583,12 @@ const updateCommandUnlocked = async (
   const whenIdle = updateWaitsForIdle(options);
   if (whenIdle) await assertNoAgentWorking(paths);
   console.log(
-    cliTranslate("Updating aiTeamOS {from} → {to}…", {
+    cliTranslate("Updating OutcomeGo {from} → {to}…", {
       from: manifest.version,
       to: target,
     })
   );
-  report("downloading", `Downloading and verifying aiTeamOS ${target}`, target);
+  report("downloading", `Downloading and verifying OutcomeGo ${target}`, target);
   const release = await downloadRelease({
     repository,
     version: target,
@@ -600,7 +600,7 @@ const updateCommandUnlocked = async (
   const previousCompose = readFileSync(paths.compose, "utf8");
   const previousEnvironment = readFileSync(paths.environment, "utf8");
   const nextEnvironment = ensureAuthenticationSecret(
-    replaceEnvironmentValue(previousEnvironment, "AITEAMOS_VERSION", target)
+    replaceEnvironmentValue(previousEnvironment, "OUTCOMEGO_VERSION", target)
   );
   const nextCompose = `${paths.compose}.next`;
   const project = requireComposeProject(paths, runner, manifestProjectName(manifest));
@@ -615,7 +615,7 @@ const updateCommandUnlocked = async (
     maintenanceWarning("capture pre-update images", () => {
       previousImages = captureStackImages(paths, project, runner);
     });
-    report("pulling", `Pulling aiTeamOS ${target} container images`, target);
+    report("pulling", `Pulling OutcomeGo ${target} container images`, target);
     project.runOrThrow(["pull"], { inherit: true, composeFile: nextCompose });
     // Work may have started during the download; this is the last moment nothing has stopped.
     if (whenIdle) await assertNoAgentWorking(paths);
@@ -632,7 +632,7 @@ const updateCommandUnlocked = async (
       ],
       { inherit: true }
     );
-    report("backing-up", `Backing up the aiTeamOS database before ${target}`, target);
+    report("backing-up", `Backing up the OutcomeGo database before ${target}`, target);
     backupPath = createDatabaseBackup(paths, project, manifest.version, target);
     maintenanceWarning("record database backup", () => registerDatabaseBackup(paths, backupPath!));
     persisted = writeUpdateState(paths, { ...persisted, backupPath });
@@ -642,7 +642,7 @@ const updateCommandUnlocked = async (
     report("restarting", "Restarting the server, worker, and computer", target);
     newStackStarted = true;
     await startProject(project, paths, runner, target);
-    report("verifying", `aiTeamOS ${target} passed its readiness checks`, target);
+    report("verifying", `OutcomeGo ${target} passed its readiness checks`, target);
     writeManifest(paths, {
       ...manifest,
       repository,
@@ -653,7 +653,7 @@ const updateCommandUnlocked = async (
     });
     manifestUpdated = true;
     if (cliPromotion) {
-      report("updating-cli", `Installing aiTeamOS ${target} command-line tools`, target);
+      report("updating-cli", `Installing OutcomeGo ${target} command-line tools`, target);
       await waitForCliFollowerToExit(cliPromotion);
       promoteStagedCli(cliPromotion);
     }
@@ -664,7 +664,7 @@ const updateCommandUnlocked = async (
     }
     report(
       "rolling-back",
-      "The update failed; restoring the previous aiTeamOS configuration",
+      "The update failed; restoring the previous OutcomeGo configuration",
       manifest.version
     );
     if (newStackStarted) captureUpdateFailureDiagnostics(project, paths);
@@ -725,14 +725,14 @@ const updateCommandUnlocked = async (
   }
   maintenanceWarning("retain database backups", () => retainDatabaseBackups(paths, backupPath));
   const completion = cliPromotion
-    ? `aiTeamOS and its command-line tools are now running ${target}`
-    : `aiTeamOS is now running ${target}`;
+    ? `OutcomeGo and its command-line tools are now running ${target}`
+    : `OutcomeGo is now running ${target}`;
   report("complete", completion, target);
   console.log(
     cliTranslate(
       cliPromotion
-        ? "aiTeamOS and its command-line tools are now running {version}."
-        : "aiTeamOS is now running {version}.",
+        ? "OutcomeGo and its command-line tools are now running {version}."
+        : "OutcomeGo is now running {version}.",
       { version: target }
     )
   );
@@ -748,7 +748,7 @@ export const resolveUpdateTarget = async (
     : await latestReleaseVersion(repository);
   if (semver.lt(target, currentVersion) && !options.allowDowngrade) {
     throw new CliError(
-      `Refusing to downgrade aiTeamOS ${currentVersion} to ${target}. Use --allow-downgrade only for an intentional recovery.`
+      `Refusing to downgrade OutcomeGo ${currentVersion} to ${target}. Use --allow-downgrade only for an intentional recovery.`
     );
   }
   if (semver.prerelease(target) && !options.allowPrerelease) {
@@ -809,9 +809,9 @@ export const uninstallCommand = async (
   const manifest = requireInstallation(paths);
   const question = options.purge
     ? cliTranslate(
-        "Permanently delete all aiTeamOS containers, volumes, configuration, sessions, and workspace data?"
+        "Permanently delete all OutcomeGo containers, volumes, configuration, sessions, and workspace data?"
       )
-    : cliTranslate("Remove the aiTeamOS containers while preserving configuration and data?");
+    : cliTranslate("Remove the OutcomeGo containers while preserving configuration and data?");
   if (!options.yes && !(await confirmation(question))) {
     printMessage(cliTranslate("Uninstall cancelled."), "muted");
     return;
@@ -831,7 +831,7 @@ export const uninstallCommand = async (
         cliPath ? [{ label: cliTranslate("CLI removed"), value: cliPath }] : [],
         [
           {
-            text: cliTranslate("aiTeamOS and its local Docker data were permanently removed."),
+            text: cliTranslate("OutcomeGo and its local Docker data were permanently removed."),
             tone: "success",
           },
         ]
@@ -852,7 +852,7 @@ export const uninstallCommand = async (
       [
         {
           text: cliTranslate(
-            "Run the aiTeamOS installer again to restore the CLI and recreate the containers with the preserved data."
+            "Run the OutcomeGo installer again to restore the CLI and recreate the containers with the preserved data."
           ),
           tone: "info",
         },

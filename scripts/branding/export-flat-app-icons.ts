@@ -12,7 +12,7 @@ export const FLAT_ICON_TARGETS: readonly FlatIconTarget[] = [
   { path: "apps/android/app/src/main/res/mipmap-xhdpi/ic_launcher.png", size: 96 },
   { path: "apps/android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png", size: 144 },
   { path: "apps/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png", size: 192 },
-  { path: "apps/desktop/src/renderer/assets/ai-teamos-icon.png", size: 256 },
+  { path: "apps/desktop/src/renderer/assets/outcomego-icon.png", size: 256 },
 ];
 
 /** Read the logo layer's `position.scale` so the flat icons keep matching the Icon Composer source. */
@@ -37,7 +37,7 @@ export function exportFlatAppIcons(options: {
   if (process.platform !== "darwin")
     throw new Error("Flat app icon export requires macOS with an Xcode toolchain.");
   const iconDirectory =
-    options.iconDirectory ?? join(options.root, "packages/design-tokens/assets/aiTeamOS.icon");
+    options.iconDirectory ?? join(options.root, "packages/design-tokens/assets/outcomego.icon");
   const layerScale = options.layerScale ?? iconLayerScale(iconDirectory);
   const composer = join(import.meta.dir, "compose-flat-icon.swift");
   const written: string[] = [];

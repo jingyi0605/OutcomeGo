@@ -7,7 +7,7 @@ import { writeBytesFully, writeDataUrlToFileAtomically } from "../src/main/data-
 const temporaryDirectories: string[] = [];
 
 const temporaryDirectory = async () => {
-  const directory = await mkdtemp(join(tmpdir(), "aiteamos-data-url-file-"));
+  const directory = await mkdtemp(join(tmpdir(), "outcomego-data-url-file-"));
   temporaryDirectories.push(directory);
   return directory;
 };

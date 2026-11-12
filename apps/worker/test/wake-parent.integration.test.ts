@@ -3,11 +3,11 @@ import { mkdtemp, mkdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Effect } from "effect";
-import type { ComputerTurnRequest } from "@aiteamos/contracts";
+import type { ComputerTurnRequest } from "@outcomego/contracts";
 import { AppService } from "../../server/src/app-service";
 import { WakeWorker } from "../src/worker";
 
-const databaseUrl = process.env.AITEAMOS_TEST_DATABASE_URL;
+const databaseUrl = process.env.OUTCOMEGO_TEST_DATABASE_URL;
 test.skipIf(!databaseUrl)(
   "routine → isolated automation → WakeParent → channel delivery, including silent results and delegated continuation",
   async () => {
@@ -80,7 +80,7 @@ test.skipIf(!databaseUrl)(
             if (query.includes("WP_ROUTINE_CHILD")) await routineChildGate;
             if (input.subagentType === "computerUse") {
               expect(input.taskConfiguration).toMatchObject({ graphicalAvailable: true });
-              expect(input.instructions).toStartWith("You are aiTeamOS running as the computerUse subagent.");
+              expect(input.instructions).toStartWith("You are outcomeGo running as the computerUse subagent.");
               expect(input.model).not.toContain("ignored-model");
             }
             final = query.includes("WP_ROUTINE_CHILD") ? "WP_ROUTINE_CHILD_RESULT" : query.includes("WP_FOREGROUND_CHILD") ? "WP_FOREGROUND_RESULT" : "WP_CHILD_RESULT: checked the fixture successfully.";
@@ -174,7 +174,7 @@ test.skipIf(!databaseUrl)(
             inferenceProvider: "openai-codex",
             contextSessionId: input.contextSessionId,
             sessionPath:
-              input.sessionPath ?? `/var/lib/aiteamos/pi/${input.contextSessionId}.jsonl`,
+              input.sessionPath ?? `/var/lib/outcomego/pi/${input.contextSessionId}.jsonl`,
             sessionId: input.contextSessionId,
             model: "fake",
           },
@@ -206,10 +206,10 @@ test.skipIf(!databaseUrl)(
     });
     const keys = [
       "DATABASE_URL",
-      "AITEAMOS_COMPUTER_URL",
-      "AITEAMOS_CONTROL_TOKEN",
-      "AITEAMOS_WORKSPACE_ROOT",
-      "AITEAMOS_AGENT_DATA_ROOT",
+      "OUTCOMEGO_COMPUTER_URL",
+      "OUTCOMEGO_CONTROL_TOKEN",
+      "OUTCOMEGO_WORKSPACE_ROOT",
+      "OUTCOMEGO_AGENT_DATA_ROOT",
     ] as const;
     const previous = Object.fromEntries(keys.map((key) => [key, process.env[key]]));
     const until = async (check: () => Promise<boolean>) => {
@@ -223,10 +223,10 @@ test.skipIf(!databaseUrl)(
     try {
       Object.assign(process.env, {
         DATABASE_URL: databaseUrl,
-        AITEAMOS_COMPUTER_URL: fake.url.origin,
-        AITEAMOS_CONTROL_TOKEN: "synthetic-wakeparent",
-        AITEAMOS_WORKSPACE_ROOT: root,
-        AITEAMOS_AGENT_DATA_ROOT: join(root, "data"),
+        OUTCOMEGO_COMPUTER_URL: fake.url.origin,
+        OUTCOMEGO_CONTROL_TOKEN: "synthetic-wakeparent",
+        OUTCOMEGO_WORKSPACE_ROOT: root,
+        OUTCOMEGO_AGENT_DATA_ROOT: join(root, "data"),
       });
       app = new AppService();
       await Effect.runPromise(app.boot());

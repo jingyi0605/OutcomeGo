@@ -46,7 +46,7 @@ import XCTest
     let app = launch(appearance)
     XCTAssertTrue(loader(app).waitForExistence(timeout: 5))
     XCTAssertFalse(app.buttons["chat-back"].exists)
-    XCTAssertFalse(app.staticTexts["Opening OpenTeam…"].exists)
+    XCTAssertFalse(app.staticTexts["Opening OutcomeGo…"].exists)
     XCTAssertFalse(app.progressIndicators.firstMatch.exists)
     capture(appearance + "-thinking-a", app)
     try await Task.sleep(for: .milliseconds(1100))

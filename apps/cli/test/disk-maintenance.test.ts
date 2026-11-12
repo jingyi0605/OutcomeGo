@@ -93,7 +93,7 @@ class Docker implements CommandRunner {
   }
 }
 const fixture = () => {
-  const directory = realpathSync(mkdtempSync(join(tmpdir(), "aiteamos-maintenance-")));
+  const directory = realpathSync(mkdtempSync(join(tmpdir(), "outcomego-maintenance-")));
   directories.push(directory);
   const paths = installationPaths(directory);
   writeFileSync(paths.compose, "services: {}\n");
@@ -148,7 +148,7 @@ test("preserves running/stopped container images, other installations, manual ta
         State: { Running: protection === "running" },
       });
     if (protection === "other-install")
-      runner.images.get(id(1))!.add(`aiteamos-retention-${randomUUID()}:${id(1).slice(7)}`);
+      runner.images.get(id(1))!.add(`outcomego-retention-${randomUUID()}:${id(1).slice(7)}`);
     if (protection === "manual") runner.images.get(id(1))!.add("network-test:manual");
     retainStackImages(paths, project, runner, [id(2)], [id(3)]);
     expect(runner.images.has(id(1))).toBe(true);
@@ -166,7 +166,7 @@ test("removes retired containerd digest references and image layers before forge
   retainStackImages(paths, project, runner, [id(1)], [id(2)]);
   const ledgerPath = join(paths.directory, "image-retention.json");
   const ledger = JSON.parse(readFileSync(ledgerPath, "utf8"));
-  const marker = `aiteamos-retention-${ledger.owner}:${id(1).slice(7)}`;
+  const marker = `outcomego-retention-${ledger.owner}:${id(1).slice(7)}`;
 
   retainStackImages(paths, project, runner, [id(2)], [id(3)]);
 
@@ -186,13 +186,13 @@ test("removes classic image-store digest references absent from RepoTags", () =>
   retainStackImages(paths, project, runner, [id(1)], [id(2)]);
   const ledgerPath = join(paths.directory, "image-retention.json");
   const ledger = JSON.parse(readFileSync(ledgerPath, "utf8"));
-  const marker = `aiteamos-retention-${ledger.owner}:${id(1).slice(7)}`;
+  const marker = `outcomego-retention-${ledger.owner}:${id(1).slice(7)}`;
   const run = runner.run.bind(runner);
   runner.run = (command, args) => {
     const result = run(command, args);
     if (args[0] !== "image" || args[1] !== "inspect") return result;
     const images = JSON.parse(result.stdout);
-    images[0].RepoDigests.push(`aiteamos-retention-${ledger.owner}@${id(1)}`);
+    images[0].RepoDigests.push(`outcomego-retention-${ledger.owner}@${id(1)}`);
     return { ...result, stdout: JSON.stringify(images) };
   };
 
@@ -281,7 +281,7 @@ test("retries partially removed digest references using the retained ownership m
   const ledger = JSON.parse(readFileSync(ledgerPath, "utf8"));
   expect(ledger.owned).toContain(id(1));
   expect(runner.images.get(id(1))).toEqual(
-    new Set([digests[1]!, `aiteamos-retention-${ledger.owner}:${id(1).slice(7)}`])
+    new Set([digests[1]!, `outcomego-retention-${ledger.owner}:${id(1).slice(7)}`])
   );
 
   runner.run = run;
@@ -457,7 +457,7 @@ test("unpulled optional profile images are skipped, but active or ambiguous inve
 test("backup retention can be disabled or increased; invalid settings preserve all restore points", () => {
   for (const count of ["0", "6", "-1", "invalid", "9007199254740992"]) {
     const { paths, files } = backups();
-    writeFileSync(paths.environment, `AITEAMOS_BACKUP_RETENTION_COUNT=${count}\n`);
+    writeFileSync(paths.environment, `OUTCOMEGO_BACKUP_RETENTION_COUNT=${count}\n`);
     if (count === "0" || count === "6") retainDatabaseBackups(paths, files[5]!);
     else expect(() => retainDatabaseBackups(paths, files[5]!)).toThrow("backups preserved");
     expect(files.every(existsSync)).toBe(true);
@@ -466,7 +466,7 @@ test("backup retention can be disabled or increased; invalid settings preserve a
 
 test("configured smaller retention still protects the rollback dump and exported copies", () => {
   const { paths, files } = backups();
-  writeFileSync(paths.environment, "AITEAMOS_BACKUP_RETENTION_COUNT=1\n");
+  writeFileSync(paths.environment, "OUTCOMEGO_BACKUP_RETENTION_COUNT=1\n");
   const manual = join(paths.backups, "manual");
   mkdirSync(manual);
   const exported = join(manual, "keep.sql");

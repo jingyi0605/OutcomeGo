@@ -6,7 +6,7 @@ import { join } from "node:path";
 /** Compare executable content across packaging re-signing without changing either input. */
 export async function matchesResignedMacExecutable(source: Buffer, packaged: Buffer): Promise<boolean> {
   if (process.platform !== "darwin") return false;
-  const directory = await mkdtemp(join(tmpdir(), "aiteamos-signature-compare-"));
+  const directory = await mkdtemp(join(tmpdir(), "outcomego-signature-compare-"));
   try {
     const paths = [join(directory, "source"), join(directory, "packaged")];
     await writeFile(paths[0]!, source, { mode: 0o600 });

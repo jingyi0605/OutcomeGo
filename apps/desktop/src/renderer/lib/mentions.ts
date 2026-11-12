@@ -1,7 +1,7 @@
 export {
   mentionHandleFor,
   type MentionOption,
-} from "@aiteamos/product-core/mentions";
+} from "@outcomego/product-core/mentions";
 
 export type MentionSegment =
   | { type: "text"; text: string }

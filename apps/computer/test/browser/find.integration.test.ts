@@ -16,7 +16,7 @@ test('find validates queries, bounds context and times out pathological regex', 
   catch (error) { expect(String(error)).toContain('time limit'); }
 });
 
-test.skipIf(!process.env.AITEAMOS_BROWSER_TEST_EXECUTABLE)('find recovers generic text, shadow/frame content and actionable refs; typing rejects non-editable targets without clicking', async () => {
+test.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)('find recovers generic text, shadow/frame content and actionable refs; typing rejects non-editable targets without clicking', async () => {
  const root=await mkdtemp(join(tmpdir(),'find-browser-'));
  const server=Bun.serve({port:0,fetch:()=>new Response(`<html><body>
  <div>Scope of delivery</div><span>Original box and original papers</span>
@@ -28,7 +28,7 @@ test.skipIf(!process.env.AITEAMOS_BROWSER_TEST_EXECUTABLE)('find recovers generi
  <script>document.querySelector('#shadow').attachShadow({mode:'open'}).innerHTML='<span>Shadow needle</span>';</script>
  </body></html>`,{headers:{'content-type':'text/html'}})});
  const driver=await outOfProcessPlaywright();
- const browser=await driver.playwright.chromium.launch({headless:true,executablePath:process.env.AITEAMOS_BROWSER_TEST_EXECUTABLE});
+ const browser=await driver.playwright.chromium.launch({headless:true,executablePath:process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE});
  const context=await browser.newContext();
  const session=new (BrowserUseSession as any)(browser,context,root) as BrowserUseSession;
  const text=(result:any)=>result.content.filter((b:any)=>b.type==='text').map((b:any)=>b.text).join('\n');

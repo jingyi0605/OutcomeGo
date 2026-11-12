@@ -84,7 +84,7 @@ export function sendToUserSpeechExtension(speech: SendToUserSpeech): {
   factory: import("@earendil-works/pi-coding-agent").ExtensionFactory;
 } {
   return {
-    name: "aiteamos-send-to-user-speech",
+    name: "outcomego-send-to-user-speech",
     hidden: true,
     factory(pi) {
       pi.on("message_update", (event) => {
