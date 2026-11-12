@@ -175,7 +175,7 @@ describe("real APNs worker configuration probe", () => {
       await new Promise<void>((resolve) => server.close(() => resolve()));
       rmSync(directory, { recursive: true, force: true });
     }
-  });
+  }, 15_000);
 
   test("fails without a diagnostics socket", async () => {
     const directory = mkdtempSync(join(tmpdir(), "outcomego-apns-socket-"));

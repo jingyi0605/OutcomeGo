@@ -24,7 +24,7 @@ apps/landing/.generated/
 /.agents/skills/outcomego-macos-release/
 packages/plugins/_generated/
 **/.cxx/
-data
+/data/
 
 /.gradle/
 **/.gradle/

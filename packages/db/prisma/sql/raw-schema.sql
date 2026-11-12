@@ -220,23 +220,23 @@ $function$
 
 DROP TRIGGER IF EXISTS "outcomego_bot_search_refresh" ON "outcomego_bot";
 CREATE TRIGGER "outcomego_bot_search_refresh" AFTER INSERT OR DELETE OR UPDATE ON "outcomego_bot"
-  FOR EACH ROW EXECUTE FUNCTION outcomego_refresh_bot_search();
+  FOR EACH ROW EXECUTE FUNCTION public.outcomego_refresh_bot_search();
 
 DROP TRIGGER IF EXISTS "outcomego_channel_search_refresh" ON "outcomego_channel";
 CREATE TRIGGER "outcomego_channel_search_refresh" AFTER INSERT OR DELETE OR UPDATE ON "outcomego_channel"
-  FOR EACH ROW EXECUTE FUNCTION outcomego_refresh_channel_search();
+  FOR EACH ROW EXECUTE FUNCTION public.outcomego_refresh_channel_search();
 
 DROP TRIGGER IF EXISTS "outcomego_routine_search_refresh" ON "outcomego_routine";
 CREATE TRIGGER "outcomego_routine_search_refresh" AFTER INSERT OR DELETE OR UPDATE ON "outcomego_routine"
-  FOR EACH ROW EXECUTE FUNCTION outcomego_refresh_routine_search();
+  FOR EACH ROW EXECUTE FUNCTION public.outcomego_refresh_routine_search();
 
 DROP TRIGGER IF EXISTS "outcomego_channel_message_search_refresh" ON "outcomego_channel_message";
 CREATE TRIGGER "outcomego_channel_message_search_refresh" AFTER INSERT OR DELETE OR UPDATE ON "outcomego_channel_message"
-  FOR EACH ROW EXECUTE FUNCTION outcomego_refresh_message_search();
+  FOR EACH ROW EXECUTE FUNCTION public.outcomego_refresh_message_search();
 
 DROP TRIGGER IF EXISTS outcomego_event_notify ON "outcomego_event";
 CREATE TRIGGER outcomego_event_notify AFTER INSERT ON "outcomego_event"
-  FOR EACH ROW EXECUTE FUNCTION outcomego_notify_event();
+  FOR EACH ROW EXECUTE FUNCTION public.outcomego_notify_event();
 
 -- The current Prisma schema owns the complete provider schedule shape. This script only
 -- installs constraints that Prisma cannot express; it does not convert older table shapes.

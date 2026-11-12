@@ -5,7 +5,7 @@
 | 层级 | 用户可见名称 | 新安装内部身份/资产 | 代码位置 | 当前证据 | 结论 |
 |---|---|---|---|---|---|
 | 公开文档 | OutcomeGo；独立 OpenTeam fork；GPL 保留 | 新仓库 `jingyi0605/OutcomeGo` | README、英文 README、FORK、CHANGELOG、迁移说明 | README/迁移文案审阅；旧产品 installer URLs 改为新仓库 Release URL | 本地已更正；远端文件未推送 |
-| GitHub 仓库 | OutcomeGo | slug `jingyi0605/OutcomeGo`；fork 默认分支 `OutcomeGo`；上游同步分支 `main` | GitHub Settings、`origin`、文档链接 | 旧网页 redirect 和 beta.13 历史 Release API 有此前记录；本次分支/默认/ruleset 变更完成后补录远端核验与 Actions 结果。 | 仓库名已改；默认分支同步进行中 |
+| GitHub 仓库 | OutcomeGo | slug `jingyi0605/OutcomeGo`；fork 默认分支 `OutcomeGo`；上游同步分支 `main` | GitHub Settings、`origin`、文档链接 | GitHub API 已验证 default branch、当前 SHA、旧分支删除和新 ruleset；push run `43252477033`、`43252476855`、`43252476846` 启动并暴露尚待修复的 Android/CI/DB/Ubuntu CLI 检查失败。 | 分支更名与同步 DONE；runner 修复验证 PENDING |
 | CLI | Help 和安装器显示 OutcomeGo | `outcomego` 单一入口；`@outcomego/cli`；`PROJECT_NAME=outcomego`；`DEFAULT_REPOSITORY=jingyi0605/OutcomeGo`；`DEFAULT_IMAGE_PREFIX=ghcr.io/jingyi0605/ai-teamos` | `apps/cli`、release scripts | CLI typecheck 通过；清除所有大小写代理变量后完整套件 756 pass/0 fail，Sigstore/TUF 在线刷新通过 | 本地 PASS；GitHub runner 仍待验证 |
 | CLI 历史签名 | beta.13 历史资产 | key id `openteam-local-release-2026-10-03` 绑定旧仓库；新发布依赖 OIDC Sigstore | `apps/cli/src/release.ts`、`release-signing-key.ts` | verifier 限定旧本地 key 只能处理旧仓库；OutcomeGo 使用 workflow identity | 待本轮 focused test 验证 |
 | Desktop | 窗口、About、菜单、权限显示 OutcomeGo | `dev.outcomego.desktop`、executable `outcomego`；userData `aiTeamOS` 和 asset prefix `aiTeamOS-*` 按固定清单保留 | `apps/desktop/package.json`、`src/main/user-data-path.ts` | typecheck/full tests、userData test 已通过；没有 beta.13 updater 解析新 prefix fixture | 两项稳定身份保留；macOS 本地候选不等于公开候选 |

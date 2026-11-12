@@ -25,14 +25,12 @@ test.skipIf(!url)("a fresh database receives the complete current schema and can
   const admin = new Client({ connectionString: url! });
   await admin.connect();
   await admin.query(`CREATE DATABASE "${name}"`);
-  await admin.query(`ALTER DATABASE "${name}" SET search_path TO outcome_data`);
   const target = new URL(url!);
   target.pathname = `/${name}`;
   const db = new Client({ connectionString: target.toString() });
 
   try {
     await db.connect();
-    await db.query("CREATE SCHEMA outcome_data");
     await db.end();
     await deploy(target.toString());
     await db.connect();
@@ -67,7 +65,7 @@ test.skipIf(!url)("a fresh database receives the complete current schema and can
     expect(marker.rows[0]?.comment).toMatch(/^OutcomeGo schema ready: outcomego-v1:[0-9a-f]{64}$/);
 
     const channel = await db.query<{ routine: string }>(`
-      SELECT pg_get_functiondef('outcomego_notify_event()'::regprocedure) AS routine
+      SELECT pg_get_functiondef('public.outcomego_notify_event()'::regprocedure) AS routine
     `);
     expect(channel.rows[0]?.routine).toContain("aiteamos_events");
 
@@ -82,7 +80,7 @@ test.skipIf(!url)("a fresh database receives the complete current schema and can
     `);
     expect(tablesAfter.rows[0]?.count).toBe(tablesBefore.rows[0]?.count);
 
-    await db.query("COMMENT ON SCHEMA outcome_data IS 'OutcomeGo schema ready: outcomego-v1:outdated'");
+    await db.query("COMMENT ON SCHEMA public IS 'OutcomeGo schema ready: outcomego-v1:outdated'");
     const blocked = Bun.spawn(["bun", "scripts/deploy-schema.ts"], {
       cwd: join(import.meta.dirname, ".."),
       env: { ...process.env, DATABASE_URL: target.toString() },
@@ -155,7 +153,6 @@ test.skipIf(!url)("a user-created empty schema without objects can be initialize
 
   try {
     await db.connect();
-    await db.query("CREATE SCHEMA outcome_data");
     await db.end();
 
     const child = Bun.spawn(["bun", "scripts/deploy-schema.ts"], {

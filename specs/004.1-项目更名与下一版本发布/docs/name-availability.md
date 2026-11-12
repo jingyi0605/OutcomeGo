@@ -6,7 +6,7 @@
 
 | 检查类别 | 计划检查 | 本地尝试 | 结果 |
 |---|---|---|---|
-| GitHub 仓库/组织 | `OutcomeGo` 仓库名、组织和旧仓库重定向 | Repository API 为 `jingyi0605/OutcomeGo`，公开 fork；负责人要求将 fork 默认分支设为 `OutcomeGo`，上游镜像 `main` 独立保留。`/releases/latest` 是 beta.13，正文命令仍使用旧仓库 URL。旧主页 redirect 来自此前浏览器记录；当前未验证 SSH clone redirect | 仓库 slug 已确认；默认分支切换在本次执行中 |
+| GitHub 仓库/组织 | `OutcomeGo` 仓库名、组织和旧仓库重定向 | Repository API 为 `jingyi0605/OutcomeGo`，公开 fork；默认分支 `OutcomeGo`，上游镜像 `main` 独立保留。`/releases/latest` 是 beta.13，正文命令仍使用旧仓库 URL。旧主页 redirect 来自此前浏览器记录；当前未验证 SSH clone redirect | DONE（仓库 slug 和默认分支已改；SSH clone redirect 待单独核验） |
 | npm 包名 | `outcomego` 是否已被其他项目占用、目标组织能否使用对应名称 | 尚未查询 npm 当前注册情况 | PENDING |
 | 网站地址 | OutcomeGo 相关网址是否可注册，已有网址由谁持有 | 尚未完成所有目标后缀和注册信息查询 | PENDING |
 | 应用商店 | Apple App Store 和 Google Play 中是否已有同名应用，以及发布所需开发者账号是否可用 | 尚未检查商店条目或账号 | PENDING |

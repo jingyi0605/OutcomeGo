@@ -279,14 +279,14 @@
   - 对应设计：`design.md` §29
 
 - [ ] 6.2 决定是否执行 GitHub repository rename
-  - 状态：IN_PROGRESS
-  - 原因：仓库 slug 已为 `jingyi0605/OutcomeGo`；负责人现要求把 fork 默认分支从 `ai-TeamOS` 更名为 `OutcomeGo` 并同步 GitHub，且保留上游 `main` 的独立同步用途。
-  - 证据：`docs/repository-rename-decision.md`、本次分支切换后补录的 GitHub branch/default/ruleset 核验。
+  - 状态：DONE
+  - 原因：fork 主分支已改为 `OutcomeGo`，GitHub 默认分支和保护规则均指向该分支；旧 `ai-TeamOS` ref 已删除，历史包含在 OutcomeGo 分支中；上游 `main` 保持独立。
+  - 证据：`docs/repository-rename-decision.md`；GitHub API default=`OutcomeGo`、远端 SHA `048df07d40b3fbd3a0a0c52652daaf86fb15210a`；`origin/ai-TeamOS` 返回 404；active ruleset 只匹配 `refs/heads/OutcomeGo`；无未合并 PR。
   - 先依赖什么：4.1、5.1、6.1
   - 主要改哪里：GitHub Settings、`origin`、README/FORK/docs、CLI 和 Desktop Release 来源。
   - 这一步先不做什么：不改变 GHCR stable package path，不合并 fork 默认分支与上游 `main`。
   - 怎么算完成：仓库 slug 和默认分支均为 OutcomeGo，源代码同步，默认分支/ruleset 与远端 SHA 均有记录。
-  - 怎么验证：GitHub API 核验 repository default branch、远端 `OutcomeGo` SHA、branch ruleset 和 push 后 Actions run。
+  - 怎么验证：GitHub API 核验 repository default branch、远端 `OutcomeGo` SHA、branch ruleset 和 push 后 Actions run；初始 Actions 失败项记录在 `docs/ci-workflow-audit.md`，修复后 runner 复验待后续提交。
   - 对应需求：需求 13
   - 对应设计：`design.md` §26
 

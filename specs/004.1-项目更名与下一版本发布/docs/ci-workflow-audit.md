@@ -2,13 +2,15 @@
 
 日期：2026 年 11 月 12 日
 
-状态：本地 workflow/YAML 检查 PASS；GitHub beta.13 run API 已核实旧 tag 触发重复工作流；当前修复仍未推送，新配置 runner 验证 PENDING。
+状态：本地 workflow/YAML 检查 PASS；OutcomeGo 默认分支 push 已验证分支触发去重配置生效；首轮 runner 发现 Android source 路径、enum parity、PostgreSQL 初始化和 Ubuntu CLI 超时问题，修正已在本地，待后续 push 复验。
 
 ## 结论
 
 CI 在 Release workflow 中以 reusable workflow (`workflow_call`) 运行；历史 beta.13 tag 没有触发独立 CI push run。额外触发的是 Android QA 和 CLI installer：其 `push.paths` 未限定分支，因此同一 beta tag 会启动这两条 workflow。当前本地将 CI、Android QA 和 CLI installer 的 push trigger 都限制为 branches，并由 `scripts/check/release-workflows.ts` 锁定；CI 被 Release 调用时仍运行主 checks job。
 
-本地三个独立工作流限定 branch push；从触发器配置看，tag push 只应启动 `release.yml`。GitHub 仓库已改为 `jingyi0605/OutcomeGo`，fork 默认分支计划切换为 `OutcomeGo`，上游 `main` 保持独立。Actions API 显示 `v0.1.0-beta.13` 同一 tag push 上有 Release、Android QA、CLI installer 各一条成功 run；独立 CI tag push 查询为 0 条。三个 tag run 都指向旧提交 `a25f265306f5ce38171ddb25c105c44392ed001b`。这直接证明 Android QA 和 CLI installer 两条额外 workflow 曾重复运行；本地 branch-only trigger 尚未由 runner 验证。active branch ruleset 应随分支迁移到 `OutcomeGo`。GHCR `ai-teamos` 稳定路径继续保留。
+本地三个独立工作流限定 branch push；tag push 只应启动 `release.yml`。GitHub 默认分支现为 `OutcomeGo`，上游 `main` 保持独立。Actions API 显示 `v0.1.0-beta.13` 同一 tag push 曾启动 Release、Android QA、CLI installer 各一条，独立 CI tag push 为 0 条；branch-only trigger 避免 tag 启动 Android QA/CLI installer。初次向 `OutcomeGo` 推送时 GitHub 只启动 CI、Android QA、CLI installer 三条 branch run，没有额外 tag build；静态检查和版本检查通过。
+
+首轮 run 的剩余失败为：Android QA 因根目录 `.gitignore` 中裸 `data` 模式忽略 `apps/android/**/data/`，导致 Android 数据源和测试文件未被提交；Architecture 的 enum parity checker 把数据库 `@@map` 名错当作 contract export；PostgreSQL fresh-schema 测试把 Prisma `public` schema 与自建 `outcome_data` schema 混用，且 raw trigger function 未 schema-qualify；Ubuntu CLI 有一项诊断 socket 测试超过测试框架默认 5 秒，Windows CLI installer 通过。后续本地已修复前四项；GitHub runner 尚未复验。
 
 历史 run 查询：
 
@@ -52,6 +54,6 @@ bun scripts/release/version.ts check
 bun install --frozen-lockfile --ignore-scripts
 ```
 
-本地更新配置验证：`bun run check:workflows`、4 个 workflow YAML parse、version check 和 frozen install 均 PASS。CLI typecheck PASS；清除所有代理变量后 CLI 完整套件 756 pass/0 fail。Desktop typecheck PASS，544 pass/1 skip/0 fail。Android debug package wrapper PASS；release-gate 静态 parity、assetlinks、live parity、FCM 和 dependency 检查 PASS，manifest cleartext 仍 PENDING。数据库 CI 已改为 fresh-schema job，但 PostgreSQL integration test 未在本机运行，远端 runner 尚未验证当前改动。
+初次 push commit `048df07d40b3fbd3a0a0c52652daaf86fb15210a` 的 run：CI `43252477033` 的版本、安装、workflow graph 及三镜像构建通过，但 architecture 和 database-fresh-schema 失败；Android QA `43252476855` 因被忽略的 `data/` 文件未入提交而编译失败；CLI installer `43252476846` 的 Windows job 通过，Ubuntu 759/760 tests 通过，APNs socket test 在 5 秒测试超时处失败，macOS job 后来取消。后续修复已在本地；architecture、version、workflow、`git diff --check` 和 Android debug package 通过。PostgreSQL integration 受“不启动数据库服务”的本地约束未执行，等待 GitHub runner。
 
 该审计没有读取 GitHub Secrets 值或签名私钥，也未启动 release tag。真实 runner 是否只触发 Release workflow，需在本地变更提交并推送后从 GitHub Actions 事件记录核验。GitHub Release API 当前仍返回 beta.13；新 beta.14 尚未发布。
