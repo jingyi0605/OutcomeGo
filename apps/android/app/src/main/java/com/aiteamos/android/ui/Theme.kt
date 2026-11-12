@@ -1,5 +1,6 @@
 package com.aiteamos.android.ui
 
+import android.app.Activity
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Typography
@@ -12,9 +13,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Shapes
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.view.WindowCompat
 import com.aiteamos.features.AppSettings
 
 private val BackgroundLight = Color(0xFFFCFCFC)
@@ -56,6 +60,11 @@ fun AiTeamOSTheme(
         AppSettings.Appearance.System -> systemDark
         AppSettings.Appearance.Light -> false
         AppSettings.Appearance.Dark -> true
+    }
+    val view = LocalView.current
+    SideEffect {
+        val window = (view.context as? Activity)?.window ?: return@SideEffect
+        WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
     }
     val accentColor = when (accent) {
         AppSettings.Accent.Black -> if (darkTheme) Color.White else TextLight
