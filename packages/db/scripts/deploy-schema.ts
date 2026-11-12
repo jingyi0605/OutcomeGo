@@ -42,7 +42,12 @@ const assertFreshOrCurrentDatabase = async (): Promise<"initialize" | "ready"> =
     `);
     const schemaComment = schemaResult.rows[0]?.comment ?? null;
 
-    if (!schemaComment && !existing.rows[0]?.has_objects) return "initialize";
+    if (
+      !existing.rows[0]?.has_objects &&
+      (schemaComment === null || schemaComment === "standard public schema")
+    ) {
+      return "initialize";
+    }
     if (schemaComment === READY_MARKER && existing.rows[0]?.has_objects) return "ready";
     if (schemaComment === INITIALIZING_MARKER) return "initialize";
     if (existing.rows[0]?.has_objects) {
