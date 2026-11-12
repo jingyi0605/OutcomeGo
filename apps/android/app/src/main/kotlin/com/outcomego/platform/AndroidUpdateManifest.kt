@@ -29,7 +29,14 @@ object AndroidUpdateManifestVerifier {
     private val sha256Pattern = Regex("^[0-9a-fA-F]{64}$")
     private val versionPattern = Regex("^\\d+\\.\\d+\\.\\d+(?:-[A-Za-z]+\\.\\d+)?$")
 
-    fun parseAndVerify(raw: String, expectedApplicationId: String): AndroidUpdateManifest {
+    fun parseAndVerify(raw: String, expectedApplicationId: String): AndroidUpdateManifest =
+        parseAndVerify(raw, expectedApplicationId, PUBLIC_KEY_DER_HEX)
+
+    internal fun parseAndVerify(
+        raw: String,
+        expectedApplicationId: String,
+        publicKeyDerHex: String,
+    ): AndroidUpdateManifest {
         val manifest = json.decodeFromString<AndroidUpdateManifest>(raw)
         require(manifest.applicationId == expectedApplicationId) {
             "The update targets a different Android application."
@@ -56,7 +63,7 @@ object AndroidUpdateManifestVerifier {
         require(manifest.signatureBase64.isNotBlank()) {
             "The update manifest is unsigned."
         }
-        require(verifySignature(manifest)) {
+        require(verifySignature(manifest, publicKeyDerHex)) {
             "The update manifest signature is invalid."
         }
         return manifest
@@ -72,10 +79,10 @@ object AndroidUpdateManifestVerifier {
         append("certificateSha256=").append(manifest.certificateSha256.lowercase(Locale.US)).append('\n')
     }
 
-    private fun verifySignature(manifest: AndroidUpdateManifest): Boolean = runCatching {
+    private fun verifySignature(manifest: AndroidUpdateManifest, publicKeyDerHex: String): Boolean = runCatching {
         val keyFactory = KeyFactory.getInstance("EC")
         val publicKey: PublicKey = keyFactory.generatePublic(
-            X509EncodedKeySpec(PUBLIC_KEY_DER_HEX.chunked(2).map { it.toInt(16).toByte() }.toByteArray()),
+            X509EncodedKeySpec(publicKeyDerHex.chunked(2).map { it.toInt(16).toByte() }.toByteArray()),
         )
         Signature.getInstance(SIGNATURE_ALGORITHM).run {
             initVerify(publicKey)
