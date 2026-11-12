@@ -1,6 +1,6 @@
 # Installation
 
-Install the server on the machine that will host your bots. The desktop app can run on the same machine or connect from another one. The current `latest` installer installs beta.13 with the former product identity; OutcomeGo beta.14 has not been released. Check the [Releases page](https://github.com/jingyi0605/OutcomeGo/releases) before installing.
+Install the server on the machine that will host your bots. The desktop app can run on the same machine or connect from another one. The current `latest` installer installs OutcomeGo `v0.1.0-beta.14`; select beta.13 explicitly on the [Releases page](https://github.com/jingyi0605/OutcomeGo/releases) if you need the former product identity.
 
 ## Requirements
 
@@ -31,7 +31,7 @@ curl -fsSL https://github.com/jingyi0605/OutcomeGo/releases/latest/download/inst
 irm https://github.com/jingyi0605/OutcomeGo/releases/latest/download/install.ps1 | iex
 ```
 
-The installer downloads and verifies the CLI, checks Docker, and starts guided setup. If Docker is missing, it links to the download; install it and run the setup command printed by the installer. On a Mac with Docker Desktop installed but not running, setup starts it for you. If another check fails, fix it and run setup again. You don't need Node.js or Bun. The current public latest installer is beta.13 and uses the previous product identity.
+The installer downloads and verifies the CLI, checks Docker, and starts guided setup. If Docker is missing, it links to the download; install it and run the setup command printed by the installer. On a Mac with Docker Desktop installed but not running, setup starts it for you. If another check fails, fix it and run setup again. You don't need Node.js or Bun. The current public latest installer is OutcomeGo beta.14.
 
 The tool is installed to `~/.local/bin` on macOS and Linux, and the installer adds that directory to your `PATH` in your shell's startup file, such as `~/.zshrc` or `~/.bashrc`. Open a new terminal to use `outcomego`. To leave your startup files unchanged, set `OUTCOMEGO_NO_MODIFY_PATH=1` before running the installer. On Windows, it's installed to `%LOCALAPPDATA%\OutcomeGo\bin` and added to your `PATH`.
 

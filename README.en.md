@@ -234,9 +234,9 @@ Compared with upstream OpenTeam v0.0.15, this branch adds:
 
 The full list is in [FORK.md](FORK.md).
 
-The latest published GitHub release is `v0.1.0-beta.13`. `v0.1.0-beta.14` is not published; the
-Android signed APK and macOS arm64 signed/notarized packages exist only as local builds. Beta.13 was
-built with the former name and internal identities, so it is not the OutcomeGo beta.14 release. The
+The latest published GitHub release is `v0.1.0-beta.14`, the first public release using the OutcomeGo
+name and new internal identities. iOS Release is deferred by decision, and real device upgrades and
+backup imports remain separate acceptance checks. The
 repository is now [`jingyi0605/OutcomeGo`](https://github.com/jingyi0605/OutcomeGo); the beta.13
 release notes still contain installer commands using the old slug. See [FORK.md](FORK.md) and the
 [release decision](specs/004.1-项目更名与下一版本发布/docs/release-decision.md) for current gates.
@@ -273,9 +273,8 @@ Docker Desktop supplies the engine and Compose. See the [requirements](docs/gett
 
 ### 1. Install the OutcomeGo server
 
-The public `latest` installer installs beta.13 with the former product identity. OutcomeGo beta.14
-has not been released. Check the [Releases page](https://github.com/jingyi0605/OutcomeGo/releases)
-for the intended version; beta.13 is not the OutcomeGo beta.14 build.
+The public `latest` installer installs OutcomeGo `v0.1.0-beta.14`. To use the former product
+identity, select beta.13 explicitly on the [Releases page](https://github.com/jingyi0605/OutcomeGo/releases).
 
 Run this on the machine that will host your bots.
 

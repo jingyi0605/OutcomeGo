@@ -8,7 +8,7 @@ OutcomeGo 移动端是你的服务端的客户端：登录同一个服务器后�
 
 | 平台 | 要求 | 获取方式 | 说明 |
 | --- | --- | --- | --- |
-| Android | Android 8.0（API 26）及以上 | 从源码构建；beta.14 尚未发布 | [apps/android/README.md](../../apps/android/README.md) |
+| Android | Android 8.0（API 26）及以上 | GitHub Releases 提供 beta.14；也可从源码构建 | [apps/android/README.md](../../apps/android/README.md) |
 | iPhone / iPad | iOS 18 及以上 | 暂不提供安装包，只能从源码构建（测试版） | [apps/ios/README.md](../../apps/ios/README.md) |
 
 iOS 暂时没有安装包，也不提供 TestFlight 或 App Store 下载。
@@ -35,7 +35,7 @@ iOS 暂时没有安装包，也不提供 TestFlight 或 App Store 下载。
 
 ## Android
 
-- beta.14 尚未发布。beta.13 APK 使用旧产品名称和内部身份，不能当作 OutcomeGo beta.14 安装。发布后，应用会在安装前校验更新清单签名、APK 校验和与签名证书。
+- beta.14 已发布。beta.13 APK 使用旧产品名称和内部身份；应用会在安装前校验更新清单签名、APK 校验和与签名证书。
 - 自己构建一个调试 APK：`bash scripts/android/package-debug.sh`，在 macOS 上也可以双击 `scripts/android/package-debug.command`。
 - 生成的文件是 `apps/android/app/build/outputs/apk/debug/androidApp-debug.apk`。
 - 在小米设备上一键安装并运行：`bash scripts/android/run-xiaomi.sh`，详见 [Xiaomi 一键运行调试](../android/20261031-Xiaomi一键运行调试.md)。

@@ -14,4 +14,4 @@
 ### 版本
 
 - 根工作区、workspace、lockfile、iOS 基础版本和 Android debug 包统一为 `0.1.0-beta.14`。
-- 本版本只完成本地构建和验证，不创建 tag、GitHub Release、签名候选资产或设备升级记录。
+- 本版本已完成 GitHub CI、Android QA 和 CLI installer 验证；iOS Release 构建按决定延期，真实设备升级与数据导入验收仍需单独执行。

@@ -54,10 +54,9 @@ as the record of what has been synced.
 
 ## Current release
 
-The latest published release is `v0.1.0-beta.13`, built with the former product name and internal
-identities. `v0.1.0-beta.14` is not published. Its Android signed APK and macOS arm64 signed and
-notarized packages are local candidates only. Release publication remains blocked on other candidate
-assets and checks described in the 004.1 release decision. iOS release is deferred.
+The latest published release is `v0.1.0-beta.14`, the first release under the OutcomeGo name and
+internal identities. Android QA, CI and the CLI installer passed for the release commit. iOS
+release is deferred, and real device upgrade and backup-import acceptance remain separate checks.
 
 ## Naming and identifiers
 

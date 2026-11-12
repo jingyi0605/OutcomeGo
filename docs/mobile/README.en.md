@@ -8,7 +8,7 @@ The OutcomeGo mobile app is a client for your own server. Sign in to the same se
 
 | Platform | Requirements | How to get it | Notes |
 | --- | --- | --- | --- |
-| Android | Android 8.0 (API 26) or later | Build from source; beta.14 is not released | [apps/android/README.md](../../apps/android/README.md) |
+| Android | Android 8.0 (API 26) or later | beta.14 is available from GitHub Releases; source builds are also supported | [apps/android/README.md](../../apps/android/README.md) |
 | iPhone / iPad | iOS 18 or later | No installable package yet. Build from source (beta) | [apps/ios/README.md](../../apps/ios/README.md) |
 
 There is no iOS package for now, and no TestFlight or App Store download.
@@ -35,7 +35,7 @@ See [remote access](../configuration/remote-access.md) for all the options.
 
 ## Android
 
-- Beta.14 has not been released. The beta.13 APK uses the former product name and internal identities, so it is not the OutcomeGo beta.14 build. Once published, the app will verify the update manifest signature, APK checksum and signing certificate before offering an update.
+- Beta.14 is published. The beta.13 APK uses the former product name and internal identities. The app verifies the update manifest signature, APK checksum and signing certificate before offering an update.
 - To build a debug APK yourself, run `bash scripts/android/package-debug.sh`. On macOS you can also double-click `scripts/android/package-debug.command`.
 - The output is `apps/android/app/build/outputs/apk/debug/androidApp-debug.apk`.
 - To install and launch on a Xiaomi device in one step, run `bash scripts/android/run-xiaomi.sh`. See [the Xiaomi debug guide](../android/20261031-Xiaomi一键运行调试.md) (Chinese).

@@ -4,7 +4,7 @@ The OutcomeGo apps connect to your server. Sign in from as many devices as you l
 
 ## Desktop
 
-Choose a desktop build from the [GitHub Releases page](https://github.com/jingyi0605/OutcomeGo/releases). The latest published build is beta.13 and uses the previous product identity; OutcomeGo beta.14 is not published. Available builds depend on the selected release.
+Choose a desktop build from the [GitHub Releases page](https://github.com/jingyi0605/OutcomeGo/releases). The latest published build is OutcomeGo beta.14. Available builds depend on the selected release.
 
 1. Open the app, choose **Log In**, and enter your server URL under **Server address**. You can leave off `http://`. If you don't have it, run `outcomego status` on the server and use the **Server** address under **Connection**. If the server runs on the same computer, the app finds it for you.
 2. Sign in with the username and password you created during setup.

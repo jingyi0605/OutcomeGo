@@ -203,7 +203,7 @@ Agent 可以自行读取已授权的数据、做调研、写草稿、更新内�
 
 完整清单见 [FORK.md](FORK.md)。
 
-当前 GitHub 最新发布版本为 `v0.1.0-beta.13`。`v0.1.0-beta.14` 尚未发布；Android 签名 APK 和 macOS arm64 签名/公证包只在本地构建。beta.13 仍以旧名称和旧内部身份构建，不是 OutcomeGo beta.14。GitHub 仓库现为
+当前 GitHub 最新发布版本为 `v0.1.0-beta.14`，这是首个使用 OutcomeGo 名称和新内部身份的公开版本。iOS Release 按决定延期；真实设备升级和备份导入仍需单独验收。GitHub 仓库现为
 [`jingyi0605/OutcomeGo`](https://github.com/jingyi0605/OutcomeGo)，旧网页地址会跳转到新 slug；beta.13 Release 正文中的安装器命令仍指向旧 slug。签名、CI 和发布门槛见 [FORK.md](FORK.md)
 与[发布决策记录](specs/004.1-项目更名与下一版本发布/docs/release-decision.md)。
 
@@ -236,7 +236,7 @@ Agent 可以自行读取已授权的数据、做调研、写草稿、更新内�
 
 ### 1. 安装服务端
 
-当前公开的 `latest` 安装器对应 beta.13 旧版身份，会安装旧版服务端和 CLI。OutcomeGo beta.14 尚未发布。请先在 [Releases](https://github.com/jingyi0605/OutcomeGo/releases) 确认目标版本，不要将 beta.13 当作 OutcomeGo beta.14 安装。
+当前公开的 `latest` 安装器对应 OutcomeGo `v0.1.0-beta.14`，会安装新的服务端和 CLI。需要使用旧版身份时，请在 [Releases](https://github.com/jingyi0605/OutcomeGo/releases) 中明确选择 beta.13。
 
 在将要托管 bot 的机器上运行。
 
