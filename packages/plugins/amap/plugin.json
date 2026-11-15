@@ -1,0 +1,79 @@
+{
+  "schemaVersion": 1,
+  "key": "amap",
+  "version": "0.1.0",
+  "name": "Amap",
+  "description": "Find places and nearby spots in China, and plan walking, cycling and driving routes with Amap Web Service APIs.",
+  "publisher": "OutcomeGo",
+  "category": "Productivity",
+  "featured": false,
+  "components": ["mcp", "skills"],
+  "homepageUrl": "https://lbs.amap.com",
+  "icon": "assets/icon.png",
+  "installationSteps": [
+    "This plugin is not enabled by default. Add it only when you intend to use Amap's services.",
+    "Create an Amap Open Platform key with the Web Service service platform selected.",
+    "Read Amap's Web Service API terms and check the agreement box before installing.",
+    "Amap coordinates are converted at the plugin boundary so map presentations continue to use the application's standard coordinate format."
+  ],
+  "setupFields": [
+    {
+      "key": "acceptAmapTerms",
+      "label": "I agree to Amap's Web Service API terms",
+      "type": "boolean",
+      "required": true,
+      "secret": false,
+      "enum": [true],
+      "helpText": "Read the current terms at https://lbs.amap.com/pages/law-web-service/ before enabling this plugin."
+    }
+  ],
+  "setup": {
+    "kind": "none",
+    "connectionKey": "amap",
+    "title": "Connect Amap",
+    "description": "Uses Amap Web Service APIs for place search, nearby search and route planning. A Web Service API key is required.",
+    "documentationUrl": "https://lbs.amap.com/api/webservice/guide/create-project/get-key",
+    "steps": [
+      "Create or open an application in the Amap Open Platform console.",
+      "Add a key with the service platform set to Web Service. A Web JS API key is not accepted.",
+      "The key is stored in the connected account and passed only to the local plugin process.",
+      "Amap sends place queries, search areas and route coordinates to its Web Service APIs."
+    ],
+    "fields": [
+      {
+        "key": "AMAP_API_KEY",
+        "label": "Amap Web Service API key",
+        "type": "string",
+        "required": true,
+        "secret": true,
+        "placeholder": "32-character Web Service key",
+        "helpText": "Use a Web Service key from the Amap Open Platform, not a Web JS API key."
+      }
+    ],
+    "requiredScopes": []
+  },
+  "connections": [
+    {
+      "key": "amap",
+      "name": "Amap",
+      "transport": "stdio",
+      "auth": "none",
+      "endpoint": "",
+      "tools": [],
+      "configuration": {
+        "command": "bun",
+        "args": ["${PLUGIN_ROOT}/connector/server.mjs"],
+        "env": {
+          "AMAP_API_KEY": "${AMAP_API_KEY}"
+        }
+      }
+    }
+  ],
+  "skills": [
+    {
+      "name": "amap-places",
+      "description": "When the user asks about places in China, nearby businesses, opening hours or routes and Amap is connected.",
+      "path": "skills/amap-places"
+    }
+  ]
+}
