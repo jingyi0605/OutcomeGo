@@ -44,6 +44,20 @@ let dropNextSend = false;
 let deliveryStatuses: string[] = [];
 let deliveryDelayMs = 0;
 let sendResponseDelayMs = 0;
+// Draft-card sends: how long the provider takes, and an error that reopens the card.
+let draftSendDelayMs = 900;
+let draftSendError = "";
+// The answer to a draft send is lost after the server took it: the request fails and the card stays "sending".
+let draftSendDrop = false;
+// Draft-card discards: long enough for the press to be seen, and an error that leaves the card as it was.
+let draftDiscardDelayMs = 300;
+let draftDiscardError = "";
+// A draft send or discard is held until /__qa/answer-draft-send, so a test can act at a known time around the answer.
+let draftSendHold = false;
+let answerDraftSend: (() => void) | null = null;
+function draftSendWait(delayMs = draftSendDelayMs) {
+  return draftSendHold ? new Promise<void>(resolve => { answerDraftSend = resolve; }) : Bun.sleep(delayMs);
+}
 let dropNextRoutineRun = false;
 let authRequired = false;
 let authExpired = false;
@@ -56,7 +70,8 @@ let searchResults: unknown[] | null = null;
 let browserNetwork = new BrowserNetworkFixture();
 let functionality = new FunctionalFixtures();
 let serverSetup = new ServerSetupFixture();
-let screen = {state:"ready",width:1280,height:800,humanTakeover:false,apps:["chromium","thunar","terminal"]};
+let controlGeneration = 0;
+let screen: {state:string;width:number;height:number;humanTakeover:boolean;controlSession:{id:string;generation:number}|null;apps:string[]} = {controlSession:null,state:"ready",width:1280,height:800,humanTakeover:false,apps:["chromium","thunar","terminal"]};
 let serverRelease: any;
 let serverUpdate: any;
 let busyBots: any[] = [];
@@ -76,11 +91,12 @@ function reset() {
   sequence = 14; events = []; deliveries.clear(); routines = []; offline = false; dropNextSend = false; authRequired = false;
   dropNextRoutineRun = false;
   deliveryStatuses = []; deliveryDelayMs = 0; sendResponseDelayMs = 0;
+  draftSendDelayMs = 900; draftSendError = ""; draftSendDrop = false; draftSendHold = false; answerDraftSend?.(); answerDraftSend = null; draftDiscardDelayMs = 300; draftDiscardError = "";
   pagedHistory = false;
   requestLog.length = 0;
   failures = {}; searchResults = null; authExpired = false; invalidServer = false; missingToken = false;
   browserNetwork = new BrowserNetworkFixture();
-  functionality = new FunctionalFixtures(); screen.humanTakeover=false; screen.state="ready"; contentReceipts=[]; routineExecutions=[];
+  functionality = new FunctionalFixtures(); screen.humanTakeover=false; screen.controlSession=null; controlGeneration=0; screen.state="ready"; contentReceipts=[]; routineExecutions=[];
   serverSetup = new ServerSetupFixture();
   serverRelease = { releaseVersion: "0.0.0", apiProtocolVersion: 1, minimumClientVersion: "0.0.0", maximumClientVersionExclusive: "1.0.0", recommendedClientVersion: "0.0.0", updateChannel: "beta" };
   serverUpdate = { updaterAvailable: true, status: "ready", phase: null, targetVersion: null, message: null, jobId: null, safeToCloseDesktop: false };
@@ -93,6 +109,12 @@ reset();
 function emit(topic = "channel.message.created", entityId: string | null = null) {
   events.push({ sequence: String(++sequence), topic, entityId, payload: {}, createdAt: new Date().toISOString() });
   for (const wake of wakeups) wake(); wakeups.clear();
+}
+/** A discard takes a moment, can fail, and loses to a card another device settled or began sending meanwhile. */
+async function draftDiscard(message: any) {
+  await draftSendWait(draftDiscardDelayMs);
+  if (draftDiscardError) return response({ error: { message: draftDiscardError } }, 500);
+  return message.metadata.cardState === "pending" || !message.metadata.cardState ? null : response({ accepted: false, message });
 }
 function bootstrap(): ClientBootstrapView {
   return { cursor: String(sequence), workspace: snapshot.workspace, bots: snapshot.bots, channels: snapshot.channels,
@@ -166,7 +188,7 @@ const server = Bun.serve({
     if (path === "/__qa/browser-network" && method === "POST") { browserNetwork.control(input); return response(browserNetwork.view()); }
     if (path === "/__qa/reset" && method === "POST") { reset(); await resetKeys(); emit("snapshot.reset"); return response({ ok: true }); }
     if (path === "/__qa/scene" && method === "POST") { reset(); const visual=visualFixture(snapshot,input.scene); snapshot=visual.snapshot; settings=visual.sidebar; pagedHistory=["history-pages","scroll-mixed-pages"].includes(input.scene); sequence=Math.max(100,...snapshot.channelMessages.map(m=>Number(m.sequence))); emit("snapshot.reset"); return response({ok:true}); }
-    if (path === "/__qa/content" && method === "POST") { snapshot=contentScene(snapshot,input.scene); if(input.scene==='routine-event')routines=[{id:'routine-event-fixture',name:'Morning summary',prompt:'Summarize the morning',schedule:'0 9 * * 1-5',scheduleKind:'cron',timezone:'America/New_York',enabled:false,revision:1,nextRunAt:null,latestExecution:null}]; sequence=400; emit("snapshot.reset"); return response({ok:true}); }
+    if (path === "/__qa/content" && method === "POST") { snapshot=contentScene(snapshot,input.scene); if(input.scene==='routine-event')routines=[{id:'routine-event-fixture',name:'Morning summary',prompt:'Summarize the morning',schedule:'0 9 * * 1-5',scheduleKind:'cron',timezone:'America/New_York',enabled:false,revision:1,nextRunAt:null,latestExecution:null}]; sequence=input.scene?.startsWith("presentation-showcase")?Math.max(sequence,400):400; emit("snapshot.reset"); return response({ok:true}); }
     if (path === "/__qa/motion" && method === "POST") {
       const channel = snapshot.channels.find(c => c.id === "visual-chat");
       const bot = snapshot.bots.find(b => b.dmChannelId === channel?.id);
@@ -182,6 +204,16 @@ const server = Bun.serve({
       if (typeof input.content === "string") message.content = input.content;
       if (input.metadata) message.metadata = {...message.metadata, ...input.metadata};
       emit("channel.message.updated", message.channelId); return response({ok:true});
+    }
+    if (path === "/__qa/answer-draft-send" && method === "POST") {
+      setTimeout(() => { answerDraftSend?.(); answerDraftSend = null; }, input.afterMs ?? 0); return response({ok:true});
+    }
+    if (path === "/__qa/push-message" && method === "POST") {
+      // A new message in any chat, as its bot (or the user) would send it.
+      const bot = snapshot.bots.find(b => b.dmChannelId === input.channelId);
+      if (!bot) return response({error:"Unknown chat"},400);
+      snapshot.channelMessages.push({id:randomUUID(),clientId:null,sequence:String(++sequence),channelId:input.channelId,sender:input.sender==="user"?"user":"agent",senderBotId:input.sender==="user"?null:bot.id,sourceRunId:null,content:input.content,metadata:{type:"text"},createdAt:new Date().toISOString()});
+      emit("channel.message.created",input.channelId); return response({ok:true});
     }
     if (path === "/__qa/group-reply" && method === "POST") {
       const channel = snapshot.channels.find(c => c.id === input.channelId && c.kind === "group");
@@ -205,6 +237,7 @@ const server = Bun.serve({
       deliveryStatuses = input.deliveryStatuses ?? deliveryStatuses;
       deliveryDelayMs = input.deliveryDelayMs ?? deliveryDelayMs;
       sendResponseDelayMs = input.sendResponseDelayMs ?? sendResponseDelayMs;
+      draftSendDelayMs = input.draftSendDelayMs ?? draftSendDelayMs; draftSendError = input.draftSendError ?? draftSendError; draftSendDrop = input.draftSendDrop ?? draftSendDrop; draftSendHold = input.draftSendHold ?? draftSendHold; draftDiscardDelayMs = input.draftDiscardDelayMs ?? draftDiscardDelayMs; draftDiscardError = input.draftDiscardError ?? draftDiscardError;
       if (input.screenState) screen.state = input.screenState;
       if (input.pluginCanAuthenticate !== undefined) {
         functionality.connection.canAuthenticate = input.pluginCanAuthenticate;
@@ -225,7 +258,7 @@ const server = Bun.serve({
         const group = snapshot.channels.find(c => c.kind === "group");
         if (group) { group.hasAvatar = true; group.updatedAt = input.customAvatarRevision; }
       }
-      if (input.expireTakeover) screen.humanTakeover = false;
+      if (input.expireTakeover) { screen.humanTakeover = false; screen.controlSession = null; controlGeneration++; }
       authExpired = input.authExpired ?? authExpired; invalidServer = input.invalidServer ?? invalidServer; missingToken = input.missingToken ?? missingToken;
       if (input.failures) failures = input.failures;
       if (input.subagents) snapshot.subagents = input.subagents;
@@ -295,16 +328,70 @@ const server = Bun.serve({
     if(path.endsWith("/screen"))return response(screen);
     if(path.endsWith("/avatar"))return new Response(Bun.file(new URL(path.includes("visual-group-") && path.includes("-bot-0/") ? "./fixtures/group-blue-avatar.png" : "./fixtures/attachment.png",import.meta.url)),{headers:{"Content-Type":"image/png"}});
     if(path.endsWith("/screen/frame"))return new Response(Bun.file(new URL("./fixtures/computer.png",import.meta.url)),{headers:{"Content-Type":"image/png"}});
-    if(path.endsWith("/screen/takeover")){screen.humanTakeover=input.active;contentReceipts.push({path,active:input.active});return response(screen);}
+    if(path.endsWith("/screen/takeover")){
+      if(input.active && input.controlId){
+        if(screen.controlSession && screen.controlSession.id!==input.controlId && !input.force)return response({message:"Controlled on another device"},409);
+        if(screen.controlSession?.id!==input.controlId)screen.controlSession={id:input.controlId,generation:++controlGeneration};
+        screen.humanTakeover=true;
+      }else if(!input.active && (input.force || !screen.controlSession || screen.controlSession.id===input.controlId && screen.controlSession.generation===input.generation)){
+        screen.humanTakeover=false;screen.controlSession=null;controlGeneration++;
+      }
+      contentReceipts.push({path,...input});return response(screen);
+    }
     if(path.endsWith("/screen/actions")){if(!screen.humanTakeover)return response({message:"Take control first."},409);contentReceipts.push({path,...input});return response(screen);}
     if(path.startsWith("/api/v0/assets/")){
       contentReceipts.push({path,authenticated:request.headers.has("authorization")});
       const id=path.split('/').at(-1)!;
       const uploaded = uploadedAssets.get(id);
       if (uploaded) return new Response(uploaded.data, {headers: {"Content-Type": uploaded.mimeType}});
+      if(id==='sheet-transactions')return new Response(Bun.file(new URL('./fixtures/transactions.csv',import.meta.url)),{headers:{'Content-Type':'text/csv'}});
       if(id==='media-photo'||id==='media-video')return new Response(Bun.file(new URL(id==='media-photo'?'./fixtures/media-photo.jpg':'./fixtures/media-video.mp4',import.meta.url)),{headers:{'Content-Type':id==='media-photo'?'image/jpeg':'video/mp4'}});
       const archive=/^([789])\1{63}$/.test(id), photo=/^([1-6])\1{63}$/.test(id)||/^gallery-\d+$/.test(id);
       return new Response(Bun.file(new URL(archive?'./fixtures/media-archive.zip':id==='layout-portrait'?'./fixtures/layout-portrait.png':photo?'./fixtures/media-reference.png':'./fixtures/attachment.png',import.meta.url)),{headers:{'Content-Type':archive?'application/zip':'image/png'}});
+    }
+    if (method === "POST" && (path.endsWith("/widget-response") || path.endsWith("/widget-dismiss"))) {
+      const message: any = snapshot.channelMessages.find(m => m.id === path.split("/")[4]);
+      if (!message || message.metadata.type !== "widget") return response({}, 404);
+      if (typeof message.metadata.respondedValue === "string" || message.metadata.widgetDismissed)
+        return response({ accepted: false, message });
+      if (path.endsWith("/widget-response")) {
+        if (typeof input.value !== "string" || !input.value.trim()) return response({}, 400);
+        Object.assign(message.metadata, { respondedValue: input.value, widgetResponseClientId: input.clientId });
+      } else Object.assign(message.metadata, {
+        widgetDismissed: true, widgetDismissalReason: "dismissed", widgetDismissClientId: input.clientId,
+      });
+      emit("channel.message.updated", message.channelId);
+      return response({ accepted: true, message });
+    }
+    if(path.endsWith("/external-draft")){
+      const message:any=snapshot.channelMessages.find(m=>m.id===path.split("/")[4]);if(!message)return response({},404);
+      contentReceipts.push({path,...input});
+      if(input.action==="approval")return response({accepted:true});
+      if(input.edits)Object.assign(message.metadata.draft,input.edits);
+      // As the server does: a second send of a card that is out changes nothing, and the card is
+      // "sending" for as long as the provider takes, then sent or reopened with the reason.
+      if(input.action==="send"&&message.metadata.cardState==="sending")return response({accepted:false,message});
+      if(input.action==="send"){delete message.metadata.sendError;message.metadata.cardState="sending";emit("channel.message.updated",message.channelId);await draftSendWait();}
+      if(input.action==="send"&&draftSendDrop)return response({error:{message:"The fixture dropped the answer"}},503);
+      // Another device may have settled the card while this send was out.
+      if(input.action==="send"&&message.metadata.cardState!=="sending")return response({accepted:false,message});
+      if(input.action==="cancel"){const refused=await draftDiscard(message);if(refused)return refused;}
+      if(input.action==="send"&&draftSendError)Object.assign(message.metadata,{cardState:"pending",sendError:draftSendError});
+      else message.metadata.cardState=input.action==="send"?"sent":"dismissed";
+      emit("channel.message.updated",message.channelId);return response({accepted:true,message});
+    }
+    if(path.endsWith("/imessage-send")){
+      const message:any=snapshot.channelMessages.find(m=>m.id===path.split("/")[4]);if(!message)return response({},404);
+      contentReceipts.push({path,...input});
+      // As the server does: the card is "sending" while the Mac is asked, then sent or reopened with the reason.
+      if(input.action!=="cancel"&&message.metadata.cardState==="sending")return response({accepted:false,message});
+      if(input.action==="cancel"){const refused=await draftDiscard(message);if(refused)return refused;}
+      if(input.action!=="cancel"){delete message.metadata.sendError;message.metadata.cardState="sending";emit("channel.message.updated",message.channelId);await draftSendWait();}
+      if(input.action!=="cancel"&&draftSendDrop)return response({error:{message:"The fixture dropped the answer"}},503);
+      if(input.action!=="cancel"&&message.metadata.cardState!=="sending")return response({accepted:false,message});
+      if(input.action!=="cancel"&&draftSendError)Object.assign(message.metadata,{cardState:"pending",sendError:draftSendError});
+      else Object.assign(message.metadata,{cardState:input.action==="cancel"?"dismissed":"sent",...(input.action==="allow"?{allowedRecipient:message.metadata.imessage.to}:{})});
+      emit("channel.message.updated",message.channelId);return response({accepted:!draftSendError,message});
     }
     if(path.endsWith("/user-form/prefill"))return response({email:"fixture@example.invalid"});
     if(path.endsWith("/user-form")||path.endsWith("/computer-handoff")){
@@ -312,7 +399,7 @@ const server = Bun.serve({
       contentReceipts.push({path,...input});
       if(path.endsWith("/user-form") && input.action==="submit"){try{validateUserFormValues(message.metadata.form,input.values)}catch(error){return response({message:String(error)},400)}}
       if(path.endsWith("/user-form")){message.metadata.cardState=input.action==="submit"?"completed":input.mode==="escalated"?"escalated":"dismissed";message.metadata.outcomeText=input.action==="submit"?"Form filled successfully.":"Dismissed";}
-      else{message.metadata.computerHandoffState=input.action==="start"?"active":"completed";screen.humanTakeover=input.action==="start";}
+      else{message.metadata.computerHandoffState=input.action==="start"?"active":"completed";screen.humanTakeover=input.action==="start";screen.controlSession=input.action==="start"?{id:`handoff:${message.id}`,generation:++controlGeneration}:null;}
       emit("channel.message.updated",message.channelId);return response({accepted:true,message});
     }
     const networkResponse = browserNetwork.handle(path,method,input); if(networkResponse) return networkResponse;
@@ -406,7 +493,7 @@ const server = Bun.serve({
     if (path === "/api/v0/bots" && method === "POST") {
       const id = randomUUID(), now = new Date().toISOString();
       // First-run setup has no existing bot/channel to use as a complete template.
-      const bot = { ...mobileFixture.bots[0]!, id, name:input.name, title:input.name, description:input.description ?? "", instructions:input.instructions ?? "", color:input.color ?? "#FD6A3A", icon:input.icon ?? "hexagon", conversationId:"conversation-"+id, dmChannelId:"channel-"+id, createdAt:now, updatedAt:now };
+      const bot = { ...mobileFixture.bots[0]!, id, name:input.name, title:input.title ?? "", description:input.description ?? "", color:input.color ?? "#FD6A3A", icon:input.icon ?? "hexagon", conversationId:"conversation-"+id, dmChannelId:"channel-"+id, createdAt:now, updatedAt:now };
       snapshot.bots.push(bot); snapshot.channels.push({ ...mobileFixture.channels[0]!, id:bot.dmChannelId, name:bot.name, directKey:id, members:[{botId:id,ordinal:0}], createdAt:now, updatedAt:now }); emit("bot.created"); return response(bot);
     }
     if (path === "/api/v0/channels" && method === "POST") {

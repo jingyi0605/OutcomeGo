@@ -14,7 +14,69 @@ export function visualFixture(base: any, scene: string) {
     const row={id:`visual-message-${channel}-${index}`,clientId:null,sequence:String(index),channelId:channel,sender,senderBotId:sender==="agent"?"bot-"+channel:null,sourceRunId:null,content,metadata:{type:"text",...metadata},createdAt:new Date(date.getTime()+index*1000).toISOString()};
     snapshot.channelMessages.push(row); return row;
   }
-  if (scene === "duo-sidebar") {
+  if (scene === "inbox-reference") {
+    const rows = [
+      ["#00C875", "pod", "Are my replies showing up for you? If not, tell me what you see."],
+      ["#FA2AA4", "pod", ""],
+      ["#777777", "chip", "browserruncode capability check finished (one call, no retry)."],
+      ["#9254FF", "classic", "Couldn’t finish the Google Flights lookup."],
+      ["#9254FF", "owl", "Five upcoming public Luma events in New York."],
+      ["#FF253C", "classic", "Benchmark 247 audit (from this turn’s tool receipts)."],
+      ["#FF253C", "pod", "Blocked on desktop allocation — not on the task itself."],
+      ["#946437", "pod", "Benchmark 246 audit (from this turn’s tool receipts)."],
+      ["#00B8A9", "owl", "A long conversation title should leave room for the entire date."],
+    ];
+    rows.forEach(([color, icon, preview], i) => {
+      const { channel } = bot(`inbox-${i}`, i === 8
+        ? "A deliberately long conversation name that should truncate" : "New Bot", color!, icon!);
+      const row = message(channel.id, i === 0 ? "user" : "agent", preview!, i + 1, i === 1 ? {
+        type: "widget", widget: { prompt: "What should I draft for Jayne?",
+          allowCustom: true, options: [
+            { label: "Still on track", value: "on-track" },
+            { label: "Delayed on customs", value: "delayed" },
+            { label: "Not proceeding", value: "not-proceeding", style: "danger" },
+            { label: "I’ll handle it", value: "handle" },
+          ] },
+      } : {});
+      const stamp = new Date();
+      if (i === 1) stamp.setDate(stamp.getDate() - 4);
+      else if (i === 2) stamp.setMonth(10, 2);
+      else if (i > 2) stamp.setMonth(8, 30);
+      row.createdAt = stamp.toISOString();
+      channel.updatedAt = row.createdAt;
+      channel.unreadCount = i === 0 ? 1 : 0;
+      if (i === 0) channel.notificationState.lastReadSequence = "0";
+    });
+    sidebar.channelOrderByGroup.unassigned = snapshot.channels.map((c: any) => c.id);
+    snapshot.runs = [{ ...runTemplate, id: "inbox-background-run", botId: "bot-inbox-0",
+      channelId: "inbox-0", status: "running" }];
+  } else if (scene === "inbox-activity") {
+    const previews = ["??", "", "Latest user message stays visible.",
+      "Latest bot reply stays visible.", "Idle preview stays visible."];
+    previews.forEach((preview, i) => {
+      const { channel } = bot(`activity-${i}`, "New Bot", i === 1 ? "#FA2AA4" : "#00C875", "pod");
+      const row = message(channel.id, i === 0 || i === 2 ? "user" : "agent", preview, i + 1,
+        i === 1 ? { type: "widget", widget: { prompt: "What should I draft for Jayne?",
+          options: [{ label: "Still on track", value: "on-track" }], allowCustom: true } } : {});
+      channel.updatedAt = row.createdAt;
+    });
+    sidebar.channelOrderByGroup.unassigned = snapshot.channels.map((c: any) => c.id);
+    snapshot.runs = [0, 1, 2, 3].map(i => ({ ...runTemplate, id: `activity-run-${i}`,
+      botId: `bot-activity-${i}`, channelId: i === 0 ? null : `activity-${i}`, status: "running" }));
+  } else if (scene === "inbox-unread") {
+    // Widely separated unread targets exercise both directions and lazy offscreen rows.
+    for (let i = 0; i < 44; i++) {
+      const { channel } = bot(`unread-${i}`, `Conversation ${i + 1}`, "#00B8A9", "owl");
+      const row = message(channel.id, "agent", `Inbox viewport fixture ${i + 1}`, i + 1);
+      channel.updatedAt = row.createdAt;
+      channel.unreadCount = [0, 14, 28, 43].includes(i) ? 3 : 0;
+      if (channel.unreadCount) channel.notificationState.lastReadSequence = "0";
+    }
+    // A manually marked unread conversation must work too, with no server unread count.
+    snapshot.channels.find((c: any) => c.id === "unread-14").unreadCount = 0;
+    sidebar.unreadIds = ["unread-14"];
+    sidebar.channelOrderByGroup.unassigned = snapshot.channels.map((c: any) => c.id);
+  } else if (scene === "duo-sidebar") {
     const rows = [
       ["#FA2AA4", "pod", "What should I draft for you?"],
       ["#777777", "hex-visor", "Browser connection is ready."],
@@ -101,7 +163,18 @@ export function visualFixture(base: any, scene: string) {
     const isMotion = scene === "motion-reference";
     const name=isMotion?"Memory Deep 914 Box copy":isLong?"Compaction Ten 0913":isActions?"Memory Deep 914 Box":isDark?"Memory Deep 914 Server":"New Bot";
     const {channel}=bot("visual-chat",name,isDark?"#FA2AA4":isLong||isActions||isMotion?"#00B8A9":"#FF6600",isDark||isLong||isActions||isMotion?"cloud":"hexagon");
-    if (isDark) { snapshot.bots[0].title=""; snapshot.bots[0].instructions=""; }
+    if (isDark) { snapshot.bots[0].title=""; }
+    // Around a draft card: another chat to switch to and, in the "-long" scenes, enough history
+    // above the card to scroll its row out of the list and back.
+    const draftSendSurroundings = (long: boolean) => {
+      const other = bot("visual-other", "Other Bot", "#00B8A9", "cloud");
+      message(other.channel.id, "user", "Anything new on the Friday order?", 1);
+      message(other.channel.id, "agent", "Nothing yet — I'll tell you when it ships.", 2);
+      sidebar.channelOrderByGroup.unassigned = [channel.id, other.channel.id];
+      if (long) for (let i = 1; i <= 30; i++) message(channel.id, i % 2 ? "user" : "agent", `Earlier message ${i}. ${"Some context from before the draft. ".repeat(1 + i % 3)}`, i);
+      // The card's rows follow at this offset.
+      return long ? 30 : 0;
+    };
     if (scene === "delivery-spacing") {
       message(channel.id, "agent", "Ready when you are.", 1);
       message(channel.id, "user", "Why is the return address Irving, Texas? That doesn't make sense.", 2);
@@ -178,6 +251,19 @@ export function visualFixture(base: any, scene: string) {
     } else if(scene === "background-activity") {
       message(channel.id, "user", "Can you check the shipping receipt?", 1);
       message(channel.id, "agent", "I’m checking the receipt. I’ll send you the tracking number when it’s ready.", 2);
+    } else if(scene === "draft-send" || scene === "draft-send-long") {
+      // A pending email reply; the fixture server answers its Send after ~900 ms.
+      const at = draftSendSurroundings(scene.endsWith("-long"));
+      message(channel.id, "user", "Tell Austin Monday at noon works and ask for the Teams invite.", at + 1);
+      message(channel.id, "agent", "", at + 2, {type:"external-draft", cardState:"pending", draft:{platform:"email", from:"raghav@example.com", to:["austin@example.com"], cc:["colo-sales@example.com","noc@example.com"], subject:"RE: Month-to-month colocation inquiry — one server, 4kW", body:"Hi Austin,\n\nThanks! Monday, November 16 at 12:00pm EST works for me. Please send over the Teams invite.\n\nThanks,\nRaghav", replyToMessageId:"fixture-thread-message", verification:{identity:"raghav@example.com", sendingAddresses:["raghav@example.com"], thread:"RE: Month-to-month colocation inquiry — one server, 4kW"}}});
+    } else if(scene === "imessage-send" || scene === "imessage-send-files" || scene === "imessage-send-long") {
+      // A text waiting for approval with all three buttons, or files alone with Send and Discard on one row.
+      // The fixture server answers Send after ~900 ms.
+      const files = scene === "imessage-send-files";
+      const at = draftSendSurroundings(scene.endsWith("-long"));
+      message(channel.id, "user", files ? "Send Maya the two floor plans." : "Text Maya that I'm running ten minutes late.", at + 1);
+      message(channel.id, "agent", "", at + 2, {type:"imessage-send", cardState:"pending", imessage:{text:files ? "" : "Running ten minutes late — grab a table and I'll find you!", to:"+1 (415) 555-0134", recipientName:"Maya Chen", recipientLabel:"Maya Chen", machineLabel:"Raghav's MacBook Pro", allowable:!files,
+        ...(files ? {attachments:[{assetId:"1".repeat(64), fileName:"floor-plan-level-1.pdf", byteSize:412000}, {assetId:"2".repeat(64), fileName:"floor-plan-level-2.pdf", byteSize:388000}]} : {})}});
     } else if(scene === "empty-chat") {
       // No messages: initial positioning must still dismiss the native spinner.
     } else if(scene === "history-pages" || scene === "window-history") {

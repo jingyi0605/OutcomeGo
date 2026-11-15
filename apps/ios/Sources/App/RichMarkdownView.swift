@@ -6,6 +6,7 @@ import WebKit
 struct RichMarkdownView: View {
   let source: String
   var forceDark = false
+  var messageTextColor: String? = nil
   @Environment(\.colorScheme) private var scheme
   @ScaledMetric(relativeTo: .body) private var fontSize = 17.0
   @State private var height: CGFloat = 40
@@ -24,7 +25,7 @@ struct RichMarkdownView: View {
           ?? measured
       } content: {
         MarkdownDocument(
-          source: source, forceDark: forceDark, dark: dark,
+          source: source, forceDark: forceDark, dark: dark, messageTextColor: messageTextColor,
           fontSize: fontSize, height: $height
         )
         .id(Self.usesDiagrams(source))
@@ -122,14 +123,21 @@ private struct MarkdownDocument: UIViewRepresentable {
   let source: String
   let forceDark: Bool
   let dark: Bool
+  let messageTextColor: String?
   let fontSize: CGFloat
   @Binding var height: CGFloat
   func makeCoordinator() -> Coordinator { Coordinator(self) }
+  private func knownHeight() -> (CGFloat) -> CGFloat? {
+    { [source, dark, fontSize] width in
+      DocumentHeightCache.shared.height(source: source, width: width, dark: dark, font: fontSize)
+    }
+  }
   func makeUIView(context: Context) -> ReusableDocumentView {
     let diagrams = RichMarkdownView.usesDiagrams(source)
     let view = DocumentPool.shared.take(diagrams: diagrams)
     view.alpha = 0
     view.measuredSize = nil
+    view.knownHeight = knownHeight()
     view.participatesInHistoryLayout = true
     view.lease = context.coordinator.lease
     view.onLayoutReady = { [weak coordinator = context.coordinator] in coordinator?.settled() }
@@ -137,8 +145,10 @@ private struct MarkdownDocument: UIViewRepresentable {
     context.coordinator.view = view
     context.coordinator.armTimeout()
     view.configuration.userContentController.add(context.coordinator, name: "height")
+    view.configuration.userContentController.add(context.coordinator, name: "link")
     view.navigationDelegate = context.coordinator
     context.coordinator.ready = view.rendererReady
+    ChatOpenTrace.mark("document", view.rendererReady ? "pooled" : "cold")
     if !view.rendererReady {
       if let html = DocumentPool.shared.html(diagrams: diagrams) {
         view.loadHTMLString(html, baseURL: nil)
@@ -148,6 +158,7 @@ private struct MarkdownDocument: UIViewRepresentable {
   }
   func updateUIView(_ view: ReusableDocumentView, context: Context) {
     context.coordinator.parent = self
+    view.knownHeight = knownHeight()
     context.coordinator.render(view)
   }
   static func dismantleUIView(_ view: ReusableDocumentView, coordinator: Coordinator) {
@@ -155,10 +166,13 @@ private struct MarkdownDocument: UIViewRepresentable {
     coordinator.view = nil
     DocumentMeasurer.shared.endVisibleRender(coordinator.lease)
     view.participatesInHistoryLayout = false
+    view.knownHeight = nil
     view.onLayoutReady = nil
     view.onWindow = nil
     view.navigationDelegate = nil
     view.configuration.userContentController.removeScriptMessageHandler(forName: "height")
+    view.configuration.userContentController.removeScriptMessageHandler(forName: "link")
+    if LinkPress.shared.current != nil { LinkPress.shared.touchEnded() }
     if view.rendererReady {
       view.evaluateJavaScript("++renderVersion; activeLease=''; document.getElementById('message').replaceChildren()")
       DocumentPool.shared.recycle(view)
@@ -264,7 +278,7 @@ private struct MarkdownDocument: UIViewRepresentable {
       render(webView)
     }
     func render(_ view: WKWebView) {
-      let next = "\(parent.dark)-\(parent.fontSize)-" + parent.source
+      let next = "\(parent.dark)-\(parent.fontSize)-\(parent.messageTextColor ?? "")-" + parent.source
       guard ready, next != key else { return }
       key = next
       renderToken = UUID().uuidString
@@ -281,11 +295,16 @@ private struct MarkdownDocument: UIViewRepresentable {
       if SuspendedDocumentFixture.hanging { delay = 60_000 }
       if ProcessInfo.processInfo.arguments.contains("--ui-testing-stall-document") { delay = 12000 }
       #endif
+      var colors = NativePalette.documentColors(dark: parent.dark)
+      if let text = parent.messageTextColor {
+        colors["text"] = text
+        colors["link"] = text
+      }
       view.callAsyncJavaScript(
         "await window.renderMessage(source,dark,fontSize,colors,lease,delay); return true;",
         arguments: [
           "source": parent.source, "dark": parent.dark, "fontSize": parent.fontSize,
-          "colors": NativePalette.documentColors(dark: parent.dark), "lease": token, "delay": delay,
+          "colors": colors, "lease": token, "delay": delay,
         ],
         in: nil, in: .page
       ) { [weak self, weak view] result in
@@ -297,6 +316,10 @@ private struct MarkdownDocument: UIViewRepresentable {
     func userContentController(
       _ controller: WKUserContentController, didReceive message: WKScriptMessage
     ) {
+      if message.name == "link" {
+        documentLink(message)
+        return
+      }
       if let value = message.body as? [String: Any], value["lease"] as? String == renderToken,
         value["ready"] as? Bool == true,
         let height = value["height"] as? Double, let width = value["width"] as? Double,
@@ -335,12 +358,30 @@ private struct MarkdownDocument: UIViewRepresentable {
       decisionHandler: @escaping @MainActor @Sendable (WKNavigationActionPolicy) -> Void
     ) {
       if navigationAction.navigationType == .linkActivated, let url = navigationAction.request.url {
-        if ["https", "http", "mailto"].contains(url.scheme?.lowercased() ?? "") {
-          UIApplication.shared.open(url)
-        }
+        InAppBrowser.open(url)
         decisionHandler(.cancel)
       } else {
         decisionHandler(navigationAction.request.url?.scheme == "about" ? .allow : .cancel)
+      }
+    }
+    /// The document reports its pressed link (for long-press link actions) and
+    /// asks for site icons; its page cannot load network images itself.
+    private func documentLink(_ message: WKScriptMessage) {
+      guard let value = message.body as? [String: Any] else { return }
+      if value.keys.contains("pressed") {
+        LinkPress.shared.setDocumentLink((value["pressed"] as? String).flatMap(URL.init(string:)))
+      }
+      if let hosts = value["favicons"] as? [String] {
+        weak var webView = message.webView
+        Task { @MainActor in
+          for host in Set(hosts.prefix(20)) {
+            // Null tells the page the site has no icon, so it swaps its skeleton for a globe.
+            let dataURL: Any = await FaviconStore.shared.dataURL(host) ?? NSNull()
+            guard let arguments = try? JSONSerialization.data(withJSONObject: [host, dataURL]),
+              let json = String(data: arguments, encoding: .utf8) else { continue }
+            _ = try? await webView?.evaluateJavaScript("setFavicon(..." + json + ")")
+          }
+        }
       }
     }
     func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
@@ -388,13 +429,23 @@ private struct MarkdownDocument: UIViewRepresentable {
   var rendererReady = false
   var lease = ""
   var measuredSize: CGSize?
+  /// The height this document measured at a width before, here or offscreen.
+  var knownHeight: ((CGFloat) -> CGFloat?)?
   var participatesInHistoryLayout = false
   var onLayoutReady: (() -> Void)?
   var onWindow: (() -> Void)?
-  var historyLayoutReady: Bool {
-    guard participatesInHistoryLayout else { return true }
+  /// The document has rendered and is displayed at its measured size.
+  private var rendered: Bool {
     guard let measuredSize else { return false }
     return abs(bounds.width - measuredSize.width) <= 1 && abs(bounds.height - measuredSize.height) <= 1
+  }
+  /// The row has its final height: the document rendered at this size, or was
+  /// measured at this width before. Its pixels can follow without moving a row,
+  /// so a transcript does not stay hidden while WebKit paints it again.
+  var historyLayoutReady: Bool {
+    guard participatesInHistoryLayout, !rendered else { return true }
+    guard bounds.width > 0, let height = knownHeight?(bounds.width) else { return false }
+    return abs(bounds.height - height) <= 1
   }
   let diagrams: Bool
   let poolEpoch: UUID
@@ -408,6 +459,9 @@ private struct MarkdownDocument: UIViewRepresentable {
     backgroundColor = .clear
     scrollView.backgroundColor = .clear
     scrollView.isScrollEnabled = false
+    // The message card owns long-press: it opens the message actions. WebKit's
+    // link menu would stack on top of them, and its Open Link would leave the app.
+    allowsLinkPreview = false
     clipsToBounds = true
     isInspectable = false
   }
@@ -418,15 +472,27 @@ private struct MarkdownDocument: UIViewRepresentable {
   }
   override func layoutSubviews() {
     super.layoutSubviews()
-    let ready = historyLayoutReady
+    let ready = !participatesInHistoryLayout || rendered
     let wasReady = alpha == 1
     alpha = ready ? 1 : 0
     if ready && !wasReady {
+      if participatesInHistoryLayout { ChatOpenTrace.mark("document-shown") }
       onLayoutReady?()
       // The hosting cell must commit the measured height before the list opens.
       var ancestor = superview
       while let view = ancestor {
-        if let table = view as? UITableView { table.setNeedsLayout(); break }
+        if let table = view as? UITableView {
+          table.setNeedsLayout()
+          if (table as? HistoryRevealState)?.historyRevealed == true {
+            // Painted after its transcript was shown: arrive softly, not in one frame.
+            let fade = CABasicAnimation(keyPath: "opacity")
+            fade.fromValue = 0
+            fade.toValue = 1
+            fade.duration = 0.15
+            layer.add(fade, forKey: "document-reveal")
+          }
+          break
+        }
         ancestor = view.superview
       }
     }
@@ -444,9 +510,15 @@ private struct MarkdownDocument: UIViewRepresentable {
   private var dataStore = WKWebsiteDataStore.nonPersistent()
   private var epoch = UUID()
   private var sources: [Bool: String] = [:]
+  /// Text renderers kept loaded and idle. Opening a chat builds a document for
+  /// each table or list on screen, and UIKit prepares a row it then discards; a
+  /// renderer that must first load its page shows its document seconds late.
+  private static let idleTextRenderers = 3
   func take(diagrams: Bool) -> ReusableDocumentView {
     if let index = views.firstIndex(where: { $0.diagrams == diagrams && $0.rendererReady }) {
-      return views.remove(at: index)
+      let view = views.remove(at: index)
+      prewarm()
+      return view
     }
     return make(diagrams: diagrams)
   }
@@ -465,9 +537,13 @@ private struct MarkdownDocument: UIViewRepresentable {
     // Text documents (tables, lists) are the common case; warm a diagram
     // renderer after it, one page load at a time, so neither waits for WebKit
     // to start when a chat with one first opens.
-    guard let diagrams = [false, true].first(where: { kind in !views.contains { $0.diagrams == kind } }),
-      let html = html(diagrams: diagrams)
-    else { return }
+    let diagrams: Bool
+    if views.filter({ !$0.diagrams }).count < Self.idleTextRenderers {
+      diagrams = false
+    } else if !views.contains(where: \.diagrams) {
+      diagrams = true
+    } else { return }
+    guard let html = html(diagrams: diagrams) else { return }
     let view = make(diagrams: diagrams)
     view.navigationDelegate = warmer
     warming = view
@@ -502,7 +578,7 @@ private struct MarkdownDocument: UIViewRepresentable {
     }
   }
   func recycle(_ view: ReusableDocumentView) {
-    guard view.poolEpoch == epoch, view.rendererReady, views.count < 3 else { return }
+    guard view.poolEpoch == epoch, view.rendererReady, views.count <= Self.idleTextRenderers else { return }
     view.navigationDelegate = warmer
     views.append(view)
   }

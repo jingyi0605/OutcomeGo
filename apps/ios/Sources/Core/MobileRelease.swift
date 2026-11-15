@@ -21,6 +21,10 @@ public struct MobileRelease: Codable, Equatable, Sendable {
     self.bundleIdentifier = bundleIdentifier
   }
 
+  public static func usesTestFlightUpdates(isDebug: Bool, receiptURL: URL?) -> Bool {
+    isDebug || receiptURL?.lastPathComponent == "sandboxReceipt"
+  }
+
   public var isValid: Bool {
     Self.components(version) != nil && Self.components(buildNumber) != nil
       && bundleIdentifier == Self.expectedBundleIdentifier

@@ -13,9 +13,6 @@ struct RichMessageCard: View {
   @Environment(MessageModalPresenter.self) private var modals
   @Environment(AppStore.self) private var store
   let message: Message
-  private var selected: Set<String> {
-    Set(store.draft(message.channelId).widgetSelections?[message.id] ?? [])
-  }
   @State private var secret = ""
   @State private var formValues: [String: JSON] = [:]
   @State private var bodyText = ""
@@ -26,6 +23,29 @@ struct RichMessageCard: View {
   @State private var draftNotice: String?
   @State private var draftBodyExpanded = false
   @State private var draftSending = false
+  @State private var draftSendOff = DraftSendOff.idle
+  /// The send-off under way is Discard's.
+  @State private var draftDiscards = false
+  /// Measured heights the card closes between while the send-off flies.
+  @State private var draftFormHeight: CGFloat = 0
+  @State private var draftSettledHeight: CGFloat = 0
+  @State private var draftHeldHeight: CGFloat?
+  /// From the top of what the blob swallows on a text's card down to the Send row.
+  @State private var draftPayloadHeight: CGFloat = 0
+  @State private var draftPressed = Date.distantPast
+  @State private var draftClosing: Date?
+  @State private var draftGathered = false
+  @State private var draftFades = false
+  /// How far the send-off has got: 1 the card closes, 2 the summary is written, 3 "Sending" fades,
+  /// 4 the Sent badge fills in.
+  @State private var draftStep = 0
+  @State private var draftSlings = 0
+  @State private var draftDrops = 0
+  /// Where the Discard pill starts across the card, for what its blob swallows to aim at.
+  @State private var draftDiscardX: CGFloat = 0
+  @State private var draftHistoryExpanded = false
+  @State private var draftRevisionEditing = false
+  @FocusState private var draftBodyFocused: Bool
   @State private var busy = false
   @State private var importID = UUID().uuidString
   @State private var failure: String?
@@ -46,11 +66,15 @@ struct RichMessageCard: View {
     ].contains(type)
   }
   var body: some View {
-    if supported {
-      VStack(alignment: .leading, spacing: type == "widget" ? 12.25 : isDraftLike ? 10 : 13) {
-        if let failure { InlineFailure(message: failure) }
+    if type == "presentation", let presentation = PresentationPayload.parse(meta["presentation"]) {
+      PresentationMessageView(presentation: presentation, stateKey: message.id)
+        .padding(12)
+        .background(NativePalette.assistant, in: RoundedRectangle(cornerRadius: 22))
+    } else if supported {
+      VStack(alignment: .leading, spacing: isDraftLike ? 10 : 13) {
+        if let failure = failure ?? draftPressFailure { InlineFailure(message: failure) }
         switch type {
-        case "widget": widget
+        case "widget": QuestionCard(message: message)
         case "secret-request": secretRequest
         case "computer-handoff": handoff
         case "user-form": form
@@ -59,13 +83,26 @@ struct RichMessageCard: View {
         case "bot-template": sharedTemplate
         default: EmptyView()
         }
-      }.padding(type == "widget" ? 14 : isDraftLike ? 12 : 16).background(
-        NativePalette.surface, in: RoundedRectangle(cornerRadius: isDraftLike ? 16 : 18)
+      }.padding(type == "widget" ? 0 : isDraftLike ? 12 : 16).background(
+        type == "widget" ? Color.clear : NativePalette.surface, in: RoundedRectangle(cornerRadius: isDraftLike ? 16 : 18)
       )
-      .animation(type == "widget" && !reduceMotion ? .easeOut(duration: 0.24) : nil,
-        value: meta["respondedValue"])
-      .animation(type == "widget" && !reduceMotion ? .easeOut(duration: 0.24) : nil,
-        value: meta["widgetDismissed"])
+      // The card gives as the blob lets go, and takes the hit when it lands.
+      .keyframeAnimator(initialValue: CGFloat.zero, trigger: draftSlings) { card, shift in
+        card.offset(x: shift)
+      } keyframes: { _ in
+        CubicKeyframe(-2, duration: 0.045)
+        CubicKeyframe(0, duration: DraftSendOff.hit - DraftSendOff.sling - 0.045)
+        CubicKeyframe(3, duration: 0.05)
+        CubicKeyframe(-1, duration: 0.09)
+        CubicKeyframe(0, duration: 0.1)
+      }
+      // Discarding, it dips once the blob has let go of it.
+      .keyframeAnimator(initialValue: CGFloat.zero, trigger: draftDrops) { card, dip in
+        card.offset(y: dip)
+      } keyframes: { _ in
+        CubicKeyframe(2, duration: 0.05)
+        CubicKeyframe(0, duration: 0.19)
+      }
       .task(id: message.id) {
         if type == "user-form", state == "pending" {
           do {
@@ -85,148 +122,75 @@ struct RichMessageCard: View {
         requestID = UUID().uuidString
         failure = nil
       }
-      .onChange(of: selected) { _, _ in requestID = UUID().uuidString }
-      .onChange(of: bodyText) { _, _ in requestID = UUID().uuidString }
-      .onChange(of: to) { _, _ in requestID = UUID().uuidString }
-      .onChange(of: cc) { _, _ in requestID = UUID().uuidString }
+      .onChange(of: bodyText) { _, value in
+        requestID = UUID().uuidString
+        if value != meta["draft"]["body"].string { draftRevisionEditing = true }
+      }
+      .onChange(of: to) { _, value in
+        requestID = UUID().uuidString
+        if value != meta["draft"]["to"].array.map(\.string).joined(separator: ", ") { draftRevisionEditing = true }
+      }
+      .onChange(of: cc) { _, value in
+        requestID = UUID().uuidString
+        if value != meta["draft"]["cc"].array.map(\.string).joined(separator: ", ") { draftRevisionEditing = true }
+      }
       .onChange(of: saveToVault) { _, _ in requestID = UUID().uuidString }
-      .onChange(of: subject) { _, _ in requestID = UUID().uuidString }
-      .disabled(busy || store.busy.contains("/api/v0/channel-messages/\(API.segment(message.id))/widget-response"))
+      .onChange(of: subject) { _, value in
+        requestID = UUID().uuidString
+        if value != meta["draft"]["subject"].string { draftRevisionEditing = true }
+      }
+      .disabled(busy)
       .onAppear {
-        bodyText = meta["draft"]["body"].string
-        subject = meta["draft"]["subject"].string
-        to = meta["draft"]["to"].array.map(\.string).joined(separator: ", ")
-        cc = meta["draft"]["cc"].array.map(\.string).joined(separator: ", ")
-        fromAddress = meta["draft"]["from"].string
+        resetDraftFields()
+        resumeDraftSendOff()
+      }
+      .onChange(of: meta["draft"]) { previous, incoming in
+        if type == "external-draft" { syncDraftFields(from: previous, to: incoming) }
+      }
+      .onChange(of: state) { _, value in
+        if type == "external-draft" {
+          if value == "dismissed" { resetDraftFields() }
+          if value != "pending" && value != "sending" { draftSending = false }
+        }
+        if isDraftLike, value == "sent" || value == "dismissed" { failure = nil }
+        advanceDraftSendOff()
+      }
+      .onChange(of: draftSending) { _, _ in advanceDraftSendOff() }
+      .onChange(of: draftOut) { _, out in
+        // The press may have been an earlier row's of this card, which is the one told how it ended.
+        if !out { draftSending = false }
+        advanceDraftSendOff()
       }
       .onDisappear {
         secret = ""
         formValues = [:]
+        leaveDraftSendOff()
       }
     }
+  }
+  private func resetDraftFields() {
+    bodyText = meta["draft"]["body"].string
+    subject = meta["draft"]["subject"].string
+    to = meta["draft"]["to"].array.map(\.string).joined(separator: ", ")
+    cc = meta["draft"]["cc"].array.map(\.string).joined(separator: ", ")
+    fromAddress = meta["draft"]["from"].string
+  }
+  private func syncDraftFields(from previous: JSON, to incoming: JSON) {
+    if bodyText == previous["body"].string { bodyText = incoming["body"].string }
+    if subject == previous["subject"].string { subject = incoming["subject"].string }
+    if to == previous["to"].array.map(\.string).joined(separator: ", ") {
+      to = incoming["to"].array.map(\.string).joined(separator: ", ")
+    }
+    if cc == previous["cc"].array.map(\.string).joined(separator: ", ") {
+      cc = incoming["cc"].array.map(\.string).joined(separator: ", ")
+    }
+    if fromAddress == previous["from"].string { fromAddress = incoming["from"].string }
   }
   private func presentComputer() {
     if let bot = store.bots.first(where: { $0.id == message.senderBotId })
       ?? store.channel(message.channelId).flatMap({ store.bot(for: $0) }) {
       modals.fullScreen = .init(content: AnyView(ComputerView(bot: bot,
         handoffID: type == "computer-handoff" ? message.id : nil)))
-    }
-  }
-  @ViewBuilder var widget: some View {
-    let widget = meta["widget"]
-    HStack(alignment: .top, spacing: 8) {
-      Text(widget["prompt"].string).font(.body.weight(.medium))
-        .fixedSize(horizontal: false, vertical: true)
-      Spacer(minLength: 0)
-      if meta["respondedValue"] == .null && !meta["widgetDismissed"].bool {
-        Button { act("widget-dismiss") } label: {
-          Image(systemName: "xmark").font(.system(size: 15, weight: .regular))
-            .foregroundStyle(NativePalette.chatFaint).frame(width: 20, height: 20)
-            .contentShape(Rectangle().inset(by: -10))
-        }.buttonStyle(.plain).accessibilityLabel("Dismiss")
-          .accessibilityIdentifier("widget-dismiss-" + message.id)
-      }
-    }
-    if !widget["helpText"].string.isEmpty {
-      Text(widget["helpText"].string).font(.system(size: 14))
-        .foregroundStyle(NativePalette.chatFaint).padding(.trailing, 36)
-    }
-    if case .string(let response) = meta["respondedValue"] {
-      let answers = WidgetAnswer.resolve(widget: widget, response: response)
-      VStack(spacing: 0) {
-        ForEach(Array(answers.enumerated()), id: \.offset) { index, answer in
-          if index > 0 { NativePalette.separator.frame(height: 0.5) }
-          HStack(spacing: 12) {
-            Text(answer.label).fixedSize(horizontal: false, vertical: true)
-            Spacer(minLength: 8)
-            Path { path in
-              path.move(to: CGPoint(x: 3, y: 8))
-              path.addLine(to: CGPoint(x: 6, y: 11))
-              path.addLine(to: CGPoint(x: 13, y: 4))
-            }.stroke(NativePalette.receiptCheck,
-              style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
-              .frame(width: 16, height: 16).accessibilityHidden(true)
-          }.padding(.horizontal, 10).padding(.vertical, 10)
-            .frame(minHeight: 40).accessibilityElement(children: .combine)
-            .accessibilityValue("Selected")
-            .accessibilityIdentifier("widget-answer-\(message.id)-\(index)")
-        }
-      }.background(NativePalette.background, in: RoundedRectangle(cornerRadius: 12))
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(NativePalette.separator, lineWidth: 0.5))
-    } else {
-      let dismissed = meta["widgetDismissed"].bool
-      VStack(spacing: 0) {
-        ForEach(Array(widget["options"].array.enumerated()), id: \.offset) { index, option in
-          if index > 0 { NativePalette.separator.opacity(0.5).frame(height: 0.5) }
-          let value = option["value"].string.isEmpty ? option["label"].string : option["value"].string
-          Button {
-            if widget["multiSelect"].bool {
-              NativeHaptics.play(.selection, source: "widget.selection")
-              var values = selected
-              if values.contains(value) { values.remove(value) } else { values.insert(value) }
-              var draft = store.draft(message.channelId)
-              draft.widgetResponse = nil
-              if draft.widgetSelections == nil { draft.widgetSelections = [:] }
-              draft.widgetSelections?[message.id] = widget["options"].array.map {
-                $0["value"].string.isEmpty ? $0["label"].string : $0["value"].string
-              }.filter(values.contains)
-              store.saveDraft(draft, channel: message.channelId)
-            } else { act("widget-response", body: ["value": .string(value)]) }
-          } label: {
-            HStack(alignment: .top, spacing: 9) {
-              Text(index < 26 ? String(UnicodeScalar(65 + index)!) : String(index + 1))
-                .font(.system(size: 13)).foregroundStyle(NativePalette.chatFaint)
-                .frame(width: 20, height: 20)
-                .background(NativePalette.surface, in: RoundedRectangle(cornerRadius: 5))
-                .accessibilityHidden(true)
-              VStack(alignment: .leading, spacing: 3.5) {
-                Text(option["label"].string).font(.body)
-                  .foregroundStyle(option["style"].string == "danger"
-                    ? NativePalette.widgetDanger : NativePalette.text)
-                if !option["description"].string.isEmpty {
-                  Text(option["description"].string).font(.system(size: 14))
-                    .foregroundStyle(NativePalette.chatMuted)
-                }
-              }.fixedSize(horizontal: false, vertical: true)
-              Spacer(minLength: 0)
-              if selected.contains(value) {
-                Image(systemName: "checkmark").font(.system(size: 14))
-                  .foregroundStyle(NativePalette.receiptCheck)
-              }
-            }.padding(.horizontal, 10).padding(.vertical, 10)
-              .frame(maxWidth: .infinity, minHeight: 40, alignment: .leading)
-              .contentShape(Rectangle())
-          }.buttonStyle(.plain).disabled(dismissed)
-            .accessibilityLabel(option["label"].string)
-            .accessibilityValue(selected.contains(value) ? "Selected" : "")
-        }
-      }.background(NativePalette.background, in: RoundedRectangle(cornerRadius: 12))
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(NativePalette.separator.opacity(0.5), lineWidth: 0.5))
-        .opacity(dismissed ? 0.35 : 1)
-      if dismissed {
-        Text("dismissed").font(.system(size: 12)).foregroundStyle(NativePalette.chatFaint)
-          .accessibilityIdentifier("widget-dismissed-" + message.id)
-      } else {
-        if widget["allowCustom"].bool {
-          Text("Or answer in the chat below").font(.system(size: 14))
-            .foregroundStyle(NativePalette.chatFaint)
-        }
-        if widget["multiSelect"].bool {
-          Button {
-            let values = widget["options"].array.map {
-              $0["value"].string.isEmpty ? $0["label"].string : $0["value"].string
-            }.filter(selected.contains)
-            act("widget-response", body: ["value": .string(values.joined(separator: "\n"))])
-          } label: {
-            Text("Submit").font(.system(size: 15, weight: .medium))
-              .foregroundStyle(selected.isEmpty ? NativePalette.chatFaint : NativePalette.onPrimary)
-              .frame(maxWidth: .infinity).frame(height: 38)
-              .background(selected.isEmpty ? NativePalette.widgetDisabled : NativePalette.text,
-                in: RoundedRectangle(cornerRadius: 9))
-          }.buttonStyle(WidgetSubmitStyle()).disabled(selected.isEmpty)
-            .accessibilityIdentifier("widget-submit-" + message.id)
-        }
-      }
     }
   }
   @ViewBuilder var secretRequest: some View {
@@ -422,13 +386,43 @@ struct RichMessageCard: View {
         DraftRow(label: "In reply to", width: width) { DraftValue(thread) }
       }
     }
+    if draftIsEmail, !draft["forwardMessageId"].string.isEmpty {
+      let forwarding = draft["verification"]["forwarding"].string.isEmpty
+        ? draft["forwardMessageId"].string : draft["verification"]["forwarding"].string
+      if let url = URL(string: draft["verification"]["forwardUrl"].string), url.scheme == "https" {
+        Link(destination: url) { DraftRow(label: "Forwarding", width: width) { DraftValue(forwarding) } }
+      } else {
+        DraftRow(label: "Forwarding", width: width) { DraftValue(forwarding) }
+      }
+    }
+  }
+  private var draftAssets: [Asset] {
+    meta["draft"]["verification"]["attachments"].array.compactMap { try? $0.decode(Asset.self) }
+  }
+  @ViewBuilder private var draftAttachments: some View {
+    if !draftAssets.isEmpty {
+      VStack(alignment: .leading, spacing: 8) {
+        ForEach(Array(draftAssets.enumerated()), id: \.offset) { _, asset in
+          AttachmentView(asset: asset, channelID: message.channelId, messageID: message.id)
+        }
+      }.padding(10).accessibilityLabel("Attachments")
+    }
+  }
+  private var revisionBody: AttributedString {
+    var result = AttributedString()
+    for part in meta["draft"]["verification"]["revision"]["body"].array {
+      var run = AttributedString(part["text"].string)
+      if part["added"].bool { run.backgroundColor = .green.opacity(0.16) }
+      result.append(run)
+    }
+    return result
   }
   @ViewBuilder private var draftNotices: some View {
     let sentUnder = meta["sentUnder"]
     if !sentUnder["rule"].string.isEmpty {
       DraftNote("Auto-approved by your rule: " + sentUnder["rule"].string)
     } else if sentUnder["draftingDisabled"].bool {
-      DraftNote("Sent without review: drafts are off for this Bot")
+      DraftNote((state == "sent" ? "Sent without review" : "Review skipped") + ": drafts are off for this Bot")
     }
     if let draftNotice { DraftNote(draftNotice) }
     if state == "pending", !meta["sendError"].string.isEmpty {
@@ -450,24 +444,47 @@ struct RichMessageCard: View {
       .font(.system(size: 15)).kerning(-0.15).foregroundStyle(DraftPalette.secondary)
       .textInputAutocapitalization(email ? .never : .sentences).autocorrectionDisabled(email)
       .keyboardType(email ? .emailAddress : .default).accessibilityLabel(label)
+      .background(!draftRevisionEditing && meta["draft"]["verification"]["revision"]["changedFields"].array.contains(.string(label.lowercased())) ? Color.green.opacity(0.16) : Color.clear)
   }
   @ViewBuilder var externalDraft: some View {
     let draft = meta["draft"]
     let verification = draft["verification"]
     let email = draftIsEmail
-    let title = email ? (draft["replyToMessageId"].string.isEmpty ? "New email" : "Reply") : "Slack message"
+    let title = email ? (!draft["replyToMessageId"].string.isEmpty ? "Reply" : !draft["forwardMessageId"].string.isEmpty ? "Forward" : "New email") : "Slack message"
     let sending = state == "sending" || draftSending
     let width = Self.labelWidth(
       email
-        ? ["From", "To", "Cc", "Subject"] + (draft["replyToMessageId"].string.isEmpty ? [] : ["In reply to"])
+        ? ["From", "To", "Cc", "Subject"] + (draft["replyToMessageId"].string.isEmpty ? [] : ["In reply to"]) + (draft["forwardMessageId"].string.isEmpty ? [] : ["Forwarding"])
         : ["Workspace", "To"])
+    let open = state == "pending" || state == "sending"
+    let animating = draftAnimating
+    let confirmed = draftSendOff.confirmed
+    let plainSending = sending && !animating
+    let waiting = animating && draftSendOff != .reverting
+    let discarding = animating && draftDiscards
+    draftSendOffCard {
     HStack(spacing: 8) {
       Text(verbatim: title).font(.system(size: 15, weight: .medium)).kerning(-0.15)
         .foregroundStyle(DraftPalette.text).lineLimit(1)
       Spacer(minLength: 0)
-      DraftStatusBadge(state: sending ? "sending" : state)
+      // Discarding, the badge says what it said until it goes as the card closes.
+      DraftStatusBadge(state: discarding ? "pending" : animating || sending ? "sending" : state)
+        .opacity(animating && draftStep >= (draftDiscards ? 1 : 3) ? 0 : 1)
+        .animation(discarding ? .easeOut(duration: DraftSendOff.close.duration) : nil, value: draftStep >= 1)
+        .overlay(alignment: .trailing) {
+          // The real Sent badge comes up under the green stamp the send-off leaves on it; the
+          // Discarded one fades in with the summary.
+          if animating {
+            DraftStatusBadge(state: draftDiscards ? "dismissed" : "sent", anchorsFrame: true)
+              .opacity(draftStep >= (draftDiscards ? 2 : 4) ? 1 : 0)
+          }
+        }
     }
-    if state == "pending" || state == "sending" {
+    draftClosingSection(open: open) {
+      draftSettled(draft: draft, email: email, width: width)
+    } form: {
+     VStack(alignment: .leading, spacing: 10) {
+      VStack(alignment: .leading, spacing: 10) {
       VStack(alignment: .leading, spacing: 0) {
         VStack(alignment: .leading, spacing: 0) {
           if email {
@@ -502,10 +519,18 @@ struct RichMessageCard: View {
             DraftRow(label: "To", width: width) { DraftValue(draft["target"].string) }
           }
         }
+        if !draftRevisionEditing && bodyText == draft["body"].string && draft["verification"]["revision"]["body"].array.contains(where: { $0["added"].bool }) {
+          Button { draftRevisionEditing = true; draftBodyFocused = true } label: {
+            Text(revisionBody).font(.system(size: 16)).foregroundStyle(DraftPalette.text)
+              .frame(maxWidth: .infinity, alignment: .leading).padding(10)
+          }.buttonStyle(.plain).accessibilityLabel("Message body, changes highlighted, tap to edit")
+        } else {
         TextField("", text: $bodyText, prompt: Text(verbatim: "Write a message").foregroundStyle(DraftPalette.quaternary), axis: .vertical)
           .lineLimit(draftBodyExpanded || !draftBodyOverflows ? 4...10_000 : 4...12)
           .font(.system(size: 16)).foregroundStyle(DraftPalette.text)
           .padding(10).accessibilityLabel("Message body")
+          .focused($draftBodyFocused)
+        }
         if draftBodyOverflows {
           Button {
             draftBodyExpanded.toggle()
@@ -525,34 +550,260 @@ struct RichMessageCard: View {
             }
             .padding(.horizontal, 10)
         }
+        draftAttachments
       }
       .background(DraftPalette.panel, in: RoundedRectangle(cornerRadius: 10))
       .clipShape(RoundedRectangle(cornerRadius: 10))
       .disabled(sending)
       draftNotices
+      }
+      .modifier(DraftSwallowed(swallowed: confirmed, blob: CGSize(width: draftBlobX, height: 27)))
       HStack(spacing: 8) {
         Button {
           draftAction("send")
         } label: {
           HStack(spacing: 6) {
-            if sending { LoadingOrb(size: 14, label: "Sending") }
-            Text(sending ? "Sending…" : "Send")
+            if plainSending { LoadingOrb(size: 14, label: "Sending") }
+            Text(plainSending ? "Sending…" : "Send")
           }
-        }.buttonStyle(DraftButtonStyle(primary: true, sending: sending))
-          .disabled(sending || bodyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+        }.buttonStyle(DraftButtonStyle(primary: true, sending: plainSending))
+          .disabled(sending || draftOut || bodyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || (email && !EmailDraftReview.validRecipients(to: to, cc: cc)))
+          .modifier(DraftSendOffPill(pressed: !draftDiscards, animating: animating, waiting: waiting))
+          .accessibilityIdentifier("draft-send-button")
         Button("Discard") { act("external-draft", body: ["action": .string("cancel")]) }
-          .buttonStyle(DraftButtonStyle(primary: false, sending: false)).disabled(sending)
+          .buttonStyle(DraftButtonStyle(primary: false, sending: false)).disabled(sending || draftOut)
+          .modifier(DraftSendOffPill(pressed: draftDiscards, animating: animating, waiting: waiting, start: $draftDiscardX))
         Spacer(minLength: 0)
         approvalMenu
+          .opacity(waiting ? 0 : 1)
+      }.animation(.easeOut(duration: 0.12), value: waiting)
+     }
+    }
+    }
+  }
+  /// The send-off draws the Send pill itself, from the tap until the blob lands or returns.
+  private var draftAnimating: Bool { draftSendOff.active && !reduceMotion }
+  /// A draft card's header and closing section, with the send-off drawn over them.
+  private func draftSendOffCard<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
+    VStack(alignment: .leading, spacing: 10) { content() }
+    .coordinateSpace(.named(DraftSendOffPill.card))
+    .overlayPreferenceValue(DraftSendAnchors.self) { anchors in
+      if draftAnimating, let pill = anchors["pill"], let badge = anchors["badge"], let edge = anchors["edge"] {
+        GeometryReader { proxy in
+          DraftSendOffEffect(
+            phase: draftSendOff, discards: draftDiscards, pill: proxy[pill],
+            badge: proxy[badge],
+            // The card is this content plus its 12 pt padding; its bottom edge carries the blob.
+            card: CGRect(x: 0, y: 0, width: proxy.size.width, height: proxy[edge].maxY).insetBy(dx: -12, dy: -12),
+            closing: max(0, proxy[edge].height - draftSettledHeight), gathered: draftGathered)
+        }
       }
-    } else {
-      let recipient = email ? (Self.addresses(to).first ?? "") : draft["target"].string
+    }
+  }
+  /// The part of a draft card under its header: the open form, which closes onto the summary of
+  /// the settled card as the send-off flies.
+  private func draftClosingSection<Settled: View, Form: View>(
+    open: Bool, @ViewBuilder settled: () -> Settled, @ViewBuilder form: () -> Form
+  ) -> some View {
+    let animating = draftAnimating
+    return ZStack(alignment: .topLeading) {
+    if animating {
+      // Laid out under the form from the press, and written in the blob's wake; discarding, it
+      // fades in once the blob has dropped.
+      settled()
+        .mask {
+          Rectangle().padding(-4).scaleEffect(x: draftDiscards || draftStep >= 2 ? 1 : 0, anchor: .leading)
+        }
+        .opacity(draftDiscards && draftStep < 2 ? 0 : 1)
+        .allowsHitTesting(false)
+        .background { DraftHeightReader(height: $draftSettledHeight) }
+    } else if !open {
+      // Under Reduce Motion an email sent from this device ends in a plain fade to the summary.
+      settled()
+        .transition(draftFades ? .opacity.animation(.easeInOut(duration: 0.25)) : .identity)
+    }
+    if open || animating {
+     form()
+     // Keeps its own height while the card closes over it.
+     .fixedSize(horizontal: false, vertical: true)
+     .background { if animating { DraftHeightReader(height: $draftFormHeight) } }
+    }
+    }
+    .modifier(DraftClosingHeight(
+      height: draftHeldHeight, closing: draftStep == 1 ? draftClosing : nil, from: draftFormHeight))
+    .clipShape(Rectangle().inset(by: draftSendOff.confirmed ? 0 : -60))
+    .background {
+      if animating { Color.clear.anchorPreference(key: DraftSendAnchors.self, value: .bounds) { ["edge": $0] } }
+    }
+  }
+  /// The blob's centre across the card: the pressed pill's leading end.
+  private var draftBlobX: CGFloat { (draftDiscards ? draftDiscardX : 0) + DraftSendOff.blob / 2 }
+  /// This device pressed Send or Discard on the card and has not seen the answer.
+  private var draftOut: Bool { store.draftPresses[message.id] != nil }
+  /// Why this device's last Send or Discard of the card failed, when the row that pressed it has
+  /// gone since.
+  private var draftPressFailure: String? {
+    state == "pending" || state == "sending" ? store.draftPressFailures[message.id] : nil
+  }
+  /// A card whose Send or Discard this device pressed and has not seen answered comes back as it
+  /// was left: the blob, waiting, without gathering again. One answered meanwhile is just the
+  /// settled card.
+  private func resumeDraftSendOff() {
+    guard let press = store.draftPresses[message.id], state == "pending" || state == "sending",
+      draftSendOff == .idle
+    else { return }
+    // At once: the row is first drawn as the plain card, which must not be seen fading out.
+    var transaction = Transaction()
+    transaction.disablesAnimations = true
+    withTransaction(transaction) {
+      draftSending = !press.discards
+      draftDiscards = press.discards
+      draftPressed = press.at
+      draftStep = 0
+      draftGathered = true
+      draftSendOff = .pressed
+    }
+  }
+  /// The press that starts a send-off: the pill is drawn once as it was, then gathers into the blob.
+  private func pressDraftSendOff(discards: Bool) {
+    if !reduceMotion { NativeHaptics.draftSendPress(source: discards ? "draft.discard" : "draft.send") }
+    draftDiscards = discards
+    draftPressed = Date()
+    store.draftPresses[message.id] = DraftPress(discards: discards, at: draftPressed)
+    draftStep = 0
+    draftFades = reduceMotion && !discards && type == "external-draft"
+    draftGathered = false
+    // Owned here rather than by the blob's own appearance, which a row update arriving with a fast
+    // answer can swallow.
+    Task { @MainActor in
+      try? await Task.sleep(for: .milliseconds(34))
+      draftGathered = true
+    }
+    draftSendOff = .pressed
+  }
+  /// The row has left the screen. Nothing of the send-off is kept in it: a send still out is in
+  /// the store for the row that comes back, and a send-off under way ends here, unseen and unfelt.
+  private func leaveDraftSendOff() {
+    guard draftSendOff.active else { return }
+    draftSendOff = .idle
+    draftHeldHeight = nil
+    draftClosing = nil
+    draftStep = 0
+  }
+  /// Moves the send-off on when the Send or Discard this device pressed is answered.
+  private func advanceDraftSendOff() {
+    guard draftSendOff == .pressed else { return }
+    let discards = draftDiscards
+    if state == (discards ? "dismissed" : "sent") {
+      // Under Reduce Motion, or answered while the app was off screen, the card is simply settled.
+      if reduceMotion || UIApplication.shared.applicationState != .active {
+        draftSendOff = .idle
+        return
+      }
+      Task { @MainActor in
+        let hold = discards ? DraftSendOff.discardHold : DraftSendOff.minimumHold
+        try? await Task.sleep(for: .seconds(max(0, hold - Date().timeIntervalSince(draftPressed))))
+        guard draftSendOff == .pressed else { return }
+        guard draftSettledHeight > 0, draftFormHeight > 0 else {
+          draftSendOff = .idle
+          return
+        }
+        let confirmed = Date()
+        // False once the row has left the screen, or the app has: that ends the send-off and puts
+        // the card right.
+        @MainActor func wait(until offset: Double) async -> Bool {
+          try? await Task.sleep(for: .seconds(max(0, confirmed.addingTimeInterval(offset).timeIntervalSinceNow)))
+          if UIApplication.shared.applicationState != .active { leaveDraftSendOff() }
+          return draftSendOff.confirmed
+        }
+        // A row can outlive its screen by a moment; nothing is felt once the chat has been left.
+        @MainActor func felt() -> Bool { store.navigation.contains(message.channelId) }
+        draftHeldHeight = draftFormHeight
+        draftSendOff = .swallowing(confirmed)
+        guard await wait(until: DraftSendOff.close.delay) else { return }
+        // The card's height is stepped each frame by its own small timeline, so the row follows it
+        // and the messages above travel with the card's top edge.
+        draftHeldHeight = draftSettledHeight
+        draftClosing = Date()
+        draftStep = 1
+        guard await wait(until: discards ? DraftSendOff.toss.from : DraftSendOff.windUp) else { return }
+        draftSendOff = .slinging(confirmed)
+        if discards {
+          if felt() { NativeHaptics.draftSendSling(source: "draft.discard") }
+          guard await wait(until: DraftSendOff.dip) else { return }
+          draftDrops += 1
+          guard await wait(until: DraftSendOff.settling.delay) else { return }
+          withAnimation(.easeInOut(duration: DraftSendOff.settling.duration)) { draftStep = 2 }
+          guard await wait(until: DraftSendOff.discardEnd) else { return }
+        } else {
+          guard await wait(until: DraftSendOff.sling) else { return }
+          if felt() { NativeHaptics.draftSendSling(source: "draft.send") }
+          draftSlings += 1
+          withAnimation(.timingCurve(0.5, 0, 0.9, 0.4, duration: DraftSendOff.hit - DraftSendOff.sling)) { draftStep = 2 }
+          guard await wait(until: DraftSendOff.hit) else { return }
+          if felt() { NativeHaptics.draftSendHit(source: "draft.send") }
+          draftStep = 3
+          guard await wait(until: DraftSendOff.hit + DraftSendOff.stamp) else { return }
+          withAnimation(.easeInOut(duration: DraftSendOff.relax)) { draftStep = 4 }
+          guard await wait(until: DraftSendOff.end) else { return }
+        }
+        draftSendOff = .idle
+        draftHeldHeight = nil
+        draftClosing = nil
+      }
+    } else if state != "pending" && state != "sending" {
+      draftSendOff = .idle
+    } else if !draftOut, liveState == "pending" || (discards && liveState == "sending") {
+      if reduceMotion {
+        draftSendOff = .idle
+        return
+      }
+      // The press came to nothing: the blob opens back into its pill. (A send the server took and
+      // is still working on keeps its blob, whatever became of the request.)
+      draftSendOff = .reverting
+      Task { @MainActor in
+        try? await Task.sleep(for: .seconds(0.32))
+        if draftSendOff == .reverting { draftSendOff = .idle }
+      }
+    }
+  }
+  /// The card's state in the store, which a response updates before this row is redrawn.
+  private var liveState: String {
+    let value = store.messages(message.channelId).first { $0.id == message.id }?.metadata["cardState"].string ?? ""
+    return value.isEmpty ? "pending" : value
+  }
+  @ViewBuilder private func draftSettled(draft: JSON, email: Bool, width: CGFloat) -> some View {
+    let verification = draft["verification"]
+    VStack(alignment: .leading, spacing: 10) {
+      let recipient = email ? (draft["to"].array.first?.string ?? "") : draft["target"].string
       let summary = state == "unknown"
         ? "The send was interrupted — check your mailbox to see whether it went out"
         : (state == "sent" ? "Sent to " : "To ") + recipient
-          + (email ? " — “" + subject + "”" : "")
-      Text(verbatim: summary).font(.system(size: 15)).kerning(-0.15)
-        .foregroundStyle(DraftPalette.secondary).lineLimit(1).truncationMode(.tail)
+          + (email ? " — “" + draft["subject"].string + "”" : "")
+      DisclosureGroup(isExpanded: $draftHistoryExpanded) {
+        VStack(alignment: .leading, spacing: 0) {
+          if email {
+            DraftRow(label: "From", width: width) { DraftValue(draft["from"].string) }
+            draftReplyRow(width: width)
+            DraftRow(label: "To", width: width) { DraftValue(draft["to"].array.map(\.string).joined(separator: ", ")) }
+            if !draft["cc"].array.isEmpty { DraftRow(label: "Cc", width: width) { DraftValue(draft["cc"].array.map(\.string).joined(separator: ", ")) } }
+            DraftRow(label: "Subject", width: width) { DraftValue(draft["subject"].string) }
+          } else {
+            DraftRow(label: "Workspace", width: width) { DraftValue(verification["identity"].string) }
+            DraftRow(label: "To", width: width) { DraftValue(draft["target"].string) }
+          }
+          Text(verbatim: draft["body"].string).font(.system(size: 16)).foregroundStyle(DraftPalette.text)
+            .frame(maxWidth: .infinity, alignment: .leading).padding(10)
+          let signature = verification["signatures"][draft["from"].string.lowercased()].string
+          if !signature.isEmpty {
+            Text(verbatim: signatureText(signature)).font(.system(size: 15)).padding(10)
+          }
+          draftAttachments
+        }.background(DraftPalette.panel, in: RoundedRectangle(cornerRadius: 10))
+      } label: {
+        Text(verbatim: summary).font(.system(size: 15)).kerning(-0.15)
+          .foregroundStyle(DraftPalette.secondary).lineLimit(1).truncationMode(.tail)
+      }
       draftNotices
       if !meta["sentUnder"]["rule"].string.isEmpty || meta["sentUnder"]["draftingDisabled"].bool {
         HStack { Spacer(); approvalMenu }
@@ -567,59 +818,116 @@ struct RichMessageCard: View {
     let handle = send["to"].string
     let recipient = send["recipientLabel"].string
     let text = send["text"].string
+    let attachments = send["attachments"].array
     let sending = state == "sending" || draftSending
-    if state == "pending" || state == "sending" {
-      HStack(spacing: 8) {
-        Image(systemName: "message.fill").font(.system(size: 15)).foregroundStyle(Color(red: 0.2, green: 0.78, blue: 0.35))
-        Text(verbatim: "Send this message?").font(.system(size: 15, weight: .medium)).kerning(-0.15)
-          .foregroundStyle(DraftPalette.text).lineLimit(1)
-      }
-      HStack(alignment: .firstTextBaseline, spacing: 8) {
-        Text(verbatim: "To").font(.system(size: 13)).foregroundStyle(DraftPalette.tertiary)
-        Text(verbatim: name.isEmpty ? (handle.isEmpty ? recipient : handle) : name)
-          .font(.system(size: 15, weight: .medium)).foregroundStyle(DraftPalette.text).lineLimit(1)
-        if !name.isEmpty, !handle.isEmpty {
-          Text(verbatim: handle).font(.system(size: 15)).foregroundStyle(DraftPalette.secondary).lineLimit(1)
+    let open = state == "pending" || state == "sending"
+    // Send plays the draft card's send-off. There is no badge while the card is open, so the blob
+    // hits the bare spot where the Sent badge will be, and the header changes as the card closes.
+    let animating = draftAnimating
+    let confirmed = draftSendOff.confirmed
+    let waiting = animating && draftSendOff != .reverting
+    let closed = animating ? draftStep >= 1 : !open
+    let icon = Color(red: 0.2, green: 0.78, blue: 0.35)
+    draftSendOffCard {
+      ZStack(alignment: .leading) {
+        if closed {
+          HStack(spacing: 8) {
+            Image(systemName: "message.fill").font(.system(size: 13)).foregroundStyle(icon)
+            Text(verbatim: "Messages").font(.system(size: 15, weight: .medium)).kerning(-0.15).foregroundStyle(DraftPalette.text)
+            Spacer(minLength: 0)
+            // The Sent badge comes up under the green stamp the send-off leaves there.
+            DraftStatusBadge(state: animating ? (draftDiscards ? "dismissed" : "sent") : state, anchorsFrame: animating)
+              .opacity(animating && draftStep < (draftDiscards ? 2 : 4) ? 0 : 1)
+          }.transition(.opacity)
+        } else {
+          HStack(spacing: 8) {
+            Image(systemName: "message.fill").font(.system(size: 15)).foregroundStyle(icon)
+            Text(verbatim: "Send this message?").font(.system(size: 15, weight: .medium)).kerning(-0.15)
+              .foregroundStyle(DraftPalette.text).lineLimit(1)
+          }
+          .frame(maxWidth: animating ? .infinity : nil, alignment: .leading)
+          .overlay(alignment: .trailing) {
+            // Where the Sent badge will be, for the blob to aim at while it waits.
+            if animating { DraftStatusBadge(state: "sent", anchorsFrame: true).hidden() }
+          }
+          .transition(.opacity)
         }
       }
-      HStack {
-        Spacer(minLength: 40)
-        Text(verbatim: text).font(.system(size: 16)).foregroundStyle(.white)
-          .fixedSize(horizontal: false, vertical: true)
-          .padding(.horizontal, 12).padding(.vertical, 7)
-          .background(Color(red: 0.04, green: 0.52, blue: 1), in: RoundedRectangle(cornerRadius: 18))
-      }
-      DraftNote("The message will be sent from " + machine)
-      if !meta["sendError"].string.isEmpty { DraftNote(meta["sendError"].string, alert: true) }
-      let allowName = name.isEmpty ? handle : name
-      let allowable = send["allowable"].bool && !handle.isEmpty
-      // One row when it fits; otherwise Send and Discard stay together and Always allow goes below.
-      ViewThatFits(in: .horizontal) {
-        HStack(spacing: 8) {
-          imessageSendButton(sending: sending)
-          if allowable { imessageAllowButton(allowName, sending: sending) }
-          imessageDiscardButton(sending: sending)
+      // A crossfade for the send-off only; any other change of state swaps the header at once.
+      .animation(animating ? .easeOut(duration: DraftSendOff.close.duration) : nil, value: closed)
+      draftClosingSection(open: open) {
+        imessageSettled(machine: machine, name: name.isEmpty ? recipient : name, text: text, attachments: attachments)
+      } form: {
+        VStack(alignment: .leading, spacing: 10) {
+          HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text(verbatim: "To").font(.system(size: 13)).foregroundStyle(DraftPalette.tertiary)
+            Text(verbatim: name.isEmpty ? (handle.isEmpty ? recipient : handle) : name)
+              .font(.system(size: 15, weight: .medium)).foregroundStyle(DraftPalette.text).lineLimit(1)
+            if !name.isEmpty, !handle.isEmpty {
+              Text(verbatim: handle).font(.system(size: 15)).foregroundStyle(DraftPalette.secondary).lineLimit(1)
+            }
+          }.opacity(confirmed ? 0 : 1)
+          // The bubble goes into the blob (the files do, when there is no text); the rest fades.
+          let blob = CGSize(width: draftBlobX, height: draftPayloadHeight + 27)
+          VStack(alignment: .leading, spacing: 10) {
+            if !text.isEmpty {
+              HStack {
+                Spacer(minLength: 40)
+                Text(verbatim: text).font(.system(size: 16)).foregroundStyle(.white)
+                  .fixedSize(horizontal: false, vertical: true)
+                  .padding(.horizontal, 12).padding(.vertical, 7)
+                  .background(Color(red: 0.04, green: 0.52, blue: 1), in: RoundedRectangle(cornerRadius: 18))
+              }.modifier(DraftSwallowed(swallowed: confirmed, anchor: .topLeading, blob: blob))
+            }
+            if !attachments.isEmpty {
+              VStack(alignment: .leading, spacing: 10) {
+                ForEach(Array(attachments.enumerated()), id: \.offset) { _, file in
+                  HStack(spacing: 8) {
+                    Image(systemName: "paperclip")
+                    Text(verbatim: file["fileName"].string).lineLimit(2)
+                    Spacer(minLength: 0)
+                    Text(verbatim: ByteCountFormatter.string(fromByteCount: Int64(file["byteSize"].int), countStyle: .file))
+                  }.font(.system(size: 13)).foregroundStyle(DraftPalette.secondary)
+                }
+              }
+              .modifier(DraftSwallowed(swallowed: confirmed && text.isEmpty, anchor: .topLeading, blob: blob))
+              .opacity(confirmed && !text.isEmpty ? 0 : 1)
+            }
+            DraftNote("The message will be sent from " + machine).opacity(confirmed ? 0 : 1)
+            if !meta["sendError"].string.isEmpty { DraftNote(meta["sendError"].string, alert: true).opacity(confirmed ? 0 : 1) }
+          }
+          .background { if animating { DraftHeightReader(height: $draftPayloadHeight) } }
+          let allowName = name.isEmpty ? handle : name
+          let allowable = send["allowable"].bool && !handle.isEmpty
+          // One row when it fits; otherwise Send and Discard stay together and Always allow goes below.
+          ViewThatFits(in: .horizontal) {
+            HStack(spacing: 8) {
+              imessageSendButton(sending: sending)
+              if allowable { imessageAllowButton(allowName, sending: sending) }
+              imessageDiscardButton(sending: sending)
+            }
+            VStack(alignment: .leading, spacing: 8) {
+              HStack(spacing: 8) { imessageSendButton(sending: sending); imessageDiscardButton(sending: sending) }
+              if allowable { imessageAllowButton(allowName, sending: sending) }
+            }
+          }.animation(.easeOut(duration: 0.12), value: waiting)
         }
-        VStack(alignment: .leading, spacing: 8) {
-          HStack(spacing: 8) { imessageSendButton(sending: sending); imessageDiscardButton(sending: sending) }
-          if allowable { imessageAllowButton(allowName, sending: sending) }
-        }
+        .animation(.easeOut(duration: DraftSendOff.gulp), value: confirmed)
       }
-    } else {
-      HStack(spacing: 8) {
-        Image(systemName: "message.fill").font(.system(size: 13)).foregroundStyle(Color(red: 0.2, green: 0.78, blue: 0.35))
-        Text(verbatim: "Messages").font(.system(size: 15, weight: .medium)).kerning(-0.15).foregroundStyle(DraftPalette.text)
-        Spacer(minLength: 0)
-        DraftStatusBadge(state: state)
-      }
+    }
+  }
+  @ViewBuilder private func imessageSettled(machine: String, name: String, text: String, attachments: [JSON]) -> some View {
+    VStack(alignment: .leading, spacing: 10) {
       let line = text.split(separator: "\n").first.map(String.init) ?? text
+      let files = attachments.map { $0["fileName"].string }.joined(separator: ", ")
+      let detail = [line.isEmpty ? "" : "“" + line + "”", files].filter { !$0.isEmpty }.joined(separator: " · ")
       let summary = state == "unknown"
         ? "The send was interrupted — check Messages on " + machine + " to see whether it went out"
-        : (state == "sent" ? "Sent to " : "To ") + (name.isEmpty ? recipient : name) + " — “" + line + "”"
+        : (state == "sent" ? "Sent to " : "To ") + name + " — " + detail
       Text(verbatim: summary).font(.system(size: 15)).kerning(-0.15)
         .foregroundStyle(DraftPalette.secondary).lineLimit(1).truncationMode(.tail)
       if state == "sent", !meta["allowedRecipient"].string.isEmpty {
-        DraftNote("Later messages to " + (name.isEmpty ? recipient : name) + " from this computer won't ask")
+        DraftNote("Later messages to " + name + " from this computer won't ask")
       } else if state == "sent", meta["sentUnder"].bool {
         DraftNote("Sent without asking, as allowed on " + machine)
       }
@@ -627,22 +935,30 @@ struct RichMessageCard: View {
     }
   }
   private func imessageSendButton(sending: Bool) -> some View {
-    Button {
+    let animating = draftAnimating, plainSending = sending && !animating
+    return Button {
       act("imessage-send", body: ["action": .string("send")])
     } label: {
       HStack(spacing: 6) {
-        if sending { LoadingOrb(size: 14, label: "Sending") }
-        Text(sending ? "Sending…" : "Send")
+        if plainSending { LoadingOrb(size: 14, label: "Sending") }
+        Text(plainSending ? "Sending…" : "Send")
       }
-    }.buttonStyle(DraftButtonStyle(primary: true, sending: sending)).disabled(sending)
+    }.buttonStyle(DraftButtonStyle(primary: true, sending: plainSending)).disabled(sending || draftOut)
+      .modifier(DraftSendOffPill(
+        pressed: !draftDiscards, animating: animating, waiting: animating && draftSendOff != .reverting))
+      .accessibilityIdentifier("imessage-send-button")
   }
   private func imessageAllowButton(_ name: String, sending: Bool) -> some View {
     Button("Always allow " + name) { act("imessage-send", body: ["action": .string("allow")]) }
-      .buttonStyle(DraftButtonStyle(primary: false, sending: false)).lineLimit(1).disabled(sending)
+      .buttonStyle(DraftButtonStyle(primary: false, sending: false)).lineLimit(1).disabled(sending || draftOut)
+      .opacity(draftAnimating && draftSendOff != .reverting ? 0 : 1)
   }
   private func imessageDiscardButton(sending: Bool) -> some View {
     Button("Discard") { act("imessage-send", body: ["action": .string("cancel")]) }
-      .buttonStyle(DraftButtonStyle(primary: false, sending: false)).disabled(sending)
+      .buttonStyle(DraftButtonStyle(primary: false, sending: false)).disabled(sending || draftOut)
+      .modifier(DraftSendOffPill(
+        pressed: draftDiscards, animating: draftAnimating, waiting: draftAnimating && draftSendOff != .reverting,
+        start: $draftDiscardX))
   }
   @ViewBuilder var sharedTemplate: some View {
     let template = meta["template"]
@@ -696,30 +1012,42 @@ struct RichMessageCard: View {
   }
   func act(_ suffix: String, body: [String: JSON] = [:], clearSecrets: Bool = false) {
     guard !busy else { return }
-    if suffix.hasPrefix("widget") { NativeHaptics.play(.light, source: "widget.submit") }
     busy = true
     failure = nil
+    if store.draftPressFailures[message.id] != nil { store.draftPressFailures[message.id] = nil }
     var payload = body
     let action = suffix + ":" + (body["action"]?.string ?? "") + ":" + (body["mode"]?.string ?? "")
-      + (suffix == "widget-response" ? ":" + (body["value"]?.string ?? "") : "")
     if lastAction != action {
       lastAction = action
       requestID = UUID().uuidString
     }
     if payload["clientId"] == nil { payload["clientId"] = .string(requestID) }
-    if suffix == "external-draft" || suffix == "imessage-send", ["send", "allow"].contains(body["action"]?.string ?? "") { draftSending = true }
+    if suffix == "external-draft" || suffix == "imessage-send", ["send", "allow"].contains(body["action"]?.string ?? "") {
+      draftSending = true
+      // "Always allow" on a text keeps its plain spinner.
+      if suffix == "external-draft" || body["action"]?.string == "send" { pressDraftSendOff(discards: false) }
+    } else if suffix == "external-draft" || suffix == "imessage-send", body["action"]?.string == "cancel" {
+      pressDraftSendOff(discards: true)
+    }
     Task {
       defer {
         busy = false
         draftSending = false
+        if draftOut { store.draftPresses[message.id] = nil }
       }
       do {
         let result = try await store.request(
           "/api/v0/channel-messages/\(API.segment(message.id))/\(suffix)", method: "POST",
           body: .object(payload))
         if let updated = try? result["message"].decode(Message.self) {
-          store.merge([updated], channel: updated.channelId)
-          store.persist()
+          let current = store.messages(updated.channelId).first { $0.id == updated.id }
+          let currentState = current?.metadata["cardState"].string ?? "pending"
+          let settled = !currentState.isEmpty && currentState != "pending" && currentState != "sending"
+          // A response can arrive after another device's terminal update.
+          if suffix != "external-draft" || !settled {
+            store.merge([updated], channel: updated.channelId)
+            store.persist()
+          }
         }
         // A draft reports its outcome in the returned card (sent, reopened with an error, unchanged).
         guard suffix == "external-draft" || suffix == "imessage-send"
@@ -744,8 +1072,17 @@ struct RichMessageCard: View {
         }
         requestID = UUID().uuidString
       } catch {
-        NativeHaptics.failure(error, source: "rich-action.result")
-        failure = UserFacingError.message(error)
+        let current = store.messages(message.channelId).first { $0.id == message.id }
+        let confirmed = ["sent", "dismissed"].contains(current?.metadata["cardState"].string ?? "")
+        if (suffix == "external-draft" || suffix == "imessage-send") && confirmed {
+          // The response may be lost after its live update already confirmed success.
+          failure = nil
+        } else {
+          NativeHaptics.failure(error, source: "rich-action.result")
+          failure = UserFacingError.message(error)
+          // The row may have been replaced since the press; the failure is the card's, not the row's.
+          if draftOut { store.draftPressFailures[message.id] = failure }
+        }
       }
     }
   }
@@ -796,6 +1133,8 @@ enum DraftPalette {
   static let yellow = color("aa6300", "e28600")
   static let yellowFill = color("da830e38", "c8770c38")
   static let danger = color("cd2834", "ff6463")
+  /// The Discard blob: a solid, muted grey.
+  static let discarding = color("bdbdbd", "5c5c5c")
 }
 
 private struct Line: Shape {
@@ -850,6 +1189,81 @@ private struct DraftNote: View {
   }
 }
 
+/// The draft's height, stepped frame by frame while its card closes. A row resize in the history
+/// interrupts an animated height and an animated row cannot be kept in step with the card, so this
+/// one value is laid out per frame, for the length of the close only; the timeline is paused otherwise.
+private struct DraftClosingHeight: ViewModifier {
+  let height: CGFloat?
+  let closing: Date?
+  let from: CGFloat
+  private static let curve = UnitCurve.bezier(
+    startControlPoint: UnitPoint(x: 0.2, y: 0.9), endControlPoint: UnitPoint(x: 0.1, y: 1))
+  func body(content: Content) -> some View {
+    TimelineView(.animation(paused: closing == nil)) { timeline in
+      let progress = closing.map { min(1, max(0, timeline.date.timeIntervalSince($0) / DraftSendOff.close.duration)) } ?? 1
+      content.frame(
+        height: height.map { from + ($0 - from) * (closing == nil ? 1 : Self.curve.value(at: progress)) },
+        alignment: .top)
+    }
+  }
+}
+
+/// A button of a draft card during a send-off: the pressed one is drawn by the send-off itself,
+/// from the tap until the blob has gone or is the pill again, and tells it where the pill is; the
+/// others are out of the way while the blob waits and flies.
+private struct DraftSendOffPill: ViewModifier {
+  /// The card's coordinate space.
+  static let card = "draft-card"
+  let pressed: Bool
+  let animating: Bool
+  let waiting: Bool
+  /// Set to where the pill starts across the card, when it is not the card's first.
+  var start: Binding<CGFloat>?
+  func body(content: Content) -> some View {
+    content
+      .opacity((pressed ? animating : waiting) ? 0 : 1)
+      .background {
+        if pressed, animating {
+          Color.clear.anchorPreference(key: DraftSendAnchors.self, value: .bounds) { ["pill": $0] }
+          if let start {
+            GeometryReader { proxy in
+              let x = proxy.frame(in: .named(Self.card)).minX
+              Color.clear.onAppear { start.wrappedValue = x }.onChange(of: x) { _, value in start.wrappedValue = value }
+            }
+          }
+        }
+      }
+  }
+}
+
+/// What the blob swallows: scaled down onto the blob's centre, which is the Send pill's leading end
+/// a row below, and opaque until it is nearly there.
+private struct DraftSwallowed: ViewModifier {
+  let swallowed: Bool
+  var anchor = UnitPoint.bottomLeading
+  /// The blob's centre, from the anchor.
+  var blob = CGSize(width: 17, height: 27)
+  func body(content: Content) -> some View {
+    content
+      .scaleEffect(swallowed ? 0.08 : 1, anchor: anchor)
+      .offset(x: swallowed ? 0.92 * blob.width : 0, y: swallowed ? 0.92 * blob.height : 0)
+      .animation(.timingCurve(0.6, 0, 0.9, 0.4, duration: DraftSendOff.gulp), value: swallowed)
+      .opacity(swallowed ? 0 : 1)
+      .animation(.linear(duration: 0.06).delay(DraftSendOff.gulp - 0.06), value: swallowed)
+  }
+}
+
+/// Reports a section's height, only while a send-off needs it.
+private struct DraftHeightReader: View {
+  @Binding var height: CGFloat
+  var body: some View {
+    GeometryReader { proxy in
+      Color.clear.onAppear { height = proxy.size.height }
+        .onChange(of: proxy.size.height) { _, value in height = value }
+    }
+  }
+}
+
 /// Send (solid) and Discard (tinted with an outline), as capsule buttons.
 private struct DraftButtonStyle: ButtonStyle {
   let primary: Bool
@@ -873,9 +1287,14 @@ private struct DraftButtonStyle: ButtonStyle {
 /// The card's state as status text: Ready to send, Sent, and so on.
 struct DraftStatusBadge: View {
   let state: String
+  /// Publishes the badge's frame for the send-off, which lands on it.
+  var anchorsFrame = false
+  /// The send-off's stamp: the label alone, knocked out of solid green.
+  var stamped = false
   static func label(_ state: String) -> String {
     switch state {
-    case "pending", "sending": "Ready to send"
+    case "pending": "Ready to send"
+    case "sending": "Sending"
     case "sent": "Sent"
     case "dismissed": "Discarded"
     case "failed", "draft-created": "Message not delivered"
@@ -886,22 +1305,21 @@ struct DraftStatusBadge: View {
     let ready = state == "pending" || state == "sending"
     let sent = state == "sent"
     let warning = ["failed", "draft-created"].contains(state)
-    let ink = sent ? DraftPalette.green : warning ? DraftPalette.yellow : ready ? DraftPalette.secondary : DraftPalette.tertiary
+    let ink = stamped ? DraftPalette.inverted : sent ? DraftPalette.green : warning ? DraftPalette.yellow : ready ? DraftPalette.secondary : DraftPalette.tertiary
     HStack(spacing: ready ? 6 : 4) {
       if state != "unknown" {
-        Circle().fill(sent ? DraftPalette.green : warning ? DraftPalette.yellow : DraftPalette.tertiary)
+        Circle().fill(stamped ? ink : sent ? DraftPalette.green : warning ? DraftPalette.yellow : DraftPalette.tertiary)
           .frame(width: 6, height: 6)
       }
       Text(Self.label(state)).font(.system(size: 12, weight: .medium))
     }
     .foregroundStyle(ink)
     .padding(.horizontal, ready ? 8 : 7).padding(.vertical, 2)
-    .background(sent ? DraftPalette.greenFill : warning ? DraftPalette.yellowFill : DraftPalette.fillFaint, in: Capsule())
-  }
-}
-
-private struct WidgetSubmitStyle: ButtonStyle {
-  func makeBody(configuration: Configuration) -> some View {
-    configuration.label.opacity(configuration.isPressed ? 0.8 : 1)
+    .background(
+      stamped ? Color.clear : sent ? DraftPalette.greenFill : warning ? DraftPalette.yellowFill : DraftPalette.fillFaint,
+      in: Capsule())
+    .background {
+      if anchorsFrame { Color.clear.anchorPreference(key: DraftSendAnchors.self, value: .bounds) { ["badge": $0] } }
+    }
   }
 }

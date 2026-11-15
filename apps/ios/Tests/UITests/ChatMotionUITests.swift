@@ -94,7 +94,7 @@ import XCTest
     app.launch()
     defer { app.terminate() }
     let spinner = app.descendants(matching: .any).matching(identifier: "chat-loading").firstMatch
-    XCTAssertTrue(app.buttons["chat-back"].waitForExistence(timeout: 15))
+    XCTAssertTrue(app.chatBackButton.waitForExistence(timeout: 15))
     XCTAssertTrue(spinner.waitForNonExistence(timeout: 15))
     XCTAssertTrue(app.staticTexts["Page message 179"].exists)
     // Persist through the normal background lifecycle, then create a new process.
@@ -104,7 +104,7 @@ import XCTest
       "GET /api/v0/channels/visual-chat/history": ["status": 503, "count": 100],
     ]])
     app.launch()
-    XCTAssertTrue(app.buttons["chat-back"].waitForExistence(timeout: 15))
+    XCTAssertTrue(app.chatBackButton.waitForExistence(timeout: 15))
     XCTAssertTrue(spinner.waitForNonExistence(timeout: 15))
     XCTAssertTrue(app.staticTexts["Page message 180"].isHittable)
     XCTAssertTrue(app.staticTexts["Page message 179"].exists)
@@ -124,7 +124,7 @@ import XCTest
     app.buttons["channel-visual-chat"].tap()
     let spinner = app.descendants(matching: .any).matching(identifier: "chat-loading").firstMatch
     XCTAssertTrue(spinner.waitForExistence(timeout: 3))
-    app.buttons["chat-back"].tap()
+    app.chatBackButton.tap()
     XCTAssertTrue(app.buttons["channel-visual-other"].waitForExistence(timeout: 5))
     app.buttons["channel-visual-other"].tap()
     XCTAssertTrue(spinner.waitForNonExistence(timeout: 15))
@@ -136,7 +136,7 @@ import XCTest
     XCTAssertFalse(app.staticTexts["Main chat latest"].exists)
     for (id, label) in [("visual-chat", "Main chat latest"), ("visual-other", "Other chat latest"),
                         ("visual-chat", "Main chat latest")] {
-      app.buttons["chat-back"].tap()
+      app.chatBackButton.tap()
       XCTAssertTrue(app.buttons["channel-" + id].waitForExistence(timeout: 5))
       app.buttons["channel-" + id].tap()
       XCTAssertTrue(app.staticTexts[label].waitForExistence(timeout: 15))
@@ -155,7 +155,7 @@ import XCTest
     app.launch()
     defer { app.terminate() }
     let spinner = app.descendants(matching: .any).matching(identifier: "chat-loading").firstMatch
-    XCTAssertTrue(app.buttons["chat-back"].waitForExistence(timeout: 15))
+    XCTAssertTrue(app.chatBackButton.waitForExistence(timeout: 15))
     XCTAssertTrue(spinner.waitForNonExistence(timeout: 15))
     app.tables["chat-history"].swipeDown()
     XCTAssertTrue(app.buttons["Latest messages"].waitForExistence(timeout: 5))
@@ -219,7 +219,7 @@ import XCTest
     XCTAssertEqual(loadedFrame.width, frame.width, accuracy: 1)
     XCTAssertEqual(loadedFrame.height, frame.height, accuracy: 1)
     capture("initial-media-layout-settled", app)
-    app.buttons["chat-back"].tap()
+    app.chatBackButton.tap()
     XCTAssertTrue(app.buttons["channel-visual-chat"].waitForExistence(timeout: 5))
     app.buttons["channel-visual-chat"].tap()
     XCTAssertTrue(marker.waitForExistence(timeout: 10))
@@ -486,7 +486,7 @@ import XCTest
       }
       capture("opening-latest-" + appearance, app)
       // A previously loaded page opens immediately while its slow refresh runs.
-      app.buttons["chat-back"].tap()
+      app.chatBackButton.tap()
       chat.tap()
       XCTAssertTrue(latest.waitForExistence(timeout: 3))
       XCTAssertTrue(latest.isHittable)
@@ -600,7 +600,8 @@ import XCTest
     app.buttons["attachment-tray-dismiss"].coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.15)).tap()
     XCTAssertTrue(tray.waitForNonExistence(timeout: 3), "Outside Photos must close the entire tray")
 
-    // A panel can't cover the keyboard, so it goes down and Back brings it up again.
+    // A panel can't cover the keyboard, so it leaves at once beneath a still of
+    // the chat, and rises back into place on Back and when the tray closes.
     let keyboard = app.keyboards.firstMatch
     if !keyboard.exists {
       app.descendants(matching: .any).matching(identifier: "message-input").firstMatch.tap()
@@ -615,7 +616,8 @@ import XCTest
     XCTAssertEqual(tray.frame.height, photosFrame.height, accuracy: 1)
     XCTAssertTrue(keyboard.waitForNonExistence(timeout: 3))
     app.buttons["attach-back"].tap()
-    XCTAssertTrue(keyboard.waitForExistence(timeout: 3), "Back must return the keyboard")
+    XCTAssertTrue(app.buttons["attach-camera"].waitForExistence(timeout: 3))
+    XCTAssertTrue(keyboard.waitForExistence(timeout: 3), "Back must return the menu above the keyboard")
     XCTAssertTrue(app.buttons["attach-camera"].waitForExistence(timeout: 3))
     app.buttons["attach-camera"].tap()
     XCTAssertTrue(shutter.waitForExistence(timeout: 5))
@@ -642,7 +644,7 @@ import XCTest
     if !app.buttons["attach-camera"].waitForExistence(timeout: 3) { attach.tap() }
     let tray = app.descendants(matching: .any).matching(identifier: "attachment-tray").firstMatch
     let original = tray.frame
-    XCTAssertEqual(original.height, 230, accuracy: 1)
+    XCTAssertEqual(original.height, 228, accuracy: 1, "Three reference rows, 206 px apart at 3x, with 11 points above and below")
     XCTAssertFalse(app.buttons["attach-voice"].exists)
     for page in ["camera", "photos", "camera"] {
       app.buttons["attach-" + page].tap()
@@ -750,7 +752,7 @@ import XCTest
     ]
     app.launch()
     defer { app.terminate() }
-    XCTAssertTrue(app.buttons["chat-back"].waitForExistence(timeout: 15))
+    XCTAssertTrue(app.chatBackButton.waitForExistence(timeout: 15))
     XCTAssertTrue(
       app.descendants(matching: .any).matching(identifier: "chat-loading").firstMatch
         .waitForNonExistence(timeout: 8))
@@ -789,12 +791,12 @@ import XCTest
       app.launch()
       let error = app.buttons["chat-load-error"]
       XCTAssertTrue(error.waitForExistence(timeout: 12))
-      XCTAssertTrue(app.buttons["chat-back"].exists)
+      XCTAssertTrue(app.chatBackButton.exists)
       XCTAssertFalse(app.alerts.firstMatch.exists)
       XCTAssertFalse(app.descendants(matching: .any).matching(identifier: "message-input").firstMatch.exists)
       XCTAssertFalse(app.descendants(matching: .any).matching(identifier: "chat-loading").firstMatch.exists)
       capture("chat-load-error-" + appearance, app)
-      app.buttons["chat-back"].tap()
+      app.chatBackButton.tap()
       XCTAssertTrue(app.buttons["channel-visual-chat"].waitForExistence(timeout: 5))
       app.buttons["channel-visual-chat"].tap()
       XCTAssertTrue(error.waitForExistence(timeout: 5))
@@ -838,7 +840,7 @@ import XCTest
       "--appearance", "light", "--open-channel", "visual-chat"]
     app.launch()
     XCTAssertTrue(app.staticTexts["Got it — here."].waitForExistence(timeout: 12))
-    app.buttons["chat-back"].tap()
+    app.chatBackButton.tap()
     try await control("__qa/control", ["offline": true])
     app.buttons["channel-visual-chat"].tap()
     XCTAssertTrue(app.staticTexts["Got it — here."].waitForExistence(timeout: 5))
@@ -987,7 +989,7 @@ import XCTest
       "--appearance", "dark", "--open-channel", "visual-chat",
     ]
     app.launch()
-    XCTAssertTrue(app.buttons["chat-back"].waitForExistence(timeout: 15))
+    XCTAssertTrue(app.chatBackButton.waitForExistence(timeout: 15))
     let input = app.descendants(matching: .any).matching(identifier: "message-input").firstMatch
     XCTAssertTrue(input.waitForExistence(timeout: 10))
     // A visible composer stays disabled until the history has reached Latest.
@@ -1163,7 +1165,7 @@ import XCTest
       "--appearance", "dark", "--open-channel", "visual-chat",
     ]
     app.launch()
-    XCTAssertTrue(app.buttons["chat-back"].waitForExistence(timeout: 15))
+    XCTAssertTrue(app.chatBackButton.waitForExistence(timeout: 15))
     let input = app.descendants(matching: .any).matching(identifier: "message-input").firstMatch
     XCTAssertTrue(input.waitForExistence(timeout: 10))
     XCTAssertTrue(app.descendants(matching: .any).matching(identifier: "chat-loading").firstMatch.waitForNonExistence(timeout: 15))
