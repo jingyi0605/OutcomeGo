@@ -9,6 +9,7 @@ export const APP_SETTINGS_ANCHORS = [
   "inference-model",
   "inference-reasoning",
   "update-status",
+  "update-channel",
   "server-update",
   "tailscale-https",
   "automatic-updates",

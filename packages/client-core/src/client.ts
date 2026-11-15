@@ -167,6 +167,10 @@ export const createOutcomeGoClient = (options: OutcomeGoClientOptions) => {
       method: "POST", body: JSON.stringify({ targetVersion }),
     }),
     systemVersion: () => transport.request<SystemVersionView>("/api/v0/system/version"),
+    setUpdateChannel: (channel: "stable" | "beta") =>
+      transport.request<{ updateChannel: "stable" | "beta" }>("/api/v0/system/update-channel", {
+        method: "PUT", body: JSON.stringify({ channel }),
+      }),
     systemActivity: (signal?: AbortSignal) =>
       transport.request<SystemActivityView>("/api/v0/system/activity", { signal }),
     rootSettings: () => transport.request<RootSettingsView>("/api/v0/settings"),

@@ -20,20 +20,44 @@ export class ServerUpdates {
   private heartbeatAt = 0;
   private request: ServerUpdateRequest | null;
   private readonly file: string;
+  private readonly channelFile: string;
+  private _allowPrerelease: boolean;
+
+  get updateChannel(): "stable" | "beta" {
+    return this._allowPrerelease ? "beta" : "stable";
+  }
 
   constructor(
     private readonly directory: string,
     private readonly currentVersion: string,
     private readonly now = Date.now,
-    private readonly allowPrerelease = false
+    allowPrerelease = false
   ) {
     this.file = join(directory, "server-update.json");
+    this.channelFile = join(directory, "update-channel.json");
+    // A persisted channel override wins over the env-var default.
+    try {
+      const stored = JSON.parse(readFileSync(this.channelFile, "utf8")) as {
+        channel?: string;
+      };
+      this._allowPrerelease = stored.channel === "beta";
+    } catch {
+      this._allowPrerelease = allowPrerelease;
+    }
     try {
       this.request = JSON.parse(readFileSync(this.file, "utf8"));
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
       this.request = null;
     }
+  }
+
+  setChannel(channel: "stable" | "beta"): void {
+    this._allowPrerelease = channel === "beta";
+    mkdirSync(this.directory, { recursive: true, mode: 0o700 });
+    const tmp = `${this.channelFile}.tmp`;
+    writeFileSync(tmp, JSON.stringify({ channel }), { mode: 0o600 });
+    renameSync(tmp, this.channelFile);
   }
 
   private save() {
@@ -88,13 +112,13 @@ export class ServerUpdates {
       typeof body?.targetVersion === "string" ? normalizeOutcomeGoVersion(body.targetVersion) : null;
     if (
       !version ||
-      (version.includes("-") && !this.allowPrerelease) ||
+      (version.includes("-") && !this._allowPrerelease) ||
       (compareOutcomeGoVersions(version, this.currentVersion) ?? 0) <= 0
     )
       throw new ApiError(
         400,
         "invalid_update_version",
-        this.allowPrerelease ? "Choose a newer server release." : "Choose a newer stable server release."
+        this._allowPrerelease ? "Choose a newer server release." : "Choose a newer stable server release."
       );
     // No destination, executable, repository, or flags can be supplied by clients.
     if (Object.keys(body!).some((key) => key !== "targetVersion"))
@@ -171,4 +195,25 @@ export async function serverUpdateRoute(
   )
     throw new ApiError(403, "update_auth_required", "Sign in to update this server.");
   return json(updates.start(await request.json()), 202);
+}
+
+/** PUT /api/system/update-channel – change the update channel. Requires owner session + Bearer. */
+export async function updateChannelRoute(
+  request: Request,
+  updates: ServerUpdates,
+  authenticatedSessionId: string | null
+): Promise<Response> {
+  if (request.method === "GET") return json({ updateChannel: updates.updateChannel });
+  if (request.method !== "PUT") return json({ error: { code: "method_not_allowed" } }, 405);
+  if (
+    !authenticatedSessionId ||
+    !/^Bearer\s+\S+$/i.test(request.headers.get("authorization") ?? "")
+  )
+    throw new ApiError(403, "update_auth_required", "Sign in to change the update channel.");
+  const body = (await request.json()) as Record<string, unknown> | null;
+  const channel = typeof body?.channel === "string" ? body.channel : null;
+  if (channel !== "stable" && channel !== "beta")
+    throw new ApiError(400, "invalid_channel", 'channel must be "stable" or "beta".');
+  updates.setChannel(channel);
+  return json({ updateChannel: updates.updateChannel });
 }

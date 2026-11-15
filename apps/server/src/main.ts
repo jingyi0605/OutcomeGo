@@ -1,4 +1,4 @@
-import { ServerUpdates, serverUpdateRoute } from "./server-updates";
+import { ServerUpdates, serverUpdateRoute, updateChannelRoute } from "./server-updates";
 import { internalNotificationsRoute } from "./routes/internal-notifications";
 import { machineChannelResponse } from "./machine-http";
 import { connectorTransferResponse, boundedRequest } from "./connector-transfer-http";
@@ -158,7 +158,7 @@ const server = Bun.serve<VncConnection | NetworkConnection | VoiceConnectionData
         return json({ mode: authMode });
       }
       if (request.method === "GET" && path === "/api/system/version") {
-        return json(release);
+        return json({ ...release, updateChannel: serverUpdates.updateChannel });
       }
       if (request.method === "POST" && url.pathname === "/api/auth/login") {
         if (!loginOriginAllowed(request, url.origin)) {
@@ -316,6 +316,8 @@ const server = Bun.serve<VncConnection | NetworkConnection | VoiceConnectionData
       }
       if (path === "/api/system/update")
         return await serverUpdateRoute(request, serverUpdates, authenticatedSessionId);
+      if (path === "/api/system/update-channel")
+        return await updateChannelRoute(request, serverUpdates, authenticatedSessionId);
       if (request.method === "POST" && vncMatch) {
         const response = json(await vnc.issue(vncMatch[1]!, authenticatedSessionId, request.headers.get("origin")));
         response.headers.set("cache-control", "no-store");
