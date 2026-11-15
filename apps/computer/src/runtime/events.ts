@@ -5,9 +5,10 @@ import { safeToolResult, textFromContent, thinkingFromContent, toolItem } from "
 import { observeGraphicalToolResult } from "./graphical-completion";
 import type { ActiveTurn } from "./types";
 
-/** A delivered send or closing reaction. */
-export function markDelivered(active: ActiveTurn): void {
+/** Any delivered send/tapback counts as output; only text or a tapback acknowledges the user. */
+export function markDelivered(active: ActiveTurn, acknowledgesUser: boolean): void {
   active.sentMessageCount += 1;
+  if (acknowledgesUser) active.userAcknowledged = true;
 }
 
 export function startAgentMessage(active: ActiveTurn, itemId: string): void {
@@ -64,6 +65,11 @@ export function routeEvent(
   if (event.type === "message_start") {
     const message = event.message as { role?: string };
     if (message.role === "assistant") {
+      // A refresh applies to the next model response, never its already-emitted siblings.
+      if (active.pendingDraftStateRevision) {
+        active.draftStateRevision = active.pendingDraftStateRevision;
+        active.pendingDraftStateRevision = undefined;
+      }
       active.assistantOrdinal += 1;
       active.currentAssistantId = `assistant:${active.runId}:${active.assistantOrdinal}`;
       active.currentReasoningId = `reasoning:${active.runId}:${active.assistantOrdinal}`;

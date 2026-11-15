@@ -1,6 +1,7 @@
 import reference from "./tool-reference.json";
 import native from "./native-tools.json";
 import { APP_SETTINGS_ANCHORS } from "./app-deep-links";
+import { presentationInputJsonSchema } from "./presentation";
 import { ROBOT_AVATAR_SHAPES } from "./robot-avatar";
 import { DESKTOP_MESSAGES_TOOLS, MESSAGES_MACHINE_ID_DESCRIPTION } from "./desktop-capability-names";
 import { defaultTaskConfiguration, taskTypeNames, type TaskConfiguration } from "./task-configuration";
@@ -140,7 +141,7 @@ contracts.UploadFile!.description = editReference("UploadFile", contracts.Upload
   ...otherProviders,
   [
     /- Gmail: destination\.draftId[^\n]*/,
-    "- Gmail: destination.draftId is the id create_draft returned (or one from list_drafts); the file is attached and the id stays the same. Attach last: Gmail's update_draft removes every attachment it is not handed again, so finish recipients, subject and body before calling UploadFile, and never call update_draft on a draft that already has an attachment (make a new draft and attach again instead). The Gmail connection cannot send a draft, so it waits unsent in the user's Gmail Drafts; tell them it is there. A DraftExternalMessage card cannot carry this file. A Gmail draft here carries a file; it is not how you draft for review. The draft with its attachments must stay under 25 MB.",
+    "- Gmail: destination.draftId is the id create_draft returned (or one from list_drafts); the file is attached and the id stays the same. Attach last: Gmail's update_draft removes every attachment it is not handed again, so finish recipients, subject and body before calling UploadFile, and never call update_draft on a draft that already has an attachment (make a new draft and attach again instead). Use this only when the user asks to keep the draft in Gmail. This connection cannot send a draft, so it waits unsent in the user's Gmail Drafts. For an email reviewed and sent in chat, use DraftExternalMessage with attachments instead. The Gmail draft with its attachments must stay under 25 MB.",
   ],
 ]);
 contracts.DownloadFile!.description = editReference("DownloadFile", contracts.DownloadFile!.description, [
@@ -233,6 +234,9 @@ adaptArgument("CopyFromBox", "box_path", [["Any file type, up to 100 MiB;", "Any
 // "How a turn works", "Autonomy" and "Asking for decisions" prompt sections. Only the main agent has
 // SendToUser (workers and routine runs never do), so the long variant is not needed.
 const send = contracts.SendToUser!;
+send.inputSchema.properties.type.enum.push("presentation");
+send.inputSchema.properties.presentation = presentationInputJsonSchema;
+send.description += " Use type:presentation with presentation:{version:1,places:[...],blocks:[...]} to mix Markdown, native place_map maps and ranked_media_list items in one answer. In places, list the ids of places a places tool returned in this conversation, or {id,notes} to add your own note; OutcomeGo fills in their verified details. Give a full place object only for a place you verified another way (latitude/longitude, its source as provider/sourceUrl, and only the ratings, hours and photos that source gave); never invent coordinates. Reference place ids in map placeIds and media item placeId; an item with placeId shows that place's photo. For a route, pass the route id a routing tool returned; never draw straight lines as directions. Map carousel defaults to auto; hidden gives a route-only map. Put all narrative in ordered markdown blocks, don't generate HTML, and set end_turn as for a text reply. Use ordinary text when these components don't help.";
 // There are no cloud agents, so the cursor-agent card is not offered.
 send.inputSchema.properties.type.enum = send.inputSchema.properties.type.enum.filter((type: string) => type !== "cursor-agent");
 delete send.inputSchema.properties.bcId;

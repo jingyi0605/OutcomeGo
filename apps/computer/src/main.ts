@@ -10,6 +10,7 @@ import {
   ComputerTurnRequest,
   ScreenActionInput,
   ScreenClipboardInput,
+  ScreenControlIdentity,
   ScreenPauseInput,
   ScreenTakeoverInput,
   serverInferenceSettings,
@@ -547,19 +548,25 @@ const server = Bun.serve({
 
       const clipboardMatch = url.pathname.match(/^\/v1\/screens\/([^/]+)\/clipboard$/);
       if (request.method === "POST" && clipboardMatch?.[1]) {
-        const body = await request.json() as { cwd?: string; input?: unknown };
+        const body = await request.json() as { cwd?: string; input?: unknown; control?: { controlId?: string; generation?: number } };
         const cwd = safePath(body.cwd ?? workspaceRoot);
         const input = Schema.decodeUnknownSync(ScreenClipboardInput)(body.input);
-        return json(await screens.clipboard(clipboardMatch[1], cwd, input, request.signal));
+        return json(await screens.clipboard(clipboardMatch[1], cwd, input, request.signal, { id: body.control?.controlId, generation: body.control?.generation }));
       }
 
       const actionMatch = url.pathname.match(/^\/v1\/screens\/([^/]+)\/actions$/);
       if (request.method === "POST" && actionMatch?.[1]) {
-        const body = (await request.json()) as { cwd?: string; input?: unknown };
+        const body = (await request.json()) as { cwd?: string; input?: unknown; control?: { controlId?: string; generation?: number } };
         if (!body.cwd) return json({ error: "cwd is required" }, 400);
         const cwd = safePath(body.cwd);
         const input = Schema.decodeUnknownSync(ScreenActionInput)(body.input);
-        return json(await screens.act(actionMatch[1], cwd, input, "human"));
+        return json(await screens.act(actionMatch[1], cwd, input, "human", { id: body.control?.controlId, generation: body.control?.generation }));
+      }
+
+      const controlMatch = url.pathname.match(/^\/v1\/screens\/([^/]+)\/control$/);
+      if (request.method === "POST" && controlMatch?.[1]) {
+        const control = Schema.decodeUnknownSync(ScreenControlIdentity)(await request.json());
+        return json({ allowed: screens.viewerMayInput(controlMatch[1], control) });
       }
 
       const takeoverMatch = url.pathname.match(/^\/v1\/screens\/([^/]+)\/takeover$/);
@@ -568,10 +575,10 @@ const server = Bun.serve({
         if (!body.cwd) return json({ error: "cwd is required" }, 400);
         const cwd = safePath(body.cwd);
         const raw = body as { renew?: unknown; activity?: unknown };
-        const input = Schema.decodeUnknownSync(ScreenTakeoverInput)({ active: body.active, renew: raw.renew });
+        const input = Schema.decodeUnknownSync(ScreenTakeoverInput)(body);
         // `activity` is reported only by the server's VNC proxy, never by end-user clients.
         return json(await screens.takeover(takeoverMatch[1], cwd, input.active, {
-          renew: input.renew,
+          ...input,
           activity: raw.activity === true,
         }));
       }
@@ -613,6 +620,14 @@ const server = Bun.serve({
         });
       }
 
+      const mcpForgetMatch = url.pathname.match(/^\/v1\/mcp\/connections\/([^/]+)\/state$/);
+      if (request.method === "DELETE" && mcpForgetMatch?.[1]) {
+        const generation = request.headers.get("x-outcomego-mcp-generation");
+        if (generation === null) return json({ error: "Runtime generation required" }, 400);
+        await stdioMcp.forget(mcpForgetMatch[1], Number(generation));
+        return json({ ok: true });
+      }
+
       const mcpConnectionMatch = url.pathname.match(/^\/v1\/mcp\/connections\/([^/]+)$/);
       if (request.method === "GET" && mcpConnectionMatch?.[1]) {
         return json(stdioMcp.status(mcpConnectionMatch[1]));
@@ -627,7 +642,7 @@ const server = Bun.serve({
         const input = Schema.decodeUnknownSync(ComputerTurnRequest)(await request.json());
         safePath(input.cwd);
         await setBoxClock(input.timeZone);
-        const events = await runtime.run(input);
+        const events = await runtime.run(input, request.signal);
         const body = computerEventStream(events, undefined, {
           onCancel: async () => {
             // A disconnected worker must not leave tools or child tasks

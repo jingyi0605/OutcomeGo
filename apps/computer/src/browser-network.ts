@@ -7,6 +7,7 @@ import { randomUUID } from "node:crypto";
 import { spawn, type ChildProcess } from "node:child_process";
 import { join } from "node:path";
 import { existsSync, readFileSync } from "node:fs";
+import { createNetworkDiagnostics, sanitizeNetworkDiagnostic } from "@outcomego/plugin-sdk/browser-network/diagnostics";
 import { nodeBinary } from "./node-runtime";
 
 export const browserProxyPort = Number(process.env.OUTCOMEGO_BROWSER_PROXY_PORT ?? 18791);
@@ -26,6 +27,7 @@ export const managedBrowserNetworkArguments = (port = browserProxyPort) =>
       ];
 
 export async function startBrowserNetwork(serverUrl: string, token: string) {
+  const logNetwork = createNetworkDiagnostics("computer");
   const computerNetwork = process.env.OUTCOMEGO_COMPUTER_NETWORK === "1";
   if (computerNetwork && !existsSync("/run/outcomego-network-ready"))
     throw new Error("Computer network routing is not initialized");
@@ -149,16 +151,15 @@ export async function startBrowserNetwork(serverUrl: string, token: string) {
       worker.stdout!.setEncoding("utf8");
       worker.stdout!.on("data", (chunk: string) => {
         pending += chunk;
-        if (pending.length > 8192) {
-          worker.kill();
-          return;
-        }
         let end: number;
         while ((end = pending.indexOf("\n")) !== -1) {
+          if (end > 8192) { worker.kill(); return; }
           const line = pending.slice(0, end);
           pending = pending.slice(end + 1);
           try {
             const value = JSON.parse(line);
+            const event = sanitizeNetworkDiagnostic(value.diagnostic);
+            if (event) logNetwork(event);
             if (value.started && !started) {
               started = true;
               clearTimeout(timeout);

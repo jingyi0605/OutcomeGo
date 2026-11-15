@@ -71,7 +71,7 @@ import { INSTALL_NOTICE_TYPE, InstallNotice } from "./runtime/install-notice";
 import { PROCESS_NOTICE_TYPE, ProcessNotice } from "./runtime/process-notice";
 
 import { defaultTaskConfiguration, parseTaskConfiguration } from "@outcomego/contracts/task-configuration";
-import { assertSessionPath, disposableSessionPath, existingContextSessionPath } from "./runtime/session-path";
+import { assertSessionPath, existingContextSessionPath, resolvedDisposableSessionPath } from "./runtime/session-path";
 import { RuntimeTools } from "./runtime/tools";
 import { pluginComponentsExtension } from "./runtime/plugin-components";
 import type { ActiveTurn, RuntimeImage, TurnStatus } from "./runtime/types";
@@ -297,8 +297,12 @@ export class ComputerRuntime {
     this.inferenceProviders.cancel(sessionId);
   }
 
-  async run(request: ComputerTurnRequest): Promise<AsyncIterable<ComputerEvent>> {
+  async run(request: ComputerTurnRequest, signal?: AbortSignal): Promise<AsyncIterable<ComputerEvent>> {
+    signal?.throwIfAborted();
     await this.start();
+    // Startup can outlive the caller's dispatch deadline. Never admit an expired request after
+    // deletion has already observed that no runtime turn exists and completed its cleanup.
+    signal?.throwIfAborted();
     const modelRef = parsePiModelRef(request.model);
     if (this.activeByRun.has(request.runId)) {
       throw new Error(`Run ${request.runId} is already active`);
@@ -377,10 +381,14 @@ export class ComputerRuntime {
     }
     this.activeByRun.set(active.runId, active);
     this.activeByContext.set(active.contextSessionId, active);
+    const abortSetup = () => { void this.cancel(active.runId, "stop").catch(() => {}); };
+    signal?.addEventListener("abort", abortSetup, { once: true });
 
     try {
+      signal?.throwIfAborted();
       this.resolveModel(modelRef);
       const authentication = await this.modelRuntime?.checkAuth(modelRef.providerId);
+      signal?.throwIfAborted();
       if (!authentication) {
         throw new Error(`Pi inference provider ${modelRef.providerId} is not configured`);
       }
@@ -486,6 +494,8 @@ export class ComputerRuntime {
         )
       );
       throw error;
+    } finally {
+      signal?.removeEventListener("abort", abortSetup);
     }
   }
 
@@ -560,13 +570,14 @@ export class ComputerRuntime {
     }
     this.providerConnections.dispose(contextSessionId);
     await this.compaction.remove(contextSessionId);
-    if (!sessionPath) return;
-    const removable = disposableSessionPath(this.sessionsDir, sessionPath);
+    const recordedPath = sessionPath ?? await existingContextSessionPath(this.sessionsDir, contextSessionId);
+    if (!recordedPath) return;
+    const removable = await resolvedDisposableSessionPath(this.sessionsDir, recordedPath);
     if (!removable) {
       // A recorded path outside the session root is stale bookkeeping, not a reason to keep the
       // chat undeletable; the caller removes the database row either way.
       console.warn(
-        `context session ${contextSessionId} records a session path outside the session root; leaving ${sessionPath} untouched`
+        `context session ${contextSessionId} records an unavailable path or one outside the session root; leaving ${recordedPath} untouched`
       );
       return;
     }
