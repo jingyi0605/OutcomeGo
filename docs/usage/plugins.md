@@ -53,6 +53,10 @@ The Slack connection needs an HTTPS OutcomeGo address. For a private deployment,
 
 Bots execute connected tools directly. Disconnect or remove an account to stop its use. Provider account scopes determine which operations the service accepts.
 
+## What bots do without asking
+
+By default, bots put outgoing email and Slack messages in an editable draft card in the chat, and nothing goes out until you choose **Send**. Texts sent through Messages on a Mac get a similar card. Other plugin tools run as soon as a bot uses them; the account permissions on the service decide which operations it accepts. Disconnect or remove an account to stop bots from using it.
+
 ## Manage a plugin
 
 Open **Marketplace → Manage → Accounts and settings** and choose the plugin and account.

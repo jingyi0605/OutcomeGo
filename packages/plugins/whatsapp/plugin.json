@@ -1,0 +1,72 @@
+{
+  "schemaVersion": 1,
+  "key": "whatsapp",
+  "version": "1.0.12",
+  "name": "WhatsApp",
+  "description": "Link your WhatsApp account to search conversations, read history, send messages and attachments, and manage chats.",
+  "publisher": "OpenTeam",
+  "category": "Inbox & Collaboration",
+  "featured": false,
+  "components": [
+    "mcp",
+    "skills"
+  ],
+  "homepageUrl": "https://github.com/openclaw/wacli",
+  "icon": "assets/icon.png",
+  "setup": {
+    "kind": "none",
+    "connectionKey": "whatsapp",
+    "title": "Connect WhatsApp",
+    "description": "Link WhatsApp on your phone by scanning a QR code. OpenTeam handles setup automatically.",
+    "documentationUrl": "https://github.com/openclaw/wacli/blob/v0.26.0/docs/auth.md",
+    "steps": [
+      "Choose Connect to display a QR code.",
+      "On your phone, open WhatsApp → Linked devices → Link a device, then scan the code.",
+      "Keep WhatsApp open while linking and initial history sync finish. New codes appear automatically."
+    ],
+    "fields": [],
+    "requiredScopes": []
+  },
+  "connections": [
+    {
+      "key": "whatsapp",
+      "name": "WhatsApp",
+      "transport": "stdio",
+      "auth": "none",
+      "endpoint": "",
+      "tools": [],
+      "configuration": {
+        "command": "bun",
+        "args": [
+          "${PLUGIN_ROOT}/connector/server.mjs"
+        ]
+      },
+      "persistentState": true,
+      "deviceLink": {
+        "startTool": "whatsapp_start_link",
+        "finishTool": "whatsapp_finish_link",
+        "statusTool": "whatsapp_link_status",
+        "cancelTool": "whatsapp_cancel_link",
+        "removeTool": "whatsapp_remove_account",
+        "instructions": "In WhatsApp on your phone, open Settings → Linked devices → Link a device, then scan this code. Keep WhatsApp open while linking finishes."
+      }
+    }
+  ],
+  "skills": [
+    {
+      "name": "whatsapp",
+      "description": "Search and read WhatsApp conversations, resolve contacts, send messages and attachments, reply, react, or change chat state through the connected account's tools.",
+      "path": "skills/whatsapp"
+    },
+    {
+      "name": "whatsapp-setup",
+      "description": "Check WhatsApp sync and history coverage, explain account-settings linking, recover a disconnected session, or remove the device.",
+      "path": "skills/whatsapp-setup"
+    }
+  ],
+  "installationSteps": [
+    "Install WhatsApp and choose Connect.",
+    "Scan the QR code using WhatsApp → Linked devices → Link a device on your phone.",
+    "Keep WhatsApp open until the account says Connected."
+  ]
+}

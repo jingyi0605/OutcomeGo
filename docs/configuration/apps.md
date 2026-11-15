@@ -7,6 +7,7 @@ Some settings apply to one device, some to one bot, and some to your whole serve
 | Tab | What's there |
 | --- | --- |
 | **General** | Your account and sign out, theme, microphone |
+| **Keyboard** | ScreenBot capture shortcut, search, sidebar, settings, dictation, and previous/next bot shortcuts |
 | **Computer** | The current computer's name and Messages access and permissions |
 | **Model** | AI provider and account, model, reasoning effort, and connection test |
 | **Voice notes** | Transcription provider, model, API key, language, and connection test |
@@ -17,6 +18,14 @@ Some settings apply to one device, some to one bot, and some to your whole serve
 **Model**, **Voice notes**, **Server**, and **Providers** settings apply to every bot and every app connected to your server; changing the model there changes it for all bots. Theme, microphone, the current computer's name, and Messages access apply only to the device you're using. The bot screen size, computer network priority, and list of connected computers live in **Server** and apply to your whole server. Permission to [share a computer's internet connection](../usage/computer.md#route-computer-traffic-through-a-connected-computer) is granted locally on that computer.
 
 Each bot also has its own settings. Open the bot and select its name at the top of the conversation to change its name, label, avatar, and description.
+
+## Keyboard shortcuts and ScreenBot
+
+On desktop, open **Settings → Keyboard** to change or reset shortcuts for **Search**, the sidebar, settings, dictation, and moving between bots. The app checks for conflicting and reserved shortcuts before saving.
+
+The same page sets the global **ScreenBot** shortcut. ScreenBot captures the display under your pointer and opens a floating composer so you can choose a bot, add instructions, and send the screenshot without switching to the chat window. See [send a screenshot with ScreenBot](../usage/files.md#send-a-screenshot-with-screenbot).
+
+On macOS, ScreenBot defaults to pressing both **Command** keys together. On Windows and Linux, it defaults to **Ctrl+Shift+2**. These settings belong to the desktop app; the iPhone and iPad apps do not have this Keyboard page.
 
 ## iPhone settings
 

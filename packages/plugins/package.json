@@ -25,10 +25,13 @@
     "imapflow": "2.4.2",
     "nodemailer": "10.1.1",
     "postal-mime": "2.6.1",
-    "xlsx": "file:../../vendor/sheetjs/xlsx-0.20.3.tgz"
+    "xlsx": "file:../../vendor/sheetjs/xlsx-0.20.3.tgz",
+    "qrcode": "1.5.4",
+    "qrcode-generator": "2.0.4"
   },
   "devDependencies": {
     "@types/html-to-text": "9.0.4",
-    "@types/nodemailer": "8.0.2"
+    "@types/nodemailer": "8.0.2",
+    "@types/qrcode": "1.5.6"
   }
 }

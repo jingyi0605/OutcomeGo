@@ -6,9 +6,7 @@ Give bots files to work from, and get back files you can open and use.
 
 Use the attachment button in the message box to add up to **20 attachments** to one message. Files and images can be up to 25 MiB each; videos can be up to 200 MiB each.
 
-On iPhone or iPad, tap **+** and choose **Camera**, **Photos**, or **Files**. The photo tray lets you select photos and videos, then add your selection; **All Photos** opens the full library when nothing is selected. Its back control returns to the attachment menu. The photo and camera panels stay aligned with the chat when you rotate the device or resize the sidebar. Review the attachments in the message box and remove any you don't want before sending.
-
-After you send on iPhone or iPad, pending attachments appear in the outgoing message while they upload. Supported images and videos use local thumbnails; other files show a file preview. The pending message stays in the conversation until delivery is confirmed or you discard it. See [message delivery status](conversations.md#if-a-message-doesnt-send) if it fails or remains unconfirmed.
+On iPhone or iPad, tap **+** and choose **Camera**, **Photos**, or **Files**. Review the attachments in the message box and remove any you don't want before sending. If a message with attachments doesn't send, see [message delivery status](conversations.md#if-a-message-doesnt-send).
 
 The bot receives each attachment's filename and size, so you can refer to files by name. Large image collections may exceed what the model can see at once; the bot can still open the remaining attachments as files.
 
@@ -18,11 +16,29 @@ Say which file to use and what you want back:
 
 For scanned documents or unusual formats, ask the bot to confirm what it could read before you rely on its analysis.
 
+## Send a screenshot with ScreenBot
+
+With the desktop app running and signed in, press both **Command** keys on macOS, or **Ctrl+Shift+2** on Windows or Linux. ScreenBot takes a screenshot of the display under your pointer and opens a floating composer over the app you're using. Select the bot, type what you need, review the screenshot, and send it. You can change the shortcut in [Settings → Keyboard](../configuration/apps.md#keyboard-shortcuts-and-screenbot).
+
+On macOS, allow OpenTeam in **System Settings → Privacy & Security → Screen & System Audio Recording**, then reopen OpenTeam if requested. Modifier-pair shortcuts and Fn dictation use the Mac's keyboard helper; follow the app's permission prompt if input access is needed. Screenshot capture and global shortcuts on other desktops depend on the operating system's permissions and shortcut availability.
+
+The screenshot goes to your selected bot as an attachment when you send it, so it becomes part of that conversation and can be sent to the model provider. Check for private information before sending.
+
 ## Get a file back
 
 Ask for a specific format, such as Markdown or CSV, and ask the bot to attach it in the chat. A file path in a message isn't the same as an attachment you can open.
 
-Select an attachment to preview it (most common file types can be previewed), or download it to open it in another app.
+Select an attachment to preview it, or download it to open it in another app. On desktop, the preview supports documents, spreadsheets, text, images, audio, and video, with a message box for asking the bot about the file. Downloads use the server currently selected in the app, including a remote server.
+
+On iPhone and iPad, CSV and TSV files have a native spreadsheet preview. Tap a cell to see its value, select cells or a row, and copy the selection. Column headers and row numbers stay visible as you scroll. Other supported documents use the system preview; choose **Share** to save a file or open it elsewhere. Preview support varies by format, and a large spreadsheet may show only part of its data; keep the original file for complete analysis.
+
+## Open links
+
+On iPhone and iPad, chat links open in the app's browser so you can return to the conversation. Desktop HTTPS links open in your default browser, and can display the site's icon beside a link. iPhone and iPad use a local globe without automatically downloading site icons.
+
+## Find files in Library
+
+On desktop, open a conversation's **Library** to browse its attachments. Select a file to preview it, choose **Download** to save it, and close the preview to return to Library. Pins keep selected files near the top on that device. Library lists attachments from that conversation; it does not browse everything in the server workspace.
 
 ## The shared workspace
 
