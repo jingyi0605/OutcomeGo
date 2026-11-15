@@ -40,11 +40,11 @@ async function lookup(prisma: Client, botId: string, ids: string[]): Promise<Fou
     WITH RECURSIVE bots("id", "depth") AS (
       SELECT ${botId}::uuid, 0
       UNION
-      SELECT s."childBotId", bots."depth" + 1 FROM "Subagent" s JOIN bots ON s."parentBotId" = bots."id" WHERE bots."depth" < 4
+      SELECT s."childBotId", bots."depth" + 1 FROM "outcomego_subagent" s JOIN bots ON s."parentBotId" = bots."id" WHERE bots."depth" < 4
     )
     SELECT ri."content"->'result'->'details'->'presentationReferences' AS "index"
-    FROM "RunItem" ri
-    JOIN "Run" r ON r."id" = ri."runId"
+    FROM "outcomego_run_item" ri
+    JOIN "outcomego_run" r ON r."id" = ri."runId"
     WHERE r."botId" IN (SELECT "id" FROM bots)
       AND r."createdAt" > CURRENT_TIMESTAMP - INTERVAL '1 day'
       AND ri."kind" = 'tool'

@@ -49,7 +49,7 @@ export class ChannelLibraryService {
       const rows = await this.prisma.$queryRaw<LibraryRow[]>(Prisma.sql`
       SELECT message."id" AS "messageId", message."sequence", asset.ordinality AS ordinal,
              asset.value AS attachment, message."createdAt"
-      FROM "ChannelMessage" AS message
+      FROM "outcomego_channel_message" AS message
       CROSS JOIN LATERAL jsonb_array_elements(
         CASE WHEN jsonb_typeof(message.metadata->'attachments') = 'array'
              THEN message.metadata->'attachments' ELSE '[]'::jsonb END
