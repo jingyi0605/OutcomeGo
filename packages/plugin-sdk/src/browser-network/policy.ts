@@ -75,29 +75,107 @@ export async function dialTarget(
   life.throwIfAborted();
   if (options.publicOnly && options.ports && !options.ports.includes(target.port))
     throw new NetworkError("port_blocked");
-  const addresses = await resolveTargetAddresses(target, life, options);
-  let lastError: unknown;
-  for (const address of addresses.slice(0, 8)) {
-    life.throwIfAborted();
-    try {
-      const socket = await connectTargetAddress(target, address, life, options);
-      options.onConnected?.({
-        host: target.host,
-        port: target.port,
-        address: address.address,
-        family: address.family,
-        routeEpoch: target.epoch,
-      });
-      return socket;
-    } catch (error) {
-      lastError = error;
-      if (life.aborted) throw new NetworkError("connect_timeout", { cause: error });
-    }
-  }
-  throw new NetworkError("connect_failed", { cause: lastError });
+  const addresses = resolveDialOrder((await resolveTargetAddresses(target, life, options)).slice(0, 8));
+  return new Promise<Socket>((resolve, reject) => {
+    const controllers = new Set<AbortController>();
+    const timers = new Set<ReturnType<typeof setTimeout>>();
+    let next = 0;
+    let pending = 0;
+    let lastError: unknown;
+    let settled = false;
+
+    const cleanup = () => {
+      for (const timer of timers) clearTimeout(timer);
+      timers.clear();
+      life.removeEventListener("abort", abort);
+    };
+    const abort = () => {
+      cleanup();
+      for (const controller of controllers) controller.abort();
+      controllers.clear();
+      settled = true;
+      reject(new NetworkError("connect_timeout", { cause: lastError }));
+    };
+    const failIfDone = () => {
+      if (settled || pending > 0 || next < addresses.length) return;
+      cleanup();
+      settled = true;
+      reject(new NetworkError("connect_failed", { cause: lastError }));
+    };
+    const start = () => {
+      if (settled || next >= addresses.length) {
+        failIfDone();
+        return;
+      }
+      const address = addresses[next++]!;
+      const controller = new AbortController();
+      controllers.add(controller);
+      pending++;
+      void connectTargetAddress(target, address, controller.signal, options).then(
+        (socket) => {
+          pending--;
+          controllers.delete(controller);
+          if (settled) {
+            socket.destroy();
+            return;
+          }
+          cleanup();
+          settled = true;
+          for (const other of controllers) other.abort();
+          controllers.clear();
+          options.onConnected?.({
+            host: target.host,
+            port: target.port,
+            address: address.address,
+            family: address.family,
+            routeEpoch: target.epoch,
+          });
+          resolve(socket);
+        },
+        (error) => {
+          pending--;
+          controllers.delete(controller);
+          lastError = error;
+          if (!settled && pending === 0) start();
+          failIfDone();
+        }
+      );
+    };
+
+    life.addEventListener("abort", abort, { once: true });
+    start();
+    const schedule = () => {
+      if (settled || next >= addresses.length) return;
+      const timer = setTimeout(() => {
+        timers.delete(timer);
+        start();
+        schedule();
+      }, 250);
+      timers.add(timer);
+    };
+    schedule();
+  });
 }
 
 export type TargetAddress = { address: string; family: number };
+
+function resolveDialOrder(addresses: readonly TargetAddress[]): TargetAddress[] {
+  const families = new Map<number, TargetAddress[]>();
+  for (const address of addresses) {
+    const family = families.get(address.family) ?? [];
+    family.push(address);
+    families.set(address.family, family);
+  }
+  const order: TargetAddress[] = [];
+  while (families.size) {
+    for (const [family, candidates] of families) {
+      const address = candidates.shift();
+      if (address) order.push(address);
+      if (!candidates.length) families.delete(family);
+    }
+  }
+  return order;
+}
 
 export async function resolveTargetAddresses(
   target: OpenTarget,
