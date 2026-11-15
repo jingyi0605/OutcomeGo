@@ -26,6 +26,7 @@ import {
   net,
   protocol,
   powerMonitor,
+  session,
   shell,
   systemPreferences,
 } from "electron";
@@ -1628,7 +1629,25 @@ if (!hasSingleInstanceLock) {
     });
 }
 
+const flushRendererStorage = () => {
+  try {
+    if (app.isReady()) session?.defaultSession?.flushStorageData?.();
+  } catch {
+    // Best-effort flush before quitting.
+  }
+};
+
+const quitOnSignal = () => {
+  isQuitting = true;
+  flushRendererStorage();
+  app.quit();
+};
+
+process.once("SIGINT", quitOnSignal);
+process.once("SIGTERM", quitOnSignal);
+
 app.on("before-quit", () => {
+  flushRendererStorage();
   pluginOAuth.closeAll();
   screenBotShortcut.dispose();
   screenbot.dispose();
