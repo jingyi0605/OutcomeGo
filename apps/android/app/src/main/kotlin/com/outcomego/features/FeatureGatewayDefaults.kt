@@ -43,4 +43,5 @@ object UnsupportedFeatureGateway : FeatureGateway {
     override suspend fun completePluginAuthorization(pluginId: String, callbackUrl: String) = unavailable<Unit>()
     override suspend fun testPluginTool(pluginId: String, toolName: String, input: String) = unavailable<String>()
     override suspend fun configurePlugin(pluginId: String, configuration: JsonObject) = unavailable<Plugin>()
+    override suspend fun loadChannelLibrary(channelId: String, before: String?) = unavailable<ChannelLibraryPage>()
 }

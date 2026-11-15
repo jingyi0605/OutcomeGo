@@ -28,22 +28,29 @@ import com.outcomego.android.data.newClientId
 import com.outcomego.android.navigation.ChatTarget
 import com.outcomego.android.navigation.DeepLinkRouter
 import com.outcomego.features.AccountMemoryState
-import com.outcomego.features.Attachment
 import com.outcomego.features.AppSettings
+import com.outcomego.features.Attachment
+import com.outcomego.features.AttachmentState
+import com.outcomego.features.CHANNEL_LIBRARY_PIN_LIMIT
+import com.outcomego.features.ChannelLibraryItem
+import com.outcomego.features.ChannelLibraryState
 import com.outcomego.features.FeatureGateway
 import com.outcomego.features.FeatureLoadState
-import com.outcomego.features.ProviderPreset
-import com.outcomego.features.ProviderProtocol
 import com.outcomego.features.FeatureOperationState
 import com.outcomego.features.LiveFeatureGateway
 import com.outcomego.features.Plugin
 import com.outcomego.features.ProviderConnection
+import com.outcomego.features.ProviderPreset
+import com.outcomego.features.ProviderProtocol
 import com.outcomego.features.Routine
 import com.outcomego.features.RoutineSchedule
+import com.outcomego.features.UnsupportedFeatureGateway
+import com.outcomego.features.VoiceSettings
 import com.outcomego.features.WebProvider
 import com.outcomego.features.WebProvidersState
-import com.outcomego.features.VoiceSettings
-import com.outcomego.features.UnsupportedFeatureGateway
+import com.outcomego.features.mergeChannelLibraryItems
+import com.outcomego.features.togglePinnedLibraryItem
+import com.outcomego.features.updateLibraryItemAttachment
 import com.outcomego.platform.SharePayload
 import com.outcomego.platform.AndroidPersistentSearchIndex
 import com.outcomego.platform.AndroidAppSearchIndex
@@ -74,11 +81,19 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.intOrNull
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.longOrNull
 import kotlinx.serialization.json.put
+import java.io.File
 import java.net.URI
 import java.net.URLDecoder
 
@@ -129,6 +144,7 @@ data class AppState(
 data class FeatureState(
     val routines: FeatureLoadState<List<Routine>> = FeatureLoadState.Loading,
     val routinesByBotId: Map<String, FeatureLoadState<List<Routine>>> = emptyMap(),
+    val libraryByChannelId: Map<String, ChannelLibraryState> = emptyMap(),
     val account: FeatureLoadState<AccountMemoryState> = FeatureLoadState.Loading,
     val providers: FeatureLoadState<List<ProviderConnection>> = FeatureLoadState.Loading,
     val webProviders: FeatureLoadState<WebProvidersState> = FeatureLoadState.Loading,
@@ -148,6 +164,8 @@ class AppViewModel @JvmOverloads constructor(
     private val featureGateway: FeatureGateway? = null,
 ) : AndroidViewModel(application) {
     private val settingsPreferences = application.getSharedPreferences("outcomego-settings", 0)
+    private val libraryPinPreferences = application.getSharedPreferences("outcomego-library-pins", 0)
+    private val inFlightLibraryDownloads = mutableSetOf<String>()
     private val systemSearch = AndroidPersistentSearchIndex(application)
     private val appSearch = AndroidAppSearchIndex(application)
     private val launcherShortcuts = AndroidLauncherShortcuts(application)
@@ -415,6 +433,7 @@ class AppViewModel @JvmOverloads constructor(
                             features = it.features.copy(
                                 routines = FeatureLoadState.Loading,
                                 routinesByBotId = emptyMap(),
+                                libraryByChannelId = emptyMap(),
                             ),
                         )
                     }
@@ -965,6 +984,12 @@ class AppViewModel @JvmOverloads constructor(
             // A just-accepted message queues a run before any run event arrives.
             scheduleActivityRefresh()
         }
+        if (event.topic == "channel.message.created" &&
+            channelId != null &&
+            mutableState.value.features.libraryByChannelId[channelId]?.hasLoaded == true
+        ) {
+            loadChannelLibrary(channelId, refresh = true)
+        }
         if (event.topic == "channel.message.accepted") {
             val clientId = event.payload["clientId"]?.jsonPrimitive?.contentOrNull
                 ?.takeIf(String::isNotBlank)
@@ -1312,12 +1337,15 @@ class AppViewModel @JvmOverloads constructor(
         AndroidLiveVoiceForeground.stop(getApplication())
         AndroidNetworkProvider.stop(getApplication())
         mutableState.value.session?.let {
-            drafts.clearAccount(accountScope(it))
-            outboxStore.clear(accountScope(it))
-            runLocalIndexUpdate("SQLite search") { systemSearch.clear(accountScope(it)) }
-            launchAppSearch { clear(accountScope(it)) }
+            val scope = accountScope(it)
+            drafts.clearAccount(scope)
+            outboxStore.clear(scope)
+            clearLibraryPinsForAccount(scope)
+            runLocalIndexUpdate("SQLite search") { systemSearch.clear(scope) }
+            launchAppSearch { clear(scope) }
             indexedAccount = null
         }
+        inFlightLibraryDownloads.clear()
         runLocalIndexUpdate("launcher shortcuts") { launcherShortcuts.clear() }
         syncJob?.cancel()
         outboxJob?.cancel()
@@ -1542,7 +1570,16 @@ class AppViewModel @JvmOverloads constructor(
         }
         drafts.clearAccount(accountScope(session))
         outboxStore.clear(accountScope(session))
-        mutableState.update { it.copy(outbox = emptyList(), draft = "", pendingAttachments = emptyList(), error = null) }
+        clearLibraryPinsForAccount(accountScope(session))
+        mutableState.update {
+            it.copy(
+                outbox = emptyList(),
+                draft = "",
+                pendingAttachments = emptyList(),
+                error = null,
+                features = it.features.copy(libraryByChannelId = emptyMap()),
+            )
+        }
         runFeatureOperation { activeFeatureGateway.resetLocalData().onFailure(::reportFeatureFailure) }
     }
 
@@ -1687,6 +1724,260 @@ class AppViewModel @JvmOverloads constructor(
     fun loadRoutinesForBot(botId: String) {
         if (botId.isBlank()) return
         loadRoutines(botId)
+    }
+
+    fun loadChannelLibrary(channelId: String, refresh: Boolean = true) {
+        if (channelId.isBlank()) return
+        val existing = mutableState.value.features.libraryByChannelId[channelId] ?: ChannelLibraryState()
+        val pins = if (existing.pinnedItems.isEmpty()) readPinnedLibraryItems(channelId).map(::hydrateLibraryItemCache) else existing.pinnedItems
+        if (activeFeatureGateway === UnsupportedFeatureGateway) {
+            updateChannelLibraryState(channelId) {
+                it.copy(pinnedItems = pins, loading = false, hasLoaded = true, error = null)
+            }
+            return
+        }
+        if (existing.loading && refresh) return
+        if (!refresh && existing.hasLoaded) {
+            if (existing.pinnedItems != pins) {
+                updateChannelLibraryState(channelId) { it.copy(pinnedItems = pins) }
+            }
+            return
+        }
+        fetchChannelLibraryPage(channelId, cursor = null, pinnedItems = pins, reset = true)
+    }
+
+    fun loadMoreChannelLibrary(channelId: String) {
+        if (channelId.isBlank()) return
+        val existing = mutableState.value.features.libraryByChannelId[channelId] ?: return
+        val cursor = existing.nextCursor ?: return
+        if (existing.loading || activeFeatureGateway === UnsupportedFeatureGateway) return
+        fetchChannelLibraryPage(channelId, cursor = cursor, pinnedItems = existing.pinnedItems, reset = false)
+    }
+
+    fun toggleLibraryPin(channelId: String, item: ChannelLibraryItem) {
+        if (channelId.isBlank()) return
+        val current = mutableState.value.features.libraryByChannelId[channelId] ?: ChannelLibraryState()
+        val basePins = if (current.pinnedItems.isEmpty()) readPinnedLibraryItems(channelId) else current.pinnedItems
+        val updatedPins = togglePinnedLibraryItem(basePins, hydrateLibraryItemCache(item))
+        writePinnedLibraryItems(channelId, updatedPins)
+        updateChannelLibraryState(channelId) { it.copy(pinnedItems = updatedPins) }
+    }
+
+    fun downloadLibraryAttachment(channelId: String, attachment: Attachment) {
+        if (channelId.isBlank() || attachment.id.isBlank()) return
+        cachedAttachmentPath(attachment)?.let { cachedPath ->
+            updateLibraryAttachment(channelId, attachment.id) {
+                it.copy(localUri = cachedPath, state = AttachmentState.Available)
+            }
+            return
+        }
+        if (!inFlightLibraryDownloads.add(attachment.id)) return
+        updateLibraryAttachment(channelId, attachment.id) { it.copy(state = AttachmentState.Downloading) }
+        viewModelScope.launch {
+            try {
+                activeFeatureGateway.downloadAttachment(attachment.id)
+                    .onSuccess { uri ->
+                        updateLibraryAttachment(channelId, attachment.id) {
+                            it.copy(localUri = uri, state = AttachmentState.Available)
+                        }
+                    }
+                    .onFailure { error ->
+                        updateLibraryAttachment(channelId, attachment.id) { it.copy(state = AttachmentState.Failed) }
+                        reportFeatureFailure(error)
+                    }
+            } finally {
+                inFlightLibraryDownloads.remove(attachment.id)
+            }
+        }
+    }
+
+    fun saveLibraryAttachmentToUri(attachment: Attachment, destinationUri: Uri) {
+        val localUri = attachment.localUri ?: cachedAttachmentPath(attachment) ?: return
+        runFeatureOperation {
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    val resolver = getApplication<Application>().contentResolver
+                    val input = if (localUri.startsWith("content://") || localUri.startsWith("file://")) {
+                        resolver.openInputStream(Uri.parse(localUri))
+                    } else {
+                        File(localUri).inputStream()
+                    } ?: error("Attachment file is unavailable")
+                    input.use { src ->
+                        resolver.openOutputStream(destinationUri)?.use { dst ->
+                            src.copyTo(dst)
+                        } ?: error("Destination could not be opened")
+                    }
+                }
+            }.onFailure(::reportFeatureFailure)
+        }
+    }
+
+    private fun fetchChannelLibraryPage(
+        channelId: String,
+        cursor: String?,
+        pinnedItems: List<ChannelLibraryItem>,
+        reset: Boolean,
+    ) {
+        updateChannelLibraryState(channelId) { current ->
+            val resolvedPins = if (current.pinnedItems.isNotEmpty()) current.pinnedItems else pinnedItems
+            current.copy(pinnedItems = resolvedPins, loading = true, error = null)
+        }
+        viewModelScope.launch {
+            activeFeatureGateway.loadChannelLibrary(channelId, before = cursor)
+                .onSuccess { page ->
+                    val hydratedPage = page.items.map(::hydrateLibraryItemCache)
+                    updateChannelLibraryState(channelId) { current ->
+                        val resolvedPins = if (current.pinnedItems.isNotEmpty()) current.pinnedItems else pinnedItems
+                        current.copy(
+                            items = mergeChannelLibraryItems(current.items, hydratedPage, reset = reset),
+                            pinnedItems = resolvedPins.map(::hydrateLibraryItemCache),
+                            nextCursor = page.nextCursor,
+                            loading = false,
+                            hasLoaded = true,
+                            error = null,
+                        )
+                    }
+                }
+                .onFailure { error ->
+                    updateChannelLibraryState(channelId) { current ->
+                        current.copy(
+                            loading = false,
+                            error = error.message ?: "Couldn’t load Library",
+                        )
+                    }
+                }
+        }
+    }
+
+    private fun updateChannelLibraryState(
+        channelId: String,
+        transform: (ChannelLibraryState) -> ChannelLibraryState,
+    ) {
+        mutableState.update { state ->
+            val current = state.features.libraryByChannelId[channelId] ?: ChannelLibraryState()
+            val next = transform(current)
+            state.copy(
+                features = state.features.copy(
+                    libraryByChannelId = state.features.libraryByChannelId + (channelId to next),
+                ),
+            )
+        }
+    }
+
+    private fun updateLibraryAttachment(
+        channelId: String,
+        attachmentId: String,
+        transform: (Attachment) -> Attachment,
+    ) {
+        updateChannelLibraryState(channelId) { current ->
+            val target = current.items.firstOrNull { it.attachment.id == attachmentId }?.attachment
+                ?: current.pinnedItems.firstOrNull { it.attachment.id == attachmentId }?.attachment
+                ?: return@updateChannelLibraryState current
+            val updatedAttachment = transform(target)
+            val nextItems = updateLibraryItemAttachment(current.items, updatedAttachment)
+            val nextPinned = updateLibraryItemAttachment(current.pinnedItems, updatedAttachment)
+            if (nextPinned !== current.pinnedItems) {
+                writePinnedLibraryItems(channelId, nextPinned)
+            }
+            current.copy(items = nextItems, pinnedItems = nextPinned)
+        }
+    }
+
+    private fun hydrateLibraryItemCache(item: ChannelLibraryItem): ChannelLibraryItem {
+        val cachedPath = cachedAttachmentPath(item.attachment) ?: return item
+        if (item.attachment.localUri == cachedPath && item.attachment.state == AttachmentState.Available) return item
+        return item.copy(
+            attachment = item.attachment.copy(
+                localUri = cachedPath,
+                state = AttachmentState.Available,
+            ),
+        )
+    }
+
+    private fun cachedAttachmentPath(attachment: Attachment): String? {
+        attachment.localUri?.takeIf { it.isNotBlank() }?.let { existing ->
+            if (existing.startsWith("content://") || existing.startsWith("file://")) return existing
+            val file = File(existing)
+            if (file.exists() && file.length() > 0L) return existing
+        }
+        val safeName = attachment.id.substringAfterLast('/').takeIf { it.isNotBlank() } ?: return null
+        val cached = File(File(getApplication<Application>().cacheDir, "attachments"), safeName)
+        return cached.absolutePath.takeIf { cached.exists() && cached.length() > 0L }
+    }
+
+    private fun libraryPinKey(channelId: String): String {
+        val scope = mutableState.value.session?.let(::accountScope) ?: "default"
+        return "$scope|$channelId"
+    }
+
+    private fun readPinnedLibraryItems(channelId: String): List<ChannelLibraryItem> {
+        val raw = libraryPinPreferences.getString(libraryPinKey(channelId), null) ?: return emptyList()
+        return runCatching {
+            val array = mobileJson.parseToJsonElement(raw).jsonArray
+            array.mapNotNull { element ->
+                val obj = element.jsonObject
+                val id = obj["id"]?.jsonPrimitive?.contentOrNull?.takeIf(String::isNotBlank) ?: return@mapNotNull null
+                val attObj = obj["attachment"]?.jsonObject ?: return@mapNotNull null
+                val attachmentId = attObj["id"]?.jsonPrimitive?.contentOrNull?.takeIf(String::isNotBlank) ?: return@mapNotNull null
+                ChannelLibraryItem(
+                    id = id,
+                    messageId = obj["messageId"]?.jsonPrimitive?.contentOrNull.orEmpty(),
+                    createdAt = obj["createdAt"]?.jsonPrimitive?.contentOrNull.orEmpty(),
+                    attachment = Attachment(
+                        id = attachmentId,
+                        name = attObj["name"]?.jsonPrimitive?.contentOrNull.orEmpty(),
+                        mimeType = attObj["mimeType"]?.jsonPrimitive?.contentOrNull.orEmpty(),
+                        sizeBytes = attObj["sizeBytes"]?.jsonPrimitive?.longOrNull ?: 0L,
+                        kind = attObj["kind"]?.jsonPrimitive?.contentOrNull ?: "file",
+                        width = attObj["width"]?.jsonPrimitive?.intOrNull,
+                        height = attObj["height"]?.jsonPrimitive?.intOrNull,
+                        alt = attObj["alt"]?.jsonPrimitive?.contentOrNull,
+                    ),
+                )
+            }.take(CHANNEL_LIBRARY_PIN_LIMIT)
+        }.getOrDefault(emptyList())
+    }
+
+    private fun writePinnedLibraryItems(channelId: String, items: List<ChannelLibraryItem>) {
+        val key = libraryPinKey(channelId)
+        if (items.isEmpty()) {
+            libraryPinPreferences.edit().remove(key).apply()
+            return
+        }
+        val array: JsonArray = buildJsonArray {
+            for (item in items.take(CHANNEL_LIBRARY_PIN_LIMIT)) {
+                add(
+                    buildJsonObject {
+                        put("id", item.id)
+                        put("messageId", item.messageId)
+                        put("createdAt", item.createdAt)
+                        put(
+                            "attachment",
+                            buildJsonObject {
+                                put("id", item.attachment.id)
+                                put("name", item.attachment.name)
+                                put("mimeType", item.attachment.mimeType)
+                                put("sizeBytes", item.attachment.sizeBytes)
+                                put("kind", item.attachment.kind)
+                                item.attachment.width?.let { put("width", it) }
+                                item.attachment.height?.let { put("height", it) }
+                                item.attachment.alt?.let { put("alt", it) }
+                            },
+                        )
+                    },
+                )
+            }
+        }
+        libraryPinPreferences.edit().putString(key, array.toString()).apply()
+    }
+
+    private fun clearLibraryPinsForAccount(scope: String) {
+        val prefix = "$scope|"
+        val keys = libraryPinPreferences.all.keys.filter { it.startsWith(prefix) }
+        if (keys.isEmpty()) return
+        libraryPinPreferences.edit().apply {
+            keys.forEach(::remove)
+        }.apply()
     }
 
     private fun routineOwnerId(): String? {

@@ -380,6 +380,16 @@ class LiveFeatureGateway(private val client: MobileFeatureApi) : FeatureGateway 
         listPlugins().getOrThrow().first { (it.connectionId ?: it.id) == pluginId }
     }
 
+    override suspend fun loadChannelLibrary(channelId: String, before: String?): Result<ChannelLibraryPage> = runCatching {
+        val cursor = before?.takeIf { it.isNotBlank() }?.let {
+            "?before=${URLEncoder.encode(it, Charsets.UTF_8.name())}"
+        }.orEmpty()
+        client.request(
+            HttpMethod.GET,
+            "/api/v0/channels/${segment(channelId)}/library$cursor",
+        ).toChannelLibraryPage()
+    }
+
     private fun clientId() = "android-${System.currentTimeMillis()}"
 
     private suspend fun firstBotId(): String = client.request(HttpMethod.GET, "/api/v0/client-bootstrap")
@@ -519,6 +529,27 @@ private fun JsonObject.toAttachment() = Attachment(
     sizeBytes = long("sizeBytes", "byteSize"),
     localUri = string("uri").ifBlank { null },
     kind = string("kind").ifBlank { "file" },
+    width = nullableInt("width")?.takeIf { it > 0 },
+    height = nullableInt("height")?.takeIf { it > 0 },
+    alt = string("alt").ifBlank { null },
+)
+
+private fun JsonObject.toChannelLibraryItem(): ChannelLibraryItem? {
+    val itemId = string("id").takeIf { it.isNotBlank() } ?: return null
+    val attachmentObj = this["attachment"]?.jsonObjectOrNull() ?: return null
+    val attachment = attachmentObj.toAttachment()
+    if (attachment.id.isBlank()) return null
+    return ChannelLibraryItem(
+        id = itemId,
+        messageId = string("messageId"),
+        attachment = attachment,
+        createdAt = string("createdAt"),
+    )
+}
+
+private fun JsonObject.toChannelLibraryPage() = ChannelLibraryPage(
+    items = array("items").mapNotNull { it.jsonObjectOrNull()?.toChannelLibraryItem() },
+    nextCursor = nullableString("nextCursor"),
 )
 
 private fun oauthState(url: String): String? = runCatching {
@@ -588,7 +619,11 @@ private fun JsonObject.reactions() = array("reactions").mapNotNull { element -> 
 private fun JsonObject.array(name: String): List<JsonElement> = this[name]?.jsonArray ?: emptyList()
 private fun JsonObject.objectAt(name: String): JsonObject = this[name]?.jsonObjectOrNull() ?: JsonObject(emptyMap())
 private fun JsonObject.string(vararg names: String): String = names.firstNotNullOfOrNull { this[it]?.jsonPrimitive?.contentOrNull }.orEmpty()
+private fun JsonObject.nullableString(name: String): String? =
+    (this[name] as? JsonPrimitive)?.takeUnless { it is JsonNull }?.contentOrNull?.takeIf { it.isNotBlank() }
 private fun JsonObject.boolean(name: String, default: Boolean = false): Boolean = this[name]?.jsonPrimitive?.contentOrNull?.toBooleanStrictOrNull() ?: default
 private fun JsonObject.int(vararg names: String): Int = names.firstNotNullOfOrNull { this[it]?.jsonPrimitive?.intOrNull } ?: 0
+private fun JsonObject.nullableInt(name: String): Int? =
+    (this[name] as? JsonPrimitive)?.takeUnless { it is JsonNull }?.intOrNull
 private fun JsonObject.long(vararg names: String): Long = names.firstNotNullOfOrNull { this[it]?.jsonPrimitive?.contentOrNull?.toLongOrNull() } ?: 0
 private fun JsonElement.jsonObjectOrNull(): JsonObject? = runCatching { jsonObject }.getOrNull()

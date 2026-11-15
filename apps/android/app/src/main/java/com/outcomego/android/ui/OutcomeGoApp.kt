@@ -78,6 +78,7 @@ import com.outcomego.android.ui.designsystem.SpatialTheme
 import com.outcomego.android.ui.screens.auth.SignInScreen
 import com.outcomego.android.ui.screens.chat.ChatScreen
 import com.outcomego.android.ui.screens.details.BotDetailsScreen
+import com.outcomego.android.ui.screens.details.BotLibraryScreen
 import com.outcomego.android.ui.screens.details.ComputerViewerScreen
 import com.outcomego.android.ui.screens.details.ConversationProfileScreen
 import com.outcomego.android.ui.screens.details.CreateConversationScreen
@@ -117,6 +118,7 @@ private const val LOGIN = "login"
 private const val DIRECTORY = "directory"
 private const val CHAT = "chat/{conversationId}"
 private const val BOT_DETAILS = "bot/{conversationId}/details"
+private const val BOT_LIBRARY = "bot/{conversationId}/library"
 private const val PROFILE = "conversation/{conversationId}/profile"
 private const val CREATE = "conversation/create"
 private const val COMPUTER = "bot/{conversationId}/computer"
@@ -388,15 +390,18 @@ fun OutcomeGoApp(
                     val botId = conversation?.botId
                     LaunchedEffect(id, botId) {
                         appViewModel.refreshDirectory()
+                        appViewModel.loadChannelLibrary(id, refresh = false)
                         if (!botId.isNullOrBlank()) {
                             appViewModel.loadRoutinesForBot(botId)
                         }
                     }
                     val routinesState = botId?.let { state.features.routinesByBotId[it] ?: FeatureLoadState.Loading }
+                    val libraryState = state.features.libraryByChannelId[id]
                     val shareLabel = localizedText("Share bot", "分享机器人")
                     BotDetailsScreen(
                         conversation = conversation,
                         routinesState = routinesState,
+                        libraryState = libraryState,
                         onBack = { navController.popBackStack() },
                         onOpenChat = {
                             appViewModel.openConversation(id)
@@ -407,6 +412,7 @@ fun OutcomeGoApp(
                             botId?.let(appViewModel::loadRoutinesForBot)
                             navController.navigate(ROUTINES)
                         },
+                        onLibrary = { navController.navigate("bot/$id/library") },
                         onEdit = { navController.navigate("conversation/$id/profile") },
                         onHide = { appViewModel.setConversationHidden(it, true); navController.popBackStack() },
                         onDelete = {
@@ -464,6 +470,29 @@ fun OutcomeGoApp(
                             navController.popBackStack()
                         },
                         onBack = { navController.popBackStack() },
+                    )
+                }
+                spatialComposable(BOT_LIBRARY, arguments = listOf(navArgument("conversationId") { type = NavType.StringType })) { entry ->
+                    val id = entry.arguments?.getString("conversationId").orEmpty()
+                    val conversation = state.conversations.firstOrNull { it.id == id }
+                        ?: state.hiddenConversations.firstOrNull { it.id == id }
+                    LaunchedEffect(id) {
+                        appViewModel.loadChannelLibrary(id, refresh = true)
+                    }
+                    BotLibraryScreen(
+                        conversation = conversation,
+                        conversations = state.conversations,
+                        state = state.features.libraryByChannelId[id] ?: com.outcomego.features.ChannelLibraryState(),
+                        onBack = { navController.popBackStack() },
+                        onRefresh = { appViewModel.loadChannelLibrary(id, refresh = true) },
+                        onLoadMore = { appViewModel.loadMoreChannelLibrary(id) },
+                        onTogglePin = { item -> appViewModel.toggleLibraryPin(id, item) },
+                        onDownloadAttachment = { attachment -> appViewModel.downloadLibraryAttachment(id, attachment) },
+                        onSaveAttachmentToUri = appViewModel::saveLibraryAttachmentToUri,
+                        onShareAttachment = appViewModel::shareChatAttachment,
+                        onForwardAttachment = { attachment, targetConversationId ->
+                            appViewModel.forwardChatAttachment(attachment, targetConversationId)
+                        },
                     )
                 }
                 spatialComposable(COMPUTER, arguments = listOf(navArgument("conversationId") { type = NavType.StringType })) { entry ->

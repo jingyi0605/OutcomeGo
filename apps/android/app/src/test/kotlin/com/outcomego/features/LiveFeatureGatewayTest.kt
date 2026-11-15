@@ -353,6 +353,116 @@ class LiveFeatureGatewayTest {
         assertEquals(HttpMethod.DELETE to "/api/v0/inference-custom-providers/deepseek-api", client.requests.last())
     }
 
+    @Test
+    fun loadChannelLibraryRequestsChannelEndpointAndParsesItemsAndCursor() = runBlocking {
+        val page1 = buildJsonObject {
+            put(
+                "items",
+                buildJsonArray {
+                    add(
+                        buildJsonObject {
+                            put("id", "lib-1")
+                            put("messageId", "msg-1")
+                            put("createdAt", "2026-11-15T10:00:00Z")
+                            put(
+                                "attachment",
+                                buildJsonObject {
+                                    put("assetId", "asset-1")
+                                    put("kind", "image")
+                                    put("fileName", "chart.png")
+                                    put("mimeType", "image/png")
+                                    put("byteSize", 2048)
+                                    put("width", 640)
+                                    put("height", 480)
+                                    put("alt", "Revenue chart")
+                                },
+                            )
+                        },
+                    )
+                },
+            )
+            put("nextCursor", "12.0")
+        }
+        val page2 = buildJsonObject {
+            put("items", buildJsonArray {})
+            put("nextCursor", JsonNull)
+        }
+        val client = RecordingFeatureClient(
+            responsesByPath = mapOf(
+                "/api/v0/channels/channel%2F1/library" to page1,
+                "/api/v0/channels/channel-1/library?before=12.0" to page2,
+            ),
+        )
+        val gateway = LiveFeatureGateway(client)
+
+        val first = gateway.loadChannelLibrary("channel/1").getOrThrow()
+        assertEquals("12.0", first.nextCursor)
+        assertEquals(1, first.items.size)
+        val item = first.items.single()
+        assertEquals("lib-1", item.id)
+        assertEquals("msg-1", item.messageId)
+        assertEquals("asset-1", item.attachment.id)
+        assertEquals("chart.png", item.attachment.name)
+        assertEquals("image/png", item.attachment.mimeType)
+        assertEquals(2048L, item.attachment.sizeBytes)
+        assertEquals(640, item.attachment.width)
+        assertEquals(480, item.attachment.height)
+        assertEquals("Revenue chart", item.attachment.alt)
+
+        val second = gateway.loadChannelLibrary("channel-1", before = "12.0").getOrThrow()
+        assertEquals(null, second.nextCursor)
+        assertTrue(second.items.isEmpty())
+    }
+
+    @Test
+    fun channelLibraryHelpersMergeDeduplicatePinAndGroupByDate() {
+        val zone = java.time.ZoneId.of("UTC")
+        val nowMillis = java.time.Instant.parse("2026-11-15T12:00:00Z").toEpochMilli()
+        fun item(id: String, createdAt: String) = ChannelLibraryItem(
+            id = id,
+            messageId = "m-$id",
+            attachment = Attachment(
+                id = "a-$id",
+                name = "$id.pdf",
+                mimeType = "application/pdf",
+                sizeBytes = 100L,
+            ),
+            createdAt = createdAt,
+        )
+
+        val today = item("today", "2026-11-15T08:00:00Z")
+        val yesterday = item("yesterday", "2026-11-14T15:00:00Z")
+        val week = item("week", "2026-11-10T12:00:00Z")
+        val older = item("older", "2026-10-01T12:00:00Z")
+
+        val merged = mergeChannelLibraryItems(
+            existing = listOf(today, yesterday),
+            incoming = listOf(yesterday, week, older),
+            reset = false,
+        )
+        assertEquals(listOf("today", "yesterday", "week", "older"), merged.map { it.id })
+
+        val pinned = togglePinnedLibraryItem(emptyList(), week)
+        assertEquals(listOf("week"), pinned.map { it.id })
+        assertTrue(togglePinnedLibraryItem(pinned, week).isEmpty())
+
+        val hydrated = updateLibraryItemAttachment(
+            merged,
+            today.attachment.copy(localUri = "/cache/a-today"),
+        )
+        val grouped = groupChannelLibraryItems(
+            state = ChannelLibraryState(items = hydrated, pinnedItems = pinned, hasLoaded = true),
+            nowMillis = nowMillis,
+            zoneId = zone,
+        )
+        assertEquals(listOf("week"), grouped[ChannelLibrarySection.Pinned]?.map { it.id })
+        assertEquals(listOf("today"), grouped[ChannelLibrarySection.Today]?.map { it.id })
+        assertEquals("/cache/a-today", grouped[ChannelLibrarySection.Today]?.single()?.attachment?.localUri)
+        assertEquals(listOf("yesterday"), grouped[ChannelLibrarySection.Yesterday]?.map { it.id })
+        assertEquals(listOf("older"), grouped[ChannelLibrarySection.Older]?.map { it.id })
+        assertEquals(null, grouped[ChannelLibrarySection.Last7Days])
+    }
+
     private class RecordingFeatureClient(
         private val response: JsonObject = JsonObject(emptyMap()),
         private val responsesByPath: Map<String, JsonObject> = emptyMap(),

@@ -92,6 +92,102 @@ data class Attachment(
 
 enum class AttachmentState { Queued, Uploading, Available, Downloading, Failed }
 
+const val CHANNEL_LIBRARY_PIN_LIMIT = 100
+
+enum class ChannelLibrarySection { Pinned, Today, Yesterday, Last7Days, Older }
+
+data class ChannelLibraryItem(
+    val id: String,
+    val messageId: String,
+    val attachment: Attachment,
+    val createdAt: String,
+)
+
+data class ChannelLibraryPage(
+    val items: List<ChannelLibraryItem>,
+    val nextCursor: String? = null,
+)
+
+data class ChannelLibraryState(
+    val items: List<ChannelLibraryItem> = emptyList(),
+    val pinnedItems: List<ChannelLibraryItem> = emptyList(),
+    val nextCursor: String? = null,
+    val loading: Boolean = false,
+    val hasLoaded: Boolean = false,
+    val error: String? = null,
+)
+
+fun mergeChannelLibraryItems(
+    existing: List<ChannelLibraryItem>,
+    incoming: List<ChannelLibraryItem>,
+    reset: Boolean,
+): List<ChannelLibraryItem> {
+    if (reset) return incoming.distinctBy { it.id }
+    val seen = existing.mapTo(HashSet()) { it.id }
+    val appended = incoming.filter { seen.add(it.id) }
+    return if (appended.isEmpty()) existing else existing + appended
+}
+
+fun togglePinnedLibraryItem(
+    pinned: List<ChannelLibraryItem>,
+    item: ChannelLibraryItem,
+): List<ChannelLibraryItem> =
+    if (pinned.any { it.id == item.id }) {
+        pinned.filterNot { it.id == item.id }
+    } else {
+        (listOf(item) + pinned.filterNot { it.id == item.id }).take(CHANNEL_LIBRARY_PIN_LIMIT)
+    }
+
+fun updateLibraryItemAttachment(
+    items: List<ChannelLibraryItem>,
+    attachment: Attachment,
+): List<ChannelLibraryItem> {
+    var changed = false
+    val updated = items.map { item ->
+        if (item.attachment.id == attachment.id && item.attachment != attachment) {
+            changed = true
+            item.copy(attachment = attachment)
+        } else {
+            item
+        }
+    }
+    return if (changed) updated else items
+}
+
+fun groupChannelLibraryItems(
+    state: ChannelLibraryState,
+    nowMillis: Long = System.currentTimeMillis(),
+    zoneId: java.time.ZoneId = java.time.ZoneId.systemDefault(),
+): Map<ChannelLibrarySection, List<ChannelLibraryItem>> {
+    val latestById = state.items.associateBy { it.id }
+    val pinned = state.pinnedItems.map { latestById[it.id] ?: it }
+    val pinnedIds = pinned.mapTo(HashSet()) { it.id }
+    val todayStartMillis = java.time.Instant.ofEpochMilli(nowMillis)
+        .atZone(zoneId)
+        .toLocalDate()
+        .atStartOfDay(zoneId)
+        .toInstant()
+        .toEpochMilli()
+
+    val grouped = linkedMapOf<ChannelLibrarySection, MutableList<ChannelLibraryItem>>()
+    if (pinned.isNotEmpty()) {
+        grouped[ChannelLibrarySection.Pinned] = pinned.toMutableList()
+    }
+    for (item in state.items) {
+        if (item.id in pinnedIds) continue
+        val createdMillis = runCatching { java.time.Instant.parse(item.createdAt).toEpochMilli() }.getOrElse { 0L }
+        val age = todayStartMillis - createdMillis
+        val section = when {
+            age <= 0L -> ChannelLibrarySection.Today
+            age <= 86_400_000L -> ChannelLibrarySection.Yesterday
+            age <= 7L * 86_400_000L -> ChannelLibrarySection.Last7Days
+            else -> ChannelLibrarySection.Older
+        }
+        grouped.getOrPut(section) { mutableListOf() }.add(item)
+    }
+    return grouped
+}
+
 data class Reaction(val emoji: String, val count: Int, val selected: Boolean = false)
 
 data class ReactionState(
@@ -338,4 +434,5 @@ interface FeatureGateway {
     suspend fun completePluginAuthorization(pluginId: String, callbackUrl: String): Result<Unit>
     suspend fun testPluginTool(pluginId: String, toolName: String, input: String): Result<String>
     suspend fun configurePlugin(pluginId: String, configuration: JsonObject): Result<Plugin>
+    suspend fun loadChannelLibrary(channelId: String, before: String? = null): Result<ChannelLibraryPage>
 }

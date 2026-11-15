@@ -71,6 +71,7 @@ import com.outcomego.android.ui.screens.directory.toComposeColor
 import com.outcomego.features.AppSettings
 import com.outcomego.features.BotAvatarColorOption
 import com.outcomego.features.BotAvatarShapeOption
+import com.outcomego.features.ChannelLibraryState
 import com.outcomego.features.DropdownSelectorField
 import com.outcomego.features.FeatureLoadState
 import com.outcomego.features.HapticEffect
@@ -86,10 +87,12 @@ import com.outcomego.features.localizedText
 internal fun BotDetailsScreen(
     conversation: Conversation?,
     routinesState: FeatureLoadState<List<Routine>>? = null,
+    libraryState: ChannelLibraryState? = null,
     onBack: () -> Unit,
     onOpenChat: () -> Unit,
     onComputer: () -> Unit,
     onRoutines: () -> Unit,
+    onLibrary: () -> Unit = onOpenChat,
     onEdit: () -> Unit,
     onHide: (Conversation) -> Unit,
     onDelete: (Conversation) -> Unit,
@@ -220,6 +223,14 @@ internal fun BotDetailsScreen(
                 state = routinesState,
                 isChinese = LocalAppLanguage.current == AppSettings.Language.Chinese,
             )
+            val libraryStatus = libraryState?.takeIf { it.hasLoaded }?.let { lib ->
+                val count = lib.items.size
+                when {
+                    count == 0 -> null
+                    lib.nextCursor != null -> localizedText("${count}+ items", "${count}+ 项")
+                    else -> localizedText("$count items", "$count 项")
+                }
+            }
             SpatialGroupedSection(tier = GlassTier.Card) {
                 CapabilityRow(
                     icon = Icons.Default.AccessTime,
@@ -231,8 +242,8 @@ internal fun BotDetailsScreen(
                 CapabilityRow(
                     icon = Icons.Default.FolderOpen,
                     title = localizedText("Library", "资料库"),
-                    status = null,
-                    onClick = onOpenChat,
+                    status = libraryStatus,
+                    onClick = onLibrary,
                 )
                 SpatialHairlineDivider(insetStart = 54.dp)
                 CapabilityRow(

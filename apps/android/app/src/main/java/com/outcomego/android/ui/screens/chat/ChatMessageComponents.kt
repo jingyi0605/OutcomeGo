@@ -50,6 +50,7 @@ import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material.icons.outlined.IosShare
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
@@ -57,6 +58,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -101,6 +103,7 @@ import com.outcomego.android.ui.designsystem.SpatialSpacing
 import com.outcomego.android.ui.designsystem.SpatialTheme
 import com.outcomego.android.ui.screens.directory.ConversationAvatar
 import com.outcomego.features.Attachment
+import com.outcomego.features.AttachmentState
 import com.outcomego.features.ChatAttachmentStrip
 import com.outcomego.features.DocumentPreview
 import com.outcomego.features.FeatureOperationState
@@ -618,7 +621,7 @@ private fun ReplyQuote(original: ChatMessage?, ownMessage: Boolean, onOpen: () -
 }
 
 @Composable
-private fun AttachmentGalleryDialog(
+internal fun AttachmentGalleryDialog(
     attachments: List<Attachment>,
     initialId: String,
     onDismiss: () -> Unit,
@@ -626,11 +629,17 @@ private fun AttachmentGalleryDialog(
     onSave: (Attachment) -> Unit,
     onShare: (Attachment) -> Unit,
     onForward: (Attachment) -> Unit,
+    onEnsureDownloaded: (Attachment) -> Unit = {},
 ) {
     var index by remember(initialId) {
         mutableStateOf(attachments.indexOfFirst { it.id == initialId }.coerceAtLeast(0))
     }
     val current = attachments.getOrNull(index) ?: return
+    LaunchedEffect(current.id, current.localUri) {
+        if (current.localUri == null && current.state != AttachmentState.Failed) {
+            onEnsureDownloaded(current)
+        }
+    }
     val bitmap = rememberDecodedBitmap(current.localUri, maxSizePx = 2048)
     val haptic = LocalAppHaptics.current
     val isDocument = !current.isImage
@@ -691,6 +700,12 @@ private fun AttachmentGalleryDialog(
                         Image(bitmap, current.alt ?: current.name, Modifier.fillMaxWidth())
                     } else if (isDocument) {
                         DocumentPreview(current, onDownload = { onSave(current) }, onOpenExternally = { onOpenDocument(current) })
+                    } else if (current.state == AttachmentState.Failed) {
+                        TextButton(onClick = { onEnsureDownloaded(current) }) {
+                            Text(localizedText("Retry download", "重试下载"), color = foreground)
+                        }
+                    } else {
+                        CircularProgressIndicator(color = foreground)
                     }
                 }
                 if (!isDocument && attachments.size > 1) {
