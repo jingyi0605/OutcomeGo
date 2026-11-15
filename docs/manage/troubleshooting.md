@@ -65,7 +65,7 @@ For work on your own computer, check **Settings → Computer** in the desktop ap
 
 ## A plugin is connected but tasks fail
 
-1. In **Marketplace → Manage → Accounts and settings**, use **Test a tool** to check that the connection works.
+1. In **Marketplace → Manage plugins and skills**, use **Test a tool** to check that the connection works.
 Installed plugins and their connected accounts are available to all bots.
 3. Check the account's permissions and quota on the service's side.
 

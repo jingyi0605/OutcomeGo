@@ -25,7 +25,7 @@ Saving a draft doesn't change any installed copy of the plugin.
 ## Test it
 
 1. Choose **Install for testing**.
-2. Set up an account if the plugin needs one, and run a small read with **Test a tool** under **Manage → Accounts and settings**.
+2. Set up an account if the plugin needs one, and run a small read with **Test a tool** under **Manage plugins and skills**.
 3. Try the real workflow in chat.
 
 Check what happens with missing credentials, service errors, and reconnecting. For tools that change data, test with data you don't mind losing.

@@ -26,7 +26,7 @@ Keep the app internal to your workspace. Slack doesn't allow unlisted public app
 ## 2. Connect and test
 
 1. In OutcomeGo, choose **Save credentials and continue**, pick your workspace, and approve access.
-2. To check the connection, open **Manage → Accounts and settings**, choose the Slack account, and run a small read under **Test a tool**.
+2. To check the connection, open **Manage plugins and skills**, choose the Slack account, and run a small read under **Test a tool**.
 Installed plugins and their connected accounts are available to all bots.
 
 Start with a read-only request:
@@ -38,7 +38,7 @@ Bots act as the Slack account you connect and can see what it can see. To limit 
 
 ## Connect another workspace
 
-Choose **Add Another Account** on the plugin's page, give the account a name, and sign in to the other workspace. Slack apps belong to one workspace, so a different workspace usually needs its own app. The new account starts with your first app's credentials. To use a second app, open **Manage → Accounts and settings**, select the new account, enter the app's client ID, set the client secret to **Replace** and paste the new secret, then choose **Save and authorize**.
+Choose **Add Another Account** on the plugin's page, give the account a name, and sign in to the other workspace. Slack apps belong to one workspace, so a different workspace usually needs its own app. The new account starts with your first app's credentials. To use a second app, open **Manage plugins and skills**, select the new account, enter the app's client ID, set the client secret to **Replace** and paste the new secret, then choose **Save and authorize**.
 
 ## Fix common problems
 

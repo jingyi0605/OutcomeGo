@@ -46,7 +46,7 @@ When you choose **Start OutcomeGo**, setup downloads the server, starts it, and 
 
 ## 3. Connect the desktop app and a model
 
-Open the [Releases page](https://github.com/jingyi0605/OutcomeGo/releases) and choose a desktop app. The latest public release is OutcomeGo beta.14. Choose **Log In**, enter your server URL under **Server address**, and connect. You can leave off `http://`. Then sign in with the username and password you just created. If the server runs on the same computer, the app finds it and fills in your username.
+Open the [Releases page](https://github.com/jingyi0605/OutcomeGo/releases) and choose a desktop app. The latest public release is OutcomeGo beta.14. Choose **Sign in**, enter your server URL under **Server address**, and connect. You can leave off `http://`. Then sign in with the username and password you just created. If the server runs on the same computer, the app finds it and fills in your username.
 
 The app then walks you through four short steps, one screen at a time:
 

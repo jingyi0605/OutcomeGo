@@ -7,7 +7,7 @@ Dictate a message instead of typing it. Your recording is turned into text, whic
 Select the microphone in the message box and speak. Then either:
 
 - Stop recording to put the text in your message box, where you can edit it before sending. On iPhone, tap the arrow to transcribe it.
-- On desktop, choose **Transcribe and send** to send it right away.
+- On desktop, choose **Send voice note** to send it right away.
 
 On iPhone, the microphone has a larger touch target around its compact icon. A
 hands-free recording can be stopped for review before sending. Returning to an

@@ -45,7 +45,7 @@ This is an advanced setup. You need:
 - A public HTTPS address for your server, so the service can reach it. See [remote access](../configuration/remote-access.md).
 - Credentials from the service that let OutcomeGo register a webhook, such as a management token and a signing secret.
 
-Add the subscription in **Settings → Server → Automation event subscriptions**, then ask the bot to create a routine that runs on those events. On desktop, event routines don't appear in the **Routines** list, so ask the bot when you want to see, pause, or change one.
+Add the subscription in **Settings → Server → Automation webhooks**, then ask the bot to create a routine that runs on those events. On desktop, event routines don't appear in the **Routines** list, so ask the bot when you want to see, pause, or change one.
 
 For a generic webhook that another service can call directly, ask the bot for a routine such as:
 

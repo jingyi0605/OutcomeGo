@@ -59,7 +59,7 @@ By default, bots put outgoing email and Slack messages in an editable draft card
 
 ## Manage a plugin
 
-Open **Marketplace → Manage → Accounts and settings** and choose the plugin and account.
+Open **Marketplace → Manage plugins and skills** and choose the plugin and account.
 
 | Action | What it does |
 | --- | --- |

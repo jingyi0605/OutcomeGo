@@ -35,7 +35,7 @@ The 1Password desktop app and browser extension are not used.
 
 ## Sign-in callback
 
-Plugins that sign in through the browser have a **Sign-in callback** setting. It controls how the service sends you back to OutcomeGo after you sign in. You'll find it in the account's settings on the plugin's page, or under **Marketplace → Manage → Accounts and settings**. It's set to **Automatic (recommended)**, and you rarely need to change it:
+Plugins that sign in through the browser have a **Sign-in callback** setting. It controls how the service sends you back to OutcomeGo after you sign in. You'll find it in the account's settings on the plugin's page, or under **Marketplace → Manage plugins and skills**. It's set to **Automatic (recommended)**, and you rarely need to change it:
 
 | Option | How it works |
 | --- | --- |
@@ -48,7 +48,7 @@ One callback URL works for every account on your server, so you don't need to re
 
 ## Check the connected account
 
-After you connect, open **Marketplace → Manage → Accounts and settings** and choose the plugin and account. Under **Test a tool**, pick a tool that shows who you're signed in as, enter its input, and choose **Run test**:
+After you connect, open **Marketplace → Manage plugins and skills** and choose the plugin and account. Under **Test a tool**, pick a tool that shows who you're signed in as, enter its input, and choose **Run test**:
 
 | Plugin | Tool | Input |
 | --- | --- | --- |
@@ -64,7 +64,7 @@ If the wrong account connected, sign out of the service in your browser, then ch
 | Problem | What to do |
 | --- | --- |
 | Redirect or callback mismatch | Register the exact callback shown in OutcomeGo. If you changed your server address, update it with the service too. |
-| Wrong account connected | Sign out of the service in your browser, then choose **Reauthorize** under **Manage → Accounts and settings** |
+| Wrong account connected | Sign out of the service in your browser, then choose **Reauthorize** under **Manage plugins and skills** |
 | Signed in, but a tool fails | Check the account's permissions, the app's scopes, and any workspace restrictions |
 | A bot can't use the tool | Check that the account is connected and the tool is available |
-| The connection stopped working | Under **Manage → Accounts and settings**, choose **Restart / refresh tools**, then **Reauthorize** if that doesn't fix it |
+| The connection stopped working | Under **Manage plugins and skills**, choose **Restart / refresh tools**, then **Reauthorize** if that doesn't fix it |
