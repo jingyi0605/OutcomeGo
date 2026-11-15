@@ -76,6 +76,7 @@ export async function dialTarget(
   if (options.publicOnly && options.ports && !options.ports.includes(target.port))
     throw new NetworkError("port_blocked");
   const addresses = await resolveTargetAddresses(target, life, options);
+  let lastError: unknown;
   for (const address of addresses.slice(0, 8)) {
     life.throwIfAborted();
     try {
@@ -88,11 +89,12 @@ export async function dialTarget(
         routeEpoch: target.epoch,
       });
       return socket;
-    } catch {
-      if (life.aborted) throw new NetworkError("connect_timeout");
+    } catch (error) {
+      lastError = error;
+      if (life.aborted) throw new NetworkError("connect_timeout", { cause: error });
     }
   }
-  throw new NetworkError("connect_failed");
+  throw new NetworkError("connect_failed", { cause: lastError });
 }
 
 export type TargetAddress = { address: string; family: number };
