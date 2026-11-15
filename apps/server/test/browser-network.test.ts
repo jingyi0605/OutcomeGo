@@ -619,7 +619,7 @@ describe("connected device browser network", () => {
           "-subj",
           "/CN=browser-target.test",
           "-addext",
-          "subjectAltName=DNS:browser-target.test,DNS:ipwho.is,DNS:speed.cloudflare.com",
+          "subjectAltName=DNS:browser-target.test,DNS:ipwho.is,DNS:speed.cloudflare.com,DNS:example.com,DNS:cloudflare.com",
         ],
         { stdout: "ignore", stderr: "ignore" }
       );

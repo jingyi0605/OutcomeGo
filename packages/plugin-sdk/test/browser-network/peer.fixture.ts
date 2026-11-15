@@ -101,7 +101,16 @@ const peer = new BrowserNetworkClient({
   machineId: config.machineId,
   deploymentId: config.deploymentId,
   dial: async (target, signal) => {
-    if (!["browser-target.test", "ipwho.is", "speed.cloudflare.com"].includes(target.host) || ![80, 443].includes(target.port))
+    if (
+      ![
+        "browser-target.test",
+        "ipwho.is",
+        "speed.cloudflare.com",
+        "example.com",
+        "cloudflare.com",
+      ].includes(target.host) ||
+      ![80, 443].includes(target.port)
+    )
       throw Error("Unexpected test destination");
     signal.throwIfAborted();
     const port = (target.port === 443 ? https : http)?.address();
