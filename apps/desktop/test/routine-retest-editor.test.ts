@@ -19,9 +19,11 @@ const stubExports = [
   "ChevronRight",
   "CirclePlus",
   "Clock3",
+  "Copy",
   "LoaderCircle",
   "Pause",
   "X",
+  "Webhook",
   "Button",
   "ButtonPrimitive",
   "DropdownMenu",
@@ -72,7 +74,7 @@ beforeAll(async () => {
           b.onResolve(
             {
               filter:
-                /\/(?:ui\/[^/]+|routine-definition-error|window-visibility|client\/http|client\/openteam-api|lib\/cn)$/,
+                /\/(?:ui\/[^/]+|routine-definition-error|window-visibility|client\/http|client\/(?:openteam|outcomego)-api|lib\/(?:cn|i18n))$/,
             },
             (a) => ({ path: a.path, namespace: "retest" })
           );
@@ -81,13 +83,15 @@ beforeAll(async () => {
             contents: a.path.startsWith("react/jsx")
               ? `export const jsx=(type,props)=>({type,props}); export const jsxs=jsx; export const jsxDEV=jsx; export const Fragment="Fragment";`
               : a.path === "react" || a.path === "retest:hooks"
-                ? `const h=()=>globalThis.${key}; export const useState=(...a)=>h().useState(...a);export const useRef=(...a)=>h().useRef(...a);export const useEffect=(...a)=>h().useEffect(...a);export const useCallback=(...a)=>h().useCallback(...a);export const timers={setTimeout:(...a)=>h().setTimeout(...a),clearTimeout:(...a)=>h().clearTimeout(...a)};`
-                : a.path.endsWith("openteam-api")
+                ? `const h=()=>globalThis.${key}; export const useState=(...a)=>h().useState(...a);export const useRef=(...a)=>h().useRef(...a);export const useEffect=(...a)=>h().useEffect(...a);export const useCallback=(...a)=>h().useCallback(...a);export const createContext=(value)=>({_value:value});export const useContext=(context)=>context._value;export const timers={setTimeout:(...a)=>h().setTimeout(...a),clearTimeout:(...a)=>h().clearTimeout(...a)};`
+                : /(?:openteam|outcomego)-api$/.test(a.path)
                   ? `export const api=new Proxy({}, {get:(_,key)=>(...a)=>globalThis.${key}.api[key](...a)});`
                   : a.path.endsWith("client/http")
                     ? `export class ClientError extends Error { constructor(message,code,status){super(message);this.code=code;this.status=status;} }`
                     : a.path.endsWith("window-visibility")
                       ? `export const isWindowVisible=()=>true;`
+                      : a.path.endsWith("lib/i18n")
+                        ? `export const useI18n=()=>({t:(key,values)=>key});`
                       : a.path.endsWith("lib/cn")
                         ? `export const cn=(...a)=>a.filter(Boolean).join(' ');`
                         : stubExports.map((name) => `export const ${name}='${name}';`).join("\n"),
@@ -172,9 +176,13 @@ class EditorHarness {
     this.api = {
       routine: async () => this.server,
       routineExecutions: async () => [],
+      routineWebhook: async () => ({ valid: false, publicUrl: null }),
+      automationWebhookPublicUrl: async () => ({ valid: false, publicUrl: null }),
       updateRoutine: async (_id, input) => this.commitUpdate(input),
       setRoutineEnabled: async (base, enabled) =>
         this.commitUpdate({ expectedRevision: base.revision, enabled }),
+      deleteRoutine: async () => undefined,
+      runRoutineNow: async () => undefined,
     };
   }
   commitUpdate(input: any) {

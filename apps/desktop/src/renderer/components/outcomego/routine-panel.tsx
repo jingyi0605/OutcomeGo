@@ -31,13 +31,20 @@ import {
   type RoutineSchedulePreset,
   type RoutineView,
   routineDraftValid,
+  recoverRoutineCreation,
+  routineDefinitionEqual,
+  routineEditorResumeState,
   routineHasWebhookTrigger,
   routineIsRunning,
   routinePresentationValue,
   routineScheduleDrafts,
   routineScheduleValue,
   routineScheduleValues,
+  routineScheduleUpdate,
+  routineSchedulesError,
   routineTriggerValue,
+  routineUpdateInput,
+  synchronizeRoutineEnabled,
 } from "../../lib/routines";
 import { Button } from "../ui/button";
 import {
@@ -826,9 +833,26 @@ interface RoutineSaveContext {
   dirty: boolean;
   saving: boolean;
   toggling: boolean;
+  contentConflict: boolean;
   pending: RoutineDraft | null;
   attached: boolean;
+  createAttempt?: {
+    clientId: string;
+    input: import("@outcomego/contracts").CreateRoutineInput;
+  };
+  saveState: "idle" | "saving" | "saved" | "error" | "conflict";
 }
+
+// Save and control responses can arrive in a different order from their commits.
+const rememberRoutine = (context: RoutineSaveContext, incoming: RoutineView): RoutineView => {
+  const current = context.routine;
+  const latest =
+    current && current.id === incoming.id && current.revision > incoming.revision
+      ? current
+      : incoming;
+  context.routine = latest;
+  return latest;
+};
 
 function WebhookValue({
   copied,
@@ -886,18 +910,29 @@ const draftFromRoutine = (routine: RoutineView): RoutineDraft => ({
   schedules: routineScheduleDrafts(routine).map(scheduleDraftItem),
 });
 
-const draftValid = (draft: RoutineDraft) =>
-  draft.name.trim().length > 0 &&
-  draft.prompt.trim().length > 0 &&
-  (draft.webhook || draft.schedules.length > 0) &&
-  draft.schedules.length <= 8 &&
-  draft.schedules.reduce(
-    (count, item) => count + routineScheduleValues(item.schedule).length,
-    draft.webhook ? 1 : 0
-  ) <= 8 &&
-  draft.schedules.every(({ schedule }) =>
-    routineDraftValid({ name: draft.name, prompt: draft.prompt, schedule })
+const draftValid = (draft: RoutineDraft, routine: RoutineView | null = null) => {
+  if (!draft.name.trim() || !draft.prompt.trim()) return false;
+  const schedules = draft.schedules.map(({ schedule }) => schedule);
+  if (
+    routine &&
+    routineHasWebhookTrigger(routine.trigger) === draft.webhook &&
+    Object.keys(routineScheduleUpdate(routine, schedules)).length === 0
+  ) {
+    return true;
+  }
+  return (
+    (draft.webhook || schedules.length > 0) &&
+    schedules.length <= 8 &&
+    !routineSchedulesError(schedules, routine) &&
+    schedules.reduce(
+      (count, schedule) => count + routineScheduleValues(schedule).length,
+      draft.webhook ? 1 : 0
+    ) <= 8 &&
+    schedules.every((schedule) =>
+      routineDraftValid({ name: draft.name, prompt: draft.prompt, schedule })
+    )
   );
+};
 
 export function RoutineEditor({
   active,
@@ -942,8 +977,10 @@ export function RoutineEditor({
       dirty: false,
       saving: false,
       toggling: false,
+      contentConflict: false,
       pending: null,
       attached: active,
+      saveState: "idle",
     };
   }
   const saveContext = contextRef.current;
@@ -951,13 +988,26 @@ export function RoutineEditor({
   useEffect(() => {
     if (!active) return;
     let cancelled = false;
+    const resumed = routineEditorResumeState(saveContext, routineId);
+    if (resumed) {
+      setRoutine(resumed.routine);
+      setDraft(resumed.draft);
+      setDirty(resumed.dirty);
+      setSaveState(resumed.saveState);
+      setToggleSaving(saveContext.toggling);
+      setLoading(false);
+      return;
+    }
     setLoading(Boolean(routineId));
     setSaveState("idle");
+    saveContext.saveState = "idle";
     setRoutine(null);
     setWebhook(null);
     setWebhookAvailable(null);
     setCopiedWebhookField(null);
     saveContext.routine = null;
+    saveContext.contentConflict = false;
+    saveContext.createAttempt = undefined;
     setExecutions([]);
     setDirty(false);
     setToggleSaving(false);
@@ -1037,8 +1087,8 @@ export function RoutineEditor({
     context: RoutineSaveContext,
     value: RoutineDraft
   ): Promise<void> {
-    if (!draftValid(value)) return;
-    if (context.saving) {
+    if (context.contentConflict || !draftValid(value, context.routine)) return;
+    if (context.saving || context.toggling) {
       context.pending = value;
       return;
     }
@@ -1046,35 +1096,65 @@ export function RoutineEditor({
     const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
     const trigger = routineTriggerValue(schedules, timeZone, value.webhook);
     context.saving = true;
+    context.saveState = "saving";
     if (context.attached) setSaveState("saving");
     try {
       const presentation = routinePresentationValue(schedules, value.webhook);
       const current = context.routine;
       const update = (base: RoutineView) =>
-        api.updateRoutine(base.id, {
-          name: value.name.trim(),
-          prompt: value.prompt.trim(),
-          trigger,
-          presentation,
-          expectedRevision: base.revision,
-        });
+        api.updateRoutine(
+          base.id,
+          routineUpdateInput(
+            base,
+            { name: value.name, prompt: value.prompt, schedules },
+            context.draft.enabled
+          )
+        );
       let saved: RoutineView;
       if (!current) {
-        saved = await api.createRoutine(context.ownerId, context.ownerKind, {
+        const input = {
           name: value.name.trim(),
           prompt: value.prompt.trim(),
           trigger,
           presentation,
           enabled: value.enabled,
-        });
+        };
+        context.createAttempt ??= { clientId: crypto.randomUUID(), input };
+        saved = await recoverRoutineCreation(
+          context.createAttempt,
+          input,
+          (original, clientId) =>
+            api.createRoutine(context.ownerId, context.ownerKind, original, clientId),
+          async (recovered) => {
+            const receipt = rememberRoutine(context, recovered);
+            if (context.attached) setRoutine(receipt);
+            const prepared = await synchronizeRoutineEnabled(
+              receipt,
+              () => context.draft.enabled,
+              (base, enabled) => api.setRoutineEnabled(base, enabled),
+              (id) => api.routine(id),
+              (error) => error instanceof ClientError && error.status === 409
+            );
+            if (!routineDefinitionEqual(recovered, prepared)) {
+              throw new ClientError(
+                "This routine changed elsewhere. Reopen it to load the latest version.",
+                "routine_revision_conflict",
+                409
+              );
+            }
+            const latest = rememberRoutine(context, prepared);
+            if (context.attached) setRoutine(latest);
+            return latest;
+          },
+          update
+        );
       } else {
         // A full draft cannot be safely retried against a newer revision: it
         // would silently restore stale instructions or schedules.
         saved = await update(current);
       }
-      context.routine = saved;
-      if (context.attached) setRoutine(saved);
-      void api.routineWebhook(saved.id).then(
+      const latest = rememberRoutine(context, saved);
+      void api.routineWebhook(latest.id).then(
         (nextWebhook) => {
           if (context.attached) setWebhook(nextWebhook);
         },
@@ -1082,14 +1162,21 @@ export function RoutineEditor({
           if (context.attached) setWebhook(null);
         }
       );
-      if (context.draft === value) {
+      if (context.attached) setRoutine(latest);
+      if (routineDefinitionEqual(saved, latest)) context.contentConflict = false;
+      if (context.draft === value && !context.contentConflict) {
         context.dirty = false;
         if (context.attached) setDirty(false);
       }
-      if (context.attached) setSaveState("saved");
+      context.saveState = context.contentConflict ? "conflict" : "saved";
+      if (context.attached) setSaveState(context.saveState);
     } catch (error) {
-      if (context.attached)
-        setSaveState(error instanceof ClientError && error.status === 409 ? "conflict" : "error");
+      if (!context.routine && error instanceof ClientError && [400, 422].includes(error.status)) {
+        context.createAttempt = undefined;
+      }
+      if (error instanceof ClientError && error.status === 409) context.contentConflict = true;
+      context.saveState = context.contentConflict ? "conflict" : "error";
+      if (context.attached) setSaveState(context.saveState);
     } finally {
       context.saving = false;
       const pending = context.pending;
@@ -1109,8 +1196,9 @@ export function RoutineEditor({
       setRunError(false);
       if (timer.current) clearTimeout(timer.current);
       timer.current = null;
-      if (!draftValid(next)) {
-        setSaveState("idle");
+      if (!draftValid(next, context.routine)) {
+        if (!context.saving && !context.contentConflict) context.saveState = "idle";
+        setSaveState(context.saveState);
         return;
       }
       if (immediate) void persist(context, next);
@@ -1147,10 +1235,13 @@ export function RoutineEditor({
             !context.dirty &&
             !context.saving &&
             !context.toggling &&
-            latest.revision > context.routine.revision
+            latest.revision >= context.routine.revision &&
+            (latest.revision > context.routine.revision ||
+              latest.enabled !== context.routine.enabled ||
+              latest.validationError !== context.routine.validationError)
           ) {
             const refreshed = draftFromRoutine(latest);
-            context.routine = latest;
+            rememberRoutine(context, latest);
             context.draft = refreshed;
             setRoutine(latest);
             setDraft(refreshed);
@@ -1176,7 +1267,7 @@ export function RoutineEditor({
       saveContext.attached = false;
       if (timer.current) clearTimeout(timer.current);
       timer.current = null;
-      if (saveContext.dirty && draftValid(saveContext.draft)) {
+      if (saveContext.dirty && draftValid(saveContext.draft, saveContext.routine)) {
         void persist(saveContext, saveContext.draft);
       }
     };
@@ -1185,7 +1276,7 @@ export function RoutineEditor({
   const running = routine
     ? routineIsRunning({ ...routine, latestExecution: executions[0] ?? routine.latestExecution })
     : false;
-  const valid = draftValid(draft);
+  const valid = draftValid(draft, routine);
 
   const toggleActive = (enabled: boolean) => {
     const context = contextRef.current;
@@ -1205,16 +1296,26 @@ export function RoutineEditor({
         return await api.setRoutineEnabled(base, enabled);
       } catch (error) {
         if (!(error instanceof ClientError) || error.status !== 409) throw error;
-        const latest = await api.routine(base.id);
-        context.routine = latest;
+        const latest = rememberRoutine(context, await api.routine(base.id));
+        if (!routineDefinitionEqual(base, latest)) {
+          if (context.dirty || context.saving || context.pending) {
+            context.contentConflict = true;
+            context.saveState = "conflict";
+            if (context.attached) setSaveState("conflict");
+          } else {
+            const refreshed = { ...draftFromRoutine(latest), enabled: context.draft.enabled };
+            context.draft = refreshed;
+            if (context.attached) setDraft(refreshed);
+          }
+        }
         return latest.enabled === enabled ? latest : api.setRoutineEnabled(latest, enabled);
       }
     };
     void commit()
       .then((saved) => {
-        context.routine = saved;
-        if (context.attached) setRoutine(saved);
-        void api.routineWebhook(saved.id).then(
+        const latest = rememberRoutine(context, saved);
+        if (context.attached) setRoutine(latest);
+        void api.routineWebhook(latest.id).then(
           (nextWebhook) => {
             if (context.attached) setWebhook(nextWebhook);
           },
@@ -1223,7 +1324,7 @@ export function RoutineEditor({
           }
         );
         if (context.draft === next) {
-          const confirmed = { ...next, enabled: saved.enabled };
+          const confirmed = { ...next, enabled: latest.enabled };
           context.draft = confirmed;
           if (context.attached) setDraft(confirmed);
         }
@@ -1239,7 +1340,36 @@ export function RoutineEditor({
       .finally(() => {
         context.toggling = false;
         if (context.attached) setToggleSaving(false);
+        if (!context.saving && context.pending) {
+          const pending = context.pending;
+          context.pending = null;
+          void persist(context, pending);
+        }
       });
+  };
+
+  const reloadLatest = async () => {
+    const context = contextRef.current;
+    const current = context?.routine;
+    if (!context || !current || context.saving || context.toggling) return;
+    try {
+      const latest = rememberRoutine(context, await api.routine(current.id));
+      if (timer.current) clearTimeout(timer.current);
+      timer.current = null;
+      context.pending = null;
+      context.contentConflict = false;
+      context.draft = draftFromRoutine(latest);
+      context.dirty = false;
+      context.saveState = "idle";
+      if (context.attached) {
+        setRoutine(latest);
+        setDraft(context.draft);
+        setDirty(false);
+        setSaveState("idle");
+      }
+    } catch {
+      if (context.attached) setSaveState("conflict");
+    }
   };
 
   const deleteRoutine = async () => {
@@ -1479,6 +1609,17 @@ export function RoutineEditor({
                       ? ""
                       : ""}
         </div>
+        {(saveState === "conflict" || saveContext.contentConflict) && (
+          <Button
+            className="h-7 justify-self-center px-2 text-[12px]"
+            data-routine-reload=""
+            disabled={saveContext.saving || toggleSaving}
+            onClick={() => void reloadLatest()}
+            variant="secondary"
+          >
+            {t("Reload latest")}
+          </Button>
+        )}
       </div>
     </div>
   );
