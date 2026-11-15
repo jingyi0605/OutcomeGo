@@ -1,0 +1,13 @@
+{
+  "Productivity": "效率",
+  "Find places and nearby spots with opening hours, and plan walking, cycling and driving routes, from free OpenStreetMap services with no account.": "使用免费的 OpenStreetMap 服务查找地点和附近去处、查看营业时间，并规划步行、骑行和驾车路线，无需账户。",
+  "Install this plugin from the marketplace.": "从应用市场安装此插件。",
+  "Choose Connect. There is nothing to sign in to.": "选择连接。无需登录任何账户。",
+  "Ask a Bot for places, such as the best Thai food near a landmark, or a walking route between stops.": "你可以让 Bot 查找地点，例如地标附近最好的泰国餐厅，或多个地点之间的步行路线。",
+  "Connect OpenStreetMap": "连接 OpenStreetMap",
+  "Uses OpenStreetMap's free public services: Photon for place search, Nominatim for nearby places and Valhalla for routes. No account or key is needed.": "使用 OpenStreetMap 的免费公共服务：Photon 用于地点搜索，Nominatim 用于附近地点，Valhalla 用于路线规划。无需账户或密钥。",
+  "Choose Connect. Every Bot can then look up places and routes.": "选择连接。之后所有 Bot 都可以查找地点和路线。",
+  "Place names, search areas and route stops are sent to these public services. They don't receive your name or messages.": "地点名称、搜索区域和路线停靠点会发送到这些公共服务；你的姓名和消息不会发送给它们。",
+  "OpenStreetMap has hours, websites and phone numbers for many places, but no ratings, reviews or photos.": "OpenStreetMap 为许多地点提供营业时间、网站和电话号码，但不提供评分、评论或照片。",
+  "When the user asks about real places: what is near somewhere, the best place of a kind, opening hours, or directions and routes between stops.": "当用户询问真实地点、附近有什么、某类地点中的最佳选择、营业时间，或地点之间的方向和路线时使用。"
+}

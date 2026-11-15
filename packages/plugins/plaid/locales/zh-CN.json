@@ -1,0 +1,12 @@
+{
+  "Finance and Legal": "财务与法律",
+  "Connect banks from any device and query balances, transactions, recurring payments, investments, and loans with your own Plaid credentials.": "使用你自己的 Plaid 凭据从任何设备连接银行，并查询余额、交易、周期性付款、投资和贷款。",
+  "Install this plugin, then ask a Bot to set up Plaid on your connected computer or its Linux computer.": "安装此插件，然后让 Bot 在已连接的电脑或其 Linux 电脑上设置 Plaid。",
+  "The Bot asks for your Plaid client ID and environment's secret if missing. Production access is required for real banks.": "如果缺少 Plaid 客户端 ID 和环境密钥，Bot 会向你询问。连接真实银行需要生产环境访问权限。",
+  "Open the Bot's Hosted Link URL on your laptop or phone, complete bank login, then say done so it saves and verifies the connection.": "在笔记本电脑或手机上打开 Bot 的 Hosted Link URL，完成银行登录，然后告诉 Bot 已完成，以便保存并验证连接。",
+  "Uninstalling the plugin removes its skills; the separately installed CLI, credentials, and bank connections require separate cleanup.": "卸载插件会删除其技能；单独安装的 CLI、凭据和银行连接需要另外清理。",
+  "Prepare the CLI and Python helpers, request missing Plaid keys, and configure the chosen computer and environment.": "准备 CLI 和 Python 辅助程序，申请缺少的 Plaid 密钥，并配置选定的电脑和环境。",
+  "Connect banks through Hosted Link from any device, resume sessions, list accounts, or remove a selected connection.": "从任何设备通过 Hosted Link 连接银行、恢复会话、列出账户或移除选定的连接。",
+  "Query balances, transactions, recurring payments, investments, or liabilities for connected accounts.": "查询已连接账户的余额、交易、周期性付款、投资或负债。",
+  "Diagnose Plaid CLI setup, credential, product-access, or bank connection errors.": "诊断 Plaid CLI 设置、凭据、产品访问或银行连接错误。"
+}

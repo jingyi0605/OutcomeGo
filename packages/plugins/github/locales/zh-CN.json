@@ -1,0 +1,11 @@
+{
+  "Agent Orchestration": "智能体编排",
+  "Search repositories, inspect code, manage issues, and work with pull requests.": "搜索代码仓库、查看代码、管理 Issue 并处理 Pull Request。",
+  "Connect GitHub": "连接 GitHub",
+  "Paste a GitHub personal access token to connect the official remote server.": "粘贴 GitHub 个人访问令牌以连接官方远程服务器。",
+  "Create a fine-grained personal access token in GitHub settings.": "在 GitHub 设置中创建细粒度个人访问令牌。",
+  "Choose only the repositories and permissions you want OutcomeGo to use.": "只选择允许 OutcomeGo 使用的代码仓库和权限。",
+  "Paste the token below. OutcomeGo stores it on your self-hosted server.": "在下方粘贴令牌。OutcomeGo 会将其保存在你自己的服务器上。",
+  "Personal access token": "个人访问令牌",
+  "Fine-grained tokens are recommended.": "建议使用细粒度令牌。"
+}

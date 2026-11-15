@@ -1,0 +1,17 @@
+{
+  "Productivity": "效率",
+  "Find places with Google ratings, reviews, photos and live opening hours, and plan walking, cycling and driving routes, using your own Google Maps Platform API key.": "使用你自己的 Google 地图平台 API 密钥查找地点、查看 Google 评分、评论、照片和实时营业时间，并规划步行、骑行和驾车路线。",
+  "In Google Cloud, create or pick a project with billing, enable Places API (New) and Routes API, and create an API key.": "在 Google Cloud 中创建或选择一个已启用结算的项目，启用 Places API（新版）和 Routes API，然后创建 API 密钥。",
+  "Install this plugin from the marketplace, paste the key in account settings and choose Connect.": "从应用市场安装此插件，在账户设置中粘贴密钥，然后选择连接。",
+  "Ask a Bot for the best places near somewhere, reviews of a place, or a route between stops.": "你可以让 Bot 查找附近的好去处、查看地点评论，或规划多个地点之间的路线。",
+  "Connect Google Maps": "连接 Google 地图",
+  "Paste a Google Maps Platform API key with Places API (New) and Routes API enabled. Google charges per request after each monthly free allowance; ratings and reviews are its highest tiers.": "粘贴一个已启用 Places API（新版）和 Routes API 的 Google 地图平台 API 密钥。每月免费额度用完后，Google 会按请求收费；评分和评论属于价格较高的服务层级。",
+  "In the Google Cloud console, pick a project with a billing account.": "在 Google Cloud 控制台中选择一个已关联结算账户的项目。",
+  "Enable Places API (New) and Routes API.": "启用 Places API（新版）和 Routes API。",
+  "Enable Places API (New) and Routes API for that project.": "为该项目启用 Places API（新版）和 Routes API。",
+  "Create an API key under APIs & Services → Credentials. Restricting it to those two APIs is safest.": "在“API 和服务 → 凭据”中创建 API 密钥。将密钥限制为这两个 API 更安全。",
+  "Paste the key below and choose Connect. Every Bot can then use it.": "在下方粘贴密钥并选择连接。之后所有 Bot 都可以使用它。",
+  "API key": "API 密钥",
+  "A Google Maps Platform key with Places API (New) and Routes API enabled. It is stored on your server and used only by this plugin.": "已启用 Places API（新版）和 Routes API 的 Google 地图平台密钥。密钥会保存在你的服务器上，仅供此插件使用。",
+  "When the user asks about real places with Google Maps connected: the best place of a kind, what is near somewhere, ratings, reviews, opening hours, or directions between stops.": "连接 Google 地图后，当用户询问真实地点、某类地点中的最佳选择、附近有什么、评分、评论、营业时间或地点之间的路线时使用。"
+}

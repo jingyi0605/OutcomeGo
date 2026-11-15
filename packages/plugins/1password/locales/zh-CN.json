@@ -1,0 +1,11 @@
+{
+  "Login and Credential Management": "登录与凭据管理",
+  "Bots sign in to websites with logins and one-time codes from the 1Password vaults you choose.": "Bot 使用你选择的 1Password 保管库中的登录信息和一次性验证码登录网站。",
+  "Put the logins bots should use in a 1Password vault other than Personal, Private, Employee, or the default Shared vault. Service accounts can't open those.": "将 Bot 需要使用的登录信息放在 Personal、Private、Employee 或默认 Shared 保管库之外的 1Password 保管库中。服务账户无法访问这些保管库。",
+  "On 1Password.com, go to Developer → Directory → Other → Create a Service Account. Add that vault with read access only, then copy the token. 1Password shows it only once.": "在 1Password.com 中进入 Developer → Directory → Other → Create a Service Account。为该服务账户添加此保管库的只读权限，然后复制令牌。1Password 只显示一次令牌。",
+  "Paste the token below and add the plugin. Every bot can then use those logins; passwords and codes a bot reads appear in its conversation.": "在下方粘贴令牌并添加插件。之后所有 Bot 都可以使用这些登录信息；Bot 读取的密码和验证码会出现在其对话中。",
+  "To rotate the token, paste the new one on this page. Uninstalling deletes it from OutcomeGo; delete the service account in 1Password to revoke access.": "要轮换令牌，请在此页面粘贴新令牌。卸载插件会从 OutcomeGo 中删除令牌；请在 1Password 中删除服务账户以撤销访问权限。",
+  "Service account token": "服务账户令牌",
+  "Shown once when you create the service account in step 2.": "创建服务账户的第 2 步只会显示一次。",
+  "Sign in to websites with the user's saved 1Password logins and one-time codes. Use whenever a site asks for a username, password, or verification code.": "使用用户保存的 1Password 登录信息和一次性验证码登录网站。当网站要求输入用户名、password 或验证码时使用。"
+}

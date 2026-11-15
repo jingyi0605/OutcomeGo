@@ -1,0 +1,12 @@
+{
+  "Productivity": "效率",
+  "Bring meeting notes, decisions, and action items into your work.": "将会议记录、决策和行动项带入你的工作流程。",
+  "Connect Granola": "连接 Granola",
+  "Sign in with your Granola account. No API key or developer application is needed.": "使用 Granola 账户登录。无需 API 密钥或开发者应用。",
+  "Check your account email and active workspace in Granola.": "在 Granola 中确认账户邮箱和当前工作区。",
+  "Continue to Granola, sign in with that account, and review the requested access.": "继续前往 Granola，使用该账户登录并查看请求的访问权限。",
+  "Return to OutcomeGo after authorization. Granola uses your active workspace; available notes and tools depend on your plan and workspace settings.": "授权后返回 OutcomeGo。Granola 使用当前工作区；可用的笔记和工具取决于你的套餐和工作区设置。",
+  "Find meeting discussions, decisions, and relevant upcoming conversations with links to the evidence.": "查找会议讨论、决策和相关的近期对话，并附上证据链接。",
+  "Prepare a meeting brief from previous discussions, open commitments, and recent developments.": "根据之前的讨论、未完成承诺和近期进展准备会议简报。",
+  "Compare an implementation, document, or plan with the requirements and decisions recorded in meetings.": "将实现、文档或计划与会议中记录的需求和决策进行比较。"
+}

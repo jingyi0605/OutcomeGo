@@ -1,0 +1,16 @@
+{
+  "Agent Orchestration": "智能体编排",
+  "Start coding tasks in your T3 Code projects, follow progress, and continue existing threads from OpenTeam.": "在 T3 Code 项目中发起编码任务、跟踪进度，并从 OpenTeam 继续已有线程。",
+  "Connect T3 Code": "连接 T3 Code",
+  "Paste the MCP URL from your T3 Code environment. OpenTeam validates the URL, then opens T3's authorization page. No client ID or API key is needed.": "粘贴 T3 Code 环境中的 MCP 地址。OpenTeam 会验证地址，然后打开 T3 授权页面。无需客户端 ID 或 API 密钥。",
+  "In T3 Code, choose Use T3 Code in another app (MCP), or Copy MCP URL from your environment's menu.": "在 T3 Code 中选择“在其他应用中使用 T3 Code（MCP）”，或从环境菜单中复制 MCP 地址。",
+  "Paste the complete URL below. Use T3 Connect or reachable HTTPS when OpenTeam runs on another computer.": "在下方粘贴完整地址。如果 OpenTeam 运行在另一台电脑上，请使用 T3 Connect 或可访问的 HTTPS 地址。",
+  "T3 Code MCP URL": "T3 Code MCP 地址",
+  "Authorize OpenTeam on T3's page. If T3 asks for a one-time approval code, enter it there; OpenTeam does not save that code.": "在 T3 页面上授权 OpenTeam。如果 T3 要求一次性批准码，请在那里输入；OpenTeam 不会保存该批准码。",
+  "Choose your access level in T3. Read only can inspect threads. Auto lets the coding provider review routine actions automatically and ask about others; it is not unrestricted access.": "在 T3 中选择访问级别。只读权限可以查看线程；自动模式允许编码服务商自动审核常规操作，并就其他操作提问；它不是无限制访问。",
+  "Return to OpenTeam. The connection is ready after its authenticated MCP tool discovery succeeds. Keep the T3 host online.": "返回 OpenTeam。认证后的 MCP 工具发现成功后，连接即可使用。请保持 T3 主机在线。",
+  "Paste the full URL ending in /mcp, not a pairing link or approval code. HTTPS is required except for localhost.": "粘贴以 /mcp 结尾的完整地址，不要粘贴配对链接或批准码。除 localhost 外必须使用 HTTPS。",
+  "Implement features, fix bugs, run tests, or research code through a connected T3 Code environment; start a worktree thread and follow its verified result.": "通过已连接的 T3 Code 环境实现功能、修复问题、运行测试或研究代码；发起一个 worktree 线程并跟踪经过验证的结果。",
+  "Inspect T3 Code projects and existing threads, report progress, send follow-ups, or stop a specified remote coding run.": "查看 T3 Code 项目和已有线程、报告进度、发送后续消息，或停止指定的远程编码运行。",
+  "Connect T3 Code or diagnose its MCP URL, sign-in, Auto access, offline host, or missing project/provider.": "连接 T3 Code，或诊断其 MCP 地址、登录、自动访问、离线主机或缺少项目/服务商的问题。"
+}

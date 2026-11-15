@@ -1,0 +1,23 @@
+{
+  "Documents & Files": "文档与文件",
+  "Notion skills and MCP server for documents, research, meetings, and tasks.": "用于文档、研究、会议和任务的 Notion 技能及 MCP 服务器。",
+  "Connect Notion": "连接 Notion",
+  "Notion registers OutcomeGo during OAuth, so there are no secrets to create.": "Notion 会在 OAuth 过程中注册 OutcomeGo，因此无需创建密钥。",
+  "Continue to Notion's authorization page.": "继续前往 Notion 授权页面。",
+  "Choose the workspace and pages OutcomeGo may access.": "选择允许 OutcomeGo 访问的工作区和页面。",
+  "Return to OutcomeGo after authorization completes.": "授权完成后返回 OutcomeGo。",
+  "Search Notion across pages and databases, including paginated results and source links.": "跨 Notion 页面和数据库搜索，包括分页结果和来源链接。",
+  "Locate a specific Notion page or database by title, URL, or identifying context.": "根据标题、URL 或识别上下文定位指定的 Notion 页面或数据库。",
+  "Create and verify a Notion page in the intended parent with an appropriate document structure.": "在目标父页面下创建 Notion 页面，并验证其文档结构是否合适。",
+  "Add a task to an existing Notion task database with validated status, dates, owner and project.": "向现有 Notion 任务数据库添加任务，并验证状态、日期、负责人和项目。",
+  "Insert a Notion database row by mapping natural-language values to its actual property schema.": "将自然语言值映射到实际属性结构，向 Notion 数据库插入一行。",
+  "Query a Notion data source with typed filters, sorting, pagination and readable results.": "使用类型化筛选、排序和分页查询 Notion 数据源，并返回易读结果。",
+  "Turn a discussion into linked Notion documentation with decisions, rationale and unresolved questions.": "将讨论整理为关联的 Notion 文档，包括决策、理由和未解决问题。",
+  "Prepare a meeting pre-read and agenda from relevant Notion context and authorized connected sources.": "根据相关 Notion 上下文和已授权连接的数据源准备会议预读材料和议程。",
+  "Research a topic across Notion and save a sourced synthesis with uncertainty and recommendations.": "跨 Notion 研究主题，并保存带来源、包含不确定性和建议的综合结果。",
+  "Convert a Notion specification into an implementation plan and linked, verifiable tasks.": "将 Notion 规格转换为实现计划和可验证的关联任务。",
+  "Create an actionable implementation plan from a Notion task or specification.": "根据 Notion 任务或规格创建可执行的实现计划。",
+  "Implement an authorized Notion task and update its progress with evidence from the work.": "实现已授权的 Notion 任务，并用工作证据更新进度。",
+  "Create a Notion document explaining a concrete code diff, its behavior and verification.": "创建 Notion 文档，说明具体代码差异、行为和验证结果。",
+  "Set up or connect a Notion task board with a usable schema and verified sample workflow.": "设置或连接具有可用结构并经过示例工作流验证的 Notion 任务看板。"
+}

@@ -5,7 +5,8 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./translations": "./src/translations.ts"
   },
   "scripts": {
     "build": "bun scripts/generate.ts && bun build src/index.ts --outdir dist --target bun",

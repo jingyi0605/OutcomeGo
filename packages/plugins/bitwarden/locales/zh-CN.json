@@ -1,0 +1,17 @@
+{
+  "Login and Credential Management": "登录与凭据管理",
+  "Bots sign in with usernames, passwords and one-time codes from Bitwarden or self-hosted Vaultwarden.": "Bot 使用 Bitwarden 或自托管 Vaultwarden 中的用户名、密码和一次性验证码登录网站。",
+  "Use a dedicated Bitwarden or Vaultwarden account with access only to the logins bots need. Grant read access to the required collections where your provider supports it. Every bot shares this plugin configuration.": "使用专用的 Bitwarden 或 Vaultwarden 账户，只授予 Bot 所需登录信息的访问权限。如果服务商支持，请仅授予所需集合的读取权限。所有 Bot 共享此插件配置。",
+  "In the web vault, open Settings → Security → Keys → View API key. Copy the personal client ID and client secret; organization API keys are not supported.": "在网页保管库中打开“设置 → 安全 → 密钥 → 查看 API 密钥”。复制个人客户端 ID 和客户端密钥；不支持组织 API 密钥。",
+  "Enter the HTTPS server origin, account email, API key and master password below. The bot computer must resolve and reach that origin and trust its TLS certificate. Its localhost is the computer container itself.": "在下方输入 HTTPS 服务器源地址、账户邮箱、API 密钥和主 password。Bot 电脑必须能够解析并访问该地址，并信任其 TLS 证书。这里的 localhost 指 Bot 电脑容器本身。",
+  "The skill installs verified Bitwarden CLI 2026.10.1 on first use. Linux and macOS on x64/ARM64 require Python 3, curl and unzip. It authenticates and syncs afresh for each read; no email/password fallback or interactive MFA automation is provided.": "技能首次使用时会安装经过验证的 Bitwarden CLI 2026.10.1。Linux 和 macOS x64/ARM64 需要 Python 3、curl 和 unzip。每次读取都会重新认证并同步；不提供邮箱/password fallback 或交互式 MFA 自动化。",
+  "The wrapper exposes reads only; general Shell access is broader. Credentials read by a bot can enter its model context and existing conversation or terminal history, as with 1Password. Replace individual fields here to rotate them; uninstalling removes configuration, not the provider account.": "包装器只提供读取操作；普通 Shell 访问范围更广。Bot 读取的凭据可能进入其模型上下文、已有对话或终端历史记录，这与 1Password. 一样。请在此替换单个字段以轮换配置；卸载插件会删除配置，不会删除服务商账户。",
+  "Server URL": "服务器地址",
+  "HTTPS origin reachable from the bot computer. For Bitwarden Cloud use https://vault.bitwarden.com or https://vault.bitwarden.eu.": "Bot 电脑可以访问的 HTTPS 源地址。Bitwarden Cloud 使用 https://vault.bitwarden.com 或 https://vault.bitwarden.eu。",
+  "Account email": "账户邮箱",
+  "Personal API client ID": "个人 API 客户端 ID",
+  "Personal API client secret": "个人 API 客户端密钥",
+  "Master password": "主 password",
+  "Used to unlock the vault. Leading and trailing spaces are significant.": "用于解锁保管库。开头和结尾的空格有意义。",
+  "Read saved website logins and one-time codes from Bitwarden or Vaultwarden. Use when the user requests credentials or a website needs a username, password or verification code.": "从 Bitwarden 或 Vaultwarden 读取保存的网站登录信息和一次性验证码。当用户请求凭据或网站需要用户名、password 或验证码时使用。"
+}

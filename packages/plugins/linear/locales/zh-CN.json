@@ -1,0 +1,9 @@
+{
+  "Productivity": "效率",
+  "Find, create, and update issues, projects, and comments.": "查找、创建和更新 Issue、项目及评论。",
+  "Connect Linear": "连接 Linear",
+  "Linear registers OutcomeGo during OAuth, so there are no secrets to create.": "Linear 会在 OAuth 过程中注册 OutcomeGo，因此无需创建密钥。",
+  "Continue to Linear's authorization page.": "继续前往 Linear 授权页面。",
+  "Choose the workspace OutcomeGo may access.": "选择允许 OutcomeGo 访问的工作区。",
+  "Return to OutcomeGo after authorization completes.": "授权完成后返回 OutcomeGo。"
+}

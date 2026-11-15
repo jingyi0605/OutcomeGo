@@ -1,0 +1,12 @@
+{
+  "Inbox & Collaboration": "收件箱与协作",
+  "Connect your Signal account by scanning a QR code. Read collected messages, contacts and groups, send texts, and retrieve small attachments.": "扫描二维码连接 Signal 账户。读取已收集的消息、联系人和群组，发送文本，并获取小型附件。",
+  "Connect Signal": "连接 Signal",
+  "Link Signal on your phone. OpenTeam installs the required runtime automatically.": "在手机上关联 Signal。OpenTeam 会自动安装所需运行时。",
+  "Choose Connect to install the verified Signal runtime and display a QR code.": "选择连接以安装经过验证的 Signal 运行时并显示二维码。",
+  "On your phone, open Signal → Settings → Linked Devices, then scan the code.": "在手机上打开 Signal → 设置 → 已关联设备，然后扫描二维码。",
+  "History begins while connected. Disappearing and view-once content is excluded.": "连接后会开始同步历史记录。阅后即焚和仅查看一次的内容不会被收集。",
+  "Delivered message deletions update collected copies. Whole-conversation deletion requires a locally observed message anchor.": "已送达消息的删除会同步更新已收集的副本。删除整个对话需要本地观察到的消息锚点。",
+  "Remove this linked device in Signal settings when removing your account from OpenTeam.": "从 OpenTeam 移除账户时，请在 Signal 设置中移除此关联设备。",
+  "In Signal on your phone, open Settings → Linked Devices, then scan this code. Keep this code private.": "在手机上的 Signal 中打开“设置 → 已关联设备”，然后扫描此二维码。请勿向他人透露二维码。"
+}

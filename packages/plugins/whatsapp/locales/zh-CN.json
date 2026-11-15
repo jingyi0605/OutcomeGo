@@ -1,0 +1,16 @@
+{
+  "Inbox & Collaboration": "收件箱与协作",
+  "Link your WhatsApp account to search conversations, read history, send messages and attachments, and manage chats.": "关联 WhatsApp 账户以搜索对话、读取历史记录、发送消息和附件，并管理聊天。",
+  "Install WhatsApp and choose Connect.": "安装 WhatsApp 并选择连接。",
+  "Scan the QR code using WhatsApp → Linked devices → Link a device on your phone.": "在手机 WhatsApp 中打开“已关联设备 → 关联设备”，然后扫描二维码。",
+  "Keep WhatsApp open until the account says Connected.": "保持 WhatsApp 打开，直到账户显示已连接。",
+  "Connect WhatsApp": "连接 WhatsApp",
+  "Link WhatsApp on your phone by scanning a QR code. OpenTeam handles setup automatically.": "在手机上扫描二维码关联 WhatsApp。OpenTeam 会自动完成设置。",
+  "Choose Connect to display a QR code.": "选择连接以显示二维码。",
+  "On your phone, open WhatsApp → Linked devices → Link a device, then scan this code.": "在手机上打开 WhatsApp → 已关联设备 → 关联设备，然后扫描此二维码。",
+  "On your phone, open WhatsApp → Linked devices → Link a device, then scan the code.": "在手机上打开 WhatsApp → 已关联设备 → 关联设备，然后扫描二维码。",
+  "Keep WhatsApp open while linking and initial history sync finish. New codes appear automatically.": "在关联和初始历史同步完成前保持 WhatsApp 打开。新二维码会自动显示。",
+  "In WhatsApp on your phone, open Settings → Linked devices → Link a device, then scan this code. Keep WhatsApp open while linking finishes.": "在手机 WhatsApp 中打开“设置 → 已关联设备 → 关联设备”，然后扫描此二维码。关联完成前请保持 WhatsApp 打开。",
+  "Search and read WhatsApp conversations, resolve contacts, send messages and attachments, reply, react, or change chat state through the connected account's tools.": "通过已连接账户的工具搜索和读取 WhatsApp 对话、解析联系人、发送消息和附件、回复、添加反应或更改聊天状态。",
+  "Check WhatsApp sync and history coverage, explain account-settings linking, recover a disconnected session, or remove the device.": "检查 WhatsApp 同步和历史记录覆盖范围，说明账户设置中的关联方式，恢复断开的会话，或移除设备。"
+}

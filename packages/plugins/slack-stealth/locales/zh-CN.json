@@ -1,0 +1,19 @@
+{
+  "Inbox & Collaboration": "收件箱与协作",
+  "Search Slack, read channels and threads, send messages, and add reactions using your browser session.": "使用浏览器会话搜索 Slack、阅读频道和线程、发送消息并添加反应。",
+  "Install Slack (stealth) from Marketplace.": "从应用市场安装 Slack（隐身）。",
+  "Open account settings and save your Slack browser token and session cookie in the secret fields.": "打开账户设置，将 Slack 浏览器令牌和会话 Cookie 保存到密钥字段中。",
+  "Connect the account and verify a read tool returns data from the intended workspace.": "连接账户并验证读取工具返回的是目标工作区的数据。",
+  "Every Bot can use the connected account. Use Add Another Account for each additional Slack workspace.": "所有 Bot 都可以使用已连接的账户。每个额外的 Slack 工作区都请使用“添加其他账户”。",
+  "Connect your Slack session": "连接你的 Slack 会话",
+  "Use your signed-in Slack browser session. No Slack app registration or OAuth client is required.": "使用已登录的 Slack 浏览器会话。无需注册 Slack 应用或 OAuth 客户端。",
+  "Sign in to the Slack workspace you want to connect in your browser.": "在浏览器中登录要连接的 Slack 工作区。",
+  "Use the upstream authentication guide to find the workspace's browser token (xoxc-) and its d session cookie (xoxd-). Enter them only in the secret fields below, never in chat.": "按照上游认证指南找到工作区的浏览器令牌（xoxc-）和 d 会话 Cookie（xoxd-）。只在下方密钥字段中输入它们，绝不要在聊天中发送。",
+  "Save the account settings and choose Connect. Wait for the account to show Connected, then check its available tools.": "保存账户设置并选择连接。等待账户显示已连接，然后检查可用工具。",
+  "Test a small read, such as listing your channels. Messages and reactions act as your Slack user, within your account's access.": "执行一个简单的读取测试，例如列出你的频道。消息和反应会以你的 Slack 用户身份执行，并受账户权限限制。",
+  "If Slack expires or revokes the session, replace both secret fields with credentials from your current session and reconnect. Stealth refers to app-free setup; Slack and workspace security systems can still observe activity.": "如果 Slack 会话过期或被撤销，请用当前会话的凭据替换两个密钥字段并重新连接。隐身指无需应用的设置方式；Slack 和工作区安全系统仍可能观察到活动。",
+  "Slack browser token": "Slack 浏览器令牌",
+  "The browser token for this workspace, stored in your OutcomeGo account settings.": "此工作区的浏览器令牌，保存在你的 OutcomeGo 账户设置中。",
+  "Slack session cookie": "Slack 会话 Cookie",
+  "The value of Slack's d cookie. Treat it as a login credential.": "Slack d Cookie 的值。请将其视为登录凭据。"
+}
