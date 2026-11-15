@@ -79,6 +79,7 @@
         "@outcomego/contracts": "workspace:*",
         "@outcomego/design-tokens": "workspace:*",
         "@outcomego/plugin-sdk": "workspace:*",
+        "@outcomego/plugins": "workspace:*",
         "@outcomego/product-core": "workspace:*",
         "@outcomego/shell-jobs": "workspace:*",
         "@shikijs/themes": "3.23.0",

@@ -16,6 +16,7 @@ import { api } from "../../../client/outcomego-api";
 import { pluginAuthorization, pluginNeedsSetup } from "@outcomego/product-core/plugin-authorization";
 import { cn } from "../../../lib/cn";
 import { useI18n } from "../../../lib/i18n";
+import { localizePlugin } from "../../../lib/plugin-i18n";
 import { LoadingOrb } from "../../ui/loading-orb";
 import { PluginMark } from "./plugin-mark";
 import { MarketplaceCategories } from "./marketplace-categories";
@@ -153,23 +154,24 @@ export function MarketplaceView({
   onInstall: (plugin: PluginCatalogItemView) => void;
   onOpen: (plugin: PluginCatalogItemView) => void;
 }) {
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
+  const catalog = data.catalog.map((plugin) => localizePlugin(plugin, locale, t));
   const setQuery = onQueryChange;
   const setCategory = onCategoryChange;
   const normalized = query.trim().toLocaleLowerCase();
-  const filtered = data.catalog.filter(
+  const filtered = catalog.filter(
     (p) =>
       pluginMatchesMarketplaceCategory(p, category) &&
       `${p.name} ${p.description} ${p.publisher}`.toLocaleLowerCase().includes(normalized)
   );
   const grouped = category === "All" && !normalized;
-  const groups = [...new Set(data.catalog.filter((p) => !p.featured).map((p) => p.category))];
+  const groups = [...new Set(catalog.filter((p) => !p.featured).map((p) => p.category))];
   const sections = grouped
     ? [
-        { name: t("Featured"), plugins: data.catalog.filter((p) => p.featured) },
+        { name: t("Featured"), plugins: catalog.filter((p) => p.featured) },
         ...groups.map((name) => ({
           name: t(categoryLabel(name)),
-          plugins: data.catalog.filter((p) => !p.featured && p.category === name),
+          plugins: catalog.filter((p) => !p.featured && p.category === name),
         })),
       ].filter((s) => s.plugins.length)
     : [{ name: normalized ? t("Results") : t(category), plugins: filtered }];
@@ -235,7 +237,7 @@ export function InstalledPluginsView({
   query: string;
   onQueryChange: (value: string) => void;
 }) {
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
   const setQuery = onQueryChange;
   const [skills, setSkills] = useState<SavedSkillView[] | null>(null);
   const [skillError, setSkillError] = useState(false);
@@ -268,10 +270,13 @@ export function InstalledPluginsView({
           </div>
           <div className="grid grid-cols-2 gap-x-4 max-sm:grid-cols-1">
             {installs.map((install) => {
-              const plugin =
+              const plugin = localizePlugin(
                 install.catalog ??
                 data.catalog.find((p) => p.key === install.pluginKey) ??
-                catalogFallback(install);
+                catalogFallback(install),
+                locale,
+                t
+              );
               const retry = install.connections.find((c) => c.status !== "ready");
               const connectors = new Set(install.connections.map((c) => c.connectorKey)).size;
               const subtitle = [

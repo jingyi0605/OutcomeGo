@@ -27,6 +27,7 @@ import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState }
 import { api } from "../../client/outcomego-api";
 import { cn } from "../../lib/cn";
 import { useI18n } from "../../lib/i18n";
+import { localizePlugin, localizePluginConnection } from "../../lib/plugin-i18n";
 import { AnimatedCollapse } from "../ui/animated-collapse";
 import { LoadingOrb } from "../ui/loading-orb";
 const loadPluginSettingsDetail = () => import("./plugin-settings-detail");
@@ -974,7 +975,7 @@ export function PluginDetail({
   advancedSettings,
   busy,
   data,
-  plugin,
+  plugin: sourcePlugin,
   onAddAccount,
   onAuthenticate,
   onCancelAuthentication,
@@ -1017,7 +1018,8 @@ export function PluginDetail({
   ) => Promise<boolean>;
   advancedSettings?: React.ReactNode;
 }) {
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
+  const plugin = localizePlugin(sourcePlugin, locale, t);
   const [setupValues, setSetupValues] = useState<Record<string, string>>({});
   const [environmentValues, setEnvironmentValues] = useState<Record<string, string>>({});
   const [setupRequest, setSetupRequest] = useState<{ accountId: string; sequence: number } | null>(
@@ -1025,7 +1027,9 @@ export function PluginDetail({
   );
   const [dismissedSetupIds, setDismissedSetupIds] = useState<string[]>([]);
   const install = installFor(data, plugin.key);
-  const connections = install?.connections ?? [];
+  const connections = (install?.connections ?? []).map((connection) =>
+    localizePluginConnection(connection, locale, t)
+  );
   const setupConnection =
     connections.find((c) => c.id === setupRequest?.accountId && c.status !== "ready") ??
     connections.find(

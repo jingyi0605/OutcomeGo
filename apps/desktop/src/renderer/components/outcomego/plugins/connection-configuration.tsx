@@ -7,6 +7,11 @@ import { useCallback, useEffect, useState } from "react";
 import { api } from "../../../client/outcomego-api";
 import { useI18n } from "../../../lib/i18n";
 import {
+  localizePluginConnection,
+  localizePluginField,
+  localizePluginSetup,
+} from "../../../lib/plugin-i18n";
+import {
   inputClass,
   PluginButton,
   PluginField,
@@ -29,7 +34,7 @@ export function ConnectionConfiguration({
   settings: PluginSettingsView;
   refresh: () => Promise<unknown>;
 }) {
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
   const [config, setConfig] = useState<PluginConfigurationView | null>(null);
   const [values, setValues] = useState<Record<string, string | number | boolean>>({});
   const [secrets, setSecrets] = useState<NonNullable<PluginConfigurationInput["secrets"]>>({});
@@ -111,6 +116,11 @@ export function ConnectionConfiguration({
         <p className="text-[12px]">{t("Loading connection setup…")}</p>
       </div>
     );
+  const displayConnection = localizePluginConnection(connection, locale, t);
+  const displaySetup = localizePluginSetup(connection.pluginKey, locale, config.setup, t);
+  const displayFields = config.fields.map((field) =>
+    localizePluginField(connection.pluginKey, locale, field, t)
+  );
   return (
     <div className="grid gap-5">
       {operation.feedback}
@@ -131,7 +141,7 @@ export function ConnectionConfiguration({
       />
       <div>
         <h3 className="text-[14px] font-medium">
-          {connection.name} · {connection.alias}
+          {displayConnection.name} · {connection.alias}
         </h3>
         <p className="text-[12px] text-foreground-secondary">
           {config.runtime === "desktop"
@@ -143,35 +153,35 @@ export function ConnectionConfiguration({
         </p>
         {connection.statusMessage && <p className="mt-2 text-[12px]">{connection.statusMessage}</p>}
       </div>
-      {config.setup && connection.status !== "ready" && (
+      {displaySetup && connection.status !== "ready" && (
         <section className="rounded-xl bg-black/5 p-4 dark:bg-white/5">
-          <h4 className="text-[13px] font-medium">{config.setup.title}</h4>
+          <h4 className="text-[13px] font-medium">{displaySetup.title}</h4>
           <p className="mt-1 text-[12px]">
-            {pluginProviderSetupDescription(connection.pluginKey, config.setup.description)}
+            {pluginProviderSetupDescription(connection.pluginKey, displaySetup.description)}
           </p>
           <ol className="my-3 list-decimal space-y-1 pl-5 text-[12px]">
             {pluginProviderSetupSteps(
               connection.pluginKey,
               resolvedCallbackMode,
-              config.setup.steps
+              displaySetup.steps
             ).map((step) => (
               <li key={step}>{step}</li>
             ))}
           </ol>
-          {config.setup.documentationUrl && (
+          {displaySetup.documentationUrl && (
             <a
               className="text-[12px] text-blue-600 underline"
-              href={config.setup.documentationUrl}
+              href={displaySetup.documentationUrl}
               target="_blank"
               rel="noreferrer"
             >
               {t("Open provider setup guide")}
             </a>
           )}
-          {config.setup.requiredScopes.length > 0 && (
+          {displaySetup.requiredScopes.length > 0 && (
             <p className="mt-3 break-words text-xs text-foreground-secondary">
               {t("Requested scopes: {scopes}", {
-                scopes: config.setup.requiredScopes.join(", "),
+                scopes: displaySetup.requiredScopes.join(", "),
               })}
             </p>
           )}
@@ -265,7 +275,7 @@ export function ConnectionConfiguration({
           </div>
         </PluginField>
       )}
-      {config.fields.map((field) => (
+      {displayFields.map((field) => (
         <PluginField
           key={field.key}
           label={`${field.label}${field.required ? " *" : ""}`}
@@ -581,9 +591,9 @@ export function ConnectionConfiguration({
       </PluginField>
       <section className="grid gap-2">
         <h4 className="text-[13px] font-medium">
-          {t("Tools ({count})", { count: connection.tools.length })}
+          {t("Tools ({count})", { count: displayConnection.tools.length })}
         </h4>
-        {connection.tools.map((tool) => (
+        {displayConnection.tools.map((tool) => (
           <div
             className="rounded-lg border border-black/10 p-3 dark:border-white/10"
             key={tool.name}
@@ -593,7 +603,7 @@ export function ConnectionConfiguration({
           </div>
         ))}
       </section>
-      {connection.tools.length > 0 && (
+      {displayConnection.tools.length > 0 && (
         <section className="grid gap-3 rounded-xl border border-black/10 p-4 dark:border-white/10">
           <h4 className="text-[13px] font-medium">{t("Test a tool")}</h4>
           <PluginSelect
@@ -606,7 +616,7 @@ export function ConnectionConfiguration({
             }}
             options={[
               { value: "", label: t("Choose a tool…") },
-              ...connection.tools.map((tool) => ({ value: tool.name, label: tool.name })),
+              ...displayConnection.tools.map((tool) => ({ value: tool.name, label: tool.name })),
             ]}
           />
           <PluginField label={t("Test arguments (JSON)")}>
