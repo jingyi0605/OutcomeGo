@@ -2,19 +2,20 @@ import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 
 /** messagesEnabled: bots may read and send texts on this Mac. Only this Mac's app can turn it on. */
-export interface ComputerSettings { version: 1; machineLabel: string | null; messagesEnabled: boolean; }
-export const DEFAULT_COMPUTER_SETTINGS: ComputerSettings = { version: 1, machineLabel: null, messagesEnabled: false };
+export interface ComputerSettings { version: 1; machineLabel: string | null; messagesEnabled: boolean; updateChannel: "stable" | "beta"; }
+export const DEFAULT_COMPUTER_SETTINGS: ComputerSettings = { version: 1, machineLabel: null, messagesEnabled: false, updateChannel: "stable" };
 export const normalizeComputerSettings = (value: unknown): ComputerSettings => {
   const record = value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
   return {
     version: 1,
     machineLabel: typeof record.machineLabel === "string" && record.machineLabel.trim() ? record.machineLabel.trim().slice(0, 80) : null,
     messagesEnabled: record.messagesEnabled === true,
+    updateChannel: record.updateChannel === "beta" ? "beta" : "stable",
   };
 };
 export interface ComputerSettingsStore {
   read(): Promise<ComputerSettings>;
-  update(input: { machineLabel?: string; messagesEnabled?: boolean }): Promise<ComputerSettings>;
+  update(input: { machineLabel?: string; messagesEnabled?: boolean; updateChannel?: "stable" | "beta" }): Promise<ComputerSettings>;
 }
 
 export const createComputerSettingsStore = (path: string): ComputerSettingsStore => {
@@ -56,6 +57,7 @@ export const createComputerSettingsStore = (path: string): ComputerSettingsStore
         ...settings,
         machineLabel: input.machineLabel?.trim().slice(0, 80) || settings.machineLabel,
         messagesEnabled: input.messagesEnabled ?? settings.messagesEnabled,
+        updateChannel: input.updateChannel ?? settings.updateChannel,
       })),
   };
 };

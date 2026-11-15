@@ -158,6 +158,8 @@ interface Window {
       openDownload: () => Promise<void>;
       installClient: () => Promise<void>;
       onClientProgress: (listener: (status: OutcomeGoUpdateStatus) => void) => () => void;
+      getChannel: () => Promise<"stable" | "beta">;
+      setChannel: (channel: "stable" | "beta") => Promise<"stable" | "beta">;
     };
     microphone: {
       status: () => Promise<{
@@ -250,7 +252,7 @@ interface OutcomeGoUpdateStatus {
     | "apply-unsupported"
     | "unknown"
     | null;
-  track: "stable";
+  track: "stable" | "beta";
 }
 
 type OutcomeGoServerUpdateStatus = import("@outcomego/contracts").ServerUpdateView & {
@@ -260,5 +262,6 @@ type OutcomeGoServerUpdateStatus = import("@outcomego/contracts").ServerUpdateVi
   minimumClientVersion: string | null;
   maximumClientVersionExclusive: string | null;
   recommendedClientVersion: string | null;
+  updateChannel: "stable" | "beta" | null;
   manualCommand: string;
 };

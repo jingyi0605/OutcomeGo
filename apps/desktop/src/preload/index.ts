@@ -310,6 +310,12 @@ contextBridge.exposeInMainWorld("outcomego", {
     check: () => ipcRenderer.invoke("outcomego:updates:check"),
     openDownload: () => ipcRenderer.invoke("outcomego:updates:open-download"),
     installClient: () => ipcRenderer.invoke("outcomego:updates:install-client"),
+    getChannel: () => ipcRenderer.invoke("outcomego:updates:get-channel"),
+    setChannel: (channel: string) => {
+      if (channel !== "stable" && channel !== "beta")
+        throw new Error("Invalid update channel");
+      return ipcRenderer.invoke("outcomego:updates:set-channel", channel);
+    },
     onClientProgress: (listener: (status: unknown) => void) => {
       const handler = (_event: Electron.IpcRendererEvent, status: unknown) => listener(status);
       ipcRenderer.on("outcomego:desktop-update-progress", handler);

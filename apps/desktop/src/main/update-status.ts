@@ -28,7 +28,7 @@ export interface DesktopUpdateSnapshot {
   progress: number | null;
   message: string | null;
   failureKind: DesktopUpdateFailureKind | null;
-  track: "stable";
+  track: "stable" | "beta";
 }
 
 // electron-builder writes app-update.yml only for installer targets (DMG, ZIP, AppImage).

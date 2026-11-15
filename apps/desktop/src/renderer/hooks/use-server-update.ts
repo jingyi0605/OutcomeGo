@@ -5,6 +5,7 @@ import {
 import { useEffect, useState } from "react";
 import { translateCurrent } from "../lib/i18n-catalog";
 import { useServerUpdateStatus } from "./use-server-update-status";
+import { api } from "../client/outcomego-api";
 
 /**
  * The desktop release and the server stack it pins: the stack follows the desktop, so a newer
@@ -66,6 +67,14 @@ export function useServerUpdate() {
     await refreshServer();
   };
 
+  const setServerUpdateChannel = async (channel: "stable" | "beta") => {
+    await api.setUpdateChannel(channel);
+    await Promise.all([
+      window.outcomego?.updates.setChannel(channel),
+      refreshServer(),
+    ]);
+  };
+
   return {
     clientVersion,
     clientUpdate,
@@ -81,5 +90,7 @@ export function useServerUpdate() {
     serverNeedsUpdate,
     serverUpdating: server?.status === "updating",
     updateServer,
+    serverUpdateChannel: server?.updateChannel ?? null,
+    setServerUpdateChannel,
   };
 }

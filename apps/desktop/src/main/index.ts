@@ -238,10 +238,12 @@ const checkForDesktopUpdate = async (): Promise<DesktopUpdateSnapshot> => {
     message: null,
     failureKind: null,
   });
+  const allowPrerelease = (await computerSettings?.read())?.updateChannel === "beta";
   try {
     if (desktopSelfUpdates) {
       const autoUpdater = await configureDesktopUpdater();
       if (!autoUpdater) throw new Error("The desktop update service is unavailable");
+      autoUpdater.allowPrerelease = allowPrerelease;
       const result = await autoUpdater.checkForUpdates();
       if (!result) throw new Error("The desktop update service did not return a result");
       desktopUpdateSnapshot = {
@@ -250,12 +252,17 @@ const checkForDesktopUpdate = async (): Promise<DesktopUpdateSnapshot> => {
         status: result.isUpdateAvailable ? "available" : "up-to-date",
         message: result.isUpdateAvailable ? null : "You’re up to date",
         failureKind: null,
+        track: allowPrerelease ? "beta" : "stable",
       };
       return desktopUpdateSnapshot;
     }
-    const manifestUrl =
-      process.env.OUTCOMEGO_UPDATE_MANIFEST_URL ??
-      "https://api.github.com/repos/jingyi0605/OutcomeGo/releases/latest";
+    // Non-feed (directory) builds: query GitHub API and respect channel.
+    const baseUrl = process.env.OUTCOMEGO_UPDATE_MANIFEST_URL;
+    const manifestUrl = baseUrl ?? (
+      allowPrerelease
+        ? "https://api.github.com/repos/jingyi0605/OutcomeGo/releases?per_page=10"
+        : "https://api.github.com/repos/jingyi0605/OutcomeGo/releases/latest"
+    );
     const response = await net.fetch(manifestUrl, {
       headers: { accept: "application/vnd.github+json", "user-agent": "OutcomeGo-Desktop" },
     });
@@ -271,19 +278,33 @@ const checkForDesktopUpdate = async (): Promise<DesktopUpdateSnapshot> => {
       return desktopUpdateSnapshot;
     }
     if (!response.ok) throw new Error(`Update service returned ${response.status}`);
-    const release = parseDesktopReleaseManifest(await response.json(), releasePage);
-    const updateAvailable = (compareOutcomeGoVersions(release.version, app.getVersion()) ?? 0) > 0;
+    const responseJson = await response.json();
+    // The beta channel list endpoint returns an array; stable uses /releases/latest (object).
+    const candidateManifest = Array.isArray(responseJson)
+      ? (responseJson as unknown[]).find(
+          (item) =>
+            item &&
+            typeof item === "object" &&
+            !Array.isArray(item) &&
+            (allowPrerelease || !(item as Record<string, unknown>).prerelease)
+        ) ?? null
+      : responseJson;
+    const release = candidateManifest
+      ? parseDesktopReleaseManifest(candidateManifest, releasePage)
+      : null;
+    const updateAvailable =
+      release !== null && (compareOutcomeGoVersions(release.version, app.getVersion()) ?? 0) > 0;
     desktopUpdateSnapshot = {
       currentVersion: app.getVersion(),
-      latestVersion: release.version,
-      downloadUrl: release.downloadUrl,
+      latestVersion: release?.version ?? null,
+      downloadUrl: release?.downloadUrl ?? releasePage,
       status: updateAvailable ? "available" : "up-to-date",
       progress: null,
       message: updateAvailable
-        ? `Desktop ${release.version} is available. This copy can’t update itself, so download the new version to replace it.`
+        ? `Desktop ${release!.version} is available. This copy can’t update itself, so download the new version to replace it.`
         : "You’re up to date",
       failureKind: null,
-      track: "stable",
+      track: allowPrerelease ? "beta" : "stable",
     };
   } catch (error) {
     const failure = classifyDesktopUpdateError(error, desktopUpdateSnapshot.status);
@@ -840,6 +861,23 @@ ipcMain.handle("outcomego:updates:install-client", async (event) => {
   isQuitting = true;
   mainWindow?.webContents.send("outcomego:notifications:activity-changed");
   autoUpdater.quitAndInstall(false, true);
+});
+
+ipcMain.handle("outcomego:updates:get-channel", async (event) => {
+  if (!mainWindow || event.sender !== mainWindow.webContents)
+    throw new Error("Update channel is unavailable");
+  const settings = await computerSettings?.read();
+  return settings?.updateChannel ?? "stable";
+});
+
+ipcMain.handle("outcomego:updates:set-channel", async (event, channel: unknown) => {
+  if (!mainWindow || event.sender !== mainWindow.webContents)
+    throw new Error("Update channel is unavailable");
+  if (channel !== "stable" && channel !== "beta")
+    throw new Error("Invalid update channel");
+  if (!computerSettings) throw new Error("Computer settings are unavailable");
+  const updated = await computerSettings.update({ updateChannel: channel });
+  return updated.updateChannel;
 });
 
 ipcMain.handle("outcomego:tailscale", async (event, value) => {

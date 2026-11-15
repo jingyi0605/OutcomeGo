@@ -1495,6 +1495,13 @@ export const sourceTranslations: Record<string, string> = {
   "View update": "查看更新",
   "Desktop {version} is available": "桌面端 {version} 可用",
   "You’re up to date": "已是最新版本",
+  "Update channel": "更新通道",
+  Stable: "稳定版",
+  Beta: "开发版",
+  "Receive beta.x pre-releases in addition to stable updates.":
+    "除稳定版更新外，还会接收 beta.x 预发布版本。",
+  "Only receive stable releases.": "仅接收稳定版更新。",
+  "Could not change the update channel": "无法更改更新通道",
   "Click Again to Confirm: {label}": "再次点击确认：{label}",
   "Click Again to Confirm": "再次点击确认",
   "Checking the connected server…": "正在检查已连接的服务器…",

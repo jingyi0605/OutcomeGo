@@ -54,8 +54,11 @@ export default function UpdatesSettings() {
     serverLoading,
     refreshServer,
     compatibility,
+    serverUpdateChannel,
+    setServerUpdateChannel,
   } = update;
   const [actionError, setActionError] = useState<string | null>(null);
+  const [channelSaving, setChannelSaving] = useState(false);
 
   const clientNeedsUpdate =
     compatibility === "client-update-required" ||
@@ -96,6 +99,23 @@ export default function UpdatesSettings() {
       setActionError(localizeDesktopUpdateMessage(message) ?? message);
     }
   };
+
+  const handleChannelChange = async (channel: "stable" | "beta") => {
+    if (channelSaving) return;
+    setChannelSaving(true);
+    setActionError(null);
+    try {
+      await setServerUpdateChannel(channel);
+    } catch (error) {
+      setActionError(clientErrorMessage(error, t("Could not change the update channel")));
+    } finally {
+      setChannelSaving(false);
+    }
+  };
+
+  // Effective channel: server's channel takes precedence; fall back to desktop's local track.
+  const effectiveChannel: "stable" | "beta" =
+    serverUpdateChannel ?? (clientUpdate?.track === "beta" ? "beta" : "stable");
 
   const mismatchMessage =
     compatibility === "server-update-required"
@@ -139,6 +159,36 @@ export default function UpdatesSettings() {
 
       <SectionLabel>{t("OutcomeGo Updates")}</SectionLabel>
       <SettingsGroup>
+        <SettingsRow
+          anchors={["update-channel"]}
+          control={
+            <div className="flex gap-1 rounded-lg bg-muted p-0.5">
+              {(["stable", "beta"] as const).map((ch) => (
+                <button
+                  key={ch}
+                  type="button"
+                  disabled={channelSaving || serverLoading}
+                  onClick={() => void handleChannelChange(ch)}
+                  className={[
+                    "rounded-md px-3 py-1 text-[12px] font-medium transition-colors",
+                    effectiveChannel === ch
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground",
+                  ].join(" ")}
+                  aria-pressed={effectiveChannel === ch}
+                >
+                  {ch === "stable" ? t("Stable") : t("Beta")}
+                </button>
+              ))}
+            </div>
+          }
+          description={
+            effectiveChannel === "beta"
+              ? t("Receive beta.x pre-releases in addition to stable updates.")
+              : t("Only receive stable releases.")
+          }
+          title={t("Update channel")}
+        />
         <SettingsRow
           anchors={["update-status", "automatic-updates"]}
           control={

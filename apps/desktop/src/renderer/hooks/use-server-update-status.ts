@@ -20,6 +20,7 @@ const unavailableStatus = (targetVersion: string | null): OutcomeGoServerUpdateS
   minimumClientVersion: null,
   maximumClientVersionExclusive: null,
   recommendedClientVersion: null,
+  updateChannel: null,
   updaterAvailable: false,
   status: "unavailable",
   phase: null,
@@ -97,6 +98,10 @@ export function useServerUpdateStatus(targetVersion: string | null) {
             recommendedClientVersion:
               release?.recommendedClientVersion ??
               previous.status?.recommendedClientVersion ??
+              null,
+            updateChannel:
+              (release?.updateChannel as "stable" | "beta" | undefined) ??
+              previous.status?.updateChannel ??
               null,
             targetVersion: update?.targetVersion ?? targetVersion,
             message:
