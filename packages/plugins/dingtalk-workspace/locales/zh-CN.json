@@ -1,0 +1,11 @@
+{
+  "DingTalk Workspace": "钉钉工作区",
+  "Productivity": "效率工具",
+  "Use DingTalk as the current authorized user to manage to-dos, messages, Drive files, and documents.": "使用当前已授权的钉钉个人身份管理待办、消息、钉盘文件和文档。",
+  "Install the plugin, then ask a Bot to install DingTalk Workspace CLI on the selected Computer.": "安装插件，然后让 Bot 在选定的计算机上安装钉钉工作区 CLI。",
+  "Check the selected Computer with the dingtalk-setup status command, then complete device-flow authorization if needed. Your organization must enable CLI access first.": "使用 dingtalk-setup 的状态命令检查选定的计算机；如有需要再完成设备流授权。所属组织须先启用 CLI 访问。",
+  "For migration, export a DWS portable auth bundle on the source Computer, transfer it once with CopyToBox, and import it on the target Computer; the target verifies the login and removes its one-time bundle.": "迁移时，在源计算机导出 DWS portable auth bundle，通过 CopyToBox 一次性传输到目标计算机并导入；目标计算机验证登录后删除一次性 bundle。",
+  "Use the DingTalk workspace skill for to-dos, messages, Drive, and document operations. Other enabled Bots on the same Computer can use this login; uninstalling removes skills, not CLI credentials.": "使用钉钉工作区技能处理待办、消息、钉盘和文档。同一计算机上启用技能的其他 Bot 可使用此登录；卸载只移除技能，不移除 CLI 凭据。",
+  "Install the pinned DingTalk Workspace CLI, manage the selected Computer's login state, import or export a one-time portable auth bundle, and diagnose connection failures.": "安装固定版本的钉钉工作区 CLI，管理选定计算机的登录态，导入或导出一次性 portable auth bundle，并排查连接错误。",
+  "Use the current authorized DingTalk user to query and handle to-dos, messages, personal IM events, Drive files, and DingTalk documents.": "使用当前已授权的钉钉个人身份查询和处理待办、消息、个人事件、钉盘文件和在线文档。"
+}

@@ -2,6 +2,7 @@ import onePassword from "../1password/locales/zh-CN.json";
 import bitwarden from "../bitwarden/locales/zh-CN.json";
 import amap from "../amap/locales/zh-CN.json";
 import email from "../email/locales/zh-CN.json";
+import dingtalkWorkspace from "../dingtalk-workspace/locales/zh-CN.json";
 import github from "../github/locales/zh-CN.json";
 import gmail from "../gmail/locales/zh-CN.json";
 import googleCalendar from "../google-calendar/locales/zh-CN.json";
@@ -26,6 +27,7 @@ export const pluginTranslations: Record<string, Record<string, string>> = {
   amap,
   "1password": onePassword,
   bitwarden,
+  "dingtalk-workspace": dingtalkWorkspace,
   email,
   github,
   gmail,

@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "key": "dingtalk-workspace",
+  "version": "1.0.0",
+  "name": "DingTalk Workspace",
+  "description": "Use DingTalk as the current authorized user to manage to-dos, messages, Drive files, and documents.",
+  "publisher": "OutcomeGo",
+  "category": "Productivity",
+  "featured": false,
+  "components": ["skills"],
+  "connections": [],
+  "icon": "assets/icon.png",
+  "homepageUrl": "https://github.com/DingTalk-Real-AI/dingtalk-workspace-cli",
+  "installationSteps": [
+    "Install the plugin, then ask a Bot to install DingTalk Workspace CLI on the selected Computer.",
+    "Check the selected Computer with the dingtalk-setup status command, then complete device-flow authorization if needed. Your organization must enable CLI access first.",
+    "For migration, export a DWS portable auth bundle on the source Computer, transfer it once with CopyToBox, and import it on the target Computer; the target verifies the login and removes its one-time bundle.",
+    "Use the DingTalk workspace skill for to-dos, messages, Drive, and document operations. Other enabled Bots on the same Computer can use this login; uninstalling removes skills, not CLI credentials."
+  ],
+  "skills": [
+    {
+      "name": "dingtalk-setup",
+      "description": "Install the pinned DingTalk Workspace CLI, manage the selected Computer's login state, import or export a one-time portable auth bundle, and diagnose connection failures.",
+      "path": "skills/dingtalk-setup"
+    },
+    {
+      "name": "dingtalk-workspace",
+      "description": "Use the current authorized DingTalk user to query and handle to-dos, messages, personal IM events, Drive files, and DingTalk documents.",
+      "path": "skills/dingtalk-workspace"
+    }
+  ]
+}

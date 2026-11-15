@@ -20,10 +20,13 @@ Plugins connect your bots to services such as Gmail, GitHub, Slack, and Notion. 
 | Plaid | Bring your own keys, connect banks through Hosted Link from any device, and query financial data |
 | 1Password | Sign in to websites with saved logins and one-time codes from vaults shared with a service account |
 | Bitwarden / Vaultwarden | Read website logins and one-time codes from Bitwarden Cloud or a self-hosted Vaultwarden server |
+| DingTalk Workspace | Use a personal authorized CLI to view and handle to-dos, inspect or reply to supported messages, and read or edit authorized Drive documents |
 
 Slack, Granola, Notion, Google Drive, Google Docs, Google Sheets, and Google Slides include provider skills alongside their tools. See [the included skills and how to enable them](skills.md#skills-from-plugins). Gmail and Google Calendar provide tools without bundled skills.
 
 Plaid is a skills-only integration. After adding it, ask a Bot to set up Plaid on the computer that should hold your credentials. It installs the CLI and prepares Python helpers, asks for missing API keys, then sends a Hosted Link URL you can open on your laptop or phone. After bank login, tell the Bot “done” so it saves and verifies the connection. Bank connections live in that computer's CLI configuration rather than OutcomeGo's Accounts section. See the [Plaid guide](../../packages/plugins/plaid/README.md).
+
+DingTalk Workspace is a skills-only integration. Ask a Bot to install the pinned CLI on the computer that should hold the login, then complete the device-flow authorization with DingTalk. The organization must enable CLI access to personal data before the login can be used. The CLI profile stays on that computer and is shared by Bots enabled to use the skill; it is separate from OutcomeGo's Accounts section. See the [DingTalk Workspace guide](../../packages/plugins/dingtalk-workspace/README.md).
 
 ## Add a plugin
 

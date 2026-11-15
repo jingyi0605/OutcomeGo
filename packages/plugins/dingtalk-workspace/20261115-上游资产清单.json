@@ -1,0 +1,16 @@
+{
+  "version": "v1.0.68",
+  "repository": "DingTalk-Real-AI/dingtalk-workspace-cli",
+  "revision": "ba02fc6cdbdb3543d21d0cdb70f027bf0d142692",
+  "license": "Apache-2.0",
+  "assets": {
+    "dws-darwin-arm64.tar.gz": "f517d980bdaf18bfc8b1ae92707419d8ddcbb876b4565bbf7ef235d7db79a0fb",
+    "dws-darwin-amd64.tar.gz": "92e49a50147d2295c129962db709ed906b88294d5975b963203eb5f72fd78c75",
+    "dws-linux-arm64.tar.gz": "bdcc2eb51d7c5d29f0dd88a527eab2d54bb3c09f042c721c0adfb5dd641f7556",
+    "dws-linux-amd64.tar.gz": "45be0f60c75a95d1287727ea0bfb8b2257a193106d9b008808813ce2ff167645"
+  },
+  "sourceFiles": {
+    "LICENSE": "1d951e8ca1019e1ad6fc14b8450df1b7ba788b9f242002873ca79df70ee376fd",
+    "NOTICE": "b7d8a7d7c3c61cb0d4d78fa422fb81028c76d0e7ff1a23b1be68f058a9920d80"
+  }
+}
