@@ -1,12 +1,15 @@
 package com.outcomego.android.shell
 
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.click
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performTouchInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.outcomego.android.MainActivity
 import org.junit.Assert.assertTrue
@@ -41,6 +44,9 @@ class PrimaryWorkflowTest {
         compose.onNodeWithTag("back-to-conversations").performClick()
         compose.onNodeWithTag("conversation-bot-1").performClick()
         compose.onNodeWithText("Keep this note").assertIsDisplayed()
+        val attachWithDraft = compose.onNodeWithTag("attach-composer").getUnclippedBoundsInRoot()
+        val inputWithDraft = compose.onNodeWithTag("message-composer").getUnclippedBoundsInRoot()
+        assertTrue(inputWithDraft.bottom <= attachWithDraft.top)
     }
 
     @Test
@@ -73,5 +79,11 @@ class PrimaryWorkflowTest {
         compose.onNodeWithTag("send-message").assertIsDisplayed().performClick()
         compose.onNodeWithTag("voice-composer").assertIsDisplayed()
         compose.onNodeWithTag("send-message").assertDoesNotExist()
+
+        compose.onNodeWithTag("chat-message-list").performTouchInput { click(Offset(8f, 8f)) }
+        compose.waitForIdle()
+        val attachCollapsed = compose.onNodeWithTag("attach-composer").getUnclippedBoundsInRoot()
+        val inputCollapsed = compose.onNodeWithTag("message-composer").getUnclippedBoundsInRoot()
+        assertTrue(attachCollapsed.right <= inputCollapsed.left)
     }
 }
