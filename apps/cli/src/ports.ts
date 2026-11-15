@@ -38,9 +38,9 @@ export const firstUnavailablePort = async (
   return null;
 };
 
-export const viewerPorts = (): number[] => {
+export const viewerPorts = (start = VIEWER_PORT_START, end = VIEWER_PORT_END): number[] => {
   const ports: number[] = [];
-  for (let port = VIEWER_PORT_START; port <= VIEWER_PORT_END; port += 1) ports.push(port);
+  for (let port = start; port <= end; port += 1) ports.push(port);
   return ports;
 };
 

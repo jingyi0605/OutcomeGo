@@ -1,4 +1,5 @@
 import { describe, expect, spyOn, test } from "bun:test";
+import * as ports from "../src/ports";
 import type { CommandRunner, RunOptions, RunResult } from "../src/process";
 import {
   describePortOccupant,
@@ -8,7 +9,6 @@ import {
   portConflictMessage,
   portRequirementsFromEnvironment,
 } from "../src/stack";
-import * as ports from "../src/ports";
 
 class DockerPsRunner implements CommandRunner {
   readonly calls: Array<{ command: string; args: readonly string[]; options?: RunOptions }> = [];
@@ -170,7 +170,11 @@ describe("stack inspection", () => {
 
   test("probes the wildcard address where a loopback bind can succeed beside it", () => {
     expect(ports.probeHosts("127.0.0.1", "darwin")).toEqual(["127.0.0.1", "0.0.0.0"]);
-    expect(ports.probeHosts("100.64.0.1", "darwin")).toEqual(["100.64.0.1", "127.0.0.1", "0.0.0.0"]);
+    expect(ports.probeHosts("100.64.0.1", "darwin")).toEqual([
+      "100.64.0.1",
+      "127.0.0.1",
+      "0.0.0.0",
+    ]);
     expect(ports.probeHosts("0.0.0.0", "darwin")).toEqual(["0.0.0.0", "127.0.0.1"]);
     expect(ports.probeHosts("127.0.0.1", "win32")).toEqual(["127.0.0.1", "0.0.0.0"]);
     // Linux refuses the loopback bind itself, so a wildcard probe would only add false conflicts.
@@ -196,6 +200,58 @@ describe("stack inspection", () => {
     }, "0.0.0.0");
   });
 
+  test("checks the configured viewer port range instead of the default range", async () => {
+    const runner = new DockerPsRunner({
+      "6300": "openteam-debug-computer-1\topenteam-debug",
+    });
+    const requirements = portRequirementsFromEnvironment(
+      new Map([
+        ["OUTCOMEGO_VIEWER_BIND_HOST", "0.0.0.0"],
+        ["OUTCOMEGO_VIEWER_PORT_START", "6300"],
+        ["OUTCOMEGO_VIEWER_PORT_END", "6399"],
+      ]),
+      new Set(["server"])
+    );
+
+    const available = spyOn(ports, "portAvailable").mockImplementation(async (_host, port) => {
+      return port !== 6300;
+    });
+    try {
+      expect(requirements.viewerPortStart).toBe(6300);
+      expect(requirements.viewerPortEnd).toBe(6399);
+      expect(await findPortConflict(runner, requirements)).toMatchObject({
+        port: 6300,
+        container: "openteam-debug-computer-1",
+        project: "openteam-debug",
+      });
+      expect(
+        portConflictMessage(
+          {
+            port: 6300,
+            host: "0.0.0.0",
+            container: "openteam-debug-computer-1",
+            project: "openteam-debug",
+          },
+          requirements
+        )
+      ).toContain("the screen-viewer range 6300-6399 is configured for this installation");
+    } finally {
+      available.mockRestore();
+    }
+  });
+
+  test("falls back to the default viewer range when the configured range is invalid", () => {
+    const requirements = portRequirementsFromEnvironment(
+      new Map([
+        ["OUTCOMEGO_VIEWER_PORT_START", "6399"],
+        ["OUTCOMEGO_VIEWER_PORT_END", "6300"],
+      ]),
+      new Set()
+    );
+    expect(requirements.viewerPortStart).toBe(6200);
+    expect(requirements.viewerPortEnd).toBe(6299);
+  });
+
   test("checks every probed address for each viewer port", async () => {
     const probed: string[] = [];
     const available = spyOn(ports, "portAvailable").mockImplementation(async (host, port) => {
@@ -210,7 +266,12 @@ describe("stack inspection", () => {
         expect(conflict).toBeNull();
       } else {
         expect(conflict).toEqual({ port: 6201, host: "0.0.0.0" });
-        expect(probed).toEqual(["127.0.0.1:6200", "0.0.0.0:6200", "127.0.0.1:6201", "0.0.0.0:6201"]);
+        expect(probed).toEqual([
+          "127.0.0.1:6200",
+          "0.0.0.0:6200",
+          "127.0.0.1:6201",
+          "0.0.0.0:6201",
+        ]);
       }
     } finally {
       available.mockRestore();

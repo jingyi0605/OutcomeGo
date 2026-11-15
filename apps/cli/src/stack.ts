@@ -1,8 +1,8 @@
 import { VIEWER_PORT_END, VIEWER_PORT_START } from "./constants";
-import { occupiedHost, viewerPorts } from "./ports";
 import type { ComposeProject } from "./docker";
 import { CliError } from "./errors";
 import type { HealthResult } from "./health";
+import { occupiedHost, viewerPorts } from "./ports";
 import type { CommandRunner } from "./process";
 import type { SetupConfiguration } from "./setup-values";
 
@@ -18,10 +18,27 @@ export interface PortRequirements {
   apiHost: string;
   apiPort: number;
   viewerHost: string;
+  viewerPortStart: number;
+  viewerPortEnd: number;
   https: boolean;
   /** Services whose existing Docker listeners are allowed; host proxies still need checking. */
   running: ReadonlySet<string>;
 }
+
+const portValue = (value: string | undefined, defaultValue: number): number => {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed >= 1 && parsed <= 65_535 ? parsed : defaultValue;
+};
+
+const viewerPortRange = (
+  environment: ReadonlyMap<string, string>
+): Pick<PortRequirements, "viewerPortStart" | "viewerPortEnd"> => {
+  const start = portValue(environment.get("OUTCOMEGO_VIEWER_PORT_START"), VIEWER_PORT_START);
+  const end = portValue(environment.get("OUTCOMEGO_VIEWER_PORT_END"), VIEWER_PORT_END);
+  return start <= end
+    ? { viewerPortStart: start, viewerPortEnd: end }
+    : { viewerPortStart: VIEWER_PORT_START, viewerPortEnd: VIEWER_PORT_END };
+};
 
 /** Compose services of this installation that are currently running. */
 export const runningServices = (project: ComposeProject): Set<string> => {
@@ -81,6 +98,7 @@ export const portRequirementsFromEnvironment = (
     environment.get("OUTCOMEGO_VIEWER_BIND_HOST") ||
     environment.get("OUTCOMEGO_BIND_HOST") ||
     "127.0.0.1",
+  ...viewerPortRange(environment),
   https: (environment.get("COMPOSE_PROFILES") || "").split(",").includes("https"),
   running,
 });
@@ -92,6 +110,8 @@ export const portRequirementsFromConfiguration = (
   apiHost: configuration.bindHost,
   apiPort: Number(configuration.apiPort),
   viewerHost: configuration.viewerBindHost,
+  viewerPortStart: VIEWER_PORT_START,
+  viewerPortEnd: VIEWER_PORT_END,
   https: configuration.accessMode === "https",
   running,
 });
@@ -109,7 +129,8 @@ const tailscalePortConflict = (
     ports.set(requirements.apiPort, requirements.apiHost);
   }
   if (requirements.viewerHost === "0.0.0.0" || requirements.viewerHost === "::") {
-    for (const port of viewerPorts()) ports.set(port, requirements.viewerHost);
+    for (const port of viewerPorts(requirements.viewerPortStart, requirements.viewerPortEnd))
+      ports.set(port, requirements.viewerHost);
   }
   if (requirements.https) {
     ports.set(80, "0.0.0.0");
@@ -150,7 +171,11 @@ export const findPortConflict = async (
     if (occupant) return occupant;
   }
   if (!running.has("computer")) {
-    const occupant = await firstOccupiedPort(runner, requirements.viewerHost, viewerPorts());
+    const occupant = await firstOccupiedPort(
+      runner,
+      requirements.viewerHost,
+      viewerPorts(requirements.viewerPortStart, requirements.viewerPortEnd)
+    );
     if (occupant) return occupant;
   }
   if (requirements.https && !running.has("caddy")) {
@@ -172,11 +197,19 @@ const stopHint = (occupant: PortOccupant): string =>
       ? `Stop it with \`docker stop ${occupant.container}\``
       : `Find it with \`lsof -nP -iTCP:${occupant.port} -sTCP:LISTEN\` and stop it`;
 
-export const portConflictMessage = (occupant: PortOccupant): string => {
+export const portConflictMessage = (
+  occupant: PortOccupant,
+  viewerRange: Pick<PortRequirements, "viewerPortStart" | "viewerPortEnd"> = {
+    viewerPortStart: VIEWER_PORT_START,
+    viewerPortEnd: VIEWER_PORT_END,
+  }
+): string => {
   const port = occupant.port;
   if (occupant.tailscale) {
     const alternative =
-      port === 80 || port === 443 || (port >= VIEWER_PORT_START && port <= VIEWER_PORT_END)
+      port === 80 ||
+      port === 443 ||
+      (port >= viewerRange.viewerPortStart && port <= viewerRange.viewerPortEnd)
         ? "choose a loopback connection with an existing proxy"
         : "choose a different API port or a loopback connection with an existing proxy";
     return `OutcomeGo cannot start because Tailscale Serve already uses port ${port}, which conflicts with Docker binding ${occupant.host}:${port}. This can leave containers healthy while Docker cannot forward the port to this machine. Inspect the rule with \`tailscale serve status\`, then remove or move that listener, or use \`outcomego setup --advanced\` to ${alternative}. Retry outcomego start after resolving the conflict.`;
@@ -184,8 +217,13 @@ export const portConflictMessage = (occupant: PortOccupant): string => {
   const remedy =
     port === 80 || port === 443
       ? `${stopHint(occupant)}, or rerun setup and choose Existing HTTPS proxy.`
-      : port >= VIEWER_PORT_START && port <= VIEWER_PORT_END
-        ? `${stopHint(occupant)}; the screen-viewer range ${VIEWER_PORT_START}-${VIEWER_PORT_END} is fixed.`
+      : port >= viewerRange.viewerPortStart && port <= viewerRange.viewerPortEnd
+        ? `${stopHint(occupant)}; the screen-viewer range ${viewerRange.viewerPortStart}-${viewerRange.viewerPortEnd} ${
+            viewerRange.viewerPortStart === VIEWER_PORT_START &&
+            viewerRange.viewerPortEnd === VIEWER_PORT_END
+              ? "is fixed."
+              : "is configured for this installation."
+          }`
         : `${stopHint(occupant)}, or choose another API port with outcomego setup --advanced.`;
   return `OutcomeGo cannot start because port ${port} is already in use by ${holder(occupant)}. ${remedy}`;
 };
@@ -195,7 +233,7 @@ export const assertPortsAvailable = async (
   requirements: PortRequirements
 ): Promise<void> => {
   const occupant = await findPortConflict(runner, requirements);
-  if (occupant) throw new CliError(portConflictMessage(occupant));
+  if (occupant) throw new CliError(portConflictMessage(occupant, requirements));
 };
 
 /** True when something answers the health check but this installation's server is not running. */
