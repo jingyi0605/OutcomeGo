@@ -1,6 +1,7 @@
 package com.outcomego.features
 
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -23,14 +24,10 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -40,9 +37,18 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.outcomego.android.ui.designsystem.GlassTier
+import com.outcomego.android.ui.designsystem.SpatialGlassSurface
+import com.outcomego.android.ui.designsystem.SpatialGlassTextField
+import com.outcomego.android.ui.designsystem.SpatialHairlineDivider
+import com.outcomego.android.ui.designsystem.SpatialRadii
+import com.outcomego.android.ui.designsystem.SpatialTheme
 import java.text.DateFormat
 import java.util.Date
 import java.util.TimeZone
@@ -526,73 +532,64 @@ fun SelectorTriggerField(
     style: SelectorFieldStyle = SelectorFieldStyle.Outlined,
     leadingContent: (@Composable () -> Unit)? = null,
 ) {
-    when (style) {
-        SelectorFieldStyle.Outlined -> {
-            val activeTextColor = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-            val activeLabelColor = if (enabled) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
-            val activeBorderColor = if (enabled) MaterialTheme.colorScheme.outline else MaterialTheme.colorScheme.outline.copy(alpha = 0.38f)
-            Box(modifier = modifier) {
-                OutlinedTextField(
-                    value = value,
-                    onValueChange = {},
-                    readOnly = true,
-                    enabled = false,
-                    label = label?.let { { Text(it) } },
-                    placeholder = placeholder?.let { { Text(it) } },
-                    supportingText = supportingText?.let { { Text(it) } },
-                    leadingIcon = leadingContent?.let { content -> { content() } },
-                    trailingIcon = { Icon(Icons.Filled.KeyboardArrowDown, contentDescription = null) },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        disabledTextColor = activeTextColor,
-                        disabledBorderColor = activeBorderColor,
-                        disabledLabelColor = activeLabelColor,
-                        disabledPlaceholderColor = activeLabelColor,
-                        disabledSupportingTextColor = activeLabelColor,
-                        disabledLeadingIconColor = activeLabelColor,
-                        disabledTrailingIconColor = activeLabelColor,
-                    ),
+    val haptics = LocalAppHaptics.current
+    Column(
+        modifier = modifier.alpha(if (enabled) 1f else 0.55f),
+        verticalArrangement = Arrangement.spacedBy(5.dp),
+    ) {
+        if (style == SelectorFieldStyle.Outlined && !label.isNullOrBlank()) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelMedium,
+                color = SpatialTheme.colors.textSecondary,
+                modifier = Modifier.padding(horizontal = 4.dp),
+            )
+        }
+        SpatialGlassSurface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(SpatialRadii.md),
+            tier = if (style == SelectorFieldStyle.Settings) GlassTier.Subtle else GlassTier.Card,
+            shadowElevation = 0.dp,
+            onClick = if (enabled) {
+                {
+                    haptics.play(HapticEffect.Light)
+                    onClick()
+                }
+            } else null,
+        ) {
+            Row(
+                modifier = Modifier.padding(
+                    horizontal = 14.dp,
+                    vertical = if (style == SelectorFieldStyle.Settings) 12.dp else 14.dp,
+                ),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                if (leadingContent != null) {
+                    leadingContent()
+                }
+                Text(
+                    text = value.ifBlank { placeholder.orEmpty() },
+                    color = if (value.isBlank()) SpatialTheme.colors.textTertiary else SpatialTheme.colors.textPrimary,
+                    style = MaterialTheme.typography.bodyLarge,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
                 )
-                Box(
-                    modifier = Modifier
-                        .matchParentSize()
-                        .clickable(enabled = enabled, onClick = onClick),
+                Icon(
+                    imageVector = Icons.Filled.KeyboardArrowDown,
+                    contentDescription = null,
+                    tint = SpatialTheme.colors.textSecondary,
                 )
             }
         }
-        SelectorFieldStyle.Settings -> {
-            Surface(
-                modifier = modifier
-                    .fillMaxWidth()
-                    .clickable(enabled = enabled, onClick = onClick),
-                shape = RoundedCornerShape(10.dp),
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)),
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    if (leadingContent != null) {
-                        leadingContent()
-                    }
-                    Text(
-                        text = value.ifBlank { placeholder.orEmpty() },
-                        color = if (value.isBlank()) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
-                        style = MaterialTheme.typography.bodyLarge,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f),
-                    )
-                    Icon(
-                        imageVector = Icons.Filled.KeyboardArrowDown,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
+        if (style == SelectorFieldStyle.Outlined && !supportingText.isNullOrBlank()) {
+            Text(
+                text = supportingText,
+                style = MaterialTheme.typography.bodySmall,
+                color = SpatialTheme.colors.textTertiary,
+                modifier = Modifier.padding(horizontal = 4.dp),
+            )
         }
     }
 }
@@ -613,6 +610,7 @@ fun <T> DropdownSelectorField(
     leadingContent: (@Composable (T) -> Unit)? = null,
     optionLeadingContent: (@Composable (T) -> Unit)? = leadingContent,
 ) {
+    val haptics = LocalAppHaptics.current
     var expanded by remember { mutableStateOf(false) }
     val selectedOption = options.firstOrNull { isSameValue(it, selectedValue) } ?: selectedValue
     val displayText = optionLabel(selectedOption)
@@ -631,17 +629,30 @@ fun <T> DropdownSelectorField(
         DropdownMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false },
-            modifier = Modifier.heightIn(max = 360.dp),
+            containerColor = SpatialTheme.colors.glassOverlay,
+            shape = RoundedCornerShape(SpatialRadii.md),
+            modifier = Modifier
+                .heightIn(max = 360.dp)
+                .border(0.75.dp, SpatialTheme.colors.glassBorderStart, RoundedCornerShape(SpatialRadii.md)),
         ) {
             options.forEach { option ->
                 val isSelected = isSameValue(option, selectedValue)
                 DropdownMenuItem(
-                    text = { Text(optionLabel(option), maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                    text = {
+                        Text(
+                            optionLabel(option),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            color = SpatialTheme.colors.textPrimary,
+                            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                        )
+                    },
                     leadingIcon = optionLeadingContent?.let { content -> { content(option) } },
                     trailingIcon = if (isSelected) {
-                        { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp)) }
+                        { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary) }
                     } else null,
                     onClick = {
+                        haptics.play(HapticEffect.Selection)
                         expanded = false
                         onSelect(option)
                     },
@@ -693,30 +704,33 @@ fun SearchableTimeZoneSelector(
         ModalBottomSheet(
             onDismissRequest = { sheetOpen = false },
             sheetState = sheetState,
+            containerColor = SpatialTheme.colors.glassOverlay,
+            shape = RoundedCornerShape(topStart = SpatialRadii.xl, topEnd = SpatialRadii.xl),
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
+                    .padding(horizontal = 18.dp)
                     .padding(bottom = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Text(
                     text = label ?: if (useChinese) "时区" else "Time zone",
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.SemiBold,
+                    color = SpatialTheme.colors.textPrimary,
                 )
-                OutlinedTextField(
+                SpatialGlassTextField(
                     value = query,
                     onValueChange = { query = it },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
-                    placeholder = { Text(if (useChinese) "搜索时区或城市" else "Search time zones or cities") },
-                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                    placeholder = if (useChinese) "搜索时区或城市" else "Search time zones or cities",
+                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = SpatialTheme.colors.textSecondary) },
                     trailingIcon = if (query.isNotEmpty()) {
                         {
                             IconButton(onClick = { query = "" }) {
-                                Icon(Icons.Default.Close, contentDescription = null)
+                                Icon(Icons.Default.Close, contentDescription = null, tint = SpatialTheme.colors.textSecondary)
                             }
                         }
                     } else null,
@@ -726,6 +740,7 @@ fun SearchableTimeZoneSelector(
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(min = 240.dp, max = 440.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
                     if (includeAutoDetect && query.isBlank()) {
                         item(key = "__auto__") {
@@ -744,14 +759,14 @@ fun SearchableTimeZoneSelector(
                                     onSelectTimeZone(deviceZone, null)
                                 },
                             )
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                            SpatialHairlineDivider(Modifier.padding(vertical = 4.dp))
                         }
                     }
                     if (filteredZones.isEmpty()) {
                         item(key = "__empty__") {
                             Text(
                                 text = if (useChinese) "未找到匹配的时区" else "No matching time zones",
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                color = SpatialTheme.colors.textSecondary,
                                 style = MaterialTheme.typography.bodyMedium,
                                 modifier = Modifier.padding(vertical = 20.dp),
                             )
@@ -825,30 +840,33 @@ fun VolcengineVoiceSelector(
         ModalBottomSheet(
             onDismissRequest = { sheetOpen = false },
             sheetState = sheetState,
+            containerColor = SpatialTheme.colors.glassOverlay,
+            shape = RoundedCornerShape(topStart = SpatialRadii.xl, topEnd = SpatialRadii.xl),
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
+                    .padding(horizontal = 18.dp)
                     .padding(bottom = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Text(
                     text = label ?: if (useChinese) "语音" else "Voice",
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.SemiBold,
+                    color = SpatialTheme.colors.textPrimary,
                 )
-                OutlinedTextField(
+                SpatialGlassTextField(
                     value = query,
                     onValueChange = { query = it },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
-                    placeholder = { Text(if (useChinese) "按名称或音色 ID 搜索" else "Search voice name or ID") },
-                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                    placeholder = if (useChinese) "按名称或音色 ID 搜索" else "Search voice name or ID",
+                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = SpatialTheme.colors.textSecondary) },
                     trailingIcon = if (query.isNotEmpty()) {
                         {
                             IconButton(onClick = { query = "" }) {
-                                Icon(Icons.Default.Close, contentDescription = null)
+                                Icon(Icons.Default.Close, contentDescription = null, tint = SpatialTheme.colors.textSecondary)
                             }
                         }
                     } else null,
@@ -858,6 +876,7 @@ fun VolcengineVoiceSelector(
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(min = 240.dp, max = 460.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
                     if (query.isBlank()) {
                         item(key = "__auto__") {
@@ -869,7 +888,7 @@ fun VolcengineVoiceSelector(
                                     onSelectVoice("")
                                 },
                             )
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                            SpatialHairlineDivider(Modifier.padding(vertical = 4.dp))
                         }
                         if (isCustomVoice) {
                             item(key = "__custom__") {
@@ -879,7 +898,7 @@ fun VolcengineVoiceSelector(
                                     selected = true,
                                     onClick = { sheetOpen = false },
                                 )
-                                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                                SpatialHairlineDivider(Modifier.padding(vertical = 4.dp))
                             }
                         }
                     }
@@ -887,7 +906,7 @@ fun VolcengineVoiceSelector(
                         item(key = "__empty__") {
                             Text(
                                 text = if (useChinese) "未找到匹配的音色" else "No matching voices",
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                color = SpatialTheme.colors.textSecondary,
                                 style = MaterialTheme.typography.bodyMedium,
                                 modifier = Modifier.padding(vertical = 20.dp),
                             )
@@ -900,7 +919,7 @@ fun VolcengineVoiceSelector(
                                     style = MaterialTheme.typography.labelMedium,
                                     color = MaterialTheme.colorScheme.primary,
                                     fontWeight = FontWeight.SemiBold,
-                                    modifier = Modifier.padding(top = 12.dp, bottom = 4.dp),
+                                    modifier = Modifier.padding(top = 12.dp, bottom = 4.dp, start = 4.dp),
                                 )
                             }
                             items(voices, key = { it.id }) { voice ->
@@ -932,11 +951,18 @@ private fun PickerOptionRow(
     subtitle: String? = null,
     trailingText: String? = null,
 ) {
+    val haptics = LocalAppHaptics.current
+    val shape = RoundedCornerShape(14.dp)
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(vertical = 11.dp, horizontal = 4.dp),
+            .clip(shape)
+            .background(if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f) else Color.Transparent)
+            .clickable {
+                haptics.play(HapticEffect.Selection)
+                onClick()
+            }
+            .padding(vertical = 11.dp, horizontal = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
@@ -945,6 +971,7 @@ private fun PickerOptionRow(
                 text = title,
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                color = SpatialTheme.colors.textPrimary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -952,7 +979,7 @@ private fun PickerOptionRow(
                 Text(
                     text = subtitle,
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = SpatialTheme.colors.textSecondary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -962,7 +989,7 @@ private fun PickerOptionRow(
             Text(
                 text = trailingText,
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = SpatialTheme.colors.textSecondary,
             )
         }
         if (selected) {

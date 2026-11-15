@@ -7,6 +7,7 @@ import android.net.Uri
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -22,13 +23,23 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
@@ -39,6 +50,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.LinkAnnotation
@@ -119,13 +131,19 @@ private fun MarkdownBlockView(block: MarkdownBlock, style: InlineStyle) {
         is MarkdownBlock.ListBlock -> MarkdownList(block.items, style)
         is MarkdownBlock.Table -> MarkdownTable(block, style)
         is MarkdownBlock.Quote -> Row(
-            modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(IntrinsicSize.Min)
+                .clip(RoundedCornerShape(10.dp))
+                .background(palette.quoteBackground)
+                .padding(horizontal = 10.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Box(
                 Modifier
-                    .width(2.dp)
+                    .width(2.5.dp)
                     .fillMaxHeight()
+                    .clip(CircleShape)
                     .background(palette.quoteBar),
             )
             Text(
@@ -143,17 +161,67 @@ private fun MarkdownBlockView(block: MarkdownBlock, style: InlineStyle) {
 private fun MarkdownCodeBlock(block: MarkdownBlock.Code, palette: MarkdownPalette) {
     // A fenced block with a language is highlighted; a bare fence is a muted plain block.
     val highlighted = block.language != null
-    val shape = RoundedCornerShape(13.dp)
+    val shape = RoundedCornerShape(15.dp)
     val text = remember(block, palette) {
         if (highlighted) highlightCode(block.code, block.language, palette) else AnnotatedString(block.code)
     }
-    Box(
+    val clipboard = LocalClipboardManager.current
+    val haptics = LocalAppHaptics.current
+    var copied by remember(block.code) { mutableStateOf(false) }
+    LaunchedEffect(copied) {
+        if (copied) {
+            kotlinx.coroutines.delay(1_600)
+            copied = false
+        }
+    }
+    Column(
         Modifier
             .fillMaxWidth()
+            .clip(shape)
             .background(if (highlighted) palette.codeBackground else palette.plainCodeBackground, shape)
-            .then(if (highlighted) Modifier.border(1.dp, palette.codeBorder, shape) else Modifier)
-            .clip(shape),
+            .border(0.75.dp, palette.codeBorder, shape),
     ) {
+        if (highlighted) {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .background(palette.codeHeaderBackground)
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text(
+                    text = block.language.orEmpty(),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = palette.marker,
+                    fontFamily = FontFamily.Monospace,
+                )
+                Row(
+                    Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable {
+                            clipboard.setText(AnnotatedString(block.code))
+                            haptics.play(HapticEffect.Light)
+                            copied = true
+                        }
+                        .padding(horizontal = 6.dp, vertical = 2.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Icon(
+                        imageVector = if (copied) Icons.Default.Check else Icons.Default.ContentCopy,
+                        contentDescription = localizedText("Copy code", "复制代码"),
+                        tint = if (copied) palette.link else palette.marker,
+                        modifier = Modifier.size(13.dp),
+                    )
+                    Text(
+                        text = if (copied) localizedText("Copied", "已复制") else localizedText("Copy", "复制"),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (copied) palette.link else palette.marker,
+                    )
+                }
+            }
+        }
         Text(
             text = text,
             color = if (highlighted) palette.codeText else palette.plainCodeText,
@@ -161,10 +229,11 @@ private fun MarkdownCodeBlock(block: MarkdownBlock.Code, palette: MarkdownPalett
             softWrap = false,
             style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp, lineHeight = 18.sp),
             modifier = Modifier
+                .fillMaxWidth()
                 .heightIn(max = 400.dp)
                 .verticalScroll(rememberScrollState())
                 .horizontalScroll(rememberScrollState())
-                .padding(horizontal = 11.dp, vertical = if (highlighted) 6.dp else 8.dp),
+                .padding(horizontal = 12.dp, vertical = 10.dp),
         )
     }
 }
@@ -287,17 +356,19 @@ private fun TaskCheckbox(checked: Boolean, palette: MarkdownPalette) {
 internal class MarkdownPalette(val dark: Boolean) {
     val link = if (dark) Color(0xFF7AA2FF) else Color(0xFF3062BF)
     val chipText = if (dark) Color(0xFF9AB7FF) else Color(0xFF3062BF)
-    val chipBackground = link.copy(alpha = if (dark) .12f else .08f)
-    val inlineCodeText = if (dark) Color(0xFFFF5B63) else Color(0xFFC21D2F)
-    val inlineCodeBackground = if (dark) Color(0xFF343434) else Color(0xFFE3E3E3)
-    val quoteBar = if (dark) Color(0xFF555555) else Color(0xFFA8A8A8)
-    val quoteText = if (dark) Color(0xFFB6B6B6) else Color(0xFF6B6B6B)
-    val marker = if (dark) Color(0xFFA8A8A8) else Color(0xFF696969)
-    val tableRule = if (dark) Color(0xFF484848) else Color(0xFFD4D4D4)
-    val codeBackground = if (dark) Color(0xFF000000) else Color(0xFFFCFCFC)
-    val codeBorder = if (dark) Color(0xFF000000) else Color(0xFFD9D9D9)
-    val codeText = if (dark) Color(0xFFD6D6DD) else Color(0xFF333333)
-    val plainCodeBackground = if (dark) Color(0xFF181818) else Color(0xFFE7E7E7)
+    val chipBackground = link.copy(alpha = if (dark) .14f else .09f)
+    val inlineCodeText = if (dark) Color(0xFFFF6B73) else Color(0xFFC21D2F)
+    val inlineCodeBackground = if (dark) Color(0x28FFFFFF) else Color(0x14000000)
+    val quoteBar = if (dark) Color(0xFF788296) else Color(0xFF8B95A8)
+    val quoteBackground = if (dark) Color(0x14FFFFFF) else Color(0x0A0B0F1A)
+    val quoteText = if (dark) Color(0xFFC4C8D4) else Color(0xFF555B68)
+    val marker = if (dark) Color(0xFF9AA3B5) else Color(0xFF697282)
+    val tableRule = if (dark) Color(0x28FFFFFF) else Color(0x1C000000)
+    val codeBackground = if (dark) Color(0xFF0A0D14) else Color(0xFFF9FAFC)
+    val codeHeaderBackground = if (dark) Color(0x14FFFFFF) else Color(0x0A0B0F1A)
+    val codeBorder = if (dark) Color(0x2AFFFFFF) else Color(0x1A0B0F1A)
+    val codeText = if (dark) Color(0xFFDCE1EA) else Color(0xFF262A33)
+    val plainCodeBackground = if (dark) Color(0x18FFFFFF) else Color(0x0D0B0F1A)
     val plainCodeText = if (dark) Color(0xFFB6B6B6) else Color(0xFF666666)
     val checkboxFill = if (dark) Color(0xFF181818) else Color(0xFFFBFBFB)
     val checkboxBorder = if (dark) Color(0xFF555555) else Color(0xFFBCBCBC)

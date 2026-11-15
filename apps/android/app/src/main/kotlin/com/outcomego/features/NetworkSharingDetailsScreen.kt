@@ -1,28 +1,27 @@
-@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
-
 package com.outcomego.features
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -30,12 +29,25 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.outcomego.android.data.AndroidNetworkDetails
 import com.outcomego.android.data.AndroidNetworkStatusLoader
+import com.outcomego.android.ui.designsystem.GlassTier
+import com.outcomego.android.ui.designsystem.SpatialFloatingTopBar
+import com.outcomego.android.ui.designsystem.SpatialGlassSurface
+import com.outcomego.android.ui.designsystem.SpatialGroupedSection
+import com.outcomego.android.ui.designsystem.SpatialHairlineDivider
+import com.outcomego.android.ui.designsystem.SpatialIconOrb
+import com.outcomego.android.ui.designsystem.SpatialPrimaryButton
+import com.outcomego.android.ui.designsystem.SpatialPulseOrb
+import com.outcomego.android.ui.designsystem.SpatialRadii
+import com.outcomego.android.ui.designsystem.SpatialSpacing
+import com.outcomego.android.ui.designsystem.SpatialTheme
 import com.outcomego.mobile.network.ProviderSnapshot
 import com.outcomego.mobile.network.ProviderState
 import kotlinx.coroutines.delay
@@ -87,30 +99,35 @@ fun NetworkSharingDetailsScreen(
     }
 
     val title = textFor(language, "Cloud computer egress", "云端电脑出口")
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                ),
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = textFor(language, "Back", "返回"))
-                    }
-                },
-                title = { Text(title) },
-                actions = {
-                    IconButton(onClick = { refreshScope.launch { refresh(forceQuality = true) } }) {
-                        Icon(Icons.Default.Refresh, contentDescription = textFor(language, "Refresh", "刷新"))
-                    }
-                },
-            )
-        },
-    ) { padding ->
+    Column(
+        Modifier
+            .fillMaxSize()
+            .navigationBarsPadding(),
+    ) {
+        SpatialFloatingTopBar(
+            title = title,
+            navigationIcon = {
+                SpatialIconOrb(
+                    icon = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = textFor(language, "Back", "返回"),
+                    onClick = onBack,
+                )
+            },
+            actions = {
+                SpatialIconOrb(
+                    icon = Icons.Default.Refresh,
+                    contentDescription = textFor(language, "Refresh", "刷新"),
+                    onClick = { refreshScope.launch { refresh(forceQuality = true) } },
+                )
+            },
+        )
         LazyColumn(
-            Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 16.dp),
+            Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .padding(horizontal = SpatialSpacing.md),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+            contentPadding = PaddingValues(top = 8.dp, bottom = 28.dp),
         ) {
             item {
                 StatusCard(
@@ -152,32 +169,42 @@ fun NetworkSharingDetailsScreen(
             details?.let { current ->
                 networkErrorText(current, language)?.let { message ->
                     item {
-                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text(message, color = MaterialTheme.colorScheme.error, fontSize = 13.sp)
-                            if (current.routeSelectedToThisPhone && !current.egressAvailable) {
-                                Text(
-                                    textFor(
-                                        language,
-                                        "Switch the phone to Wi-Fi or mobile data with internet access, then refresh.",
-                                        "请将手机切换到可以访问互联网的 Wi-Fi 或移动数据网络，然后刷新状态。",
-                                    ),
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    fontSize = 13.sp,
-                                )
+                        SpatialGlassSurface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(SpatialRadii.sm),
+                            tier = GlassTier.Subtle,
+                            shadowElevation = 0.dp,
+                        ) {
+                            Column(
+                                Modifier.padding(14.dp),
+                                verticalArrangement = Arrangement.spacedBy(4.dp),
+                            ) {
+                                Text(message, color = SpatialTheme.colors.danger, fontSize = 13.sp)
+                                if (current.routeSelectedToThisPhone && !current.egressAvailable) {
+                                    Text(
+                                        textFor(
+                                            language,
+                                            "Switch the phone to Wi-Fi or mobile data with internet access, then refresh.",
+                                            "请将手机切换到可以访问互联网的 Wi-Fi 或移动数据网络，然后刷新状态。",
+                                        ),
+                                        color = SpatialTheme.colors.textSecondary,
+                                        fontSize = 13.sp,
+                                    )
+                                }
                             }
                         }
                     }
                 }
             } ?: lastError?.takeIf(String::isNotBlank)?.let { message ->
-                item { Text(message, color = MaterialTheme.colorScheme.error, fontSize = 13.sp) }
+                item { Text(message, color = SpatialTheme.colors.danger, fontSize = 13.sp) }
             }
             item {
-                Button(
+                Spacer(Modifier.height(4.dp))
+                SpatialPrimaryButton(
+                    label = textFor(language, "Refresh status", "刷新状态"),
                     onClick = { refreshScope.launch { refresh(forceQuality = true) } },
                     modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text(textFor(language, "Refresh status", "刷新状态"))
-                }
+                )
             }
         }
     }
@@ -190,12 +217,30 @@ private fun StatusCard(
     language: AppSettings.Language,
     loading: Boolean,
 ) {
-    Card(colors = featureCardColors()) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(textFor(language, "Connection status", "连接状态"), style = MaterialTheme.typography.titleMedium)
-            if (loading && details == null) {
-                CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.dp)
+    SpatialGroupedSection {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                val active = details?.connectedToThisPhone == true || provider.state == ProviderState.READY
+                val dotColor = if (active) MaterialTheme.colorScheme.tertiary else SpatialTheme.colors.accent
+                if (active) {
+                    SpatialPulseOrb(color = dotColor)
+                } else {
+                    Box(Modifier.size(8.dp))
+                }
+                Text(
+                    textFor(language, "Connection status", "连接状态"),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = SpatialTheme.colors.textPrimary,
+                )
+                if (loading && details == null) {
+                    CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
+                }
             }
+            SpatialHairlineDivider(insetStart = 0.dp)
             StatusLine(
                 textFor(language, "This phone provider", "本机提供者"),
                 providerStateLabel(provider.state, language),
@@ -217,13 +262,21 @@ private fun StatusCard(
 
 @Composable
 private fun DetailCard(title: String, rows: List<Pair<String, String>>) {
-    Card(colors = featureCardColors()) {
+    SpatialGroupedSection {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text(title, style = MaterialTheme.typography.titleMedium)
-            rows.forEach { (label, value) ->
+            Text(
+                title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = SpatialTheme.colors.textPrimary,
+            )
+            rows.forEachIndexed { index, (label, value) ->
+                if (index == 0) {
+                    SpatialHairlineDivider(insetStart = 0.dp)
+                }
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text(value, color = MaterialTheme.colorScheme.onSurface, fontSize = 14.sp)
+                    Text(label, color = SpatialTheme.colors.textSecondary)
+                    Text(value, color = SpatialTheme.colors.textPrimary, fontSize = 14.sp, fontWeight = FontWeight.Medium)
                 }
             }
         }
@@ -233,8 +286,8 @@ private fun DetailCard(title: String, rows: List<Pair<String, String>>) {
 @Composable
 private fun StatusLine(label: String, value: String) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(value, fontSize = 14.sp)
+        Text(label, color = SpatialTheme.colors.textSecondary)
+        Text(value, fontSize = 14.sp, color = SpatialTheme.colors.textPrimary, fontWeight = FontWeight.Medium)
     }
 }
 

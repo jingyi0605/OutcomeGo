@@ -32,6 +32,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -40,7 +42,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -48,6 +49,7 @@ import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
@@ -62,6 +64,11 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import com.outcomego.android.ui.designsystem.GlassTier
+import com.outcomego.android.ui.designsystem.SpatialGlassSurface
+import com.outcomego.android.ui.designsystem.SpatialRadii
+import com.outcomego.android.ui.designsystem.SpatialSecondaryButton
+import com.outcomego.android.ui.designsystem.SpatialTheme
 import java.io.ByteArrayInputStream
 import java.io.File
 import java.io.InputStream
@@ -580,48 +587,68 @@ private fun PreviewMessage(
     modifier: Modifier,
     actions: List<Pair<String, () -> Unit>> = emptyList(),
 ) {
-    Column(
-        modifier.fillMaxSize().padding(32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-    ) {
-        FileGlyph(attachment.name)
-        Text(
-            attachment.name,
-            Modifier.padding(top = 16.dp),
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.Medium,
-            textAlign = TextAlign.Center,
-        )
-        Text(
-            title,
-            Modifier.padding(top = 4.dp),
-            style = MaterialTheme.typography.bodyMedium,
-            textAlign = TextAlign.Center,
-        )
-        detail?.let {
-            Text(
-                it,
-                Modifier.padding(top = 2.dp),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-            )
+    Box(modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
+        SpatialGlassSurface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(SpatialRadii.lg),
+            tier = GlassTier.Card,
+        ) {
+            Column(
+                Modifier.fillMaxWidth().padding(28.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                FileGlyph(attachment.name)
+                Text(
+                    attachment.name,
+                    Modifier.padding(top = 6.dp),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = SpatialTheme.colors.textPrimary,
+                    textAlign = TextAlign.Center,
+                )
+                Text(
+                    title,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = SpatialTheme.colors.textSecondary,
+                    textAlign = TextAlign.Center,
+                )
+                detail?.let {
+                    Text(
+                        it,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = SpatialTheme.colors.textTertiary,
+                        textAlign = TextAlign.Center,
+                    )
+                }
+                actions.forEach { (actionLabel, onClick) ->
+                    SpatialSecondaryButton(
+                        label = actionLabel,
+                        onClick = onClick,
+                        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                    )
+                }
+            }
         }
-        actions.forEach { (label, onClick) -> TextButton(onClick = onClick) { Text(label) } }
     }
 }
 
 @Composable
-private fun backdropColor(): Color = if (isSystemInDarkTheme()) Color(0xFF111111) else Color(0xFFECECEC)
+private fun backdropColor(): Color = SpatialTheme.colors.canvasBase
 
-/** A white sheet on a gray backdrop, like the macOS document viewer. */
+/** A crisp paper sheet floating over the spatial canvas, like the macOS document viewer. */
 @Composable
 private fun Paper(modifier: Modifier, content: @Composable () -> Unit) {
-    Box(modifier.fillMaxSize().background(backdropColor()).verticalScroll(rememberScrollState()).padding(12.dp)) {
+    Box(modifier.fillMaxSize().background(backdropColor()).verticalScroll(rememberScrollState()).padding(14.dp)) {
         SelectionContainer {
             Column(
-                Modifier.fillMaxWidth().heightIn(min = 240.dp).background(Color.White).padding(horizontal = 20.dp, vertical = 24.dp),
+                Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 240.dp)
+                    .clip(RoundedCornerShape(SpatialRadii.lg))
+                    .background(Color.White)
+                    .border(0.75.dp, SpatialTheme.colors.glassBorderStart, RoundedCornerShape(SpatialRadii.lg))
+                    .padding(horizontal = 20.dp, vertical = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) { content() }
         }
@@ -631,15 +658,30 @@ private fun Paper(modifier: Modifier, content: @Composable () -> Unit) {
 @Composable
 private fun PdfPages(document: PdfDocument, modifier: Modifier) {
     BoxWithConstraints(modifier.fillMaxSize().background(backdropColor())) {
-        val widthPx = with(LocalDensity.current) { (maxWidth - 24.dp).roundToPx() }.coerceAtLeast(1)
-        LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(12.dp)) {
+        val widthPx = with(LocalDensity.current) { (maxWidth - 28.dp).roundToPx() }.coerceAtLeast(1)
+        LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(12.dp), contentPadding = PaddingValues(14.dp)) {
             items(document.pageCount) { index ->
                 val page by produceState<Bitmap?>(null, document, index, widthPx) { value = document.render(index, widthPx) }
                 val bitmap = page
+                val pageShape = RoundedCornerShape(SpatialRadii.sm)
                 if (bitmap != null) {
-                    Image(bitmap.asImageBitmap(), contentDescription = null, Modifier.fillMaxWidth())
+                    Image(
+                        bitmap.asImageBitmap(),
+                        contentDescription = null,
+                        Modifier
+                            .fillMaxWidth()
+                            .clip(pageShape)
+                            .border(0.75.dp, SpatialTheme.colors.glassBorderStart, pageShape),
+                    )
                 } else {
-                    Box(Modifier.fillMaxWidth().heightIn(min = 320.dp).background(Color.White), contentAlignment = Alignment.Center) {
+                    Box(
+                        Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 320.dp)
+                            .clip(pageShape)
+                            .background(Color.White),
+                        contentAlignment = Alignment.Center,
+                    ) {
                         CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
                     }
                 }
@@ -657,26 +699,75 @@ private fun MediaPlayer(attachment: Attachment, path: String, audio: Boolean, mo
     val holder = remember(path) { arrayOfNulls<VideoView>(1) }
     DisposableEffect(path) { onDispose { holder[0]?.stopPlayback() } }
     Column(
-        modifier.fillMaxSize().background(if (audio) backdropColor() else Color.Black),
+        modifier
+            .fillMaxSize()
+            .background(if (audio) backdropColor() else Color.Black)
+            .padding(if (audio) 20.dp else 0.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
         if (audio) {
-            Icon(Icons.Default.MusicNote, contentDescription = null, Modifier.size(48.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(attachment.name, Modifier.padding(16.dp), style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center, color = Color(0xFF222222).takeIf { !isSystemInDarkTheme() } ?: Color.White)
-        }
-        AndroidView(
-            factory = { context ->
-                VideoView(context).apply {
-                    holder[0] = this
-                    val controller = MediaController(context)
-                    controller.setAnchorView(this)
-                    setMediaController(controller)
-                    setOnPreparedListener { controller.show(0) }
-                    setVideoURI(uri)
+            SpatialGlassSurface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(SpatialRadii.lg),
+                tier = GlassTier.Card,
+            ) {
+                Column(
+                    Modifier.fillMaxWidth().padding(20.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(14.dp),
+                ) {
+                    SpatialGlassSurface(
+                        modifier = Modifier.size(64.dp),
+                        shape = CircleShape,
+                        tier = GlassTier.Floating,
+                        shadowElevation = 0.dp,
+                    ) {
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Icon(
+                                Icons.Default.MusicNote,
+                                contentDescription = null,
+                                Modifier.size(30.dp),
+                                tint = MaterialTheme.colorScheme.primary,
+                            )
+                        }
+                    }
+                    Text(
+                        attachment.name,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Medium,
+                        textAlign = TextAlign.Center,
+                        color = SpatialTheme.colors.textPrimary,
+                    )
+                    AndroidView(
+                        factory = { context ->
+                            VideoView(context).apply {
+                                holder[0] = this
+                                val controller = MediaController(context)
+                                controller.setAnchorView(this)
+                                setMediaController(controller)
+                                setOnPreparedListener { controller.show(0) }
+                                setVideoURI(uri)
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth().height(96.dp).clip(RoundedCornerShape(SpatialRadii.sm)),
+                    )
                 }
-            },
-            modifier = if (audio) Modifier.fillMaxWidth().height(96.dp) else Modifier.fillMaxSize(),
-        )
+            }
+        } else {
+            AndroidView(
+                factory = { context ->
+                    VideoView(context).apply {
+                        holder[0] = this
+                        val controller = MediaController(context)
+                        controller.setAnchorView(this)
+                        setMediaController(controller)
+                        setOnPreparedListener { controller.show(0) }
+                        setVideoURI(uri)
+                    }
+                },
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
     }
 }
