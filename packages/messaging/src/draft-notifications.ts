@@ -43,7 +43,7 @@ export async function lockDraftNotifications(tx: DB, botId: string, channelId: s
 
 /** Take after the draft lock, matching claim/recovery order. Stop cannot commit across publication. */
 async function draftRunActive(tx: DB, context: DraftNotificationContext) {
-  const runs = await tx.$queryRaw<Array<{ status: string }>>`SELECT "status" FROM "Run"
+  const runs = await tx.$queryRaw<Array<{ status: string }>>`SELECT "status" FROM "outcomego_run"
     WHERE "id" = ${context.runId}::uuid AND "botId" = ${context.botId}::uuid
       AND "channelId" = ${context.channelId}::uuid FOR SHARE`;
   return ["queued", "running"].includes(runs[0]?.status ?? "");
@@ -56,7 +56,7 @@ export async function pendingDraftNotifications(tx: DB, botId: string, channelId
       'draftNotification', "metadata"->'draftNotification', 'draft', jsonb_build_object(
         'platform', "metadata"#>'{draft,platform}', 'to', "metadata"#>'{draft,to}',
         'target', "metadata"#>'{draft,target}', 'subject', "metadata"#>'{draft,subject}')) AS "metadata"
-    FROM "ChannelMessage"
+    FROM "outcomego_channel_message"
     WHERE "senderBotId" = ${botId}::uuid AND "channelId" = ${channelId}::uuid
       AND "metadata"->>'type' = 'external-draft' AND "metadata" ? 'outcomeId'
       AND "metadata"#>>'{draftNotification,variant}' = ${variant}
@@ -91,7 +91,7 @@ type Counts = Record<"sent" | "dismissed" | "pending" | "sending" | "unknown" | 
 export async function draftReplySnapshot(tx: DB, context: Pick<DraftNotificationContext, "botId" | "channelId">) {
   const cards = await tx.$queryRaw<Array<{ id: string; state: string; outcomeId: string | null }>>`SELECT
     "id", coalesce("metadata"->>'cardState', 'pending') AS "state", "metadata"->>'outcomeId' AS "outcomeId"
-    FROM "ChannelMessage" WHERE "channelId" = ${context.channelId}::uuid AND "senderBotId" = ${context.botId}::uuid
+    FROM "outcomego_channel_message" WHERE "channelId" = ${context.channelId}::uuid AND "senderBotId" = ${context.botId}::uuid
       AND "metadata"->>'type' = 'external-draft' ORDER BY "id"`;
   const totals = counts([]);
   for (const card of cards) totals[Object.hasOwn(totals, card.state) ? card.state as keyof Counts : "failed"]++;
@@ -176,7 +176,7 @@ export async function publishDraftNotification(tx: DB, context: DraftNotificatio
   // A replay with a new run/tool-call ID must not consume a later, unrelated outcome.
   if (outcomeIds.length) {
     const covered = await tx.$queryRaw<Outcome[]>`SELECT "id", jsonb_build_object(
-      'outcomeId', "metadata"->'outcomeId', 'draftNotification', "metadata"->'draftNotification') AS "metadata" FROM "ChannelMessage"
+      'outcomeId', "metadata"->'outcomeId', 'draftNotification', "metadata"->'draftNotification') AS "metadata" FROM "outcomego_channel_message"
       WHERE "channelId" = ${context.channelId}::uuid AND "senderBotId" = ${context.botId}::uuid
       AND "metadata"->>'outcomeId' IN (${Prisma.join(outcomeIds)})`;
     if (!covered.some(row => !object(object(row.metadata).draftNotification).messageId)) {
@@ -188,7 +188,7 @@ export async function publishDraftNotification(tx: DB, context: DraftNotificatio
   const rows = await pendingDraftNotifications(tx, context.botId, context.channelId, variant);
   if (!rows.length) return { result: quiet, created: false, updated: false };
   const totals = await tx.$queryRaw<Array<{ state: string; count: bigint }>>`SELECT
-    coalesce("metadata"->>'cardState', 'pending') AS "state", count(*) AS "count" FROM "ChannelMessage"
+    coalesce("metadata"->>'cardState', 'pending') AS "state", count(*) AS "count" FROM "outcomego_channel_message"
     WHERE "channelId" = ${context.channelId}::uuid AND "senderBotId" = ${context.botId}::uuid
       AND "metadata"->>'type' = 'external-draft' GROUP BY 1`;
   const batchCounts = counts([]);
@@ -207,7 +207,7 @@ export async function publishDraftNotification(tx: DB, context: DraftNotificatio
       'outcomeId', "metadata"->'outcomeId', 'cardState', "metadata"->'cardState', 'draft', jsonb_build_object(
         'platform', "metadata"#>'{draft,platform}', 'to', "metadata"#>'{draft,to}',
         'target', "metadata"#>'{draft,target}', 'subject', "metadata"#>'{draft,subject}')) AS "metadata"
-      FROM "ChannelMessage" WHERE "channelId" = ${context.channelId}::uuid AND "senderBotId" = ${context.botId}::uuid
+      FROM "outcomego_channel_message" WHERE "channelId" = ${context.channelId}::uuid AND "senderBotId" = ${context.botId}::uuid
         AND "metadata"->>'outcomeId' IN (${Prisma.join(prior.outcomeIds)}) ORDER BY "sequence"`;
     combined = [...previousRows, ...rows];
   }
@@ -222,7 +222,7 @@ export async function publishDraftNotification(tx: DB, context: DraftNotificatio
       address: await nextMessageAddress(tx, context.channelId, "agent"), timeZone: context.timeZone ?? object(event.payload).timeZone ?? "UTC",
       draftOutcomeNotification: notification },
   } });
-  await tx.$executeRaw`UPDATE "ChannelMessage" SET "metadata" = "metadata" || jsonb_build_object(
+  await tx.$executeRaw`UPDATE "outcomego_channel_message" SET "metadata" = "metadata" || jsonb_build_object(
     'draftNotification', coalesce("metadata"->'draftNotification', '{}'::jsonb) || jsonb_build_object('messageId', ${message.id}::text, 'notifiedAt', ${now}::text))
     WHERE "id" IN (${Prisma.join(rows.map(row => Prisma.sql`${row.id}::uuid`))})`;
   if (reuse) {

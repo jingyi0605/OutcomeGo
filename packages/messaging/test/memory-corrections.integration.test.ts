@@ -154,13 +154,13 @@ dbTest("delayed extraction cannot replace a fact already corrected by a concurre
 dbTest("a retirement failure rolls back the new fact and leaves the previous fact active", () => fixture(async ({ prisma, store, botId }) => {
   const old = await write(store, botId);
   // A real database constraint fails after insertion, exercising transaction rollback.
-  await prisma.$executeRawUnsafe(`ALTER TABLE "MemoryFact" ADD CONSTRAINT "memory207_test_rollback" CHECK ("id" <> '${old.id}'::uuid OR "supersededAt" IS NULL)`);
+  await prisma.$executeRawUnsafe(`ALTER TABLE "outcomego_memory_fact" ADD CONSTRAINT "memory207_test_rollback" CHECK ("id" <> '${old.id}'::uuid OR "supersededAt" IS NULL)`);
   try {
     await expect(store.replaceMemory(botId, { scope: "agent", tier: "profile", id: old.id!, fact: newFact })).rejects.toThrow();
     expect(await prisma.memoryFact.count({ where: { writtenByBotId: botId } })).toBe(1);
     expect(await store.recallMemory(botId, { query })).toContain("Ronaldo");
   } finally {
-    await prisma.$executeRawUnsafe('ALTER TABLE "MemoryFact" DROP CONSTRAINT "memory207_test_rollback"');
+    await prisma.$executeRawUnsafe('ALTER TABLE "outcomego_memory_fact" DROP CONSTRAINT "memory207_test_rollback"');
   }
 }));
 
@@ -369,7 +369,7 @@ dbTest("failure while invalidating corrected memory rolls back facts, revisions 
   const old = await write(store, botId);
   const revision = (await prisma.bot.findUniqueOrThrow({ where: { id: botId } })).memoryRevision;
   const eventCount = await prisma.event.count({ where: { topic: "memory.changed", entityId: botId } });
-  await prisma.$executeRawUnsafe(`ALTER TABLE "Bot" ADD CONSTRAINT "memory207_test_revision_rollback" CHECK ("id" <> '${botId}'::uuid OR "memoryRevision" = ${revision})`);
+  await prisma.$executeRawUnsafe(`ALTER TABLE "outcomego_bot" ADD CONSTRAINT "memory207_test_revision_rollback" CHECK ("id" <> '${botId}'::uuid OR "memoryRevision" = ${revision})`);
   try {
     await expect(store.replaceMemory(botId, { scope: "agent", tier: "profile", id: old.id!, fact: newFact })).rejects.toThrow();
     const facts = await prisma.memoryFact.findMany({ where: { writtenByBotId: botId } });
@@ -378,7 +378,7 @@ dbTest("failure while invalidating corrected memory rolls back facts, revisions 
     expect((await prisma.bot.findUniqueOrThrow({ where: { id: botId } })).memoryRevision).toBe(revision);
     expect(await prisma.event.count({ where: { topic: "memory.changed", entityId: botId } })).toBe(eventCount);
   } finally {
-    await prisma.$executeRawUnsafe('ALTER TABLE "Bot" DROP CONSTRAINT "memory207_test_revision_rollback"');
+    await prisma.$executeRawUnsafe('ALTER TABLE "outcomego_bot" DROP CONSTRAINT "memory207_test_revision_rollback"');
   }
 }));
 
@@ -570,7 +570,7 @@ dbTest("a failure after staging a target type change restores both original acti
   const targetText = "Calibration color is blue.";
   const old = await store.writeMemory(botId, { scope: "agent", tier: "profile", fact: "Calibration color is red." });
   const target = await store.writeMemory(botId, { scope: "agent", tier: "log", fact: targetText });
-  await prisma.$executeRawUnsafe(`ALTER TABLE "MemoryFact" ADD CONSTRAINT "memory207_test_target_rollback" CHECK ("writtenByBotId" <> '${botId}'::uuid OR "fact" <> 'Calibration color is blue.' OR "tier"::text <> 'profile')`);
+  await prisma.$executeRawUnsafe(`ALTER TABLE "outcomego_memory_fact" ADD CONSTRAINT "memory207_test_target_rollback" CHECK ("writtenByBotId" <> '${botId}'::uuid OR "fact" <> 'Calibration color is blue.' OR "tier"::text <> 'profile')`);
   try {
     await expect(store.replaceMemory(botId, { scope: "agent", tier: "profile", id: old.id!, fact: targetText })).rejects.toThrow();
     const active = await prisma.memoryFact.findMany({ where: { writtenByBotId: botId, supersededAt: null } });
@@ -578,7 +578,7 @@ dbTest("a failure after staging a target type change restores both original acti
     expect(await prisma.memoryFact.count({ where: { writtenByBotId: botId } })).toBe(2);
     expect((await prisma.bot.findUniqueOrThrow({ where: { id: botId } })).memoryRevision).toBe(0);
   } finally {
-    await prisma.$executeRawUnsafe('ALTER TABLE "MemoryFact" DROP CONSTRAINT "memory207_test_target_rollback"');
+    await prisma.$executeRawUnsafe('ALTER TABLE "outcomego_memory_fact" DROP CONSTRAINT "memory207_test_target_rollback"');
   }
 }));
 

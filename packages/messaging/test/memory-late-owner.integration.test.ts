@@ -48,7 +48,7 @@ dbTest("a provider ignoring a heartbeat database abort cannot commit its late ex
     if (key !== "$executeRaw") return Reflect.get(owner, key);
     return async (...args: any[]) => {
       const sql = Array.isArray(args[0]) ? args[0].join("?") : "";
-      if (!killed && sql.includes('UPDATE "MemoryReviewLease"')) {
+      if (!killed && sql.includes('UPDATE "outcomego_memory_review_lease"')) {
         killed = true;
         return owner.$transaction(async tx => {
           const [backend] = await tx.$queryRaw<Array<{ pid: number }>>`SELECT pg_backend_pid() AS pid`;
@@ -103,7 +103,7 @@ dbTest("a former owner ignoring cancellation cannot write or delete a live succe
     const oldLease = await admin.memoryReviewLease.findUniqueOrThrow({ where: { botId } });
     // Model a paused owner missing its TTL. The successor claims through the
     // actual lifecycle/lease SQL, rather than fabricating its owner identity.
-    await admin.$executeRaw`UPDATE "MemoryReviewLease" SET "expiresAt" = clock_timestamp() - INTERVAL '1 second' WHERE "botId" = ${botId}::uuid`;
+    await admin.$executeRaw`UPDATE "outcomego_memory_review_lease" SET "expiresAt" = clock_timestamp() - INTERVAL '1 second' WHERE "botId" = ${botId}::uuid`;
     second = successor.recordTurnMemory(botId, input(runId));
     await secondEntered.promise;
     const liveLease = await admin.memoryReviewLease.findUniqueOrThrow({ where: { botId } });
@@ -175,7 +175,7 @@ dbTest("archival racing an in-flight renewal prevents late writes and leaves no 
     if (key !== "$executeRaw") return Reflect.get(owner, key);
     return async (...args: any[]) => {
       const sql = Array.isArray(args[0]) ? args[0].join("?") : "";
-      if (!heldRenewal && sql.includes('UPDATE "MemoryReviewLease"')) {
+      if (!heldRenewal && sql.includes('UPDATE "outcomego_memory_review_lease"')) {
         heldRenewal = true;
         return owner.$transaction(async tx => {
           const result = await (tx.$executeRaw as any)(...args);

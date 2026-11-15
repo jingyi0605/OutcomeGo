@@ -223,7 +223,7 @@ for (const crashAt of ["before-memory", "inference", "inference-natural-expiry",
         [naturalLease] = await app.prisma.$queryRaw<Array<NonNullable<typeof naturalLease>>>`
           SELECT "ownerId", "expiresAt",
             (EXTRACT(EPOCH FROM ("expiresAt" - clock_timestamp())) * 1000)::float8 AS "remainingMs"
-          FROM "MemoryReviewLease" WHERE "botId" = ${bot.id}::uuid`;
+          FROM "outcomego_memory_review_lease" WHERE "botId" = ${bot.id}::uuid`;
         expect(naturalLease).toBeDefined();
         expect(naturalLease!.remainingMs).toBeGreaterThan(10_000);
       }

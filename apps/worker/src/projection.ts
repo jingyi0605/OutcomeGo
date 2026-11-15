@@ -394,7 +394,7 @@ export class Projection {
         await this.prisma.$transaction(async (tx) => {
           // A completion may have been buffered before deletion cancelled this turn. Serialize
           // the read and final write with cancellation so its stale snapshot cannot undo it.
-          await tx.$executeRaw`SELECT id FROM "Run" WHERE id = ${runId}::uuid FOR NO KEY UPDATE`;
+          await tx.$executeRaw`SELECT id FROM "outcomego_run" WHERE id = ${runId}::uuid FOR NO KEY UPDATE`;
           const current = await tx.run.findUniqueOrThrow({
             where: { id: runId },
           });

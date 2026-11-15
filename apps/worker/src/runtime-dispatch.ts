@@ -22,7 +22,7 @@ export async function dispatchComputerTurn(
         // Deletion persists cancellation before contacting the computer. Hold the run row until
         // acceptance so it cannot commit a cancellation, observe "not active", and then let this
         // already-validated request start work afterwards. Ordinary status updates take this lock too.
-        await tx.$executeRaw`SELECT id FROM "Run" WHERE id = ${runId}::uuid FOR NO KEY UPDATE`;
+        await tx.$executeRaw`SELECT id FROM "outcomego_run" WHERE id = ${runId}::uuid FOR NO KEY UPDATE`;
         const run = await tx.run.findUnique({ where: { id: runId }, select: { status: true } });
         if (run?.status !== "running")
           throw new Error("Run was invalidated before runtime dispatch");

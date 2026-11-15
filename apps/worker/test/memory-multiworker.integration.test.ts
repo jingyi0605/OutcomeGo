@@ -116,7 +116,7 @@ test.skipIf(!databaseUrl)("two worker processes serialize each bot's review back
     await db.$executeRawUnsafe(`CREATE TABLE "${audit}" (sequence bigserial PRIMARY KEY, "runId" uuid NOT NULL)`);
     auditCreated = true;
     await db.$executeRawUnsafe(`CREATE FUNCTION "${audit}_fn"() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN INSERT INTO "${audit}" ("runId") VALUES (NEW.id); RETURN NEW; END $$`);
-    await db.$executeRawUnsafe(`CREATE TRIGGER "${audit}_trigger" AFTER UPDATE OF "memoryReviewPending" ON "Run" FOR EACH ROW WHEN (OLD."memoryReviewPending" AND NOT NEW."memoryReviewPending") EXECUTE FUNCTION "${audit}_fn"()`);
+    await db.$executeRawUnsafe(`CREATE TRIGGER "${audit}_trigger" AFTER UPDATE OF "memoryReviewPending" ON "outcomego_run" FOR EACH ROW WHEN (OLD."memoryReviewPending" AND NOT NEW."memoryReviewPending") EXECUTE FUNCTION "${audit}_fn"()`);
     const [workerA, workerB] = await Promise.all([start("memory-worker-a"), start("memory-worker-b")]);
     expect(workerA.pid).not.toBe(workerB.pid);
     await until(async () => await db.run.count({ where: { botId: { in: bots.map(bot => bot.id) }, memoryReviewPending: true } }) === 0);
@@ -142,7 +142,7 @@ test.skipIf(!databaseUrl)("two worker processes serialize each bot's review back
     await until(async () => attempt.outcome === "aborted");
     const [lease] = await db.$queryRaw<Array<{ ownerId: string; expiresAt: Date; remainingMs: number }>>`
       SELECT "ownerId", "expiresAt", (EXTRACT(EPOCH FROM ("expiresAt" - clock_timestamp())) * 1000)::float8 AS "remainingMs"
-      FROM "MemoryReviewLease" WHERE "botId" = ${bots[0]!.id}::uuid`;
+      FROM "outcomego_memory_review_lease" WHERE "botId" = ${bots[0]!.id}::uuid`;
     expect(lease!.remainingMs).toBeGreaterThan(10_000);
     const startedRecovery = Date.now();
     await Bun.sleep(5_000);
@@ -178,7 +178,7 @@ test.skipIf(!databaseUrl)("two worker processes serialize each bot's review back
     }
     computer.stop(true);
     if (auditCreated) {
-      await db.$executeRawUnsafe(`DROP TRIGGER IF EXISTS "${audit}_trigger" ON "Run"`);
+      await db.$executeRawUnsafe(`DROP TRIGGER IF EXISTS "${audit}_trigger" ON "outcomego_run"`);
       await db.$executeRawUnsafe(`DROP FUNCTION IF EXISTS "${audit}_fn"()`);
       await db.$executeRawUnsafe(`DROP TABLE IF EXISTS "${audit}"`);
     }

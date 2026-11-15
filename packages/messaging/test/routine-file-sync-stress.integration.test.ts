@@ -253,11 +253,11 @@ integration("additive scheduling columns preserve legacy rows, paused intent and
     const pausedBefore = await f.read(paused.id);
     await f.db.$transaction(async tx => {
       // This exclusive disposable database models the actual pre-upgrade shape.
-      await tx.$executeRawUnsafe('ALTER TABLE "Routine" DROP COLUMN "scheduleAnchorAt", DROP COLUMN "validationError"');
-      const before = await tx.$queryRaw<Array<{ id: string; prompt: string; enabled: boolean; revision: number }>>`SELECT id, prompt, enabled, revision FROM "Routine" WHERE "botId" = ${f.botId}::uuid ORDER BY id`;
-      await tx.$executeRawUnsafe('ALTER TABLE "Routine" ADD COLUMN "scheduleAnchorAt" TIMESTAMP(3), ADD COLUMN "validationError" TEXT');
+      await tx.$executeRawUnsafe('ALTER TABLE "outcomego_routine" DROP COLUMN "scheduleAnchorAt", DROP COLUMN "validationError"');
+      const before = await tx.$queryRaw<Array<{ id: string; prompt: string; enabled: boolean; revision: number }>>`SELECT id, prompt, enabled, revision FROM "outcomego_routine" WHERE "botId" = ${f.botId}::uuid ORDER BY id`;
+      await tx.$executeRawUnsafe('ALTER TABLE "outcomego_routine" ADD COLUMN "scheduleAnchorAt" TIMESTAMP(3), ADD COLUMN "validationError" TEXT');
       // An old client's named-column query still sees precisely the same values.
-      const after = await tx.$queryRaw<Array<{ id: string; prompt: string; enabled: boolean; revision: number }>>`SELECT id, prompt, enabled, revision FROM "Routine" WHERE "botId" = ${f.botId}::uuid ORDER BY id`;
+      const after = await tx.$queryRaw<Array<{ id: string; prompt: string; enabled: boolean; revision: number }>>`SELECT id, prompt, enabled, revision FROM "outcomego_routine" WHERE "botId" = ${f.botId}::uuid ORDER BY id`;
       expect(after).toEqual(before);
     });
     expect((await f.read(enabled.id)).scheduleAnchorAt).toBeNull();

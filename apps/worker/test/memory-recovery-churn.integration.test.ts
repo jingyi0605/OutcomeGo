@@ -128,11 +128,11 @@ dbTest("a full scan invalidated before dispatch still reaches later owners and w
   const current = selected[10]!, expired = selected[11]!;
   await db.run.updateMany({ where: { id: { in: [current.id, expired.id] } }, data: { status: "completed" } });
   for (const row of [current, expired]) await db.$executeRaw`
-    INSERT INTO "MemoryReviewLease" ("botId", "ownerId", "expiresAt")
+    INSERT INTO "outcomego_memory_review_lease" ("botId", "ownerId", "expiresAt")
     VALUES (${row.botId}::uuid, ${crypto.randomUUID()}::uuid, clock_timestamp() + INTERVAL '60 seconds')`;
   const nextOwner = crypto.randomUUID();
-  await db.$executeRaw`UPDATE "MemoryReviewLease" SET "ownerId" = ${nextOwner}::uuid WHERE "botId" = ${current.botId}::uuid`;
-  await db.$executeRaw`UPDATE "MemoryReviewLease" SET "expiresAt" = clock_timestamp() - INTERVAL '1 second' WHERE "botId" = ${expired.botId}::uuid`;
+  await db.$executeRaw`UPDATE "outcomego_memory_review_lease" SET "ownerId" = ${nextOwner}::uuid WHERE "botId" = ${current.botId}::uuid`;
+  await db.$executeRaw`UPDATE "outcomego_memory_review_lease" SET "expiresAt" = clock_timestamp() - INTERVAL '1 second' WHERE "botId" = ${expired.botId}::uuid`;
   for (let scan = 0; scan < 2; scan++) { await worker.recoverMemoryReviews(); await settle(worker); }
   expect((await db.run.findUniqueOrThrow({ where: { id: expired.id } })).memoryReviewPending).toBe(false);
   expect((await db.run.findUniqueOrThrow({ where: { id: current.id } })).memoryReviewPending).toBe(true);

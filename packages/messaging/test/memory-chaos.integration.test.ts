@@ -113,7 +113,7 @@ dbTest("two stores cannot steal live reviews; an expired owner cannot write or r
     const held = (await prisma.bot.findUniqueOrThrow({ where: { id: botId } })).pendingMemoryExchanges;
     expect(held).toEqual([expect.objectContaining({ id: input.runId })]);
     expect(oldLease.ownerId).not.toBe(newOwner);
-    await prisma.$executeRaw`UPDATE "MemoryReviewLease" SET "expiresAt" = clock_timestamp() - INTERVAL '1 second' WHERE "botId" = ${botId}::uuid`;
+    await prisma.$executeRaw`UPDATE "outcomego_memory_review_lease" SET "expiresAt" = clock_timestamp() - INTERVAL '1 second' WHERE "botId" = ${botId}::uuid`;
     expect(await second.recordTurnMemory(botId, { user: "Remember this preference.", assistant: "Done.", runId: crypto.randomUUID() })).toBe(true);
     expect(calls).toBe(1);
     expect((await prisma.bot.findUniqueOrThrow({ where: { id: botId } })).pendingMemoryExchanges).toEqual([]);

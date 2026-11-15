@@ -103,7 +103,7 @@ databaseTest("a leased bot's 33 older pending reviews cannot starve another heal
   for (let index = 0; index < 33; index++) await addRun(blocked, index);
   const healthyRun = await addRun(healthy, 100);
   const ownerId = crypto.randomUUID();
-  await db.$executeRaw`INSERT INTO "MemoryReviewLease" ("botId", "ownerId", "expiresAt")
+  await db.$executeRaw`INSERT INTO "outcomego_memory_review_lease" ("botId", "ownerId", "expiresAt")
     VALUES (${blocked.id}::uuid, ${ownerId}::uuid, clock_timestamp() + INTERVAL '60 seconds')`;
   for (let scan = 0; scan < 4; scan++) {
     await scanAndSettle(worker);
@@ -121,7 +121,7 @@ databaseTest("recovery rotates past more than 32 leased bots to reach a later he
     const bot = await addBot(`Leased memory bot ${index}`);
     const runId = await addRun(bot, index);
     const ownerId = crypto.randomUUID();
-    await db.$executeRaw`INSERT INTO "MemoryReviewLease" ("botId", "ownerId", "expiresAt")
+    await db.$executeRaw`INSERT INTO "outcomego_memory_review_lease" ("botId", "ownerId", "expiresAt")
       VALUES (${bot.id}::uuid, ${ownerId}::uuid, clock_timestamp() + INTERVAL '60 seconds')`;
     blocked.push({ id: bot.id, ownerId, runId });
   }

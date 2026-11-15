@@ -2361,7 +2361,7 @@ export class AgentDataStore {
       const { count } = await tx.memoryFact.deleteMany({ where: { namespace, ...(memoryId ? { logicalId: memoryId } : {}) } });
       if (count > 0) await this.invalidateMemory(tx, botId, "agent");
       // The owner's deletion reaches the bot at once: unpin memory in every conversation, even on an idempotent clear.
-      await tx.$executeRaw`UPDATE "ContextPromptSnapshot" SET "promptSections" = "promptSections" - 'memory' WHERE "contextSessionId" IN (SELECT "id" FROM "ContextSession" WHERE "botId" = ${botId}::uuid)`;
+      await tx.$executeRaw`UPDATE "outcomego_context_prompt_snapshot" SET "promptSections" = "promptSections" - 'memory' WHERE "contextSessionId" IN (SELECT "id" FROM "outcomego_context_session" WHERE "botId" = ${botId}::uuid)`;
       return this.managedMemoryList(tx, botId);
     }, { maxWait: 10_000, timeout: 60_000 });
   }
@@ -2462,9 +2462,9 @@ export class AgentDataStore {
     }
     if (scope === "agent") {
       await tx.event.create({ data: { topic: "memory.changed", entityId: botId, payload: { botId } } });
-      await tx.$executeRaw`UPDATE "ContextPromptSnapshot" SET "promptSections" = "promptSections" - 'memory' WHERE "contextSessionId" IN (SELECT "id" FROM "ContextSession" WHERE "botId" = ${botId}::uuid)`;
+      await tx.$executeRaw`UPDATE "outcomego_context_prompt_snapshot" SET "promptSections" = "promptSections" - 'memory' WHERE "contextSessionId" IN (SELECT "id" FROM "outcomego_context_session" WHERE "botId" = ${botId}::uuid)`;
     } else {
-      await tx.$executeRaw`UPDATE "ContextPromptSnapshot" SET "promptSections" = "promptSections" - 'memory' WHERE "promptSections" ? 'memory'`;
+      await tx.$executeRaw`UPDATE "outcomego_context_prompt_snapshot" SET "promptSections" = "promptSections" - 'memory' WHERE "promptSections" ? 'memory'`;
     }
   }
 
@@ -3578,7 +3578,7 @@ export class AgentDataStore {
   // prevents clock skew or a paused worker from extending an expired lease.
   private async ownsMemoryReview(tx: Tx, botId: string, ownerId: string): Promise<boolean> {
     const rows = await tx.$queryRaw<Array<{ botId: string }>>`
-      SELECT "botId" FROM "MemoryReviewLease"
+      SELECT "botId" FROM "outcomego_memory_review_lease"
       WHERE "botId" = ${botId}::uuid AND "ownerId" = ${ownerId}::uuid
         AND "expiresAt" > clock_timestamp() FOR UPDATE`;
     return rows.length > 0;
@@ -3604,10 +3604,10 @@ export class AgentDataStore {
         }
       }
       const rows = await tx.$queryRaw<Array<{ botId: string }>>`
-        INSERT INTO "MemoryReviewLease" ("botId", "ownerId", "expiresAt")
+        INSERT INTO "outcomego_memory_review_lease" ("botId", "ownerId", "expiresAt")
         VALUES (${botId}::uuid, ${ownerId}::uuid, clock_timestamp() + INTERVAL '30 seconds')
         ON CONFLICT ("botId") DO UPDATE SET "ownerId" = EXCLUDED."ownerId", "expiresAt" = EXCLUDED."expiresAt"
-        WHERE "MemoryReviewLease"."expiresAt" <= clock_timestamp() RETURNING "botId"`;
+        WHERE "outcomego_memory_review_lease"."expiresAt" <= clock_timestamp() RETURNING "botId"`;
       return rows.length > 0 ? "claimed" : "busy";
     });
   }
@@ -3676,7 +3676,7 @@ export class AgentDataStore {
       heartbeat = (async () => {
         try {
           const count = await this.prisma.$executeRaw`
-            UPDATE "MemoryReviewLease" SET "expiresAt" = clock_timestamp() + INTERVAL '30 seconds'
+            UPDATE "outcomego_memory_review_lease" SET "expiresAt" = clock_timestamp() + INTERVAL '30 seconds'
             WHERE "botId" = ${botId}::uuid AND "ownerId" = ${ownerId}::uuid AND "expiresAt" > clock_timestamp()`;
           if (!count) abort.abort(new Error("Memory review lease lost"));
         } catch (error) { abort.abort(error); }

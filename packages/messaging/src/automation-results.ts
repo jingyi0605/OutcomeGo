@@ -398,7 +398,7 @@ export async function wakeAutomationParent(
     // Serialize handoff with Stop and claim, so a stopped context cannot notify
     // its parent through a still-running continuation.
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`bot-run-claim:${context.botId}`}))`;
-    await tx.$executeRaw`SELECT 1 FROM "Run" WHERE "id" = ${context.runId}::uuid FOR UPDATE`;
+    await tx.$executeRaw`SELECT 1 FROM "outcomego_run" WHERE "id" = ${context.runId}::uuid FOR UPDATE`;
     const run = await tx.run.findUnique({
       where: { id: context.runId },
       include: { inboxEvents: { take: 1, select: { payload: true } } },

@@ -28,13 +28,13 @@ export const dismissQuestions = async (
   exceptId?: string
 ) => {
   const messages = await tx.$queryRaw<Array<{ id: string }>>(Prisma.sql`
-    UPDATE "ChannelMessage"
+    UPDATE "outcomego_channel_message"
     SET "metadata" = "metadata" || ${JSON.stringify({
       widgetDismissed: true,
       widgetDismissalReason: reason,
     })}::jsonb
     WHERE "channelId" = ${channelId}::uuid
-      AND "sender" = 'agent'::"ChannelMessageSender"
+      AND "sender" = 'agent'::"outcomego_channel_message_sender"
       AND "metadata"->>'type' = 'widget'
       AND "metadata"->>'respondedValue' IS NULL
       AND coalesce(("metadata"->>'widgetDismissed')::boolean, false) = false

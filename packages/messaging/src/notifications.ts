@@ -150,9 +150,9 @@ export const refreshMessageNotification = async (
   message: Parameters<typeof publishMessageNotification>[1]
 ): Promise<void> => {
   const body = truncateNotificationText(messageNotificationBody(message));
-  await tx.$executeRaw`UPDATE "ChannelNotification" SET "payload" = "payload" || jsonb_build_object('body', ${body}::text)
+  await tx.$executeRaw`UPDATE "outcomego_channel_notification" SET "payload" = "payload" || jsonb_build_object('body', ${body}::text)
     WHERE "key" = ${`message:${message.id}`} AND "channelId" = ${message.channelId}::uuid`;
-  await tx.$executeRaw`UPDATE "OutboxDelivery" SET "payload" = "payload" || jsonb_build_object('body', ${body}::text)
+  await tx.$executeRaw`UPDATE "outcomego_outbox_delivery" SET "payload" = "payload" || jsonb_build_object('body', ${body}::text)
     WHERE "topic" = 'push.notification' AND "status" = 'pending' AND "payload"->>'messageId' = ${message.id}`;
 };
 

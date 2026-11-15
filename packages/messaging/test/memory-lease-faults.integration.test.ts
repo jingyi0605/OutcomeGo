@@ -106,7 +106,7 @@ dbTest("connection loss during acknowledgement retains a committed correction wi
   expect((await admin.bot.findUniqueOrThrow({ where: { id: botId } })).pendingMemoryExchanges).toEqual([expect.objectContaining({ id: runId })]);
   // A failed best-effort cleanup may leave its lease until natural expiry.
   // Advance only this fixture's TTL instead of sleeping for thirty seconds.
-  await admin.$executeRaw`UPDATE "MemoryReviewLease" SET "expiresAt" = clock_timestamp() - INTERVAL '1 second' WHERE "botId" = ${botId}::uuid`;
+  await admin.$executeRaw`UPDATE "outcomego_memory_review_lease" SET "expiresAt" = clock_timestamp() - INTERVAL '1 second' WHERE "botId" = ${botId}::uuid`;
   const fresh = createPrismaClient(url!);
   try {
     const recovered = new AgentDataStore(fresh, { root, workspaceRoot: root, memoryInference: async () => { inferenceCalls++; return "profile: This stale review must never run."; } });
@@ -126,7 +126,7 @@ dbTest("a PostgreSQL heartbeat failure aborts inference and preserves the exchan
     if (key !== "$executeRaw") return Reflect.get(owner, key);
     return async (...args: any[]) => {
       const sql = Array.isArray(args[0]) ? args[0].join("?") : "";
-      if (!injected && sql.includes('UPDATE "MemoryReviewLease"')) {
+      if (!injected && sql.includes('UPDATE "outcomego_memory_review_lease"')) {
         injected = true;
         return owner.$transaction(async tx => {
           await terminateOwnTransaction(tx, admin);
@@ -163,7 +163,7 @@ dbTest("a real inference outliving the initial thirty-second lease remains owned
     const originalExpiry = first.expiresAt.getTime();
     const [clock] = await prisma.$queryRaw<Array<{ ttl: number }>>`
       SELECT EXTRACT(EPOCH FROM ("expiresAt" - clock_timestamp()))::double precision AS ttl
-      FROM "MemoryReviewLease" WHERE "botId" = ${botId}::uuid`;
+      FROM "outcomego_memory_review_lease" WHERE "botId" = ${botId}::uuid`;
     const originalTtl = clock!.ttl * 1_000;
     expect(originalTtl).toBeGreaterThan(28_000);
     expect(originalTtl).toBeLessThanOrEqual(30_000);
@@ -177,7 +177,7 @@ dbTest("a real inference outliving the initial thirty-second lease remains owned
       expect(latest.ownerId).toBe(first.ownerId);
       const [clock] = await prisma.$queryRaw<Array<{ alive: boolean }>>`
         SELECT "expiresAt" > clock_timestamp() AS alive
-        FROM "MemoryReviewLease" WHERE "botId" = ${botId}::uuid`;
+        FROM "outcomego_memory_review_lease" WHERE "botId" = ${botId}::uuid`;
       expect(clock!.alive).toBe(true);
       if (latest.expiresAt.getTime() > first.expiresAt.getTime()) renewalsObserved++;
     }
@@ -243,7 +243,7 @@ dbTest("expiry inside a locked mutation cannot erase durable retry work after th
         expired = true;
         // The ownership check already holds this row FOR UPDATE. Shorten the
         // TTL on its own connection to simulate a transaction crossing expiry.
-        await owner.$executeRaw`UPDATE "MemoryReviewLease" SET "expiresAt" = clock_timestamp() - INTERVAL '1 second' WHERE "botId" = ${botId}::uuid`;
+        await owner.$executeRaw`UPDATE "outcomego_memory_review_lease" SET "expiresAt" = clock_timestamp() - INTERVAL '1 second' WHERE "botId" = ${botId}::uuid`;
       }
       return result;
     } };
