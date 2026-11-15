@@ -42,6 +42,7 @@ export const sourceTranslations: Record<string, string> = {
   System: "系统",
   Microphone: "麦克风",
   "Microphone access": "麦克风访问权限",
+  "Checking microphone access": "正在检查麦克风访问权限",
   "System Default": "系统默认",
   "System settings": "系统设置",
   "No microphone found. Connect a microphone to record voice notes.":
@@ -388,6 +389,7 @@ export const sourceTranslations: Record<string, string> = {
   "Develop plugins": "开发插件",
   "Add custom MCP": "添加自定义 MCP",
   "Reload plugins": "重新加载插件",
+  "Reload latest": "重新加载最新版本",
   "Loading plugins": "正在加载插件",
   "Loading plugin details…": "正在加载插件详情…",
   "Search plugins": "搜索插件",
