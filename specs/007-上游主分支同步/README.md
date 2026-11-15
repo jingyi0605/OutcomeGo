@@ -11,9 +11,9 @@
 
 同步完成后的进度基线：
 
-- `OutcomeGo` 当前 head：`3f641f0fb`，提交消息为 `修复：完成上游 0.0.19 同步`。
+- `OutcomeGo` 当前 head：`22a47c80e`，提交消息为 `修复：完成上游 0.0.19 同步`。
 - 合并父提交：`afd276ed9`（OutcomeGo）和 `fd32377bf`（`upstream/main`）。
-- `OutcomeGo` 相对 `upstream/main`：0 个上游独有提交；相对 `origin/OutcomeGo`：126 个本地提交。
+- `OutcomeGo` 相对 `upstream/main`：0 个上游独有提交；相对 `origin/OutcomeGo`：134 个本地提交。
 - 当前工作树无未解决冲突，Server、Messaging 和全仓类型检查已通过。
 
 本 Spec 维护长期策略、分阶段计划、冲突分类和验收门槛。针对当前上游 `0.0.19` 的具体实现拆分为子规格 [`specs/007.1-同步上游0.0.19/`](../007.1-同步上游0.0.19/)。

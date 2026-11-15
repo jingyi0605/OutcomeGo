@@ -41,11 +41,11 @@ not want are merged and then reverted, so the same commits do not return as conf
 | Item | Value |
 |---|---|
 | Current fork baseline date | 2026-11-15 |
-| Current `OutcomeGo` head | `3f641f0fb` (`修复：完成上游 0.0.19 同步`) |
+| Current `OutcomeGo` head | `22a47c80e` (`修复：完成上游 0.0.19 同步`) |
 | Current `upstream/main` head | `fd32377bf` (upstream 0.0.19 candidate) |
-| Synchronization merge | `3f641f0fb`, parents `afd276ed9` and `fd32377bf` |
+| Synchronization merge | `22a47c80e`, parents `afd276ed9` and `fd32377bf` |
 | Remaining upstream-only commits | `0` |
-| Fork-only commits after `origin/OutcomeGo` | `126` |
+| Fork-only commits after `origin/OutcomeGo` | `134` |
 | Historical common ancestor | `6af6444c` (v0.0.15, 2026-11-07) |
 | Merge validation | 15 package typechecks; server 667 pass/0 fail; messaging 292 pass/0 fail |
 

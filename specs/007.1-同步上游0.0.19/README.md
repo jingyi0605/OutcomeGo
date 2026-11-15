@@ -15,7 +15,7 @@
 
 同步结果：
 
-- 最终 merge commit：`3f641f0fb`，父提交为 `afd276ed9` 和 `fd32377bf`。
+- 最终 merge commit：`22a47c80e`，父提交为 `afd276ed9` 和 `fd32377bf`。
 - 同步后 `OutcomeGo` 相对 `upstream/main`：0 个上游独有提交。
 - 同步后工作树干净，完整合并结果已快进到 `OutcomeGo` 分支；未推送远程。
 - 验证基线：全仓 15 个包类型检查通过；Server 667 pass/0 fail；Messaging 292 pass/0 fail。
