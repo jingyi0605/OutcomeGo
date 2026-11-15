@@ -43,7 +43,7 @@ export const parseAssetRef = (candidate: unknown): AssetRef | null => {
     mimeType.length > 120 ||
     typeof byteSize !== "number" ||
     !Number.isSafeInteger(byteSize) ||
-    byteSize < 1 ||
+    byteSize < 0 ||
     byteSize > 200 * 1024 * 1024 ||
     typeof kind !== "string" ||
     !ASSET_KINDS.has(kind as AssetKind) ||
@@ -223,6 +223,7 @@ export const messageDisplayProjection = (message: ChannelMessageView): MessageDi
   const attachments = messageAssets(message);
   const stagedAttachments = messageStagedAttachments(message);
   const richMessage =
+    metadata.type === "presentation" ||
     metadata.type === "bot-template" ||
     metadata.type === "user-form" ||
     metadata.type === "external-draft" ||
@@ -259,16 +260,17 @@ export const toggleOwnReaction = (
     Boolean(reaction) &&
     typeof reaction === "object" &&
     !Array.isArray(reaction) &&
-    (reaction as { by?: unknown }).by === "me" &&
-    (reaction as { emoji?: unknown }).emoji === emoji;
-  const alreadyReacted = reactions.some(isOwnReaction);
+    (reaction as { by?: unknown }).by === "me";
+  const alreadyReacted = reactions.some((reaction) =>
+    isOwnReaction(reaction) && (reaction as { emoji?: unknown }).emoji === emoji);
+  const others = reactions.filter((reaction) => !isOwnReaction(reaction));
   return {
     ...message,
     metadata: {
       ...metadata,
       reactions: alreadyReacted
-        ? reactions.filter((reaction) => !isOwnReaction(reaction))
-        : [...reactions, { by: "me", emoji }],
+        ? others
+        : [...others, { by: "me", emoji }],
     },
   };
 };

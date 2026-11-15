@@ -6,6 +6,7 @@ import { parseToolArguments } from "./tool-arguments";
 import { normalizeSendMessageTextContent } from "./send-text";
 import { ROBOT_AVATAR_SHAPES } from "./robot-avatar";
 import { applyComputerActionAliases } from "./computer-action-aliases";
+import { PresentationSendSchema } from "./presentation";
 const invariant=(value,message)=>{if(!value)throw new Error(message);};
 class SandToolInputError extends Error {}
 const CLOUD_AGENT_INJECTED_SECRET_NAMES_ENV_VAR = "CLOUD_AGENT_INJECTED_SECRET_NAMES";
@@ -521,12 +522,13 @@ var BOT_COLORS = [
 var BOT_MARK_COLORS = BOT_COLORS.map(({ id }) => id);
 
 var memoryParameters = external_exports.object({
-  action: external_exports.enum(["write", "forget"], {
+  action: external_exports.enum(["write", "forget", "replace"], {
     errorMap: () => ({
-      message: `${UPDATE_MEMORY_TOOL_NAME} only writes or forgets memory. ${OTHER_STATE_TOOLS}`
+      message: `${UPDATE_MEMORY_TOOL_NAME} only writes, replaces or forgets memory. ${OTHER_STATE_TOOLS}`
     })
   }),
-  fact: external_exports.string().trim().min(1).describe("One self-contained sentence. For forget, the exact recorded text."),
+  id: external_exports.string().uuid().optional().describe("For replace, use the editable id from RecallMemory when shown; otherwise your own active fact id."),
+  fact: external_exports.string().trim().min(1).describe("One self-contained sentence. For replace, the corrected fact. For forget, the exact recorded text."),
   type: external_exports.enum(MEMORY_TYPE_NAMES, {
     errorMap: () => ({
       message: `${UPDATE_MEMORY_TOOL_NAME}: pick the memory type it belongs in: ${MEMORY_TYPE_NAMES.join(", ")}.`
@@ -851,9 +853,7 @@ var sandWidgetSchema = external_exports.object({
   allowCustom: external_exports.boolean().optional().describe(
     "When true, the user can type a custom free-text answer instead of choosing one of the options."
   ),
-  dismissOnMoveOn: external_exports.boolean().optional().describe(
-    "When true, this widget auto-dismisses (becomes inert, shows a muted Dismissed state) once the user sends a newer message without answering it. Omit/false to keep the question live and answerable indefinitely. Set true only for low-stakes questions that become moot if the user moves on; keep it off for real decisions you still need answered."
-  )
+
 });
 
 var ENV_NAME_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/;
@@ -920,7 +920,7 @@ var sendMessageObjectSchema = external_exports.object({
   ),
   to: external_exports.enum([SEND_MESSAGE_DM_DESTINATION]).optional().describe(SEND_MESSAGE_DM_DESCRIPTION),
   widget: sandWidgetSchema.optional().describe(
-    "Required when type is widget. A question with selectable options: { prompt, helpText?, options: [{ label, value?, description?, style? }], multiSelect?, allowCustom?, dismissOnMoveOn? }. The user picks one option; its value comes back as their reply, and the chat shows the resolved card with their selection checked under your prompt \u2014 so phrase the prompt as a natural question, not a menu instruction. Set multiSelect: true when several options may apply. The user toggles any subset and submits once, and the picked values return together in one reply, one per line. The user can also dismiss the question without answering; you'll be told on your next turn, so treat that as a decline and don't re-ask. Set allowCustom: true to also let the user type their own free-text answer instead of picking an option. Set dismissOnMoveOn: true only for low-stakes questions that become moot if the user moves on (it auto-dismisses once they send a newer message without answering); leave it off for real decisions you still need answered."
+    "Required when type is widget. A question with selectable options: { prompt, helpText?, options: [{ label, value?, description?, style? }], multiSelect?, allowCustom? }. The user picks one option; its value comes back as their reply, and the chat shows the resolved card with their selection checked under your prompt \u2014 so phrase the prompt as a natural question, not a menu instruction. Set multiSelect: true when several options may apply. The user toggles any subset and submits once, and the picked values return together in one reply, one per line. The user can also dismiss the question without answering; you'll be told on your next turn, so treat that as a decline and don't re-ask. Set allowCustom: true to also let the user type their own free-text answer instead of picking an option. Every question becomes inactive when the user sends a newer message. Interpret their message in context; it may answer the question or change the subject. A skipped question grants no permission."
   ),
   bcId: external_exports.string().trim().optional().describe(
     "Required when type is cursor-agent. The bcId of the Cursor cloud agent to reference (e.g. bc-xxxxxxxx-...)."
@@ -1215,6 +1215,8 @@ var PLATFORM_SCOPED_DRAFT_FIELDS = [
   { field: "cc", platform: "email" },
   { field: "subject", platform: "email" },
   { field: "replyToMessageId", platform: "email" },
+  { field: "forwardMessageId", platform: "email" },
+  { field: "attachments", platform: "email" },
   { field: "target", platform: "slack" },
   { field: "channelId", platform: "slack" },
   { field: "threadTs", platform: "slack" }
@@ -1472,6 +1474,7 @@ var RECALL_MEMORY_MAX_LIMIT = 50;
 var RECALL_MEMORY_DEFAULT_LIMIT = 20;
 
 var recallMemoryParameters = external_exports.object({
+  includeHistory: external_exports.boolean().optional().describe("Include superseded facts, labeled as historical. Default false."),
   query: external_exports.string().trim().min(1).describe(
     "What to look for. Facts sharing distinctive words with the query rank first; when nothing overlaps (short identifiers like a ticket id or an acronym) a literal case-insensitive substring match is used instead."
   ),
@@ -1976,8 +1979,11 @@ const adaptedSendSchema = rejectingUnsupportedAttachmentFields(sendMessageObject
 // when the user asked to see the message first.
 const adaptedDraftSchema = draftExternalMessageObjectSchema.extend({
   waitForReview: external_exports.boolean().optional(),
+  forwardMessageId: external_exports.string().trim().min(1).optional(),
+  attachments: external_exports.array(external_exports.string().min(1)).max(10).optional(),
 }).superRefine(refineDraftExternalMessage).superRefine(refineDraftBody);
 export function normalizeMainToolArguments(name:string, raw:unknown):Record<string,any>{
+  if (name === "SendToUser" && raw && typeof raw === "object" && raw.type === "presentation") return parseToolArguments(PresentationSendSchema, raw);
   if (name === "Shell" && raw && typeof raw === "object" && !Array.isArray(raw)) {
     const value = {...raw};
     if (typeof value.block_until_ms === "string" && value.block_until_ms.trim()) {

@@ -7,7 +7,11 @@ export type {
   NetworkSettingsUpdate,
   NetworkEgress,
   NetworkQuality,
+  NetworkConnectivity,
+  NetworkFamilyHealth,
+  NetworkFamilyState,
 } from "@outcomego/plugin-sdk/browser-network/protocol";
+export { currentConnectivity } from "@outcomego/plugin-sdk/browser-network/protocol";
 export interface NetworkSharingStatus {
   supported: boolean;
   connected: boolean;

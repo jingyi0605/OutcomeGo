@@ -844,6 +844,15 @@ import type {
 } from "@outcomego/plugin-sdk";
 export * from "./plugin-management";
 
+export interface PluginDeviceLinkView {
+  sessionId: string;
+  qrCodeDataUrl: string | null;
+  expiresAt: number;
+  sessionExpiresAt?: number;
+  challengeGeneration?: number;
+  instructions: string;
+}
+
 export interface PluginCatalogItemView {
   key: string;
   version: string;
@@ -866,6 +875,7 @@ export interface PluginCatalogItemView {
 }
 
 export interface PluginConnectionView {
+  deviceLink?: PluginDeviceLinkView | null;
   id: string;
   revision: string;
   pluginKey: string;
@@ -931,6 +941,7 @@ export interface PluginSettingsView {
 }
 
 export interface PluginConnectionStatusView {
+  deviceLink?: PluginDeviceLinkView | null;
   oauthCallbackMode?: PluginConnectionView["oauthCallbackMode"];
   setupPhase?: PluginConnectionView["setupPhase"];
   id: string;
@@ -1133,9 +1144,19 @@ export type ComputerUseInput = typeof ComputerUseInput.Type;
  */
 export const ScreenTakeoverInput = Schema.Struct({
   active: Schema.Boolean,
+  // Compatibility for old clients; never extends a persistent control session.
   renew: Schema.optional(Schema.Boolean),
+  controlId: Schema.optional(Schema.String.pipe(Schema.pattern(/^[a-zA-Z0-9:_-]{1,128}$/))),
+  generation: Schema.optional(Schema.Number.pipe(Schema.int(), Schema.nonNegative())),
+  force: Schema.optional(Schema.Boolean),
 });
 export type ScreenTakeoverInput = typeof ScreenTakeoverInput.Type;
+
+export const ScreenControlIdentity = Schema.Struct({
+  controlId: Schema.optional(Schema.String.pipe(Schema.pattern(/^[a-zA-Z0-9:_-]{1,128}$/))),
+  generation: Schema.optional(Schema.Number.pipe(Schema.int(), Schema.nonNegative())),
+});
+export type ScreenControlIdentity = typeof ScreenControlIdentity.Type;
 
 export const ScreenPauseInput = Schema.Struct({ paused: Schema.Boolean });
 export type ScreenPauseInput = typeof ScreenPauseInput.Type;
@@ -1146,6 +1167,11 @@ export interface ScreenVncSessionView {
   password: string;
 }
 
+export interface ComputerControlSession {
+  id: string;
+  generation: number;
+}
+
 export interface ScreenStatusView {
   botId: string;
   state: "starting" | "ready" | "failed";
@@ -1154,6 +1180,9 @@ export interface ScreenStatusView {
   display: number;
   viewerUrl: string;
   humanTakeover: boolean;
+  /** Present on servers supporting persistent control; optional for older servers. */
+  controlPending?: boolean;
+  controlSession?: ComputerControlSession | null;
   agentInputPaused: boolean;
   apps: Array<"chromium" | "thunar" | "terminal">;
   browserProfileScope: "computer";
@@ -1218,6 +1247,7 @@ export const UpdateStateInput = Schema.Struct({
   action: Schema.Literal(
     "write",
     "forget",
+    "replace",
     "create",
     "get",
     "update",
@@ -1262,7 +1292,7 @@ export type UpdateStateInput = typeof UpdateStateInput.Type;
 const optionalText = Schema.optional(Schema.String.pipe(Schema.minLength(1)));
 
 export const UpdateMemoryToolInput = Schema.Struct({
-  action: Schema.Literal("write", "forget"),
+  action: Schema.Literal("write", "forget", "replace"),
   fact: Schema.String.pipe(Schema.minLength(1)),
   type: MemoryType,
 });
@@ -1895,6 +1925,18 @@ export interface ChannelHistoryPage {
   beforeSequence: string | null;
   hasMore: boolean;
   revision: string;
+}
+
+export interface ChannelLibraryItem {
+  id: string;
+  messageId: string;
+  attachment: AssetRef;
+  createdAt: string;
+}
+
+export interface ChannelLibraryPage {
+  items: ChannelLibraryItem[];
+  nextCursor: string | null;
 }
 
 export interface ChannelClientState {

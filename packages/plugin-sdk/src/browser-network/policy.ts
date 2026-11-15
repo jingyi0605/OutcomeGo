@@ -5,8 +5,9 @@ import ipaddr from "ipaddr.js";
 import type { OpenTarget } from "./protocol";
 
 export class NetworkError extends Error {
-  constructor(readonly code: string) {
-    super(code);
+  constructor(readonly code: string, options?: { cause?: unknown }) {
+    super(code, options);
+    this.name = "NetworkError";
   }
 }
 export function publicAddress(address: string): boolean {

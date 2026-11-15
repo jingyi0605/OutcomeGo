@@ -86,10 +86,18 @@ describe("API contracts", () => {
     const value = Schema.decodeUnknownSync(CreateBotInput)({
       clientRequestId: "create-researcher-0001",
       name: "Researcher",
-      instructions: "Keep notes in the shared workspace.",
       color: "#4f7cff",
     });
     expect(value.name).toBe("Researcher");
+  });
+
+  test("drops the retired Instructions profile input while retaining title and description", () => {
+    const input = { clientRequestId: "retired-instructions-1", title: "Research", description: "Find sources", instructions: "Retired editor value" };
+    const value = Schema.decodeUnknownSync(CreateBotInput)(input);
+    expect(value).not.toHaveProperty("instructions");
+    expect(value.title).toBe("Research");
+    expect(value.description).toBe("Find sources");
+    expect(Schema.decodeUnknownSync(UpdateBotInput)(input)).not.toHaveProperty("instructions");
   });
 
   test("accepts a zero-configuration bot creation request", () => {
@@ -452,7 +460,7 @@ describe("API contracts", () => {
     expect(sendToUser?.description).not.toContain('ListCredentials');
     expect(sendToUser?.description).not.toContain('cursor-agent');
     const schema = sendToUser!.inputSchema as any;
-    expect(schema.properties.type.enum).toEqual(['text','attachment','widget','secret-request']);
+    expect(schema.properties.type.enum).toEqual(['text','attachment','widget','secret-request','presentation']);
     expect(schema.properties.secret.properties).toHaveProperty('name');
     expect(schema.properties.secret.properties).toHaveProperty('connector');
     expect(schema.properties).not.toHaveProperty('credential');
@@ -528,7 +536,12 @@ describe("API contracts", () => {
     ];
 
     const actual = referenceTool("SendToUser");
-    expect(actual.description).toBe(expected.description);
+    expect(actual.description).toStartWith(expected.description + " Use type:presentation");
+    // Places and routes are named by id and filled in from tool results; nothing is invented.
+    for (const rule of ["list the ids of places a places tool returned", "never invent coordinates", "pass the route id a routing tool returned"])
+      expect(actual.description).toContain(rule);
+    properties.type.enum.push("presentation");
+    properties.presentation = (NATIVE_TOOLS.find(tool => tool.name === "SendToUser")!.inputSchema as any).properties.presentation;
     expect(actual.inputSchema).toEqual(expected.inputSchema);
   });
 
@@ -715,9 +728,9 @@ describe("API contracts", () => {
       properties: Record<string, { enum?: string[] }>;
       required: string[];
     };
-    expect(memory.properties.action?.enum).toEqual(["write", "forget"]);
+    expect(memory.properties.action?.enum).toEqual(["write", "forget", "replace"]);
     expect(memory.properties.type?.enum).toEqual(["profile", "journal", "shared_profile", "shared_journal"]);
-    expect(Object.keys(memory.properties)).toEqual(["action", "fact", "type"]);
+    expect(Object.keys(memory.properties)).toEqual(["action", "fact", "type", "id"]);
     expect(memory.required).toEqual(["action", "fact", "type"]);
     expect(UPDATE_MEMORY_TOOL.description).toStartWith(
       "Change your durable memory. Each memory type below holds one kind of fact. Save a fact to the type meant for it, and leave out a fact no type is meant for:\n- profile: "
@@ -769,7 +782,7 @@ describe("API contracts", () => {
       title: "",
     });
     expect(() => normalizeMainToolArguments("UpdateMemory", { action: "create", fact: "x", type: "profile" })).toThrow(
-      "UpdateMemory only writes or forgets memory. Routines have their own UpdateRoutine tool."
+      "UpdateMemory only writes, replaces or forgets memory. Routines have their own UpdateRoutine tool."
     );
     expect(() => normalizeMainToolArguments("UpdateMemory", { action: "write", fact: "x", type: "log" })).toThrow(
       "UpdateMemory: pick the memory type it belongs in: profile, journal, shared_profile, shared_journal."

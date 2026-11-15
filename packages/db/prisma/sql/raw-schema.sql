@@ -81,7 +81,7 @@ BEGIN
     ) VALUES (
       'bot:' || NEW."id", 'bot', 'bot', NEW."id", NEW."id"::text, NEW."id",
       NEW."name", coalesce(NULLIF(NEW."title", ''), ''),
-      concat_ws(' ', NEW."description", NEW."instructions"),
+      NEW."description",
       NEW."createdAt", NEW."updatedAt"
     );
   END IF;
@@ -286,3 +286,13 @@ ALTER TABLE "outcomego_web_tool_provider" ADD CONSTRAINT "outcomego_web_tool_pro
   ("checkStatus" IS NULL OR "checkStatus" IN ('passed', 'failed')) AND
   (("checkStatus" IS NULL) = ("checkedAt" IS NULL))
 );
+
+-- Preserve deletion markers from deployments that only recorded them in the event replay log.
+INSERT INTO "RetiredAgent" ("id", "retiredAt")
+SELECT "entityId", MIN("createdAt") FROM "Event"
+WHERE "topic" IN ('channel.deleted', 'bot.archived') AND "entityId" IS NOT NULL
+GROUP BY "entityId"
+ON CONFLICT ("id") DO NOTHING;
+INSERT INTO "RetiredAgent" ("id", "retiredAt")
+SELECT "id", "updatedAt" FROM "Bot" WHERE "status" = 'archived'
+ON CONFLICT ("id") DO NOTHING;

@@ -15,6 +15,11 @@ import {
   type NetworkDnsDiagnostic,
 } from "./protocol";
 import {
+  networkErrorCode,
+  type NetworkDiagnostic,
+  type NetworkDiagnosticSink,
+} from "./diagnostics";
+import {
   connectTargetAddress,
   dialTarget,
   NetworkError,
@@ -217,7 +222,7 @@ export class BrowserNetworkClient {
       deploymentId?: string;
       dial?: (target: OpenTarget, signal: AbortSignal) => Promise<Duplex>;
       resolver?: (route: NetworkRoute) => string;
-      diagnostic?: (diagnostic: NetworkDnsDiagnostic) => void;
+      diagnostic?: ((diagnostic: NetworkDnsDiagnostic) => void) | NetworkDiagnosticSink;
       changed?: () => void;
     }
   ) {}
@@ -229,12 +234,12 @@ export class BrowserNetworkClient {
   stop() {
     this.stopped = true;
     clearTimeout(this.retry);
-    this.disconnect();
+    this.disconnect("stopped");
   }
-  private disconnect() {
+  private disconnect(reason: NetworkDiagnostic["reason"] = "transport_closed") {
     this.transitionUntil = 0;
     this.releaseRouteWaiters(false);
-    this.fence();
+    this.fence(reason);
     clearInterval(this.timer);
     this.timer = undefined;
     this.route = null;
@@ -305,10 +310,11 @@ export class BrowserNetworkClient {
           control: (message) => {
             if (message.op === "invalidate") {
               this.transitionUntil = performance.now() + 2000;
+              const previous = this.route;
               this.route = null;
               this.expires = 0;
               this.pending.clear();
-              this.fence();
+              this.fence("route_invalidated", previous);
               this.challenge();
               this.options.changed?.();
               return;
@@ -335,7 +341,17 @@ export class BrowserNetworkClient {
               (this.route.streamWindow ?? WINDOW) !== (route.streamWindow ?? WINDOW)
             )
               throw new Error("Window changed without fencing");
-            if (this.route && this.route.epoch !== route.epoch) this.fence();
+            if (this.route && this.route.epoch !== route.epoch) {
+              (this.options.diagnostic as NetworkDiagnosticSink | undefined)?.({
+                event: "route_changed",
+                epoch: route.epoch,
+                sourceId: route.mode === "server" ? "server" : route.machineId ?? undefined,
+                previousEpoch: this.route.epoch,
+                mode: route.mode,
+                previousMode: this.route.mode,
+              });
+              this.fence("source_changed");
+            }
             mux.configureWindow(route.streamWindow ?? WINDOW);
             this.route = route;
             // Keep backoff across flapping connections, even if they briefly
@@ -377,11 +393,17 @@ export class BrowserNetworkClient {
       let lastRenew = performance.now();
       this.timer = setInterval(() => {
         if (this.expires && performance.now() >= this.expires) {
+          (this.options.diagnostic as NetworkDiagnosticSink | undefined)?.({
+            event: "lease_expired",
+            epoch: this.route?.epoch,
+            mode: this.route?.mode,
+          });
           this.transitionUntil = 0;
           this.releaseRouteWaiters(false);
+          const previous = this.route;
           this.route = null;
           this.expires = 0;
-          this.fence();
+          this.fence("lease_expired", previous);
           this.options.changed?.();
         }
         if (performance.now() - lastRenew >= RENEW_MS) {
@@ -399,9 +421,21 @@ export class BrowserNetworkClient {
       }
       this.mux?.receive(Buffer.isBuffer(bytes) ? bytes : Buffer.from(bytes as ArrayBuffer));
     });
-    ws.on("error", () => {});
-    ws.on("close", () => {
+    ws.on("error", (error) => {
+      if (this.ws === ws)
+        (this.options.diagnostic as NetworkDiagnosticSink | undefined)?.({
+          event: "transport_error",
+          code: networkErrorCode(error),
+        });
+    });
+    ws.on("close", (closeCode) => {
       if (this.ws !== ws) return;
+      (this.options.diagnostic as NetworkDiagnosticSink | undefined)?.({
+        event: "transport_closed",
+        closeCode,
+        epoch: this.route?.epoch,
+        mode: this.route?.mode,
+      });
       this.disconnect();
       if (!this.stopped) {
         this.retry = setTimeout(
@@ -456,7 +490,7 @@ export class BrowserNetworkClient {
               diagnostic.selectedAddress = address.address;
               diagnostic.status = "connected";
               diagnostic.checkedAt = new Date().toISOString();
-              this.options.diagnostic?.(diagnostic);
+              (this.options.diagnostic as ((diagnostic: unknown) => void) | undefined)?.(diagnostic);
             }
           );
           socket = retrySocket;
@@ -467,7 +501,7 @@ export class BrowserNetworkClient {
           diagnostic.selectedAddress = address.address;
           diagnostic.status = "connected";
           diagnostic.checkedAt = new Date().toISOString();
-          this.options.diagnostic?.(diagnostic);
+          (this.options.diagnostic as ((diagnostic: unknown) => void) | undefined)?.(diagnostic);
         }
       } finally {
         this.directDials.delete(controller);
@@ -503,7 +537,15 @@ export class BrowserNetworkClient {
   }
   private readonly direct = new Set<Duplex>();
   private readonly directDials = new Set<AbortController>();
-  fence() {
+  fence(reason: NetworkDiagnostic["reason"] = "route_invalidated", route = this.route) {
+    (this.options.diagnostic as NetworkDiagnosticSink | undefined)?.({
+      event: "route_fenced",
+      reason,
+      epoch: route?.epoch,
+      sourceId: route?.mode === "server" ? "server" : route?.machineId ?? undefined,
+      mode: route?.mode,
+      activeConnections: this.direct.size + (this.mux?.streams.size ?? 0) + this.directDials.size,
+    });
     for (const dial of this.directDials) dial.abort();
     this.directDials.clear();
     for (const socket of this.direct) socket.destroy();

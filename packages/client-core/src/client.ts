@@ -35,6 +35,7 @@ import type {
   BotMemoryList,
   ChannelClientState,
   ChannelHistoryPage,
+  ChannelLibraryPage,
   ChannelMessageContextOptions,
   ChannelMessageContextView,
   ChannelMessageView,
@@ -523,6 +524,13 @@ export const createOutcomeGoClient = (options: OutcomeGoClientOptions) => {
       ),
     uploadAsset,
     assetUrl,
+    channelLibrary: (channelId: string, before: string | null = null, signal?: AbortSignal) => {
+      const query = before ? `?before=${encodeURIComponent(before)}` : "";
+      return transport.request<ChannelLibraryPage>(
+        `/api/v0/channels/${encodeURIComponent(channelId)}/library${query}`,
+        { signal }
+      );
+    },
     search: (query: string, category: SearchCategory = "all", signal?: AbortSignal) => {
       const params = new URLSearchParams({ q: query, category });
       return transport.request<SearchResponse>(`/api/v0/search?${params}`, { signal });
@@ -785,14 +793,14 @@ export const createOutcomeGoClient = (options: OutcomeGoClientOptions) => {
       transport.request<RoutineWebhookView | null>(
         `/api/v0/routines/${encodeURIComponent(routineId)}/webhook`
       ),
-    createRoutine: (ownerId: string, ownerKind: "bot" | "group", input: CreateRoutineInput) =>
+    createRoutine: (ownerId: string, ownerKind: "bot" | "group", input: CreateRoutineInput, clientId?: string) =>
       transport.request<RoutineView>(
         ownerKind === "bot"
           ? `/api/v0/bots/${encodeURIComponent(ownerId)}/routines`
           : `/api/v0/channels/${encodeURIComponent(ownerId)}/routines`,
         {
           method: "POST",
-          body: JSON.stringify({ ...input, clientId: createId() }),
+          body: JSON.stringify({ ...input, clientId: clientId ?? createId() }),
         }
       ),
     updateRoutine: (routineId: string, input: UpdateRoutineInput) =>
@@ -839,3 +847,8 @@ export const createOutcomeGoClient = (options: OutcomeGoClientOptions) => {
 };
 
 export type OutcomeGoClient = ReturnType<typeof createOutcomeGoClient>;
+
+// Compatibility aliases for upstream client fixtures and integrations. OutcomeGo remains the canonical API.
+export type OpenTeamClientOptions = OutcomeGoClientOptions;
+export const createOpenTeamClient = createOutcomeGoClient;
+export type OpenTeamClient = OutcomeGoClient;

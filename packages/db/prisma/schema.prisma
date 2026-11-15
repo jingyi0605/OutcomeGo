@@ -303,6 +303,9 @@ model Bot {
   draftAllowedRecipients String[] @default([])
   /// Exchanges whose memory extraction has not finished; one left after a restart is reviewed with the next turn.
   pendingMemoryExchanges Json     @default("[]")
+  // Changes only when a correction or deletion invalidates pinned memory.
+  memoryRevision Int @default(0)
+  memoryReviewLease MemoryReviewLease?
   avatarPath String?
   defaultDirectory String
   status BotStatus    @default(provisioning)
@@ -393,6 +396,8 @@ model Subagent {
   error Json?
   outputPath String
   startedAt DateTime?
+  memoryReviewPending Boolean @default(false)
+  memoryReviewRevision Int?
   completedAt DateTime?
   stoppedAt DateTime?
   createdAt DateTime       @default(now())
@@ -450,13 +455,34 @@ model MemoryFact {
   turnId String?
   writtenByBotId String?      @db.Uuid
   writtenByBot   Bot?         @relation("MemoryFactWriter", fields: [writtenByBotId], references: [id], onDelete: SetNull)
+  // Retired facts remain available only through explicit historical recall.
+  supersededAt DateTime?
+  supersededById String? @db.Uuid
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
 
+  @@index([namespace, supersededAt, createdAt], map: "outcomego_memory_fact_namespace_superseded_at_created_at_idx")
   @@index([namespace, logicalId, createdAt], map: "outcomego_memory_fact_namespace_logical_id_created_at_idx")
   @@index([namespace, tier, updatedAt], map: "outcomego_memory_fact_namespace_tier_updated_at_idx")
   @@index([writtenByBotId, updatedAt], map: "outcomego_memory_fact_written_by_bot_id_updated_at_idx")
   @@map("outcomego_memory_fact")
+}
+
+// Shared invalidation must not lock every Bot row (retirement owns those rows).
+model MemoryRevision {
+  scope String @id
+  revision Int @default(0)
+  @@map("outcomego_memory_revision")
+}
+
+// One reviewer per bot across worker processes, including inference time.
+model MemoryReviewLease {
+  botId String @id @db.Uuid
+  bot Bot @relation(fields: [botId], references: [id], onDelete: Cascade)
+  ownerId String @db.Uuid
+  expiresAt DateTime @db.Timestamptz(3)
+  @@index([expiresAt], map: "outcomego_memory_review_lease_expires_at_idx")
+  @@map("outcomego_memory_review_lease")
 }
 
 model SavedSkill {
@@ -498,6 +524,8 @@ model Routine {
   enabled Boolean             @default(true)
   revision Int                 @default(1)
   nextRunAt DateTime?
+  validationError String?
+  scheduleAnchorAt DateTime?
   lastRunAt DateTime?
   pausedAt DateTime?
   deletedAt DateTime?
@@ -866,6 +894,8 @@ model Run {
   error Json?
   inputDeliveredAt DateTime?
   startedAt DateTime?
+  memoryReviewPending Boolean @default(false)
+  memoryReviewRevision Int?
   completedAt DateTime?
   messages       Message[]    @relation("RunMessages")
   visibleMessages ChannelMessage[] @relation("VisibleRunMessage")
@@ -881,6 +911,7 @@ model Run {
   bitwardenReadApprovals BitwardenReadApproval[]
 
   @@index([botId, status], map: "outcomego_run_bot_id_status_idx")
+  @@index([memoryReviewPending, completedAt], map: "outcomego_run_memory_review_pending_completed_at_idx")
   @@index([conversationId, createdAt], map: "outcomego_run_conversation_id_created_at_idx")
   @@index([channelId, createdAt], map: "outcomego_run_channel_id_created_at_idx")
   @@index([requestNextCheckAt], map: "outcomego_run_request_next_check_at_idx")
@@ -1076,6 +1107,17 @@ model RunItem {
   @@map("outcomego_run_item")
 }
 
+
+// Durable roster tombstones are independent of the bounded client event replay log.
+model RetiredAgent {
+  id String @id @db.Uuid
+  retiredAt DateTime @default(now())
+  cleanupPending Boolean @default(true)
+  cleanupRunIds String[] @default([]) @db.Uuid
+  nextCleanupAt DateTime @default(now())
+  @@index([cleanupPending, nextCleanupAt], map: "outcomego_retired_agent_cleanup_pending_next_cleanup_at_idx")
+  @@map("outcomego_retired_agent")
+}
 
 model Event {
   sequence BigInt   @id @default(autoincrement())

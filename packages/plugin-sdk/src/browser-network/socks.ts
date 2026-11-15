@@ -1,20 +1,26 @@
 import { createServer, type Socket } from "node:net";
 import type { Duplex } from "node:stream";
 import ipaddr from "ipaddr.js";
+import { networkErrorCode, type NetworkDiagnosticSink } from "./diagnostics";
 
 /** How long a half-closed tunnel may stay silent before the gateway reclaims its slot. */
 export const HALF_CLOSE_IDLE_MS = 15_000;
 
 /** Loopback-only SOCKS5 CONNECT gateway. It never chooses or falls back to a route. */
 export function createBrowserProxy(
-  open: (host: string, port: number) => Promise<Duplex>,
+  open: (host: string, port: number, signal?: AbortSignal) => Promise<Duplex>,
   limit = 80,
-  halfCloseIdleMs = HALF_CLOSE_IDLE_MS
+  diagnosticOrHalfClose?: NetworkDiagnosticSink | number,
+  configuredHalfCloseIdleMs = HALF_CLOSE_IDLE_MS
 ) {
+  const diagnostic = typeof diagnosticOrHalfClose === "function" ? diagnosticOrHalfClose : undefined;
+  const halfCloseIdleMs = typeof diagnosticOrHalfClose === "number" ? diagnosticOrHalfClose : configuredHalfCloseIdleMs;
   const clients = new Set<Socket>();
   const counters = { peak: 0, rejected: 0, reaped: 0 };
   const server = createServer({ allowHalfOpen: true }, (client) => {
     client.setNoDelay(true);
+    const connectionId = clients.size + 1;
+    const life = new AbortController();
     let timer: ReturnType<typeof setTimeout> | undefined,
       halfClosed: ReturnType<typeof setTimeout> | undefined,
       upstream: Duplex | undefined;
@@ -25,12 +31,14 @@ export function createBrowserProxy(
       clearTimeout(timer);
       clearTimeout(halfClosed);
       clients.delete(client);
+      life.abort();
       upstream?.destroy();
     });
     client.on("error", () => {});
     clients.add(client);
     if (clients.size > limit) {
       counters.rejected++;
+      diagnostic?.({ event: "proxy_capacity", connectionId, activeConnections: clients.size - 1, limit });
       client.destroy();
       return;
     }
@@ -40,7 +48,7 @@ export function createBrowserProxy(
       busy = false;
     // An abandoned half-open request must not hold a slot for the full idle window.
     client.once("end", () => {
-      if (!upstream) client.destroy();
+      if (!upstream && !busy) client.destroy();
     });
     timer = setTimeout(() => client.destroy(), 30_000);
     timer.unref();
@@ -112,7 +120,12 @@ export function createBrowserProxy(
       busy = true;
       client.pause();
       client.off("data", data);
-      void open(host, port).then(
+      const details = { connectionId, address: host, port };
+      client.on("error", (error) => diagnostic?.({ event: "proxy_socket_error", ...details, side: "client", code: networkErrorCode(error) }));
+      void Promise.resolve().then(() => {
+        life.signal.throwIfAborted();
+        return open(host, port, life.signal);
+      }).then(
         (socket) => {
           upstream = socket;
           clearTimeout(timer);
@@ -120,8 +133,15 @@ export function createBrowserProxy(
             socket.destroy();
             return;
           }
-          socket.on("error", () => client.destroy());
+          socket.on("error", (error) => {
+            diagnostic?.({ event: "proxy_socket_error", ...details, side: "upstream", code: networkErrorCode(error) });
+            client.destroy();
+          });
           socket.once("close", () => client.destroy());
+          if (socket.destroyed) {
+            reject(1);
+            return;
+          }
           // Both sides are dialed with allowHalfOpen, so a FIN is forwarded but the slot is
           // only freed once the peer answers with its own FIN. Some servers never do, which
           // leaves the socket in FIN-WAIT-2 and the slot taken forever. Once either side has
@@ -152,7 +172,8 @@ export function createBrowserProxy(
           client.pipe(socket).pipe(client);
           client.resume();
         },
-        () => {
+        (error) => {
+          diagnostic?.({ event: "proxy_dial_failed", ...details, code: networkErrorCode(error) });
           if (!client.destroyed) reject(1);
         }
       );

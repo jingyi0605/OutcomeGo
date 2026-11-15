@@ -1,3 +1,4 @@
+import { createQuestionReceiptStore, preserveQuestionReceipt } from "./questions";
 import type {
   ChannelClientState,
   ChannelHistoryPage,
@@ -128,6 +129,7 @@ const preservingClientDelivery = (
   previous: ChannelMessageView,
   incoming: ChannelMessageView
 ): ChannelMessageView => {
+  incoming = preserveQuestionReceipt(previous, incoming);
   const clientDelivery = metadataFor(previous).clientDelivery;
   if (!clientDelivery || typeof clientDelivery !== "object" || Array.isArray(clientDelivery)) {
     return incoming;
@@ -157,6 +159,35 @@ const withoutVisibleMessages = (
     .sort(compareEntitySequence)
     .filter((message) => !visibleIds.has(message.id) && !additionalIds.has(message.id));
 
+export const restoreHistoryQuestionReceipts = (
+  history: LoadedChannelHistory,
+  receipts: ReturnType<typeof createQuestionReceiptStore>
+): LoadedChannelHistory =>
+  receipts.size === 0
+    ? history
+    : {
+        ...history,
+        messages: history.messages.map(receipts.restore),
+        threadContext: history.threadContext.map(receipts.restore),
+        searchContext: history.searchContext.map(receipts.restore),
+        searchThreadContext: history.searchThreadContext.map(receipts.restore),
+      };
+
+const historyReceipts = (
+  current: LoadedChannelHistory,
+  incoming: readonly ChannelMessageView[]
+) => {
+  const receipts = createQuestionReceiptStore();
+  receipts.remember([
+    ...current.messages,
+    ...current.threadContext,
+    ...current.searchContext,
+    ...current.searchThreadContext,
+    ...incoming,
+  ]);
+  return receipts;
+};
+
 export type ChannelHistoryMergeMode = "replace" | "refresh" | "older";
 
 /** Merge a server page into the normalized primary/thread/search history lanes. */
@@ -167,6 +198,7 @@ export const mergeLoadedChannelHistoryPage = (
   loadedAt = Date.now()
 ): LoadedChannelHistory => {
   const base = emptyLoadedChannelHistory(current);
+  const receipts = historyReceipts(base, page.messages);
   const replace = mode === "replace" || base.loadedAt === 0;
   const messages = replace
     ? sortedUniqueMessages(page.messages).sort(compareEntitySequence)
@@ -183,7 +215,7 @@ export const mergeLoadedChannelHistoryPage = (
     visibleIds
   );
   const threadContextIds = new Set(threadContext.map((message) => message.id));
-  return {
+  return restoreHistoryQuestionReceipts({
     messages,
     searchContext,
     searchThreadContext: withoutVisibleMessages(
@@ -200,7 +232,7 @@ export const mergeLoadedChannelHistoryPage = (
     hasMore: mode === "refresh" && !replace ? base.hasMore : page.hasMore,
     loading: false,
     loadedAt,
-  };
+  }, receipts);
 };
 
 export const mergeLoadedChannelMessageContext = (
