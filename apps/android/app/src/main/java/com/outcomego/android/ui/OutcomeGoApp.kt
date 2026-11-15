@@ -169,6 +169,8 @@ fun OutcomeGoApp(
     onCheckForAndroidUpdate: () -> Unit = {},
     onDownloadAndroidUpdate: () -> Unit = {},
     onInstallAndroidUpdate: () -> Unit = {},
+    androidUpdateChannel: String = "stable",
+    onSetAndroidUpdateChannel: (String) -> Unit = {},
 ) {
     val state by appViewModel.state.collectAsStateWithLifecycle()
     val networkSharing by AndroidNetworkProvider.snapshot.collectAsStateWithLifecycle()
@@ -642,6 +644,8 @@ fun OutcomeGoApp(
                         onCheckForAndroidUpdate = onCheckForAndroidUpdate,
                         onDownloadAndroidUpdate = onDownloadAndroidUpdate,
                         onInstallAndroidUpdate = onInstallAndroidUpdate,
+                        androidUpdateChannel = androidUpdateChannel,
+                        onSetAndroidUpdateChannel = onSetAndroidUpdateChannel,
                         onChange = appViewModel::saveSettings,
                         onSignOut = {
                             appViewModel.signOut()

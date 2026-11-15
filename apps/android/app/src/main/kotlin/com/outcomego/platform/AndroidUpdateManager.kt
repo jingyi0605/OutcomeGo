@@ -41,17 +41,23 @@ sealed interface AndroidUpdateState {
 
 class AndroidUpdateManager(context: Context) {
     companion object {
-        private const val UPDATE_MANIFEST_URL =
+        private const val UPDATE_MANIFEST_URL_STABLE =
             "https://github.com/jingyi0605/OutcomeGo/releases/latest/download/android-update.json"
+        /** Beta channel — points to the latest pre-release manifest when one is published. */
+        private const val UPDATE_MANIFEST_URL_BETA =
+            "https://github.com/jingyi0605/OutcomeGo/releases/latest/download/android-update-beta.json"
         private const val PREFERENCES = "outcomego-android-update"
         private const val LAST_CHECK_AT = "last-check-at"
         private const val INSTALL_STATUS = "install-status"
         private const val INSTALL_MESSAGE = "install-message"
+        private const val UPDATE_CHANNEL = "update-channel"
         private const val CHECK_INTERVAL_MS = 12 * 60 * 60 * 1000L
         private const val MAX_MANIFEST_BYTES = 256 * 1024L
         private const val MAX_APK_BYTES = 512L * 1024L * 1024L
         private const val ACTION_INSTALL_COMMIT = "com.outcomego.android.UPDATE_INSTALL_COMMIT"
         private const val EXTRA_FILE_PATH = "outcomego.update.file"
+        private const val CHANNEL_STABLE = "stable"
+        private const val CHANNEL_BETA = "beta"
     }
 
     private val appContext = context.applicationContext
@@ -60,6 +66,23 @@ class AndroidUpdateManager(context: Context) {
     private val running = AtomicBoolean(false)
     private val _state = MutableStateFlow<AndroidUpdateState>(AndroidUpdateState.Idle)
     val state: StateFlow<AndroidUpdateState> = _state.asStateFlow()
+
+    var channel: String
+        get() = preferences.getString(UPDATE_CHANNEL, CHANNEL_STABLE) ?: CHANNEL_STABLE
+        private set(value) = preferences.edit().putString(UPDATE_CHANNEL, value).apply()
+
+    fun setChannel(newChannel: String) {
+        require(newChannel == CHANNEL_STABLE || newChannel == CHANNEL_BETA) {
+            "channel must be \"stable\" or \"beta\""
+        }
+        channel = newChannel
+        // Reset last-check timestamp so the next checkIfDue() triggers immediately.
+        preferences.edit().putLong(LAST_CHECK_AT, 0L).apply()
+        _state.value = AndroidUpdateState.Idle
+    }
+
+    private val manifestUrl: String
+        get() = if (channel == CHANNEL_BETA) UPDATE_MANIFEST_URL_BETA else UPDATE_MANIFEST_URL_STABLE
 
     fun checkIfDue() {
         val lastCheck = preferences.getLong(LAST_CHECK_AT, 0L)
@@ -151,7 +174,7 @@ class AndroidUpdateManager(context: Context) {
     }
 
     private fun fetchManifest(): AndroidUpdateManifest {
-        val connection = openConnection(UPDATE_MANIFEST_URL)
+        val connection = openConnection(manifestUrl)
         return try {
             require(connection.contentLengthLong in -1L..MAX_MANIFEST_BYTES) {
                 "The update manifest is too large."

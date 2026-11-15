@@ -113,6 +113,8 @@ class MainActivity : ComponentActivity() {
                     onCheckForAndroidUpdate = viewModel::checkForAndroidUpdate,
                     onDownloadAndroidUpdate = viewModel::downloadAndroidUpdate,
                     onInstallAndroidUpdate = viewModel::installAndroidUpdate,
+                    androidUpdateChannel = viewModel.androidUpdateChannel,
+                    onSetAndroidUpdateChannel = viewModel::setAndroidUpdateChannel,
                 )
             }
         }

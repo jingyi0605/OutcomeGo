@@ -199,6 +199,8 @@ class AppViewModel @JvmOverloads constructor(
     private val androidUpdateManager = AndroidUpdateManager(application)
     val androidUpdateState: StateFlow<AndroidUpdateState> = androidUpdateManager.state
 
+    val androidUpdateChannel: String get() = androidUpdateManager.channel
+
     fun checkForAndroidUpdateIfDue() = androidUpdateManager.checkIfDue()
 
     fun checkForAndroidUpdate() = androidUpdateManager.checkNow()
@@ -206,6 +208,8 @@ class AppViewModel @JvmOverloads constructor(
     fun downloadAndroidUpdate() = androidUpdateManager.download()
 
     fun installAndroidUpdate() = androidUpdateManager.install()
+
+    fun setAndroidUpdateChannel(channel: String) = androidUpdateManager.setChannel(channel)
 
     init {
         viewModelScope.launch {

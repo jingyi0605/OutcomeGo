@@ -91,6 +91,8 @@ fun SettingsScreen(
     onCheckForAndroidUpdate: () -> Unit,
     onDownloadAndroidUpdate: () -> Unit,
     onInstallAndroidUpdate: () -> Unit,
+    androidUpdateChannel: String,
+    onSetAndroidUpdateChannel: (String) -> Unit,
     onChange: (AppSettings) -> Unit,
     onSignOut: () -> Unit,
     onBack: () -> Unit,
@@ -191,6 +193,12 @@ fun SettingsScreen(
                             onCheck = onCheckForAndroidUpdate,
                             onDownload = onDownloadAndroidUpdate,
                             onInstall = onInstallAndroidUpdate,
+                        )
+                        HorizontalDivider(Modifier.padding(start = 18.dp), thickness = 0.5.dp, color = SpatialTheme.colors.divider)
+                        UpdateChannelRow(
+                            channel = androidUpdateChannel,
+                            onSetChannel = onSetAndroidUpdateChannel,
+                            text = text,
                         )
                     }
                 }
@@ -488,6 +496,56 @@ private data class UpdateRowContent(
     val enabled: Boolean,
     val onClick: () -> Unit,
 )
+
+@Composable
+private fun UpdateChannelRow(
+    channel: String,
+    onSetChannel: (String) -> Unit,
+    text: (String, String) -> String,
+) {
+    val isBeta = channel == "beta"
+    SettingsRow(
+        title = text("Update channel", "更新通道"),
+        description = if (isBeta)
+            text("Receive beta pre-releases and stable updates.", "接收 Beta 预发布版本和稳定更新。")
+        else
+            text("Only receive stable releases.", "仅接收稳定版更新。"),
+        inline = true,
+    ) {
+        Row(
+            Modifier
+                .background(
+                    MaterialTheme.colorScheme.surfaceVariant,
+                    RoundedCornerShape(8.dp),
+                )
+                .padding(2.dp),
+            horizontalArrangement = Arrangement.spacedBy(0.dp),
+        ) {
+            listOf("stable" to text("Stable", "稳定版"), "beta" to text("Beta", "开发版")).forEach { (ch, label) ->
+                val selected = channel == ch
+                Box(
+                    Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(
+                            if (selected) MaterialTheme.colorScheme.surface
+                            else Color.Transparent,
+                        )
+                        .clickable { if (!selected) onSetChannel(ch) }
+                        .padding(horizontal = 10.dp, vertical = 4.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        label,
+                        fontSize = 12.sp,
+                        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                        color = if (selected) SpatialTheme.colors.textPrimary
+                        else SpatialTheme.colors.textSecondary,
+                    )
+                }
+            }
+        }
+    }
+}
 
 @Composable
 fun ProviderSettingsScreen(
