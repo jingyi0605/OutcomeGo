@@ -128,6 +128,7 @@ data class AppState(
 
 data class FeatureState(
     val routines: FeatureLoadState<List<Routine>> = FeatureLoadState.Loading,
+    val routinesByBotId: Map<String, FeatureLoadState<List<Routine>>> = emptyMap(),
     val account: FeatureLoadState<AccountMemoryState> = FeatureLoadState.Loading,
     val providers: FeatureLoadState<List<ProviderConnection>> = FeatureLoadState.Loading,
     val webProviders: FeatureLoadState<WebProvidersState> = FeatureLoadState.Loading,
@@ -407,7 +408,16 @@ class AppViewModel @JvmOverloads constructor(
                     activeFeatureGateway = featureGateway
                         ?: (target as? MobileFeatureApi)?.let(::LiveFeatureGateway)
                         ?: UnsupportedFeatureGateway
-                    mutableState.update { it.copy(session = session, loading = false) }
+                    mutableState.update {
+                        it.copy(
+                            session = session,
+                            loading = false,
+                            features = it.features.copy(
+                                routines = FeatureLoadState.Loading,
+                                routinesByBotId = emptyMap(),
+                            ),
+                        )
+                    }
                     loadDirectory()
                     loadFeatureData()
                     mutableState.update { it.copy(outbox = outboxStore.read(accountScope(session))) }
@@ -917,7 +927,11 @@ class AppViewModel @JvmOverloads constructor(
             scheduleDirectoryRefresh()
             scheduleActivityRefresh()
             mutableState.value.activeConversationId?.let(::scheduleConversationRefresh)
+            routineOwnerId?.let(::loadRoutines)
             return
+        }
+        if (event.topic.startsWith("routine.")) {
+            routineOwnerId?.let(::loadRoutines)
         }
         if (!event.topic.startsWith("channel.")) {
             scheduleDirectoryRefresh()
@@ -1670,13 +1684,18 @@ class AppViewModel @JvmOverloads constructor(
         pluginOperation({ activeFeatureGateway.configurePlugin(plugin.connectionId ?: plugin.id, configuration) })
     }
 
+    fun loadRoutinesForBot(botId: String) {
+        if (botId.isBlank()) return
+        loadRoutines(botId)
+    }
+
     private fun routineOwnerId(): String? {
         val current = mutableState.value
         val activeOwner = current.conversations
             .firstOrNull { it.id == current.activeConversationId && it.isBot }
             ?.botId
-        return activeOwner
-            ?: routineOwnerId
+        return routineOwnerId
+            ?: activeOwner
             ?: current.conversations.firstOrNull { it.isBot }?.botId
     }
 
@@ -1685,13 +1704,54 @@ class AppViewModel @JvmOverloads constructor(
         if (owner.isNullOrBlank()) return
         routineOwnerId = owner
         viewModelScope.launch {
-            mutableState.update { it.copy(features = it.features.copy(routines = FeatureLoadState.Loading)) }
+            mutableState.update { current ->
+                val cached = current.features.routinesByBotId[owner]
+                val keepCached = cached is FeatureLoadState.Ready || cached is FeatureLoadState.Empty
+                val displayState = if (keepCached) cached else FeatureLoadState.Loading
+                current.copy(
+                    features = current.features.copy(
+                        routines = displayState,
+                        routinesByBotId = if (keepCached) {
+                            current.features.routinesByBotId
+                        } else {
+                            current.features.routinesByBotId + (owner to FeatureLoadState.Loading)
+                        },
+                    ),
+                )
+            }
             activeFeatureGateway.listRoutines(owner).onSuccess { value ->
-                mutableState.update { it.copy(features = it.features.copy(routines = if (value.isEmpty()) FeatureLoadState.Empty("No routines yet") else FeatureLoadState.Ready(value))) }
-                runLocalIndexUpdate("launcher shortcuts") {
-                    launcherShortcuts.publish(mutableState.value.conversations, value)
+                val loaded = if (value.isEmpty()) {
+                    FeatureLoadState.Empty("No routines yet")
+                } else {
+                    FeatureLoadState.Ready(value)
                 }
-            }.onFailure { error -> mutableState.update { it.copy(features = it.features.copy(routines = FeatureLoadState.Failure(error.message ?: "Could not load routines"))) } }
+                mutableState.update { current ->
+                    current.copy(
+                        features = current.features.copy(
+                            routines = if (routineOwnerId == owner) loaded else current.features.routines,
+                            routinesByBotId = current.features.routinesByBotId + (owner to loaded),
+                        ),
+                    )
+                }
+                if (routineOwnerId == owner) {
+                    runLocalIndexUpdate("launcher shortcuts") {
+                        launcherShortcuts.publish(mutableState.value.conversations, value)
+                    }
+                }
+            }.onFailure { error ->
+                val failure = FeatureLoadState.Failure<List<Routine>>(error.message ?: "Could not load routines")
+                mutableState.update { current ->
+                    val existing = current.features.routinesByBotId[owner]
+                    val keepExisting = existing is FeatureLoadState.Ready || existing is FeatureLoadState.Empty
+                    val nextForOwner = if (keepExisting) existing else failure
+                    current.copy(
+                        features = current.features.copy(
+                            routines = if (routineOwnerId == owner) nextForOwner else current.features.routines,
+                            routinesByBotId = current.features.routinesByBotId + (owner to nextForOwner),
+                        ),
+                    )
+                }
+            }
         }
     }
 
