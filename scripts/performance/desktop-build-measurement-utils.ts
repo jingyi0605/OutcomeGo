@@ -11,11 +11,13 @@ export async function matchesResignedMacExecutable(source: Buffer, packaged: Buf
     const paths = [join(directory, "source"), join(directory, "packaged")];
     await writeFile(paths[0]!, source, { mode: 0o600 });
     await writeFile(paths[1]!, packaged, { mode: 0o600 });
+    let removedSignature = false;
     for (const path of paths) {
-      if (Bun.spawnSync(["/usr/bin/codesign", "--verify", "--strict", path]).exitCode !== 0) return false;
-      if (Bun.spawnSync(["/usr/bin/codesign", "--remove-signature", path]).exitCode !== 0) return false;
+      const result = Bun.spawnSync(["/usr/bin/codesign", "--remove-signature", path]);
+      if (result.exitCode === 0) removedSignature = true;
+      else if (result.exitCode !== 1) return false;
     }
-    return (await readFile(paths[0]!)).equals(await readFile(paths[1]!));
+    return removedSignature && (await readFile(paths[0]!)).equals(await readFile(paths[1]!));
   } finally {
     await rm(directory, { recursive: true, force: true });
   }

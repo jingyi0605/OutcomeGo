@@ -1,6 +1,13 @@
 import { referenceTool } from "./tool-contracts";
 export { DESKTOP_MESSAGES_TOOLS } from "./desktop-capability-names";
 const string = { type: "string", minLength: 1 };
+const messageText = { type: "string" };
+const attachmentPaths = {
+  type: "array",
+  minItems: 1,
+  maxItems: 10,
+  items: { type: "string", pattern: "^/" },
+};
 const limit = {
   type: "integer",
   minimum: 1,
@@ -61,13 +68,13 @@ export const DESKTOP_CAPABILITY_TOOLS = [
     "SendIMessage",
     "Send the exact requested text directly. Specify exactly one of a verified chatId GUID or recipient to (E.164 number/email). recipientName is display metadata only. Never retry an uncertain send.",
     {
-      text: string,
+      text: messageText,
+      attachmentPaths,
       to: string,
       chatId: string,
       service: { enum: ["auto", "iMessage", "SMS"] },
       recipientName: string,
     },
-    ["text"]
   ),
   definition(
     "CheckIMessagePermissions",
@@ -95,4 +102,18 @@ export const DESKTOP_CAPABILITY_TOOLS = [
       },
     }
   ),
-].map(tool => referenceTool(tool.name));
+].map((tool) => {
+  const reference = referenceTool(tool.name);
+  if (tool.name !== "SendIMessage") return reference;
+  return {
+    ...reference,
+    inputSchema: {
+      ...reference.inputSchema,
+      properties: {
+        ...reference.inputSchema.properties,
+        ...tool.inputSchema.properties,
+      },
+      required: tool.inputSchema.required,
+    },
+  };
+});

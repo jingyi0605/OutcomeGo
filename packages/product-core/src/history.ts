@@ -240,11 +240,15 @@ export const mergeLoadedChannelMessageContext = (
   context: Pick<ChannelMessageContextView, "messages" | "threadContext" | "threadContextTruncated">,
   loadedAt = Date.now()
 ): LoadedChannelHistory => {
+  const receipts = historyReceipts(current, [
+    ...context.messages,
+    ...(context.threadContext ?? []),
+  ]);
   const primaryIds = new Set(current.messages.map((message) => message.id));
   const searchContext = withoutVisibleMessages(context.messages, primaryIds);
   const visibleIds = new Set([...primaryIds, ...searchContext.map((message) => message.id)]);
   const threadContextIds = new Set(current.threadContext.map((message) => message.id));
-  return {
+  return restoreHistoryQuestionReceipts({
     ...current,
     searchContext,
     searchThreadContext: withoutVisibleMessages(
@@ -254,7 +258,7 @@ export const mergeLoadedChannelMessageContext = (
     ),
     searchThreadContextTruncated: context.threadContextTruncated,
     loadedAt,
-  };
+  }, receipts);
 };
 
 export const clearLoadedChannelSearchContext = (
