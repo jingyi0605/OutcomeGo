@@ -1,43 +1,37 @@
 package com.outcomego.android.ui
 
 import android.app.Activity
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Shapes
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.ui.graphics.Color
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Shapes
-import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
+import com.outcomego.android.ui.designsystem.LocalSpatialColors
+import com.outcomego.android.ui.designsystem.buildSpatialColors
 import com.outcomego.features.AppSettings
-
-private val BackgroundLight = Color(0xFFFCFCFC)
-private val SurfaceLight = Color(0xFFF2F2F2)
-private val SidebarLight = Color(0xFFF5F5F6)
-private val TextLight = Color(0xFF000000)
-private val MutedLight = Color(0xFF5F6368)
-private val SeparatorLight = Color(0xFFE4E4E4)
-private val UserBubbleLight = Color(0xFF0E0E0E)
-private val LinkBlue = Color(0xFF016CEC)
-private val SuccessLight = Color(0xFF16845B)
-private val SuccessDark = Color(0xFF83D6A5)
 
 private val OutcomeGoTypography = Typography().let { base ->
     base.copy(
-        displayLarge = base.displayLarge.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold),
-        headlineLarge = base.headlineLarge.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold),
-        titleLarge = base.titleLarge.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold),
+        displayLarge = base.displayLarge.copy(fontWeight = FontWeight.SemiBold, letterSpacing = (-0.5).sp),
+        headlineLarge = base.headlineLarge.copy(fontWeight = FontWeight.SemiBold, letterSpacing = (-0.4).sp),
+        headlineMedium = base.headlineMedium.copy(fontWeight = FontWeight.SemiBold, letterSpacing = (-0.3).sp),
+        titleLarge = base.titleLarge.copy(fontWeight = FontWeight.SemiBold, letterSpacing = (-0.2).sp),
+        titleMedium = base.titleMedium.copy(fontWeight = FontWeight.SemiBold),
         bodyLarge = base.bodyLarge.copy(lineHeight = 24.sp),
+        bodyMedium = base.bodyMedium.copy(lineHeight = 20.sp),
     )
 }
 
@@ -45,8 +39,8 @@ private val OutcomeGoShapes = Shapes(
     extraSmall = RoundedCornerShape(10.dp),
     small = RoundedCornerShape(14.dp),
     medium = RoundedCornerShape(20.dp),
-    large = RoundedCornerShape(28.dp),
-    extraLarge = RoundedCornerShape(34.dp),
+    large = RoundedCornerShape(26.dp),
+    extraLarge = RoundedCornerShape(32.dp),
 )
 
 @Composable
@@ -68,66 +62,69 @@ fun OutcomeGoTheme(
         controller.isAppearanceLightStatusBars = !darkTheme
         controller.isAppearanceLightNavigationBars = !darkTheme
     }
-    val accentColor = when (accent) {
-        AppSettings.Accent.Black -> if (darkTheme) Color.White else TextLight
-        AppSettings.Accent.Blue -> Color(0xFF1769E0)
-        AppSettings.Accent.Purple -> Color(0xFF7B4FD1)
-        AppSettings.Accent.Green -> if (darkTheme) SuccessDark else Color(0xFF277A45)
+
+    val spatialColors = remember(darkTheme, accent) {
+        buildSpatialColors(darkTheme = darkTheme, accent = accent)
     }
+
     // ColorScheme has no structural equality and LocalColorScheme is static, so a fresh
     // instance on every recomposition invalidates the whole UI tree. Cache it per theme input.
-    val colorScheme = remember(darkTheme, accentColor) {
-        val light = lightColorScheme(
-            primary = accentColor,
-            onPrimary = Color.White,
-            primaryContainer = UserBubbleLight,
-            onPrimaryContainer = Color.White,
-            secondary = LinkBlue,
-            secondaryContainer = SeparatorLight,
-            onSecondaryContainer = TextLight,
-            background = BackgroundLight,
-            surface = SurfaceLight,
-            surfaceVariant = SidebarLight,
-            onSurface = TextLight,
-            onSurfaceVariant = MutedLight,
-            outline = SeparatorLight,
-            tertiary = SuccessLight,
-            onTertiary = Color.White,
-            error = Color(0xFFC83A3A),
-        )
-        val dark = darkColorScheme(
-            primary = accentColor,
-            onPrimary = Color.Black,
-            primaryContainer = Color(0xFF545454),
-            onPrimaryContainer = Color.White,
-            secondary = Color(0xFF4D8DFF),
-            secondaryContainer = Color(0xFF303033),
-            onSecondaryContainer = Color.White,
-            background = Color(0xFF141414),
-            surface = Color(0xFF202020),
-            surfaceVariant = Color(0xFF181819),
-            onSurface = Color.White,
-            // Keep secondary and Chinese text legible on the dark canvas. The iOS
-            // reference uses white text for readable hierarchy rather than gray.
-            onSurfaceVariant = Color.White,
-            outline = Color(0xFF343434),
-            tertiary = SuccessDark,
-            onTertiary = Color(0xFF00391F),
-            error = Color(0xFFF48182),
-        )
-        if (darkTheme) dark else light
+    val colorScheme = remember(spatialColors) {
+        if (spatialColors.isDark) {
+            darkColorScheme(
+                primary = spatialColors.accent,
+                onPrimary = spatialColors.onAccent,
+                primaryContainer = spatialColors.userBubbleStart,
+                onPrimaryContainer = spatialColors.onUserBubble,
+                secondary = spatialColors.accent,
+                secondaryContainer = spatialColors.glassFloating,
+                onSecondaryContainer = spatialColors.textPrimary,
+                background = spatialColors.canvasBase,
+                surface = spatialColors.glassCard,
+                surfaceVariant = spatialColors.glassSubtle,
+                onBackground = spatialColors.textPrimary,
+                onSurface = spatialColors.textPrimary,
+                onSurfaceVariant = spatialColors.textSecondary,
+                outline = spatialColors.hairline,
+                tertiary = spatialColors.success,
+                onTertiary = spatialColors.canvasBase,
+                error = spatialColors.danger,
+            )
+        } else {
+            lightColorScheme(
+                primary = spatialColors.accent,
+                onPrimary = spatialColors.onAccent,
+                primaryContainer = spatialColors.userBubbleStart,
+                onPrimaryContainer = spatialColors.onUserBubble,
+                secondary = spatialColors.accent,
+                secondaryContainer = spatialColors.glassFloating,
+                onSecondaryContainer = spatialColors.textPrimary,
+                background = spatialColors.canvasBase,
+                surface = spatialColors.glassCard,
+                surfaceVariant = spatialColors.glassSubtle,
+                onBackground = spatialColors.textPrimary,
+                onSurface = spatialColors.textPrimary,
+                onSurfaceVariant = spatialColors.textSecondary,
+                outline = spatialColors.hairline,
+                tertiary = spatialColors.success,
+                onTertiary = spatialColors.canvasElevated,
+                error = spatialColors.danger,
+            )
+        }
     }
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = OutcomeGoTypography,
-        shapes = OutcomeGoShapes,
-        content = {
+
+    CompositionLocalProvider(LocalSpatialColors provides spatialColors) {
+        MaterialTheme(
+            colorScheme = colorScheme,
+            typography = OutcomeGoTypography,
+            shapes = OutcomeGoShapes,
+        ) {
             Surface(
-                modifier = Modifier.fillMaxSize(),
-                color = MaterialTheme.colorScheme.background,
-                contentColor = MaterialTheme.colorScheme.onBackground,
+                modifier = Modifier,
+                color = spatialColors.canvasBase,
+                contentColor = spatialColors.textPrimary,
                 content = content,
             )
-        },
-    )
+        }
+    }
 }
