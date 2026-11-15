@@ -448,7 +448,7 @@ describe("generic device link host lifecycle (fake DB/computer)", () => {
     const other = f.newService();
     try {
       await stopping.promise;
-      expect(f.locks[0]).toContain('"PluginConnection"');
+      expect(f.locks[0]).toContain('"outcomego_plugin_connection"');
       expect(f.locks[0]).toContain("FOR UPDATE");
       expect(f.connection.credentials.stateRemovalPending).toBe(true);
       expect(f.connection.credentials.deviceLink).toBeUndefined();
@@ -522,7 +522,7 @@ describe("generic device link host lifecycle (fake DB/computer)", () => {
     const uninstalling = Effect.runPromise(f.service.uninstall("synthetic-device"));
     try {
       await entered.promise;
-      expect(f.locks[0]).toContain('"PluginInstallation"');
+      expect(f.locks[0]).toContain('"outcomego_plugin_installation"');
       expect(f.locks[0]).toContain("FOR UPDATE");
       expect(f.connection.installation.status).toBe("error");
       expect(f.rows.map(row => row.status)).toEqual(["disconnected", "disconnected"]);

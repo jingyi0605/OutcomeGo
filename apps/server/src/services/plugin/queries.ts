@@ -142,7 +142,7 @@ export class PluginQueries {
                 )) FROM jsonb_array_elements(i."manifest"->'connections') connector
                   WHERE connector->>'key' = c."connectorKey"), '[]'::jsonb)
               ) AS "manifest"
-            FROM "PluginConnection" c JOIN "PluginInstallation" i ON i."id" = c."installationId"
+            FROM "outcomego_plugin_connection" c JOIN "outcomego_plugin_installation" i ON i."id" = c."installationId"
             WHERE c."id" IN (${Prisma.join(ids)}) ORDER BY c."id"
           `)
         ).map((connection) => ({

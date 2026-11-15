@@ -1114,7 +1114,7 @@ export class PluginService {
       });
       if (!connection) throw new ApiError(404, "connection_not_found", "Connection not found");
       const generation = await this.prisma.$transaction(async (tx) => {
-      await tx.$queryRaw`SELECT id FROM "PluginConnection" WHERE id = ${connectionId}::uuid FOR UPDATE`;
+      await tx.$queryRaw`SELECT id FROM "outcomego_plugin_connection" WHERE id = ${connectionId}::uuid FOR UPDATE`;
       const current = await tx.pluginConnection.findUniqueOrThrow({ where: { id: connectionId } });
       if (
         expectedDeviceSession &&
@@ -1294,7 +1294,7 @@ export class PluginService {
     } });
     // This durable gate covers other server instances and survives a failed cleanup.
     const removing = await this.prisma.$transaction(async tx => {
-      await tx.$queryRaw`SELECT id FROM "PluginConnection" WHERE id = ${connectionId}::uuid FOR UPDATE`;
+      await tx.$queryRaw`SELECT id FROM "outcomego_plugin_connection" WHERE id = ${connectionId}::uuid FOR UPDATE`;
       const current = await tx.pluginConnection.findUniqueOrThrow({ where: { id: connectionId } });
       const credentials = { ...clearDeviceLinkState(current.credentials), stateRemovalPending: true };
       return tx.pluginConnection.update({ where: { id: connectionId }, data: {
@@ -1448,7 +1448,7 @@ export class PluginService {
     expectedUpdatedAt?: Date
   ) {
     return this.prisma.$transaction(async (tx) => {
-      await tx.$queryRaw`SELECT id FROM "PluginConnection" WHERE id = ${connection.id}::uuid FOR UPDATE`;
+      await tx.$queryRaw`SELECT id FROM "outcomego_plugin_connection" WHERE id = ${connection.id}::uuid FOR UPDATE`;
       const current = await tx.pluginConnection.findUnique({
         where: { id: connection.id },
         include: { installation: true },

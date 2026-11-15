@@ -230,7 +230,7 @@ export class PluginTransport {
         saveOverride ??
         (async (state) => {
           await this.prisma.$transaction(async (tx) => {
-            await tx.$queryRaw`SELECT id FROM "PluginConnection" WHERE id = ${connection.id}::uuid FOR UPDATE`;
+            await tx.$queryRaw`SELECT id FROM "outcomego_plugin_connection" WHERE id = ${connection.id}::uuid FOR UPDATE`;
             const latest = await tx.pluginConnection.findUnique({
               where: { id: connection.id },
               select: { credentials: true, runtimeGeneration: true },
@@ -352,7 +352,7 @@ export class PluginTransport {
   async recoverHttpAuthorization(connection: OAuthConnection & { authType: string }, error: unknown) {
     if (connection.authType !== "oauth" || !isMcpAuthorizationError(error)) return;
     const changed = await this.prisma.$transaction(async tx => {
-      await tx.$queryRaw`SELECT id FROM "PluginConnection" WHERE id = ${connection.id}::uuid FOR UPDATE`;
+      await tx.$queryRaw`SELECT id FROM "outcomego_plugin_connection" WHERE id = ${connection.id}::uuid FOR UPDATE`;
       const current = await tx.pluginConnection.findUnique({ where: { id: connection.id } });
       if (!current || !["ready", "error"].includes(current.status) ||
         (connection.runtimeGeneration !== undefined && current.runtimeGeneration !== connection.runtimeGeneration)) return false;
@@ -485,7 +485,7 @@ export class PluginTransport {
     // A database lock serializes refreshes across server processes, including rotating tokens.
     const result = await this.prisma.$transaction(
       async (tx) => {
-        await tx.$queryRaw`SELECT id FROM "PluginConnection" WHERE id = ${connection.id}::uuid FOR UPDATE`;
+        await tx.$queryRaw`SELECT id FROM "outcomego_plugin_connection" WHERE id = ${connection.id}::uuid FOR UPDATE`;
         const current = await tx.pluginConnection.findUniqueOrThrow({
           where: { id: connection.id },
           include: { installation: { select: { manifest: true } } },
@@ -570,7 +570,7 @@ export class PluginTransport {
     if(current.status!=="ready")throw new Error("Connection is no longer ready");
     if(current.transport==="stdio")return this.fileAccessToken(current);
     const token=current.authType==="oauth"?await this.prisma.$transaction(async tx=>{
-      await tx.$queryRaw`SELECT id FROM "PluginConnection" WHERE id = ${connectionId}::uuid FOR UPDATE`;
+      await tx.$queryRaw`SELECT id FROM "outcomego_plugin_connection" WHERE id = ${connectionId}::uuid FOR UPDATE`;
       const latest=await tx.pluginConnection.findUniqueOrThrow({where:{id:connectionId}});
       if(latest.status!=="ready")throw new Error("Connection is no longer ready");
       const state=jsonObject(jsonObject(latest.credentials).oauth) as StoredOAuthState;

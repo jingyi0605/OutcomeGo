@@ -338,7 +338,7 @@ export class PluginInstallations {
       return this.prisma.$transaction(async (tx) => {
         // Serializes with uninstall so a replaced secret cannot outlive its plugin.
         const [installation] = await tx.$queryRaw<Array<{ manifest: unknown }>>`
-          SELECT "manifest" FROM "PluginInstallation" WHERE "pluginKey" = ${pluginKey} FOR UPDATE`;
+          SELECT "manifest" FROM "outcomego_plugin_installation" WHERE "pluginKey" = ${pluginKey} FOR UPDATE`;
         if (!installation) throw new ApiError(404, "plugin_not_installed", "Plugin not installed");
         const plugin = definitionFromManifest(installation.manifest);
         if (!plugin) throw new ApiError(409, "plugin_manifest_invalid", "Plugin package is invalid");
@@ -360,7 +360,7 @@ export class PluginInstallations {
       // Revoke availability and fence every in-flight launch before touching account files.
       // A delayed RPC can arrive after uninstall; its old generation must stay rejected.
       await this.prisma.$transaction(async (tx) => {
-        await tx.$queryRaw`SELECT id FROM "PluginInstallation" WHERE id = ${installation.id}::uuid FOR UPDATE`;
+        await tx.$queryRaw`SELECT id FROM "outcomego_plugin_installation" WHERE id = ${installation.id}::uuid FOR UPDATE`;
         await tx.pluginInstallation.update({
           where: { id: installation.id },
           data: { status: "error" },
@@ -391,7 +391,7 @@ export class PluginInstallations {
         )
       );
       await this.prisma.$transaction(async (tx) => {
-        await tx.$queryRaw`SELECT 1 FROM "PluginInstallation" WHERE "id" = ${installation.id} FOR UPDATE`;
+        await tx.$queryRaw`SELECT 1 FROM "outcomego_plugin_installation" WHERE "id" = ${installation.id} FOR UPDATE`;
         await tx.pluginActivity.create({
           data: {
             kind: "plugin.uninstalled",
