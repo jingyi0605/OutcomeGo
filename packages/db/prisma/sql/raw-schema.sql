@@ -288,11 +288,11 @@ ALTER TABLE "outcomego_web_tool_provider" ADD CONSTRAINT "outcomego_web_tool_pro
 );
 
 -- Preserve deletion markers from deployments that only recorded them in the event replay log.
-INSERT INTO "RetiredAgent" ("id", "retiredAt")
-SELECT "entityId", MIN("createdAt") FROM "Event"
+INSERT INTO "outcomego_retired_agent" ("id", "retiredAt")
+SELECT "entityId", MIN("createdAt") FROM "outcomego_event"
 WHERE "topic" IN ('channel.deleted', 'bot.archived') AND "entityId" IS NOT NULL
 GROUP BY "entityId"
 ON CONFLICT ("id") DO NOTHING;
-INSERT INTO "RetiredAgent" ("id", "retiredAt")
-SELECT "id", "updatedAt" FROM "Bot" WHERE "status" = 'archived'
+INSERT INTO "outcomego_retired_agent" ("id", "retiredAt")
+SELECT "id", "updatedAt" FROM "outcomego_bot" WHERE "status" = 'archived'
 ON CONFLICT ("id") DO NOTHING;

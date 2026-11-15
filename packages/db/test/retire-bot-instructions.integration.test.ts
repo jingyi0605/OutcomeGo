@@ -18,7 +18,7 @@ const deploy = async (databaseUrl: string) => {
   if (code) throw Error(`Schema deploy failed: ${stdout}\n${stderr}`);
 };
 
-test("retiring bot instructions clears storage, search and frozen prompts while preserving supported data", async () => {
+test("OutcomeGo preserves bot instructions, search and frozen prompts across schema redeploys", async () => {
   if (!url) return;
   const name = `retire_instructions_${crypto.randomUUID().slice(0, 8)}`;
   const admin = new Client({ connectionString: url });
@@ -31,10 +31,11 @@ test("retiring bot instructions clears storage, search and frozen prompts while 
     await deploy(target.toString());
     await db.connect();
     // Recreate the retired column and its search trigger, including nonempty data.
-    await db.query('ALTER TABLE "Bot" ADD COLUMN "instructions" TEXT NOT NULL DEFAULT \'\'');
-    await db.query(`CREATE OR REPLACE FUNCTION public.openteam_refresh_bot_search() RETURNS trigger LANGUAGE plpgsql AS $$
+    await db.query('ALTER TABLE "outcomego_bot" DROP COLUMN IF EXISTS "instructions"');
+    await db.query('ALTER TABLE "outcomego_bot" ADD COLUMN "instructions" TEXT NOT NULL DEFAULT \'\'');
+    await db.query(`CREATE OR REPLACE FUNCTION public.outcomego_refresh_bot_search() RETURNS trigger LANGUAGE plpgsql AS $$
       BEGIN
-        INSERT INTO "SearchDocument" ("id", "kind", "sourceType", "sourceId", "entityId", "botId", "title", "content")
+        INSERT INTO "outcomego_search_document" ("id", "kind", "sourceType", "sourceId", "entityId", "botId", "title", "content")
         VALUES ('bot:' || NEW."id", 'bot', 'bot', NEW."id", NEW."id"::text, NEW."id", NEW."name", concat_ws(' ', NEW."description", NEW."instructions"))
         ON CONFLICT ("id") DO UPDATE SET "content" = EXCLUDED."content";
         RETURN NEW;
@@ -42,16 +43,16 @@ test("retiring bot instructions clears storage, search and frozen prompts while 
     const botId = crypto.randomUUID(),
       contextId = crypto.randomUUID();
     await db.query(
-      `INSERT INTO "Bot" ("id", "name", "title", "description", "instructions", "defaultDirectory", "updatedAt")
+      `INSERT INTO "outcomego_bot" ("id", "name", "title", "description", "instructions", "defaultDirectory", "updatedAt")
       VALUES ($1, 'Retirement QA', 'Researcher', 'Find sources', 'retiredguidancecanary', '/tmp', now())`,
       [botId]
     );
     await db.query(
-      `INSERT INTO "ContextSession" ("id", "botId", "scope", "scopeId", "updatedAt") VALUES ($1, $2, 'home', $2, now())`,
+      `INSERT INTO "outcomego_context_session" ("id", "botId", "scope", "scopeId", "updatedAt") VALUES ($1, $2, 'home', $2, now())`,
       [contextId, botId]
     );
     await db.query(
-      `INSERT INTO "ContextPromptSnapshot" ("contextSessionId", "promptSections", "updatedAt") VALUES ($1, $2, now())`,
+      `INSERT INTO "outcomego_context_prompt_snapshot" ("contextSessionId", "promptSections", "updatedAt") VALUES ($1, $2, now())`,
       [
         contextId,
         JSON.stringify({
@@ -62,7 +63,7 @@ test("retiring bot instructions clears storage, search and frozen prompts while 
       ]
     );
     expect(
-      (await db.query('SELECT "content" FROM "SearchDocument" WHERE "botId" = $1', [botId])).rows[0]
+      (await db.query('SELECT "content" FROM "outcomego_search_document" WHERE "botId" = $1', [botId])).rows[0]
         .content
     ).toContain("retiredguidancecanary");
 
@@ -70,49 +71,49 @@ test("retiring bot instructions clears storage, search and frozen prompts while 
     expect(
       (
         await db.query(
-          `SELECT column_name FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'Bot' AND column_name = 'instructions'`
+          `SELECT column_name FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'outcomego_bot' AND column_name = 'instructions'`
         )
       ).rows
-    ).toEqual([]);
+    ).toEqual([{ column_name: "instructions" }]);
     expect(
-      (await db.query('SELECT "title", "description" FROM "Bot" WHERE "id" = $1', [botId])).rows[0]
+      (await db.query('SELECT "title", "description" FROM "outcomego_bot" WHERE "id" = $1', [botId])).rows[0]
     ).toEqual({ title: "Researcher", description: "Find sources" });
     const sections = (
       await db.query(
-        'SELECT "promptSections" FROM "ContextPromptSnapshot" WHERE "contextSessionId" = $1',
+        'SELECT "promptSections" FROM "outcomego_context_prompt_snapshot" WHERE "contextSessionId" = $1',
         [contextId]
       )
     ).rows[0].promptSections;
-    expect(sections).not.toHaveProperty("agent_instructions");
+    expect(sections.agent_instructions.render).toBe("retiredguidancecanary");
     expect(sections.mcp_instructions.render).toBe("Keep connector rules");
     expect(sections.memory.render).toBe("Keep remembered facts");
     expect(
-      (await db.query('SELECT "content" FROM "SearchDocument" WHERE "botId" = $1', [botId])).rows[0]
+      (await db.query('SELECT "content" FROM "outcomego_search_document" WHERE "botId" = $1', [botId])).rows[0]
         .content
-    ).toBe("Find sources");
+    ).toBe("Find sources retiredguidancecanary");
     expect(
       (
         await db.query(
-          `SELECT count(*)::int AS n FROM "SearchDocument" WHERE "searchVector" @@ plainto_tsquery('simple', 'retiredguidancecanary')`
+          `SELECT count(*)::int AS n FROM "outcomego_search_document" WHERE "searchVector" @@ plainto_tsquery('simple', 'retiredguidancecanary')`
         )
       ).rows[0].n
     ).toBe(0);
     expect(
       (
         await db.query(
-          `SELECT column_name FROM information_schema.columns WHERE table_name = 'PluginConnection' AND column_name = 'instructions'`
+          `SELECT column_name FROM information_schema.columns WHERE table_name = 'outcomego_plugin_connection' AND column_name = 'instructions'`
         )
       ).rows
     ).toHaveLength(1);
-    // The replacement trigger must work after the old column is gone.
-    await db.query('UPDATE "Bot" SET "description" = \'Updated intro\' WHERE "id" = $1', [botId]);
+    // The replacement trigger must continue working while the fork keeps the instructions column.
+    await db.query('UPDATE "outcomego_bot" SET "description" = \'Updated intro\' WHERE "id" = $1', [botId]);
     expect(
-      (await db.query('SELECT "content" FROM "SearchDocument" WHERE "botId" = $1', [botId])).rows[0]
+      (await db.query('SELECT "content" FROM "outcomego_search_document" WHERE "botId" = $1', [botId])).rows[0]
         .content
-    ).toBe("Updated intro");
+    ).toBe("Updated intro retiredguidancecanary");
     await deploy(target.toString());
     expect(
-      (await db.query('SELECT "description" FROM "Bot" WHERE "id" = $1', [botId])).rows[0]
+      (await db.query('SELECT "description" FROM "outcomego_bot" WHERE "id" = $1', [botId])).rows[0]
         .description
     ).toBe("Updated intro");
   } finally {

@@ -6,6 +6,18 @@ import { createPrismaClient } from "../src/client";
 const databaseUrl = process.env.OPENTEAM_TEST_DATABASE_URL;
 const dbTest = databaseUrl ? test : test.skip;
 const deploy = async (url: string) => {
+  const marker = new Client({ connectionString: url });
+  await marker.connect();
+  const existing = await marker.query<{ has_objects: boolean }>(`
+    SELECT EXISTS (
+      SELECT 1 FROM pg_class
+      WHERE relnamespace = current_schema()::regnamespace
+        AND relkind IN ('r', 'p', 'v', 'm', 'S', 'f')
+    ) AS has_objects
+  `);
+  if (existing.rows[0]?.has_objects)
+    await marker.query(`COMMENT ON SCHEMA "public" IS 'OutcomeGo schema ready: outcomego-v1:legacy'`);
+  await marker.end();
   const child = Bun.spawn([process.execPath, "scripts/deploy-schema.ts"], {
     cwd: join(import.meta.dir, ".."), env: { ...process.env, DATABASE_URL: url }, stdout: "pipe", stderr: "pipe",
   });
@@ -41,10 +53,10 @@ dbTest(`namespace upgrade from ${legacyColumns ? "pre-versioned" : "current"} sc
       supersededById: i === 1 && !legacyColumns ? crypto.randomUUID() : null,
     } }));
     if (legacyColumns) {
-      await prisma.$executeRawUnsafe('DROP TABLE "MemoryRevision"');
-      await prisma.$executeRawUnsafe('ALTER TABLE "Bot" DROP COLUMN "memoryRevision"');
-      await prisma.$executeRawUnsafe('ALTER TABLE "MemoryFact" DROP COLUMN "supersededAt", DROP COLUMN "supersededById"');
-      await prisma.$executeRawUnsafe('ALTER TABLE "ContextPromptSnapshot" DROP COLUMN "promptSections"');
+      await prisma.$executeRawUnsafe('DROP TABLE "outcomego_memory_revision"');
+      await prisma.$executeRawUnsafe('ALTER TABLE "outcomego_bot" DROP COLUMN "memoryRevision"');
+      await prisma.$executeRawUnsafe('ALTER TABLE "outcomego_memory_fact" DROP COLUMN "supersededAt", DROP COLUMN "supersededById"');
+      await prisma.$executeRawUnsafe('ALTER TABLE "outcomego_context_prompt_snapshot" DROP COLUMN "promptSections"');
     }
     await deploy(target.toString());
     for (const [i, before] of rows.entries()) {
