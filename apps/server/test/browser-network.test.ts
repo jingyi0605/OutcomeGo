@@ -97,7 +97,7 @@ async function fixture(
   const machines = {
     onNetworkRevoke: () => {},
     relay: {
-      matchesConnection: (id: string, conn: string) => enabled.get(id) && conn === "connection",
+      touch: (id: string, conn: string) => enabled.get(id) && conn === "connection",
     },
     authenticate: async (request: Request) => {
       const id = request.headers.get("x-outcomego-machine-id") ?? "";

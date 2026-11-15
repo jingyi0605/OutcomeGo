@@ -1010,7 +1010,7 @@ export class ComputerRuntime {
     await active.closePluginSession?.().catch(()=>console.warn("Plugin session cleanup failed"));
     active.pluginAbortController?.abort();
     active.narrator?.stop();
-    this.tools.clearBitwardenSecrets(active);
+    this.tools.clearBitwardenSecrets?.(active);
     this.activeByRun.delete(active.runId);
     this.activeByContext.delete(active.contextSessionId);
     active.unsubscribe?.();
