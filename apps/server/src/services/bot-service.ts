@@ -14,6 +14,8 @@ import {
   type AgentMessaging,
   appendAgentTimelineEvent,
   stopRequestProgress,
+  lockAgentLifecycle,
+  cleanupRetiredAgent,
   type BotFileTarget,
   buildSafeTranscript,
 } from "@outcomego/messaging";
@@ -333,95 +335,46 @@ export class BotService {
 
   archive = (botId: string) =>
     serviceEffect(async () => {
-      const existing = await this.prisma.bot.findUnique({
-        where: { id: botId },
-        include: { subagentIdentity: { select: { id: true } } },
-      });
-      if (!existing || existing.subagentIdentity) {
-        throw new ApiError(404, "bot_not_found", "Bot not found");
-      }
-      const children = await this.prisma.subagent.findMany({
-        where: { parentBotId: botId },
-        select: { id: true, childBotId: true, currentRunId: true, status: true },
-      });
-      const activeChildren = children.filter((child) =>
-        ["provisioning", "queued", "running", "waiting"].includes(child.status)
-      );
-      await Promise.all(
-        activeChildren.flatMap((child) =>
-          child.currentRunId
-            ? [
-                this.computerFetch(COMPUTER_API_PATHS.turnCancel(child.currentRunId), {
-                  method: "POST",
-                  signal: AbortSignal.timeout(5_000),
-                }).catch(() => undefined),
-              ]
-            : []
-        )
-      );
-      await Promise.all(
-        children.map((child) =>
-          this.computerFetch(`/v1/screens/${child.childBotId}`, {
-            method: "DELETE",
-            signal: AbortSignal.timeout(5_000),
-          }).catch(() => undefined)
-        )
-      );
-      await this.prisma.$transaction(tx => stopRequestProgress(tx, botId));
-      const contextSessions = await this.prisma.contextSession.findMany({
-        where: { botId: { in: [botId, ...children.map((child) => child.childBotId)] } },
-        select: { id: true, runtimeSessionPath: true },
-      });
-      // Runtime cleanup is best effort: a chat must never stay undeletable because a session file,
-      // a screen, or a legacy session path could not be discarded on the computer.
-      const cleanupWarnings: string[] = [];
-      await Promise.all(
-        contextSessions.map((contextSession) =>
-          this.computerFetch(`/v1/context-sessions/${contextSession.id}`, {
-            method: "DELETE",
-            body: JSON.stringify({ sessionPath: contextSession.runtimeSessionPath }),
-            signal: AbortSignal.timeout(10_000),
-          }).then(async (response) => {
-            if (!response.ok) {
-              cleanupWarnings.push(
-                `context session ${contextSession.id}: ${response.status} ${await response.text()}`
-              );
-            }
-          })
-        )
-      );
-      const screenResponse = await this.computerFetch(`/v1/screens/${botId}`, {
-        method: "DELETE",
-        signal: AbortSignal.timeout(10_000),
-      });
-      if (!screenResponse.ok) {
-        cleanupWarnings.push(`screen ${botId}: ${screenResponse.status} ${await screenResponse.text()}`);
-      }
-      await this.prisma.$transaction(async (tx) => {
+      const ownerIds = await this.prisma.$transaction(async (tx) => {
+        await lockAgentLifecycle(tx, botId);
+        const existing = await tx.bot.findUnique({
+          where: { id: botId },
+          include: { subagentIdentity: { select: { id: true } } },
+        });
+        if (!existing || existing.subagentIdentity) {
+          throw new ApiError(404, "bot_not_found", "Bot not found");
+        }
+        const children = await tx.subagent.findMany({
+          where: { parentBotId: botId },
+          select: { id: true, childBotId: true, currentRunId: true, status: true },
+        });
+        const activeChildren = children.filter((child) =>
+          ["provisioning", "queued", "running", "waiting"].includes(child.status)
+        );
+        const ownerIds = [botId, ...children.map((child) => child.childBotId)];
+        await stopRequestProgress(tx, botId);
+        // stopRequestProgress holds the parent's claim lock. Fence each child's snapshot too,
+        // before changing its run/inbox rows, so a delayed claim cannot revive cancelled work
+        // or recreate contexts after runtime cleanup has finished.
+        for (const childBotId of children.map((child) => child.childBotId).sort()) {
+          await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`bot-run-claim:${childBotId}`}))`;
+        }
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`routine-bot:${botId}`}))`;
         const deletedAt = new Date();
+        // Persist cancellation before contacting the runtime. The worker heartbeat retries it if
+        // the computer is temporarily unavailable, and archived bots cannot claim another wake.
+        const activeRuns = await tx.run.findMany({
+          where: { botId: { in: ownerIds }, status: { in: ["queued", "running"] } },
+          select: { id: true, botId: true },
+        });
         for (const child of activeChildren) {
           const attempt = child.currentRunId
             ? await tx.subagentAttempt.findUnique({
                 where: { childRunId: child.currentRunId },
               })
             : null;
-          await tx.subagent.updateMany({
-            where: {
-              id: child.id,
-              status: { in: ["provisioning", "queued", "running", "waiting"] },
-            },
-            data: { status: "stopped", stoppedAt: deletedAt, completedAt: deletedAt, nextCheckAt: null },
-          });
-          if (attempt) {
-            await tx.subagentAttempt.updateMany({
-              where: {
-                id: attempt.id,
-                status: { in: ["provisioning", "queued", "running", "waiting"] },
-              },
-              data: { status: "stopped", stoppedAt: deletedAt, completedAt: deletedAt },
-            });
-          }
+          // Worker settlement locks Run before Subagent/Attempt. Use that order too: holding
+          // the child row while waiting for its run can deadlock with a failing worker.
           if (child.currentRunId) {
             await tx.run.updateMany({
               where: {
@@ -449,6 +402,22 @@ export class BotService {
               },
             });
           }
+          await tx.subagent.updateMany({
+            where: {
+              id: child.id,
+              status: { in: ["provisioning", "queued", "running", "waiting"] },
+            },
+            data: { status: "stopped", stoppedAt: deletedAt, completedAt: deletedAt, nextCheckAt: null },
+          });
+          if (attempt) {
+            await tx.subagentAttempt.updateMany({
+              where: {
+                id: attempt.id,
+                status: { in: ["provisioning", "queued", "running", "waiting"] },
+              },
+              data: { status: "stopped", stoppedAt: deletedAt, completedAt: deletedAt },
+            });
+          }
           await appendEvent(tx, "subagent.stopped", child.id, {
             subagentId: child.id,
             parentBotId: botId,
@@ -458,6 +427,15 @@ export class BotService {
             reason: "parent_archived",
           });
         }
+        await tx.run.updateMany({
+          where: { botId: { in: ownerIds }, status: { in: ["queued", "running"] } },
+          data: { status: "cancelled", completedAt: deletedAt,
+            error: { code: "bot_archived", message: "The agent was archived" } },
+        });
+        await tx.inboxEvent.updateMany({
+          where: { botId: { in: ownerIds }, status: { in: ["pending", "processing"] } },
+          data: { status: "completed", completedAt: deletedAt, error: { code: "bot_archived" } },
+        });
         const childBotIds = children.map((child) => child.childBotId);
         await tx.bot.updateMany({
           where: { id: { in: childBotIds } },
@@ -484,34 +462,27 @@ export class BotService {
           where: { directKey: `bot:${botId}` },
           data: { archivedAt: deletedAt },
         });
-        // The runtime no longer owns these sessions; keeping the rows would point archived chats at
-        // deleted files and keep a stale legacy path replayable.
-        await tx.contextSession.deleteMany({
-          where: { botId: { in: [botId, ...childBotIds] } },
-        });
+        for (const id of ownerIds) {
+          const cleanupRunIds = activeRuns.filter((run) => run.botId === id).map(({ id }) => id);
+          await tx.retiredAgent.upsert({
+            where: { id },
+            create: { id, cleanupRunIds },
+            // Repeated deletion must not erase a cancellation that still needs delivery.
+            update: { cleanupPending: true, nextCleanupAt: deletedAt, cleanupRunIds: { push: cleanupRunIds } },
+          });
+        }
         await appendEvent(tx, "bot.archived", botId, { botId });
+        return ownerIds;
       });
-      // Retire the durable stores before the shared directories: an open SQLite store is what makes
-      // the recursive delete fail and lets the worker adopt the chat back.
-      await Promise.all(
-        [botId, ...children.map((child) => child.childBotId)].map(async (id) => {
-          const retired = await this.computerFetch(COMPUTER_API_PATHS.agentStore(id), {
-            method: "DELETE",
-            signal: AbortSignal.timeout(10_000),
-          }).catch((error) => {
-            cleanupWarnings.push(`agent store ${id}: ${String(error)}`);
-            return null;
-          });
-          if (retired && !retired.ok) {
-            cleanupWarnings.push(`agent store ${id}: ${retired.status} ${await retired.text()}`);
-          }
-          await this.agentData.deleteAgentFiles(id).catch((error) => {
-            cleanupWarnings.push(`agent files ${id}: ${String(error)}`);
-          });
-        })
-      );
-      for (const warning of cleanupWarnings) console.warn(`bot archive cleanup: ${warning}`);
-      await this.agentData.repairActiveAgentAfterDeletion(botId);
+      await Promise.all(ownerIds.map(async (id) => {
+        try {
+          const warnings = await cleanupRetiredAgent(this.prisma, this.computerFetch, this.agentData, id);
+          for (const warning of warnings) console.warn(`bot archive cleanup: ${warning}`);
+        } catch (error) {
+          // The retirement transaction already queued the retry, including if this process exits.
+          console.warn(`bot archive cleanup ${id}: ${String(error)}`);
+        }
+      }));
       return { ok: true };
     });
 

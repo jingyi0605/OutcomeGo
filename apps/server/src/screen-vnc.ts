@@ -1,3 +1,4 @@
+import { RfbClientMessages } from "./rfb-client-messages";
 import type { Server, ServerWebSocket, WebSocketHandler } from "bun";
 import { randomBytes } from "node:crypto";
 import { ApiError } from "@outcomego/contracts";
@@ -13,7 +14,7 @@ const viewerOrigin = (origin: string | null) =>
 
 const ACTIVITY_REPORT_MS = 5_000;
 
-export interface VncIdentity { botId: string; sessionId: string | null }
+export interface VncIdentity { botId: string; sessionId: string | null; controlId?: string; generation?: number }
 interface Ticket extends VncIdentity {
   origin: string | null;
   expiresAt: number;
@@ -28,6 +29,9 @@ export interface VncConnection {
   closed: boolean;
   /** The RFB handshake finished: the client has sent its first FramebufferUpdateRequest. */
   ready?: boolean;
+  parser?: RfbClientMessages;
+  forwarding?: Promise<void>;
+  pendingInputBytes?: number;
   timer?: ReturnType<typeof setTimeout>;
   check?: ReturnType<typeof setInterval>;
 }
@@ -46,6 +50,7 @@ export class ScreenVncProxy {
     recheckMs?: number;
     /** Called at most once per ACTIVITY_REPORT_MS per bot while a client sends key, pointer or clipboard input. */
     onActivity?: (botId: string) => void;
+    mayInput?: (identity: VncIdentity) => Promise<boolean>;
   }) {}
   private lastActivity = new Map<string, number>();
 
@@ -65,8 +70,8 @@ export class ScreenVncProxy {
     this.options.onActivity?.(botId);
   };
 
-  async issue(botId: string, sessionId: string | null, origin: string | null) {
-    const identity = { botId, sessionId };
+  async issue(botId: string, sessionId: string | null, origin: string | null, control?: { controlId?: string; generation?: number }) {
+    const identity = { botId, sessionId, ...control };
     if (!await this.options.authorized(identity)) throw new ApiError(403, "forbidden", "Computer access denied");
     const now = (this.options.now ?? Date.now)();
     for (const [key, value] of this.tickets) if (value.expiresAt <= now) this.tickets.delete(key);
@@ -163,18 +168,41 @@ export class ScreenVncProxy {
       const data = client.data;
       if (data.closed) return;
       if (typeof message === "string") { this.close(data, 1003); return; }
-      this.noteInput(data, message);
-      if (data.upstream?.readyState === WebSocket.OPEN) {
-        if (data.upstream.bufferedAmount + message.byteLength > 1024 * 1024) {
-          this.close(data, 1013, "Computer input is congested");
-          return;
+      const forward = (bytes: Uint8Array) => {
+        if (data.closed) return;
+        if (data.upstream?.readyState === WebSocket.OPEN) {
+          if (data.upstream.bufferedAmount + bytes.byteLength > 1024 * 1024) {
+            this.close(data, 1013, "Computer input is congested"); return;
+          }
+          data.upstream.send(bytes);
+        } else {
+          data.queuedBytes += bytes.byteLength;
+          if (data.queuedBytes > 128 * 1024) { this.close(data, 1013); return; }
+          data.queued.push(bytes);
         }
-        data.upstream.send(message);
-      } else {
-        data.queuedBytes += message.byteLength;
-        if (data.queuedBytes > 128 * 1024) { this.close(data, 1009); return; }
-        data.queued.push(new Uint8Array(message));
+      };
+      if (!this.options.mayInput) {
+        this.noteInput(data, message);
+        forward(message);
+        return;
       }
+      try {
+        const packets = (data.parser ??= new RfbClientMessages()).push(message);
+        data.pendingInputBytes = (data.pendingInputBytes ?? 0) + message.byteLength;
+        if (data.pendingInputBytes > 1024 * 1024) { this.close(data, 1013); return; }
+        data.forwarding = (data.forwarding ?? Promise.resolve()).then(async () => {
+          for (const packet of packets) {
+            if (data.closed) return;
+            if (packet.input && !await this.options.mayInput!(data.ticket)) {
+              // Keep the framebuffer stream alive; rejected input is never replayed.
+              continue;
+            }
+            if (packet.input && !data.ticket.controlId) { data.ready = true; this.noteInput(data, packet.data); }
+            forward(packet.data);
+          }
+        }).catch(() => this.close(data, 1013, "Could not verify computer control"))
+          .finally(() => { data.pendingInputBytes = (data.pendingInputBytes ?? 0) - message.byteLength; });
+      } catch { this.close(data, 1003, "Invalid computer input"); }
     },
     close: (client) => this.close(client.data),
   };

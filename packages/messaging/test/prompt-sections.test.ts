@@ -124,3 +124,15 @@ test("memory facts pin per epoch, never as change notes; only other assistants' 
   expect(prepareMemoryContext(acknowledged, 1, live("facts D", "peer B", "fb"))).toEqual({ facts: "facts D", changed: false });
   expect(() => preparePromptSections({}, 0, { memory: "x" })).toThrow("Unknown prompt section memory");
 });
+
+test("delayed memory preparations cannot replace a newer revision or compaction epoch", () => {
+  const snapshots: Record<string, PromptSectionSnapshot> = {};
+  prepareMemoryContext(snapshots, 0, { revision: 0, facts: "Ronaldo" });
+  prepareMemoryContext(snapshots, 0, { revision: 1, facts: "Messi" });
+  expect(prepareMemoryContext(snapshots, 0, { revision: 0, facts: "Ronaldo", otherAgents: { render: "stale shared", fingerprint: "old" } }).facts).toBe("Messi");
+  expect(snapshots.memory!.memoryRevision).toBe(1);
+  expect(snapshots.memory!.otherAgentRender).toBeUndefined();
+  prepareMemoryContext(snapshots, 1, { revision: 1, facts: "Messi after summary" });
+  expect(prepareMemoryContext(snapshots, 0, { revision: 1, facts: "old epoch" }).facts).toBe("Messi after summary");
+  expect(snapshots.memory!.compactionEpoch).toBe(1);
+});

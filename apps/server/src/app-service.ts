@@ -33,6 +33,7 @@ import { RichMessageService } from "./services/rich-message-service";
 import { RunService } from "./services/run-service";
 import { ScreenService } from "./services/screen-service";
 import { SearchService } from "./services/search-service";
+import { ChannelLibraryService } from "./services/channel-library";
 import { forwardServiceMethod, serviceEffect } from "./services/service-utils";
 import { WebProviderSettingsService } from "./services/web-provider-settings";
 import { SettingsService } from "./services/settings-service";
@@ -77,6 +78,7 @@ export class AppService {
   readonly voice: VoiceService;
   readonly screens: ScreenService;
   readonly searchIndex: SearchService;
+  readonly library: ChannelLibraryService;
   readonly snapshots: SnapshotService;
   readonly assets: AssetStore;
   readonly notifications: NotificationService;
@@ -130,6 +132,7 @@ export class AppService {
       this.computerUrl
     );
     this.searchIndex = new SearchService(this.prisma);
+    this.library = new ChannelLibraryService(this.prisma);
     this.assets = new AssetStore({
       root: this.agentData.assetRoot,
       agentDataRoot: this.agentData.root,
@@ -706,6 +709,7 @@ export class AppService {
   markChannelRead = forwardServiceMethod(() => this.notifications.markChannelRead);
 
   search = forwardServiceMethod(() => this.searchIndex.search);
+  channelLibrary = forwardServiceMethod(() => this.library.list);
 
   health = forwardServiceMethod(() => this.snapshots.health);
 
@@ -731,6 +735,15 @@ export class AppService {
     const response = await this.computerFetch("/v1/browser-network/quality", { method: "POST", body: "{}", signal: AbortSignal.timeout(24_000) });
     if (!response.ok) throw new ApiError(503, "network_quality_unavailable", "Could not test the active browser connection");
     return await response.json() as import("@outcomego/contracts/browser-network").NetworkQuality;
+  }
+
+  async browserNetworkConnectivity() {
+    const response = await this.computerFetch("/v1/browser-network", {
+      method: "GET", signal: AbortSignal.timeout(1500),
+    });
+    if (!response.ok) return undefined;
+    const status = await response.json() as { ready?: boolean; connectivity?: import("@outcomego/contracts/browser-network").NetworkConnectivity };
+    return status.ready ? status.connectivity : undefined;
   }
 
   async browserNetworkEgress() {

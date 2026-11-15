@@ -9,7 +9,7 @@ import {
 } from "@outcomego/plugin-sdk";
 import type { Prisma, PrismaClient } from "@outcomego/db";
 import { appendEvent, serviceEffect, toJson } from "../service-utils";
-import { definitionFromManifest, hasPlaceholder, manifestJson } from "./values";
+import { definitionFromManifest, hasPlaceholder, jsonObject, manifestJson } from "./values";
 import { resolveUpstreamPlugin } from "../../plugins/upstream-package";
 import { clearPluginEnvironment, storePluginEnvironment } from "../process-secrets";
 
@@ -42,7 +42,6 @@ const environmentValues = (
   );
 };
 
-/** Installation and package updates must reserve the same runtime variable names. */
 export async function assertPluginEnvironmentAvailable(
   db: PrismaClient | Prisma.TransactionClient,
   plugin: PluginDefinition
@@ -66,7 +65,8 @@ export class PluginInstallations {
     private readonly prisma: PrismaClient,
     private readonly definition: (pluginKey: string) => Promise<PluginDefinition | undefined>,
     private readonly syncFileCaches: () => Promise<void>,
-    private readonly stopRuntime: (connectionId: string, transport: string) => Promise<void>
+    private readonly stopRuntime: (connectionId: string, transport: string) => Promise<void>,
+    private readonly removePersistentAccount?: (connectionId: string) => Promise<void>
   ) {}
   install = (pluginKey: string, values: Record<string, ConfigValue> = {}) =>
     serviceEffect(async () => {
@@ -79,7 +79,18 @@ export class PluginInstallations {
       }
       const plugin = await resolveUpstreamPlugin(candidate);
       const environment = environmentValues(plugin, values);
-      await assertPluginEnvironmentAvailable(this.prisma, plugin);
+      const names = environmentFields(plugin).map((field) => field.environment!);
+      if (names.length) {
+        const others = await this.prisma.pluginInstallation.findMany({ select: { name: true, manifest: true } });
+        const conflict = others.find((other) => {
+          const definition = definitionFromManifest(other.manifest);
+          return definition
+            ? environmentFields(definition).some((field) => names.includes(field.environment!))
+            : false;
+        });
+        if (conflict)
+          throw new ApiError(409, "plugin_environment_conflict", `${conflict.name} already provides one of this plugin's environment variables`);
+      }
       const installation = await this.prisma.$transaction(async (tx) => {
         const created = await tx.pluginInstallation.create({
           data: {
@@ -321,13 +332,13 @@ export class PluginInstallations {
       };
     });
 
-  /** Replace plugin runtime fields delivered to Bot computer processes, e.g. a rotated token. */
+  /** Replace plugin setup secrets delivered to Bot computer processes, e.g. a rotated token. */
   updateEnvironment = (pluginKey: string, values: Record<string, ConfigValue>) =>
     serviceEffect(async () => {
       return this.prisma.$transaction(async (tx) => {
         // Serializes with uninstall so a replaced secret cannot outlive its plugin.
         const [installation] = await tx.$queryRaw<Array<{ manifest: unknown }>>`
-          SELECT "manifest" FROM "outcomego_plugin_installation" WHERE "pluginKey" = ${pluginKey} FOR UPDATE`;
+          SELECT "manifest" FROM "PluginInstallation" WHERE "pluginKey" = ${pluginKey} FOR UPDATE`;
         if (!installation) throw new ApiError(404, "plugin_not_installed", "Plugin not installed");
         const plugin = definitionFromManifest(installation.manifest);
         if (!plugin) throw new ApiError(409, "plugin_manifest_invalid", "Plugin package is invalid");
@@ -343,16 +354,44 @@ export class PluginInstallations {
     serviceEffect(async () => {
       const installation = await this.prisma.pluginInstallation.findUnique({
         where: { pluginKey },
-        include: { connections: { select: { id: true, transport: true } } },
+        include: { connections: { select: { id: true, transport: true, credentials: true } } },
       });
       if (!installation) throw new ApiError(404, "plugin_not_installed", "Plugin not installed");
+      // Revoke availability and fence every in-flight launch before touching account files.
+      // A delayed RPC can arrive after uninstall; its old generation must stay rejected.
+      await this.prisma.$transaction(async (tx) => {
+        await tx.$queryRaw`SELECT id FROM "PluginInstallation" WHERE id = ${installation.id}::uuid FOR UPDATE`;
+        await tx.pluginInstallation.update({
+          where: { id: installation.id },
+          data: { status: "error" },
+        });
+        await tx.pluginConnection.updateMany({
+          where: { installationId: installation.id },
+          data: {
+            runtimeGeneration: { increment: 1 },
+            status: "disconnected",
+            connectedAt: null,
+          },
+        });
+        for (const connection of installation.connections) {
+          const credentials = { ...jsonObject(connection.credentials) }; delete credentials.deviceLink;
+          await tx.pluginConnection.update({ where: { id: connection.id }, data: { credentials: toJson(credentials) } });
+        }
+      });
+      await Promise.all(
+        installation.connections.map((connection) =>
+          this.stopRuntime(connection.id, connection.transport)
+        )
+      );
+      for (const connection of installation.connections)
+        await this.removePersistentAccount?.(connection.id);
       await Promise.all(
         installation.connections.map((connection) =>
           this.stopRuntime(connection.id, connection.transport)
         )
       );
       await this.prisma.$transaction(async (tx) => {
-        await tx.$queryRaw`SELECT 1 FROM "outcomego_plugin_installation" WHERE "id" = ${installation.id} FOR UPDATE`;
+        await tx.$queryRaw`SELECT 1 FROM "PluginInstallation" WHERE "id" = ${installation.id} FOR UPDATE`;
         await tx.pluginActivity.create({
           data: {
             kind: "plugin.uninstalled",

@@ -13,6 +13,7 @@ import {
 } from "./automation-trigger";
 import { uniqueSlug } from "./file-state";
 import { lockGroupExecution } from "./group-supersession";
+import { lockAgentLifecycle } from "./agent-lifecycle";
 import { type AutomationChangedAction, appendAgentTimelineEvent } from "./timeline-events";
 import { timestampUserTurn } from "./timestamps";
 import { readUserTimeZone } from "./user-time-zone";
@@ -21,11 +22,24 @@ const MIN_INTERVAL_SECONDS = 5 * 60;
 // The interval is stored in a 32-bit column.
 const MAX_INTERVAL_SECONDS = 2_147_483_647;
 const MAX_ROUTINES_PER_OWNER = 50;
-const ROUTINE_TRANSACTION_OPTIONS = { maxWait: 10_000, timeout: 30_000 } as const;
 const TOO_FREQUENT = () =>
   new ApiError(400, "routine_schedule_too_frequent", "routine schedules must be at least 5 minutes apart.");
 
 export type RoutineOwner = { kind: "bot"; id: string } | { kind: "group"; id: string };
+
+/** Routine writes and seeds must precede retirement. Group coalescing and worker claims take
+ * member claim gates before the room gate, so all routine entry points use that same order. */
+async function lockRoutineOwner(tx: Prisma.TransactionClient, owner: RoutineOwner) {
+  if (owner.kind === "bot") {
+    await lockAgentLifecycle(tx, owner.id);
+    return;
+  }
+  const members = await tx.channelMember.findMany({
+    where: { channelId: owner.id }, select: { botId: true }, orderBy: { botId: "asc" },
+  });
+  for (const { botId } of members) await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`bot-run-claim:${botId}`}))`;
+  await lockGroupExecution(tx, owner.id);
+}
 
 const appendRoutineChangedEvent = async (
   tx: Prisma.TransactionClient,
@@ -76,7 +90,8 @@ export interface NormalizedSchedule {
 
 interface RoutineFileStore {
   listRoutineFolderIds?(botId: string): Promise<string[]>;
-  writeRoutine(botId: string, id: string, tx?: Prisma.TransactionClient): Promise<void>;
+  recoverRoutineCreation?(botId: string, callId: string, tx: Prisma.TransactionClient): Promise<void>;
+  writeRoutine(botId: string, id: string, tx?: Prisma.TransactionClient, options?: { authored?: boolean }): Promise<void>;
   deleteRoutine(botId: string, id: string, tx?: Prisma.TransactionClient): Promise<void>;
 }
 
@@ -133,8 +148,18 @@ const jsonInput = (value: unknown): Prisma.InputJsonValue =>
 // fixture IDs can be valid database UUIDs without carrying those annotations.
 const UUID_PATTERN = /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i;
 
-const routineIdentifierWhere = (id: string) =>
-  UUID_PATTERN.test(id) ? { OR: [{ id }, { slug: id }] } : { slug: id };
+// Existing UUID identity takes precedence over a UUID-shaped folder alias.
+const routineIdentifierWhere = async (
+  db: Pick<Prisma.TransactionClient, "routine">,
+  id: string,
+  scope: Prisma.RoutineWhereInput = {}
+): Promise<Prisma.RoutineWhereInput> => {
+  if (UUID_PATTERN.test(id)) {
+    const exact = await db.routine.findFirst({ where: { ...scope, id }, select: { id: true } });
+    if (exact) return { id };
+  }
+  return { slug: id };
+};
 
 const routineOwnerWhere = (owner: RoutineOwner) =>
   owner.kind === "bot" ? { botId: owner.id } : { channelId: owner.id };
@@ -144,11 +169,9 @@ const routineOwnerData = (owner: RoutineOwner) =>
     ? { botId: owner.id, channelId: null }
     : { botId: null, channelId: owner.id };
 
-const configureRoutineTransaction = (tx: Prisma.TransactionClient) =>
-  tx.$executeRaw`SET LOCAL lock_timeout = '5s'`;
-
 const lockedOwnedRoutine = async (tx: Prisma.TransactionClient, owner: RoutineOwner, id: string) => {
-  const where = { ...routineOwnerWhere(owner), deletedAt: null, ...routineIdentifierWhere(id) };
+  const scope = { ...routineOwnerWhere(owner), deletedAt: null };
+  const where = { ...scope, ...await routineIdentifierWhere(tx, id, scope) };
   const found = await tx.routine.findFirst({ where, select: { id: true } });
   if (!found) throw new ApiError(404, "routine_not_found", "Routine not found");
   // UUID, slug, manual runs, scheduler dispatch and edits share one gate.
@@ -254,7 +277,7 @@ const routineWakeContent = (input: {
   const schedule = input.schedule ?? "scheduled routine";
   const folder = input.folder ?? input.name;
   const firedAt = input.firedAt.toLocaleString("en-US", { timeZone: input.timeZone ?? "UTC", timeZoneName: "short" });
-  const described = input.kind === "event" && input.trigger
+  const described = input.trigger
     ? describeWakeSchedule(schedule, input.trigger)
     : `${describeWakeSchedule(schedule)} (${schedule})`;
   const opening = input.kind === "event"
@@ -294,6 +317,7 @@ export const scheduledRoutineWakeContent = (input: {
   name: string;
   folder?: string;
   schedule?: string;
+  trigger?: unknown;
   scheduledFor: Date;
   timeZone?: string;
   prompt: string;
@@ -552,7 +576,8 @@ export const nextRoutineRun = (
     intervalSeconds: number | null;
     timezone: string;
   },
-  after: Date
+  after: Date,
+  anchor?: Date
 ): Date => {
   if (schedule.scheduleKind === "event") {
     throw new Error("Event routines do not have a scheduled next run");
@@ -566,6 +591,10 @@ export const nextRoutineRun = (
       return new Date(
         Math.floor((after.getTime() - phaseMs) / intervalMs + 1) * intervalMs + phaseMs
       );
+    }
+    if (anchor) {
+      const steps = Math.max(0, Math.floor((after.getTime() - anchor.getTime()) / intervalMs) + 1);
+      return new Date(anchor.getTime() + steps * intervalMs);
     }
     return new Date(after.getTime() + intervalMs);
   }
@@ -602,17 +631,60 @@ export const nextRoutineTriggerRun = (
     timezone: string;
   },
   after: Date,
-  userZone = fallback.timezone
+  userZone = fallback.timezone,
+  anchor?: Date
 ): Date => {
   const schedules = cronSchedules(trigger);
-  if (schedules.length === 0) return nextRoutineRun(fallback, after);
+  if (schedules.length === 0) return nextRoutineRun(fallback, after, anchor);
   const nextRuns = schedules.map((schedule) =>
     nextRoutineRun(
       normalizeRoutineSchedule(schedule, userZone, { enforceMinimum: false }),
-      after
+      after,
+      anchor
     )
   );
   return new Date(Math.min(...nextRuns.map((next) => next.getTime())));
+};
+
+/** Infer an older row's interval phase without using manual/event run history.
+ * A single relative interval's saved due time is already on its intended phase,
+ * including when it was edited after creation before anchors were persisted. */
+export const routineScheduleAnchor = (
+  routine: { scheduleAnchorAt?: Date | null; nextRunAt: Date | null; createdAt: Date; trigger: unknown },
+  _hasScheduledExecution = true
+): Date => {
+  if (routine.scheduleAnchorAt) return routine.scheduleAnchorAt;
+  const schedules = cronSchedules(routine.trigger as Record<string, unknown>);
+  if (routine.nextRunAt && schedules.length === 1 && /^@every\s+[^/\s]+$/i.test(schedules[0]!)) return routine.nextRunAt;
+  // A group's next occurrence can belong to any listener, so it cannot
+  // become a shared phase origin for the other relative listeners.
+  return routine.createdAt;
+};
+
+/** Older revisions did not snapshot the complete trigger. Recover observable
+ * schedule/resume boundaries while deliberately ignoring metadata-only saves.
+ * Later-listener-only edits before anchors existed cannot be reconstructed. */
+export const inferRoutineScheduleAnchor = async (
+  tx: Prisma.TransactionClient,
+  routine: Parameters<typeof routineScheduleAnchor>[0] & { id: string }
+): Promise<Date> => {
+  const fallback = routineScheduleAnchor(routine);
+  if (routine.scheduleAnchorAt) return fallback;
+  const schedules = cronSchedules(routine.trigger as Record<string, unknown>);
+  if (!schedules.some(schedule => /^@every\s+[^/\s]+$/i.test(schedule)) || (schedules.length === 1 && routine.nextRunAt)) return fallback;
+  const revisions = await tx.routineRevision.findMany({
+    where: { routineId: routine.id },
+    orderBy: { revision: "asc" },
+    select: { scheduleText: true, scheduleKind: true, cronExpression: true, intervalSeconds: true, enabled: true, createdAt: true },
+  });
+  let origin = routine.createdAt;
+  for (let index = 1; index < revisions.length; index++) {
+    const current = revisions[index]!, previous = revisions[index - 1]!;
+    if (current.scheduleText !== previous.scheduleText || current.scheduleKind !== previous.scheduleKind ||
+        current.cronExpression !== previous.cronExpression || current.intervalSeconds !== previous.intervalSeconds ||
+        (!previous.enabled && current.enabled)) origin = current.createdAt;
+  }
+  return origin;
 };
 
 const unpinned = (schedule: string): boolean =>
@@ -639,7 +711,6 @@ export const followUserTimeZone = async (
     const trigger = routine.trigger as Record<string, unknown>;
     const follows = routine.timezoneMode === "installation";
     const moves =
-      routine.scheduleKind === "cron" &&
       routine.nextRunAt !== null &&
       routine.nextRunAt > now &&
       cronSchedules(trigger).some(unpinned);
@@ -649,7 +720,7 @@ export const followUserTimeZone = async (
       where: { id },
       data: {
         ...(follows ? { timezone: zone } : {}),
-        ...(moves ? { nextRunAt: nextRoutineTriggerRun(trigger, schedule, now, zone) } : {}),
+        ...(moves ? { nextRunAt: nextRoutineTriggerRun(trigger, schedule, now, zone, await inferRoutineScheduleAnchor(tx, routine)) } : {}),
       },
     });
   }
@@ -664,12 +735,19 @@ export const pinRoutinesToScheduledZone = async (
   tx: Prisma.TransactionClient,
   writeFiles: (botId: string, routineId: string) => Promise<void>
 ): Promise<void> => {
-  const routines = await tx.routine.findMany({ where: { deletedAt: null, scheduleKind: "cron" } });
-  for (const routine of routines) {
+  const installationZone = await readUserTimeZone(tx);
+  const routines = await tx.routine.findMany({ where: { deletedAt: null, scheduleKind: { not: "event" } } });
+  for (const candidate of routines) {
+    const owner = routineOwnerFrom(candidate);
+    await lockRoutineOwner(tx, owner);
+    if (candidate.botId) await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`agent-files:${candidate.botId}`}))`;
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`routine:${candidate.id}`}))`;
+    const routine = await tx.routine.findUnique({ where: { id: candidate.id } });
+    if (!routine || routine.deletedAt) continue;
     const trigger = routine.trigger as Record<string, unknown>;
     if (!cronSchedules(trigger).some(unpinned)) continue;
     const pin = (schedule: unknown) =>
-      typeof schedule === "string" && unpinned(schedule) ? `CRON_TZ=${routine.timezone} ${schedule}` : schedule;
+      typeof schedule === "string" && unpinned(schedule) ? `CRON_TZ=${routine.timezoneMode === "installation" ? routine.timezone : installationZone} ${schedule}` : schedule;
     const pinTrigger = (value: Record<string, unknown>): Record<string, unknown> =>
       value.type === "cron"
         ? { ...value, schedule: pin(value.schedule) }
@@ -692,8 +770,7 @@ export const pinRoutinesToScheduledZone = async (
       where: { id: routine.id },
       data: {
         trigger: jsonInput(pinTrigger(trigger)),
-        scheduleText: String(pin(routine.scheduleText)),
-        timezoneMode: "pinned",
+        ...normalizeRoutineSchedule(firstCronSchedule(pinTrigger(trigger))!, installationZone, { enforceMinimum: false }),
         ...(presentedTrigger
           ? { triggerPresentation: jsonInput({ ...presentation, trigger: pinTrigger(presentedTrigger) }) }
           : {}),
@@ -715,6 +792,7 @@ const view = (routine: {
   timezone: string;
   timezoneMode: string;
   enabled: boolean;
+  validationError?: string | null;
   revision: number;
   nextRunAt: Date | null;
   trigger: unknown;
@@ -733,6 +811,7 @@ const view = (routine: {
   timezone: routine.timezone,
   timezone_mode: routine.timezoneMode,
   enabled: routine.enabled,
+  validation_error: routine.validationError ?? null,
   revision: routine.revision,
   next_run_at: routine.nextRunAt?.toISOString() ?? null,
   last_run_at: routine.lastRunAt?.toISOString() ?? null,
@@ -782,6 +861,7 @@ const uiView = (routine: {
   timezone: string;
   timezoneMode: string;
   enabled: boolean;
+  validationError?: string | null;
   revision: number;
   nextRunAt: Date | null;
   lastRunAt: Date | null;
@@ -809,6 +889,7 @@ const uiView = (routine: {
     timezone: routine.timezone,
     timezoneMode: routine.timezoneMode,
     enabled: routine.enabled,
+    validationError: routine.validationError ?? null,
     revision: routine.revision,
     nextRunAt: routine.nextRunAt?.toISOString() ?? null,
     lastRunAt: routine.lastRunAt?.toISOString() ?? null,
@@ -940,7 +1021,7 @@ export class RoutineService {
 
   async owner(id: string): Promise<RoutineOwner> {
     const routine = await this.prisma.routine.findFirst({
-      where: { deletedAt: null, ...routineIdentifierWhere(id) },
+      where: { deletedAt: null, ...await routineIdentifierWhere(this.prisma, id, { deletedAt: null }) },
       select: { botId: true, channelId: true },
     });
     if (!routine) throw new ApiError(404, "routine_not_found", "Routine not found");
@@ -957,7 +1038,7 @@ export class RoutineService {
 
   async detailOwner(owner: RoutineOwner, id: string): Promise<RoutineView> {
     const routine = await this.prisma.routine.findFirst({
-      where: { ...routineOwnerWhere(owner), deletedAt: null, ...routineIdentifierWhere(id) },
+      where: { ...routineOwnerWhere(owner), deletedAt: null, ...await routineIdentifierWhere(this.prisma, id, { ...routineOwnerWhere(owner), deletedAt: null }) },
       include: { executions: { orderBy: { createdAt: "desc" }, take: 1 } },
     });
     if (!routine) throw new ApiError(404, "routine_not_found", "Routine not found");
@@ -974,7 +1055,7 @@ export class RoutineService {
     limit = 20
   ): Promise<RoutineExecutionView[]> {
     const routine = await this.prisma.routine.findFirst({
-      where: { ...routineOwnerWhere(owner), deletedAt: null, ...routineIdentifierWhere(id) },
+      where: { ...routineOwnerWhere(owner), deletedAt: null, ...await routineIdentifierWhere(this.prisma, id, { ...routineOwnerWhere(owner), deletedAt: null }) },
       select: { id: true },
     });
     if (!routine) throw new ApiError(404, "routine_not_found", "Routine not found");
@@ -1002,6 +1083,7 @@ export class RoutineService {
     return this.runMatching(parseAutomationEvent(raw), routineOwnerWhere(owner));
   }
 
+  /** A webhook bound to one routine delivers only there, and only while its trigger still matches. */
   async dispatchEventToRoutine(owner: RoutineOwner, routineId: string, raw: unknown) {
     const event = parseAutomationEvent(raw);
     const routine = await this.prisma.routine.findFirst({
@@ -1030,11 +1112,20 @@ export class RoutineService {
       select: { id: true, botId: true, channelId: true, trigger: true },
     });
     const results: RoutineExecutionView[] = [];
+    let firstFailure: unknown;
     for (const routine of routines) {
-      if (!matchesAutomationEvent(parseStoredTrigger(routine.trigger), event)) continue;
-      try { results.push(await this.runNowOwner(routineOwnerFrom(routine), routine.id, event.id, new Date(), event)); }
-      catch (error) { if (!(error instanceof ApiError) || error.code !== "routine_event_inactive") throw error; }
+      try {
+        if (!matchesAutomationEvent(parseStoredTrigger(routine.trigger), event)) continue;
+        results.push(await this.runNowOwner(routineOwnerFrom(routine), routine.id, event.id, new Date(), event));
+      } catch (error) {
+        if (error instanceof ApiError && error.code === "routine_event_inactive") continue;
+        firstFailure ??= error;
+        console.error("Unable to deliver event to routine", routine.id, error instanceof ApiError ? error.code : "routine_event_delivery_failed");
+      }
     }
+    // Keep the delivery retryable after healthy destinations have progressed.
+    // Their durable event keys make retries idempotent.
+    if (firstFailure) throw firstFailure;
     return results;
   }
 
@@ -1045,155 +1136,144 @@ export class RoutineService {
     firedAt = new Date(),
     event?: AutomationEvent
   ): Promise<RoutineExecutionView> {
-    let result;
-    try {
-      result = await this.prisma.$transaction(async (tx) => {
-        await configureRoutineTransaction(tx);
-        const routine = await lockedOwnedRoutine(tx, owner, id);
-        if (event && (!routine.enabled || !matchesAutomationEvent(parseStoredTrigger(routine.trigger), event))) throw new ApiError(409, "routine_event_inactive", "Routine no longer accepts this event");
-        const eventKey = event ? createHash("sha256").update(`${event.source}:${event.id}`).digest("hex") : requestId;
-        const dedupeKey = `routine:${routine.id}:${event ? "event" : "manual"}:${eventKey}`;
-        const duplicate =
-          (await tx.routineExecution.findUnique({ where: { dedupeKey: dedupeKey } })) ??
-          (event
-            ? await tx.routineExecution.findFirst({
-                where: { routineId: routine.id, coalescedKeys: { has: dedupeKey } },
-              })
-            : null);
-        if (duplicate) return duplicate;
-        const active = await tx.routineExecution.count({
-          where: {
-            routineId: routine.id,
-            status: { in: ["queued", "running"] },
-          },
-        });
-        if (active > 0 && !event) {
-          throw new ApiError(409, "routine_already_running", "This routine is already running");
-        }
-        const routineOwner = routineOwnerFrom(routine);
-        if (active > 0 && event) return this.coalesceEvent(tx, routine, routineOwner, event, dedupeKey, firedAt);
-        const channel =
-          routineOwner.kind === "bot"
-            ? await tx.channel.findUnique({ where: { directKey: `bot:${routineOwner.id}` } })
-            : await tx.channel.findUnique({ where: { id: routineOwner.id } });
-        if (!channel || channel.archivedAt) {
-          throw new ApiError(
-            409,
-            "routine_channel_unavailable",
-            routineOwner.kind === "bot"
-              ? "The Bot chat is unavailable"
-              : "The group chat is unavailable"
-          );
-        }
-        if (routineOwner.kind === "group" && channel.kind !== "group") {
-          throw new ApiError(409, "routine_channel_unavailable", "The group chat is unavailable");
-        }
-        const revision = await tx.routineRevision.findUnique({
-          where: {
-            routineId_revision: { routineId: routine.id, revision: routine.revision },
-          },
-        });
-        if (!revision) {
-          throw new ApiError(
-            409,
-            "routine_revision_unavailable",
-            "This routine needs to be saved again before it can run"
-          );
-        }
-        const execution = await tx.routineExecution.create({
-          data: {
-            routineId: routine.id,
-            routineRevisionId: revision.id,
-            kind: event ? "scheduled" : "test",
-            status: "queued",
-            dedupeKey,
-            scheduledFor: firedAt,
-            enqueuedAt: firedAt,
-            ...(event ? { events: jsonInput([event]) } : {}),
-          },
-        });
-        let queued = execution;
-        let runId: string | null = null;
-        let roundId: string | null = null;
-        let completedImmediately = false;
-        if (routineOwner.kind === "bot") {
-          const wake = await this.host.enqueueWake(tx, {
-            botId: routineOwner.id,
-            channelId: channel.id,
-            origin: "routine",
-            type: event ? "routine.event" : "routine.manual",
-            ...(event
-              ? eventWake(routine, [event], firedAt)
-              : {
-                  content: routineWakeContent({
-                    kind: "manual",
-                    name: routine.name,
-                    folder: routine.slug,
-                    schedule: routine.scheduleText,
-                    trigger: routine.trigger ?? undefined,
-                    timeZone: routine.timezone,
-                    firedAt,
-                    prompt: routine.prompt,
-                    provenance: routine.provenance,
-                  }),
-                }),
-
-            clientId: dedupeKey,
-            priority: 290,
-            occurredAt: firedAt,
-            timeZone: routine.timezone,
-          });
-          runId = wake.run.id;
-          queued = await tx.routineExecution.update({
-            where: { id: execution.id },
-            data: { runId },
-          });
-        } else {
-          const seeded = await this.seedGroupRoutine(tx, { channelId: channel.id, routine, executionId: execution.id,
-            clientId: dedupeKey, firedAt, events: event ? [event] : undefined });
-          roundId = seeded.roundId;
-          queued = seeded.execution;
-        }
-        await tx.routine.update({
-          where: { id: routine.id },
-          data: {
-            lastRunAt: firedAt,
-            runLedger: appendRoutineRunLedger(routine.runLedger, {
-              id: execution.id,
-              trigger: event ? "event" : "manual",
-              startedAt: firedAt.getTime(),
-              finishedAt: completedImmediately ? firedAt.getTime() : null,
-              status: completedImmediately ? "ok" : "running",
-            }),
-          },
-        });
-        await tx.event.create({
-          data: {
-            topic: "routine.execution.queued",
-            entityId: execution.id,
-            payload: {
-              executionId: execution.id,
-              routineId: routine.id,
-              runId,
-              roundId,
-              kind: event ? "scheduled" : "test",
-            },
-          },
-        });
-        return queued;
-      }, ROUTINE_TRANSACTION_OPTIONS);
-    } catch (error) {
-      if ((error as { code?: string }).code !== "P2002") throw error;
-      const routine = await this.prisma.routine.findFirst({
-        where: { ...routineOwnerWhere(owner), deletedAt: null, ...routineIdentifierWhere(id) },
-        select: { id: true },
-      });
-      if (!routine) throw error;
+    const result = await this.prisma.$transaction(async (tx) => {
+      await lockRoutineOwner(tx, owner);
+      const routine = await lockedOwnedRoutine(tx, owner, id);
+      if (routine.validationError) {
+        throw new ApiError(400, "invalid_routine_definition", "Fix this routine's definition and save it before running.");
+      }
+      if (event && (!routine.enabled || !matchesAutomationEvent(parseStoredTrigger(routine.trigger), event))) throw new ApiError(409, "routine_event_inactive", "Routine no longer accepts this event");
       const eventKey = event ? createHash("sha256").update(`${event.source}:${event.id}`).digest("hex") : requestId;
       const dedupeKey = `routine:${routine.id}:${event ? "event" : "manual"}:${eventKey}`;
-      result = await this.prisma.routineExecution.findUnique({ where: { dedupeKey } });
-      if (!result) throw error;
-    }
+      const duplicate =
+        (await tx.routineExecution.findUnique({ where: { dedupeKey: dedupeKey } })) ??
+        (event
+          ? await tx.routineExecution.findFirst({
+              where: { routineId: routine.id, coalescedKeys: { has: dedupeKey } },
+            })
+          : null);
+      if (duplicate) return duplicate;
+      const active = await tx.routineExecution.count({
+        where: {
+          routineId: routine.id,
+          status: { in: ["queued", "running"] },
+        },
+      });
+      if (active > 0 && !event) {
+        throw new ApiError(409, "routine_already_running", "This routine is already running");
+      }
+      const routineOwner = routineOwnerFrom(routine);
+      if (active > 0 && event) return this.coalesceEvent(tx, routine, routineOwner, event, dedupeKey, firedAt);
+      const channel =
+        routineOwner.kind === "bot"
+          ? await tx.channel.findUnique({ where: { directKey: `bot:${routineOwner.id}` } })
+          : await tx.channel.findUnique({ where: { id: routineOwner.id } });
+      if (!channel || channel.archivedAt) {
+        throw new ApiError(
+          409,
+          "routine_channel_unavailable",
+          routineOwner.kind === "bot"
+            ? "The Bot chat is unavailable"
+            : "The group chat is unavailable"
+        );
+      }
+      if (routineOwner.kind === "group" && channel.kind !== "group") {
+        throw new ApiError(409, "routine_channel_unavailable", "The group chat is unavailable");
+      }
+      const revision = await tx.routineRevision.findUnique({
+        where: {
+          routineId_revision: { routineId: routine.id, revision: routine.revision },
+        },
+      });
+      if (!revision) {
+        throw new ApiError(
+          409,
+          "routine_revision_unavailable",
+          "This routine needs to be saved again before it can run"
+        );
+      }
+      const execution = await tx.routineExecution.create({
+        data: {
+          routineId: routine.id,
+          routineRevisionId: revision.id,
+          kind: event ? "scheduled" : "test",
+          status: "queued",
+          dedupeKey,
+          scheduledFor: firedAt,
+          enqueuedAt: firedAt,
+          ...(event ? { events: jsonInput([event]) } : {}),
+        },
+      });
+      let queued = execution;
+      let runId: string | null = null;
+      let roundId: string | null = null;
+      let completedImmediately = false;
+      if (routineOwner.kind === "bot") {
+        const wake = await this.host.enqueueWake(tx, {
+          botId: routineOwner.id,
+          channelId: channel.id,
+          origin: "routine",
+          type: event ? "routine.event" : "routine.manual",
+          ...(event
+            ? eventWake(routine, [event], firedAt)
+            : {
+                content: routineWakeContent({
+                  kind: "manual",
+                  name: routine.name,
+                  folder: routine.slug,
+                  schedule: routine.scheduleText,
+                  trigger: routine.trigger ?? undefined,
+                  timeZone: routine.timezone,
+                  firedAt,
+                  prompt: routine.prompt,
+                  provenance: routine.provenance,
+                }),
+              }),
+
+          clientId: dedupeKey,
+          priority: 290,
+          occurredAt: firedAt,
+          timeZone: routine.timezone,
+        });
+        runId = wake.run.id;
+        queued = await tx.routineExecution.update({
+          where: { id: execution.id },
+          data: { runId },
+        });
+      } else {
+        const seeded = await this.seedGroupRoutine(tx, { channelId: channel.id, routine, executionId: execution.id,
+          clientId: dedupeKey, firedAt, events: event ? [event] : undefined });
+        roundId = seeded.roundId;
+        queued = seeded.execution;
+      }
+      await tx.routine.update({
+        where: { id: routine.id },
+        data: {
+          lastRunAt: firedAt,
+          runLedger: appendRoutineRunLedger(routine.runLedger, {
+            id: execution.id,
+            trigger: event ? "event" : "manual",
+            startedAt: firedAt.getTime(),
+            finishedAt: completedImmediately ? firedAt.getTime() : null,
+            status: completedImmediately ? "ok" : "running",
+          }),
+        },
+      });
+      await tx.event.create({
+        data: {
+          topic: "routine.execution.queued",
+          entityId: execution.id,
+          payload: {
+            executionId: execution.id,
+            routineId: routine.id,
+            runId,
+            roundId,
+            kind: event ? "scheduled" : "test",
+          },
+        },
+      });
+      return queued;
+    });
     if (owner.kind === "bot") await this.files?.writeRoutine(owner.id, result.routineId);
     if (result.channelMessageId) {
       const round = await this.prisma.channelRound.findUnique({
@@ -1277,7 +1357,7 @@ export class RoutineService {
     if (inbox && pending.run) {
       // A follow-up fires when it starts, not when its first event arrived.
       const startedAt = pending.enqueuedAt ?? pending.scheduledFor;
-      const wake = eventWake(routine, events, startedAt);
+      const wake = eventWake({ ...routine, prompt: pending.routineRevision.prompt }, events, startedAt);
       const content = timestampUserTurn(wake.content, { occurredAt: startedAt, timeZone: routine.timezone });
       await tx.inboxEvent.update({
         where: { id: inbox.id },
@@ -1296,6 +1376,10 @@ export class RoutineService {
     routineId: string,
     now = new Date()
   ): Promise<false | { roundId: string | null }> {
+    // Resolve the immutable owner before the routine gate so launch paths keep lifecycle ->
+    // routine order. Worker settlement callers already hold the owner's lifecycle gate.
+    const candidate = await tx.routine.findUnique({ where: { id: routineId }, select: { botId: true, channelId: true } });
+    if (candidate?.botId || candidate?.channelId) await lockRoutineOwner(tx, routineOwnerFrom(candidate));
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`routine:${routineId}`}))`;
     const active = await tx.routineExecution.findMany({
       where: { routineId, status: { in: ["queued", "running"] } },
@@ -1376,25 +1460,13 @@ export class RoutineService {
   /** After a group routine's run settles, outside the room transaction that settled it: a
    * finished PR watch deletes itself, and events that arrived meanwhile start the next turn. */
   async afterGroupExecution(settled: { executionId: string; routineId: string }) {
-    await this.prisma.$transaction(
-      async (tx) => {
-        await configureRoutineTransaction(tx);
-        return this.finishTerminalWatch(tx, settled.executionId);
-      },
-      ROUTINE_TRANSACTION_OPTIONS
-    );
+    await this.prisma.$transaction((tx) => this.finishTerminalWatch(tx, settled.executionId));
     await this.runEventFollowUp(settled.routineId);
   }
 
   /** startEventFollowUp in its own transaction, then the first room turn of a group follow-up. */
   async runEventFollowUp(routineId: string): Promise<boolean> {
-    const started = await this.prisma.$transaction(
-      async (tx) => {
-        await configureRoutineTransaction(tx);
-        return this.startEventFollowUp(tx, routineId);
-      },
-      ROUTINE_TRANSACTION_OPTIONS
-    );
+    const started = await this.prisma.$transaction((tx) => this.startEventFollowUp(tx, routineId));
     if (started && started.roundId) await this.advanceGroupRound(started.roundId);
     return Boolean(started);
   }
@@ -1431,14 +1503,15 @@ export class RoutineService {
     const zone = await readUserTimeZone(this.prisma);
     const { schedule, trigger } = normalizeRoutineMutationTrigger(input, zone);
     const enabled = input.enabled ?? true;
-    const result = await this.prisma.$transaction(async (tx) => {
-      await configureRoutineTransaction(tx);
+    return this.prisma.$transaction(async (tx) => {
+      await lockRoutineOwner(tx, owner);
       if (owner.kind === "bot") {
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`agent-files:${owner.id}`}))`;
       }
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`routine-owner:${owner.kind}:${owner.id}`}))`;
       // The owner lock also serializes retried creation requests across servers.
       // Keep the original ID even when the routine was subsequently edited/deleted.
+      if (owner.kind === "bot") await this.files?.recoverRoutineCreation?.(owner.id, callId, tx);
       const previous = await tx.routineRevision.findFirst({
         where: { callId, revision: 1, routine: routineOwnerWhere(owner) },
         include: { routine: true },
@@ -1493,6 +1566,7 @@ export class RoutineService {
               ? nextRoutineTriggerRun(trigger, schedule, now, zone)
               : null,
           pausedAt: enabled ? null : now,
+          scheduleAnchorAt: now,
         },
       });
       await tx.routineRevision.create({
@@ -1522,10 +1596,9 @@ export class RoutineService {
         },
       });
       await appendRoutineChangedEvent(tx, this.host, owner, callId, routine, "created", now);
+      if (owner.kind === "bot") await this.files?.writeRoutine(owner.id, routine.id, tx, { authored: true });
       return { ...view(routine), action: "create", created: true };
-    }, ROUTINE_TRANSACTION_OPTIONS);
-    if (owner.kind === "bot") await this.files?.writeRoutine(owner.id, String(result.id));
-    return result;
+    });
   }
 
   private async update(
@@ -1535,8 +1608,8 @@ export class RoutineService {
     input: RoutineMutationInput
   ) {
     const id = required(input.id, "id");
-    const result = await this.prisma.$transaction(async (tx) => {
-      await configureRoutineTransaction(tx);
+    return this.prisma.$transaction(async (tx) => {
+      await lockRoutineOwner(tx, owner);
       if (owner.kind === "bot") {
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`agent-files:${owner.id}`}))`;
       }
@@ -1548,6 +1621,10 @@ export class RoutineService {
           "routine_revision_conflict",
           "This routine changed somewhere else. Reload it and try again."
         );
+      }
+      const definitionProvided = input.name !== undefined || input.prompt !== undefined || input.schedule !== undefined || input.trigger !== undefined || input.presentation !== undefined;
+      if (current.validationError && input.enabled === true && !definitionProvided) {
+        throw new ApiError(400, "invalid_routine_definition", "Fix this routine's definition and save it before resuming.");
       }
       const zone = await readUserTimeZone(tx);
       const normalized =
@@ -1571,6 +1648,7 @@ export class RoutineService {
           : required(input.name, "name").replace(/\s+/g, " ").slice(0, 80);
       const prompt = input.prompt === undefined ? current.prompt : required(input.prompt, "prompt");
       const enabled = input.enabled ?? current.enabled;
+      const scheduleChanged = triggerIdentity(trigger) !== triggerIdentity(current.trigger as Record<string, unknown>);
       const authoredChanged =
         name !== current.name ||
         prompt !== current.prompt ||
@@ -1588,16 +1666,20 @@ export class RoutineService {
             input.presentation !== undefined
               ? jsonInput(input.presentation)
               : current.triggerPresentation
-                ? jsonInput({ version: 1, trigger })
+                ? jsonInput(scheduleChanged ? { version: 1, trigger } : current.triggerPresentation)
                 : Prisma.JsonNull,
           ...schedule,
           enabled,
+          validationError: definitionProvided ? null : current.validationError,
           provenance: input.source === "ui" ? "user" : current.provenance,
           revision,
           nextRunAt:
             enabled && schedule.scheduleKind !== "event"
-              ? nextRoutineTriggerRun(trigger, schedule, now, zone)
+              ? scheduleChanged || enabledChanged
+                ? nextRoutineTriggerRun(trigger, schedule, now, zone, now)
+                : current.nextRunAt
               : null,
+          scheduleAnchorAt: scheduleChanged || enabledChanged ? now : current.scheduleAnchorAt,
           pausedAt: enabled ? null : (current.pausedAt ?? now),
         },
       });
@@ -1637,10 +1719,9 @@ export class RoutineService {
       if (timelineAction) {
         await appendRoutineChangedEvent(tx, this.host, owner, callId, routine, timelineAction, now);
       }
+      if (owner.kind === "bot") await this.files?.writeRoutine(owner.id, routine.id, tx, { authored: definitionProvided });
       return { ...view(routine), action: "update", updated: true };
-    }, ROUTINE_TRANSACTION_OPTIONS);
-    if (owner.kind === "bot") await this.files?.writeRoutine(owner.id, String(result.id));
-    return result;
+    });
   }
 
   private async lifecycle(
@@ -1650,15 +1731,7 @@ export class RoutineService {
     input: RoutineMutationInput
   ) {
     const id = required(input.id, "id");
-    const result = await this.prisma.$transaction(async (tx) => {
-      await configureRoutineTransaction(tx);
-      return this.lifecycleIn(tx, owner, callId, runId, input, id);
-    }, ROUTINE_TRANSACTION_OPTIONS);
-    if (owner.kind === "bot" && !("unchanged" in result && result.unchanged)) {
-      if (result.deleted) await this.files?.deleteRoutine(owner.id, String(result.id));
-      else await this.files?.writeRoutine(owner.id, String(result.id));
-    }
-    return result;
+    return this.prisma.$transaction((tx) => this.lifecycleIn(tx, owner, callId, runId, input, id));
   }
 
   private async lifecycleIn(
@@ -1669,6 +1742,7 @@ export class RoutineService {
     input: RoutineMutationInput,
     id: string
   ) {
+    await lockRoutineOwner(tx, owner);
     if (owner.kind === "bot") {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`agent-files:${owner.id}`}))`;
     }
@@ -1684,7 +1758,14 @@ export class RoutineService {
     const now = new Date();
     const enabled = input.action === "resume";
     const deleted = input.action === "delete";
-    if (!deleted && current.enabled === enabled) {
+    if (enabled && current.validationError) {
+      throw new ApiError(400, "invalid_routine_definition", "Fix this routine's definition and save it before resuming.");
+    }
+    // Quarantine disables execution without expressing the user's pause intent.
+    // Record the first explicit pause so restoring an older valid file cannot
+    // resume it. Repeated pauses remain no-ops once that intent is persisted.
+    const recordQuarantinePause = input.action === "pause" && current.validationError && !current.pausedAt;
+    if (!deleted && current.enabled === enabled && !recordQuarantinePause) {
       return {
         ...view(current),
         action: input.action,
@@ -1713,10 +1794,12 @@ export class RoutineService {
                 current.trigger as Record<string, unknown>,
                 schedule,
                 now,
-                await readUserTimeZone(tx)
+                await readUserTimeZone(tx),
+                now
               )
             : null,
         pausedAt: enabled ? null : now,
+        ...(enabled ? { scheduleAnchorAt: now } : {}),
         deletedAt: deleted ? now : null,
       },
     });
@@ -1760,6 +1843,10 @@ export class RoutineService {
       deleted ? "deleted" : enabled ? "enabled" : "disabled",
       now
     );
+    if (owner.kind === "bot") {
+      if (deleted) await this.files?.deleteRoutine(owner.id, routine.id, tx);
+      else await this.files?.writeRoutine(owner.id, routine.id, tx);
+    }
     return {
       ...view(routine),
       action: input.action,
@@ -1807,7 +1894,7 @@ export class RoutineService {
       let outcome: { didDispatch: boolean; roundId: string | null };
       try {
         outcome = await this.prisma.$transaction(async (tx) => {
-        await configureRoutineTransaction(tx);
+        await lockRoutineOwner(tx, routineOwnerFrom(candidate));
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`routine:${candidate.id}`}))`;
         const routine = await tx.routine.findUnique({
           where: { id: candidate.id },
@@ -1825,32 +1912,16 @@ export class RoutineService {
           return { didDispatch: false, roundId: null as string | null };
         }
         const owner = routineOwnerFrom(routine);
-        // Cron occurrences are wall-clock anchored. Jump over downtime rather
-        // than parsing every missed tick inside the database transaction.
-        // Relative intervals retain their existing scheduled-time anchor.
-        const hasElapsedInterval =
-          routine.scheduleKind === "interval" ||
-          cronSchedules(routine.trigger as Record<string, unknown>).some((schedule) =>
-            /^@every\s/i.test(schedule)
-          );
+        // Stable anchors preserve every listener's independent relative cadence.
+        // Jump directly past downtime instead of iterating missed occurrences.
         const zone = await readUserTimeZone(tx);
-        let nextRunAt = nextRoutineTriggerRun(
-          routine.trigger as Record<string, unknown>,
-          routine,
-          hasElapsedInterval ? scheduledFor : now,
-          zone
+        const scheduleAnchorAt = await inferRoutineScheduleAnchor(tx, routine);
+        const nextRunAt = nextRoutineTriggerRun(
+          routine.trigger as Record<string, unknown>, routine, now, zone, scheduleAnchorAt
         );
-        while (nextRunAt <= now) {
-          nextRunAt = nextRoutineTriggerRun(
-            routine.trigger as Record<string, unknown>,
-            routine,
-            nextRunAt,
-            zone
-          );
-        }
         await tx.routine.update({
           where: { id: routine.id },
-          data: { nextRunAt, lastRunAt: scheduledFor },
+          data: { nextRunAt, lastRunAt: scheduledFor, scheduleAnchorAt },
         });
         const revision = await tx.routineRevision.findUniqueOrThrow({
           where: {
@@ -1861,6 +1932,14 @@ export class RoutineService {
           },
         });
         const dedupeKey = `routine:${routine.id}:revision:${routine.revision}:at:${scheduledFor.toISOString()}`;
+        // A stale projection can point to a committed occurrence after a crash.
+        // Advance it without recreating its execution or wake.
+        if (await tx.routineExecution.findFirst({
+          where: { routineId: routine.id, scheduledFor, kind: "scheduled", events: { equals: Prisma.DbNull } },
+          select: { id: true },
+        })) {
+          return { didDispatch: false, roundId: null as string | null };
+        }
         if (active > 0) {
           const execution = await tx.routineExecution.create({
             data: {
@@ -1924,6 +2003,7 @@ export class RoutineService {
               name: routine.name,
               folder: routine.slug,
               schedule: routine.scheduleText,
+              trigger: routine.trigger,
               scheduledFor,
               timeZone: routine.timezone,
               prompt: routine.prompt,
@@ -1969,21 +2049,27 @@ export class RoutineService {
           },
         });
         return { didDispatch: true, roundId };
-        }, ROUTINE_TRANSACTION_OPTIONS);
+        });
       } catch (error) {
-        // Another scheduler may have committed this occurrence while this
-        // transaction was racing with it. The unique dedupe key is the
-        // durable idempotency result, so do not record the loser as a failure.
-        if ((error as { code?: string }).code === "P2002") continue;
         // A broken owner/dispatch must not prevent unrelated routines from
         // firing. The failed transaction queued nothing; retain a visible
         // failed occurrence and advance its schedule in a separate transaction.
-        await this.recordDispatchFailure(candidate.id, now, error);
-        if (candidate.botId) await this.files?.writeRoutine(candidate.botId, candidate.id);
+        try {
+          await this.recordDispatchFailure(candidate.id, now, error);
+          if (candidate.botId) await this.files?.writeRoutine(candidate.botId, candidate.id);
+        } catch (recordError) {
+          console.error("Unable to record routine dispatch failure", candidate.id);
+        }
         continue;
       }
-      if (candidate.botId) await this.files?.writeRoutine(candidate.botId, candidate.id);
-      if (outcome.roundId) await this.advanceGroupRound(outcome.roundId);
+      if (candidate.botId) {
+        try { await this.files?.writeRoutine(candidate.botId, candidate.id); }
+        catch (error) { console.error("Unable to project committed routine dispatch", candidate.id); }
+      }
+      if (outcome.roundId) {
+        try { await this.advanceGroupRound(outcome.roundId); }
+        catch (error) { console.error("Unable to advance committed routine round", outcome.roundId); }
+      }
       if (outcome.didDispatch) dispatched += 1;
     }
     return dispatched;
@@ -1991,7 +2077,6 @@ export class RoutineService {
 
   private async recordDispatchFailure(id: string, now: Date, failure: unknown): Promise<void> {
     await this.prisma.$transaction(async (tx) => {
-      await configureRoutineTransaction(tx);
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`routine:${id}`}))`;
       const routine = await tx.routine.findUnique({ where: { id } });
       if (!routine?.enabled || routine.deletedAt || !routine.nextRunAt || routine.nextRunAt > now) return;
@@ -2001,17 +2086,32 @@ export class RoutineService {
       const error = failure instanceof ApiError
         ? { code: failure.code, message: failure.message }
         : { code: "routine_dispatch_failed", message: "The routine could not be started." };
+      let nextRunAt: Date | null;
+      try {
+        nextRunAt = nextRoutineTriggerRun(routine.trigger as Record<string, unknown>, routine, now, await readUserTimeZone(tx), await inferRoutineScheduleAnchor(tx, routine));
+      } catch {
+        nextRunAt = null;
+      }
+      const dedupeKey = `routine:${id}:revision:${routine.revision}:at:${scheduledFor.toISOString()}`;
+      if (await tx.routineExecution.findFirst({
+        where: { routineId: id, scheduledFor, kind: "scheduled", events: { equals: Prisma.DbNull } },
+        select: { id: true },
+      })) {
+        await tx.routine.update({ where: { id }, data: { nextRunAt, ...(nextRunAt === null ? { enabled: false, validationError: "Invalid routine schedule. Edit and save this routine before resuming." } : {}) } });
+        return;
+      }
       const execution = await tx.routineExecution.create({ data: {
         routineId: id, routineRevisionId: revision.id, kind: "scheduled", status: "failed",
-        dedupeKey: `routine:${id}:revision:${routine.revision}:at:${scheduledFor.toISOString()}`,
+        dedupeKey,
         scheduledFor, completedAt: now, error,
       } });
       await tx.routine.update({ where: { id }, data: {
-        nextRunAt: nextRoutineTriggerRun(routine.trigger as Record<string, unknown>, routine, now, await readUserTimeZone(tx)),
+        nextRunAt,
+        ...(nextRunAt === null ? { enabled: false, validationError: "Invalid routine schedule. Edit and save this routine before resuming." } : {}),
         lastRunAt: scheduledFor,
         runLedger: appendRoutineRunLedger(routine.runLedger, { id: execution.id, trigger: "schedule", startedAt: now.getTime(), finishedAt: now.getTime(), status: "error", errorKind: error.code }),
       } });
       await tx.event.create({ data: { topic: "routine.execution.failed", entityId: execution.id, payload: { executionId: execution.id, routineId: id, error } } });
-    }, ROUTINE_TRANSACTION_OPTIONS);
+    });
   }
 }

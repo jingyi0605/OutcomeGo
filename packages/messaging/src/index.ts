@@ -1,5 +1,16 @@
-export { ensureRequestForTask, reportRequestProgress, settleRequestProgress, recoverRequestProgress, dispatchRequestChecks, stopRequestProgress, requestProgressSnapshot, requestWakeAllowed } from "./request-progress";
+export { lockQuestions, dismissQuestions, questionScopeForReply } from "./question-lifecycle";
+export { lockAgentLifecycle, canonicalAgentId } from "./agent-lifecycle";
+export { cleanupRetiredAgent, RETIRED_AGENT_CLEANUP_RETRY_MS } from "./retired-agent-cleanup";
+export {
+  draftNotificationVariant,
+  isManagedDraftWake,
+  isTreatmentDraftWake,
+  lockDraftNotifications,
+  prepareDraftNotification,
+} from "./draft-notifications";
+export { ensureRequestForTask, reportRequestProgress, settleRequestProgress, recoverRequestProgress, dispatchRequestChecks, stopRequestProgress, requestProgressSnapshot, requestWakeAllowed, requestIsStopped } from "./request-progress";
 import { requestProgressSnapshot } from "./request-progress";
+export { assertBackgroundRequestDeliveryAllowed } from "./background-request-delivery";
 import { renderTaskProgressContext } from "@outcomego/contracts/task-progress";
 export { initialTaskProgress, settleTaskProgress, reportTaskProgress, dispatchTaskContinuations, taskProgress, taskProgressContext, notifyTaskProgress, recoverTaskInterruption, TASK_RECOVERY_LOCK } from "./task-progress";
 import { taskProgressContext, taskScopeContext } from "./task-progress";
@@ -743,6 +754,7 @@ export interface WakeInput {
   handoff?: string;
   /** The run this typed message superseded; it gets the unfinished-tasks reminder when that run had dispatched. */
   interruptedRunId?: string;
+  draftNotification?: { variant: "control" | "treatment" };
 }
 
 export interface ToolContext {
@@ -1053,6 +1065,7 @@ export class AgentMessaging {
           revival: input.revival,
           handoff: input.handoff,
           interruptedRunId: input.interruptedRunId,
+          draftNotification: input.draftNotification,
         }),
         priority: input.priority,
         availableAt: input.availableAt,
@@ -1085,6 +1098,17 @@ export class AgentMessaging {
       }
     );
     return { message, run, inbox };
+  }
+
+  async enqueueDraftOutcome(
+    tx: Prisma.TransactionClient,
+    input: WakeInput,
+    treatment = false
+  ) {
+    return this.enqueueWake(tx, {
+      ...input,
+      draftNotification: { variant: treatment ? "treatment" : "control" },
+    });
   }
 
   async broadcast(input: AdminBroadcastInput): Promise<{

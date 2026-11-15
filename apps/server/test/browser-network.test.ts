@@ -31,6 +31,7 @@ import {
 } from "@outcomego/plugin-sdk/browser-network/protocol";
 import { createBrowserProxy } from "@outcomego/plugin-sdk/browser-network/socks";
 import { managedBrowserNetworkArguments } from "../../computer/src/browser-network";
+import type { NetworkDiagnostic } from "@outcomego/plugin-sdk/browser-network/diagnostics";
 
 const browserPath = [
   process.env.CHROME_PATH,
@@ -40,8 +41,12 @@ const browserPath = [
 ].find((path) => path && existsSync(path));
 const cleanup: Array<() => unknown> = [];
 afterEach(async () => {
-  for (const close of cleanup.splice(0).reverse()) await close();
-});
+  const errors: unknown[] = [];
+  for (const close of cleanup.splice(0).reverse()) {
+    try { await close(); } catch (error) { errors.push(error); }
+  }
+  if (errors.length) throw new AggregateError(errors, "Network fixture cleanup failed");
+}, 30_000);
 async function until(check: () => boolean | Promise<boolean>, ms = 6000) {
   const start = Date.now();
   while (!(await check())) {
@@ -59,6 +64,8 @@ async function fixture(
     revision: 1,
     sourceOrder: ["server"],
   };
+  const diagnostics: NetworkDiagnostic[] = [];
+  const computerDiagnostics: NetworkDiagnostic[] = [];
   const store: NetworkStore = {
     read: async () => ({ ...settings }),
     change: async (expected, mode, machineId, sourceOrder) => {
@@ -120,7 +127,7 @@ async function fixture(
     store,
     machines,
     (request) => request.headers.get("authorization") === "Bearer internal",
-    options
+    { ...options, diagnostic: (event) => diagnostics.push(event) }
   );
   const server = Bun.serve<NetworkConnection>({
     hostname: "127.0.0.1",
@@ -189,6 +196,7 @@ async function fixture(
     role: "computer",
     url: `ws://127.0.0.1:${server.port}/computer`,
     headers: { authorization: "Bearer internal" },
+    diagnostic: (event: NetworkDiagnostic) => computerDiagnostics.push(event),
   });
   computer.start();
   cleanup.push(() => computer.stop());
@@ -242,14 +250,20 @@ async function fixture(
     cleanup.push(() => peer.stop());
     return peer;
   };
-  const select = async (id: string) => {
+  const select = async (id: string, waitForComputer = true) => {
     await until(async () =>
-      (await service.view()).devices.some((d) => d.machineId === id && d.sharingAllowed)
+      (await service.view()).devices.some((d) => d.machineId === id && d.sharingAllowed && d.working)
     );
     await service.update({ expectedRevision: settings.revision, mode: "device", machineId: id });
-    await until(async () => (await service.view()).runtime.state === "ready");
+    await until(async () => {
+      const view = await service.view();
+      return view.runtime.state === "ready" && (!waitForComputer || (computer.available() &&
+        computer.route?.machineId === id && computer.route.epoch === view.runtime.routeEpoch));
+    });
   };
   return {
+    diagnostics,
+    computerDiagnostics,
     service,
     computer,
     device,
@@ -297,6 +311,21 @@ async function fixture(
     },
   };
 }
+test("network diagnostics distinguish a revoked route from an upstream reset", async () => {
+  const f = await fixture();
+  const peer = f.device("diagnostic-exit");
+  await f.select("diagnostic-exit");
+  const epoch = f.computer.route!.epoch;
+  const stream = await f.computer.open("desktop-only.example", 443);
+  const closed = new Promise<void>((resolve) => stream.once("close", resolve));
+  f.service.revoke("diagnostic-exit");
+  await closed;
+  await until(() => f.computer.available() && f.computer.route?.mode === "server");
+  expect(f.diagnostics).toContainEqual(expect.objectContaining({ event: "transport_closed", reason: "permission_revoked", epoch, mode: "device" }));
+  expect(f.diagnostics).toContainEqual(expect.objectContaining({ event: "route_changed", reason: "source_changed", mode: "server", previousMode: "device" }));
+  expect(f.computerDiagnostics).toContainEqual(expect.objectContaining({ event: "route_fenced", epoch, mode: "device", activeConnections: 1 }));
+  peer.stop();
+});
 async function roundTrip(client: BrowserNetworkClient, payload: Buffer) {
   const stream = await client.open("desktop-only.example", 443);
   const received: Buffer[] = [];
@@ -538,7 +567,7 @@ describe("connected device browser network", () => {
     peer.stop();
     await routed(f, "server");
     f.device("home");
-    await until(async () => (await f.service.view()).runtime.state === "ready");
+    await routed(f, "home");
     expect(f.getSettings().revision).toBe(revision);
     expect(f.computer.route!.epoch).not.toBe(epoch);
     expect((await roundTrip(f.computer, Buffer.from("reconnected"))).toString()).toBe(
@@ -630,8 +659,12 @@ describe("connected device browser network", () => {
             env: { ...process.env, NODE_EXTRA_CA_CERTS: cert },
             stdio: ["pipe", "pipe", "pipe"],
           });
-          cleanup.push(() => {
+          const exited = new Promise<void>((resolve) => child.once("exit", () => resolve()));
+          cleanup.push(async () => {
+            if (child.exitCode !== null || child.signalCode !== null) return;
+            const force = setTimeout(() => child.kill("SIGKILL"), 2000);
             child.kill();
+            try { await exited; } finally { clearTimeout(force); }
           });
           if (file === "worker.mjs") child.stdin.write(JSON.stringify(config) + "\n");
           else child.stdin.end(JSON.stringify(config));
@@ -672,7 +705,14 @@ describe("connected device browser network", () => {
         cert,
         key,
       });
-      await f.select("node-device");
+      await f.select("node-device", false);
+      // The server's applied route can precede the replacement Node worker's lease.
+      // Select only after the device has a lease, then wait for the worker's own readiness.
+      const epoch = (await f.service.view()).runtime.routeEpoch;
+      await until(() => {
+        const status = computer.messages.findLast((message: any) => typeof message.ready === "boolean");
+        return status?.ready && status.routeEpoch === epoch;
+      });
       // The production worker checks the same TLS destination through the real device mux.
       // Only this isolated fixture maps ipwho.is to a local TLS server with a trusted test CA.
       const probeId = crypto.randomUUID();
@@ -710,6 +750,8 @@ describe("connected device browser network", () => {
       });
       cleanup.push(() => browser.close());
       const context = await browser.newContext({ ignoreHTTPSErrors: true });
+      // Stop service workers and outstanding requests before closing their browser and relay.
+      cleanup.push(() => context.close());
       let bypassRequests = 0;
       const bypass = Bun.serve({
         hostname: "127.0.0.1",
@@ -779,7 +821,9 @@ describe("connected device browser network", () => {
       await largePage.close();
       expect((await f.service.view()).runtime.bytesReceived).toBeGreaterThan(8 * 1024 * 1024);
     },
-    60000
+    // This includes a 256 MiB browser transfer; keep RPC deadlines above short, but allow
+    // the bulk transfer and deterministic process cleanup to finish on loaded test hosts.
+    120000
   );
   test("streams large binary uploads/downloads with half-close and concurrent connections through the device", async () => {
     const f = await fixture();
@@ -862,11 +906,93 @@ describe("connected device browser network", () => {
       expect(response.status).toBe(403);
     }
   });
+  test("Node SOCKS reset cancels the selected-device dial and recovers without replay", async () => {
+    const f = await fixture();
+    f.device("home");
+    await f.select("home");
+    f.computer.stop();
+    const held = f.holdDials("home");
+    const directory = await mkdtemp(join(tmpdir(), "openteam-socks-relay-"));
+    cleanup.push(() => rm(directory, { recursive: true, force: true }));
+    const file = join(directory, "relay.mjs");
+    const build = Bun.spawn(
+      [
+        process.execPath,
+        "build",
+        resolve(
+          import.meta.dirname,
+          "../../../packages/plugin-sdk/test/browser-network/socks-relay.fixture.ts"
+        ),
+        "--target",
+        "node",
+        "--outfile",
+        file,
+      ],
+      { stdout: "ignore", stderr: "inherit" }
+    );
+    expect(await build.exited).toBe(0);
+    const child = spawn(process.env.OPENTEAM_TEST_NODE ?? "node", [file], {
+      stdio: ["pipe", "pipe", "pipe"],
+    });
+    const exited = new Promise<void>((resolve) => child.once("exit", () => resolve()));
+    cleanup.push(async () => {
+      child.kill();
+      const timeout = setTimeout(() => child.kill("SIGKILL"), 1000);
+      await exited;
+      clearTimeout(timeout);
+    });
+    let stdout = "",
+      stderr = "";
+    child.stdout.setEncoding("utf8");
+    child.stderr.setEncoding("utf8");
+    child.stdout.on("data", (text) => {
+      stdout += text;
+    });
+    child.stderr.on("data", (text) => {
+      stderr += text;
+    });
+    const send = (value: unknown) => child.stdin.write(JSON.stringify(value) + "\n");
+    send({ op: "start", url: `ws://127.0.0.1:${f.server.port}/computer` });
+    await until(() => stdout.includes('"ready":true'));
+    send({ op: "open" });
+    await until(() => held.pending.length === 1);
+    send({ op: "reset" });
+    await until(() => held.pending[0]!.signal.aborted);
+    held.release();
+    await until(() => held.pending[0]!.socket.destroyed);
+    const dead = f.holdDials("home");
+    send({ op: "open" });
+    await until(() => dead.pending.length === 1);
+    await new Promise<void>((resolve) => {
+      dead.pending[0]!.socket.once("close", resolve);
+      dead.pending[0]!.socket.destroy();
+    });
+    dead.release();
+    await until(() => stdout.includes('"connectCode":'));
+    const connect = stdout
+      .split("\n")
+      .filter(Boolean)
+      .map((line) => JSON.parse(line))
+      .find((line) => "connectCode" in line);
+    expect(connect.connectCode).toBe(1);
+    send({ op: "recover" });
+    await until(() => stdout.includes('"recovered":'));
+    const recovered = stdout
+      .split("\n")
+      .filter(Boolean)
+      .map((line) => JSON.parse(line))
+      .find((line) => line.recovered);
+    const bytes = Buffer.from(recovered.recovered, "hex");
+    expect([...bytes.subarray(0, 4)]).toEqual([5, 0, 5, 0]);
+    expect(bytes.subarray(12).toString()).toBe("recovered");
+    expect(f.getDials()).toBe(3);
+    expect(stderr).toBe("");
+  }, 15000);
   test("SOCKS fragmented negotiation reaches the same managed route and rejects UDP", async () => {
     const f = await fixture();
     f.device("home");
     await f.select("home");
-    const proxy = createBrowserProxy((host, port) => f.computer.open(host, port));
+    const proxy = createBrowserProxy((host, port, signal) => f.computer.open(host, port, signal));
     const port = await proxy.listen(0);
     cleanup.push(() => proxy.close());
     const socket = createConnection({ host: "127.0.0.1", port });

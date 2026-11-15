@@ -34,7 +34,7 @@ export function appendDraftAttachment(
   if (split < 0) throw new Error("Draft has invalid MIME headers");
   const headers = text.slice(0, split).split(/\r\n(?![ \t])/);
   const body = text.slice(split + 4);
-  const boundary = `outcomego-${crypto.randomUUID()}`;
+  const boundary = `openteam-${crypto.randomUUID()}`;
   const contentHeaders = headers.filter((h) => /^content-/i.test(h));
   const messageHeaders = headers.filter((h) => !/^content-|^mime-version:/i.test(h));
   const encodedName = encodeURIComponent(name).replace(/'/g, "%27");

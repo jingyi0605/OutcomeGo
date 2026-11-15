@@ -1,5 +1,7 @@
 import { settleTaskProgress, dispatchTaskContinuations, settleRequestProgress, recoverRequestProgress, dispatchRequestChecks, requestWakeAllowed, taskProgress, recoverTaskInterruption, TASK_RECOVERY_LOCK } from "@outcomego/messaging";
 import {
+  isManagedDraftWake,
+  isTreatmentDraftWake,
   publishMessageNotification,
   turnOwesReplyReminder,
   turnSystemReminder,
@@ -214,8 +216,13 @@ const REQUEST_SOURCE_BY_ORIGIN = {
   broadcast: "broadcast",
 } as const satisfies Record<RunOrigin, RuntimeRequestSource>;
 
-export const runtimeRequestSourceForOrigin = (origin: RunOrigin): RuntimeRequestSource =>
-  REQUEST_SOURCE_BY_ORIGIN[origin];
+export const runtimeRequestSourceForOrigin = (
+  origin: RunOrigin,
+  inboxType?: string
+): RuntimeRequestSource =>
+  origin === "user" && inboxType === "user.reaction"
+    ? "event"
+    : REQUEST_SOURCE_BY_ORIGIN[origin];
 
 /** Interrupted wakes that run again, and how often: agent messages up to 3 times, the rest once. */
 export const WAKE_REDRIVE_LIMITS: Partial<Record<RunOrigin, number>> = {
@@ -270,6 +277,51 @@ interface RevivalWake {
   payload: unknown;
   run: { origin: RunOrigin; channelId: string | null };
 }
+
+/** Each card keeps its own receipt; ready draft outcomes share one model continuation. */
+export const draftResponseBatch = <T extends RevivalWake>(
+  claimed: T,
+  pending: readonly T[]
+): { content: string; folded: T[] } | null => {
+  if (
+    claimed.type !== "draft.response" ||
+    claimed.status !== "pending" ||
+    claimed.run.origin !== "user" ||
+    isTreatmentDraftWake(claimed)
+  )
+    return null;
+  const managed = isManagedDraftWake(claimed);
+  const folded = pending.filter(
+    (wake) =>
+      wake.id !== claimed.id &&
+      wake.type === "draft.response" &&
+      wake.status === "pending" &&
+      wake.run.origin === "user" &&
+      wake.run.channelId === claimed.run.channelId &&
+      !isTreatmentDraftWake(wake) &&
+      isManagedDraftWake(wake) === managed
+  );
+  if (managed) {
+    const content =
+      claimed.payload && typeof claimed.payload === "object"
+        ? (claimed.payload as { content?: unknown }).content
+        : undefined;
+    return typeof content === "string" ? { content, folded } : null;
+  }
+  const notices = [claimed, ...folded].map((wake) => {
+    const content =
+      wake.payload && typeof wake.payload === "object"
+        ? (wake.payload as { content?: unknown }).content
+        : undefined;
+    return typeof content === "string"
+      ? content.replace(/^\[SAND_HIDDEN_PROMPT\]/, "")
+      : `Draft outcome event ${wake.id}. Read its stored card outcome.`;
+  });
+  return {
+    content: `[SAND_HIDDEN_PROMPT]${folded.length + 1} external message draft outcome(s) are ready. Read the new card outcomes together and continue once. Acknowledge newly settled drafts in one brief SendToUser message. If their result was already reported, do not send another confirmation. Do not infer other cards are still open merely because their outcomes are absent.\n\n${notices.join("\n\n---\n\n")}`,
+    folded,
+  };
+};
 
 /** The raw size of a base64 data URL's payload. */
 const dataUrlBytes = (url: string): number => {
@@ -333,6 +385,8 @@ const revivalBatchContent = <T extends RevivalWake>(claimed: T, pending: readonl
 export const turnContentWithNotes = (
   input: {
     origin: RunOrigin;
+    inboxType?: string;
+    appendReplyReminder?: boolean;
     runtimeProfile: "agent" | "subagent";
     notes: ReadonlyArray<string | null | undefined>;
     unfinishedTasks?: boolean;
@@ -342,7 +396,10 @@ export const turnContentWithNotes = (
   withTurnSystemReminder(
     turnSystemReminder(input.notes, {
       unfinishedTasks: input.unfinishedTasks,
-      reply: input.runtimeProfile === "agent" && turnOwesReplyReminder(input.origin, content),
+      reply:
+        input.appendReplyReminder === true &&
+        input.runtimeProfile === "agent" &&
+        turnOwesReplyReminder(input.origin, content, input.inboxType),
     }),
     content
   );
@@ -1266,7 +1323,7 @@ export class WakeWorker {
             attempts: { increment: 1 },
           },
         });
-        const batch = revivalBatch(inbox, candidates);
+        const batch = draftResponseBatch(inbox, candidates) ?? revivalBatch(inbox, candidates);
         if (batch) {
           const settledAt = new Date();
           const folded = batch.folded.map((wake) => wake.id);
@@ -1495,6 +1552,8 @@ export class WakeWorker {
         sessionPath: claimed.sessionPath,
         content: turnContentWithNotes({
           origin: claimed.origin,
+          inboxType: claimed.inboxType,
+          appendReplyReminder: true,
           runtimeProfile: claimed.runtimeProfile,
           notes: [platformPrompt.automationStatus, platformPrompt.agentProfileUpdate, platformPrompt.instructionsUpdate],
           unfinishedTasks: await this.supersededUnfinishedRun(claimed),
@@ -1513,7 +1572,7 @@ export class WakeWorker {
         agentProfileSnapshot: platformPrompt.agentProfileSnapshot ?? undefined,
         todoUpdate: platformPrompt.todoUpdate,
         resetSelfSummaryCount: wakeResetsSelfSummaryCount(claimed.inboxType),
-        requestSource: runtimeRequestSourceForOrigin(claimed.origin),
+        requestSource: runtimeRequestSourceForOrigin(claimed.origin, claimed.inboxType),
         channelId: claimed.channelId,
         deliveryId: claimed.deliveryId,
         runtimeProfile: claimed.runtimeProfile,

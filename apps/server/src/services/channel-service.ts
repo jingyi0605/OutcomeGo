@@ -1,7 +1,9 @@
 import { nextMessageAddress, lockGroupExecution, supersedeGroupUserTurns } from "@outcomego/messaging";
 import {
   ApiError,
+  type ChannelMessageView,
   type ReactToChannelMessageInput,
+  type ReactToChannelMessageView,
   type RenameChannelInput,
   type SendMessageInput,
 } from "@outcomego/contracts";
@@ -430,9 +432,9 @@ export class ChannelService {
           });
           if (!message) throw new ApiError(404, "message_not_found", "Message was not found");
           return {
-            ...(serialize(existing.response) as Record<string, unknown>),
+            ...(serialize(existing.response) as Omit<ReactToChannelMessageView, "message">),
             message: channelMessageView(message),
-          };
+          } as ReactToChannelMessageView;
         }
         throw new ApiError(409, "request_in_progress", "This reaction is already being applied");
       }
@@ -519,7 +521,7 @@ export class ChannelService {
           where: { scope_key: { scope, key: input.clientId } },
           data: { status: "completed", response: toJson(result) },
         });
-        return { ...result, message: channelMessageView(updatedMessage) };
+        return { ...result, message: channelMessageView(updatedMessage) } as ReactToChannelMessageView;
       });
       return serialize(response);
     });

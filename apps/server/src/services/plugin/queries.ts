@@ -1,3 +1,4 @@
+import { publicDeviceLink } from "./device-link";
 import { rankPluginsLexically } from "@outcomego/contracts/reference-formatters";
 import { PLUGIN_WORKFLOW_HOST_CONTEXT } from "@outcomego/contracts/plugin-workflows";
 import { pluginDynamicNamespaces } from "@outcomego/contracts/plugin-namespaces";
@@ -116,9 +117,10 @@ export class PluginQueries {
       ].slice(0, PLUGIN_CONNECTION_STATUS_MAX_IDS);
       if (ids.length === 0) return { connections: [] };
       return {
-        connections: (
+        connections:
           // Project only provider setup metadata, never package files/artwork on frequent polls.
-          await this.prisma.$queryRaw<Array<{
+          (
+            await this.prisma.$queryRaw<Array<{
             id: string;
             authType: string;
             connectorKey: string;
@@ -136,11 +138,11 @@ export class PluginQueries {
                 'key', i."pluginKey", 'name', i."name", 'skills', '[]'::jsonb,
                 'setup', i."manifest"->'setup', 'setupFields', i."manifest"->'setupFields',
                 'connections', COALESCE((SELECT jsonb_agg(jsonb_build_object(
-                  'key', connector->'key', 'oauth', connector->'oauth', 'setup', connector->'setup'
+                  'key', connector->'key', 'oauth', connector->'oauth', 'setup', connector->'setup', 'deviceLink', connector->'deviceLink'
                 )) FROM jsonb_array_elements(i."manifest"->'connections') connector
                   WHERE connector->>'key' = c."connectorKey"), '[]'::jsonb)
               ) AS "manifest"
-            FROM "outcomego_plugin_connection" c JOIN "outcomego_plugin_installation" i ON i."id" = c."installationId"
+            FROM "PluginConnection" c JOIN "PluginInstallation" i ON i."id" = c."installationId"
             WHERE c."id" IN (${Prisma.join(ids)}) ORDER BY c."id"
           `)
         ).map((connection) => ({
@@ -154,6 +156,11 @@ export class PluginQueries {
               ? String(jsonObject(jsonObject(connection.credentials).oauth).authorizationUrl)
               : null,
           authorizationExpiresAt: oauthAuthorizationExpiry(connection.credentials),
+            ...(definitionFromManifest(connection.manifest)?.connections.find(
+              (c) => c.key === connection.connectorKey
+            )?.deviceLink
+              ? { deviceLink: publicDeviceLink(connection.credentials) }
+              : {}),
           oauthCallbackMode: connectionCallbackMode(this.publicUrl, connection),
           setupPhase: connectionSetupPhase(connection, definitionFromManifest(connection.manifest)),
           configured: connectionConfigured(connection, definitionFromManifest(connection.manifest)),
@@ -304,18 +311,28 @@ export class PluginQueries {
           `### ${plugin?.name}: ${skill.name}\n${skill.description}\n\n${skill.body}\n\nSupporting files: find pluginId ${JSON.stringify(installation.pluginKey)} and skill ${JSON.stringify(skill.name)} in ${process.env.OUTCOMEGO_AGENT_DATA_ROOT ?? "/agent-data"}/plugin-skills/cache.json. Resolve relative file links from that SKILL.md directory.`
       );
     });
+    const privateSkills = await this.prisma.pluginPrivateSkill.findMany({
+      where: { enabledBotIds: { array_contains: [botId] } },
+    });
+    sections.push(
+      ...privateSkills.map(
+        (skill) =>
+          `### Private skill: ${skill.name}\n${skill.description}\n\n${skill.body}\n\nSupporting files: find pluginId ${JSON.stringify(`private-${skill.id}`)} in ${process.env.OUTCOMEGO_AGENT_DATA_ROOT ?? "/agent-data"}/plugin-skills/cache.json and resolve links from its SKILL.md directory.`
+      )
+    );
     return sections.length ? `\n\n## Installed plugin skills\n\n${PLUGIN_WORKFLOW_HOST_CONTEXT}\n\n${sections.join("\n\n")}` : "";
   };
 
   composer = (botId: string) =>
     serviceEffect(async () => {
-      const [namespaces, installations, savedSkills] = await Promise.all([
+      const [namespaces, installations, privateSkills] = await Promise.all([
         this.dynamicNamespaces(botId),
         this.prisma.pluginInstallation.findMany({
           where: { status: "installed" },
         }),
-        // The shared library every Bot reads: the same skills its agent_skills catalog lists.
-        this.prisma.savedSkill.findMany({ orderBy: { name: "asc" } }),
+        this.prisma.pluginPrivateSkill.findMany({
+          where: { enabledBotIds: { array_contains: [botId] } },
+        }),
       ]);
       return {
         items: [
@@ -337,10 +354,10 @@ export class PluginQueries {
               status: installation.skillSyncStatus,
             }))
           ),
-          ...savedSkills.map((skill) => ({
+          ...privateSkills.map((skill) => ({
             id: skill.id,
             label: skill.name,
-            handle: `private:${skill.slug}`,
+            handle: `private:${skill.name.toLowerCase().replace(/[^a-z0-9.-]+/g, "-")}`,
             trigger: "/" as const,
             kind: "skill" as const,
             status: "ready",

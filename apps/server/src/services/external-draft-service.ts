@@ -96,7 +96,8 @@ export class ExternalDraftService {
   constructor(
     private readonly prisma: PrismaClient,
     private readonly messaging: AgentMessaging,
-    private readonly plugins: Pick<PluginService, "invoke">
+    private readonly plugins: Pick<PluginService, "invoke">,
+    private readonly experiment: { treatmentPercent?: string } = {}
   ) {}
   /**
    * The connection behind a draft's providerIdentifier: its UUID, or the namespace

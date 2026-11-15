@@ -7,7 +7,7 @@ test("OAuth redirects preserve configured scopes and protected parameters while 
   const provider = new OutcomeGoOAuthProvider({
     redirectUrl: "http://127.0.0.1/callback",
     scope: "mail.read mail.compose",
-    initial: {},
+    initial: { state: "original" },
     authorizationParameters: {
       access_type: "offline",
       prompt: "consent select_account",
