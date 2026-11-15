@@ -228,6 +228,8 @@ class HttpMobileGateway(context: Context) :
                     botIcon = bot.string("icon"),
                     botInstructions = bot.string("instructions"),
                     botVoice = bot.string("voice"),
+                    botTitle = bot.string("title"),
+                    hasAvatar = bot.boolean("hasAvatar"),
                 )
             }
         val hiddenGroups = request(HttpMethod.GET, "/api/v0/groups?includeHidden=1")
@@ -241,6 +243,7 @@ class HttpMobileGateway(context: Context) :
                     subtitle = channel.string("description"),
                     isGroup = true,
                     memberBotIds = channel.arrayAt("members").mapNotNull { it.jsonObjectOrNull()?.string("botId")?.takeIf(String::isNotBlank) },
+                    hasAvatar = channel.boolean("hasAvatar"),
                     avatarPath = cacheChannelAvatar(ensureConnected(), token, channel),
                 )
             }
@@ -527,6 +530,8 @@ class HttpMobileGateway(context: Context) :
                     botIcon = bot?.string("icon").orEmpty(),
                     botInstructions = bot?.string("instructions").orEmpty(),
                     botVoice = bot?.string("voice").orEmpty(),
+                    botTitle = bot?.string("title").orEmpty(),
+                    hasAvatar = if (kind == "group") channel.boolean("hasAvatar") else (bot?.boolean("hasAvatar") ?: false),
                     updatedLabel = channel.string("updatedLabel", "lastUpdatedLabel").ifBlank { null },
                     latestPreview = latest?.let(::messagePreviewText),
                     updatedAt = channel.string("updatedAt").ifBlank { latest?.string("createdAt").orEmpty() }.takeIf { it.isNotBlank() },

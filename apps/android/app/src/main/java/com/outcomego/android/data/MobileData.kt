@@ -26,6 +26,8 @@ data class Conversation(
     val botIcon: String = "",
     val botInstructions: String = "",
     val botVoice: String = "",
+    val botTitle: String = "",
+    val hasAvatar: Boolean = false,
     val updatedLabel: String? = null,
     /** One-line preview of the newest message, shown in the conversation list. */
     val latestPreview: String? = null,
@@ -39,6 +41,10 @@ data class Conversation(
     /** Text shown under the title: the latest message, else the bot/channel description. */
     val preview: String?
         get() = latestPreview?.takeIf { it.isNotBlank() } ?: subtitle.takeIf { it.isNotBlank() }
+
+    /** True when the server or local cache indicates a custom uploaded/installed avatar image. */
+    val hasCustomAvatar: Boolean
+        get() = hasAvatar || !avatarPath.isNullOrBlank()
 }
 
 /** What a bot is doing in a channel right now; drives the "typing" indicator in the chat. */
