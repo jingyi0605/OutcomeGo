@@ -4,7 +4,7 @@
   "version": "1.2.1",
   "name": "Granola",
   "description": "Bring meeting notes, decisions, and action items into your work.",
-  "publisher": "OutcomeGo",
+  "publisher": "OpenTeam",
   "category": "Productivity",
   "featured": true,
   "components": ["mcp", "skills", "commands", "agents", "rules"],

@@ -3,7 +3,7 @@
   "version": "2.0.3",
   "name": "Email",
   "description": "Give your Bots an inbox over IMAP and SMTP: search threads, read conversations and attachments, reply through review cards, and run routines when mail arrives.",
-  "publisher": "OutcomeGo",
+  "publisher": "OpenTeam",
   "category": "Inbox & Collaboration",
   "featured": true,
   "components": [

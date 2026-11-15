@@ -3,7 +3,7 @@
   "version": "1.2.2",
   "name": "Slack (managed)",
   "description": "Search channels, read threads, send messages, and work with canvases through an authorized Slack app.",
-  "publisher": "Slack",
+  "publisher": "OpenTeam",
   "category": "Inbox & Collaboration",
   "featured": true,
   "components": ["mcp", "skills", "commands"],

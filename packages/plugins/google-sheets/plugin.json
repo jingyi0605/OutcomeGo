@@ -3,7 +3,7 @@
   "version": "1.0.2",
   "name": "Google Sheets",
   "description": "Read, write, and format spreadsheets.",
-  "publisher": "OutcomeGo",
+  "publisher": "OpenTeam",
   "category": "Documents & Files",
   "featured": false,
   "components": ["mcp", "skills"],

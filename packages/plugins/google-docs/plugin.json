@@ -3,7 +3,7 @@
   "version": "1.0.2",
   "name": "Google Docs",
   "description": "Read, create, and edit documents.",
-  "publisher": "OutcomeGo",
+  "publisher": "OpenTeam",
   "category": "Documents & Files",
   "featured": false,
   "components": ["mcp", "skills"],

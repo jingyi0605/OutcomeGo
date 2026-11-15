@@ -3,7 +3,7 @@
   "version": "1.5.2",
   "name": "Google Calendar",
   "description": "Search events and schedule meetings.",
-  "publisher": "OutcomeGo",
+  "publisher": "OpenTeam",
   "category": "Scheduling",
   "featured": true,
   "components": ["mcp"],

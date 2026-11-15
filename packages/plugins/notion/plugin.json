@@ -3,7 +3,7 @@
   "version": "1.2.1",
   "name": "Notion",
   "description": "Notion skills and MCP server for documents, research, meetings, and tasks.",
-  "publisher": "OutcomeGo",
+  "publisher": "OpenTeam",
   "category": "Documents & Files",
   "featured": true,
   "components": ["mcp", "skills"],

@@ -4,7 +4,7 @@
   "version": "1.0.2",
   "name": "Slack (stealth)",
   "description": "Search Slack, read channels and threads, send messages, and add reactions using your browser session.",
-  "publisher": "OutcomeGo",
+  "publisher": "OpenTeam",
   "category": "Inbox & Collaboration",
   "featured": true,
   "components": ["mcp"],

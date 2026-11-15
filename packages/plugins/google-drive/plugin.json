@@ -3,7 +3,7 @@
   "version": "1.5.2",
   "name": "Google Drive",
   "description": "Search, read, create, organize, share, and comment on files.",
-  "publisher": "OutcomeGo",
+  "publisher": "OpenTeam",
   "category": "Documents & Files",
   "featured": true,
   "components": ["mcp", "skills"],

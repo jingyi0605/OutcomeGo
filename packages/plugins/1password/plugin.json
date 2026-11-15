@@ -4,7 +4,7 @@
   "version": "2.0.2",
   "name": "1Password",
   "description": "Bots sign in to websites with logins and one-time codes from the 1Password vaults you choose.",
-  "publisher": "OutcomeGo",
+  "publisher": "OpenTeam",
   "category": "Login and Credential Management",
   "featured": false,
   "components": ["skills"],
