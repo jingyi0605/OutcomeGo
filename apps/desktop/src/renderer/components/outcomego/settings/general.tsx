@@ -21,12 +21,30 @@ import {
   SectionLabel,
   SettingsGroup,
   SettingsRow,
+  SkeletonControl,
   settingsSelect,
   settingsSecondaryButton,
 } from "./ui";
+import { MicrophoneAccessSkeleton } from "./microphone-skeleton";
 const MicrophoneSettings = lazy(() =>
   import("./microphone").then((module) => ({ default: module.MicrophoneSettings }))
 );
+
+function MicrophoneSkeleton() {
+  return (
+    <>
+      <SectionLabel>System</SectionLabel>
+      <SettingsGroup>
+        <SettingsRow stackControl title="Microphone" control={<SkeletonControl width={124} />} />
+        <SettingsRow
+          stackControl
+          title="Microphone access"
+          control={<MicrophoneAccessSkeleton />}
+        />
+      </SettingsGroup>
+    </>
+  );
+}
 
 // Reuse the selector already loaded for Theme; device discovery stays lazy.
 // The render prop is called as a function, so the translated label lives in a real
@@ -165,7 +183,7 @@ export default function GeneralSettings() {
         />
       </SettingsGroup>
 
-      <Suspense fallback={null}>
+      <Suspense fallback={<MicrophoneSkeleton />}>
         <MicrophoneSettings renderControl={renderMicrophoneControl} />
       </Suspense>
     </>

@@ -15,6 +15,7 @@ import { SectionLabel, SettingsGroup, settingsSecondaryButton } from "./ui";
 import { browserNetworkLabel } from "../../../lib/browser-network-status";
 import { useWindowVisible } from "../../../hooks/use-window-active";
 import { useI18n } from "../../../lib/i18n";
+import { NetworkProtocols } from "./network-protocols";
 
 export function BrowserNetworkSettings() {
   const { t } = useI18n();
@@ -126,7 +127,10 @@ export function BrowserNetworkSettings() {
           expectedRevision: view.settings.revision,
           mode: "ranked",
           machineId: null,
-          sourceOrder: [sourceId, ...view.settings.sourceOrder.filter((candidate) => candidate !== sourceId)],
+          sourceOrder: [
+            sourceId,
+            ...view.settings.sourceOrder.filter((candidate) => candidate !== sourceId),
+          ],
         })
       );
     } catch (e) {
@@ -196,6 +200,7 @@ export function BrowserNetworkSettings() {
             );
           })}
         </ol>
+        <NetworkProtocols loading={!view} view={view} />
         <div className="bn-egress" key={routeKey}>
           <span>{t("Exit IP")}</span>
           {ready &&

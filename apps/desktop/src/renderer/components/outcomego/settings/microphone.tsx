@@ -2,7 +2,14 @@ import { type ReactNode, useState } from "react";
 import { useMicrophoneDevices } from "../../../hooks/use-microphone-devices";
 import { microphoneErrorMessage, setMicrophonePreference } from "../../../lib/microphone";
 import { useI18n } from "../../../lib/i18n";
-import { SectionLabel, SettingsGroup, SettingsRow, settingsSecondaryButton } from "./ui";
+import { MicrophoneAccessSkeleton } from "./microphone-skeleton";
+import {
+  SectionLabel,
+  SettingsGroup,
+  SettingsReveal,
+  SettingsRow,
+  settingsSecondaryButton,
+} from "./ui";
 
 export interface MicrophoneControlProps {
   disabled: boolean;
@@ -124,41 +131,49 @@ export function MicrophoneSettings({
                   : undefined)
           }
           control={
-            <div className="flex items-center gap-3">
-              <span
-                aria-label={t("Microphone access {status}", { status: accessLabel.toLowerCase() })}
-                className="inline-flex items-center gap-1.5 text-[12px] text-foreground-secondary"
-                role="status"
-              >
-                <span
-                  aria-hidden="true"
-                  className={`size-1.5 rounded-full ${permission === "granted" && !checking ? "bg-emerald-500" : "bg-foreground-tertiary"}`}
-                />
-                {accessLabel}
+            checking ? (
+              <span aria-label={t("Checking microphone access")} role="status">
+                <MicrophoneAccessSkeleton />
               </span>
-              {!checking && (permission === "prompt" || permission === "unknown") ? (
-                <button
-                  className={actionClass}
-                  disabled={requesting || status === "unsupported"}
-                  onClick={() => void requestAccess()}
-                  type="button"
+            ) : (
+              <SettingsReveal as="div" className="flex items-center gap-3">
+                <span
+                  aria-label={t("Microphone access {status}", {
+                    status: accessLabel.toLowerCase(),
+                  })}
+                  className="inline-flex items-center gap-1.5 text-[12px] text-foreground-secondary"
+                  role="status"
                 >
-                  {requesting ? t("Requesting…") : t("Enable microphone")}
-                </button>
-              ) : !checking && canOpenSettings ? (
-                <button
-                  className={actionClass}
-                  onClick={() => void showSystemSettings()}
-                  type="button"
-                >
-                  {t("System settings")}
-                </button>
-              ) : !checking && permission === "denied" ? (
-                <button className={actionClass} onClick={() => void refresh()} type="button">
-                  {t("Check again")}
-                </button>
-              ) : null}
-            </div>
+                  <span
+                    aria-hidden="true"
+                    className={`size-1.5 rounded-full ${permission === "granted" && !checking ? "bg-emerald-500" : "bg-foreground-tertiary"}`}
+                  />
+                  {accessLabel}
+                </span>
+                {!checking && (permission === "prompt" || permission === "unknown") ? (
+                  <button
+                    className={actionClass}
+                    disabled={requesting || status === "unsupported"}
+                    onClick={() => void requestAccess()}
+                    type="button"
+                  >
+                    {requesting ? t("Requesting…") : t("Enable microphone")}
+                  </button>
+                ) : !checking && canOpenSettings ? (
+                  <button
+                    className={actionClass}
+                    onClick={() => void showSystemSettings()}
+                    type="button"
+                  >
+                    {t("System settings")}
+                  </button>
+                ) : !checking && permission === "denied" ? (
+                  <button className={actionClass} onClick={() => void refresh()} type="button">
+                    {t("Check again")}
+                  </button>
+                ) : null}
+              </SettingsReveal>
+            )
           }
         />
       </SettingsGroup>
