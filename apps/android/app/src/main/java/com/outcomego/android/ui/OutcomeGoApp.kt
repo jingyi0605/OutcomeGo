@@ -255,6 +255,7 @@ import com.outcomego.features.rememberDecodedBitmap
 import com.outcomego.features.MarkdownMessage
 import com.outcomego.features.PluginsScreen
 import com.outcomego.features.ProviderSettingsScreen
+import com.outcomego.features.Routine
 import com.outcomego.features.RoutineEditorScreen
 import com.outcomego.features.RoutinesScreen
 import com.outcomego.features.SettingsScreen
@@ -568,19 +569,30 @@ fun OutcomeGoApp(
         }
         composable(BOT_DETAILS, arguments = listOf(navArgument("conversationId") { type = NavType.StringType })) { entry ->
             val id = entry.arguments?.getString("conversationId").orEmpty()
-            LaunchedEffect(id) { appViewModel.refreshDirectory() }
             val conversation = state.conversations.firstOrNull { it.id == id }
                 ?: state.hiddenConversations.firstOrNull { it.id == id }
+            val botId = conversation?.botId
+            LaunchedEffect(id, botId) {
+                appViewModel.refreshDirectory()
+                if (!botId.isNullOrBlank()) {
+                    appViewModel.loadRoutinesForBot(botId)
+                }
+            }
+            val routinesState = botId?.let { state.features.routinesByBotId[it] ?: FeatureLoadState.Loading }
             val shareLabel = localizedText("Share bot", "分享机器人")
             BotDetailsScreen(
                 conversation = conversation,
+                routinesState = routinesState,
                 onBack = { navController.popBackStack() },
                 onOpenChat = {
                     appViewModel.openConversation(id)
                     navController.navigate("chat/$id")
                 },
                 onComputer = { navController.navigate("bot/$id/computer") },
-                onRoutines = { navController.navigate(ROUTINES) },
+                onRoutines = {
+                    botId?.let(appViewModel::loadRoutinesForBot)
+                    navController.navigate(ROUTINES)
+                },
                 onEdit = { navController.navigate("conversation/$id/profile") },
                 onHide = { appViewModel.setConversationHidden(it, true); navController.popBackStack() },
                 onDelete = { appViewModel.deleteConversation(it); navController.navigate(DIRECTORY) { popUpTo(DIRECTORY) { inclusive = true } } },
@@ -656,7 +668,13 @@ fun OutcomeGoApp(
         composable(CHAT, arguments = listOf(navArgument("conversationId") { type = NavType.StringType })) { entry ->
             val id = entry.arguments?.getString("conversationId").orEmpty()
             val conversation = state.conversations.firstOrNull { it.id == id }
-            LaunchedEffect(id) { if (state.activeConversationId != id) appViewModel.openConversation(id) }
+            LaunchedEffect(id, conversation?.botId) {
+                if (state.activeConversationId != id) {
+                    appViewModel.openConversation(id)
+                } else {
+                    conversation?.botId?.let(appViewModel::loadRoutinesForBot)
+                }
+            }
             ChatScreen(
                 conversationId = id,
                 accountName = state.session?.accountName.orEmpty(),
@@ -667,7 +685,10 @@ fun OutcomeGoApp(
                 replyingTo = state.replyingTo,
                 onReply = appViewModel::startReply,
                 onCancelReply = appViewModel::cancelReply,
-                onOpenRoutine = { navController.navigate(ROUTINES) },
+                onOpenRoutine = {
+                    conversation?.botId?.let(appViewModel::loadRoutinesForBot)
+                    navController.navigate(ROUTINES)
+                },
                 error = state.error,
                 onBack = { navController.popBackStack() },
                 onBotDetails = {
@@ -2565,10 +2586,25 @@ private fun ExpandedSearchBar(
     }
 }
 
+internal fun formatRoutineStatus(
+    state: FeatureLoadState<List<Routine>>?,
+    isChinese: Boolean,
+): String? = when (state) {
+    is FeatureLoadState.Ready -> {
+        val total = state.value.size
+        val enabled = state.value.count { it.enabled }
+        if (isChinese) "共 $total 个，已开启 $enabled 个" else "$total total, $enabled enabled"
+    }
+    is FeatureLoadState.Empty -> if (isChinese) "共 0 个，已开启 0 个" else "0 total, 0 enabled"
+    is FeatureLoadState.Loading -> if (isChinese) "加载中…" else "Loading…"
+    is FeatureLoadState.Failure, null -> null
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun BotDetailsScreen(
     conversation: Conversation?,
+    routinesState: FeatureLoadState<List<Routine>>? = null,
     onBack: () -> Unit,
     onOpenChat: () -> Unit,
     onComputer: () -> Unit,
@@ -2667,11 +2703,15 @@ private fun BotDetailsScreen(
         }
 
         Spacer(Modifier.height(28.dp))
+        val routinesStatus = formatRoutineStatus(
+            state = routinesState,
+            isChinese = LocalAppLanguage.current == AppSettings.Language.Chinese,
+        )
         ProfileGroupedCard(surface) {
             ProfileCapabilityRow(
                 icon = Icons.Default.AccessTime,
                 title = localizedText("Scheduled routines", "定时任务"),
-                status = localizedText("0 enabled", "已开启 0 个"),
+                status = routinesStatus,
                 onClick = onRoutines,
             )
             ProfileDivider(muted)

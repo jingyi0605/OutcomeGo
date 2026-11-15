@@ -57,7 +57,7 @@
     <string name="bot_share">Share bot</string>
     <string name="bot_edit">Edit</string>
     <string name="bot_routines_title">Scheduled routines</string>
-    <string name="bot_routines_status">0 enabled</string>
+    <string name="bot_routines_status">%1$d total, %2$d enabled</string>
     <string name="bot_library_title">Library</string>
     <string name="bot_computer_idle">Idle</string>
     <string name="bot_notifications">Notifications</string>

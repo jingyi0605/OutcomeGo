@@ -57,7 +57,7 @@
     <string name="bot_share">分享机器人</string>
     <string name="bot_edit">编辑</string>
     <string name="bot_routines_title">定时任务</string>
-    <string name="bot_routines_status">已开启 0 个</string>
+    <string name="bot_routines_status">共 %1$d 个，已开启 %2$d 个</string>
     <string name="bot_library_title">资料库</string>
     <string name="bot_computer_idle">空闲</string>
     <string name="bot_notifications">通知</string>
