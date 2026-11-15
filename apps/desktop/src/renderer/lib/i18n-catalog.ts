@@ -2088,6 +2088,22 @@ export const sourceTranslations: Record<string, string> = {
   "{names} is reading": "{names} 正在阅读",
   "{names} is typing": "{names} 正在输入",
   "{names} is working": "{names} 正在处理",
+  "Bot details": "机器人详情",
+  Overview: "简介",
+  Library: "资料库",
+  "Loading Library": "正在加载资料库",
+  "Loading Library…": "正在加载资料库…",
+  "Couldn’t load Library": "无法加载资料库",
+  "Pages, files, and apps this Bot makes show up here": "此机器人生成的页面、文件和应用会显示在这里",
+  Today: "今天",
+  Yesterday: "昨天",
+  "Last 7 days": "最近 7 天",
+  Older: "更早",
+  "Load more": "加载更多",
+  "Loading preview…": "正在加载预览…",
+  now: "刚刚",
+  "{count}d": "{count} 天",
+  "{count}h": "{count} 小时",
 };
 
 const interpolate = (text: string, values?: TranslationValues): string =>

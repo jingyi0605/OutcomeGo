@@ -63,4 +63,14 @@ describe("desktop interface catalog", () => {
       expect(normalizeLocale(locale)).toBe(locale);
     }
   });
+
+  test("translates inspector Overview and Library labels for Simplified Chinese", () => {
+    expect(translate("zh-CN", "Bot details")).toBe("机器人详情");
+    expect(translate("zh-CN", "Overview")).toBe("简介");
+    expect(translate("zh-CN", "Library")).toBe("资料库");
+    expect(translate("zh-CN", "Today")).toBe("今天");
+    expect(translate("zh-CN", "Load more")).toBe("加载更多");
+    expect(translate(DEFAULT_LOCALE, "Overview")).toBe("Overview");
+    expect(translate(DEFAULT_LOCALE, "Library")).toBe("Library");
+  });
 });

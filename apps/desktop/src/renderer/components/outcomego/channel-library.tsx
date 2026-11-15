@@ -6,6 +6,8 @@ import { ImageIcon, MoreHorizontal } from "lucide-react";
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../../client/outcomego-api";
 import { useAuthenticatedResource } from "../../hooks/use-authenticated-resource";
+import { useI18n } from "../../lib/i18n";
+import { translateCurrent } from "../../lib/i18n-catalog";
 import { Button } from "../ui/button";
 import {
   DropdownMenu,
@@ -60,13 +62,13 @@ const groupFor = (date: string, now: Date) => {
         ? "Last 7 days"
         : "Older";
 };
-const ageLabel = (date: string) => {
+const ageLabel = (date: string, t: (key: string, values?: Record<string, string | number>) => string) => {
   const age = Math.max(0, Date.now() - new Date(date).getTime());
   return age >= 86_400_000
-    ? `${Math.floor(age / 86_400_000)}d`
+    ? t("{count}d", { count: Math.floor(age / 86_400_000) })
     : age >= 3_600_000
-      ? `${Math.floor(age / 3_600_000)}h`
-      : "now";
+      ? t("{count}h", { count: Math.floor(age / 3_600_000) })
+      : t("now");
 };
 
 function LibraryFileIcon({ attachment }: { attachment: AssetRef }) {
@@ -99,6 +101,7 @@ export function ChannelLibrary({
   revision?: string;
   active: boolean;
 }) {
+  const { t } = useI18n();
   const [items, setItems] = useState<ChannelLibraryItem[]>([]);
   const [next, setNext] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -127,7 +130,7 @@ export function ChannelLibrary({
         setNext(page.nextCursor);
       } catch (cause) {
         if (!controller.signal.aborted)
-          setError(clientErrorMessage(cause, "Couldn’t load Library"));
+          setError(clientErrorMessage(cause, translateCurrent("Couldn’t load Library")));
       } finally {
         if (!controller.signal.aborted) setLoading(false);
       }
@@ -166,17 +169,19 @@ export function ChannelLibrary({
       {!visible.size && loading && (
         <div className="bot-library-empty" role="status">
           <LoadingOrb className="size-5" />
-          <span>Loading Library…</span>
+          <span>{t("Loading Library…")}</span>
         </div>
       )}
       {!visible.size && !loading && !error && (
-        <p className="bot-library-empty">Pages, files, and apps this Bot makes show up here</p>
+        <p className="bot-library-empty">
+          {t("Pages, files, and apps this Bot makes show up here")}
+        </p>
       )}
       {error && (
         <div className="bot-library-error" role="alert">
           <p>{error}</p>
           <Button onClick={() => void load(attemptedCursor.current)} size="sm" variant="ghost">
-            Try again
+            {t("Try again")}
           </Button>
         </div>
       )}
@@ -184,8 +189,8 @@ export function ChannelLibrary({
         (group) =>
           groups.has(group) && (
             <section className="bot-library-group" key={group}>
-              <h3 className="bot-details-heading">{group}</h3>
-              <ul aria-label={group}>
+              <h3 className="bot-details-heading">{t(group)}</h3>
+              <ul aria-label={t(group)}>
                 {groups.get(group)!.map((item) => (
                   <li className="bot-library-row" key={item.id}>
                     <ButtonPrimitive
@@ -205,13 +210,15 @@ export function ChannelLibrary({
                         className="shrink-0 text-foreground-secondary"
                         dateTime={item.createdAt}
                       >
-                        {ageLabel(item.createdAt)}
+                        {ageLabel(item.createdAt, t)}
                       </time>
                     </ButtonPrimitive>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <ButtonPrimitive
-                          aria-label={`More actions for ${item.attachment.fileName}`}
+                          aria-label={t("More actions for {name}", {
+                            name: item.attachment.fileName,
+                          })}
                           className="bot-library-more"
                           type="button"
                         >
@@ -225,7 +232,7 @@ export function ChannelLibrary({
                         className="bot-library-menu"
                       >
                         <DropdownMenuItem onSelect={() => pin(item)}>
-                          {pinIds.has(item.id) ? "Unpin" : "Pin"}
+                          {t(pinIds.has(item.id) ? "Unpin" : "Pin")}
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -243,16 +250,16 @@ export function ChannelLibrary({
           size="sm"
           variant="ghost"
           loading={loading}
-          loadingLabel="Loading…"
+          loadingLabel={t("Loading…")}
         >
-          Load more
+          {t("Load more")}
         </Button>
       )}
       {selected && (
         <Suspense
           fallback={
             <span className="sr-only" role="status">
-              Loading preview…
+              {t("Loading preview…")}
             </span>
           }
         >
