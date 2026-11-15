@@ -55,6 +55,7 @@ public struct ServerRelease: Codable, Sendable {
   public let apiProtocolVersion: Int?
   public let minimumClientVersion: String?
   public let maximumClientVersionExclusive: String?
+  public let updateChannel: String?
 }
 
 public struct ServerUpdateStatus: Codable, Sendable {

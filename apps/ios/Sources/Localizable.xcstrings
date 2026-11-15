@@ -671,6 +671,16 @@
         }
       }
     },
+    "Beta": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "开发版"
+          }
+        }
+      }
+    },
     "Before you sign in": {
       "localizations": {
         "zh-CN": {
@@ -6621,6 +6631,16 @@
         }
       }
     },
+    "Stable": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "稳定版"
+          }
+        }
+      }
+    },
     "Standard I/O": {
       "localizations": {
         "zh-CN": {
@@ -7647,6 +7667,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "有可用更新。打开 TestFlight"
+          }
+        }
+      }
+    },
+    "Update channel": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更新通道"
           }
         }
       }

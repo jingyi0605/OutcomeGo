@@ -15,6 +15,7 @@ import SwiftUI
   var reconnecting = false
   var startedAt: Date?
   var observedAt: Date?
+  var channelSaving = false
   private var cacheServer: String?
   private var busyCheckFailed = true
   var policy: ServerUpdatePolicy {
@@ -25,6 +26,7 @@ import SwiftUI
     !checking && !updating && !busyCheckFailed && busyNames.isEmpty
       && policy.targetVersion != nil && update?.updaterAvailable == true
   }
+  var updateChannel: String { release?.updateChannel ?? "stable" }
 
   private func restore(_ server: String) {
     guard cacheServer != server else { return }
@@ -144,6 +146,30 @@ import SwiftUI
       if !UserFacingError.isCancelled(error) { actionFailure = UserFacingError.message(error) }
     }
   }
+
+  func setChannel(_ channel: String, store: AppStore) async {
+    guard !channelSaving else { return }
+    channelSaving = true
+    actionFailure = nil
+    defer { channelSaving = false }
+    do {
+      let result = try await store.request(
+        "/api/v0/system/update-channel", method: "PUT",
+        body: .object(["channel": .string(channel)])
+      )
+      let ch = result["updateChannel"].string
+      if let release, ch == "stable" || ch == "beta" {
+        self.release = ServerRelease(
+          releaseVersion: release.releaseVersion,
+          apiProtocolVersion: release.apiProtocolVersion,
+          minimumClientVersion: release.minimumClientVersion,
+          maximumClientVersionExclusive: release.maximumClientVersionExclusive,
+          updateChannel: ch)
+      }
+    } catch {
+      if !UserFacingError.isCancelled(error) { actionFailure = UserFacingError.message(error) }
+    }
+  }
 }
 
 struct UpdatesSettingsView: View {
@@ -234,6 +260,19 @@ struct UpdatesSettingsView: View {
           "Open TestFlight"
         )
         .accessibilityHint("Check for an iOS app update")
+
+        if !model.updating && !model.loading {
+          Picker("Update channel", selection: Binding(
+            get: { model.updateChannel },
+            set: { ch in Task { await model.setChannel(ch, store: store) } }
+          )) {
+            Text("Stable").tag("stable")
+            Text("Beta").tag("beta")
+          }
+          .disabled(model.channelSaving || model.checking)
+          .accessibilityIdentifier("update-channel-picker")
+        }
+
         DisclosureGroup("About server updates") {
           Text(
             "Your server and bot computer update together. Files, installed software and browser sign-ins stay in place. Open browser tabs close during the restart."
