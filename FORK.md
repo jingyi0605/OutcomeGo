@@ -40,23 +40,42 @@ not want are merged and then reverted, so the same commits do not return as conf
 
 | Item | Value |
 |---|---|
-| Merge base with `upstream/main` | `6af6444c` (v0.0.15, 2026-11-07) |
-| Latest upstream release reviewed | v0.0.16 (`upstream/main` at `be68ae0e`, 2026-11-08) |
-| Synced from v0.0.16 | [#258](https://github.com/raghavpillai/openteam/pull/258), digest-pulled Docker image cleanup (cherry-picked as `7da7ec1c`) |
-| Not synced from v0.0.16 | Version bump and release metadata (`ae9f7ebb`). They conflict with this fork's own version line and add nothing to it. |
+| Current fork baseline date | 2026-11-15 |
+| Current `OutcomeGo` head | `3f641f0fb` (`修复：完成上游 0.0.19 同步`) |
+| Current `upstream/main` head | `fd32377bf` (upstream 0.0.19 candidate) |
+| Synchronization merge | `3f641f0fb`, parents `afd276ed9` and `fd32377bf` |
+| Remaining upstream-only commits | `0` |
+| Fork-only commits after `origin/OutcomeGo` | `126` |
+| Historical common ancestor | `6af6444c` (v0.0.15, 2026-11-07) |
+| Merge validation | 15 package typechecks; server 667 pass/0 fail; messaging 292 pass/0 fail |
 
-When the fork needs only part of an upstream release, cherry-pick the fix and rename
+The 0.0.19 upstream synchronization is complete. OutcomeGo retains its own
+identity, version line, database mappings, mobile functionality, network exits,
+Webhooks, realtime voice, and the documented `Bot.instructions` compatibility
+divergence. The complete conflict plan and verification record are in
+[`specs/007-上游主分支同步/`](specs/007-上游主分支同步/) and
+[`specs/007.1-同步上游0.0.19/`](specs/007.1-同步上游0.0.19/).
+
+The previous v0.0.15/v0.0.16 entries are historical context:
+
+| Historical item | Value |
+|---|---|
+| Earlier upstream release reviewed | v0.0.16 (`be68ae0e`, 2026-11-08) |
+| Earlier synced fix | [#258](https://github.com/raghavpillai/openteam/pull/258), digest-pulled Docker image cleanup (cherry-picked as `7da7ec1c`) |
+| Earlier intentionally omitted change | Version bump and release metadata (`ae9f7ebb`), because they conflicted with OutcomeGo's version line. |
+
+When a future fork update needs only part of an upstream release, cherry-pick the fix and rename
 `openteam-*` identifiers to their `outcomego-*` forms (for example the image retention tag
 prefix `outcomego-retention-`). Do not merge upstream version bumps. `git cherry -v HEAD
 upstream/main` lists upstream commits that are not yet applied, but it matches by patch
-content. A pick that needed renaming, such as #258, still shows as `+`, so use the table above
-as the record of what has been synced.
+content. After the 0.0.19 synchronization, the current fork has no upstream-only commits;
+use the current baseline table and the Spec records as the source of truth for future updates.
 
 ## Current release
 
-The latest published release is `v0.1.0-beta.14`, the first release under the OutcomeGo name and
-internal identities. Android QA, CI and the CLI installer passed for the release commit. iOS
-release is deferred, and real device upgrade and backup-import acceptance remain separate checks.
+The current version baseline is `v0.1.0-beta.16`, the first release line after the 0.0.19
+synchronization. The synchronization commit is not a release tag; release publishing, iOS
+release, real-device upgrade, and backup-import acceptance remain separate checks.
 
 ## Naming and identifiers
 
@@ -76,8 +95,18 @@ must match (`bun scripts/release/version.ts check`). See `.github/RELEASING.md`.
 
 ## Modifications relative to upstream
 
-Based on upstream `main` at v0.0.15, plus selected fixes from v0.0.16 (see
-[Upstream tracking](#upstream-tracking)). Compare with `git diff upstream/main...OutcomeGo`.
+The current fork source includes the complete upstream 0.0.19 candidate history through
+`fd32377bf`, adapted to preserve OutcomeGo behavior. Compare with
+`git diff upstream/main...OutcomeGo` for fork changes after the synchronization merge.
+
+- **Upstream 0.0.19 synchronization**: runtime reliability, routines, memory, drafts,
+  questions, agent lifecycle, Computer control, browser-network diagnostics, ScreenBot,
+  keyboard shortcuts, attachment previews, voice recording compatibility, plugin device
+  linking, new plugin packages, and cross-client presentation and question features.
+- **Intentional compatibility**: OutcomeGo branding, package and bundle IDs,
+  `outcomego_*` database mappings, the independent `0.1.0-beta.*` version line,
+  `Bot.instructions`, existing network exits, Webhooks, realtime voice, mobile behavior,
+  and selected stable `openteam:` IPC/storage identifiers.
 
 - **Synced upstream fix** (`apps/cli`): cleanup of retired Docker images that were pulled by
   digest, from upstream v0.0.16
