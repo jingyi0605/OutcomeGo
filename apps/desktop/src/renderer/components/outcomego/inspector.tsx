@@ -59,7 +59,6 @@ interface ProfileDraft {
   name: string;
   title: string;
   description: string;
-  instructions: string;
   voice: string;
   icon: string;
   color: string;
@@ -69,7 +68,6 @@ const draftOf = (bot: BotView): ProfileDraft => ({
   name: bot.name,
   title: bot.title,
   description: bot.description,
-  instructions: bot.instructions,
   voice: bot.voice,
   icon: bot.icon,
   color: bot.color,
@@ -142,7 +140,6 @@ function BotSettings({
           ...(next.name.trim() ? { name: next.name.trim() } : {}),
           title: next.title,
           description: next.description,
-          instructions: next.instructions,
           voice: next.voice,
           ...(includeAvatar ? { icon: next.icon, color: next.color } : {}),
         });
@@ -190,7 +187,6 @@ function BotSettings({
           ...(next.name.trim() ? { name: next.name.trim() } : {}),
           title: next.title,
           description: next.description,
-          instructions: next.instructions,
           voice: next.voice,
         })
         .catch(() => undefined);
@@ -312,24 +308,6 @@ function BotSettings({
             onChange={(event) => queue({ ...draft, description: event.target.value })}
             placeholder={t("What this Bot is for")}
             value={draft.description}
-          />
-        </div>
-        <div className="grid gap-[2px]">
-          <Label
-            className="pl-2 text-[12px] font-normal leading-[18px] text-muted-foreground"
-            htmlFor={`settings-instructions-${bot.id}`}
-          >
-            {t("Instructions")}
-          </Label>
-          <Textarea
-            aria-label={t("Bot instructions")}
-            className="min-h-32 resize-y rounded-[7px] border-[#d9d9d9] px-2.5 py-2 text-[14px] shadow-none focus-visible:border-ring dark:focus-visible:border-ring focus-visible:ring-0 dark:border-[#292929] dark:bg-transparent"
-            id={`settings-instructions-${bot.id}`}
-            maxLength={20_000}
-            onBlur={flush}
-            onChange={(event) => queue({ ...draft, instructions: event.target.value })}
-            placeholder={t("How this Bot should work")}
-            value={draft.instructions}
           />
         </div>
         {saveState === "error" && (

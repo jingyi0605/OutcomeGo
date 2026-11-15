@@ -91,7 +91,6 @@ export class BotService {
               name,
               title: input.title?.trim() ?? "",
               description: input.description?.trim() ?? "",
-              instructions: input.instructions?.trim() ?? "",
               voice: input.voice?.trim() ?? "",
               templateRecipe: recipe ? toJson(recipe) : undefined,
               icon: avatar.shape,
@@ -177,7 +176,6 @@ export class BotService {
       ) {
         fileTargets.push("profile");
       }
-      if (input.instructions !== undefined) fileTargets.push("instructions");
       if (input.icon !== undefined || input.color !== undefined) fileTargets.push("avatar");
       if (input.notificationsEnabled !== undefined) {
         fileTargets.push("settings");
@@ -196,7 +194,6 @@ export class BotService {
             name,
             title: input.title?.trim(),
             description: input.description?.trim(),
-            instructions: input.instructions?.trim(),
             voice: input.voice?.trim(),
             icon: input.icon,
             color: input.color,
@@ -231,7 +228,6 @@ export class BotService {
             input.name !== undefined ||
             input.title !== undefined ||
             input.description !== undefined ||
-            input.instructions !== undefined ||
             input.voice !== undefined,
           settingsChanged:
             input.notificationsEnabled !== undefined ||
