@@ -1,0 +1,919 @@
+/* The screenbot overlay: a transparent, click-through layer the size of the display. Colors
+   follow macOS materials: a frosted pane of the captured screen under a light or dark tint. */
+
+:root {
+  --ink: #1d1d1f;
+  --ink-secondary: rgb(60 60 67 / 62%);
+  --ink-tertiary: rgb(60 60 67 / 34%);
+  --fill: rgb(120 120 128 / 12%);
+  --fill-strong: rgb(120 120 128 / 20%);
+  --separator: rgb(60 60 67 / 12%);
+  --accent: #007aff;
+  --tint: linear-gradient(180deg, rgb(255 255 255 / 80%), rgb(246 246 248 / 74%));
+  --goo-tint: rgb(250 250 252 / 78%);
+  --sent-check: #1a9a5b;
+  --glass-solid: rgb(244 244 246);
+  --rim: inset 0 0.5px 0 rgb(255 255 255 / 95%), inset 0 0 0 0.5px rgb(255 255 255 / 55%);
+  --edge: 0 0 0 0.5px rgb(0 0 0 / 13%);
+  --shadow: 0 26px 64px -14px rgb(0 0 0 / 34%), 0 10px 22px -8px rgb(0 0 0 / 16%);
+  /* The same two layers' strengths, for the goo's SVG copy of this shadow. */
+  --shadow-far: 0.34;
+  --shadow-near: 0.16;
+  --menu-tint: rgb(248 248 250 / 82%);
+  --mascot-body-top: #62dacb;
+  --mascot-body-bottom: #22a99d;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ink: #f5f5f7;
+    --ink-secondary: rgb(235 235 245 / 60%);
+    --ink-tertiary: rgb(235 235 245 / 30%);
+    --fill: rgb(120 120 128 / 24%);
+    --fill-strong: rgb(120 120 128 / 34%);
+    --separator: rgb(255 255 255 / 9%);
+    --accent: #0a84ff;
+    --tint: linear-gradient(180deg, rgb(44 44 48 / 84%), rgb(28 28 30 / 88%));
+    --goo-tint: rgb(40 40 43 / 80%);
+    --sent-check: #4ade80;
+    --glass-solid: rgb(40 40 43);
+    --rim: inset 0 0.5px 0 rgb(255 255 255 / 18%), inset 0 0 0 0.5px rgb(255 255 255 / 9%);
+    --edge: 0 0 0 0.5px rgb(0 0 0 / 65%);
+    --shadow: 0 26px 64px -14px rgb(0 0 0 / 62%), 0 10px 22px -8px rgb(0 0 0 / 42%);
+    --shadow-far: 0.62;
+    --shadow-near: 0.42;
+    --menu-tint: rgb(40 40 44 / 84%);
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --ink: #f5f5f7;
+  --ink-secondary: rgb(235 235 245 / 60%);
+  --ink-tertiary: rgb(235 235 245 / 30%);
+  --fill: rgb(120 120 128 / 24%);
+  --fill-strong: rgb(120 120 128 / 34%);
+  --separator: rgb(255 255 255 / 9%);
+  --accent: #0a84ff;
+  --tint: linear-gradient(180deg, rgb(44 44 48 / 84%), rgb(28 28 30 / 88%));
+  --goo-tint: rgb(40 40 43 / 80%);
+  --sent-check: #4ade80;
+  --glass-solid: rgb(40 40 43);
+  --rim: inset 0 0.5px 0 rgb(255 255 255 / 18%), inset 0 0 0 0.5px rgb(255 255 255 / 9%);
+  --edge: 0 0 0 0.5px rgb(0 0 0 / 65%);
+  --shadow: 0 26px 64px -14px rgb(0 0 0 / 62%), 0 10px 22px -8px rgb(0 0 0 / 42%);
+    --shadow-far: 0.62;
+    --shadow-near: 0.42;
+  --menu-tint: rgb(40 40 44 / 84%);
+  color-scheme: dark;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: transparent;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  color: var(--ink);
+  user-select: none;
+  cursor: default;
+}
+
+.screenbot-stage {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.screenbot-stage [data-hit],
+.screenbot-stage [data-hit] * {
+  pointer-events: auto;
+}
+
+/* ---- Capture --------------------------------------------------------------------------- */
+
+/* Only exists during the intro: an invisible full-display layer would still cost GPU memory. */
+.screenbot-flash {
+  position: absolute;
+  inset: 0;
+  display: none;
+  opacity: 0;
+  background: #fff;
+}
+
+.screenbot-stage[data-phase="intro"] .screenbot-flash {
+  display: block;
+}
+
+.screenbot-fly {
+  position: absolute;
+  left: 0;
+  top: 0;
+  overflow: hidden;
+  opacity: 0;
+  background: #000;
+  contain: layout paint;
+}
+
+.screenbot-fly img,
+.screenbot-thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  -webkit-user-drag: none;
+}
+
+/* ---- The robot -------------------------------------------------------------------------- */
+
+.screenbot-mascot-layer {
+  position: absolute;
+  inset: 0;
+}
+
+.screenbot-mascot {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 50% 100%;
+  will-change: transform;
+  filter: drop-shadow(0 5px 8px rgb(0 0 0 / 22%));
+}
+
+.screenbot-mascot svg {
+  display: block;
+}
+
+/* No idle loop at all: even a compositor-only animation makes the GPU composite this
+   full-screen window every frame (~13% of a core). Between blinks the robot is still. */
+.screenbot-mascot-gaze,
+.screenbot-mascot-visor {
+  transition: transform 140ms cubic-bezier(0.25, 0.8, 0.3, 1);
+}
+
+.screenbot-mascot-eyes {
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+  transition: transform 70ms ease-in-out, opacity 120ms ease;
+}
+
+.screenbot-mascot-eyes.is-blinking {
+  transform: scaleY(0.12);
+}
+
+.screenbot-mascot-happy {
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.screenbot-mascot[data-happy] .screenbot-mascot-eyes { opacity: 0; }
+.screenbot-mascot[data-happy] .screenbot-mascot-happy { opacity: 1; }
+
+.screenbot-hand {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 34% 30%, #9af3e7 0, #4fd1c2 38%, #22a99d 100%);
+  box-shadow:
+    0 1.5px 3px rgb(0 0 0 / 26%),
+    inset 0 -1px 1.5px rgb(0 0 0 / 14%),
+    inset 0 0 0 0.5px rgb(255 255 255 / 35%);
+  transform: scale(0);
+  will-change: transform;
+  z-index: 4;
+}
+
+.screenbot-sparks i {
+  position: absolute;
+  left: -3px;
+  top: -3px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  opacity: 0;
+  background: #5ed8ca;
+  box-shadow: 0 0 6px rgb(94 216 202 / 70%);
+}
+
+.screenbot-sparks i[data-tone="1"] { background: #ffffff; box-shadow: 0 0 6px rgb(255 255 255 / 80%); width: 4px; height: 4px; }
+.screenbot-sparks i[data-tone="2"] { background: #ffd66b; box-shadow: 0 0 6px rgb(255 214 107 / 70%); width: 5px; height: 5px; }
+
+/* ---- Goo -------------------------------------------------------------------------------- */
+
+.screenbot-goo {
+  position: absolute;
+  left: 0;
+  top: 0;
+  opacity: 0;
+  overflow: visible;
+}
+
+/* While a scene animates, the shot and the goo get their own layers, so their per-frame
+   repaints don't drag the rest of the stage along. At rest they drop them again: an idle
+   full-display layer would hold GPU memory for nothing. */
+.screenbot-stage:is([data-phase="intro"], [data-phase="sending"], [data-phase="closing"]) .screenbot-fly {
+  will-change: transform;
+}
+
+.screenbot-stage:is([data-phase="intro"], [data-phase="sending"], [data-phase="closing"]) .screenbot-goo {
+  will-change: opacity;
+}
+
+.screenbot-goo-tint {
+  fill: var(--goo-tint);
+}
+
+/* ---- Card ------------------------------------------------------------------------------- */
+
+.screenbot-card {
+  position: absolute;
+  left: 0;
+  top: 0;
+  box-sizing: border-box;
+  border-radius: 22px;
+  --glass-in: 0;
+  --content-in: 0;
+  --shadow-in: 0;
+}
+
+/* The card's shadow on its own layer, so it can hand over to the goo's independently of the
+   glass (which must be opaque before the goo leaves). */
+.screenbot-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: var(--shadow);
+  opacity: var(--shadow-in);
+  pointer-events: none;
+  transition: box-shadow 200ms ease;
+}
+
+.screenbot-card[data-dragging]::before {
+  box-shadow: 0 34px 80px -14px rgb(0 0 0 / 40%), 0 12px 26px -8px rgb(0 0 0 / 18%);
+}
+
+.screenbot-goo-shadow-far { flood-color: #000; flood-opacity: var(--shadow-far); }
+.screenbot-goo-shadow-near { flood-color: #000; flood-opacity: var(--shadow-near); }
+
+.screenbot-card-glass {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background-repeat: no-repeat;
+  background-color: var(--goo-tint);
+  box-shadow: var(--edge);
+  opacity: var(--glass-in);
+}
+
+.screenbot-card[data-dragging] {
+  cursor: grabbing;
+}
+
+.screenbot-card-glass::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--tint);
+  box-shadow: var(--rim);
+}
+
+/* Bottom-anchored: a growing text field lifts the card top while the send button stays put. */
+.screenbot-card-body {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 14px 12px 12px 14px;
+}
+
+.screenbot-in,
+.screenbot-thumb {
+  opacity: var(--content-in);
+  transform: translateY(calc((1 - var(--content-in)) * 6px));
+}
+
+.screenbot-thumb {
+  position: relative;
+  width: 104px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #000;
+  box-shadow: 0 0 0 0.5px rgb(0 0 0 / 16%), 0 2px 8px rgb(0 0 0 / 12%);
+  transition: transform 220ms cubic-bezier(0.3, 1.4, 0.5, 1), box-shadow 220ms ease;
+}
+
+.screenbot-thumb::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 0.5px rgb(255 255 255 / 30%);
+}
+
+.screenbot-thumb:hover {
+  transform: scale(1.03) rotate(-0.6deg);
+  box-shadow: 0 0 0 0.5px rgb(0 0 0 / 16%), 0 8px 20px rgb(0 0 0 / 18%);
+}
+
+.screenbot-input {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 22px;
+  max-height: 220px;
+  margin: 12px 0 0;
+  padding: 0 2px;
+  border: 0;
+  outline: none;
+  resize: none;
+  overflow-y: hidden;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+  line-height: 22px;
+  letter-spacing: -0.08px;
+  caret-color: var(--accent);
+  user-select: text;
+  cursor: text;
+}
+
+.screenbot-input[data-scrolls] {
+  overflow-y: auto;
+  mask-image: linear-gradient(180deg, transparent 0, #000 10px, #000 calc(100% - 10px), transparent 100%);
+}
+
+.screenbot-input::placeholder {
+  color: var(--ink-tertiary);
+}
+
+.screenbot-input::-webkit-scrollbar {
+  width: 0;
+}
+
+.screenbot-error {
+  margin: 8px 2px 0;
+  font-size: 12px;
+  line-height: 16px;
+  color: #ff3b30;
+}
+
+.screenbot-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+/* Pushes the mic and Send to the right. */
+.screenbot-footer-space {
+  flex: 1;
+}
+
+.screenbot-send {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--send, var(--accent)), black 6%);
+  color: #fff;
+  box-shadow: inset 0 0.5px 0 rgb(255 255 255 / 35%), 0 1px 2px rgb(0 0 0 / 20%);
+  transition: transform 160ms cubic-bezier(0.3, 1.6, 0.5, 1), filter 160ms ease, background 200ms ease;
+}
+
+.screenbot-send:hover {
+  transform: scale(1.06);
+  filter: brightness(1.06);
+}
+
+.screenbot-send:active {
+  transform: scale(0.94);
+  filter: brightness(0.94);
+}
+
+.screenbot-send:focus-visible,
+.screenbot-chip:focus-visible,
+.screenbot-close:focus-visible,
+.screenbot-sent-open:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--accent), transparent 50%);
+  outline-offset: 1px;
+}
+
+.screenbot-stage[data-inactive] .screenbot-send {
+  background: var(--fill-strong);
+  color: var(--ink-secondary);
+  box-shadow: none;
+}
+
+/* The macOS notification close badge: on the corner, only while hovering. */
+.screenbot-close {
+  position: absolute;
+  left: -6px;
+  top: -6px;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  color: var(--ink-secondary);
+  background-color: var(--goo-tint);
+  background-repeat: no-repeat;
+  box-shadow: var(--edge), 0 1px 3px rgb(0 0 0 / 16%), var(--rim);
+  opacity: 0;
+  transform: scale(0.8);
+  transition: opacity 140ms ease, transform 180ms cubic-bezier(0.3, 1.5, 0.5, 1);
+}
+
+/* Only while composing: never during the intro, the send or the close. */
+.screenbot-stage[data-phase="compose"] .screenbot-card:hover .screenbot-close,
+.screenbot-stage[data-phase="compose"] .screenbot-close:focus-visible {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.screenbot-close:hover {
+  color: var(--ink);
+}
+
+/* ---- Bot picker ------------------------------------------------------------------------- */
+
+.screenbot-picker {
+  position: relative;
+  min-width: 0;
+}
+
+.screenbot-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 220px;
+  height: 28px;
+  padding: 0 9px 0 5px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--fill);
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: -0.08px;
+  transition: background 140ms ease;
+}
+
+.screenbot-chip:hover,
+.screenbot-chip[data-open] {
+  background: var(--fill-strong);
+}
+
+.screenbot-chip svg:last-child {
+  flex: none;
+  color: var(--ink-secondary);
+}
+
+.screenbot-chip-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.screenbot-avatar-image {
+  flex: none;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.screenbot-menu {
+  position: absolute;
+  left: -4px;
+  bottom: calc(100% + 8px);
+  z-index: 5;
+  box-sizing: border-box;
+  width: 264px;
+  padding: 5px;
+  border-radius: 12px;
+  box-shadow: var(--edge), 0 18px 48px -10px rgb(0 0 0 / 34%), 0 4px 12px rgb(0 0 0 / 12%);
+  transform-origin: 18px 100%;
+  animation: screenbot-menu-in 180ms cubic-bezier(0.25, 1.35, 0.45, 1);
+}
+
+@keyframes screenbot-menu-in {
+  from { opacity: 0; transform: scale(0.92) translateY(4px); }
+}
+
+.screenbot-menu-glass {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background-color: var(--goo-tint);
+  background-repeat: no-repeat;
+  box-shadow: var(--rim);
+}
+
+.screenbot-menu-search {
+  position: relative;
+  box-sizing: border-box;
+  width: 100%;
+  height: 26px;
+  margin: 0 0 4px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 7px;
+  outline: none;
+  background: var(--fill);
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+  user-select: text;
+}
+
+.screenbot-menu-search::placeholder {
+  color: var(--ink-tertiary);
+}
+
+.screenbot-menu-list {
+  position: relative;
+  max-height: 296px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  outline: none;
+  /* More Bots above or below: that edge fades, so the list reads as scrollable. */
+  --fade-top: 0px;
+  --fade-bottom: 0px;
+  mask-image: linear-gradient(to bottom, transparent 0, #000 var(--fade-top), #000 calc(100% - var(--fade-bottom)), transparent 100%);
+}
+
+/* Near the top of the screen the menu opens downward instead. */
+.screenbot-menu[data-side="below"] {
+  top: calc(100% + 8px);
+  bottom: auto;
+  transform-origin: 18px 0;
+  animation-name: screenbot-menu-in-below;
+}
+
+@keyframes screenbot-menu-in-below {
+  from { opacity: 0; transform: scale(0.92) translateY(-4px); }
+}
+
+.screenbot-menu-list::-webkit-scrollbar {
+  width: 0;
+}
+
+.screenbot-menu-heading {
+  padding: 3px 9px 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink-tertiary);
+}
+
+.screenbot-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 30px;
+  padding: 0 8px 0 4px;
+  border-radius: 7px;
+  font-size: 13px;
+  color: var(--ink);
+}
+
+.screenbot-menu-item[data-active] {
+  background: var(--accent);
+  color: #fff;
+}
+
+.screenbot-menu-check {
+  display: grid;
+  place-items: center;
+  width: 14px;
+  flex: none;
+}
+
+.screenbot-menu-text {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+  flex: 1;
+}
+
+.screenbot-menu-name {
+  flex: none;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.screenbot-menu-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--ink-secondary);
+}
+
+.screenbot-menu-item[data-active] .screenbot-menu-title,
+.screenbot-menu-item[data-active] .screenbot-menu-key {
+  color: rgb(255 255 255 / 78%);
+}
+
+.screenbot-menu-key {
+  flex: none;
+  font: inherit;
+  font-size: 12px;
+  color: var(--ink-tertiary);
+}
+
+.screenbot-menu-empty {
+  padding: 8px 10px;
+  font-size: 12px;
+  color: var(--ink-secondary);
+}
+
+/* ---- Sent ------------------------------------------------------------------------------- */
+
+.screenbot-sent {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 6px 0 9px;
+  border-radius: 18px;
+  font-size: 13px;
+  letter-spacing: -0.08px;
+  color: var(--ink);
+  white-space: nowrap;
+  transform: translate(-50%, -50%);
+  box-shadow: var(--edge), 0 16px 40px -10px rgb(0 0 0 / 34%), 0 4px 10px rgb(0 0 0 / 12%);
+  animation: screenbot-sent-in 420ms cubic-bezier(0.22, 1.5, 0.4, 1) both;
+}
+
+.screenbot-sent[data-leaving] {
+  animation: screenbot-sent-out 200ms ease-in both;
+}
+
+@keyframes screenbot-sent-in {
+  from { opacity: 0; transform: translate(-50%, -50%) scale(0.6); filter: blur(4px); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1); filter: blur(0); }
+}
+
+@keyframes screenbot-sent-out {
+  to { opacity: 0; transform: translate(-50%, -40%) scale(0.94); filter: blur(2px); }
+}
+
+.screenbot-sent-glass {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background-color: var(--goo-tint);
+  background-repeat: no-repeat;
+  box-shadow: var(--rim);
+}
+
+.screenbot-sent > :not(.screenbot-sent-glass) {
+  position: relative;
+}
+
+.screenbot-sent-text strong {
+  font-weight: 600;
+}
+
+/* Matches a file preview's "✓ Sent to" (styles.css, attachment-composer-check). */
+.screenbot-sent-check {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  margin: -2px 5px 0 0;
+  vertical-align: middle;
+  border-radius: 50%;
+  color: var(--sent-check);
+  animation: screenbot-check-pop 520ms cubic-bezier(0.3, 1.5, 0.5, 1) 110ms both;
+}
+
+.screenbot-sent-check::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: currentColor;
+  opacity: 0;
+  animation: screenbot-check-ring 620ms ease-out 170ms both;
+}
+
+.screenbot-sent-check svg {
+  overflow: visible;
+}
+
+.screenbot-sent-check path {
+  stroke: currentColor;
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 1;
+  animation: screenbot-check-draw 380ms cubic-bezier(0.65, 0, 0.35, 1) 230ms both;
+}
+
+@keyframes screenbot-check-pop {
+  0% { scale: 0; rotate: -25deg; }
+  60% { scale: 1.22; rotate: 4deg; }
+  100% { scale: 1; rotate: 0deg; }
+}
+
+@keyframes screenbot-check-ring {
+  0% { opacity: 0.38; scale: 0.6; }
+  100% { opacity: 0; scale: 2.3; }
+}
+
+@keyframes screenbot-check-draw {
+  from { stroke-dashoffset: 1; }
+  to { stroke-dashoffset: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .screenbot-sent-check,
+  .screenbot-sent-check::before,
+  .screenbot-sent-check path {
+    animation: none;
+  }
+}
+
+.screenbot-sent-open {
+  height: 24px;
+  padding: 0 11px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--fill);
+  color: var(--accent);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  transition: background 140ms ease;
+}
+
+.screenbot-sent-open:hover {
+  background: var(--fill-strong);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .screenbot-card-glass, .screenbot-in, .screenbot-thumb { transition: opacity 160ms ease; }
+  .screenbot-sent,
+  .screenbot-sent[data-leaving],
+  .screenbot-menu { animation-duration: 1ms; }
+}
+
+/* ---- Dictation -------------------------------------------------------------------------- */
+
+.screenbot-mic {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ink-secondary);
+  transition: background 140ms ease, color 140ms ease, transform 160ms cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+
+.screenbot-mic:hover:not(:disabled) {
+  background: var(--fill);
+  color: var(--ink);
+}
+
+.screenbot-mic:active:not(:disabled) {
+  transform: scale(0.92);
+}
+
+.screenbot-mic[data-state="recording"],
+.screenbot-mic[data-state="requesting"] {
+  background: color-mix(in srgb, #ff3b30, transparent 86%);
+  color: #ff3b30;
+}
+
+.screenbot-mic:disabled {
+  opacity: 0.5;
+}
+
+.screenbot-mic:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--accent), transparent 50%);
+  outline-offset: 1px;
+}
+
+/* Dictation: the chat composer's voice-note bar, laid over the footer row. The footer fades
+   out under it, then back once the bar has retreated (the layer's own exit timing). */
+/* Clipped to the card: in the chat the glow lights the conversation, but over the overlay it
+   would paint on whatever app is behind it. */
+.screenbot-voice {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  overflow: hidden;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+/* Concentric with the card: the same 4 px all round its bottom, and its 18 px radius is the
+   card's 22 less that inset, so the corners run parallel. Its top edge lands on the footer
+   row's, and Send stays where Send was. */
+.screenbot-voice-bar {
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  bottom: 4px;
+  height: 36px;
+}
+
+/* The bar's own insets, tuned to the card's footer rather than the chat composer's buttons. */
+.screenbot-voice .vm-root {
+  --vm-inset-left: 8.5px;
+  --vm-inset-right: 8px;
+}
+
+/* The card's type scale, not the chat window's. */
+.screenbot-voice .vm-bar {
+  gap: 10px;
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.screenbot-voice .vm-chip-time {
+  font-size: 12px;
+}
+
+.screenbot-voice .vm-wave {
+  height: 18px;
+}
+
+/* Back in as the bar fades out, overlapping it slightly, so the row is never empty. */
+.screenbot-footer > * {
+  transition: opacity 200ms cubic-bezier(0.22, 1, 0.36, 1) 60ms;
+}
+
+/* Leaving, the bar fades as one piece, holding its last look ("Transcribing…"). The chat's
+   exit (the surface retreating into the mic as liquid) suits a white composer; over the card's
+   glass it read as a white blob sliding off, on top of the footer coming back. */
+.screenbot-voice[data-leaving] .screenbot-voice-bar {
+  animation: screenbot-voice-out 200ms cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+@keyframes screenbot-voice-out {
+  from { opacity: 1; transform: none; }
+  to { opacity: 0; transform: translateY(3px) scale(0.985); }
+}
+
+.screenbot-card[data-voice-mode] .screenbot-footer > * {
+  opacity: 0;
+  pointer-events: none;
+  transition-delay: 0ms;
+}
+
+/* The few utilities the shared layer's markup uses; the overlay doesn't load Tailwind. */
+.screenbot-voice .size-3 { width: 12px; height: 12px; }
+.screenbot-voice .size-3\.5 { width: 14px; height: 14px; }
+.screenbot-voice .block { display: block; }
+.screenbot-voice .shrink-0 { flex-shrink: 0; }
+.screenbot-voice .sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.screenbot-error-retry {
+  margin-left: 6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-weight: 600;
+}

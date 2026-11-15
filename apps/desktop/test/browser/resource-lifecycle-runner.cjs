@@ -142,6 +142,13 @@ app.whenReady().then(async () => {
     );
     check(!oldUrlReadable, "the prior credential's blob is revoked after React replaces it");
 
+    const aliasRequests = (await read()).requests.length;
+    const immutable = "c".repeat(64);
+    await render({ sources: [`/api/assets/${immutable}?name=first.png`, `/api/v0/assets/${immutable}?name=renamed.png&download=1`] });
+    value = await waitFor(value => value.sources.length === 2 && value.sources.every(Boolean));
+    check(value.sources[0] === value.sources[1] && value.requests.length === aliasRequests + 1,
+      "content-addressed aliases and renamed attachments share one authenticated request and blob URL");
+
     await signal(true, true);
     await render({ screen: true });
     await evaluate(
@@ -160,8 +167,8 @@ app.whenReady().then(async () => {
     const takeovers = value.takeovers;
     await pause(20_100);
     check(
-      (await read()).takeovers > takeovers,
-      "the hidden computer preserves its control heartbeat"
+      (await read()).takeovers === takeovers,
+      "the hidden computer does not acquire or renew control"
     );
     await signal(true, false);
     value = await waitFor((value) => value.vnc.live === 1);

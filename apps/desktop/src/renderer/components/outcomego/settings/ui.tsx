@@ -1,7 +1,8 @@
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { OUTCOMEGO_DEEP_LINK_EVENT, type SettingsAnchor } from "../../../lib/app-deep-links";
 import { cn } from "../../../lib/cn";
 import { useI18n } from "../../../lib/i18n";
+import { Skeleton } from "../../ui/skeleton";
 import "./ui.css";
 
 const settingsButton =
@@ -196,4 +197,71 @@ export function SectionLabel({ children }: { children: ReactNode }) {
       {typeof children === "string" ? t(children) : children}
     </div>
   );
+}
+
+/**
+ * A placeholder bar that holds a value's exact space while it loads. Bars fade in
+ * after a beat, so a fast load goes straight to the content without a flash.
+ */
+export function SkeletonBar({ className, style }: { className?: string; style?: CSSProperties }) {
+  return (
+    <Skeleton
+      aria-hidden="true"
+      className={cn("settings-skeleton block max-w-full rounded-[4px]", className)}
+      style={style}
+    />
+  );
+}
+
+/** One line of text: a bar centred in the line box of the text it stands in for. */
+export function SkeletonText({
+  width,
+  size = "description",
+}: {
+  width: number;
+  size?: "title" | "description";
+}) {
+  return (
+    <span
+      aria-hidden="true"
+      className={cn("flex items-center", size === "title" ? "h-[17px]" : "h-4")}
+    >
+      <SkeletonBar className={size === "title" ? "h-[9px]" : "h-[8px]"} style={{ width }} />
+    </span>
+  );
+}
+
+/** A 28 px select, input or button. */
+export function SkeletonControl({
+  width,
+  className,
+}: {
+  width: number | string;
+  className?: string;
+}) {
+  return <SkeletonBar className={cn("h-7 rounded-[8px]", className)} style={{ width }} />;
+}
+
+/** A status label: its dot and a short word ("Allowed", "Online now"). */
+export function SkeletonStatus({ width = 48 }: { width?: number }) {
+  return (
+    <span aria-hidden="true" className="inline-flex items-center gap-1.5">
+      <SkeletonBar className="size-1.5 rounded-full" />
+      <SkeletonBar className="h-[8px]" style={{ width }} />
+    </span>
+  );
+}
+
+/** Content that just replaced a skeleton fades in over it instead of popping. */
+export function SettingsReveal({
+  children,
+  as = "span",
+  className,
+}: {
+  children: ReactNode;
+  as?: "span" | "div";
+  className?: string;
+}) {
+  const Tag = as;
+  return <Tag className={cn("settings-reveal", className)}>{children}</Tag>;
 }

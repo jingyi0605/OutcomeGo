@@ -1,3 +1,22 @@
+type ScreenBotShortcutView =
+  | { kind: "chord"; modifier: "command" | "option" | "shift" | "control" }
+  | { kind: "accelerator"; accelerator: string };
+
+interface ScreenBotShortcutStatusView {
+  shortcut: ScreenBotShortcutView;
+  isDefault: boolean;
+  active: boolean;
+  mode: "tap" | "poll" | "shortcut" | null;
+  error: string | null;
+  fn: boolean;
+  platform: string;
+}
+
+interface KeyboardShortcutsView {
+  bindings: Record<"search" | "toggleSidebar" | "settings" | "dictate" | "previousBot" | "nextBot", string>;
+  defaults: Record<"search" | "toggleSidebar" | "settings" | "dictate" | "previousBot" | "nextBot", string>;
+}
+
 interface Window {
   outcomego?: {
     platform: string;
@@ -12,6 +31,40 @@ interface Window {
     visibility?: {
       subscribe: (callback: (visible: boolean) => void) => () => void;
       subscribeActivity?: (callback: (active: boolean) => void) => () => void;
+    };
+    /** Feeds the floating screenbot composer (src/renderer/lib/screenbot-bridge.ts).. */
+    shortcuts?: {
+      get(): Promise<KeyboardShortcutsView>;
+      set(action: string, binding: string | null): Promise<KeyboardShortcutsView>;
+      recordFn(recording: boolean): Promise<void>;
+      onChange(callback: (view: KeyboardShortcutsView) => void): () => void;
+      onShortcut(callback: (action: string) => void): () => void;
+    };
+    screenbot?: {
+      publishRoster(roster: {
+        accountScope: string | null;
+        bots: Array<{ id: string; name: string; title: string; color: string; icon: string; channelId: string; avatarDataUrl?: string }>;
+        dictation: boolean;
+      }): void;
+      onTranscribe(handler: (request: { accountScope: string; audio: Uint8Array; mimeType: string }) => Promise<string>): () => void;
+      onDeliver(
+        handler: (request: {
+          accountScope: string;
+          botId: string;
+          content: string;
+          nonce: string;
+          staged: { stagingId: string; fileName: string; mimeType: string; byteSize: number; width: number; height: number };
+        }) => Promise<void>
+      ): () => void;
+      onRosterRequest(callback: () => void): () => void;
+      shortcut: {
+        get(): Promise<ScreenBotShortcutStatusView>;
+        set(shortcut: ScreenBotShortcutView): Promise<ScreenBotShortcutStatusView>;
+        reset(): Promise<ScreenBotShortcutStatusView>;
+        setRecording(recording: boolean): Promise<void>;
+        requestAccess(): Promise<boolean>;
+        onChange(callback: (status: ScreenBotShortcutStatusView) => void): () => void;
+      };
     };
     auth: {
       connectMachine: (serverUrl: string) => Promise<{ machineId: string }>;

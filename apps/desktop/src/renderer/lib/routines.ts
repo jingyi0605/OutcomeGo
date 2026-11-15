@@ -239,13 +239,35 @@ export const routineScheduleValue = (draft: RoutineScheduleDraft): string => {
 };
 
 export const routineScheduleValues = (draft: RoutineScheduleDraft): string[] => {
-  if (draft.preset !== "advanced" || draft.advancedTimeMode !== "at-times") {
+  if (draft.preset !== "advanced") {
     return [routineScheduleValue(draft)];
   }
   const monthField = listField(draft.advancedMonths);
   const dayField =
     draft.advancedDayMode === "month-days" ? listField(draft.advancedMonthDays) : "*";
   const weekField = draft.advancedDayMode === "weekdays" ? listField(draft.advancedWeekDays) : "*";
+
+  if (draft.advancedTimeMode === "every" && draft.advancedEveryUnit === "m") {
+    const amount = Math.max(1, Math.min(59, draft.advancedEveryAmount));
+    if (60 % amount !== 0) {
+      const [fromHour] = timeFields(draft.advancedFromTime);
+      const [toHour] = timeFields(draft.advancedToTime);
+      const firstMinute = fromHour * 60;
+      const lastMinute = (toHour + 1) * 60;
+      return Array.from(
+        { length: Math.max(0, Math.ceil((lastMinute - firstMinute) / amount)) },
+        (_, index) => {
+          const minuteOfDay = firstMinute + index * amount;
+          const hour = Math.floor(minuteOfDay / 60);
+          const minute = minuteOfDay % 60;
+          return `${minute} ${hour} ${dayField} ${monthField} ${weekField}`;
+        }
+      );
+    }
+    return [routineScheduleValue(draft)];
+  }
+  if (draft.advancedTimeMode === "every") return [routineScheduleValue(draft)];
+
   const times = draft.advancedTimes.length > 0 ? draft.advancedTimes : ["08:00"];
   return [...new Set(times)].map((time) => {
     const [hour, minute] = timeFields(time);

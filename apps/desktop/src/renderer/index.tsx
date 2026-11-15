@@ -20,6 +20,7 @@ function Workspace() {
     let active = true;
     // Commit as soon as the module resolves. Suspense retries can deliberately
     // retain a just-shown fallback for 300 ms, delaying the workspace bootstrap.
+    let stopScreenBot: (() => void) | undefined;
     void import("./App").then(
       ({ default: component }) => {
         if (active) setLoaded({ component });
@@ -28,8 +29,15 @@ function Workspace() {
         if (active) setLoaded({ error });
       }
     );
+    // ScreenBots send through this signed-in window.
+    if (window.outcomego?.screenbot) {
+      void import("./lib/screenbot-bridge").then(({ startScreenBotBridge }) => {
+        if (active) stopScreenBot = startScreenBotBridge();
+      });
+    }
     return () => {
       active = false;
+      stopScreenBot?.();
     };
   }, []);
   if (loaded && "error" in loaded) throw loaded.error;

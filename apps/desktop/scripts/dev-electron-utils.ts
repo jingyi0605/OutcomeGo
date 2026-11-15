@@ -3,6 +3,7 @@ export const ELECTRON_BUNDLE_ARTIFACTS = [
   "host-utility.js",
   "outcomego-cli.js",
   "preload.cjs",
+  "screenbot-preload.cjs",
 ] as const;
 
 export interface DevElectronEnvironment {

@@ -26,6 +26,10 @@ export interface VoiceMemoLayerProps {
   onDiscard: () => void;
   onSend: () => void;
   onCancelProcessing: () => void;
+  /** The voice's level each time the wave takes a sample (0–1), for anything listening along. */
+  onLevel?: (level: number) => void;
+  /** The microphone is still opening: nothing is being recorded yet. */
+  starting?: boolean;
 }
 
 const WAVE_SAMPLE_MS = 50;
@@ -61,7 +65,15 @@ function useReducedMotion() {
 
 // The voice across the bar: a dotted baseline the take scrolls over
 // continuously, newest sound entering at the right edge.
-function VoiceWave({ stream }: { stream: MediaStream | null }) {
+function VoiceWave({
+  stream,
+  onLevel,
+}: {
+  stream: MediaStream | null;
+  onLevel?: (level: number) => void;
+}) {
+  const levelListener = useRef(onLevel);
+  levelListener.current = onLevel;
   const windowActive = useWindowActive();
   const resourcesActive = useResourceActive();
   const active = windowActive && resourcesActive;
@@ -126,6 +138,7 @@ function VoiceWave({ stream }: { stream: MediaStream | null }) {
       while (now - lastSample >= WAVE_SAMPLE_MS) {
         lastSample += WAVE_SAMPLE_MS;
         samples.push(peak);
+        levelListener.current?.(peak);
         peak = level;
         if (samples.length > capacity) samples.splice(0, samples.length - capacity);
       }
@@ -171,10 +184,12 @@ function TimeChip({
   elapsedMs,
   gooId,
   processing,
+  starting,
 }: {
   elapsedMs: number;
   gooId: string;
   processing: boolean;
+  starting: boolean;
 }) {
   const { t } = useI18n();
   return (
@@ -197,7 +212,10 @@ function TimeChip({
         <BotPlusIcon className="size-3.5" />
       </span>
       <span aria-hidden={processing} className="vm-chip-time">
-        {formatDuration(elapsedMs)}
+        {/* Dimmed and pulsing until the microphone is live: the timer starts with the recording. */}
+        <span className={starting ? "vm-chip-starting" : undefined}>
+          {formatDuration(elapsedMs)}
+        </span>
       </span>
       <span aria-hidden="true" className="vm-chip-orb">
         {processing ? <LoadingOrb label={t("Transcribing")} size={20} state="listening" /> : null}
@@ -216,6 +234,8 @@ export default function VoiceMemoLayer({
   onDiscard,
   onSend,
   onCancelProcessing,
+  onLevel,
+  starting = false,
 }: VoiceMemoLayerProps) {
   const { t } = useI18n();
   const dark = useDocumentDark();
@@ -251,10 +271,15 @@ export default function VoiceMemoLayer({
       </div>
 
       <div className="vm-bar">
-        <TimeChip elapsedMs={elapsedMs} gooId={gooId} processing={mode === "processing"} />
+        <TimeChip
+          elapsedMs={elapsedMs}
+          gooId={gooId}
+          processing={mode === "processing"}
+          starting={starting && mode === "recording"}
+        />
         <span className="vm-body">
           <span className="vm-wave-slot">
-            <VoiceWave stream={stream} />
+            <VoiceWave onLevel={onLevel} stream={stream} />
           </span>
           <span aria-hidden="true" className="vm-processing">
             {t("Transcribing…")}

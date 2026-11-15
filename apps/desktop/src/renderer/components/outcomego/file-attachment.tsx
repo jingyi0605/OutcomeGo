@@ -21,6 +21,7 @@ import { Button } from "../ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "../ui/dialog";
 import { LoadingOrb } from "../ui/loading-orb";
 import { FileGlyph, fileGlyphVariant, formatAttachmentSize } from "./attachment-visuals";
+import { AttachmentStage } from "./attachment-stage";
 import {
   renderSanitizedDocumentProgressively,
   sanitizePreviewDocument,
@@ -36,7 +37,10 @@ export const downloadAttachments = async (attachments: readonly AssetRef[]) => {
   for (const file of files) {
     const anchor = document.createElement("a");
     const response = await fetch(file.url, { headers: authHeaders(), redirect: "error" });
-    if (!response.ok) throw new Error(translateCurrent("File request failed ({status})", { status: response.status }));
+    if (!response.ok)
+      throw new Error(
+        translateCurrent("File request failed ({status})", { status: response.status })
+      );
     const objectUrl = URL.createObjectURL(await response.blob());
     anchor.href = objectUrl;
     anchor.download = file.fileName;
@@ -53,13 +57,17 @@ const readBoundedResponse = async (
 ): Promise<{ buffer: ArrayBuffer; truncated: boolean }> => {
   const declaredLength = Number(response.headers.get("content-length") ?? 0);
   if (!truncate && Number.isFinite(declaredLength) && declaredLength > maximumBytes) {
-    throw new Error(translateCurrent("This file is too large to preview here. Download it to open it in full."));
+    throw new Error(
+      translateCurrent("This file is too large to preview here. Download it to open it in full.")
+    );
   }
 
   if (!response.body) {
     const buffer = await response.arrayBuffer();
     if (!truncate && buffer.byteLength > maximumBytes) {
-      throw new Error(translateCurrent("This file is too large to preview here. Download it to open it in full."));
+      throw new Error(
+        translateCurrent("This file is too large to preview here. Download it to open it in full.")
+      );
     }
     return {
       buffer: buffer.byteLength > maximumBytes ? buffer.slice(0, maximumBytes) : buffer,
@@ -320,7 +328,10 @@ function LoadedDocumentPreview({
         signal: controller.signal,
         redirect: "error",
       });
-      if (!response.ok) throw new Error(translateCurrent("File request failed ({status})", { status: response.status }));
+      if (!response.ok)
+        throw new Error(
+          translateCurrent("File request failed ({status})", { status: response.status })
+        );
       const maximum = CLIENT_CAPABILITIES.uploads.maxRegularBytes;
       const loaded = await readBoundedResponse(
         response,
@@ -522,6 +533,89 @@ export function FileAttachmentCard({ attachment }: { attachment: AssetRef }) {
         </DialogContent>
       </Dialog>
     </>
+  );
+}
+
+/**
+ * The viewer for one asset, without a card of its own: the Library opens it from a row.
+ * Images get the image viewer; everything else gets the attachment sheet.
+ */
+export function FileAttachmentPreview({
+  attachment,
+  open,
+  onOpenChange,
+}: {
+  attachment: AssetRef;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const { t } = useI18n();
+  if (attachment.kind === "image") {
+    return (
+      <Dialog onOpenChange={onOpenChange} open={open}>
+        <DialogContent
+          className="w-fit !max-w-none gap-0 overflow-visible rounded-none border-0 bg-transparent p-0 text-white shadow-none"
+          overlayClassName="bg-black/90"
+          showCloseButton={false}
+          surface="transparent"
+        >
+          <DialogTitle className="sr-only">{attachment.fileName}</DialogTitle>
+          <DialogDescription className="sr-only">
+            {t("Full-size preview of {name}.", { name: attachment.fileName })}
+          </DialogDescription>
+          <button
+            aria-label={t("Close {name}", { name: attachment.fileName })}
+            className="block overflow-hidden rounded-[12px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
+            onClick={() => onOpenChange(false)}
+            style={{ cursor: "zoom-out" }}
+            type="button"
+          >
+            <PreviewImage attachment={attachment} />
+          </button>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+  const kind = attachmentPreviewKind(attachment);
+  return (
+    <AttachmentStage
+      dark={kind === "video"}
+      onOpenChange={onOpenChange}
+      open={open}
+      title={attachment.fileName}
+      actions={
+        <button
+          aria-label={t("Download file")}
+          className="desktop-elevated-control"
+          onClick={() =>
+            void downloadAttachments([attachment]).catch((error) =>
+              toast.error(clientErrorMessage(error, t("Couldn’t download file")))
+            )
+          }
+          type="button"
+        >
+          <Download className="size-4" strokeWidth={1.8} />
+        </button>
+      }
+    >
+      <div className="attachment-stage-document bot-scrollbar">
+        <LoadedDocumentPreview attachment={attachment} kind={kind} open={open} />
+      </div>
+    </AttachmentStage>
+  );
+}
+
+/** The image at full size, fetched with the account's credentials like every other asset. */
+function PreviewImage({ attachment }: { attachment: AssetRef }) {
+  const source = useAuthenticatedResource(api.assetUrl(attachment));
+  if (!source) return null;
+  return (
+    <img
+      alt={attachment.alt || attachment.fileName}
+      className="block max-h-[calc(100vh-112px)] max-w-[calc(100vw-64px)] bg-white object-contain"
+      decoding="async"
+      src={source}
+    />
   );
 }
 

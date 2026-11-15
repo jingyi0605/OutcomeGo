@@ -77,6 +77,18 @@ const bundleCommands = [
     "--external",
     "electron",
   ],
+  [
+    "build",
+    "src/preload/screenbot.ts",
+    "--outfile",
+    "dist-electron/screenbot-preload.cjs",
+    "--target",
+    "node",
+    "--format",
+    "cjs",
+    "--external",
+    "electron",
+  ],
 ] as const;
 
 const delay = (milliseconds: number) =>

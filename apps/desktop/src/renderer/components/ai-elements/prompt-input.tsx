@@ -3,7 +3,10 @@
 import { MAX_PARALLEL_UPLOADS, mapWithConcurrency } from "@outcomego/client-core";
 import type { AssetRef, ClientCapabilities } from "@outcomego/contracts";
 import { CLIENT_CAPABILITIES } from "@outcomego/contracts/capabilities";
-import { remainingAttachmentCapacity, selectAttachments } from "@outcomego/product-core/attachments";
+import {
+  remainingAttachmentCapacity,
+  selectAttachments,
+} from "@outcomego/product-core/attachments";
 import type { DurableStagedAttachment } from "@outcomego/product-core/durable-delivery";
 import { clientErrorMessage } from "@outcomego/product-core/redaction";
 import { Paperclip, X } from "lucide-react";
@@ -25,7 +28,7 @@ import {
   useState,
 } from "react";
 import { createPortal } from "react-dom";
-import { useVoiceNote } from "../../hooks/use-voice-note";
+import { useVoiceNote } from "../../hooks/use-voice-recorder";
 import { useVoiceShortcuts } from "../../hooks/use-voice-shortcuts";
 import { cn } from "../../lib/cn";
 import { useI18n } from "../../lib/i18n";
@@ -535,9 +538,11 @@ export function PromptInput({
     available: voice.available && !disabled && !submitting && !staging,
     active: voice.active,
     state: voice.state,
+    elapsedMs: voice.elapsedMs,
     start: startVoice,
     stop: stopVoice,
     cancel: cancelVoice,
+    fail: voice.fail,
     sendWhenReady: sendVoice,
   });
 

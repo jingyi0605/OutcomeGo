@@ -19,6 +19,7 @@ import {
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { Textarea } from "../ui/textarea";
+import { ButtonPrimitive } from "../ui/button-primitive";
 import { api } from "../../client/outcomego-api";
 import { botTemplateRecipe, downloadBotTemplate } from "../../lib/bot-template";
 import { useI18n } from "../../lib/i18n";
@@ -36,6 +37,9 @@ const BotScreen = lazy(() =>
 // );
 const RoutineEditor = lazy(() =>
   import("./routine-panel").then((module) => ({ default: module.RoutineEditor }))
+);
+const ChannelLibrary = lazy(() =>
+  import("./channel-library").then((module) => ({ default: module.ChannelLibrary }))
 );
 const RoutinesSummary = lazy(() =>
   import("./routine-summary").then((module) => ({ default: module.RoutinesSummary }))
@@ -556,6 +560,7 @@ export const Inspector = memo(function Inspector({
   );
   const bot = channel.kind === "bot_dm" ? members[0] : undefined;
   const [selectedRoutineId, setSelectedRoutineId] = useState<string | null>(null);
+  const [summaryTab, setSummaryTab] = useState<"summary" | "library">("summary");
   const [memberMutationPending, setMemberMutationPending] = useState(false);
   const [memberMutationError, setMemberMutationError] = useState<string | null>(null);
   const [removeMemberTarget, setRemoveMemberTarget] = useState<BotView | null>(null);
@@ -588,6 +593,7 @@ export const Inspector = memo(function Inspector({
     setMemberMutationPending(false);
     setMemberMutationError(null);
     setRemoveMemberTarget(null);
+    setSummaryTab("summary");
   }, [channel.id]);
   useEffect(() => {
     if (routineOpenRequest) setSelectedRoutineId(routineOpenRequest.routineId);
@@ -671,16 +677,54 @@ export const Inspector = memo(function Inspector({
                 : t("{name}'s screen", { name: bot.name })}
             </div>
           </section>
-          {/* <BotMemoryButton bot={bot} active={active} /> */}
-          <RoutinesSummary
-            active={active}
-            ownerId={bot.id}
-            ownerKind="bot"
-            onOpen={(routineId) => {
-              setSelectedRoutineId(routineId);
-              onModeChange("routine");
-            }}
-          />
+          <div
+            aria-label={t("Bot details")}
+            className="mt-4 flex items-center gap-1 rounded-[9px] bg-black/[0.045] p-1 dark:bg-white/[0.07]"
+            role="tablist"
+          >
+            <ButtonPrimitive
+              aria-selected={summaryTab === "summary"}
+              className="h-8 flex-1 rounded-[7px] text-[12px] data-[state=active]:bg-background"
+              data-state={summaryTab === "summary" ? "active" : "inactive"}
+              onClick={() => setSummaryTab("summary")}
+              role="tab"
+              type="button"
+            >
+              {t("Overview")}
+            </ButtonPrimitive>
+            <ButtonPrimitive
+              aria-selected={summaryTab === "library"}
+              className="h-8 flex-1 rounded-[7px] text-[12px] data-[state=active]:bg-background"
+              data-state={summaryTab === "library" ? "active" : "inactive"}
+              onClick={() => setSummaryTab("library")}
+              role="tab"
+              type="button"
+            >
+              {t("Library")}
+            </ButtonPrimitive>
+          </div>
+          {summaryTab === "library" ? (
+            <Suspense
+              fallback={
+                <div aria-label={t("Loading Library")} className="mt-4 h-16" role="status" />
+              }
+            >
+              <ChannelLibrary active={active} channelId={channel.id} />
+            </Suspense>
+          ) : (
+            <>
+              {/* <BotMemoryButton bot={bot} active={active} /> */}
+              <RoutinesSummary
+                active={active}
+                ownerId={bot.id}
+                ownerKind="bot"
+                onOpen={(routineId) => {
+                  setSelectedRoutineId(routineId);
+                  onModeChange("routine");
+                }}
+              />
+            </>
+          )}
         </Suspense>
       ) : (
         <>

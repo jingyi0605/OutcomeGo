@@ -104,6 +104,39 @@ const notificationSnapshot = (value: unknown) => {
   return value;
 };
 
+/** Subscribes to a channel's values; returns the unsubscribe. */
+const listen = (channel: string, callback: (value: unknown) => void) => {
+  const listener = (_event: Electron.IpcRendererEvent, value: unknown) => callback(value);
+  ipcRenderer.on(channel, listener);
+  return () => {
+    ipcRenderer.removeListener(channel, listener);
+  };
+};
+
+/** What the floating composer shows when the chat window couldn't do what it asked. Network
+ * failures surface from fetch as a bare "Failed to fetch"; say what that means instead. */
+const screenBotError = (error: unknown, fallback: string) => {
+  if (error instanceof TypeError && /fetch|network/i.test(error.message)) {
+    return "Couldn’t reach OutcomeGo. Check your connection and try again.";
+  }
+  return error instanceof Error && error.message ? error.message : fallback;
+};
+
+interface ScreenBotDelivery {
+  accountScope: string;
+  botId: string;
+  content: string;
+  nonce: string;
+  staged: {
+    stagingId: string;
+    fileName: string;
+    mimeType: string;
+    byteSize: number;
+    width: number;
+    height: number;
+  };
+}
+
 contextBridge.exposeInMainWorld("outcomego", {
   platform: process.platform,
   clipboard: {
@@ -308,6 +341,98 @@ contextBridge.exposeInMainWorld("outcomego", {
     },
     status: () => ipcRenderer.invoke("outcomego:notifications:status"),
     openSettings: () => ipcRenderer.invoke("outcomego:notifications:open-settings"),
+  },
+  /** Rebindable app shortcuts (Settings › Keyboard), and the ones only main sees (Fn). */
+  shortcuts: {
+    get: () => ipcRenderer.invoke("outcomego:shortcuts:get"),
+    set: (action: string, binding: string | null) =>
+      ipcRenderer.invoke("outcomego:shortcuts:set", action, binding),
+    recordFn: (recording: boolean) =>
+      ipcRenderer.invoke("outcomego:shortcuts:record-fn", recording === true),
+    onChange: (callback: (view: unknown) => void) =>
+      listen("outcomego:shortcuts-changed", callback),
+    onShortcut: (callback: (action: string) => void) =>
+      listen("outcomego:shortcut", (action) => {
+        if (typeof action === "string") callback(action);
+      }),
+  },
+  screenbot: {
+    /** Bots the floating screenbot composer can send to, most recent first. */
+    publishRoster: (roster: unknown) =>
+      ipcRenderer.send("openteam:screenbot:roster", record(roster, "ScreenBot roster")),
+    /** Delivers a ScreenBot already staged on disk by main (which validated it): only a
+     * reference crosses IPC. */
+    onDeliver: (handler: (request: ScreenBotDelivery) => Promise<void>) => {
+      const listener = (_event: Electron.IpcRendererEvent, value: unknown) => {
+        const request = record(value, "ScreenBot delivery") as unknown as ScreenBotDelivery & {
+          requestId: string;
+        };
+        const reply = (result: object) =>
+          ipcRenderer.send("openteam:screenbot:delivered", {
+            requestId: request.requestId,
+            ...result,
+          });
+        stagingId(request.staged?.stagingId);
+        handler(request).then(
+          () => reply({ ok: true }),
+          (error: unknown) =>
+            reply({
+              ok: false,
+              error: screenBotError(error, "This screenshot couldn’t be sent."),
+            })
+        );
+      };
+      ipcRenderer.on("openteam:screenbot:deliver", listener);
+      return () => ipcRenderer.removeListener("openteam:screenbot:deliver", listener);
+    },
+    /** Dictation in the screenbot composer: transcribe a recording made by the overlay. */
+    onTranscribe: (
+      handler: (request: {
+        accountScope: string;
+        audio: Uint8Array;
+        mimeType: string;
+      }) => Promise<string>
+    ) => {
+      const listener = (_event: Electron.IpcRendererEvent, value: unknown) => {
+        const { requestId, accountScope, audio, mimeType } = record(
+          value,
+          "ScreenBot transcription"
+        );
+        const reply = (result: object) =>
+          ipcRenderer.send("openteam:screenbot:delivered", { requestId, ...result });
+        if (
+          typeof accountScope !== "string" ||
+          !(audio instanceof Uint8Array) ||
+          typeof mimeType !== "string"
+        )
+          return reply({ ok: false, error: "That recording couldn’t be used." });
+        handler({ accountScope, audio, mimeType }).then(
+          (text) => reply({ ok: true, text }),
+          (error: unknown) =>
+            reply({
+              ok: false,
+              error: screenBotError(error, "Transcription failed. Try again."),
+            })
+        );
+      };
+      ipcRenderer.on("openteam:screenbot:transcribe", listener);
+      return () => ipcRenderer.removeListener("openteam:screenbot:transcribe", listener);
+    },
+    /** The screenbot trigger: both ⌘ keys by default, or a shortcut of the person's choosing. */
+    shortcut: {
+      get: () => ipcRenderer.invoke("outcomego:screenbot:shortcut:get"),
+      set: (shortcut: unknown) =>
+        ipcRenderer.invoke("outcomego:screenbot:shortcut:set", shortcut),
+      reset: () => ipcRenderer.invoke("outcomego:screenbot:shortcut:set", null),
+      setRecording: (recording: boolean) =>
+        ipcRenderer.invoke("outcomego:screenbot:shortcut:recording", recording === true),
+      requestAccess: () => ipcRenderer.invoke("outcomego:screenbot:shortcut:request-access"),
+      onChange: (callback: (status: unknown) => void) =>
+        listen("outcomego:screenbot:shortcut-changed", callback),
+    },
+    /** Main asks for a fresh Bot list each time a ScreenBot is taken. */
+    onRosterRequest: (callback: () => void) =>
+      listen("outcomego:screenbot:roster-request", () => callback()),
   },
   getProcessMetrics: () => ipcRenderer.invoke("outcomego:performance-snapshot"),
   onNotificationClick: (listener: (target: DesktopNotificationTarget) => void) => {

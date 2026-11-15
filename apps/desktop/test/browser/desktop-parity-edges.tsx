@@ -7,6 +7,8 @@ import { ChatPane } from "../../src/renderer/components/outcomego/chat-pane";
 import { SearchDialog } from "../../src/renderer/components/outcomego/search-dialog";
 import { PromptInput } from "../../src/renderer/components/ai-elements/prompt-input";
 import { TooltipProvider } from "../../src/renderer/components/ui/tooltip";
+import { ExternalDraftCard } from "../../src/renderer/components/outcomego/external-draft-card";
+import { parseExternalDraft } from "@outcomego/contracts/external-draft";
 import "../../src/renderer/styles.css";
 
 window.fetch = async () => {
@@ -241,7 +243,16 @@ async function chatScenario(theme: string, kind: "bot_dm" | "group") {
   const bubbleFor = (index: number) =>
     document.querySelector<HTMLElement>('[data-message-bubble-id="' + messages[index]!.id + '"]')!;
   const width = bubbleFor(3).getBoundingClientRect().width;
-  check(Math.abs(width - 713 * 0.88) < 1, "Long user bubble width " + width + ", expected 627.44");
+  check(
+    Math.abs(width - 560) < 1,
+    "Long user bubble width " + width + ", expected reference cap 560"
+  );
+  const bubbleStyle = getComputedStyle(bubbleFor(3));
+  check(
+    bubbleStyle.fontSize === "15px" && bubbleStyle.fontWeight === "425",
+    "Message typography differs from the reference"
+  );
+  check(bubbleStyle.padding === "7px 12px", "Message padding differs from the reference");
   const actions = bubbleFor(3).parentElement!.querySelector<HTMLElement>("[data-message-actions]")!;
   const rowBounds = bubbleFor(3).closest(".message-row")!.getBoundingClientRect();
   const actionBounds = actions.getBoundingClientRect();
@@ -272,18 +283,16 @@ async function chatScenario(theme: string, kind: "bot_dm" | "group") {
     };
   });
   greeting.style.textRendering = "";
-  runs = bots
-    .slice(0, kind === "group" ? 3 : 1)
-    .map(
-      (bot, index) =>
-        ({
-          id: "run-" + index,
-          botId: bot.id,
-          channelId: channel.id,
-          status: kind === "group" ? "queued" : "running",
-          createdAt: new Date().toISOString(),
-        }) as RunView
-    );
+  runs = bots.slice(0, kind === "group" ? 3 : 1).map(
+    (bot, index) =>
+      ({
+        id: "run-" + index,
+        botId: bot.id,
+        channelId: channel.id,
+        status: kind === "group" ? "queued" : "running",
+        createdAt: new Date().toISOString(),
+      }) as RunView
+  );
   drawChat();
   await pause(250);
   check(document.querySelector("[data-bot-thinking] svg"), "Thinking does not render our avatar");
@@ -352,27 +361,46 @@ async function narrowScenario(theme: string) {
 }
 async function captionActionsScenario(theme: string) {
   newChat(theme + "-caption", "bot_dm");
-  const images = [
+  const previousAssetUrl = api.assetUrl;
+  api.assetUrl = () =>
+    "data:image/svg+xml," +
+    encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="600" height="300"/>');
+  const attachments = [
     {
-      url:
-        "data:image/svg+xml," +
-        encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="600" height="300"/>'),
+      assetId: "a".repeat(64),
+      fileName: "wide-image.png",
+      kind: "image",
+      mimeType: "image/png",
+      byteSize: 100,
       width: 600,
       height: 300,
     },
   ];
   messages = [
-    { ...message(channel.id, 0, "go find and tl;dr this email", "user"), metadata: { images } },
-    { ...message(channel.id, 1, "Here it is"), metadata: { images } },
+    { ...message(channel.id, 0, "Short caption", "user"), metadata: { attachments } },
+    { ...message(channel.id, 1, "Here it is"), metadata: { attachments } },
   ];
   drawChat();
   await pause(300);
   for (const row of document.querySelectorAll<HTMLElement>("[data-message-id]")) {
     const user = row.dataset.role === "user";
     const caption = row.querySelector<HTMLElement>(".message-bubble")!.getBoundingClientRect();
-    const stack = row.querySelector<HTMLElement>("[data-message-bubble-id]")!.getBoundingClientRect();
-    const actions = row.querySelector<HTMLElement>("[data-message-actions]")!.getBoundingClientRect();
-    check(stack.width - caption.width > 100, "Caption fixture is not narrower than its image");
+    const stack = row
+      .querySelector<HTMLElement>("[data-message-bubble-id]")!
+      .getBoundingClientRect();
+    const actions = row
+      .querySelector<HTMLElement>("[data-message-actions]")!
+      .getBoundingClientRect();
+    check(
+      stack.width - caption.width > 100,
+      "Caption fixture is not narrower than its image: " +
+        JSON.stringify({
+          user,
+          stack: stack.width,
+          caption: caption.width,
+          text: row.querySelector(".message-bubble")?.textContent,
+        })
+    );
     const gap = user ? caption.left - actions.right : actions.left - caption.right;
     check(gap >= 0 && gap <= 8, "Hover actions are not beside the caption: gap " + gap);
     check(
@@ -381,6 +409,7 @@ async function captionActionsScenario(theme: string) {
     );
   }
   reports.push({ theme, scenario: "hover actions beside caption under a wider image" });
+  api.assetUrl = previousAssetUrl;
   render(null);
   await pause(50);
 }
@@ -452,9 +481,120 @@ async function historyScenario(theme: string) {
   render(null);
   await pause(50);
 }
+async function draftReviewScenario(theme: string, width: number) {
+  const draft = parseExternalDraft({ platform: "email", providerIdentifier: "gmail", from: "me@example.com", to: ["ann@example.com"], subject: "Fwd: Schedule", body: "Please review before Friday.", forwardMessageId: "original", attachments: ["/workspace/notes.txt"] });
+  const verification = { identity: "me@example.com", destination: "ann@example.com", forwarding: "“Schedule” from Pat", forwardUrl: "https://mail.example.com/original",
+    attachments: [{ assetId: "a".repeat(64), fileName: "notes.txt", mimeType: "text/plain", byteSize: 5, kind: "text" }],
+    revision: { baselineMessageId: "older", changedFields: ["subject"], body: [{ text: "Please review ", added: false }, { text: "before Friday", added: true }, { text: ".", added: false }] } };
+  let card = { id: `draft-${theme}-${width}`, channelId: "test", sequence: "1", sender: "agent", senderBotId: "bot-0", sourceRunId: null, content: draft.subject, createdAt: new Date().toISOString(), metadata: { type: "external-draft", draft: { ...draft, verification }, cardState: "pending" } } as ChannelMessageView;
+  const calls: string[] = [];
+  const draw = () => render(<div style={{ width, padding: 12 }}><ExternalDraftCard key={card.id} message={card} draft={parseExternalDraft((card.metadata as any).draft)} bot={bots[0]} /></div>);
+  Object.assign(api, { mutateExternalDraft: async (_id: string, action: string) => {
+    calls.push(action);
+    card = { ...card, metadata: { ...(card.metadata as object), cardState: action === "cancel" ? "dismissed" : "sent" } };
+    draw();
+    return { accepted: true, message: card, runId: null };
+  } });
+  const oldFetch = window.fetch;
+  window.fetch = async () => new Response("hello", { headers: { "content-type": "text/plain", "content-length": "5" } });
+  try {
+    draw();
+    for (let i = 0; i < 80 && !document.querySelector('[aria-label="Open notes.txt"]'); i++) await pause(100);
+    check(document.querySelector('[aria-label="Open notes.txt"]'), "Draft attachment did not render");
+    check(document.querySelector('.draft-field[href="https://mail.example.com/original"]')?.textContent?.includes("Forwarding"), "Forwarding source missing");
+    check(document.querySelector('.draft-revision-body mark')?.textContent === "before Friday", "Revision highlight missing");
+    check(document.querySelector('[aria-label="Subject"][data-revised]'), "Changed subject not highlighted");
+    const send = () => [...document.querySelectorAll<HTMLButtonElement>('button')].find(button => button.textContent === "Send")!;
+    const setField = async (label: string, value: string) => {
+      const field = document.querySelector<HTMLTextAreaElement>(`textarea[aria-label="${label}"]`)!;
+      Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!.call(field, value);
+      field.dispatchEvent(new Event("input", { bubbles: true }));
+      await pause(50);
+    };
+    const highlighted = document.querySelector<HTMLElement>('.draft-revision-body')!;
+    highlighted.focus(); highlighted.textContent = draft.body + " Updated.";
+    const range = document.createRange(); range.selectNodeContents(highlighted); range.collapse(false);
+    window.getSelection()!.removeAllRanges(); window.getSelection()!.addRange(range);
+    highlighted.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: " Updated." }));
+    await pause(50);
+    const editedBody = document.querySelector<HTMLTextAreaElement>('textarea[aria-label="Message body"]')!;
+    check(editedBody.value === draft.body + " Updated." && document.activeElement === editedBody && editedBody.selectionStart === editedBody.value.length, "Editing highlighted text lost content, focus or caret");
+    await setField("To", "invalid"); check(send().disabled, "Invalid To left Send enabled");
+    await setField("To", ""); check(send().disabled, "Empty To left Send enabled");
+    await setField("To", "ann@example.com");
+    await setField("Cc", "invalid"); check(send().disabled, "Invalid Cc left Send enabled");
+    await setField("Cc", ""); check(!send().disabled, "Valid recipients left Send disabled");
+    await setField("Message body", ""); check(send().disabled, "Empty body left Send enabled");
+    await setField("Message body", draft.body); check(!send().disabled, "Valid body left Send disabled");
+    document.querySelector<HTMLButtonElement>('[aria-label="Open notes.txt"]')!.click();
+    for (let i = 0; i < 30 && !document.querySelector('[role="dialog"]')?.textContent?.includes("hello"); i++) await pause(100);
+    check(document.querySelector('[role="dialog"]')?.textContent?.includes("hello"), "Draft attachment preview did not load");
+    document.querySelector<HTMLButtonElement>('[aria-label="Close preview"]')!.click(); await pause(100);
+    await setField("To", "edited@example.com");
+    await setField("Subject", "Local subject edit");
+    await setField("Message body", "Local body edit that was never submitted.");
+    [...document.querySelectorAll<HTMLButtonElement>('button')].find(button => button.textContent === "Discard")!.click();
+    await pause(150);
+    check(calls.join(",") === "cancel", "Discard made an unexpected send");
+    check(!document.querySelector("form"), "Discarded card stayed editable");
+    document.querySelector<HTMLElement>("details > summary")!.click(); await pause(50);
+    check(document.querySelector("details")?.open, "Discarded draft did not reopen");
+    check(document.querySelector("details .draft-body")?.textContent === draft.body, "Reopened draft lost its body");
+    check(document.querySelector("details")?.textContent?.includes("ann@example.com") && !document.querySelector("details")?.textContent?.includes("edited@example.com"), "Discarded history kept unsubmitted recipient edits");
+    check(document.querySelector("details")?.textContent?.includes(draft.subject!) && !document.querySelector("details")?.textContent?.includes("Local subject edit"), "Discarded history kept unsubmitted subject edits");
+    check(![...document.querySelectorAll('button')].some(button => button.textContent === "Send"), "Reopening a discarded card restored Send");
+    check(document.querySelector('.draft-card')!.getBoundingClientRect().width <= width, "Draft overflows narrow chat");
+    render(null); await pause(50); draw(); await pause(100);
+    check(!document.querySelector("form") && document.querySelector("details"), "Discarded state was lost after remount");
+    // Keep the same mounted component while a different device submits edits.
+    card = { ...card, id: card.id + "-remote", metadata: { type: "external-draft", cardState: "pending", draft: { ...draft, verification } } };
+    draw(); await pause(100);
+    await setField("To", "unsaved@example.com");
+    await setField("Message body", "Unsubmitted local text.");
+    const remote = { ...draft, from: "other@example.com", to: ["remote@example.com"], cc: ["copied@example.com"], subject: "Sent from another device", body: "Server-confirmed body." };
+    card = { ...card, metadata: { type: "external-draft", cardState: "sent", draft: { ...remote, verification } } };
+    draw(); await pause(100);
+    document.querySelector<HTMLElement>("details > summary")!.click(); await pause(50);
+    check(document.querySelector("details .draft-body")?.textContent === remote.body, "Sent history retained stale local body after remote edits");
+    for (const value of [remote.from, remote.to[0]!, remote.cc[0]!, remote.subject])
+      check(document.querySelector("details")?.textContent?.includes(value), "Sent history lost remote field: " + value);
+    check(!document.querySelector("form") && !document.querySelector("details")?.textContent?.includes("unsaved@example.com"), "Sent history retained unsaved edits");
+    card = { ...card, id: card.id + "-response", metadata: { type: "external-draft", cardState: "pending", draft: { ...draft, verification } } };
+    draw(); await pause(100);
+    Object.assign(api, { mutateExternalDraft: async () => {
+      calls.push("send");
+      return { accepted: false, message: { ...card, metadata: { type: "external-draft", cardState: "sent", draft: { ...remote, verification } } }, runId: null };
+    } });
+    send().click(); await pause(150);
+    document.querySelector<HTMLElement>("details > summary")!.click(); await pause(50);
+    check(document.querySelector("details .draft-body")?.textContent === remote.body, "Mutation receipt lost canonical history before its live update arrived");
+    // A remote discard is authoritative even when both in-flight HTTP responses fail.
+    card = { ...card, id: card.id + "-late-failure", metadata: { type: "external-draft", cardState: "pending", draft: { ...draft, verification } } };
+    draw(); await pause(100);
+    let rejectSend!: (error: Error) => void;
+    const sending = new Promise<never>((_resolve, reject) => { rejectSend = reject; });
+    Object.assign(api, { mutateExternalDraft: async (_id: string, action: string) => {
+      if (action === "send") return sending;
+      throw new Error("Synthetic refresh offline");
+    } });
+    send().click(); await pause(50);
+    card = { ...card, metadata: { ...(card.metadata as object), cardState: "dismissed" } };
+    draw(); await pause(100);
+    rejectSend(new Error("Synthetic send response lost")); await pause(150);
+    check(!document.querySelector("form") && !!document.querySelector("details"), "Late send failure reopened a remotely discarded card");
+    check(!document.querySelector('[role="alert"]'), "Late send failure left an error on a confirmed discard");
+    check(![...document.querySelectorAll('button')].some(button => ["Send", "Check delivery"].includes(button.textContent ?? "")), "Late send failure restored discarded-card controls");
+    reports.push({ theme, width, scenario: "draft forwarding, revision, attachment preview, validation and discard history", calls });
+  } finally { window.fetch = oldFetch; render(null); await pause(50); }
+}
+
 try {
   for (const theme of ["light", "dark"]) {
     document.documentElement.dataset.theme = theme;
+    if (new URLSearchParams(location.search).has("draft-review")) {
+      for (const width of [745, 360]) await draftReviewScenario(theme, width);
+      continue;
+    }
     await inputScenario(theme);
     for (const kind of ["bot_dm", "group"] as const) await chatScenario(theme, kind);
     await narrowScenario(theme);

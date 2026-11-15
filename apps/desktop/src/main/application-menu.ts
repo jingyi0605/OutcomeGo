@@ -1,6 +1,6 @@
 import type { BaseWindow, BrowserWindow, MenuItemConstructorOptions } from "electron";
 
-export type ApplicationMenuAction = "about" | "updates" | "settings";
+export type ApplicationMenuAction = "about" | "updates" | "settings" | "screenbot";
 export type ClipboardMenuAction = "copy" | "cut" | "paste";
 export type ApplicationMenuLocale = "en-US" | "zh-CN";
 
@@ -20,6 +20,7 @@ const menuText = (locale: ApplicationMenuLocale) =>
         edit: "编辑",
         view: "显示",
         window: "窗口",
+        screenbot: "打开 ScreenBot",
         undo: "撤销",
         redo: "重做",
         cut: "剪切",
@@ -41,6 +42,7 @@ const menuText = (locale: ApplicationMenuLocale) =>
         edit: "Edit",
         view: "View",
         window: "Window",
+        screenbot: "Open ScreenBot",
         undo: "Undo",
         redo: "Redo",
         cut: "Cut",
@@ -52,34 +54,45 @@ const menuText = (locale: ApplicationMenuLocale) =>
 export function applicationMenuTemplate(
   platform: NodeJS.Platform,
   onAction: (action: ApplicationMenuAction) => void,
-  onClipboard?: (action: ClipboardMenuAction, window: BaseWindow | undefined) => boolean
+  onClipboard?: (action: ClipboardMenuAction, window: BaseWindow | undefined) => boolean,
+  /** The screenbot shortcut when it's an ordinary one; a two-key chord can't show in a menu. */
+  screenBotAccelerator?: string | null,
+  /** Rebindable in Settings › Keyboard. */
+  settingsAccelerator?: string
 ): MenuItemConstructorOptions[];
 export function applicationMenuTemplate(
   platform: NodeJS.Platform,
   locale: ApplicationMenuLocale,
   onAction: (action: ApplicationMenuAction) => void,
-  onClipboard?: (action: ClipboardMenuAction, window: BaseWindow | undefined) => boolean
+  onClipboard?: (action: ClipboardMenuAction, window: BaseWindow | undefined) => boolean,
+  screenBotAccelerator?: string | null,
+  settingsAccelerator?: string
 ): MenuItemConstructorOptions[];
 export function applicationMenuTemplate(
   platform: NodeJS.Platform,
   localeOrAction: ApplicationMenuLocale | ((action: ApplicationMenuAction) => void),
-  actionOrClipboard?:
-    | ((action: ApplicationMenuAction) => void)
-    | ((action: ClipboardMenuAction, window: BaseWindow | undefined) => boolean),
-  clipboard?: (action: ClipboardMenuAction, window: BaseWindow | undefined) => boolean
+  actionOrClipboard?: unknown,
+  /**
+   * The clipboard handler, or — when the locale is omitted — the screenbot accelerator.
+   * Without a locale every later argument shifts back one place.
+   */
+  clipboardOrAccelerator?: unknown,
+  acceleratorOrSettings?: unknown,
+  settings?: unknown
 ): MenuItemConstructorOptions[] {
-  const locale: ApplicationMenuLocale =
-    typeof localeOrAction === "string" ? localeOrAction : "en-US";
-  const onAction =
-    typeof localeOrAction === "function"
-      ? localeOrAction
-      : (actionOrClipboard as (action: ApplicationMenuAction) => void);
-  const onClipboard =
-    typeof localeOrAction === "function"
-      ? (actionOrClipboard as
-          | ((action: ClipboardMenuAction, window: BaseWindow | undefined) => boolean)
-          | undefined)
-      : clipboard;
+  const legacy = typeof localeOrAction === "function";
+  const locale: ApplicationMenuLocale = legacy ? "en-US" : (localeOrAction as ApplicationMenuLocale);
+  const onAction = (legacy ? localeOrAction : actionOrClipboard) as (
+    action: ApplicationMenuAction
+  ) => void;
+  const onClipboard = (legacy ? actionOrClipboard : clipboardOrAccelerator) as
+    | ((action: ClipboardMenuAction, window: BaseWindow | undefined) => boolean)
+    | undefined;
+  const accelerator = legacy ? clipboardOrAccelerator : acceleratorOrSettings;
+  const screenBotAccelerator = typeof accelerator === "string" ? accelerator : null;
+  const settingsCandidate = legacy ? acceleratorOrSettings : settings;
+  const settingsAccelerator =
+    typeof settingsCandidate === "string" ? settingsCandidate : "CommandOrControl+,";
   const text = menuText(locale);
   const appItems: MenuItemConstructorOptions[] = [
     { label: text.about, click: () => onAction("about") },
@@ -87,10 +100,18 @@ export function applicationMenuTemplate(
     { type: "separator" },
     {
       label: text.settings,
-      accelerator: "CommandOrControl+,",
+      accelerator: settingsAccelerator,
       click: () => onAction("settings"),
     },
   ];
+  // The global shortcut (or both-key chord) fires the screenbot; the menu shows it and handles clicks.
+  const screenBotItem: MenuItemConstructorOptions = {
+    label: text.screenbot,
+    ...(screenBotAccelerator
+      ? { accelerator: screenBotAccelerator, registerAccelerator: false }
+      : {}),
+    click: () => onAction("screenbot"),
+  };
 
   return [
     platform === "darwin"
@@ -110,9 +131,22 @@ export function applicationMenuTemplate(
         }
       : {
           label: text.file,
-          submenu: [...appItems, { type: "separator" }, { role: "quit" }],
+          submenu: [
+            screenBotItem,
+            { type: "separator" },
+            ...appItems,
+            { type: "separator" },
+            { role: "quit" },
+          ],
         },
-    ...(platform === "darwin" ? [{ role: "fileMenu" } as const] : []),
+    ...(platform === "darwin"
+      ? [
+          {
+            label: text.file,
+            submenu: [screenBotItem, { type: "separator" }, { role: "close" }],
+          } satisfies MenuItemConstructorOptions,
+        ]
+      : []),
     onClipboard
       ? {
           label: text.edit,

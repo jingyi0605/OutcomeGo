@@ -51,7 +51,8 @@
     "vite": "8.2.2",
     "voice-glow": "0.3.0",
     "wait-on": "9.1.0",
-    "xlsx": "file:../../vendor/sheetjs/xlsx-0.20.3.tgz"
+    "xlsx": "file:../../vendor/sheetjs/xlsx-0.20.3.tgz",
+    "maplibre-gl": "5.6.2"
   },
   "build": {
     "appId": "dev.outcomego.desktop",
@@ -59,7 +60,9 @@
     "executableName": "outcomego",
     "asar": true,
     "asarUnpack": [
-      "dist-electron/outcomego-cli.js"
+      "dist-electron/outcomego-cli.js",
+      "dist-electron/outcomego-cli.js",
+      "dist-electron/screenbot-keys"
     ],
     "npmRebuild": false,
     "directories": {
@@ -117,8 +120,8 @@
     "build:main": "bun build src/main/index.ts --outdir dist-electron --entry-naming main.js --chunk-naming 'chunks/[name]-[hash].[ext]' --splitting --target node --format esm --external electron --minify --keep-names",
     "build:utility": "bun build src/main/host/utility.ts --outfile dist-electron/host-utility.js --target node --format esm --external electron --minify",
     "build:server-updater": "bun build ../cli/src/main.ts --outfile dist-electron/outcomego-cli.js --target node --format esm --minify",
-    "build:preload": "bun build src/preload/index.ts --outfile dist-electron/preload.cjs --target node --format cjs --external electron --minify --keep-names",
-    "build:electron": "bun run build:main && bun run build:utility && bun run build:server-updater && bun run build:preload",
+    "build:preload": "bun build src/preload/index.ts --outfile dist-electron/preload.cjs --target node --format cjs --external electron --minify --keep-names && bun build src/preload/screenbot.ts --outfile dist-electron/screenbot-preload.cjs --target node --format cjs --external electron --minify --keep-names",
+    "build:electron": "bun run build:main && bun run build:utility && bun run build:server-updater && bun run build:preload && bun run build:native",
     "build": "bun run clean && vite build && bun run build:electron",
     "package": "bun run clean:release && bun run build && electron-builder --publish never && bun ../../scripts/performance/check-desktop-budgets.ts --release",
     "package:mac-release": "bun run clean:release && bun run build && bun run scripts/package-macos-release.ts && bun ../../scripts/performance/check-desktop-budgets.ts --release && bun run verify:mac-notifications",
@@ -161,7 +164,23 @@
     "test:server-update-resume-ui": "bun scripts/test-server-update-resume-ui.ts",
     "test:native:e2e": "bun test/host/fixtures/capability-integration.ts",
     "test:chat-transition-motion": "bun scripts/analyze-chat-transitions.ts",
-    "test:browser-network": "bun scripts/test-browser-network.ts"
+    "test:browser-network": "bun scripts/test-browser-network.ts",
+    "build:native": "bun run scripts/build-screenbot-keys.ts",
+    "test:chat-gradient": "bun scripts/test-chat-gradient.ts",
+    "test:question-history:chaos": "bun scripts/test-question-history-chaos.ts",
+    "test:activity-history": "bun scripts/test-activity-history.ts",
+    "test:reaction-order": "bun scripts/test-reaction-order.ts",
+    "test:asset-resource-sharing": "bun scripts/test-asset-resource-sharing.ts",
+    "test:button-motion": "bun scripts/test-button-motion.ts",
+    "test:draft-send-off": "bun scripts/test-draft-send-off.ts",
+    "test:panel-parity": "bun scripts/test-panel-parity.ts",
+    "test:search-parity": "bun scripts/test-search-parity.ts",
+    "test:desktop-style": "bun scripts/test-desktop-style.ts",
+    "test:document-preview-cold": "bun scripts/test-document-preview-cold.ts",
+    "test:asset-downloads": "bun scripts/test-asset-downloads.ts",
+    "test:desktop-media": "bun scripts/test-desktop-media.ts",
+    "test:preview-parity": "bun scripts/test-preview-parity.ts",
+    "test:link-favicons": "bun scripts/test-link-favicons.ts"
   },
   "type": "module"
 }

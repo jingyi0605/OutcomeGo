@@ -1,3 +1,4 @@
+import { emojiPickerRuntimeEntries, type EmojiRuntimeSource } from "./scripts/emoji-runtime-data";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig, type Plugin } from "vite";
@@ -16,15 +17,6 @@ const katexWoff2Only = (): Plugin => ({
   },
 });
 
-type EmojiRuntimeSource = {
-  emoticon?: string | string[];
-  group?: number;
-  label: string;
-  order?: number;
-  tags?: string[];
-  unicode: string;
-};
-
 /** Keep only the English fields rendered or searched by the picker. The npm
  * corpus also contains hex codes, skin-tone metadata, and other fields that
  * otherwise survive JSON bundling even though the desktop never reads them. */
@@ -33,19 +25,7 @@ const emojiPickerRuntimeData = (): Plugin => ({
   enforce: "pre",
   transform(source, id) {
     if (!/[\\/]emojibase-data[\\/]en[\\/]compact\.json(?:\?|$)/.test(id)) return;
-    const supportedGroups = new Set([0, 1, 3, 4, 5, 6, 7, 8, 9]);
-    const entries = (JSON.parse(source) as EmojiRuntimeSource[])
-      .filter((entry) => entry.group !== undefined && supportedGroups.has(entry.group))
-      .sort((left, right) => (left.order ?? 0) - (right.order ?? 0))
-      // Entries are already sorted; the runtime's stable sort preserves this
-      // order when the original numeric sort keys are omitted.
-      .map(({ unicode, label, group, tags, emoticon }) => ({
-        unicode,
-        label,
-        group,
-        tags,
-        emoticon,
-      }));
+    const entries = emojiPickerRuntimeEntries(JSON.parse(source) as EmojiRuntimeSource[]);
     return JSON.stringify(entries);
   },
 });
@@ -94,6 +74,9 @@ export default defineConfig({
       "/api": { target: process.env.OUTCOMEGO_SERVER_URL ?? "http://127.0.0.1:8787", ws: true },
     },
   },
+  // These parsers load inside one-shot preview workers. Discovering them on the
+  // first file open restarts Vite's dependency graph and strands that worker.
+  optimizeDeps: { include: ["mammoth", "xlsx"] },
   worker: { format: "es" },
   build: {
     manifest: "manifest.json",
@@ -102,10 +85,14 @@ export default defineConfig({
     // import React from their importing entry and create an initialization cycle.
     // Shared plugin primitives must not pull their parent screens into a detail
     // chunk. These modules declare components/functions without startup effects.
-    rolldownOptions: { output: { codeSplitting: { groups: [{
+    rolldownOptions: {
+      // The floating screenbot composer is its own small page (src/renderer/screenbot).
+      input: { index: "index.html", screenbot: "screenbot.html" },
+      output: { codeSplitting: { groups: [{
       name: "plugin-common",
       test: /(?:plugins\/(?:plugin-ui|plugin-mark|plugin-authorization)|product-core\/src\/plugin-authorization|renderer\/lib\/plugin-settings-scale)\.(?:ts|tsx)$/,
       includeDependenciesRecursively: false,
-    }] } } },
+    }] } },
+    },
   },
 });
