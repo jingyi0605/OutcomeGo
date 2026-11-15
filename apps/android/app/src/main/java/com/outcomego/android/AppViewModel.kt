@@ -165,6 +165,7 @@ class AppViewModel @JvmOverloads constructor(
     private var conversationRefreshQueued: String? = null
     private var outboxJob: Job? = null
     private var indexedAccount: String? = null
+    private var routineOwnerId: String? = null
     private val mutableState = MutableStateFlow(AppState())
     val state: StateFlow<AppState> = mutableState.asStateFlow()
     private val voiceController = VoiceRecordingController(
@@ -402,6 +403,7 @@ class AppViewModel @JvmOverloads constructor(
                     }
                     indexedAccount = accountScope(session)
                     activeGateway = target
+                    routineOwnerId = null
                     activeFeatureGateway = featureGateway
                         ?: (target as? MobileFeatureApi)?.let(::LiveFeatureGateway)
                         ?: UnsupportedFeatureGateway
@@ -493,6 +495,7 @@ class AppViewModel @JvmOverloads constructor(
             runCatching { activeGateway.conversations() }
                 .onSuccess { rows ->
                     mutableState.update { it.copy(conversations = rows) }
+                    if (routineOwnerId == null) loadRoutines()
                     val searchItems = rows.map { row ->
                         SearchableItem(row.id, row.title, row.subtitle, row.preview.orEmpty(), android.net.Uri.parse("outcomego://chat/${android.net.Uri.encode(row.id)}"))
                     }
@@ -605,6 +608,9 @@ class AppViewModel @JvmOverloads constructor(
 
     fun openConversation(id: String, messageId: String? = null) {
         val session = mutableState.value.session
+        val ownerId = mutableState.value.conversations
+            .firstOrNull { it.id == id && it.isBot }
+            ?.botId
         mutableState.update {
             it.copy(
                 activeConversationId = id,
@@ -619,6 +625,7 @@ class AppViewModel @JvmOverloads constructor(
                 error = null,
             )
         }
+        if (!ownerId.isNullOrBlank()) loadRoutines(ownerId)
         scheduleActivityRefresh()
         viewModelScope.launch {
             runCatching { activeGateway.historyPage(id) }
@@ -1465,7 +1472,12 @@ class AppViewModel @JvmOverloads constructor(
     fun saveRoutine() {
         val routine = mutableState.value.features.routineDraft ?: return
         runFeatureOperation {
-            activeFeatureGateway.saveRoutine("", routine).onSuccess {
+            val owner = routineOwnerId()
+            if (owner.isNullOrBlank()) {
+                reportFeatureFailure(IllegalStateException("Select a bot before creating a routine."))
+                return@runFeatureOperation
+            }
+            activeFeatureGateway.saveRoutine(owner, routine).onSuccess {
                 mutableState.update { it.copy(features = it.features.copy(routineDraft = null)) }
                 loadRoutines()
             }.onFailure(::reportFeatureFailure)
@@ -1658,10 +1670,23 @@ class AppViewModel @JvmOverloads constructor(
         pluginOperation({ activeFeatureGateway.configurePlugin(plugin.connectionId ?: plugin.id, configuration) })
     }
 
-    private fun loadRoutines() {
+    private fun routineOwnerId(): String? {
+        val current = mutableState.value
+        val activeOwner = current.conversations
+            .firstOrNull { it.id == current.activeConversationId && it.isBot }
+            ?.botId
+        return activeOwner
+            ?: routineOwnerId
+            ?: current.conversations.firstOrNull { it.isBot }?.botId
+    }
+
+    private fun loadRoutines(ownerId: String? = null) {
+        val owner = ownerId?.takeIf { it.isNotBlank() } ?: routineOwnerId()
+        if (owner.isNullOrBlank()) return
+        routineOwnerId = owner
         viewModelScope.launch {
             mutableState.update { it.copy(features = it.features.copy(routines = FeatureLoadState.Loading)) }
-            activeFeatureGateway.listRoutines("").onSuccess { value ->
+            activeFeatureGateway.listRoutines(owner).onSuccess { value ->
                 mutableState.update { it.copy(features = it.features.copy(routines = if (value.isEmpty()) FeatureLoadState.Empty("No routines yet") else FeatureLoadState.Ready(value))) }
                 runLocalIndexUpdate("launcher shortcuts") {
                     launcherShortcuts.publish(mutableState.value.conversations, value)
