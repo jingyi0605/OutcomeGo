@@ -1029,6 +1029,7 @@ export class RuntimeTools {
     action: T,
   ): T {
     if (action.action !== "type" || typeof action.text !== "string") return action;
+    if (!this.bitwardenSecrets || !this.bitwardenScopeScreens) return action;
     const resolved = this.bitwardenSecrets.resolve(this.bitwardenScope(active), action.text);
     return resolved ? { ...action, text: resolved.value } : action;
   }
@@ -1173,6 +1174,7 @@ export class RuntimeTools {
     args: unknown,
   ): unknown {
     if (!args || typeof args !== "object" || Array.isArray(args)) return args;
+    if (!this.bitwardenSecrets || !this.bitwardenScopeScreens) return args;
     const input = args as Record<string, unknown>;
     if (toolName === "browser_type" && typeof input.text === "string") {
       const resolved = this.bitwardenSecrets.resolve(this.bitwardenScope(active), input.text);
