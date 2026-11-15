@@ -541,6 +541,8 @@ struct PluginFieldInput: View {
   var body: some View {
     if field["secret"].bool {
       SecureField(field["label"].string, text: text)
+    } else if field["type"].string == "boolean" {
+      Toggle(field["label"].string, isOn: Binding(get: { value.bool }, set: { value = .bool($0) }))
     } else if !field["enum"].array.isEmpty {
       Picker(field["label"].string, selection: $value.hapticSelection("plugin.field")) {
         Text("Choose…").tag(JSON.null)
@@ -548,8 +550,6 @@ struct PluginFieldInput: View {
           Text(option.string.isEmpty ? option.pretty : option.string).tag(option)
         }
       }
-    } else if field["type"].string == "boolean" {
-      Toggle(field["label"].string, isOn: Binding(get: { value.bool }, set: { value = .bool($0) }))
     } else {
       LabeledContent(field["label"].string) {
         TextField(field["label"].string, text: text).multilineTextAlignment(.trailing)

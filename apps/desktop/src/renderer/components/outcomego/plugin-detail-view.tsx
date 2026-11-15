@@ -5,6 +5,7 @@ import type {
   PluginInstallView,
   PluginSettingsView,
 } from "@outcomego/contracts";
+import type { ConfigValue } from "@outcomego/plugin-sdk";
 import {
   GOOGLE_PLUGIN_KEYS,
   pluginAuthorization,
@@ -1006,7 +1007,7 @@ export function PluginDetail({
   onConfigureCallback?: (connection: PluginConnectionView, input: OAuthCallbackSettings) => void;
   onConfigureValues: (connection: PluginConnectionView, values: Record<string, string>) => void;
   onInstructions: (connection: PluginConnectionView, instructions: string) => void;
-  onInstall: (plugin: PluginCatalogItemView, values?: Record<string, string>) => void;
+  onInstall: (plugin: PluginCatalogItemView, values?: Record<string, ConfigValue>) => void;
   onRemoveAccount: (connection: PluginConnectionView) => void;
   onRename: (connection: PluginConnectionView, alias: string) => Promise<boolean>;
   onRemove: (plugin: PluginCatalogItemView) => void;
@@ -1020,13 +1021,20 @@ export function PluginDetail({
 }) {
   const { locale, t } = useI18n();
   const plugin = localizePlugin(sourcePlugin, locale, t);
-  const [setupValues, setSetupValues] = useState<Record<string, string>>({});
+  const [setupValues, setSetupValues] = useState<Record<string, ConfigValue>>({});
   const [environmentValues, setEnvironmentValues] = useState<Record<string, string>>({});
   const [setupRequest, setSetupRequest] = useState<{ accountId: string; sequence: number } | null>(
     null
   );
   const [dismissedSetupIds, setDismissedSetupIds] = useState<string[]>([]);
   const install = installFor(data, plugin.key);
+  const setupFieldHasValue = (field: PluginCatalogItemView["setupFields"][number]) => {
+    const value = setupValues[field.key] ?? field.default;
+    if (field.type === "boolean") return value === true;
+    if (field.enum && !field.enum.includes(value as ConfigValue)) return false;
+    if (value === undefined || value === null) return false;
+    return typeof value === "string" ? value.trim().length > 0 : true;
+  };
   const connections = (install?.connections ?? []).map((connection) =>
     localizePluginConnection(connection, locale, t)
   );
@@ -1069,7 +1077,7 @@ export function PluginDetail({
             className={cn(primaryButton, "h-9 px-4")}
             disabled={
               busy === plugin.key ||
-              plugin.setupFields.some((field) => field.required && !setupValues[field.key]?.trim())
+              plugin.setupFields.some((field) => field.required && !setupFieldHasValue(field))
             }
             onClick={() => onInstall(plugin, setupValues)}
             type="button"
@@ -1132,16 +1140,51 @@ export function PluginDetail({
         <div className="mt-5 grid grid-cols-2 gap-2 rounded-[10px] bg-black/[0.035] p-3 dark:bg-white/[0.045] max-sm:grid-cols-1">
           {plugin.setupFields.map((field) => (
             <label className="space-y-1" key={field.key}>
-              <span className="block text-[10.5px] text-foreground-secondary">{field.label}</span>
-              <input
-                className="h-8 w-full rounded-[7px] border border-black/[0.08] bg-background px-2.5 text-[11px] outline-none placeholder:text-foreground-tertiary dark:border-white/[0.09]"
-                onChange={(event) =>
-                  setSetupValues((current) => ({ ...current, [field.key]: event.target.value }))
-                }
-                placeholder={field.placeholder}
-                type={field.secret ? "password" : "text"}
-                value={setupValues[field.key] ?? ""}
-              />
+              {field.type === "boolean" ? (
+                <span className="flex items-center gap-2 text-[10.5px] text-foreground-secondary">
+                  <input
+                    checked={setupValues[field.key] === true}
+                    onChange={(event) =>
+                      setSetupValues((current) => ({ ...current, [field.key]: event.target.checked }))
+                    }
+                    type="checkbox"
+                  />
+                  {field.label}
+                </span>
+              ) : field.enum ? (
+                <>
+                  <span className="block text-[10.5px] text-foreground-secondary">{field.label}</span>
+                  <select
+                    className="h-8 w-full rounded-[7px] border border-black/[0.08] bg-background px-2.5 text-[11px] outline-none dark:border-white/[0.09]"
+                    onChange={(event) => {
+                      const selected = field.enum!.find((value) => String(value) === event.target.value);
+                      if (selected !== undefined)
+                        setSetupValues((current) => ({ ...current, [field.key]: selected }));
+                    }}
+                    value={String(setupValues[field.key] ?? field.default ?? "")}
+                  >
+                    <option value="">Choose…</option>
+                    {field.enum.map((value) => (
+                      <option key={String(value)} value={String(value)}>
+                        {String(value)}
+                      </option>
+                    ))}
+                  </select>
+                </>
+              ) : (
+                <>
+                  <span className="block text-[10.5px] text-foreground-secondary">{field.label}</span>
+                  <input
+                    className="h-8 w-full rounded-[7px] border border-black/[0.08] bg-background px-2.5 text-[11px] outline-none placeholder:text-foreground-tertiary dark:border-white/[0.09]"
+                    onChange={(event) =>
+                      setSetupValues((current) => ({ ...current, [field.key]: event.target.value }))
+                    }
+                    placeholder={field.placeholder}
+                    type={field.secret ? "password" : "text"}
+                    value={String(setupValues[field.key] ?? "")}
+                  />
+                </>
+              )}
               {field.helpText ? (
                 <span className="block text-[9.5px] leading-3.5 text-foreground-tertiary">
                   {field.helpText}

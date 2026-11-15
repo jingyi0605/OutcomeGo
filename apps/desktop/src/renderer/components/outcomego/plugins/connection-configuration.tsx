@@ -323,6 +323,13 @@ export function ConnectionConfiguration({
                 />
               )}
             </div>
+          ) : field.type === "boolean" ? (
+            <input
+              aria-label={field.label}
+              type="checkbox"
+              checked={Boolean(values[field.key] ?? field.default ?? false)}
+              onChange={(event) => setValues({ ...values, [field.key]: event.target.checked })}
+            />
           ) : field.enum ? (
             <PluginSelect
               className={inputClass}
@@ -340,13 +347,6 @@ export function ConnectionConfiguration({
                   : []),
                 ...field.enum.map((value) => ({ value: String(value), label: String(value) })),
               ]}
-            />
-          ) : field.type === "boolean" ? (
-            <input
-              aria-label={field.label}
-              type="checkbox"
-              checked={Boolean(values[field.key] ?? field.default ?? false)}
-              onChange={(event) => setValues({ ...values, [field.key]: event.target.checked })}
             />
           ) : (
             <input

@@ -4,6 +4,7 @@ import type {
   PluginInstallView,
   PluginSettingsView,
 } from "@outcomego/contracts";
+import type { ConfigValue } from "@outcomego/plugin-sdk";
 
 import { pluginAuthorization, pluginNeedsSetup } from "@outcomego/product-core/plugin-authorization";
 import { clientErrorMessage } from "@outcomego/product-core/redaction";
@@ -307,7 +308,7 @@ export function PluginDialog({
   };
   const installAndConnect = async (
     plugin: PluginCatalogItemView,
-    values?: Record<string, string>
+    values?: Record<string, ConfigValue>
   ) => {
     await api.installPlugin(plugin.key, values);
     const settings = await api.pluginSettings();
