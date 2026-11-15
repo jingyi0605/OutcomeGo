@@ -11,7 +11,7 @@ export interface NamespaceConnection {
   statusMessage: string | null;
   instructions: string | null;
   toolSnapshot: unknown;
-  installation: { pluginKey: string };
+  installation: { pluginKey: string; manifest?: unknown };
 }
 
 const record = (value: unknown): Record<string, unknown> =>
@@ -23,6 +23,25 @@ export const namespaceStatus = (status: string): PluginDynamicNamespace["namespa
 /** The service and account a namespace belongs to, e.g. `Gmail (work)`. */
 export const connectionDisplayName = (connection: Pick<NamespaceConnection, "name" | "alias">): string =>
   `${connection.name} (${connection.alias})`;
+
+const manifestHostTools = (manifest: unknown, connectorKey: string): Set<string> => {
+  const tools = new Set<string>();
+  const connections = record(manifest).connections;
+  if (!Array.isArray(connections)) return tools;
+  for (const connection of connections) {
+    const value = record(connection);
+    if (value.key !== connectorKey) continue;
+    const deviceLink = record(value.deviceLink);
+    for (const key of ["startTool", "finishTool", "statusTool", "cancelTool", "removeTool"]) {
+      if (typeof deviceLink[key] === "string") tools.add(deviceLink[key] as string);
+    }
+    const events = record(value.events);
+    if (typeof events.pollTool === "string") tools.add(events.pollTool as string);
+    const drafts = record(value.drafts);
+    if (typeof drafts.tool === "string") tools.add(drafts.tool as string);
+  }
+  return tools;
+};
 
 /** One shape for the turn-start catalog and every mid-turn refresh. */
 export function pluginDynamicNamespaces(
@@ -41,6 +60,11 @@ export function pluginDynamicNamespaces(
       ? connection.toolSnapshot.flatMap((candidate) => {
           const tool = record(candidate);
           if (typeof tool.name !== "string") return [];
+          if (
+            manifestHostTools(connection.installation.manifest, connection.connectorKey).has(tool.name) ||
+            record(tool._meta)["openteam/hostOnly"] === true
+          )
+            return [];
           return [{
             connectionId: connection.id,
             name: tool.name,

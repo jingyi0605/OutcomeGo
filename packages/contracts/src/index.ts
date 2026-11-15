@@ -174,7 +174,6 @@ export const CreateBotInput = Schema.Struct({
   name: Schema.optional(Schema.String.pipe(Schema.minLength(1))),
   title: Schema.optional(Schema.String.pipe(Schema.maxLength(120))),
   description: Schema.optional(Schema.String.pipe(Schema.maxLength(2_000))),
-  instructions: Schema.optional(Schema.String.pipe(Schema.maxLength(20_000))),
   voice: Schema.optional(Schema.String.pipe(Schema.maxLength(200))),
   icon: Schema.optional(Schema.String.pipe(Schema.maxLength(16))),
   color: Schema.optional(Schema.String.pipe(Schema.pattern(/^#[0-9a-fA-F]{6}$/))),
@@ -192,7 +191,6 @@ export const UpdateBotInput = Schema.Struct({
   ),
   title: Schema.optional(Schema.String.pipe(Schema.maxLength(120))),
   description: Schema.optional(Schema.String.pipe(Schema.maxLength(2_000))),
-  instructions: Schema.optional(Schema.String.pipe(Schema.maxLength(20_000))),
   voice: Schema.optional(Schema.String.pipe(Schema.maxLength(200))),
   icon: Schema.optional(Schema.String.pipe(Schema.maxLength(16))),
   color: Schema.optional(Schema.String.pipe(Schema.pattern(/^#[0-9a-fA-F]{6}$/))),
@@ -1295,6 +1293,7 @@ export const UpdateMemoryToolInput = Schema.Struct({
   action: Schema.Literal("write", "forget", "replace"),
   fact: Schema.String.pipe(Schema.minLength(1)),
   type: MemoryType,
+  id: Schema.optional(Schema.String.pipe(Schema.minLength(1))),
 });
 export type UpdateMemoryToolInput = typeof UpdateMemoryToolInput.Type;
 

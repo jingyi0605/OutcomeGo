@@ -238,7 +238,8 @@
           "type": "string",
           "enum": [
             "write",
-            "forget"
+            "forget",
+            "replace"
           ]
         },
         "fact": {
@@ -254,6 +255,11 @@
             "shared_profile",
             "shared_journal"
           ]
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "For replace, the stable id of the fact to update."
         }
       },
       "required": [
