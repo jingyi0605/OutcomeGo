@@ -158,7 +158,7 @@ exec sleep 1800`
   );
   if (!containers.includes(computer)) containers.push(computer);
   for (const [source, target] of [
-    [resolve("docker/openteam-computer-network.py"), "/tmp/computer-network.py"],
+    [resolve("docker/outcomego-computer-network.py"), "/tmp/computer-network.py"],
     [resolve("scripts/imessage-bridge-linux/fixture.py"), "/tmp/imessage-bridge-fixture.py"],
     [join(directory, "mcp-recovery.mjs"), "/tmp/mcp-recovery.mjs"],
     [join(directory, "watch-configuration.mjs"), "/tmp/bridge-watch.mjs"],

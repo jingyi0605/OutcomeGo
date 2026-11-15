@@ -68,7 +68,7 @@ export function applyNetworkFamilies(families: Families, signal: AbortSignal): P
       [
         "-I",
         "-S",
-        "/usr/lib/openteam/bin/openteam-computer-network.py",
+        "/usr/lib/outcomego/bin/outcomego-computer-network.py",
         "--families",
         JSON.stringify(families),
       ],

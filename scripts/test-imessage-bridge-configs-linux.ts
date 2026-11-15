@@ -302,7 +302,7 @@ async function container(
     resolve(
       host
         ? "scripts/imessage-bridge-linux/config-fixture.py"
-        : "docker/openteam-computer-network.py"
+        : "docker/outcomego-computer-network.py"
     ),
     `${name}:${host ? "/tmp/bridge-config-fixture.py" : "/tmp/computer-network.py"}`
   );

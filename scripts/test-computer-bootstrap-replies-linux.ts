@@ -10,7 +10,7 @@ if (!context)
   throw new Error("Set OPENTEAM_TEST_DOCKER_CONTEXT to a disposable Linux Docker context");
 const policySource =
   process.env.OPENTEAM_TEST_NETWORK_POLICY ??
-  resolve(import.meta.dir, "../docker/openteam-computer-network.py");
+  resolve(import.meta.dir, "../docker/outcomego-computer-network.py");
 const gatewayPort = Number(process.env.OPENTEAM_TEST_GATEWAY_PORT ?? 8790);
 assert(Number.isInteger(gatewayPort) && gatewayPort > 0 && gatewayPort <= 65535);
 const prefix = "openteam-bootstrap-" + crypto.randomUUID().slice(0, 8);
@@ -124,7 +124,7 @@ try {
   await docker([
     "cp",
     policySource,
-    computer + ":/usr/lib/openteam/bin/openteam-computer-network.py",
+    computer + ":/usr/lib/outcomego/bin/outcomego-computer-network.py",
   ]);
   await docker(["start", computer]);
   let ready = false;
@@ -145,7 +145,7 @@ try {
         "exec",
         computer,
         "sha256sum",
-        "/usr/lib/openteam/bin/openteam-computer-network.py",
+        "/usr/lib/outcomego/bin/outcomego-computer-network.py",
       ])
     ).split(/\s+/)[0],
     policyDigest,
@@ -265,7 +265,7 @@ try {
     "python3",
     "-I",
     "-S",
-    "/usr/lib/openteam/bin/openteam-computer-network.py",
+    "/usr/lib/outcomego/bin/outcomego-computer-network.py",
     "http://bootstrap-server:8787",
   ]);
   const replyRuleCounts: number[] = [];

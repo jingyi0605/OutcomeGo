@@ -27,7 +27,7 @@ export function startHostBridgeDiscovery(
           [
             "-I",
             "-S",
-            options.helper ?? "/usr/lib/openteam/bin/openteam-computer-network.py",
+            options.helper ?? "/usr/lib/outcomego/bin/outcomego-computer-network.py",
             "--host-bridge",
             serverUrl,
           ],

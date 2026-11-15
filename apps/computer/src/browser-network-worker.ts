@@ -12,7 +12,16 @@ import {
 } from "./computer-network-dns";
 import { runOrdinaryProbe, probeComputerNetwork } from "./computer-network-probe";
 import { startManagementDiscovery } from "./computer-network-management";
-import type { NetworkDnsDiagnostic } from "@outcomego/plugin-sdk/browser-network/protocol";
+import { startHostBridgeDiscovery } from "./computer-network-host-bridge";
+import {
+  startNetworkConnectivity,
+  probeNetworkFamily,
+  applyNetworkFamilies,
+} from "./network-connectivity";
+import type {
+  NetworkDnsDiagnostic,
+  NetworkFamilyHealth,
+} from "@outcomego/plugin-sdk/browser-network/protocol";
 
 const lines = createInterface({ input: process.stdin });
 let shutdown: (() => void) | undefined,
@@ -45,6 +54,12 @@ const config = JSON.parse(input) as {
 const diagnostics = new Set<AbortController>();
 let diagnosticEpoch: string | undefined;
 let dnsExchange: ReturnType<typeof createDnsExchange> | undefined;
+let connectivity: ReturnType<typeof startNetworkConnectivity> | undefined;
+const statusView = () => ({
+  ...client.status(),
+  routeEpoch: client.route?.epoch,
+  connectivity: connectivity?.status(),
+});
 // The computer can only serve the IPv6 destinations its own exit can route.
 // Device exits resolve and dial on the device, so they keep their own AAAA results.
 let ipv6Usable = false,
@@ -83,8 +98,33 @@ const client: BrowserNetworkClient = new BrowserNetworkClient({
       diagnosticEpoch = epoch;
       for (const diagnostic of diagnostics) diagnostic.abort();
     }
-    console.log(JSON.stringify(client.status()));
+    connectivity?.sync();
+    console.log(JSON.stringify(statusView()));
   },
+});
+connectivity = startNetworkConnectivity({
+  route: () =>
+    client.available() && client.route
+      ? {
+          epoch: client.route.epoch,
+          sourceId: client.route.mode === "server" ? "server" : client.route.machineId!,
+        }
+      : null,
+  probe: (family, signal) =>
+    probeNetworkFamily((host, port, life) => client.open(host, port, life), family, signal),
+  verify: config.computerNetwork
+    ? async (family, signal) => {
+        const route = client.route;
+        if (!route || !client.available()) throw new Error("Route unavailable");
+        return (await probeComputerNetwork(family, route, signal)) as NetworkFamilyHealth;
+      }
+    : undefined,
+  apply: config.computerNetwork ? applyNetworkFamilies : async () => {},
+  changed: () => {
+    dnsExchange?.syncRoute();
+    console.log(JSON.stringify(statusView()));
+  },
+  failed: () => process.exit(1),
 });
 const proxy = createBrowserProxy((host, port) =>
   // Fail a literal IPv6 destination at once instead of accepting then closing mid-TLS.
@@ -97,7 +137,9 @@ await refreshIpv6();
 dnsExchange = config.computerNetwork
   ? createDnsExchange(client, {
       routeKey: () => (client.available() ? (client.route?.epoch ?? null) : null),
-      ipv6: () => !suppressIpv6(),
+      ipv6: () =>
+        connectivity?.status()?.ipv6.state === "working" &&
+        connectivity?.status()?.ipv4.state !== "working",
       resolver: () => (client.route?.mode === "server" ? "docker" : "doh"),
     })
   : undefined;
@@ -105,6 +147,7 @@ const dns = dnsExchange ? await startComputerDns(dnsExchange) : undefined;
 const management = config.computerNetwork
   ? startManagementDiscovery(config.serverUrl, () => client.start())
   : undefined;
+const hostBridge = config.computerNetwork ? startHostBridgeDiscovery(config.serverUrl) : undefined;
 if (!config.computerNetwork) client.start();
 const egress = createEgressProbe(client);
 const quality = createQualityProbe(client);
@@ -177,17 +220,21 @@ lines.on("line", (line) => {
 });
 console.log(JSON.stringify({ started: true, port }));
 const status = setInterval(() => {
-  console.log(JSON.stringify(client.status()));
+  console.log(JSON.stringify(statusView()));
   console.log(JSON.stringify({ gateway: proxy.stats() }));
 }, 1000);
 shutdown = () => {
   clearInterval(status);
   management?.stop();
+  hostBridge?.stop();
   for (const diagnostic of diagnostics) diagnostic.abort();
   dns?.close();
   dnsExchange?.close();
   client.stop();
-  void proxy.close().then(() => process.exit(0));
+  void Promise.all([connectivity?.close(), proxy.close()]).then(
+    () => process.exit(0),
+    () => process.exit(1)
+  );
 };
 if (parentClosed) shutdown();
 for (const signal of ["SIGTERM", "SIGINT"] as const) process.once(signal, shutdown);
