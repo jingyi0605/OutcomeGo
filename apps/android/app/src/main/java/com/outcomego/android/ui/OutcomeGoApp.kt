@@ -543,7 +543,9 @@ fun OutcomeGoApp(
         }
         composable(BOT_DETAILS, arguments = listOf(navArgument("conversationId") { type = NavType.StringType })) { entry ->
             val id = entry.arguments?.getString("conversationId").orEmpty()
+            LaunchedEffect(id) { appViewModel.refreshDirectory() }
             val conversation = state.conversations.firstOrNull { it.id == id }
+                ?: state.hiddenConversations.firstOrNull { it.id == id }
             val shareLabel = localizedText("Share bot", "分享机器人")
             BotDetailsScreen(
                 conversation = conversation,
@@ -590,14 +592,17 @@ fun OutcomeGoApp(
         }
         composable(PROFILE, arguments = listOf(navArgument("conversationId") { type = NavType.StringType })) { entry ->
             val id = entry.arguments?.getString("conversationId").orEmpty()
+            LaunchedEffect(id) { appViewModel.refreshDirectory() }
             val conversation = state.conversations.firstOrNull { it.id == id }
+                ?: state.hiddenConversations.firstOrNull { it.id == id }
             val voiceProvider = (state.features.voiceSettings as? FeatureLoadState.Ready)?.value?.defaultProvider ?: "volcengine"
             ConversationProfileScreen(
                 conversation = conversation,
                 bots = state.conversations.filter { it.isBot },
+                accountName = state.session?.accountName.orEmpty(),
                 voiceProvider = voiceProvider,
-                onSaveBot = { current, name, description, instructions, voice, icon, color ->
-                    appViewModel.updateBot(current, name, description, instructions, voice, icon, color)
+                onSaveBot = { current, name, botTitle, description, instructions, voice, icon, color, resetAvatar ->
+                    appViewModel.updateBot(current, name, botTitle, description, instructions, voice, icon, color, resetAvatar)
                     navController.popBackStack()
                 },
                 onSaveGroup = { current, name, description, botIds ->
@@ -2551,7 +2556,9 @@ private fun BotDetailsScreen(
     onShare: () -> Unit,
 ) {
     var moreMenuVisible by remember { mutableStateOf(false) }
-    var notificationsEnabled by remember(conversation?.id) { mutableStateOf(conversation?.notificationsEnabled ?: true) }
+    var notificationsEnabled by remember(conversation?.id, conversation?.notificationsEnabled) {
+        mutableStateOf(conversation?.notificationsEnabled ?: true)
+    }
     val surface = MaterialTheme.colorScheme.surface
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
 
@@ -2765,8 +2772,9 @@ private fun CreateConversationScreen(
 private fun ConversationProfileScreen(
     conversation: Conversation?,
     bots: List<Conversation>,
+    accountName: String = "",
     voiceProvider: String = "volcengine",
-    onSaveBot: (Conversation, String, String, String, String, String, String) -> Unit,
+    onSaveBot: (Conversation, String, String, String, String, String, String?, String?, Boolean) -> Unit,
     onSaveGroup: (Conversation, String, String, List<String>) -> Unit,
     onBack: () -> Unit,
 ) {
@@ -2775,13 +2783,46 @@ private fun ConversationProfileScreen(
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text(localizedText("Conversation is unavailable.", "对话不可用。")) }
         return
     }
+    var synced by remember(conversation.id) { mutableStateOf(conversation) }
     var name by remember(conversation.id) { mutableStateOf(conversation.title) }
+    var botTitle by remember(conversation.id) { mutableStateOf(conversation.botTitle) }
     var description by remember(conversation.id) { mutableStateOf(conversation.subtitle) }
     var instructions by remember(conversation.id) { mutableStateOf(conversation.botInstructions) }
     var voice by remember(conversation.id) { mutableStateOf(conversation.botVoice) }
     var icon by remember(conversation.id) { mutableStateOf(conversation.botIcon.ifBlank { "chip" }) }
     var color by remember(conversation.id) { mutableStateOf(conversation.avatarColor.ifBlank { "#A47952" }) }
+    var resetAvatar by remember(conversation.id) { mutableStateOf(false) }
     val selected = remember(conversation.id) { mutableStateOf(conversation.memberBotIds.toSet()) }
+
+    LaunchedEffect(conversation) {
+        val previous = synced
+        if (conversation == previous) return@LaunchedEffect
+        if (name == previous.title) name = conversation.title
+        if (botTitle == previous.botTitle) botTitle = conversation.botTitle
+        if (description == previous.subtitle) description = conversation.subtitle
+        if (instructions == previous.botInstructions) instructions = conversation.botInstructions
+        if (voice == previous.botVoice) voice = conversation.botVoice
+        val previousIcon = previous.botIcon.ifBlank { "chip" }
+        val previousColor = previous.avatarColor.ifBlank { "#A47952" }
+        if (!resetAvatar && icon.trim().equals(previousIcon.trim(), ignoreCase = true)) {
+            icon = conversation.botIcon.ifBlank { "chip" }
+        }
+        if (!resetAvatar && color.trim().equals(previousColor.trim(), ignoreCase = true)) {
+            color = conversation.avatarColor.ifBlank { "#A47952" }
+        }
+        if (selected.value == previous.memberBotIds.toSet()) {
+            selected.value = conversation.memberBotIds.toSet()
+        }
+        synced = conversation
+    }
+
+    val initialIcon = conversation.botIcon.ifBlank { "chip" }
+    val initialColor = conversation.avatarColor.ifBlank { "#A47952" }
+    val hasCustomAvatar = conversation.hasCustomAvatar
+    val avatarChanged = !icon.trim().equals(initialIcon.trim(), ignoreCase = true) ||
+        !color.trim().equals(initialColor.trim(), ignoreCase = true)
+    val showingCustomAvatar = hasCustomAvatar && !resetAvatar && !avatarChanged
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -2791,7 +2832,28 @@ private fun ConversationProfileScreen(
         },
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).padding(16.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                if (conversation.isGroup) {
+                    val members = conversation.memberBotIds.mapNotNull { memberId ->
+                        bots.firstOrNull { it.botId == memberId }
+                    }
+                    ConversationAvatar(conversation, accountName, members, size = 80.dp)
+                } else if (showingCustomAvatar) {
+                    BotAvatar(conversation, size = 80.dp)
+                } else {
+                    ServerBotAvatar(icon, color.toComposeColor() ?: Color(0xFFA47952), 80.dp)
+                }
+            }
             OutlinedTextField(name, { name = it }, label = { Text(localizedText("Name", "名称")) }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+            if (!conversation.isGroup) {
+                OutlinedTextField(
+                    botTitle,
+                    { botTitle = it },
+                    label = { Text(localizedText("Label (optional)", "标签（可选）")) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                )
+            }
             OutlinedTextField(description, { description = it }, label = { Text(localizedText("Description", "描述")) }, modifier = Modifier.fillMaxWidth())
             if (conversation.isGroup) {
                 Text(localizedText("Members", "成员"), fontWeight = FontWeight.SemiBold)
@@ -2825,12 +2887,66 @@ private fun ConversationProfileScreen(
                     color = color,
                     onColorChange = { color = it },
                 )
+                if (hasCustomAvatar) {
+                    if (showingCustomAvatar) {
+                        Text(
+                            localizedText(
+                                "Using custom avatar. Changing Icon or Color will replace it with the robot avatar.",
+                                "当前使用自定义头像。修改图标或颜色将替换为默认机器人头像。",
+                            ),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        OutlinedButton(
+                            onClick = {
+                                icon = "chip"
+                                color = "#A47952"
+                                resetAvatar = true
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text(localizedText("Reset to default avatar", "恢复默认机器人头像"))
+                        }
+                    } else {
+                        Text(
+                            localizedText(
+                                "Saving will replace the current custom avatar with this robot avatar.",
+                                "保存后将使用此机器人头像替换当前自定义头像。",
+                            ),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        TextButton(
+                            onClick = {
+                                icon = initialIcon
+                                color = initialColor
+                                resetAvatar = false
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text(localizedText("Keep custom avatar", "保留自定义头像"))
+                        }
+                    }
+                }
             }
             Button(
                 onClick = {
                     haptic.play(HapticEffect.Light)
                     if (conversation.isGroup) onSaveGroup(conversation, name, description, selected.value.toList())
-                    else onSaveBot(conversation, name, description, instructions, voice, icon, color)
+                    else {
+                        val sendAvatar = resetAvatar || avatarChanged
+                        onSaveBot(
+                            conversation,
+                            name,
+                            botTitle,
+                            description,
+                            instructions,
+                            voice,
+                            if (sendAvatar) icon else null,
+                            if (sendAvatar) color else null,
+                            resetAvatar,
+                        )
+                    }
                 },
                 enabled = name.isNotBlank(),
                 modifier = Modifier.fillMaxWidth(),

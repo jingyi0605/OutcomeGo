@@ -421,6 +421,10 @@ class AppViewModel @JvmOverloads constructor(
         viewModelScope.launch { loadDirectoryNow() }
     }
 
+    fun refreshDirectory() {
+        scheduleDirectoryRefresh()
+    }
+
     /**
      * Event bursts (a bot streaming several updates) collapse into one request in flight plus
      * at most one queued re-run, so the list stays current without a request per event.
@@ -1119,21 +1123,42 @@ class AppViewModel @JvmOverloads constructor(
         }
     }
 
-    fun updateBot(conversation: Conversation, name: String, description: String, instructions: String, voice: String, icon: String, color: String) {
+    fun updateBot(
+        conversation: Conversation,
+        name: String,
+        title: String,
+        description: String,
+        instructions: String,
+        voice: String,
+        icon: String?,
+        color: String?,
+        resetAvatar: Boolean = false,
+    ) {
         val botId = conversation.botId ?: return
+        val payload = buildUpdateBotPayload(
+            conversation = conversation,
+            name = name,
+            title = title,
+            description = description,
+            instructions = instructions,
+            voice = voice,
+            icon = icon,
+            color = color,
+            resetAvatar = resetAvatar,
+        )
         runConversationMutation {
-            request(
+            val updated = request(
                 HttpMethod.PATCH,
                 "/api/v0/bots/${Uri.encode(botId)}",
-                buildJsonObject {
-                    put("name", name.trim())
-                    put("description", description)
-                    put("instructions", instructions)
-                    put("voice", voice.trim())
-                    put("icon", icon)
-                    put("color", color)
-                },
+                payload,
             )
+            mutableState.update { state ->
+                state.copy(
+                    conversations = state.conversations.map { row ->
+                        if (row.id == conversation.id) row.applyBotUpdate(updated, payload) else row
+                    },
+                )
+            }
         }
     }
 
@@ -1806,3 +1831,60 @@ internal fun shouldRefreshForEvent(event: ProductEvent): Boolean {
 internal fun eventChannelId(event: ProductEvent): String? =
     event.payload["channelId"]?.jsonPrimitive?.contentOrNull?.takeIf(String::isNotBlank)
         ?: event.entityId?.takeIf { event.topic == "notification.created" && it.isNotBlank() }
+
+/**
+ * Builds the `PATCH /api/v0/bots/:id` payload.
+ *
+ * The server clears any custom uploaded avatar (`avatarPath = null`) whenever `icon` or `color`
+ * is present in the PATCH body, so avatar fields are only included when the user explicitly
+ * modified the robot shape/color or chose to reset the custom avatar.
+ */
+internal fun buildUpdateBotPayload(
+    conversation: Conversation,
+    name: String,
+    title: String,
+    description: String,
+    instructions: String,
+    voice: String,
+    icon: String?,
+    color: String?,
+    resetAvatar: Boolean = false,
+): JsonObject = buildJsonObject {
+    put("name", name.trim())
+    put("title", title.trim())
+    put("description", description)
+    put("instructions", instructions)
+    put("voice", voice.trim())
+    val initialIcon = conversation.botIcon.ifBlank { "chip" }.trim()
+    val initialColor = conversation.avatarColor.ifBlank { "#A47952" }.trim()
+    val nextIcon = icon?.trim()
+    val nextColor = color?.trim()
+    val avatarChanged = resetAvatar ||
+        (nextIcon != null && !nextIcon.equals(initialIcon, ignoreCase = true)) ||
+        (nextColor != null && !nextColor.equals(initialColor, ignoreCase = true))
+    if (avatarChanged) {
+        put("icon", nextIcon ?: initialIcon)
+        put("color", nextColor ?: initialColor)
+    }
+}
+
+internal fun Conversation.applyBotUpdate(updated: JsonObject, payload: JsonObject): Conversation {
+    fun field(name: String): String? = updated[name]?.jsonPrimitive?.contentOrNull
+    val nextName = field("name")?.takeIf(String::isNotBlank)
+        ?: field("title")?.takeIf(String::isNotBlank)
+        ?: payload["name"]?.jsonPrimitive?.contentOrNull?.takeIf(String::isNotBlank)
+        ?: title
+    val nextHasAvatar = updated["hasAvatar"]?.jsonPrimitive?.content?.toBooleanStrictOrNull()
+        ?: if ("icon" in payload || "color" in payload) false else hasAvatar
+    return copy(
+        title = nextName,
+        botTitle = field("title") ?: payload["title"]?.jsonPrimitive?.contentOrNull ?: botTitle,
+        subtitle = field("description") ?: payload["description"]?.jsonPrimitive?.contentOrNull ?: subtitle,
+        botInstructions = field("instructions") ?: payload["instructions"]?.jsonPrimitive?.contentOrNull ?: botInstructions,
+        botVoice = field("voice") ?: payload["voice"]?.jsonPrimitive?.contentOrNull ?: botVoice,
+        botIcon = field("icon") ?: payload["icon"]?.jsonPrimitive?.contentOrNull ?: botIcon,
+        avatarColor = field("color") ?: payload["color"]?.jsonPrimitive?.contentOrNull ?: avatarColor,
+        hasAvatar = nextHasAvatar,
+        avatarPath = if (nextHasAvatar) avatarPath else null,
+    )
+}
