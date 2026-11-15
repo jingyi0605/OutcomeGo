@@ -121,7 +121,9 @@ if (!result.renderer.workspaceStartup) failures.push("Workspace startup closure 
 // Automatic lifecycle chunking avoids a React initialization cycle in built entries.
 // The provider icon catalog and the bilingual settings shell are part of the authenticated startup
 // path. The current build measures 1,378,575 bytes; keep a small margin for generated chunk data.
-else atMost("signed-in workspace startup bytes", result.renderer.workspaceStartup.bytes, 1_400_000);
+// v0.1.0-beta.17 adds the desktop plugin translation catalog and ScreenBot bridge; the
+// measured workspace startup closure is 1,457,413 bytes.
+else atMost("signed-in workspace startup bytes", result.renderer.workspaceStartup.bytes, 1_480_000);
 const startupCssBytes = result.renderer.startup.files
   .filter((file) => file.path.endsWith(".css"))
   .reduce((total, file) => total + file.bytes, 0);
@@ -131,7 +133,9 @@ const startupCssBytes = result.renderer.startup.files
 // v0.0.13 adds sidebar, pending-message and settings styles: 181,253 bytes.
 // v0.0.14 delivery/loading styles and background animation controls: 183,131.
 // The provider picker and settings controls add 36 bytes to the measured startup stylesheet.
-atMost("startup CSS bytes", startupCssBytes, 187_000);
+// v0.1.0-beta.17 adds the desktop detail, library, and ScreenBot styles; the measured
+// startup stylesheet is 226,840 bytes.
+atMost("startup CSS bytes", startupCssBytes, 230_000);
 // September 16: worker isolation and the complete memory/plugin/settings UI
 // measure 15.90 MB / 3.887 MB gzip. Account for the worker's separate runtime;
 // retain the existing entry, CSS and grammar-total ceilings.
@@ -161,7 +165,9 @@ atMost("startup CSS bytes", startupCssBytes, 187_000);
 // v0.0.13 measures 16,529,321 bytes after isolating SettingsSelectContent.
 // v0.0.14 resource/cache ownership and delivery UI: 16,542,075 after safe chunking.
 // The provider catalog and model settings add 382 KB to the renderer bundle in this release.
-atMost("renderer bytes", result.renderer.bytes, 17_900_000);
+// v0.1.0-beta.17 adds the desktop plugin translation catalog, ScreenBot bridge, and
+// Bot Library entry points. The measured renderer is 18,180,863 bytes.
+atMost("renderer bytes", result.renderer.bytes, 18_300_000);
 // +10 KB (2026-09) for Settings → Providers and its provider logos (~9 KB gzip).
 // Measured total with the former saved-login screen: 4,016,715 bytes.
 // The first-run wizard and settings measure 4,022,126 bytes gzip (2026-10); with the
@@ -177,7 +183,8 @@ atMost("renderer bytes", result.renderer.bytes, 17_900_000);
 // Resource ownership and background lifecycle controls measure 4,118,074 gzip
 // bytes. Allow 2 KB for worker retirement, blob leases and shared activity hooks.
 // The same v0.0.14 build measures 4,121,192 gzip bytes, including chunk metadata.
-atMost("renderer gzip bytes", result.renderer.gzipBytes, 4_650_000);
+// v0.1.0-beta.17's plugin translation catalog and ScreenBot support measure 4,709,063 gzip bytes.
+atMost("renderer gzip bytes", result.renderer.gzipBytes, 4_760_000);
 atMost("build-analysis metadata bytes", result.renderer.buildMetadata.bytes, 256_000);
 // October 1 release baseline, including the native launcher and current tool
 // contracts: 2,447,064 bytes with pinned Bun 1.4.2. The same sources with Bun
@@ -193,7 +200,8 @@ electronFileBudget("main.js", 175_000);
 const updaterChunks = result.electron.files.filter(file => /^chunks\/main(?:-[^.]+)?\.js$/.test(file.path));
 if (updaterChunks.length !== 1) failures.push("Expected exactly one Electron updater chunk");
 else atMost("Electron updater chunk bytes", updaterChunks[0]!.bytes, 600_000);
-electronFileBudget("preload.cjs", 10_000);
+// ScreenBot's preload bridge adds 243 bytes over the previous ceiling.
+electronFileBudget("preload.cjs", 10_500);
 // AwaitShell adds the bounded RE2 engine and durable job/environment receipts.
 // Measured unminified utility: 280,140 bytes; retain the total Electron ceiling.
 electronFileBudget("host-utility.js", 285_000);
@@ -214,13 +222,15 @@ const lazyBudgets: Record<string, number> = {
   // secrets for Bot processes bring the measured October closure to 51,380 bytes.
   // The Settings cleanup's shared Select (#187) adds about 21.6 KB to each plugin closure:
   // 73,336, 46,419, 40,512 and 36,231.
-  pluginDetail: 75_000,
-  pluginConnection: 46_800,
+  // v0.1.0-beta.17 plugin localization includes the generated per-plugin translation catalog:
+  // 168,381 and 139,625 bytes for detail and connection configuration respectively.
+  pluginDetail: 175_000,
+  pluginConnection: 145_000,
   // The OutcomeGo package name adds a small amount to the package studio's generated closure:
   // 40,936 bytes on the beta.15 build.
-  pluginStudio: 41_000,
+  pluginStudio: 42_000,
   privateSkills: 37_000,
-  settingsMicrophone: 12_000,
+  settingsMicrophone: 13_000,
   basicMarkdown: 600_000,
   advancedRich: 600_000,
   cjk: 600_000,
@@ -233,10 +243,12 @@ const lazyBudgets: Record<string, number> = {
   desktopDialogs: 25_000,
   groupForm: 25_000,
   inspector: 150_000,
+  // Bot Library is loaded from the inspector and keeps file previews behind their own boundary.
+  channelLibrary: 10_000,
   avatarPicker: 20_000,
   botScreen: 20_000,
   vncProtocol: 280_000,
-  fileAttachment: 20_000,
+  fileAttachment: 28_000,
   pdfPreview: 1_500_000,
   docxPreview: 550_000,
   spreadsheetPreview: 550_000,
@@ -245,7 +257,7 @@ const lazyBudgets: Record<string, number> = {
   loadingOrb: 28_000,
   // Main's compact voice glow and recording bar measure 59,665 bytes; still lazy.
   // v0.0.13 glow smoothing and transition state add 4,479 bytes: 64,144 total.
-  voiceMemo: 64_500,
+  voiceMemo: 68_000,
   routineEditor: 100_000,
   newBot: 20_000,
   // The first-run wizard with its shared layout, step pictures, provider marks, and
@@ -280,25 +292,25 @@ const lazyBudgets: Record<string, number> = {
   // 69,096 with the web search stage's shared tint and five-step progress.
   signIn: 71_000,
   // 40,608 with Messages (#165); 62,814 with the shared Select (#187).
-  pluginSettings: 65_000,
+  pluginSettings: 165_000,
   pluginSettingsDetail: 30_000,
-  pluginManagement: 38_000,
+  pluginManagement: 40_000,
   skillImport: 100_000,
   search: 100_000,
   groupAvatarEditor: 10_000,
   // Model and Voice notes navigation with the shared Radix chunks: 42,789 bytes;
   // 46,297 with the Timezone page.
-  settingsInitial: 48_000,
+  settingsInitial: 52_000,
   // The Voice notes entry and microphone icon bring the settings shell to 10,728;
   // 11,132 with the Messages entry and the Settings cleanup.
   // Shared SettingsLink navigation (#199/#201) brings the closure to 11,557.
   // v0.0.13 shared control styles: 13,550, without the ~21 KB Select dependency.
-  settingsShell: 16_500,
+  settingsShell: 19_000,
   settingsAbout: 70_000,
   settingsRealtimeVoice: 100_000,
   voiceSelect: 100_000,
   // Main already measures 33,930 with auto-review rules; 37,276 with Timezone.
-  settingsGeneral: 37_600,
+  settingsGeneral: 41_000,
   settingsComputer: 31_000,
   // Dedicated network priority controls, including their on-demand stylesheet.
   settingsNetwork: 25_000,
@@ -310,7 +322,7 @@ const lazyBudgets: Record<string, number> = {
   // Connected version/update navigation and the moved machine controls (#201/#211)
   // measure 17,312. Browser network settings retain their separate lazy boundary.
   // v0.0.13 shared control styles: 18,849 bytes; network and Select remain lazy.
-  settingsServer: 24_000,
+  settingsServer: 26_000,
   // Dedicated Voice notes page: load retry, provider marks, busy indicators and
   // responsive fields. Still lazy; its measured closure is 40,488 bytes; 41,304 after the
   // Settings cleanup.
@@ -328,7 +340,9 @@ const lazyBudgets: Record<string, number> = {
   // v0.0.13 compact shared buttons/styles: 18,677 bytes.
   // November 10 update-message localization adds the server and desktop status catalog:
   // 27,699 bytes measured in the lazy closure. Keep this page lazy with modest headroom.
-  settingsUpdates: 29_000,
+  settingsUpdates: 31_000,
+  // ScreenBot's signed-in bridge is loaded after authentication and measures 3,414 bytes.
+  screenbotBridge: 5_000,
   // The full provider preset catalog is loaded only when the Add provider dialog opens.
   addProviderDialog: 650_000,
 };

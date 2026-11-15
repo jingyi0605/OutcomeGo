@@ -443,6 +443,7 @@ const readLazyClosures = async () => {
       desktopDialogs: ["src/renderer/components/outcomego/desktop-dialogs.tsx"],
       groupForm: ["src/renderer/components/outcomego/forms.tsx"],
       inspector: ["src/renderer/components/outcomego/inspector.tsx"],
+      channelLibrary: ["src/renderer/components/outcomego/channel-library.tsx"],
       avatarPicker: ["src/renderer/components/outcomego/avatar-picker.tsx"],
       botScreen: ["src/renderer/components/outcomego/bot-screen.tsx"],
       vncProtocol: ["node_modules/@novnc/novnc/core/rfb.js"],
@@ -482,6 +483,7 @@ const readLazyClosures = async () => {
       settingsTranscription: ["src/renderer/components/outcomego/settings/transcription.tsx"],
       settingsProviders: ["src/renderer/components/outcomego/settings/providers.tsx"],
       settingsUpdates: ["src/renderer/components/outcomego/settings/updates.tsx"],
+      screenbotBridge: ["src/renderer/lib/screenbot-bridge.ts"],
     };
     const closures = Object.fromEntries(
       Object.entries(boundarySources).map(([name, suffixes]) => [name, closureFor(suffixes)])
