@@ -88,6 +88,26 @@ test("keeps an updater failure visible and allows a deliberate retry", () => {
   expect(updates.start({ targetVersion: "1.3.0" }).jobId).not.toBe(first.jobId);
 });
 
+test("hides a saved failure once its target release is installed", () => {
+  const { directory } = fixture();
+  const oldServer = new ServerUpdates(directory, "1.2.3");
+  oldServer.heartbeat({});
+  const request = oldServer.start({ targetVersion: "1.3.0" });
+  oldServer.heartbeat({
+    requestId: request.jobId!,
+    status: "error",
+    phase: "error",
+    message: "Legacy updater failure",
+  });
+
+  const currentServer = new ServerUpdates(directory, "1.3.0");
+  expect(currentServer.view()).toMatchObject({
+    status: "unavailable",
+    targetVersion: null,
+    message: "Run outcomego start on the server to enable updates from the app.",
+  });
+});
+
 test("allows newer prerelease versions only on the beta channel", () => {
   const stable = fixture();
   stable.updates.heartbeat({});

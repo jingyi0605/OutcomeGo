@@ -42,9 +42,19 @@ export class ServerUpdates {
     renameSync(`${this.file}.tmp`, this.file);
   }
 
+  private requestForView(): ServerUpdateRequest | null {
+    const request = this.request;
+    if (
+      request?.status === "error" &&
+      (compareOutcomeGoVersions(request.targetVersion, this.currentVersion) ?? 1) <= 0
+    )
+      return null;
+    return request;
+  }
+
   view(): ServerUpdateView {
     const available = this.heartbeatAt > 0 && this.now() - this.heartbeatAt < AGENT_TIMEOUT;
-    const request = this.request;
+    const request = this.requestForView();
     const active = request?.status === "queued" || request?.status === "running";
     return {
       updaterAvailable: available,
