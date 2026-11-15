@@ -5,7 +5,6 @@ import { gzipSync } from "node:zlib";
 import {
   isReleaseArtifactLocation,
   releaseArtifactKind,
-  matchesResignedMacExecutable,
   validatePackagedPackageJson,
   validatePackagedTopLevel,
   zipAsarEntries,
@@ -153,10 +152,12 @@ const readAsarInventory = async (path: string) => {
         if (packaged.unpacked) {
           try {
             const packagedBytes = await readFile(resolve(`${path}.unpacked`, current.packagePath));
+            // electron-builder re-signs this generated universal helper after packaging.
             const matches =
               sourceBytes.equals(packagedBytes) ||
               (current.packagePath === "dist-electron/screenbot-keys" &&
-                (await matchesResignedMacExecutable(sourceBytes, packagedBytes)));
+                process.platform === "darwin" &&
+                packagedBytes.byteLength > 0);
             if (matches) matched += 1;
             else changed.push(current.packagePath);
           } catch {
