@@ -1,4 +1,7 @@
-@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@file:OptIn(
+    androidx.compose.material3.ExperimentalMaterial3Api::class,
+    androidx.compose.foundation.layout.ExperimentalLayoutApi::class,
+)
 
 package com.outcomego.android.ui
 
@@ -14,7 +17,10 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.BackHandler
 import androidx.activity.result.contract.ActivityResultContracts
+import android.view.ViewTreeObserver
 import androidx.core.content.ContextCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.compose.foundation.background
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
@@ -31,10 +37,14 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.exclude
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.imeAnimationTarget
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.offset
@@ -42,6 +52,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -130,21 +141,27 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import kotlinx.coroutines.flow.drop
 import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.runtime.State
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.isImeVisible
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material3.Surface
@@ -153,6 +170,8 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.Measurable
+import androidx.compose.ui.layout.MeasurePolicy
 import androidx.compose.ui.layout.layoutId
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalView
@@ -483,7 +502,13 @@ fun OutcomeGoApp(
         return
     }
     CompositionLocalProvider(LocalAppLanguage provides state.features.settings.language, LocalAppHaptics provides haptics) {
-        Box(Modifier.fillMaxSize()) {
+        Box(
+            Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+                .windowInsetsPadding(WindowInsets.systemBars)
+                .consumeWindowInsets(WindowInsets.systemBars),
+        ) {
         NavHost(
             navController = navController,
             startDestination = if (state.session != null) DIRECTORY else LOGIN,
@@ -3417,7 +3442,7 @@ private fun ChatScreen(
     val listState = rememberLazyListState()
     var forwardingAttachment by remember { mutableStateOf<Attachment?>(null) }
     val attachmentPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> uri?.let { onUpload(it.toString()) } }
-    val contextRows = threadContext.take(com.outcomego.android.data.ChatHistoryPage.DEFAULT_CONTEXT_LIMIT)
+    val contextRows = remember(threadContext) { threadContext.take(com.outcomego.android.data.ChatHistoryPage.DEFAULT_CONTEXT_LIMIT) }
     val chatRows = remember(messages) { messages.toChatRows() }
     var hasPositionedInitialMessages by remember(conversationId) { mutableStateOf(false) }
     // The list ends with the bot-activity row and a 4dp spacer. Scrolling to that last item can only
@@ -3462,11 +3487,14 @@ private fun ChatScreen(
             }
         }
     }
-    // The viewport shrinks when the keyboard opens or the composer grows; stay on the newest message.
+    // The viewport shrinks when the keyboard settles or the composer grows; stay on the newest message.
     LaunchedEffect(listState) {
-        snapshotFlow { listState.layoutInfo.viewportSize.height }.drop(1).collect {
-            if (followBottom && hasPositionedInitialMessages && currentTargetMessageId == null) {
-                listState.scrollToItem(currentLastItemIndex)
+        var previousHeight = listState.layoutInfo.viewportSize.height
+        snapshotFlow { listState.layoutInfo.viewportSize.height }.drop(1).collect { height ->
+            val shrunk = height < previousHeight
+            previousHeight = height
+            if (shrunk && followBottom && hasPositionedInitialMessages && currentTargetMessageId == null) {
+                listState.requestScrollToItem(currentLastItemIndex)
             }
         }
     }
@@ -3509,14 +3537,46 @@ private fun ChatScreen(
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
     val composerFocusRequester = remember { FocusRequester() }
-    var isComposerFocused by remember(conversationId) { mutableStateOf(false) }
-    val imeOpen = WindowInsets.ime.getBottom(LocalDensity.current) > 0
-    var wasImeOpen by remember(conversationId) { mutableStateOf(false) }
-    LaunchedEffect(imeOpen) {
-        if (wasImeOpen && !imeOpen && isComposerFocused) {
+    val composerFocusedState = remember(conversationId) { mutableStateOf(false) }
+    val onForwardAttachment = remember<(Attachment) -> Unit> { { forwardingAttachment = it } }
+    val onJumpToMessage = remember<(String) -> Unit> { { jumpToMessageId = it } }
+    val onAttach = remember(attachmentPicker) { { attachmentPicker.launch(arrayOf("*/*")) } }
+    val onDismissComposerFocus = remember<() -> Unit>(focusManager, keyboardController) {
+        {
+            composerFocusedState.value = false
             focusManager.clearFocus()
+            keyboardController?.hide()
         }
-        wasImeOpen = imeOpen
+    }
+    ImeCollapseObserver(
+        conversationId = conversationId,
+        composerFocusedState = composerFocusedState,
+        onClearFocus = { focusManager.clearFocus() },
+    )
+    val density = LocalDensity.current
+    val imeInsets = WindowInsets.ime.exclude(WindowInsets.navigationBars)
+    val imeTargetInsets = WindowInsets.imeAnimationTarget.exclude(WindowInsets.navigationBars)
+    var settledImePx by remember(conversationId) { mutableIntStateOf(0) }
+    val currentFollowBottom by rememberUpdatedState(followBottom)
+    LaunchedEffect(conversationId, imeInsets, imeTargetInsets, density) {
+        snapshotFlow {
+            imeInsets.getBottom(density) to imeTargetInsets.getBottom(density)
+        }.collect { (livePx, targetPx) ->
+            when {
+                // Closing or shrinking: commit target height once at frame 0 so LazyColumn expands
+                // once and slides smoothly via GPU translationY without per-frame remeasure.
+                targetPx < settledImePx -> {
+                    settledImePx = targetPx
+                }
+                // Opening settled: commit final height and anchor bottom in the same frame.
+                livePx == targetPx && targetPx > settledImePx -> {
+                    if (currentFollowBottom && hasPositionedInitialMessages && currentTargetMessageId == null) {
+                        listState.requestScrollToItem(currentLastItemIndex)
+                    }
+                    settledImePx = targetPx
+                }
+            }
+        }
     }
     var pickingVoiceMembers by remember { mutableStateOf(false) }
     if (pickingVoiceMembers) {
@@ -3529,200 +3589,404 @@ private fun ChatScreen(
             },
         )
     }
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        if (bot?.isGroup == true) {
-                            ConversationAvatar(
-                                conversation = bot,
-                                accountName = accountName,
-                                members = groupMembers,
-                                size = 32.dp,
-                            )
-                            Spacer(Modifier.width(8.dp))
-                        }
-                        Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    }
-                },
-                navigationIcon = {
-                    IconButton(
-                        onClick = onBack,
-                        modifier = Modifier.testTag("back-to-conversations"),
-                    ) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = localizedText("Back to conversations", "返回对话列表"),
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background),
+    ) {
+        TopAppBar(
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (bot?.isGroup == true) {
+                        ConversationAvatar(
+                            conversation = bot,
+                            accountName = accountName,
+                            members = groupMembers,
+                            size = 32.dp,
                         )
+                        Spacer(Modifier.width(8.dp))
                     }
-                },
-                actions = {
-                    if (bot?.isBot == true || (bot?.isGroup == true && groupMembers.isNotEmpty())) {
-                        IosChromeIcon(
-                            icon = {
-                                Icon(
-                                    Icons.Default.Call,
-                                    contentDescription = null,
-                                )
-                            },
-                            contentDescription = localizedText(
-                                if (liveVoice.state == com.outcomego.platform.AndroidLiveVoiceState.Idle) "Start realtime voice" else "End realtime voice",
-                                if (liveVoice.state == com.outcomego.platform.AndroidLiveVoiceState.Idle) "开始实时语音" else "结束实时语音",
-                            ),
-                            onClick = {
-                                haptic.play(HapticEffect.Medium)
-                                if (liveVoice.state != com.outcomego.platform.AndroidLiveVoiceState.Idle) onStopLiveVoice()
-                                else if (bot?.isGroup == true) pickingVoiceMembers = true
-                                else onStartLiveVoice(emptyList(), null)
-                            },
-                            enabled = liveVoice.state != com.outcomego.platform.AndroidLiveVoiceState.Connecting,
-                            modifier = Modifier.testTag("live-voice-header"),
-                        )
-                    }
+                    Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+            },
+            navigationIcon = {
+                IconButton(
+                    onClick = onBack,
+                    modifier = Modifier.testTag("back-to-conversations"),
+                ) {
+                    Icon(
+                        Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = localizedText("Back to conversations", "返回对话列表"),
+                    )
+                }
+            },
+            actions = {
+                if (bot?.isBot == true || (bot?.isGroup == true && groupMembers.isNotEmpty())) {
                     IosChromeIcon(
                         icon = {
                             Icon(
-                                Icons.Default.Info,
+                                Icons.Default.Call,
                                 contentDescription = null,
                             )
                         },
-                        contentDescription = stringResource(com.outcomego.android.R.string.chat_bot_details),
-                        onClick = onBotDetails,
-                        modifier = Modifier.testTag("bot-details"),
-                    )
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
-            )
-        },
-        bottomBar = {
-            Column(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.background).windowInsetsPadding(WindowInsets.navigationBars).imePadding().padding(horizontal = 14.dp, vertical = 10.dp)) {
-                if (error != null) Text(error, Modifier.padding(start = 4.dp, bottom = 6.dp), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
-                when (voiceState) {
-                    VoiceRecordingState.Idle -> Unit
-                    is VoiceRecordingState.Starting -> Text(stringResource(com.outcomego.android.R.string.chat_record_voice), style = MaterialTheme.typography.bodySmall)
-                    is VoiceRecordingState.Recording -> voiceControls(localizedText("Recording voice note", "正在录制语音消息"), onStopVoice, onCancelVoice)
-                    is VoiceRecordingState.Interrupted -> voiceControls(localizedText("Recording paused", "录音已暂停"), onStopVoice, onCancelVoice)
-                    is VoiceRecordingState.Transcribing -> voiceControls("Transcribing…", null, onCancelVoice)
-                    is VoiceRecordingState.Review -> {
-                        Text(voiceState.error ?: localizedText("Transcription failed", "语音转写失败"), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            TextButton(onClick = { haptic.play(HapticEffect.Light); onRetryVoice() }) { Text(localizedText("Retry", "重试")) }
-                            TextButton(onClick = { haptic.play(HapticEffect.Warning); onCancelVoice() }) { Text(localizedText("Discard", "丢弃")) }
-                        }
-                    }
-                    is VoiceRecordingState.Failed -> {
-                        Text(voiceState.message, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
-                        TextButton(onClick = onCancelVoice) { Text(localizedText("Dismiss", "关闭")) }
-                    }
-                }
-                replyingTo?.let { target ->
-                    ReplyPreviewBar(target, onCancelReply)
-                }
-                if (pendingAttachments.isNotEmpty()) {
-                    PendingAttachmentStrip(
-                        attachments = pendingAttachments,
-                        onRemove = onRemoveAttachment,
+                        contentDescription = localizedText(
+                            if (liveVoice.state == com.outcomego.platform.AndroidLiveVoiceState.Idle) "Start realtime voice" else "End realtime voice",
+                            if (liveVoice.state == com.outcomego.platform.AndroidLiveVoiceState.Idle) "开始实时语音" else "结束实时语音",
+                        ),
+                        onClick = {
+                            haptic.play(HapticEffect.Medium)
+                            if (liveVoice.state != com.outcomego.platform.AndroidLiveVoiceState.Idle) onStopLiveVoice()
+                            else if (bot?.isGroup == true) pickingVoiceMembers = true
+                            else onStartLiveVoice(emptyList(), null)
+                        },
+                        enabled = liveVoice.state != com.outcomego.platform.AndroidLiveVoiceState.Connecting,
+                        modifier = Modifier.testTag("live-voice-header"),
                     )
                 }
-                ChatComposer(
-                    draft = draft,
-                    onDraftChange = onDraftChange,
-                    hasPendingAttachments = pendingAttachments.isNotEmpty(),
-                    voiceState = voiceState,
-                    onAttach = { attachmentPicker.launch(arrayOf("*/*")) },
-                    onStartVoice = onStartVoice,
-                    onSend = onSend,
-                    isFocused = isComposerFocused,
-                    onFocusChange = { isComposerFocused = it },
-                    focusRequester = composerFocusRequester,
-                )
-                when (operation) {
-                    FeatureOperationState.Idle -> Unit
-                    FeatureOperationState.Pending -> Text(localizedText("Working…", "处理中…"), Modifier.testTag("chat-operation-status"), style = MaterialTheme.typography.bodySmall)
-                    is FeatureOperationState.Succeeded -> Unit
-                    is FeatureOperationState.Failed -> Text(operation.message, Modifier.testTag("chat-operation-status"), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
-                }
-            }
-        },
-        containerColor = MaterialTheme.colorScheme.background,
-    ) { padding ->
-        LazyColumn(
-            state = listState,
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(horizontal = 16.dp)
-                .pointerInput(isComposerFocused) {
-                    if (!isComposerFocused) return@pointerInput
-                    val touchSlop = viewConfiguration.touchSlop
-                    awaitEachGesture {
-                        val down = awaitFirstDown(requireUnconsumed = false)
-                        val up = waitForUpOrCancellation()
-                        if (up != null && !up.isConsumed && (up.position - down.position).getDistance() < touchSlop) {
-                            focusManager.clearFocus()
-                            keyboardController?.hide()
-                        }
-                    }
-                },
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            if (hasMoreHistory) {
-                item(key = "load-older") {
-                    TextButton(
-                        onClick = onLoadOlder,
-                        enabled = !historyLoading,
-                        modifier = Modifier.fillMaxWidth().testTag("load-older-messages"),
-                    ) {
-                        if (historyLoading) CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
-                        else Text(stringResource(com.outcomego.android.R.string.chat_load_older))
-                    }
-                }
-            }
-            if (contextRows.isNotEmpty()) {
-                item(key = "thread-context") {
-                    ChatContextSummary(contextRows, threadContextTruncated || threadContext.size > contextRows.size)
-                }
-            }
-            items(chatRows, key = ChatRow::key) { row ->
-                if (row is ChatRow.Voice) {
-                    VoiceConversationCard(row.messages, bot?.title ?: "Assistant")
-                    return@items
-                }
-                val message = (row as ChatRow.Single).message
-                MessageBubble(
-                    message,
-                    onRetry,
-                    isTarget = message.id == targetMessageId || message.id == highlightedMessageId,
-                    operation = operation,
-                    onDownload = onDownload,
-                    onSaveAttachment = onSaveAttachment,
-                    onShareAttachment = onShareAttachment,
-                    onForwardAttachment = { forwardingAttachment = it },
-                    onAction = onAction,
-                    onReaction = onReaction,
-                    onMessageAction = onMessageAction,
-                    onContext = onContext,
-                    onReply = onReply,
-                    onOpenRoutine = onOpenRoutine,
-                    replyOriginal = message.replyToMessageId?.let { id -> messages.firstOrNull { it.id == id } },
-                    onOpenOriginal = { id ->
-                        // Load the surrounding history only when the original is not already in the list.
-                        if (messages.none { it.id == id }) onContext(id)
-                        jumpToMessageId = id
+                IosChromeIcon(
+                    icon = {
+                        Icon(
+                            Icons.Default.Info,
+                            contentDescription = null,
+                        )
                     },
+                    contentDescription = stringResource(com.outcomego.android.R.string.chat_bot_details),
+                    onClick = onBotDetails,
+                    modifier = Modifier.testTag("bot-details"),
                 )
-            }
-            item(key = "bot-activity") {
-                BotActivityRow(
-                    activity = activity,
-                    bot = bot,
-                    accountName = accountName,
-                    members = groupMembers,
-                )
-            }
-            item { Spacer(Modifier.height(4.dp)) }
+            },
+            colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
+        )
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .clipToBounds(),
+        ) {
+            ChatMessageList(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Horizontal))
+                    .graphicsLayer {
+                        val offsetPx = (imeInsets.getBottom(this) - settledImePx).coerceAtLeast(0)
+                        if (offsetPx == 0 || !currentFollowBottom) {
+                            translationY = 0f
+                        } else {
+                            val layoutInfo = listState.layoutInfo
+                            val lastItemBottom = layoutInfo.visibleItemsInfo.lastOrNull()?.let { it.offset + it.size } ?: 0
+                            val emptyBelow = (layoutInfo.viewportSize.height - lastItemBottom).coerceAtLeast(0)
+                            translationY = -(offsetPx - emptyBelow).coerceAtLeast(0).toFloat()
+                        }
+                    },
+                listState = listState,
+                hasMoreHistory = hasMoreHistory,
+                historyLoading = historyLoading,
+                onLoadOlder = onLoadOlder,
+                contextRows = contextRows,
+                threadContextTruncated = threadContextTruncated,
+                threadContextCount = threadContext.size,
+                chatRows = chatRows,
+                messages = messages,
+                targetMessageId = targetMessageId,
+                highlightedMessageId = highlightedMessageId,
+                operation = operation,
+                activity = activity,
+                bot = bot,
+                accountName = accountName,
+                groupMembers = groupMembers,
+                onRetry = onRetry,
+                onDownload = onDownload,
+                onSaveAttachment = onSaveAttachment,
+                onShareAttachment = onShareAttachment,
+                onForwardAttachment = onForwardAttachment,
+                onAction = onAction,
+                onReaction = onReaction,
+                onMessageAction = onMessageAction,
+                onContext = onContext,
+                onReply = onReply,
+                onOpenRoutine = onOpenRoutine,
+                onJumpToMessage = onJumpToMessage,
+                composerFocusedState = composerFocusedState,
+                onDismissComposerFocus = onDismissComposerFocus,
+            )
         }
+        ChatBottomBar(
+            modifier = Modifier
+                .zIndex(1f)
+                .graphicsLayer {
+                    translationY = -(imeInsets.getBottom(this) - settledImePx).coerceAtLeast(0).toFloat()
+                },
+            error = error,
+            voiceState = voiceState,
+            onStopVoice = onStopVoice,
+            onCancelVoice = onCancelVoice,
+            onRetryVoice = onRetryVoice,
+            replyingTo = replyingTo,
+            onCancelReply = onCancelReply,
+            pendingAttachments = pendingAttachments,
+            onRemoveAttachment = onRemoveAttachment,
+            draft = draft,
+            onDraftChange = onDraftChange,
+            onAttach = onAttach,
+            onStartVoice = onStartVoice,
+            onSend = onSend,
+            composerFocusedState = composerFocusedState,
+            composerFocusRequester = composerFocusRequester,
+            operation = operation,
+        )
+        if (settledImePx > 0) {
+            Spacer(Modifier.fillMaxWidth().height(with(density) { settledImePx.toDp() }))
+        }
+    }
+}
+
+/**
+ * Observes IME visibility inside its own narrow recomposition scope so [ChatScreen], its message
+ * list, and the top bar never recompose when the virtual keyboard opens or closes.
+ */
+@Composable
+private fun ImeCollapseObserver(
+    conversationId: String,
+    composerFocusedState: androidx.compose.runtime.MutableState<Boolean>,
+    onClearFocus: () -> Unit,
+) {
+    val view = LocalView.current
+    val composeImeVisible = WindowInsets.isImeVisible
+    var wasImeVisible by remember(conversationId) { mutableStateOf(false) }
+    val currentOnClearFocus by rememberUpdatedState(onClearFocus)
+
+    LaunchedEffect(composeImeVisible) {
+        if (composeImeVisible) {
+            wasImeVisible = true
+        } else if (wasImeVisible) {
+            wasImeVisible = false
+            if (composerFocusedState.value) {
+                composerFocusedState.value = false
+                currentOnClearFocus()
+            }
+        }
+    }
+
+    DisposableEffect(view, conversationId) {
+        // MainActivity uses adjustResize with decorFitsSystemWindows=true, so Compose's
+        // WindowInsets.ime can be pre-consumed by DecorView; read root insets while focused so
+        // non-resizing IMEs still collapse the composer, without traversing on every idle layout.
+        if (ViewCompat.getRootWindowInsets(view)?.isVisible(WindowInsetsCompat.Type.ime()) == true) {
+            wasImeVisible = true
+        }
+        val listener = ViewTreeObserver.OnGlobalLayoutListener {
+            if (!composerFocusedState.value && !wasImeVisible) return@OnGlobalLayoutListener
+            val imeVisible = ViewCompat.getRootWindowInsets(view)
+                ?.isVisible(WindowInsetsCompat.Type.ime()) == true
+            if (imeVisible) {
+                wasImeVisible = true
+            } else if (wasImeVisible) {
+                wasImeVisible = false
+                if (composerFocusedState.value) {
+                    composerFocusedState.value = false
+                    // Defer focus/IMM teardown out of ViewRootImpl.performTraversals.
+                    view.post { currentOnClearFocus() }
+                }
+            }
+        }
+        view.viewTreeObserver.addOnGlobalLayoutListener(listener)
+        onDispose {
+            view.viewTreeObserver.removeOnGlobalLayoutListener(listener)
+        }
+    }
+}
+
+@Composable
+private fun ChatBottomBar(
+    modifier: Modifier = Modifier,
+    error: String?,
+    voiceState: VoiceRecordingState,
+    onStopVoice: () -> Unit,
+    onCancelVoice: () -> Unit,
+    onRetryVoice: () -> Unit,
+    replyingTo: ChatMessage?,
+    onCancelReply: () -> Unit,
+    pendingAttachments: List<Attachment>,
+    onRemoveAttachment: (String) -> Unit,
+    draft: String,
+    onDraftChange: (String) -> Unit,
+    onAttach: () -> Unit,
+    onStartVoice: () -> Unit,
+    onSend: () -> Unit,
+    composerFocusedState: androidx.compose.runtime.MutableState<Boolean>,
+    composerFocusRequester: FocusRequester,
+    operation: FeatureOperationState,
+) {
+    val haptic = LocalAppHaptics.current
+    Column(
+        modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.background)
+            .windowInsetsPadding(WindowInsets.navigationBars)
+            .padding(horizontal = 14.dp, vertical = 10.dp),
+    ) {
+        if (error != null) Text(error, Modifier.padding(start = 4.dp, bottom = 6.dp), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+        when (voiceState) {
+            VoiceRecordingState.Idle -> Unit
+            is VoiceRecordingState.Starting -> Text(stringResource(com.outcomego.android.R.string.chat_record_voice), style = MaterialTheme.typography.bodySmall)
+            is VoiceRecordingState.Recording -> voiceControls(localizedText("Recording voice note", "正在录制语音消息"), onStopVoice, onCancelVoice)
+            is VoiceRecordingState.Interrupted -> voiceControls(localizedText("Recording paused", "录音已暂停"), onStopVoice, onCancelVoice)
+            is VoiceRecordingState.Transcribing -> voiceControls("Transcribing…", null, onCancelVoice)
+            is VoiceRecordingState.Review -> {
+                Text(voiceState.error ?: localizedText("Transcription failed", "语音转写失败"), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TextButton(onClick = { haptic.play(HapticEffect.Light); onRetryVoice() }) { Text(localizedText("Retry", "重试")) }
+                    TextButton(onClick = { haptic.play(HapticEffect.Warning); onCancelVoice() }) { Text(localizedText("Discard", "丢弃")) }
+                }
+            }
+            is VoiceRecordingState.Failed -> {
+                Text(voiceState.message, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                TextButton(onClick = onCancelVoice) { Text(localizedText("Dismiss", "关闭")) }
+            }
+        }
+        replyingTo?.let { target ->
+            ReplyPreviewBar(target, onCancelReply)
+        }
+        if (pendingAttachments.isNotEmpty()) {
+            PendingAttachmentStrip(
+                attachments = pendingAttachments,
+                onRemove = onRemoveAttachment,
+            )
+        }
+        ChatComposer(
+            draft = draft,
+            onDraftChange = onDraftChange,
+            hasPendingAttachments = pendingAttachments.isNotEmpty(),
+            voiceState = voiceState,
+            onAttach = onAttach,
+            onStartVoice = onStartVoice,
+            onSend = onSend,
+            isFocused = composerFocusedState.value,
+            onFocusChange = { composerFocusedState.value = it },
+            focusRequester = composerFocusRequester,
+        )
+        when (operation) {
+            FeatureOperationState.Idle -> Unit
+            FeatureOperationState.Pending -> Text(localizedText("Working…", "处理中…"), Modifier.testTag("chat-operation-status"), style = MaterialTheme.typography.bodySmall)
+            is FeatureOperationState.Succeeded -> Unit
+            is FeatureOperationState.Failed -> Text(operation.message, Modifier.testTag("chat-operation-status"), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+        }
+    }
+}
+
+@Composable
+private fun ChatMessageList(
+    modifier: Modifier,
+    listState: androidx.compose.foundation.lazy.LazyListState,
+    hasMoreHistory: Boolean,
+    historyLoading: Boolean,
+    onLoadOlder: () -> Unit,
+    contextRows: List<ChatMessage>,
+    threadContextTruncated: Boolean,
+    threadContextCount: Int,
+    chatRows: List<ChatRow>,
+    messages: List<ChatMessage>,
+    targetMessageId: String?,
+    highlightedMessageId: String?,
+    operation: FeatureOperationState,
+    activity: ChannelActivity?,
+    bot: Conversation?,
+    accountName: String,
+    groupMembers: List<Conversation>,
+    onRetry: (String) -> Unit,
+    onDownload: (String, Attachment) -> Unit,
+    onSaveAttachment: (String, Attachment) -> Unit,
+    onShareAttachment: (Attachment) -> Unit,
+    onForwardAttachment: (Attachment) -> Unit,
+    onAction: (String, String, Map<String, String>) -> Unit,
+    onReaction: (String, String) -> Unit,
+    onMessageAction: (String, MessageAction) -> Unit,
+    onContext: (String) -> Unit,
+    onReply: (String) -> Unit,
+    onOpenRoutine: () -> Unit,
+    onJumpToMessage: (String) -> Unit,
+    composerFocusedState: State<Boolean>,
+    onDismissComposerFocus: () -> Unit,
+) {
+    val messagesById = remember(messages) { messages.associateBy(ChatMessage::id) }
+    val currentMessages by rememberUpdatedState(messages)
+    val currentDismissFocus by rememberUpdatedState(onDismissComposerFocus)
+    val onOpenOriginal = remember(onContext, onJumpToMessage) {
+        { id: String ->
+            // Load the surrounding history only when the original is not already in the list.
+            if (currentMessages.none { it.id == id }) onContext(id)
+            onJumpToMessage(id)
+        }
+    }
+    LazyColumn(
+        state = listState,
+        modifier = modifier
+            .padding(horizontal = 16.dp)
+            .testTag("chat-message-list")
+            .pointerInput(composerFocusedState) {
+                val touchSlop = viewConfiguration.touchSlop
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    if (!composerFocusedState.value) return@awaitEachGesture
+                    val up = waitForUpOrCancellation()
+                    if (up != null && !up.isConsumed && (up.position - down.position).getDistance() < touchSlop) {
+                        currentDismissFocus()
+                    }
+                }
+            },
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        if (hasMoreHistory) {
+            item(key = "load-older") {
+                TextButton(
+                    onClick = onLoadOlder,
+                    enabled = !historyLoading,
+                    modifier = Modifier.fillMaxWidth().testTag("load-older-messages"),
+                ) {
+                    if (historyLoading) CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
+                    else Text(stringResource(com.outcomego.android.R.string.chat_load_older))
+                }
+            }
+        }
+        if (contextRows.isNotEmpty()) {
+            item(key = "thread-context") {
+                ChatContextSummary(contextRows, threadContextTruncated || threadContextCount > contextRows.size)
+            }
+        }
+        items(chatRows, key = ChatRow::key) { row ->
+            if (row is ChatRow.Voice) {
+                VoiceConversationCard(row.messages, bot?.title ?: "Assistant")
+                return@items
+            }
+            val message = (row as ChatRow.Single).message
+            MessageBubble(
+                message,
+                onRetry,
+                isTarget = message.id == targetMessageId || message.id == highlightedMessageId,
+                operation = operation,
+                onDownload = onDownload,
+                onSaveAttachment = onSaveAttachment,
+                onShareAttachment = onShareAttachment,
+                onForwardAttachment = onForwardAttachment,
+                onAction = onAction,
+                onReaction = onReaction,
+                onMessageAction = onMessageAction,
+                onContext = onContext,
+                onReply = onReply,
+                onOpenRoutine = onOpenRoutine,
+                replyOriginal = message.replyToMessageId?.let(messagesById::get),
+                onOpenOriginal = onOpenOriginal,
+            )
+        }
+        item(key = "bot-activity") {
+            BotActivityRow(
+                activity = activity,
+                bot = bot,
+                accountName = accountName,
+                members = groupMembers,
+            )
+        }
+        item { Spacer(Modifier.height(4.dp)) }
     }
 }
 
@@ -3747,17 +4011,77 @@ internal fun ChatComposer(
 ) {
     val haptic = LocalAppHaptics.current
     val canSend = draft.isNotBlank() || hasPendingAttachments
+    val expanded = isFocused || draft.isNotBlank()
+    val expandedState = rememberUpdatedState(expanded)
+    val measurePolicy = remember {
+        MeasurePolicy { measurables, constraints ->
+            val buttonConstraints = constraints.copy(minWidth = 0, minHeight = 0)
+            var attachMeasurable: Measurable? = null
+            var inputMeasurable: Measurable? = null
+            var actionMeasurable: Measurable? = null
+            for (i in measurables.indices) {
+                val measurable = measurables[i]
+                when (measurable.layoutId) {
+                    "attach" -> attachMeasurable = measurable
+                    "input" -> inputMeasurable = measurable
+                    "action" -> actionMeasurable = measurable
+                }
+            }
+            val attachPlaceable = attachMeasurable!!.measure(buttonConstraints)
+            val actionPlaceable = actionMeasurable!!.measure(buttonConstraints)
+            val maxWidth = constraints.maxWidth
+            val gapPx = 4.dp.roundToPx()
+            if (!expandedState.value) {
+                val inputWidth = (maxWidth - attachPlaceable.width - actionPlaceable.width - gapPx * 2).coerceAtLeast(0)
+                val inputPlaceable = inputMeasurable!!.measure(
+                    constraints.copy(minWidth = inputWidth, maxWidth = inputWidth, minHeight = 0),
+                )
+                val rowHeight = maxOf(attachPlaceable.height, actionPlaceable.height, inputPlaceable.height)
+                layout(maxWidth, rowHeight) {
+                    attachPlaceable.placeRelative(
+                        x = 0,
+                        y = (rowHeight - attachPlaceable.height) / 2,
+                    )
+                    inputPlaceable.placeRelative(
+                        x = attachPlaceable.width + gapPx,
+                        y = (rowHeight - inputPlaceable.height) / 2,
+                    )
+                    actionPlaceable.placeRelative(
+                        x = maxWidth - actionPlaceable.width,
+                        y = (rowHeight - actionPlaceable.height) / 2,
+                    )
+                }
+            } else {
+                val inputPlaceable = inputMeasurable!!.measure(
+                    constraints.copy(minWidth = maxWidth, maxWidth = maxWidth, minHeight = 0),
+                )
+                val toolRowHeight = maxOf(attachPlaceable.height, actionPlaceable.height)
+                val totalHeight = inputPlaceable.height + gapPx + toolRowHeight
+                layout(maxWidth, totalHeight) {
+                    inputPlaceable.placeRelative(x = 0, y = 0)
+                    attachPlaceable.placeRelative(
+                        x = 0,
+                        y = inputPlaceable.height + gapPx + (toolRowHeight - attachPlaceable.height) / 2,
+                    )
+                    actionPlaceable.placeRelative(
+                        x = maxWidth - actionPlaceable.width,
+                        y = inputPlaceable.height + gapPx + (toolRowHeight - actionPlaceable.height) / 2,
+                    )
+                }
+            }
+        }
+    }
     Surface(
         modifier = modifier
             .fillMaxWidth()
-            .testTag("composer-container")
-            .animateContentSize(animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing)),
+            .testTag("composer-container"),
         shape = RoundedCornerShape(26.dp),
         color = MaterialTheme.colorScheme.surface,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.45f)),
     ) {
         Layout(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 6.dp),
+            measurePolicy = measurePolicy,
             content = {
                 Box(Modifier.layoutId("attach"), contentAlignment = Alignment.Center) {
                     IconButton(
@@ -3785,7 +4109,7 @@ internal fun ChatComposer(
                             color = MaterialTheme.colorScheme.onSurface,
                         ),
                         cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                        maxLines = if (isFocused) 5 else 1,
+                        maxLines = if (expanded) 5 else 1,
                         keyboardOptions = KeyboardOptions(
                             capitalization = KeyboardCapitalization.Sentences,
                         ),
@@ -3794,13 +4118,13 @@ internal fun ChatComposer(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .then(
-                                        if (isFocused) {
+                                        if (expanded) {
                                             Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
                                         } else {
                                             Modifier.heightIn(min = 40.dp).padding(horizontal = 4.dp, vertical = 8.dp)
                                         },
                                     ),
-                                contentAlignment = if (isFocused) Alignment.TopStart else Alignment.CenterStart,
+                                contentAlignment = if (expanded) Alignment.TopStart else Alignment.CenterStart,
                             ) {
                                 if (draft.isEmpty()) {
                                     Text(
@@ -3853,52 +4177,7 @@ internal fun ChatComposer(
                     }
                 }
             },
-        ) { measurables, constraints ->
-            val buttonConstraints = constraints.copy(minWidth = 0, minHeight = 0)
-            val attachPlaceable = measurables.first { it.layoutId == "attach" }.measure(buttonConstraints)
-            val actionPlaceable = measurables.first { it.layoutId == "action" }.measure(buttonConstraints)
-            val maxWidth = constraints.maxWidth
-            if (!isFocused) {
-                val gapPx = 4.dp.roundToPx()
-                val inputWidth = (maxWidth - attachPlaceable.width - actionPlaceable.width - gapPx * 2).coerceAtLeast(0)
-                val inputPlaceable = measurables.first { it.layoutId == "input" }.measure(
-                    constraints.copy(minWidth = inputWidth, maxWidth = inputWidth, minHeight = 0),
-                )
-                val rowHeight = maxOf(attachPlaceable.height, actionPlaceable.height, inputPlaceable.height)
-                layout(maxWidth, rowHeight) {
-                    attachPlaceable.placeRelative(
-                        x = 0,
-                        y = (rowHeight - attachPlaceable.height) / 2,
-                    )
-                    inputPlaceable.placeRelative(
-                        x = attachPlaceable.width + gapPx,
-                        y = (rowHeight - inputPlaceable.height) / 2,
-                    )
-                    actionPlaceable.placeRelative(
-                        x = maxWidth - actionPlaceable.width,
-                        y = (rowHeight - actionPlaceable.height) / 2,
-                    )
-                }
-            } else {
-                val rowGapPx = 4.dp.roundToPx()
-                val inputPlaceable = measurables.first { it.layoutId == "input" }.measure(
-                    constraints.copy(minWidth = maxWidth, maxWidth = maxWidth, minHeight = 0),
-                )
-                val toolRowHeight = maxOf(attachPlaceable.height, actionPlaceable.height)
-                val totalHeight = inputPlaceable.height + rowGapPx + toolRowHeight
-                layout(maxWidth, totalHeight) {
-                    inputPlaceable.placeRelative(x = 0, y = 0)
-                    attachPlaceable.placeRelative(
-                        x = 0,
-                        y = inputPlaceable.height + rowGapPx + (toolRowHeight - attachPlaceable.height) / 2,
-                    )
-                    actionPlaceable.placeRelative(
-                        x = maxWidth - actionPlaceable.width,
-                        y = inputPlaceable.height + rowGapPx + (toolRowHeight - actionPlaceable.height) / 2,
-                    )
-                }
-            }
-        }
+        )
     }
 }
 
