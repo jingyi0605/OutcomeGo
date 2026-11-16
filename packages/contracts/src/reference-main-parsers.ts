@@ -1041,7 +1041,10 @@ function refineSendMessage(value, ctx) {
       message: "channel can only be set for type:text or type:attachment, not widgets or cursor-agent cards"
     });
   }
-  if (value.to != null && value.type !== "text") {
+  // `to:"dm"` hands a message to the Bot's own app chat. Text always can; the owner's cards (a question,
+  // a secret request) can too, because from an outside chat that is the only place the owner can answer.
+  // Whether the current conversation may use it for a given card is decided where the conversation is known.
+  if (value.to != null && value.type !== "text" && value.type !== "widget" && value.type !== "secret-request") {
     ctx.addIssue({
       code: external_exports.ZodIssueCode.custom,
       path: ["to"],

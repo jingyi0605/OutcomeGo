@@ -145,7 +145,8 @@ export class RichMessageService {
     let prepared: unknown;
     try { prepared = await this.screens.userFormAction(context.botId, id, "prepare", { form }); }
     catch (error) { if (error instanceof UserFormRefusal) return error.message; throw error; }
-    const result = await this.messaging.sendVisible(context, { type: "user-form", form: { ...parseUserForm(prepared), id }, end_turn: true });
+    // From an outside chat the owner answers the form in the app, so it goes to the Bot's chat there.
+    const result = await this.messaging.sendVisible(context, { type: "user-form", form: { ...parseUserForm(prepared), id }, end_turn: true, ...(channel?.kind === "external_dm" ? { to: "dm" } : {}) } as Parameters<AgentMessaging["sendVisible"]>[1]);
     return {...result.acknowledgement as Record<string,unknown>,...(typeof metadataRecord(prepared).preflightNote === "string" ? {preflightNote:metadataRecord(prepared).preflightNote} : {})};
   }
 

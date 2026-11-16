@@ -5,7 +5,7 @@ import {
   type PluginPackageView,
   type PluginSkillInput,
 } from "@outcomego/contracts";
-import type { PrismaClient } from "@outcomego/db";
+import type { Prisma, PrismaClient } from "@outcomego/db";
 import type { AgentDataStore } from "@outcomego/messaging";
 import { Effect } from "effect";
 import {
@@ -116,7 +116,9 @@ export class PluginManagement {
     private readonly skillLibrary?: Pick<
       AgentDataStore,
       "listSkills" | "saveLibrarySkill" | "deleteLibrarySkill"
-    >
+    >,
+    /** Runs inside the transaction that deletes connections, before the delete. */
+    private readonly beforeConnectionsRemoved?: (tx: Prisma.TransactionClient, connectionIds: string[]) => Promise<void>
   ) {}
 
   private library = () => {
@@ -579,12 +581,13 @@ export class PluginManagement {
             });
           }
         }
-        await tx.pluginConnection.deleteMany({
-          where: {
-            installationId: installation.id,
-            connectorKey: { notIn: next.connections.map((connector) => connector.key) },
-          },
-        });
+        const removedWhere = {
+          installationId: installation.id,
+          connectorKey: { notIn: next.connections.map((connector) => connector.key) },
+        };
+        if (this.beforeConnectionsRemoved)
+          await this.beforeConnectionsRemoved(tx, (await tx.pluginConnection.findMany({ where: removedWhere, select: { id: true } })).map((row) => row.id));
+        await tx.pluginConnection.deleteMany({ where: removedWhere });
         await retainPluginEnvironment(
           tx,
           installation.pluginKey,

@@ -8,6 +8,7 @@ import {
   ConnectPluginInput,
   InstallPluginInput,
   UpdatePluginEnvironmentInput,
+  PutExternalMessagingInput,
   RenamePluginAccountInput,
   SetMcpInstructionsInput,
 } from "@outcomego/contracts";
@@ -137,6 +138,15 @@ const routes = [
     /^\/api\/plugin-connections\/([^/]+)\/configure$/,
     ConfigurePluginConnectionInput,
     ({ app }, id, input) => app.configurePluginConnection(id, input)
+  ),
+  bodyRoute(
+    "PUT",
+    /^\/api\/plugin-connections\/([^/]+)\/messaging$/,
+    PutExternalMessagingInput,
+    ({ app }, id, input) => app.putExternalMessaging(id, input)
+  ),
+  effectRoute("DELETE", /^\/api\/plugin-connections\/([^/]+)\/messaging$/, ({ app }, id) =>
+    app.deleteExternalMessaging(id)
   ),
   effectRoute("POST", /^\/api\/plugin-connections\/([^/]+)\/restart$/, ({ app, authenticatedSessionId }, id) =>
     app.restartPluginConnection(id, authenticatedSessionId)

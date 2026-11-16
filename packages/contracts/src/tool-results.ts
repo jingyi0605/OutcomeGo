@@ -197,6 +197,19 @@ export function renderControlResult(
   }
   if (name === "WakeParent" && result.woken)
     return "The parent was awakened and this automation turn has ended.";
+  if (name === "SendToUser" && result.external && typeof result.external === "object") {
+    const external = result.external as { platform?: string; status?: string; reason?: string };
+    const where = external.platform ? ` to ${external.platform}` : "";
+    const why = external.reason ? ` (${external.reason})` : "";
+    if (external.status === "failed")
+      return `The message${where} was not sent${why}. Nothing left the box, so telling the user it did not go through is accurate. Do not assume it arrived.`;
+    if (external.status === "uncertain")
+      return `The message${where} may or may not have been delivered${why}. Do not send it again: it could arrive twice. Tell the user the result is unknown.`;
+    if (result.in_progress)
+      return `The message${where} is still being sent. Do not send it again; its result is not known yet.`;
+    if (external.status === "sent")
+      return `Message accepted by ${external.platform ?? "the chat service"}. (id: ${result.message_address ?? result.message_id}) That means it was handed over, not that it was read.`;
+  }
   if (name === "SendToUser" && result.sent)
     if (result.queued) return `Message queued for the room when this turn completes. (id: ${result.message_address ?? result.message_id})`;
   if (name === "SendToUser" && result.silent) return "No room message delivered (silent turn).";

@@ -807,6 +807,13 @@ export const RenamePluginAccountInput = Schema.Struct({
 });
 export type RenamePluginAccountInput = typeof RenamePluginAccountInput.Type;
 
+/** Which Bot receives a messaging connection's inbound chat, and whether it is on (specs/009). */
+export const PutExternalMessagingInput = Schema.Struct({
+  enabled: Schema.Boolean,
+  botId: Schema.UUID,
+});
+export type PutExternalMessagingInput = typeof PutExternalMessagingInput.Type;
+
 export const SetMcpInstructionsInput = Schema.Struct({
   instructions: Schema.String,
 });

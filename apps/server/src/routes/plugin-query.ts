@@ -37,4 +37,7 @@ export async function pluginQueryRoutes(context: RouteContext): Promise<Response
   return dispatchRoutes(context, routes);
 }
 
-const routes = [effectRoute("GET", "/api/plugins", ({ app }) => app.pluginSettings())];
+const routes = [
+  effectRoute("GET", "/api/plugins", ({ app }) => app.pluginSettings()),
+  effectRoute("GET", /^\/api\/plugin-connections\/([^/]+)\/messaging$/, ({ app }, id) => app.externalMessaging(id)),
+];

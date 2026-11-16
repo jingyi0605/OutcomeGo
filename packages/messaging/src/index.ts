@@ -790,8 +790,8 @@ export const validateSendToUserInput = (value: unknown): void => {
   const fieldsByType: Record<string, ReadonlySet<string>> = {
     text: new Set(["type", "content", "images", "reply_to", "channel", "to"]),
     attachment: new Set(["type", "url", "alt", "reply_to", "channel"]),
-    widget: new Set(["type", "widget", "reply_to"]),
-    "secret-request": new Set(["type", "secret", "reply_to"]),
+    widget: new Set(["type", "widget", "reply_to", "to"]),
+    "secret-request": new Set(["type", "secret", "reply_to", "to"]),
   };
   const allowed = fieldsByType[String(type)];
   const invalid = Object.keys(input).filter(
@@ -2757,7 +2757,8 @@ export class AgentMessaging {
           "Reply to the peer with SendToAgent using their agent id"
         );
       }
-      const privateDm = input.to === "dm" && activeChannel.kind === "group";
+      // A room or an external chat can hand something to the Bot's own app chat with `to: "dm"`.
+      const privateDm = input.to === "dm" && (activeChannel.kind === "group" || activeChannel.kind === "external_dm");
       if (activeChannel.kind === "group" && !privateDm) {
         if (input.type !== "text") throw new ApiError(400, "group_text_only", "Only plain text is delivered to a room. Use your private chat for attachments or cards.");
         const normalized = normalizeGroupAgentMessage(content);
@@ -2765,7 +2766,8 @@ export class AgentMessaging {
         content = normalized.content;
       }
       // A room cannot hold a draft or approval card, so one from a room goes to the bot's own 1:1 chat.
-      if (privateDm && input.type !== "text" && input.type !== "external-draft" && input.type !== "imessage-send") {
+      // The text-only limit is the room's: an external chat may hand any card to the owner's app chat.
+      if (privateDm && activeChannel.kind === "group" && input.type !== "text" && input.type !== "external-draft" && input.type !== "imessage-send") {
         throw new ApiError(
           400,
           "dm_text_only",

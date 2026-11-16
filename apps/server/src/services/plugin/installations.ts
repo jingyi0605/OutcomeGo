@@ -66,7 +66,9 @@ export class PluginInstallations {
     private readonly definition: (pluginKey: string) => Promise<PluginDefinition | undefined>,
     private readonly syncFileCaches: () => Promise<void>,
     private readonly stopRuntime: (connectionId: string, transport: string) => Promise<void>,
-    private readonly removePersistentAccount?: (connectionId: string) => Promise<void>
+    private readonly removePersistentAccount?: (connectionId: string) => Promise<void>,
+    /** Runs inside the transaction that deletes connections, before the delete. */
+    private readonly beforeConnectionsRemoved?: (tx: Prisma.TransactionClient, connectionIds: string[]) => Promise<void>
   ) {}
   install = (pluginKey: string, values: Record<string, ConfigValue> = {}) =>
     serviceEffect(async () => {
@@ -400,6 +402,7 @@ export class PluginInstallations {
           },
         });
         await clearPluginEnvironment(tx, pluginKey);
+        await this.beforeConnectionsRemoved?.(tx, installation.connections.map((connection) => connection.id));
         await tx.pluginInstallation.delete({ where: { id: installation.id } });
         await appendEvent(tx, "plugin.uninstalled", installation.id, { pluginKey });
       });

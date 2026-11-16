@@ -59,7 +59,9 @@ export class MessagesSendService {
     }
     const recipient = messagesSendRecipient(send);
     const allowed = await this.machines.messagesSendAllowed(machine.machineId, recipient.allowable ? send.to : undefined);
-    const room = (await this.prisma.channel.findUnique({ where: { id: context.channelId }, select: { kind: true } }))?.kind === "group";
+    const sourceKind = (await this.prisma.channel.findUnique({ where: { id: context.channelId }, select: { kind: true } }))?.kind;
+    // Send approvals belong to the owner: from a room or an outside chat they go to the Bot's app chat.
+    const room = sourceKind === "group" || sourceKind === "external_dm";
     const stored: StoredSend = { ...body, ...(attachments.length ? { attachments } : {}), machineId: machine.machineId, machineLabel: machine.label, recipientLabel: recipient.label, allowable: recipient.allowable, runId: context.runId };
     const result = await this.messaging.sendVisible(context, {
       type: "imessage-send",

@@ -170,6 +170,8 @@ export class VoiceService {
         .map((member) => member.botId);
       bot = channel.members.find((member) => member.botId === input.botId)?.bot;
     }
+    // An external conversation belongs to an outside chat; the app has no microphone path into it.
+    if (channel?.kind === "external_dm") throw new ApiError(409, "external_channel_read_only", "This conversation is read-only in the app");
     if (!channel || !bot?.conversation) throw new ApiError(404, "voice_target_not_found", "Bot conversation was not found");
     if (ownerSessionId) {
       const active = await this.prisma.voiceSession.count({ where: { ownerSessionId, status: { in: ["created", "active"] }, expiresAt: { gt: new Date() } } });

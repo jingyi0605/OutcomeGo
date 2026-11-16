@@ -335,6 +335,9 @@ export class ChannelService {
           where: { id: channelId },
           include: { members: true },
         });
+        // External conversations mirror an outside chat; the app never writes into them (specs/009 D12).
+        if (channel?.kind === "external_dm")
+          throw new ApiError(409, "external_channel_read_only", "This conversation is read-only in the app");
         if (!channel || channel.kind !== "group" || channel.archivedAt) {
           throw new ApiError(404, "group_not_found", "Active group not found");
         }

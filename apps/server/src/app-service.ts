@@ -28,6 +28,13 @@ import { InternalToolService } from "./services/internal-tool-service";
 import { NotificationService } from "./services/notification-service";
 import { PluginService } from "./services/plugin-service";
 import { PluginEventPoller } from "./services/plugin/events";
+import {
+  ExternalDeliveryService,
+  ExternalInboundMessageService,
+  ExternalInboundPoller,
+  ExternalMediaExchange,
+  ExternalMessagingBindingService,
+} from "./services/external-messaging";
 import { provisionDirectories } from "./services/provision-directories";
 import { RichMessageService } from "./services/rich-message-service";
 import { RunService } from "./services/run-service";
@@ -89,6 +96,9 @@ export class AppService {
   private deliveryRecoveryTimer: ReturnType<typeof setInterval> | null = null;
   private eventPruneTimer: ReturnType<typeof setInterval> | null = null;
   private readonly pluginEvents: PluginEventPoller;
+  private readonly externalBindings: ExternalMessagingBindingService;
+  private readonly externalPoller: ExternalInboundPoller;
+  private readonly externalDelivery: ExternalDeliveryService;
   private assetCleanupTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor(
@@ -234,6 +244,33 @@ export class AppService {
       (connection, toolName, args) => this.plugins.callHostTool(connection, toolName, args),
       (event) => this.routines.dispatchEventToAll(event)
     );
+    // External chat services (specs/009). Providers only supply a connector; none of this knows a platform.
+    const externalExchange = new ExternalMediaExchange((path, init) => this.computerFetch(path, init ?? {}));
+    const instanceId = `server-${process.pid}`;
+    this.externalBindings = new ExternalMessagingBindingService(this.prisma);
+    this.externalDelivery = new ExternalDeliveryService({
+      prisma: this.prisma,
+      messaging: this.messaging,
+      assets: this.assets,
+      exchange: externalExchange,
+      callHostTool: (connection, toolName, args) => this.plugins.callHostTool(connection, toolName, args),
+      instanceId,
+    });
+    this.externalPoller = new ExternalInboundPoller({
+      prisma: this.prisma,
+      callHostTool: (connection, toolName, args) => this.plugins.callHostTool(connection, toolName, args),
+      inbound: new ExternalInboundMessageService({
+        prisma: this.prisma,
+        messaging: this.messaging,
+        assets: this.assets,
+        exchange: externalExchange,
+        computerFetch: (path, init) => this.computerFetch(path, init),
+        interruptRun: (runId) => this.channels.interruptRun(runId, true, true),
+      }),
+      instanceId,
+    });
+    this.plugins.beforeConnectionsRemoved = (tx, ids) =>
+      ids.reduce<Promise<void>>((done, id) => done.then(() => this.externalDelivery.prepareConnectionRemoval(tx, id)), Promise.resolve());
     this.durableState = new DurableStateService(
       this.prisma,
       this.routines,
@@ -253,7 +290,8 @@ export class AppService {
       this.richMessages,
       (runId, messageId) => this.voice.onVisibleMessage(runId, messageId),
       (runId, callId, text) => this.voice.speakChunk(runId, callId, text),
-      this.computerNetworkPolicy
+      this.computerNetworkPolicy,
+      this.externalDelivery
     );
     this.boss.on("error", (error) => console.error("pg-boss", error));
 
@@ -308,6 +346,9 @@ export class AppService {
       }, 30_000);
       this.deliveryRecoveryTimer.unref?.();
       this.pluginEvents.start();
+      this.externalPoller.start();
+      // Settles deliveries a previous process left unfinished, now and every 30 seconds.
+      this.externalDelivery.startRecovery();
       // Asset pruning can scan a large history and filesystem. Keep the
       // lifecycle behavior without extending the server's critical startup path.
       queueMicrotask(() => {
@@ -380,6 +421,8 @@ export class AppService {
         this.assetCleanupTimer = null;
       }
       await this.pluginEvents.stop();
+      await this.externalPoller.stop();
+      this.externalDelivery.stopRecovery();
       await this.voice.stopGroupDeliveryWatcher();
       await this.eventWakeup.stop();
       await this.agentData.stopWatching();
@@ -671,6 +714,23 @@ export class AppService {
   restartPluginConnection = forwardServiceMethod(() => this.plugins.restart);
 
   renamePluginAccount = forwardServiceMethod(() => this.plugins.renameAccount);
+
+  externalMessaging = (connectionId: string) => serviceEffect(() => this.externalBindings.get(connectionId));
+
+  putExternalMessaging = (connectionId: string, input: { enabled: boolean; botId: string }) =>
+    serviceEffect(() => this.externalBindings.put(connectionId, input));
+
+  deleteExternalMessaging = (connectionId: string) =>
+    serviceEffect(async () => {
+      await this.externalBindings.delete(connectionId);
+      return { deleted: true };
+    });
+
+  setExternalChannelArchived = (channelId: string, archived: boolean) =>
+    serviceEffect(async () => {
+      await this.externalDelivery.setChannelArchived(channelId, archived);
+      return { archived };
+    });
 
   removePluginAccount = forwardServiceMethod(() => this.plugins.removeAccount);
 

@@ -100,6 +100,12 @@ export class PluginService {
     process.env.OUTCOMEGO_PUBLIC_URL ?? `http://127.0.0.1:${process.env.OUTCOMEGO_PORT ?? "8787"}`;
   private readonly authMode = parseAuthMode(process.env.OUTCOMEGO_AUTH_MODE);
 
+  /**
+   * Set by the app: runs inside every transaction that removes connections (or their accounts),
+   * so dependent state such as external chats is settled atomically with the removal.
+   */
+  beforeConnectionsRemoved?: (tx: Prisma.TransactionClient, connectionIds: string[]) => Promise<void>;
+
   constructor(
     private readonly prisma: PrismaClient,
     private readonly computerFetch?: (path: string, init?: RequestInit) => Promise<Response>,
@@ -116,7 +122,8 @@ export class PluginService {
       (key) => Effect.runPromise(this.install(key)),
       () => this.syncFileCaches(),
       (id, transport) => this.stopRuntime(id, transport),
-      skillLibrary
+      skillLibrary,
+      (tx, ids) => this.beforeConnectionsRemoved?.(tx, ids) ?? Promise.resolve()
     );
     this.queries = new PluginQueries(
       prisma,
@@ -133,7 +140,8 @@ export class PluginService {
       (key) => this.definition(key),
       () => this.syncFileCaches(),
       (id, transport) => this.stopRuntime(id, transport),
-      (id) => this.removePersistentAccount(id)
+      (id) => this.removePersistentAccount(id),
+      (tx, ids) => this.beforeConnectionsRemoved?.(tx, ids) ?? Promise.resolve()
     );
 
     this.configuration = new PluginConfiguration(prisma, this.publicUrl, (id, transport) =>
@@ -1305,6 +1313,8 @@ export class PluginService {
     await this.stopRuntime(connectionId, connection.transport, removing.runtimeGeneration);
     await this.removePersistentAccount(connectionId);
     if (siblings <= 1) {
+      // The connection stays, but its account is gone: chats and bindings tied to it go with it.
+      await this.prisma.$transaction((tx) => this.beforeConnectionsRemoved?.(tx, [connectionId]) ?? Promise.resolve());
       await this.prisma.pluginConnection.update({ where: { id: connectionId }, data: {
         alias: "default", credentials: toJson({}),
         configuration: toJson(Object.fromEntries(Object.entries(jsonObject(connection.configuration)).filter(
@@ -1315,7 +1325,10 @@ export class PluginService {
       } });
       return { removed: true, reset: true };
     }
-    await this.prisma.pluginConnection.delete({ where: { id: connectionId } });
+    await this.prisma.$transaction(async (tx) => {
+      await this.beforeConnectionsRemoved?.(tx, [connectionId]);
+      await tx.pluginConnection.delete({ where: { id: connectionId } });
+    });
     return { removed: true };
   }
 

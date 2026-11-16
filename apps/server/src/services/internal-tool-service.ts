@@ -37,6 +37,7 @@ import { botSubagentId, type SubagentService } from "./subagent/service";
 import type { TodoService } from "./todo-service";
 import type { RichMessageService } from "./rich-message-service";
 import type { ComputerNetworkPolicyService } from "./computer-network-policy-service";
+import type { ExternalDeliveryService } from "./external-messaging/delivery";
 import { processEnvironment, protectedPluginEnvironment } from "./process-secrets";
 import { withConnectorDraftCardReminder } from "./connector-draft-reminder";
 import { createHash, randomUUID } from "node:crypto";
@@ -70,8 +71,23 @@ export class InternalToolService {
     private readonly richMessages?: RichMessageService,
     private readonly onVisibleMessage?: (runId: string, messageId: string) => Promise<void>,
     private readonly onSpeechChunk?: (runId: string, callId: string, text: string) => Promise<boolean>,
-    private readonly computerNetworkPolicy?: ComputerNetworkPolicyService
+    private readonly computerNetworkPolicy?: ComputerNetworkPolicyService,
+    private readonly externalDelivery?: ExternalDeliveryService
   ) {}
+
+  /** The tool result of a finished delivery. A failed or unknown one is never reported as sent. */
+  private externalAck(outcome: import("./external-messaging/delivery").DeliveryOutcome) {
+    return {
+      acknowledgement: {
+        sent: outcome.status === "sent",
+        message_id: outcome.messageId,
+        external: { id: outcome.id, platform: outcome.platform, status: outcome.status, ...(outcome.reason ? { reason: outcome.reason } : {}) },
+        ...(outcome.status === "failed" || outcome.status === "uncertain" ? { delivery_failed: true } : {}),
+        ...(outcome.inProgress ? { in_progress: true } : {}),
+      },
+      interruptRunId: null,
+    };
+  }
 
   execute = (request: DynamicToolCallRequest, transfer: {upload?:import("@outcomego/plugin-sdk/file-spool").StagedFile;stream?:boolean} = {}) =>
     serviceEffect(async (signal) => {
@@ -585,8 +601,11 @@ export class InternalToolService {
         const input = Schema.decodeUnknownSync(RequestBoxHelpInput)(request.arguments);
         const reason = input.instruction ?? (input.reason && !["auth", "captcha", "payment", "other"].includes(input.reason)
           ? input.reason : "Please complete the manual step on the computer.");
+        // The owner takes over the computer in the app, so from an outside chat the card goes to the app chat.
+        const fromExternal = (await this.prisma.channel.findUnique({ where: { id: request.channelId }, select: { kind: true } }))?.kind === "external_dm";
         const result = await this.messaging.sendVisible(context, {
           type: "computer-handoff",
+          ...(fromExternal ? { to: "dm" as const } : {}),
           content: reason,
           computerHandoff: { reason, ...(input.reason ? { category: ["auth", "captcha", "payment", "other"].includes(input.reason) ? input.reason : "other" } : {}),
             ...(input.domain ? { domain: input.domain } : {}), ...(input.idp_domain ? { idpDomain: input.idp_domain } : {}) },
@@ -607,15 +626,33 @@ export class InternalToolService {
       } else if (request.tool === "SendToUser") {
         validateSendToUserInput(request.arguments);
         const input = Schema.decodeUnknownSync(AgentSendToUserInput)(request.arguments);
+        const sourceKind = input.channel ? undefined : (await this.prisma.channel.findUnique({ where: { id: request.channelId }, select: { kind: true } }))?.kind;
+        const fromExternal = sourceKind === "external_dm";
+        // In an outside chat only plain text and files go out; everything else is a card for the owner.
+        if (fromExternal && input.to !== "dm" && input.type !== "text" && input.type !== "attachment")
+          throw new ApiError(400, "external_channel_type_unsupported", "Only text and attachments can be sent in an external chat. Use to: \"dm\" to put a card, request or form in your chat with the owner in the app.");
         if (input.type === "secret-request" && input.secret?.name) {
           validateProcessSecretName(input.secret.name);
-          if (input.channel || childIdentity || !await this.prisma.channel.count({ where: { id: request.channelId, kind: "bot_dm", directKey: `bot:${request.botId}`, archivedAt: null } }))
+          // From an external chat the request goes to the Bot's app chat, so that is where it is checked.
+          const toOwnerChat = fromExternal && input.to === "dm";
+          if (input.channel || childIdentity || !await this.prisma.channel.count({ where: { ...(toOwnerChat ? {} : { id: request.channelId }), kind: "bot_dm", directKey: `bot:${request.botId}`, archivedAt: null } }))
             throw new ApiError(403, "secret_owner_dm_required", "Ask for this secret only in the owner's bot DM");
         }
-        if (!input.channel) {
+        // `platform:peer` on a messaging connector goes through the delivery service; only text and files can.
+        const addressed = input.channel && this.externalDelivery && (input.type === "text" || input.type === "attachment")
+          ? await this.externalDelivery.resolveAddress(request.botId, input.channel)
+          : null;
+        if (fromExternal && input.to !== "dm" && this.externalDelivery) {
+          const mapping = await this.prisma.externalChannelMapping.findUnique({ where: { channelId: request.channelId }, select: { id: true } });
+          if (!mapping) throw new ApiError(409, "external_channel_unavailable", "This external conversation is no longer available");
+          result = this.externalAck(await this.externalDelivery.send({ context, input, mappingId: mapping.id }));
+        } else if (!input.channel) {
           result = await this.messaging.sendVisible(context, input);
           const messageId = result && typeof result === "object" && "acknowledgement" in result && result.acknowledgement && typeof result.acknowledgement === "object" && "message_id" in result.acknowledgement && typeof result.acknowledgement.message_id === "string" ? result.acknowledgement.message_id : null;
           if (messageId && this.onVisibleMessage) await this.onVisibleMessage(request.runId, messageId).catch(() => undefined);
+        } else if (addressed) {
+          // A messaging platform: the same delivery service and the same honest result as an automatic reply.
+          result = this.externalAck(await this.externalDelivery!.send({ context, input: { ...input, channel: undefined }, mappingId: addressed.mappingId }));
         } else {
           const content = input.type === "text" ? input.content ?? "" : input.alt ?? "";
           const sources = input.type === "text" ? input.images ?? [] : input.type === "attachment" ? [{url:input.url!,alt:input.alt}] : [];

@@ -103,7 +103,7 @@ export const selectChannelRows = (
   return snapshot.channels
     .flatMap((channel) => {
       if (channel.kind === "agent_dm") return [];
-      const botId = channel.kind === "bot_dm" ? channel.members[0]?.botId : undefined;
+      const botId = channel.kind === "bot_dm" || channel.kind === "external_dm" ? channel.members[0]?.botId : undefined;
       const bot = botId ? (index.botById.get(botId) ?? null) : null;
       const activeRun = index.activeRunByChannel.get(channel.id) ?? null;
       return [

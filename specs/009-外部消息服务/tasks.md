@@ -177,7 +177,8 @@
 ## 阶段 2：Channel 行为与媒体交换通道
 
 - [ ] 2.1 审计并修正全部 `kind` 分支
-  - 状态：TODO
+  - 状态：IN_REVIEW
+  - 验证记录（2026-11-16，PostgreSQL 16.10 一次性库）：应用内向 `external_dm` 发送返回 409 `external_channel_read_only`、语音会话拒绝、通知静默、`product-core` 行投影取到 Bot；`channel-kind-regression.integration.test.ts` 5 项通过（外部聊天先于或后于 `bot_dm` 创建，`dmChannelId`、`kind` 与 `directKey` 查询结果都不变）。审计表文档 `docs/20261116-ChannelKind分支审计.md` 与桌面端各分支（5.1）尚未完成。
   - 这一步到底做什么：逐处检查按 Channel 类型判断的代码，确认 `external_dm` 出现时行为正确，并让应用内发送对它只读。
   - 做完你能看到什么：一张审计表列出每处分支的结论；一个 Bot 同时有 `bot_dm` 和 `external_dm` 时，私聊相关功能完全不变。
   - 先依赖什么：1.5
@@ -258,8 +259,9 @@
 
 ## 阶段 3：入站
 
-- [ ] 3.1 实现绑定服务和管理接口
-  - 状态：TODO
+- [x] 3.1 实现绑定服务和管理接口
+  - 状态：DONE
+  - 验证记录（2026-11-16，PostgreSQL 16.10 一次性库）：`binding.integration.test.ts` 10 项通过；`PUT/GET/DELETE /api/plugin-connections/:id/messaging` 已接入路由。
   - 这一步到底做什么：让"哪个连接的消息交给哪个 Bot"可以被创建、修改、停用和查询。
   - 做完你能看到什么：通过 HTTP 接口能为一个声明了 `messaging` 的连接绑定 Bot，并读到入口状态。
   - 先依赖什么：2.3
@@ -284,8 +286,9 @@
   - 对应需求：`requirements.md` 需求 1 / 验收 1.1、1.2、1.5、1.6
   - 对应设计：`design.md` §3.2.1、§3.3.4、§4.2
 
-- [ ] 3.2 实现消息接受：准入、去重、映射、写消息、唤醒
-  - 状态：TODO
+- [x] 3.2 实现消息接受：准入、去重、映射、写消息、唤醒
+  - 状态：DONE
+  - 验证记录（2026-11-16，PostgreSQL 16.10 一次性库）：`inbound.integration.test.ts` 18 项通过：所有者准入、非所有者与群聊拒绝且不存正文、重复与冲突、8 路并发重投只产生一条消息、并发首条消息只建一个会话、事务中途失败不留任何记录、Bot 不可用进入 `needs_attention`、归档会话拒绝、新消息打断当前回合。
   - 这一步到底做什么：把一条标准化的外部消息变成 `external_dm` 里的一条用户消息和一个 Bot wake，并保证只发生一次。
   - 做完你能看到什么：直接调用 `accept` 就能看到 Channel 被创建、消息出现、Bot 被唤醒；重复调用只返回 `duplicate`。
   - 先依赖什么：3.1
@@ -310,8 +313,9 @@
   - 对应需求：`requirements.md` 需求 1 / 验收 1.3、1.4、1.5；需求 2 / 验收 2.1 到 2.5；需求 3 / 验收 3.1 到 3.4、3.7、3.8
   - 对应设计：`design.md` §2.3.2、§3.2.2、§3.2.3、§6.1、§6.2、§6.5
 
-- [ ] 3.3 接入入站媒体
-  - 状态：TODO
+- [x] 3.3 接入入站媒体
+  - 状态：DONE
+  - 验证记录（2026-11-16，PostgreSQL 16.10 一次性库）：`inbound-media.integration.test.ts` 11 项通过：摘要或大小不符、声明超限（不拉取）、文件缺失、超过数量、全部失败的纯媒体消息、computer 不可达时整条重试且不写任何记录、文件名注入不能逃出说明行。
   - 这一步到底做什么：把入站消息里的媒体经 exchange 端点取回、校验并登记到 `AssetStore`，失败的附件降级为说明文字。
   - 做完你能看到什么：带图片的消息被接受后，Bot 能把图片当作附件使用；坏附件不会拖垮整条消息。
   - 先依赖什么：2.2、3.2
@@ -335,8 +339,9 @@
   - 对应需求：`requirements.md` 需求 5 / 验收 5.1 到 5.4
   - 对应设计：`design.md` §2.3.3、§6.6
 
-- [ ] 3.4 实现入站轮询器
-  - 状态：TODO
+- [x] 3.4 实现入站轮询器
+  - 状态：DONE
+  - 验证记录（2026-11-16，PostgreSQL 16.10 一次性库）：`poller.integration.test.ts` 28 项通过：逐条推进游标、`retry` 停止整批、20 次或 30 分钟后死信、Bot 不可用不计死信、`resetCursor`、2 至 60 秒退避、租约过期后两个轮询器重叠既不重复也不回退游标、运行代数检查、90 天回执清理。
   - 这一步到底做什么：定时找到可轮询的绑定，抢租约，以长等待方式调用 connector 的 poll 工具，逐条交给 `accept`，按结果推进游标、退避或记死信。
   - 做完你能看到什么：用假 connector 喂消息，消息会自动进入 Channel；中途制造失败后会从正确的位置继续。
   - 先依赖什么：3.2
@@ -391,8 +396,9 @@
 
 ## 阶段 4：外发
 
-- [ ] 4.1 实现外发服务和状态机
-  - 状态：TODO
+- [x] 4.1 实现外发服务和状态机
+  - 状态：DONE
+  - 验证记录（2026-11-16，PostgreSQL 16.10 一次性库）：`delivery.integration.test.ts` 31 项通过（连续三次）：sent、failed、uncertain，超时与传输错误与不可解析结果一律 uncertain 且不重发；前置失败；媒体暂存与清理；租约从数据库时钟续期；并发 dispatch 只调用一次；过期恢复只处理过期记录且不碰他人有效租约；恢复之后到达的迟到结果不能覆盖终态。
   - 这一步到底做什么：实现 Delivery 的创建和分发：前置检查、暂存媒体、调用 deliver 工具、把结果归类为 `sent`、`failed` 或 `uncertain`。
   - 做完你能看到什么：给定一条 Delivery，系统最多调用一次 connector，并留下明确的最终状态。
   - 先依赖什么：3.5
@@ -418,8 +424,9 @@
   - 对应需求：`requirements.md` 需求 6 / 验收 6.5、6.6、6.9、6.10；需求 5 / 验收 5.5、5.7；非功能需求 1.4、2.4
   - 对应设计：`design.md` §2.3.6、§3.2.4、§4.2、§6.4
 
-- [ ] 4.2 接入 `external_dm` 内的回复自动路由
-  - 状态：TODO
+- [x] 4.2 接入 `external_dm` 内的回复自动路由
+  - 状态：DONE
+  - 验证记录（2026-11-16，PostgreSQL 16.10 一次性库）：`reply-routing.integration.test.ts` 19 项通过。为让 `to: "dm"` 真正可用，放开了两处共享参数校验（`reference-main-parsers.ts`、`validateSendToUserInput`）允许 widget、secret-request 带 `to`；群聊的限制仍在 `sendVisible` 里，有测试钉住。外部聊天里的 `request_box_help`、`RequestUserForm`、`DraftExternalMessage`、`SendIMessage` 卡片改送应用内 `bot_dm`。
   - 这一步到底做什么：Bot 在 `external_dm` 里调用普通的 `SendToUser` 时，自动把消息写入 Channel 并投递到外部 peer；不支持的类型给出明确拒绝；`to: "dm"` 走应用内私聊。
   - 做完你能看到什么：Bot 不需要知道任何外部地址，回复就回到了原会话，并在工具结果里看到真实投递状态。
   - 先依赖什么：4.1
@@ -449,8 +456,9 @@
   - 对应需求：`requirements.md` 需求 6 / 验收 6.1、6.2、6.3、6.7、6.10
   - 对应设计：`design.md` §2.3.4、§5.2
 
-- [ ] 4.3 接入显式地址外发
-  - 状态：TODO
+- [x] 4.3 接入显式地址外发
+  - 状态：DONE
+  - 验证记录（2026-11-16，PostgreSQL 16.10 一次性库）：`platform:peer` 经同一外发服务；无映射返回 `external_peer_unknown` 且不外发；失败与不确定如实返回且不产生恢复 wake；未声明 `messaging` 的平台继续走旧路径。
   - 这一步到底做什么：让 `SendToUser` 的 `channel: "<platform>:<peerId>"` 在目标连接声明了 `messaging` 时改走新的外发服务。
   - 做完你能看到什么：Bot 从应用内私聊也能给已建立映射的外部会话发消息，并且该消息同样出现在 `external_dm` 里。
   - 先依赖什么：4.2
@@ -476,8 +484,9 @@
   - 对应需求：`requirements.md` 需求 6 / 验收 6.4
   - 对应设计：`design.md` §2.3.5
 
-- [ ] 4.4 实现启动恢复和生命周期清理
-  - 状态：TODO
+- [x] 4.4 实现启动恢复和生命周期清理
+  - 状态：DONE
+  - 验证记录（2026-11-16，PostgreSQL 16.10 一次性库）：移除连接、卸载与更新插件三条路径都在同一事务里归档外部会话、将未结束外发置 failed 并删除绑定、映射、回执；归档与取消归档同步映射状态；Receipt 90 天清理；启动与每 30 秒恢复已接入 `AppService`。
   - 这一步到底做什么：处理 Server 重启时未结束的外发，以及连接移除、Bot 删除、Channel 归档、绑定停用和 Receipt 过期。
   - 做完你能看到什么：任何生命周期事件之后都没有孤儿数据，也没有被补发的消息。
   - 先依赖什么：4.1

@@ -33,7 +33,9 @@ export const publishChannelNotification = async (
     !channel ||
     channel.archivedAt ||
     channel.hiddenFromSidebar ||
-    channel.kind === "agent_dm"
+    channel.kind === "agent_dm" ||
+    // The reply already reached the user in their outside chat, and the conversation is hidden on mobile.
+    channel.kind === "external_dm"
   )
     return;
   input = {
