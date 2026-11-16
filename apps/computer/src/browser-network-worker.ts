@@ -10,7 +10,12 @@ import {
   globalIpv6Address,
   probeIpv6Route,
 } from "./computer-network-dns";
-import { runOrdinaryProbe, probeComputerNetwork } from "./computer-network-probe";
+import {
+  ComputerProbeError,
+  parseComputerProbeRequest,
+  probeComputerNetwork,
+  runOrdinaryProbe,
+} from "./computer-network-probe";
 import { startManagementDiscovery } from "./computer-network-management";
 import { startHostBridgeDiscovery } from "./computer-network-host-bridge";
 import { startComputerNetworkPolicy } from "./computer-network-policy";
@@ -37,9 +42,8 @@ const input = await new Promise<string>((resolve, reject) => {
 });
 if (input.length > 8192) throw new Error("Invalid browser network configuration");
 if (process.argv.includes("--computer-network-probe")) {
-  const probe = JSON.parse(input);
   try {
-    if (!["egress", "quality"].includes(probe.kind) || !probe.route?.epoch) throw new Error();
+    const probe = parseComputerProbeRequest(input);
     console.log(JSON.stringify(await runOrdinaryProbe(probe.kind, probe.route)));
     process.exit(0);
   } catch {
@@ -127,7 +131,15 @@ connectivity = startNetworkConnectivity({
     ? async (family, signal) => {
         const route = client.route;
         if (!route || !client.available()) throw new Error("Route unavailable");
-        return (await probeComputerNetwork(family, route, signal)) as NetworkFamilyHealth;
+        try {
+          return (await probeComputerNetwork(family, route, signal)) as NetworkFamilyHealth;
+        } catch (error) {
+          // A failed verification silently removes the exit route. Report a fixed
+          // reason code so the cause is visible without forwarding child output.
+          if (error instanceof ComputerProbeError)
+            console.log(JSON.stringify({ verifyFailed: { family, reason: error.reason } }));
+          throw error;
+        }
       }
     : undefined,
   apply: config.computerNetwork ? applyNetworkFamilies : async () => {},

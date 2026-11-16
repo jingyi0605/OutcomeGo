@@ -66,6 +66,7 @@ export async function startBrowserNetwork(serverUrl: string, token: string) {
     dns?: NetworkDnsDiagnostic;
   } = { ready: false, mode: null, activeConnections: 0 };
   let policy: unknown = undefined;
+  let connectivity: unknown = undefined;
   const ensureTun = async () => {
     if (!computerNetwork) return;
     if (!tun || tun.exitCode !== null || tun.signalCode !== null || !tun.pid) {
@@ -162,6 +163,14 @@ export async function startBrowserNetwork(serverUrl: string, token: string) {
             const event = sanitizeNetworkDiagnostic(value.diagnostic);
             if (event) logNetwork(event);
             if (value.policy !== undefined) policy = value.policy;
+            if (value.connectivity !== undefined) connectivity = value.connectivity;
+            const failed = value.verifyFailed;
+            if (
+              (failed?.family === "ipv4" || failed?.family === "ipv6") &&
+              typeof failed.reason === "string" &&
+              /^[a-z0-9_]{1,24}$/.test(failed.reason)
+            )
+              console.warn(`Computer network verify failed: family=${failed.family} reason=${failed.reason}`);
             if (value.started && !started) {
               started = true;
               clearTimeout(timeout);
@@ -260,6 +269,7 @@ export async function startBrowserNetwork(serverUrl: string, token: string) {
     status: () => ({
       ...state,
       policy,
+      connectivity,
       ready:
         state.ready &&
         (!computerNetwork || (!!tun?.pid && tun.exitCode === null && tun.signalCode === null)),
