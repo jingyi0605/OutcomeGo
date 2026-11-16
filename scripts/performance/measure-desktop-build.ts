@@ -485,7 +485,10 @@ const readLazyClosures = async () => {
       settingsNetwork: ["src/renderer/components/outcomego/settings/browser-network.tsx"],
       settingsComputer: ["src/renderer/components/outcomego/settings/computer.tsx"],
       settingsModel: ["src/renderer/components/outcomego/settings/model.tsx"],
-      settingsServer: ["src/renderer/components/outcomego/settings/server.tsx"],
+      settingsServer: [
+        "src/renderer/components/outcomego/settings/server.tsx",
+        "src/renderer/components/outcomego/settings/computer-network-policy.tsx",
+      ],
       settingsTranscription: ["src/renderer/components/outcomego/settings/transcription.tsx"],
       settingsProviders: ["src/renderer/components/outcomego/settings/providers.tsx"],
       settingsUpdates: ["src/renderer/components/outcomego/settings/updates.tsx"],
