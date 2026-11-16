@@ -16,6 +16,9 @@ beta.17 在云端电脑中启用了更严格的 nftables 出站策略和网络�
 - **私有网络地址**：RFC1918、链路本地地址以及部署环境明确标记为 private 的地址；本 Spec 首期使用计算机端 IP 字面量校验。
 - **模型端点**：`/home/box/.pi/agent/models.json` 中 provider 的 `baseUrl` 所指向的 HTTP(S) 服务。
 - **策略模式**：`lan` 或 `allowlist` 两种私有网络访问模式。
+- **出口连通性（connectivity）**：Computer 对 IPv4/IPv6 公共出口的探测与复验结果，状态为 `checking`、`working` 或 `unavailable`。
+- **反向路径校验（rp_filter）**：内核对入站包按源地址反查路由的校验；失败的入站包会被静默丢弃。
+- **出口复验**：安装 TUN 默认路由后，由不带传输标记的子进程用普通套接字再次探测；复验失败会撤销默认路由。
 
 ## 范围说明
 
@@ -26,6 +29,7 @@ beta.17 在云端电脑中启用了更严格的 nftables 出站策略和网络�
 - Desktop“设置 → 服务器”中的独立局域网策略 Modal，支持模式选择、规则新增、编辑、删除和应用状态查看。
 - Computer 自动识别并允许 `models.json` 中的私有模型端点，动态更新 nftables 与策略路由。
 - beta.17 到新策略的迁移、断线恢复、策略版本冲突和错误提示。
+- Computer 出口连通性的可靠性、可观察性和回归防护：容器内反向路径校验、出口复验失败原因、探测类型契约，以及调试环境对真实流量的检查。
 
 ### Out of Scope
 
@@ -84,6 +88,20 @@ beta.17 在云端电脑中启用了更严格的 nftables 出站策略和网络�
 5. WHEN Computer 尚未应用新策略 THEN Modal SHALL 显示 applying/pending 状态；WHEN 应用失败 THEN SHALL 显示错误并保留上一份有效策略。
 6. WHEN 用户打开 Modal 或刷新服务器设置 THEN System SHALL 显示服务端持久化状态和 Computer 实际应用状态，不能把草稿当成已生效策略。
 
+### 需求 5：出口连通性、可观察性与回归防护
+
+**用户故事：** 作为运维者，我希望 Computer 的公共出口不因容器内核参数变化而失效，并且出口失败时能直接看到原因，以便这类故障不会再靠抓包才能定位。
+
+#### 验收标准
+
+1. WHEN 容器的 `rp_filter` 在启动后被重置为非 0 THEN Computer SHALL 仍然接受公共地址的回包和宿主机对容器的 ARP 请求，不得依赖 `rp_filter` 的取值。
+2. WHEN Computer 经由托管出口访问公共地址 THEN 反向路径校验 SHALL 在 `main` 路由表中完成，不得落入只含 `unreachable default` 的出口表。
+3. WHEN 出口复验失败 THEN Computer SHALL 记录固定原因码（`timeout`、`aborted`、`exit_<code>`、`bad_output` 或 `spawn_failed`），并 SHALL 不转发子进程输出。
+4. WHEN 读取 `GET /v1/browser-network` THEN 响应 SHALL 包含 `connectivity`，显示 IPv4/IPv6 的状态和不可用原因。
+5. WHEN 增加新的探测类型 THEN 发送方和子进程入口 SHALL 引用同一份定义，并 SHALL 有测试证明发送方能发出的每种类型都被子进程接受。
+6. WHEN 执行 `scripts/dev/debug.sh check` THEN 脚本 SHALL 用真实流量验证出口连通性、公网可达、Computer 到服务端的局域网可达，以及宿主机能解析容器；任一项失败 SHALL 使检查失败。
+7. WHEN 执行 `scripts/dev/debug.sh smoke` THEN 脚本 SHALL 强制重建 Computer，等待延迟的网络变化发生后再执行完整检查，因为部分容器网络状态只在新建容器后才会被改变。
+
 ## 非功能需求
 
 ### 非功能需求 1：性能
@@ -109,3 +127,5 @@ beta.17 在云端电脑中启用了更严格的 nftables 出站策略和网络�
 - Desktop 可以在“设置 → 服务器”中查看并修改策略，且无需手动 SSH 或执行 nftables 命令。
 - `allowlist`、模型端点例外和 Computer 重启恢复均有自动化验证。
 - 服务端持久化状态、Computer 应用状态和 UI 展示状态可互相追踪。
+- 在 `rp_filter` 被重置为 2 的新建容器中，Computer 能访问公网和局域网，且 `debug.sh smoke` 通过。
+- 出口复验失败时，原因码出现在日志和 `GET /v1/browser-network` 中。

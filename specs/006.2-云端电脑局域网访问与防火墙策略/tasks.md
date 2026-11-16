@@ -202,13 +202,82 @@
   - 对应需求：`requirements.md` 需求 4
   - 对应设计：`design.md` §2.3.1、§2.3.4、§7.3
 
+## 阶段 6：出口连通性、可观察性与回归防护
+
+- [x] 6.1 公共出口回包不依赖 `rp_filter`
+  - 状态：DONE
+  - 这一步到底做什么：在 `nft_ruleset()` 增加 `rpf` 链，设置 `src_valid_mark=1`，并为容器直连网段安装 `ip rule pref 94`。
+  - 做完你能看到什么：容器创建后即使 `rp_filter` 被重置为 2，公共地址回包和宿主机对容器的 ARP 请求仍然正常。
+  - 先依赖什么：3.2
+  - 开始前先看：`requirements.md` 需求 5.1、需求 5.2；`design.md` §2.3.5、§6.5。
+  - 主要改哪里：`docker/outcomego-computer-network.py`、`scripts/imessage-bridge-linux/test_network.py`。
+  - 这一步先不做什么：不追查 `rp_filter` 被重置的原因，不引入新的内核参数轮询。
+  - 怎么算完成：`rpf` 链、`disable_reverse_path_filter()` 和 `connected_prefixes()` 有单元测试，新建容器在 `rp_filter=2` 下能访问公网。
+  - 怎么验证：`python3 scripts/imessage-bridge-linux/test_network.py`；调试环境强制重建后 `debug.sh check`。
+  - 对应需求：`requirements.md` 需求 5.1、需求 5.2
+  - 对应设计：`design.md` §2.3.5、§6.5
+
+- [x] 6.2 修复出口复验子进程拒绝 `ipv4`/`ipv6` 探测
+  - 状态：DONE
+  - 这一步到底做什么：让复验子进程接受 `ipv4`/`ipv6`，并把探测类型收成 `computerProbeKinds`，发送方和入口共用。
+  - 做完你能看到什么：探测通过后 TUN 默认路由不再被立刻撤销，表 18791 中保留 `default dev outcomego0`。
+  - 先依赖什么：6.1
+  - 开始前先看：`requirements.md` 需求 5.5；`design.md` §2.3.5。
+  - 主要改哪里：`apps/computer/src/computer-network-probe.ts`、`apps/computer/src/browser-network-worker.ts`、`apps/computer/test/computer-network-probe.test.ts`。
+  - 这一步先不做什么：不改探测目标和超时。
+  - 怎么算完成：`parseComputerProbeRequest()` 接受全部 `computerProbeKinds`，拒绝非法请求；`verify` 使用的 family 是其子集。
+  - 怎么验证：`bun test apps/computer/test/computer-network-probe.test.ts`、`bunx tsc --noEmit -p apps/computer/tsconfig.json`。
+  - 对应需求：`requirements.md` 需求 5.5
+  - 对应设计：`design.md` §2.3.5、§6.6
+
+- [x] 6.3 复验失败原因码和 `connectivity` 状态可见
+  - 状态：DONE
+  - 这一步到底做什么：复验失败时输出固定原因码；`GET /v1/browser-network` 返回 `connectivity`。
+  - 做完你能看到什么：出口不可用时，日志和状态接口直接给出 IPv4/IPv6 状态和原因。
+  - 先依赖什么：6.2
+  - 开始前先看：`requirements.md` 需求 5.3、需求 5.4；`design.md` §3.3.5、§5.1、§6.6。
+  - 主要改哪里：`apps/computer/src/computer-network-probe.ts`、`apps/computer/src/browser-network-worker.ts`、`apps/computer/src/browser-network.ts`。
+  - 这一步先不做什么：不转发子进程输出，不把原因码放进用户 API 错误。
+  - 怎么算完成：原因码只取 `timeout`、`aborted`、`exit_<code>`、`bad_output`、`spawn_failed`，主进程按格式校验后才记录。
+  - 怎么验证：类型检查；调试环境读取 `/v1/browser-network` 的 `connectivity`。
+  - 对应需求：`requirements.md` 需求 5.3、需求 5.4
+  - 对应设计：`design.md` §3.3.5、§5.1、§6.6
+
+- [x] 6.4 调试脚本使用真实流量检查并增加 `smoke`
+  - 状态：DONE
+  - 这一步到底做什么：`debug.sh check` 增加出口连通性、公网、局域网和宿主机邻居检查；新增 `debug.sh smoke`，强制重建后复测。
+  - 做完你能看到什么：控制面正常但容器无法出网时，检查会失败并给出原因。
+  - 先依赖什么：6.1、6.3
+  - 开始前先看：`requirements.md` 需求 5.6、需求 5.7；`AGENTS.md` 的 Remote Debug Computer 一节。
+  - 主要改哪里：`scripts/dev/debug.sh`。
+  - 这一步先不做什么：不修改 `openteam-dev`，不触碰 `~/openteam-debug/data`。
+  - 怎么算完成：`check` 在容器无法出网时失败；`smoke` 在新建容器上通过。
+  - 怎么验证：`bash -n scripts/dev/debug.sh`；`scripts/dev/debug.sh smoke`。
+  - 对应需求：`requirements.md` 需求 5.6、需求 5.7
+  - 对应设计：`design.md` §2.3.5、§7.2、§8.1
+
+### 阶段检查
+
+- [x] 6.5 阶段检查：出口回归防护闭环
+  - 状态：DONE
+  - 这一步到底做什么：确认规则、探测契约、状态可见性和调试脚本能一起发现并阻止这类回归。
+  - 做完你能看到什么：同类故障要么不会发生，要么在 `check` 中立即失败并带原因。
+  - 先依赖什么：6.1、6.2、6.3、6.4
+  - 开始前先看：当前 Spec 全部文件、`docs/20261116-云端电脑出网故障复盘与回归防护.md`
+  - 主要改哪里：本阶段全部相关文件
+  - 这一步先不做什么：不查找 `rp_filter` 被重置的来源。
+  - 怎么算完成：Python 和 Bun 测试通过，`smoke` 通过，调试环境验证记录已写入 `docs/`。
+  - 怎么验证：见补充文档中的验证记录。
+  - 对应需求：`requirements.md` 需求 5
+  - 对应设计：`design.md` §2.3.5、§6.5、§6.6、§7
+
 ## 阶段 5：生产恢复与发布
 
 - [ ] 5.1 生产镜像和兼容升级
   - 状态：TODO
   - 这一步到底做什么：从干净 worktree 构建 Computer/Server 镜像，验证升级后策略默认值和数据迁移。
   - 做完你能看到什么：生产可通过版本化镜像升级，已有用户策略不丢失。
-  - 先依赖什么：2.4、3.3、4.3
+  - 先依赖什么：2.4、3.3、4.3、6.5
   - 开始前先看：`AGENTS.md`、发布技能、`design.md` §8。
   - 主要改哪里：版本、迁移、Docker image 和发布材料。
   - 这一步先不做什么：不覆盖用户当前未提交的源码变更。

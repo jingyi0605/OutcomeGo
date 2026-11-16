@@ -17,6 +17,7 @@
 - `requirements.md` 需求 2：服务端策略存储与 Computer 应用
 - `requirements.md` 需求 3：模型端点自动例外
 - `requirements.md` 需求 4：Settings → Server 图形化管理
+- `requirements.md` 需求 5：出口连通性、可观察性与回归防护
 
 ### 1.3 技术约束
 
@@ -101,6 +102,19 @@ flowchart LR
 3. 成功后状态为 `applied` 并记录 revision。
 4. 失败后状态为 `error`，保留 `lastAppliedRevision` 和上一份有效规则。
 5. Server settings API 将该状态透传给 Desktop；状态接口不可用时明确显示“Computer 状态未知”。
+
+#### 2.3.5 反向路径校验与出口复验
+
+**背景。** 容器的全部出站流量由 `ip rule pref 110` 送入出口表 18791，该表默认只有 `unreachable default`。内核对入站包做反向路径校验时，用未标记的查找去找回源地址的路由，因此会落入这张表而失败。局域网地址因为有 `pref 98` 指向 `main` 的规则，不受影响；公共地址的回包则被丢弃。Docker 会在容器创建后一段时间（实测约 15 秒）把 `rp_filter` 重置为 2，所以只在启动时写 0 不可靠。
+
+**处理方式。**
+
+1. `nft_ruleset()` 增加 `rpf` 链：`prerouting`、`priority -150`，`iifname "eth0" meta mark set 0x4f54`，给 eth0 入站包打上传输标记。
+2. `disable_reverse_path_filter()` 对 `/proc/sys/net/ipv4/conf` 下每个接口写 `rp_filter=0` 和 `src_valid_mark=1`。`src_valid_mark=1` 让反向路径校验使用包上的标记，命中 `pref 100 fwmark … lookup main`，校验因此在 `main` 表完成，与 `rp_filter` 的取值无关。
+3. 容器自身的直连网段（`connected_prefixes()`，排除 TUN 和链路本地）安装 `ip rule pref 94 to <prefix> lookup main`。宿主机对容器的 ARP 请求同样要过反向路径校验，缺少这条规则时请求被丢弃，宿主机的邻居条目停在 `INCOMPLETE`，回包排队约 20 秒后才被放出。
+4. 默认路由由 `network-connectivity.ts` 的探测循环启用：先经托管出口探测，通过后调用 `outcomego-computer-network.py --families` 装上 TUN 默认路由，再由不带传输标记的子进程用普通套接字复验；复验失败则撤销路由。
+5. 复验子进程的入口 `parseComputerProbeRequest()` 与发送方 `probeComputerNetwork()` 共用 `computerProbeKinds`。发送方能发出的每个类型都被子进程接受，类型列表不一致会在编译或测试阶段暴露。
+6. 复验失败时，worker 输出 `{"verifyFailed":{"family","reason"}}`，主进程校验字段格式后以 `Computer network verify failed: family=… reason=…` 记入日志。`connectivity` 状态同时出现在 `GET /v1/browser-network` 的响应中。
 
 ## 3. 组件和接口
 
@@ -201,6 +215,15 @@ flowchart LR
 - 输出：当前 reconciler 状态、applied revision、模型端点数量和错误摘要
 - 错误：401 未授权；503 表示 reconciler 尚未准备好
 
+#### 3.3.5 浏览器网络与出口连通性
+
+- 类型：HTTP
+- 路径：`GET /v1/browser-network`
+- 认证：Computer control token
+- 输出：`ready`、`mode`、`activeConnections`、`policy` 和 `connectivity`。`connectivity` 含 `ipv4`、`ipv6`（`state` 为 `checking`/`working`/`unavailable`，不可用时带 `reason`）和 `checkedAt`
+- 错误：401 未授权
+- 兼容：`connectivity` 为新增可选字段，旧客户端忽略即可
+
 ## 4. 数据与状态模型
 
 ### 4.1 数据关系
@@ -227,6 +250,16 @@ flowchart LR
 - `computer_network_policy_apply_failed`: helper/nftables/ip rule 应用失败。
 - `computer_network_model_endpoint_ignored`: 模型端点不是合法私有 IP 字面量。
 - `computer_network_legacy_runtime`: Computer 不支持内部策略接口。
+
+出口复验失败使用固定原因码，只出现在日志和 `connectivity` 状态中，不进入 API 错误响应：
+
+| 原因码 | 含义 |
+| --- | --- |
+| `timeout` | 复验子进程超过时限被终止 |
+| `aborted` | 租约变化或进程关闭导致复验取消 |
+| `exit_<code>` | 子进程以非 0 退出，例如请求类型不被接受或探测失败 |
+| `bad_output` | 子进程输出无法解析 |
+| `spawn_failed` | 无法启动子进程 |
 
 ### 5.2 错误响应格式
 
@@ -273,6 +306,18 @@ flowchart LR
 
 **验证需求：** `requirements.md` 需求 2.1、需求 4.4
 
+### 6.5 属性 5：公共出口回包不依赖 `rp_filter`
+
+*对于任何* `rp_filter` 取值（0、1 或 2），Computer 经托管出口访问公共地址的回包都应该通过反向路径校验，宿主机对容器的 ARP 请求都应该得到应答。
+
+**验证需求：** `requirements.md` 需求 5.1、需求 5.2
+
+### 6.6 属性 6：出口复验失败必有可见原因
+
+*对于任何* 导致默认路由被撤销的复验失败，日志和 `connectivity` 状态都应该包含固定原因码；发送方能发出的每种探测类型都被子进程接受。
+
+**验证需求：** `requirements.md` 需求 5.3、需求 5.4、需求 5.5
+
 ## 7. 测试策略
 
 ### 7.1 单元测试
@@ -283,6 +328,8 @@ flowchart LR
 - nftables/ip rule 计划编译，验证 `lan`、`allowlist` 和模型例外。
 - reconciler 应用成功、失败保留上一份规则、重试和状态转换。
 - Modal 的模式切换、规则编辑、冲突刷新和应用状态渲染。
+- `nft_ruleset()` 含 `rpf` 链且在 `prerouting` 给 eth0 入站包打标记；`disable_reverse_path_filter()` 写入 `rp_filter=0` 与 `src_valid_mark=1`；`connected_prefixes()` 只返回直连网段（`scripts/imessage-bridge-linux/test_network.py`）。
+- `parseComputerProbeRequest()` 接受 `computerProbeKinds` 中的全部类型，拒绝未知类型、缺少 epoch 的路由和非法 JSON（`apps/computer/test/computer-network-probe.test.ts`）。
 
 ### 7.2 集成测试
 
@@ -290,6 +337,9 @@ flowchart LR
 - Computer internal policy endpoint 的 control token 授权。
 - 使用 Linux network fixture 验证 TUN、main route、nftables set 和私有 TCP 连接。
 - 生产配置 `10.255.0.83:3425` 在 `lan` 与 `allowlist + model exception` 两种路径可达。
+
+- 在 `rp_filter` 被重置为 2 的新建容器中，带标记的公网连接成功，SOCKS 中继成功，TUN 默认路由保持，`apt-get update` 成功。
+- `scripts/dev/debug.sh smoke` 强制重建后通过 `check`。
 
 ### 7.3 端到端测试
 
@@ -306,6 +356,7 @@ flowchart LR
 | `requirements.md` 需求 2 | `design.md` §3.2、§3.3.1-§3.3.4、§6.2 | Prisma/API/reconciler 测试 |
 | `requirements.md` 需求 3 | `design.md` §2.3.2、§6.3 | models.json 与 helper 测试 |
 | `requirements.md` 需求 4 | `design.md` §2.3.1、§3.3、§7.3 | Desktop renderer/API/E2E 测试 |
+| `requirements.md` 需求 5 | `design.md` §2.3.5、§3.3.5、§5.1、§6.5、§6.6 | Python 规则测试、探测契约测试、`debug.sh check/smoke` |
 
 ## 8. 风险与待确认项
 
@@ -315,6 +366,9 @@ flowchart LR
 - 旧 Computer 镜像无法读取策略接口；Server 必须显示实际未应用状态。
 - 私有网段和公共出口共用容器路由时，规则顺序错误会造成连接失败或意外绕过。
 - 大量规则会增加 nftables 更新和 UI 编辑复杂度，因此首期限制 128 条。
+- 容器创建后约 15 秒 `rp_filter` 被重置为 2，重置来源尚未查明。当前方案不依赖该值；如果其他内核参数也被重置，需要再次排查。
+- 直连网段只在容器启动时读取一次。运行中用 `docker network connect` 新增网络时，新网段不会自动得到 `pref 94` 规则。
+- 服务器运行在 Mac、Computer 运行在远端 Docker 桥接网络的调试拓扑少见，故障更难定位，因此 `debug.sh check` 需要同时检查宿主机到容器这一跳。
 
 ### 8.2 待确认项
 
