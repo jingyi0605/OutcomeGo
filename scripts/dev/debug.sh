@@ -95,7 +95,7 @@ wait_for_computer() {
   [[ $delay =~ ^[0-9]+([.][0-9]+)?$ ]] || die "OUTCOMEGO_DEBUG_COMPUTER_RETRY_DELAY must be a non-negative number"
 
   for ((attempt = 1; attempt <= retries; attempt++)); do
-    health=$(curl --noproxy '*' -fsS -m 8 "${OUTCOMEGO_COMPUTER_URL%/}/health" \
+    health=$(curl --noproxy '*' -fsS -m 8 "${OUTCOMEGO_COMPUTER_URL%/}/health/live" \
       -H "authorization: Bearer ${OUTCOMEGO_CONTROL_TOKEN}" 2>/dev/null) || health=""
     if [[ $health == *'"status":"ready"'* ]]; then
       if ((attempt > 1)); then
@@ -134,10 +134,19 @@ check() {
     && pass "workspace and agent-data directories exist" || fail "workspace/agent-data path missing"
 
   local health
-  health=$(curl --noproxy '*' -s -m 8 "${OUTCOMEGO_COMPUTER_URL%/}/health" \
+  health=$(curl --noproxy '*' -s -m 8 "${OUTCOMEGO_COMPUTER_URL%/}/health/live" \
     -H "authorization: Bearer ${OUTCOMEGO_CONTROL_TOKEN}") || true
   [[ $health == *'"status":"ready"'* ]] && pass "computer ready at $OUTCOMEGO_COMPUTER_URL" \
     || fail "computer not ready at $OUTCOMEGO_COMPUTER_URL"
+  local network_status policy_status
+  network_status=$(curl --noproxy '*' -s -m 8 "${OUTCOMEGO_COMPUTER_URL%/}/v1/browser-network" \
+    -H "authorization: Bearer ${OUTCOMEGO_CONTROL_TOKEN}") || network_status=""
+  [[ $network_status == *'"ready":true'* ]] && pass "computer browser network lease is active" \
+    || fail "computer browser network lease is unavailable"
+  policy_status=$(curl --noproxy '*' -s -m 8 "${OUTCOMEGO_COMPUTER_URL%/}/v1/computer-network-policy" \
+    -H "authorization: Bearer ${OUTCOMEGO_CONTROL_TOKEN}") || policy_status=""
+  [[ $policy_status == *'"state":"applied"'* ]] && pass "computer network policy is applied" \
+    || fail "computer network policy is not applied"
   [[ $health == *'"authenticated":false'* ]] && echo "note  computer has no model login yet (see outcomego-pi-auth)"
 
   (cd "$root/packages/db" && bun -e '

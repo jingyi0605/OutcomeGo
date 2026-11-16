@@ -21,6 +21,11 @@ chmod 0440 /etc/sudoers.d/outcomego-runner
 
 umask 0022
 
+# Match the writable kernel filesystems inside the bot computer's namespaces
+# before the memory supervisor configures the private cgroup tree.
+mount -o remount,rw /sys
+mount -o remount,rw /sys/fs/cgroup
+
 # One-off provider login/import commands also use this image without a running
 # computer or helper. They do not launch desktops and must remain usable.
 if [ "${1:-}" = /usr/lib/outcomego/bin/bun ] && [ "${2:-}" = /app/apps/computer/dist/main.js ]; then
@@ -78,8 +83,5 @@ if [ "${1:-}" = /usr/lib/outcomego/bin/bun ] && [ "${2:-}" = /app/apps/computer/
   (/usr/lib/outcomego/bin/bun /app/apps/computer/dist/installs-cli.js replay >/dev/null 2>&1 &)
 fi
 
-# Match the writable kernel filesystems inside the bot computer's namespaces.
-mount -o remount,rw /sys
-mount -o remount,rw /sys/fs/cgroup
 # Preserve the full inheritable capability set when shells/GUI drop to box.
 exec setpriv --inh-caps +all "$@"
