@@ -224,8 +224,14 @@ const lazyBudgets: Record<string, number> = {
   // 73,336, 46,419, 40,512 and 36,231.
   // v0.1.0-beta.17 plugin localization includes the generated per-plugin translation catalog:
   // 168,381 and 139,625 bytes for detail and connection configuration respectively.
-  pluginDetail: 175_000,
-  pluginConnection: 145_000,
+  // v0.1.0-beta.19 adds WeChat/DingTalk account linking and external messaging controls:
+  // 191,235 and 150,801 bytes after the avoidable contracts-barrel and static messaging imports
+  // were removed. Keep headroom for the account-linking UI while preserving the boundary.
+  pluginDetail: 195_000,
+  pluginConnection: 155_000,
+  // Beta.19's external account diagnostics and delivery settings are loaded only when a
+  // connection declares messaging; the measured closure is 5,906 bytes.
+  externalMessagingSettings: 15_000,
   // The OutcomeGo package name adds a small amount to the package studio's generated closure:
   // 40,936 bytes on the beta.15 build.
   pluginStudio: 42_000,
@@ -323,8 +329,9 @@ const lazyBudgets: Record<string, number> = {
   // measure 17,312. Browser network settings retain their separate lazy boundary.
   // v0.0.13 shared control styles: 18,849 bytes; network and Select remain lazy.
   // The cloud computer firewall policy dialog is part of this measured lazy closure:
-  // 32,667 bytes on the beta.18 candidate.
-  settingsServer: 33_000,
+  // 32,667 bytes on the beta.18 candidate. Beta.19's narrow contracts import measures
+  // 35,608 bytes.
+  settingsServer: 37_000,
   // Dedicated Voice notes page: load retry, provider marks, busy indicators and
   // responsive fields. Still lazy; its measured closure is 40,488 bytes; 41,304 after the
   // Settings cleanup.

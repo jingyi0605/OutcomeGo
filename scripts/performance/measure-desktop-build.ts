@@ -422,6 +422,9 @@ const readLazyClosures = async () => {
       largeCode: ["src/renderer/components/ai-elements/message-response/large-code.tsx"],
       pluginDetail: ["src/renderer/components/outcomego/plugin-detail-view.tsx"],
       pluginConnection: ["src/renderer/components/outcomego/plugins/connection-configuration.tsx"],
+      externalMessagingSettings: [
+        "src/renderer/components/outcomego/plugins/external-messaging-settings.tsx",
+      ],
       pluginStudio: ["src/renderer/components/outcomego/plugins/package-studio.tsx"],
       privateSkills: ["src/renderer/components/outcomego/plugins/private-skills.tsx"],
       settingsMicrophone: ["src/renderer/components/outcomego/settings/microphone.tsx"],
