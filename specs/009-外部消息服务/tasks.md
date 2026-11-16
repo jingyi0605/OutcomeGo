@@ -206,8 +206,8 @@
   - 对应设计：`design.md` §3.2.5、§3.3.5、§6.7
 
 - [ ] 2.2 实现 computer exchange 端点
-  - 状态：IN_REVIEW
-  - 进展：三个端点（`apps/computer/src/mcp-exchange.ts`、`main.ts` 路由）和 Server 侧封装（`apps/server/src/services/external-messaging/media-exchange.ts`）已完成。`apps/computer/test/mcp-exchange.test.ts`（36 项：命名、符号链接、父目录与状态目录替换、越界、大小上限、临时文件加原子改名、`0600`、清理）和 `apps/server/test/external-messaging/media-exchange.test.ts`（17 项）通过，类型检查通过。读取使用 `O_NOFOLLOW` 加 `fstat`，不依赖先 `lstat` 后打开。尚缺：接近 `AssetStore` 上限文件的完整往返实测（需同步并重建远端 computer，须先征得用户同意），结论应写入 `design.md` §8.2。
+  - 状态：DONE
+  - 进展：三个端点（`apps/computer/src/mcp-exchange.ts`、`main.ts` 路由）和 Server 侧封装（`apps/server/src/services/external-messaging/media-exchange.ts`）已完成。`apps/computer/test/mcp-exchange.test.ts`（36 项：命名、符号链接、父目录与状态目录替换、越界、大小上限、临时文件加原子改名、`0600`、清理）和 `apps/server/test/external-messaging/media-exchange.test.ts`（17 项）通过，类型检查通过。读取使用 `O_NOFOLLOW` 加 `fstat`，不依赖先 `lstat` 后打开。远端实测（2026-11-16，`openteam-debug` 的 computer 已按流程同步并重建，`debug.sh check` 全部 ok）：从 Mac 经局域网直连 `10.255.0.45:18790`，PUT 209,711,104 字节（上限 200 MiB 减 4 KiB）约 6.3 秒，文件落盘权限 `0600`、目录内只有该文件、无临时文件残留；复制进 `inbound` 后 GET 约 4.2 秒，三处 SHA-256（PUT 响应、容器内文件、取回文件）完全一致；多 1 字节返回 413 `exchange_too_large` 且不留文件；DELETE 清理成功。实测发现并修复一个缺陷：computer 的 `Bun.serve` 没设 `maxRequestBodySize`，沿用 Bun 默认 128 MiB，导致 128 至 200 MiB 的外发文件在到达端点前就被 413 拒绝（修复前复现过），现设为交换上限加 1 MiB（`apps/computer/src/main.ts`）。未覆盖：直接用 curl 打端点，没有经过 Server 的 `media-exchange.ts` 封装；没有经过任何反向代理（调试环境 Server 到 computer 是直连）。
   - 这一步到底做什么：在 Bot Computer 上增加三个 HTTP 端点，让 Server 能从 connector 的受控目录读入站文件、写外发文件并清理。
   - 做完你能看到什么：Server 可以用一个文件名把字节流取回或送达，任何越界、符号链接、非法命名的请求都被拒绝。
   - 先依赖什么：1.5

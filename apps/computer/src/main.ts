@@ -27,7 +27,7 @@ import { BoxStoreSync } from "./box-store-sync";
 import { computerEventStream } from "./computer-event-stream";
 import { BotAgentStore } from "./bot-agent-store";
 import { StdioMcpManager } from "./mcp-manager";
-import { ExchangeError, McpExchange } from "./mcp-exchange";
+import { EXCHANGE_MAX_BYTES, ExchangeError, McpExchange } from "./mcp-exchange";
 import { McpRuntimeRouter } from "./mcp-runtime-router";
 import { resolveWorkspacePath } from "./paths";
 import { ComputerRuntime } from "./runtime";
@@ -183,6 +183,9 @@ const server = Bun.serve({
   hostname: "0.0.0.0",
   port,
   idleTimeout: 255,
+  // Bun's default is 128 MiB, which would refuse the largest files the exchange is allowed to carry.
+  // Keep it bounded: the exchange limit plus headroom for framing.
+  maxRequestBodySize: EXCHANGE_MAX_BYTES + 1024 * 1024,
   async fetch(request, requestServer) {
     const url = new URL(request.url);
     if (url.pathname === "/health/live") {
