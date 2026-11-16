@@ -22,7 +22,8 @@ COPY packages/plugins/package.json packages/plugins/package.json
 COPY patches ./patches
 COPY vendor/sheetjs/xlsx-0.20.3.tgz vendor/sheetjs/xlsx-0.20.3.tgz
 
-RUN bun install --frozen-lockfile --production --filter @outcomego/server --filter @outcomego/worker --filter @outcomego/db
+RUN --mount=type=cache,target=/root/.bun/install/cache,sharing=locked \
+  bun install --frozen-lockfile --production --filter @outcomego/server --filter @outcomego/worker --filter @outcomego/db
 COPY apps/server ./apps/server
 COPY apps/worker ./apps/worker
 COPY packages/contracts ./packages/contracts
@@ -58,8 +59,8 @@ COPY packages/plugins/package.json packages/plugins/package.json
 COPY patches ./patches
 COPY vendor/sheetjs/xlsx-0.20.3.tgz vendor/sheetjs/xlsx-0.20.3.tgz
 ENV PRISMA_CLI_BINARY_TARGETS=debian-openssl-3.0.x,linux-arm64-openssl-3.0.x
-RUN bun install --frozen-lockfile --production --filter @outcomego/db \
-  && rm -rf /root/.bun/install/cache
+RUN --mount=type=cache,target=/root/.bun/install/cache,sharing=locked \
+  bun install --frozen-lockfile --production --filter @outcomego/db
 COPY packages/db/prisma.config.ts packages/db/prisma.config.ts
 COPY packages/db/prisma packages/db/prisma
 COPY packages/db/scripts packages/db/scripts
@@ -76,9 +77,13 @@ CMD ["bun", "--filter", "@outcomego/db", "db:deploy"]
 FROM oven/bun:1.4.2-slim@sha256:cb3bbbb08e13a4a2ff400f24c7a2a1d5efa83f6ef8544d52d95a519631e2fc61 AS server
 WORKDIR /app
 COPY --from=build /app/apps/server/dist/main.js ./main.js
-RUN apt-get update \
-  && apt-get install -y --no-install-recommends libopus0 \
-  && rm -rf /var/lib/apt/lists/*
+ARG TARGETARCH
+RUN --mount=type=cache,id=apt-${TARGETARCH},target=/var/cache/apt,sharing=locked \
+  --mount=type=cache,id=apt-lists-${TARGETARCH},target=/var/lib/apt/lists,sharing=locked \
+  rm -f /etc/apt/apt.conf.d/docker-clean \
+  && apt-get update \
+  && apt-get install -y --no-install-recommends libopus0
+
 ENV NODE_ENV=production
 ENV HOME=/tmp
 ENV XDG_CACHE_HOME=/tmp/.cache

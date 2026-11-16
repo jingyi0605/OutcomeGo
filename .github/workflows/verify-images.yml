@@ -1,0 +1,88 @@
+name: Image verification
+
+# Verify a committed candidate on native hardware without publishing a release.
+on:
+  workflow_dispatch:
+    inputs:
+      architecture:
+        description: Native Linux architecture to verify
+        type: choice
+        default: amd64
+        options: [amd64, arm64, both]
+      image:
+        description: Release image to verify
+        type: choice
+        default: all
+        options: [all, server, worker, migrate, computer]
+
+permissions:
+  contents: read
+  packages: read
+
+concurrency:
+  group: verify-images-${{ github.ref }}-${{ inputs.architecture }}-${{ inputs.image }}
+  cancel-in-progress: false
+
+jobs:
+  images:
+    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: ${{ fromJSON(inputs.architecture == 'both' && '["amd64","arm64"]' || format('["{0}"]', inputs.architecture)) }}
+        image: ${{ fromJSON(inputs.image == 'all' && '["server","worker","migrate","computer"]' || format('["{0}"]', inputs.image)) }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: 1.4.2
+      - name: Free disk space
+        if: matrix.image == 'computer'
+        run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Resolve a prebuilt Computer base
+        id: base
+        if: matrix.image == 'computer'
+        env:
+          ARCH: ${{ matrix.arch }}
+        run: |
+          set -euo pipefail
+          prefix="ghcr.io/$(printf '%s' "$GITHUB_REPOSITORY_OWNER" | tr '[:upper:]' '[:lower:]')/ai-teamos"
+          hash=$(bun scripts/release/image-inputs.ts computer-base)
+          digest=$(docker buildx imagetools inspect "$prefix-computer-base:inputs-$hash-$ARCH" --format '{{json .Manifest}}' 2>/dev/null | jq -r '.digest' || true)
+          ref=computer-base
+          if [[ "$digest" =~ ^sha256:[a-f0-9]{64}$ ]]; then ref="$prefix-computer-base@$digest"; fi
+          echo "ref=$ref" >> "$GITHUB_OUTPUT"
+      - name: Confirm the Docker daemon is native
+        env:
+          ARCH: ${{ matrix.arch }}
+        run: |
+          native=$(docker version --format '{{.Server.Arch}}')
+          [ "$native" = "$ARCH" ] || { echo "Expected a native $ARCH daemon, got $native" >&2; exit 1; }
+      - name: Build on the native runner
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          file: ${{ matrix.image == 'computer' && 'docker/computer.Dockerfile' || 'docker/app.Dockerfile' }}
+          target: ${{ matrix.image == 'computer' && 'runtime' || matrix.image }}
+          platforms: linux/${{ matrix.arch }}
+          build-args: COMPUTER_BASE=${{ steps.base.outputs.ref || 'computer-base' }}
+          tags: outcomego-release-${{ matrix.image }}:local
+          load: true
+          provenance: false
+          sbom: false
+          cache-from: type=gha,scope=${{ matrix.image }}-${{ matrix.arch }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}-${{ matrix.arch }}
+      - name: Verify image tools without starting services
+        env:
+          KIND: ${{ matrix.image }}
+          ARCH: ${{ matrix.arch }}
+        run: |
+          bash scripts/release/smoke-image.sh "$KIND" "outcomego-release-$KIND:local"
+          echo "Verified $GITHUB_SHA: $KIND on native linux/$ARCH" >> "$GITHUB_STEP_SUMMARY"

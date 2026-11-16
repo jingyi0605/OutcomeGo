@@ -43,6 +43,8 @@ jobs:
       - run: bun install --frozen-lockfile --ignore-scripts
       - name: Validate release workflow graph and artifact names
         run: bun run check:workflows
+      - name: Validate release image reuse and local build policy
+        run: bun test ./scripts/release/image-inputs.test.ts ./scripts/release/build-images.test.ts
       - name: Architecture boundaries
         run: bun run check:architecture
       - run: bun run typecheck
@@ -54,7 +56,9 @@ jobs:
       - run: bun run build
 
   docker:
-    if: ${{ github.event_name != 'workflow_call' || inputs.run_docker }}
+    # Reusable workflows retain the caller's event; distinguish explicit false
+    # from an absent input on direct push/PR/manual runs without loose coercion.
+    if: ${{ toJSON(inputs.run_docker) != 'false' }}
     # Builds the server, worker and migrate images for one architecture without pushing. The
     # larger computer image is built by the release workflow.
     runs-on: ubuntu-latest

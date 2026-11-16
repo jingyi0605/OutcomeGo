@@ -8,13 +8,14 @@ const requireText = (text: string, expected: string, label: string): void => {
   if (!text.includes(expected)) fail(`${label} is missing: ${expected}`);
 };
 
-const [ci, release, constants, desktop, android, cliInstaller] = await Promise.all([
+const [ci, release, constants, desktop, android, cliInstaller, imageVerification] = await Promise.all([
   read(".github/workflows/ci.yml"),
   read(".github/workflows/release.yml"),
   read("apps/cli/src/constants.ts"),
   read("apps/desktop/package.json"),
   read(".github/workflows/android.yml"),
   read(".github/workflows/cli-installer.yml"),
+  read(".github/workflows/verify-images.yml"),
 ]);
 
 for (const [workflow, name] of [
@@ -33,7 +34,7 @@ requireText(ci, "workflow_call:", "CI reusable workflow declaration");
 requireText(ci, "run_docker:", "CI reusable workflow input");
 requireText(
   ci,
-  "if: ${{ github.event_name != 'workflow_call' || inputs.run_docker }}",
+  "if: ${{ toJSON(inputs.run_docker) != 'false' }}",
   "CI Docker job guard"
 );
 requireText(release, "uses: ./.github/workflows/ci.yml", "release CI call");
@@ -41,8 +42,8 @@ requireText(release, "run_docker: false", "release CI Docker suppression");
 
 const dockerBuildsInCi = ci.match(/docker\/build-push-action@/g)?.length ?? 0;
 const dockerBuildsInRelease = release.match(/docker\/build-push-action@/g)?.length ?? 0;
-if (dockerBuildsInCi !== 1 || dockerBuildsInRelease !== 1) {
-  fail(`expected one Docker build definition per workflow, got CI=${dockerBuildsInCi}, release=${dockerBuildsInRelease}`);
+if (dockerBuildsInCi !== 1 || dockerBuildsInRelease !== 2) {
+  fail(`expected one CI Docker build and two release Docker builds (base plus product), got CI=${dockerBuildsInCi}, release=${dockerBuildsInRelease}`);
 }
 
 requireText(constants, 'DEFAULT_REPOSITORY = "jingyi0605/OutcomeGo"', "OutcomeGo repository identity");
@@ -66,7 +67,23 @@ requireText(release, 'path: apps/cli/release/*', "versionless CLI build artifact
 requireText(android, 'run: bash scripts/android/qa.sh assemble', "Android QA debug build");
 requireText(cliInstaller, "name: CLI installer", "CLI installer workflow");
 
+requireText(
+  release,
+  "COMPUTER_BASE=${{ steps.base.outputs.digest",
+  "immutable Computer base import"
+);
+requireText(release, "--prefer-index=false", "digest-preserving input tags");
+requireText(release, "steps.inputs.outputs.digest == ''", "reuse skips a product build");
+requireText(imageVerification, "workflow_dispatch:", "explicit native verification trigger");
+requireText(imageVerification, "ubuntu-24.04-arm", "native ARM64 runner");
+requireText(imageVerification, "ubuntu-latest", "native AMD64 runner");
+requireText(imageVerification, "load: true", "native image loading without an OCI archive");
+requireText(imageVerification, "scripts/release/smoke-image.sh", "native tool verification");
+if (/setup-qemu|type=oci|push: true/.test(imageVerification)) {
+  fail("native verification must not emulate, export OCI archives, or push images");
+}
+
 console.log("Release workflow checks passed.");
-console.log("Release tags run release.yml only; its reusable CI call skips Docker validation, so release images are built once.");
+console.log("Release tags use native image builders or immutable digest reuse; Computer bases are built only on a recipe cache miss.");
 console.log("Desktop keeps its historical artifact prefix until a beta.13 updater fixture proves the renamed prefix resolves.");
 console.log("Versionless CLI binaries are stable download assets, not duplicate versioned application builds.");

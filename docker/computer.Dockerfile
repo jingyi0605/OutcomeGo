@@ -1,3 +1,5 @@
+ARG COMPUTER_BASE=computer-base
+
 FROM --platform=$BUILDPLATFORM oven/bun:1.4.2@sha256:9114c058aeae42162ee16dd5084b95fe9473970bb6bcb5b232ab1630f0546895 AS build
 
 WORKDIR /app
@@ -33,9 +35,12 @@ RUN bun --filter @outcomego/computer build
 
 FROM debian:bookworm-slim@sha256:88200866dfff7ea7f5cbcb6ec7c8a701889efe6fe859fe64d6990e4b07ea4171 AS desktop-assets
 
-RUN apt-get update \
+ARG TARGETARCH
+RUN --mount=type=cache,id=apt-${TARGETARCH},target=/var/cache/apt,sharing=locked \
+  --mount=type=cache,id=apt-lists-${TARGETARCH},target=/var/lib/apt/lists,sharing=locked \
+  rm -f /etc/apt/apt.conf.d/docker-clean \
+  && apt-get update \
   && apt-get install -y --no-install-recommends imagemagick \
-  && rm -rf /var/lib/apt/lists/* \
   && convert -size 1280x800 'gradient:#35383c-#151719' /tmp/outcomego-wallpaper-base.png \
   && convert -size 1280x800 xc:none \
     -fill none \
@@ -52,22 +57,36 @@ RUN apt-get update \
 FROM --platform=$BUILDPLATFORM golang:1.25.4-bookworm@sha256:e17419604b6d1f9bc245694425f0ec9b1b53685c80850900a376fb10cb0f70cb AS network-tools
 ARG TARGETARCH
 # A pinned module and Go's checksum database verify the source and dependencies.
-RUN set -eu; CGO_ENABLED=0 GOOS=linux GOARCH=$TARGETARCH go install -trimpath github.com/xjasonlyu/tun2socks/v2@v2.6.0; \
+RUN --mount=type=cache,target=/go/pkg/mod,sharing=locked \
+  --mount=type=cache,target=/root/.cache/go-build,sharing=locked \
+  set -eu; CGO_ENABLED=0 GOOS=linux GOARCH=$TARGETARCH go install -trimpath github.com/xjasonlyu/tun2socks/v2@v2.6.0; \
   if [ -f /go/bin/tun2socks ]; then cp /go/bin/tun2socks /tun2socks; \
   else cp /go/bin/linux_$TARGETARCH/tun2socks /tun2socks; fi
 
 FROM debian:bookworm-slim@sha256:88200866dfff7ea7f5cbcb6ec7c8a701889efe6fe859fe64d6990e4b07ea4171 AS memory-tools
-RUN apt-get update && apt-get install -y --no-install-recommends gcc libc6-dev && rm -rf /var/lib/apt/lists/*
+ARG TARGETARCH
+RUN --mount=type=cache,id=apt-${TARGETARCH},target=/var/cache/apt,sharing=locked \
+  --mount=type=cache,id=apt-lists-${TARGETARCH},target=/var/lib/apt/lists,sharing=locked \
+  rm -f /etc/apt/apt.conf.d/docker-clean \
+  && apt-get update \
+  && apt-get install -y --no-install-recommends gcc libc6-dev
+
 COPY docker/outcomego-memory-init.c docker/outcomego-desktop-exec.c docker/outcomego-network-mark.c /tmp/
 RUN gcc -static -O2 -Wall -Wextra -Werror /tmp/outcomego-memory-init.c -o /outcomego-memory-init \
   && gcc -static -O2 -Wall -Wextra -Werror /tmp/outcomego-desktop-exec.c -o /outcomego-desktop-exec \
   && gcc -shared -fPIC -O2 -Wall -Wextra -Werror /tmp/outcomego-network-mark.c -o /network-mark.so
 
-FROM oven/bun:1.4.2-slim@sha256:cb3bbbb08e13a4a2ff400f24c7a2a1d5efa83f6ef8544d52d95a519631e2fc61 AS runtime
+FROM oven/bun:1.4.2-slim@sha256:cb3bbbb08e13a4a2ff400f24c7a2a1d5efa83f6ef8544d52d95a519631e2fc61 AS computer-base
 
+# Bump this revision to refresh mutable Debian/npm/Python transitive packages.
+ARG COMPUTER_BASE_REVISION=2026-11
 ENV OUTCOMEGO_COMPUTER_NETWORK=1
 
-RUN apt-get update \
+ARG TARGETARCH
+RUN --mount=type=cache,id=apt-${TARGETARCH},target=/var/cache/apt,sharing=locked \
+  --mount=type=cache,id=apt-lists-${TARGETARCH},target=/var/lib/apt/lists,sharing=locked \
+  rm -f /etc/apt/apt.conf.d/docker-clean \
+  && apt-get update \
   && apt-get install -y --no-install-recommends \
     ca-certificates \
     antiword \
@@ -135,7 +154,6 @@ RUN apt-get update \
     xfdesktop4 \
     xfwm4 \
     xvfb \
-  && rm -rf /var/lib/apt/lists/* \
   && groupmod --new-name box bun \
   && usermod --login box --home /home/box --move-home --shell /bin/bash bun \
   && groupadd --gid 998 orbitd \
@@ -149,7 +167,7 @@ RUN apt-get update \
 
 # outcomeGo's own tools and libraries live in /usr/lib/outcomego. /usr/local is
 # a volume the bots install into, so the image ships nothing there.
-COPY --from=ghcr.io/astral-sh/uv:0.8.14 /uv /uvx /usr/lib/outcomego/bin/
+COPY --from=ghcr.io/astral-sh/uv:0.8.14@sha256:f3660c56d5b08d6c516360981bedc439f499b9bf37f46a216018da3777a74011 /uv /uvx /usr/lib/outcomego/bin/
 
 # Office toolkit for the knowledgeWork worker's deck skills, at the path those
 # skills name, with the libraries they expect. docker/officekit-ts is a copy
@@ -158,16 +176,19 @@ COPY --from=ghcr.io/astral-sh/uv:0.8.14 /uv /uvx /usr/lib/outcomego/bin/
 COPY docker/officekit-ts /opt/sand/sand-host/officekit-ts
 # Every Python finds the image's packages ahead of /usr/local and ~/.local
 # (outcomego.pth), so an update's versions are the ones skills get.
-RUN npm install --global --prefix /usr/lib/outcomego/node --no-audit --no-fund pptxgenjs@4.0.1 docx@9.8.1 \
+RUN --mount=type=cache,id=npm-${TARGETARCH},target=/root/.npm,sharing=locked \
+  --mount=type=cache,id=pip-${TARGETARCH},target=/root/.cache/pip,sharing=locked \
+  npm install --global --prefix /usr/lib/outcomego/node --no-audit --no-fund pptxgenjs@4.0.1 docx@9.8.1 \
   && npm install --prefix /opt/sand/sand-host/officekit-ts --no-audit --no-fund --omit=dev sharp@0.35.5 libxml2-wasm@0.7.2 \
   && chmod 0755 /opt/sand/sand-host/officekit-ts/bin/office \
-  && pip install --break-system-packages --no-cache-dir --target /usr/lib/outcomego/python \
+  && pip install --break-system-packages --cache-dir /root/.cache/pip --target /usr/lib/outcomego/python \
     python-pptx==1.0.2 python-docx==1.2.0 openpyxl==3.1.5 xlsxwriter==3.2.9 \
     "markitdown[pptx,docx,xlsx]==0.1.7" pandas==3.0.6 pillow==12.3.0 lxml==6.1.3 \
   && ln -s /usr/lib/outcomego/python/bin/* /usr/lib/outcomego/bin/ \
   && printf '%s\n' 'import sys; sys.path.insert(min([i for i, d in enumerate(sys.path) if d.startswith("/usr/local/lib/python") or d == sys.modules["site"].USER_SITE] + [len(sys.path)]), "/usr/lib/outcomego/python")' \
-    > /usr/lib/python3/dist-packages/outcomego.pth \
-  && rm -rf /root/.npm /root/.cache
+    > /usr/lib/python3/dist-packages/outcomego.pth
+
+FROM ${COMPUTER_BASE} AS runtime
 
 COPY --from=build --chown=box:box /app/node_modules /app/node_modules
 COPY --from=build --chown=box:box /app/apps/computer/node_modules /app/apps/computer/node_modules
