@@ -414,6 +414,7 @@ export const sourceTranslations: Record<string, string> = {
   "Account settings": "账户设置",
   "New account label": "新账户标签",
   "Label this account, e.g. work or personal": "为账户命名，例如“工作”或“个人”",
+  "Label (optional, defaults to account email)": "实例别名（可选，默认使用账户邮箱）",
   "Bot name": "机器人名称",
   "Server default": "服务器默认",
   "Leave blank to use the server default": "留空以使用服务器默认值",

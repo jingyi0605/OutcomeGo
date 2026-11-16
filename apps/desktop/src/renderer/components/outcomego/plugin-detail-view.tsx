@@ -460,7 +460,9 @@ function PluginSetupCard({
   const requiresHttps =
     connection.oauthCallbackMode === "manual" && connection.manualCallbackSupported === false;
   const missingRequired = setup.fields.some(
-    (field) => field.required && !values[field.key]?.trim()
+    (field) =>
+      field.required &&
+      !(field.preserveWhitespace ? values[field.key] : values[field.key]?.trim())
   );
   const copy = async (label: string, value: string) => {
     await navigator.clipboard.writeText(value);
@@ -487,10 +489,12 @@ function PluginSetupCard({
       onConfigureValues(
         Object.fromEntries(
           setup.fields
-            .filter((field) => values[field.key]?.trim())
+            .filter((field) =>
+              field.preserveWhitespace ? Boolean(values[field.key]) : Boolean(values[field.key]?.trim())
+            )
             .map((field) => [
               field.key,
-              field.secret ? values[field.key]! : values[field.key]!.trim(),
+              field.secret || field.preserveWhitespace ? values[field.key]! : values[field.key]!.trim(),
             ])
         )
       );
@@ -719,10 +723,12 @@ function PluginSetupCard({
 function ConnectionSettingsRow({
   busy,
   connection,
+  setup,
   onAuthenticate,
   onConfigureOAuth,
   onConfigureCallback,
   onConfigureToken,
+  onConfigureValues,
   onInstructions,
   onRemove,
   onRename,
@@ -730,10 +736,12 @@ function ConnectionSettingsRow({
 }: {
   busy: boolean;
   connection: PluginConnectionView;
+  setup?: PluginCatalogItemView["setup"];
   onAuthenticate: () => void;
   onConfigureOAuth: (input: { clientId: string; clientSecret: string; scope: string }) => void;
   onConfigureCallback?: (input: OAuthCallbackSettings) => void;
   onConfigureToken: (token: string) => void;
+  onConfigureValues?: (values: Record<string, string>) => void;
   onInstructions: (instructions: string) => void;
   onRemove: () => void;
   onRename: (alias: string) => void;
@@ -743,6 +751,8 @@ function ConnectionSettingsRow({
   const [alias, setAlias] = useState(connection.alias);
   const [instructions, setInstructions] = useState(connection.instructions);
   const [token, setToken] = useState("");
+  const [setupFieldValues, setSetupFieldValues] = useState<Record<string, string>>({});
+  const [configuredFields, setConfiguredFields] = useState<string[]>([]);
   const [oauthClientId, setOauthClientId] = useState("");
   const [oauthClientSecret, setOauthClientSecret] = useState("");
   const [oauthScope, setOauthScope] = useState("");
@@ -757,13 +767,20 @@ function ConnectionSettingsRow({
         if (active) {
           setCallbackMode(config.oauthCallbackMode ?? "auto");
           setManualSupported(config.manualCallbackSupported !== false);
+          setConfiguredFields([
+            ...new Set([
+              ...(config.configuredFields ?? []),
+              ...Object.keys(config.values ?? {}),
+              ...(config.configuredSecrets ?? []),
+            ]),
+          ]);
         }
       })
       .catch(() => {});
     return () => {
       active = false;
     };
-  }, [connection.id]);
+  }, [connection.id, connection.revision]);
   const [callbackPort, setCallbackPort] = useState(connection.oauthLoopbackPort ?? 0);
   const field =
     "h-8 rounded-[7px] border border-black/[0.08] bg-background px-2 text-[10.5px] outline-none dark:border-white/10 dark:bg-[#1d1d1d]";
@@ -828,6 +845,78 @@ function ConnectionSettingsRow({
           </button>
         </div>
       </div>
+      {setup?.kind === "none" && setup.fields.length && onConfigureValues ? (
+        <form
+          className="mt-3 rounded-[9px] bg-black/[0.035] p-3 dark:bg-black/20"
+          onSubmit={(event) => {
+            event.preventDefault();
+            const submitted = Object.fromEntries(
+              setup.fields
+                .filter((field) =>
+                  field.preserveWhitespace
+                    ? Boolean(setupFieldValues[field.key])
+                    : Boolean(setupFieldValues[field.key]?.trim())
+                )
+                .map((field) => [
+                  field.key,
+                  field.secret || field.preserveWhitespace
+                    ? setupFieldValues[field.key]!
+                    : setupFieldValues[field.key]!.trim(),
+                ])
+            );
+            if (!Object.keys(submitted).length) return;
+            onConfigureValues(submitted);
+            setSetupFieldValues({});
+          }}
+        >
+          <div className="grid grid-cols-2 gap-2 max-sm:grid-cols-1">
+            {setup.fields.map((fieldItem) => {
+              const saved = configuredFields.includes(fieldItem.key);
+              return (
+                <label className="space-y-1" key={fieldItem.key}>
+                  <span className="block text-[10.5px] text-foreground-secondary">
+                    {fieldItem.label} · {saved ? t("Saved") : t("Not set")}
+                  </span>
+                  <input
+                    aria-label={fieldItem.label}
+                    className={cn(field, "w-full")}
+                    onChange={(event) =>
+                      setSetupFieldValues((current) => ({
+                        ...current,
+                        [fieldItem.key]: event.target.value,
+                      }))
+                    }
+                    placeholder={
+                      saved ? t("Enter a new value to replace it") : (fieldItem.placeholder ?? "")
+                    }
+                    type={fieldItem.secret ? "password" : "text"}
+                    value={setupFieldValues[fieldItem.key] ?? ""}
+                  />
+                  {fieldItem.helpText ? (
+                    <span className="block text-[9.5px] leading-3.5 text-foreground-tertiary">
+                      {fieldItem.helpText}
+                    </span>
+                  ) : null}
+                </label>
+              );
+            })}
+          </div>
+          <button
+            className={cn(secondaryButton, "mt-2")}
+            disabled={
+              busy ||
+              !setup.fields.some((fieldItem) =>
+                fieldItem.preserveWhitespace
+                  ? Boolean(setupFieldValues[fieldItem.key])
+                  : Boolean(setupFieldValues[fieldItem.key]?.trim())
+              )
+            }
+            type="submit"
+          >
+            {t("Save")}
+          </button>
+        </form>
+      ) : null}
       {connection.auth === "token" && connection.status !== "ready" ? (
         <div className="mt-2 flex gap-2">
           <input
@@ -1270,6 +1359,7 @@ export function PluginDetail({
                 <ConnectionSettingsRow
                   busy={busy === connection.id}
                   connection={connection}
+                  setup={plugin.setup}
                   onAuthenticate={() => onAuthenticate(connection)}
                   onConfigureOAuth={(input) => onConfigureOAuth(connection, input)}
                   onConfigureCallback={
@@ -1278,6 +1368,7 @@ export function PluginDetail({
                       : undefined
                   }
                   onConfigureToken={(token) => onConfigureToken(connection, token)}
+                  onConfigureValues={(values) => onConfigureValues(connection, values)}
                   onInstructions={(instructions) => onInstructions(connection, instructions)}
                   onRemove={() => onRemoveAccount(connection)}
                   onRename={(alias) => onRename(connection, alias)}
@@ -1294,7 +1385,12 @@ export function PluginDetail({
                 )}
               </PluginAccountRow>
             ))}
-            <AddPluginAccount connections={connections} busy={Boolean(busy)} onAdd={onAddAccount} />
+            <AddPluginAccount
+              allowEmptyAlias={plugin.key === "bitwarden"}
+              connections={connections}
+              busy={Boolean(busy)}
+              onAdd={onAddAccount}
+            />
           </div>
           {setupConnection && plugin.setup ? (
             <PluginSetupCard
@@ -1320,7 +1416,7 @@ export function PluginDetail({
       {connections.some((connection) => connection.tools.length > 0) ? (
         <DetailBlock
           count={connections.reduce((count, connection) => count + connection.tools.length, 0)}
-          label={t("Tools")}
+          label="Tools"
           summary={t("{count} tools available", {
             count: connections.reduce((count, connection) => count + connection.tools.length, 0),
           })}
@@ -1348,7 +1444,7 @@ export function PluginDetail({
         </DetailBlock>
       ) : null}
       {plugin.connections.length ? (
-        <DetailBlock count={plugin.connections.length} label={t("Connectors")}>
+        <DetailBlock count={plugin.connections.length} label="Connectors">
           {plugin.connections.map((connection) => (
             <div
               key={connection.key}
@@ -1362,7 +1458,7 @@ export function PluginDetail({
       ) : null}
 
       {plugin.skills.length ? (
-        <DetailBlock count={plugin.skills.length} label={t("Skills")}>
+        <DetailBlock count={plugin.skills.length} label="Skills">
           {[...plugin.skills]
             .sort((a, b) => a.name.localeCompare(b.name))
             .map((skill) => (
@@ -1404,7 +1500,7 @@ export function PluginDetail({
         </section>
       ) : null}
       {recentActivity.length ? (
-        <DetailBlock count={recentActivity.length} label={t("Activity")} open={false}>
+        <DetailBlock count={recentActivity.length} label="Activity" open={false}>
           {recentActivity.map((entry) => (
             <div
               className="flex min-h-10 items-center gap-3 border-t border-black/[0.055] px-3 text-[10.5px] first:border-t-0 dark:border-white/[0.065]"

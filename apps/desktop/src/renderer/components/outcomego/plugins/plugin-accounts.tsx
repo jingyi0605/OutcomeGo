@@ -188,10 +188,12 @@ export function PluginAccountRow({
 }
 
 export function AddPluginAccount({
+  allowEmptyAlias = false,
   connections,
   busy,
   onAdd,
 }: {
+  allowEmptyAlias?: boolean;
   connections: PluginConnectionView[];
   busy: boolean;
   onAdd: (connection: PluginConnectionView, alias: string) => Promise<boolean>;
@@ -223,12 +225,9 @@ export function AddPluginAccount({
           onSubmit={async (e) => {
             e.preventDefault();
             const connection = choices.find((c) => c.connectorKey === connector);
-            if (
-              connection &&
-              !busy &&
-              alias.trim().length >= 2 &&
-              (await onAdd(connection, alias.trim()))
-            ) {
+            const trimmed = alias.trim();
+            const valid = allowEmptyAlias ? trimmed.length === 0 || trimmed.length >= 2 : trimmed.length >= 2;
+            if (connection && !busy && valid && (await onAdd(connection, trimmed))) {
               setOpen(false);
               setAlias("");
             }
@@ -246,12 +245,20 @@ export function AddPluginAccount({
           <input
             ref={labelRef}
             aria-label={t("New account label")}
-            placeholder={t("Label this account, e.g. work or personal")}
+            placeholder={
+              allowEmptyAlias
+                ? t("Label (optional, defaults to account email)")
+                : t("Label this account, e.g. work or personal")
+            }
             className="h-8 min-w-0 flex-1 rounded-md border border-black/10 bg-background px-2 text-[12px] outline-none dark:border-white/10"
             value={alias}
             onChange={(e) => setAlias(e.target.value)}
           />
-          <button className={button} type="submit" disabled={busy || alias.trim().length < 2}>
+          <button
+            className={button}
+            type="submit"
+            disabled={busy || !(allowEmptyAlias ? alias.trim().length === 0 || alias.trim().length >= 2 : alias.trim().length >= 2)}
+          >
             {t("Add Account")}
           </button>
           <button
