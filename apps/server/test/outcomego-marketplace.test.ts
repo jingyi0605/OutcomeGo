@@ -10,7 +10,7 @@ describe("outcomeGo marketplace", () => {
     const source = new OutcomeGoMarketplaceSource(undefined, bundledOutcomeGoMarketplace);
     const plugins = await source.plugins();
 
-    expect(plugins).toHaveLength(23);
+    expect(plugins).toHaveLength(24);
     expect(plugins.find(plugin => plugin.key === "1password")?.components).toEqual(["skills"]);
     expect(plugins.map((plugin) => plugin.key)).not.toContain("outcomego-utility-lab");
     expect(plugins.map((plugin) => plugin.key)).not.toContain("onedrive");

@@ -1400,8 +1400,11 @@ describe("browser network chaos recovery boundaries", () => {
     const revision = f.getSettings().revision,
       before = f.getConnections("computer");
     f.failReads(2);
-    await until(() => f.getConnections("computer") > before && f.computer.available(), 12000);
+    await expect(f.service.view()).rejects.toThrow("injected database failure");
+    await expect(f.service.view()).rejects.toThrow("injected database failure");
     await routed(f, "server");
+    expect(f.getConnections("computer")).toBe(before);
+    expect(f.computer.available()).toBe(true);
     expect(f.getSettings().revision).toBe(revision);
     const socket = await f.computer.open("127.0.0.1", f.port);
     socket.destroy();
