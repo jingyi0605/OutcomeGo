@@ -22,10 +22,11 @@ const refusedWith = async (write: PromiseLike<unknown>): Promise<string> => {
 };
 
 describe.skipIf(!url)("external messaging tables", () => {
-  const prisma = createPrismaClient(url);
+  let prisma!: ReturnType<typeof createPrismaClient>;
   const created = { bots: [] as string[], installs: [] as string[], channels: [] as string[] };
 
   beforeAll(async () => {
+    prisma = createPrismaClient(url!);
     await prisma.$connect();
   });
   afterAll(async () => {
