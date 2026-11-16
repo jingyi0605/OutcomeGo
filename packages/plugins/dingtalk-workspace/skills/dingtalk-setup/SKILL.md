@@ -23,11 +23,15 @@ description: 在当前 Bot Computer 安装固定版本的 DingTalk Workspace CLI
 
    目标版本是 `v1.0.68`。默认存放在 `$HOME/.local/share/outcomego/dws/v1.0.68/`。Bot Computer 的 HOME 不可写时使用持久 `/workspace`，包装脚本同时设置 DWS 配置和凭据目录。`OUTCOMEGO_DWS_CLI_DIR` 可指定绝对安装目录；全部命令须使用相同环境。
 
+   Marketplace 的 “Install DWS” 和 “Upgrade DWS” 运行在选定 Bot Computer 上；升级使用 DWS 官方更新器并跳过上游 Skills 覆盖，只保留本插件维护的 Skills。
+
 3. 检查当前 Computer 的授权状态。优先使用插件提供的 Computer-side 状态入口：
 
    ```bash
    bash <this-skill>/scripts/dws-status.sh
    ```
+
+   Marketplace 页面显示的 DWS 版本和连接状态来自同一个 Computer-side 状态检查；状态检查同时调用只读 `dws upgrade --check --format json` 查询最新稳定版本，仅在 `needs_upgrade` 为 `true` 时显示升级按钮。不能用服务器保存的登录信息代替。
 
    该命令只读本机状态，不刷新令牌、不迁移 Keychain，也不访问业务资源。需要确认刷新令牌仍可用时，才使用：
 

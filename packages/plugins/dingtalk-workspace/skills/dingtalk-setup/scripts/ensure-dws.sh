@@ -34,7 +34,14 @@ if [[ -e "$executable" || -L "$executable" ]]; then
     exit 1
   fi
   actual_version="$(DWS_NO_UPDATE_CHECK=1 "$executable" --version)"
-  if [[ "$actual_version" != "dws version $version ("* ]]; then
+  accepted_version="$version"
+  if [[ -f "$install_dir/.outcomego-dws-version" ]]; then
+    recorded_version="$(cat "$install_dir/.outcomego-dws-version")"
+    if [[ "$recorded_version" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+      accepted_version="$recorded_version"
+    fi
+  fi
+  if [[ "$actual_version" != "dws version $accepted_version ("* ]]; then
     echo "Unexpected DWS version at $executable; inspect it before replacing." >&2
     exit 1
   fi

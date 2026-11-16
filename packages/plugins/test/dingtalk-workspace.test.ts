@@ -244,7 +244,7 @@ test("DWS package exports focused workflows, executable support files and pinned
     expect(createHash("sha256").update(restored.files![name]!).digest("hex")).toBe(String(hash));
   }
   expect(restored.files!["skills/dingtalk-setup/scripts/dws.sh"]).toBe(await readFile(wrapper, "utf8"));
-  for (const script of ["dws-status.sh", "dws-auth-export.sh", "dws-auth-import.sh", "dws-logout.sh"]) {
+  for (const script of ["dws-status.sh", "dws-auth-export.sh", "dws-auth-import.sh", "dws-logout.sh", "dws-upgrade.sh"]) {
     expect(restored.files![`skills/dingtalk-setup/scripts/${script}`]).toBe(
       await readFile(new URL(`skills/dingtalk-setup/scripts/${script}`, root).pathname, "utf8")
     );
@@ -258,5 +258,12 @@ test("DWS package exports focused workflows, executable support files and pinned
       expect(restored.files![decodeURI(path)]).toBeDefined();
     }
   }
+  const workspaceSkill = restored.files!["skills/dingtalk-workspace/SKILL.md"]!;
+  const todoReference = restored.files!["skills/dingtalk-workspace/references/20261115-待办操作.md"]!;
+  expect(workspaceSkill).toContain("references/20261115-待办操作.md");
+  expect(workspaceSkill).not.toContain("oa approval approve");
+  expect(todoReference).toContain("dws todo +get-my-tasks --status false --all --max-pages 40 --size 20 --format json");
+  expect(todoReference).toContain("内容简述是强制字段");
+  expect(todoReference).toContain("dws oa approval approve");
   expect(Object.keys(restored.files!).some((path) => /\.env$|auth-token|app\.json$/.test(path))).toBe(false);
 });

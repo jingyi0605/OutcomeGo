@@ -1,21 +1,24 @@
 {
   "schemaVersion": 1,
   "key": "dingtalk-workspace",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "name": "DingTalk Workspace",
   "description": "Use DingTalk as the current authorized user to manage to-dos, messages, Drive files, and documents.",
   "publisher": "OutcomeGo",
   "category": "Productivity",
   "featured": false,
-  "components": ["skills"],
+  "components": [
+    "skills"
+  ],
   "connections": [],
   "icon": "assets/icon.png",
   "homepageUrl": "https://github.com/DingTalk-Real-AI/dingtalk-workspace-cli",
   "installationSteps": [
-    "Install the plugin, then ask a Bot to install DingTalk Workspace CLI on the selected Computer.",
-    "Check the selected Computer with the dingtalk-setup status command, then complete device-flow authorization if needed. Your organization must enable CLI access first.",
-    "For migration, export a DWS portable auth bundle on the source Computer, transfer it once with CopyToBox, and import it on the target Computer; the target verifies the login and removes its one-time bundle.",
-    "Use the DingTalk workspace skill for to-dos, messages, Drive, and document operations. Other enabled Bots on the same Computer can use this login; uninstalling removes skills, not CLI credentials."
+    "Enable the plugin, then choose Install DWS to install the CLI on the Bot Computer.",
+    "Choose Authenticate DingTalk and complete the browser sign-in and permission authorization. Your organization must enable CLI access first.",
+    "Wait for Connected. The page shows the DWS version and account verified on the Bot Computer; the page checks the latest stable CLI online and shows Upgrade DWS only when a newer version is available.",
+    "Choose a usage tip to close this page and fill the main Bot chat with an editable prompt. The prompt is not sent automatically.",
+    "The login belongs to the Bot Computer. Other Bots on the same Computer share it; uninstalling the plugin does not remove DWS or its credentials."
   ],
   "skills": [
     {
@@ -27,6 +30,40 @@
       "name": "dingtalk-workspace",
       "description": "Use the current authorized DingTalk user to query and handle to-dos, messages, personal IM events, Drive files, and DingTalk documents.",
       "path": "skills/dingtalk-workspace"
+    }
+  ],
+  "usageTips": [
+    {
+      "title": "Review pending to-dos",
+      "prompt": "List all my unfinished DingTalk to-dos with a brief description of each item, including overdue status, due dates, roles, task IDs, and whether data.complete confirms that all pages were fetched. Do not modify anything."
+    },
+    {
+      "title": "Plan today’s work",
+      "prompt": "Review my DingTalk to-dos due today and overdue tasks. Suggest a prioritized work plan without changing the tasks."
+    },
+    {
+      "title": "Handle an approval",
+      "prompt": "Find my pending DingTalk approval applications and summarize the applicant, dates, purpose, and current approval status. Let me choose which application to process."
+    },
+    {
+      "title": "Find project documents",
+      "prompt": "Search my authorized DingTalk documents and Drive files for [project keyword]. Summarize relevant documents with their original links."
+    },
+    {
+      "title": "Update a document section",
+      "prompt": "Read this authorized DingTalk document: [document link]. Update [section] with [new content], preserve other content, and read back the changed section to verify it."
+    },
+    {
+      "title": "Turn a document into tasks",
+      "prompt": "Read [DingTalk document link] and draft action items with owners and due dates. Show me the proposed to-dos before creating them."
+    },
+    {
+      "title": "Export a document",
+      "prompt": "Export [DingTalk document link] to DOCX and provide the resulting file. Keep the original document unchanged."
+    },
+    {
+      "title": "Prepare a weekly summary",
+      "prompt": "Use my DingTalk to-dos from [date range] and these authorized documents: [document links] to draft a weekly summary of completed work, blockers, and next steps. Show the draft before saving or sending it."
     }
   ]
 }
