@@ -41,8 +41,9 @@ test("outcomeGo's own processes start with absolute paths and a PATH without bot
   expect(entrypoint).toContain("PATH=/usr/lib/outcomego/bin:/usr/sbin:/usr/bin:/sbin:/bin");
   for (const hook of [read("docker/apt-keep-installs.conf"), read("docker/dpkg-keep-installs.cfg")])
     expect(hook.match(/\/\S*bun /g)?.every((bun) => bun === "/usr/lib/outcomego/bin/bun ")).toBe(true);
-  for (const compose of [read("deploy/compose.yaml"), read("docker-compose.yml")]) {
-    expect(compose).toContain('test: ["CMD", "/usr/lib/outcomego/bin/bun", "-e", "const r=await fetch(\'http://127.0.0.1:8790/health/live\')');
+  for (const [path, healthPath] of [["deploy/compose.yaml", "/health"], ["docker-compose.yml", "/health/live"]] as const) {
+    const compose = read(path);
+    expect(compose).toContain(`test: ["CMD", "/usr/lib/outcomego/bin/bun", "-e", "const r=await fetch('http://127.0.0.1:8790${healthPath}')`);
     expect(compose).toContain("- outcomego_computer_local:/usr/local");
     expect(compose).toMatch(/^volumes:\n(?: {2}\S+:\n)*? {2}outcomego_computer_local:$/m);
     expect(compose).toContain('entrypoint: ["/usr/lib/outcomego/bin/outcomego-memory-init"]');
