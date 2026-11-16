@@ -21,7 +21,8 @@
     "./configuration": "./src/configuration.ts",
     "./runtime-assets": "./src/runtime-assets.ts",
     "./browser-network/diagnostics": "./src/browser-network/diagnostics.ts",
-    "./public-http": "./src/public-http.ts"
+    "./public-http": "./src/public-http.ts",
+    "./messaging": "./src/messaging.ts"
   },
   "scripts": {
     "build": "bun build src/index.ts --outdir dist --target browser",

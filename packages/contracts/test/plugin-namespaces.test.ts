@@ -21,12 +21,13 @@ test("namespaces carry the account and a not-ready reason, never saved instructi
 });
 
 test("shared server and worker namespaces hide manifest-declared and metadata-only host tools", () => {
-  const hostNames = ["start_link", "finish_link", "link_status", "cancel_link", "remove_account", "poll_events", "send_draft"];
+  const hostNames = ["start_link", "finish_link", "link_status", "cancel_link", "remove_account", "poll_events", "send_draft", "poll_inbound", "deliver_message"];
   const [namespace] = pluginDynamicNamespaces([connection("a", {
     installation: { pluginKey: "signal", manifest: { connections: [{
       key: "gmail", deviceLink: { startTool: hostNames[0], finishTool: hostNames[1], statusTool: hostNames[2],
         cancelTool: hostNames[3], removeTool: hostNames[4] },
       events: { pollTool: hostNames[5] }, drafts: { tool: hostNames[6] },
+      messaging: { platform: "chat", inbound: { pollTool: hostNames[7] }, outbound: { deliverTool: hostNames[8], maxTextChars: 100 } },
     }, { key: "another", deviceLink: { startTool: "public_read" } }] } },
     toolSnapshot: [
       ...hostNames.map(name => ({ name, description: "host", inputSchema: {} })),

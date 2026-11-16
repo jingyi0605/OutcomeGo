@@ -70,8 +70,9 @@
   - 对应需求：`requirements.md` 全部需求
   - 对应设计：`design.md` 全文
 
-- [ ] 1.2 增加 manifest `messaging` 契约和线协议类型
-  - 状态：TODO
+- [x] 1.2 增加 manifest `messaging` 契约和线协议类型
+  - 状态：DONE
+  - 验证记录：`packages/plugin-sdk/test/messaging.test.ts`、`packages/contracts/test/plugin-namespaces.test.ts`、`apps/server/test/external-messaging/host-tools.test.ts` 通过；线协议类型位于 `packages/plugin-sdk/src/messaging.ts`（子路径 `@outcomego/plugin-sdk/messaging`，含 Node 的 `crypto`，不进入浏览器入口），常量位于浏览器安全的 `messaging-limits.ts`。`list_peers` 的输入、输出类型与解析函数也在该文件中，供 `009.1` 复用。
   - 这一步到底做什么：让 connector 能在 `plugin.json` 里声明"我支持聊天式收发"，并提供 Server 和 connector 共用的消息类型与校验函数。
   - 做完你能看到什么：一个带 `messaging` 块的 manifest 能通过校验；poll 和 deliver 两个工具对 Bot 不可见。
   - 先依赖什么：1.1
@@ -100,7 +101,8 @@
   - 对应设计：`design.md` §3.2.6、§3.2.8、§3.3.1、§3.3.2
 
 - [ ] 1.3 增加 `ChannelKind.external_dm`
-  - 状态：TODO
+  - 状态：IN_REVIEW
+  - 进展：Prisma 枚举、`Schema.Literal` 与 migration `202611160010_add_external_dm_channel_kind` 已完成，`bun run check:architecture` 与全仓类型检查通过。尚缺"migration 可在空库和现有库上执行"的数据库实测，需要本地测试数据库后补做。
   - 这一步到底做什么：在数据库枚举和契约里加入新的 Channel 类型。
   - 做完你能看到什么：可以创建 `kind = external_dm` 的 Channel，枚举一致性检查通过。
   - 先依赖什么：1.1
@@ -124,7 +126,8 @@
   - 对应设计：`design.md` §3.2.5
 
 - [ ] 1.4 增加四张数据表
-  - 状态：TODO
+  - 状态：IN_REVIEW
+  - 进展：四张表、关系字段、migration `202611160011_add_external_messaging` 和 `raw-schema.sql` 中的状态与租约 CHECK 约束已完成；`prisma validate` 通过，手写 migration 的列、索引和外键与 Prisma 生成的 DDL 逐项一致。尚缺数据库层面的唯一性、级联和 CHECK 约束实测，需要本地测试数据库后补做。
   - 这一步到底做什么：新增 Binding、Mapping、Receipt、Delivery 四张独立表及其唯一约束和外键。
   - 做完你能看到什么：数据库层面就能阻止重复的 Mapping、重复的 Receipt 和重复的 Delivery。
   - 先依赖什么：1.3

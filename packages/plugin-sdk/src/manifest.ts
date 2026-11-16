@@ -2,8 +2,16 @@ import { isSecretKey } from "./configuration";
 import { assertComputerMcpRuntime } from "./desktop-runtime";
 import { isAllowedEnvironmentName } from "./environment";
 import { PLUGIN_ICON_MAX_BASE64_LENGTH } from "./icons";
+import {
+  EXTERNAL_MEDIA_KINDS,
+  EXTERNAL_OUTBOUND_TEXT_MAX_CHARS,
+  EXTERNAL_PLATFORM_PATTERN,
+  EXTERNAL_POLL_MAX_WAIT_SECONDS,
+  EXTERNAL_TOOL_NAME_PATTERN,
+} from "./messaging-limits";
 import { validateRuntimeAssets } from "./runtime-asset-definition";
 import type {
+  PluginConnectorDefinition,
   PluginDefinition,
   PluginDraftSending,
   PluginEventPolling,
@@ -29,6 +37,58 @@ export const safePackagePath = (path: string): string => {
     throw new Error(`Unsafe package path: ${path}`);
   return normalized;
 };
+const validateMessaging = (connector: PluginConnectorDefinition): void => {
+  if (connector.transport !== "stdio" || connector.persistentState !== true)
+    throw new Error("Messaging requires a packaged (stdio) connector with persistent state");
+  const messaging = objectValue(connector.messaging);
+  if (typeof messaging.platform !== "string" || !EXTERNAL_PLATFORM_PATTERN.test(messaging.platform))
+    throw new Error("Invalid messaging platform");
+  const inbound = objectValue(messaging.inbound);
+  const outbound = objectValue(messaging.outbound);
+  for (const [label, tool] of [
+    ["messaging poll tool", inbound.pollTool],
+    ["messaging deliver tool", outbound.deliverTool],
+  ] as const)
+    if (typeof tool !== "string" || !EXTERNAL_TOOL_NAME_PATTERN.test(tool))
+      throw new Error(`Invalid ${label}`);
+  if (inbound.pollTool === outbound.deliverTool)
+    throw new Error("Messaging poll and deliver tools must be different");
+  // A tool is hidden from Bots only once; sharing a name across host roles would blur which role it plays.
+  const others = new Set<string>(
+    connectorHostTools({
+      events: connector.events,
+      drafts: connector.drafts,
+      deviceLink: connector.deviceLink,
+    })
+  );
+  for (const tool of [inbound.pollTool, outbound.deliverTool])
+    if (others.has(tool as string)) throw new Error(`Messaging tool is already a host tool: ${String(tool)}`);
+  if (
+    inbound.maxWaitSeconds !== undefined &&
+    (!Number.isInteger(inbound.maxWaitSeconds) ||
+      (inbound.maxWaitSeconds as number) < 0 ||
+      (inbound.maxWaitSeconds as number) > EXTERNAL_POLL_MAX_WAIT_SECONDS)
+  )
+    throw new Error(`Messaging max wait must be 0 to ${EXTERNAL_POLL_MAX_WAIT_SECONDS} seconds`);
+  if (
+    !Number.isInteger(outbound.maxTextChars) ||
+    (outbound.maxTextChars as number) < 1 ||
+    (outbound.maxTextChars as number) > EXTERNAL_OUTBOUND_TEXT_MAX_CHARS
+  )
+    throw new Error(`Messaging maxTextChars must be 1 to ${EXTERNAL_OUTBOUND_TEXT_MAX_CHARS}`);
+  if (outbound.media !== undefined) {
+    const media = objectValue(outbound.media);
+    if (
+      !Array.isArray(media.kinds) ||
+      !media.kinds.length ||
+      new Set(media.kinds).size !== media.kinds.length ||
+      media.kinds.some((kind) => !(EXTERNAL_MEDIA_KINDS as readonly unknown[]).includes(kind))
+    )
+      throw new Error("Invalid messaging media kinds");
+    if (!Number.isInteger(media.maxBytes) || (media.maxBytes as number) < 1)
+      throw new Error("Messaging media maxBytes must be a positive integer");
+  }
+};
 export const PLUGIN_EVENT_SOURCES: readonly PluginEventSource[] = ["email"];
 export const PLUGIN_EVENT_POLL_DEFAULT_SECONDS = 60;
 
@@ -36,6 +96,7 @@ export const PLUGIN_EVENT_POLL_DEFAULT_SECONDS = 60;
 export const connectorHostTools = (connector?: {
   events?: { pollTool?: string };
   drafts?: { tool?: string };
+  messaging?: { inbound?: { pollTool?: string }; outbound?: { deliverTool?: string } };
   deviceLink?: {
     startTool: string;
     finishTool: string;
@@ -45,6 +106,7 @@ export const connectorHostTools = (connector?: {
   };
 }): string[] =>
   [connector?.events?.pollTool, connector?.drafts?.tool,
+    connector?.messaging?.inbound?.pollTool, connector?.messaging?.outbound?.deliverTool,
     ...Object.entries(connector?.deviceLink ?? {})
       .filter(([key]) => key.endsWith("Tool"))
       .map(([, value]) => value),
@@ -310,6 +372,7 @@ export function parsePluginDefinition(value: unknown): PluginDefinition {
           throw new Error(`Invalid device-link tool: ${key}`);
       requireText(link.instructions, "device-link instructions", 2000);
     }
+    if (connector.messaging !== undefined) validateMessaging(connector);
     validateRuntimeAssets(connector.runtimeAssets);
     if (
       connector.persistentState !== undefined &&

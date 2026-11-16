@@ -52,6 +52,39 @@ ALTER TABLE "outcomego_routine" ADD CONSTRAINT "outcomego_routine_exactly_one_ow
 
 ALTER TABLE "outcomego_subagent_attempt" ALTER COLUMN "id" SET DEFAULT gen_random_uuid();
 
+-- External messaging (specs/009). Status vocabularies and lifecycle invariants that Prisma
+-- stores as plain text. A receipt exists only in a terminal state, and a delivery holds a
+-- dispatch lease exactly while it is not terminal.
+ALTER TABLE "outcomego_external_messaging_binding" DROP CONSTRAINT IF EXISTS "outcomego_external_messaging_binding_valid";
+ALTER TABLE "outcomego_external_messaging_binding" ADD CONSTRAINT "outcomego_external_messaging_binding_valid" CHECK (
+  "inboundPolicy" = 'owner_only'
+  AND "status" IN ('active', 'needs_attention')
+  AND ("inboundCursor" IS NULL OR char_length("inboundCursor") <= 2048)
+);
+ALTER TABLE "outcomego_external_channel_mapping" DROP CONSTRAINT IF EXISTS "outcomego_external_channel_mapping_valid";
+ALTER TABLE "outcomego_external_channel_mapping" ADD CONSTRAINT "outcomego_external_channel_mapping_valid" CHECK (
+  "peerType" = 'direct'
+  AND "status" IN ('active', 'archived')
+  AND char_length("peerId") BETWEEN 1 AND 256
+  AND ("displayName" IS NULL OR char_length("displayName") <= 120)
+);
+ALTER TABLE "outcomego_external_message_receipt" DROP CONSTRAINT IF EXISTS "outcomego_external_message_receipt_valid";
+ALTER TABLE "outcomego_external_message_receipt" ADD CONSTRAINT "outcomego_external_message_receipt_valid" CHECK (
+  "status" IN ('accepted', 'rejected')
+  AND ("status" = 'rejected') = ("rejectionCode" IS NOT NULL)
+  AND "payloadHash" ~ '^[0-9a-f]{64}$'
+  AND char_length("providerMessageId") BETWEEN 1 AND 256
+);
+ALTER TABLE "outcomego_external_outbound_delivery" DROP CONSTRAINT IF EXISTS "outcomego_external_outbound_delivery_valid";
+ALTER TABLE "outcomego_external_outbound_delivery" ADD CONSTRAINT "outcomego_external_outbound_delivery_valid" CHECK (
+  "status" IN ('pending', 'sending', 'sent', 'failed', 'uncertain')
+  AND ("errorMessage" IS NULL OR char_length("errorMessage") <= 500)
+  AND (
+    ("status" IN ('pending', 'sending') AND "deliveryLeaseOwner" IS NOT NULL AND "deliveryLeaseExpiresAt" IS NOT NULL)
+    OR ("status" IN ('sent', 'failed', 'uncertain') AND "deliveryLeaseOwner" IS NULL AND "deliveryLeaseExpiresAt" IS NULL)
+  )
+);
+
 -- Trigger functions ------------------------------------------------------------------
 
 CREATE OR REPLACE FUNCTION public.outcomego_notify_event()

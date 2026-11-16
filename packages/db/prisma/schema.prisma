@@ -59,6 +59,7 @@ enum ChannelKind {
   bot_dm
   agent_dm
   group
+  external_dm
   @@map("outcomego_channel_kind")
 }
 
@@ -341,6 +342,9 @@ model Bot {
   contextSessions ContextSession[]
   processSecrets ProcessSecret[]
   bitwardenReadApprovals BitwardenReadApproval[]
+  externalMessagingBindings ExternalMessagingBinding[]
+  externalChannelMappings ExternalChannelMapping[]
+  externalOutboundDeliveries ExternalOutboundDelivery[]
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
 
@@ -631,6 +635,7 @@ model Channel {
   runs        Run[]
   bitwardenReadApprovals BitwardenReadApproval[]
   routines    Routine[]
+  externalMapping ExternalChannelMapping?
   readState   ChannelReadState?
   notifications ChannelNotification[]
   createdAt DateTime         @default(now())
@@ -696,6 +701,8 @@ model ChannelMessage {
   metadata Json                 @default("{}")
   triggeredRound ChannelRound?        @relation("RoundTrigger")
   routineExecution RoutineExecution?  @relation("RoutineTriggerMessage")
+  externalReceipts ExternalMessageReceipt[]
+  externalDelivery ExternalOutboundDelivery?
   createdAt DateTime             @default(now())
 
   @@unique([channelId, clientId], map: "outcomego_channel_message_channel_id_client_id_key")
@@ -909,6 +916,8 @@ model Run {
   updatedAt DateTime     @updatedAt
   voiceTurn      VoiceTurn?   @relation("VoiceTurnRun")
   bitwardenReadApprovals BitwardenReadApproval[]
+  externalReceipts ExternalMessageReceipt[]
+  externalDeliveries ExternalOutboundDelivery[]
 
   @@index([botId, status], map: "outcomego_run_bot_id_status_idx")
   @@index([memoryReviewPending, completedAt], map: "outcomego_run_memory_review_pending_completed_at_idx")
@@ -1194,6 +1203,10 @@ model PluginConnection {
   updatedAt DateTime               @updatedAt
   activities    PluginActivity[]
   invocations   PluginInvocation[]
+  externalMessagingBinding ExternalMessagingBinding?
+  externalChannelMappings ExternalChannelMapping[]
+  externalMessageReceipts ExternalMessageReceipt[]
+  externalOutboundDeliveries ExternalOutboundDelivery[]
 
   @@unique([installationId, connectorKey, alias], map: "outcomego_plugin_connection_identity_key")
   @@index([status, updatedAt], map: "outcomego_plugin_connection_status_updated_at_idx")
@@ -1324,6 +1337,129 @@ model BitwardenReadApproval {
   @@index([sourceRunId, status], map: "outcomego_bitwarden_read_approval_source_run_idx")
   @@index([leaseTokenHash], map: "outcomego_bitwarden_read_approval_lease_idx")
   @@map("outcomego_bitwarden_read_approval")
+}
+
+/// Routes one Connection's inbound messages to one Bot (specs/009). Holds the Server's
+/// acknowledgement cursor, which is separate from any provider cursor kept by the connector.
+model ExternalMessagingBinding {
+  id String @id @default(uuid()) @db.Uuid
+  connectionId String @unique(map: "outcomego_external_messaging_binding_connection_id_key") @db.Uuid
+  connection PluginConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  botId String @db.Uuid
+  bot Bot @relation(fields: [botId], references: [id], onDelete: Cascade)
+  enabled Boolean @default(true)
+  /// Only `owner_only` exists: the connector must prove the sender owns the account.
+  inboundPolicy String @default("owner_only")
+  /// `active` or `needs_attention`.
+  status String @default("active")
+  inboundCursor String?
+  leaseOwner String?
+  leaseExpiresAt DateTime?
+  retryAckCursor String?
+  retryCount Int @default(0)
+  retryFirstAt DateTime?
+  consecutiveFailures Int @default(0)
+  lastPolledAt DateTime?
+  lastAcceptedAt DateTime?
+  lastErrorCode String?
+  lastErrorAt DateTime?
+  rejectedCounts Json @default("{}")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([botId], map: "outcomego_external_messaging_binding_bot_id_idx")
+  @@index([enabled, status, leaseExpiresAt], map: "outcomego_external_messaging_binding_poll_idx")
+  @@map("outcomego_external_messaging_binding")
+}
+
+/// `(connection, peer, bot)` to its `external_dm` Channel. Holds no reply credential.
+model ExternalChannelMapping {
+  id String @id @default(uuid()) @db.Uuid
+  connectionId String @db.Uuid
+  connection PluginConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  botId String @db.Uuid
+  bot Bot @relation(fields: [botId], references: [id], onDelete: Cascade)
+  peerId String
+  platform String
+  peerType String @default("direct")
+  channelId String @unique(map: "outcomego_external_channel_mapping_channel_id_key") @db.Uuid
+  channel Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  /// Display only; never an identity key.
+  displayName String?
+  /// `active` or `archived`.
+  status String @default("active")
+  lastInboundAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  receipts ExternalMessageReceipt[]
+  deliveries ExternalOutboundDelivery[]
+
+  @@unique([connectionId, peerId, botId], map: "outcomego_external_channel_mapping_identity_key")
+  @@index([botId], map: "outcomego_external_channel_mapping_bot_id_idx")
+  @@map("outcomego_external_channel_mapping")
+}
+
+/// Idempotency record for one provider message. Written only in a terminal state.
+model ExternalMessageReceipt {
+  id String @id @default(uuid()) @db.Uuid
+  connectionId String @db.Uuid
+  connection PluginConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  providerMessageId String
+  peerId String
+  /// SHA-256 of the normalized payload, 64 lowercase hex characters.
+  payloadHash String
+  /// `accepted` or `rejected`; there is deliberately no in-progress state.
+  status String
+  rejectionCode String?
+  mappingId String? @db.Uuid
+  mapping ExternalChannelMapping? @relation(fields: [mappingId], references: [id], onDelete: SetNull)
+  channelMessageId String? @db.Uuid
+  channelMessage ChannelMessage? @relation(fields: [channelMessageId], references: [id], onDelete: SetNull)
+  runId String? @db.Uuid
+  run Run? @relation(fields: [runId], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
+
+  @@unique([connectionId, providerMessageId], map: "outcomego_external_message_receipt_provider_key")
+  @@index([createdAt], map: "outcomego_external_message_receipt_created_at_idx")
+  @@map("outcomego_external_message_receipt")
+}
+
+/// One outbound send. Never retried automatically: `failed` means nothing was sent,
+/// `uncertain` means it may have been.
+model ExternalOutboundDelivery {
+  /// Also the `deliveryId` passed to the connector.
+  id String @id @default(uuid()) @db.Uuid
+  /// `external-delivery:<toolCallId>`
+  callId String @unique(map: "outcomego_external_outbound_delivery_call_id_key")
+  connectionId String @db.Uuid
+  connection PluginConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  mappingId String? @db.Uuid
+  mapping ExternalChannelMapping? @relation(fields: [mappingId], references: [id], onDelete: SetNull)
+  botId String @db.Uuid
+  bot Bot @relation(fields: [botId], references: [id], onDelete: Cascade)
+  runId String? @db.Uuid
+  run Run? @relation(fields: [runId], references: [id], onDelete: SetNull)
+  channelMessageId String @unique(map: "outcomego_external_outbound_delivery_channel_message_id_key") @db.Uuid
+  channelMessage ChannelMessage @relation(fields: [channelMessageId], references: [id], onDelete: Cascade)
+  /// `pending`, `sending`, `sent`, `failed` or `uncertain`.
+  status String @default("pending")
+  errorCode String?
+  errorMessage String?
+  /// Allow-listed provider result: `providerMessageIds` and `note` only.
+  providerResult Json?
+  startedAt DateTime?
+  completedAt DateTime?
+  /// Unique per dispatch operation; cleared in a terminal state.
+  deliveryLeaseOwner String?
+  /// Database-clock deadline, renewed while staging media and calling the connector.
+  deliveryLeaseExpiresAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, deliveryLeaseExpiresAt], map: "outcomego_external_outbound_delivery_recovery_idx")
+  @@index([mappingId, createdAt], map: "outcomego_external_outbound_delivery_mapping_idx")
+  @@index([connectionId, status], map: "outcomego_external_outbound_delivery_connection_idx")
+  @@map("outcomego_external_outbound_delivery")
 }
 
 model User {

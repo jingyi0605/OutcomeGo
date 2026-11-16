@@ -10,3 +10,4 @@ export * from "./icons";
 export * from "./templates";
 export * from "./runtime-components";
 export * from "./upstream";
+export * from "./messaging-limits";

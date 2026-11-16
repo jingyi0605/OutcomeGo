@@ -123,7 +123,7 @@ export type RunStatus = typeof RunStatus.Type;
 export const MessageRole = Schema.Literal("user", "assistant", "system");
 export type MessageRole = typeof MessageRole.Type;
 
-export const ChannelKind = Schema.Literal("bot_dm", "agent_dm", "group");
+export const ChannelKind = Schema.Literal("bot_dm", "agent_dm", "group", "external_dm");
 export type ChannelKind = typeof ChannelKind.Type;
 
 export const ChannelMessageSender = Schema.Literal("user", "agent", "system");

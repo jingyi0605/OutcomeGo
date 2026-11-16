@@ -102,6 +102,27 @@ export interface PluginDeviceLink {
   removeTool: string;
   instructions: string;
 }
+/** Packaged connectors only. Chat-style messaging: the host polls `inbound.pollTool` for
+ * messages from the account owner and sends Bot replies through `outbound.deliverTool`.
+ * Both tools stay hidden from Bots. Requires `persistentState`. See specs/009. */
+export interface PluginMessaging {
+  /** Address prefix and display key, e.g. `wechat`. Matches ^[a-z0-9][a-z0-9_.-]{0,39}$. */
+  platform: string;
+  inbound: {
+    pollTool: string;
+    /** Longest time the poll tool may hold a call open, 0 to 25 seconds. Defaults to 20. */
+    maxWaitSeconds?: number;
+  };
+  outbound: {
+    deliverTool: string;
+    /** Per-delivery text limit; the connector splits longer text itself. */
+    maxTextChars: number;
+    media?: {
+      kinds: Array<"image" | "video" | "audio" | "file">;
+      maxBytes: number;
+    };
+  };
+}
 export interface PluginConnectorDefinition {
   key: string;
   name: string;
@@ -115,6 +136,7 @@ export interface PluginConnectorDefinition {
   drafts?: PluginDraftSending;
   runtimeAssets?: PluginRuntimeAsset[];
   deviceLink?: PluginDeviceLink;
+  messaging?: PluginMessaging;
   persistentState?: boolean;
   oauth?: {
     clientType: "public" | "confidential";

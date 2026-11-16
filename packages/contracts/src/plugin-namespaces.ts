@@ -39,6 +39,11 @@ const manifestHostTools = (manifest: unknown, connectorKey: string): Set<string>
     if (typeof events.pollTool === "string") tools.add(events.pollTool as string);
     const drafts = record(value.drafts);
     if (typeof drafts.tool === "string") tools.add(drafts.tool as string);
+    const messaging = record(value.messaging);
+    const pollTool = record(messaging.inbound).pollTool;
+    const deliverTool = record(messaging.outbound).deliverTool;
+    if (typeof pollTool === "string") tools.add(pollTool);
+    if (typeof deliverTool === "string") tools.add(deliverTool);
   }
   return tools;
 };
