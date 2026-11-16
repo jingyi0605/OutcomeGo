@@ -344,8 +344,6 @@ jobs:
             dist/core/outcomego-linux-arm64 \
             dist/core/outcomego-linux-x64 \
             dist/core/outcomego-windows-x64.exe
-      - name: Add legacy CLI asset aliases for existing server updaters
-        run: bun scripts/release/create-legacy-cli-aliases.ts dist/core
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: core

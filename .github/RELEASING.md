@@ -1,5 +1,9 @@
 # Releasing OutcomeGo
 
+本地原生检查、GitHub 原生架构验证、Computer 预构建基础镜像、跨版本 digest 复用和旧 CLI 附件退出策略见 [20261116-发布镜像构建优化](20261116-发布镜像构建优化.md)。常规预检不再导出完整多架构 OCI archive。
+
+从下一版本开始，Release 只上传 `outcomego-*` CLI 资产，不再生成 `aiteamos-*` 兼容别名；历史 Release 的附件不变。安装器和本地命令入口仍按现有兼容策略运行。
+
 Releases are built by `.github/workflows/release.yml`. Pushing a tag builds every artifact and
 publishes one GitHub Release. The workflow file must keep its name: the CLI only trusts
 signatures whose certificate identity is `.github/workflows/release.yml@refs/tags/v<version>`.

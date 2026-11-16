@@ -51,11 +51,9 @@ requireText(constants, 'DEFAULT_IMAGE_PREFIX = "ghcr.io/jingyi0605/ai-teamos"', 
 requireText(release, '/ai-teamos"', "release GHCR identity");
 requireText(release, "apps/cli/release/*", "CLI intermediate artifact upload");
 requireText(release, "outcomego-linux-x64.gz", "versionless CLI release asset");
-requireText(
-  release,
-  "create-legacy-cli-aliases.ts dist/core",
-  "legacy CLI updater asset aliases"
-);
+if (release.includes("aiteamos-") || release.includes("create-legacy-cli-aliases")) {
+  fail("the next release must not generate legacy aiteamos-* CLI assets");
+}
 requireText(release, "OutcomeGo-$VERSION-android.apk", "versioned Android release asset");
 requireText(release, "apps/desktop/release/aiTeamOS-*", "desktop release asset prefix retained for updater metadata");
 requireText(desktop, '"artifactName": "aiTeamOS-${version}-${os}-${arch}.${ext}"', "desktop artifact prefix retained for updater metadata");
