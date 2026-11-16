@@ -133,7 +133,7 @@
     "dev": "concurrently -k --success first -n renderer,electron \"vite\" \"bun run scripts/dev-electron.ts\"",
     "start": "electron .",
     "typecheck": "bun run scripts/check-renderer-boundary.ts && tsc -p tsconfig.json",
-    "test": "bun test --pass-with-no-tests",
+    "test": "bun test --pass-with-no-tests --isolate",
     "test:code-rendering": "bun scripts/test-code-rendering.ts",
     "test:scroll-stress": "bun scripts/test-scroll-stress.ts",
     "test:conversation-layout": "bun scripts/test-conversation-layout.ts",
