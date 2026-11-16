@@ -771,7 +771,6 @@ function ConnectionSettingsRow({
   onConfigureToken,
   onConfigureValues,
   onInstructions,
-  onRemove,
   onRename,
   onRestart,
 }: {
@@ -784,7 +783,6 @@ function ConnectionSettingsRow({
   onConfigureToken: (token: string) => void;
   onConfigureValues?: (values: Record<string, string>) => void;
   onInstructions: (instructions: string) => void;
-  onRemove: () => void;
   onRename: (alias: string) => void;
   onRestart: () => void;
 }) {
@@ -1090,14 +1088,6 @@ function ConnectionSettingsRow({
           </button>
         </div>
       ) : null}
-      <button
-        className="mt-3 text-[10.5px] text-red-600 hover:underline dark:text-red-400"
-        disabled={busy}
-        onClick={onRemove}
-        type="button"
-      >
-        {t("Remove account")}
-      </button>
     </div>
   );
 }
@@ -1432,7 +1422,6 @@ export function PluginDetail({
                   onConfigureToken={(token) => onConfigureToken(connection, token)}
                   onConfigureValues={(values) => onConfigureValues(connection, values)}
                   onInstructions={(instructions) => onInstructions(connection, instructions)}
-                  onRemove={() => onRemoveAccount(connection)}
                   onRename={(alias) => onRename(connection, alias)}
                   onRestart={() => onRestart(connection)}
                 />
