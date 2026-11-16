@@ -8,12 +8,15 @@ export function startHostBridgeDiscovery(
   options: {
     intervalMs?: number;
     configurationPath?: string;
+    configurationPaths?: string[];
     helper?: string;
     apply?: () => Promise<void>;
   } = {}
 ) {
-  const configurationPath =
-    options.configurationPath ?? "/home/box/.config/openteam/imessage-bridge.json";
+  const configurationPaths = options.configurationPaths ?? [
+    options.configurationPath ?? "/home/box/.config/openteam/imessage-bridge.json",
+    "/home/box/.pi/agent/models.json",
+  ];
   const controller = new AbortController();
   let stopped = false,
     pending = false,
@@ -31,7 +34,7 @@ export function startHostBridgeDiscovery(
             "--host-bridge",
             serverUrl,
           ],
-          { timeout: 3000, signal: controller.signal, env: { PATH: process.env.PATH } },
+          { timeout: 10_000, signal: controller.signal, env: { PATH: process.env.PATH } },
           (error) => (error ? reject(new Error("Host bridge route unavailable")) : resolve())
         );
       }));
@@ -39,14 +42,22 @@ export function startHostBridgeDiscovery(
     if (stopped || pending) return;
     pending = true;
     try {
-      const metadata = await lstat(configurationPath).catch((error: NodeJS.ErrnoException) => {
-        if (error.code === "ENOENT" || error.code === "ENOTDIR") return undefined;
-        throw error;
-      });
+      const metadata = await Promise.all(
+        configurationPaths.map((path) =>
+          lstat(path).catch((error: NodeJS.ErrnoException) => {
+            if (error.code === "ENOENT" || error.code === "ENOTDIR") return undefined;
+            throw error;
+          })
+        )
+      );
       if (stopped) return;
       const signature = metadata
-        ? `${metadata.dev}:${metadata.ino}:${metadata.mode}:${metadata.size}:${metadata.mtimeMs}:${metadata.ctimeMs}`
-        : "missing";
+        .map((item) =>
+          item
+            ? `${item.dev}:${item.ino}:${item.mode}:${item.size}:${item.mtimeMs}:${item.ctimeMs}`
+            : "missing"
+        )
+        .join("|");
       if (signature !== previous) {
         await apply();
         if (stopped) return;

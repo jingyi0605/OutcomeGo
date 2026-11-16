@@ -177,6 +177,9 @@ const server = Bun.serve({
   idleTimeout: 255,
   async fetch(request, requestServer) {
     const url = new URL(request.url);
+    if (url.pathname === "/health/live") {
+      return json({ status: "ready" });
+    }
     if (url.pathname === "/health" || url.pathname === "/health/authenticated") {
       if (url.pathname === "/health/authenticated" && !authorized(request))
         return json({ error: "unauthorized" }, 401);
@@ -206,6 +209,13 @@ const server = Bun.serve({
     }
     if (!authorized(request)) return json({ error: "unauthorized" }, 401);
     if (url.pathname === "/v1/browser-network" && request.method === "GET") return json(browserNetwork.status());
+    if (url.pathname === "/v1/computer-network-policy" && request.method === "GET")
+      return json(browserNetwork.status().policy ?? {
+        state: "pending",
+        appliedRevision: null,
+        modelEndpointCount: 0,
+        error: null,
+      });
 
     try {
       if (url.pathname === "/v1/browser-network/quality" && request.method === "POST") {

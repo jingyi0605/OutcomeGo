@@ -273,6 +273,75 @@ test("sustained outages retain backoff but a listening relay recovers within the
   }
 }, 18000);
 
+test("lease expiry closes a stale transport and reconnects", async () => {
+  let opens = 0;
+  let sequence = 0;
+  let respond = true;
+  const server = Bun.serve({
+    hostname: "127.0.0.1",
+    port: 0,
+    fetch(request, server) {
+      if (!server.upgrade(request)) return new Response(null, { status: 400 });
+    },
+    websocket: {
+      open() {
+        opens++;
+        if (opens >= 2) respond = true;
+      },
+      message(socket, bytes) {
+        if (typeof bytes === "string") return;
+        if (!respond) return;
+        const frame = decodeFrame(new Uint8Array(bytes));
+        if (frame.type !== FrameType.Control) return;
+        const message = parseJson(frame.payload);
+        if (message.op !== "lease") return;
+        socket.send(
+          encodeFrame(
+            FrameType.Control,
+            0,
+            jsonBytes({
+              sequence: ++sequence,
+              op: "lease",
+              nonce: message.nonce,
+              route: {
+                deploymentId: "fixture",
+                revision: 1,
+                mode: "server",
+                machineId: null,
+                sourceOrder: ["server"],
+                available: true,
+                epoch: `epoch-${opens}`,
+              },
+            })
+          )
+        );
+      },
+    },
+  });
+  const client = new BrowserNetworkClient({
+    role: "computer",
+    url: `ws://127.0.0.1:${server.port}`,
+    headers: {},
+  });
+  try {
+    client.start();
+    for (let i = 0; i < 200 && !client.available(); i++) await Bun.sleep(5);
+    expect(client.available()).toBe(true);
+    const firstEpoch = client.route?.epoch;
+    // Stop responding to lease renewals. The stale socket must expire, close,
+    // and reconnect before the client becomes available again.
+    respond = false;
+    for (let i = 0; i < 2400 && (!client.available() || client.route?.epoch === firstEpoch); i++)
+      await Bun.sleep(5);
+    expect(opens).toBeGreaterThanOrEqual(2);
+    expect(client.available()).toBe(true);
+    expect(client.route?.epoch).not.toBe(firstEpoch);
+  } finally {
+    client.stop();
+    server.stop(true);
+  }
+}, 15000);
+
 test("TLS early close retries the next resolved address and replays the ClientHello", async () => {
   const first = createServer((socket) => {
     socket.on("data", () => socket.destroy());

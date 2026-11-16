@@ -178,7 +178,8 @@ export class BrowserNetworkService {
     }, 250);
     this.timer.unref();
   }
-  private async load() {
+  private async load(refresh = false) {
+    if (this.settings && !refresh) return this.settings;
     const next = await this.store.read();
     // An older DB read must not undo a selection accepted while it was in flight.
     if (
@@ -258,7 +259,7 @@ export class BrowserNetworkService {
     const result = this.mutation.then(async () => {
       for (let attempt = 0; attempt < 4; attempt++) {
         if (this.devices.get(peer.machineId!) !== peer) return;
-        const settings = await this.load();
+        const settings = await this.load(true);
         if (settings.sourceOrder.includes(peer.machineId!)) return;
         if (settings.sourceOrder.length >= 17) return;
         const order = [...settings.sourceOrder];
@@ -323,7 +324,7 @@ export class BrowserNetworkService {
       checkedAt: 0,
     };
     await this.validate(peer);
-    await this.load();
+    await this.load(true);
     if (
       server.upgrade(request, {
         data: peer,
@@ -575,7 +576,7 @@ export class BrowserNetworkService {
     },
   };
   async view(): Promise<BrowserNetworkView> {
-    const settings = await this.load(),
+    const settings = await this.load(true),
       roster = await this.machines.list();
     const applied = !!this.computer && this.live(this.computer);
     const provider =
@@ -618,7 +619,7 @@ export class BrowserNetworkService {
   async egress<T extends Pick<NetworkEgress, "epoch" | "sourceId">>(
     probe: () => Promise<T>
   ): Promise<T> {
-    await this.load();
+    await this.load(true);
     const epoch = this.epoch,
       source = this.activeSource;
     if (!this.computer || !this.live(this.computer) || !source || !this.eligible(source))
@@ -672,7 +673,7 @@ export class BrowserNetworkService {
           !validSourceOrder(input.sourceOrder, input.mode === "ranked"))
       )
         throw new ApiError(400, "network_input_invalid", "Choose a network source");
-      const settings = await this.load();
+      const settings = await this.load(true);
       if (settings.revision !== input.expectedRevision)
         throw new ApiError(
           409,

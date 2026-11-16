@@ -253,6 +253,25 @@ export class BrowserNetworkClient {
     ws?.terminate();
     this.options.changed?.();
   }
+  private scheduleReconnect() {
+    if (this.stopped || this.retry) return;
+    this.retry = setTimeout(
+      () => {
+        this.retry = undefined;
+        this.connect();
+      },
+      Math.min(RECONNECT_MAX_MS, 1000 * 2 ** Math.min(this.attempt++, 10)) *
+        (0.8 + Math.random() * 0.4)
+    );
+    this.retry.unref?.();
+  }
+  reconnect(reason: NetworkDiagnostic["reason"] = "route_invalidated") {
+    if (this.stopped) return;
+    clearTimeout(this.retry);
+    this.retry = undefined;
+    this.disconnect(reason);
+    this.scheduleReconnect();
+  }
   available() {
     return (
       !!this.route?.available && performance.now() < this.expires && !!this.mux && !this.mux.closed
@@ -401,10 +420,14 @@ export class BrowserNetworkClient {
           this.transitionUntil = 0;
           this.releaseRouteWaiters(false);
           const previous = this.route;
-          this.route = null;
-          this.expires = 0;
-          this.fence("lease_expired", previous);
-          this.options.changed?.();
+          this.disconnect("lease_expired");
+          if (previous) (this.options.diagnostic as NetworkDiagnosticSink | undefined)?.({
+            event: "lease_expired",
+            epoch: previous.epoch,
+            mode: previous.mode,
+          });
+          this.scheduleReconnect();
+          return;
         }
         if (performance.now() - lastRenew >= RENEW_MS) {
           lastRenew = performance.now();
@@ -437,14 +460,7 @@ export class BrowserNetworkClient {
         mode: this.route?.mode,
       });
       this.disconnect();
-      if (!this.stopped) {
-        this.retry = setTimeout(
-          () => this.connect(),
-          Math.min(RECONNECT_MAX_MS, 1000 * 2 ** Math.min(this.attempt++, 10)) *
-            (0.8 + Math.random() * 0.4)
-        );
-        this.retry.unref?.();
-      }
+      this.scheduleReconnect();
     });
   }
   private assertRoute(target: OpenTarget) {

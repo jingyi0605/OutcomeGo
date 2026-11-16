@@ -13,6 +13,7 @@ import {
 import { runOrdinaryProbe, probeComputerNetwork } from "./computer-network-probe";
 import { startManagementDiscovery } from "./computer-network-management";
 import { startHostBridgeDiscovery } from "./computer-network-host-bridge";
+import { startComputerNetworkPolicy } from "./computer-network-policy";
 import {
   startNetworkConnectivity,
   probeNetworkFamily,
@@ -55,10 +56,20 @@ const diagnostics = new Set<AbortController>();
 let diagnosticEpoch: string | undefined;
 let dnsExchange: ReturnType<typeof createDnsExchange> | undefined;
 let connectivity: ReturnType<typeof startNetworkConnectivity> | undefined;
+let policy: ReturnType<typeof startComputerNetworkPolicy> | undefined;
+let managementReady = !config.computerNetwork;
+let policyReady = !config.computerNetwork;
+let clientStarted = false;
+const startClient = () => {
+  if (clientStarted || !managementReady || !policyReady) return;
+  clientStarted = true;
+  client.start();
+};
 const statusView = () => ({
   ...client.status(),
   routeEpoch: client.route?.epoch,
   connectivity: connectivity?.status(),
+  policy: policy?.status(),
 });
 // The computer can only serve the IPv6 destinations its own exit can route.
 // Device exits resolve and dial on the device, so they keep their own AAAA results.
@@ -145,10 +156,25 @@ dnsExchange = config.computerNetwork
   : undefined;
 const dns = dnsExchange ? await startComputerDns(dnsExchange) : undefined;
 const management = config.computerNetwork
-  ? startManagementDiscovery(config.serverUrl, () => client.start())
+  ? startManagementDiscovery(config.serverUrl, () => {
+      managementReady = true;
+      startClient();
+    })
   : undefined;
 const hostBridge = config.computerNetwork ? startHostBridgeDiscovery(config.serverUrl) : undefined;
-if (!config.computerNetwork) client.start();
+policy = config.computerNetwork
+  ? startComputerNetworkPolicy({
+      serverUrl: config.serverUrl,
+      token: config.token,
+      applied: () => {
+        const wasReady = policyReady;
+        policyReady = true;
+        if (clientStarted && wasReady) client.reconnect("route_invalidated");
+        else startClient();
+      },
+    })
+  : undefined;
+if (!config.computerNetwork) startClient();
 const egress = createEgressProbe(client);
 const quality = createQualityProbe(client);
 const checking = new Set<string>();
@@ -227,6 +253,7 @@ shutdown = () => {
   clearInterval(status);
   management?.stop();
   hostBridge?.stop();
+  policy?.stop();
   for (const diagnostic of diagnostics) diagnostic.abort();
   dns?.close();
   dnsExchange?.close();

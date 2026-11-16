@@ -1718,6 +1718,10 @@ export class WakeWorker {
       headers: {
         authorization: `Bearer ${this.controlToken}`,
         "content-type": "application/json",
+        // Reconciliation must recover cleanly after the computer firewall or
+        // container route is recreated; stale pooled sockets can otherwise
+        // turn a transient disconnect into repeated timeouts.
+        connection: "close",
         ...init.headers,
       },
       signal: init.signal ?? AbortSignal.timeout(10_000),

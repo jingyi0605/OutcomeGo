@@ -326,6 +326,15 @@ test("network diagnostics distinguish a revoked route from an upstream reset", a
   expect(f.computerDiagnostics).toContainEqual(expect.objectContaining({ event: "route_fenced", epoch, mode: "device", activeConnections: 1 }));
   peer.stop();
 });
+
+test("lease renewals use cached settings instead of waiting on the database", async () => {
+  const f = await fixture();
+  f.failReads(1);
+  await Bun.sleep(LEASE_MS + 500);
+  expect(f.computer.available()).toBe(true);
+  expect(f.computer.route?.mode).toBe("server");
+}, 10_000);
+
 async function roundTrip(client: BrowserNetworkClient, payload: Buffer) {
   const stream = await client.open("desktop-only.example", 443);
   const received: Buffer[] = [];

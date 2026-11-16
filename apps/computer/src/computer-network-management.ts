@@ -43,7 +43,7 @@ export function startManagementDiscovery(
             serverUrl,
             JSON.stringify(addresses),
           ],
-          { timeout: 3000, signal: controller.signal, env: { PATH: process.env.PATH } },
+          { timeout: 10_000, signal: controller.signal, env: { PATH: process.env.PATH } },
           (error) => (error ? no(new Error("Management route unavailable")) : yes())
         );
       }));

@@ -7,6 +7,7 @@ import { randomUUID } from "node:crypto";
 import { spawn, type ChildProcess } from "node:child_process";
 import { join } from "node:path";
 import { existsSync, readFileSync } from "node:fs";
+import { isIP } from "node:net";
 import { createNetworkDiagnostics, sanitizeNetworkDiagnostic } from "@outcomego/plugin-sdk/browser-network/diagnostics";
 import { nodeBinary } from "./node-runtime";
 
@@ -65,6 +66,7 @@ export async function startBrowserNetwork(serverUrl: string, token: string) {
     activeConnections: number;
     dns?: NetworkDnsDiagnostic;
   } = { ready: false, mode: null, activeConnections: 0 };
+  let policy: unknown = undefined;
   const ensureTun = async () => {
     if (!computerNetwork) return;
     if (!tun || tun.exitCode !== null || tun.signalCode !== null || !tun.pid) {
@@ -133,6 +135,18 @@ export async function startBrowserNetwork(serverUrl: string, token: string) {
         env: {
           PATH: process.env.PATH,
           ...(computerNetwork ? { LD_PRELOAD: "/usr/lib/outcomego/lib/network-mark.so" } : {}),
+          ...(() => {
+            if (!computerNetwork) return {};
+            const server = new URL(serverUrl);
+            const host = server.hostname;
+            if (isIP(host) !== 4) return {};
+            return {
+              OUTCOMEGO_NETWORK_CONTROL_IPV4: host,
+              OUTCOMEGO_NETWORK_CONTROL_PORT: String(
+                server.port || (server.protocol === "https:" ? 443 : 80)
+              ),
+            };
+          })(),
         },
         stdio: ["pipe", "pipe", "pipe"],
       });
@@ -160,6 +174,7 @@ export async function startBrowserNetwork(serverUrl: string, token: string) {
             const value = JSON.parse(line);
             const event = sanitizeNetworkDiagnostic(value.diagnostic);
             if (event) logNetwork(event);
+            if (value.policy !== undefined) policy = value.policy;
             if (value.started && !started) {
               started = true;
               clearTimeout(timeout);
@@ -257,12 +272,14 @@ export async function startBrowserNetwork(serverUrl: string, token: string) {
   return {
     status: () => ({
       ...state,
+      policy,
       ready:
         state.ready &&
         (!computerNetwork || (!!tun?.pid && tun.exitCode === null && tun.signalCode === null)),
     }),
     egress: () => diagnostic<NetworkEgress>("egress"),
     quality: () => diagnostic<NetworkQuality>("quality"),
+    policy: () => policy,
     close: async () => {
       stopping = true;
       failProbes();
