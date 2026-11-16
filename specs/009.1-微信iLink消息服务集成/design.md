@@ -32,7 +32,7 @@
 - 连接方式：host-only `deviceLink` 生命周期工具，契约见 `packages/plugin-sdk/src/types.ts` 的 `PluginDeviceLink`。
 - 与 Server 的消息契约：Spec 009 的 `messaging` manifest 块与 `packages/plugin-sdk/src/messaging.ts`。
 - 外部依赖：`https://ilinkai.weixin.qq.com`（业务）、`https://novac2c.cdn.weixin.qq.com/c2c`（媒体 CDN）。
-- 协议参考：`Tencent/openclaw-weixin`（MIT），具体版本在任务 1.2 固定。本实现是独立编写，不复制其源码。
+- 协议参考：`Tencent/openclaw-weixin`（MIT），具体版本在任务 1.2 固定；真实行为在任务 1.5 按能力探测。本实现是独立编写，不复制其源码。
 - 运行时：Bun；加解密使用 `node:crypto`，不引入新依赖。
 
 ### 1.4 与 WhatsApp connector 的对照
@@ -43,7 +43,7 @@
 | 入站 | 无；Bot 主动查询历史 | 后台长轮询加落盘队列，由 Spec 009 轮询 |
 | 外发 | Bot 直接调用 `send_text`、`send_file` | host-only 的 deliver 工具，由 Spec 009 调用 |
 | 设备链接 | `whatsapp_*_link` 五个 host-only 工具 | `wechat_*_link` 五个 host-only 工具，同一契约 |
-| Bot 可见工具 | 二十余个读写工具 | 只有 `connection_status` |
+| Bot 可见工具 | 二十余个读写工具 | 只读的 `connection_status`、`list_peers` |
 
 ## 2. 架构
 
@@ -80,7 +80,7 @@ flowchart LR
 ```
 
 - **用户入口**：微信手机客户端与 OpenTeam 桌面端的插件连接设置。
-- **数据流向（入站）**：iLink → `ReceiveLoop` → 媒体下载解密 → `Spool` → poll 工具 → Spec 009。
+- **数据流向（入站）**：iLink → 持久化当前批次 → `ReceiveLoop` → 媒体下载解密 → `Spool` → poll 工具 → Spec 009。
 - **数据流向（外发）**：Spec 009 → deliver 工具 → `WechatDeliverer` →（媒体加密上传）→ iLink。
 
 ### 2.2 模块职责
@@ -92,7 +92,7 @@ flowchart LR
 | 无损 JSON | `connector/json.ts` | 保留 64 位整数的解析 | 响应文本 | 对象（大整数为字符串） |
 | `StateStore` | `connector/state.ts` | 版本化状态文件的原子读写 | 状态对象 | 落盘文件 |
 | `WechatAccount` | `connector/account.ts` | 账户状态机、二维码流程、会话过期处理、接收循环的启停 | 工具调用、API 结果 | 状态、事件 |
-| `ReceiveLoop` | `connector/receive.ts` | 长轮询、过滤、标准化、入队、保存 provider 游标、退避、背压 | provider 消息 | 队列项 |
+| `ReceiveLoop` | `connector/receive.ts` | 长轮询、批次持久化与恢复、过滤、标准化、入队、保存 provider 游标、退避、背压 | provider 消息 | 队列项 |
 | `Spool` | `connector/spool.ts` | 入站落盘队列、去重、确认删除、等待通知 | `ExternalMessage` | 带 `ackCursor` 的消息 |
 | `WechatMedia` | `connector/media.ts` | CDN 下载上传、AES-128-ECB、exchange 文件校验 | 媒体引用或 exchange 文件 | 明文文件或媒体引用 |
 | `WechatDeliverer` | `connector/deliver.ts` | 会话令牌、窗口、分片、限速、幂等日志、结果归类 | `ExternalDeliverInput` | `ExternalDeliverResult` |
@@ -112,8 +112,8 @@ flowchart LR
    - 已确认：进入第 4 步。
 4. 确认后按顺序执行：
    1. 校验返回的基座地址。
-   2. 与已有账户比较 `ilink_bot_id` 和 `ilink_user_id`：不同则重建 `Spool`（生成新的 `queueId`，清空 exchange）。
-   3. 原子写入 `account.json`，删除 `cursor.json` 和 `contexts.json`。
+   2. 停止旧接收循环并完成已持久化批次的本地入队后，再替换凭据。与已有账户比较 `ilink_bot_id` 和 `ilink_user_id`：不同则重建 Spool（生成新 queueId，清空 exchange、peer 目录和旧恢复日志）。
+   3. 原子写入 account.json，删除 cursor.json；同一账户保留已观察 peer 元数据，只清除各 peer 的 contextToken 和 receivedAt。清理旧批次完成后才启动新 token 的 getupdates，不能重用旧 token 对应的 provider 游标。
    4. 状态进入 `bootstrapping`，调用 `notifystart`（失败只记录警告），启动 `ReceiveLoop`，进入 `ready`。
 5. `wechat_link_status`：返回当前链接状态；二维码刷新后返回同一 `sessionId` 和新的图片与 `challengeGeneration`。
 6. `wechat_cancel_link`：停止后台任务，清除临时二维码状态；已有的有效凭据和正在运行的接收循环不受影响。
@@ -127,18 +127,19 @@ flowchart LR
 
 1. **背压检查**：队列条数达到 500 或 exchange 入站占用达到 1 GiB 时进入 `backlogged`，每 5 秒复查，回落到 80% 以下后继续。
 2. **长轮询**：`getupdates({ get_updates_buf, base_info })`，客户端超时取上一轮响应的 `longpolling_timeout_ms`（缺省 35 秒）加 5 秒。客户端超时视为空结果。
-3. **逐条处理**（按返回顺序）：
+3. **先写恢复日志**：在下载媒体或更新任何业务状态前，把本批处理必需的 provider 消息字段（含回复和媒体凭据）、新旧 provider 游标、接收时间、账户与 queueId、version 写入 `receive-journal.json`（临时文件、fsync、原子改名、父目录 fsync），权限 0600；不保存请求头或无关响应字段。恢复日志只存在 connector 私有状态目录，不进入工具结果、日志或 Server 数据库。
+4. **逐条处理**（按返回顺序）：
    1. bot 自身发出的消息、带 `group_id` 的消息：丢弃并计数。
-   2. 更新该发送者的会话令牌和接收时间（即使后续判定为重复也更新，令牌以最新为准）。
-   3. `message_id` 已在队列的近期集合中：跳过。
+   2. 持久化该 direct peer 的最近观察时间和所有者标记；有新会话令牌时更新令牌和接收时间。恢复时使用日志原始接收时间，重复恢复不能延长会话窗口；缺少令牌的消息不覆盖已有有效令牌。
+   3. `message_id` 已在队列去重集合中：跳过。当前恢复日志涉及的 id 在批次提交并清理日志前不能因 Server 已确认而从去重记录中移除；重启从 spool 日志重建该集合。
    4. 标准化（§3.2.5）并处理媒体（§2.3.4）。没有文本、没有媒体也没有媒体失败的消息：丢弃并计数。
    5. 追加到 `Spool` 并刷盘，通知挂起的 poll 调用。
-4. **保存 provider 游标**：本批全部入队后，把响应中的新 `get_updates_buf`（非空时）原子写入 `cursor.json`。
-5. **失败处理**：
+5. **提交批次**：本批全部完成后，把响应中的新 `get_updates_buf`（非空时）原子写入 `cursor.json` 并刷盘，再删除恢复日志并刷父目录，最后允许压缩该批去重记录。只有提交完成才能发起下一轮 getupdates。重启时先重放匹配当前账户和 queueId 的恢复日志，即使 cursor 已保存也先恢复再提交；去重保证 Server 已确认的条目不重新入队。账户更换时同步清除旧日志。
+6. **失败处理**：
    - 网络错误、HTTP 5xx、业务返回非零：等待 2 秒重试；连续 3 次失败后每次等待 30 秒；状态为 `recovering`，成功一次即回到 `ready`。
    - `-14`：按 §2.3.5 处理。
 
-"先入队后保存游标"保证：在两步之间崩溃时，若 provider 重放则由第 3.3 步去重，若不重放则消息已在队列中。两种情况都不丢、不重。
+"先写恢复日志、再入队、最后保存游标"保证：在媒体处理、入队或保存游标之间崩溃时，重启可以从恢复日志继续；队列去重保证已经完成的条目不会重复入队。恢复日志写入前的网络响应不属于可恢复边界。若本地写入失败，停止拉取，不更新 provider 游标；恢复日志处理失败时保留它，重启或退避后继续同一批次。
 
 #### 2.3.3 poll 工具
 
@@ -221,7 +222,7 @@ iLink 的 `-14` 在不同接口上含义不同，按接口区分处理：
 
 - `WechatApi`：唯一发起 iLink 业务请求的地方。构造参数包含 `fetch`、基座地址和主机校验函数，测试时注入 simulator；产品入口固定使用内置的校验函数。
 - `WechatAccount`：单一所有者，串行化二维码流程、状态迁移和循环启停。
-- `ReceiveLoop`：只读 `WechatApi`，只写 `Spool`、`contexts.json` 和 `cursor.json`。
+- `ReceiveLoop`：只读 `WechatApi`，只写恢复日志、`Spool`、`contexts.json` 和 `cursor.json`。
 - `Spool`：进程内有索引，磁盘上为追加日志加定期压缩；对外只暴露 `append`、`ack`、`read`、`waitForAppend`、`stats`。
 - `WechatDeliverer`：串行执行外发，保证同一时刻只有一个 Delivery 在发送。
 - `WechatMedia`：两个方向的媒体处理和 exchange 目录的路径约束。
@@ -236,7 +237,8 @@ iLink 的 `-14` 在不同接口上含义不同，按接口区分处理：
 $OPENTEAM_PLUGIN_STATE_DIR/
   account.json        凭据与账户标识（0600）
   cursor.json         provider 游标
-  contexts.json       peer → 会话令牌
+  contexts.json       peer → 会话令牌、最近观察时间和展示名
+  receive-journal.json  当前待处理 provider 批次（0600）
   spool/
     meta.json         queueId、下一个 seq
     journal.ndjson    追加日志（append、ack 记录）
@@ -266,8 +268,11 @@ $OPENTEAM_PLUGIN_STATE_DIR/
 | 文件 | 字段 | 说明 |
 | --- | --- | --- |
 | `cursor.json` | `getUpdatesBuf` | 不透明字符串，原样保存，不解码不修改 |
-| `contexts.json` | `peers[peerId].contextToken` | 最近一次入站消息的会话令牌 |
-| `contexts.json` | `peers[peerId].receivedAt` | 该令牌的接收时间，用于窗口判断 |
+| `contexts.json` | `peers[peerId].contextToken` | 可选；最近一次存在令牌的入站消息所带值 |
+| `contexts.json` | `peers[peerId].receivedAt` | 可选；该令牌的原始接收时间，用于窗口判断 |
+| `contexts.json` | `peers[peerId].isAccountOwner` | 是否为扫码账户所有者；只读列表展示 |
+| `contexts.json` | `peers[peerId].lastObservedAt` | 最近观察到该 peer 的时间，用于列表展示 |
+| `contexts.json` | `peers[peerId].displayName` | 可选展示名；缺失时列表使用固定 WeChat user |
 
 #### 3.2.4 队列项
 
@@ -291,12 +296,12 @@ $OPENTEAM_PLUGIN_STATE_DIR/
 | `sender.id` | `from_user_id` | — |
 | `sender.isAccountOwner` | `from_user_id === ilinkUserId` | 判定依据见探测项 P2 |
 | `text` | 文本项按顺序拼接；语音转写文字并入 | 项之间以换行分隔 |
-| `occurredAt` | `create_time_ms` | 缺失时用入队时间 |
+| `occurredAt` | `create_time_ms` | 缺失时用恢复日志中的批次接收时间 |
 | `media` | 图片、文件、视频项 | 见 §2.3.4 |
 | `mediaFailures` | 下载、解密、超限、无转写语音 | 错误码以 `wechat_` 为前缀 |
 | `providerMetadata` | `{ itemTypes: "text,image" }` | 只放无敏感信息的摘要 |
 
-会话令牌、`session_id`、媒体下载地址和密钥都不进入 `ExternalMessage`。
+会话令牌、`session_id`、媒体下载地址和密钥都不进入 `ExternalMessage`。缺失 `create_time_ms` 时使用恢复日志中的稳定接收时间，确保重启后的 payloadHash 不变。
 
 #### 3.2.6 文本分片规则
 
@@ -357,6 +362,7 @@ $OPENTEAM_PLUGIN_STATE_DIR/
 | `wechat_remove_account` | host-only | 无 | 已移除 |
 | `wechat_poll_inbound` | host-only | `ExternalPollInput` | `ExternalPollResult` |
 | `wechat_deliver_message` | host-only | `ExternalDeliverInput` | `ExternalDeliverResult` |
+| `list_peers` | Bot 可见，只读 | `limit?`、`afterPeerId?` | 本地已观察的 direct peer，见 §3.3.4 |
 | `connection_status` | Bot 可见，只读 | 无 | 见 §3.3.3 |
 
 host-only 工具同时满足两个条件：工具定义带 `_meta: { "outcomego/hostOnly": true }`；在 manifest 的 `deviceLink` 或 `messaging` 中被引用。
@@ -395,12 +401,23 @@ host-only 工具同时满足两个条件：工具定义带 `_meta: { "outcomego/
 - 校验：`account` 只显示 `ilinkBotId` 的后 4 位；不包含 token、游标、用户标识原文
 - `replyWindow` 只针对账户所有者这一个 peer
 
+#### 3.3.4 `list_peers`
+
+- 类型：只读 MCP 工具，Bot 可见；不属于 host-only 工具。
+- 输入：`{ limit?: number, afterPeerId?: string }`，limit 默认 20，上限 100；按稳定 peerId 排序，返回 `nextAfterPeerId` 或 null。
+- 输出：`{ peers: [{ peerId, displayName, lastObservedAt, isAccountOwner, canReply }], nextAfterPeerId }`。
+- 数据来自本地 `contexts.json` 的已观察 direct peer，空目录返回空列表；无昵称时 displayName 使用固定的 `WeChat user`，不伪造昵称。
+- `canReply` 由账户收发状态、是否为所有者、是否存在令牌及其有效期计算；有 peer 不代表可主动开会话，也不代表 Server 已建立 Mapping。
+- 完整 peerId 是用户要求的路由标识，可在此只读结果中返回；它不是回复凭据。token、媒体凭据、provider 游标不返回，日志不打印 peerId 原文。
+- 列表不请求 iLink，不创建 Mapping、Channel 或 Delivery。发送仍须经过 Spec 009 的活动 Mapping 和外发服务，不增加 Bot 可见的直接发送工具。
+
 ## 4. 数据与状态模型
 
 ### 4.1 数据关系
 
 ```text
 account.json 1 ── 1 cursor.json
+account.json 1 ── 0..1 receive-journal.json（当前待处理批次）
 account.json 1 ── 1 contexts.json（首版只有账户所有者一个 peer 有实际用途）
 account.json 1 ── 1 spool（queueId 随账户更换而重建）
 spool 项 1 ── N exchange/inbound 文件
@@ -481,9 +498,9 @@ deliver 的业务结果始终通过 `structuredContent` 返回 `ExternalDeliverR
 
 ## 6. 正确性属性
 
-### 6.1 属性 1：已取回的消息不丢
+### 6.1 属性 1：已持久化批次不丢
 
-*对于任何* 从 `getupdates` 取回并通过过滤的消息，在它被写入队列并刷盘之前，provider 游标不会越过它。
+*对于任何* 已持久化到恢复日志并通过过滤的消息，在它被写入队列并刷盘之前，provider 游标不会越过它；崩溃后从恢复日志继续处理。首次日志持久化前的窗口只有在 provider 重放已验证时才能恢复。
 
 **验证需求：** 需求 3（验收 3.2）、非功能需求 2.1
 
@@ -543,9 +560,9 @@ deliver 的业务结果始终通过 `structuredContent` 返回 `ExternalDeliverR
 
 - `account.test.ts`：二维码确认、刷新、取消、过期、基座地址切换、重启恢复、账户更换。
 - `receive.test.ts`：长轮询、服务端建议超时、退避、背压、`-14` 冷却与探活。
-- `crash.test.ts`：在"入队后保存游标前"和"保存游标后"杀进程，覆盖 simulator 的"重放"和"不重放"两种模式。
+- `crash.test.ts`：覆盖日志持久化前、持久化后、媒体下载或解密中、部分入队后、Server 已确认但 cursor 未保存、cursor 保存但日志未清理等崩溃点。持久化后在重放与不重放两种模式下都不丢不重；持久化前只在重放模式可恢复，并断言不重放模式的已知限制。
 - `roundtrip.test.ts`：文本和图片的入站与外发，含部分失败和结果不明。
-- `tools.test.ts`：工具发现、host-only 标记、敏感值扫描。
+- `tools.test.ts`：工具发现、host-only 标记、敏感值扫描；list_peers 空列表、稳定 id、排序分页、无昵称、无令牌、窗口过期和重启恢复，断言只读且不发网络请求。
 - `host-integration.test.ts`：经真实的 stdio 进程和测试入口脚本驱动设备链接与 poll、deliver，结构参照 WhatsApp 的同名测试。
 - `package.test.ts`：打包往返。
 
@@ -559,7 +576,7 @@ deliver 的业务结果始终通过 `structuredContent` 返回 `ExternalDeliverR
 | 需求 | 设计章节 | 验证方式 |
 | --- | --- | --- |
 | 需求 1 | §3.3.2、§6.7、协议事实文档 | `api.test.ts`、`json.test.ts`、探测记录走查 |
-| 需求 2 | §2.3.1、§2.3.5、§3.2.2、§4.2 | `account.test.ts`、`state.test.ts`、`host-integration.test.ts` |
+| 需求 2 | §2.3.1、§2.3.5、§3.2.2、§3.3.4、§4.2 | `account.test.ts`、`state.test.ts`、`host-integration.test.ts`、`tools.test.ts` |
 | 需求 3 | §2.3.2、§2.3.3、§3.2.4、§6.1 到 §6.3 | `spool.test.ts`、`receive.test.ts`、`crash.test.ts` |
 | 需求 4 | §2.3.6、§3.2.6、§6.4、§6.5 | `deliver.test.ts`、`roundtrip.test.ts` |
 | 需求 5 | §2.3.4、§6.6 | `media.test.ts`、`roundtrip.test.ts` |
@@ -584,11 +601,11 @@ deliver 的业务结果始终通过 `structuredContent` 返回 `ExternalDeliverR
 
 ### 8.2 待确认项
 
-以下各项的探测方法和决策规则见协议事实文档，在任务 1.2 中关闭：
+以下各项的探测方法和决策规则见协议事实文档。任务 1.2 固定参考版本，任务 1.5 按能力验证；未启用的可选能力及不能立即测得的时效边界注明保守默认值和限制，不阻塞离线开发：
 
 - P1：二维码确认是否需要用户向客户端输入验证码，以及二维码的有效期。
 - P2：除扫码者之外的微信用户能否向该 bot 发消息；`from_user_id` 与 `ilink_user_id` 的对应关系。
-- P3：用旧的 `get_updates_buf` 请求是否会重放消息（本设计在两种情况下都正确，只影响测试重点）。
+- P3：旧 get_updates_buf 是否重放，决定首次批次日志落盘前的响应能否恢复；日志落盘后的本地恢复不依赖该结论。
 - P4：同一微信号重新扫码后 `ilink_user_id`、`ilink_bot_id` 是否不变（影响是否会产生新的 Channel）。
 - P5：`sendmessage` 的响应字段、单条文本上限和实际限速。
 - P6：会话令牌的实际有效期，以及是否每条入站消息都会更新。
@@ -606,10 +623,10 @@ deliver 的业务结果始终通过 `structuredContent` 返回 `ExternalDeliverR
 
 | 编号 | 决策 | 理由 | 被否决的方案 |
 | --- | --- | --- | --- |
-| W1 | connector 内置落盘队列，provider 游标"先入队后保存" | 不依赖 provider 是否重放；Server 或 computer 不可用时消息不丢 | 让 Server 持有 `get_updates_buf` 并在接受后才推进 |
+| W1 | 先持久化批次、再入队、最后保存 provider 游标 | 持久化后的消息可本地恢复；首次持久化前是否可恢复依赖 P3，不作无条件保证 | 让 Server 持有 `get_updates_buf` 并在接受后才推进 |
 | W2 | 接收用后台循环，poll 工具只读队列 | `getupdates` 会挂起约 35 秒，不适合放在 host 调用里；后台循环使延迟与 Server 轮询节奏解耦 | poll 工具内同步调用 `getupdates` |
 | W3 | 会话令牌只保存在 connector | 令牌是回复能力凭据，不应进入数据库或 Bot 可见内容 | 保存在 Server 的 Mapping 上并随外发传回 |
-| W4 | 外发工具为 host-only，Bot 只有 `connection_status` | 避免出现绕过 Spec 009 幂等和状态机的第二条外发路径 | 提供 Bot 可见的 `send_message`、`list_peers` |
+| W4 | 外发工具为 host-only，Bot 可见只读的 `connection_status` 和 `list_peers` | 只读 peer 查询满足需求且不绕过外发状态机 | Bot 可见的直接发送工具 |
 | W5 | `-14` 按接口区分，账户级过期先冷却再探活 | `sendmessage` 上的 `-14` 可能只是会话窗口失效；官方实现对账户级过期采用 1 小时冷却 | 任何 `-14` 都立即清除凭据 |
 | W6 | 首版外发媒体只声明图片 | 公开资料对文件、视频外发是否投递说法不一，待 P7 实测 | 首版即声明全部类型 |
 | W7 | 不提供替换基座地址的环境变量 | 环境变量会成为绕过域名限制的后门；测试通过依赖注入实现 | `OPENTEAM_WECHAT_BASE_URL` 之类的覆盖项 |

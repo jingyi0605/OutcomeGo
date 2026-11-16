@@ -74,28 +74,25 @@
   - 对应需求：`requirements.md` 全部需求
   - 对应设计：`design.md` 全文
 
-- [ ] 1.2 固定协议基线并完成实机探测
+- [ ] 1.2 固定协议基线和离线验证基线
   - 状态：TODO
-  - 这一步到底做什么：选定一个 `Tencent/openclaw-weixin` 版本作为参考，用一个有 ClawBot 入口的微信号逐项验证探测清单，把结论和脱敏样例写回协议事实文档。
-  - 做完你能看到什么：协议事实文档里每个探测项都有"实测结论"，每个决策门都有明确走向。
-  - 先依赖什么：1.1；需要用户提供一个已获得 ClawBot 入口的微信号
+  - 这一步到底做什么：选定一个 `Tencent/openclaw-weixin` 版本作为参考，完成源码与资料核对，记录供任务 1.4 实现的协议字段和离线行为矩阵。
+  - 做完你能看到什么：协议事实文档固定参考版本，并列出 simulator 需要覆盖的分支；任务 1.5 与离线开发并行完成真实探测。
+  - 先依赖什么：1.1
   - 开始前先看：
     - `requirements.md` 需求 1
     - `design.md` §8.2「待确认项」
     - `docs/20261116-iLink协议事实与探测清单.md` 全文
   - 主要改哪里：
     - `specs/009.1-微信iLink消息服务集成/docs/20261116-iLink协议事实与探测清单.md`
-    - `specs/009.1-微信iLink消息服务集成/docs/`（脱敏的请求响应样例）
-    - 一次性探测脚本放在不入库的临时目录，不提交
-  - 这一步先不做什么：不写 connector 产品代码；不把任何真实 token、用户标识、游标或消息正文写入仓库。
+  - 这一步先不做什么：不写 simulator 产品代码，不需要真实微信号；不把任何真实 token、用户标识、游标或消息正文写入仓库。
   - 怎么算完成：
     1. 参考版本号和提交哈希已记录
-    2. P1 到 P11 全部有实测结论和日期
-    3. 决策门中受影响的设计条目已在 `design.md` 中更新
-    4. 若 P1 或 P11 的结论要求扩大范围，已新增任务或另立 Spec
+    2. 尚未实测的 P1 到 P11 明确标为待验证，并有离线替代测试或阻塞说明
+    3. 离线行为矩阵覆盖二维码、游标、错误、媒体和外发结果分类，尚未验证的协议值有明确默认值及来源
   - 怎么验证：
-    - 人工走查探测记录
-    - 检查入库文件中不含敏感值
+    - 人工走查参考版本和离线矩阵
+    - 人工核对任务 1.4 的 simulator 用例能覆盖该矩阵
   - 对应需求：`requirements.md` 需求 1 / 验收 1.1
   - 对应设计：`design.md` §8.2
 
@@ -117,7 +114,7 @@
   - 这一步先不做什么：manifest 暂不加入 `messaging` 块（等任务 4.1）；不访问真实网络；不实现媒体。
   - 怎么算完成：
     1. `bun run prepare:plugins` 能生成 `connector/server.mjs`
-    2. 工具发现返回 §3.3.1 的八个工具，除 `connection_status` 外都带 host-only 标记
+    2. 工具发现返回 §3.3.1 的九个工具；connection_status 和 list_peers 为只读 Bot 工具，其余七个带 host-only 标记
     3. 打包往返和目录测试通过
   - 怎么验证：
     - `bun test packages/plugins/wechat`
@@ -148,6 +145,30 @@
     - `bun test packages/plugins/wechat/connector/test/api.test.ts packages/plugins/wechat/connector/test/json.test.ts`
   - 对应需求：`requirements.md` 需求 1 / 验收 1.2 到 1.6
   - 对应设计：`design.md` §3.3.2、§6.7
+
+- [ ] 1.5 完成真实账号探测并关闭决策门
+  - 状态：TODO
+  - 这一步到底做什么：使用一个已获得 ClawBot 入口的微信号，逐项执行 P1 到 P11，记录脱敏结论，并把受影响的协议、状态机、媒体和连接流程决策回写到设计文档。
+  - 做完你能看到什么：核心二维码、所有者身份、文本、图片及目标环境访问均有验证结果；可选能力和时效探测可以带明确限制交付，不阻塞离线开发。
+  - 先依赖什么：1.4；需要用户提供一个已获得 ClawBot 入口的微信号
+  - 开始前先看：
+    - `requirements.md` 需求 1
+    - `design.md` §8.2「待确认项」
+    - `docs/20261116-iLink协议事实与探测清单.md` 全文
+  - 主要改哪里：
+    - `specs/009.1-微信iLink消息服务集成/docs/20261116-iLink协议事实与探测清单.md`
+    - `specs/009.1-微信iLink消息服务集成/design.md`
+    - `specs/009.1-微信iLink消息服务集成/docs/`（脱敏请求响应样例）
+  - 这一步先不做什么：不把真实 token、用户标识、游标或聊天正文写入仓库；不因单个未开放能力扩大 QQ 或 automation trigger 范围。
+  - 怎么算完成：
+    1. 参考版本号、提交哈希、每项探测的结果或限制及日期已记录；文件和视频未验证时保持禁用，不能伪造通过
+    2. 二维码、所有者判定、文本、图片和媒体主机等当前启用能力验证通过；窗口和错误冷却等长周期项目可记录保守默认值及未实测限制，受影响的设计条目已同步
+    3. P11 的连通性结论已在目标 computer 环境验证
+  - 怎么验证：
+    - 人工走查探测记录
+    - 检查入库文件中不含敏感值
+  - 对应需求：`requirements.md` 需求 1 / 验收 1.1；非功能需求 4.1
+  - 对应设计：`design.md` §8.2、协议事实文档
 
 ---
 
@@ -181,10 +202,10 @@
   - 先依赖什么：1.4、2.1
   - 开始前先看：
     - `requirements.md` 需求 2
-    - `design.md` §2.3.1「二维码链接」、§4.2「状态流转」、§3.3.3
+    - `design.md` §2.3.1「二维码链接」、§4.2「状态流转」、§3.3.3、§3.3.4
     - `packages/plugins/whatsapp/connector/account.ts`
     - `apps/server/src/services/plugin/device-link.ts`
-    - 协议事实文档中 P1 的结论
+    - 协议事实文档中 P1 的参考版本行为和已有实测结论；未实测时按 simulator 覆盖各分支
   - 主要改哪里：
     - `packages/plugins/wechat/connector/account.ts`
     - `packages/plugins/wechat/connector/tools.ts`
@@ -195,13 +216,14 @@
   - 怎么算完成：
     1. 二维码过期后在同一 `sessionId` 下刷新，最多 3 次
     2. 取消链接不影响已有的有效凭据
-    3. 账户更换时队列被重建，同一账户重新扫码时只清空 provider 游标和会话令牌
+    3. 账户更换时队列被重建，同一账户重新扫码时只清空 provider 游标和会话令牌，保留 peer 元数据；旧接收循环与已持久化批次先完成本地收尾，再安装新 token
     4. 移除账户后状态目录为空
     5. 任何工具结果中都搜不到假 token 串
+    6. list_peers 空状态返回空列表且为 Bot 可见的只读工具；不存在直接发送工具
   - 怎么验证：
     - `bun test packages/plugins/wechat/connector/test/account.test.ts packages/plugins/wechat/connector/test/host-integration.test.ts`
-  - 对应需求：`requirements.md` 需求 2 / 验收 2.1 到 2.7、2.9；需求 6 / 验收 6.6
-  - 对应设计：`design.md` §2.3.1、§3.3.1、§3.3.3、§4.2
+  - 对应需求：`requirements.md` 需求 2 / 验收 2.1 到 2.7、2.9、2.10；需求 6 / 验收 6.6
+  - 对应设计：`design.md` §2.3.1、§3.3.1、§3.3.3、§3.3.4、§4.2
 
 ### 阶段检查
 
@@ -257,28 +279,31 @@
 - [ ] 3.2 实现接收循环和消息标准化
   - 状态：TODO
   - 这一步到底做什么：实现后台长轮询、过滤、转换为 `ExternalMessage`、入队、保存 provider 游标、退避、背压，以及 `getupdates` 上的会话过期处理。
-  - 做完你能看到什么：simulator 发出的消息会自动出现在队列里；在任意时间点杀进程都不丢不重。
+  - 做完你能看到什么：simulator 发出的消息会自动出现在队列里；恢复日志持久化后的崩溃不会丢失消息或导致重复入队。
   - 先依赖什么：3.1
   - 开始前先看：
     - `requirements.md` 需求 3 / 验收 3.1、3.2、3.4、3.5、3.9、3.10；需求 2 / 验收 2.8
     - `design.md` §2.3.2「接收循环」、§2.3.5「会话过期」、§3.2.5「映射」
-    - 协议事实文档中 P2、P3、P9、P10 的结论
+    - 协议事实文档中 P2、P3、P9、P10 的参考行为；缺少实测时离线覆盖各分支
   - 主要改哪里：
-    - `packages/plugins/wechat/connector/receive.ts`、`normalize.ts`
+    - `packages/plugins/wechat/connector/receive.ts`、`normalize.ts`、`state.ts`、`spool.ts`（当前批次日志和去重保留）
+    - `packages/plugins/wechat/connector/tools.ts`（list_peers 只读查询）
     - `packages/plugins/wechat/connector/account.ts`（循环启停与会话过期）
     - `packages/plugins/wechat/connector/test/receive.test.ts`、`normalize.test.ts`、`crash.test.ts`
   - 这一步先不做什么：媒体项先全部记为 `mediaFailures`（留给 3.3）；不做外发。
   - 怎么算完成：
-    1. provider 游标只在本批全部入队之后保存
-    2. `crash.test.ts` 在两个崩溃点、两种 simulator 模式下都不丢不重
-    3. bot 自身消息和群消息被丢弃并计数
-    4. `isAccountOwner` 只在发送者等于 `ilinkUserId` 时为真
-    5. `-14` 触发冷却，冷却后探活成功可自愈，失败则清除凭据
-    6. 队列达到上限时停止拉取，回落后恢复
+    1. 下载媒体前先持久化当前批次；provider 游标只在本批完成后保存，日志清理前保留该批去重记录
+    2. `crash.test.ts` 覆盖日志持久化后、媒体处理中、部分入队、Server 已确认但 cursor 未保存、cursor 保存但日志未清理；两种 simulator 模式下均可恢复且不重复入队
+    3. 首次日志持久化前的崩溃分别测试 provider 重放和不重放；后者如实记录不可恢复的边界
+    4. bot 自身消息和群消息被丢弃并计数
+    5. `isAccountOwner` 只在发送者等于 `ilinkUserId` 时为真
+    6. `-14` 触发冷却，冷却后探活成功可自愈，失败则清除凭据
+    7. 队列达到上限时停止拉取，回落后恢复
+    8. list_peers 覆盖稳定 id、分页、无昵称、无令牌、窗口过期和重启恢复，不发网络请求、不创建消息或 wake
   - 怎么验证：
-    - `bun test packages/plugins/wechat/connector/test/receive.test.ts packages/plugins/wechat/connector/test/normalize.test.ts packages/plugins/wechat/connector/test/crash.test.ts`
-  - 对应需求：`requirements.md` 需求 3 / 验收 3.1、3.2、3.4、3.5、3.9、3.10；需求 2 / 验收 2.3、2.8；需求 4 / 验收 4.1；非功能需求 1.1、2.1、2.4
-  - 对应设计：`design.md` §2.3.2、§2.3.5、§3.2.5、§6.1、§6.2
+    - `bun test packages/plugins/wechat/connector/test/receive.test.ts packages/plugins/wechat/connector/test/normalize.test.ts packages/plugins/wechat/connector/test/crash.test.ts packages/plugins/wechat/connector/test/tools.test.ts`
+  - 对应需求：`requirements.md` 需求 3 / 验收 3.1、3.2、3.4、3.5、3.9、3.10；需求 2 / 验收 2.3、2.8、2.10；需求 4 / 验收 4.1；非功能需求 1.1、2.1、2.4
+  - 对应设计：`design.md` §2.3.2、§2.3.5、§3.2.5、§3.3.4、§6.1、§6.2
 
 - [ ] 3.3 实现入站媒体
   - 状态：TODO
@@ -288,7 +313,7 @@
   - 开始前先看：
     - `requirements.md` 需求 5 / 验收 5.1 到 5.4、5.8
     - `design.md` §2.3.4「媒体」入站部分
-    - 协议事实文档的媒体部分和 P8 的结论
+    - 协议事实文档的媒体部分和 P8 的参考行为及已有实测结论
   - 主要改哪里：
     - `packages/plugins/wechat/connector/media.ts`
     - `packages/plugins/wechat/connector/receive.ts`
@@ -315,7 +340,7 @@
     - `requirements.md` 需求 4
     - `design.md` §2.3.6「外发」、§3.2.6「文本分片规则」、§5.1
     - `../009-外部消息服务/design.md` §3.3.2
-    - 协议事实文档中 P5、P6 的结论
+    - 协议事实文档中 P5、P6 的参考行为、保守默认值及已有实测结论
   - 主要改哪里：
     - `packages/plugins/wechat/connector/deliver.ts`
     - `packages/plugins/wechat/connector/tools.ts`
@@ -342,7 +367,7 @@
   - 开始前先看：
     - `requirements.md` 需求 5 / 验收 5.5 到 5.8
     - `design.md` §2.3.4「媒体」外发部分、§8.3 决策 W6
-    - 协议事实文档的媒体部分和 P7 的结论
+    - 协议事实文档的媒体部分和 P7 的参考行为；仅启用实测通过的媒体类型
   - 主要改哪里：
     - `packages/plugins/wechat/connector/media.ts`、`deliver.ts`
     - `packages/plugins/wechat/connector/test/media.test.ts`、`roundtrip.test.ts`
@@ -370,8 +395,8 @@
   - 这一步先不做什么：不接 Server。
   - 怎么算完成：
     1. `design.md` §6 的七条属性都有对应测试
-    2. 敏感值扫描覆盖 poll、deliver、`connection_status` 的全部结果和日志输出
-    3. connector 代码中没有 Channel、Receipt、Delivery 相关逻辑
+    2. 敏感值扫描覆盖 poll、deliver、connection_status 和 list_peers 的结果；list_peers 可返回稳定路由 id，不能返回回复凭据，日志不含原始标识
+    3. connector 没有 Server 的 Channel、Receipt、Delivery 数据库或 Bot wake 逻辑；允许 deliveryId 幂等日志和 provider 游标持久化
   - 怎么验证：
     - `bun test packages/plugins/wechat`
     - `bun run typecheck`
@@ -424,7 +449,7 @@
   - 这一步先不做什么：不承诺协议不支持的能力（主动发送、群聊、语音外发）。
   - 怎么算完成：
     1. 连接步骤说明了 ClawBot 资格要求和"先在微信里给 bot 发一条消息"
-    2. 技能说明覆盖：回复自动送达、只发文本和图片、会话窗口、卡片类内容使用 `to: "dm"`、`sent` 不等于对方已收到
+    2. 技能说明覆盖：回复自动送达、只发文本和图片、只读 list_peers、会话窗口、卡片类内容使用 `to: "dm"`、sent 不等于对方已收到
     3. `NOTICE.md` 说明协议参考来源和独立实现
     4. 图标的使用符合其来源的许可
   - 怎么验证：
@@ -438,7 +463,7 @@
   - 状态：TODO
   - 这一步到底做什么：把 connector 同步到远端 debug computer，用真实微信号按联调清单逐项验证。
   - 做完你能看到什么：在真实微信里给 bot 发消息能得到 OpenTeam Bot 的回复，联调记录写入 `docs/`。
-  - 先依赖什么：4.1、4.2；Spec 009 任务 5.1（桌面端绑定设置）；需要用户同意重建远端 computer
+  - 先依赖什么：1.5、4.1、4.2；Spec 009 任务 5.1（桌面端绑定设置）；需要用户同意重建远端 computer
   - 开始前先看：
     - `AGENTS.md`「Remote Debug Computer」
     - `design.md` §7.3、§8.1
@@ -478,7 +503,7 @@
   - 怎么算完成：
     1. `design.md` §7.4 的每一行都有通过的测试或联调证据
     2. `requirements.md`「成功定义」逐条成立
-    3. `design.md` §8.2 的待确认项全部关闭或转为已知限制
+    3. `design.md` §8.2 的待确认项均有实测、明确限制或延期能力记录；可选文件和视频不阻塞已验证的文本和图片
     4. 产品层面对第三方接入风险的确认已记录
   - 怎么验证：
     - `bun test packages/plugins/wechat`

@@ -17,7 +17,7 @@
 - **服务角色**：OpenTeam 用户（微信账户所有者）、connector 维护者。
 - **核心收益**：用户不打开 OpenTeam 客户端，也能在微信里使用自己的 Bot。
 
-iLink 没有公开的服务端规范。本 Spec 的协议事实来自腾讯官方客户端 `Tencent/openclaw-weixin` 的源码和公开的第三方整理，其中尚未实机验证的部分列为探测项，开工第一步就是完成探测。
+iLink 没有公开的服务端规范。本 Spec 的协议事实来自腾讯官方客户端 `Tencent/openclaw-weixin` 的源码和公开的第三方整理。先固定参考版本并开展离线开发；真实探测按能力分别验证，不阻塞 API client、simulator 和状态机的实现。
 
 ## 依赖
 
@@ -47,9 +47,10 @@ iLink 没有公开的服务端规范。本 Spec 的协议事实来自腾讯官�
 - 二维码设备链接、取消、移除、重启恢复和会话过期处理。
 - 后台长轮询、入站落盘队列、provider 游标持久化。
 - Spec 009 的 poll 与 deliver 两个 host-only 工具。
+- 本地已观察 direct peer 的只读 `list_peers` 查询。
 - 文本外发：会话令牌、会话窗口、分片、限速、幂等。
 - 媒体：入站图片、文件、视频的下载与解密；外发图片的加密与上传。
-- 只读的 `connection_status` 工具和面向 Bot 的技能说明。
+- 只读的 `connection_status`、`list_peers` 工具和面向 Bot 的技能说明。
 - simulator、connector 测试、与 Spec 009 的集成测试、实机联调清单。
 
 ### Out of Scope
@@ -71,7 +72,7 @@ iLink 没有公开的服务端规范。本 Spec 的协议事实来自腾讯官�
 
 #### 验收标准
 
-1. WHEN 开始实现 THEN System SHALL 在协议事实文档中固定一个 `Tencent/openclaw-weixin` 参考版本，并记录全部探测项的实测结论。
+1. WHEN 开始协议实现 THEN System SHALL 固定一个 `Tencent/openclaw-weixin` 参考版本及提交并注明来源；真实探测不作为离线开发前置条件，启用相应能力前记录其探测结论或明确限制。
 2. WHEN connector 发起任何业务请求 THEN System SHALL 携带参考版本要求的请求头和 `base_info`，并为每次请求重新生成 `X-WECHAT-UIN`。
 3. WHEN 二维码确认或状态查询返回新的基座地址 THEN System SHALL 只接受 `https` 且主机为 `weixin.qq.com` 子域的地址，否则拒绝并报 `wechat_base_url_rejected`。
 4. WHEN 入站媒体给出下载地址 THEN System SHALL 只访问 `https` 且主机为 `weixin.qq.com` 子域的地址，并禁止跟随 HTTP 重定向。
@@ -93,6 +94,7 @@ iLink 没有公开的服务端规范。本 Spec 的协议事实来自腾讯官�
 7. WHEN 新确认的账户与此前不同，或同一账户重新扫码 THEN System SHALL 清空 provider 游标和会话令牌；账户不同时还 SHALL 重建落盘队列并让确认游标重置。
 8. WHEN `getupdates` 返回会话过期（`-14`）THEN System SHALL 停止全部业务请求、进入 `needs_pairing`，并在 1 小时冷却后做一次探活；探活仍失败则清除凭据。
 9. WHEN 账户没有 ClawBot 资格或 provider 要求 connector 无法完成的额外验证 THEN System SHALL 返回可读的原因和下一步指引，不得停留在无限等待。
+10. WHEN 用户或 Bot 调用只读 `list_peers` THEN System SHALL 返回本地已观察 direct peer 的稳定 peer id、展示名称、最近观察时间、是否为账户所有者和当前能否回复；不请求微信通讯录，不返回 token、provider 游标或媒体凭据。
 
 ### 需求 3：入站接收与落盘队列
 
@@ -101,7 +103,7 @@ iLink 没有公开的服务端规范。本 Spec 的协议事实来自腾讯官�
 #### 验收标准
 
 1. WHEN 账户处于 `ready` THEN System SHALL 在后台持续长轮询 `getupdates`，并采用服务端建议的下一轮超时。
-2. WHEN `getupdates` 返回消息 THEN System SHALL 先把消息（含已下载的媒体）写入落盘队列并刷盘，然后才持久化新的 provider 游标。
+2. WHEN `getupdates` 返回消息 THEN System SHALL 先把 provider 响应写入本地恢复日志，再把消息（含已下载的媒体）写入落盘队列并刷盘，然后才持久化新的 provider 游标。
 3. WHEN 同一 `message_id` 再次出现 THEN System SHALL 不重复入队。
 4. WHEN 消息来自 bot 自身、带有 `group_id` 或不含任何可处理内容 THEN System SHALL 丢弃并计数，不入队。
 5. WHEN 消息入队 THEN System SHALL 转换为 Spec 009 的 `ExternalMessage`，其中 `sender.isAccountOwner` 当且仅当发送者等于二维码确认时的 `ilink_user_id` 时为 `true`。
@@ -141,7 +143,7 @@ iLink 没有公开的服务端规范。本 Spec 的协议事实来自腾讯官�
 5. WHEN Server 要求外发图片 THEN System SHALL 从 `exchange/outbound/<deliveryId>/` 读取并校验大小和 SHA-256，然后执行"申请上传地址 → 本地加密 → 上传 CDN → 发送媒体引用"。
 6. WHEN 外发媒体文件不在受控目录内、是符号链接或摘要不符 THEN System SHALL 在发出任何请求之前返回 `failed`（`wechat_media_invalid`）。
 7. WHEN 上传在任何 `sendmessage` 之前失败 THEN System SHALL 返回 `failed`（`wechat_media_upload_failed`）。
-8. WHEN 媒体下载地址、加密参数或密钥出现在处理过程中 THEN System SHALL 不把它们写入日志、工具结果或队列以外的任何位置。
+8. WHEN 媒体下载地址、加密参数或密钥出现在处理过程中 THEN System SHALL 只在 connector 私有恢复日志中按需保存，并在该批处理完成后清理；不进入标准化队列、工具结果、日志或 Server 数据库。
 
 ### 需求 6：接入 OpenTeam Channel
 
@@ -177,7 +179,7 @@ iLink 没有公开的服务端规范。本 Spec 的协议事实来自腾讯官�
 
 ### 非功能需求 2：可靠性
 
-1. WHEN 进程在任意时刻被杀死 THEN System SHALL 保证已从 provider 取回的消息要么在落盘队列中，要么会被 provider 重新下发。
+1. WHEN 进程在 provider 响应已经写入本地恢复日志后被杀死 THEN System SHALL 保证消息要么在落盘队列中，要么能从恢复日志重建；恢复日志写入前的网络响应不属于可恢复边界。
 2. WHEN 写入任何状态文件 THEN System SHALL 使用临时文件加原子改名，并在改名前刷盘。
 3. WHEN 外发结果不确定 THEN System SHALL 不自动重试。
 4. WHEN provider 不可达 THEN System SHALL 保持账户状态为 `recovering` 并持续按退避重连，不要求重新扫码。
@@ -197,9 +199,9 @@ iLink 没有公开的服务端规范。本 Spec 的协议事实来自腾讯官�
 
 ## 成功定义
 
-- 协议事实文档中全部探测项都有实测结论，决策门全部关闭。
+- 协议参考版本已固定；每个探测项都标明实测结论、明确限制或受影响能力的延期状态，不伪造证据；未启用的可选能力不阻塞文本和图片交付。
 - 二维码、状态机、落盘队列、poll、deliver、媒体都有基于 simulator 的离线测试，不依赖真实网络。
-- 崩溃注入测试证明：在"入队后、保存 provider 游标前"和"保存后"两个时间点杀进程都不丢消息、不重复入队。
+- 崩溃注入覆盖恢复日志持久化后、媒体处理中、入队后游标保存前、游标保存后日志清理前；恢复日志持久化后的消息不丢、不重复入队。首次日志持久化前的窗口单独记录 provider 重放结论，不承诺无条件恢复。
 - 微信文本消息走通 connector → Spec 009 → `ChannelMessage` → Bot wake → 回复 → 微信，并在实机联调中复现。
 - 至少图片完成入站和外发的实机往返。
-- connector 中不存在 Channel、Receipt、Delivery 相关逻辑，也不存在 QQ 或 automation trigger 代码。
+- connector 不复制 Server 的 Channel、Receipt、Delivery 数据库事务或 Bot wake 逻辑；deliveryId 幂等日志、恢复日志和本地 provider 游标属于 connector 职责。不存在 QQ 或 automation trigger 代码。
