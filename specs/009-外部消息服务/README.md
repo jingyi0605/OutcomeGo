@@ -10,6 +10,25 @@
 - 补充文档：[`docs/README.md`](docs/README.md)
 - WeChat 子规格：[`009.1-微信iLink消息服务集成`](../009.1-微信iLink消息服务集成/README.md)
 
-本 Spec 建立 provider 无关的外部消息基础服务：外部 peer 到 OpenTeam Channel 的持久映射、入站消息去重与 Bot 唤醒、媒体资产边界和外发回复上下文。
+本 Spec 建立 provider 无关的外部消息基础服务：消息入口绑定、外部 peer 到 OpenTeam Channel 的持久映射、入站轮询与去重、Bot 唤醒、媒体交换，以及把 Bot 回复送回原 peer 的外发投递。
 
-QQ 不属于本轮实现范围。自动化触发器也不在本 Spec 中实现；具体平台必须先依赖本 Spec 的 Channel 路径。
+## 已定的关键决策
+
+完整理由见 [`design.md`](design.md) §8.3。
+
+| 决策点 | 结论 |
+| --- | --- |
+| Channel 类型 | 新增 provider 无关的 `ChannelKind.external_dm`，不复用 `bot_dm` |
+| 准入与信任 | 首版只接受 connector 证明为账户所有者本人的消息（`owner_only`），按所有者消息唤醒 Bot |
+| target Bot | 由用户在连接设置中显式绑定，保存在 `ExternalMessagingBinding` |
+| 入站调度 | 新增 manifest `messaging` 块和 `ExternalInboundPoller`，不扩展 `PluginEventPoller` |
+| 游标 | Server 持有确认游标，逐条推进；connector 负责落盘队列 |
+| 回复路由 | Server 按 mapping 自动路由，Bot 不接触外部地址和回复凭据 |
+| 外发状态 | 新增 `ExternalOutboundDelivery`，`uncertain` 是一等状态，从不自动重发 |
+| 媒体交换 | 经 computer 的 exchange HTTP 端点传输，connector 与 Server 不共享目录约定 |
+
+## 不在本 Spec 内
+
+- 具体平台协议与 connector：微信由 `009.1` 实现。
+- 非所有者外部用户的准入（allowlist、审批）和与之配套的 Bot 能力收敛。
+- 群聊类 peer、QQ、自动化触发器、外部消息历史搜索。
