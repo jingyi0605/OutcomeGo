@@ -354,11 +354,13 @@ export const catalogView = (plugin: PluginDefinition, installed: boolean) => ({
 
 export function validAlias(value: string): string {
   const alias = value.trim();
-  if (!/^[A-Za-z0-9][A-Za-z0-9 _@.+()-]{0,78}[A-Za-z0-9)]$/.test(alias)) {
+  // Letters and numbers of any language (a name like 哆哆 is as good as `work`), plus the characters an
+  // email address needs. Control characters, emoji and direction marks stay out.
+  if (!/^[\p{L}\p{N}][\p{L}\p{N}\p{M} _@.+()-]{0,78}[\p{L}\p{N}\p{M})]$/u.test(alias)) {
     throw new ApiError(
       400,
       "connection_alias_invalid",
-      "Account alias must be 2–80 letters, numbers, spaces, dots, dashes, underscores, or email characters"
+      "Account alias must be 2–80 letters (any language), numbers, spaces, dots, dashes, underscores, or email characters"
     );
   }
   return alias;
