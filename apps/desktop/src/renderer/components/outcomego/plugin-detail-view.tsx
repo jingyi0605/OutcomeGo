@@ -40,9 +40,13 @@ const PluginAuthSelect = lazy(() =>
 import { AddPluginAccount, PluginAccountRow } from "./plugins/plugin-accounts";
 import { DeviceLinkPanel } from "./plugins/device-link-panel";
 import { ExternalBotChoice, useExternalBotChoice } from "./plugins/external-bot-choice";
-import { ExternalMessagingSettings } from "./plugins/external-messaging-settings";
 import { PluginMark } from "./plugins/plugin-mark";
 import { DingTalkSetup } from "./plugins/dingtalk-setup";
+const ExternalMessagingSettings = lazy(() =>
+  import("./plugins/external-messaging-settings").then((module) => ({
+    default: module.ExternalMessagingSettings,
+  }))
+);
 
 type MarketplacePage = "marketplace" | "installed" | "detail" | "custom" | "manage";
 type OAuthCallbackSettings = {
@@ -1426,7 +1430,9 @@ export function PluginDetail({
                   onRestart={() => onRestart(connection)}
                 />
                 {/* Renders nothing unless the plugin declares messaging. */}
-                <ExternalMessagingSettings connectionId={connection.id} refresh={async () => {}} />
+                <Suspense fallback={null}>
+                  <ExternalMessagingSettings connectionId={connection.id} refresh={async () => {}} />
+                </Suspense>
                 {connection.status === "ready" && (
                   <button
                     type="button"

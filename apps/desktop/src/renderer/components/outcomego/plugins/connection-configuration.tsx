@@ -3,7 +3,7 @@ import type {
   PluginConfigurationInput,
   PluginConfigurationView,
 } from "@outcomego/contracts/plugin-management";
-import { useCallback, useEffect, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import { api } from "../../../client/outcomego-api";
 import { useI18n } from "../../../lib/i18n";
 import {
@@ -24,7 +24,11 @@ import {
   pluginProviderSetupSteps,
   pluginProviderSetupDescription,
 } from "@outcomego/product-core/plugin-authorization";
-import { ExternalMessagingSettings } from "./external-messaging-settings";
+const ExternalMessagingSettings = lazy(() =>
+  import("./external-messaging-settings").then((module) => ({
+    default: module.ExternalMessagingSettings,
+  }))
+);
 
 export function ConnectionConfiguration({
   connection,
@@ -590,7 +594,9 @@ export function ConnectionConfiguration({
           {t("Save instructions")}
         </PluginButton>
       </PluginField>
-      <ExternalMessagingSettings connectionId={connection.id} refresh={refresh} />
+      <Suspense fallback={null}>
+        <ExternalMessagingSettings connectionId={connection.id} refresh={refresh} />
+      </Suspense>
       <section className="grid gap-2">
         <h4 className="text-[13px] font-medium">
           {t("Tools ({count})", { count: displayConnection.tools.length })}

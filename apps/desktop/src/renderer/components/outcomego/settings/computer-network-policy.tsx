@@ -1,9 +1,10 @@
-import type {
-  ComputerNetworkPolicyMode,
-  ComputerNetworkPolicyRule,
-  ComputerNetworkPolicyView,
-} from "@outcomego/contracts";
-import { normalizeComputerNetworkAddress, normalizeComputerNetworkPort } from "@outcomego/contracts";
+import {
+  normalizeComputerNetworkAddress,
+  normalizeComputerNetworkPort,
+  type ComputerNetworkPolicyMode,
+  type ComputerNetworkPolicyRule,
+  type ComputerNetworkPolicyView,
+} from "@outcomego/contracts/computer-network-policy";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../../../client/outcomego-api";
 import { useI18n } from "../../../lib/i18n";

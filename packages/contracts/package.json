@@ -53,6 +53,7 @@
     "./notification-presence": "./src/notification-presence.ts",
     "./tailscale": "./src/tailscale.ts",
     "./browser-network": "./src/browser-network.ts",
+    "./computer-network-policy": "./src/computer-network-policy.ts",
     "./task-progress": "./src/task-progress.ts",
     "./voice": "./src/voice.ts",
     "./localization": "./src/localization.ts",
