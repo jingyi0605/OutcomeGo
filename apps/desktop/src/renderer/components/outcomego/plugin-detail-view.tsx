@@ -40,6 +40,7 @@ const PluginAuthSelect = lazy(() =>
 import { AddPluginAccount, PluginAccountRow } from "./plugins/plugin-accounts";
 import { DeviceLinkPanel } from "./plugins/device-link-panel";
 import { ExternalBotChoice, useExternalBotChoice } from "./plugins/external-bot-choice";
+import { ExternalMessagingSettings } from "./plugins/external-messaging-settings";
 import { PluginMark } from "./plugins/plugin-mark";
 import { DingTalkSetup } from "./plugins/dingtalk-setup";
 
@@ -1435,6 +1436,8 @@ export function PluginDetail({
                   onRename={(alias) => onRename(connection, alias)}
                   onRestart={() => onRestart(connection)}
                 />
+                {/* Renders nothing unless the plugin declares messaging. */}
+                <ExternalMessagingSettings connectionId={connection.id} refresh={async () => {}} />
                 {connection.status === "ready" && (
                   <button
                     type="button"

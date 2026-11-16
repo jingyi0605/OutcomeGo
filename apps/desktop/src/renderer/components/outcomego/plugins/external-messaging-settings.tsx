@@ -116,7 +116,7 @@ export function ExternalMessagingSettings({
   const rejected = Object.entries(binding?.rejectedCounts ?? {}).filter(([, count]) => count > 0);
 
   return (
-    <section className="grid gap-3 rounded-xl border border-black/10 p-4 dark:border-white/10">
+    <section className="my-2 grid gap-3 rounded-xl border border-black/10 p-4 dark:border-white/10">
       <h4 className="text-[13px] font-medium">{t("Chat with a Bot from this account")}</h4>
       <p className="text-xs text-foreground-secondary">
         {t("Messages you send to this account are delivered to the Bot you choose, and its replies are sent back.")}
