@@ -37,6 +37,8 @@ const PluginAuthSelect = lazy(() =>
 );
 
 import { AddPluginAccount, PluginAccountRow } from "./plugins/plugin-accounts";
+import { DeviceLinkPanel } from "./plugins/device-link-panel";
+import { ExternalBotChoice, useExternalBotChoice } from "./plugins/external-bot-choice";
 import { PluginMark } from "./plugins/plugin-mark";
 
 type MarketplacePage = "marketplace" | "installed" | "detail" | "custom" | "manage";
@@ -423,11 +425,15 @@ function PluginSetupCard({
   onConfigureToken,
   onConfigureValues,
   onDismiss,
+  onRestart,
+  onCancelLink,
 }: {
   busy: boolean;
   connection: PluginConnectionView;
   focusRequest: number;
   plugin: PluginCatalogItemView;
+  onRestart: () => void;
+  onCancelLink: (sessionId: string) => void;
   onAuthenticate: () => void;
   onConfigureOAuth: (input: { clientId: string; clientSecret: string; scope: string }) => void;
   onConfigureToken: (token: string) => void;
@@ -454,9 +460,16 @@ function PluginSetupCard({
   useEffect(() => {
     if (connection.configured) setValues({});
   }, [connection.id, connection.configured]);
+  // Declared before any early return. A messaging account must be bound to a Bot before it is linked.
+  const choice = useExternalBotChoice(connection.id, connection.status !== "ready");
   if (!setup || pluginAuthorization(connection)) return null;
 
   const ready = connection.status === "ready";
+  // A messaging account shows its code only once its Bot is chosen; until then it asks for the Bot.
+  const deviceLink =
+    !ready && connection.deviceLink?.sessionId && choice.loaded && (!choice.supported || choice.bound)
+      ? connection.deviceLink
+      : null;
   const requiresHttps =
     connection.oauthCallbackMode === "manual" && connection.manualCallbackSupported === false;
   const missingRequired = setup.fields.some(
@@ -470,6 +483,13 @@ function PluginSetupCard({
     window.setTimeout(() => setCopied(null), 1_500);
   };
   const submit = () => {
+    if (!choice.supported) return proceed();
+    // Bind first: a linked account with no Bot would receive messages with nowhere to send them.
+    void choice.save().then((bound) => {
+      if (bound) proceed();
+    });
+  };
+  const proceed = () => {
     if (setup.kind === "token") {
       if (connection.configured) onAuthenticate();
       else onConfigureToken(values.token?.trim() ?? "");
@@ -691,29 +711,47 @@ function PluginSetupCard({
             </div>
           ) : null}
 
+          {deviceLink ? null : <ExternalBotChoice choice={choice} disabled={busy} />}
           {connection.statusMessage ? (
             <p className="mt-3 text-[10px] leading-4 text-foreground-tertiary">
               {connection.statusMessage}
             </p>
           ) : null}
-          <button
-            data-setup-action
-            className={cn(primaryButton, "mt-3")}
-            disabled={busy || requiresHttps || (!connection.configured && missingRequired)}
-            onClick={submit}
-            type="button"
-          >
-            {busy ? <LoadingOrb aria-hidden size={12} /> : null}
-            {requiresHttps ? t("HTTPS required") : actionLabel}
-          </button>
-          <button
-            className={cn(secondaryButton, "ml-2")}
-            type="button"
-            disabled={busy}
-            onClick={onDismiss}
-          >
-            {t("Set up later")}
-          </button>
+          {deviceLink ? (
+            <DeviceLinkPanel
+              link={deviceLink}
+              busy={busy}
+              onNewCode={onRestart}
+              onCancel={() => onCancelLink(deviceLink.sessionId)}
+            />
+          ) : (
+            <>
+              <button
+                data-setup-action
+                className={cn(primaryButton, "mt-3")}
+                disabled={
+                  busy ||
+                  choice.saving ||
+                  requiresHttps ||
+                  (choice.supported && !choice.botId) ||
+                  (!connection.configured && missingRequired)
+                }
+                onClick={submit}
+                type="button"
+              >
+                {busy || choice.saving ? <LoadingOrb aria-hidden size={12} /> : null}
+                {requiresHttps ? t("HTTPS required") : actionLabel}
+              </button>
+              <button
+                className={cn(secondaryButton, "ml-2")}
+                type="button"
+                disabled={busy}
+                onClick={onDismiss}
+              >
+                {t("Set up later")}
+              </button>
+            </>
+          )}
         </div>
       ) : null}
     </section>
@@ -1069,6 +1107,7 @@ export function PluginDetail({
   onAddAccount,
   onAuthenticate,
   onCancelAuthentication,
+  onCancelDeviceLink,
   onConfigureToken,
   onConfigureOAuth,
   onConfigureCallback,
@@ -1088,6 +1127,7 @@ export function PluginDetail({
   onAddAccount: (connection: PluginConnectionView, alias: string) => Promise<boolean>;
   onAuthenticate: (connection: PluginConnectionView, force?: boolean) => void;
   onCancelAuthentication: (connection: PluginConnectionView) => void;
+  onCancelDeviceLink: (connection: PluginConnectionView, sessionId: string) => void;
   onConfigureToken: (connection: PluginConnectionView, token: string) => void;
   onConfigureOAuth: (
     connection: PluginConnectionView,
@@ -1408,6 +1448,8 @@ export function PluginDetail({
                 setDismissedSetupIds((ids) => [...ids, setupConnection.id]);
                 setSetupRequest(null);
               }}
+              onRestart={() => onRestart(setupConnection)}
+              onCancelLink={(sessionId) => onCancelDeviceLink(setupConnection, sessionId)}
               plugin={plugin}
             />
           ) : null}

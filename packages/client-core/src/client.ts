@@ -459,6 +459,16 @@ export const createOutcomeGoClient = (options: OutcomeGoClientOptions) => {
       transport.request(`/api/v0/plugin-connections/${encodeURIComponent(connectionId)}/account`, {
         method: "DELETE",
       }),
+    /** Advances a pending QR approval and may rotate the code; call before reading status. */
+    pollPluginDeviceLink: (connectionId: string) =>
+      transport.request(`/api/v0/plugin-connections/${encodeURIComponent(connectionId)}/device-link/poll`, {
+        method: "POST",
+      }),
+    cancelPluginDeviceLink: (connectionId: string, sessionId: string) =>
+      transport.request(`/api/v0/plugin-connections/${encodeURIComponent(connectionId)}/device-link/cancel`, {
+        method: "POST",
+        body: JSON.stringify({ sessionId }),
+      }),
     externalMessaging: (connectionId: string) =>
       transport.request<ExternalMessagingView>(
         `/api/v0/plugin-connections/${encodeURIComponent(connectionId)}/messaging`

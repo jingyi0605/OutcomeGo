@@ -148,17 +148,32 @@ export function PluginDialog({
         .sort(),
     [data]
   );
+  // A QR approval only advances (and its code only rotates) when polled, as on iOS.
+  const deviceLinkConnectionIds = useMemo(
+    () =>
+      (data?.installs ?? [])
+        .flatMap((install) => install.connections)
+        .filter((connection) => connection.status === "needs_auth" && connection.deviceLink?.sessionId)
+        .map((connection) => connection.id)
+        .sort(),
+    [data]
+  );
   const statusRefresh = useMemo(
     () =>
       createCoalescedRefresh(
-        () => api.pluginConnectionStatuses(needsAuthConnectionIds),
+        async () => {
+          await Promise.all(
+            deviceLinkConnectionIds.map((id) => api.pollPluginDeviceLink(id).catch(() => undefined))
+          );
+          return api.pluginConnectionStatuses(needsAuthConnectionIds);
+        },
         (statuses) => {
           setData((current) =>
             current ? mergePluginConnectionStatuses(current, statuses) : current
           );
         }
       ),
-    [needsAuthConnectionIds]
+    [needsAuthConnectionIds, deviceLinkConnectionIds]
   );
   const reload = useCallback(async () => {
     setReloading(true);
@@ -606,6 +621,9 @@ export function PluginDialog({
                 }}
                 onAuthenticate={authenticateConnection}
                 onCancelAuthentication={cancelAuthentication}
+                onCancelDeviceLink={(connection, sessionId) =>
+                  void mutate(connection.id, () => api.cancelPluginDeviceLink(connection.id, sessionId))
+                }
                 onConfigureToken={(connection, token) =>
                   void mutate(connection.id, async () => {
                     await api.configurePluginConnection(connection.id, { token });

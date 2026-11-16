@@ -13,6 +13,7 @@ import { normalizeAccountLabel, pluginToolArguments } from "./plugin/tool-argume
 import { connectionNamespaces } from "@outcomego/plugin-sdk";
 import type { ConfigurePluginConnectionInput, PluginTestInput, RunOrigin } from "@outcomego/contracts";
 import { ApiError } from "@outcomego/contracts";
+import { assertMessagingBound } from "./external-messaging/binding";
 import { Prisma, type PrismaClient } from "@outcomego/db";
 import type { AgentDataStore } from "@outcomego/messaging";
 import { Effect, Either } from "effect";
@@ -840,6 +841,7 @@ export class PluginService {
   private beginConnect = async (connectionId: string, sessionId: string | null) => {
     const connection = await this.connectionOrThrow(connectionId);
     this.assertAvailable(connection);
+    await assertMessagingBound(this.prisma, connection);
     if (jsonObject(connection.credentials).stateRemovalPending === true)
       throw new ApiError(409, "plugin_account_removal_pending", "Account removal is still pending. Retry removal before reconnecting.");
     this.validateConfiguration(connection);
@@ -1442,6 +1444,8 @@ export class PluginService {
   private async restartConnection(connectionId: string, sessionId: string | null) {
       await this.connectionStops.get(connectionId);
       const connection = await this.connectionOrThrow(connectionId);
+      // Checked before anything is torn down, so a refused restart keeps a QR approval in progress.
+      await assertMessagingBound(this.prisma, connection);
       const updated = await this.prisma.pluginConnection.updateMany({
         where: { id: connectionId, runtimeGeneration: connection.runtimeGeneration },
         data: { runtimeGeneration: { increment: 1 },

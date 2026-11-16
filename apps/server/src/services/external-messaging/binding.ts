@@ -8,6 +8,19 @@ export interface PutBindingInput {
   botId: string;
 }
 
+/**
+ * A chat account is useless without somewhere to send what it receives, so linking one requires its
+ * Bot first. Connections whose plugin declares no `messaging` are unaffected.
+ */
+export const assertMessagingBound = async (
+  prisma: PrismaClient,
+  connection: { id: string; connectorKey: string; installation: { manifest: unknown } }
+): Promise<void> => {
+  if (!messagingOf(connection)) return;
+  const binding = await prisma.externalMessagingBinding.findUnique({ where: { connectionId: connection.id }, select: { id: true } });
+  if (!binding) throw new ApiError(409, "external_binding_required", "Choose the Bot for this account before connecting it.");
+};
+
 /** Bots that can be a target: real, running, not a subagent identity. */
 const TARGET_STATUSES = ["active", "provisioning"] as const;
 

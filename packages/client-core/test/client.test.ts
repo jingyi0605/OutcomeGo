@@ -640,13 +640,18 @@ describe("external messaging binding endpoints", () => {
       botId: "00000000-0000-4000-8000-000000000001",
     });
     await client.deleteExternalMessaging("conn/1");
+    await client.pollPluginDeviceLink("conn/1");
+    await client.cancelPluginDeviceLink("conn/1", "session-1");
 
     const url = "http://outcomego.test/api/v0/plugin-connections/conn%2F1/messaging";
     expect(calls.map((call) => [call.url, call.init?.method ?? "GET"])).toEqual([
       [url, "GET"],
       [url, "PUT"],
       [url, "DELETE"],
+      ["http://outcomego.test/api/v0/plugin-connections/conn%2F1/device-link/poll", "POST"],
+      ["http://outcomego.test/api/v0/plugin-connections/conn%2F1/device-link/cancel", "POST"],
     ]);
+    expect(JSON.parse(String(calls[4]?.init?.body))).toEqual({ sessionId: "session-1" });
     expect(JSON.parse(String(calls[1]?.init?.body))).toEqual({
       enabled: true,
       botId: "00000000-0000-4000-8000-000000000001",

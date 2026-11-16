@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { ExternalMessagingBindingService } from "../../src/services/external-messaging/binding";
+import { assertMessagingBound, ExternalMessagingBindingService } from "../../src/services/external-messaging/binding";
 import { createHarness, databaseUrl, type Harness } from "./fixtures";
 
 describe.skipIf(!databaseUrl)("messaging binding", () => {
@@ -22,6 +22,27 @@ describe.skipIf(!databaseUrl)("messaging binding", () => {
     expect(await service.get(connection.id)).toEqual({ supported: false, platform: null, binding: null });
     await expect(service.put(connection.id, { enabled: true, botId: bot.id })).rejects.toMatchObject({ code: "external_messaging_unsupported" });
     expect(await h.prisma.externalMessagingBinding.count({ where: { connectionId: connection.id } })).toBe(0);
+  });
+
+  describe("linking requires a Bot", () => {
+    const load = (id: string) => h.prisma.pluginConnection.findUniqueOrThrow({ where: { id }, include: { installation: true } });
+
+    test("a messaging account cannot be connected before it has a Bot", async () => {
+      const connection = await h.connection({ platform: "wechat" });
+      await expect(assertMessagingBound(h.prisma, await load(connection.id))).rejects.toMatchObject({ status: 409, code: "external_binding_required" });
+    });
+
+    test("once a Bot is chosen the account may be connected", async () => {
+      const connection = await h.connection({ platform: "wechat" });
+      const bot = await h.bot();
+      await service.put(connection.id, { enabled: true, botId: bot.id });
+      await expect(assertMessagingBound(h.prisma, await load(connection.id))).resolves.toBeUndefined();
+    });
+
+    test("a connector without messaging is not asked for a Bot", async () => {
+      const connection = await h.connection({ messaging: false });
+      await expect(assertMessagingBound(h.prisma, await load(connection.id))).resolves.toBeUndefined();
+    });
   });
 
   test("an unknown connection is not found", async () => {
