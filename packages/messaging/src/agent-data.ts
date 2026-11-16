@@ -209,6 +209,32 @@ const writeEditableBotFile = async (path: string, content: string): Promise<void
   await atomicWrite(path, content, 0o664, { exactMode: true });
 };
 
+const PACKAGE_WRITE_CONCURRENCY = 8;
+
+/**
+ * Writes plugin package files that are missing or have a different size. The install path
+ * contains a digest of the package content, so a file of the right size is already the right
+ * file. Rewriting every file on each start costs several round trips each on a network share.
+ */
+const writeMissingPackageFiles = async (
+  files: ReadonlyMap<string, { content: string | Uint8Array; mode?: number }>
+): Promise<void> => {
+  const entries = [...files];
+  for (let start = 0; start < entries.length; start += PACKAGE_WRITE_CONCURRENCY) {
+    await Promise.all(
+      entries.slice(start, start + PACKAGE_WRITE_CONCURRENCY).map(async ([path, { content, mode }]) => {
+        const size = typeof content === "string" ? Buffer.byteLength(content) : content.byteLength;
+        const existing = await lstat(path).catch((error: NodeJS.ErrnoException) => {
+          if (error.code === "ENOENT") return null;
+          throw error;
+        });
+        if (existing?.isFile() && existing.size === size) return;
+        await atomicWrite(path, content, mode);
+      })
+    );
+  }
+};
+
 const ensureEditableBotDirectory = async (directory: string): Promise<void> => {
   await mkdir(directory, { recursive: true, mode: 0o775 });
   const info = await lstat(directory);
@@ -962,24 +988,25 @@ export class AgentDataStore {
         revision
       );
       packages.push({ pluginId: plugin.id, pluginVersion: plugin.version, installPath, revision });
+      // Later entries for the same path win, matching the order the files used to be written in.
+      const pending = new Map<string, { content: string | Uint8Array; mode?: number }>();
       for (const [path, content] of Object.entries(plugin.files ?? {})) {
-        await atomicWrite(join(installPath, safePackagePath(path)), content, content.startsWith("#!") ? 0o555 : 0o444);
+        pending.set(join(installPath, safePackagePath(path)), { content, mode: content.startsWith("#!") ? 0o555 : 0o444 });
       }
       for (const [path, content] of Object.entries(plugin.binaryFiles ?? {})) {
-        await atomicWrite(join(installPath, safePackagePath(path)), Buffer.from(content, "base64"));
+        pending.set(join(installPath, safePackagePath(path)), { content: Buffer.from(content, "base64") });
       }
       for (const skill of plugin.skills) {
         const id = slugify(`${pluginId}-${skill.name}`, "skill");
         const skillRelativePath = join(skill.path ? safePackagePath(skill.path) : join("skills", id), "SKILL.md");
         const filePath = join(installPath, skillRelativePath);
-        await atomicWrite(
-          filePath,
-          originalSkillMarkdown(skill, plugin.files?.[skillRelativePath]) ?? renderSkillFile({
+        pending.set(filePath, {
+          content: originalSkillMarkdown(skill, plugin.files?.[skillRelativePath]) ?? renderSkillFile({
             name: skill.name,
             description: skill.description,
             body: skill.body,
-          })
-        );
+          }),
+        });
         records.push({
           id,
           pluginId,
@@ -992,6 +1019,7 @@ export class AgentDataStore {
           skillRelativePath,
         });
       }
+      await writeMissingPackageFiles(pending);
     }
     await atomicWrite(
       join(this.pluginSkillsDirectory(), "cache.json"),
