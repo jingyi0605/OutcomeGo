@@ -1,6 +1,6 @@
 # 设计文档 - Bitwarden 与 Vaultwarden 凭据插件接入
 
-状态：实施中（2026-11-13 复核修订）
+状态：实施中（2026-11-16 多实例演进修订）
 
 父规格：[Spec 005：插件扩展体系](../005-插件扩展体系/design.md)
 
@@ -8,28 +8,28 @@
 
 ### 1.1 目标
 
-- 复用当前 1Password 的 Skills 运行模型，为 Bot 和 `computerUse` 提供 Bitwarden/Vaultwarden 登录项读取能力。
-- 通过固定版本、完整性校验和受限包装脚本使用 Bitwarden CLI，避免将任意 Vault 写操作暴露给 Skill。
-- 支持自托管 Vaultwarden server URL、API Key 登录、主密码解锁、同步和 Login item 读取。
-- 通过插件运行时字段扩展，让 server URL、email 等普通配置能够安全到达 Skill 进程。
-- 保持现有插件生命周期、process secret、Skill 缓存、Shell 脱敏和浏览器 secret fill 行为。
+- 复用当前受控 Skills 与 Computer 私有执行模型，为 Bot 和 `computerUse` 提供跨多实例的 Bitwarden/Vaultwarden 登录项读取能力。
+- 支持管理员按实例添加、编辑、重命名（默认显示账户邮箱，重复邮箱支持别名）和删除多个 Bitwarden Cloud / Vaultwarden 实例，每个实例独立配置 5 个字段。
+- 实例连接状态严格由 Bot computer 容器上的真实 `bw.sh status`（`login + unlock + sync`）校验决定，仅实际可用时显示「已连接」（`ready`）。
+- 通过固定版本、完整性校验和受限包装脚本使用 Bitwarden CLI，避免将任意 Vault 写操作或通用 MCP 工具暴露给模型。
+- 自动将已有单全局 `plugin:bitwarden` 配置迁移至第一个实例，保持现有安全边界、Skill 缓存、Shell 脱敏和浏览器 secret fill 行为。
 
 ### 1.2 覆盖需求
 
-- `requirements.md` 需求 1、2：插件目录、安装和配置字段。
-- `requirements.md` 需求 3：普通 runtime field 与 secret runtime field 的传递。
+- `requirements.md` 需求 1、2：插件目录、多实例安装与每实例配置字段。
+- `requirements.md` 需求 3：普通 runtime field 与受保护凭据字段的隔离与传递。
 - `requirements.md` 需求 4、9：CLI 生命周期和 Vaultwarden 自托管兼容。
-- `requirements.md` 需求 5、6、7：凭据读取、浏览器登录和安全边界。
+- `requirements.md` 需求 5、6、7：跨实例检索、审批展示、凭据读取、浏览器登录和安全边界。
 - `requirements.md` 需求 8、10：错误分类、测试和发布验收。
+- `requirements.md` 需求 11：多实例管理、真实连接状态校验、邮箱命名/别名与旧配置迁移。
 
 ### 1.3 技术约束
 
 - 插件包：`packages/plugins/bitwarden/`。
-- 插件类型：Skills-only；`components: ["skills"]`，`connections: []`。
-- 运行位置：Bot computer 的 Shell 进程；不在 OpenTeam server 进程中直接访问 Vaultwarden。
-- 凭据存储：复用 `ProcessSecret` 和插件 owner key `plugin:bitwarden`。
+- 实例模型：在 `plugin.json` 中声明 `setup.kind = "none"`（5 个实例字段）与受控内建连接器 `connections: [{ key: "bitwarden", transport: "builtin", endpoint: "outcomego://bitwarden", auth: "none", tools: [] }]`；不向模型动态命名空间（`pluginDynamicNamespaces`）暴露通用 MCP 工具，仍保留 `components` 对 Skill 与实例连接模型的校验兼容。
+- 运行位置：Bot computer 容器内的私有路径与包装脚本；不在 OpenTeam server 进程中直接访问 Vaultwarden。
+- 凭据存储：每个实例独立存储在 `PluginConnection`（普通配置字段在 `configuration.values`，敏感字段在 `credentials.values`）；不再使用全局 `plugin:bitwarden` `ProcessSecret`（升级时自动迁移并清理）。
 - Skill 传递：复用 `plugin-skills/cache.json` 和 `pluginSkillAgent`。
-- Shell 执行：复用 `ReadProcessSecrets`、`nativeToolExecutor.shell`、`SecretRedactor`。
 - 浏览器填充：复用现有 browser reference driver 的 secret fill 标记和结果脱敏。
 - 外部依赖：固定版本的 Bitwarden CLI、Bitwarden/Vaultwarden server、Bot computer 的网络和证书信任链。
 - 发布约束：插件生成器必须将文本和二进制资源打入 registry，安装时不得依赖未声明的 node_modules。
@@ -42,152 +42,183 @@
 flowchart LR
   U[用户] --> D[Desktop Marketplace]
   D --> S[OpenTeam Server]
-  S --> DB[(ProcessSecret
-plugin:bitwarden)]
+  S --> DB[(PluginConnection
+per instance)]
+  S --> CHK["Computer /v1/bitwarden/check
+(bw.sh status)"]
+  CHK --> VW[Bitwarden Cloud 或 Vaultwarden]
   S --> W[Worker]
   W --> C[Computer Runtime]
-  C --> E[SearchBitwardenItems]
+  C --> E[SearchBitwardenItems
+all ready instances]
   E --> C
-  C --> A[RequestBitwardenReadApproval]
+  C --> A[RequestBitwardenReadApproval
+shows instance alias]
   A --> U
-  U --> G[BitwardenReadApproval + one-time lease]
+  U --> G[BitwardenReadApproval + connectionId + lease]
   G --> C
   C --> SK[Bitwarden Skill]
   SK --> WR[bw.sh 受限包装层]
   WR --> CLI[固定版本 Bitwarden CLI]
-  CLI --> VW[Bitwarden Cloud 或 Vaultwarden]
+  CLI --> VW
   C --> B[Browser secret fill]
   B --> SITE[目标网站]
 ```
 
 关键数据流：
 
-1. 用户在 Marketplace 配置插件字段。
-2. Server 将字段值写入现有插件级 process secret 存储，并只向设置视图返回配置状态。
-3. Worker 将 Skill 元数据和支持文件同步到 Bot computer，并把适用的 Skill 提供给 `main` 和 `computerUse`。
-4. Bot 使用 `SearchBitwardenItems` 获取非 secret metadata；首次读取某个 item 时调用 `RequestBitwardenReadApproval`，Server 发送 widget 并持久化授权状态。
-5. 用户选择或批准后，Computer 私有路径消费短时 lease，将 protected runtime fields 只注入 wrapper 子进程，向 Bitwarden/Vaultwarden 发起登录、解锁、同步和读取请求。
-6. 读取结果返回当前 Bot，用于当前任务或浏览器安全填充；普通 Shell、MCP process 和子机器人不能读取 protected fields。
+1. 用户在 Marketplace 添加并配置一个或多个 Bitwarden 实例，每个实例独立保存 5 个字段至对应 `PluginConnection`。
+2. Server 将实例凭据下发给 Bot computer 私有检查端点（`/v1/bitwarden/check`）执行 `bw.sh status`（`config server` → `login --apikey` → `status` 邮箱校验 → `unlock` → `sync`）；只有实测通过，Server 才将该实例状态置为 `ready`（「已连接」），并在用户未自定义别名时将实例名称设为账户邮箱。
+3. Worker 将 Skill 元数据和支持文件同步到 Bot computer，并把适用的 Skill 提供给 `main` 和 `computerUse`；同时跳过 Bitwarden 实例的 MCP 命名空间暴露。
+4. Bot 使用 `SearchBitwardenItems` 跨所有 `ready` 实例获取非 secret metadata（包含来源 `connectionId` 与实例名称）；首次读取某个 item 时调用 `RequestBitwardenReadApproval`，Server 在审批卡片中显示来源实例名称并持久化 `connectionId` 与候选绑定关系。
+5. 用户选择或批准后，Computer 私有路径消费短时 lease，Server 只把对应获批实例的受保护字段注入 wrapper 子进程，向该实例的 Bitwarden/Vaultwarden 发起登录、解锁、同步和读取请求。
+6. 读取结果以 `browserReference` 返回当前 Bot，用于当前任务或浏览器安全填充；普通 Shell、MCP process 和其他子机器人不能读取任何实例的 `BW_*` 字段。
 
 ### 2.2 模块职责
 
 | 模块 | 职责 | 输入 | 输出 |
 | --- | --- | --- | --- |
-| `packages/plugins/bitwarden/plugin.json` | 声明插件元数据、runtime fields 和 Skill | 插件定义 | 可校验的 `PluginDefinition` |
-| `packages/plugins/bitwarden/skills/bitwarden/SKILL.md` | 告诉 Bot 何时搜索、请求授权和读取 Login item | 用户任务、Skill 路径 | first-party 工具调用计划 |
+| `packages/plugins/bitwarden/plugin.json` | 声明插件元数据、`setup.fields`、受控 `builtin` 连接器与 Skill | 插件定义 | 可校验的 `PluginDefinition` |
+| `packages/plugins/bitwarden/skills/bitwarden/SKILL.md` | 告诉 Bot 跨实例搜索、请求授权和读取 Login item | 用户任务、Skill 路径 | first-party 工具调用计划 |
 | `ensure-cli.sh` | 安装、校验和定位固定 CLI | 平台、版本、下载地址 | CLI 可执行文件路径 |
-| `bw.sh` | 执行 server 配置、登录、解锁、同步和读取白名单动作 | runtime fields、动作参数 | 安全的字段级结果或错误摘要 |
-| `packages/plugin-sdk` | 校验 runtime field，允许非 secret environment field | 插件定义 | 合法字段模型 |
-| `apps/server` 插件安装服务 | 保存、替换、清理插件运行字段 | setup values | `ProcessSecret` 更新和插件状态 |
-| `apps/computer` runtime | 隔离 protected fields、消费 lease、执行 wrapper | Bot turn、授权 lease | 字段结果、终端状态 |
-| `packages/messaging` Skill catalog | 将 Skill 提供给主 Bot 和指定子机器人 | 插件安装记录、Skill 缓存 | `agent_skills` 和 Skill instructions |
+| `bw.sh` | 执行 server 配置、登录、解锁、同步和读取白名单动作 | 实例 runtime fields、动作参数 | 安全的字段级结果或错误摘要 |
+| `packages/plugin-sdk` | 校验 runtime field 与 `outcomego://bitwarden` 连接器契约 | 插件定义 | 合法字段与连接器模型 |
+| `apps/server` 插件与内部工具服务 | 管理多实例 CRUD、旧配置迁移、调度 `/v1/bitwarden/check`、控制检索/审批/lease 路由 | setup values、实例操作、tool call | `PluginConnection` 状态、审批与一次性 lease |
+| `apps/computer` runtime & HTTP | 执行 `/v1/bitwarden/check`、多实例 search 聚合、单实例 read 与引用脱敏 | 检查请求、Bot turn、授权 lease | 实例可用性结果、候选列表、引用 |
+| `apps/desktop` 插件详情与实例 UI | 渲染多实例卡片、5 个字段保存/部分更新表单、邮箱名称/别名与「已连接」状态 | `PluginSettingsView` | 实例增删改、重命名、重试交互 |
+| `packages/messaging` Skill catalog | 将 Skill 提供给主 Bot 和指定子机器人，不生成 MCP 命名空间 | 插件安装记录、Skill 缓存 | `agent_skills` 和 Skill instructions |
 | `browser reference driver` | 标记 secret fill 并保护页面观察结果 | username、password、TOTP | 脱敏后的页面状态 |
 | 兼容性测试 harness | 验证 CLI 与 Vaultwarden 组合 | fixture/server URL/凭据 | 可复核的测试报告 |
 
 ### 2.3 关键流程
 
-#### 2.3.1 安装和配置流程
+#### 2.3.1 安装、多实例配置与真实连接检查流程
 
 1. 插件生成器发现 `packages/plugins/bitwarden`，读取 `plugin.json` 和支持文件。
-2. SDK 校验 key、字段、环境变量名称、Skill agents 和包路径。
-3. 用户输入 `BW_SERVER_URL`、`BW_EMAIL`、`BW_CLIENT_ID`、`BW_CLIENT_SECRET`、`BW_MASTER_PASSWORD`。
-4. Server 校验 URL、字段类型和必填项，在事务中创建插件安装记录并保存运行字段。
-5. `AgentDataStore.syncPluginSkillCache` 将 Skill 和包装脚本写入 Bot computer 的插件缓存。
-6. 后续 Bot turn 通过 `pluginSkillAgent` 为 `main` 和 `computerUse` 加载 Skill。
+2. 安装插件时创建 `PluginInstallation` 和初始默认 `PluginConnection`（`alias = "default"`，`status = "disconnected"`）；若检测到旧版 `ProcessSecret(ownerKey = "plugin:bitwarden")`，自动把已保存的 5 个字段迁移至第一个 `PluginConnection` 并清理旧键（若 `BW_EMAIL` 有效且非空，初始别名可直接设为邮箱，状态仍保持待验证直到真实检查通过）。
+3. 用户可在「账户 / 实例」区域点击添加更多实例，或展开已有实例编辑 5 个字段（`BW_SERVER_URL`、`BW_EMAIL`、`BW_CLIENT_ID`、`BW_CLIENT_SECRET`、`BW_MASTER_PASSWORD`）。
+4. 保存配置时，Server 校验 URL（`https-origin`）、必填项与主密码保留空白语义，更新对应 `PluginConnection` 的 `configuration.values` 与 `credentials.values`，重置 `status = "disconnected"`，随后调用 Computer 私有端点 `POST /v1/bitwarden/check`。
+5. Computer 在临时进程环境运行 `bw.sh status` 验证 server、API Key、账户邮箱、主密码解锁与同步；成功则 Server 将该实例 `status` 更新为 `"ready"`（「已连接」），若 `alias` 仍为 `"default"`（或未手工自定义），自动将其更新为 `BW_EMAIL`（若同插件下该邮箱别名已存在，则自动附加区分后缀如 `email (host)` 或由用户自定义别名）。
+6. 若 `bw.sh status` 失败或 Computer 不可达，Server 将该实例置为 `"error"`（或在缺少凭据时为 `"disconnected"`）并写入不含 secret 的安全阶段错误摘要到 `statusMessage`。
 
-#### 2.3.2 单次读取流程
+#### 2.3.2 跨实例检索与单次读取流程
 
 1. Bot 根据用户任务确定目标 hostname、标题或显式 item id。
-2. Bot 通过 `SearchBitwardenItems` 获取候选项的非 secret 摘要。
-3. 首次读取某个 item 时调用 `RequestBitwardenReadApproval`，Server 创建 widget 和 `BitwardenReadApproval`，等待用户回答。
-4. 用户回答后，恢复 run 携带非 secret approval reference；`ReadBitwardenCredential` 校验 bot、channel、item、状态、过期时间和 task reference。
-5. Computer 私有路径消费一次性 lease，读取 protected runtime fields，建立隔离的 CLI 配置目录并执行 `bw.sh`。
-6. `bw.sh` 配置 server、登录、解锁并同步 Vault；`username`、`password`、`totp` 只读取被选中的一个字段。
-7. 读取结果返回 Bot；token、Client Secret、主密码、session key 和配置环境不会进入普通工具结果。
+2. Bot 调用 `SearchBitwardenItems`（可选指定 `connectionId` 或 `instance`）；Server 查询所有 `status = "ready"` 的 Bitwarden 实例并颁发一次性搜索 lease。
+3. Computer 消费搜索 lease 获取各已连接实例的独立隔离环境，分别在独立临时目录并发或顺序运行 `bw.sh search`，聚合并标注每个候选的 `connectionId` 与 `instanceName`（实例别名/邮箱）。若无任何已连接实例，返回明确未连接提示。
+4. 首次读取某个实例下某个 item 时调用 `RequestBitwardenReadApproval`，Server 创建包含实例名称的聊天审批 widget 与 `BitwardenReadApproval` 记录（绑定 `connectionId` 与候选集），等待用户回答。
+5. 用户回答后，恢复 run 携带非 secret approval reference；`ReadBitwardenCredential` 校验 `botId`、`channelId`、`connectionId`、`itemId`、状态、过期时间和 task reference，并确认目标实例仍为 `ready`。
+6. Computer 私有路径消费一次性 read lease，只读取获批 `connectionId` 对应的 5 个受保护字段，建立隔离的 CLI 配置目录并执行 `bw.sh` 读取 `username`、`password` 或 `totp`。
+7. 读取结果以 `browserReference` 返回 Bot；token、Client Secret、主密码、session key 和配置环境不会进入普通工具结果或模型上下文。
 8. CLI 进程、临时 session、临时配置和 lease 被回收或过期。
 
 #### 2.3.3 浏览器登录流程
 
 1. 主 Bot 启动 `computerUse` 子机器人，并在任务中说明目标网站和登录成功条件。
 2. `computerUse` 读取 Bitwarden Skill，确认页面 hostname。
-3. 子机器人通过受控工具调用 `SearchBitwardenItems`；首次读取时通过同一个授权 widget 选择并批准 item，再调用 `ReadBitwardenCredential`。
+3. 子机器人通过受控工具调用 `SearchBitwardenItems` 跨已连接实例搜索；首次读取时通过同一个授权 widget（显示实例名称）选择并批准 item，再调用 `ReadBitwardenCredential`。
 4. 子机器人将读取结果传给现有浏览器填充工具，填充动作设置 secret marker。
 5. 浏览器 snapshot、控制台和错误摘要继续由现有 reference driver 脱敏。
 6. 遇到 SSO、Passkey、CAPTCHA、人工 MFA 或不明确账号时，走既有人工接管流程。
 
-#### 2.3.4 配置替换和卸载流程
+#### 2.3.4 实例字段替换、重命名、移除与插件卸载流程
 
-1. 用户在插件详情页替换某个 runtime field。
-2. Server 只更新对应 `plugin:bitwarden` secret。
-3. 下一次 Shell 调用重新读取完整环境，并不复用旧 CLI session。
-4. 卸载时停止相关运行时、删除插件 process secrets、移除插件 Skill 缓存和活动记录关联。
+1. 用户可在实例设置卡片中单独替换任意字段（保留未提交的其余已保存字段）；保存后重置 `ready` 并自动重新校验，只有再次通过 `bw.sh status` 后才恢复「已连接」。
+2. 用户可随时通过重命名修改实例别名（允许 `@` 等邮箱字符，确保同一插件下唯一），为重复邮箱设置易于区分的名称。
+3. 删除单个实例时仅清除该 `PluginConnection` 及其关联未完成审批记录，不影响其他实例。
+4. 卸载插件时删除 `PluginInstallation`、所有 `PluginConnection`、关联 `BitwardenReadApproval`、遗留 `plugin:bitwarden` secrets（如有）以及插件 Skill 缓存。
 5. CLI 安装目录是否删除由插件缓存生命周期决定；不得删除用户工作区内与插件无关的文件。
 
 ## 3. 组件和接口
 
-### 3.1 插件包定义
+### 3.1 插件包定义与多实例连接模型
 
-建议的 `plugin.json` 结构：
+`packages/plugins/bitwarden/plugin.json` 结构调整为受控多实例连接声明：
 
 ```json
 {
   "schemaVersion": 1,
   "key": "bitwarden",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "name": "Bitwarden / Vaultwarden",
-  "description": "Bots read login credentials and one-time codes from Bitwarden or self-hosted Vaultwarden.",
-  "publisher": "OpenTeam",
+  "description": "Bots sign in with usernames, passwords and one-time codes from Bitwarden or self-hosted Vaultwarden.",
+  "publisher": "OutcomeGo",
   "category": "Login and Credential Management",
   "featured": false,
-  "components": ["skills"],
-  "connections": [],
+  "components": ["mcp", "skills"],
+  "setup": {
+    "kind": "none",
+    "connectionKey": "bitwarden",
+    "title": "Connect Bitwarden / Vaultwarden",
+    "description": "...",
+    "steps": ["..."],
+    "fields": [
+      { "key": "BW_SERVER_URL", "label": "Server URL", "required": true, "secret": false, "format": "https-origin" },
+      { "key": "BW_EMAIL", "label": "Account email", "required": true, "secret": false },
+      { "key": "BW_CLIENT_ID", "label": "Personal API client ID", "required": true, "secret": true },
+      { "key": "BW_CLIENT_SECRET", "label": "Personal API client secret", "required": true, "secret": true },
+      { "key": "BW_MASTER_PASSWORD", "label": "Master password", "required": true, "secret": true, "preserveWhitespace": true }
+    ],
+    "requiredScopes": []
+  },
+  "connections": [
+    {
+      "key": "bitwarden",
+      "name": "Bitwarden / Vaultwarden",
+      "transport": "builtin",
+      "auth": "none",
+      "endpoint": "outcomego://bitwarden",
+      "tools": []
+    }
+  ],
   "setupFields": [],
-  "skills": []
+  "skills": [
+    { "name": "bitwarden", "path": "skills/bitwarden", "agents": ["main", "computerUse"] }
+  ]
 }
 ```
 
-实际实现必须把五个字段和 Skill 定义完整写入。Skill 的 `agents` 必须包含：
+关键约束：
 
-```json
-["main", "computerUse"]
-```
+- `packages/plugin-sdk/src/manifest.ts` 允许 `endpoint === "outcomego://bitwarden"` 的 `builtin` 连接器；此类实例仅用于承载多实例配置、真实连通性检查与状态展示。
+- `packages/contracts/src/plugin-namespaces.ts`（`pluginDynamicNamespaces`）显式跳过 `outcomego://bitwarden`（或 `pluginKey === "bitwarden"` 且 `tools: []`）的连接记录，不向模型暴露任何 MCP 命名空间或通用 MCP 工具。
+- Skill 的 `agents` 必须保持 `["main", "computerUse"]`。
 
-插件不声明 `connections`，因此不会生成 MCP namespace，也不会进入 connector 账号路由。
+### 3.2 实例字段与命名/别名规则
 
-### 3.2 Plugin runtime fields
+每个 Bitwarden 实例独立包含以下 5 个字段（沿用受保护语义）：
 
-| 字段 key | 类型 | secret | environment | 必填 | 用途 |
+| 字段 key | 类型 | secret | 实例存储位置 | 必填 | 用途 |
 | --- | --- | --- | --- | --- | --- |
-| `serverUrl` | string | 否 | `BW_SERVER_URL` | 是 | Bitwarden Cloud 或 Vaultwarden root URL |
-| `email` | string | 否 | `BW_EMAIL` | 是 | 专用 Bitwarden/Vaultwarden 用户邮箱 |
-| `clientId` | string | 是 | `BW_CLIENT_ID` | 是 | Bitwarden API Key Client ID |
-| `clientSecret` | string | 是 | `BW_CLIENT_SECRET` | 是 | Bitwarden API Key Client Secret |
-| `masterPassword` | string | 是 | `BW_MASTER_PASSWORD` | 是 | 解锁本地加密 Vault 的主密码 |
+| `BW_SERVER_URL` | string | 否 | `configuration.values.BW_SERVER_URL` | 是 | Bitwarden Cloud 或 Vaultwarden root URL |
+| `BW_EMAIL` | string | 否 | `configuration.values.BW_EMAIL` | 是 | 专用 Bitwarden/Vaultwarden 用户邮箱 |
+| `BW_CLIENT_ID` | string | 是 | `credentials.values.BW_CLIENT_ID` | 是 | Bitwarden API Key Client ID |
+| `BW_CLIENT_SECRET` | string | 是 | `credentials.values.BW_CLIENT_SECRET` | 是 | Bitwarden API Key Client Secret |
+| `BW_MASTER_PASSWORD` | string | 是 | `credentials.values.BW_MASTER_PASSWORD` | 是 | 解锁本地加密 Vault 的主密码 |
 
-字段规则：
+字段与别名规则：
 
-- `serverUrl` 和 `email` 使用普通文本输入，但值仍存储在插件运行时环境中，不进入公开 prompt 或插件包。
+- `BW_SERVER_URL` 和 `BW_EMAIL` 使用普通文本输入，不进入普通 Bot Shell、MCP 进程或公开 prompt；设置页的实例表单只显示每个字段的「已保存 / 未设置」状态，支持部分字段替换更新而不暴露明文（`PluginConfigurationView` 为敏感与 Bitwarden 实例受保护字段统一屏蔽明文回显）。
 - 三个 secret 字段使用密码输入控件，详情页只显示 Saved/Not set。
-- 所有字段不设置 default。
-- 所有 environment name 使用 `BW_` 前缀，避免与 1Password 的 `OP_` 变量冲突。
-- `serverUrl` 使用通用字段 `format: "https-origin"`，只接受 HTTPS origin（允许根 `/`）；拒绝 path、query、fragment、用户名、密码和控制字符。
-- `masterPassword` 声明 `preserveWhitespace: true`，server 原样保存；其他字段继续使用原有 trim 行为。
-- `email` 在保存时 trim，但不强制把大小写改写成 provider 返回的值。
+- 所有字段不设置 default；`BW_SERVER_URL` 复用 `format: "https-origin"` 校验；`BW_MASTER_PASSWORD` 声明 `preserveWhitespace: true`，原样保存；`BW_EMAIL` 保存时 trim，保留大小写。
+- **实例名称（`alias`）与重复邮箱别名**：
+  - `validAlias` 放宽字符集以允许邮箱常见字符（包括 `@`，例如 `^[A-Za-z0-9][A-Za-z0-9 _@.-]{0,78}[A-Za-z0-9]$`）。
+  - 添加或配置实例时，当实测 `bw.sh status` 校验通过且当前 `alias` 为初始默认值 `"default"`（或尚未由用户手动改名）时，服务端自动把实例 `alias` 更新为该实例的 `BW_EMAIL`；随后用户修改该实例邮箱且未自定义别名时可同步更新（若用户已手工设置别名则保留自定义别名）。
+  - 当同插件下已存在相同邮箱的实例时：允许用户在添加或重命名时设置自定义别名；若自动命名撞名，则自动生成不冲突的唯一别名（如 `${email} (${serverHost})` 或附加序号 `${email} #2`），确保 `(installationId, connectorKey, alias)` 唯一约束始终满足。
 
-### 3.3 SDK runtime field 扩展
+### 3.3 SDK 与服务端实例检查扩展
 
-当前 `PluginField.environment` 只接受 secret 字段。需要将它改为“可注入 Bot computer 的 runtime field”语义，并增加 protected 访问策略：
-
-- `environment` 仍必须是合法环境变量名。
-- 字段类型仍必须为 string。
-- 同一个插件内环境变量名必须唯一。
-- secret 和非 secret 字段都可以声明 `environment`。
-- `protected: true` 只能用于 environment 字段；Bitwarden 五个字段均受保护。
-- `environmentFields(plugin)` 继续返回所有带 `environment` 的字段。
-- `storePluginEnvironment`、`processEnvironment` 和插件卸载清理逻辑保持复用。
-- 设置视图继续只返回配置字段名称和 Saved/Not set 状态，不返回值。
-- 桌面端安装表单根据 `field.secret` 选择 password 或 text；已安装插件的替换表单也必须保持相同类型。
-- 普通 runtime fields 保持现有注入语义；protected fields 从 `processEnvironment` 过滤，只能由服务端授权 lease 的内部路径读取。
+1. 保留现有 `PluginField.environment` 对普通与 secret string 字段的支持（确保 1Password 与既有 `PluginField` 契约完全兼容）。
+2. `packages/plugin-sdk/src/manifest.ts` 允许 `connector.transport === "builtin"` 的内建连接器包含 `outcomego://bitwarden`。
+3. `apps/computer` 新增受控私有 HTTP 端点 `POST /v1/bitwarden/check`（与 `/v1/web-providers/check` 相同鉴权）：接收单次检查所需的 5 个字段（仅存在于请求体与临时子进程环境，不落盘、不写日志），调用缓存包内的 `bw.sh status`（实际完成 `config server`、`login --apikey`、邮箱核对、`unlock` 与 `sync`），返回 `{ ok, errorCode, stage, message, retryable, detail }`。
+4. `apps/server` 的 `PluginService.connect` 与配置保存流程针对 `bitwarden` 实例执行以下状态机：
+   - 任一配置保存/字段替换后，立即清理旧 `status` 为 `"disconnected"`，并触发 `connect(connectionId)`；
+   - `connect` 校验 5 个字段齐全后，调用 `computerFetch("/v1/bitwarden/check", ...)`；
+   - 仅当 Computer 返回 `ok === true`（`authenticated && unlocked && synced`）时，将 `PluginConnection.status` 置为 `"ready"`（「已连接」），并在需要时自动设置 `alias = BW_EMAIL`（或去重后的别名）；
+   - 任一环节失败（缺失字段、Computer 离线、`server_unreachable`、`tls_untrusted`、`login_failed`、`vault_locked`、`sync_failed` 等）时，将 `status` 置为 `"error"`（字段不全为 `"disconnected"`）并在 `statusMessage` 写入脱敏后的安全摘要，绝不伪报「已连接」。
+5. 桌面端 `apps/desktop/src/renderer/components/outcomego/plugin-detail-view.tsx`：
+   - 在 Bitwarden 详情页使用「账户 / 实例」区块管理多个实例，允许添加实例、展开编辑任一实例的 5 个字段（支持部分替换并显示 `Saved` / `Not set`）、重命名别名、重新连接与移除实例。
+   - 修复 `DetailBlock` 传入已翻译 `label={t("Skills")}` 导致显示 `1 个事件` 的问题，统一使用未翻译 key 判断单复数后再翻译显示 `1 个技能`。
 
 ### 3.4 CLI 包装层接口
 
@@ -211,27 +242,36 @@ plugin:bitwarden)]
 6. `bw.sh` 用 `exec python3` 启动标准库实现（computer 镜像已有 Python 3）；子进程独立进程组，SIGTERM/SIGINT/超时回收进程组，session 只在内存和子进程环境中传递。
 7. stderr 只输出固定错误类别和安全摘要，不输出 CLI 原始响应中的 token、Authorization header 或主密码提示内容。
 
-### 3.5 Login item 选择规则
+### 3.5 跨实例 Login item 选择与审批卡片
 
-选择器接收：
+选择器与工具接口接收：
 
 ```text
-hostname?: string
-query?: string
-itemId?: string
+SearchBitwardenItems:
+  query: string        # hostname/HTTPS URL，或 title=true 时的标题关键词
+  title?: boolean
+  connectionId?: string  # 可选：限定在某个已连接实例内搜索；省略时搜索全部已连接实例
+
+RequestBitwardenReadApproval:
+  candidates: Array<{
+    connectionId: string
+    itemId: string
+    title: string
+    hostname: string
+  }>
 ```
 
-优先级：
+检索与选择规则：
 
-1. `itemId` 明确指定时，读取指定 item，并验证类型为 Login。
-2. 有 `hostname` 时，优先 exact hostname。
-3. 不回退到注册域或其他子域；完整 URI 精确匹配优先于 exact hostname。
-4. 显式 `--title` 时按标题搜索；不按 username 搜索。
-5. 结果为一个时返回 item id 和非 secret metadata。
-6. 结果为多个时返回候选摘要，不读取密码、TOTP 或完整登录字段；Skill 必须通过聊天 widget 让用户选择真实候选并同时确认读取授权。
-7. 结果为空时返回 `item_not_found`。
-
-不得仅凭模糊标题自动选择多个不同账号中的一个。登录任务必须将浏览器当前 hostname 作为主要匹配输入。
+1. **搜索范围**：`SearchBitwardenItems` 仅检索 `status === "ready"` 的 Bitwarden 实例；若不存在任何已连接实例，立即返回 `bitwarden_not_connected`。未指定 `connectionId` 时，向所有已连接实例分发检索并聚合候选结果；每个候选附带 `connectionId` 与 `instanceName`（对应 `PluginConnection.alias`）。若部分实例成功、部分实例临时报错，返回成功实例候选的同时附带安全 `warnings`（标注失败实例名和错误码，不暴露 secret）；若全部实例均失败，返回错误。
+2. **匹配优先级**：每个实例内部仍按完整 URI 精确匹配优先于 exact hostname，不回退到注册域或其他子域；显式 `--title` 按标题搜索，不按 username 搜索。
+3. **审批卡片展示与唯一绑定**：
+   - `RequestBitwardenReadApproval` 校验每个候选的 `connectionId` 属于当前已安装且 `status === "ready"` 的 Bitwarden 实例。
+   - 聊天审批 widget 明确展示每个候选的来源实例名称（邮箱或别名），例如：
+     - 单候选：`Allow reading the Bitwarden item "${title}" (${instanceName}) for ${hostname}?`，选项显示 `${title} - ${hostname} (${instanceName})`。
+     - 多候选：`Which Bitwarden item may be read for this task?`，选项显示 `${title} - ${hostname} (${instanceName})`，option `value` 唯一编码为 `${connectionId}:${itemId}`（服务端在 `BitwardenReadApproval` 中同步持久化候选项映射，确保即便是不同实例下的同 UUID 也能唯一锁定目标实例）。
+4. **读取绑定**：`ReadBitwardenCredential` 校验 `approval` 已批准、未过期、属于当前任务上下文，且 `approval.connectionId` 与 `approval.itemId` 匹配；`ConsumeBitwardenReadLease` 仅返回该 `connectionId` 对应的 5 个环境变量。
+5. 结果为空时返回 `item_not_found`。不得仅凭模糊标题自动选择多个不同账号中的一个。登录任务必须将浏览器当前 hostname 作为主要匹配输入。
 
 ### 3.6 CLI 安装器
 
@@ -286,50 +326,78 @@ wrapper 的 `value` 只在 Computer 私有执行路径中解析，随后写入�
 
 ### 4.1 数据关系
 
-本 Spec 不新增数据库表。关系如下：
+新增最小实例关联字段（在 `BitwardenReadApproval` 上记录 `connectionId`、实例名及可选候选绑定），关系如下：
 
 ```text
 PluginInstallation(bitwarden)
-  └── manifest.setupFields
+  └── PluginConnection[] (connectorKey = "bitwarden", transport = "builtin")
+        ├── id (UUID, 实例 ID)
+        ├── alias (默认账户邮箱；重复邮箱支持别名)
+        ├── status ("disconnected" | "ready" | "error")
+        ├── statusMessage (安全阶段摘要)
+        ├── configuration.values: { BW_SERVER_URL, BW_EMAIL }
+        └── credentials.values: { BW_CLIENT_ID, BW_CLIENT_SECRET, BW_MASTER_PASSWORD }
 
-ProcessSecret(ownerKey = plugin:bitwarden)
-  ├── BW_SERVER_URL
-  ├── BW_EMAIL
-  ├── BW_CLIENT_ID
-  ├── BW_CLIENT_SECRET
-  └── BW_MASTER_PASSWORD
+BitwardenReadApproval
+  ├── connectionId (UUID -> PluginConnection.id, nullable for legacy rows)
+  ├── instanceName (审批时的实例别名快照)
+  ├── candidates (JSON, 多候选时记录 [{ connectionId, itemId, title, hostname }])
+  ├── itemId / title / hostname
+  └── status / expiresAt / leaseTokenHash / leaseExpiresAt
 
 AgentData/plugin-skills/cache.json
   └── bitwarden Skill + supporting scripts
 ```
 
 - `PluginInstallation.manifest` 保存字段定义和包内容，不保存用户填写的值。
-- `ProcessSecret` 保存插件运行字段，值通过 `processEnvironment` 只在 Bot 运行时读取。
+- 每个实例的 5 个字段只存在对应 `PluginConnection` 的 `configuration` / `credentials` 中，不写入 `ProcessSecret`，也不会由 `processEnvironment` 注入普通 Shell。
 - `plugin-skills/cache.json` 只保存 Skill 文件路径和插件包路径，不保存用户值。
 - Bitwarden/Vaultwarden 中的 Login item 是外部事实来源，OpenTeam 不复制其内容。
 
-### 4.2 运行状态
+### 4.2 运行状态与旧配置自动迁移
 
 CLI 流程使用独立临时目录和进程内 session：Linux 优先 `/dev/shm`，其他平台使用系统临时目录，权限 0700。CLI 自身可能写认证 token 和加密 Vault；结束/可捕获信号清理目录，不写长期缓存。SIGKILL/主机崩溃不能保证即时清理，部署侧应清理临时目录。
 
+#### 实例连接状态（`PluginConnection.status`）
+
 | 状态 | 含义 | 进入条件 | 退出条件 |
 | --- | --- | --- | --- |
-| `not_configured` | 必需 runtime field 缺失 | 插件未完整配置 | 用户保存字段 |
-| `cli_missing` | 固定版本 CLI 尚未安装 | 第一次读取或缓存丢失 | 安装成功 |
+| `disconnected` | 未配置或待验证（含迁移后初始态） | 新建实例、字段变更或旧配置迁移完成 | 触发 `bw.sh status` 检查 |
+| `ready`（「已连接」） | 已通过 Bot computer 上 `bw.sh status` 实测可用 | `login + email 核对 + unlock + sync` 全部成功 | 修改字段、断开或复检失败 |
+| `error` | 实测检查失败 | 网络、TLS、API Key、主密码、同步或 CLI 故障 | 用户修正配置并重检通过 |
+
+#### 单次读取阶段状态
+
+| 状态 | 含义 | 进入条件 | 退出条件 |
+| --- | --- | --- | --- |
+| `not_configured` | 实例缺少必需字段 | 存在未填写字段 | 用户保存全部 5 个字段 |
+| `cli_missing` | 固定版本 CLI 尚未安装 | 第一次检查/读取或缓存丢失 | 安装成功 |
 | `server_unreachable` | DNS、TCP、超时或 TLS 失败 | server 无法访问 | 网络或证书恢复 |
-| `login_required` | API Key 登录失败或未完成 | CLI 登录请求失败 | 配置修正并重新执行 |
+| `login_required` | API Key 登录失败或邮箱不匹配 | CLI 登录请求失败 | 配置修正并重新执行 |
 | `locked` | Vault 未解锁 | 主密码错误或解锁失败 | 正确主密码解锁 |
 | `synced` | 当前流程已完成同步 | sync 成功 | 读取完成或流程失败 |
-| `ready` | 已选定可读取 item | 匹配唯一且类型正确 | 字段读取完成 |
+| `ready` | 实例或已选定 item 可读取 | 检查/匹配唯一且类型正确 | 字段读取完成 |
 | `ambiguous` | 匹配到多个 item | search 结果不唯一 | 用户指定 item |
 | `field_missing` | 目标字段为空或不存在 | 读取字段失败 | 用户选择其他 item 或补充字段 |
 
+#### 旧单全局 `plugin:bitwarden` 自动迁移规则
+
+- 触发时机：插件版本升级（`PluginManagement.update` / `updateReleased`）、服务端启动恢复或幂等迁移入口检测到 `PluginInstallation(pluginKey = "bitwarden")` 尚未拥有 `PluginConnection` 记录且 `ProcessSecret` 存在 `ownerKey = "plugin:bitwarden"` 时。
+- 迁移动作（单事务执行）：
+  1. 读取 `ownerKey = "plugin:bitwarden"` 下的 `BW_SERVER_URL`、`BW_EMAIL`、`BW_CLIENT_ID`、`BW_CLIENT_SECRET`、`BW_MASTER_PASSWORD`。
+  2. 将 `BW_SERVER_URL`、`BW_EMAIL` 写入第一个 `PluginConnection.configuration.values`，将 `BW_CLIENT_ID`、`BW_CLIENT_SECRET`、`BW_MASTER_PASSWORD` 写入 `credentials.values`。
+  3. 若读取到的 `BW_EMAIL` 合法，将第一个实例 `alias` 设为 `BW_EMAIL`；否则设为 `"default"`。
+  4. 将第一个实例 `status` 设为 `"disconnected"`（不跳过真实检查，待 Computer 执行 `bw.sh status` 通过后变为 `"ready"`；若迁移时 Computer 在线且配置完整，可异步触发一次连接检查）。
+  5. 删除 `ProcessSecret` 中 `ownerKey = "plugin:bitwarden"` 的旧记录，保证后续只从实例记录读取。
+- 幂等性：若 `bitwarden` 已存在 `PluginConnection` 记录，则跳过迁移，不覆盖既有实例配置。
+
 ### 4.3 配置生命周期
 
-- 安装：创建 `PluginInstallation` 和插件 process fields。
-- 替换：只更新指定环境变量。
-- 更新：以新 manifest 的 environment name 集合为准清理已删除变量。
-- 卸载：删除 `plugin:bitwarden` 的所有 process secrets，并同步删除插件缓存。
+- 安装：创建 `PluginInstallation` 与初始默认 `PluginConnection`（`alias = "default"`），允许后续通过「添加账户 / 实例」创建更多实例。
+- 实例保存与连接：校验并写入对应 `PluginConnection`，触发 Computer `bw.sh status` 实测；成功则标记 `"ready"` 并在需要时自动设置 `alias = BW_EMAIL`。
+- 部分字段替换：只更新提交的字段，保留同实例其余已保存字段，不干扰其他实例；保存后重置状态并重新校验。
+- 更新：更新 `manifest` 时保留已有全部 `PluginConnection` 实例及其配置，并自动执行一次旧 `plugin:bitwarden` 迁移检查。
+- 删除实例与卸载：删除单个实例仅清理该 `PluginConnection`；卸载插件时级联删除所有实例、未完成审批记录、遗留 `plugin:bitwarden` secrets（如有）及 Skill 缓存。
 - CLI 缓存：由插件包缓存和安装器管理，不包含 session、API Key 或主密码。
 
 ## 5. 错误处理
@@ -414,17 +482,23 @@ CLI 流程使用独立临时目录和进程内 session：Linux 优先 `/dev/shm`
 
 **验证需求：** `requirements.md` 需求 4、需求 8。
 
-### 6.5 属性 5：插件卸载会移除运行字段
+### 6.5 属性 5：插件卸载与实例隔离
 
-*对于任何* 已安装的 Bitwarden 插件，卸载完成后 `processEnvironment` 不得再返回 `plugin:bitwarden` 的任何运行字段。
+*对于任何* 已安装的 Bitwarden 插件，删除某个实例不得影响其他实例的配置和连接状态；卸载完成后所有实例、`PluginConnection` 凭据与遗留 `plugin:bitwarden` `ProcessSecret` 均必须被清理，不得再被任何读取或检查路径访问。
 
-**验证需求：** `requirements.md` 需求 1、需求 3、需求 8。
+**验证需求：** `requirements.md` 需求 1、需求 3、需求 8、需求 11。
 
 ### 6.6 属性 6：1Password 行为保持兼容
 
-*对于任何* 现有 1Password 安装，SDK runtime field 扩展不得改变 `OP_SERVICE_ACCOUNT_TOKEN` 的保存、注入、脱敏、轮换和卸载行为。
+*对于任何* 现有 1Password 安装，SDK 与插件连接模型扩展不得改变 `OP_SERVICE_ACCOUNT_TOKEN` 的保存、注入、脱敏、轮换和卸载行为。
 
 **验证需求：** `requirements.md` 需求 10。
+
+### 6.7 属性 7：未实测可用绝不显示「已连接」且跨实例读取严格隔离
+
+*对于任何* Bitwarden 实例，只有 Bot computer 执行 `bw.sh status` 返回成功时才能进入 `status = "ready"`；任意实例搜索出的候选只能在其所属 `connectionId` 获得用户审批后从该 `connectionId` 对应的凭据读取，不得跨实例错读或读取未连接实例。
+
+**验证需求：** `requirements.md` 需求 5、需求 11。
 
 ## 7. 测试策略
 
@@ -490,6 +564,7 @@ CLI 流程使用独立临时目录和进程内 session：Linux 优先 `/dev/shm`
 | `requirements.md` 需求 8 | `design.md` §5 | 错误 fixture、重试和 session 清理测试 |
 | `requirements.md` 需求 9 | `design.md` §3.7、§7.4 | Vaultwarden 真实实例或隔离实例验收 |
 | `requirements.md` 需求 10 | `design.md` §7 | package、typecheck、相关 workspace tests 和文档走查 |
+| `requirements.md` 需求 11 | `design.md` §3.1–§3.5、§4.1–§4.3、§6.7 | 多实例 CRUD、Computer `bw.sh status` 检查、邮箱命名/别名、跨实例检索审批及迁移集成测试 |
 
 ## 8. 风险与实施基线
 
@@ -506,10 +581,10 @@ CLI 流程使用独立临时目录和进程内 session：Linux 优先 `/dev/shm`
 
 - CLI 固定 2026.10.1，Linux/macOS x64/ARM64；不使用系统任意版本或邮箱/密码 fallback。
 - API Key 通过 `BW_CLIENTID` / `BW_CLIENTSECRET` 映射传递；`BW_EMAIL` 对照登录后的 `status.userEmail` 验证账号，主密码仅在 unlock 子进程注入。
-- TOTP 纳入第一版，普通 runtime field 为通用 SDK 能力，不新增状态面板。
-- 每次动作均配置、登录、账号验证、解锁、同步；无自动重试。JSON stdout 输出；错误不转发原始 stderr。CLI 输出最多 8 MiB，单命令超时 90 秒；候选最多 50 条，超过时要求缩小查询。
+- TOTP 纳入第一版；每个实例通过 `PluginConnection` 管理 5 个配置字段，并通过 `/v1/bitwarden/check` 在 Bot computer 执行 `bw.sh status` 后才置为 `ready`（「已连接」）。
+- 每次动作均配置、登录、账号验证、解锁、同步；无自动重试。JSON stdout 输出；错误不转发原始 stderr。CLI 输出最多 8 MiB，单命令超时 90 秒；单实例候选最多 50 条，超过时要求缩小查询。
 - 只有 CLI 返回明确网络/TLS/交互认证信息时才细分；否则返回阶段错误，不猜测账号存在性或服务端内部原因。
-- wrapper 仍集中约束 CLI 动作，但受保护配置不会进入普通插件进程环境。服务端 `BitwardenReadApproval` 绑定 bot、channel、widget、item 和当前唤醒引用；Computer 私有调用消费 lease 后才执行 wrapper。
+- 实例凭据不进入普通插件进程环境或 MCP 命名空间；服务端 `BitwardenReadApproval` 绑定 bot、channel、widget、`connectionId`、`itemId` 和当前唤醒引用；Computer 私有调用消费 lease 后才执行对应实例的 wrapper。
 - direct read 的 credential value 不进入当前模型、现有会话或终端记录；模型只能看到 `browserReference`，浏览器写入路径负责解析和脱敏。现有浏览器脱敏覆盖标记控件，不能承诺移除网站任意反射文本。
 - 浏览器目标页面可以是用户明确授权的 HTTP 页面；写入边界仍按目标 hostname 校验，HTTP 跨站 frame 不允许承载凭据。
 - Vaultwarden 真实版本、远程 computer 网络与真实网页登录未实测时标记 PENDING；交付独立验收脚本，不启动开发服务或重建远程 computer。

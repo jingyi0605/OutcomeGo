@@ -1,6 +1,6 @@
 # 任务清单 - Bitwarden 与 Vaultwarden 凭据插件接入（人话版）
 
-状态：实施中（2026-11-13）
+状态：实施中（2026-11-16 多实例演进修订）
 
 父规格：[Spec 005：插件扩展体系](../005-插件扩展体系/tasks.md)
 
@@ -329,7 +329,7 @@
     - `requirements.md` 全部功能需求
     - `design.md` §2、§3、§4、§5
   - 主要改哪里：阶段 3 全部相关测试和 fixture
-  - 这一步先不做什么：不处理多账号、写入 Vault 或 MCP connector。
+  - 这一步先不做什么：多实例演进见阶段 5；此处不写入 Vault 或暴露通用 MCP 工具。
   - 怎么算完成：
     1. 主 Bot direct read 和 `computerUse` 两条路径均可验证。
     2. 配置错误、item 歧义和浏览器人工接管状态都能正确回传。
@@ -471,3 +471,155 @@
     - 复核最终测试输出和兼容性矩阵
   - 对应需求：`requirements.md` 全部需求
   - 对应设计：`design.md` 全文
+
+## 阶段 5：多实例配置、实测连接验证与自动迁移
+
+- [x] 5.1 扩展插件契约、数据库关联与多实例 manifest 定义
+  - 状态：DONE
+  - 证据：`bun run --cwd packages/plugins generate`（25 个插件打包通过）、`bun run --cwd packages/db typecheck`、`bun test packages/plugin-sdk/test packages/contracts/test packages/plugins/test/bitwarden.test.ts` 通过；`bitwarden` manifest 升级为 `1.1.0`（`outcomego://bitwarden` + 5 个 `setup.fields`），`pluginDynamicNamespaces` 跳过 `bitwarden`，`validAlias` 支持 `@` 及邮箱字符，Prisma 新增 `202611160020_add_bitwarden_multi_instance_approval` 迁移。
+  - 这一步到底做什么：调整 `packages/plugins/bitwarden/plugin.json` 为受控 `builtin` 连接器（`outcomego://bitwarden`）与 5 个 `setup.fields`，在 `packages/plugin-sdk` 放行该 `builtin` 端点，在 `packages/contracts` 跳过其 MCP 命名空间暴露，放宽 `validAlias` 以支持邮箱（`@`），并在 `packages/db/prisma/schema.prisma` 的 `BitwardenReadApproval` 新增 `connectionId`、`instanceName` 与候选映射字段（新建迁移文件）。
+  - 做完你能看到什么：Bitwarden 插件进入多实例（`PluginConnection`）模型且不向模型暴露任何 MCP 工具；现有 1Password 与其他连接器行为不变。
+  - 先依赖什么：4.5
+  - 开始前先看：
+    - `requirements.md` 需求 1、需求 2、需求 7、需求 11
+    - `design.md` §3.1–§3.3、§4.1
+    - `packages/plugins/bitwarden/plugin.json`
+    - `packages/plugin-sdk/src/manifest.ts`
+    - `packages/contracts/src/plugin-namespaces.ts`
+    - `packages/db/prisma/schema.prisma`
+  - 主要改哪里：
+    - `packages/plugins/bitwarden/plugin.json`
+    - `packages/plugins/bitwarden/locales/zh-CN.json`
+    - `packages/plugin-sdk/src/manifest.ts`
+    - `packages/contracts/src/plugin-namespaces.ts`
+    - `packages/db/prisma/schema.prisma` 与新建 Prisma migration
+    - `apps/server/src/services/plugin/values.ts`
+    - `apps/server/src/services/plugin-service.ts`
+  - 这一步先不做什么：不暴露通用 MCP 工具，不改动普通 Shell 的 `processEnvironment` 过滤策略。
+  - 怎么算完成：
+    1. `bun run --cwd packages/plugins generate` 成功，`bitwarden` 声明 `setup.fields` 和 `outcomego://bitwarden` 连接器。
+    2. `pluginDynamicNamespaces` 不为 `bitwarden` 生成任何 MCP 命名空间。
+    3. `validAlias` 支持邮箱格式字符（含 `@`），并保留长度与字符安全校验。
+    4. `BitwardenReadApproval` 可持久化 `connectionId`、实例名及多候选 `{ connectionId, itemId }` 绑定。
+  - 怎么验证：
+    - `bun run --cwd packages/plugins generate`
+    - `bun test packages/plugin-sdk/test packages/contracts/test packages/plugins/test/bitwarden.test.ts`
+    - `bun run --cwd packages/db typecheck`
+  - 对应需求：`requirements.md` 需求 1、需求 2、需求 7、需求 11
+  - 对应设计：`design.md` §3.1、§3.2、§3.3、§4.1
+
+- [x] 5.2 实现 Computer 实测检查端点与服务端实例校验、邮箱命名及旧配置迁移
+  - 状态：DONE
+  - 证据：`bun test apps/server/test/plugin/bitwarden-multi-instance.test.ts` 及 `apps/server` / `apps/computer` typecheck 通过；`POST /v1/bitwarden/check` 调用 `bw.sh status` 校验，`PluginService.connect` 仅实测成功后置 `ready` 并默认设为 `BW_EMAIL`（重复邮箱自动去重，手动重命名保留自定义别名），`PluginConfiguration` 屏蔽明文并支持部分替换，`migrateLegacyBitwardenInstallation` 自动迁移旧 `plugin:bitwarden`。
+  - 这一步到底做什么：在 `apps/computer` 新增 `POST /v1/bitwarden/check`（调用缓存包内的 `bw.sh status` 真实校验 `login + unlock + sync`）；在 `apps/server` 为 `bitwarden` 实例实现保存/部分替换（屏蔽明文回显）、触发实测后才置 `status = "ready"`、自动将未自定义别名更新为账户邮箱（重复邮箱自动区分别名并允许手动重命名），以及事务级自动迁移旧单全局 `plugin:bitwarden` `ProcessSecret` 到第一个实例。
+  - 做完你能看到什么：只有真实在 Bot computer 上通过 `bw.sh status` 的 Bitwarden 实例才会变成「已连接」，并自动以邮箱命名；老用户的单实例配置升级后自动进入第一个实例等待校验。
+  - 先依赖什么：5.1
+  - 开始前先看：
+    - `requirements.md` 需求 2、需求 3、需求 8、需求 11
+    - `design.md` §2.3.1、§2.3.4、§3.2、§3.3、§4.2、§4.3、§6.7
+    - `apps/computer/src/main.ts`
+    - `apps/server/src/services/plugin-service.ts`
+    - `apps/server/src/services/plugin/configuration.ts`
+    - `apps/server/src/services/plugin/installations.ts`
+    - `apps/server/src/services/plugin/management.ts`
+  - 主要改哪里：
+    - `apps/computer/src/main.ts`
+    - `apps/server/src/services/plugin-service.ts`
+    - `apps/server/src/services/plugin/configuration.ts`
+    - `apps/server/src/services/plugin/management.ts`
+    - `apps/server/src/services/plugin/installations.ts`
+    - `apps/server/src/services/process-secrets.ts`
+  - 这一步先不做什么：不在服务端直接运行 Bitwarden CLI，不向公开设置接口回显普通或敏感字段明文。
+  - 怎么算完成：
+    1. 配置保存或部分字段替换后，实例先重置为非 `ready` 状态，再通过 `/v1/bitwarden/check` 实测；成功才变为 `ready`，失败则变为 `error` 并写入脱敏 `statusMessage`。
+    2. 首次校验成功且 `alias` 为默认占位时自动改为 `BW_EMAIL`；重复邮箱自动追加不冲突后缀且保留用户手工重命名的别名。
+    3. `plugin:bitwarden` 旧全局配置升级时自动迁移到第一个 `PluginConnection` 并清理旧 `ProcessSecret`。
+    4. `PluginConfigurationView` 不向前端回显 `bitwarden` 实例的明文配置值，仅返回各字段已保存状态。
+  - 怎么验证：
+    - `bun test apps/server/test/plugin apps/computer/test`
+    - 新增覆盖实测成功/失败、部分更新、重复邮箱别名与旧配置迁移的单元测试/集成测试
+  - 对应需求：`requirements.md` 需求 2、需求 3、需求 8、需求 11
+  - 对应设计：`design.md` §2.3.1、§2.3.4、§3.2、§3.3、§4.2、§4.3、§6.5、§6.7
+
+- [x] 5.3 实现跨所有已连接实例的搜索、审批卡片实例展示与隔离读取
+  - 状态：DONE
+  - 证据：`bun test apps/server/test/plugin/bitwarden-read-gate.test.ts apps/computer/test/runtime/bitwarden-credential.test.ts` 通过；`SearchBitwardenItems` 跨全部 `ready` 实例搜索并标注 `connectionId` / `instanceName`，`RequestBitwardenReadApproval` 在审批卡片中展示实例名称并绑定 `${connectionId}:${itemId}`，`ReadBitwardenCredential` / `ConsumeBitwardenReadLease` 严格隔离实例凭据。
+  - 这一步到底做什么：更新 `apps/server/src/services/internal-tool-service.ts`、`apps/server/src/services/rich-message-service.ts`、`apps/computer/src/runtime/tools.ts` 与 `packages/plugins/bitwarden/skills/bitwarden/SKILL.md`，让 `SearchBitwardenItems` 跨所有 `status === "ready"` 实例搜索并标注 `connectionId` 与 `instanceName`，`RequestBitwardenReadApproval` 在聊天审批卡片中显示实例名称并绑定候选 `(connectionId, itemId)`，`ReadBitwardenCredential` / `ConsumeBitwardenReadLease` 仅注入获批实例的凭据。
+  - 做完你能看到什么：Bot 一次搜索即可覆盖全部已连接 Bitwarden 实例，用户审批卡片清楚列出所属邮箱/实例名，批准后安全读取对应实例凭据。
+  - 先依赖什么：5.2
+  - 开始前先看：
+    - `requirements.md` 需求 5、需求 6、需求 7、需求 11
+    - `design.md` §2.3.2、§2.3.3、§3.5、§6.3、§6.7
+    - `apps/server/src/services/internal-tool-service.ts`
+    - `apps/server/src/services/rich-message-service.ts`
+    - `apps/computer/src/runtime/tools.ts`
+    - `packages/plugins/bitwarden/skills/bitwarden/SKILL.md`
+  - 主要改哪里：
+    - `apps/server/src/services/internal-tool-service.ts`
+    - `apps/server/src/services/rich-message-service.ts`
+    - `apps/computer/src/runtime/tools.ts`
+    - `packages/plugins/bitwarden/skills/bitwarden/SKILL.md`
+  - 这一步先不做什么：不将未连接或报错实例纳入搜索，不自动在多实例同名项之间静默二选一。
+  - 怎么算完成：
+    1. `SearchBitwardenItems` 搜索全部 `ready` 实例（或显式 `connectionId`），无可用实例时返回清晰未连接错误；部分实例失败时附带安全告警并保留成功候选。
+    2. 审批卡片问题和选项明确展示来源实例名称（邮箱或别名），选项绑定唯一 `(connectionId, itemId)`。
+    3. `ReadBitwardenCredential` 与 `ConsumeBitwardenReadLease` 严格校验审批中的 `connectionId` 和 `itemId`，只注入对应实例环境。
+  - 怎么验证：
+    - `bun test apps/server/test/plugin/bitwarden-read-gate.test.ts apps/computer/test/runtime/bitwarden-credential.test.ts`
+    - 新增跨多实例搜索、审批卡片实例名展示及跨实例读取隔离测试
+  - 对应需求：`requirements.md` 需求 5、需求 6、需求 7、需求 11
+  - 对应设计：`design.md` §2.3.2、§2.3.3、§3.5、§6.3、§6.7
+
+- [x] 5.4 更新桌面端多实例设置 UI、部分替换表单与「1 个事件」文案修复
+  - 状态：DONE
+  - 证据：`bun run --cwd apps/desktop typecheck` 与 `bun test apps/desktop/test/plugin-bitwarden-ui.test.tsx` 通过；`ConnectionSettingsRow` 支持 5 个字段「已保存 / 未设置」展示与部分替换，`AddPluginAccount` 支持可选别名并默认邮箱命名，`DetailBlock` 修复显示「1 个技能」。
+  - 这一步到底做什么：更新 `apps/desktop/src/renderer/components/outcomego/plugin-detail-view.tsx` 与相关国际化文案，使 Bitwarden 实例列表支持添加多个实例、展开编辑每个实例的 5 个字段（显示「已保存 / 未设置」与「输入新值以替换现有值」并保留非密码/密码输入区分）、显示账户邮箱/别名和「已连接。」状态；同时修复 `DetailBlock` 传入已翻译 label 导致技能数显示 `1 个事件` 的问题。
+  - 做完你能看到什么：Bitwarden 详情页与列表展示多个实例，每个实例拥有截图中的 5 个配置字段与部分替换表单，实测可用后显示账户邮箱名称与「已连接」，技能栏正确显示 `1 个技能`。
+  - 先依赖什么：5.2
+  - 开始前先看：
+    - `requirements.md` 需求 2、需求 11
+    - `design.md` §3.2、§3.3
+    - `apps/desktop/src/renderer/components/outcomego/plugin-detail-view.tsx`
+    - `apps/desktop/src/renderer/components/outcomego/plugins/plugin-accounts.tsx`
+    - `apps/desktop/src/renderer/components/outcomego/plugins/marketplace-browse.tsx`
+    - `apps/desktop/src/renderer/lib/i18n-catalog.ts`
+  - 主要改哪里：
+    - `apps/desktop/src/renderer/components/outcomego/plugin-detail-view.tsx`
+    - `apps/desktop/src/renderer/components/outcomego/plugins/plugin-accounts.tsx`
+    - `apps/desktop/src/renderer/lib/i18n-catalog.ts`
+    - `apps/desktop/test/` 相关插件 UI 测试
+  - 这一步先不做什么：不回显任何已保存字段的明文值。
+  - 怎么算完成：
+    1. 每个实例可在账户设置区完成首次填写与后续任意单个字段的部分替换保存。
+    2. 实例名称在首次验证后更新为账户邮箱，支持重命名重复邮箱别名，实测通过显示「已连接。」。
+    3. 技能手风琴摘要在中文界面显示 `1 个技能` 而非 `1 个事件`。
+  - 怎么验证：
+    - 运行 `apps/desktop` typecheck 与相关插件 UI 测试
+  - 对应需求：`requirements.md` 需求 2、需求 11
+  - 对应设计：`design.md` §3.2、§3.3
+
+- [x] 5.5 同步更新文档与多实例端到端/集成验收测试
+  - 状态：DONE
+  - 证据：`packages/plugins/bitwarden/README.md`、`docs/20261112-Bitwarden插件验收记录.md` 已更新；7 个工作区 typecheck 与 14 个测试文件共 54 tests（655 expect）全部通过，含 1Password 回归测试；`spec_check.py` 通过（0 errors, 0 warnings）。
+  - 这一步到底做什么：更新 `packages/plugins/bitwarden/README.md` 与 Spec 文档验收记录，补齐多实例配置、实测连接、跨实例搜索审批和旧配置迁移的自动化回归测试并运行全量相关测试与静态检查。
+  - 做完你能看到什么：代码、文档与测试全部围绕多实例 Bitwarden 闭环并通过检查。
+  - 先依赖什么：5.3、5.4
+  - 开始前先看：
+    - `requirements.md` 需求 10、需求 11
+    - `design.md` §7
+    - `packages/plugins/bitwarden/README.md`
+  - 主要改哪里：
+    - `packages/plugins/bitwarden/README.md`
+    - `specs/005.1-Bitwarden与Vaultwarden凭据插件接入/docs/20261112-Bitwarden插件验收记录.md`
+    - `apps/server/test/plugin/`、`apps/computer/test/`、`packages/plugins/test/`
+  - 这一步先不做什么：不提交真实服务器凭据或跳过未实测外部环境声明。
+  - 怎么算完成：
+    1. `packages/plugin-sdk`、`packages/contracts`、`packages/plugins`、`apps/server`、`apps/computer`、`apps/desktop` 相关 typecheck 与单元测试全部通过。
+    2. 1Password 现有测试回归通过。
+    3. `spec_check.py` 通过（0 errors）。
+  - 怎么验证：
+    - `bun run --cwd packages/plugins generate`
+    - `bun test packages/plugin-sdk/test packages/contracts/test packages/plugins/test packages/messaging/test apps/server/test/plugin apps/computer/test`
+    - `python3 -I /Users/jackson/.local/share/agent-skills/spec-review/scripts/spec_check.py specs/005.1-Bitwarden与Vaultwarden凭据插件接入 --repo .`
+  - 对应需求：`requirements.md` 需求 10、需求 11
+  - 对应设计：`design.md` §7、§8
