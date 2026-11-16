@@ -32,6 +32,11 @@ import { McpRuntimeRouter } from "./mcp-runtime-router";
 import { resolveWorkspacePath } from "./paths";
 import { ComputerRuntime } from "./runtime";
 import { checkWebProvider, parseWebProviderCheck } from "./web-provider-check";
+import {
+  BITWARDEN_REQUIRED_FIELDS,
+  parseBitwardenEnvironment,
+  runBitwardenWrapper,
+} from "./runtime/bitwarden-wrapper";
 import { inferenceFailure } from "./inference-error";
 import { boundToolImage } from "./runtime/image-input";
 import { checkAgentWorkspace, checkDesktopAvailable, ComputerReadiness } from "./readiness";
@@ -350,6 +355,62 @@ const server = Bun.serve({
           return json({ error: "Invalid web provider check" }, 400);
         }
         return json(await checkWebProvider(input, AbortSignal.timeout(60_000)));
+      }
+
+      if (request.method === "POST" && url.pathname === "/v1/bitwarden/check") {
+        let environment: Record<string, string>;
+        try {
+          const body = (await request.json()) as { environment?: unknown };
+          environment = parseBitwardenEnvironment(body?.environment);
+          for (const field of BITWARDEN_REQUIRED_FIELDS) {
+            if (!environment[field]) {
+              return json(
+                {
+                  ok: false,
+                  errorCode: "plugin_setup_invalid",
+                  stage: "configure",
+                  message: `Missing required Bitwarden field: ${field}`,
+                  retryable: false,
+                  detail: { field },
+                },
+                400
+              );
+            }
+          }
+        } catch (error) {
+          return json(
+            {
+              ok: false,
+              errorCode: "plugin_setup_invalid",
+              stage: "configure",
+              message:
+                error instanceof Error
+                  ? error.message
+                  : "Invalid Bitwarden check environment",
+              retryable: false,
+            },
+            400
+          );
+        }
+        try {
+          const signal = AbortSignal.any([request.signal, AbortSignal.timeout(180_000)]);
+          const result = await runBitwardenWrapper(["status"], environment, signal, 180_000);
+          return json(result);
+        } catch (error) {
+          return json(
+            {
+              ok: false,
+              errorCode: "cli_unavailable",
+              stage: "runtime",
+              message:
+                error instanceof Error
+                  ? error.message
+                  : "The Bitwarden check could not be completed.",
+              retryable: true,
+            },
+            500
+          );
+        }
       }
 
       if (request.method === "PUT" && url.pathname.startsWith("/v1/workspaces/")) {

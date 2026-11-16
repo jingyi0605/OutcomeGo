@@ -100,13 +100,13 @@ import { UserFormHost, type FormBrowser, type FormPageBinding } from "../user-fo
 import { boxHelpPage } from "../box-help-page";
 import type { ActiveTurn, RuntimeDynamicTool } from "./types";
 import { renderShellAwaitResult } from "@outcomego/shell-jobs";
-import { scopedProcessEnvironment } from "@outcomego/plugin-sdk";
 import { objectToolSchema } from "../tool-schema";
 import {
   BitwardenSecretStore,
   isBitwardenSecretReference,
   type BitwardenSecretField,
 } from "./bitwarden-secrets";
+import { runBitwardenWrapper } from "./bitwarden-wrapper";
 
 export const GRAPHICAL_WORKER_SHELL_DESCRIPTION = [
   "Executes a given command in a shell session with optional foreground timeout.",
@@ -201,7 +201,6 @@ const BOX_HELP_PAGE_TIMEOUT_MS = 12_000;
 /** A question card waits on the user's answer, so it ends the turn after its response. */
 const isQuestionSend = (args: unknown): boolean =>
   ["widget", "secret-request"].includes(String((args as { type?: unknown } | null)?.type));
-type CachedBitwardenPackage = { pluginId?: unknown; installPath?: unknown };
 export const EARLIER_SEND_FAILED_QUESTION_HELD =
   "Failed to send the message to the user: An earlier message in this response was not delivered (its own result says why), so this question was not shown either and the turn is still yours. Fix and resend that message, then ask again.";
 
@@ -388,25 +387,6 @@ export class RuntimeTools {
     return environment;
   }
 
-  private async resolveBitwardenWrapper(
-    root: string,
-    installed: CachedBitwardenPackage & { installPath: string },
-  ): Promise<string> {
-    const allowedRoot = await realpath(join(root, "plugins", "cache"));
-    const candidates = [installed.installPath];
-    const normalized = installed.installPath.replaceAll("\\", "/");
-    const marker = "/plugins/cache/";
-    const markerIndex = normalized.lastIndexOf(marker);
-    if (markerIndex >= 0) {
-      candidates.push(join(root, "plugins", "cache", ...normalized.slice(markerIndex + marker.length).split("/")));
-    }
-    for (const candidate of candidates) {
-      const resolved = await realpath(join(candidate, "skills/bitwarden/scripts/bw.sh")).catch(() => null);
-      if (resolved?.startsWith(`${allowedRoot}${sep}`)) return resolved;
-    }
-    throw new Error("The Bitwarden wrapper is outside the managed package cache");
-  }
-
   private async executeBitwardenCredential(
     active: ActiveTurn,
     callId: string,
@@ -415,33 +395,20 @@ export class RuntimeTools {
   ): Promise<AgentToolResult<Record<string, unknown>>> {
     const input = args && typeof args === "object" ? args as Record<string, unknown> : {};
     const itemId = typeof input.itemId === "string" ? input.itemId : "";
+    const connectionId = typeof input.connectionId === "string" && input.connectionId.trim() ? input.connectionId.trim() : undefined;
     const field = typeof input.field === "string" ? input.field : "";
     if (!itemId || !["username", "password", "totp"].includes(field)) throw new Error("A Bitwarden itemId and field are required");
-    const issued = await this.privateControl(active, `${callId}:issue`, "ReadBitwardenCredential", { itemId, field }, signal);
+    const issued = await this.privateControl(active, `${callId}:issue`, "ReadBitwardenCredential", {
+      itemId,
+      field,
+      ...(connectionId ? { connectionId } : {}),
+    }, signal);
     const leaseToken = typeof issued.leaseToken === "string" ? issued.leaseToken : "";
     if (!leaseToken) throw new Error("The Bitwarden read lease was not issued");
+    const resolvedConnectionId = typeof issued.connectionId === "string" ? issued.connectionId : connectionId;
     const consumed = await this.privateControl(active, `${callId}:consume`, "ConsumeBitwardenReadLease", { leaseToken }, signal);
-    const environment = consumed.environment;
-    if (!environment || typeof environment !== "object" || Array.isArray(environment)) throw new Error("The Bitwarden read environment was invalid");
-    const configured = Object.fromEntries(Object.entries(environment).map(([key, value]) => {
-      if (typeof value !== "string") throw new Error("The Bitwarden read environment was invalid");
-      return [key, value];
-    }));
-    const root = process.env.OUTCOMEGO_AGENT_DATA_ROOT ?? "/agent-data";
-    const cache = JSON.parse(await Bun.file(join(root, "plugin-skills", "cache.json")).text()) as { packages?: CachedBitwardenPackage[] };
-    const installed = cache.packages?.find((entry) => entry.pluginId === "bitwarden" && typeof entry.installPath === "string");
-    if (!installed || typeof installed.installPath !== "string") throw new Error("The Bitwarden package is unavailable");
-    const resolvedWrapper = await this.resolveBitwardenWrapper(root, { installPath: installed.installPath });
-    const child = Bun.spawn(["bash", resolvedWrapper, field, itemId], {
-      env: scopedProcessEnvironment(process.env, configured),
-      stdin: "ignore",
-      stdout: "pipe",
-      stderr: "pipe",
-    });
-    const timer = setTimeout(() => child.kill(), 120_000);
     try {
-      const [stdout] = await Promise.all([new Response(child.stdout).text(), new Response(child.stderr).text(), child.exited]);
-      const result = JSON.parse(stdout) as Record<string, unknown>;
+      const result = await runBitwardenWrapper([field, itemId], consumed.environment, signal, 120_000);
       if (result.ok !== true || typeof result.value !== "string") throw new Error(typeof result.message === "string" ? result.message : "The Bitwarden credential could not be read");
       const environmentVariable = this.bitwardenSecrets.put(
         this.bitwardenScope(active),
@@ -457,18 +424,17 @@ export class RuntimeTools {
             stored: true,
             kind: field,
             itemId,
+            ...(resolvedConnectionId ? { connectionId: resolvedConnectionId } : {}),
             environmentVariable,
             browserReference: `$${environmentVariable}`,
             expiresInSeconds: 900,
           }),
         }],
-        details: { kind: field, itemId, stored: true, environmentVariable },
+        details: { kind: field, itemId, ...(resolvedConnectionId ? { connectionId: resolvedConnectionId } : {}), stored: true, environmentVariable },
       };
     } catch (error) {
       if (signal?.aborted) throw error;
       throw new Error(error instanceof Error ? error.message : "The Bitwarden credential could not be read");
-    } finally {
-      clearTimeout(timer);
     }
   }
 
@@ -481,32 +447,77 @@ export class RuntimeTools {
     const input = args && typeof args === "object" ? args as Record<string, unknown> : {};
     const query = typeof input.query === "string" ? input.query : "";
     const title = input.title === true;
-    const issued = await this.privateControl(active, `${callId}:issue`, "SearchBitwardenItems", { query, title }, signal);
+    const connectionId = typeof input.connectionId === "string" && input.connectionId.trim() ? input.connectionId.trim() : undefined;
+    const issued = await this.privateControl(active, `${callId}:issue`, "SearchBitwardenItems", {
+      query,
+      title,
+      ...(connectionId ? { connectionId } : {}),
+    }, signal);
     const leaseToken = typeof issued.leaseToken === "string" ? issued.leaseToken : "";
     const consumed = await this.privateControl(active, `${callId}:consume`, "ConsumeBitwardenSearchLease", { leaseToken }, signal);
-    const environment = consumed.environment;
-    if (!environment || typeof environment !== "object" || Array.isArray(environment)) throw new Error("The Bitwarden search environment was invalid");
-    const configured = Object.fromEntries(Object.entries(environment).map(([key, value]) => {
-      if (typeof value !== "string") throw new Error("The Bitwarden search environment was invalid");
-      return [key, value];
-    }));
-    const root = process.env.OUTCOMEGO_AGENT_DATA_ROOT ?? "/agent-data";
-    const cache = JSON.parse(await Bun.file(join(root, "plugin-skills", "cache.json")).text()) as { packages?: CachedBitwardenPackage[] };
-    const installed = cache.packages?.find((entry) => entry.pluginId === "bitwarden" && typeof entry.installPath === "string");
-    if (!installed || typeof installed.installPath !== "string") throw new Error("The Bitwarden package is unavailable");
-    const resolvedWrapper = await this.resolveBitwardenWrapper(root, { installPath: installed.installPath });
-    const child = Bun.spawn(["bash", resolvedWrapper, ...(title ? ["search", "--title", query] : ["search", query])], {
-      env: scopedProcessEnvironment(process.env, configured), stdin: "ignore", stdout: "pipe", stderr: "pipe",
-    });
-    const timer = setTimeout(() => child.kill(), 120_000);
-    try {
-      const [stdout] = await Promise.all([new Response(child.stdout).text(), new Response(child.stderr).text(), child.exited]);
-      const result = JSON.parse(stdout) as Record<string, unknown>;
-      if (result.ok !== true || !Array.isArray(result.candidates)) throw new Error(typeof result.message === "string" ? result.message : "The Bitwarden search could not be completed");
-      return { content: [{ type: "text", text: JSON.stringify({ ok: true, kind: "search", ambiguous: result.ambiguous === true, candidates: result.candidates }) }], details: { kind: "search", ambiguous: result.ambiguous === true } };
-    } finally {
-      clearTimeout(timer);
+    const instances = Array.isArray(consumed.instances)
+      ? (consumed.instances as Array<{ connectionId?: unknown; instanceName?: unknown; environment?: unknown }>)
+      : consumed.environment
+        ? [{ connectionId: connectionId ?? "", instanceName: "default", environment: consumed.environment }]
+        : [];
+    if (!instances.length) {
+      throw new Error("No connected Bitwarden instance is available");
     }
+    const wrapperArgs = title ? ["search", "--title", query] : ["search", query];
+    const allCandidates: Array<Record<string, unknown>> = [];
+    const warnings: Array<Record<string, unknown>> = [];
+    for (const instance of instances) {
+      const instanceConnectionId = typeof instance.connectionId === "string" ? instance.connectionId : "";
+      const instanceName = typeof instance.instanceName === "string" ? instance.instanceName : "default";
+      try {
+        const result = await runBitwardenWrapper(wrapperArgs, instance.environment, signal, 120_000);
+        if (result.ok === true && Array.isArray(result.candidates)) {
+          for (const candidate of result.candidates) {
+            if (candidate && typeof candidate === "object" && !Array.isArray(candidate)) {
+              allCandidates.push({
+                ...(candidate as Record<string, unknown>),
+                connectionId: instanceConnectionId,
+                instanceName,
+              });
+            }
+          }
+        } else if (result.errorCode !== "item_not_found") {
+          warnings.push({
+            connectionId: instanceConnectionId,
+            instanceName,
+            errorCode: typeof result.errorCode === "string" ? result.errorCode : "search_failed",
+            message: typeof result.message === "string" ? result.message : "The Bitwarden search could not be completed",
+          });
+        }
+      } catch (error) {
+        if (signal?.aborted) throw error;
+        warnings.push({
+          connectionId: instanceConnectionId,
+          instanceName,
+          errorCode: "search_failed",
+          message: error instanceof Error ? error.message : "The Bitwarden search could not be completed",
+        });
+      }
+    }
+    if (!allCandidates.length) {
+      if (warnings.length) {
+        throw new Error(String(warnings[0]!.message));
+      }
+      throw new Error("No matching Login item was found.");
+    }
+    return {
+      content: [{
+        type: "text",
+        text: JSON.stringify({
+          ok: true,
+          kind: "search",
+          ambiguous: allCandidates.length > 1,
+          candidates: allCandidates,
+          ...(warnings.length ? { warnings } : {}),
+        }),
+      }],
+      details: { kind: "search", ambiguous: allCandidates.length > 1 },
+    };
   }
   constructor(
     private readonly screens: ScreenBroker,
@@ -1937,10 +1948,28 @@ export class RuntimeTools {
         ? [
             {
               name: "RequestBitwardenReadApproval",
-              description: "Ask the user to approve reading one or more Bitwarden login items. Only non-secret item metadata is allowed.",
+              description: "Ask the user to approve reading one or more Bitwarden login items. Each candidate must include its connectionId, itemId, title and hostname; only non-secret item metadata is allowed.",
               inputSchema: objectToolSchema({
-                candidates: { type: "array", minItems: 1, maxItems: 6, items: { type: "object", properties: { itemId: { type: "string" }, title: { type: "string" }, hostname: { type: "string" } }, required: ["itemId", "title", "hostname"], additionalProperties: false } },
-                itemId: { type: "string" }, title: { type: "string" }, hostname: { type: "string" },
+                candidates: {
+                  type: "array",
+                  minItems: 1,
+                  maxItems: 12,
+                  items: {
+                    type: "object",
+                    properties: {
+                      connectionId: { type: "string" },
+                      itemId: { type: "string" },
+                      title: { type: "string" },
+                      hostname: { type: "string" },
+                    },
+                    required: ["connectionId", "itemId", "title", "hostname"],
+                    additionalProperties: false,
+                  },
+                },
+                connectionId: { type: "string" },
+                itemId: { type: "string" },
+                title: { type: "string" },
+                hostname: { type: "string" },
               }),
               source: "first-party",
               decodeArguments: (args) => args ?? {},
@@ -1948,8 +1977,12 @@ export class RuntimeTools {
             },
             {
               name: "SearchBitwardenItems",
-              description: "Search Bitwarden login metadata by the current HTTPS hostname or an exact title query. Results contain no secrets.",
-              inputSchema: objectToolSchema({ query: { type: "string", minLength: 1, maxLength: 2048 }, title: { type: "boolean" } }, ["query"]),
+              description: "Search Bitwarden login metadata across all connected instances (or one optional connectionId) by the current HTTPS hostname or an exact title query. Results contain no secrets.",
+              inputSchema: objectToolSchema({
+                query: { type: "string", minLength: 1, maxLength: 2048 },
+                title: { type: "boolean" },
+                connectionId: { type: "string" },
+              }, ["query"]),
               source: "first-party",
               decodeArguments: (args) => args ?? {},
               execute: (turn, callId, args, signal) => this.executeBitwardenSearch(turn, callId, args, signal),
@@ -1957,7 +1990,11 @@ export class RuntimeTools {
             {
               name: "ReadBitwardenCredential",
               description: "Read one approved Bitwarden username, password or TOTP into a short-lived Computer environment variable. The result contains only a browserReference. Pass that exact browserReference string as browser_type.text or browser_fill_form.fields[].value; never use Shell expansion, secret:true, browser_run_code, or ask for or expose the value.",
-              inputSchema: objectToolSchema({ itemId: { type: "string" }, field: { type: "string", enum: ["username", "password", "totp"] } }, ["itemId", "field"]),
+              inputSchema: objectToolSchema({
+                connectionId: { type: "string" },
+                itemId: { type: "string" },
+                field: { type: "string", enum: ["username", "password", "totp"] },
+              }, ["itemId", "field"]),
               source: "first-party",
               decodeArguments: (args) => args ?? {},
               execute: (turn, callId, args, signal) => this.executeBitwardenCredential(turn, callId, args, signal),
