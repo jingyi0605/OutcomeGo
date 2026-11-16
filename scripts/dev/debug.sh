@@ -2,7 +2,8 @@
 # Quick start for the host-run debug stack (server + worker + desktop on this Mac).
 # The database and the `computer` container run elsewhere and stay up; see .env.
 #
-#   scripts/dev/debug.sh check      verify mount, database, remote computer, ports
+#   scripts/dev/debug.sh check      verify mount, database, remote computer, ports, real network traffic
+#   scripts/dev/debug.sh smoke      recreate the remote computer, then run check on the fresh container
 #   scripts/dev/debug.sh up         server + worker in one terminal (Ctrl+C stops both)
 #   scripts/dev/debug.sh server     server only (bun --watch, port from .env)
 #   scripts/dev/debug.sh worker     worker only
@@ -25,6 +26,7 @@ mount_point=$state_dir/mnt
 remote_host=${OUTCOMEGO_DEBUG_REMOTE_HOST:-10.255.0.45}
 remote_user=${OUTCOMEGO_DEBUG_REMOTE_USER:-ubuntu}
 share=${OUTCOMEGO_DEBUG_SHARE:-openteam-debug}
+computer_container=${OUTCOMEGO_DEBUG_COMPUTER_CONTAINER:-openteam-debug-computer-1}
 
 die() { echo "error: $*" >&2; exit 1; }
 
@@ -124,6 +126,35 @@ mount_share() {
 
 prepare() { mount_share; load_env; wait_for_database; cd "$root"; }
 
+remote_exec() { ssh -o BatchMode=yes -o ConnectTimeout=6 "$remote_user@$remote_host" "$@"; }
+
+# Control-plane checks pass even when the container cannot reach anything, so these
+# send real traffic: the exit route must be enabled, public hosts and the server
+# must be reachable by ordinary sockets, and the host must resolve the container.
+check_computer_traffic() {
+  local network_status=$1 callback=$2 code ip first second
+  [[ $network_status == *'"ipv4":{"state":"working"'* ]] && pass "computer exit connectivity (ipv4) is working" \
+    || fail "computer exit connectivity (ipv4) is not working: $(printf '%s' "$network_status" | grep -o '"connectivity":{[^}]*}[^}]*}' | head -c 300)"
+  code=$(remote_exec "docker exec $computer_container curl -sS -m 8 -o /dev/null -w '%{http_code}' https://1.1.1.1" 2>/dev/null || true)
+  [[ $code =~ ^[23][0-9][0-9]$ ]] && pass "computer reaches the Internet (https://1.1.1.1 -> $code)" \
+    || fail "computer cannot reach the Internet (https://1.1.1.1 -> ${code:-no response})"
+  if [[ -n $callback ]]; then
+    code=$(remote_exec "docker exec $computer_container curl -sS -m 8 -o /dev/null -w '%{http_code}' ${callback%/}/health" 2>/dev/null || true)
+    [[ $code =~ ^[23][0-9][0-9]$ ]] && pass "computer reaches the server on the LAN ($callback -> $code)" \
+      || fail "computer cannot reach the server on the LAN ($callback -> ${code:-no response})"
+  fi
+  ip=$(remote_exec "docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $computer_container" 2>/dev/null || true)
+  if [[ $ip =~ ^[0-9.]+$ ]]; then
+    # A neighbour that stays INCOMPLETE means the host cannot resolve the container, so
+    # replies queue for ~20 s and every connection the container opens stalls.
+    first=$(remote_exec "ip neigh show $ip" 2>/dev/null || true); sleep 2
+    second=$(remote_exec "ip neigh show $ip" 2>/dev/null || true)
+    if [[ $first == *INCOMPLETE* && $second == *INCOMPLETE* ]]; then
+      fail "host cannot resolve the computer ($ip neighbour stays INCOMPLETE; check reverse-path filtering in the container)"
+    else pass "host resolves the computer ($ip)"; fi
+  else fail "could not read the computer container address"; fi
+}
+
 check() {
   local ok=1
   pass() { echo "ok    $*"; }
@@ -155,18 +186,37 @@ check() {
     await c.connect(); await c.query("select 1"); await c.end();' >/dev/null 2>&1) \
     && pass "database reachable" || fail "database unreachable or bad credentials"
 
-  local mac_ip port=${OUTCOMEGO_PORT:-8788} listener
+  local mac_ip port=${OUTCOMEGO_PORT:-8788} listener configured=""
   mac_ip=$(ipconfig getifaddr "$(route -n get "$remote_host" 2>/dev/null | awk '/interface:/{print $2}')" 2>/dev/null || true)
   if [[ -n $mac_ip ]]; then
-    local configured
     configured=$(ssh -o BatchMode=yes -o ConnectTimeout=6 "$remote_user@$remote_host" \
       "awk -F= '/^(OUTCOMEGO|AITEAMOS)_DEBUG_SERVER_URL=/{print \$2; exit}' ~/openteam-debug/.env" 2>/dev/null || true)
     if [[ $configured == "http://$mac_ip:$port" ]]; then pass "computer calls back to $configured"
     else fail "this Mac is $mac_ip but the computer calls ${configured:-<unknown>}; update ~/openteam-debug/.env and Samba 'hosts allow', then restart the computer"; fi
   fi
+  check_computer_traffic "$network_status" "${configured:-}"
   listener=$(lsof -nP -iTCP:"$port" -sTCP:LISTEN 2>/dev/null | awk 'NR==2{print $1" (pid "$2")"}' || true)
   [[ -z $listener ]] && pass "port $port is free" || echo "note  port $port is in use by $listener"
   return $((1 - ok))
+}
+
+# Recreate (not restart) the debug computer: some container network state, such as
+# rp_filter, is only reset on a fresh container, after the entrypoint has finished.
+# This interrupts any bot task on that computer.
+smoke() {
+  local settle=${OUTCOMEGO_DEBUG_SMOKE_SETTLE:-45} attempt
+  load_env
+  echo "recreating $computer_container (interrupts running bot tasks)"
+  remote_exec "cd ~/openteam-debug && set -a && . ./.env && set +a && docker compose -p openteam-debug -f docker-compose.yml -f docker-compose.override.yml up -d --force-recreate computer computer-memory-init" \
+    || die "could not recreate the computer"
+  wait_for_computer
+  echo "waiting ${settle}s so late container network changes have happened"
+  sleep "$settle"
+  for ((attempt = 1; attempt <= 3; attempt++)); do
+    check && return 0
+    ((attempt < 3)) && sleep 10
+  done
+  return 1
 }
 
 kill_tree() {
@@ -202,6 +252,7 @@ account() {
 
 case "${1:-}" in
   check)   check ;;
+  smoke)   smoke ;;
   mount)   mount_share ;;
   up)      up ;;
   server)  prepare; exec bun --filter @outcomego/server dev ;;
