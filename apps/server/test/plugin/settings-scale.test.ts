@@ -12,9 +12,15 @@ const withoutMarketplace = (prisma: unknown) => {
 describe("bounded plugin settings projections", () => {
   test("initial settings use bounded installation and activity projections", async () => {
     const service = withoutMarketplace({
-      pluginInstallation: { findMany: async () => [] },
+      pluginInstallation: {
+        findMany: async () => [],
+        findUnique: async () => null,
+      },
       pluginActivity: { findMany: async () => [] },
-      processSecret: { findMany: async () => [] },
+      processSecret: {
+        findMany: async () => [],
+        findFirst: async () => null,
+      },
       bot: {
         count: async () => 1_000,
         findMany: async () => {
