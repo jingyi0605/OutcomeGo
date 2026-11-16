@@ -116,6 +116,21 @@
   - 对应需求：`requirements.md` 需求 1、需求 2、需求 4
   - 对应设计：`design.md` §3、§4、§5
 
+- [x] 2.5 专用机器人防火墙操作与双重卡片确认
+  - 状态：DONE
+  - 这一步到底做什么：为顶层用户机器人增加 `UpdateComputerNetworkPolicy` 专用操作，保留既有规则并合并新增目的地，先核验合并后的策略，再发送独立最终授权卡片，最后按 revision 一次性应用。
+  - 做完你能看到什么：机器人不能通过 Shell 或普通操作修改防火墙；用户必须在 bot DM 中完成核验和最终批准。
+  - 先依赖什么：2.1、2.2、4.1
+  - 开始前先看：`requirements.md` 需求 6；`design.md` §2.3.6、§3.1、§6.7。
+  - 主要改哪里：`packages/db/prisma/schema.prisma`、数据库迁移、`apps/server/src/services/internal-tool-service.ts`、`apps/server/src/services/rich-message-service.ts`、`packages/contracts/src/cursor-tools.json` 和对应测试。
+  - 这一步先不做什么：不授予机器人 Shell 防火墙权限，不接受机器人重新提交已核验请求的规则。
+  - 怎么算完成：核验卡片、最终授权卡片、拒绝、过期、revision 冲突、重复消费和子机器人拒绝均有实现与测试。
+  - 怎么验证：`bun test apps/server/test/computer-network-policy-operation.test.ts apps/server/test/computer-network-policy.test.ts`、`bun --filter @outcomego/contracts test test/contracts.test.ts`、服务端类型检查。
+  - 对应需求：`requirements.md` 需求 6.1-6.8
+  - 对应设计：`design.md` §2.3.6、§3.1、§6.7
+  - 实际验收：见 `docs/20261116-机器人防火墙双卡确认验收.md`；已在临时 PostgreSQL 数据库完成卡片、过期、取消、跨机器人拒绝、并发单次消费、追加规则保留和旧替换审批拒绝验证，并重建调试 Computer 后通过健康检查。
+  - 中文补充验收（需求 6.9）：展示层翻译覆盖历史卡片和两阶段卡片，`apps/desktop/test/computer-network-policy-card.test.ts` 验证标题、说明、按钮、已回答选项和协议值保留；连同 i18n 和快捷键测试共 16 项通过，Desktop 类型检查及翻译目录校验通过。
+
 ## 阶段 3：Computer 策略编译与模型端点
 
 - [ ] 3.1 统一模型端点提取和目的地校验
@@ -177,6 +192,7 @@
 - [ ] 4.2 实现模式、规则编辑和应用状态 Modal
   - 状态：TODO
   - 这一步到底做什么：实现模式说明、规则新增编辑删除、确认、冲突刷新和 applying/error 展示。
+  - 规则地址接受私有 IP/网段，TCP 端口接受单端口或递增范围。
   - 做完你能看到什么：用户不需要 SSH 或执行 nft 命令即可管理策略。
   - 先依赖什么：4.1、3.3
   - 开始前先看：`requirements.md` 需求 4.2-4.5；`design.md` §2.3.1、§3.2.2、§4.2、§5。

@@ -17,6 +17,7 @@
 - `requirements.md` 需求 2：服务端策略存储与 Computer 应用
 - `requirements.md` 需求 3：模型端点自动例外
 - `requirements.md` 需求 4：Settings → Server 图形化管理
+- `requirements.md` 需求 6：机器人防火墙操作与双重卡片确认
 - `requirements.md` 需求 5：出口连通性、可观察性与回归防护
 
 ### 1.3 技术约束
@@ -116,17 +117,31 @@ flowchart LR
 5. 复验子进程的入口 `parseComputerProbeRequest()` 与发送方 `probeComputerNetwork()` 共用 `computerProbeKinds`。发送方能发出的每个类型都被子进程接受，类型列表不一致会在编译或测试阶段暴露。
 6. 复验失败时，worker 输出 `{"verifyFailed":{"family","reason"}}`，主进程校验字段格式后以 `Computer network verify failed: family=… reason=…` 记入日志。`connectivity` 状态同时出现在 `GET /v1/browser-network` 的响应中。
 
+#### 2.3.6 机器人专用防火墙操作
+
+机器人不获得 Shell、nftables 或通用策略 API 的写权限。服务端提供唯一的 `UpdateComputerNetworkPolicy` 专用操作，操作的输入分为首次请求和后续 `approvalId` 调用两类：
+
+1. 首次调用只允许顶层用户机器人使用。服务端要求请求模式与当前模式一致，校验新增规则，读取当前策略 revision，按 `address/port` 将新增规则并入当前规则并保存为 `verification_pending` 请求，并在机器人所有者的 bot DM 中发送核验卡片。已有规则和标签保持不变；模式切换只能由所有者在 Settings 中完成。
+2. 用户选择“核验策略”后，卡片响应将请求推进到 `approval_pending`，同时唤醒原机器人。机器人使用同一个 `approvalId` 再次调用操作，服务端发送最终授权卡片。
+3. 用户选择最终批准后，请求变为 `approved`，再次唤醒机器人。机器人使用 `approvalId` 第三次调用操作，服务端在同一事务中检查 bot、DM、状态、有效期和 `consumedAt`，再按 `expectedRevision` 更新全局策略并消费请求。
+4. 任一阶段的拒绝、关闭、过期、revision 冲突或重复消费都会终止请求。卡片中的规则来自数据库保存的候选策略，后续调用不得重新提交或改写规则。
+
+审批记录状态使用 `verification_pending`、`approval_pending`、`approved`、`denied` 和 `expired`。`widgetMessageId` 指向当前阶段的卡片；核验成功后清空该字段，确保最终授权卡片只能由机器人重新发送并绑定。
+
+Desktop 的 `localizeComputerNetworkPolicyCard` 在展示层翻译已知的服务端防火墙卡片文本，使用当前界面语言和翻译目录；核验、授权、已回答和已关闭状态共用此路径，因此无需改写历史消息即可显示中文。仅处理防火墙专用模板，保持规则地址、用户标签和选项提交值不变；未知文本原样保留。对应需求：`requirements.md` 需求 6.9；验证：`tasks.md` 2.5。
+
 ## 3. 组件和接口
 
 ### 3.1 核心组件
 
-覆盖需求：1、2、3、4
+覆盖需求：1、2、3、4、6
 
 - `ComputerNetworkPolicy` Prisma 模型：保存全局策略。
 - `ComputerNetworkPolicyService`：输入校验、CAS 更新和视图组合。
 - `ComputerNetworkPolicyReconciler`：Computer 内部轮询和状态管理。
 - `readModelEndpoints()`：从 `models.json` 提取安全的私有模型目的地。
 - `LanPolicyModal`：Settings → Server 中的图形化编辑器。
+- `UpdateComputerNetworkPolicy`：顶层机器人可调用的专用策略操作，负责核验卡片、授权卡片和一次性应用。
 - `outcomego-computer-network.py`：统一编译模式、规则、模型端点和 host bridge。
 
 ### 3.2 数据结构
@@ -146,13 +161,13 @@ flowchart LR
 ```json
 {
   "id": "rule-uuid",
-  "address": "10.255.0.83",
-  "port": 3425,
+  "address": "10.255.0.0/24",
+  "port": "8000-8100",
   "label": "Local model gateway"
 }
 ```
 
-只允许 IP 字面量和 TCP 端口；IPv4-mapped IPv6 归一化为 IPv4。`label` 只用于界面显示，不参与安全判断。
+`address` 支持私有 IPv4/IPv6 主机或完全包含在 RFC1918、IPv4 链路本地、IPv6 ULA 或 IPv6 链路本地空间内的网络；IPv4 网络可使用 CIDR 或连续点分掩码。服务端将 host 和 network address 规范化，非规范 CIDR 主机位会清零。`port` 兼容既有整数单端口，并支持字符串表示的递增闭区间（例如 `8000-8100`）；`1-1` 规范化为整数 `1`。Computer 使用每条规则独立的 nftables 匹配和 `ip rule`，避免拼接区间产生规则间交叉匹配。`label` 只用于界面显示，不参与安全判断。
 
 #### 3.2.2 `ComputerNetworkPolicyView`
 
@@ -165,6 +180,19 @@ flowchart LR
 | `runtime.appliedRevision` | `number | null` | 是 | 最后成功版本 | 错误时保留 |
 | `runtime.modelEndpointCount` | `number` | 是 | 自动例外数量 | 不返回 key |
 | `runtime.error` | `string | null` | 是 | 安全错误摘要 | 不含凭据 |
+
+#### 3.2.3 `ComputerNetworkPolicyApproval`
+
+| 字段 | 类型 | 必填 | 说明 | 约束 |
+| --- | --- | --- | --- | --- |
+| `id` | `String` | 是 | 双重卡片流程的稳定标识 | UUID |
+| `botId`、`channelId` | `String` | 是 | 请求机器人和所有者 bot DM | 应用时必须精确匹配 |
+| `sourceRunId`、`sourceCallId` | `String` | 是 | 首次专用操作的幂等边界 | 组合唯一 |
+| `expectedRevision` | `Int` | 是 | 候选策略读取时的 revision | 应用时 compare-and-swap |
+| `mode`、`rules` | `String`、`Json` | 是 | 当前策略与机器人新增目的地合并后的策略 | 后续调用不能改写 |
+| `status` | 枚举 | 是 | `verification_pending`、`approval_pending`、`approved`、`denied`、`expired` | 最终应用前必须为 `approved` |
+| `widgetMessageId` | `String?` | 否 | 当前核验或授权卡片 | 唯一；核验成功后清空 |
+| `expiresAt`、`consumedAt` | `DateTime` | 是、否 | 有效期和一次性消费时间 | 过期或已消费拒绝 |
 
 ### 3.3 接口契约
 
@@ -299,6 +327,12 @@ flowchart LR
 *对于任何* `models.json` 变化，下一次重算后的集合应该等于当前策略规则、合法模型端点和合法 host bridge 的并集，并删除不再存在的项目。
 
 **验证需求：** `requirements.md` 需求 3.1、需求 3.2
+
+### 6.7 属性 7：机器人策略变更必须经过双重确认且只能消费一次
+
+*对于任何* 机器人提交的候选策略，服务端在核验卡片和最终授权卡片都完成前不应改变全局策略；最终应用必须匹配保存时的 bot、channel、revision 和完整规则，并且同一 `approvalId` 只能成功消费一次。
+
+**验证需求：** `requirements.md` 需求 6.1-6.8
 
 ### 6.4 属性 4：revision 是唯一写入顺序
 

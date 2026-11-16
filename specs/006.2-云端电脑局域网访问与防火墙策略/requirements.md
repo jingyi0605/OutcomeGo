@@ -13,7 +13,7 @@ beta.17 在云端电脑中启用了更严格的 nftables 出站策略和网络�
 - **System**：OutcomeGo 服务端、Computer 运行时和 Desktop 客户端组成的网络策略系统。
 - **Computer**：运行机器人任务的 Linux Docker 容器。
 - **托管出口**：由 `BrowserNetworkService` 选择并通过 TUN/SOCKS 转发的公共 TCP 和 DNS 出口。
-- **私有网络地址**：RFC1918、链路本地地址以及部署环境明确标记为 private 的地址；本 Spec 首期使用计算机端 IP 字面量校验。
+- **私有网络地址**：RFC1918、链路本地地址以及部署环境明确标记为 private 的地址；首期只接受计算机端 IP 字面量或显式网段掩码，不解析域名。
 - **模型端点**：`/home/box/.pi/agent/models.json` 中 provider 的 `baseUrl` 所指向的 HTTP(S) 服务。
 - **策略模式**：`lan` 或 `allowlist` 两种私有网络访问模式。
 - **出口连通性（connectivity）**：Computer 对 IPv4/IPv6 公共出口的探测与复验结果，状态为 `checking`、`working` 或 `unavailable`。
@@ -35,7 +35,7 @@ beta.17 在云端电脑中启用了更严格的 nftables 出站策略和网络�
 
 - 任意 UDP、ICMP、端口转发、入站连接或修改宿主机防火墙。
 - 通过策略编辑器允许公共地址绕过托管出口。
-- 通过域名解析任意扩大私有网络允许范围；首期规则使用 IP 字面量。
+- 通过域名解析任意扩大私有网络允许范围；首期规则使用 IP 字面量或带显式掩码的 IP 网段。
 - 为机器人提供一套可以自行修改防火墙的 Shell 命令。
 
 ## 需求
@@ -83,10 +83,26 @@ beta.17 在云端电脑中启用了更严格的 nftables 出站策略和网络�
 
 1. WHEN 用户打开局域网策略 Modal THEN System SHALL 显示当前策略模式、revision、Computer 应用状态、最后错误和模型端点例外数量。
 2. WHEN 用户切换模式 THEN System SHALL 显示模式含义、对公共出口和私有地址的影响，并要求确认会中断现有连接的操作。
-3. WHEN 用户新增规则 THEN System SHALL 允许填写 IP 地址、TCP 端口和可选说明，并在保存前校验地址族、端口范围、重复项和私有地址边界。
+3. WHEN 用户新增规则 THEN System SHALL 允许填写私有 IPv4/IPv6 主机或完全位于私有地址空间内的网段（CIDR；IPv4 兼容点分掩码）、单个 TCP 端口或递增闭区间端口范围，以及可选说明，并在保存前校验地址族、掩码、端口范围、重复项和私有地址边界。
 4. WHEN 用户编辑或删除规则 THEN System SHALL 以当前 revision 提交，遇到 revision 冲突时刷新服务端状态并保留明确提示。
 5. WHEN Computer 尚未应用新策略 THEN Modal SHALL 显示 applying/pending 状态；WHEN 应用失败 THEN SHALL 显示错误并保留上一份有效策略。
 6. WHEN 用户打开 Modal 或刷新服务器设置 THEN System SHALL 显示服务端持久化状态和 Computer 实际应用状态，不能把草稿当成已生效策略。
+
+### 需求 6：机器人防火墙操作与双重卡片确认
+
+**用户故事：** 作为部署所有者，我希望机器人可以提出局域网防火墙变更，但必须经过明确的策略核验和最终授权，避免机器人或过期请求直接改变 Computer 的网络边界。
+
+#### 验收标准
+
+1. WHEN 顶层用户机器人调用专用的 `UpdateComputerNetworkPolicy` 操作 THEN System SHALL 要求请求模式与当前生效模式一致，校验私有 IP、TCP 端口、重复规则和当前 revision，并 SHALL 将当前策略与新增目的地合并后保存为待核验请求；机器人不得切换生效模式，该次调用不得修改生效策略。
+2. WHEN 子机器人或 routine 机器人调用该操作 THEN System SHALL 拒绝请求，并 SHALL 不创建可用于修改防火墙的授权记录。
+3. WHEN 待核验请求创建成功 THEN System SHALL 在该机器人所有者的 bot DM 中发送核验卡片；卡片必须显示模式、revision、完整规则和“核验不会立即修改防火墙”的说明。
+4. WHEN 用户核验核验卡片 THEN System SHALL 将请求推进到待最终授权状态，并 SHALL 由机器人再次调用同一操作发送独立的最终授权卡片。
+5. WHEN 用户拒绝、关闭或核验/授权请求过期 THEN System SHALL 将请求标记为拒绝或过期，并 SHALL 不应用任何策略。
+6. WHEN 用户在最终授权卡片中选择批准 THEN System SHALL 只允许机器人再次以该请求的 `approvalId` 调用操作；服务端 SHALL 按保存的合并策略和 expected revision 做 compare-and-swap，成功后一次性消费请求。
+7. WHEN 策略 revision 已变化、请求已消费或 approvalId 属于其他机器人 THEN System SHALL 拒绝应用，并 SHALL 要求重新发起核验和授权流程。
+8. WHEN 机器人通过 Shell、普通消息卡片或其他通用操作尝试修改防火墙 THEN System SHALL 没有可用的绕过路径；只有专用操作和双重卡片流程可以触发策略更新。
+9. WHEN Desktop 使用简体中文 THEN 核验和授权卡片 SHALL 使用中文展示标题、模式名称、策略影响、有效期和选项；已有卡片、已回答卡片和已关闭卡片 SHALL 同样遵循界面语言，规则地址、用户标签和提交值不得因翻译改变。对应设计：`design.md` §2.3.6；验证：`tasks.md` 2.5。
 
 ### 需求 5：出口连通性、可观察性与回归防护
 
