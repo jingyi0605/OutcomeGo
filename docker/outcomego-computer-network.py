@@ -96,6 +96,41 @@ def endpoint_value(hostname, port, private_only=False):
         return None
 
 
+def private_network(value):
+    try:
+        network = ipaddress.ip_network(value, strict=False)
+        if '%' in value:
+            return None
+        private = [ipaddress.ip_network(prefix) for prefix in (
+            PRIVATE_V4 if network.version == 4 else PRIVATE_V6
+        )]
+        if not any(network.subnet_of(prefix) for prefix in private):
+            return None
+        return network
+    except (ValueError, TypeError):
+        return None
+
+
+def port_range(value):
+    if type(value) is int:
+        first = last = value
+    elif isinstance(value, str):
+        parts = value.split('-')
+        if len(parts) not in (1, 2) or any(not part.isdigit() for part in parts):
+            return None
+        first = int(parts[0])
+        last = int(parts[-1])
+    else:
+        return None
+    if not 1 <= first <= last <= 65535:
+        return None
+    return first, last
+
+
+def all_tcp_ports(port_start, port_end):
+    return port_start == 1 and port_end == 65535
+
+
 def endpoint_from_url(endpoint, private_only=False):
     try:
         if not isinstance(endpoint, str):
@@ -152,10 +187,12 @@ def policy_value(raw):
     for entry in raw_rules:
         if not isinstance(entry, dict):
             raise ValueError('Invalid computer network policy rule')
-        endpoint = endpoint_value(entry.get('address'), entry.get('port'), private_only=True)
-        if not endpoint:
+        network = private_network(entry.get('address'))
+        ports = port_range(entry.get('port'))
+        if not network or not ports:
             raise ValueError('Invalid computer network policy destination')
-        rules.add(endpoint)
+        address = str(network.network_address) if network.prefixlen == network.max_prefixlen else str(network)
+        rules.add(('-6' if network.version == 6 else '-4', address, *ports))
     return {'mode': mode, 'rules': sorted(rules)}
 
 
@@ -175,17 +212,17 @@ def network_lock():
         yield
 
 
-def update_network_policy(server_url, raw):
+def update_network_policy(server_url, raw=None):
     management_url(server_url)
     families = network_families()
-    policy = policy_value(raw)
     with network_lock():
+        policy = current_policy() if raw is None else policy_value(raw)
         model = model_endpoints()
         bridge = set()
         endpoint = host_bridge_endpoint()
         if endpoint:
             bridge.add(endpoint)
-        desired = set(policy['rules']) | model | bridge
+        desired = model | bridge
         desired = {item for item in desired if item[0] in families}
         private = policy['mode'] == 'lan'
         nft_rules = [
@@ -195,6 +232,8 @@ def update_network_policy(server_url, raw):
             'flush set inet outcomego_network host_bridge_v6',
             'flush set inet outcomego_network policy_v4',
             'flush set inet outcomego_network policy_v6',
+            'flush chain inet outcomego_network manual_policy_v4',
+            'flush chain inet outcomego_network manual_policy_v6',
         ]
         if private:
             nft_rules.append(
@@ -208,6 +247,16 @@ def update_network_policy(server_url, raw):
             suffix = 'v6' if family == '-6' else 'v4'
             target = 'host_bridge' if (family, address, port) in bridge else 'policy'
             nft_rules.append(f'add element inet outcomego_network {target}_{suffix} {{ {address} . {port} }}')
+        for family, address, port_start, port_end in sorted(policy['rules']):
+            suffix = 'v6' if family == '-6' else 'v4'
+            port_match = str(port_start) if port_start == port_end else f'{port_start}-{port_end}'
+            protocol = 'ip6' if suffix == 'v6' else 'ip'
+            nft_rules.append(
+                f'add rule inet outcomego_network manual_policy_{suffix} '
+                f'{protocol} daddr {address} '
+                f'{("meta l4proto tcp" if all_tcp_ports(port_start, port_end) else f"tcp dport {port_match}")} '
+                f'meta mark set {MARK}'
+            )
         run('nft', '-f', '-', input='\n'.join(nft_rules) + '\n')
         for family in families:
             while subprocess.run(
@@ -222,15 +271,34 @@ def update_network_policy(server_url, raw):
                 for prefix in prefixes:
                     run('ip', family, 'rule', 'add', 'pref', '98', 'to', prefix,
                         'ipproto', 'tcp', 'lookup', 'main')
+        for family, address, port_start, port_end in sorted(policy['rules']):
+            port_match = str(port_start) if port_start == port_end else f'{port_start}-{port_end}'
+            command = ['ip', family, 'rule', 'add', 'pref', '98', 'to', address, 'ipproto', 'tcp']
+            if not all_tcp_ports(port_start, port_end):
+                command.extend(['dport', port_match])
+            command.extend(['lookup', 'main'])
+            run(*command)
         for family, address, port in sorted(desired):
             run('ip', family, 'rule', 'add', 'pref', '98', 'to', address,
                 'ipproto', 'tcp', 'dport', port, 'lookup', 'main')
-        POLICY_STATE.write_text(json.dumps(policy))
+        saved = {
+            'mode': policy['mode'],
+            'rules': [{'address': address, 'port': port_start if port_start == port_end else f'{port_start}-{port_end}'}
+                      for _, address, port_start, port_end in policy['rules']],
+        }
+        descriptor = os.open(POLICY_STATE, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | os.O_NOFOLLOW, 0o600)
+        with os.fdopen(descriptor, 'w') as file:
+            os.fchmod(file.fileno(), 0o600)
+            json.dump(saved, file)
     return {'modelEndpointCount': len(model)}
 
 
 def update_host_bridge(server_url):
-    return update_network_policy(server_url, current_policy())
+    # Read the policy while holding the same lock as the full policy update.
+    # Otherwise a host-bridge refresh can capture the old LAN mode, wait for a
+    # newer allowlist update, and then overwrite that update when it acquires
+    # the lock.
+    return update_network_policy(server_url)
 
 
 def _update_management(server_url, values):
@@ -326,9 +394,17 @@ def nft_ruleset(port, gateway_port):
     set host_bridge_v6 {{ type ipv6_addr . inet_service; }}
     set policy_v4 {{ type ipv4_addr . inet_service; }}
     set policy_v6 {{ type ipv6_addr . inet_service; }}
+    chain manual_policy_v4 {{}}
+    chain manual_policy_v6 {{}}
     chain transport {{
         type route hook output priority -150; policy accept;
         ct direction reply meta mark set {MARK}
+        # The relay worker marks its own sockets so management and transport
+        # connections can use the underlay. Clear that inherited mark for
+        # private destinations first; the rules below restore it only for LAN
+        # mode, management, host-bridge, model, and explicit policy endpoints.
+        ct direction original ip daddr {{ {', '.join(PRIVATE_V4)} }} meta l4proto tcp meta mark set 0
+        ct direction original ip6 daddr {{ {', '.join(PRIVATE_V6)} }} meta l4proto tcp meta mark set 0
         ip daddr @management_v4 tcp dport {port} meta mark set {MARK}
         ip6 daddr @management_v6 tcp dport {port} meta mark set {MARK}
         ip daddr @lan_private_v4 meta mark set {MARK}
@@ -337,6 +413,8 @@ def nft_ruleset(port, gateway_port):
         ip6 daddr . tcp dport @host_bridge_v6 meta mark set {MARK}
         ip daddr . tcp dport @policy_v4 meta mark set {MARK}
         ip6 daddr . tcp dport @policy_v6 meta mark set {MARK}
+        jump manual_policy_v4
+        jump manual_policy_v6
     }}
     chain dns {{
         type nat hook output priority -110; policy accept;
@@ -353,6 +431,11 @@ def nft_ruleset(port, gateway_port):
         meta mark & 0xffff == {MARK} accept
         ip daddr @management_v4 tcp dport {port} accept
         ip6 daddr @management_v6 tcp dport {port} accept
+        # Unlisted private destinations must not fall through to the managed
+        # tunnel, whose server exit can reach the same LAN. Allowed private
+        # connections and inbound replies already passed the mark check above.
+        ip daddr {{ {', '.join(PRIVATE_V4)} }} meta l4proto tcp counter reject with icmpx type admin-prohibited
+        ip6 daddr {{ {', '.join(PRIVATE_V6)} }} meta l4proto tcp counter reject with icmpx type admin-prohibited
         oifname "{TUN}" meta l4proto tcp accept
         meta l4proto 58 icmpv6 type {{ nd-neighbor-solicit, nd-neighbor-advert, nd-router-solicit, nd-router-advert }} accept
         counter reject with icmpx type admin-prohibited

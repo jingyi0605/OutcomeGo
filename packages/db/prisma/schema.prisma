@@ -197,6 +197,15 @@ enum BitwardenReadApprovalStatus {
   @@map("outcomego_bitwarden_read_approval_status")
 }
 
+enum ComputerNetworkPolicyApprovalStatus {
+  verification_pending
+  approval_pending
+  approved
+  denied
+  expired
+  @@map("outcomego_computer_network_policy_approval_status")
+}
+
 enum MemoryScope {
   agent
   user
@@ -342,6 +351,7 @@ model Bot {
   contextSessions ContextSession[]
   processSecrets ProcessSecret[]
   bitwardenReadApprovals BitwardenReadApproval[]
+  computerNetworkPolicyApprovals ComputerNetworkPolicyApproval[]
   externalMessagingBindings ExternalMessagingBinding[]
   externalChannelMappings ExternalChannelMapping[]
   externalOutboundDeliveries ExternalOutboundDelivery[]
@@ -634,6 +644,7 @@ model Channel {
   rounds      ChannelRound[]
   runs        Run[]
   bitwardenReadApprovals BitwardenReadApproval[]
+  computerNetworkPolicyApprovals ComputerNetworkPolicyApproval[]
   routines    Routine[]
   externalMapping ExternalChannelMapping?
   readState   ChannelReadState?
@@ -916,6 +927,7 @@ model Run {
   updatedAt DateTime     @updatedAt
   voiceTurn      VoiceTurn?   @relation("VoiceTurnRun")
   bitwardenReadApprovals BitwardenReadApproval[]
+  computerNetworkPolicyApprovals ComputerNetworkPolicyApproval[]
   externalReceipts ExternalMessageReceipt[]
   externalDeliveries ExternalOutboundDelivery[]
 
@@ -1337,6 +1349,31 @@ model BitwardenReadApproval {
   @@index([sourceRunId, status], map: "outcomego_bitwarden_read_approval_source_run_idx")
   @@index([leaseTokenHash], map: "outcomego_bitwarden_read_approval_lease_idx")
   @@map("outcomego_bitwarden_read_approval")
+}
+
+model ComputerNetworkPolicyApproval {
+  id String @id @default(uuid()) @db.Uuid
+  botId String @db.Uuid
+  bot Bot @relation(fields: [botId], references: [id], onDelete: Cascade)
+  channelId String @db.Uuid
+  channel Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  sourceRunId String @db.Uuid
+  sourceCallId String
+  sourceRun Run @relation(fields: [sourceRunId], references: [id], onDelete: Cascade)
+  widgetMessageId String? @unique @db.Uuid
+  expectedRevision Int
+  mode String
+  rules Json
+  status ComputerNetworkPolicyApprovalStatus @default(verification_pending)
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+  approvedAt DateTime?
+  consumedAt DateTime?
+
+  @@unique([sourceRunId, sourceCallId], map: "outcomego_computer_network_policy_approval_call_key")
+  @@index([botId, channelId, status, createdAt], map: "outcomego_computer_network_policy_approval_lookup_idx")
+  @@index([sourceRunId, status], map: "outcomego_computer_network_policy_approval_source_run_idx")
+  @@map("outcomego_computer_network_policy_approval")
 }
 
 /// Routes one Connection's inbound messages to one Bot (specs/009). Holds the Server's
