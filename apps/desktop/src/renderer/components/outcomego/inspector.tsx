@@ -197,18 +197,23 @@ function BotSettings({
   return (
     <div className="flex size-full flex-col overflow-y-auto px-4 pb-5 pt-[70px]">
       <div className="flex justify-center">
-        <Suspense
-          fallback={
-            <div aria-label={t("Loading avatar options")} className="size-[76px]" role="status" />
-          }
-        >
-          <AvatarPicker
-            botId={bot.id}
-            color={draft.color}
-            icon={draft.icon}
-            onChange={(next) => queue({ ...draft, ...next }, true, true)}
-          />
-        </Suspense>
+        {bot.hasAvatar ? (
+          // A custom avatar is the bot's real identity; the glyph picker would not change it.
+          <BotAvatar bot={bot} size="lg" mode="still" />
+        ) : (
+          <Suspense
+            fallback={
+              <div aria-label={t("Loading avatar options")} className="size-[76px]" role="status" />
+            }
+          >
+            <AvatarPicker
+              botId={bot.id}
+              color={draft.color}
+              icon={draft.icon}
+              onChange={(next) => queue({ ...draft, ...next }, true, true)}
+            />
+          </Suspense>
+        )}
       </div>
       <div className="mt-8 grid gap-2">
         <div className="grid gap-[2px]">
