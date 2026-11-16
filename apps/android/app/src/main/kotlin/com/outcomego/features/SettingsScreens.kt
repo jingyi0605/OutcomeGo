@@ -54,6 +54,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
@@ -194,7 +195,7 @@ fun SettingsScreen(
                             onDownload = onDownloadAndroidUpdate,
                             onInstall = onInstallAndroidUpdate,
                         )
-                        HorizontalDivider(Modifier.padding(start = 18.dp), thickness = 0.5.dp, color = SpatialTheme.colors.divider)
+                        SettingsDivider()
                         UpdateChannelRow(
                             channel = androidUpdateChannel,
                             onSetChannel = onSetAndroidUpdateChannel,
