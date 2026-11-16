@@ -67,8 +67,7 @@ export async function pluginMutationRoutes(context: RouteContext): Promise<Respo
   const connectionAccountMatch = path.match(/^\/api\/plugin-connections\/([^/]+)\/accounts$/);
   if (request.method === "POST" && connectionAccountMatch?.[1]) {
     const input = await parseBody(request, ConnectPluginInput);
-    if (!input.alias) throw new ApiError(400, "connection_alias_required", "Alias is required");
-    return json(await run(app.addPluginAccount(connectionAccountMatch[1], input.alias)), 201);
+    return json(await run(app.addPluginAccount(connectionAccountMatch[1], input.alias ?? "")), 201);
   }
 
   const connectionAuthenticateMatch = path.match(

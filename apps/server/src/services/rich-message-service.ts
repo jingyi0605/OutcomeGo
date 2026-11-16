@@ -234,9 +234,60 @@ export class RichMessageService {
               await tx.bitwardenReadApproval.update({ where: { id: bitwardenApproval.id }, data: { status: "expired" } });
               throw new ApiError(409, "widget_expired", "This Bitwarden approval has expired");
             }
-            if (!bitwardenApproval.itemId && !widgetOptions(widget).some((option) => effectiveOptionValue(option) === value))
-              throw new ApiError(400, "widget_answer_invalid", "That Bitwarden item is not available on this approval");
-            await tx.bitwardenReadApproval.update({ where: { id: bitwardenApproval.id }, data: { status: "approved", itemId: value, approvedAt: new Date() } });
+            const storedCandidates = Array.isArray(bitwardenApproval.candidates)
+              ? (bitwardenApproval.candidates as Array<{
+                  connectionId?: unknown;
+                  itemId?: unknown;
+                  instanceName?: unknown;
+                }>)
+              : [];
+            let approvedItemId = bitwardenApproval.itemId;
+            let approvedConnectionId = bitwardenApproval.connectionId;
+            let approvedInstanceName = bitwardenApproval.instanceName;
+            if (bitwardenApproval.itemId) {
+              const expectedComposite = bitwardenApproval.connectionId
+                ? `${bitwardenApproval.connectionId}:${bitwardenApproval.itemId}`
+                : null;
+              if (value !== bitwardenApproval.itemId && value !== expectedComposite) {
+                throw new ApiError(400, "widget_answer_invalid", "That Bitwarden item is not available on this approval");
+              }
+            } else if (storedCandidates.length > 0) {
+              const matched = storedCandidates.find(
+                (candidate) =>
+                  typeof candidate.connectionId === "string" &&
+                  typeof candidate.itemId === "string" &&
+                  (`${candidate.connectionId}:${candidate.itemId}` === value || candidate.itemId === value)
+              );
+              if (!matched) {
+                throw new ApiError(400, "widget_answer_invalid", "That Bitwarden item is not available on this approval");
+              }
+              approvedItemId = String(matched.itemId);
+              approvedConnectionId = String(matched.connectionId);
+              if (typeof matched.instanceName === "string") {
+                approvedInstanceName = matched.instanceName;
+              }
+            } else {
+              if (!widgetOptions(widget).some((option) => effectiveOptionValue(option) === value)) {
+                throw new ApiError(400, "widget_answer_invalid", "That Bitwarden item is not available on this approval");
+              }
+              const parts = value.split(":");
+              if (parts.length === 2 && parts[0] && parts[1]) {
+                approvedConnectionId = parts[0];
+                approvedItemId = parts[1];
+              } else {
+                approvedItemId = value;
+              }
+            }
+            await tx.bitwardenReadApproval.update({
+              where: { id: bitwardenApproval.id },
+              data: {
+                status: "approved",
+                itemId: approvedItemId,
+                connectionId: approvedConnectionId,
+                instanceName: approvedInstanceName,
+                approvedAt: new Date(),
+              },
+            });
           }
           if (computerNetworkApproval) {
             if (computerNetworkApproval.botId !== message.senderBotId ||

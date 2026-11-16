@@ -1,10 +1,21 @@
 import { expect, test } from "bun:test";
 import { Effect } from "effect";
+import type { PluginDefinition } from "@outcomego/plugin-sdk";
 import { pluginCatalog } from "@outcomego/plugins";
 import { assertPluginEnvironmentAvailable, PluginInstallations } from "../../src/services/plugin/installations";
 import { processEnvironment, protectedPluginEnvironment } from "../../src/services/process-secrets";
 
-const bitwarden = pluginCatalog.find(plugin => plugin.key === "bitwarden")!;
+const baseBitwarden = pluginCatalog.find(plugin => plugin.key === "bitwarden")!;
+const bitwarden: PluginDefinition = {
+  ...baseBitwarden,
+  setupFields: [
+    { key: "serverUrl", label: "Server URL", required: true, secret: false, format: "https-origin" as const, environment: "BW_SERVER_URL", protected: true },
+    { key: "email", label: "Account email", required: true, secret: false, environment: "BW_EMAIL", protected: true },
+    { key: "clientId", label: "Personal API client ID", required: true, secret: true, environment: "BW_CLIENT_ID", protected: true },
+    { key: "clientSecret", label: "Personal API client secret", required: true, secret: true, environment: "BW_CLIENT_SECRET", protected: true },
+    { key: "masterPassword", label: "Master password", required: true, secret: true, preserveWhitespace: true, environment: "BW_MASTER_PASSWORD", protected: true },
+  ],
+};
 const onePassword = pluginCatalog.find(plugin => plugin.key === "1password")!;
 
 // Exercise the real service boundary while recording writes; real transaction tests are separate.

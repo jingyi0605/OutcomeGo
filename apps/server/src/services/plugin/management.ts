@@ -25,6 +25,7 @@ import { resolveUpstreamPlugin } from "../../plugins/upstream-package";
 import { serviceEffect, toJson } from "../service-utils";
 import { retainPluginEnvironment } from "../process-secrets";
 import { assertPluginEnvironmentAvailable } from "./installations";
+import { migrateLegacyBitwardenInstallation } from "./bitwarden-migration";
 import {
   canonicalJson,
   definitionFromManifest,
@@ -580,6 +581,9 @@ export class PluginManagement {
               },
             });
           }
+        }
+        if (installation.pluginKey === "bitwarden") {
+          await migrateLegacyBitwardenInstallation(tx, installation.id, next.connections[0]);
         }
         const removedWhere = {
           installationId: installation.id,

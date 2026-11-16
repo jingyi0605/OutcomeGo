@@ -38,19 +38,38 @@ import type { TodoService } from "./todo-service";
 import type { RichMessageService } from "./rich-message-service";
 import type { ComputerNetworkPolicyService } from "./computer-network-policy-service";
 import type { ExternalDeliveryService } from "./external-messaging/delivery";
-import { processEnvironment, protectedPluginEnvironment } from "./process-secrets";
+import { processEnvironment } from "./process-secrets";
+import { bitwardenInstanceEnvironment, jsonObject } from "./plugin/values";
+import { toJson } from "./service-utils";
 import { withConnectorDraftCardReminder } from "./connector-draft-reminder";
 import { createHash, randomUUID } from "node:crypto";
 
 const UUID = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
-const bitwardenCandidate = (value: unknown): { itemId: string; title: string; hostname: string } => {
-  if (!value || typeof value !== "object" || Array.isArray(value)) throw new ApiError(400, "bitwarden_candidate_invalid", "A Bitwarden candidate is invalid");
-  const candidate = value as Record<string, unknown>;
-  if (typeof candidate.itemId !== "string" || !UUID.test(candidate.itemId) ||
-      typeof candidate.title !== "string" || !candidate.title.trim() || candidate.title.length > 200 ||
-      typeof candidate.hostname !== "string" || !candidate.hostname.trim() || candidate.hostname.length > 200)
+const bitwardenCandidate = (
+  value: unknown
+): { connectionId: string; itemId: string; title: string; hostname: string } => {
+  if (!value || typeof value !== "object" || Array.isArray(value))
     throw new ApiError(400, "bitwarden_candidate_invalid", "A Bitwarden candidate is invalid");
-  return { itemId: candidate.itemId, title: candidate.title.trim(), hostname: candidate.hostname.trim() };
+  const candidate = value as Record<string, unknown>;
+  if (
+    typeof candidate.connectionId !== "string" ||
+    !UUID.test(candidate.connectionId) ||
+    typeof candidate.itemId !== "string" ||
+    !UUID.test(candidate.itemId) ||
+    typeof candidate.title !== "string" ||
+    !candidate.title.trim() ||
+    candidate.title.length > 200 ||
+    typeof candidate.hostname !== "string" ||
+    !candidate.hostname.trim() ||
+    candidate.hostname.length > 200
+  )
+    throw new ApiError(400, "bitwarden_candidate_invalid", "A Bitwarden candidate is invalid");
+  return {
+    connectionId: candidate.connectionId,
+    itemId: candidate.itemId,
+    title: candidate.title.trim(),
+    hostname: candidate.hostname.trim(),
+  };
 };
 const approvalReference = (value: unknown): string | null => {
   const text = typeof value === "string" ? value : "";
@@ -137,27 +156,88 @@ export class InternalToolService {
           (!bitwardenCallerAllowed || run.origin === "routine"))
         throw new ApiError(403, "bitwarden_tool_forbidden", "Bitwarden reads are available only to the user-facing agent");
       if (request.tool === "SearchBitwardenItems") {
-        const input = request.arguments && typeof request.arguments === "object" ? request.arguments as Record<string, unknown> : {};
+        const input = jsonObject(request.arguments);
         const query = typeof input.query === "string" ? input.query.trim() : "";
         const title = input.title === true;
-        if (!query || query.length > 2048 || /[\x00-\x1f\x7f]/.test(query)) throw new ApiError(400, "bitwarden_search_invalid", "A Bitwarden search query is required");
+        const connectionId =
+          typeof input.connectionId === "string" && input.connectionId.trim()
+            ? input.connectionId.trim()
+            : null;
+        if (!query || query.length > 2048 || /[\x00-\x1f\x7f]/.test(query))
+          throw new ApiError(400, "bitwarden_search_invalid", "A Bitwarden search query is required");
+        if (connectionId && !UUID.test(connectionId))
+          throw new ApiError(400, "bitwarden_instance_invalid", "A valid Bitwarden connectionId is required");
+        const readyConnections = await this.prisma.pluginConnection.findMany({
+          where: {
+            connectorKey: "bitwarden",
+            status: "ready",
+            installation: { pluginKey: "bitwarden", status: "installed" },
+            ...(connectionId ? { id: connectionId } : {}),
+          },
+          select: { id: true },
+        });
+        if (!readyConnections.length) {
+          throw new ApiError(
+            409,
+            "bitwarden_not_connected",
+            connectionId
+              ? "The selected Bitwarden instance is not connected."
+              : "No Bitwarden instance is connected. Configure and connect an instance in Marketplace first."
+          );
+        }
         const leaseToken = randomUUID();
-        await this.prisma.bitwardenReadApproval.create({ data: { botId: request.botId, channelId: request.channelId, sourceRunId: request.runId, title: "__search__", hostname: title ? "title" : query, status: "approved", expiresAt: new Date(Date.now() + 30_000), leaseTokenHash: createHash("sha256").update(leaseToken).digest("hex"), leaseExpiresAt: new Date(Date.now() + 30_000) } });
+        await this.prisma.bitwardenReadApproval.create({
+          data: {
+            botId: request.botId,
+            channelId: request.channelId,
+            sourceRunId: request.runId,
+            connectionId,
+            title: "__search__",
+            hostname: title ? "title" : query,
+            status: "approved",
+            expiresAt: new Date(Date.now() + 30_000),
+            leaseTokenHash: createHash("sha256").update(leaseToken).digest("hex"),
+            leaseExpiresAt: new Date(Date.now() + 30_000),
+          },
+        });
         return { leaseToken, title };
       }
       if (request.tool === "RequestBitwardenReadApproval") {
-        const input = request.arguments && typeof request.arguments === "object" ? request.arguments as Record<string, unknown> : {};
+        const input = jsonObject(request.arguments);
         const rawCandidates = Array.isArray(input.candidates) ? input.candidates : [input];
         const candidates = rawCandidates.map(bitwardenCandidate);
-        if (!candidates.length || candidates.length > 6) throw new ApiError(400, "bitwarden_candidates_required", "Provide one to six Bitwarden candidates");
+        if (!candidates.length || candidates.length > 12)
+          throw new ApiError(400, "bitwarden_candidates_required", "Provide one to twelve Bitwarden candidates");
+        const uniqueConnectionIds = [...new Set(candidates.map((candidate) => candidate.connectionId))];
+        const readyConnections = await this.prisma.pluginConnection.findMany({
+          where: {
+            id: { in: uniqueConnectionIds },
+            connectorKey: "bitwarden",
+            status: "ready",
+            installation: { pluginKey: "bitwarden", status: "installed" },
+          },
+          select: { id: true, alias: true },
+        });
+        const aliasMap = new Map(readyConnections.map((connection) => [connection.id.toLowerCase(), connection.alias]));
+        if (uniqueConnectionIds.some((id) => !aliasMap.has(id.toLowerCase()))) {
+          throw new ApiError(409, "bitwarden_not_connected", "One or more Bitwarden instances are not connected.");
+        }
+        const enriched = candidates.map((candidate) => ({
+          ...candidate,
+          instanceName: aliasMap.get(candidate.connectionId.toLowerCase())!,
+        }));
+        const single = enriched.length === 1 ? enriched[0]! : null;
         const approval = await this.prisma.bitwardenReadApproval.create({
           data: {
             botId: request.botId,
             channelId: request.channelId,
             sourceRunId: request.runId,
-            itemId: candidates.length === 1 ? candidates[0]!.itemId : null,
-            title: candidates.length === 1 ? candidates[0]!.title : "Multiple Bitwarden items",
-            hostname: candidates.length === 1 ? candidates[0]!.hostname : "Multiple hostnames",
+            connectionId: single ? single.connectionId : null,
+            instanceName: single ? single.instanceName : "Multiple Bitwarden instances",
+            candidates: single ? Prisma.DbNull : toJson(enriched),
+            itemId: single ? single.itemId : null,
+            title: single ? single.title : "Multiple Bitwarden items",
+            hostname: single ? single.hostname : "Multiple hostnames",
             expiresAt: new Date(Date.now() + 15 * 60_000),
           },
         });
@@ -166,13 +246,13 @@ export class InternalToolService {
             type: "widget",
             end_turn: true,
             widget: {
-              prompt: candidates.length === 1
-                ? `Allow reading the Bitwarden item "${candidates[0]!.title}" for ${candidates[0]!.hostname}?`
+              prompt: single
+                ? `Allow reading the Bitwarden item "${single.title}" (${single.instanceName}) for ${single.hostname}?`
                 : "Which Bitwarden item may be read for this task?",
-              helpText: "This permission applies to this item for the current task and expires in 15 minutes.",
-              options: candidates.map((candidate) => ({
-                label: `${candidate.title} - ${candidate.hostname}`,
-                value: candidate.itemId,
+              helpText: "This permission applies to this item in the selected instance for the current task and expires in 15 minutes.",
+              options: enriched.map((candidate) => ({
+                label: `${candidate.title} - ${candidate.hostname} (${candidate.instanceName})`,
+                value: `${candidate.connectionId}:${candidate.itemId}`,
               })),
             },
           });
@@ -187,11 +267,17 @@ export class InternalToolService {
         }
       }
       if (request.tool === "ReadBitwardenCredential") {
-        const input = request.arguments && typeof request.arguments === "object" ? request.arguments as Record<string, unknown> : {};
+        const input = jsonObject(request.arguments);
         const itemId = typeof input.itemId === "string" ? input.itemId : "";
+        const connectionId =
+          typeof input.connectionId === "string" && input.connectionId.trim()
+            ? input.connectionId.trim()
+            : null;
         const field = input.field;
         if (!UUID.test(itemId) || !["username", "password", "totp"].includes(String(field)))
           throw new ApiError(400, "bitwarden_read_invalid", "A Bitwarden itemId and field are required");
+        if (connectionId && !UUID.test(connectionId))
+          throw new ApiError(400, "bitwarden_read_invalid", "The Bitwarden connectionId is invalid");
         const payload = run.inboxEvents[0]?.payload as Record<string, unknown> | undefined;
         const reference = approvalReference(payload?.content);
         if (!reference) throw new ApiError(403, "bitwarden_read_not_approved", "User approval is required before reading this Bitwarden item");
@@ -199,36 +285,116 @@ export class InternalToolService {
         if (approval?.status === "approved" && approval.expiresAt <= new Date()) {
           await this.prisma.bitwardenReadApproval.update({ where: { id: approval.id }, data: { status: "expired" } });
         }
-        if (!approval || approval.botId !== request.botId || approval.channelId !== request.channelId || approval.status !== "approved" || approval.itemId?.toLowerCase() !== itemId.toLowerCase() || approval.expiresAt <= new Date())
-          throw new ApiError(403, "bitwarden_read_not_approved", "User approval is missing, expired, or for a different Bitwarden item");
+        if (
+          !approval ||
+          approval.botId !== request.botId ||
+          approval.channelId !== request.channelId ||
+          approval.status !== "approved" ||
+          !approval.connectionId ||
+          approval.itemId?.toLowerCase() !== itemId.toLowerCase() ||
+          (connectionId && approval.connectionId.toLowerCase() !== connectionId.toLowerCase()) ||
+          approval.expiresAt <= new Date()
+        )
+          throw new ApiError(403, "bitwarden_read_not_approved", "User approval is missing, expired, or for a different Bitwarden item or instance");
+        const readyConnection = await this.prisma.pluginConnection.findFirst({
+          where: {
+            id: approval.connectionId,
+            connectorKey: "bitwarden",
+            status: "ready",
+            installation: { pluginKey: "bitwarden", status: "installed" },
+          },
+          select: { id: true },
+        });
+        if (!readyConnection) {
+          throw new ApiError(409, "bitwarden_not_connected", "The approved Bitwarden instance is no longer connected.");
+        }
         const leaseToken = randomUUID();
-        await this.prisma.bitwardenReadApproval.create({ data: { botId: request.botId, channelId: request.channelId, sourceRunId: request.runId, itemId, title: "__lease__", hostname: String(field), status: "approved", expiresAt: new Date(Date.now() + 30_000), leaseTokenHash: createHash("sha256").update(leaseToken).digest("hex"), leaseExpiresAt: new Date(Date.now() + 30_000) } });
-        return { leaseToken };
+        await this.prisma.bitwardenReadApproval.create({
+          data: {
+            botId: request.botId,
+            channelId: request.channelId,
+            sourceRunId: request.runId,
+            connectionId: approval.connectionId,
+            itemId,
+            title: "__lease__",
+            hostname: String(field),
+            status: "approved",
+            expiresAt: new Date(Date.now() + 30_000),
+            leaseTokenHash: createHash("sha256").update(leaseToken).digest("hex"),
+            leaseExpiresAt: new Date(Date.now() + 30_000),
+          },
+        });
+        return { leaseToken, connectionId: approval.connectionId };
       }
       if (request.tool === "ConsumeBitwardenReadLease") {
-        const input = request.arguments && typeof request.arguments === "object" ? request.arguments as Record<string, unknown> : {};
+        const input = jsonObject(request.arguments);
         const leaseToken = typeof input.leaseToken === "string" ? input.leaseToken : "";
         if (!leaseToken || leaseToken.length > 100) throw new ApiError(400, "bitwarden_lease_invalid", "The Bitwarden read lease is invalid");
         const leaseHash = createHash("sha256").update(leaseToken).digest("hex");
         const environment = await this.prisma.$transaction(async (tx) => {
-          const approval = await tx.bitwardenReadApproval.findFirst({ where: { leaseTokenHash: leaseHash, botId: request.botId, channelId: request.channelId, status: "approved", title: "__lease__", leaseExpiresAt: { gt: new Date() } } });
-          if (!approval) throw new ApiError(403, "bitwarden_lease_invalid", "The Bitwarden read lease is invalid or expired");
+          const approval = await tx.bitwardenReadApproval.findFirst({
+            where: {
+              leaseTokenHash: leaseHash,
+              botId: request.botId,
+              channelId: request.channelId,
+              status: "approved",
+              title: "__lease__",
+              leaseExpiresAt: { gt: new Date() },
+            },
+          });
+          if (!approval || !approval.connectionId)
+            throw new ApiError(403, "bitwarden_lease_invalid", "The Bitwarden read lease is invalid or expired");
           await tx.bitwardenReadApproval.delete({ where: { id: approval.id } });
-          return protectedPluginEnvironment(tx);
+          const connection = await tx.pluginConnection.findFirst({
+            where: {
+              id: approval.connectionId,
+              connectorKey: "bitwarden",
+              status: "ready",
+              installation: { pluginKey: "bitwarden", status: "installed" },
+            },
+          });
+          if (!connection)
+            throw new ApiError(409, "bitwarden_not_connected", "The Bitwarden instance is no longer connected");
+          return bitwardenInstanceEnvironment(connection);
         });
         return { environment };
       }
       if (request.tool === "ConsumeBitwardenSearchLease") {
-        const input = request.arguments && typeof request.arguments === "object" ? request.arguments as Record<string, unknown> : {};
+        const input = jsonObject(request.arguments);
         const leaseToken = typeof input.leaseToken === "string" ? input.leaseToken : "";
         const leaseHash = createHash("sha256").update(leaseToken).digest("hex");
-        const environment = await this.prisma.$transaction(async (tx) => {
-          const approval = await tx.bitwardenReadApproval.findFirst({ where: { leaseTokenHash: leaseHash, botId: request.botId, channelId: request.channelId, status: "approved", itemId: null, title: "__search__", leaseExpiresAt: { gt: new Date() } } });
+        const instances = await this.prisma.$transaction(async (tx) => {
+          const approval = await tx.bitwardenReadApproval.findFirst({
+            where: {
+              leaseTokenHash: leaseHash,
+              botId: request.botId,
+              channelId: request.channelId,
+              status: "approved",
+              itemId: null,
+              title: "__search__",
+              leaseExpiresAt: { gt: new Date() },
+            },
+          });
           if (!approval) throw new ApiError(403, "bitwarden_lease_invalid", "The Bitwarden search lease is invalid or expired");
           await tx.bitwardenReadApproval.delete({ where: { id: approval.id } });
-          return protectedPluginEnvironment(tx);
+          const connections = await tx.pluginConnection.findMany({
+            where: {
+              connectorKey: "bitwarden",
+              status: "ready",
+              installation: { pluginKey: "bitwarden", status: "installed" },
+              ...(approval.connectionId ? { id: approval.connectionId } : {}),
+            },
+            orderBy: { createdAt: "asc" },
+          });
+          if (!connections.length)
+            throw new ApiError(409, "bitwarden_not_connected", "No Bitwarden instance is connected");
+          return connections.map((connection) => ({
+            connectionId: connection.id,
+            instanceName: connection.alias,
+            environment: bitwardenInstanceEnvironment(connection),
+          }));
         });
-        return { environment };
+        return { instances };
       }
       if (run.origin === "routine" && AUTOMATION_PARENT_ONLY_TOOLS.has(request.tool)) {
         throw new ApiError(403, "automation_tool_forbidden", AUTOMATION_RUN_VISIBLE_TRANSCRIPT_BLOCKED);

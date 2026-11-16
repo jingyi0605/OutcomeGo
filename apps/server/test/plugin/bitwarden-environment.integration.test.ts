@@ -12,7 +12,17 @@ test.skipIf(!databaseUrl)("Bitwarden runtime fields install, rotate, stay privat
   const db = createPrismaClient(databaseUrl!);
   const original = pluginCatalog.find(plugin => plugin.key === "bitwarden")!;
   const suffix = crypto.randomUUID();
-  const plugin = { ...original, key: `bitwarden-test-${suffix}` };
+  const plugin = {
+    ...original,
+    key: `bitwarden-test-${suffix}`,
+    setupFields: [
+      { key: "serverUrl", label: "Server URL", required: true, secret: false, format: "https-origin" as const, environment: "BW_SERVER_URL", protected: true },
+      { key: "email", label: "Account email", required: true, secret: false, environment: "BW_EMAIL", protected: true },
+      { key: "clientId", label: "Personal API client ID", required: true, secret: true, environment: "BW_CLIENT_ID", protected: true },
+      { key: "clientSecret", label: "Personal API client secret", required: true, secret: true, environment: "BW_CLIENT_SECRET", protected: true },
+      { key: "masterPassword", label: "Master password", required: true, secret: true, preserveWhitespace: true, environment: "BW_MASTER_PASSWORD", protected: true },
+    ],
+  };
   const duplicate = { ...plugin, key: `bitwarden-duplicate-${suffix}`, name: "Duplicate vault" };
   const keys = [plugin.key, duplicate.key];
   const botId = crypto.randomUUID();

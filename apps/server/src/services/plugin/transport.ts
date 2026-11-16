@@ -14,6 +14,7 @@ import {
 import { toJson } from "../service-utils";
 import { PLUGIN_UNSAVED_UNKNOWN_OUTCOME } from "./invocation-outcomes";
 import {
+  bitwardenInstanceEnvironment,
   boundPluginResult,
   jsonObject,
   oauthRedirectUrl,
@@ -634,12 +635,39 @@ export class PluginTransport {
       );
   }
 
+  async checkBitwardenConnection(connection: {
+    id: string;
+    configuration: Prisma.JsonValue;
+    credentials: Prisma.JsonValue;
+  }): Promise<void> {
+    const result = await this.callComputer("/v1/bitwarden/check", {
+      environment: bitwardenInstanceEnvironment(connection),
+    });
+    if (result.ok !== true) {
+      throw new ApiError(
+        503,
+        "bitwarden_check_failed",
+        typeof result.message === "string"
+          ? result.message
+          : "Bitwarden connection check failed"
+      );
+    }
+  }
+
   private async callComputer(path: string, body: unknown, signal?: AbortSignal): Promise<JsonObject> {
     if (!this.computerFetch) {
       throw new ApiError(503, "computer_unavailable", "The computer runtime is unavailable");
     }
     signal?.throwIfAborted();
-    const deadline = AbortSignal.timeout(path.endsWith("/discover") ? 360_000 : path.endsWith("/call") ? MCP_TOOL_CALL_TIMEOUT_MS + 60_000 : 65_000);
+    const deadline = AbortSignal.timeout(
+      path.endsWith("/discover")
+        ? 360_000
+        : path.endsWith("/call")
+          ? MCP_TOOL_CALL_TIMEOUT_MS + 60_000
+          : path === "/v1/bitwarden/check"
+            ? 190_000
+            : 65_000
+    );
     const response = await this.computerFetch(path, {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -652,12 +680,15 @@ export class PluginTransport {
     } as RequestInit);
     const value = await response.json().catch(() => ({}));
     if (!response.ok) {
+      const detail = jsonObject(value);
       throw new ApiError(
         503,
         "stdio_mcp_failed",
-        typeof jsonObject(value).error === "string"
-          ? String(jsonObject(value).error)
-          : `Computer MCP request failed (${response.status})`
+        typeof detail.error === "string"
+          ? detail.error
+          : typeof detail.message === "string"
+            ? detail.message
+            : `Computer request failed (${response.status})`
       );
     }
     return jsonObject(value);

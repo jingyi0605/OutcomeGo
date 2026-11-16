@@ -353,14 +353,88 @@ export const catalogView = (plugin: PluginDefinition, installed: boolean) => ({
 
 export function validAlias(value: string): string {
   const alias = value.trim();
-  if (!/^[A-Za-z0-9][A-Za-z0-9 _.-]{0,78}[A-Za-z0-9]$/.test(alias)) {
+  if (!/^[A-Za-z0-9][A-Za-z0-9 _@.+()-]{0,78}[A-Za-z0-9)]$/.test(alias)) {
     throw new ApiError(
       400,
       "connection_alias_invalid",
-      "Account alias must be 2–80 letters, numbers, spaces, dots, dashes, or underscores"
+      "Account alias must be 2–80 letters, numbers, spaces, dots, dashes, underscores, or email characters"
     );
   }
   return alias;
+}
+
+export const BITWARDEN_PUBLIC_FIELDS = ["BW_SERVER_URL", "BW_EMAIL"] as const;
+export const BITWARDEN_SECRET_FIELDS = [
+  "BW_CLIENT_ID",
+  "BW_CLIENT_SECRET",
+  "BW_MASTER_PASSWORD",
+] as const;
+
+export function isBitwardenConnection(connection: {
+  connectorKey?: string;
+  endpoint?: string | null;
+  installation?: { pluginKey?: string };
+}): boolean {
+  return (
+    connection.installation?.pluginKey === "bitwarden" ||
+    (connection.connectorKey === "bitwarden" && connection.endpoint === "outcomego://bitwarden")
+  );
+}
+
+export function bitwardenInstanceEnvironment(connection: {
+  configuration: Prisma.JsonValue;
+  credentials: Prisma.JsonValue;
+}): Record<string, string> {
+  const configValues = jsonObject(jsonObject(connection.configuration).values);
+  const secretValues = jsonObject(jsonObject(connection.credentials).values);
+  const env: Record<string, string> = {};
+  for (const key of BITWARDEN_PUBLIC_FIELDS) {
+    if (typeof configValues[key] === "string" && configValues[key]) {
+      env[key] = configValues[key] as string;
+    }
+  }
+  for (const key of BITWARDEN_SECRET_FIELDS) {
+    if (typeof secretValues[key] === "string" && secretValues[key]) {
+      env[key] = secretValues[key] as string;
+    }
+  }
+  return env;
+}
+
+/** Pick a unique alias for a Bitwarden instance, preferring email and disambiguating duplicates. */
+export function resolveBitwardenAlias(
+  emailValue: string,
+  serverUrlValue: string,
+  takenAliases: ReadonlySet<string>
+): string {
+  const base = emailValue.trim();
+  if (!base) return "default";
+  const normalize = (candidate: string): string | null => {
+    try {
+      return validAlias(candidate.slice(0, 80));
+    } catch {
+      return null;
+    }
+  };
+  const primary = normalize(base);
+  if (primary && !takenAliases.has(primary)) return primary;
+  let host = "";
+  try {
+    host = new URL(serverUrlValue.trim()).hostname;
+  } catch {
+    host = "";
+  }
+  if (host) {
+    const withHost = normalize(`${base} (${host})`);
+    if (withHost && !takenAliases.has(withHost)) return withHost;
+  }
+  for (let index = 2; index < 1000; index++) {
+    const suffix = `-${index}`;
+    const trimmed = base.slice(0, Math.max(2, 80 - suffix.length));
+    const numbered = normalize(`${trimmed}${suffix}`);
+    if (numbered && !takenAliases.has(numbered)) return numbered;
+  }
+  return `bitwarden-${Date.now()}`;
 }
 
 export function connectionConfigured(connection: {

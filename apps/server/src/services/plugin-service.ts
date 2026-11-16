@@ -37,6 +37,8 @@ import { PluginQueries } from "./plugin/queries";
 import { PluginTransport } from "./plugin/transport";
 import {
   connectionConfigured,
+  isBitwardenConnection,
+  resolveBitwardenAlias,
   runtimeConfiguration,
   runtimeEndpoint,
   redactConnectionSecrets,
@@ -44,6 +46,7 @@ import {
   hasPlaceholder,
   definitionFromManifest,
   jsonObject,
+  manifestJson,
   oauthRedirectUrl,
   redact,
   stringArray,
@@ -52,6 +55,7 @@ import {
   validAlias,
   validateJsonSchema,
 } from "./plugin/values";
+import { migrateLegacyBitwardenInstallation } from "./plugin/bitwarden-migration";
 import { appendEvent, forwardServiceMethod, serviceEffect, toJson } from "./service-utils";
 import { ConnectorFileTransfers } from "./plugin/file-transfers";
 import { parseAuthMode } from "../auth-mode";
@@ -243,7 +247,29 @@ export class PluginService {
   private definition = async (pluginKey: string): Promise<PluginDefinition | undefined> =>
     (await this.catalog()).find((plugin) => plugin.key === pluginKey);
 
-  settings = forwardServiceMethod(() => this.queries.settings);
+  private migrateLegacyBitwardenIfNeeded = async (): Promise<void> => {
+    const [installation, legacySecret] = await Promise.all([
+      this.prisma.pluginInstallation.findUnique({ where: { pluginKey: "bitwarden" } }),
+      this.prisma.processSecret.findFirst({ where: { ownerKey: "plugin:bitwarden" }, select: { name: true } }),
+    ]);
+    if (!installation || !legacySecret) return;
+    const latest = await this.definition("bitwarden").catch(() => undefined);
+    await this.prisma.$transaction(async (tx) => {
+      if (latest && (definitionFromManifest(installation.manifest)?.connections.length ?? 0) === 0) {
+        await tx.pluginInstallation.update({
+          where: { id: installation.id },
+          data: { version: latest.version, manifest: manifestJson(latest) },
+        });
+      }
+      await migrateLegacyBitwardenInstallation(tx, installation.id, latest?.connections[0]);
+    });
+  };
+
+  settings = () =>
+    serviceEffect(async () => {
+      await this.migrateLegacyBitwardenIfNeeded();
+      return Effect.runPromise(this.queries.settings());
+    });
   composer = forwardServiceMethod(() => this.queries.composer);
 
   pollConnectionStatuses = forwardServiceMethod(() => this.queries.pollConnectionStatuses);
@@ -845,6 +871,8 @@ export class PluginService {
         });
         if (!starting.count) throw new ApiError(409, "plugin_connection_changed", "Connection setup changed while connecting");
         tools = await this.discoverStdio(connection);
+      } else if (isBitwardenConnection(connection)) {
+        await this.transport.checkBitwardenConnection(connection);
       }
     } catch (error) {
       if (connection.transport === "http") await this.transport.recoverHttpAuthorization(connection, error);
@@ -863,7 +891,11 @@ export class PluginService {
         where: { id: connectionId, runtimeGeneration: connection.runtimeGeneration },
         data: {
           status: authFailure ? "needs_auth" : "error",
-          statusMessage: connectorAuthFailure ? message : `${authFailure ? "Authentication failed" : connection.transport === "stdio" ? "Local runtime unavailable" : "Tool discovery failed"}: ${message}`,
+          statusMessage: isBitwardenConnection(connection)
+            ? message
+            : connectorAuthFailure
+              ? message
+              : `${authFailure ? "Authentication failed" : connection.transport === "stdio" ? "Local runtime unavailable" : "Tool discovery failed"}: ${message}`,
           lastCheckedAt: new Date(),
         },
       });
@@ -1175,19 +1207,34 @@ export class PluginService {
 
   addAccount = (connectionId: string, aliasValue: string, reviewedAccountId?: string) =>
     serviceEffect(async () => {
-      const alias = aliasValue.trim();
-      if (!/^[A-Za-z0-9][A-Za-z0-9 _.-]{0,78}[A-Za-z0-9]$/.test(alias)) {
-        throw new ApiError(
-          400,
-          "connection_alias_invalid",
-          "Account alias must be 2–80 letters, numbers, spaces, dots, dashes, or underscores"
-        );
-      }
       const source = await this.prisma.pluginConnection.findUnique({
         where: { id: connectionId },
         include: { installation: true },
       });
       if (!source) throw new ApiError(404, "connection_not_found", "Connection not found");
+      const bitwarden = isBitwardenConnection(source);
+      const trimmedAlias = aliasValue.trim();
+      const autoAlias = bitwarden && !trimmedAlias;
+      let alias: string;
+      if (autoAlias) {
+        const existingAliases = new Set(
+          (
+            await this.prisma.pluginConnection.findMany({
+              where: {
+                installationId: source.installationId,
+                connectorKey: source.connectorKey,
+              },
+              select: { alias: true },
+            })
+          ).map((row) => row.alias)
+        );
+        let index = existingAliases.size + 1;
+        while (existingAliases.has(`instance-${index}`)) index++;
+        alias = `instance-${index}`;
+      } else {
+        if (!trimmedAlias) throw new ApiError(400, "connection_alias_required", "Alias is required");
+        alias = validAlias(aliasValue);
+      }
       if (reviewedAccountId) {
         const prior = await this.prisma.pluginConnection.findUnique({ where: { id: reviewedAccountId } });
         if (prior) {
@@ -1231,9 +1278,10 @@ export class PluginService {
               ...connectorDefinition?.configuration,
               ...Object.fromEntries(
                 Object.entries(jsonObject(source.configuration)).filter(
-                  ([key]) => !["headers", "env", "clientSecret", "values"].includes(key)
+                  ([key]) => !["headers", "env", "clientSecret", "values", "autoAlias"].includes(key)
                 )
               ),
+              ...(autoAlias ? { autoAlias: true } : {}),
             }),
             credentials: toJson(sharedClient ? { clientSecret: sharedClient } : {}),
             status: source.authType === "none" ? "disconnected" : "needs_auth",
@@ -1263,9 +1311,11 @@ export class PluginService {
     serviceEffect(async () => {
       const connection = await this.connectionOrThrow(connectionId);
       const alias = validAlias(aliasValue);
+      const config = { ...jsonObject(connection.configuration) };
+      delete config.autoAlias;
       const updated = await this.prisma.pluginConnection.update({
         where: { id: connectionId },
-        data: { alias },
+        data: { alias, configuration: toJson(config) },
       }).catch((cause: unknown) => {
         if (cause && typeof cause === "object" && "code" in cause && cause.code === "P2002")
           throw new ApiError(409, "connection_alias_exists", "That account alias already exists");
@@ -1318,7 +1368,7 @@ export class PluginService {
       await this.prisma.pluginConnection.update({ where: { id: connectionId }, data: {
         alias: "default", credentials: toJson({}),
         configuration: toJson(Object.fromEntries(Object.entries(jsonObject(connection.configuration)).filter(
-          ([key]) => !["env", "headers", "clientSecret", "values"].includes(key)
+          ([key]) => !["env", "headers", "clientSecret", "values", "autoAlias"].includes(key)
         ))),
         status: connection.authType === "none" ? "disconnected" : "needs_auth",
         statusMessage: connection.authType === "none" ? null : "Authentication has not been configured.", connectedAt: null,
@@ -1475,9 +1525,38 @@ export class PluginService {
           "Connection setup changed while connecting. Try again with the current settings."
         );
       this.assertAvailable(current);
+      const config = { ...jsonObject(current.configuration) };
+      let nextAlias = current.alias;
+      if (
+        isBitwardenConnection(current) &&
+        (current.alias === "default" || config.autoAlias === true)
+      ) {
+        const configValues = jsonObject(config.values);
+        const email = typeof configValues.BW_EMAIL === "string" ? configValues.BW_EMAIL.trim() : "";
+        const serverUrl =
+          typeof configValues.BW_SERVER_URL === "string" ? configValues.BW_SERVER_URL.trim() : "";
+        if (email) {
+          const siblings = await tx.pluginConnection.findMany({
+            where: {
+              installationId: current.installationId,
+              connectorKey: current.connectorKey,
+              id: { not: current.id },
+            },
+            select: { alias: true },
+          });
+          nextAlias = resolveBitwardenAlias(
+            email,
+            serverUrl,
+            new Set(siblings.map((row) => row.alias))
+          );
+          config.autoAlias = true;
+        }
+      }
       const value = await tx.pluginConnection.update({
         where: { id: connection.id },
         data: {
+          alias: nextAlias,
+          configuration: toJson(config),
           credentials: toJson(clearDeviceLinkState(current.credentials)),
           status: "ready",
           statusMessage: null,

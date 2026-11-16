@@ -21,6 +21,7 @@ import {
   definitionFromManifest,
   connectionConfigured,
   connectionSetupPhase,
+  isBitwardenConnection,
   jsonObject,
   oauthRedirectUrl,
   stringArray,
@@ -81,6 +82,24 @@ export class PluginConfiguration {
         ...(typeof config.clientId === "string" ? { clientId: config.clientId } : {}),
         ...(typeof config.scope === "string" ? { scope: config.scope } : {}),
       };
+      const bitwarden = isBitwardenConnection(connection);
+      const configuredSecrets = [
+        ...new Set([
+          ...Object.keys(jsonObject(credentials.values)).filter(
+            (key) => Boolean(jsonObject(credentials.values)[key])
+          ),
+          ...(credentials.bearerToken ? ["token"] : []),
+          ...(credentials.clientSecret || config.clientSecret ? ["clientSecret"] : []),
+        ]),
+      ];
+      const configuredFields = [
+        ...new Set([
+          ...Object.entries(values)
+            .filter(([, value]) => value !== undefined && value !== "")
+            .map(([key]) => key),
+          ...configuredSecrets,
+        ]),
+      ];
       return {
         connectionId: id,
         namespace: (await loadConnectionNamespaces(this.prisma)).get(id)!,
@@ -90,18 +109,15 @@ export class PluginConfiguration {
         args: stringArray(config.args),
         cwd: typeof config.cwd === "string" ? config.cwd : null,
         fields,
-        values: Object.fromEntries(
-          fields
-            .filter((field) => !field.secret && values[field.key] !== undefined)
-            .map((field) => [field.key, values[field.key]])
-        ) as PluginConfigurationView["values"],
-        configuredSecrets: [
-          ...new Set([
-            ...Object.keys(jsonObject(credentials.values)),
-            ...(credentials.bearerToken ? ["token"] : []),
-            ...(credentials.clientSecret || config.clientSecret ? ["clientSecret"] : []),
-          ]),
-        ],
+        values: (bitwarden
+          ? {}
+          : Object.fromEntries(
+              fields
+                .filter((field) => !field.secret && values[field.key] !== undefined)
+                .map((field) => [field.key, values[field.key]])
+            )) as PluginConfigurationView["values"],
+        configuredFields,
+        configuredSecrets,
         headerNames: [
           ...new Set([
             ...Object.keys(jsonObject(config.headers)),
@@ -140,7 +156,21 @@ export class PluginConfiguration {
       if (credentials.stateRemovalPending === true)
         throw new ApiError(409, "plugin_account_removal_pending", "Account removal must finish before changing configuration.");
       if (input.values) {
-        const validated = validateValues(fields, input.values, false);
+        const bitwarden = isBitwardenConnection(connection);
+        const normalizedInput = bitwarden
+          ? Object.fromEntries(
+              Object.entries(input.values).map(([key, value]) => {
+                const field = fields.find((candidate) => candidate.key === key);
+                return [
+                  key,
+                  typeof value === "string" && !field?.preserveWhitespace && !field?.format
+                    ? value.trim()
+                    : value,
+                ];
+              })
+            )
+          : input.values;
+        const validated = validateValues(fields, normalizedInput, false);
         // Compact setup clients can submit an empty advanced scope field. Keep the
         // installed provider's required scopes instead of generating invalid OAuth.
         const setup = connector?.setup ??
@@ -151,6 +181,7 @@ export class PluginConfiguration {
         const publicValues = { ...jsonObject(config.values) };
         const secretValues = { ...stringRecord(credentials.values) };
         for (const [key, value] of Object.entries(validated)) {
+          if (bitwarden && value === "") continue;
           if (fields.find((field) => field.key === key)?.secret) secretValues[key] = String(value);
           else publicValues[key] = value;
         }
@@ -245,6 +276,7 @@ export class PluginConfiguration {
             runtimeGeneration: { increment: 1 },
             status: "disconnected",
             statusMessage: null,
+            connectedAt: null,
           },
         });
         if (updated.count !== 1)
