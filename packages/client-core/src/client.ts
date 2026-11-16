@@ -202,6 +202,15 @@ export const createOutcomeGoClient = (options: OutcomeGoClientOptions) => {
     retryBrowserNetwork: () => transport.request<BrowserNetworkView>("/api/v0/server-settings/browser-network/retry", {method: "POST", body: "{}"}),
     computerDisplay: () => transport.request<{width:number;height:number}>("/api/v0/server-settings/computer-display"),
     saveComputerDisplay: (value:{width:number;height:number}) => transport.request<{width:number;height:number}>("/api/v0/server-settings/computer-display",{method:"PATCH",body:JSON.stringify(value)}),
+    computerNetworkPolicy: () =>
+      transport.request<import("@outcomego/contracts").ComputerNetworkPolicyView>(
+        "/api/v0/server-settings/computer-network-policy"
+      ),
+    updateComputerNetworkPolicy: (input: import("@outcomego/contracts").ComputerNetworkPolicyUpdate) =>
+      transport.request<import("@outcomego/contracts").ComputerNetworkPolicyView>(
+        "/api/v0/server-settings/computer-network-policy",
+        { method: "PATCH", body: JSON.stringify(input) }
+      ),
     registerMachine: (bridgeUrl:string) => transport.request("/api/v0/server-settings/machines",{method:"POST",body:JSON.stringify({bridgeUrl})}),
     setMachineEnabled: (machineId:string, enabled:boolean) => transport.request(`/api/v0/server-settings/machines/${encodeURIComponent(machineId)}`,{method:"PATCH",body:JSON.stringify({enabled})}),
     removeMachine: (machineId:string) => transport.request(`/api/v0/server-settings/machines/${encodeURIComponent(machineId)}`,{method:"DELETE"}),

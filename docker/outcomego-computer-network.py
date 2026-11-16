@@ -13,12 +13,19 @@ from pathlib import Path
 import stat
 import subprocess
 import sys
+from contextlib import contextmanager
 from urllib.parse import urlsplit
 
 MARK = '0x4f54'
 TABLE = '18791'
 TUN = 'outcomego0'
+MANAGEMENT_PRIORITY = '95'
 HOST_BRIDGE_CONFIG = Path('/home/box/.config/openteam/imessage-bridge.json')
+MODEL_CONFIG = Path('/home/box/.pi/agent/models.json')
+POLICY_STATE = Path('/run/outcomego-network-policy.json')
+MAX_CONFIG_BYTES = 4 * 1024 * 1024
+PRIVATE_V4 = ('10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16', '169.254.0.0/16')
+PRIVATE_V6 = ('fc00::/7', 'fe80::/10')
 
 
 def run(*args, input=None):
@@ -46,71 +53,178 @@ def management_url(server_url):
     return url, port
 
 
-def host_bridge_endpoint():
-    """Only a private, explicitly provisioned endpoint reserves an underlay route."""
+def read_json_file(path, maximum):
     try:
-        descriptor = os.open(HOST_BRIDGE_CONFIG, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+        descriptor = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
         with os.fdopen(descriptor) as file:
             info = os.fstat(file.fileno())
             if not stat.S_ISREG(info.st_mode) or info.st_mode & 0o077:
                 return None
-            raw = file.read(16385)
-        if len(raw) > 16384:
+            raw = file.read(maximum + 1)
+        if len(raw) > maximum:
             return None
-        config = json.loads(raw)
-        if not isinstance(config, dict) or not isinstance(config.get('endpoint'), str):
-            return None
-        if not isinstance(config.get('token'), str) or not config['token'].strip():
-            return None
-        url = urlsplit(config['endpoint'])
-        if (url.scheme not in ('http', 'https') or not url.hostname or '%' in url.hostname or
-                url.username is not None or url.password is not None or url.query or url.fragment):
-            return None
-        address = ipaddress.ip_address(url.hostname)
-        if address.version == 6 and address.ipv4_mapped:
-            address = address.ipv4_mapped
-        port = url.port if url.port is not None else (443 if url.scheme == 'https' else 80)
-        if address.is_unspecified or address.is_multicast or not 1 <= port <= 65535:
-            return None
-        return ('-6' if address.version == 6 else '-4', str(address), str(port))
-    except (OSError, ValueError, TypeError, RecursionError):
+        value = json.loads(raw)
+        return value
+    except (OSError, ValueError, TypeError, json.JSONDecodeError, RecursionError):
         return None
 
 
-def update_host_bridge(server_url):
-    management_url(server_url)
-    families = network_families()
-    # A watcher retry or an administrator's refresh can overlap. Read kernel
-    # state under the same lock so interrupted updates never duplicate rules.
+def endpoint_value(hostname, port, private_only=False):
+    try:
+        if not isinstance(hostname, str):
+            return None
+        if '%' in hostname:
+            return None
+        address = ipaddress.ip_address(hostname)
+        if address.version == 6 and address.ipv4_mapped:
+            address = address.ipv4_mapped
+        if (address.is_unspecified or address.is_multicast or
+                not 1 <= port <= 65535 or
+                (private_only and not (address.is_private or address.is_link_local))):
+            return None
+        return ('-6' if address.version == 6 else '-4', str(address), str(port))
+    except (ValueError, TypeError):
+        return None
+
+
+def endpoint_from_url(endpoint, private_only=False):
+    try:
+        if not isinstance(endpoint, str):
+            return None
+        url = urlsplit(endpoint)
+        if (url.scheme not in ('http', 'https') or not url.hostname or '%' in url.hostname or
+                url.username is not None or url.password is not None or url.query or url.fragment):
+            return None
+        port = url.port if url.port is not None else (443 if url.scheme == 'https' else 80)
+        return endpoint_value(url.hostname, port, private_only)
+    except (ValueError, TypeError):
+        return None
+
+
+def host_bridge_endpoint():
+    """Only a private, explicitly provisioned endpoint reserves an underlay route."""
+    config = read_json_file(HOST_BRIDGE_CONFIG, 16384)
+    if not isinstance(config, dict) or not isinstance(config.get('endpoint'), str):
+        return None
+    if not isinstance(config.get('token'), str) or not config['token'].strip():
+        return None
+    return endpoint_from_url(config['endpoint'])
+
+
+def model_endpoints():
+    """Reserve literal private model endpoints without bypassing public egress."""
+    config = read_json_file(MODEL_CONFIG, MAX_CONFIG_BYTES)
+    providers = config.get('providers') if isinstance(config, dict) else None
+    if not isinstance(providers, dict):
+        return set()
+    endpoints = set()
+    for provider in providers.values():
+        if not isinstance(provider, dict):
+            continue
+        endpoint = endpoint_from_url(provider.get('baseUrl'), private_only=True)
+        if endpoint:
+            endpoints.add(endpoint)
+    return endpoints
+
+
+def policy_value(raw):
+    config = raw if isinstance(raw, dict) else {}
+    mode = config.get('mode')
+    # Older servers persisted the now-removed managed mode. Preserve those
+    # policies as allowlists while keeping managed invalid for new updates.
+    if mode == 'managed':
+        mode = 'allowlist'
+    if mode not in ('lan', 'allowlist'):
+        raise ValueError('Invalid computer network policy mode')
+    raw_rules = config.get('rules')
+    if not isinstance(raw_rules, list) or len(raw_rules) > 128:
+        raise ValueError('Invalid computer network policy rules')
+    rules = set()
+    for entry in raw_rules:
+        if not isinstance(entry, dict):
+            raise ValueError('Invalid computer network policy rule')
+        endpoint = endpoint_value(entry.get('address'), entry.get('port'), private_only=True)
+        if not endpoint:
+            raise ValueError('Invalid computer network policy destination')
+        rules.add(endpoint)
+    return {'mode': mode, 'rules': sorted(rules)}
+
+
+def current_policy():
+    config = read_json_file(POLICY_STATE, 256 * 1024)
+    try:
+        return policy_value(config)
+    except ValueError:
+        return {'mode': 'lan', 'rules': []}
+
+
+@contextmanager
+def network_lock():
     descriptor = os.open('/run/outcomego-host-bridge.lock', os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW, 0o600)
     with os.fdopen(descriptor, 'r+') as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
+        yield
+
+
+def update_network_policy(server_url, raw):
+    management_url(server_url)
+    families = network_families()
+    policy = policy_value(raw)
+    with network_lock():
+        model = model_endpoints()
+        bridge = set()
         endpoint = host_bridge_endpoint()
-        desired = {endpoint} if endpoint and endpoint[0] in families else set()
-        previous = set()
-        for family in families:
-            for rule in json.loads(run('ip', family, '-j', 'rule', 'show', 'pref', '98')):
-                if rule.get('dst') and rule.get('dport') is not None:
-                    previous.add((family, str(ipaddress.ip_interface(rule['dst']).ip), str(rule['dport'])))
-        for family, address, port in desired - previous:
-            run('ip', family, 'rule', 'add', 'pref', '98', 'to', address,
-                'ipproto', '6', 'dport', port, 'lookup', 'main')
-        rules = ['flush set inet outcomego_network host_bridge_v4',
-                 'flush set inet outcomego_network host_bridge_v6']
-        for family, address, port in desired:
+        if endpoint:
+            bridge.add(endpoint)
+        desired = set(policy['rules']) | model | bridge
+        desired = {item for item in desired if item[0] in families}
+        private = policy['mode'] == 'lan'
+        nft_rules = [
+            'flush set inet outcomego_network lan_private_v4',
+            'flush set inet outcomego_network lan_private_v6',
+            'flush set inet outcomego_network host_bridge_v4',
+            'flush set inet outcomego_network host_bridge_v6',
+            'flush set inet outcomego_network policy_v4',
+            'flush set inet outcomego_network policy_v6',
+        ]
+        if private:
+            nft_rules.append(
+                f"add element inet outcomego_network lan_private_v4 {{ {', '.join(PRIVATE_V4)} }}"
+            )
+            if '-6' in families:
+                nft_rules.append(
+                    f"add element inet outcomego_network lan_private_v6 {{ {', '.join(PRIVATE_V6)} }}"
+                )
+        for family, address, port in sorted(desired):
             suffix = 'v6' if family == '-6' else 'v4'
-            rules.append(f'add element inet outcomego_network host_bridge_{suffix} {{ {address} . {port} }}')
-        # Replace address and port together. Revoked endpoints stop being marked
-        # before their old source-selection rules are removed.
-        run('nft', '-f', '-', input='\n'.join(rules) + '\n')
-        for family, address, port in previous - desired:
-            while subprocess.run(['ip', family, 'rule', 'del', 'pref', '98', 'to', address,
-                                  'ipproto', '6', 'dport', port, 'lookup', 'main'],
-                                 capture_output=True).returncode == 0:
+            target = 'host_bridge' if (family, address, port) in bridge else 'policy'
+            nft_rules.append(f'add element inet outcomego_network {target}_{suffix} {{ {address} . {port} }}')
+        run('nft', '-f', '-', input='\n'.join(nft_rules) + '\n')
+        for family in families:
+            while subprocess.run(
+                ['ip', family, 'rule', 'del', 'pref', '98'],
+                capture_output=True,
+            ).returncode == 0:
                 pass
+        if private:
+            for family, prefixes in [('-4', PRIVATE_V4), ('-6', PRIVATE_V6)]:
+                if family not in families:
+                    continue
+                for prefix in prefixes:
+                    run('ip', family, 'rule', 'add', 'pref', '98', 'to', prefix,
+                        'ipproto', 'tcp', 'lookup', 'main')
+        for family, address, port in sorted(desired):
+            run('ip', family, 'rule', 'add', 'pref', '98', 'to', address,
+                'ipproto', 'tcp', 'dport', port, 'lookup', 'main')
+        POLICY_STATE.write_text(json.dumps(policy))
+    return {'modelEndpointCount': len(model)}
 
 
-def update_management(server_url, values):
+def update_host_bridge(server_url):
+    return update_network_policy(server_url, current_policy())
+
+
+def _update_management(server_url, values):
     url, port = management_url(server_url)
     families = network_families()
     if not isinstance(values, list) or not values or len(values) > 32:
@@ -123,17 +237,18 @@ def update_management(server_url, values):
     # Kernel state is authoritative, including after an interrupted update.
     # Retrying a failed nft/hosts write must not append duplicate policy rules.
     previous = set()
-    for family in families:
-        for rule in json.loads(run('ip', family, '-j', 'rule', 'show', 'pref', '99')):
-            destination = rule.get('dst')
-            if destination:
-                previous.add(str(ipaddress.ip_interface(destination).ip))
+    for priority in [MANAGEMENT_PRIORITY, '99']:
+        for family in families:
+            for rule in json.loads(run('ip', family, '-j', 'rule', 'show', 'pref', priority)):
+                destination = rule.get('dst')
+                if destination:
+                    previous.add(str(ipaddress.ip_interface(destination).ip))
     # Install new source-selection rules before publishing addresses to apps.
     # Never create a window where an old destination falls through to Docker.
     for address in addresses:
         if address not in previous:
             family = '-6' if ':' in address else '-4'
-            run('ip', family, 'rule', 'add', 'pref', '99', 'to', address,
+            run('ip', family, 'rule', 'add', 'pref', MANAGEMENT_PRIORITY, 'to', address,
                 'ipproto', '6', 'dport', str(port), 'lookup', 'main')
     rules = ['flush set inet outcomego_network management_v4',
              'flush set inet outcomego_network management_v6']
@@ -156,11 +271,19 @@ def update_management(server_url, values):
     for address in previous:
         if address not in addresses:
             family = '-6' if ':' in address else '-4'
-            while subprocess.run(['ip', family, 'rule', 'del', 'pref', '99', 'to', address,
-                                  'ipproto', '6', 'dport', str(port), 'lookup', 'main'],
-                                 capture_output=True).returncode == 0:
-                pass
+            for priority in [MANAGEMENT_PRIORITY, '99']:
+                while subprocess.run(
+                    ['ip', family, 'rule', 'del', 'pref', priority, 'to', address,
+                     'ipproto', '6', 'dport', str(port), 'lookup', 'main'],
+                    capture_output=True,
+                ).returncode == 0:
+                    pass
     state.write_text(json.dumps(addresses))
+
+
+def update_management(server_url, values):
+    with network_lock():
+        return _update_management(server_url, values)
 
 
 def update_families(value):
@@ -198,15 +321,23 @@ def prepare(server_url):
     rules = f'''table inet outcomego_network {{
     set management_v4 {{ type ipv4_addr; }}
     set management_v6 {{ type ipv6_addr; }}
+    set lan_private_v4 {{ type ipv4_addr; flags interval; }}
+    set lan_private_v6 {{ type ipv6_addr; flags interval; }}
     set host_bridge_v4 {{ type ipv4_addr . inet_service; }}
     set host_bridge_v6 {{ type ipv6_addr . inet_service; }}
+    set policy_v4 {{ type ipv4_addr . inet_service; }}
+    set policy_v6 {{ type ipv6_addr . inet_service; }}
     chain transport {{
         type route hook output priority -150; policy accept;
         ct direction reply meta mark set {MARK}
         ip daddr @management_v4 tcp dport {port} meta mark set {MARK}
         ip6 daddr @management_v6 tcp dport {port} meta mark set {MARK}
+        ip daddr @lan_private_v4 meta mark set {MARK}
+        ip6 daddr @lan_private_v6 meta mark set {MARK}
         ip daddr . tcp dport @host_bridge_v4 meta mark set {MARK}
         ip6 daddr . tcp dport @host_bridge_v6 meta mark set {MARK}
+        ip daddr . tcp dport @policy_v4 meta mark set {MARK}
+        ip6 daddr . tcp dport @policy_v6 meta mark set {MARK}
     }}
     chain dns {{
         type nat hook output priority -110; policy accept;
@@ -221,12 +352,16 @@ def prepare(server_url):
         ip daddr 127.0.0.1 udp dport 5353 accept
         ip6 daddr ::1 udp dport 5353 accept
         meta mark & 0xffff == {MARK} accept
+        ip daddr @management_v4 tcp dport {port} accept
+        ip6 daddr @management_v6 tcp dport {port} accept
         oifname "{TUN}" meta l4proto tcp accept
         meta l4proto 58 icmpv6 type {{ nd-neighbor-solicit, nd-neighbor-advert, nd-router-solicit, nd-router-advert }} accept
         counter reject with icmpx type admin-prohibited
     }}
     chain forwarding {{
         type filter hook forward priority 0; policy drop;
+        ct state established,related accept
+        iifname "eth0" tcp dport {{ {gateway_port}, 6200-6299 }} accept
     }}
 }}
 '''
@@ -245,7 +380,7 @@ def prepare(server_url):
         subprocess.run(['ip', family, 'route', 'del', 'default', 'dev', TUN,
                         'metric', '10', 'table', TABLE], capture_output=True)
         # Dedicated priorities are owned by this container's network service.
-        for priority in ['96', '97', '98', '99', '100', '101', '110']:
+        for priority in ['95', '96', '97', '98', '99', '100', '101', '110']:
             while subprocess.run(['ip', family, 'rule', 'del', 'pref', priority], capture_output=True).returncode == 0:
                 pass
         # An unmarked SYN-ACK needs an initial route before the OUTPUT hook
@@ -271,7 +406,7 @@ def prepare(server_url):
         update_management(server_url, addresses)
     # Existing private bridge configuration is ready before applications start.
     # The worker watches later provisioning and endpoint changes independently.
-    update_host_bridge(server_url)
+    update_network_policy(server_url, {'mode': 'lan', 'rules': []})
     Path('/run/outcomego-network-ready').write_text(json.dumps({'interface': TUN, 'dnsPort': 5353}))
 
 
@@ -279,6 +414,9 @@ if __name__ == '__main__':
     try:
         if len(sys.argv) == 3 and sys.argv[1] == '--families':
             update_families(json.loads(sys.argv[2]))
+        elif len(sys.argv) == 4 and sys.argv[1] == '--network-policy':
+            result = update_network_policy(sys.argv[2], json.loads(sys.argv[3]))
+            print(json.dumps(result))
         elif len(sys.argv) == 4 and sys.argv[1] == '--management':
             update_management(sys.argv[2], json.loads(sys.argv[3]))
         elif len(sys.argv) == 3 and sys.argv[1] == '--host-bridge':

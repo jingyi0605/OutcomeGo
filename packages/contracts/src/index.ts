@@ -42,6 +42,7 @@ export * from "./routine-types";
 export * from "./memory-management";
 export * from "./automation-tools";
 export * from "./state-tools";
+export * from "./computer-network-policy";
 
 export interface NativeToolDefinition {
   name: string;

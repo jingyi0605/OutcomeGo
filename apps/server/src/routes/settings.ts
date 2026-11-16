@@ -9,6 +9,11 @@ export async function settingsRoutes(context: RouteContext): Promise<Response | 
   if (path === "/api/system/activity" && request.method === "GET") {
     return json(await systemActivity());
   }
+  if (path === "/api/server-settings/computer-network-policy") {
+    if (request.method === "GET") return json(await app.computerNetworkPolicyView());
+    if (request.method === "PATCH")
+      return json(await app.updateComputerNetworkPolicy(await request.json().catch(() => null)));
+  }
   if (path === "/api/server-settings/tasks") {
     if (request.method === "GET") return json(await run(app.taskSettings()));
     if (request.method === "PATCH") return json(await run(app.updateTaskSettings(await request.json().catch(() => null))));

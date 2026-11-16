@@ -1557,6 +1557,16 @@ model BrowserNetworkSettings {
   @@map("outcomego_browser_network_settings")
 }
 
+model ComputerNetworkPolicy {
+  id String @id @default("global")
+  mode String @default("lan")
+  rules Json @default("[]")
+  revision Int @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@map("outcomego_computer_network_policy")
+}
+
 // Deployment-wide APNs credentials. The signing key is encrypted using the
 // installation control token, which is shared by the server and worker.
 model ApnsSettings {

@@ -21,10 +21,23 @@ class EndpointTests(unittest.TestCase):
         override = patch.object(network, 'HOST_BRIDGE_CONFIG', self.path)
         override.start()
         self.addCleanup(override.stop)
+        model_override = patch.object(network, 'MODEL_CONFIG', self.path.with_name('models.json'))
+        model_override.start()
+        self.addCleanup(model_override.stop)
 
     def configure(self, endpoint, token='fixture-token'):
         self.path.write_text(json.dumps({'endpoint': endpoint, 'token': token}))
         self.path.chmod(0o600)
+
+    def configure_models(self, *endpoints):
+        self.model_path = network.MODEL_CONFIG
+        self.model_path.write_text(json.dumps({
+            'providers': {
+                str(index): {'baseUrl': endpoint}
+                for index, endpoint in enumerate(endpoints)
+            }
+        }))
+        self.model_path.chmod(0o600)
 
     def test_numeric_endpoints_and_ports(self):
         for endpoint, expected in [
@@ -84,6 +97,41 @@ class EndpointTests(unittest.TestCase):
         self.path.rmdir()
         os.mkfifo(self.path, 0o600)
         self.assertIsNone(network.host_bridge_endpoint())
+
+    def test_model_endpoints_reserve_only_literal_private_addresses(self):
+        self.configure_models(
+            'http://10.255.0.83:3425/v1',
+            'https://172.18.0.1/v1',
+            'https://api.example.com/v1',
+            'https://8.8.8.8:443/v1',
+        )
+        self.assertEqual(
+            network.model_endpoints(),
+            {('-4', '10.255.0.83', '3425'), ('-4', '172.18.0.1', '443')},
+        )
+
+    def test_policy_modes_validate_private_rules(self):
+        self.assertEqual(
+            network.policy_value({
+                'mode': 'allowlist',
+                'rules': [{'address': '10.255.0.83', 'port': 3425}],
+            }),
+            {'mode': 'allowlist', 'rules': [('-4', '10.255.0.83', '3425')]},
+        )
+        with self.assertRaises(ValueError):
+            network.policy_value({
+                'mode': 'allowlist',
+                'rules': [{'address': '8.8.8.8', 'port': 443}],
+            })
+        with self.assertRaises(ValueError):
+            network.policy_value({
+                'mode': 'invalid',
+                'rules': [{'address': '10.0.0.2', 'port': 0}],
+            })
+        self.assertEqual(
+            network.policy_value({'mode': 'managed', 'rules': []}),
+            {'mode': 'allowlist', 'rules': []},
+        )
 
 
 if __name__ == '__main__':

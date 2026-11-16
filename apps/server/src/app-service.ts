@@ -43,6 +43,7 @@ import { SubagentService } from "./services/subagent/service";
 import { TodoService } from "./services/todo-service";
 import { DurableStateService } from "./update-state";
 import { VoiceService } from "./services/voice-service";
+import { ComputerNetworkPolicyService } from "./services/computer-network-policy-service";
 
 const COMPUTER_ID = "00000000-0000-0000-0000-000000000001";
 
@@ -76,6 +77,7 @@ export class AppService {
   readonly richMessages: RichMessageService;
   readonly runs: RunService;
   readonly voice: VoiceService;
+  readonly computerNetworkPolicy: ComputerNetworkPolicyService;
   readonly screens: ScreenService;
   readonly searchIndex: SearchService;
   readonly library: ChannelLibraryService;
@@ -118,6 +120,10 @@ export class AppService {
     this.controlToken = process.env.OUTCOMEGO_CONTROL_TOKEN ?? "local-compose-only-change-me";
     this.workspaceRoot = resolve(process.env.OUTCOMEGO_WORKSPACE_ROOT ?? "/workspace");
     this.screenViewerHost = process.env.OUTCOMEGO_SCREEN_VIEWER_HOST ?? "127.0.0.1";
+    this.computerNetworkPolicy = new ComputerNetworkPolicyService(
+      this.prisma,
+      () => this.computerNetworkPolicyRuntime()
+    );
     this.agentData = new AgentDataStore(this.prisma, {
       workspaceRoot: this.workspaceRoot,
     });
@@ -319,14 +325,21 @@ export class AppService {
         where: { kind: "group", archivedAt: null },
         select: { workingDirectory: true },
       });
-      await provisionDirectories(
-        (path, init) => this.computerFetch(path, init),
-        [
-          resolve(this.workspaceRoot, "bots"),
-          resolve(this.workspaceRoot, "shared"),
-          ...groups.flatMap((group) => (group.workingDirectory ? [group.workingDirectory] : [])),
-        ]
-      );
+      try {
+        await provisionDirectories(
+          (path, init) => this.computerFetch(path, init),
+          [
+            resolve(this.workspaceRoot, "bots"),
+            resolve(this.workspaceRoot, "shared"),
+            ...groups.flatMap((group) => (group.workingDirectory ? [group.workingDirectory] : [])),
+          ]
+        );
+      } catch (error) {
+        // The computer may still be establishing its management route during
+        // startup. Defer directory provisioning until the next runtime action
+        // instead of creating a server/computer startup deadlock.
+        console.error("computer directory provisioning deferred", error);
+      }
       await this.prisma.computer.upsert({
         where: { id: COMPUTER_ID },
         create: {
@@ -750,6 +763,31 @@ export class AppService {
     const response = await this.computerFetch("/v1/browser-network/egress", { method: "POST", body: "{}" });
     if (!response.ok) throw new ApiError(503, "network_egress_unavailable", "Could not check browser exit connection");
     return await response.json() as import("@outcomego/contracts/browser-network").NetworkEgress;
+  }
+
+  computerNetworkPolicyView() {
+    return this.computerNetworkPolicy.view();
+  }
+
+  updateComputerNetworkPolicy(input: unknown) {
+    return this.computerNetworkPolicy.update(input);
+  }
+
+  computerNetworkPolicySnapshot() {
+    return this.computerNetworkPolicy.snapshot();
+  }
+
+  private async computerNetworkPolicyRuntime(): Promise<import("@outcomego/contracts").ComputerNetworkPolicyStatus | undefined> {
+    try {
+      const response = await this.computerFetch("/v1/computer-network-policy", {
+        method: "GET",
+        signal: AbortSignal.timeout(1_500),
+      });
+      if (!response.ok) return undefined;
+      return await response.json() as import("@outcomego/contracts").ComputerNetworkPolicyStatus;
+    } catch {
+      return undefined;
+    }
   }
 
   private computerFetch(path: string, init: RequestInit): Promise<Response> {

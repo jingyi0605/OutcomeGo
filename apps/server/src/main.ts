@@ -130,6 +130,10 @@ const server = Bun.serve<VncConnection | NetworkConnection | VoiceConnectionData
         requestServer.timeout(networkRequest, 0);
         return await app.machines.relay.forward(machineRelay[1]!, machineRelay[2]!, request);
       }
+      if (request.method === "GET" && path === "/api/internal/computer-network-policy") {
+        if (!authorizedInternal(request)) return json({ error: "Unauthorized" }, 401);
+        return json(await app.computerNetworkPolicySnapshot());
+      }
       request=boundedRequest(request,280*1024*1024);
       if (path === "/api/internal/system/update-agent") {
         if (!authorizedInternal(request)) return json({ error: { code: "unauthorized" } }, 401);
