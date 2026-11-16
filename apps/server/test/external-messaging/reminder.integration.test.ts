@@ -6,10 +6,10 @@ import { createHarness, databaseUrl, entry, message, structured, type Harness } 
 import type { CallHostTool } from "../../src/services/external-messaging/poller";
 
 describe("renewal replies", () => {
-  test.each(["1", " 1 ", "１", "。", "👍", "11", "ok", "OK", "好", "好的", "收到", "[微笑]", "", "   "])("%j is only an acknowledgement", (text) => {
+  test.each(["1", " 1 ", "１", "。", "👍", "11", "ok", "OK", "好", "好的", "收到", "[微笑]", "", "   ", "你好", "hi", "是", "不用", "ab", "嗯嗯", "okay", "1.。!"])("%j is only an acknowledgement", (text) => {
     expect(isRenewalReply(text)).toBe(true);
   });
-  test.each(["hello", "查一下天气", "12345", "yes please", "好的，帮我查一下", "1 2 3 4 5", "你好", "[a b]"])("%j is a real message", (text) => {
+  test.each(["hello", "查一下天气", "12345", "yes please", "好的，帮我查一下", "1 2 3 4 5", "你好吗", "abc", "[a b]", "是的，谢谢"])("%j is a real message", (text) => {
     expect(isRenewalReply(text)).toBe(false);
   });
 });

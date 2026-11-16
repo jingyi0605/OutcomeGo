@@ -15,14 +15,16 @@ export const REMINDER_TEXT =
 const ACK_WORDS = new Set(["ok", "okay", "k", "好", "好的", "嗯", "嗯嗯", "收到", "在", "在的", "续期", "已读"]);
 
 /**
- * Whether a message is only the "I'm here" answer to a reminder: nothing but digits, punctuation,
- * symbols or spaces (a "1", a thumbs-up), a short acknowledgement, or a WeChat emoji such as `[微笑]`.
- * Anything with words in it is a real message. Only ever applied while a reminder is waiting for its answer.
+ * Whether a message is only the "I'm here" answer to a reminder: anything of one or two characters
+ * (a "1", "好", "ok", "你好"), a few digits, punctuation or symbols (a thumbs-up), a short
+ * acknowledgement, or a WeChat emoji such as `[微笑]`. Anything longer with words in it is a real
+ * message. Only ever applied while a reminder is waiting for its answer.
  */
 export const isRenewalReply = (text: string): boolean => {
   const value = text.normalize("NFKC").trim().toLowerCase();
-  if (!value) return true;
-  if ([...value].length <= 4 && /^[\p{N}\p{P}\p{S}\s]+$/u.test(value)) return true;
+  const length = [...value].length;
+  if (length <= 2) return true;
+  if (length <= 4 && /^[\p{N}\p{P}\p{S}\s]+$/u.test(value)) return true;
   if (ACK_WORDS.has(value)) return true;
   return /^\[[^\[\]\s]{1,8}\]$/.test(value);
 };
