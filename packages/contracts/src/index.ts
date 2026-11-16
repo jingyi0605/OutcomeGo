@@ -814,6 +814,33 @@ export const PutExternalMessagingInput = Schema.Struct({
 });
 export type PutExternalMessagingInput = typeof PutExternalMessagingInput.Type;
 
+/** Diagnostics for one messaging binding. No cursor, lease or retry bookkeeping is exposed. */
+export interface ExternalMessagingBindingView {
+  enabled: boolean;
+  botId: string;
+  inboundPolicy: string;
+  status: string;
+  lastPolledAt: string | null;
+  lastAcceptedAt: string | null;
+  lastErrorCode: string | null;
+  lastErrorAt: string | null;
+  consecutiveFailures: number;
+  rejectedCounts: Record<string, number>;
+}
+
+export interface ExternalMessagingView {
+  supported: boolean;
+  platform: string | null;
+  binding: ExternalMessagingBindingView | null;
+}
+
+/** Delivery state mirrored onto a Bot message sent into an `external_dm` chat. */
+export interface ExternalDeliveryState {
+  id: string;
+  status: "pending" | "sending" | "sent" | "failed" | "uncertain";
+  code: string | null;
+}
+
 export const SetMcpInstructionsInput = Schema.Struct({
   instructions: Schema.String,
 });
@@ -1698,6 +1725,8 @@ export interface ChannelView {
   directKey: string | null;
   workingDirectory: string | null;
   hiddenFromSidebar?: boolean;
+  /** Set on `external_dm` chats: the messaging platform the peer is on, e.g. `wechat`. */
+  externalPlatform?: string;
   members: ChannelMemberView[];
   /** Number of unread user-visible agent messages, synchronized across clients. */
   unreadCount?: number;

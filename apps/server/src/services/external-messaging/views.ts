@@ -1,23 +1,7 @@
+import type { ExternalMessagingBindingView } from "@outcomego/contracts";
 import type { ExternalMessagingBinding } from "@outcomego/db";
 
-export interface ExternalMessagingBindingView {
-  enabled: boolean;
-  botId: string;
-  inboundPolicy: string;
-  status: string;
-  lastPolledAt: string | null;
-  lastAcceptedAt: string | null;
-  lastErrorCode: string | null;
-  lastErrorAt: string | null;
-  consecutiveFailures: number;
-  rejectedCounts: Record<string, number>;
-}
-
-export interface ExternalMessagingView {
-  supported: boolean;
-  platform: string | null;
-  binding: ExternalMessagingBindingView | null;
-}
+export type { ExternalMessagingBindingView, ExternalMessagingView } from "@outcomego/contracts";
 
 const counts = (value: unknown): Record<string, number> => {
   if (!value || typeof value !== "object" || Array.isArray(value)) return {};

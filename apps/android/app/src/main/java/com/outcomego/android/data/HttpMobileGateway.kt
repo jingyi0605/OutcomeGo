@@ -487,7 +487,7 @@ class HttpMobileGateway(context: Context) :
 
     private suspend fun applyBootstrap(activeServer: String, activeToken: String?, bootstrap: JsonObject) {
         bots = bootstrap.arrayAt("bots").mapNotNull { it.jsonObjectOrNull() }.associateBy { it.string("id") }
-        channels = bootstrap.arrayAt("channels").mapNotNull { it.jsonObjectOrNull() }.associateBy { it.string("id") }
+        channels = mobileVisibleChannels(bootstrap).associateBy { it.string("id") }
         val avatarPaths = bots.mapValues { (_, bot) -> cacheBotAvatar(activeServer, activeToken, bot) }
         val groupAvatarPaths = channels.values
             .filter { it.string("kind") == "group" }
@@ -922,6 +922,15 @@ class HttpMobileGateway(context: Context) :
 
 private val ACTIVE_RUN_STATUSES = setOf("queued", "running")
 private val EXECUTING_TASK_STATUSES = setOf("provisioning", "queued", "running")
+
+/**
+ * The channels this client may show. External chats (`external_dm`) are desktop-only, so they are
+ * dropped here and never reach the list, unread counts or notification jumps.
+ */
+internal fun mobileVisibleChannels(bootstrap: JsonObject): List<JsonObject> =
+    (bootstrap["channels"] as? kotlinx.serialization.json.JsonArray).orEmpty()
+        .mapNotNull { it as? JsonObject }
+        .filterNot { (it["kind"] as? kotlinx.serialization.json.JsonPrimitive)?.content == "external_dm" }
 
 /**
  * Channels with work in progress, matching the desktop sidebar: a queued or running run,

@@ -6,6 +6,23 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class HttpMobileGatewayTest {
+
+    @Test
+    fun externalChatsAreNotListedOnMobile() {
+        val bootstrap = Json.parseToJsonElement(
+            """
+            {"channels":[
+              {"id":"1","kind":"bot_dm"},
+              {"id":"2","kind":"external_dm","externalPlatform":"wechat"},
+              {"id":"3","kind":"group"}
+            ]}
+            """.trimIndent(),
+        ).jsonObject
+
+        val ids = mobileVisibleChannels(bootstrap).map { (it["id"] as kotlinx.serialization.json.JsonPrimitive).content }
+        assertEquals(listOf("1", "3"), ids)
+    }
+
     @Test
     fun botIdFromDirectKeyStripsTheServerBotPrefix() {
         val channel = Json.parseToJsonElement("""{"directKey":"bot:bot-123"}""").jsonObject

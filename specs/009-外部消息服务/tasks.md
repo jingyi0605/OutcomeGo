@@ -178,7 +178,7 @@
 
 - [ ] 2.1 审计并修正全部 `kind` 分支
   - 状态：IN_REVIEW
-  - 验证记录（2026-11-16，PostgreSQL 16.10 一次性库）：应用内向 `external_dm` 发送返回 409 `external_channel_read_only`、语音会话拒绝、通知静默、`product-core` 行投影取到 Bot；`channel-kind-regression.integration.test.ts` 5 项通过（外部聊天先于或后于 `bot_dm` 创建，`dmChannelId`、`kind` 与 `directKey` 查询结果都不变）。审计表文档 `docs/20261116-ChannelKind分支审计.md` 与桌面端各分支（5.1）尚未完成。
+  - 验证记录（2026-11-16，PostgreSQL 16.10 一次性库）：应用内向 `external_dm` 发送返回 409 `external_channel_read_only`、语音会话拒绝、通知静默、`product-core` 行投影取到 Bot（`product-core.test.ts` 有对应用例）；`channel-kind-regression.integration.test.ts` 5 项通过（外部聊天先于或后于 `bot_dm` 创建，`dmChannelId`、`kind` 与 `directKey` 查询结果都不变）。审计表已写入 `docs/20261116-ChannelKind分支审计.md`，桌面端与移动端分支见该文档第四节。仍缺：语音会话拒绝（`voice-service.ts:174`）没有专门测试，只有 `tsc` 通过，所以第 3 条完成标准未全部满足，本任务保持 IN_REVIEW。
   - 这一步到底做什么：逐处检查按 Channel 类型判断的代码，确认 `external_dm` 出现时行为正确，并让应用内发送对它只读。
   - 做完你能看到什么：一张审计表列出每处分支的结论；一个 Bot 同时有 `bot_dm` 和 `external_dm` 时，私聊相关功能完全不变。
   - 先依赖什么：1.5
@@ -543,7 +543,8 @@
 ## 阶段 5：客户端、可观测与验收
 
 - [ ] 5.1 桌面端：绑定设置与 `external_dm` 呈现
-  - 状态：TODO
+  - 状态：IN_REVIEW
+  - 验证记录（2026-11-16）：客户端增加 `externalMessaging`、`putExternalMessaging`、`deleteExternalMessaging`（`client.test.ts` 通过）；契约增加 `ExternalMessagingView`、`ExternalDeliveryState` 与 `ChannelView.externalPlatform`；设置页组件 `plugins/external-messaging-settings.tsx` 接入 `connection-configuration.tsx`，由接口返回的 `supported` 决定是否显示，未声明 `messaging` 的连接不显示；侧栏对 `external_dm` 显示平台标识，输入框换成只读提示；Bot 回复下显示 `sent`、`failed`、`uncertain` 三种可区分的投递状态和原因；`needs_attention` 显示修复指引。`bun run check:i18n` 通过，桌面端 `tsc` 通过，`external-delivery-status.test.tsx` 7 项、`channel-view.test.ts` 3 项通过。未完成：设置页组件没有渲染测试（依赖接口和副作用），`check-desktop-budgets.ts` 报告 Electron 构建产物超限（main.js、preload、runtime 体积等）和 settingsServer 分块缺失，这些与本改动无直接关系但未证明先前就失败；人工走查尚未进行。桌面端全量 `bun test` 有 7 项失败，来自另一会话提交的 `plugin-bitwarden-ui.test.tsx` 泄漏全局语言（去掉它后 717 项全部通过）。
   - 这一步到底做什么：在插件连接设置里加入消息入口的开关、Bot 选择和状态；在侧栏和会话区展示 `external_dm`（只读）以及每条回复的投递状态。
   - 做完你能看到什么：用户可以在桌面端完成绑定，看到外部会话的完整记录和每条消息是否送达。
   - 先依赖什么：4.5
@@ -574,7 +575,8 @@
   - 对应设计：`design.md` §3.3.4、§3.3.5
 
 - [ ] 5.2 移动端：隐藏 `external_dm`
-  - 状态：TODO
+  - 状态：IN_REVIEW
+  - 验证记录（2026-11-16）：Android 在 `applyBootstrap` 经 `mobileVisibleChannels` 过滤，iOS 在 `AppStore.channels` 与原生通知两处过滤。`scripts/android/package-debug.sh` 构建成功。Android 单元测试 `externalChatsAreNotListedOnMobile` 已写但未运行（仓库约定不直接运行 Gradle）；iOS 无测试、未走查；发布说明尚未注明旧版本的降级表现，所以完成标准第 2 条未满足。
   - 这一步到底做什么：Android 和 iOS 新版本在会话列表中过滤掉 `external_dm`。
   - 做完你能看到什么：新版移动端不会出现无法正常使用的外部会话条目。
   - 先依赖什么：1.3
@@ -598,7 +600,8 @@
   - 对应设计：`design.md` §8.1
 
 - [ ] 5.3 可观测与日志脱敏
-  - 状态：TODO
+  - 状态：DONE
+  - 验证记录（2026-11-16）：`redaction.test.ts` 5 项通过：连接器失败的原因文本、下载地址、假凭据和正文都不进入日志、`lastErrorCode` 和诊断视图；诊断视图只含约定的字段且不含游标；已接受和已拒绝的消息，Receipt、Binding、Mapping 中都没有正文和假凭据，ChannelMessage 按需求保留正文。`bun test apps/server/test/external-messaging` 共 159 项通过，服务端 `tsc` 通过。诊断字段（最近轮询、最近接受、连续失败、最近错误码、拒绝计数）已由 3.2、3.4 维护。未覆盖：外发投递的 `errorMessage` 只经过控制字符清理和 500 字符截断（`delivery.integration.test.ts` 验证了这两点），连接器若在失败说明里写入下载地址或凭据，Server 不会再过滤；微信 connector 的失败说明是固定文案，目前不会发生，但 Server 侧没有强制保证。
   - 这一步到底做什么：补齐绑定诊断字段的维护、结构化日志和脱敏检查。
   - 做完你能看到什么：出问题时能从诊断接口和日志定位到是哪一步、哪个错误码，日志里没有正文和凭据。
   - 先依赖什么：4.5

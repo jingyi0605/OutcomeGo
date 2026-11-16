@@ -115,6 +115,7 @@ import { DesktopUpdateCard } from "./desktop-update-card";
 import { SidebarCollapseMotion, SidebarMotion } from "./sidebar-motion";
 import { SidebarActivityProvider, useSidebarComposing } from "./sidebar-activity";
 import { SidebarUnreadAvatar, SidebarUnreadDot } from "./sidebar-unread";
+import { externalPlatformLabel } from "./external-delivery-status";
 
 const EMPTY_PINNED_IDS: ReadonlySet<string> = new Set();
 
@@ -866,6 +867,14 @@ const ChannelRow = memo(function ChannelRow({
             {bot?.title || showsGroupLabel(channel) ? (
               <span className="max-w-24 shrink-0 truncate rounded-[4px] bg-black/[0.07] px-1.5 py-px text-[11px] font-normal leading-[15px] text-foreground-secondary dark:bg-white/[0.1] dark:text-[#ababab]">
                 {bot?.title || t("Group")}
+              </span>
+            ) : null}
+            {channel.kind === "external_dm" ? (
+              <span
+                className="max-w-24 shrink-0 truncate rounded-[4px] bg-black/[0.07] px-1.5 py-px text-[11px] font-normal leading-[15px] text-foreground-secondary dark:bg-white/[0.1] dark:text-[#ababab]"
+                data-external-platform={channel.externalPlatform ?? ""}
+              >
+                {externalPlatformLabel(channel.externalPlatform, t)}
               </span>
             ) : null}
             {pinned && (

@@ -24,6 +24,7 @@ import {
   pluginProviderSetupSteps,
   pluginProviderSetupDescription,
 } from "@outcomego/product-core/plugin-authorization";
+import { ExternalMessagingSettings } from "./external-messaging-settings";
 
 export function ConnectionConfiguration({
   connection,
@@ -589,6 +590,7 @@ export function ConnectionConfiguration({
           {t("Save instructions")}
         </PluginButton>
       </PluginField>
+      <ExternalMessagingSettings connectionId={connection.id} refresh={refresh} />
       <section className="grid gap-2">
         <h4 className="text-[13px] font-medium">
           {t("Tools ({count})", { count: displayConnection.tools.length })}

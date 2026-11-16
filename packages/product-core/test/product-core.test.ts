@@ -113,6 +113,21 @@ describe("portable product projections", () => {
     expect(selectChannelRows(value)).toHaveLength(1);
   });
 
+  test("lists an external chat with its Bot, next to the Bot's own chat", () => {
+    const value = snapshot();
+    value.channels.push({
+      ...value.channels[0]!,
+      id: "external-1",
+      kind: "external_dm",
+      directKey: "external:mapping-1",
+      externalPlatform: "wechat",
+    });
+    const rows = selectChannelRows(value);
+    expect(rows).toHaveLength(2);
+    expect(rows.find((row) => row.channel.id === "external-1")?.bot?.id).toBe("bot-1");
+    expect(rows.find((row) => row.channel.id === "external-1")?.channel.externalPlatform).toBe("wechat");
+  });
+
   test("projects A2A metadata", () => {
     expect(
       a2aProjectionFor(message("message-2", { fromAgent: { id: "peer-1", name: "Peer" } }))

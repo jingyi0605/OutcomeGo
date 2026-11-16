@@ -140,7 +140,8 @@ final class AppStore {
   private(set) var landing: String?
   var runtime: RuntimeStatus { RuntimeStatus(state.bootstrap?.runtime ?? .null) }
   var bots: [Bot] { state.bootstrap?.bots ?? [] }
-  var channels: [Channel] { state.bootstrap?.channels ?? [] }
+  /// External chats (`external_dm`) are desktop-only; this client never lists or notifies for them.
+  var channels: [Channel] { (state.bootstrap?.channels ?? []).filter { $0.kind != "external_dm" } }
   var pins: [String] { sidebar["pinnedIds"].array.map(\.string) }
   func bot(for channel: Channel) -> Bot? { bots.first { $0.dmChannelId == channel.id } }
   func computerBot(for channel: Channel) -> Bot? {
@@ -584,7 +585,7 @@ final class AppStore {
     }
     confirmDelivery(bootstrap.latestMessages)
     #if canImport(UIKit)
-      NativeNotifications.shared.apply(channels: bootstrap.channels)
+      NativeNotifications.shared.apply(channels: bootstrap.channels.filter { $0.kind != "external_dm" })
     #endif
   }
   private var savedSnapshot: SavedState {

@@ -47,11 +47,13 @@ import type {
   CreateBotInput,
   CreateGroupInput,
   CreateRoutineInput,
+  ExternalMessagingView,
   InferenceProviderAuthSessionView,
   InferenceTestResult,
   MessageDeliveryStatusView,
   PluginConnectionStatusesView,
   PluginSettingsView,
+  PutExternalMessagingInput,
   ReactToChannelMessageInput,
   ReactToChannelMessageView,
   RegisterPushDeviceInput,
@@ -457,6 +459,20 @@ export const createOutcomeGoClient = (options: OutcomeGoClientOptions) => {
       transport.request(`/api/v0/plugin-connections/${encodeURIComponent(connectionId)}/account`, {
         method: "DELETE",
       }),
+    externalMessaging: (connectionId: string) =>
+      transport.request<ExternalMessagingView>(
+        `/api/v0/plugin-connections/${encodeURIComponent(connectionId)}/messaging`
+      ),
+    putExternalMessaging: (connectionId: string, input: PutExternalMessagingInput) =>
+      transport.request<ExternalMessagingView>(
+        `/api/v0/plugin-connections/${encodeURIComponent(connectionId)}/messaging`,
+        { method: "PUT", body: JSON.stringify(input) }
+      ),
+    deleteExternalMessaging: (connectionId: string) =>
+      transport.request<{ deleted: true }>(
+        `/api/v0/plugin-connections/${encodeURIComponent(connectionId)}/messaging`,
+        { method: "DELETE" }
+      ),
     setMcpInstructions: (connectionId: string, instructions: string) =>
       transport.request(
         `/api/v0/plugin-connections/${encodeURIComponent(connectionId)}/instructions`,

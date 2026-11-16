@@ -120,7 +120,10 @@ export class SnapshotService {
         }),
         this.prisma.channel.findMany({
           where: { archivedAt: null },
-          include: { members: { orderBy: { ordinal: "asc" } } },
+          include: {
+            members: { orderBy: { ordinal: "asc" } },
+            externalMapping: { select: { platform: true } },
+          },
           orderBy: { updatedAt: "desc" },
         }),
         this.prisma.channelMessage.findMany({ orderBy: { sequence: "asc" } }),

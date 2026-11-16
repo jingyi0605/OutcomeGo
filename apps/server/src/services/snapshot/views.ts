@@ -20,6 +20,7 @@ export function channelViews<
     directKey: string | null;
     workingDirectory: string | null;
     hiddenFromSidebar: boolean;
+    externalMapping?: { platform: string } | null;
     members: Array<{ botId: string; ordinal: number }>;
     createdAt: Date;
     updatedAt: Date;
@@ -38,6 +39,7 @@ export function channelViews<
     directKey: channel.directKey,
     workingDirectory: channel.workingDirectory,
     hiddenFromSidebar: channel.kind === "agent_dm",
+    ...(channel.externalMapping ? { externalPlatform: channel.externalMapping.platform } : {}),
     members: channel.members.map((member) => ({ botId: member.botId, ordinal: member.ordinal })),
     unreadCount:
       (unreadCounts.get(channel.id) ?? 0) +

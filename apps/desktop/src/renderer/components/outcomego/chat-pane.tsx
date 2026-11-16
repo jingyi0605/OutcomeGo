@@ -61,6 +61,7 @@ import {
   TriangleAlert,
   X,
 } from "lucide-react";
+import { ExternalDeliveryStatus, externalDeliveryOf, externalPlatformLabel } from "./external-delivery-status";
 import {
   Fragment,
   lazy,
@@ -423,6 +424,7 @@ const MessageRow = memo(function MessageRow({
   const userReactionSet = ownReactionEmojiSet(message);
   const display = messageDisplayProjection(message);
   const isWidget = messageMetadata(message).type === "widget";
+  const externalDelivery = externalDeliveryOf(message.metadata);
   const isDraftCard =
     messageMetadata(message).type === "external-draft" ||
     messageMetadata(message).type === "imessage-send";
@@ -732,6 +734,9 @@ const MessageRow = memo(function MessageRow({
               </div>
             </div>
           </div>
+          {channel.kind === "external_dm" && message.sender === "agent" && externalDelivery ? (
+            <ExternalDeliveryStatus state={externalDelivery} />
+          ) : null}
           {(reactionPills.length > 0 || userReactionSet.size > 0) && (
             <div
               className={`relative -mt-2 flex flex-row flex-wrap gap-1 ${
@@ -1923,6 +1928,17 @@ export const ChatPane = memo(function ChatPane({
                 {t("Close Chat")}
               </Button>
             )}
+          </div>
+        </div>
+      ) : channel.kind === "external_dm" ? (
+        <div className="mx-auto w-full max-w-[1040px] px-5 pb-4" data-external-readonly="">
+          <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+            <LockKeyhole className="size-3.5" />
+            <span>
+              {t("This chat comes from {platform}. Replies are sent by the Bot, so you can read it here but not write.", {
+                platform: externalPlatformLabel(channel.externalPlatform, t),
+              })}
+            </span>
           </div>
         </div>
       ) : onboardingInProgress ? null : (

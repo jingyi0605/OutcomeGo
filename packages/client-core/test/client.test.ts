@@ -624,3 +624,32 @@ test("Library pages retain conversation scope, cursor escaping, and cancellation
   );
   expect(calls[0]?.init?.signal).toBe(controller.signal);
 });
+
+describe("external messaging binding endpoints", () => {
+  test("reads, saves and removes a connection's messaging binding", async () => {
+    const calls: Array<{ url: string; init?: RequestInit }> = [];
+    const fetch = (async (url: string | URL | Request, init?: RequestInit) => {
+      calls.push({ url: String(url), init });
+      return new Response("{}", { status: 200, headers: { "content-type": "application/json" } });
+    }) as unknown as typeof globalThis.fetch;
+    const client = createOutcomeGoClient({ baseUrl: "http://outcomego.test/", fetch });
+
+    await client.externalMessaging("conn/1");
+    await client.putExternalMessaging("conn/1", {
+      enabled: true,
+      botId: "00000000-0000-4000-8000-000000000001",
+    });
+    await client.deleteExternalMessaging("conn/1");
+
+    const url = "http://outcomego.test/api/v0/plugin-connections/conn%2F1/messaging";
+    expect(calls.map((call) => [call.url, call.init?.method ?? "GET"])).toEqual([
+      [url, "GET"],
+      [url, "PUT"],
+      [url, "DELETE"],
+    ]);
+    expect(JSON.parse(String(calls[1]?.init?.body))).toEqual({
+      enabled: true,
+      botId: "00000000-0000-4000-8000-000000000001",
+    });
+  });
+});

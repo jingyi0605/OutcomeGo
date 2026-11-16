@@ -25,6 +25,9 @@ export const clientChannels = (prisma: PrismaClient) =>
         },
       },
     },
-    include: { members: { orderBy: { ordinal: "asc" } } },
+    include: {
+      members: { orderBy: { ordinal: "asc" } },
+      externalMapping: { select: { platform: true } },
+    },
     orderBy: { updatedAt: "desc" },
   });
