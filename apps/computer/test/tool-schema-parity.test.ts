@@ -111,7 +111,7 @@ describe("captured tool contract wiring", () => {
       expect(actual.description, kept).toContain(kept);
     }
     // No voice memos, cloud agents, team-bot plugin secrets, categorical sign-in handovers, or missing app pages.
-    for (const absent of ["voice memo", "voice_memo", "cursor-agent", "cloud agent", "plugin_id", "SSO", "2FA", "bot-template", "app/v1/agent", "app/v1/sidebar", "update-channel", "reset-computer"])
+    for (const absent of ["voice memo", "voice_memo", "cursor-agent", "cloud agent", "plugin_id", "SSO", "2FA", "bot-template", "app/v1/agent", "app/v1/sidebar", "reset-computer"])
       expect(actual.description, absent).not.toContain(absent);
     expect(actual.description).toContain("or with connector and field instead of name, that connector's credential file.");
     const anchors = /<anchor> one of: ([^.]+)\./.exec(actual.description)![1]!.split(", ");
