@@ -185,6 +185,8 @@ export interface PluginDefinition {
   icon?: string | null;
   /** Steps to install and validate this package, separate from provider registration. */
   installationSteps?: string[];
+  /** Editable prompt suggestions; choosing one never sends a message. */
+  usageTips?: Array<{ title: string; prompt: string }>;
   setupFields?: PluginField[];
   setup?: PluginSetup | null;
   /** UTF-8 package files, including skill assets. No installed values belong here. */

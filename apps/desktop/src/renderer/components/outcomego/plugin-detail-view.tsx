@@ -1,5 +1,6 @@
 import { PluginSelect } from "./plugins/plugin-ui";
 import type {
+  DingTalkStatus,
   PluginCatalogItemView,
   PluginConnectionView,
   PluginInstallView,
@@ -40,6 +41,7 @@ import { AddPluginAccount, PluginAccountRow } from "./plugins/plugin-accounts";
 import { DeviceLinkPanel } from "./plugins/device-link-panel";
 import { ExternalBotChoice, useExternalBotChoice } from "./plugins/external-bot-choice";
 import { PluginMark } from "./plugins/plugin-mark";
+import { DingTalkSetup } from "./plugins/dingtalk-setup";
 
 type MarketplacePage = "marketplace" | "installed" | "detail" | "custom" | "manage";
 type OAuthCallbackSettings = {
@@ -1120,6 +1122,8 @@ export function PluginDetail({
   onRestart,
   onToggle,
   onUpdateEnvironment,
+  onUseRecipe,
+  onDingTalkStatusChange,
 }: {
   busy: string | null;
   data: PluginSettingsView;
@@ -1147,6 +1151,8 @@ export function PluginDetail({
     values: Record<string, string>
   ) => Promise<boolean>;
   advancedSettings?: React.ReactNode;
+  onUseRecipe?: (prompt: string) => void;
+  onDingTalkStatusChange?: (status: DingTalkStatus) => void;
 }) {
   const { locale, t } = useI18n();
   const plugin = localizePlugin(sourcePlugin, locale, t);
@@ -1228,6 +1234,21 @@ export function PluginDetail({
       <p className="mt-4 max-w-[720px] text-[12px] leading-[18px] text-foreground-secondary">
         {plugin.description}
       </p>
+
+      {install?.status === "installed" && plugin.key === "dingtalk-workspace" ? (
+        <DingTalkSetup onStatusChange={onDingTalkStatusChange} />
+      ) : null}
+      {plugin.usageTips?.length ? <section className="mt-6" aria-label={t("Usage tips")}>
+        <h3 className="mb-2 text-[13px] font-medium">{t("Usage tips")}</h3>
+        <p className="mb-3 text-[12px] text-foreground-secondary">{t("Choose a recipe to fill your Bot’s message box. Review and send it when ready.")}</p>
+        <div className="grid gap-2 sm:grid-cols-2">{plugin.usageTips.map((tip) => <button key={tip.title} type="button"
+          disabled={!install || !onUseRecipe} onClick={() => onUseRecipe?.(tip.prompt)}
+          className="rounded-[10px] bg-foreground/[0.045] p-3 text-left hover:bg-foreground/[0.08] disabled:opacity-45">
+          <span className="block text-[12px] font-medium">{tip.title}</span>
+          <span className="mt-1 block text-[11px] leading-4 text-foreground-secondary">{tip.prompt}</span>
+        </button>)}</div>
+        {!onUseRecipe ? <p className="mt-2 text-[12px] text-foreground-secondary">{t("Create a Bot to use these recipes.")}</p> : null}
+      </section> : null}
 
       {plugin.installationSteps?.length ? (
         <details

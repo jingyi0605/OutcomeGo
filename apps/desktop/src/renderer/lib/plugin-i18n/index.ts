@@ -64,6 +64,7 @@ export const localizePlugin = (
     // at render time so filtering remains locale-independent.
     category: plugin.category,
     installationSteps: plugin.installationSteps?.map(text),
+    usageTips: plugin.usageTips?.map((tip) => ({ title: text(tip.title), prompt: text(tip.prompt) })),
     setupFields: plugin.setupFields.map((field) =>
       localizePluginField(plugin.key, locale, field, t)
     ),

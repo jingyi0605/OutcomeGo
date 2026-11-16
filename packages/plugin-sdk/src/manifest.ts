@@ -426,6 +426,15 @@ export function parsePluginDefinition(value: unknown): PluginDefinition {
       throw new Error("Invalid installation instructions");
     for (const step of plugin.installationSteps) requireText(step, "installation step", 4000);
   }
+  if (plugin.usageTips !== undefined) {
+    if (!Array.isArray(plugin.usageTips) || plugin.usageTips.length > 20)
+      throw new Error("Invalid plugin usage tips");
+    for (const tip of plugin.usageTips) {
+      if (!tip || typeof tip !== "object") throw new Error("Invalid plugin usage tip");
+      requireText(tip.title, "usage tip title", 200);
+      requireText(tip.prompt, "usage tip prompt", 4000);
+    }
+  }
   validateFields(plugin.setupFields ?? [], true);
   for (const setup of [plugin.setup, ...plugin.connections.map((connection) => connection.setup)]) {
     if (!setup) continue;

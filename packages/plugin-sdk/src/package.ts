@@ -318,6 +318,8 @@ export function packageChanges(previous: PluginDefinition, next: PluginDefinitio
     changes.push(`Remove skill: ${skill.name}`);
   if (stableJson(previous.setupFields) !== stableJson(next.setupFields))
     changes.push("Change setup fields");
+  if (stableJson(previous.usageTips) !== stableJson(next.usageTips))
+    changes.push("Change usage tips");
   if (
     stableJson(previous.files) !== stableJson(next.files) ||
     stableJson(previous.binaryFiles) !== stableJson(next.binaryFiles)

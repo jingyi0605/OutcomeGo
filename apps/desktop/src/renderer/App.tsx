@@ -1818,6 +1818,14 @@ export default function App() {
                 onOpenChange={setPluginsOpen}
                 open={pluginsOpen}
                 target={pluginTarget}
+                onUseRecipe={snapshot.bots.some((bot) => bot.status === "active") ? (content) => {
+                  const bot = selectedBot?.status === "active" ? selectedBot :
+                    selected?.members.map((member) => index.botById.get(member.botId)).find((candidate) => candidate?.status === "active") ??
+                    snapshot.bots.find((candidate) => candidate.status === "active");
+                  if (!bot) return;
+                  selectSidebarChannel(bot.dmChannelId, true);
+                  setTransferredDraft({ channelId: bot.dmChannelId, draft: { id: crypto.randomUUID(), content, attachments: [] } });
+                } : undefined}
               />
             </Suspense>
           )}

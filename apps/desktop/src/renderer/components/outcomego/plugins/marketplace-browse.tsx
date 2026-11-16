@@ -1,5 +1,6 @@
 import { ThisMacSection } from "./this-mac";
 import type {
+  DingTalkStatus,
   PluginCatalogItemView,
   PluginConnectionView,
   PluginInstallView,
@@ -227,6 +228,7 @@ export function InstalledPluginsView({
   onManage,
   onRetry,
   catalogFallback,
+  dingtalkStatus,
 }: {
   data: PluginSettingsView;
   busy: string | null;
@@ -234,6 +236,7 @@ export function InstalledPluginsView({
   onManage: () => void;
   onRetry: (connection: PluginConnectionView) => void;
   catalogFallback: (install: PluginInstallView) => PluginCatalogItemView;
+  dingtalkStatus?: DingTalkStatus | null;
   query: string;
   onQueryChange: (value: string) => void;
 }) {
@@ -322,7 +325,11 @@ export function InstalledPluginsView({
                       </button>
                     ) : (
                       <span className="text-[12px] text-emerald-600 dark:text-emerald-400">
-                        {install.connections.length ? t("Connected.") : t("Added")}
+                        {install.connections.length ||
+                        (install.pluginKey === "dingtalk-workspace" &&
+                          dingtalkStatus?.connection === "connected")
+                          ? t("Connected.")
+                          : t("Added")}
                       </span>
                     )
                   }

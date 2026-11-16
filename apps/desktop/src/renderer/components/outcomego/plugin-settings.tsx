@@ -1,4 +1,5 @@
 import type {
+  DingTalkStatus,
   PluginCatalogItemView,
   PluginConnectionView,
   PluginInstallView,
@@ -88,10 +89,12 @@ export function PluginDialog({
   onOpenChange,
   open,
   target,
+  onUseRecipe,
 }: {
   onOpenChange: (open: boolean) => void;
   open: boolean;
   target?: { pluginId: string; nonce: number } | null;
+  onUseRecipe?: (prompt: string) => void;
 }) {
   const { t } = useI18n();
   const [page, setCurrentPage] = useState<MarketplacePage>("marketplace");
@@ -124,7 +127,9 @@ export function PluginDialog({
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const followedTarget = useRef<typeof target>(null);
+  const recipeChosen = useRef(false);
   const [data, setData] = useState<PluginSettingsView | null>(null);
+  const [dingtalkStatus, setDingTalkStatus] = useState<DingTalkStatus | null>(null);
   const [settingsEpoch, setSettingsEpoch] = useState(0);
   const [busy, setBusy] = useState<string | null>(null);
   const mutating = useRef(false);
@@ -180,12 +185,21 @@ export function PluginDialog({
     setError(null);
     try {
       await refresh();
+      try {
+        setDingTalkStatus(await api.dingTalkStatus());
+      } catch {
+        setDingTalkStatus(null);
+      }
     } catch (cause) {
       setError(errorMessage(cause));
     } finally {
       setReloading(false);
     }
   }, [refresh]);
+  const onDingTalkStatusChange = useCallback(
+    (status: DingTalkStatus) => setDingTalkStatus(status),
+    []
+  );
   useEffect(() => {
     if (!open) return;
     void reload();
@@ -392,6 +406,11 @@ export function PluginDialog({
           dialogRef.current?.focus();
         }}
         onCloseAutoFocus={(event) => {
+          if (recipeChosen.current) {
+            event.preventDefault();
+            recipeChosen.current = false;
+            return;
+          }
           const trigger = document.querySelector<HTMLElement>("[data-marketplace-trigger]");
           if (trigger) {
             event.preventDefault();
@@ -559,6 +578,7 @@ export function PluginDialog({
                     : void mutate(connection.id, () => api.restartPluginConnection(connection.id))
                 }
                 catalogFallback={catalogPluginForInstall}
+                dingtalkStatus={dingtalkStatus}
               />
             ) : page === "manage" ? (
               <Suspense fallback={<p className="p-8 text-sm">{t("Loading plugin management…")}</p>}>
@@ -677,6 +697,12 @@ export function PluginDialog({
                 }
                 onToggle={toggleConnection}
                 plugin={selected}
+                onDingTalkStatusChange={onDingTalkStatusChange}
+                onUseRecipe={onUseRecipe ? (prompt) => {
+                  recipeChosen.current = true;
+                  onOpenChange(false);
+                  onUseRecipe(prompt);
+                } : undefined}
               />
             ) : null}
           </Suspense>

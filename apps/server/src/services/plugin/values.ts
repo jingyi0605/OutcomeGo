@@ -340,6 +340,7 @@ export const catalogView = (plugin: PluginDefinition, installed: boolean) => ({
   sourceUrl: plugin.sourceUrl ?? null,
   sourceRevision: plugin.sourceRevision ?? null,
   logoUrl: pluginIconUrl(plugin) ?? null,
+  usageTips: plugin.usageTips,
   installationSteps: plugin.installationSteps ?? ["Install the plugin from the registry.", ...(plugin.connections.length ? ["Complete any provider setup, then connect your account.", "Confirm the connection is ready and enable access for the Bots that need it."] : ["Enable the plugin for the Bots that need it."])],
   setupFields: plugin.setupFields ?? [],
   setup: plugin.setup ?? null,
