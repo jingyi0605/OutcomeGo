@@ -1407,6 +1407,16 @@ model ExternalMessagingBinding {
   lastErrorCode String?
   lastErrorAt DateTime?
   rejectedCounts Json @default("{}")
+  /// Daily nudge to write to the account so the platform's reply window stays open. Only offered
+  /// when the connector declares a `replyWindow`.
+  reminderEnabled Boolean @default(false)
+  /// Local time of day in the user's time zone, `HH:MM`.
+  reminderTime String @default("20:00")
+  /// The local date (`YYYY-MM-DD`) a reminder was last claimed for: at most one per day.
+  lastReminderOn String?
+  lastReminderAt DateTime?
+  /// `sent`, `failed` or `uncertain`; never carries text.
+  lastReminderOutcome String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

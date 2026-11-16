@@ -13,13 +13,13 @@ describe.skipIf(!databaseUrl)("messaging binding", () => {
 
   test("a connection with no binding reports support and an empty binding", async () => {
     const connection = await h.connection({ platform: "wechat" });
-    expect(await service.get(connection.id)).toEqual({ supported: true, platform: "wechat", binding: null });
+    expect(await service.get(connection.id)).toEqual({ supported: true, replyWindowHours: null, platform: "wechat", binding: null });
   });
 
   test("a connector without messaging reports it is unsupported and cannot be bound", async () => {
     const connection = await h.connection({ messaging: false });
     const bot = await h.bot();
-    expect(await service.get(connection.id)).toEqual({ supported: false, platform: null, binding: null });
+    expect(await service.get(connection.id)).toEqual({ supported: false, replyWindowHours: null, platform: null, binding: null });
     await expect(service.put(connection.id, { enabled: true, botId: bot.id })).rejects.toMatchObject({ code: "external_messaging_unsupported" });
     expect(await h.prisma.externalMessagingBinding.count({ where: { connectionId: connection.id } })).toBe(0);
   });
@@ -45,6 +45,31 @@ describe.skipIf(!databaseUrl)("messaging binding", () => {
     });
   });
 
+  describe("daily reminder setting", () => {
+    test("a platform with a reply window offers it, and it is saved with the Bot", async () => {
+      const connection = await h.connection({ replyWindow: true });
+      const bot = await h.bot();
+      expect((await service.get(connection.id)).replyWindowHours).toBe(24);
+      const saved = await service.put(connection.id, { enabled: true, botId: bot.id, reminder: { enabled: true, time: "21:30" } });
+      expect(saved.binding!.reminder).toMatchObject({ enabled: true, time: "21:30", lastSentAt: null, lastOutcome: null });
+      // Saving again without the setting leaves it as it was.
+      expect((await service.put(connection.id, { enabled: true, botId: bot.id })).binding!.reminder).toMatchObject({ enabled: true, time: "21:30" });
+    });
+
+    test("a platform without a reply window refuses it", async () => {
+      const connection = await h.connection();
+      const bot = await h.bot();
+      await expect(service.put(connection.id, { enabled: true, botId: bot.id, reminder: { enabled: true, time: "20:00" } })).rejects.toMatchObject({ code: "external_reminder_unsupported" });
+      expect(await h.prisma.externalMessagingBinding.count({ where: { connectionId: connection.id } })).toBe(0);
+    });
+
+    test.each(["25:00", "7:30", "20:60", "evening"])("the time %s is refused", async (time) => {
+      const connection = await h.connection({ replyWindow: true });
+      const bot = await h.bot();
+      await expect(service.put(connection.id, { enabled: true, botId: bot.id, reminder: { enabled: true, time } })).rejects.toMatchObject({ code: "external_reminder_time_invalid" });
+    });
+  });
+
   test("an unknown connection is not found", async () => {
     await expect(service.get(crypto.randomUUID())).rejects.toMatchObject({ code: "plugin_connection_unavailable" });
   });
@@ -55,7 +80,7 @@ describe.skipIf(!databaseUrl)("messaging binding", () => {
     const view = await service.put(connection.id, { enabled: true, botId: bot.id });
     expect(view.binding).toEqual({
       enabled: true, botId: bot.id, inboundPolicy: "owner_only", status: "active",
-      lastPolledAt: null, lastAcceptedAt: null, lastErrorCode: null, lastErrorAt: null, consecutiveFailures: 0, rejectedCounts: {},
+      lastPolledAt: null, lastAcceptedAt: null, lastErrorCode: null, lastErrorAt: null, consecutiveFailures: 0, rejectedCounts: {}, reminder: { enabled: false, time: "20:00", lastSentAt: null, lastOutcome: null },
     });
     // Saving again edits the same entry.
     await service.put(connection.id, { enabled: false, botId: bot.id });
@@ -63,7 +88,7 @@ describe.skipIf(!databaseUrl)("messaging binding", () => {
     expect((await service.get(connection.id)).binding!.enabled).toBe(false);
     // Nothing internal leaks: no cursor, lease or retry bookkeeping.
     expect(Object.keys((await service.get(connection.id)).binding!).sort()).toEqual(
-      ["botId", "consecutiveFailures", "enabled", "inboundPolicy", "lastAcceptedAt", "lastErrorAt", "lastErrorCode", "lastPolledAt", "rejectedCounts", "status"]
+      ["botId", "consecutiveFailures", "enabled", "inboundPolicy", "lastAcceptedAt", "lastErrorAt", "lastErrorCode", "lastPolledAt", "rejectedCounts", "reminder", "status"]
     );
   });
 

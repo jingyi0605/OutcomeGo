@@ -34,6 +34,7 @@ import {
   ExternalInboundPoller,
   ExternalMediaExchange,
   ExternalMessagingBindingService,
+  ExternalReminderService,
 } from "./services/external-messaging";
 import { provisionDirectories } from "./services/provision-directories";
 import { RichMessageService } from "./services/rich-message-service";
@@ -101,6 +102,7 @@ export class AppService {
   private readonly externalBindings: ExternalMessagingBindingService;
   private readonly externalPoller: ExternalInboundPoller;
   private readonly externalDelivery: ExternalDeliveryService;
+  private readonly externalReminders: ExternalReminderService;
   private assetCleanupTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor(
@@ -259,6 +261,11 @@ export class AppService {
       callHostTool: (connection, toolName, args) => this.plugins.callHostTool(connection, toolName, args),
       instanceId,
     });
+    this.externalReminders = new ExternalReminderService({
+      prisma: this.prisma,
+      delivery: this.externalDelivery,
+      timeZone: () => this.messaging.userTimeZone(),
+    });
     this.externalPoller = new ExternalInboundPoller({
       prisma: this.prisma,
       callHostTool: (connection, toolName, args) => this.plugins.callHostTool(connection, toolName, args),
@@ -352,6 +359,7 @@ export class AppService {
       this.externalPoller.start();
       // Settles deliveries a previous process left unfinished, now and every 30 seconds.
       this.externalDelivery.startRecovery();
+      this.externalReminders.start();
       // Asset pruning can scan a large history and filesystem. Keep the
       // lifecycle behavior without extending the server's critical startup path.
       queueMicrotask(() => {
@@ -426,6 +434,7 @@ export class AppService {
       await this.pluginEvents.stop();
       await this.externalPoller.stop();
       this.externalDelivery.stopRecovery();
+      this.externalReminders.stop();
       await this.voice.stopGroupDeliveryWatcher();
       await this.eventWakeup.stop();
       await this.agentData.stopWatching();
@@ -720,7 +729,7 @@ export class AppService {
 
   externalMessaging = (connectionId: string) => serviceEffect(() => this.externalBindings.get(connectionId));
 
-  putExternalMessaging = (connectionId: string, input: { enabled: boolean; botId: string }) =>
+  putExternalMessaging = (connectionId: string, input: { enabled: boolean; botId: string; reminder?: { enabled: boolean; time: string } }) =>
     serviceEffect(() => this.externalBindings.put(connectionId, input));
 
   deleteExternalMessaging = (connectionId: string) =>

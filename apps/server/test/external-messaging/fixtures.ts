@@ -8,7 +8,7 @@ import { ExternalExchangeError } from "../../src/services/external-messaging/med
 
 export const databaseUrl = process.env.OUTCOMEGO_TEST_DATABASE_URL;
 
-export const manifestFor = (platform = "chat", media = true) => ({
+export const manifestFor = (platform = "chat", media = true, replyWindow = false) => ({
   key: `plugin-${platform}`,
   name: "Chat",
   version: "1.0.0",
@@ -24,8 +24,9 @@ export const manifestFor = (platform = "chat", media = true) => ({
       persistentState: true,
       messaging: {
         platform,
+        ...(replyWindow ? { replyWindow: { hours: 24 } } : {}),
         inbound: { pollTool: "chat_poll", maxWaitSeconds: 1 },
-        outbound: { deliverTool: "chat_deliver", maxTextChars: 100, ...(media ? { media: { kinds: ["image"], maxBytes: 5_000_000 } } : {}) },
+        outbound: { deliverTool: "chat_deliver", maxTextChars: replyWindow ? 1000 : 100, ...(media ? { media: { kinds: ["image"], maxBytes: 5_000_000 } } : {}) },
       },
     },
   ],
@@ -66,7 +67,7 @@ export interface Harness {
   bots: string[];
   installs: string[];
   bot(options?: { status?: "active" | "archived" | "provisioning" }): Promise<{ id: string; conversationId: string }>;
-  connection(options?: { platform?: string; ready?: boolean; messaging?: boolean; media?: boolean }): Promise<{ id: string; installId: string }>;
+  connection(options?: { platform?: string; ready?: boolean; messaging?: boolean; media?: boolean; replyWindow?: boolean }): Promise<{ id: string; installId: string }>;
   bind(connectionId: string, botId: string, extra?: Record<string, unknown>): Promise<{ id: string }>;
   /** The Bot's own chat: where every message from an outside contact lands. */
   home(botId: string): Promise<string>;
@@ -113,7 +114,7 @@ export async function createHarness(): Promise<Harness> {
           version: "1.0.0",
           name: "Chat",
           publisher: "t",
-          manifest: options.messaging === false ? { ...manifestFor(platform), connections: [{ ...manifestFor(platform).connections[0], messaging: undefined }] } : manifestFor(platform, options.media !== false),
+          manifest: options.messaging === false ? { ...manifestFor(platform), connections: [{ ...manifestFor(platform).connections[0], messaging: undefined }] } : manifestFor(platform, options.media !== false, options.replyWindow === true),
         },
       });
       installs.push(installId);

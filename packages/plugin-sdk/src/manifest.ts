@@ -76,6 +76,11 @@ const validateMessaging = (connector: PluginConnectorDefinition): void => {
     (outbound.maxTextChars as number) > EXTERNAL_OUTBOUND_TEXT_MAX_CHARS
   )
     throw new Error(`Messaging maxTextChars must be 1 to ${EXTERNAL_OUTBOUND_TEXT_MAX_CHARS}`);
+  if (messaging.replyWindow !== undefined) {
+    const window = objectValue(messaging.replyWindow);
+    if (!Number.isInteger(window.hours) || (window.hours as number) < 1 || (window.hours as number) > 168)
+      throw new Error("Messaging replyWindow hours must be 1 to 168");
+  }
   if (outbound.media !== undefined) {
     const media = objectValue(outbound.media);
     if (

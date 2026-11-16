@@ -122,6 +122,11 @@ export interface PluginMessaging {
       maxBytes: number;
     };
   };
+  /**
+   * Set when the platform only accepts a reply for a limited time after the person last wrote.
+   * Enables the daily reminder that asks them to write, so the window never closes unnoticed.
+   */
+  replyWindow?: { hours: number };
 }
 export interface PluginConnectorDefinition {
   key: string;

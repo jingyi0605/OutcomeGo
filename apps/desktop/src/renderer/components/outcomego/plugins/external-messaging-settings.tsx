@@ -58,12 +58,16 @@ export function ExternalMessagingSettings({
   const [bots, setBots] = useState<BotView[]>([]);
   const [botId, setBotId] = useState("");
   const [enabled, setEnabled] = useState(false);
+  const [reminderOn, setReminderOn] = useState(false);
+  const [reminderTime, setReminderTime] = useState("20:00");
   const load = useCallback(async () => {
     const next = await api.externalMessaging(connectionId);
     setView(next);
     if (next.binding) {
       setBotId(next.binding.botId);
       setEnabled(next.binding.enabled);
+      setReminderOn(next.binding.reminder.enabled);
+      setReminderTime(next.binding.reminder.time);
     }
     return next;
   }, [connectionId]);
@@ -82,6 +86,8 @@ export function ExternalMessagingSettings({
         if (next.binding) {
           setBotId(next.binding.botId);
           setEnabled(next.binding.enabled);
+          setReminderOn(next.binding.reminder.enabled);
+          setReminderTime(next.binding.reminder.time);
         }
       })
       .catch(() => {
@@ -98,7 +104,13 @@ export function ExternalMessagingSettings({
   // A bound Bot that is no longer active stays selectable so the page does not silently change it.
   if (botId && !options.some((option) => option.value === botId))
     options.unshift({ value: botId, label: t("Unavailable Bot") });
-  const dirty = !binding || binding.botId !== botId || binding.enabled !== enabled;
+  const windowHours = view.replyWindowHours;
+  const timeValid = /^([01][0-9]|2[0-3]):[0-5][0-9]$/.test(reminderTime);
+  const dirty =
+    !binding ||
+    binding.botId !== botId ||
+    binding.enabled !== enabled ||
+    (windowHours !== null && (binding.reminder.enabled !== reminderOn || binding.reminder.time !== reminderTime));
   const needsAttention = binding?.status === "needs_attention";
   const hint = binding?.lastErrorCode ? errorHint(binding.lastErrorCode, t) : undefined;
   const rejected = Object.entries(binding?.rejectedCounts ?? {}).filter(([, count]) => count > 0);
@@ -127,14 +139,48 @@ export function ExternalMessagingSettings({
           options={[{ value: "", label: t("Choose a Bot…") }, ...options]}
         />
       </PluginField>
+      {windowHours !== null && (
+        <div className="grid gap-2 rounded-lg bg-black/[0.03] p-3 dark:bg-white/[0.04]">
+          <label className="flex items-center gap-2 text-[13px]">
+            <input
+              type="checkbox"
+              aria-label={t("Daily keep-alive reminder")}
+              checked={reminderOn}
+              onChange={(event) => setReminderOn(event.target.checked)}
+            />
+            {t("Daily keep-alive reminder")}
+          </label>
+          <p className="text-xs text-foreground-secondary">
+            {t(
+              "This service only lets your Bot reply for about {hours} hours after you last wrote. If you have not written today by the time below, a short reminder is sent. Reply with anything, such as 1, to keep it open; your Bot does not act on that reply.",
+              { hours: windowHours }
+            )}
+          </p>
+          <PluginField label={t("Reminder time")}>
+            <input
+              type="time"
+              aria-label={t("Reminder time")}
+              className={inputClass}
+              disabled={!reminderOn}
+              value={reminderTime}
+              onChange={(event) => setReminderTime(event.target.value)}
+            />
+          </PluginField>
+        </div>
+      )}
       <div>
         <PluginButton
           primary
-          disabled={operation.busy || !botId || !dirty}
+          disabled={operation.busy || !botId || !dirty || (windowHours !== null && !timeValid)}
           loading={operation.busy}
           onClick={() =>
             void operation.run(
-              () => api.putExternalMessaging(connectionId, { enabled, botId }),
+              () =>
+                api.putExternalMessaging(connectionId, {
+                  enabled,
+                  botId,
+                  ...(windowHours !== null ? { reminder: { enabled: reminderOn, time: reminderTime } } : {}),
+                }),
               t("Chat settings saved.")
             )
           }
@@ -153,6 +199,16 @@ export function ExternalMessagingSettings({
           <dd>{formatTime(binding.lastPolledAt, locale) ?? t("Never")}</dd>
           <dt>{t("Last message received")}</dt>
           <dd>{formatTime(binding.lastAcceptedAt, locale) ?? t("Never")}</dd>
+          {windowHours !== null && binding.reminder.lastSentAt && (
+            <>
+              <dt>{t("Last reminder")}</dt>
+              <dd>
+                {formatTime(binding.reminder.lastSentAt, locale)}
+                {binding.reminder.lastOutcome === "failed" ? ` · ${t("Not delivered")}` : null}
+                {binding.reminder.lastOutcome === "uncertain" ? ` · ${t("Delivery unconfirmed")}` : null}
+              </dd>
+            </>
+          )}
           {binding.consecutiveFailures > 0 && (
             <>
               <dt>{t("Consecutive failures")}</dt>

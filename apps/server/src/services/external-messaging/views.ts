@@ -24,4 +24,10 @@ export const bindingView = (binding: ExternalMessagingBinding): ExternalMessagin
   lastErrorAt: binding.lastErrorAt?.toISOString() ?? null,
   consecutiveFailures: binding.consecutiveFailures,
   rejectedCounts: counts(binding.rejectedCounts),
+  reminder: {
+    enabled: binding.reminderEnabled,
+    time: binding.reminderTime,
+    lastSentAt: binding.lastReminderAt?.toISOString() ?? null,
+    lastOutcome: (["sent", "failed", "uncertain"] as const).find((value) => value === binding.lastReminderOutcome) ?? null,
+  },
 });

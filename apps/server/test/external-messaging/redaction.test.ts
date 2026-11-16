@@ -88,7 +88,7 @@ describe.skipIf(!databaseUrl)("external messaging redaction", () => {
     const view = bindingView(row);
     expect(JSON.stringify(view)).not.toContain("secret-cursor-1");
     expect(Object.keys(view).sort()).toEqual(
-      ["botId", "consecutiveFailures", "enabled", "inboundPolicy", "lastAcceptedAt", "lastErrorAt", "lastErrorCode", "lastPolledAt", "rejectedCounts", "status"].sort()
+      ["botId", "consecutiveFailures", "enabled", "inboundPolicy", "lastAcceptedAt", "lastErrorAt", "lastErrorCode", "lastPolledAt", "rejectedCounts", "reminder", "status"].sort()
     );
   });
 

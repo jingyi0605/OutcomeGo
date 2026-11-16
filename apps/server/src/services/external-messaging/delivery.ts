@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { ApiError, type AgentSendToUserInput, type AssetRef } from "@outcomego/contracts";
 import { Prisma, type PrismaClient } from "@outcomego/db";
-import type { AgentMessaging, AssetStore, ToolContext } from "@outcomego/messaging";
+import { nextMessageAddress, type AgentMessaging, type AssetStore, type ToolContext } from "@outcomego/messaging";
 import {
   EXTERNAL_DELIVER_TIMEOUT_MS,
   EXTERNAL_ERROR_MESSAGE_MAX_CHARS,
@@ -141,6 +141,51 @@ export class ExternalDeliveryService {
   }
 
   /**
+   * Sends a short notice the service itself writes (the daily reminder), not something a Bot said.
+   * It is recorded in the Bot's own chat like any delivery, so its outcome is visible, and `key`
+   * makes it idempotent: the same key is never sent twice.
+   */
+  async sendNotice(input: { mappingId: string; text: string; key: string }): Promise<DeliveryOutcome> {
+    const callId = `external-delivery:${input.key}`;
+    const prior = await this.load({ callId });
+    if (prior) return this.outcome(prior, prior.mapping?.platform ?? "", true);
+    const mapping = await this.deps.prisma.externalChannelMapping.findUnique({ where: { id: input.mappingId } });
+    if (!mapping || mapping.status !== "active")
+      throw new ApiError(409, "external_channel_unavailable", "This external conversation is no longer available");
+    const home = await this.deps.prisma.channel.findFirst({
+      where: { kind: "bot_dm", directKey: `bot:${mapping.botId}`, archivedAt: null },
+      select: { id: true },
+    });
+    if (!home) throw new ApiError(409, "external_channel_unavailable", "This Bot has no chat to record the message in");
+
+    const leaseOwner = `${this.instance}:${randomUUID()}`;
+    try {
+      await this.deps.prisma.$transaction(async (tx) => {
+        const address = await nextMessageAddress(tx, home.id, "agent");
+        const message = await tx.channelMessage.create({
+          data: {
+            channelId: home.id,
+            sender: "agent",
+            senderBotId: mapping.botId,
+            clientId: `notice:${input.key}`,
+            content: input.text,
+            metadata: { type: "text", address, externalNotice: "reminder" } as Prisma.InputJsonValue,
+          },
+        });
+        await this.createPending(tx, { callId, mapping, context: { botId: mapping.botId, runId: null }, messageId: message.id, leaseOwner });
+        await appendEvent(tx, "channel.message.accepted", message.id, { channelId: home.id, messageId: message.id });
+      });
+    } catch (error) {
+      const winner = await this.load({ callId });
+      if (winner) return this.outcome(winner, mapping.platform, true);
+      throw error;
+    }
+    const row = await this.load({ callId });
+    if (!row) throw new Error("The delivery record was not created");
+    return this.dispatch(row.id, leaseOwner);
+  }
+
+  /**
    * Resolves where a Bot may send on its own initiative: `<platform>:<peerId>`, or just `<platform>`
    * for the contact the Bot is already talking to. `null` means no messaging connector uses that
    * platform (the older connector path may still apply). Only a connection that is ready, bound to
@@ -177,7 +222,7 @@ export class ExternalDeliveryService {
 
   private async createPending(
     tx: Prisma.TransactionClient,
-    input: { callId: string; mapping: { id: string; connectionId: string }; context: ToolContext; messageId: string; leaseOwner: string }
+    input: { callId: string; mapping: { id: string; connectionId: string }; context: Pick<ToolContext, "botId"> & { runId: string | null }; messageId: string; leaseOwner: string }
   ): Promise<void> {
     const row = await tx.externalOutboundDelivery.create({
       data: {

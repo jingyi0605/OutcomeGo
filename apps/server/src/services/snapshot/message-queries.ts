@@ -191,6 +191,8 @@ export async function channelUnreadCounts(
           AND message."sequence" > COALESCE(state."lastReadSequence", 0)
           AND NOT (COALESCE(message."metadata", '{}'::jsonb) ? 'fromAgent')
           AND NOT (COALESCE(message."metadata", '{}'::jsonb) ? 'toAgent')
+          -- The daily reminder sent to an outside chat is not something to read.
+          AND NOT (COALESCE(message."metadata", '{}'::jsonb) ? 'externalNotice')
         GROUP BY message."channelId"
       `
   );

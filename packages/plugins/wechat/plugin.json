@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "key": "wechat",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "name": "WeChat",
   "description": "Chat with your Bot from WeChat. Messages you send to the WeChat ClawBot reach your Bot, and its replies come back to the same chat.",
   "publisher": "OpenTeam",
@@ -50,6 +50,7 @@
       },
       "messaging": {
         "platform": "wechat",
+        "replyWindow": { "hours": 24 },
         "inbound": {
           "pollTool": "wechat_poll_inbound",
           "maxWaitSeconds": 20

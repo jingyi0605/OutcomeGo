@@ -60,6 +60,8 @@ ALTER TABLE "outcomego_external_messaging_binding" ADD CONSTRAINT "outcomego_ext
   "inboundPolicy" = 'owner_only'
   AND "status" IN ('active', 'needs_attention')
   AND ("inboundCursor" IS NULL OR char_length("inboundCursor") <= 2048)
+  AND "reminderTime" ~ '^([01][0-9]|2[0-3]):[0-5][0-9]$'
+  AND ("lastReminderOutcome" IS NULL OR "lastReminderOutcome" IN ('sent', 'failed', 'uncertain'))
 );
 ALTER TABLE "outcomego_external_channel_mapping" DROP CONSTRAINT IF EXISTS "outcomego_external_channel_mapping_valid";
 ALTER TABLE "outcomego_external_channel_mapping" ADD CONSTRAINT "outcomego_external_channel_mapping_valid" CHECK (

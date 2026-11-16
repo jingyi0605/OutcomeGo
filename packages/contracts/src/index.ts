@@ -812,6 +812,14 @@ export type RenamePluginAccountInput = typeof RenamePluginAccountInput.Type;
 export const PutExternalMessagingInput = Schema.Struct({
   enabled: Schema.Boolean,
   botId: Schema.UUID,
+  /** Daily nudge that keeps a platform's reply window open. Omitted: leave it as it is. */
+  reminder: Schema.optional(
+    Schema.Struct({
+      enabled: Schema.Boolean,
+      /** Local time of day, `HH:MM`. */
+      time: Schema.String.pipe(Schema.pattern(/^([01][0-9]|2[0-3]):[0-5][0-9]$/)),
+    })
+  ),
 });
 export type PutExternalMessagingInput = typeof PutExternalMessagingInput.Type;
 
@@ -827,10 +835,18 @@ export interface ExternalMessagingBindingView {
   lastErrorAt: string | null;
   consecutiveFailures: number;
   rejectedCounts: Record<string, number>;
+  reminder: {
+    enabled: boolean;
+    time: string;
+    lastSentAt: string | null;
+    lastOutcome: "sent" | "failed" | "uncertain" | null;
+  };
 }
 
 export interface ExternalMessagingView {
   supported: boolean;
+  /** The platform limits how long after the person last wrote it accepts a reply (hours), if it does. */
+  replyWindowHours: number | null;
   platform: string | null;
   binding: ExternalMessagingBindingView | null;
 }

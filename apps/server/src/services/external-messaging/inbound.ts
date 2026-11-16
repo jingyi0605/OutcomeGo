@@ -23,6 +23,7 @@ import { formatUserPrompt } from "../channel/formatting";
 import { dismissMoveOnWidgets } from "../rich-message-service";
 import { appendEvent, type ComputerFetch } from "../service-utils";
 import { ExternalExchangeError, type ExternalMediaExchange } from "./media-exchange";
+import { isRenewalReply, REMINDER_ANSWER_WINDOW_MS } from "./reminder";
 import { isUniqueViolation, Rollback } from "./shared";
 
 export type AcceptCode =
@@ -109,6 +110,10 @@ export class ExternalInboundMessageService {
       select: { payloadHash: true },
     });
     if (existing) return this.duplicateOrConflict(context, existing.payloadHash, payloadHash);
+
+    // The answer to a renewal reminder ("1", a space...) keeps the channel open and is nothing the Bot should act on.
+    const renewal = await this.acceptRenewalReply(context, message, payloadHash);
+    if (renewal) return renewal;
 
     // The Bot must be able to run before any file is fetched or any record is written.
     const bot = await prisma.bot.findUnique({
@@ -352,6 +357,50 @@ export class ExternalInboundMessageService {
       await appendEvent(tx, "channel.message.accepted", visibleMessage.id, { channelId: homeChannelId, messageId: visibleMessage.id });
       return { runId: delivery.run.id as string | null, bootstrapRunId, interruptRunId: delivery.interruptRunId };
     });
+  }
+
+  /**
+   * While a reminder is waiting for its answer, a message that is only an acknowledgement is recorded
+   * and does nothing else: no chat message, no Bot wake. It still counts as the person having written,
+   * so the reminder is answered. Anything with words in it, or with files, is a normal message.
+   * Returns null when this is not that case.
+   */
+  private async acceptRenewalReply(context: AcceptContext, message: ExternalMessage, payloadHash: string): Promise<AcceptResult | null> {
+    if (message.media?.length || message.mediaFailures?.length || !isRenewalReply(message.text)) return null;
+    const { prisma } = this.deps;
+    const { connectionId } = context.binding;
+    const now = this.now();
+    const [binding, mapping] = await Promise.all([
+      prisma.externalMessagingBinding.findUnique({ where: { id: context.binding.id } }),
+      prisma.externalChannelMapping.findUnique({
+        where: { connectionId_peerId_botId: { connectionId, peerId: message.peer.id, botId: context.binding.botId } },
+      }),
+    ]);
+    if (!binding || !mapping || !binding.enabled || binding.botId !== context.binding.botId || mapping.status !== "active") return null;
+    const reminded = binding.lastReminderAt;
+    const waiting =
+      reminded !== null &&
+      (binding.lastReminderOutcome === "sent" || binding.lastReminderOutcome === "uncertain") &&
+      now.getTime() - reminded.getTime() < REMINDER_ANSWER_WINDOW_MS &&
+      (mapping.lastInboundAt === null || mapping.lastInboundAt.getTime() < reminded.getTime());
+    if (!waiting) return null;
+    try {
+      await prisma.$transaction(async (tx) => {
+        await tx.externalMessageReceipt.create({
+          data: { connectionId, providerMessageId: message.providerMessageId, peerId: message.peer.id, payloadHash, status: "accepted", mappingId: mapping.id },
+        });
+        await tx.externalChannelMapping.update({ where: { id: mapping.id }, data: { lastInboundAt: now } });
+        await tx.externalMessagingBinding.update({ where: { id: binding.id }, data: { lastAcceptedAt: now } });
+      });
+    } catch (error) {
+      if (!isUniqueViolation(error)) return { status: "retry", code: "external_accept_failed", targetUnavailable: false };
+      const winner = await prisma.externalMessageReceipt.findUnique({
+        where: { connectionId_providerMessageId: { connectionId, providerMessageId: message.providerMessageId } },
+        select: { payloadHash: true },
+      });
+      return winner ? this.duplicateOrConflict(context, winner.payloadHash, payloadHash) : { status: "retry", code: "external_accept_failed", targetUnavailable: false };
+    }
+    return { status: "accepted", runId: null };
   }
 
   /**
