@@ -322,8 +322,9 @@ const lazyBudgets: Record<string, number> = {
   // Connected version/update navigation and the moved machine controls (#201/#211)
   // measure 17,312. Browser network settings retain their separate lazy boundary.
   // v0.0.13 shared control styles: 18,849 bytes; network and Select remain lazy.
-  // The cloud computer firewall policy dialog adds 26,206 bytes to this lazy closure.
-  settingsServer: 27_000,
+  // The cloud computer firewall policy dialog is part of this measured lazy closure:
+  // 32,667 bytes on the beta.18 candidate.
+  settingsServer: 33_000,
   // Dedicated Voice notes page: load retry, provider marks, busy indicators and
   // responsive fields. Still lazy; its measured closure is 40,488 bytes; 41,304 after the
   // Settings cleanup.
