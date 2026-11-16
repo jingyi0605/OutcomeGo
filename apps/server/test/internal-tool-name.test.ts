@@ -40,6 +40,8 @@ const serviceFixture = (
         }),
       },
       subagent: { findUnique: async () => options.childIdentity ?? null },
+      // SendToUser and request_box_help look up the source chat's kind to route external chats.
+      channel: { findUnique: async () => ({ kind: "bot_dm" }) },
     } as never,
     {
       sendVisible: async (_context: unknown, input: { type?: string; content?: string }) => {
