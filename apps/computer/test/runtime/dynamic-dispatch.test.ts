@@ -12,6 +12,29 @@ const connector = (namespaceStatus = "ready") => ({
   tools: [{ connectionId: "c", name: "search_threads", description: "Search", inputSchema: { type: "object" }, source: "gmail/gmail" }],
 });
 
+test("firewall changes are discoverable by the parent and card sends end its turn", async () => {
+  const tools = runtimeTools();
+  const active = turn();
+  const discovery = await tools.executeOutcomeGoTool(active, "lookup-firewall", "GetDynamicTools", {
+    namespace: "cursor", toolName: "UpdateComputerNetworkPolicy",
+  });
+  expect(discovery.content[0].text).toContain("UpdateComputerNetworkPolicy");
+  await withControlPlane((tool, args) => {
+    expect(tool).toBe("UpdateComputerNetworkPolicy");
+    expect(args).toEqual({ mode: "lan", rules: [] });
+    return { sent: true, waiting_for_user: true, waiting_for_verification: true };
+  }, () => tools.executeOutcomeGoTool(active, "firewall", "CallDynamicTool", {
+    namespace: "cursor", toolName: "UpdateComputerNetworkPolicy", arguments: { mode: "lan", rules: [] },
+  }));
+  expect(active.awaitingUser).toBe(true);
+  expect(active.endTurnRequested).toBe(true);
+  for (const excluded of [turn({ requestSource: "automation" }), turn({ runtimeProfile: "subagent", subagentType: "computerUse" })]) {
+    await expect(tools.executeOutcomeGoTool(excluded, "forbidden-firewall", "GetDynamicTools", {
+      namespace: "cursor", toolName: "UpdateComputerNetworkPolicy",
+    })).rejects.toThrow("not found");
+  }
+});
+
 async function withControlPlane(respond: (tool: string, args: any) => unknown, run: () => Promise<any>): Promise<any> {
   const original = globalThis.fetch;
   globalThis.fetch = (async (_url: string, init: RequestInit) => {

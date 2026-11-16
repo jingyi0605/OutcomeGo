@@ -35,6 +35,8 @@ import {
   UPDATE_AGENT_TOOL,
   UPDATE_AVATAR_TOOL,
   UPDATE_CHANNEL_TOOL,
+  UPDATE_COMPUTER_NETWORK_POLICY_TOOL,
+  UpdateComputerNetworkPolicyInput,
   UPDATE_PROFILE_TOOL,
   UPDATE_SKILL_TOOL,
   UpdateAgentInput,
@@ -192,6 +194,8 @@ export function dynamicCatalog(
   }, execute: (turn, callId, args, signal) => callControlPlaneTool(turn, callId, "ReadAgentActivity", args, signal) };
   const cursorTools: RuntimeDynamicTool[] = [
     ...additionalTools,
+    ...(active.runtimeProfile !== "subagent" && active.requestSource !== "automation"
+      ? [controlPlaneTool(UPDATE_COMPUTER_NETWORK_POLICY_TOOL, UpdateComputerNetworkPolicyInput)] : []),
     ...(active.runtimeProfile !== "subagent" && active.requestSource !== "automation" ? [controlPlaneTool(REPORT_REQUEST_PROGRESS_TOOL, RequestProgressInput)] : []),
     ...(active.runtimeProfile === "subagent" && ["computerUse", "executor", "knowledgeWork"].includes(active.subagentType ?? "") ? [controlPlaneTool(REPORT_TASK_PROGRESS_TOOL, TaskProgressInput)] : []),
     ...(active.requestSource === "automation" && active.runtimeProfile !== "subagent"

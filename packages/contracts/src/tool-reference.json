@@ -1699,6 +1699,59 @@
       ]
     }
   },
+  "UpdateComputerNetworkPolicy": {
+    "name": "UpdateComputerNetworkPolicy",
+    "description": "Request an additive change to the cloud computer's private LAN firewall policy. Only an owner bot may use this operation. The active mode cannot be changed by a bot; the requested mode must match the current mode. Existing manual rules are preserved and new private TCP destinations are merged by subnet and inclusive port range. Addresses accept private IPv4/IPv6 hosts or CIDR networks; ports accept a number or range such as 8000-8100. The first call validates the resulting rules and sends a verification card to the bot owner's chat; verification does not change the policy. After verification, call this tool again with the approvalId to send a separate final approval card, then call it once more after approval to apply that merged policy. A changed policy revision or a denied, expired, or reused request is rejected.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": [
+            "lan",
+            "allowlist"
+          ],
+          "description": "The current private network mode. Bot requests cannot switch modes; change the mode in Settings first."
+        },
+        "rules": {
+          "type": "array",
+          "minItems": 0,
+          "maxItems": 128,
+          "items": {
+            "type": "object",
+            "properties": {
+              "address": {
+                "type": "string",
+                  "description": "Private IPv4 or IPv6 address, optionally with a CIDR prefix or IPv4 dotted subnet mask (for example 10.20.0.0/16)."
+              },
+              "port": {
+                  "oneOf": [
+                    { "type": "integer", "minimum": 1, "maximum": 65535 },
+                    { "type": "string", "maxLength": 11, "pattern": "^[0-9]{1,5}(-[0-9]{1,5})?$" }
+                  ],
+                  "description": "TCP port or inclusive ascending port range, for example 8000-8100."
+              },
+              "label": {
+                "type": "string",
+                "maxLength": 120
+              }
+            },
+            "required": [
+              "address",
+              "port"
+            ],
+            "additionalProperties": false
+          },
+          "description": "Private TCP subnets and port destinations to add. Existing rules and labels are preserved. Required for allowlist mode; the merged policy shown in both cards is applied. The merged total must not exceed 128 rules."
+        },
+        "approvalId": {
+          "type": "string",
+          "description": "The approvalId returned by the verification or approval card outcome. Pass this alone on follow-up calls."
+        }
+      },
+      "additionalProperties": false
+    }
+  },
   "UpdateSkill": {
     "name": "UpdateSkill",
     "description": "Save, rewrite, or delete one of your reusable skills. A skill has no trigger; a saved task that runs on a schedule is a routine. Cursor-managed skills can't be changed.",

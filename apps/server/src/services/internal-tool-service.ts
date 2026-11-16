@@ -25,7 +25,7 @@ import {
   UpdateChannelInput,
   isStateTool,
 } from "@outcomego/contracts";
-import type { PrismaClient } from "@outcomego/db";
+import { Prisma, type PrismaClient } from "@outcomego/db";
 import { type AgentMessaging, validateSendToUserInput, wakeAutomationParent, automationContextRunId } from "@outcomego/messaging";
 import { Schema } from "effect";
 import type { DurableStateService } from "../update-state";
@@ -36,6 +36,7 @@ import { serviceEffect } from "./service-utils";
 import { botSubagentId, type SubagentService } from "./subagent/service";
 import type { TodoService } from "./todo-service";
 import type { RichMessageService } from "./rich-message-service";
+import type { ComputerNetworkPolicyService } from "./computer-network-policy-service";
 import { processEnvironment, protectedPluginEnvironment } from "./process-secrets";
 import { withConnectorDraftCardReminder } from "./connector-draft-reminder";
 import { createHash, randomUUID } from "node:crypto";
@@ -68,7 +69,8 @@ export class InternalToolService {
     private readonly plugins: PluginService,
     private readonly richMessages?: RichMessageService,
     private readonly onVisibleMessage?: (runId: string, messageId: string) => Promise<void>,
-    private readonly onSpeechChunk?: (runId: string, callId: string, text: string) => Promise<boolean>
+    private readonly onSpeechChunk?: (runId: string, callId: string, text: string) => Promise<boolean>,
+    private readonly computerNetworkPolicy?: ComputerNetworkPolicyService
   ) {}
 
   execute = (request: DynamicToolCallRequest, transfer: {upload?:import("@outcomego/plugin-sdk/file-spool").StagedFile;stream?:boolean} = {}) =>
@@ -250,6 +252,105 @@ export class InternalToolService {
         await this.messaging.acknowledgeCardOutcomes(request.botId, (request.arguments as { receipts: Array<{ messageId: string; outcomeId: string }> }).receipts);
         return { acknowledged: true };
       }
+      if (request.tool === "UpdateComputerNetworkPolicy") {
+        if (childIdentity || run.origin === "routine")
+          throw new ApiError(403, "computer_network_policy_bot_forbidden", "Only an owner bot can request a firewall change.");
+        if (!this.computerNetworkPolicy)
+          throw new ApiError(503, "computer_network_policy_unavailable", "Firewall policy control is unavailable.");
+
+        const dmChannel = await this.prisma.channel.findUnique({
+          where: { directKey: `bot:${request.botId}` },
+          select: { id: true, kind: true, archivedAt: true },
+        });
+        if (!dmChannel || dmChannel.kind !== "bot_dm" || dmChannel.archivedAt)
+          throw new ApiError(409, "computer_network_policy_approval_unavailable", "The bot's owner chat is unavailable for approval.");
+
+        const input = request.arguments && typeof request.arguments === "object" && !Array.isArray(request.arguments)
+          ? request.arguments as Record<string, unknown> : {};
+        const approvalId = input.approvalId;
+        if (approvalId !== undefined && (typeof approvalId !== "string" || !UUID.test(approvalId) || Object.keys(input).length !== 1))
+          throw new ApiError(400, "computer_network_policy_approval_invalid", "Pass only a valid approvalId to continue a firewall request.");
+
+        const prepared = approvalId === undefined
+          ? await this.computerNetworkPolicy.prepareBotRequest(input) : null;
+        const approval = prepared
+          ? await this.prisma.computerNetworkPolicyApproval.upsert({
+              where: { sourceRunId_sourceCallId: { sourceRunId: request.runId, sourceCallId: request.callId } },
+              create: {
+                botId: request.botId,
+                channelId: dmChannel.id,
+                sourceRunId: request.runId,
+                sourceCallId: request.callId,
+                expectedRevision: prepared.expectedRevision,
+                mode: prepared.mode,
+                rules: prepared.rules as unknown as Prisma.InputJsonValue,
+                expiresAt: new Date(Date.now() + 15 * 60_000),
+              },
+              update: {},
+            })
+          : await this.prisma.computerNetworkPolicyApproval.findFirst({
+              where: { id: String(approvalId), botId: request.botId, channelId: dmChannel.id },
+            });
+        if (!approval || approval.consumedAt || ["denied", "expired"].includes(approval.status))
+          throw new ApiError(403, "computer_network_policy_approval_invalid", "The firewall request is missing, denied, expired, or already used.");
+        if (approval.expiresAt <= new Date()) {
+          await this.prisma.computerNetworkPolicyApproval.updateMany({
+            where: { id: approval.id, consumedAt: null }, data: { status: "expired" },
+          });
+          throw new ApiError(403, "computer_network_policy_approval_invalid", "The firewall request expired. Request a new policy verification.");
+        }
+        if (prepared) {
+          const destinations = (value: unknown) => JSON.stringify((value as Array<{address: string; port: number | string; label?: string | null}>).map(
+            ({ address, port, label }) => ({ address, port, label: label ?? null })
+          ));
+          if (approval.mode !== prepared.mode || destinations(approval.rules) !== destinations(prepared.rules))
+            throw new ApiError(409, "computer_network_policy_request_conflict", "This tool call already requested a different firewall policy.");
+        }
+        if (approval.status === "approved")
+          return this.computerNetworkPolicy.applyApproved(approval.id, request.botId, dmChannel.id);
+        const verification = approval.status === "verification_pending";
+        const waiting = {
+          sent: true,
+          waiting_for_user: true,
+          ...(verification ? { waiting_for_verification: true } : { waiting_for_approval: true }),
+          approvalId: approval.id,
+          expectedRevision: approval.expectedRevision,
+          instruction: "Stop this turn and wait for the user to answer the card.",
+        };
+        if (approval.widgetMessageId) return waiting;
+        const ruleText = (approval.rules as unknown as Array<{address: string; port: number | string; label?: string | null}>)
+          .map((rule) => `- ${rule.address} TCP ${rule.port}${rule.label ? ` (${rule.label})` : ""}`).join("\n") || "- none";
+        const impact = approval.mode === "lan"
+          ? "LAN access permits all private TCP destinations."
+          : "Only the listed private TCP destinations, model endpoints, and system management exceptions remain reachable.";
+        await this.messaging.sendVisible(
+          { ...context, channelId: dmChannel.id, replyToMessageId: null, isFork: false,
+            callId: `firewall:${approval.id}:${verification ? "verify" : "approve"}` },
+          {
+            type: "widget",
+            end_turn: true,
+            widget: {
+              prompt: verification
+                ? `Verify this exact cloud computer firewall policy in ${approval.mode} mode.`
+                : `Approve this cloud computer firewall change to ${approval.mode} mode?`,
+              helpText: `${impact} Public traffic continues through the managed exit. Revision ${approval.expectedRevision}; expires at ${approval.expiresAt.toISOString()}. ${verification ? "Verification does not apply the policy; a separate approval card follows." : "Approval authorizes only this exact policy. Existing connections may be interrupted."} Rules:\n${ruleText}`,
+              options: verification
+                ? [{ label: "Verify policy", value: "verify", style: "default" }, { label: "Cancel", value: "deny", style: "default" }]
+                : [{ label: "Approve firewall change", value: "approve", style: "danger" }, { label: "Deny", value: "deny", style: "default" }],
+            },
+          },
+          async (tx, messageId) => {
+            const bound = await tx.computerNetworkPolicyApproval.updateMany({
+              where: { id: approval.id, status: approval.status, widgetMessageId: null, expiresAt: { gt: new Date() } },
+              data: { widgetMessageId: messageId },
+            });
+            if (!bound.count)
+              throw new ApiError(409, "computer_network_policy_request_conflict", "The firewall request changed before its card was published.");
+          }
+        );
+        return waiting;
+      }
+
       // Private to the computer: a finished sentence of a SendToUser message still being written, spoken at once.
       if (request.tool === "VoiceSpeak") {
         if (childIdentity || run.origin === "routine") throw new ApiError(403, "speech_unavailable", "Only the user-facing parent may speak");

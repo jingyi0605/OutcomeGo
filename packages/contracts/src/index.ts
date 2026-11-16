@@ -1335,6 +1335,24 @@ export const UpdateProfileToolInput = Schema.Struct({
 });
 export type UpdateProfileToolInput = typeof UpdateProfileToolInput.Type;
 
+export const UpdateComputerNetworkPolicyInput = Schema.Union(
+  Schema.Struct({ approvalId: Schema.String.pipe(Schema.pattern(/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i)) }),
+  Schema.Struct({
+    mode: Schema.Literal("lan", "allowlist"),
+    rules: Schema.Array(Schema.Struct({
+      address: Schema.String,
+      port: Schema.Union(
+        Schema.Number.pipe(Schema.int(), Schema.between(1, 65535)),
+        Schema.String.pipe(Schema.maxLength(11), Schema.pattern(/^\d{1,5}(?:-\d{1,5})?$/), Schema.filter((value) => {
+          const [first, last] = (value.includes("-") ? value.split("-") : [value, value]).map(Number);
+          return first! >= 1 && first! <= last! && last! <= 65535;
+        }, { message: () => "Use an ascending TCP port range from 1 to 65535." }))
+      ),
+      label: Schema.optional(Schema.String.pipe(Schema.maxLength(120))),
+    })).pipe(Schema.maxItems(128)),
+  })
+);
+
 export const UpdateAvatarToolInput = Schema.Struct({
   action: Schema.Literal("set", "clear"),
   path: optionalText,
@@ -1350,6 +1368,7 @@ export const UPDATE_MEMORY_TOOL = nativeTool("UpdateMemory");
 export const UPDATE_ROUTINE_TOOL = nativeTool("UpdateRoutine");
 export const UPDATE_SKILL_TOOL = cursorTool("UpdateSkill");
 export const UPDATE_PROFILE_TOOL = cursorTool("UpdateProfile");
+export const UPDATE_COMPUTER_NETWORK_POLICY_TOOL = cursorTool("UpdateComputerNetworkPolicy");
 export const UPDATE_AVATAR_TOOL = cursorTool("UpdateAvatar");
 export const DISCONNECT_CHANNEL_TOOL = cursorTool("DisconnectChannel");
 

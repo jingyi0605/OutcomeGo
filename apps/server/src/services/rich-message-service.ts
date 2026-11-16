@@ -225,6 +225,9 @@ export class RichMessageService {
           }
           const value = assertWidgetAnswer(widget, input.value);
           const bitwardenApproval = await tx.bitwardenReadApproval.findUnique({ where: { widgetMessageId: message.id } });
+          const computerNetworkApproval = await tx.computerNetworkPolicyApproval.findUnique({
+            where: { widgetMessageId: message.id },
+          });
           if (bitwardenApproval) {
             if (bitwardenApproval.expiresAt <= new Date() || bitwardenApproval.status !== "pending") {
               await tx.bitwardenReadApproval.update({ where: { id: bitwardenApproval.id }, data: { status: "expired" } });
@@ -234,13 +237,58 @@ export class RichMessageService {
               throw new ApiError(400, "widget_answer_invalid", "That Bitwarden item is not available on this approval");
             await tx.bitwardenReadApproval.update({ where: { id: bitwardenApproval.id }, data: { status: "approved", itemId: value, approvedAt: new Date() } });
           }
+          if (computerNetworkApproval) {
+            if (computerNetworkApproval.botId !== message.senderBotId ||
+              computerNetworkApproval.channelId !== message.channelId || message.channel.kind !== "bot_dm" ||
+              message.channel.directKey !== `bot:${message.senderBotId}`)
+              throw new ApiError(403, "computer_network_policy_approval_invalid", "This firewall card does not belong to this owner's bot chat.");
+            if (
+              computerNetworkApproval.expiresAt <= new Date() ||
+              !["verification_pending", "approval_pending"].includes(computerNetworkApproval.status)
+            ) {
+              await tx.computerNetworkPolicyApproval.update({
+                where: { id: computerNetworkApproval.id },
+                data: { status: "expired" },
+              });
+              const expired = await tx.channelMessage.update({
+                where: { id: message.id },
+                data: { metadata: toJson({ ...metadata, widgetDismissed: true, outcomeText: "This firewall request expired; no policy was changed." }) },
+              });
+              await appendEvent(tx, "channel.message.updated", message.id, { channelId: message.channelId, messageId: message.id, reason: "widget-expired" });
+              await this.messaging.scheduleTranscriptProjection(tx, [message.senderBotId]);
+              return { accepted: false, message: messageView(expired), runId: null };
+            }
+            const verificationCard = computerNetworkApproval.status === "verification_pending";
+            const allowed = verificationCard ? ["verify", "deny"] : ["approve", "deny"];
+            if (!allowed.includes(value))
+              throw new ApiError(400, "widget_answer_invalid", verificationCard ? "Choose Verify or Cancel" : "Choose Approve or Deny");
+            await tx.computerNetworkPolicyApproval.update({
+              where: { id: computerNetworkApproval.id },
+              data: {
+                status: verificationCard
+                  ? value === "verify" ? "approval_pending" : "denied"
+                  : value === "approve" ? "approved" : "denied",
+                ...(verificationCard && value === "verify"
+                  ? { widgetMessageId: null }
+                  : !verificationCard && value === "approve"
+                    ? { approvedAt: new Date() }
+                    : {}),
+              },
+            });
+          }
           const clientId = `widget:${message.id}:response`;
           const wake = await this.messaging.enqueueWake(tx, {
             botId: message.senderBotId,
             channelId: message.channelId,
             origin: "user",
             type: "widget.response",
-            content: bitwardenApproval ? `[SAND_HIDDEN_PROMPT]BITWARDEN_APPROVAL:${bitwardenApproval.id} The user approved the selected Bitwarden item. Continue the task.` : value,
+            content: bitwardenApproval
+              ? `[SAND_HIDDEN_PROMPT]BITWARDEN_APPROVAL:${bitwardenApproval.id} The user approved the selected Bitwarden item. Continue the task.`
+              : computerNetworkApproval
+                ? computerNetworkApproval.status === "verification_pending" && value === "verify"
+                  ? `[SAND_HIDDEN_PROMPT]COMPUTER_NETWORK_POLICY_APPROVAL:${computerNetworkApproval.id} The user verified the exact proposed computer firewall policy. Call UpdateComputerNetworkPolicy with this approval id to show the separate final approval card.`
+                  : `[SAND_HIDDEN_PROMPT]COMPUTER_NETWORK_POLICY_APPROVAL:${computerNetworkApproval.id} The user ${value === "approve" ? "approved" : "denied"} the proposed computer firewall policy. ${value === "approve" ? "Call UpdateComputerNetworkPolicy with this approval id to apply it." : "Do not apply the policy."}`
+                : value,
             clientId,
             priority: PRIORITY.user,
             wrapUserContent: false,
@@ -294,6 +342,14 @@ export class RichMessageService {
           const bitwardenApproval = await tx.bitwardenReadApproval.findUnique({ where: { widgetMessageId: message.id } });
           if (bitwardenApproval)
             await tx.bitwardenReadApproval.update({ where: { id: bitwardenApproval.id }, data: { status: "denied" } });
+          const computerNetworkApproval = await tx.computerNetworkPolicyApproval.findUnique({
+            where: { widgetMessageId: message.id },
+          });
+          if (computerNetworkApproval)
+            await tx.computerNetworkPolicyApproval.update({
+              where: { id: computerNetworkApproval.id },
+              data: { status: "denied" },
+            });
           const updated = await tx.channelMessage.update({
             where: { id: message.id },
             data: {

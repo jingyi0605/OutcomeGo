@@ -31,6 +31,7 @@ import {
   SetChannelAvatarInput,
   SHELL_TOOL,
   TaskInput,
+  UpdateComputerNetworkPolicyInput,
   TodoWriteInput,
   DISCONNECT_CHANNEL_TOOL,
   isStateTool,
@@ -60,6 +61,19 @@ import { APP_SETTINGS_ANCHORS } from "../src/app-deep-links";
 
 
 describe("API contracts", () => {
+  test("accepts private subnet firewall rules with port ranges and rejects malformed ranges", () => {
+    expect(Schema.decodeUnknownSync(UpdateComputerNetworkPolicyInput)({
+      mode: "allowlist",
+      rules: [{ address: "10.20.0.0/16", port: "8000-8100" }],
+    })).toMatchObject({ rules: [{ address: "10.20.0.0/16", port: "8000-8100" }] });
+    for (const port of ["0-80", "81-80", "80-65536", "-1-80"]) {
+      expect(() => Schema.decodeUnknownSync(UpdateComputerNetworkPolicyInput)({
+        mode: "allowlist",
+        rules: [{ address: "10.20.0.0/16", port }],
+      })).toThrow();
+    }
+  });
+
   test("validates bounded internal administrator broadcasts", () => {
     const botIds = ["7dbba9ea-1a2b-4af9-aa32-a2d3aaeb10a9", "9df96b0a-1739-4335-9341-22132a6c4f7b"];
     expect(
@@ -592,7 +606,9 @@ describe("API contracts", () => {
       "TodoWrite",
       "UpdateAgent",
       "UpdateChannel",
-      "UpdateSkill", "UpdateProfile", "UpdateAvatar", "DisconnectChannel",
+      "UpdateSkill",
+      "UpdateComputerNetworkPolicy",
+      "UpdateProfile", "UpdateAvatar", "DisconnectChannel",
       "CopyToBox", "CopyFromBox", "WebSearch", "WebFetch", "RequestUserForm", "RemapUserFormTargets", "DraftExternalMessage", "CreateBotShareJson",
       "WakeParent",
     ]);

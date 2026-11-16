@@ -252,7 +252,8 @@ export class AppService {
       this.plugins,
       this.richMessages,
       (runId, messageId) => this.voice.onVisibleMessage(runId, messageId),
-      (runId, callId, text) => this.voice.speakChunk(runId, callId, text)
+      (runId, callId, text) => this.voice.speakChunk(runId, callId, text),
+      this.computerNetworkPolicy
     );
     this.boss.on("error", (error) => console.error("pg-boss", error));
 

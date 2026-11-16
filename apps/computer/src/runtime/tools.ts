@@ -1771,6 +1771,12 @@ export class RuntimeTools {
     }
     // A tapback acknowledges a user even when work continues. Only end_turn closes the turn;
     // a background acknowledgment must not trigger a redundant SendToUser delivery nudge.
+    if (tool === "UpdateComputerNetworkPolicy" && body && typeof body === "object" &&
+      (body as Record<string, unknown>).sent === true) {
+      markDelivered(active, false);
+      active.awaitingUser = true;
+      active.endTurnRequested = true;
+    }
     if (
       tool === REACT_TO_MESSAGE_TOOL.name &&
       body &&

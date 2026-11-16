@@ -2725,7 +2725,11 @@ export class AgentMessaging {
     });
   }
 
-  async sendVisible(context: ToolContext, input: AgentSendToUserInput): Promise<ToolResult> {
+  async sendVisible(
+    context: ToolContext,
+    input: AgentSendToUserInput,
+    onPersisted?: (tx: Prisma.TransactionClient, messageId: string) => Promise<void>
+  ): Promise<ToolResult> {
     const target = await this.prisma.channel.findUnique({ where: { id: context.channelId }, select: { kind: true } });
     const roomPost = target?.kind === "group" && input.to !== "dm";
     if (roomPost && input.type !== "text") throw new ApiError(400, "group_text_only", "Only plain text is delivered to a room. Use your private chat for attachments or cards.");
@@ -2894,6 +2898,7 @@ export class AgentMessaging {
           }),
         },
       });
+      if (onPersisted) await onPersisted(tx, message.id);
       await publishMessageNotification(tx, message);
       await this.scheduleTranscriptProjection(
         tx,
