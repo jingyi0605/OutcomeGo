@@ -325,7 +325,10 @@ export class AppService {
         void this.snapshots.pruneEvents().catch((error) => console.error("event retention", error));
       }, 5 * 60_000);
       this.eventPruneTimer.unref?.();
-      await this.agentData.startWatching();
+      // Chokidar opens one fs.watch per file, which takes 10+ seconds on a network share, so
+      // startup does not wait for it. The watcher compares against a snapshot taken before it
+      // opens, so changes made while it is still starting are picked up by its first scan.
+      void this.agentData.startWatching().catch((error) => console.error("agent-data watcher", error));
       await this.agentData.migratePrivateSkills().then(
         ({ migrated, failed }) => {
           if (migrated) console.info(`Moved ${migrated} private skill(s) into the shared skill library`);

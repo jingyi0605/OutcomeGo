@@ -140,6 +140,11 @@ const UUID_FOLDER = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}
 const SQLITE_RUNTIME_FILE = /(?:^|\/)(?:store|conversation-blobs)\.db(?:-(?:wal|shm|journal))?$/;
 const BOX_STORE_RUNTIME_FILE = /(?:^|\/)\.box-store-/;
 
+/** Shared skill directories whose changes reconcile every active bot. */
+const GLOBAL_SKILL_SCOPES = ["workflows", "managed-skills", "plugin-skills"];
+/** Top-level directories the watcher reacts to: the scopes above and per-bot folders (`agents/<id>/`). */
+const WATCHED_SCOPES = [...GLOBAL_SKILL_SCOPES, "agents"];
+
 const privateRuntimePath = (path: string): boolean => {
   const normalized = path.split(sep).join("/");
   return SQLITE_RUNTIME_FILE.test(normalized) || BOX_STORE_RUNTIME_FILE.test(normalized);
@@ -1585,13 +1590,19 @@ export class AgentDataStore {
           // sidecars quickly enough for Bun on Docker shared volumes to return
           // EINVAL and leave the server's event loop unresponsive.
           (path) => privateRuntimePath(path),
+          // Chokidar opens one synchronous fs.watch per file, which blocks the event loop for
+          // seconds on a network share. Nothing outside these scopes is acted on (see onFileChange).
+          (path) => {
+            const top = relative(this.root, path).split(sep)[0];
+            return Boolean(top) && top !== ".." && !WATCHED_SCOPES.includes(top!);
+          },
         ],
         awaitWriteFinish: { stabilityThreshold: 50, pollInterval: 10 },
       });
       const onFileChange = (_event: string, path: string) => {
         const normalized = relative(this.root, path).split(sep).join("/");
         if (privateRuntimePath(normalized)) return;
-        const globalSkillScope = ["workflows", "managed-skills", "plugin-skills"].find((scope) =>
+        const globalSkillScope = GLOBAL_SKILL_SCOPES.find((scope) =>
           normalized.startsWith(`${scope}/`)
         );
         if (globalSkillScope && !normalized.endsWith(".part")) {
