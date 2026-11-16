@@ -52,7 +52,7 @@ export const BotAvatar = memo(function BotAvatar({
       {avatarSource && (
         <AvatarPrimitive.Image
           alt=""
-          className="size-full object-cover"
+          className="size-full rounded-full object-cover"
           decoding="async"
           loading="lazy"
           src={avatarSource}
