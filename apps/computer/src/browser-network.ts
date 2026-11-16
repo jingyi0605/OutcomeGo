@@ -7,7 +7,6 @@ import { randomUUID } from "node:crypto";
 import { spawn, type ChildProcess } from "node:child_process";
 import { join } from "node:path";
 import { existsSync, readFileSync } from "node:fs";
-import { isIP } from "node:net";
 import { createNetworkDiagnostics, sanitizeNetworkDiagnostic } from "@outcomego/plugin-sdk/browser-network/diagnostics";
 import { nodeBinary } from "./node-runtime";
 
@@ -135,18 +134,6 @@ export async function startBrowserNetwork(serverUrl: string, token: string) {
         env: {
           PATH: process.env.PATH,
           ...(computerNetwork ? { LD_PRELOAD: "/usr/lib/outcomego/lib/network-mark.so" } : {}),
-          ...(() => {
-            if (!computerNetwork) return {};
-            const server = new URL(serverUrl);
-            const host = server.hostname;
-            if (isIP(host) !== 4) return {};
-            return {
-              OUTCOMEGO_NETWORK_CONTROL_IPV4: host,
-              OUTCOMEGO_NETWORK_CONTROL_PORT: String(
-                server.port || (server.protocol === "https:" ? 443 : 80)
-              ),
-            };
-          })(),
         },
         stdio: ["pipe", "pipe", "pipe"],
       });
