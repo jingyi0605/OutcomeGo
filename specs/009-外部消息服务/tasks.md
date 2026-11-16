@@ -100,9 +100,9 @@
   - 对应需求：`requirements.md` 需求 4 / 验收 4.1、4.2；非功能需求 3.5、4.1
   - 对应设计：`design.md` §3.2.6、§3.2.8、§3.3.1、§3.3.2
 
-- [ ] 1.3 增加 `ChannelKind.external_dm`
-  - 状态：IN_REVIEW
-  - 进展：Prisma 枚举、`Schema.Literal` 与 migration `202611160010_add_external_dm_channel_kind` 已完成，`bun run check:architecture` 与全仓类型检查通过。尚缺"migration 可在空库和现有库上执行"的数据库实测，需要本地测试数据库后补做。
+- [x] 1.3 增加 `ChannelKind.external_dm`
+  - 状态：DONE
+  - 验证记录（2026-11-16，PostgreSQL 16.10，调试服务所在实例上的一次性库，未触碰 `outcomego` 库）：空库经 `bun scripts/deploy-schema.ts` 建出完整 schema，枚举含 `external_dm`；以 `0db433709` 的旧 schema 建库（69 张表，无 `external_dm`），依次执行两个 migration 与 `raw-schema.sql` 均成功。`bun run check:architecture` 与全仓类型检查通过。
   - 这一步到底做什么：在数据库枚举和契约里加入新的 Channel 类型。
   - 做完你能看到什么：可以创建 `kind = external_dm` 的 Channel，枚举一致性检查通过。
   - 先依赖什么：1.1
@@ -125,9 +125,9 @@
   - 对应需求：`requirements.md` 需求 2 / 验收 2.1
   - 对应设计：`design.md` §3.2.5
 
-- [ ] 1.4 增加四张数据表
-  - 状态：IN_REVIEW
-  - 进展：四张表、关系字段、migration `202611160011_add_external_messaging` 和 `raw-schema.sql` 中的状态与租约 CHECK 约束已完成；`prisma validate` 通过，手写 migration 的列、索引和外键与 Prisma 生成的 DDL 逐项一致。尚缺数据库层面的唯一性、级联和 CHECK 约束实测，需要本地测试数据库后补做。
+- [x] 1.4 增加四张数据表
+  - 状态：DONE
+  - 验证记录（同上）：`packages/db/test/external-messaging.integration.test.ts` 28 项通过，运行方式为 `OUTCOMEGO_TEST_DATABASE_URL=<一次性库> bun test packages/db/test/external-messaging.integration.test.ts`。覆盖：Mapping、Receipt、Delivery（`callId`、`channelMessageId`）、Binding 的唯一约束（含 8 至 12 路并发只成功一次）；Receipt 无 `processing` 状态、`rejected` 必带拒绝码；Delivery 五种状态与"非终态必有租约、终态必无租约"；级联（删连接、删 Bot、删 Channel、删 Mapping 各自的结果）；带前值条件的游标更新与过期租约抢占在并发下只有一个获胜；租约条件终态写入后，迟到结果不能覆盖。每条拒绝都断言了具体的 SQLSTATE（`23505` 唯一、`23514` CHECK）。手写 migration 在旧库上执行后，与当前 schema 的 diff 中没有任何 `external_*` 或 `channel_kind` 语句。
   - 这一步到底做什么：新增 Binding、Mapping、Receipt、Delivery 四张独立表及其唯一约束和外键。
   - 做完你能看到什么：数据库层面就能阻止重复的 Mapping、重复的 Receipt 和重复的 Delivery。
   - 先依赖什么：1.3
