@@ -230,8 +230,9 @@ const lazyBudgets: Record<string, number> = {
   pluginDetail: 195_000,
   pluginConnection: 155_000,
   // Beta.19's external account diagnostics and delivery settings are loaded only when a
-  // connection declares messaging; the measured closure is 5,906 bytes.
-  externalMessagingSettings: 15_000,
+  // connection declares messaging; the complete measured closure, including plugin controls,
+  // is 37,962 bytes.
+  externalMessagingSettings: 45_000,
   // The OutcomeGo package name adds a small amount to the package studio's generated closure:
   // 40,936 bytes on the beta.15 build.
   pluginStudio: 42_000,
@@ -297,8 +298,9 @@ const lazyBudgets: Record<string, number> = {
   // pictures, the topology and the model picker live apart, with the setup screens);
   // 69,096 with the web search stage's shared tint and five-step progress.
   signIn: 71_000,
-  // 40,608 with Messages (#165); 62,814 with the shared Select (#187).
-  pluginSettings: 165_000,
+  // 40,608 with Messages (#165); 62,814 with the shared Select (#187). Beta.19's
+  // external messaging boundary changes the shared plugin graph to 167,241 bytes.
+  pluginSettings: 170_000,
   pluginSettingsDetail: 30_000,
   pluginManagement: 40_000,
   skillImport: 100_000,
