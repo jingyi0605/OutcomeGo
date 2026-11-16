@@ -24,7 +24,7 @@
 | 入站调度 | 新增 manifest `messaging` 块和 `ExternalInboundPoller`，不扩展 `PluginEventPoller` |
 | 游标 | Server 持有确认游标，逐条推进；connector 负责落盘队列 |
 | 回复路由 | Server 按 mapping 自动路由，Bot 不接触外部地址和回复凭据 |
-| 外发状态 | 新增 `ExternalOutboundDelivery`，`uncertain` 是一等状态，从不自动重发 |
+| 外发状态 | 新增 `ExternalOutboundDelivery`，从创建到调用结束持有分发租约；仅恢复过期租约，uncertain 从不自动重发 |
 | 媒体交换 | 经 computer 的 exchange HTTP 端点传输，connector 与 Server 不共享目录约定 |
 
 ## 不在本 Spec 内

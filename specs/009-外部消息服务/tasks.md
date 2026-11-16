@@ -408,6 +408,7 @@
     3. 对同一 Delivery 并发调用 `dispatch` 只产生一次 deliver 调用
     4. 结束后 exchange 外发目录被清理
     5. 状态变化写入消息 metadata 并产生 `external.delivery.updated` 事件
+    6. 从创建、媒体暂存到调用结束均持有并续租分发租约；续租失败不能开始发送，迟到结果不能覆盖终态
   - 怎么验证：
     - `bun test apps/server/test/external-messaging/delivery.integration.test.ts`
   - 对应需求：`requirements.md` 需求 6 / 验收 6.5、6.6、6.9、6.10；需求 5 / 验收 5.5、5.7；非功能需求 1.4、2.4
@@ -426,16 +427,19 @@
     - `packages/messaging/src/index.ts` 的 `sendVisible` 和 `onPersisted`
   - 主要改哪里：
     - `apps/server/src/services/internal-tool-service.ts`
-    - `packages/messaging/src/index.ts`（`privateDm` 判断扩展到 `external_dm`）
+    - `packages/messaging/src/index.ts`（解析目标 bot_dm，external_dm 的私聊类型不沿用 group 限制）
+    - `apps/server/src/services/rich-message-service.ts`（卡片回执与后续 wake 归属目标 bot_dm）
     - `packages/contracts/src/tool-results.ts`（确认结构中的 `external` 字段）
     - `apps/server/test/external-messaging/reply-routing.integration.test.ts`（新）
   - 这一步先不做什么：不做显式地址路径。
   - 怎么算完成：
     1. agent 消息和 `pending` 的 Delivery 在同一事务内创建
     2. 相同 `callId` 重放不产生第二条消息和第二次外发
-    3. `widget`、`secret-request` 等类型被拒绝且不写入任何消息
-    4. `to: "dm"` 的消息出现在 `bot_dm` 且没有 Delivery
-    5. 外发失败不创建恢复 wake
+    3. 未指定 to: dm 时 widget、secret-request 等类型被拒绝且不写入任何消息
+    4. `to: "dm"` 的 text、attachment、widget、secret-request、computer-handoff、user-form、external-draft 和 imessage-send 按现有 `bot_dm` 规则写入应用内私聊，且没有 Delivery
+    5. `secret-request` 等所有者专属类型按解析后的 `bot_dm` 目标校验，不因来源 Channel 是 `external_dm` 而被误拒绝
+    6. 自动回复的 failed、uncertain 返回 sent: false 与 delivery_failed；显式地址路径采用相同语义
+    7. 外发失败不创建恢复 wake；卡片回执的后续 wake 仍在目标 bot_dm
   - 怎么验证：
     - `bun test apps/server/test/external-messaging/reply-routing.integration.test.ts`
   - 对应需求：`requirements.md` 需求 6 / 验收 6.1、6.2、6.3、6.7、6.10
@@ -453,12 +457,15 @@
   - 主要改哪里：
     - `apps/server/src/services/plugin/connectors.ts`
     - `apps/server/src/services/external-messaging/delivery.ts`（`deliverToAddress`）
+    - `apps/server/src/services/internal-tool-service.ts`
     - `apps/server/test/external-messaging/address-delivery.integration.test.ts`（新）
   - 这一步先不做什么：不改未声明 `messaging` 的 connector 的现有行为。
   - 怎么算完成：
     1. 没有活动 Mapping 时返回 `external_peer_unknown` 且不外发
     2. 地址前缀可以用 `messaging.platform` 匹配
-    3. 现有 `deliverConnectedChannel` 的测试保持通过
+    3. `sent`、`failed`、`uncertain` 都原样返回给 `SendToUser`
+    4. 外部 Delivery 失败不创建旧的恢复 wake
+    5. 现有 `deliverConnectedChannel` 的测试保持通过
   - 怎么验证：
     - `bun test apps/server/test/external-messaging/address-delivery.integration.test.ts`
     - `bun test apps/server/test/plugin`
@@ -476,16 +483,20 @@
     - `apps/server/src/services/startup-recovery.ts`
   - 主要改哪里：
     - `apps/server/src/services/startup-recovery.ts`
+    - `apps/server/src/services/external-messaging/delivery.ts`（周期恢复和有条件终态写入）
+    - `apps/server/src/app-service.ts`（周期恢复的启停）
     - `apps/server/src/services/plugin-service.ts`（移除连接的路径）
     - `apps/server/src/services/channel-service.ts`（归档与取消归档）
     - `apps/server/src/services/external-messaging/poller.ts`（每日清理）
     - `apps/server/test/external-messaging/lifecycle.integration.test.ts`（新）
   - 这一步先不做什么：不实现 Receipt 的手工管理界面。
   - 怎么算完成：
-    1. 启动时 `pending` 变 `failed`、`sending` 变 `uncertain`，且没有任何 deliver 调用
+    1. 启动及每 30 秒的恢复只处理租约已过期的记录：`pending` 变 `failed`、`sending` 变 `uncertain`，且没有任何 deliver 调用
     2. 移除连接后其 `external_dm` 全部归档，四张表无残留
     3. 归档与取消归档 Channel 会同步 Mapping 状态
     4. 90 天前的 Receipt 被清理
+    5. 两个 Server 进程同时运行时，启动恢复不会覆盖另一进程持有的有效 Delivery 租约
+    6. 启动时尚未过期的孤儿租约会在周期扫描中得到终态；旧进程迟到的完成回调不能覆盖恢复结果
   - 怎么验证：
     - `bun test apps/server/test/external-messaging/lifecycle.integration.test.ts`
   - 对应需求：`requirements.md` 需求 6 / 验收 6.8；需求 7 / 验收 7.6；需求 8 / 验收 8.1 到 8.5
@@ -588,7 +599,7 @@
   - 这一步先不做什么：不接入外部监控系统。
   - 怎么算完成：
     1. 诊断接口能看到最近轮询、最近接受、连续失败、最近错误码和拒绝计数
-    2. 测试断言日志、数据库行和工具结果中不含消息正文、下载地址和假凭据串
+    2. 日志和诊断结果不含正文、下载地址和假凭据串；Receipt、Binding、Delivery 不含正文和回复凭据，ChannelMessage 按需求保留正文和附件引用
   - 怎么验证：
     - `bun test apps/server/test/external-messaging/redaction.test.ts`
   - 对应需求：`requirements.md` 非功能需求 3 / 3.1 到 3.3；非功能需求 4 / 4.2
@@ -614,7 +625,7 @@
   - 怎么算完成：
     1. `design.md` §7.4 的每一行都有通过的测试或人工证据
     2. `requirements.md`「成功定义」逐条成立
-    3. `009.1` 的 connector 只实现 poll、deliver 和设备链接工具
+    3. `009.1` 复用基础服务；connector 可实现设备链接、poll、deliver、只读状态和 peer 查询，以及本地队列、媒体和 provider 游标，不实现 Server 数据库事务
     4. 风险、延期项、待确认项已更新
   - 怎么验证：
     - `bun run check`

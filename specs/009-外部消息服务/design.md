@@ -175,13 +175,13 @@ Server 侧新代码集中在 `apps/server/src/services/external-messaging/`：`b
 入口是 `InternalToolService` 处理 `SendToUser` 的分支（`apps/server/src/services/internal-tool-service.ts`）。当请求未带 `channel` 时先读取运行所在 Channel 的类型：
 
 1. 不是 `external_dm` → 走现有逻辑，不变。
-2. 是 `external_dm` 且 `to === "dm"` → 交给 `sendVisible`，由它把消息写入 Bot 的 `bot_dm`（把现有只对 `group` 生效的 `privateDm` 判断扩展到 `external_dm`，类型限制沿用现有规则）。不外发。
+2. 是 `external_dm` 且 `to === "dm"` → 先解析 `directKey = bot:<botId>`、未归档且属于该 Bot 的 `bot_dm`，再按该目标校验和持久化。允许类型与需求 6.3 一致；保留现有 group 的私聊类型限制，不把它复制给 external_dm。`secret-request` 的所有者检查改用解析后的目标 Channel；子代理身份仍按现有规则拒绝。此路径不创建 Delivery。所有者卡片的回执和后续 wake 归属目标 `bot_dm`。
 3. 是 `external_dm` 且类型不是 `text`、`attachment` → 抛出 `external_channel_type_unsupported`，提示所有者专属卡片请使用 `to: "dm"`。
 4. 其余情况：
    1. 读取 Mapping、Binding 和 Connection。Mapping 不存在或已归档 → `external_channel_unavailable`，不写消息。
    2. 调用 `sendVisible(context, input, onPersisted)`。`onPersisted(tx, messageId)` 在同一事务内创建 `status = pending` 的 Delivery，`callId = external-delivery:<toolCallId>`。`sendVisible` 已对 `tool:<callId>` 做了消息幂等，因此重放不会产生第二条消息；Delivery 的 `callId` 唯一约束保证不会产生第二条外发记录。
-   3. 事务提交后调用 `ExternalDeliveryService.dispatch(deliveryId)`（§2.3.6）。
-   4. 把结果合并进工具确认：`{ sent: true, external: { platform, status, reason? } }`；`failed` 和 `uncertain` 时附带 `delivery_failed: true`，使 `SendToUser` 的结果在 Bot 侧呈现为错误。不另外创建恢复 wake，避免"失败 → 唤醒 → 再发"的循环。
+   3. 事务提交后调用 `ExternalDeliveryService.dispatch(deliveryId, leaseOwner)`（§2.3.6）。重放时按 `callId` 读取已有 Delivery，不重新持久化或分发；尚未结束时返回 `in_progress`，不能伪造最终成功。
+   4. 工具确认统一包含消息标识和 `external: { id, platform, status, reason? }`。只有 status 为 sent 时 `sent = true`；failed 和 uncertain 返回 `sent = false`、`delivery_failed = true`；重放时仍为 pending 或 sending 则返回 `sent = false`、`in_progress = true`，等待查询或过期恢复，不新增投递。不另外创建恢复 wake，避免"失败 → 唤醒 → 再发"的循环。
 
 只有经 `SendToUser` 产生的 `text`、`attachment` 消息会外发。系统消息、运行错误、表情回应等其他写入 `external_dm` 的记录只留在应用内。
 
@@ -193,32 +193,33 @@ Server 侧新代码集中在 `apps/server/src/services/external-messaging/`：`b
 2. Connection 的 connector 声明了 `messaging` → 调用 `ExternalDeliveryService.deliverToAddress({ botId, runId, callId, connectionId, peerId, content, files })`：
    1. 查找 `(connectionId, peerId, botId)` 的活动 Mapping；不存在 → `external_peer_unknown`（对方需先从该平台发来消息），不外发。
    2. 在一个事务内向该 Mapping 的 Channel 写入 agent `ChannelMessage` 和 `pending` 的 Delivery。
-   3. `dispatch`。
+   3. dispatch，并把 sent、failed、uncertain（或重放时的进行中状态）连同 Delivery 标识返回给 InternalToolService。
+   4. `InternalToolService` 按 §2.3.4 的统一确认结构返回 Delivery 结果，不把非成功状态包装成 sent: true，也不进入旧的 `enqueueChannelDeliveryFailure` 恢复 wake 路径。相同 callId 重放先查询已有记录，不重新建消息或分发。
 3. 未声明 `messaging` → 走原有的启发式工具选择逻辑，不变。
 
 这样无论 Bot 从哪个 Channel 发起，对同一 peer 的外发都有 Channel 记录和同一套状态机。
 
 #### 2.3.6 分发一次外发
 
-`dispatch(deliveryId)`：
+`dispatch(deliveryId, leaseOwner)`：
 
-1. 读取 `pending` 的 Delivery 及其 Mapping、Binding、Connection。Binding 停用 → `failed`（`external_messaging_disabled`）；Connection 非 `ready` → `failed`（`external_connection_unavailable`）。
+1. Delivery 与 agent 消息同事务创建时分配唯一的分发操作标识 `deliveryLeaseOwner`，并写入数据库时间加 120 秒的 `deliveryLeaseExpiresAt`。从 `pending` 暂存媒体到调用结束，每 10 秒按该标识、当前状态和未过期条件续租。只有创建者的分发操作持有此标识；工具重放只查询结果。读取 Mapping、Binding、Connection；Binding 停用 → `failed`（`external_messaging_disabled`）；Connection 非 `ready` → `failed`（`external_connection_unavailable`）。
 2. 按 manifest 检查能力：文本长度超过 `outbound.maxTextChars`、媒体类型或大小不在 `outbound.media` 声明内 → `failed`（`external_delivery_unsupported`）。
 3. 有媒体时，逐个从 `AssetStore` 读取并 `PUT /v1/mcp/connections/:id/exchange/outbound/:deliveryId/:name`。任何一步失败 → `failed`（`external_media_staging_failed`）。此时尚未调用 provider，属于确定失败。
-4. 条件更新 `pending → sending` 并写入 `startedAt`。更新行数为 0 说明已被其他路径处理，直接返回当前记录。
+4. 使用 `status = pending`、匹配的 `deliveryLeaseOwner` 和未过期租约，把状态条件更新为 `sending` 并写 `startedAt`；只有更新成功的调用能够进入下一步。更新为 0 或续租失败时停止，取消本地调用，不能重新抢占该 Delivery 发送。
 5. `callHostTool(connection, deliverTool, { deliveryId, peerId, text, media })`，调用上限 60 秒。
 6. 用 `parseExternalDeliverResult` 解析：
    - `sent` → `sent`，保存白名单化的 `providerMessageIds` 和 `note`。
    - `failed` → `failed`，保存 `code` 和截断后的 `message`。
    - `uncertain`、超时、传输错误、`isError` 且无结构化结果、无法解析 → `uncertain`。
-7. 把 `{ id, status, code? }` 写入对应 `ChannelMessage.metadata.externalDelivery`，并追加一条 `external.delivery.updated` 事件供客户端刷新。
+7. 所有失败和完成写入都带当前状态、匹配的 `deliveryLeaseOwner` 和未过期条件；终态写入与消息 metadata 更新、`external.delivery.updated` 事件同事务提交并清除租约。租约已过期或恢复器已写终态时，迟到的结果不能覆盖它，返回数据库中的记录。
 8. `DELETE /v1/mcp/connections/:id/exchange/outbound/:deliveryId`，失败只记录日志。
 
 connector 必须按 `deliveryId` 幂等：重复收到同一 `deliveryId` 时返回首次结果而不重发。Server 不依赖这一点保证正确性，但它为运维手动重试留出余地。
 
 #### 2.3.7 启动恢复与生命周期
 
-- **Server 启动**（接入 `startup-recovery.ts`）：`pending` 的 Delivery → `failed`（`external_delivery_abandoned`）；`sending` 的 Delivery → `uncertain`（`external_delivery_interrupted`）；同步更新消息 metadata。租约靠过期时间自然失效。
+- **Server 启动与周期恢复**：在 `startup-recovery.ts` 执行一次，此后每 30 秒扫描租约已过期的 `pending`、`sending` Delivery。按读取到的状态、租约标识和已过期条件更新，分别置为 `failed`（`external_delivery_abandoned`）或 `uncertain`（`external_delivery_interrupted`），同步更新消息 metadata 和客户端事件。另一进程仍有效的租约不被处理；过期的 Delivery 不重新分发。
 - **Connection 移除**：在删除 Connection 的事务内先归档其全部 `external_dm` Channel（写 `archivedAt`），未结束的 Delivery 置为 `failed`；Binding、Mapping、Receipt 由外键级联删除。
 - **Bot 删除**：Binding 和 Mapping 由外键级联删除；Channel 随现有的 Bot 删除流程处理。
 - **Channel 归档**：归档 `external_dm` 时同步把 Mapping 置为 `archived`；取消归档时恢复为 `active`。
@@ -326,6 +327,8 @@ Receipt 只在事务内以终态写入，因此不存在崩溃后卡在中间状
 | `errorMessage` | String | 否 | 脱敏后的说明 | 最长 500 |
 | `providerResult` | Json | 否 | 白名单化的 provider 结果 | 只含 `providerMessageIds`、`note` |
 | `startedAt`、`completedAt` | DateTime | 否 | 调用起止时间 | — |
+| `deliveryLeaseOwner` | String | 否 | 唯一分发操作标识（进程实例加随机 nonce） | 创建时分配；终态清空 |
+| `deliveryLeaseExpiresAt` | DateTime | 否 | 数据库时间计算的租约截止 | 默认 120 秒，每 10 秒续租；非终态必填 |
 | `createdAt`、`updatedAt` | DateTime | 是 | 生命周期字段 | 自动维护 |
 
 #### 3.2.5 `ChannelKind`
@@ -553,11 +556,11 @@ ExternalChannelMapping 1 ── N ExternalOutboundDelivery 1 ── 1 ChannelMes
 
 | 状态 | 含义 | 进入条件 | 退出条件 |
 | --- | --- | --- | --- |
-| `pending` | 已落库，尚未调用 provider | 与 agent 消息同事务创建 | 开始分发、前置检查失败、Server 重启 |
-| `sending` | 已开始调用 deliver 工具 | 条件更新成功 | 得到结果、超时、Server 重启 |
+| `pending` | 已落库，尚未调用 provider | 与 agent 消息和分发租约同事务创建 | 开始分发、前置检查失败、租约过期 |
+| `sending` | 已开始调用 deliver 工具 | 持有有效租约的条件更新成功 | 得到结果、超时、租约过期 |
 | `sent` | connector 明确返回成功 | 结果为 `sent` | 终态 |
-| `failed` | 确定没有发出 | 前置检查失败、结果为 `failed`、重启时仍为 `pending` | 终态 |
-| `uncertain` | 可能已发出 | 超时、传输错误、结果不可解析、重启时仍为 `sending` | 终态 |
+| `failed` | 确定没有发出 | 前置检查失败、结果为 `failed`、恢复时 `pending` 租约已过期 | 终态 |
+| `uncertain` | 可能已发出 | 超时、传输错误、结果不可解析、恢复时 `sending` 租约已过期 | 终态 |
 
 `sent` 的含义是"provider 接受了请求"，不等于对方已读或已展示；具体平台的语义差异由子规格说明。
 
@@ -596,7 +599,7 @@ ExternalChannelMapping 1 ── N ExternalOutboundDelivery 1 ── 1 ChannelMes
 - `external_channel_read_only`：应用内向 `external_dm` 发送。
 - `external_peer_unknown`：显式地址没有对应的活动 Mapping。
 - `external_messaging_disabled`、`external_connection_unavailable`、`external_delivery_unsupported`。
-- `external_delivery_abandoned`、`external_delivery_interrupted`：启动恢复产生。
+- `external_delivery_abandoned`、`external_delivery_interrupted`：过期租约恢复产生。
 - `external_delivery_timeout`：调用超过 60 秒（`uncertain`）。
 
 配置：
@@ -620,8 +623,8 @@ HTTP 接口沿用现有 `ApiError`（`packages/contracts`），不引入新格�
 
 ```json
 {
-  "sent": true,
-  "external": { "platform": "wechat", "status": "uncertain", "reason": "external_delivery_timeout" },
+  "sent": false,
+  "external": { "id": "<deliveryId>", "platform": "wechat", "status": "uncertain", "reason": "external_delivery_timeout" },
   "delivery_failed": true
 }
 ```
@@ -699,7 +702,7 @@ connector 自己的错误码以平台名为前缀（例如 `wechat_context_expir
 - 轮询：逐条推进、遇 `retry` 停止、两个轮询器重叠、`resetCursor`、调用失败退避。
 - 媒体：正常登记、摘要不符、超限、超数量、仅媒体且全部失败、computer 不可达重试。
 - 外发：自动路由、`to: "dm"`、不支持的类型、显式地址、`sent`、`failed`、`uncertain`、重放同一 `callId`、启动恢复。
-- 生命周期：移除连接、删除 Bot、归档 Channel、Receipt 清理。
+- 生命周期：移除连接、删除 Bot、归档 Channel、Receipt 清理；双 Server 启动、有效租约保护、pending 媒体暂存续租、租约过期周期恢复和迟到结果不得覆盖终态。
 - 回归：存在 `external_dm` 时 `dmChannelId`、密钥请求、网络策略审批、Routine 归属等按 `bot_dm` 查询的路径结果不变。
 
 ### 7.3 端到端测试
@@ -753,8 +756,8 @@ connector 自己的错误码以平台名为前缀（例如 `wechat_context_expir
 | D5 | 新建 `ExternalInboundPoller` 和 manifest `messaging` 块 | 分发目标、节奏、游标粒度都与 `PluginEventPoller` 不同；独立声明让一个 connector 可以同时拥有 `events` 和 `messaging` | 给 `PluginEventSource` 加一个值并在 `PluginEventPoller` 里分支 |
 | D6 | 逐条确认游标，由 Server 持有 | 支持部分成功；connector 无需知道 Server 的处理结果，只需按游标清理 | 整批推进；connector 自己保存"已处理"状态并提供 ack 工具 |
 | D7 | Receipt 只在事务内以终态写入 | 消除崩溃后卡在 `processing` 的记录和对应的恢复逻辑 | 先写 `processing` 再更新 |
-| D8 | 回复由 Server 按 Mapping 路由 | Bot 不需要也拿不到外部地址，杜绝发错 peer；回复凭据不出 connector | 让 Bot 在每次回复时带 `channel` 地址 |
-| D9 | 外发同步分发、`uncertain` 为终态 | 聊天类平台重复发送的代价高于漏发；Bot 能在同一轮内看到真实结果 | 后台 outbox 加自动重试 |
+| D8 | 回复由 Server 按 Mapping 路由 | 默认回复不需要 Bot 提供外部地址；只读 peer 列表可提供稳定路由标识，回复凭据不出 connector | 让 Bot 在每次回复时带 `channel` 地址 |
+| D9 | 外发同步分发、租约恢复、`uncertain` 为终态 | 聊天类平台重复发送的代价高于漏发；Bot 能在同一轮内看到真实结果 | 后台 outbox 加自动重试 |
 | D10 | 媒体经 computer HTTP 端点交换 | 显式接口，不依赖 Server 与 computer 的共享挂载和用户权限一致；沿用现有鉴权 | 共享目录约定；通过 MCP 工具结果分块传 base64 |
 | D11 | 单个附件失败不拒绝整条消息 | 丢掉用户的文字比丢掉一个附件更糟；Bot 和用户都能看到失败说明 | 任一附件失败即拒绝整条 |
 | D12 | 应用内对 `external_dm` 只读 | 应用内输入不应被发到所有者自己的外部账号；双向同步的语义留待后续 | 允许应用内输入并同样唤醒 Bot |

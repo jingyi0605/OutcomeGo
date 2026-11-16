@@ -142,14 +142,14 @@
 
 1. WHEN Bot 在 `external_dm` 的运行中调用 `SendToUser`（类型为 `text` 或 `attachment`，未指定 `channel` 和 `to`）THEN System SHALL 写入 agent `ChannelMessage` 并把内容投递到该 Mapping 的 peer。
 2. WHEN 上述调用的类型不是 `text` 或 `attachment` THEN System SHALL 以 `external_channel_type_unsupported` 拒绝，不写入任何消息，并提示改用 `to: "dm"`。
-3. WHEN Bot 在 `external_dm` 的运行中以 `to: "dm"` 调用 `SendToUser` THEN System SHALL 把消息写入 Bot 的应用内私聊，不外发。
+3. WHEN Bot 在 `external_dm` 的运行中以 `to: "dm"` 调用 `SendToUser` THEN System SHALL 按目标 `bot_dm` 的类型与所有者校验规则写入应用内私聊，不外发；支持 text、attachment、widget、secret-request、computer-handoff、user-form、external-draft 和 imessage-send，不沿用 group 的私聊类型限制。
 4. WHEN Bot 以 `channel: "<platform>:<peerId>"` 显式外发且该 Connection 声明了 `messaging` THEN System SHALL 要求存在该 Bot 的活动 Mapping，并通过同一外发服务投递和落 Channel 记录。
 5. WHEN connector 明确返回成功 THEN System SHALL 把 Delivery 记为 `sent`；明确返回失败 THEN 记为 `failed` 并带机器可读原因。
 6. WHEN 外发调用超时、连接中断或结果无法解析 THEN System SHALL 把 Delivery 记为 `uncertain`，并且任何路径都不得自动重发。
 7. WHEN 同一工具调用（相同 `callId`）被重放 THEN System SHALL 返回已记录的 Delivery 结果，不再次外发。
-8. WHEN Server 启动时发现 `pending` 或 `sending` 的 Delivery THEN System SHALL 分别置为 `failed`（`external_delivery_abandoned`）和 `uncertain`，不补发。
+8. WHEN Server 启动或周期恢复发现租约已过期的 `pending` 或 `sending` Delivery THEN System SHALL 通过条件更新分别置为 `failed`（`external_delivery_abandoned`）和 `uncertain`，不补发，不覆盖其他进程仍持有的有效租约。
 9. WHEN provider 不支持所请求的内容类型或大小 THEN System SHALL 返回能力错误，不伪造成功。
-10. WHEN 外发结束 THEN System SHALL 在工具结果中如实告知 Bot 投递状态，并把状态写入该 `ChannelMessage` 的 metadata。
+10. WHEN 自动回复或显式地址外发结束 THEN System SHALL 在工具结果中如实告知 Bot 投递状态，并把状态写入该 `ChannelMessage` 的 metadata；`failed` 和 `uncertain` 不进入旧的恢复 wake 路径。
 
 ### 需求 7：客户端呈现与配置
 
@@ -213,4 +213,4 @@
 - 至少一种媒体类型完成入站登记和外发交付，摘要校验、越界路径和超限各有测试。
 - 外发的 `sent`、`failed`、`uncertain` 三种结果和启动恢复各有测试，任何路径都没有自动重发。
 - 现有 `bot_dm`、`group`、`agent_dm` 的全部既有测试保持通过。
-- `009.1` 只实现 provider adapter，不包含任何 Channel、事务或游标推进逻辑。
+- `009.1` 只实现 provider adapter、connector 本地可靠队列和 provider 游标持久化；不复制 Server 的 Channel、Receipt、Delivery 数据库事务或 Binding 确认游标推进逻辑。
