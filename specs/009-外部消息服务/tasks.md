@@ -59,6 +59,7 @@
 - 2.1：`external_dm` 不再有新数据；分支审计中涉及它的行只对旧数据有意义。
 - 5.1：侧栏平台标签、只读输入区只对旧数据出现；主会话里 Bot 回复显示投递状态，用户消息显示「来自微信」。
 - 修订后的验证：`bun test apps/server/test/external-messaging` 全部通过（含新增的「应用内发起的轮次只回复应用」「来自外部的轮次发卡片落在应用」「旧联系人迁移」「外部回复不推送」用例），桌面端 `external-delivery-status.test.tsx` 9 项通过。未做：真实微信账号上的人工验证。
+- Bot 主动投递（2026-11-16）：`SendToUser` 的 `channel` 支持只写平台名（如 `wechat`），解析为该 Bot 正在对话的联系人；写 `wechat:<联系人>` 仍可指定。解析时要求连接就绪、绑定启用且仍指向该 Bot、联系人曾发过消息，否则返回 `external_binding_missing`、`external_peer_unknown` 或 `external_peer_ambiguous`，且不发送。例程自己的运行仍不能给用户发消息（既有规则，未改动），由被唤醒的主会话那一轮发送。窗口过期时按既有规则失败并在应用里保留文本。证据：`reply-routing.integration.test.ts`「on the Bot's own initiative」8 项、`delivery.integration.test.ts` 地址解析用例。未验证：真实微信账号上的主动投递，以及超出回复窗口后微信的实际行为。
 - 已知限制：由旧轮次触发的后续轮次（例如子任务完成后的续跑、定时任务）没有 Receipt，因此只回复应用，不再自动回复到微信；Bot 需要时可用显式地址 `wechat:<联系人>` 发送。
 
 ## 阶段 1：契约与数据模型

@@ -199,6 +199,100 @@ describe.skipIf(!databaseUrl)("SendToUser from and to an external chat", () => {
       expect(wakes).toEqual([]);
     });
 
+    describe("on the Bot's own initiative (a routine's result, a skill)", () => {
+      /**
+       * A turn nobody typed into: the Bot woken in its own chat, as when a routine reports through
+       * WakeParent. (A routine's own run may not message the user at all; that rule is not changed.)
+       */
+      const routineRun = (w: World) =>
+        h.prisma.run.create({ data: { botId: w.bot.id, conversationId: w.bot.conversationId, channelId: w.dm.id, userMessageId: crypto.randomUUID(), status: "running", origin: "agent" } });
+      const sendFrom = async (service: InternalToolService, w: World, runId: string, args: Record<string, unknown>) => {
+        const exit = await Effect.runPromiseExit(service.execute({ runId, botId: w.bot.id, conversationId: w.bot.conversationId, channelId: w.dm.id, deliveryId: null, tool: "SendToUser", arguments: args, callId: crypto.randomUUID() } as never));
+        if (Exit.isSuccess(exit)) return exit.value as Record<string, any>;
+        throw Cause.squash(exit.cause);
+      };
+
+      test("a woken turn can send to the platform by name, reaching the contact the Bot talks to", async () => {
+        const w = await world();
+        const run = await routineRun(w);
+        const c = connector();
+        const result = await sendFrom(tools(c.callHostTool), w, run.id, { type: "text", content: "Daily summary: all quiet.", channel: w.platform });
+        expect(result).toMatchObject({ sent: true, external: { platform: w.platform, status: "sent" } });
+        expect(c.calls[0]).toMatchObject({ peerId: "peer-1", text: "Daily summary: all quiet." });
+        const recorded = (await agentMessages(w.dm.id)).find((m) => m.content === "Daily summary: all quiet.");
+        expect(recorded?.metadata).toMatchObject({ externalDelivery: { status: "sent" } });
+      });
+
+      test("a woken turn that sends nothing special still answers only in the app", async () => {
+        const w = await world();
+        const run = await routineRun(w);
+        const c = connector();
+        const result = await sendFrom(tools(c.callHostTool), w, run.id, { type: "text", content: "app only" });
+        expect(result.external).toBeUndefined();
+        expect(c.calls).toEqual([]);
+      });
+
+      test("a closed reply window is reported as a failure, and the text stays in the app", async () => {
+        const w = await world();
+        const run = await routineRun(w);
+        const c = connector(() => structured({ status: "failed", code: "chat_context_expired", message: "window closed" }));
+        const result = await sendFrom(tools(c.callHostTool), w, run.id, { type: "text", content: "too late for chat", channel: w.platform });
+        expect(result).toMatchObject({ sent: false, delivery_failed: true, external: { status: "failed", reason: "chat_context_expired" } });
+        expect((await agentMessages(w.dm.id)).map((m) => m.content)).toContain("too late for chat");
+      });
+
+      test("switching the account off stops the Bot sending, by name or by contact", async () => {
+        const w = await world();
+        const run = await routineRun(w);
+        const c = connector();
+        await h.prisma.externalMessagingBinding.update({ where: { id: w.binding.id }, data: { enabled: false } });
+        for (const channel of [w.platform, `${w.platform}:peer-1`])
+          await expect(sendFrom(tools(c.callHostTool), w, run.id, { type: "text", content: "x", channel })).rejects.toMatchObject({ code: "external_binding_missing" });
+        expect(c.calls).toEqual([]);
+      });
+
+      test("an account moved to another Bot can no longer be used by the old one", async () => {
+        const w = await world();
+        const run = await routineRun(w);
+        const c = connector();
+        const other = await h.bot();
+        await h.prisma.externalMessagingBinding.update({ where: { id: w.binding.id }, data: { botId: other.id } });
+        await expect(sendFrom(tools(c.callHostTool), w, run.id, { type: "text", content: "x", channel: `${w.platform}:peer-1` })).rejects.toMatchObject({ code: "external_binding_missing" });
+        expect(c.calls).toEqual([]);
+      });
+
+      test("by name it is refused when nobody has written yet, with nothing sent", async () => {
+        const w = await world();
+        const run = await routineRun(w);
+        await h.prisma.externalChannelMapping.deleteMany({ where: { botId: w.bot.id } });
+        const c = connector();
+        await expect(sendFrom(tools(c.callHostTool), w, run.id, { type: "text", content: "x", channel: w.platform })).rejects.toMatchObject({ code: "external_peer_unknown" });
+        expect(c.calls).toEqual([]);
+      });
+
+      test("by name it is ambiguous when two contacts match, and says how to choose", async () => {
+        const w = await world();
+        const run = await routineRun(w);
+        await h.prisma.externalChannelMapping.create({ data: { connectionId: w.connection.id, botId: w.bot.id, peerId: "peer-2", platform: w.platform } });
+        const c = connector();
+        await expect(sendFrom(tools(c.callHostTool), w, run.id, { type: "text", content: "x", channel: w.platform })).rejects.toMatchObject({ code: "external_peer_ambiguous" });
+        const ok = await sendFrom(tools(c.callHostTool), w, run.id, { type: "text", content: "to two", channel: `${w.platform}:peer-2` });
+        expect(ok.external.status).toBe("sent");
+        expect(c.calls[0]).toMatchObject({ peerId: "peer-2" });
+      });
+
+      test("a bare name that is not a messaging platform is not taken over", async () => {
+        const w = await world();
+        const run = await routineRun(w);
+        let asked = 0;
+        const result = await sendFrom(tools(connector().callHostTool, async () => { asked++; throw new Error("older path"); }), w, run.id, { type: "text", content: "x", channel: "slack" });
+        // It went to the older connector path, which is the one that failed here, not to this service.
+        expect(asked).toBe(1);
+        expect(result.external).toBeUndefined();
+        expect(await h.prisma.externalOutboundDelivery.count({ where: { botId: w.bot.id } })).toBe(0);
+      });
+    });
+
     test("a contact who has never written is refused before anything is sent", async () => {
       const w = await world();
       const c = connector();

@@ -15,6 +15,16 @@ This plugin connects the user's own WeChat account. When the user writes to thei
 - Anything the user must answer or approve (a question with options, a request for a secret, a form, handing the computer back, a draft to review) cannot be shown in WeChat. Send it as usual: cards and requests appear in the user's chat with you in the app, and nothing is sent to WeChat. Tell them in WeChat that it is waiting there. Plain `text` with `to: "dm"` stays in the app too. Never ask for a password or secret in a WeChat message.
 - Only the account owner's own messages reach you. Messages from anyone else are not delivered, so there is no one else to answer in this chat.
 
+## Sending on your own initiative
+
+When a saved routine, a skill or the user's standing instruction says to tell them on WeChat (a daily summary, an alert, a finished job), you can send without waiting for them to write:
+
+- In the turn where you speak to the user, call `SendToUser` with `type: "text"` (or `attachment` for a picture) and `channel: "wechat"`. That reaches the WeChat contact you are already talking to. If you must name them, use `channel: "wechat:<contact>"` with a contact from `list_peers`.
+- A scheduled routine's own run cannot message the user. It reports back to you (WakeParent), and you send from the turn that wakes. Use `channel: "wechat"` there only when the instruction asked for WeChat; otherwise answer in the app as usual.
+- It only works for a Bot whose WeChat account is switched on, and for a person who has written to the ClawBot at least once. If nobody has, the result says so and nothing is sent.
+- WeChat only lets you answer for a limited time after the person last wrote (about a day). Outside that window the send fails with `wechat_context_expired`. Say so honestly; do not retry in a loop. The text you wrote is kept in the app chat marked as not delivered, so the user can still read it there.
+- Sending to WeChat does not replace the app: you may also say it in the app chat, but do not send the same message twice to WeChat.
+
 ## What the result means
 
 The result of `SendToUser` is the truth about the delivery. Report it as it is.

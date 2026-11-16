@@ -4,6 +4,9 @@ Lets a user talk to their OpenTeam Bot from WeChat. The user links their own WeC
 code. Messages the account owner sends to their WeChat ClawBot join the chosen Bot's own chat, marked as coming
 from WeChat, and the Bot's replies to those messages are sent back to the same WeChat chat.
 
+A Bot can also send on its own initiative (for example a routine's result) with `SendToUser` and
+`channel: "wechat"`, within WeChat's reply window.
+
 This package is the connector only. Conversations, de-duplication, waking the Bot and delivery state belong
 to the Server's external messaging service (`specs/009-外部消息服务`). The connector owns the WeChat protocol,
 its local queue, the provider cursor, reply tokens and media encryption (`specs/009.1-微信iLink消息服务集成`).

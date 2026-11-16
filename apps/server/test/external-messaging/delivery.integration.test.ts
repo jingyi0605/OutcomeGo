@@ -365,8 +365,10 @@ describe.skipIf(!databaseUrl)("outbound delivery", () => {
       expect(await svc.resolveAddress(c.bot.id, "addr1:peer-1")).toEqual({ mappingId: c.mapping.id });
       expect(await svc.resolveAddress(c.bot.id, "ADDR1:peer-1")).toEqual({ mappingId: c.mapping.id });
       await expect(svc.resolveAddress(c.bot.id, "addr1:nobody")).rejects.toMatchObject({ code: "external_peer_unknown" });
-      // Another Bot has no conversation with that contact.
-      await expect(svc.resolveAddress((await h.bot()).id, "addr1:peer-1")).rejects.toMatchObject({ code: "external_peer_unknown" });
+      // The platform alone means the contact this Bot is already talking to.
+      expect(await svc.resolveAddress(c.bot.id, "addr1")).toEqual({ mappingId: c.mapping.id });
+      // Another Bot has no account switched on for it, so it cannot send through this one.
+      await expect(svc.resolveAddress((await h.bot()).id, "addr1:peer-1")).rejects.toMatchObject({ code: "external_binding_missing" });
     });
 
     test("an archived contact does not resolve", async () => {

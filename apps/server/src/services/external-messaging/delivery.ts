@@ -141,29 +141,37 @@ export class ExternalDeliveryService {
   }
 
   /**
-   * Resolves `<platform>:<peerId>` for a Bot. `null` means no messaging connector uses that platform
-   * (the older connector path may still apply). A messaging platform whose peer the Bot has never
-   * heard from is refused: the person has to write first.
+   * Resolves where a Bot may send on its own initiative: `<platform>:<peerId>`, or just `<platform>`
+   * for the contact the Bot is already talking to. `null` means no messaging connector uses that
+   * platform (the older connector path may still apply). Only a connection that is ready, bound to
+   * this Bot and switched on can be used, and only a person who has written first.
    */
   async resolveAddress(botId: string, address: string): Promise<{ mappingId: string } | null> {
     const split = address.indexOf(":");
-    if (split <= 0 || split === address.length - 1) return null;
-    const platform = address.slice(0, split).toLowerCase();
-    const peerId = address.slice(split + 1);
+    if (split === 0 || (split > 0 && split === address.length - 1)) return null;
+    const platform = (split < 0 ? address : address.slice(0, split)).trim().toLowerCase();
+    const peerId = split < 0 ? null : address.slice(split + 1);
+    if (!platform) return null;
     const connections = await this.deps.prisma.pluginConnection.findMany({
       where: { status: "ready", installation: { status: "installed" } },
       include: { installation: true },
     });
     const matching = connections.filter((connection) => messagingOf(connection)?.platform === platform);
     if (matching.length === 0) return null;
+    const bound = await this.deps.prisma.externalMessagingBinding.findMany({
+      where: { botId, enabled: true, connectionId: { in: matching.map((connection) => connection.id) } },
+      select: { connectionId: true },
+    });
+    if (bound.length === 0)
+      throw new ApiError(409, "external_binding_missing", `No ${platform} account is switched on for this Bot, so nothing was sent.`);
     const mappings = await this.deps.prisma.externalChannelMapping.findMany({
-      where: { botId, peerId, status: "active", connectionId: { in: matching.map((connection) => connection.id) } },
+      where: { botId, status: "active", connectionId: { in: bound.map((binding) => binding.connectionId) }, ...(peerId === null ? {} : { peerId }) },
       select: { id: true },
     });
     if (mappings.length === 0)
-      throw new ApiError(409, "external_peer_unknown", `No ${platform} conversation with that contact exists yet, so nothing was sent. They need to message you first.`);
+      throw new ApiError(409, "external_peer_unknown", `No ${platform} conversation with ${peerId === null ? "anyone" : "that contact"} exists yet, so nothing was sent. They need to message you first.`);
     if (mappings.length > 1)
-      throw new ApiError(409, "external_peer_ambiguous", `More than one ${platform} account has a conversation with that contact, so nothing was sent.`);
+      throw new ApiError(409, "external_peer_ambiguous", `More than one ${platform} contact or account matches, so nothing was sent. Address one as ${platform}:<contact> (list_peers shows them).`);
     return { mappingId: mappings[0]!.id };
   }
 
