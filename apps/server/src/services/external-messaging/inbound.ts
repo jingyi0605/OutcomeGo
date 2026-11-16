@@ -280,35 +280,34 @@ export class ExternalInboundMessageService {
       const bot = await tx.bot.findUnique({ where: { id: binding.botId }, include: { subagentIdentity: { select: { id: true } } } });
       if (!bot || bot.subagentIdentity || !TARGET_RUNNABLE.includes(bot.status)) throw new Rollback("target_unavailable");
 
+      // The contact's identity only. The conversation is the Bot's own chat: a WeChat message is
+      // the owner talking to their Bot, so it joins the same thread and the same context.
       let mapping = await tx.externalChannelMapping.findUnique({
         where: { connectionId_peerId_botId: { connectionId, peerId: message.peer.id, botId: binding.botId } },
-        include: { channel: { select: { archivedAt: true } } },
       });
       if (!mapping) {
-        const mappingId = randomUUID();
-        const channelId = randomUUID();
-        await tx.channel.create({
-          data: {
-            id: channelId,
-            kind: "external_dm",
-            directKey: `external:${mappingId}`,
-            name: displayName || context.platformLabel,
-            members: { create: { botId: binding.botId, ordinal: 0 } },
-          },
-        });
         mapping = await tx.externalChannelMapping.create({
-          data: { id: mappingId, connectionId, botId: binding.botId, peerId: message.peer.id, platform: context.platform, channelId, ...(displayName ? { displayName } : {}) },
-          include: { channel: { select: { archivedAt: true } } },
+          data: { connectionId, botId: binding.botId, peerId: message.peer.id, platform: context.platform, ...(displayName ? { displayName } : {}) },
         });
+      } else if (mapping.channelId) {
+        // From the earlier design, where each contact had a Channel of its own: keep it as history.
+        await tx.channel.update({ where: { id: mapping.channelId }, data: { archivedAt: new Date() } });
+        mapping = await tx.externalChannelMapping.update({ where: { id: mapping.id }, data: { channelId: null } });
       }
-      if (mapping.status !== "active" || mapping.channel.archivedAt) throw new Rollback("channel_unavailable");
+      if (mapping.status !== "active") throw new Rollback("channel_unavailable");
+      const home = await tx.channel.findFirst({
+        where: { kind: "bot_dm", directKey: `bot:${binding.botId}`, archivedAt: null },
+        select: { id: true },
+      });
+      if (!home) throw new Rollback("target_unavailable");
+      const homeChannelId = home.id;
 
       const bootstrapRunId = await messaging.skipBootstrapForUser(tx, binding.botId);
-      await dismissMoveOnWidgets(tx, mapping.channelId);
-      const address = await nextMessageAddress(tx, mapping.channelId, "user");
+      await dismissMoveOnWidgets(tx, homeChannelId);
+      const address = await nextMessageAddress(tx, homeChannelId, "user");
       const visibleMessage = await tx.channelMessage.create({
         data: {
-          channelId: mapping.channelId,
+          channelId: homeChannelId,
           clientId,
           sender: "user",
           content: visibleText,
@@ -330,7 +329,7 @@ export class ExternalInboundMessageService {
         tx,
         {
           botId: binding.botId,
-          channelId: mapping.channelId,
+          channelId: homeChannelId,
           content: formatUserPrompt(address, botText),
           ...(media.refs.length ? { attachments: media.refs } : {}),
           clientId,
@@ -339,7 +338,7 @@ export class ExternalInboundMessageService {
         input.preparedAttachmentPaths
       );
       await messaging.scheduleTranscriptProjection(tx, [binding.botId]);
-      await tx.channel.update({ where: { id: mapping.channelId }, data: { updatedAt: new Date() } });
+      await tx.channel.update({ where: { id: homeChannelId }, data: { updatedAt: new Date() } });
       const now = this.now();
       await tx.externalChannelMapping.update({
         where: { id: mapping.id },
@@ -350,7 +349,7 @@ export class ExternalInboundMessageService {
         data: { mappingId: mapping.id, channelMessageId: visibleMessage.id, runId: delivery.run.id },
       });
       await tx.externalMessagingBinding.update({ where: { id: binding.id }, data: { lastAcceptedAt: now } });
-      await appendEvent(tx, "channel.message.accepted", visibleMessage.id, { channelId: mapping.channelId, messageId: visibleMessage.id });
+      await appendEvent(tx, "channel.message.accepted", visibleMessage.id, { channelId: homeChannelId, messageId: visibleMessage.id });
       return { runId: delivery.run.id as string | null, bootstrapRunId, interruptRunId: delivery.interruptRunId };
     });
   }

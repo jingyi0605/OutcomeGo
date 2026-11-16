@@ -5,14 +5,14 @@ description: Reply to the account owner in WeChat from a conversation that came 
 
 # WeChat
 
-This plugin connects the user's own WeChat account. When the user writes to their WeChat ClawBot, the message arrives as a conversation marked `[Sent from WeChat]`, and your reply goes back to the same WeChat chat automatically.
+This plugin connects the user's own WeChat account. When the user writes to their WeChat ClawBot, the message arrives in your normal chat with the user, marked `[Sent from WeChat]`, as one more message in the same conversation and context. The reply you give in that turn goes back to the same WeChat chat automatically; a turn the user started in the app is answered in the app.
 
 ## Replying
 
-- In a WeChat conversation, call `SendToUser` with plain `text`, or `attachment` for a picture. Do not add a `channel`: the reply already goes to the person who wrote. Reply as you would in a chat app: short, plain text, no heavy Markdown.
+- In a turn that began with a WeChat message, call `SendToUser` with plain `text`, or `attachment` for a picture. Do not add a `channel`: the reply already goes to the person who wrote. Reply as you would in a chat app: short, plain text, no heavy Markdown.
 - Only text and still pictures can be sent. Files, video and voice cannot be sent to WeChat. If the user needs one, say so and offer another way.
 - Long replies are split into several messages. Keep them focused.
-- Anything the user must answer or approve (a question with options, a request for a secret, a form, handing the computer back, a draft to review) cannot be shown in WeChat. Send it with `to: "dm"` so it appears in the user's chat with you in the app, and tell them in WeChat that it is waiting there. Never ask for a password or secret in a WeChat message.
+- Anything the user must answer or approve (a question with options, a request for a secret, a form, handing the computer back, a draft to review) cannot be shown in WeChat. Send it as usual: cards and requests appear in the user's chat with you in the app, and nothing is sent to WeChat. Tell them in WeChat that it is waiting there. Plain `text` with `to: "dm"` stays in the app too. Never ask for a password or secret in a WeChat message.
 - Only the account owner's own messages reach you. Messages from anyone else are not delivered, so there is no one else to answer in this chat.
 
 ## What the result means

@@ -1415,7 +1415,9 @@ model ExternalMessagingBinding {
   @@map("outcomego_external_messaging_binding")
 }
 
-/// `(connection, peer, bot)` to its `external_dm` Channel. Holds no reply credential.
+/// `(connection, peer, bot)` identity of an external contact. Holds no reply credential. Messages
+/// land in the Bot's own `bot_dm`; `channelId` is set only on legacy rows from when each contact had
+/// an `external_dm` Channel of its own.
 model ExternalChannelMapping {
   id String @id @default(uuid()) @db.Uuid
   connectionId String @db.Uuid
@@ -1425,8 +1427,8 @@ model ExternalChannelMapping {
   peerId String
   platform String
   peerType String @default("direct")
-  channelId String @unique(map: "outcomego_external_channel_mapping_channel_id_key") @db.Uuid
-  channel Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  channelId String? @unique(map: "outcomego_external_channel_mapping_channel_id_key") @db.Uuid
+  channel Channel? @relation(fields: [channelId], references: [id], onDelete: Cascade)
   /// Display only; never an identity key.
   displayName String?
   /// `active` or `archived`.

@@ -94,6 +94,18 @@ export class InternalToolService {
     private readonly externalDelivery?: ExternalDeliveryService
   ) {}
 
+  /**
+   * The contact a run is answering, when its triggering message came from an outside chat. The
+   * receipt written with that message is the record, so nothing extra is stored on the run.
+   */
+  private async externalOriginOf(runId: string): Promise<string | null> {
+    const receipt = await this.prisma.externalMessageReceipt.findFirst({
+      where: { runId, status: "accepted", mappingId: { not: null } },
+      select: { mappingId: true },
+    });
+    return receipt?.mappingId ?? null;
+  }
+
   /** The tool result of a finished delivery. A failed or unknown one is never reported as sent. */
   private externalAck(outcome: import("./external-messaging/delivery").DeliveryOutcome) {
     return {
@@ -767,11 +779,8 @@ export class InternalToolService {
         const input = Schema.decodeUnknownSync(RequestBoxHelpInput)(request.arguments);
         const reason = input.instruction ?? (input.reason && !["auth", "captcha", "payment", "other"].includes(input.reason)
           ? input.reason : "Please complete the manual step on the computer.");
-        // The owner takes over the computer in the app, so from an outside chat the card goes to the app chat.
-        const fromExternal = (await this.prisma.channel.findUnique({ where: { id: request.channelId }, select: { kind: true } }))?.kind === "external_dm";
         const result = await this.messaging.sendVisible(context, {
           type: "computer-handoff",
-          ...(fromExternal ? { to: "dm" as const } : {}),
           content: reason,
           computerHandoff: { reason, ...(input.reason ? { category: ["auth", "captcha", "payment", "other"].includes(input.reason) ? input.reason : "other" } : {}),
             ...(input.domain ? { domain: input.domain } : {}), ...(input.idp_domain ? { idpDomain: input.idp_domain } : {}) },
@@ -792,26 +801,20 @@ export class InternalToolService {
       } else if (request.tool === "SendToUser") {
         validateSendToUserInput(request.arguments);
         const input = Schema.decodeUnknownSync(AgentSendToUserInput)(request.arguments);
-        const sourceKind = input.channel ? undefined : (await this.prisma.channel.findUnique({ where: { id: request.channelId }, select: { kind: true } }))?.kind;
-        const fromExternal = sourceKind === "external_dm";
-        // In an outside chat only plain text and files go out; everything else is a card for the owner.
-        if (fromExternal && input.to !== "dm" && input.type !== "text" && input.type !== "attachment")
-          throw new ApiError(400, "external_channel_type_unsupported", "Only text and attachments can be sent in an external chat. Use to: \"dm\" to put a card, request or form in your chat with the owner in the app.");
+        // A turn that began as a message from an outside chat (WeChat, ...) answers there. The chat
+        // itself is the Bot's own, so cards, forms and requests simply land in the app as usual.
+        const externalOrigin = input.channel ? null : await this.externalOriginOf(request.runId);
         if (input.type === "secret-request" && input.secret?.name) {
           validateProcessSecretName(input.secret.name);
-          // From an external chat the request goes to the Bot's app chat, so that is where it is checked.
-          const toOwnerChat = fromExternal && input.to === "dm";
-          if (input.channel || childIdentity || !await this.prisma.channel.count({ where: { ...(toOwnerChat ? {} : { id: request.channelId }), kind: "bot_dm", directKey: `bot:${request.botId}`, archivedAt: null } }))
+          if (input.channel || childIdentity || !await this.prisma.channel.count({ where: { id: request.channelId, kind: "bot_dm", directKey: `bot:${request.botId}`, archivedAt: null } }))
             throw new ApiError(403, "secret_owner_dm_required", "Ask for this secret only in the owner's bot DM");
         }
         // `platform:peer` on a messaging connector goes through the delivery service; only text and files can.
         const addressed = input.channel && this.externalDelivery && (input.type === "text" || input.type === "attachment")
           ? await this.externalDelivery.resolveAddress(request.botId, input.channel)
           : null;
-        if (fromExternal && input.to !== "dm" && this.externalDelivery) {
-          const mapping = await this.prisma.externalChannelMapping.findUnique({ where: { channelId: request.channelId }, select: { id: true } });
-          if (!mapping) throw new ApiError(409, "external_channel_unavailable", "This external conversation is no longer available");
-          result = this.externalAck(await this.externalDelivery.send({ context, input, mappingId: mapping.id }));
+        if (externalOrigin && input.to !== "dm" && this.externalDelivery && (input.type === "text" || input.type === "attachment")) {
+          result = this.externalAck(await this.externalDelivery.send({ context, input, mappingId: externalOrigin }));
         } else if (!input.channel) {
           result = await this.messaging.sendVisible(context, input);
           const messageId = result && typeof result === "object" && "acknowledgement" in result && result.acknowledgement && typeof result.acknowledgement === "object" && "message_id" in result.acknowledgement && typeof result.acknowledgement.message_id === "string" ? result.acknowledgement.message_id : null;

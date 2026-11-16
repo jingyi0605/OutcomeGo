@@ -749,7 +749,7 @@ connector 自己的错误码以平台名为前缀（例如 `wechat_context_expir
 
 | 编号 | 决策 | 理由 | 被否决的方案 |
 | --- | --- | --- | --- |
-| D1 | 新增 `ChannelKind.external_dm` | `bot_dm` 在代码中被当作"每个 Bot 恰好一个"（例如 `view-mappers.ts` 的 `dmChannelId`、`process-secrets.ts` 的所有者私聊判定），复用会破坏这些假设；`external_dm` 与平台无关，符合"不新增 provider-specific ChannelKind" | 复用 `bot_dm` 加不同 `directKey`；不建 Channel 只在 `bot_dm` 中注入 wake |
+| D1 | ~~新增 `ChannelKind.external_dm`~~（已被 D13 取代；`external_dm` 保留为旧数据的只读历史）| `bot_dm` 在代码中被当作"每个 Bot 恰好一个"（例如 `view-mappers.ts` 的 `dmChannelId`、`process-secrets.ts` 的所有者私聊判定），复用会破坏这些假设；`external_dm` 与平台无关，符合"不新增 provider-specific ChannelKind" | 复用 `bot_dm` 加不同 `directKey`；不建 Channel 只在 `bot_dm` 中注入 wake |
 | D2 | 首版 `owner_only` | 外部消息会驱动 Bot 的 Shell、文件、浏览器能力；在没有受限能力档位之前，让非所有者唤醒 Bot 等同于远程代码执行入口 | 默认接受所有 peer；allowlist |
 | D3 | 被接受的消息按所有者输入处理 | 发送者就是所有者本人，行为应与应用内输入一致；密钥请求等卡片已被现有检查限定在 `bot_dm` | 以 `origin = connector`、较低优先级唤醒 |
 | D4 | Binding 用独立表 | 不向上游同步的 `PluginConnection` 加列，降低合并冲突；游标与 `events` 的 `eventCursor` 互不干扰 | 在 `PluginConnection.configuration` 中保存 |
@@ -760,4 +760,5 @@ connector 自己的错误码以平台名为前缀（例如 `wechat_context_expir
 | D9 | 外发同步分发、租约恢复、`uncertain` 为终态 | 聊天类平台重复发送的代价高于漏发；Bot 能在同一轮内看到真实结果 | 后台 outbox 加自动重试 |
 | D10 | 媒体经 computer HTTP 端点交换 | 显式接口，不依赖 Server 与 computer 的共享挂载和用户权限一致；沿用现有鉴权 | 共享目录约定；通过 MCP 工具结果分块传 base64 |
 | D11 | 单个附件失败不拒绝整条消息 | 丢掉用户的文字比丢掉一个附件更糟；Bot 和用户都能看到失败说明 | 任一附件失败即拒绝整条 |
-| D12 | 应用内对 `external_dm` 只读 | 应用内输入不应被发到所有者自己的外部账号；双向同步的语义留待后续 | 允许应用内输入并同样唤醒 Bot |
+| D12 | ~~应用内对 `external_dm` 只读~~（已被 D13 取代）| 应用内输入不应被发到所有者自己的外部账号；双向同步的语义留待后续 | 允许应用内输入并同样唤醒 Bot |
+| D13 | 外部联系人的消息并入 Bot 的主会话 `bot_dm`，不再为每个联系人新建 Channel（2026-11-16 修订，取代 D1 与 D12） | 用户的期望是微信只是与同一个 Bot 对话的另一个入口：共享同一份上下文和记录，而不是一个孤立的会话。`ExternalChannelMapping` 只保留联系人身份（`channelId` 可空，仅旧数据非空）；消息以 `metadata.external` 标明来源；某一轮是否回复到外部，由该轮触发消息的 Receipt（`runId`）决定，应用内发起的轮次只回复应用；卡片、密钥请求、表单本来就在 `bot_dm`，无需 `to: "dm"`。外部回复写入的消息带 `externalDelivery`，不再触发应用推送（回复已送达用户正在使用的渠道）。应用内输入框不再只读 | 保持独立 `external_dm`（上下文隔离、群聊式外观）；把外部消息镜像进 `bot_dm` 同时保留独立 Channel（两处记录） |

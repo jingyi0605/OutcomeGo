@@ -93,7 +93,7 @@ describe.skipIf(!databaseUrl)("WeChat through the Server's external messaging", 
   /** A WeChat connection as the real manifest declares it, bound to a Bot, with its poller and tools. */
   const world = async () => {
     const bot = await h.bot();
-    const dm = await h.prisma.channel.create({ data: { kind: "bot_dm", directKey: `bot:${bot.id}`, name: "home", members: { create: { botId: bot.id, ordinal: 0 } } } });
+    const dm = { id: await h.home(bot.id) };
     const installId = crypto.randomUUID();
     await h.prisma.pluginInstallation.create({ data: { id: installId, pluginKey: `wechat-${installId.slice(0, 8)}`, version: "1.0.0", name: "WeChat", publisher: "t", manifest: wechatManifest as never } });
     h.installs.push(installId);
@@ -117,7 +117,7 @@ describe.skipIf(!databaseUrl)("WeChat through the Server's external messaging", 
     }
     throw new Error(`timed out waiting for ${label}`);
   };
-  const messagesIn = (w: World) => h.prisma.channelMessage.findMany({ where: { channel: { externalMapping: { connectionId: w.connection.id } } }, orderBy: { sequence: "asc" } });
+  const messagesIn = (w: World) => h.prisma.channelMessage.findMany({ where: { externalReceipts: { some: { connectionId: w.connection.id } } }, orderBy: { sequence: "asc" } });
   const reply = async (w: World, runId: string, channelId: string, args: Record<string, unknown>) => {
     await h.prisma.run.update({ where: { id: runId }, data: { status: "running" } });
     const exit = await Effect.runPromiseExit(w.tools.execute({ runId, botId: w.bot.id, conversationId: w.bot.conversationId, channelId, deliveryId: null, tool: "SendToUser", arguments: args, callId: crypto.randomUUID() } as never));
@@ -127,8 +127,8 @@ describe.skipIf(!databaseUrl)("WeChat through the Server's external messaging", 
   const wakeOf = async (w: World) => {
     const mapping = await h.prisma.externalChannelMapping.findFirstOrThrow({ where: { connectionId: w.connection.id } });
     const message = (await messagesIn(w)).at(-1)!;
-    const wake = await h.prisma.inboxEvent.findFirstOrThrow({ where: { botId: w.bot.id, run: { channelId: mapping.channelId } }, orderBy: { createdAt: "desc" } });
-    return { mapping, message, runId: wake.runId };
+    const wake = await h.prisma.inboxEvent.findFirstOrThrow({ where: { botId: w.bot.id, run: { externalReceipts: { some: { connectionId: w.connection.id } } } }, orderBy: { createdAt: "desc" } });
+    return { mapping, message, runId: wake.runId, home: await h.home(w.bot.id) };
   };
 
   test("a WeChat message becomes a chat and wakes the Bot; the reply goes back to WeChat", async () => {
@@ -137,12 +137,12 @@ describe.skipIf(!databaseUrl)("WeChat through the Server's external messaging", 
     sim.enqueue({ messageId: "7300000000000000001", fromUserId: OWNER, text: "what time is it" });
     await pump(w, async () => (await messagesIn(w)).length === 1, "the message to arrive");
 
-    const { mapping, message, runId } = await wakeOf(w);
+    const { mapping, message, runId, home } = await wakeOf(w);
     expect(message).toMatchObject({ sender: "user", content: "what time is it" });
     expect(mapping).toMatchObject({ peerId: OWNER, platform: "wechat" });
     expect((await h.prisma.externalMessagingBinding.findUniqueOrThrow({ where: { id: w.binding.id } })).inboundCursor).toMatch(/:1$/);
 
-    const result = await reply(w, runId!, mapping.channelId, { type: "text", content: "it is noon" });
+    const result = await reply(w, runId!, home, { type: "text", content: "it is noon" });
     expect(result).toMatchObject({ sent: true, external: { platform: "wechat", status: "sent" } });
     expect(sim.sent).toHaveLength(1);
     expect(sim.sent[0]).toMatchObject({ toUserId: OWNER, contextToken: "ctx-7300000000000000001" });
@@ -162,7 +162,7 @@ describe.skipIf(!databaseUrl)("WeChat through the Server's external messaging", 
     sim.cdn.set("pic-in", Buffer.concat([cipher.update(PNG), cipher.final()]));
     sim.enqueue({ messageId: "7300000000000000002", fromUserId: OWNER, items: [{ type: 1, text_item: { text: "look" } }, { type: 2, image_item: { media: { encrypt_query_param: "pic-in", aes_key: key.toString("base64") } } }] });
     await pump(w, async () => (await messagesIn(w)).length === 1, "the picture message");
-    const { mapping, message, runId } = await wakeOf(w);
+    const { mapping, message, runId, home } = await wakeOf(w);
     const attachments = (message.metadata as { attachments: Array<{ assetId: string; kind: string }> }).attachments;
     expect(attachments).toHaveLength(1);
     expect(attachments[0]!.kind).toBe("image");
@@ -171,7 +171,7 @@ describe.skipIf(!databaseUrl)("WeChat through the Server's external messaging", 
     // Attachments must sit in a directory the asset store is allowed to read from.
     const file = join(h.root, `answer-${crypto.randomUUID().slice(0, 6)}.png`);
     await writeFile(file, PNG);
-    const result = await reply(w, runId!, mapping.channelId, { type: "attachment", url: `file://${file}`, alt: "here it is" });
+    const result = await reply(w, runId!, home, { type: "attachment", url: `file://${file}`, alt: "here it is" });
     expect(result.external.status).toBe("sent");
     expect(sim.sent).toHaveLength(2);
     expect((sim.sent[0]!.items[0] as { text_item: { text: string } }).text_item.text).toBe("here it is");
@@ -197,8 +197,8 @@ describe.skipIf(!databaseUrl)("WeChat through the Server's external messaging", 
     expect(await h.prisma.externalChannelMapping.count({ where: { connectionId: w.connection.id } })).toBe(1);
     expect((await h.prisma.externalChannelMapping.findFirstOrThrow({ where: { connectionId: w.connection.id } })).id).toBe(mappingBefore.id);
     // The reply context survived the restart, so the Bot can still answer.
-    const { mapping, runId } = await wakeOf(w);
-    expect((await reply(w, runId!, mapping.channelId, { type: "text", content: "back" })).external.status).toBe("sent");
+    const { runId, home } = await wakeOf(w);
+    expect((await reply(w, runId!, home, { type: "text", content: "back" })).external.status).toBe("sent");
   });
 
   test("a message from someone who is not the account owner is refused by the Server", async () => {
@@ -217,10 +217,10 @@ describe.skipIf(!databaseUrl)("WeChat through the Server's external messaging", 
     const w = await world();
     sim.enqueue({ messageId: "7300000000000000007", fromUserId: OWNER, text: "hi" });
     await pump(w, async () => (await messagesIn(w)).length === 1, "message");
-    const { mapping, runId } = await wakeOf(w);
+    const { runId, home } = await wakeOf(w);
     // Two days later, with no new message from the contact.
     skew = 2 * 24 * 60 * 60 * 1000;
-    const result = await reply(w, runId!, mapping.channelId, { type: "text", content: "too late" });
+    const result = await reply(w, runId!, home, { type: "text", content: "too late" });
     expect(result).toMatchObject({ sent: false, delivery_failed: true, external: { status: "failed", reason: "wechat_context_expired" } });
     expect(sim.sent).toEqual([]);
   });
@@ -230,9 +230,9 @@ describe.skipIf(!databaseUrl)("WeChat through the Server's external messaging", 
     const w = await world();
     sim.enqueue({ messageId: "7300000000000000008", fromUserId: OWNER, text: "hi" });
     await pump(w, async () => (await messagesIn(w)).length === 1, "message");
-    const { mapping, runId } = await wakeOf(w);
+    const { runId, home } = await wakeOf(w);
     sim.failTransport("ilink/bot/sendmessage");
-    const result = await reply(w, runId!, mapping.channelId, { type: "text", content: "maybe" });
+    const result = await reply(w, runId!, home, { type: "text", content: "maybe" });
     expect(result).toMatchObject({ sent: false, delivery_failed: true, external: { status: "uncertain", reason: "wechat_delivery_unknown" } });
     expect(sim.requests.filter((request) => request.url.pathname.endsWith("sendmessage"))).toHaveLength(1);
     expect((await h.prisma.externalOutboundDelivery.findFirstOrThrow({ where: { connectionId: w.connection.id } })).status).toBe("uncertain");

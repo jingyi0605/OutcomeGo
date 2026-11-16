@@ -97,28 +97,31 @@ export class ExternalDeliveryService {
   }
 
   /**
-   * Writes the Bot's message into the peer's Channel and sends it. The message and the pending
+   * Writes the Bot's message into its own chat and sends it to the contact. The message and the pending
    * delivery are one transaction. A replay of the same tool call returns what was recorded.
    */
   async send(input: { context: ToolContext; input: AgentSendToUserInput; mappingId: string }): Promise<DeliveryOutcome> {
     if (input.input.type !== "text" && input.input.type !== "attachment")
-      throw new ApiError(400, "external_channel_type_unsupported", "Only text and attachments can be sent to an external chat. Use to: \"dm\" for cards and requests.");
+      throw new ApiError(400, "external_channel_type_unsupported", "Only text and attachments can be sent to an external chat.");
     const callId = `external-delivery:${input.context.callId}`;
-    const mapping = await this.deps.prisma.externalChannelMapping.findUnique({
-      where: { id: input.mappingId },
-      include: { channel: { select: { archivedAt: true } } },
-    });
+    const mapping = await this.deps.prisma.externalChannelMapping.findUnique({ where: { id: input.mappingId } });
     const prior = await this.load({ callId });
     if (prior) return this.outcome(prior, prior.mapping?.platform ?? mapping?.platform ?? "", true);
-    if (!mapping || mapping.status !== "active" || mapping.channel.archivedAt)
+    if (!mapping || mapping.status !== "active")
       throw new ApiError(409, "external_channel_unavailable", "This external conversation is no longer available");
+    // The Bot's message is recorded in its own chat, where the owner reads everything.
+    const home = await this.deps.prisma.channel.findFirst({
+      where: { kind: "bot_dm", directKey: `bot:${mapping.botId}`, archivedAt: null },
+      select: { id: true },
+    });
+    if (!home) throw new ApiError(409, "external_channel_unavailable", "This Bot has no chat to record the message in");
 
     const leaseOwner = `${this.instance}:${randomUUID()}`;
     let created = false;
     // Sent from another conversation (an explicit address): that conversation's reply context means
     // nothing in this one.
-    const foreign = input.context.channelId !== mapping.channelId;
-    const context = foreign ? { ...input.context, channelId: mapping.channelId, replyToMessageId: null, isFork: false } : input.context;
+    const foreign = input.context.channelId !== home.id;
+    const context = foreign ? { ...input.context, channelId: home.id, replyToMessageId: null, isFork: false } : input.context;
     const visible = foreign ? { ...input.input, reply_to: undefined } : input.input;
     try {
       await this.deps.messaging.sendVisible(context, visible, async (tx, messageId) => {
@@ -154,7 +157,7 @@ export class ExternalDeliveryService {
     const matching = connections.filter((connection) => messagingOf(connection)?.platform === platform);
     if (matching.length === 0) return null;
     const mappings = await this.deps.prisma.externalChannelMapping.findMany({
-      where: { botId, peerId, status: "active", connectionId: { in: matching.map((connection) => connection.id) }, channel: { archivedAt: null } },
+      where: { botId, peerId, status: "active", connectionId: { in: matching.map((connection) => connection.id) } },
       select: { id: true },
     });
     if (mappings.length === 0)

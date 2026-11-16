@@ -116,7 +116,7 @@ describe.skipIf(!databaseUrl)("external messaging redaction", () => {
     expect(leaked(mappings)).toEqual([]);
 
     // The conversation itself keeps the text, as the requirements say.
-    const stored = await h.prisma.channelMessage.findMany({ where: { channel: { externalMapping: { connectionId: connection.id } } } });
+    const stored = await h.prisma.channelMessage.findMany({ where: { externalReceipts: { some: { connectionId: connection.id } } } });
     expect(stored.some((row) => row.content.includes(BODY))).toBe(true);
     // Provider-private metadata is not carried into the message either.
     expect(leaked(stored.map((row) => row.metadata))).toEqual([]);

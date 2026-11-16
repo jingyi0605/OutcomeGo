@@ -18,7 +18,7 @@
 
 | 决策点 | 结论 |
 | --- | --- |
-| Channel 类型 | 新增 provider 无关的 `ChannelKind.external_dm`，不复用 `bot_dm` |
+| 会话归属 | 外部联系人的消息并入 Bot 的主会话 `bot_dm`（D13，2026-11-16 取代原先的独立 `external_dm`）；`external_dm` 只保留为旧数据的只读历史 |
 | 准入与信任 | 首版只接受 connector 证明为账户所有者本人的消息（`owner_only`），按所有者消息唤醒 Bot |
 | target Bot | 由用户在连接设置中显式绑定，保存在 `ExternalMessagingBinding` |
 | 入站调度 | 新增 manifest `messaging` 块和 `ExternalInboundPoller`，不扩展 `PluginEventPoller` |

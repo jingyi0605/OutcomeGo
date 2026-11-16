@@ -61,7 +61,7 @@ import {
   TriangleAlert,
   X,
 } from "lucide-react";
-import { ExternalDeliveryStatus, externalDeliveryOf, externalPlatformLabel } from "./external-delivery-status";
+import { ExternalDeliveryStatus, externalDeliveryOf, externalPlatformLabel, externalSourceOf } from "./external-delivery-status";
 import {
   Fragment,
   lazy,
@@ -425,6 +425,7 @@ const MessageRow = memo(function MessageRow({
   const display = messageDisplayProjection(message);
   const isWidget = messageMetadata(message).type === "widget";
   const externalDelivery = externalDeliveryOf(message.metadata);
+  const externalSource = externalSourceOf(message.metadata);
   const isDraftCard =
     messageMetadata(message).type === "external-draft" ||
     messageMetadata(message).type === "imessage-send";
@@ -734,8 +735,13 @@ const MessageRow = memo(function MessageRow({
               </div>
             </div>
           </div>
-          {channel.kind === "external_dm" && message.sender === "agent" && externalDelivery ? (
+          {message.sender === "agent" && externalDelivery ? (
             <ExternalDeliveryStatus state={externalDelivery} />
+          ) : null}
+          {message.sender === "user" && externalSource ? (
+            <div className="mr-2.5 mt-0.5 self-end text-xs text-muted-foreground" data-external-source={externalSource}>
+              {t("From {platform}", { platform: externalPlatformLabel(externalSource, t) })}
+            </div>
           ) : null}
           {(reactionPills.length > 0 || userReactionSet.size > 0) && (
             <div

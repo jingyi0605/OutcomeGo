@@ -2901,7 +2901,9 @@ export class AgentMessaging {
         },
       });
       if (onPersisted) await onPersisted(tx, message.id);
-      await publishMessageNotification(tx, message);
+      // A message also sent to an outside chat has reached the person where they are reading; a push
+      // from the app would only repeat it.
+      if (!onPersisted) await publishMessageNotification(tx, message);
       await this.scheduleTranscriptProjection(
         tx,
         channel.members.map((member) => member.botId)

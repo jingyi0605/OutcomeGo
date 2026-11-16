@@ -5,10 +5,11 @@ import { toBotView } from "../../src/services/view-mappers";
 import { createHarness, databaseUrl, type Harness } from "./fixtures";
 
 /**
- * An `external_dm` chat sits beside a Bot's own `bot_dm`. Everything that finds "the Bot's chat" by
- * kind must keep finding the same one (specs/009 requirement 2.6, property 7).
+ * Messages from outside chats now join the Bot's own `bot_dm`, so no chat of a new kind appears. Chats
+ * of kind `external_dm` can still exist from the earlier design, as archived history: everything that
+ * finds "the Bot's chat" by kind must keep finding the same one (specs/009 requirement 2.6, property 7).
  */
-describe.skipIf(!databaseUrl)("a Bot with external conversations", () => {
+describe.skipIf(!databaseUrl)("a Bot with earlier external conversations", () => {
   let h: Harness;
   beforeAll(async () => {
     h = await createHarness();
@@ -17,6 +18,8 @@ describe.skipIf(!databaseUrl)("a Bot with external conversations", () => {
 
   const withChats = async (externalFirst: boolean) => {
     const bot = await h.bot();
+    // The harness gives every Bot its own chat; these cases control the order, so start without it.
+    await h.prisma.channel.deleteMany({ where: { kind: "bot_dm", directKey: `bot:${bot.id}` } });
     const makeExternal = (name: string) =>
       h.prisma.channel.create({ data: { kind: "external_dm", directKey: `external:${crypto.randomUUID()}`, name, members: { create: { botId: bot.id, ordinal: 0 } } } });
     const makeHome = () => h.prisma.channel.create({ data: { kind: "bot_dm", directKey: `bot:${bot.id}`, name: "home", members: { create: { botId: bot.id, ordinal: 0 } } } });

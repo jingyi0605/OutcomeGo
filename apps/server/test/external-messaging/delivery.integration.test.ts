@@ -41,11 +41,12 @@ describe.skipIf(!databaseUrl)("outbound delivery", () => {
     const result = await inbound.accept({ binding: { id: binding.id, botId: bot.id, connectionId: connection.id }, platform: options.platform ?? "chat", platformLabel: "Chat" }, entry(message()));
     if (result.status !== "accepted") throw new Error("setup failed");
     const mapping = await h.prisma.externalChannelMapping.findFirstOrThrow({ where: { connectionId: connection.id } });
+    const home = await h.home(bot.id);
     const context = (callId = crypto.randomUUID()): ToolContext => ({
-      runId: result.runId!, botId: bot.id, conversationId: bot.conversationId, channelId: mapping.channelId,
+      runId: result.runId!, botId: bot.id, conversationId: bot.conversationId, channelId: home,
       deliveryId: null, origin: "user", callId, replyToMessageId: null, isFork: false,
     });
-    return { bot, connection, binding, mapping, runId: result.runId!, context };
+    return { bot, connection, binding, mapping, home, runId: result.runId!, context };
   };
   const service = (tool: CallHostTool, timing?: { renewMs?: number; deliverTimeoutMs?: number }, instanceId = "test") =>
     new ExternalDeliveryService({ prisma: h.prisma, messaging: h.messaging, assets: h.assets, exchange: h.exchange as never, callHostTool: tool, instanceId, timing });
@@ -75,11 +76,19 @@ describe.skipIf(!databaseUrl)("outbound delivery", () => {
       expect(stored.startedAt).not.toBeNull();
       expect(stored.completedAt).not.toBeNull();
       expect(tool.calls).toEqual([{ tool: "chat_deliver", args: { deliveryId: stored.id, peerId: "peer-1", text: "hello from the bot" } }]);
-      const messages = await agentMessages(c.mapping.channelId);
+      const messages = await agentMessages(c.home);
       expect(messages).toHaveLength(1);
       expect(messages[0]!.metadata).toMatchObject({ externalDelivery: { id: stored.id, status: "sent", code: null } });
       const events = await h.prisma.event.findMany({ where: { topic: "external.delivery.updated", entityId: stored.id }, orderBy: { sequence: "asc" } });
       expect(events.map((event) => (event.payload as { status: string }).status)).toEqual(["pending", "sent"]);
+    });
+
+    test("a reply also sent to the outside chat raises no push in the app, but a reply written only in the app does", async () => {
+      const c = await chat();
+      await service(deliverTool(sent).callHostTool).send({ context: c.context(), input: text("heard it elsewhere"), mappingId: c.mapping.id });
+      expect(await h.prisma.channelNotification.count({ where: { channelId: c.home } })).toBe(0);
+      await h.messaging.sendVisible(c.context(), text("only here"));
+      expect(await h.prisma.channelNotification.count({ where: { channelId: c.home } })).toBeGreaterThan(0);
     });
 
     test("a refusal from the connector is recorded as failed with its own code, and starts no recovery wake", async () => {
@@ -89,7 +98,7 @@ describe.skipIf(!databaseUrl)("outbound delivery", () => {
       const outcome = await service(tool.callHostTool).send({ context: c.context(callId), input: text("late reply"), mappingId: c.mapping.id });
       expect(outcome).toMatchObject({ status: "failed", reason: "chat_context_expired" });
       expect(await row(callId)).toMatchObject({ status: "failed", errorCode: "chat_context_expired", errorMessage: "The reply window has closed.", deliveryLeaseOwner: null });
-      expect((await agentMessages(c.mapping.channelId))[0]!.metadata).toMatchObject({ externalDelivery: { status: "failed", code: "chat_context_expired" } });
+      expect((await agentMessages(c.home))[0]!.metadata).toMatchObject({ externalDelivery: { status: "failed", code: "chat_context_expired" } });
       expect(await h.prisma.inboxEvent.count({ where: { botId: c.bot.id, type: "channel.delivery_failed" } })).toBe(0);
     });
 
@@ -118,7 +127,7 @@ describe.skipIf(!databaseUrl)("outbound delivery", () => {
       const again = await svc.send({ context: c.context(callId), input: text("hi"), mappingId: c.mapping.id });
       expect(again).toMatchObject({ id: first.id, status: "uncertain" });
       expect(tool.calls).toHaveLength(1);
-      expect(await agentMessages(c.mapping.channelId)).toHaveLength(1);
+      expect(await agentMessages(c.home)).toHaveLength(1);
     });
 
     test("an error message never carries more than 500 characters or control characters", async () => {
@@ -142,7 +151,7 @@ describe.skipIf(!databaseUrl)("outbound delivery", () => {
       expect(second).toMatchObject({ id: first.id, status: "sent" });
       expect(second.inProgress).toBeUndefined();
       expect(tool.calls).toHaveLength(1);
-      expect(await agentMessages(c.mapping.channelId)).toHaveLength(1);
+      expect(await agentMessages(c.home)).toHaveLength(1);
       expect(await h.prisma.externalOutboundDelivery.count({ where: { botId: c.bot.id } })).toBe(1);
     });
 
@@ -170,7 +179,7 @@ describe.skipIf(!databaseUrl)("outbound delivery", () => {
       const outcomes = await Promise.all(Array.from({ length: 5 }, () => svc.send({ context: c.context(callId), input: text("race"), mappingId: c.mapping.id }).catch((error: Error) => error)));
       expect(outcomes.filter((outcome) => outcome instanceof Error)).toEqual([]);
       expect(tool.calls).toHaveLength(1);
-      expect(await agentMessages(c.mapping.channelId)).toHaveLength(1);
+      expect(await agentMessages(c.home)).toHaveLength(1);
     });
   });
 
@@ -212,18 +221,18 @@ describe.skipIf(!databaseUrl)("outbound delivery", () => {
     test("only text and attachments go out, and nothing is written for anything else", async () => {
       const c = await chat();
       const tool = deliverTool(sent);
-      const before = (await agentMessages(c.mapping.channelId)).length;
+      const before = (await agentMessages(c.home)).length;
       await expect(service(tool.callHostTool).send({ context: c.context(), input: { type: "widget", widget: { prompt: "ok?" } } as never, mappingId: c.mapping.id })).rejects.toMatchObject({ code: "external_channel_type_unsupported" });
-      expect((await agentMessages(c.mapping.channelId)).length).toBe(before);
+      expect((await agentMessages(c.home)).length).toBe(before);
       sentNothing(tool);
     });
 
     test("an archived conversation refuses and writes nothing", async () => {
       const c = await chat();
-      await h.prisma.channel.update({ where: { id: c.mapping.channelId }, data: { archivedAt: new Date() } });
+      await h.prisma.channel.update({ where: { id: c.home }, data: { archivedAt: new Date() } });
       const tool = deliverTool(sent);
       await expect(service(tool.callHostTool).send({ context: c.context(), input: text("hi"), mappingId: c.mapping.id })).rejects.toMatchObject({ code: "external_channel_unavailable" });
-      expect(await agentMessages(c.mapping.channelId)).toHaveLength(0);
+      expect(await agentMessages(c.home)).toHaveLength(0);
       sentNothing(tool);
     });
   });
@@ -297,7 +306,7 @@ describe.skipIf(!databaseUrl)("outbound delivery", () => {
       const tool = deliverTool(sent);
       const svc = service(tool.callHostTool);
       const make = async (status: "pending" | "sending") => {
-        const message = await h.prisma.channelMessage.create({ data: { channelId: c.mapping.channelId, sender: "agent", senderBotId: c.bot.id, content: status } });
+        const message = await h.prisma.channelMessage.create({ data: { channelId: c.home, sender: "agent", senderBotId: c.bot.id, content: status } });
         const created = await h.prisma.externalOutboundDelivery.create({
           data: { callId: `external-delivery:${crypto.randomUUID()}`, connectionId: c.connection.id, mappingId: c.mapping.id, botId: c.bot.id, channelMessageId: message.id, status, deliveryLeaseOwner: "dead-server", deliveryLeaseExpiresAt: new Date(Date.now() + 120_000) },
         });
@@ -308,7 +317,7 @@ describe.skipIf(!databaseUrl)("outbound delivery", () => {
       const sending = await make("sending");
       const alive = await h.prisma.externalOutboundDelivery.create({
         data: { callId: `external-delivery:${crypto.randomUUID()}`, connectionId: c.connection.id, mappingId: c.mapping.id, botId: c.bot.id, status: "sending", deliveryLeaseOwner: "other-server", deliveryLeaseExpiresAt: new Date(Date.now() + 120_000),
-          channelMessageId: (await h.prisma.channelMessage.create({ data: { channelId: c.mapping.channelId, sender: "agent", senderBotId: c.bot.id, content: "alive" } })).id },
+          channelMessageId: (await h.prisma.channelMessage.create({ data: { channelId: c.home, sender: "agent", senderBotId: c.bot.id, content: "alive" } })).id },
       });
       await h.prisma.$executeRaw`UPDATE "outcomego_external_outbound_delivery" SET "deliveryLeaseExpiresAt" = (now() AT TIME ZONE 'UTC') + interval '60 seconds' WHERE "id" = ${alive.id}::uuid`;
 
@@ -338,7 +347,7 @@ describe.skipIf(!databaseUrl)("outbound delivery", () => {
       const late = await running;
       expect(late).toMatchObject({ status: "uncertain" });
       expect(await row(callId)).toMatchObject({ status: "uncertain", errorCode: "external_delivery_interrupted" });
-      expect((await agentMessages(c.mapping.channelId))[0]!.metadata).toMatchObject({ externalDelivery: { status: "uncertain" } });
+      expect((await agentMessages(c.home))[0]!.metadata).toMatchObject({ externalDelivery: { status: "uncertain" } });
     });
   });
 
@@ -360,15 +369,15 @@ describe.skipIf(!databaseUrl)("outbound delivery", () => {
       await expect(svc.resolveAddress((await h.bot()).id, "addr1:peer-1")).rejects.toMatchObject({ code: "external_peer_unknown" });
     });
 
-    test("an archived conversation does not resolve", async () => {
+    test("an archived contact does not resolve", async () => {
       const c = await chat({ platform: "addr2" });
-      await h.prisma.channel.update({ where: { id: c.mapping.channelId }, data: { archivedAt: new Date() } });
+      await h.prisma.externalChannelMapping.update({ where: { id: c.mapping.id }, data: { status: "archived" } });
       await expect(service(deliverTool(sent).callHostTool).resolveAddress(c.bot.id, "addr2:peer-1")).rejects.toMatchObject({ code: "external_peer_unknown" });
     });
 
-    test("sending from another conversation lands in the contact's chat with the same record", async () => {
+    test("sending from another conversation is recorded in the Bot's own chat, with the same record", async () => {
       const c = await chat({ platform: "addr3" });
-      const dm = await h.prisma.channel.create({ data: { kind: "bot_dm", directKey: `bot:${c.bot.id}`, name: "home", members: { create: { botId: c.bot.id, ordinal: 0 } } } });
+      const dm = await h.prisma.channel.create({ data: { kind: "group", name: "room", members: { create: { botId: c.bot.id, ordinal: 0 } } } });
       const tool = deliverTool(sent);
       const callId = crypto.randomUUID();
       const outcome = await service(tool.callHostTool).send({
@@ -377,25 +386,26 @@ describe.skipIf(!databaseUrl)("outbound delivery", () => {
         mappingId: c.mapping.id,
       });
       expect(outcome.status).toBe("sent");
-      expect((await agentMessages(c.mapping.channelId)).map((message) => message.content)).toEqual(["from home"]);
+      expect((await agentMessages(c.home)).map((message) => message.content)).toEqual(["from home"]);
+      // Nothing about a private send is written into the room it was asked for from.
       expect(await agentMessages(dm.id)).toHaveLength(0);
       expect(tool.calls[0]!.args).toMatchObject({ peerId: "peer-1", text: "from home" });
     });
   });
 
   describe("lifecycle", () => {
-    test("removing a connection archives its chats, fails unfinished sends and deletes the rest", async () => {
+    test("removing a connection fails unfinished sends and deletes the rest, leaving the Bot's chat and its history", async () => {
       const c = await chat();
-      const message = await h.prisma.channelMessage.create({ data: { channelId: c.mapping.channelId, sender: "agent", senderBotId: c.bot.id, content: "unsent" } });
+      const message = await h.prisma.channelMessage.create({ data: { channelId: c.home, sender: "agent", senderBotId: c.bot.id, content: "unsent" } });
       const unfinished = await h.prisma.externalOutboundDelivery.create({ data: { callId: `external-delivery:${crypto.randomUUID()}`, connectionId: c.connection.id, mappingId: c.mapping.id, botId: c.bot.id, channelMessageId: message.id, deliveryLeaseOwner: "x", deliveryLeaseExpiresAt: new Date(Date.now() + 60_000) } });
       const svc = service(deliverTool(sent).callHostTool);
       await h.prisma.$transaction(async (tx) => {
         await svc.prepareConnectionRemoval(tx, c.connection.id);
         await tx.pluginConnection.delete({ where: { id: c.connection.id } });
       });
-      expect((await h.prisma.channel.findUniqueOrThrow({ where: { id: c.mapping.channelId } })).archivedAt).not.toBeNull();
+      expect((await h.prisma.channel.findUniqueOrThrow({ where: { id: c.home } })).archivedAt).toBeNull();
       // History stays readable; the records that pointed at the connection are gone.
-      expect(await h.prisma.channelMessage.count({ where: { channelId: c.mapping.channelId } })).toBeGreaterThan(0);
+      expect(await h.prisma.channelMessage.count({ where: { channelId: c.home } })).toBeGreaterThan(0);
       expect((await h.prisma.channelMessage.findUniqueOrThrow({ where: { id: message.id } })).metadata).toMatchObject({ externalDelivery: { id: unfinished.id, status: "failed", code: "external_connection_removed" } });
       for (const count of await Promise.all([
         h.prisma.externalMessagingBinding.count({ where: { connectionId: c.connection.id } }),
@@ -405,20 +415,37 @@ describe.skipIf(!databaseUrl)("outbound delivery", () => {
       ])) expect(count).toBe(0);
     });
 
-    test("archiving a conversation archives its mapping, and restoring brings both back", async () => {
+    // Chats from the earlier one-chat-per-contact design stay as history and can still be archived.
+    const legacy = async () => {
       const c = await chat();
+      const channel = await h.prisma.channel.create({ data: { kind: "external_dm", directKey: `external:${crypto.randomUUID()}`, name: "Old", members: { create: { botId: c.bot.id, ordinal: 0 } } } });
+      await h.prisma.externalChannelMapping.update({ where: { id: c.mapping.id }, data: { channelId: channel.id } });
+      return { c, channel };
+    };
+
+    test("archiving an earlier external chat archives its mapping, and restoring brings both back", async () => {
+      const { c, channel } = await legacy();
       const svc = service(deliverTool(sent).callHostTool);
-      await svc.setChannelArchived(c.mapping.channelId, true);
-      expect((await h.prisma.channel.findUniqueOrThrow({ where: { id: c.mapping.channelId } })).archivedAt).not.toBeNull();
+      await svc.setChannelArchived(channel.id, true);
+      expect((await h.prisma.channel.findUniqueOrThrow({ where: { id: channel.id } })).archivedAt).not.toBeNull();
       expect((await h.prisma.externalChannelMapping.findUniqueOrThrow({ where: { id: c.mapping.id } })).status).toBe("archived");
-      await svc.setChannelArchived(c.mapping.channelId, false);
-      expect((await h.prisma.channel.findUniqueOrThrow({ where: { id: c.mapping.channelId } })).archivedAt).toBeNull();
+      await svc.setChannelArchived(channel.id, false);
+      expect((await h.prisma.channel.findUniqueOrThrow({ where: { id: channel.id } })).archivedAt).toBeNull();
       expect((await h.prisma.externalChannelMapping.findUniqueOrThrow({ where: { id: c.mapping.id } })).status).toBe("active");
+    });
+
+    test("removing a connection archives any earlier external chat it had", async () => {
+      const { c, channel } = await legacy();
+      await h.prisma.$transaction(async (tx) => {
+        await service(deliverTool(sent).callHostTool).prepareConnectionRemoval(tx, c.connection.id);
+        await tx.pluginConnection.delete({ where: { id: c.connection.id } });
+      });
+      expect((await h.prisma.channel.findUniqueOrThrow({ where: { id: channel.id } })).archivedAt).not.toBeNull();
     });
 
     test("only external conversations can be archived this way", async () => {
       const bot = await h.bot();
-      const dm = await h.prisma.channel.create({ data: { kind: "bot_dm", directKey: `bot:${bot.id}`, name: "home", members: { create: { botId: bot.id, ordinal: 0 } } } });
+      const dm = { id: await h.home(bot.id) };
       await expect(service(deliverTool(sent).callHostTool).setChannelArchived(dm.id, true)).rejects.toMatchObject({ code: "external_channel_not_found" });
       expect((await h.prisma.channel.findUniqueOrThrow({ where: { id: dm.id } })).archivedAt).toBeNull();
     });

@@ -43,7 +43,7 @@ describe.skipIf(!databaseUrl)("inbound poller", () => {
   const poller = (callHostTool: CallHostTool, extra: { inbound?: Pick<ExternalInboundMessageService, "accept" | "deadLetter">; now?: () => Date; instanceId?: string } = {}) =>
     new ExternalInboundPoller({ prisma: h.prisma, callHostTool, inbound: extra.inbound ?? real, now: extra.now, sleep: never, instanceId: extra.instanceId });
   const binding = (id: string) => h.prisma.externalMessagingBinding.findUniqueOrThrow({ where: { id } });
-  const messagesOf = (connectionId: string) => h.prisma.channelMessage.count({ where: { channel: { externalMapping: { connectionId } } } });
+  const messagesOf = (connectionId: string) => h.prisma.channelMessage.count({ where: { externalReceipts: { some: { connectionId } } } });
 
   describe("one pass", () => {
     test("asks for what follows the saved cursor, within the batch and wait limits", async () => {
@@ -60,7 +60,7 @@ describe.skipIf(!databaseUrl)("inbound poller", () => {
       await poller(fake.callHostTool).iterate(b.id, 0);
       expect((await binding(b.id)).inboundCursor).toBe("q:3");
       expect(await messagesOf(connection.id)).toBe(3);
-      const texts = (await h.prisma.channelMessage.findMany({ where: { channel: { externalMapping: { connectionId: connection.id } } }, orderBy: { sequence: "asc" } })).map((row) => row.content);
+      const texts = (await h.prisma.channelMessage.findMany({ where: { externalReceipts: { some: { connectionId: connection.id } } }, orderBy: { sequence: "asc" } })).map((row) => row.content);
       expect(texts).toEqual(["m1", "m2", "m3"]);
     });
 
@@ -161,7 +161,7 @@ describe.skipIf(!databaseUrl)("inbound poller", () => {
       expect((await binding(b.id)).inboundCursor).toBe("q:2");
       expect(await h.prisma.externalMessageReceipt.findFirstOrThrow({ where: { connectionId: connection.id, providerMessageId: "stuck" } })).toMatchObject({ status: "rejected", rejectionCode: "external_retry_exhausted" });
       expect(await messagesOf(connection.id)).toBe(1);
-      expect(await h.prisma.channelMessage.findFirstOrThrow({ where: { channel: { externalMapping: { connectionId: connection.id } } } })).toMatchObject({ content: "m2" });
+      expect(await h.prisma.channelMessage.findFirstOrThrow({ where: { externalReceipts: { some: { connectionId: connection.id } } } })).toMatchObject({ content: "m2" });
     });
 
     test("a Bot that cannot run pauses everything and the cursor stays; fixing it carries on from there", async () => {

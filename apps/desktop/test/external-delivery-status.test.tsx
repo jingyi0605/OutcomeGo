@@ -4,6 +4,7 @@ import {
   ExternalDeliveryStatus,
   externalDeliveryOf,
   externalPlatformLabel,
+  externalSourceOf,
 } from "../src/renderer/components/outcomego/external-delivery-status";
 import { I18nProvider } from "../src/renderer/lib/i18n";
 import { translateCurrent } from "../src/renderer/lib/i18n-catalog";
@@ -73,5 +74,15 @@ describe("platform label", () => {
     expect(externalPlatformLabel("wechat", t)).toBe("WeChat");
     expect(externalPlatformLabel("signal", t)).toBe("Signal");
     expect(externalPlatformLabel(undefined, t)).toBe("an external service");
+  });
+});
+
+describe("where a user message came from", () => {
+  test("names the platform a message was written on", () => {
+    expect(externalSourceOf({ type: "text", external: { platform: "wechat", occurredAt: "2026-11-16T00:00:00Z" } })).toBe("wechat");
+  });
+  test("a message typed in the app, or with odd metadata, has no source", () => {
+    for (const metadata of [null, undefined, {}, [], "x", { external: "wechat" }, { external: { platform: 1 } }, { external: { platform: "We Chat!" } }, { external: { platform: "x".repeat(40) } }])
+      expect(externalSourceOf(metadata)).toBeNull();
   });
 });

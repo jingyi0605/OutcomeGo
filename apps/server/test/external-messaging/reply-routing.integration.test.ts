@@ -26,8 +26,8 @@ describe.skipIf(!databaseUrl)("SendToUser from and to an external chat", () => {
     const bot = await h.bot();
     const connection = await h.connection({ platform });
     const binding = await h.bind(connection.id, bot.id);
-    // The Bot's own chat in the app, where cards and requests belong.
-    const dm = await h.prisma.channel.create({ data: { kind: "bot_dm", directKey: `bot:${bot.id}`, name: "home", members: { create: { botId: bot.id, ordinal: 0 } } } });
+    // The Bot's own chat: where the owner's messages from outside land, and where everything is shown.
+    const dm = { id: await h.home(bot.id) };
     const accepted = await inbound.accept({ binding: { id: binding.id, botId: bot.id, connectionId: connection.id }, platform, platformLabel: "Chat" }, entry(message()));
     if (accepted.status !== "accepted") throw new Error("setup failed");
     const mapping = await h.prisma.externalChannelMapping.findFirstOrThrow({ where: { connectionId: connection.id } });
@@ -59,7 +59,7 @@ describe.skipIf(!databaseUrl)("SendToUser from and to an external chat", () => {
   const send = async (service: InternalToolService, w: World, args: Record<string, unknown>, from: "external" | "home" = "external", callId = crypto.randomUUID()) => {
     const exit = await Effect.runPromiseExit(service.execute({
       runId: from === "external" ? w.externalRunId : w.homeRunId, botId: w.bot.id, conversationId: w.bot.conversationId,
-      channelId: from === "external" ? w.mapping.channelId : w.dm.id, deliveryId: null, tool: "SendToUser", arguments: args, callId,
+      channelId: w.dm.id, deliveryId: null, tool: "SendToUser", arguments: args, callId,
     } as never));
     if (Exit.isSuccess(exit)) return exit.value as Record<string, any>;
     throw Cause.squash(exit.cause);
@@ -74,8 +74,28 @@ describe.skipIf(!databaseUrl)("SendToUser from and to an external chat", () => {
       expect(result).toMatchObject({ sent: true, external: { platform: w.platform, status: "sent" } });
       expect(result.delivery_failed).toBeUndefined();
       expect(c.calls).toEqual([{ deliveryId: result.external.id, peerId: "peer-1", text: "on it" }]);
-      expect((await agentMessages(w.mapping.channelId)).map((m) => m.content)).toEqual(["on it"]);
+      expect((await agentMessages(w.dm.id)).map((m) => m.content)).toEqual(["on it"]);
       expect(renderControlResult("SendToUser", result, { type: "text" })).toContain(`Message accepted by ${w.platform}`);
+    });
+
+    test("a turn that began in the app answers only in the app, even in the same chat", async () => {
+      const w = await world();
+      const c = connector();
+      const result = await send(tools(c.callHostTool), w, { type: "text", content: "typed here" }, "home");
+      expect(result.sent).toBe(true);
+      expect(result.external).toBeUndefined();
+      expect(c.calls).toEqual([]);
+      expect(await h.prisma.externalOutboundDelivery.count({ where: { botId: w.bot.id } })).toBe(0);
+      expect((await agentMessages(w.dm.id)).map((m) => m.content)).toEqual(["typed here"]);
+    });
+
+    test("a card from a turn that began outside lands in the app chat like any other", async () => {
+      const w = await world();
+      const c = connector();
+      const result = await send(tools(c.callHostTool), w, { type: "widget", widget: { prompt: "Which one?", options: [{ label: "A" }, { label: "B" }] } });
+      expect(result.sent).toBe(true);
+      expect(c.calls).toEqual([]);
+      expect((await agentMessages(w.dm.id))[0]!.metadata).toMatchObject({ type: "widget" });
     });
 
     test("a failed send is reported as failed, not sent, and starts no recovery wake", async () => {
@@ -108,7 +128,7 @@ describe.skipIf(!databaseUrl)("SendToUser from and to an external chat", () => {
       const again = await send(service, w, { type: "text", content: "once" }, "external", callId);
       expect(again.external.id).toBe(first.external.id);
       expect(c.calls).toHaveLength(1);
-      expect(await agentMessages(w.mapping.channelId)).toHaveLength(1);
+      expect(await agentMessages(w.dm.id)).toHaveLength(1);
     });
 
     test("a picture goes out as a file", async () => {
@@ -121,22 +141,6 @@ describe.skipIf(!databaseUrl)("SendToUser from and to an external chat", () => {
       expect(result.external.status).toBe("sent");
       expect(c.calls[0]).toMatchObject({ text: "chart", media: [{ mimeType: "image/png" }] });
     });
-
-    test.each(["widget", "secret-request"])(
-      "%s without to: \"dm\" is refused, tells the Bot where to send it, and writes nothing",
-      async (type) => {
-        const w = await world();
-        const c = connector();
-        const before = (await agentMessages(w.mapping.channelId)).length;
-        const args: Record<string, unknown> = type === "widget"
-          ? { type, widget: { prompt: "ok?", options: [{ label: "Yes" }, { label: "No" }] } }
-          : { type, secret: { name: "API_KEY", label: "Key" } };
-        await expect(send(tools(c.callHostTool), w, args)).rejects.toMatchObject({ code: "external_channel_type_unsupported" });
-        expect((await agentMessages(w.mapping.channelId)).length).toBe(before);
-        expect(c.calls).toEqual([]);
-        expect(await h.prisma.externalOutboundDelivery.count({ where: { botId: w.bot.id } })).toBe(0);
-      }
-    );
   });
 
   describe("to: \"dm\"", () => {
@@ -147,7 +151,6 @@ describe.skipIf(!databaseUrl)("SendToUser from and to an external chat", () => {
       expect(result.sent).toBe(true);
       expect(result.external).toBeUndefined();
       expect((await agentMessages(w.dm.id)).map((m) => m.content)).toEqual(["for your eyes only"]);
-      expect(await agentMessages(w.mapping.channelId)).toHaveLength(0);
       expect(c.calls).toEqual([]);
       expect(await h.prisma.externalOutboundDelivery.count({ where: { botId: w.bot.id } })).toBe(0);
     });
@@ -161,19 +164,18 @@ describe.skipIf(!databaseUrl)("SendToUser from and to an external chat", () => {
       expect(cards[0]!.metadata).toMatchObject({ type: "widget" });
     });
 
-    test("a secret request is checked against the Bot's own chat, not the external one", async () => {
+    test("a secret request from a turn that began outside is checked against the Bot's own chat", async () => {
       const w = await world();
       const result = await send(tools(connector().callHostTool), w, { type: "secret-request", secret: { name: "API_KEY", label: "API key" }, to: "dm" });
       expect(result.sent).toBe(true);
       expect((await agentMessages(w.dm.id))[0]!.metadata).toMatchObject({ type: "secret-request" });
-      expect(await agentMessages(w.mapping.channelId)).toHaveLength(0);
     });
 
     test("without a chat of its own in the app there is nowhere to put it", async () => {
       const w = await world();
       await h.prisma.channel.update({ where: { id: w.dm.id }, data: { archivedAt: new Date() } });
       await expect(send(tools(connector().callHostTool), w, { type: "text", content: "x", to: "dm" })).rejects.toThrow();
-      expect(await agentMessages(w.mapping.channelId)).toHaveLength(0);
+      expect(await agentMessages(w.dm.id)).toHaveLength(0);
     });
   });
 
@@ -184,8 +186,7 @@ describe.skipIf(!databaseUrl)("SendToUser from and to an external chat", () => {
       const result = await send(tools(c.callHostTool), w, { type: "text", content: "heads up", channel: `${w.platform}:peer-1` }, "home");
       expect(result).toMatchObject({ sent: true, external: { platform: w.platform, status: "sent" } });
       expect(c.calls[0]).toMatchObject({ peerId: "peer-1", text: "heads up" });
-      expect((await agentMessages(w.mapping.channelId)).map((m) => m.content)).toEqual(["heads up"]);
-      expect(await agentMessages(w.dm.id)).toHaveLength(0);
+      expect((await agentMessages(w.dm.id)).map((m) => m.content)).toEqual(["heads up"]);
     });
 
     test("failure and doubt are reported exactly as for an automatic reply, with no recovery wake", async () => {
@@ -203,7 +204,7 @@ describe.skipIf(!databaseUrl)("SendToUser from and to an external chat", () => {
       const c = connector();
       await expect(send(tools(c.callHostTool), w, { type: "text", content: "hi", channel: `${w.platform}:stranger` }, "home")).rejects.toMatchObject({ code: "external_peer_unknown" });
       expect(c.calls).toEqual([]);
-      expect(await agentMessages(w.mapping.channelId)).toHaveLength(0);
+      expect(await agentMessages(w.dm.id)).toHaveLength(0);
     });
 
     test("a platform without messaging keeps using the older connector path", async () => {
@@ -220,7 +221,7 @@ describe.skipIf(!databaseUrl)("SendToUser from and to an external chat", () => {
       const c = connector();
       const result = await send(tools(c.callHostTool, async () => ({ connectionId: "c1", toolName: "x" })), w, { type: "widget", widget: { prompt: "?", options: [{ label: "Yes" }] }, channel: `${w.platform}:peer-1` }, "home").catch((error) => error);
       expect(c.calls).toEqual([]);
-      expect(await agentMessages(w.mapping.channelId)).toHaveLength(0);
+      expect(await agentMessages(w.dm.id)).toHaveLength(0);
       expect(result).toBeDefined();
     });
   });
@@ -228,7 +229,7 @@ describe.skipIf(!databaseUrl)("SendToUser from and to an external chat", () => {
   describe("rooms keep their own limit", () => {
     test("a card with to: \"dm\" from a group room is still refused, and nothing is written", async () => {
       const bot = await h.bot();
-      const dm = await h.prisma.channel.create({ data: { kind: "bot_dm", directKey: `bot:${bot.id}`, name: "home", members: { create: { botId: bot.id, ordinal: 0 } } } });
+      const dm = { id: await h.home(bot.id) };
       const room = await h.prisma.channel.create({ data: { kind: "group", name: "room", members: { create: { botId: bot.id, ordinal: 0 } } } });
       try {
         const run = await h.prisma.run.create({ data: { botId: bot.id, conversationId: bot.conversationId, channelId: room.id, userMessageId: crypto.randomUUID(), status: "running" } });
@@ -240,14 +241,14 @@ describe.skipIf(!databaseUrl)("SendToUser from and to an external chat", () => {
         expect(String(Cause.squash(exit.cause))).toMatch(/dm_text_only|text messages only/);
         expect(await agentMessages(dm.id)).toHaveLength(0);
       } finally {
-        await h.prisma.channel.deleteMany({ where: { id: { in: [room.id, dm.id] } } });
+        await h.prisma.channel.deleteMany({ where: { id: room.id } });
       }
     });
   });
 
   describe("other cards the owner must answer", () => {
     const tool = async (service: InternalToolService, w: World, name: string, args: Record<string, unknown>) => {
-      const exit = await Effect.runPromiseExit(service.execute({ runId: w.externalRunId, botId: w.bot.id, conversationId: w.bot.conversationId, channelId: w.mapping.channelId, deliveryId: null, tool: name, arguments: args, callId: crypto.randomUUID() } as never));
+      const exit = await Effect.runPromiseExit(service.execute({ runId: w.externalRunId, botId: w.bot.id, conversationId: w.bot.conversationId, channelId: w.dm.id, deliveryId: null, tool: name, arguments: args, callId: crypto.randomUUID() } as never));
       if (Exit.isSuccess(exit)) return exit.value as Record<string, any>;
       throw Cause.squash(exit.cause);
     };
@@ -259,7 +260,6 @@ describe.skipIf(!databaseUrl)("SendToUser from and to an external chat", () => {
       const cards = await agentMessages(w.dm.id);
       expect(cards).toHaveLength(1);
       expect(cards[0]!.metadata).toMatchObject({ type: "computer-handoff" });
-      expect(await agentMessages(w.mapping.channelId)).toHaveLength(0);
       expect(c.calls).toEqual([]);
     });
   });

@@ -859,6 +859,7 @@ export const sourceTranslations: Record<string, string> = {
   "Instructions for Bots using this connection": "使用此连接的机器人的指令",
   "Instructions saved.": "指令已保存。",
   "Save instructions": "保存指令",
+  "From {platform}": "来自{platform}",
   "Scan to link your account": "扫描二维码关联你的账户",
   "Waiting for an updated code or phone approval. You can also get a new code.": "正在等待新的二维码或手机确认。你也可以获取新的二维码。",
   "Scan with the phone that has your account. The code refreshes by itself.": "请用登录了该账号的手机扫描。二维码会自动刷新。",

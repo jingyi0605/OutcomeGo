@@ -18,6 +18,15 @@ export function externalDeliveryOf(metadata: unknown): ExternalDeliveryState | n
   };
 }
 
+/** The platform a user message came from (`wechat`, ...), when it was written from an outside chat. */
+export function externalSourceOf(metadata: unknown): string | null {
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) return null;
+  const external = (metadata as Record<string, unknown>).external;
+  if (!external || typeof external !== "object" || Array.isArray(external)) return null;
+  const platform = (external as Record<string, unknown>).platform;
+  return typeof platform === "string" && /^[a-z0-9][a-z0-9_-]{0,31}$/.test(platform) ? platform : null;
+}
+
 type Translate = ReturnType<typeof useI18n>["t"];
 
 /** A display name for the platform id a connector declares, e.g. `wechat` becomes `WeChat`. */

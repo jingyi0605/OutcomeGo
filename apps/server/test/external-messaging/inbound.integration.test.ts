@@ -37,12 +37,13 @@ describe.skipIf(!databaseUrl)("inbound acceptance", () => {
       const runId = result.runId!;
       expect(runId).toMatch(/^[0-9a-f-]{36}$/);
 
-      const mapping = await h.prisma.externalChannelMapping.findFirstOrThrow({ where: { connectionId: connection.id }, include: { channel: { include: { members: true } } } });
-      expect(mapping).toMatchObject({ botId: bot.id, peerId: "peer-1", platform: "chat", status: "active", displayName: "Alice" });
-      expect(mapping.channel).toMatchObject({ kind: "external_dm", directKey: `external:${mapping.id}`, name: "Alice" });
-      expect(mapping.channel.members.map((member) => [member.botId, member.ordinal])).toEqual([[bot.id, 0]]);
+      const mapping = await h.prisma.externalChannelMapping.findFirstOrThrow({ where: { connectionId: connection.id } });
+      expect(mapping).toMatchObject({ botId: bot.id, peerId: "peer-1", platform: "chat", status: "active", displayName: "Alice", channelId: null });
+      // The owner is talking to their Bot: no chat of its own is created, the message joins the Bot's.
+      expect(await h.prisma.channel.count({ where: { kind: "external_dm", members: { some: { botId: bot.id } } } })).toBe(0);
+      const home = await h.home(bot.id);
 
-      const stored = await h.prisma.channelMessage.findMany({ where: { channelId: mapping.channelId } });
+      const stored = await h.prisma.channelMessage.findMany({ where: { channelId: home } });
       expect(stored).toHaveLength(1);
       expect(stored[0]).toMatchObject({ sender: "user", content: "what is the weather" });
       const metadata = stored[0]!.metadata as { type: string; address: string; external: Record<string, unknown> };
@@ -62,38 +63,32 @@ describe.skipIf(!databaseUrl)("inbound acceptance", () => {
       expect((await h.prisma.run.findUniqueOrThrow({ where: { id: wake.runId! } })).origin).toBe("user");
     });
 
-    test("the same conversation keeps one chat; other connections and Bots get their own", async () => {
+    test("the same contact keeps one identity; other connections and Bots get their own, all in the Bot's chat", async () => {
       const { bot, connection, context } = await setup();
       await service.accept(context, entry(message({ providerMessageId: "a1" })));
       await service.accept(context, entry(message({ providerMessageId: "a2", text: "second" })));
       const own = await h.prisma.externalChannelMapping.findMany({ where: { connectionId: connection.id } });
       expect(own).toHaveLength(1);
-      expect(await h.prisma.channelMessage.count({ where: { channelId: own[0]!.channelId } })).toBe(2);
+      expect(await h.prisma.channelMessage.count({ where: { channelId: await h.home(bot.id), sender: "user" } })).toBe(2);
 
       // Same peer id on another connection: a separate conversation.
       const other = await h.connection();
       const otherBinding = await h.bind(other.id, bot.id);
       await service.accept({ binding: { id: otherBinding.id, botId: bot.id, connectionId: other.id }, platform: "chat", platformLabel: "Chat" }, entry(message({ providerMessageId: "a1" })));
       const mappings = await h.prisma.externalChannelMapping.findMany({ where: { botId: bot.id } });
-      expect(new Set(mappings.map((mapping) => mapping.channelId)).size).toBe(2);
+      expect(new Set(mappings.map((mapping) => mapping.connectionId)).size).toBe(2);
+      // Both accounts reach the one chat the owner already has with this Bot.
+      expect(await h.prisma.channelMessage.count({ where: { channelId: await h.home(bot.id), sender: "user" } })).toBe(3);
     });
 
-    test("the first messages of a new conversation, arriving together, create one chat", async () => {
-      const { connection, context } = await setup();
+    test("the first messages of a new contact, arriving together, create one identity", async () => {
+      const { bot, connection, context } = await setup();
       const results = await Promise.all(Array.from({ length: 6 }, (_, i) => service.accept(context, entry(message({ providerMessageId: `race-${i}`, text: `m${i}` })))));
       expect(results.every((result) => result.status === "accepted")).toBe(true);
       const mappings = await h.prisma.externalChannelMapping.findMany({ where: { connectionId: connection.id } });
       expect(mappings).toHaveLength(1);
-      expect(await h.prisma.channel.count({ where: { id: mappings[0]!.channelId } })).toBe(1);
-      expect(await h.prisma.channelMessage.count({ where: { channelId: mappings[0]!.channelId } })).toBe(6);
+      expect(await h.prisma.channelMessage.count({ where: { channelId: await h.home(bot.id), sender: "user" } })).toBe(6);
       expect(await h.prisma.externalMessageReceipt.count({ where: { connectionId: connection.id } })).toBe(6);
-    });
-
-    test("an empty-sounding chat is named after the platform when no name is given", async () => {
-      const { connection, context } = await setup();
-      await service.accept(context, entry(message()));
-      const mapping = await h.prisma.externalChannelMapping.findFirstOrThrow({ where: { connectionId: connection.id }, include: { channel: true } });
-      expect(mapping.channel.name).toBe("Chat");
     });
   });
 
@@ -105,8 +100,8 @@ describe.skipIf(!databaseUrl)("inbound acceptance", () => {
       expect(await service.accept(context, entry(msg))).toEqual({ status: "duplicate" });
       // A redelivery that only differs in things the hash ignores is still a duplicate.
       expect((await service.accept(context, entry({ ...msg, peer: { ...msg.peer, displayName: "Renamed" }, providerMetadata: { x: 1 } }))).status).toBe("duplicate");
-      expect(await h.prisma.channelMessage.count({ where: { sender: "user", channel: { externalMapping: { connectionId: connection.id } } } })).toBe(1);
-      expect(await h.prisma.inboxEvent.count({ where: { type: "user.message", run: { channel: { externalMapping: { connectionId: connection.id } } } } })).toBe(1);
+      expect(await h.prisma.channelMessage.count({ where: { sender: "user", externalReceipts: { some: { connectionId: connection.id } } } })).toBe(1);
+      expect(await h.prisma.inboxEvent.count({ where: { type: "user.message", run: { externalReceipts: { some: { connectionId: connection.id } } } } })).toBe(1);
     });
 
     test("concurrent redeliveries create one message and one wake", async () => {
@@ -116,7 +111,7 @@ describe.skipIf(!databaseUrl)("inbound acceptance", () => {
       expect(results.filter((result) => result.status === "accepted")).toHaveLength(1);
       expect(results.filter((result) => result.status === "duplicate")).toHaveLength(7);
       expect(await h.prisma.externalMessageReceipt.count({ where: { connectionId: connection.id } })).toBe(1);
-      expect(await h.prisma.channelMessage.count({ where: { channel: { externalMapping: { connectionId: connection.id } } } })).toBe(1);
+      expect(await h.prisma.channelMessage.count({ where: { externalReceipts: { some: { connectionId: connection.id } } } })).toBe(1);
     });
 
     test("the same id with different content is a conflict; the first message stands", async () => {
@@ -127,7 +122,7 @@ describe.skipIf(!databaseUrl)("inbound acceptance", () => {
       expect(second).toEqual({ status: "rejected", code: "external_message_conflict" });
       const receipt = await h.prisma.externalMessageReceipt.findFirstOrThrow({ where: { connectionId: connection.id } });
       expect(receipt).toMatchObject({ status: "accepted", payloadHash: hashOf(first) });
-      expect((await h.prisma.channelMessage.findFirstOrThrow({ where: { channel: { externalMapping: { connectionId: connection.id } } } })).content).toBe("original");
+      expect((await h.prisma.channelMessage.findFirstOrThrow({ where: { externalReceipts: { some: { connectionId: connection.id } } } })).content).toBe("original");
       expect(((await h.prisma.externalMessagingBinding.findUniqueOrThrow({ where: { id: binding.id } })).rejectedCounts as Record<string, number>).external_message_conflict).toBe(1);
     });
   });
@@ -184,21 +179,31 @@ describe.skipIf(!databaseUrl)("inbound acceptance", () => {
     test("control characters never reach the Bot", async () => {
       const { connection, context } = await setup();
       await service.accept(context, entry({ ...message({ providerMessageId: "ctl" }), text: "a\u0000b\u0007c\nd" }));
-      const stored = await h.prisma.channelMessage.findFirstOrThrow({ where: { channel: { externalMapping: { connectionId: connection.id } } } });
+      const stored = await h.prisma.channelMessage.findFirstOrThrow({ where: { externalReceipts: { some: { connectionId: connection.id } } } });
       expect(stored.content).toBe("abc\nd");
     });
   });
 
   describe("when it cannot be accepted yet", () => {
-    test("an archived chat refuses new messages and keeps its history", async () => {
-      const { connection, context } = await setup();
+    test("an archived contact refuses new messages and keeps its history", async () => {
+      const { bot, connection, context } = await setup();
       await service.accept(context, entry(message({ providerMessageId: "before" })));
       const mapping = await h.prisma.externalChannelMapping.findFirstOrThrow({ where: { connectionId: connection.id } });
-      await h.prisma.channel.update({ where: { id: mapping.channelId }, data: { archivedAt: new Date() } });
       await h.prisma.externalChannelMapping.update({ where: { id: mapping.id }, data: { status: "archived" } });
       expect(await service.accept(context, entry(message({ providerMessageId: "after" })))).toEqual({ status: "rejected", code: "external_channel_unavailable" });
-      expect(await h.prisma.channelMessage.count({ where: { channelId: mapping.channelId } })).toBe(1);
+      expect(await h.prisma.channelMessage.count({ where: { channelId: await h.home(bot.id), sender: "user" } })).toBe(1);
       expect(await h.prisma.externalMessageReceipt.findFirstOrThrow({ where: { connectionId: connection.id, providerMessageId: "after" } })).toMatchObject({ status: "rejected", rejectionCode: "external_channel_unavailable" });
+    });
+
+    test("a contact from the earlier one-chat-each design is moved to the Bot's chat and the old chat is archived", async () => {
+      const { bot, connection, context } = await setup();
+      const legacy = await h.prisma.channel.create({ data: { kind: "external_dm", directKey: `external:${crypto.randomUUID()}`, name: "Old", members: { create: { botId: bot.id, ordinal: 0 } } } });
+      await h.prisma.externalChannelMapping.create({ data: { connectionId: connection.id, botId: bot.id, peerId: "peer-1", platform: "chat", channelId: legacy.id } });
+      expect((await service.accept(context, entry(message({ providerMessageId: "new-design" })))).status).toBe("accepted");
+      expect((await h.prisma.channel.findUniqueOrThrow({ where: { id: legacy.id } })).archivedAt).not.toBeNull();
+      expect((await h.prisma.externalChannelMapping.findFirstOrThrow({ where: { connectionId: connection.id } })).channelId).toBeNull();
+      expect(await h.prisma.channelMessage.count({ where: { channelId: legacy.id } })).toBe(0);
+      expect(await h.prisma.channelMessage.count({ where: { channelId: await h.home(bot.id), sender: "user" } })).toBe(1);
     });
 
     test("a Bot that is archived pauses the binding without writing anything", async () => {
@@ -228,7 +233,7 @@ describe.skipIf(!databaseUrl)("inbound acceptance", () => {
         expect(await h.prisma.inboxEvent.count({ where: { botId: bot.id } })).toBe(0);
         // The next attempt, as the poller would make, accepts it exactly once.
         expect((await service.accept(context, entry(msg))).status).toBe("accepted");
-        expect(await h.prisma.channelMessage.count({ where: { channel: { externalMapping: { connectionId: connection.id } } } })).toBe(1);
+        expect(await h.prisma.channelMessage.count({ where: { externalReceipts: { some: { connectionId: connection.id } } } })).toBe(1);
       } finally {
         h.messaging.scheduleTranscriptProjection = original;
       }

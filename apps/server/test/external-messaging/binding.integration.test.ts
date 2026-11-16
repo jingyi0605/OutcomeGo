@@ -80,7 +80,7 @@ describe.skipIf(!databaseUrl)("messaging binding", () => {
     const connection = await h.connection();
     const parent = await h.bot();
     const child = await h.bot();
-    const channel = await h.prisma.channel.create({ data: { kind: "bot_dm", directKey: `bot:${parent.id}`, name: "home", members: { create: { botId: parent.id, ordinal: 0 } } } });
+    const channel = { id: await h.home(parent.id) };
     const run = await h.prisma.run.create({ data: { botId: parent.id, conversationId: parent.conversationId, channelId: channel.id, userMessageId: crypto.randomUUID(), status: "running" } });
     await h.prisma.subagent.create({
       data: { parentBotId: parent.id, childBotId: child.id, parentRunId: run.id, parentChannelId: channel.id, launchCallId: crypto.randomUUID(), description: "d", prompt: "p", subagentType: "general", outputPath: "/tmp/subagent-output" },

@@ -68,6 +68,8 @@ export interface Harness {
   bot(options?: { status?: "active" | "archived" | "provisioning" }): Promise<{ id: string; conversationId: string }>;
   connection(options?: { platform?: string; ready?: boolean; messaging?: boolean; media?: boolean }): Promise<{ id: string; installId: string }>;
   bind(connectionId: string, botId: string, extra?: Record<string, unknown>): Promise<{ id: string }>;
+  /** The Bot's own chat: where every message from an outside contact lands. */
+  home(botId: string): Promise<string>;
   cleanup(): Promise<void>;
 }
 
@@ -95,6 +97,9 @@ export async function createHarness(): Promise<Harness> {
         include: { conversation: true },
       });
       bots.push(created.id);
+      await prisma.channel.create({
+        data: { kind: "bot_dm", directKey: `bot:${created.id}`, name: "Ext", members: { create: { botId: created.id, ordinal: 0 } } },
+      });
       await data.initializeBot(created.id);
       return { id: created.id, conversationId: created.conversation!.id };
     },
@@ -117,11 +122,14 @@ export async function createHarness(): Promise<Harness> {
       });
       return { id: connection.id, installId };
     },
+    async home(botId) {
+      return (await prisma.channel.findFirstOrThrow({ where: { kind: "bot_dm", directKey: `bot:${botId}` }, select: { id: true } })).id;
+    },
     async bind(connectionId, botId, extra = {}) {
       return prisma.externalMessagingBinding.create({ data: { connectionId, botId, ...extra } });
     },
     async cleanup() {
-      await prisma.channel.deleteMany({ where: { kind: "external_dm", members: { some: { botId: { in: bots } } } } });
+      await prisma.channel.deleteMany({ where: { kind: { in: ["external_dm", "bot_dm"] }, members: { some: { botId: { in: bots } } } } });
       await prisma.bot.deleteMany({ where: { id: { in: bots } } });
       await prisma.pluginInstallation.deleteMany({ where: { id: { in: installs } } });
       await prisma.$disconnect();

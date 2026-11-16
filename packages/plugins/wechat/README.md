@@ -1,8 +1,8 @@
 # WeChat (iLink) connector
 
 Lets a user talk to their OpenTeam Bot from WeChat. The user links their own WeChat account by scanning a QR
-code. Messages the account owner sends to their WeChat ClawBot become a conversation with the chosen Bot, and
-the Bot's replies are sent back to the same WeChat chat.
+code. Messages the account owner sends to their WeChat ClawBot join the chosen Bot's own chat, marked as coming
+from WeChat, and the Bot's replies to those messages are sent back to the same WeChat chat.
 
 This package is the connector only. Conversations, de-duplication, waking the Bot and delivery state belong
 to the Server's external messaging service (`specs/009-外部消息服务`). The connector owns the WeChat protocol,
