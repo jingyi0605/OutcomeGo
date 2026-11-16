@@ -60,12 +60,14 @@ describe.skipIf(!url)("external messaging tables", () => {
     created.channels.push(id);
     return id;
   };
-  const mapping = async (connectionId: string, botId: string, peerId = "peer-1") =>
-    prisma.externalChannelMapping.create({
+  const mapping = async (connectionId: string, botId: string, peerId = "peer-1") => {
+    const row = await prisma.externalChannelMapping.create({
       data: { connectionId, botId, peerId, platform: "chat", channelId: await externalChannel(botId) },
     });
+    return { ...row, id: row.id!, channelId: row.channelId! };
+  };
   const message = async (channelId: string, sender: "user" | "agent" = "agent") =>
-    (await prisma.channelMessage.create({ data: { channelId, sender, content: "hi" } })).id;
+    (await prisma.channelMessage.create({ data: { channelId, sender, content: "hi" } })).id!;
   const delivery = (connectionId: string, botId: string, channelMessageId: string, extra: Record<string, unknown> = {}) =>
     prisma.externalOutboundDelivery.create({
       data: {
