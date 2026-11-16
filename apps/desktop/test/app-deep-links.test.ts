@@ -34,7 +34,10 @@ describe("OutcomeGo deep-link routing parity", () => {
     });
     expect(parseOutcomeGoDeepLink("outcomego://app/v1/settings?id=not-a-real-anchor")).toBeNull();
     expect(parseOutcomeGoDeepLink("outcomego://app/v1/settings?id=plan")).toBeNull();
-    expect(parseOutcomeGoDeepLink("outcomego://app/v1/settings?id=update-channel")).toBeNull();
+    expect(parseOutcomeGoDeepLink("outcomego://app/v1/settings?id=update-channel")).toEqual({
+      kind: "settings",
+      anchor: "update-channel",
+    });
     expect(parseOutcomeGoDeepLink("https://app/v1/settings?id=theme")).toBeNull();
     expect(parseOutcomeGoDeepLink("outcomego://app/v1/plugin/add?id=")).toBeNull();
   });
