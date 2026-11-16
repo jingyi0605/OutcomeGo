@@ -44,6 +44,7 @@ import { useI18n } from "../../lib/i18n";
 import { openComputerHandoff } from "../../lib/computer-handoff";
 import { parseUserForm } from "@outcomego/contracts/user-forms";
 import { UserFormCard } from "./user-form-card";
+import { localizeComputerNetworkPolicyCard } from "../../lib/computer-network-policy-card";
 
 const editableTarget = (target: EventTarget | null) =>
   (typeof HTMLInputElement !== "undefined" && target instanceof HTMLInputElement) ||
@@ -688,6 +689,7 @@ function ComputerHandoffCard({
 }
 
 export function RichMessage({ message, bot }: { message: ChannelMessageView; bot?: BotView }) {
+  const { locale } = useI18n();
   const metadata = record(message.metadata);
   if (
     metadata.type === "bot-template" &&
@@ -721,7 +723,7 @@ export function RichMessage({ message, bot }: { message: ChannelMessageView; bot
     const widget = widgetFrom(metadata.widget);
     return widget ? (
       <AnimatedCardHeight>
-        <WidgetCard message={message} metadata={metadata} widget={widget} />
+        <WidgetCard message={message} metadata={metadata} widget={localizeComputerNetworkPolicyCard(widget, locale)} />
       </AnimatedCardHeight>
     ) : null;
   }
