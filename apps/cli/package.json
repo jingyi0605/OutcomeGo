@@ -1,6 +1,6 @@
 {
   "name": "@outcomego/cli",
-  "version": "0.1.0-beta.18",
+  "version": "0.1.0-beta.19",
   "license": "GPL-3.0-only",
   "description": "Install and manage the self-hosted OutcomeGo server stack",
   "repository": {
