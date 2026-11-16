@@ -67,17 +67,15 @@ class AndroidUpdateManager(context: Context) {
     private val _state = MutableStateFlow<AndroidUpdateState>(AndroidUpdateState.Idle)
     val state: StateFlow<AndroidUpdateState> = _state.asStateFlow()
 
-    var channel: String
+    val channel: String
         get() = preferences.getString(UPDATE_CHANNEL, CHANNEL_STABLE) ?: CHANNEL_STABLE
-        private set(value) = preferences.edit().putString(UPDATE_CHANNEL, value).apply()
 
     fun setChannel(newChannel: String) {
         require(newChannel == CHANNEL_STABLE || newChannel == CHANNEL_BETA) {
             "channel must be \"stable\" or \"beta\""
         }
-        channel = newChannel
         // Reset last-check timestamp so the next checkIfDue() triggers immediately.
-        preferences.edit().putLong(LAST_CHECK_AT, 0L).apply()
+        preferences.edit().putString(UPDATE_CHANNEL, newChannel).putLong(LAST_CHECK_AT, 0L).apply()
         _state.value = AndroidUpdateState.Idle
     }
 
