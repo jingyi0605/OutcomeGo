@@ -180,6 +180,11 @@ export class StdioMcpManager {
     }
   }
 
+  /** Where the connector keeps its private state. It exists only for connectors with persistent state. */
+  stateDirectoryPath(connectionId: string) {
+    return this.accountStateDirectory(connectionId);
+  }
+
   private accountStateDirectory(connectionId: string) {
     return join(
       this.cacheDirectory,

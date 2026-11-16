@@ -27,6 +27,7 @@ import { BoxStoreSync } from "./box-store-sync";
 import { computerEventStream } from "./computer-event-stream";
 import { BotAgentStore } from "./bot-agent-store";
 import { StdioMcpManager } from "./mcp-manager";
+import { ExchangeError, McpExchange } from "./mcp-exchange";
 import { McpRuntimeRouter } from "./mcp-runtime-router";
 import { resolveWorkspacePath } from "./paths";
 import { ComputerRuntime } from "./runtime";
@@ -68,7 +69,9 @@ const runtime = new ComputerRuntime(screens, agentStores, ({ botId, screenBotId 
     ...(profile ? { chromeProfiles: [profile] } : {}),
   });
 });
-const stdioMcp = new McpRuntimeRouter(new StdioMcpManager());
+const stdioMcpManager = new StdioMcpManager();
+const stdioMcp = new McpRuntimeRouter(stdioMcpManager);
+const mcpExchange = new McpExchange((connectionId) => stdioMcpManager.stateDirectoryPath(connectionId));
 
 const json = (value: unknown, status = 200, headers: Record<string, string> = {}) =>
   Response.json(value, {
@@ -630,6 +633,40 @@ const server = Bun.serve({
         });
       }
 
+      // File exchange with a connector's private state directory (specs/009 §3.3.3).
+      const exchangeInbound = url.pathname.match(/^\/v1\/mcp\/connections\/([^/]+)\/exchange\/inbound\/([^/]+)$/);
+      if (request.method === "GET" && exchangeInbound?.[1] && exchangeInbound[2]) {
+        const file = await mcpExchange.readInbound(exchangeInbound[1], exchangeInbound[2]);
+        // A large media file may outlast the idle timeout.
+        requestServer.timeout(request, 0);
+        return new Response(file.body, {
+          headers: {
+            "content-type": "application/octet-stream",
+            "content-length": String(file.size),
+            "cache-control": "no-store",
+          },
+        });
+      }
+      const exchangeOutboundFile = url.pathname.match(/^\/v1\/mcp\/connections\/([^/]+)\/exchange\/outbound\/([^/]+)\/([^/]+)$/);
+      if (request.method === "PUT" && exchangeOutboundFile?.[1] && exchangeOutboundFile[2] && exchangeOutboundFile[3]) {
+        requestServer.timeout(request, 0);
+        const length = request.headers.get("content-length");
+        return json(
+          await mcpExchange.writeOutbound(
+            exchangeOutboundFile[1],
+            exchangeOutboundFile[2],
+            exchangeOutboundFile[3],
+            request.body,
+            length !== null && /^\d+$/.test(length) ? Number(length) : undefined
+          )
+        );
+      }
+      const exchangeOutboundDirectory = url.pathname.match(/^\/v1\/mcp\/connections\/([^/]+)\/exchange\/outbound\/([^/]+)$/);
+      if (request.method === "DELETE" && exchangeOutboundDirectory?.[1] && exchangeOutboundDirectory[2]) {
+        await mcpExchange.removeOutbound(exchangeOutboundDirectory[1], exchangeOutboundDirectory[2]);
+        return json({ ok: true });
+      }
+
       const mcpForgetMatch = url.pathname.match(/^\/v1\/mcp\/connections\/([^/]+)\/state$/);
       if (request.method === "DELETE" && mcpForgetMatch?.[1]) {
         const generation = request.headers.get("x-outcomego-mcp-generation");
@@ -722,6 +759,7 @@ const server = Bun.serve({
 
       return json({ error: "not_found" }, 404);
     } catch (error) {
+      if (error instanceof ExchangeError) return json({ error: error.code }, error.status);
       return json({ error: error instanceof Error ? error.message : String(error) }, 400);
     }
   },

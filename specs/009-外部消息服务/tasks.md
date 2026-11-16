@@ -205,7 +205,8 @@
   - 对应设计：`design.md` §3.2.5、§3.3.5、§6.7
 
 - [ ] 2.2 实现 computer exchange 端点
-  - 状态：TODO
+  - 状态：IN_REVIEW
+  - 进展：三个端点（`apps/computer/src/mcp-exchange.ts`、`main.ts` 路由）和 Server 侧封装（`apps/server/src/services/external-messaging/media-exchange.ts`）已完成。`apps/computer/test/mcp-exchange.test.ts`（36 项：命名、符号链接、父目录与状态目录替换、越界、大小上限、临时文件加原子改名、`0600`、清理）和 `apps/server/test/external-messaging/media-exchange.test.ts`（17 项）通过，类型检查通过。读取使用 `O_NOFOLLOW` 加 `fstat`，不依赖先 `lstat` 后打开。尚缺：接近 `AssetStore` 上限文件的完整往返实测（需同步并重建远端 computer，须先征得用户同意），结论应写入 `design.md` §8.2。
   - 这一步到底做什么：在 Bot Computer 上增加三个 HTTP 端点，让 Server 能从 connector 的受控目录读入站文件、写外发文件并清理。
   - 做完你能看到什么：Server 可以用一个文件名把字节流取回或送达，任何越界、符号链接、非法命名的请求都被拒绝。
   - 先依赖什么：1.5
