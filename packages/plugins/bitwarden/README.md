@@ -1,22 +1,22 @@
 # Bitwarden / Vaultwarden
 
-本插件通过官方 Bitwarden CLI 读取 Login 项目的 username、password 和 TOTP，支持主 Bot 与 `computerUse`。使用 Skills-only 模型，不创建 MCP connector，不复制 Vault 到 OutcomeGo 数据库。
+本插件通过官方 Bitwarden CLI 读取 Login 项目的 username、password 和 TOTP，支持主 Bot 与 `computerUse`。支持按实例配置多个 Bitwarden Cloud 或自托管 Vaultwarden 账号（使用受控内建实例模型 `outcomego://bitwarden`，不向模型暴露通用 MCP 工具，不复制 Vault 到 OutcomeGo 数据库）。
 
 ## 配置
 
-使用专用个人账号，只授予所需组织或 Collection 的读取权限。所有 Bot 共享一组配置；API Key 不是天然只读凭据，包装层白名单也不是主机沙箱。不要使用组织管理 API Key。
+使用专用个人账号，只授予所需组织或 Collection 的读取权限。管理员可在插件详情页的「账户」区域添加、编辑、重命名和移除多个实例；所有 Bot 共享已连接的实例集合。API Key 不是天然只读凭据，包装层白名单也不是主机沙箱。不要使用组织管理 API Key。
 
-在 web vault 的 Settings → Security → Keys → View API key 获取 personal API client ID 和 client secret，然后在 Marketplace 配置：
+在 web vault 的 Settings → Security → Keys → View API key 获取 personal API client ID 和 client secret，然后在 Marketplace 为每个实例配置：
 
-| 字段 | 环境变量 | 输入与用途 |
+| 字段 | 键名 | 输入与用途 |
 | --- | --- | --- |
 | Server URL | `BW_SERVER_URL` | 受保护运行字段，HTTPS origin；美国 Cloud 为 `https://vault.bitwarden.com`，欧洲为 `https://vault.bitwarden.eu` |
-| Account email | `BW_EMAIL` | 受保护运行字段，与 API Key 对应账号核对 |
+| Account email | `BW_EMAIL` | 受保护运行字段，与 API Key 对应账号核对；校验通过后默认作为实例名称 |
 | Personal API client ID | `BW_CLIENT_ID` | 受保护密码字段；内部映射到官方 CLI `BW_CLIENTID` |
 | Personal API client secret | `BW_CLIENT_SECRET` | 受保护密码字段；内部映射到 `BW_CLIENTSECRET` |
 | Master password | `BW_MASTER_PASSWORD` | 受保护密码字段，保留前后空格，仅用于解锁 |
 
-字段没有默认值。公开设置仅返回 Saved/Not set，不回显 runtime 值；单独替换某个字段不会清空其他字段。沿用插件的渐进配置行为，可先安装再配置；缺失配置时 wrapper 立即返回字段名，不尝试空值登录。卸载删除配置与 Skill 缓存，撤销 provider 访问还需要在 Bitwarden/Vaultwarden 轮换 API Key 或删除账号。
+字段没有默认值。公开设置仅返回 Saved/Not set，不回显明文值；单独替换某个字段不会清空其他字段，修改后会自动触发重新校验。每次保存或重连都会在 Bot computer 容器上执行 `bw.sh status`（server 配置、API Key 登录、邮箱核对、主密码解锁与同步）；只有实测通过，实例才会显示为「已连接」（`ready`），否则保持失败或未连接状态。若多个实例使用相同邮箱，可设置自定义别名或自动使用带服务器域名后缀的唯一别名区分。旧版本已保存的单全局 `plugin:bitwarden` 配置会在升级后自动迁移到第一个实例。卸载删除所有实例配置与 Skill 缓存，撤销 provider 访问还需要在 Bitwarden/Vaultwarden 轮换 API Key 或删除账号。
 
 ## 运行与网络
 
@@ -28,11 +28,11 @@
 
 ## 使用与边界
 
-Skill 通过 `SearchBitwardenItems` 获取非 secret metadata；首次读取某个 item 前必须调用 `RequestBitwardenReadApproval`，由服务端创建聊天 widget。用户选择或批准后，调用 `ReadBitwardenCredential` 获取单个字段。普通 Shell、MCP process 和其它子机器人不会收到 `BW_*`，wrapper 只在 Computer 私有的一次性 lease 路径执行。
+Skill 通过 `SearchBitwardenItems` 跨所有「已连接」实例获取非 secret metadata（返回所属 `connectionId` 与 `instanceName`）；首次读取某个实例下某个 item 前必须调用 `RequestBitwardenReadApproval`，由服务端创建显示来源实例名称的聊天 widget。用户选择或批准后，调用 `ReadBitwardenCredential`（绑定获批的 `connectionId` 与 `itemId`）获取单个字段。普通 Shell、MCP process 和其它子机器人不会收到 `BW_*`，wrapper 只在 Computer 私有的一次性 lease 路径执行。
 
-返回 JSON，成功退出码 0，失败非零。搜索只返回标题、hostname、UUID 和 `ambiguous` 标志；多个候选需要用户选择。仅 exact hostname 或完整 URI 匹配，字段读取只接受显式 UUID 并校验 Login 类型。标题查询不会按用户名搜索。CLI 输出上限 8 MiB，候选上限 50，单命令超时 90 秒，不自动重试认证或网站登录。
+返回 JSON，成功退出码 0，失败非零。搜索只返回标题、hostname、UUID、来源 `connectionId`/`instanceName` 和 `ambiguous` 标志；多个候选需要用户选择。仅 exact hostname 或完整 URI 匹配，字段读取只接受显式 UUID 并校验 Login 类型。标题查询不会按用户名搜索。CLI 输出上限 8 MiB，单实例候选上限 50，单命令超时 90 秒，不自动重试认证或网站登录。
 
-凭据值只在 Computer 私有运行时短暂保留为环境变量；`ReadBitwardenCredential` 只向模型返回不含值的浏览器引用，浏览器和 Computer 写入路径解析引用后自动脱敏。父任务与受控 `computerUse` 子任务共享 credential scope，子任务完成后释放；没有子任务时由 TTL 清理。读取某个 item 的第一个字段前，服务端 widget 同时承担 item 选择和授权，用户拒绝、关闭或未回答时 lease 不会发放。授权只对当前任务中的该 item 有效。本插件不会另外创建凭据日志，不提供 Vault 写入、导出、多账号路由、SSO/邮箱密码备用认证或交互 MFA 自动化。
+凭据值只在 Computer 私有运行时短暂保留为环境变量；`ReadBitwardenCredential` 只向模型返回不含值的浏览器引用，浏览器和 Computer 写入路径解析引用后自动脱敏。父任务与受控 `computerUse` 子任务共享 credential scope，子任务完成后释放；没有子任务时由 TTL 清理。读取某个实例下某个 item 的第一个字段前，服务端 widget 同时承担实例/item 选择和授权，用户拒绝、关闭或未回答时 lease 不会发放。授权只对当前任务中的该实例及该 item 有效。本插件不会另外创建凭据日志，不提供 Vault 写入、导出、SSO/邮箱密码备用认证或交互 MFA 自动化。
 
 Bitwarden 服务端仍必须使用 HTTPS；登录目标页面可以是用户明确打开并授权的 HTTP 页面。Computer 只允许在已确认目标 hostname 内写入 HTTP 页面，拒绝把凭据写入其他 HTTP frame。
 

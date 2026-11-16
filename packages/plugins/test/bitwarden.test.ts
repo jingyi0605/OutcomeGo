@@ -14,11 +14,22 @@ const runtime = {
   BW_MASTER_PASSWORD: "  fixture-master-密\n  ",
 };
 
-test("Bitwarden packages a portable main/computerUse skill, five runtime fields and no connector", () => {
-  expect(plugin.components).toEqual(["skills"]);
-  expect(plugin.connections).toEqual([]);
-  expect(plugin.setupFields?.map((field) => field.environment)).toEqual(Object.keys(runtime));
-  expect(plugin.setupFields?.find((field) => field.key === "masterPassword")?.preserveWhitespace).toBe(true);
+test("Bitwarden packages a portable main/computerUse skill, five instance setup fields and a credential-only builtin connector", () => {
+  expect(plugin.components).toEqual(["mcp", "skills"]);
+  expect(plugin.setupFields).toEqual([]);
+  expect(plugin.connections).toEqual([
+    {
+      key: "bitwarden",
+      name: "Bitwarden / Vaultwarden",
+      transport: "builtin",
+      auth: "none",
+      endpoint: "outcomego://bitwarden",
+      tools: [],
+    },
+  ]);
+  expect(plugin.setup?.connectionKey).toBe("bitwarden");
+  expect(plugin.setup?.fields.map((field) => field.key)).toEqual(Object.keys(runtime));
+  expect(plugin.setup?.fields.find((field) => field.key === "BW_MASTER_PASSWORD")?.preserveWhitespace).toBe(true);
   expect(skillIsForAgent(plugin.skills[0]!, "main")).toBe(true);
   expect(skillIsForAgent(plugin.skills[0]!, "computerUse")).toBe(true);
   expect(skillIsForAgent(plugin.skills[0]!, "executor")).toBe(false);
@@ -31,17 +42,17 @@ test("Bitwarden packages a portable main/computerUse skill, five runtime fields 
   expect(plugin.skills[0]!.body).toContain("`browser_run_code`");
   expect(plugin.skills[0]!.body).toContain("不会把值返回到对话上下文");
   expect(plugin.skills[0]!.body).toContain("RequestBitwardenReadApproval");
-  expect(plugin.skills[0]!.body).toContain("每个 item、每次任务");
+  expect(plugin.skills[0]!.body).toContain("每个实例、每个 item、每次任务");
   expect(plugin.skills[0]!.body).toContain("多个候选");
   expect(Object.values(runtime).some(value => JSON.stringify(plugin).includes(value))).toBe(false);
 });
 
 test("HTTPS origin validation rejects credentials, path, query, fragments and control characters", () => {
-  const field = plugin.setupFields!.find((field) => field.key === "serverUrl")!;
+  const field = plugin.setup!.fields.find((field) => field.key === "BW_SERVER_URL")!;
   for (const value of ["https://vault.example.test", "https://vault.example.test/", "https://[::1]:8443"])
-    expect(validateValues([field], { serverUrl: value }).serverUrl).toBe(value);
+    expect(validateValues([field], { BW_SERVER_URL: value }).BW_SERVER_URL).toBe(value);
   for (const value of ["http://vault.example.test", "https://user:password@vault.test", "https://vault.test/path", "https://vault.test?", "https://vault.test#", "https://vault.test/\n", "https://vault.test\\evil", "file:///vault", "https://vault.test:bad"])
-    expect(() => validateValues([field], { serverUrl: value })).toThrow("HTTPS origin");
+    expect(() => validateValues([field], { BW_SERVER_URL: value })).toThrow("HTTPS origin");
 });
 
 async function fixture(run: (f: { root: string; env: Record<string, string | undefined>; log: string }) => Promise<void>) {

@@ -78,6 +78,7 @@ export interface PluginConfigurationView {
   cwd: string | null;
   values: Record<string, ConfigValue>;
   fields: PluginField[];
+  configuredFields?: string[];
   configuredSecrets: string[];
   headerNames: string[];
   environmentNames: string[];

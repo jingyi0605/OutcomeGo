@@ -48,12 +48,28 @@ const manifestHostTools = (manifest: unknown, connectorKey: string): Set<string>
   return tools;
 };
 
+const isCredentialOnlyConnector = (connection: NamespaceConnection): boolean => {
+  if (connection.installation.pluginKey === "bitwarden") return true;
+  const connections = record(connection.installation.manifest).connections;
+  if (!Array.isArray(connections)) return false;
+  return connections.some((entry) => {
+    const item = record(entry);
+    return (
+      item.key === connection.connectorKey &&
+      item.transport === "builtin" &&
+      item.endpoint === "outcomego://bitwarden"
+    );
+  });
+};
+
 /** One shape for the turn-start catalog and every mid-turn refresh. */
 export function pluginDynamicNamespaces(
   connections: readonly NamespaceConnection[],
   namespaces: ReadonlyMap<string, string>
 ): PluginDynamicNamespace[] {
-  return connections.map((connection) => ({
+  return connections
+    .filter((connection) => !isCredentialOnlyConnector(connection))
+    .map((connection) => ({
     name: namespaces.get(connection.id)!,
     description: connectionDisplayName(connection),
     namespaceStatus: namespaceStatus(connection.status),
@@ -89,7 +105,7 @@ export function connectorCustomInstructionsSection(
   namespaces: ReadonlyMap<string, string>
 ): string {
   const entries = connections
-    .filter((connection) => connection.status === "ready")
+    .filter((connection) => connection.status === "ready" && !isCredentialOnlyConnector(connection))
     .flatMap((connection) => {
       const instructions = connection.instructions?.trim() || getDefaultMcpCustomInstruction(connection.name);
       return instructions ? [`- ${connectionDisplayName(connection)}, namespace ${namespaces.get(connection.id)}: ${instructions}`] : [];

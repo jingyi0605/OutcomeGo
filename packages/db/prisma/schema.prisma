@@ -1215,6 +1215,7 @@ model PluginConnection {
   updatedAt DateTime               @updatedAt
   activities    PluginActivity[]
   invocations   PluginInvocation[]
+  bitwardenReadApprovals BitwardenReadApproval[]
   externalMessagingBinding ExternalMessagingBinding?
   externalChannelMappings ExternalChannelMapping[]
   externalMessageReceipts ExternalMessageReceipt[]
@@ -1333,6 +1334,10 @@ model BitwardenReadApproval {
   channel Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
   sourceRunId String @db.Uuid
   sourceRun Run @relation(fields: [sourceRunId], references: [id], onDelete: Cascade)
+  connectionId String? @db.Uuid
+  connection PluginConnection? @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  instanceName String?
+  candidates Json?
   widgetMessageId String? @unique @db.Uuid
   itemId String?
   title String
@@ -1348,6 +1353,7 @@ model BitwardenReadApproval {
   @@index([botId, channelId, status, createdAt], map: "outcomego_bitwarden_read_approval_lookup_idx")
   @@index([sourceRunId, status], map: "outcomego_bitwarden_read_approval_source_run_idx")
   @@index([leaseTokenHash], map: "outcomego_bitwarden_read_approval_lease_idx")
+  @@index([connectionId], map: "outcomego_bitwarden_read_approval_connection_idx")
   @@map("outcomego_bitwarden_read_approval")
 }
 

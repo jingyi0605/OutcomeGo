@@ -16,8 +16,9 @@ const schemaFingerprint = createHash("sha256")
   .update(await readFile(join(import.meta.dirname, "..", "prisma", "sql", "raw-schema.sql")))
   .digest("hex");
 const READY_PREFIX = `OutcomeGo schema ready: ${SCHEMA_VERSION}:`;
-const INITIALIZING_MARKER = `OutcomeGo schema initializing: ${SCHEMA_VERSION}:${schemaFingerprint}`;
-const READY_MARKER = `OutcomeGo schema ready: ${SCHEMA_VERSION}:${schemaFingerprint}`;
+const INITIALIZING_PREFIX = `OutcomeGo schema initializing: ${SCHEMA_VERSION}:`;
+const INITIALIZING_MARKER = `${INITIALIZING_PREFIX}${schemaFingerprint}`;
+const READY_MARKER = `${READY_PREFIX}${schemaFingerprint}`;
 
 const assertFreshOrCurrentDatabase = async (): Promise<"initialize" | "ready"> => {
   const client = new Client({ connectionString });
@@ -54,7 +55,11 @@ const assertFreshOrCurrentDatabase = async (): Promise<"initialize" | "ready"> =
     }
     if (schemaComment === READY_MARKER && existing.rows[0]?.has_objects) return "ready";
     if (schemaComment === INITIALIZING_MARKER) return "initialize";
-    if (schemaComment?.startsWith(READY_PREFIX) && existing.rows[0]?.has_objects) return "initialize";
+    if (
+      (schemaComment?.startsWith(READY_PREFIX) || schemaComment?.startsWith(INITIALIZING_PREFIX)) &&
+      existing.rows[0]?.has_objects
+    )
+      return "initialize";
     if (existing.rows[0]?.has_objects) {
       throw new Error(
         "Database is not a recognized OutcomeGo schema. Refusing to modify it; create a fresh database and import a validated outcomego-v1 backup."

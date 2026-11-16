@@ -54,3 +54,21 @@ test("saved instructions of connected accounts become the reference's always-fol
   ].join("\n"));
   expect(connectorCustomInstructionsSection([connection("a")], names)).toBe("");
 });
+
+test("Bitwarden credential instances never enter MCP dynamic namespaces or connector instructions", () => {
+  const bw = connection("d", {
+    name: "Bitwarden / Vaultwarden",
+    alias: "alice@example.com",
+    connectorKey: "bitwarden",
+    instructions: "Should not appear in MCP section",
+    toolSnapshot: [],
+    installation: {
+      pluginKey: "bitwarden",
+      manifest: {
+        connections: [{ key: "bitwarden", transport: "builtin", endpoint: "outcomego://bitwarden" }],
+      },
+    },
+  });
+  expect(pluginDynamicNamespaces([bw], names)).toEqual([]);
+  expect(connectorCustomInstructionsSection([bw], names)).toBe("");
+});
