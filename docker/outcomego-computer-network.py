@@ -40,6 +40,15 @@ def network_families():
     return ['-4', '-6'] if enabled else ['-4']
 
 
+def connected_prefixes(family):
+    """Return the kernel's directly connected prefixes for the container's own links."""
+    routes = json.loads(run('ip', family, '-j', 'route', 'show', 'table', 'main',
+                            'scope', 'link', 'proto', 'kernel') or '[]')
+    return sorted({route['dst'] for route in routes
+                   if route.get('dev') != TUN and route.get('dst') not in (None, 'default')
+                   and not route['dst'].startswith(('fe80:', '169.254.'))})
+
+
 def management_url(server_url):
     if os.geteuid() != 0:
         raise RuntimeError('Computer networking requires the container supervisor')
@@ -306,19 +315,9 @@ def update_families(value):
                 raise subprocess.CalledProcessError(result.returncode, result.args, stderr=result.stderr)
 
 
-def prepare(server_url):
-    url, port = management_url(server_url)
-    gateway_port = int(os.environ.get('OUTCOMEGO_COMPUTER_PORT', '8790'))
-    if not 1 <= gateway_port <= 65535:
-        raise ValueError('Invalid computer gateway port')
-    families = network_families()
-    # The server can start only after the computer is healthy. Do not perform
-    # hostname resolution here: the marked worker discovers it asynchronously.
-    try:
-        addresses = [str(ipaddress.ip_address(url.hostname))]
-    except ValueError:
-        addresses = []
-    rules = f'''table inet outcomego_network {{
+def nft_ruleset(port, gateway_port):
+    """The container's whole nftables policy as one atomic transaction."""
+    return f'''table inet outcomego_network {{
     set management_v4 {{ type ipv4_addr; }}
     set management_v6 {{ type ipv6_addr; }}
     set lan_private_v4 {{ type ipv4_addr; flags interval; }}
@@ -358,6 +357,15 @@ def prepare(server_url):
         meta l4proto 58 icmpv6 type {{ nd-neighbor-solicit, nd-neighbor-advert, nd-router-solicit, nd-router-advert }} accept
         counter reject with icmpx type admin-prohibited
     }}
+    # Inbound replies are validated by a reverse route lookup. Unmarked, that
+    # lookup falls into the exit table (unreachable by default), so Internet
+    # replies are dropped whenever rp_filter is non-zero. Marking them with the
+    # transport mark (src_valid_mark=1 makes the lookup honour it) sends the
+    # check to the main table without depending on the rp_filter value.
+    chain rpf {{
+        type filter hook prerouting priority -150; policy accept;
+        iifname "eth0" meta mark set {MARK}
+    }}
     chain forwarding {{
         type filter hook forward priority 0; policy drop;
         ct state established,related accept
@@ -365,6 +373,32 @@ def prepare(server_url):
     }}
 }}
 '''
+
+
+def disable_reverse_path_filter(root=Path('/proc/sys/net/ipv4/conf')):
+    """Keep reverse-path validation from depending on rp_filter.
+
+    rp_filter is cleared, but Docker can set it again after start, so
+    src_valid_mark makes the check honour the mark set by the rpf chain.
+    """
+    for interface in root.iterdir():
+        (interface / 'rp_filter').write_text('0')
+        (interface / 'src_valid_mark').write_text('1')
+
+
+def prepare(server_url):
+    url, port = management_url(server_url)
+    gateway_port = int(os.environ.get('OUTCOMEGO_COMPUTER_PORT', '8790'))
+    if not 1 <= gateway_port <= 65535:
+        raise ValueError('Invalid computer gateway port')
+    families = network_families()
+    # The server can start only after the computer is healthy. Do not perform
+    # hostname resolution here: the marked worker discovers it asynchronously.
+    try:
+        addresses = [str(ipaddress.ip_address(url.hostname))]
+    except ValueError:
+        addresses = []
+    rules = nft_ruleset(port, gateway_port)
     # One atomic transaction; do not flush Docker's tables or unrelated rules.
     exists = subprocess.run(['nft', 'list', 'table', 'inet', 'outcomego_network'], capture_output=True).returncode == 0
     run('nft', '-f', '-', input=('delete table inet outcomego_network\n' if exists else '') + rules)
@@ -380,9 +414,18 @@ def prepare(server_url):
         subprocess.run(['ip', family, 'route', 'del', 'default', 'dev', TUN,
                         'metric', '10', 'table', TABLE], capture_output=True)
         # Dedicated priorities are owned by this container's network service.
-        for priority in ['95', '96', '97', '98', '99', '100', '101', '110']:
+        for priority in ['94', '95', '96', '97', '98', '99', '100', '101', '110']:
             while subprocess.run(['ip', family, 'rule', 'del', 'pref', priority], capture_output=True).returncode == 0:
                 pass
+        # The Docker bridge must always resolve through the main table. Without
+        # a route to the gateway, reverse-path validation drops the host's ARP
+        # requests for this container whenever the sysctl is reset to loose/strict
+        # (Docker re-applies it shortly after creation). Replies to the host's
+        # SYN-ACKs then queue behind an INCOMPLETE neighbour for ~20 s and every
+        # container-initiated connection stalls. This is route selection only;
+        # nft still decides what may leave.
+        for prefix in connected_prefixes(family):
+            run('ip', family, 'rule', 'add', 'pref', '94', 'to', prefix, 'lookup', 'main')
         # An unmarked SYN-ACK needs an initial route before the OUTPUT hook
         # can identify/mark it as a conntrack reply. The disabled-family guard
         # otherwise rejects it before nftables, deadlocking control-plane boot.
@@ -399,8 +442,9 @@ def prepare(server_url):
     # eth0 drops marked relay/probe replies when ordinary routes are unreachable
     # during bootstrap. Disable it throughout this namespace, including the
     # default for future interfaces; nftables still enforces every output path.
-    for interface in Path('/proc/sys/net/ipv4/conf').iterdir():
-        (interface / 'rp_filter').write_text('0')
+    # Docker can set rp_filter again after start, so correctness must not rely
+    # on this: src_valid_mark plus the rpf chain keep reverse-path checks valid.
+    disable_reverse_path_filter()
     Path('/run/outcomego-management.json').write_text('[]')
     if addresses:
         update_management(server_url, addresses)

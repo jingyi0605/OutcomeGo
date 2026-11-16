@@ -134,5 +134,50 @@ class EndpointTests(unittest.TestCase):
         )
 
 
+class ReversePathTests(unittest.TestCase):
+    """Internet replies must pass reverse-path validation whatever rp_filter is.
+
+    Docker can reset rp_filter shortly after start. Unmarked, the validation
+    lookup falls into the exit table (unreachable by default) and drops replies
+    from public addresses while LAN keeps working.
+    """
+
+    def test_ruleset_marks_inbound_replies_before_routing(self):
+        rules = network.nft_ruleset(8788, 8790)
+        self.assertRegex(
+            rules,
+            r'chain rpf \{\s*type filter hook prerouting priority -150;[^}]*'
+            r'iifname "eth0" meta mark set ' + network.MARK,
+        )
+
+    def test_ruleset_keeps_outbound_policy(self):
+        rules = network.nft_ruleset(8788, 8790)
+        for expected in ['chain transport', 'chain enforce', 'chain forwarding',
+                         'ct direction reply meta mark set ' + network.MARK]:
+            self.assertIn(expected, rules)
+
+    def test_sysctls_do_not_rely_on_rp_filter_alone(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for name in ['all', 'default', 'eth0']:
+                (root / name).mkdir()
+                (root / name / 'rp_filter').write_text('2')
+                (root / name / 'src_valid_mark').write_text('0')
+            network.disable_reverse_path_filter(root)
+            for name in ['all', 'default', 'eth0']:
+                self.assertEqual((root / name / 'rp_filter').read_text(), '0')
+                self.assertEqual((root / name / 'src_valid_mark').read_text(), '1')
+
+    def test_connected_prefixes_cover_the_bridge_but_not_the_tunnel(self):
+        routes = json.dumps([
+            {'dst': '172.19.0.0/16', 'dev': 'eth0'},
+            {'dst': '198.18.0.0/15', 'dev': network.TUN},
+            {'dst': '169.254.0.0/16', 'dev': 'eth0'},
+            {'dst': 'default', 'dev': 'eth0'},
+        ])
+        with patch.object(network, 'run', return_value=routes):
+            self.assertEqual(network.connected_prefixes('-4'), ['172.19.0.0/16'])
+
+
 if __name__ == '__main__':
     unittest.main()
