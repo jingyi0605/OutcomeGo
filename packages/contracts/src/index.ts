@@ -43,6 +43,7 @@ export * from "./memory-management";
 export * from "./automation-tools";
 export * from "./state-tools";
 export * from "./computer-network-policy";
+export * from "./dingtalk";
 
 export interface NativeToolDefinition {
   name: string;
@@ -903,6 +904,7 @@ export interface PluginCatalogItemView {
   sourceRevision: string | null;
   logoUrl: string | null;
   installationSteps?: string[];
+  usageTips?: Array<{ title: string; prompt: string }>;
   setupFields: PluginCatalogSetupFieldView[];
   setup: PluginSetupView | null;
 }

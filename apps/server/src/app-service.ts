@@ -51,6 +51,7 @@ import { TodoService } from "./services/todo-service";
 import { DurableStateService } from "./update-state";
 import { VoiceService } from "./services/voice-service";
 import { ComputerNetworkPolicyService } from "./services/computer-network-policy-service";
+import { DingTalkService } from "./services/dingtalk";
 
 const COMPUTER_ID = "00000000-0000-0000-0000-000000000001";
 
@@ -80,6 +81,7 @@ export class AppService {
   readonly todos: TodoService;
   readonly internalTools: InternalToolService;
   readonly plugins: PluginService;
+  readonly dingtalk: DingTalkService;
   readonly machines: MachineService;
   readonly richMessages: RichMessageService;
   readonly runs: RunService;
@@ -199,6 +201,7 @@ export class AppService {
       this.agentData,
       this.agentData
     );
+    this.dingtalk = new DingTalkService(this.prisma, (path, init) => this.computerFetch(path, init));
     this.richMessages = new RichMessageService(
       this.prisma,
       this.messaging,

@@ -42,6 +42,8 @@ import { boundToolImage } from "./runtime/image-input";
 import { checkAgentWorkspace, checkDesktopAvailable, ComputerReadiness } from "./readiness";
 import { ScreenBroker } from "./screen-broker";
 import { TranscriptMirror } from "./transcript-mirror";
+import { DingTalkRuntime } from "./dingtalk";
+import type { DingTalkActionInput } from "@outcomego/contracts";
 
 const port = Number(process.env.OUTCOMEGO_COMPUTER_PORT ?? 8790);
 const controlToken = process.env.OUTCOMEGO_CONTROL_TOKEN ?? "local-compose-only-change-me";
@@ -64,6 +66,7 @@ const boxStore = new BoxStoreSync({
 });
 await boxStore.start();
 const transcripts = new TranscriptMirror();
+const dingtalk = new DingTalkRuntime();
 const runtime = new ComputerRuntime(screens, agentStores, ({ botId, screenBotId }) => {
   // Only the browser this turn used; other running profiles keep the periodic interval.
   const profile = screens.takeBrowserUse(screenBotId);
@@ -229,6 +232,10 @@ const server = Bun.serve({
       });
 
     try {
+      if (request.method === "POST" && url.pathname === "/v1/dingtalk") {
+        const body = await request.json() as { input?: DingTalkActionInput; packageFiles?: unknown };
+        return json(body.input ? await dingtalk.action(body.input, body.packageFiles) : await dingtalk.status(body.packageFiles));
+      }
       if (url.pathname === "/v1/browser-network/quality" && request.method === "POST") {
         try { return json(await browserNetwork.quality(), 200, { "cache-control": "no-store" }); }
         catch { return json({ error: "Could not test the active browser connection" }, 503); }

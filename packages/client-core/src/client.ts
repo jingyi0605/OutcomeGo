@@ -1,4 +1,5 @@
 import type { ServerUpdateView } from "@outcomego/contracts";
+import type { DingTalkActionInput, DingTalkStatus } from "@outcomego/contracts";
 import type { NotificationPresenceInput, NotificationRouting } from "@outcomego/contracts/notification-presence";
 import type { BrowserNetworkView, NetworkSettingsUpdate, NetworkEgress, NetworkQuality } from "@outcomego/contracts/browser-network";
 import type {
@@ -383,6 +384,10 @@ export const createOutcomeGoClient = (options: OutcomeGoClientOptions) => {
     deletePluginSkill: (id: string) =>
       transport.request(`/api/v0/plugin-skills/${encodeURIComponent(id)}`, { method: "DELETE" }),
     pluginSettings: () => transport.request<PluginSettingsView>("/api/v0/plugins"),
+    dingTalkStatus: () => transport.request<DingTalkStatus>("/api/v0/plugins/dingtalk-workspace/runtime"),
+    dingTalkAction: (input: DingTalkActionInput) => transport.request<DingTalkStatus>("/api/v0/plugins/dingtalk-workspace/runtime", {
+      method: "POST", body: JSON.stringify(input),
+    }),
     pluginConnectionStatuses: (connectionIds: readonly string[]) => {
       const params = new URLSearchParams();
       for (const connectionId of connectionIds.slice(0, PLUGIN_CONNECTION_STATUS_MAX_IDS)) {

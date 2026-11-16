@@ -2,9 +2,14 @@ import { ApiError, PluginConfigurationInput, PluginDraftInput, PluginPackageInpu
 import { json } from "../http";
 import { type RouteContext, run } from "./context";
 import { bodyRoute, dispatchRoutes, effectRoute } from "./dispatch";
+import { parseDingTalkAction } from "../services/dingtalk";
 
 export async function pluginManagementRoutes(context: RouteContext): Promise<Response | undefined> {
   const { request, path, app } = context;
+  if (path === "/api/plugins/dingtalk-workspace/runtime") {
+    if (request.method === "GET") return json(await app.dingtalk.call());
+    if (request.method === "POST") return json(await app.dingtalk.call(parseDingTalkAction(await request.json())));
+  }
   if (request.method === "GET" && path === "/api/plugins/composer") {
     const botId = context.url.searchParams.get("botId");
     if (!botId || !/^[0-9a-f-]{36}$/i.test(botId)) throw new ApiError(400, "plugin_bot_required", "Choose a Bot to see its plugins");
