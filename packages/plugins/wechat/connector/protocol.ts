@@ -107,3 +107,43 @@ export interface UploadUrlResponse {
   uploadParam: string | null;
   uploadFullUrl: string | null;
 }
+
+// --- Media (P7, P8: unverified) ---------------------------------------------------------------
+
+/** Largest media file taken in or sent out, plaintext. */
+export const MEDIA_MAX_BYTES = 100 * 1024 * 1024;
+/** Each file is fetched at most this many times before it is reported as failed. */
+export const MEDIA_DOWNLOAD_ATTEMPTS = 3;
+/**
+ * Where a download without a full URL is fetched from, and how the parameter is passed. P8 is unverified:
+ * the reference client builds `<cdn>/download?encrypted_query_param=<param>`.
+ */
+export const CDN_DOWNLOAD_PATH = "download";
+export const CDN_UPLOAD_PATH = "upload";
+export const CDN_PARAM = "encrypted_query_param";
+/** The response header that carries the reference to an uploaded file. */
+export const CDN_UPLOAD_RESULT_HEADER = "x-encrypted-param";
+/**
+ * P8: the AES key reaches us base64-encoded, and the reference clients disagree on whether it
+ * encodes the 16 raw bytes or their 32-character hex text. Both are accepted on the way in.
+ * Outgoing keys use the hex-text form, the one the reference client sends.
+ */
+export const OUTBOUND_KEY_ENCODING: "hex-text" | "raw" = "hex-text";
+/** Only still images are enabled outbound until P7 shows files and video are delivered. */
+export const OUTBOUND_MEDIA_KINDS = ["image"] as const;
+
+// --- Sending (P5, P6: unverified) -------------------------------------------------------------
+
+/**
+ * `getuploadurl` request fields are taken from the reference client and are unverified (P7/P8):
+ * media_type, rawsize, rawfilemd5, filesize, aeskey.
+ */
+/** Longest single message sent. P5: the real limit is unknown; this is the conservative default. */
+export const TEXT_CHUNK_CHARS = 1800;
+/** What the manifest allows in one delivery: at most this many chunks at the default size. */
+export const MAX_DELIVERY_TEXT_CHARS = 9000;
+/** At most this many provider messages in any 60 seconds. P5: unverified, conservative. */
+export const SEND_RATE_LIMIT = 20;
+export const SEND_RATE_WINDOW_MS = 60_000;
+/** How many finished deliveries are remembered for idempotency. */
+export const DELIVERY_LOG_LIMIT = 500;

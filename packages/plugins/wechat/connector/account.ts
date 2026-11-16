@@ -143,8 +143,9 @@ export class WechatAccount {
     this.credentials = outcome.value;
     this.api.setToken(outcome.value.botToken);
     this.api.setBaseUrl(outcome.value.baseUrl);
-    const pausedUntil = outcome.value.pausedUntil ? Date.parse(outcome.value.pausedUntil) : 0;
-    if (pausedUntil > this.now().getTime()) {
+    // A recorded cool-down is only lifted by a successful probe, not by the clock: even after it ends,
+    // the first request must be the probe, because the credentials may be dead.
+    if (outcome.value.pausedUntil) {
       this.baseState = "needs_pairing";
       this.reason = "session_expired";
       return;
@@ -175,6 +176,13 @@ export class WechatAccount {
   redact(value: string): string {
     const token = this.credentials?.botToken;
     return token && token.length >= 4 ? value.split(token).join("[redacted]") : value;
+  }
+
+  /** Milliseconds until the cool-down probe is due, or null when none is pending. */
+  probeDueIn(): number | null {
+    const until = this.credentials?.pausedUntil;
+    if (until === undefined || this.baseState !== "needs_pairing" || this.reason !== "session_expired") return null;
+    return Math.max(0, Date.parse(until) - this.now().getTime());
   }
 
   inCooldown(): boolean {

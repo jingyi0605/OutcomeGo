@@ -47,12 +47,16 @@ export class IlinkSimulator {
   overrides = new Map<string, Array<() => Response | Promise<Response>>>();
   /** Set to make `getupdates` hang until the client's timeout. */
   holdGetUpdates = false;
+  /** How long an empty getupdates is held open, like the real long poll. */
+  emptyPollDelayMs = 20;
   longPollingTimeoutMs = 35_000;
   /** Everything uploaded to the CDN, keyed by the returned download parameter. */
   cdn = new Map<string, Uint8Array>();
   sent: Array<{ toUserId: string; clientId: string; contextToken: string; items: unknown[] }> = [];
 
   enqueue(message: SimMessage): void {
+    // Real ids are 64-bit integers written as bare JSON numbers; anything else would corrupt the body.
+    if (!/^\d{1,20}$/.test(message.messageId)) throw new Error(`message ids must be decimal integers, got ${JSON.stringify(message.messageId)}`);
     this.inbox.push({ ...message, seq: ++this.seq });
   }
 
@@ -90,8 +94,21 @@ export class IlinkSimulator {
     this.overrides.set(endpoint, list);
   }
 
+  /**
+   * Looks at every request before it is answered. Return a response to answer it instead, or nothing to
+   * let the simulator handle it. `count` is how many requests to that path were seen, this one included.
+   */
+  intercept?: (request: { url: URL; init: RequestInit; count: number }) => Response | Promise<Response> | void | Promise<void>;
+  private seenPaths = new Map<string, number>();
+
   readonly fetch: WechatFetch = async (input, init) => {
     const url = new URL(input);
+    if (this.intercept) {
+      const count = (this.seenPaths.get(url.pathname) ?? 0) + 1;
+      this.seenPaths.set(url.pathname, count);
+      const answer = await this.intercept({ url, init, count });
+      if (answer) return answer;
+    }
     const headers = new Headers(init.headers);
     const body = typeof init.body === "string" ? init.body : init.body ? await new Response(init.body as BodyInit).text() : "";
     this.requests.push({ method: (init.method ?? "GET").toUpperCase(), url, headers, body });
@@ -137,6 +154,13 @@ export class IlinkSimulator {
         const fresh = this.inbox.filter((message) => message.seq > floor);
         const top = fresh.length ? fresh[fresh.length - 1]!.seq : Math.max(floor, covered);
         this.servedUpTo = Math.max(this.servedUpTo, top);
+        // The real server holds an empty poll open; without this a test loop would spin.
+        if (fresh.length === 0 && this.emptyPollDelayMs > 0)
+          await new Promise<void>((resolve) => {
+            const timer = setTimeout(resolve, this.emptyPollDelayMs);
+            init.signal?.addEventListener("abort", () => (clearTimeout(timer), resolve()), { once: true });
+          });
+        init.signal?.throwIfAborted();
         const token = `buf-${++this.cursorCounter}`;
         this.cursors.set(token, top);
         return new Response(

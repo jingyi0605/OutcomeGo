@@ -9,7 +9,8 @@
   "featured": false,
   "icon": "assets/icon.png",
   "components": [
-    "mcp"
+    "mcp",
+    "skills"
   ],
   "setup": {
     "kind": "none",
@@ -46,10 +47,33 @@
         "cancelTool": "wechat_cancel_link",
         "removeTool": "wechat_remove_account",
         "instructions": "Scan this code with WeChat and confirm on your phone. Your account needs the WeChat ClawBot entry."
+      },
+      "messaging": {
+        "platform": "wechat",
+        "inbound": {
+          "pollTool": "wechat_poll_inbound",
+          "maxWaitSeconds": 20
+        },
+        "outbound": {
+          "deliverTool": "wechat_deliver_message",
+          "maxTextChars": 9000,
+          "media": {
+            "kinds": [
+              "image"
+            ],
+            "maxBytes": 20971520
+          }
+        }
       }
     }
   ],
-  "skills": [],
+  "skills": [
+    {
+      "name": "wechat",
+      "description": "Reply to the account owner in WeChat from a conversation that came from WeChat, check the WeChat connection, and see who has written. Use when a message arrived through WeChat or the user asks about the WeChat connection.",
+      "path": "skills/wechat"
+    }
+  ],
   "installationSteps": [
     "Install WeChat and choose Connect.",
     "Scan the QR code with WeChat and confirm on your phone.",

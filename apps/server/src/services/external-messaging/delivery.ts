@@ -293,7 +293,9 @@ export class ExternalDeliveryService {
       return await this.finishFromCall(row, leaseOwner, payload, messaging.outbound.deliverTool);
     } finally {
       alive.stop();
-      if (staged) void this.deps.exchange.cleanupOutbound(row.connectionId, deliveryId);
+      // Waited for, so "the delivery ended" also means "its staged files are gone". A failure to clean up
+      // never changes the delivery's result: the connector ages leftovers out on its own.
+      if (staged) await this.deps.exchange.cleanupOutbound(row.connectionId, deliveryId).catch(() => false);
     }
   }
 

@@ -355,10 +355,20 @@ describe("restart and recovery", () => {
     await second.account.initialize();
     expect(second.account.status()).toMatchObject({ state: "needs_pairing", reason: "session_expired" });
     expect(second.account.canSend).toBe(false);
+    // Even once the hour is up, nothing resumes by itself: the probe decides.
     clock += SESSION_COOLDOWN_MS + 1;
+    const startsBefore = events.filter((event) => event === "start").length;
     const third = build();
     await third.account.initialize();
+    expect(third.account.status()).toMatchObject({ state: "needs_pairing", reason: "session_expired" });
+    expect(third.account.probeDueIn()).toBe(0);
+    expect(third.account.canSend).toBe(false);
+    // Receiving did not start on its own.
+    expect(events.filter((event) => event === "start")).toHaveLength(startsBefore);
+    await third.account.resumeAfterCooldown();
     expect(third.account.status().state).toBe("bootstrapping");
+    expect(third.account.canSend).toBe(true);
+    expect(third.account.probeDueIn()).toBeNull();
   });
 });
 

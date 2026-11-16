@@ -197,6 +197,15 @@ export class Spool {
     this.records += 1;
   }
 
+  /** The sequence number the next appended message will get; names its files before it is queued. */
+  get upcomingSeq(): number {
+    return this.nextSeq;
+  }
+
+  get currentQueueId(): string {
+    return this.queueId;
+  }
+
   /** The cursor naming `seq` in this queue. */
   cursorFor(seq: number): string {
     return `${this.queueId}:${seq}`;

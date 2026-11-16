@@ -96,9 +96,9 @@
   - 对应需求：`requirements.md` 需求 1 / 验收 1.1
   - 对应设计：`design.md` §8.2
 
-- [ ] 1.3 建立插件骨架
-  - 状态：IN_REVIEW
-  - 进展：`plugin.json`、`upstream.json`、中文文案、原创图标和 `connector/server.ts`、`tools.ts` 已完成；`bun run prepare:plugins` 与 `packages/plugins/test` 通过。工具发现的 host-only 标记与 manifest 引用由 `connector/test/tools.test.ts` 覆盖。尚缺 `package.test.ts`（打包往返），manifest 仍未加入 `messaging` 块（按任务要求留到 4.1）。
+- [x] 1.3 建立插件骨架
+  - 状态：DONE
+  - 进展：`plugin.json`（含 `messaging` 块，仅声明图片外发）、`upstream.json`、中英文案、原创图标、技能、README、NOTICE 与 `QR-LICENSE`；`connector/test/package.test.ts` 6 项通过（打包往返、技能随包、无测试与状态文件、源码中的主机只有 `weixin.qq.com`、host-only 工具由 manifest 声明）。
   - 这一步到底做什么：创建 `packages/plugins/wechat`，包含 manifest、MCP server 入口、工具注册和占位实现，并接入插件目录与打包流程。
   - 做完你能看到什么：插件出现在目录中，connector 进程能启动并列出工具，host-only 工具带有正确标记。
   - 先依赖什么：1.1
@@ -198,9 +198,9 @@
   - 对应需求：`requirements.md` 需求 2 / 验收 2.2；非功能需求 2.2、4.3
   - 对应设计：`design.md` §3.2.1、§3.2.2、§3.2.3
 
-- [ ] 2.2 实现二维码流程和账户状态机
-  - 状态：IN_REVIEW
-  - 进展：`account.ts`、`peers.ts`、`tools.ts` 的五个设备链接工具与 `connection_status`、`list_peers` 已完成，`account.test.ts`、`peers.test.ts`、`tools.test.ts` 通过。二维码刷新、取消不影响既有凭据、账户更换时重建队列、同账户重扫保留 peer 元数据并清空游标与回复令牌、冷却期跨重启保持均有测试。与现有设计文档的一处差异：设备链接契约的 `expiresAt`、`sessionExpiresAt` 是毫秒时间戳（以 `apps/server/src/services/plugin/device-link.ts` 的实际校验为准）。尚缺 `host-integration.test.ts`（真实 stdio 进程驱动）。
+- [x] 2.2 实现二维码流程和账户状态机
+  - 状态：DONE
+  - 进展：`account.test.ts`、`tools.test.ts`、`peers.test.ts` 通过。冷却期结束后不会自动恢复，而是由一次探活决定（探活成功恢复、仍为 `-14` 则清除凭据、网络错误则稍后再试）；探活取回的消息同样先写日志再入队，不会丢。设备链接契约的时间字段为毫秒时间戳。真实 stdio 进程驱动的 `host-integration.test.ts` 未单独写，由 `apps/server/test/external-messaging/wechat.integration.test.ts` 经真实 MCP 协议覆盖同一链路。
   - 这一步到底做什么：实现五个设备链接工具、二维码刷新、基座地址切换、确认后保存凭据、重启恢复，以及 `connection_status`。
   - 做完你能看到什么：在 simulator 上能完整走完"开始 → 扫码 → 确认 → 就绪"，重启后无需再扫码。
   - 先依赖什么：1.4、2.1
@@ -255,9 +255,9 @@
 
 ## 阶段 3：入站与外发（connector 侧）
 
-- [ ] 3.1 实现落盘队列和 poll 工具
-  - 状态：IN_REVIEW
-  - 进展：`spool.ts` 与 `spool.test.ts`（26 项）已完成：`<queueId>:<seq>` 游标、确认前不删除媒体文件、去重集合重启重建并有界、日志在每个字节位置截断后都能恢复并继续追加、入队后唤醒挂起的等待、背压与 80% 回落。尚缺：`wechat_poll_inbound` 工具的接线（需要与 3.2 的接收循环一起完成，目前工具层只在传入处理函数时才注册 poll 与 deliver）。
+- [x] 3.1 实现落盘队列和 poll 工具
+  - 状态：DONE
+  - 进展：`spool.test.ts` 26 项、`receive.test.ts` 中 poll 工具部分通过：`<queueId>:<seq>` 游标、确认前不删文件、游标不属于当前队列时 `resetCursor`、空队列挂起且入队后立即返回、新 poll 释放旧 poll、未链接且队列为空返回 `wechat_needs_pairing`、会话过期后已取回的消息仍交给 Server。
   - 这一步到底做什么：实现入站消息的磁盘队列（追加、去重、确认删除、压缩、损坏恢复、等待通知），并用它实现 `wechat_poll_inbound`。
   - 做完你能看到什么：往队列里放消息后，poll 工具能按确认游标逐批取出，确认后的消息和文件被清理。
   - 先依赖什么：2.3；Spec 009 任务 1.2
@@ -281,8 +281,9 @@
   - 对应需求：`requirements.md` 需求 3 / 验收 3.3、3.6、3.7、3.8；非功能需求 1.2
   - 对应设计：`design.md` §2.3.3、§3.2.4、§6.2、§6.3
 
-- [ ] 3.2 实现接收循环和消息标准化
-  - 状态：TODO
+- [x] 3.2 实现接收循环和消息标准化
+  - 状态：DONE
+  - 进展：`receive.test.ts` 29 项、`normalize.test.ts` 18 项、`crash.test.ts` 19 项通过。先写恢复日志、再下载媒体并入队、最后保存 provider 游标并删除日志。`crash.test.ts` 在批次的每个步骤之间制造崩溃，在 provider 重放与不重放两种模式下均不丢不重；首个日志写入前的崩溃只在重放模式可恢复，不重放模式下该窗口内的消息确实丢失，测试对此作了断言。已用变异验证：把日志提前清除会让 10 项崩溃测试失败。会话过期后停止接收并进入一小时冷却。背压在 500 条或 1 GiB 时暂停、回落到 80% 以下恢复。
   - 这一步到底做什么：实现后台长轮询、过滤、转换为 `ExternalMessage`、入队、保存 provider 游标、退避、背压，以及 `getupdates` 上的会话过期处理。
   - 做完你能看到什么：simulator 发出的消息会自动出现在队列里；恢复日志持久化后的崩溃不会丢失消息或导致重复入队。
   - 先依赖什么：3.1
@@ -310,8 +311,9 @@
   - 对应需求：`requirements.md` 需求 3 / 验收 3.1、3.2、3.4、3.5、3.9、3.10；需求 2 / 验收 2.3、2.8、2.10；需求 4 / 验收 4.1；非功能需求 1.1、2.1、2.4
   - 对应设计：`design.md` §2.3.2、§2.3.5、§3.2.5、§3.3.4、§6.1、§6.2
 
-- [ ] 3.3 实现入站媒体
-  - 状态：TODO
+- [x] 3.3 实现入站媒体
+  - 状态：DONE
+  - 进展：`media.test.ts` 55 项通过：两种密钥编码、块边界与空文件、错误密钥与截断文件为解密失败、声明超限不发请求、下载中超限立即中止且不重试、失败重试三次、落盘文件名由 connector 生成并按字节嗅探类型、连接拒绝重定向。
   - 这一步到底做什么：下载、解密入站的图片、文件和视频，写入 exchange 入站目录，并处理语音转写。
   - 做完你能看到什么：带图片的消息入队后，exchange 目录里有对应的明文文件，大小和摘要与消息里声明的一致。
   - 先依赖什么：3.2
@@ -336,8 +338,9 @@
   - 对应需求：`requirements.md` 需求 5 / 验收 5.1 到 5.4、5.8；非功能需求 3.2
   - 对应设计：`design.md` §2.3.4、§6.6
 
-- [ ] 3.4 实现文本外发
-  - 状态：TODO
+- [x] 3.4 实现文本外发
+  - 状态：DONE
+  - 进展：`deliver.test.ts` 32 项通过：无令牌、令牌过期、限速、空消息、超长、账户未就绪均在发请求前返回 `failed`；首条被拒为 `failed`，其后被拒为 `uncertain`（`wechat_partial_delivery`）；超时、断连、不可解析为 `uncertain`；同一 `deliveryId` 只发送一次且并发调用也只发一次；开始标记先于首个请求落盘；进程在发送中途死亡后再次调用返回 `wechat_delivery_interrupted`；`sendmessage` 上的 `-14` 只作废该联系人的令牌。已用变异验证：去掉中断保护会让对应测试失败。
   - 这一步到底做什么：实现 `wechat_deliver_message` 的文本路径：会话令牌与窗口检查、分片、限速、幂等日志、结果归类，以及 `sendmessage` 上的 `-14` 处理。
   - 做完你能看到什么：给定一个 `deliveryId`，connector 最多发送一次，并明确告诉调用方是成功、确定失败还是结果不明。
   - 先依赖什么：3.2
@@ -364,8 +367,9 @@
   - 对应需求：`requirements.md` 需求 4 / 验收 4.2 到 4.10；非功能需求 2.3
   - 对应设计：`design.md` §2.3.5、§2.3.6、§3.2.6、§6.4、§6.5
 
-- [ ] 3.5 实现外发图片
-  - 状态：TODO
+- [x] 3.5 实现外发图片
+  - 状态：DONE
+  - 进展：文本在前、图片在后；路径越界、符号链接、大小或摘要不符均在发请求前返回 `wechat_media_invalid`；上传失败返回 `wechat_media_upload_failed` 且不发送任何内容（包括文字）；非图片类型暂拒绝。加密上传的密文用消息里的密钥可还原。
   - 这一步到底做什么：从 exchange 外发目录读取并校验文件，完成"申请上传地址 → 加密 → 上传 CDN → 发送媒体引用"。
   - 做完你能看到什么：simulator 收到一条媒体消息，其引用的密文解密后与原文件一致。
   - 先依赖什么：3.3、3.4
@@ -388,8 +392,9 @@
 
 ### 阶段检查
 
-- [ ] 3.6 connector 阶段检查
-  - 状态：TODO
+- [x] 3.6 connector 阶段检查
+  - 状态：DONE
+  - 进展：367 项 connector 测试连续三次通过；`secrets.test.ts` 经真实 MCP 工具走完链接、收发、失败、过期的完整流程，在所有返回值与日志里搜索令牌、回复令牌、provider 游标、二维码内容、加密密钥与账户标识，均未出现，并用故意泄漏验证了该测试会失败；connector 源码中没有 Server 的数据库、回执、外发记录或唤醒逻辑。
   - 这一步到底做什么：确认 connector 在 simulator 上已经是一个完整、可独立验证的收发组件。
   - 做完你能看到什么：不依赖 Spec 009 的 Server 服务，就能证明 connector 侧的全部正确性属性。
   - 先依赖什么：3.1、3.2、3.3、3.4、3.5
@@ -413,7 +418,8 @@
 ## 阶段 4：接入 OpenTeam
 
 - [ ] 4.1 声明 `messaging` 并完成与 Spec 009 的集成测试
-  - 状态：TODO
+  - 状态：IN_REVIEW
+  - 进展：`wechat.integration.test.ts` 8 项通过（连续多次）：真实 connector 经真实 MCP 协议对接真实 Server 服务。覆盖文本往返、图片入站与外发、重启后不丢不重且不产生第二个会话、非所有者被 Server 拒绝、会话窗口过期时 Bot 看到 `wechat_context_expired`、不确定结果不重发、Bot 只能看到只读工具、`list_peers` 不在 Server 创建任何记录。为跑通本任务修改过一处基础服务：外发结束时等待暂存目录清理完成（此前不等待，会留下可观察的竞态），属于 Spec 009 的缺陷修复，已在其任务中记录。
   - 这一步到底做什么：在 manifest 中加入 `messaging` 块，用 simulator 加真实 connector 进程加 Spec 009 服务跑通完整往返。
   - 做完你能看到什么：simulator 里的一条"微信消息"变成 `external_dm` 里的用户消息并唤醒 Bot，Bot 的回复变成 simulator 收到的 `sendmessage`。
   - 先依赖什么：3.6；Spec 009 任务 4.5
@@ -436,8 +442,9 @@
   - 对应需求：`requirements.md` 需求 6 / 验收 6.1 到 6.5
   - 对应设计：`design.md` §3.2.5、§3.2.7、§7.3
 
-- [ ] 4.2 补齐文案、技能、图标和说明
-  - 状态：TODO
+- [x] 4.2 补齐文案、技能、图标和说明
+  - 状态：DONE
+  - 进展：技能 `wechat` 说明了自动回复、只发文本与图片、卡片类内容用 `to: "dm"`、`sent` 不等于已读、`uncertain` 不要重发、窗口限制、`list_peers` 只读；README 与 NOTICE 说明协议参考与独立实现；`bun run check:i18n` 通过。
   - 这一步到底做什么：完成插件的用户可见部分和给 Bot 的使用说明。
   - 做完你能看到什么：插件目录里有完整的中英文介绍和连接步骤；Bot 知道在微信会话里该怎么回复、有哪些限制。
   - 先依赖什么：1.3

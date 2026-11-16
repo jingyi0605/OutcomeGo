@@ -9,5 +9,6 @@
   "Scan this code with WeChat and confirm on your phone. Your account needs the WeChat ClawBot entry.": "用微信扫描此二维码，并在手机上确认。账号需要有微信 ClawBot 入口。",
   "Install WeChat and choose Connect.": "安装微信并选择连接。",
   "Scan the QR code with WeChat and confirm on your phone.": "用微信扫描二维码，并在手机上确认。",
-  "Send your ClawBot a first message in WeChat so your Bot can reply.": "在微信里先给你的 ClawBot 发一条消息，Bot 才能回复。"
+  "Send your ClawBot a first message in WeChat so your Bot can reply.": "在微信里先给你的 ClawBot 发一条消息，Bot 才能回复。",
+  "Reply to the account owner in WeChat from a conversation that came from WeChat, check the WeChat connection, and see who has written. Use when a message arrived through WeChat or the user asks about the WeChat connection.": "在来自微信的会话中回复账户所有者、检查微信连接状态、查看谁发来过消息。消息来自微信或用户询问微信连接时使用。"
 }
