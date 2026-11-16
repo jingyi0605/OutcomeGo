@@ -1,0 +1,4 @@
+{
+  "origin": "openteam",
+  "description": "OpenTeam-authored WeChat iLink connector. The iLink HTTP protocol is implemented independently in TypeScript, using Tencent/openclaw-weixin (MIT) only as a behavior reference; no source is copied."
+}

@@ -1,0 +1,13 @@
+{
+  "Inbox & Collaboration": "收件箱与协作",
+  "Chat with your Bot from WeChat. Messages you send to the WeChat ClawBot reach your Bot, and its replies come back to the same chat.": "在微信里与你的 Bot 对话。你发给微信 ClawBot 的消息会送到 Bot，Bot 的回复会回到同一个会话。",
+  "Connect WeChat": "连接微信",
+  "Link your WeChat account by scanning a QR code. Your WeChat account needs the ClawBot entry, which WeChat is rolling out in stages.": "扫描二维码关联你的微信账号。账号需要有微信 ClawBot 入口，该功能正在分批开放。",
+  "Choose Connect to display a QR code.": "选择连接以显示二维码。",
+  "Scan the code with WeChat and confirm on your phone.": "用微信扫描二维码，并在手机上确认。",
+  "In WeChat, send your ClawBot a first message so your Bot can reply.": "在微信里先给你的 ClawBot 发一条消息，Bot 才能回复。",
+  "Scan this code with WeChat and confirm on your phone. Your account needs the WeChat ClawBot entry.": "用微信扫描此二维码，并在手机上确认。账号需要有微信 ClawBot 入口。",
+  "Install WeChat and choose Connect.": "安装微信并选择连接。",
+  "Scan the QR code with WeChat and confirm on your phone.": "用微信扫描二维码，并在手机上确认。",
+  "Send your ClawBot a first message in WeChat so your Bot can reply.": "在微信里先给你的 ClawBot 发一条消息，Bot 才能回复。"
+}

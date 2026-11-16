@@ -1,0 +1,58 @@
+{
+  "schemaVersion": 1,
+  "key": "wechat",
+  "version": "0.1.0",
+  "name": "WeChat",
+  "description": "Chat with your Bot from WeChat. Messages you send to the WeChat ClawBot reach your Bot, and its replies come back to the same chat.",
+  "publisher": "OpenTeam",
+  "category": "Inbox & Collaboration",
+  "featured": false,
+  "icon": "assets/icon.png",
+  "components": [
+    "mcp"
+  ],
+  "setup": {
+    "kind": "none",
+    "connectionKey": "wechat",
+    "title": "Connect WeChat",
+    "description": "Link your WeChat account by scanning a QR code. Your WeChat account needs the ClawBot entry, which WeChat is rolling out in stages.",
+    "steps": [
+      "Choose Connect to display a QR code.",
+      "Scan the code with WeChat and confirm on your phone.",
+      "In WeChat, send your ClawBot a first message so your Bot can reply."
+    ],
+    "fields": [],
+    "requiredScopes": []
+  },
+  "connections": [
+    {
+      "key": "wechat",
+      "name": "WeChat",
+      "transport": "stdio",
+      "auth": "none",
+      "endpoint": "",
+      "tools": [],
+      "configuration": {
+        "command": "bun",
+        "args": [
+          "${PLUGIN_ROOT}/connector/server.mjs"
+        ]
+      },
+      "persistentState": true,
+      "deviceLink": {
+        "startTool": "wechat_start_link",
+        "finishTool": "wechat_finish_link",
+        "statusTool": "wechat_link_status",
+        "cancelTool": "wechat_cancel_link",
+        "removeTool": "wechat_remove_account",
+        "instructions": "Scan this code with WeChat and confirm on your phone. Your account needs the WeChat ClawBot entry."
+      }
+    }
+  ],
+  "skills": [],
+  "installationSteps": [
+    "Install WeChat and choose Connect.",
+    "Scan the QR code with WeChat and confirm on your phone.",
+    "Send your ClawBot a first message in WeChat so your Bot can reply."
+  ]
+}

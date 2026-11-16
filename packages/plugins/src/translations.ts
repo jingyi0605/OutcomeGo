@@ -21,6 +21,7 @@ import signal from "../signal/locales/zh-CN.json";
 import slackStealth from "../slack-stealth/locales/zh-CN.json";
 import slack from "../slack/locales/zh-CN.json";
 import t3Code from "../t3-code/locales/zh-CN.json";
+import wechat from "../wechat/locales/zh-CN.json";
 import whatsapp from "../whatsapp/locales/zh-CN.json";
 
 export const pluginTranslations: Record<string, Record<string, string>> = {
@@ -47,5 +48,6 @@ export const pluginTranslations: Record<string, Record<string, string>> = {
   "slack-stealth": slackStealth,
   slack,
   "t3-code": t3Code,
+  wechat,
   whatsapp,
 };

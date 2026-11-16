@@ -97,7 +97,8 @@
   - 对应设计：`design.md` §8.2
 
 - [ ] 1.3 建立插件骨架
-  - 状态：TODO
+  - 状态：IN_REVIEW
+  - 进展：`plugin.json`、`upstream.json`、中文文案、原创图标和 `connector/server.ts`、`tools.ts` 已完成；`bun run prepare:plugins` 与 `packages/plugins/test` 通过。工具发现的 host-only 标记与 manifest 引用由 `connector/test/tools.test.ts` 覆盖。尚缺 `package.test.ts`（打包往返），manifest 仍未加入 `messaging` 块（按任务要求留到 4.1）。
   - 这一步到底做什么：创建 `packages/plugins/wechat`，包含 manifest、MCP server 入口、工具注册和占位实现，并接入插件目录与打包流程。
   - 做完你能看到什么：插件出现在目录中，connector 进程能启动并列出工具，host-only 工具带有正确标记。
   - 先依赖什么：1.1
@@ -123,7 +124,8 @@
   - 对应设计：`design.md` §2.2、§3.3.1
 
 - [ ] 1.4 实现 iLink API client 和 simulator
-  - 状态：TODO
+  - 状态：IN_REVIEW
+  - 进展：`api.ts`、`json.ts`、`protocol.ts` 与 `test/fixtures/ilink-simulator.ts` 已完成，`api.test.ts`、`json.test.ts` 通过：每次请求的 `X-WECHAT-UIN` 不同、64 位 `message_id` 逐位一致、非 https、非 `weixin.qq.com` 子域和重定向均被拒绝。simulator 以注入的 `fetch` 实现（不提供替换基座地址的环境变量，见决策 W7）；已覆盖空轮询、多条消息、`-14`、超时、重放与不重放游标模式。协议常量中依赖 P1、P8 的取值（请求头应用标识、二维码请求方法）标为未验证，集中在 `protocol.ts`。
   - 这一步到底做什么：封装全部 iLink 请求（请求头、`base_info`、域名校验、超时、错误映射、64 位整数无损解析），并写一个可编排的本地模拟服务。
   - 做完你能看到什么：不联网就能对每个接口做请求和响应断言；任何指向非微信域名的地址都会被拒绝。
   - 先依赖什么：1.2、1.3
@@ -175,7 +177,8 @@
 ## 阶段 2：二维码与账户状态
 
 - [ ] 2.1 实现持久状态
-  - 状态：TODO
+  - 状态：IN_REVIEW
+  - 进展：`state.ts` 与 `state.test.ts`（25 项）通过：临时文件加 fsync 加原子改名、`0600`、版本号不符或损坏时移到 `.corrupt`/`.unsupported`，被篡改的 `baseUrl` 不会被读入。
   - 这一步到底做什么：实现状态目录的布局、版本化文件的原子读写和损坏处理。
   - 做完你能看到什么：任意时刻杀进程，状态文件要么是旧内容要么是新内容，不会是半截。
   - 先依赖什么：1.3
@@ -196,7 +199,8 @@
   - 对应设计：`design.md` §3.2.1、§3.2.2、§3.2.3
 
 - [ ] 2.2 实现二维码流程和账户状态机
-  - 状态：TODO
+  - 状态：IN_REVIEW
+  - 进展：`account.ts`、`peers.ts`、`tools.ts` 的五个设备链接工具与 `connection_status`、`list_peers` 已完成，`account.test.ts`、`peers.test.ts`、`tools.test.ts` 通过。二维码刷新、取消不影响既有凭据、账户更换时重建队列、同账户重扫保留 peer 元数据并清空游标与回复令牌、冷却期跨重启保持均有测试。与现有设计文档的一处差异：设备链接契约的 `expiresAt`、`sessionExpiresAt` 是毫秒时间戳（以 `apps/server/src/services/plugin/device-link.ts` 的实际校验为准）。尚缺 `host-integration.test.ts`（真实 stdio 进程驱动）。
   - 这一步到底做什么：实现五个设备链接工具、二维码刷新、基座地址切换、确认后保存凭据、重启恢复，以及 `connection_status`。
   - 做完你能看到什么：在 simulator 上能完整走完"开始 → 扫码 → 确认 → 就绪"，重启后无需再扫码。
   - 先依赖什么：1.4、2.1
@@ -252,7 +256,8 @@
 ## 阶段 3：入站与外发（connector 侧）
 
 - [ ] 3.1 实现落盘队列和 poll 工具
-  - 状态：TODO
+  - 状态：IN_REVIEW
+  - 进展：`spool.ts` 与 `spool.test.ts`（26 项）已完成：`<queueId>:<seq>` 游标、确认前不删除媒体文件、去重集合重启重建并有界、日志在每个字节位置截断后都能恢复并继续追加、入队后唤醒挂起的等待、背压与 80% 回落。尚缺：`wechat_poll_inbound` 工具的接线（需要与 3.2 的接收循环一起完成，目前工具层只在传入处理函数时才注册 poll 与 deliver）。
   - 这一步到底做什么：实现入站消息的磁盘队列（追加、去重、确认删除、压缩、损坏恢复、等待通知），并用它实现 `wechat_poll_inbound`。
   - 做完你能看到什么：往队列里放消息后，poll 工具能按确认游标逐批取出，确认后的消息和文件被清理。
   - 先依赖什么：2.3；Spec 009 任务 1.2
