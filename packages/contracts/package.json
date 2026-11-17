@@ -62,7 +62,8 @@
     "./outcomes": "./src/outcomes.ts",
     "./outcome-inbox": "./src/outcome-inbox.ts",
     "./knowledge": "./src/knowledge.ts",
-    "./human-work": "./src/human-work.ts"
+    "./human-work": "./src/human-work.ts",
+    "./outcome-runtime": "./src/outcome-runtime.ts"
   },
   "scripts": {
     "build": "bun build src/index.ts --outdir dist --target bun",

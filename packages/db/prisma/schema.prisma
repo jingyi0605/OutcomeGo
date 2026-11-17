@@ -2032,6 +2032,9 @@ model OutcomeWorkItem {
   instructions String                      @default("")
   status OutcomeWorkItemStatus
   statusReason String?
+  /// Spec 004.5: bounded internal retries and interrupted-thread continuations.
+  retryCount Int @default(0)
+  recoveryCount Int @default(0)
   ordinal Int
   /// Work item IDs this one waits for.
   dependsOn Json                        @default("[]")
