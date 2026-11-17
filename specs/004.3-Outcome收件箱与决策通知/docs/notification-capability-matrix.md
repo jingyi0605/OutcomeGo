@@ -34,3 +34,11 @@ Inbox 使用业务表的实时 SQL 投影，不新增 `OutcomeInboxItem`，不�
 - 第 2 波任务 1.4 才接入 review/human/accepted 等生产事件。第一波只用固定业务事实验证其查询类别与通用投递设施，不宣称非 Decision 生产通知已经连通。
 - 第三波的真实三端通知点击、未登录后恢复和设备验证为 PENDING；本线提供共享 ID 深链、旧解析器 fixture 和 APNs/FCM 编码验证。
 - `notification.created` 是脱敏唤醒消息；不需要把 `outcome.*` 正文推给客户端。关闭/过期后的 UI 应重新查询 Inbox，通知已读不能当作业务处理。
+
+## 第二波代码进展
+
+`515abb275` 新增 `reconcileOutcomeInboxNotifications`，在原 dispatcher.drain 中恢复 Decision、review、human action、accepted 四类永久事实；`consumeOutcomeInboxEvent` 对目录事件写入 D18 receipt，Event 清理不影响业务事实恢复。第一波“其他类别留给 1.4”的范围说明至此由第二波代码完成，跨线与客户端联合验收仍待集中进行。
+
+现有认证 `GET /api/v0/notification-state` 追加 `outcomeNotifications` 数组，包含当前未读、全局/Bot 偏好允许且非隐藏/归档的固定脱敏 Outcome payload，客户端仍应使用原 notificationRouting。不能直接从 `notification.created` 的存在推断提醒资格。message/reaction 数组与旧客户端兼容行为保留。详细提交、检查和组装边界见 [第二波验证记录](20261117-第二波决策工具与事件接入验证记录.md)。
+
+`d2253a9ce` 补齐返工周期：设计 §17.1 的 review key 第四段为 criterionGroup，由 criterion IDs 和当前 ready result/receipt IDs 的确定摘要生成。返工期间原结果退出 ready 组；新结果完成时生成新未读事实，重复 settle/event 不重复。Inbox 和通知共用该 SQL，避免“旧卡仍在，但新结果永远不提醒”的分歧。

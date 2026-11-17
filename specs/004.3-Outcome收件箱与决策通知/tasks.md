@@ -78,8 +78,8 @@
   - 已知限制：实时事实已处理后从待处理列表消失；游标提供稳定排序和新事实快照边界，非跨请求历史 MVCC 快照
   - 回滚方式：撤销本线服务与通知入口提交，保留 Decision 事实与新增表；没有生产数据库变更
 
-- [ ] 1.3 实现 `RequestOutcomeDecision` 和子线程继续执行
-  - 状态：TODO
+- [x] 1.3 实现 `RequestOutcomeDecision` 和子线程继续执行
+  - 状态：DONE（本线代码和必要聚焦检查；跨线组装、广泛回归与远端部署验收 PENDING）
   - 这一步到底做什么：在 computer 工具列表和 `internal-tool-service.ts` 中新增该工具，只在 Outcome 子线程提供；resolve 后按 `resolutionEffect` 在同一子线程开启新回合、创建新 revision、创建人工 WorkItem 或追加补充 WorkItem。
   - 先依赖什么：1.1、第 0 波 B 工具分发点；真实续跑依赖 `004.2` 任务 3.2、3.4，之前可用 OutcomeThreadFake（第 2 波线 3）。
   - 开始前先看：design §41；`004.2` design §12；父 design §45.5
@@ -89,9 +89,17 @@
   - 怎么验证：工具列表快照（Outcome 子线程/主对话/Routine）；`bun test apps/worker/test/outcome-thread.integration.test.ts` 增加决策暂停和继续场景
   - 对应需求：需求 6、需求 14、需求 15、需求 17
   - 对应设计：§15、§29、§41
+  - 实现提交：f598cf59d、4c963a368、922c25840、e9d56c461、515abb275、f60495cf8
+  - 修改文件：contracts/outcome-inbox；messaging/outcome-decisions；server/outcome-decision-tool、decision-service、outcome-inbox 路由；computer/runtime/tools；相关聚焦测试
+  - 数据库变化：none
+  - 验证命令：证据记录内限定 test-name-pattern 的三文件 DB 测试；合同/工具快照两文件；受影响包 TypeScript 检查
+  - 验证结果：DB 聚焦 8 PASS / 44 assertions；合同/工具快照 7 PASS / 17 assertions；server/computer/worker/messaging 类型检查通过；广泛回归未运行
+  - 证据文件：[第二波决策工具与事件接入验证记录](docs/20261117-第二波决策工具与事件接入验证记录.md)
+  - 已知限制：真实 HumanActionPort 和 trusted handler 中央组装归集成者；远端 computer 未同步/重建，部署和跨线联合验收 PENDING；第 0 波失败基线未宣称消失
+  - 回滚方式：逆序撤销本线提交并移除集成者的组装引用，保留业务事实；无 schema 回滚
 
-- [ ] 1.4 接入待验收、待人工处理和完成事件
-  - 状态：TODO
+- [x] 1.4 接入待验收、待人工处理和完成事件
+  - 状态：DONE（本线代码和必要聚焦检查；客户端及真实生产者联合验收 PENDING）
   - 这一步到底做什么：消费 `outcome.review.required`、`outcome.human_action.required`、`outcome.accepted`、`outcome.decision.closed`，生成对应 Inbox 项和通知事实；消费者用 `IdempotencyRecord(scope="outcome-event:inbox")` 去重。
   - 先依赖什么：1.2、`004.2` 任务 4.2；人工动作真实事件依赖 `004.4` 任务 2.1 的来源实现，之前使用冻结 payload fixture（第 2 波）。
   - 开始前先看：design §8、§17；父 design §14、§43
@@ -101,6 +109,14 @@
   - 怎么验证：事件回放和重复投递测试
   - 对应需求：需求 4、需求 7、需求 9
   - 对应设计：§8、§17
+  - 实现提交：e9d56c461、515abb275、d2253a9ce；共享通知读取合同 f598cf59d
+  - 修改文件：messaging/outcome-inbox-notifications、notifications、index；server/notification-service、outcome-inbox-service；worker/push-notifications；新增事件集成测试
+  - 数据库变化：none
+  - 验证命令：bun test packages/messaging/test/outcome-inbox-events.integration.test.ts（实际与限定模式 DB 聚焦组合执行，完整命令见证据）
+  - 验证结果：三类新增事件、D18 重放、永久事实恢复、偏好/已读、closed/current 检查随上述 8 项聚焦测试全部通过；审阅补充返工周期等必要聚焦 9 PASS / 49 assertions（与前者部分重合）；真实 readA→FAIL/rework→newB 单未读/outbox/provider send 通过。无高水位、不依赖 Event 留存，现有 Dispatcher 生命周期默认接入
+  - 证据文件：[第二波决策工具与事件接入验证记录](docs/20261117-第二波决策工具与事件接入验证记录.md)
+  - 已知限制：原生通知数组需第三波客户端采用；广泛回归和实际设备验证 PENDING；不开放原始 outcome.* 客户端流
+  - 回滚方式：撤销本线消费者/dispatcher 默认引用和 additive 读取数组，不清理持久业务事实
 
 ## 阶段 2：通知
 
