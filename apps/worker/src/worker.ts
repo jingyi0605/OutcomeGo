@@ -58,6 +58,7 @@ import {
   dispatchQueuedOutcomeWorkItems,
   recoverOutcomeWorkItems,
   outcomeDispatchEnabled,
+  isOutcomeDecisionRevisionActive,
   transitionWorkItem,
   groupRoutineState,
   lockGroupExecution,
@@ -1323,9 +1324,20 @@ export class WakeWorker {
         const runnableCandidates = [];
         for (const candidate of candidates) {
           if (candidate.run.origin === "outcome") {
+            const found = candidate.run.outcomeWorkItemId
+              ? await tx.outcomeWorkItem.findUnique({ where: { id: candidate.run.outcomeWorkItemId }, select: { outcomeId: true } }) : null;
+            if (found) {
+              await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`outcome:${found.outcomeId}`}))`;
+              await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`outcome-work-item:${candidate.run.outcomeWorkItemId}`}))`;
+            }
+            const current = await tx.inboxEvent.findUnique({ where: { id: candidate.id }, include: { run: true } });
+            if (!current || current.run.status !== "queued"
+              || !(current.status === "pending" || current.status === "processing" && current.claimedAt && current.claimedAt < staleAt)) continue;
             const item = candidate.run.outcomeWorkItemId
-              ? await tx.outcomeWorkItem.findUnique({ where: { id: candidate.run.outcomeWorkItemId }, include: { outcome: true } }) : null;
-            if (!item || item.outcome.cancelledAt || item.outcome.acceptedAt || ["completed", "failed", "cancelled", "waiting_decision", "waiting_human", "needs_review"].includes(item.status)) {
+              ? await tx.outcomeWorkItem.findUnique({ where: { id: candidate.run.outcomeWorkItemId }, include: { outcome: true, contractRevision: true } }) : null;
+            if (!item || item.outcome.cancelledAt || item.outcome.acceptedAt || !item.contractRevision.approvedAt
+              || !await isOutcomeDecisionRevisionActive(tx, item.outcomeId, item.contractRevisionId, item.id)
+              || ["completed", "failed", "cancelled", "waiting_decision", "waiting_human", "needs_review"].includes(item.status)) {
               await tx.inboxEvent.updateMany({ where: { id: candidate.id, status: "pending" }, data: { status: "completed", completedAt: new Date() } });
               await tx.run.updateMany({ where: { id: candidate.runId, status: "queued", startedAt: null }, data: { status: "cancelled", completedAt: new Date(), error: { code: "outcome_not_runnable" } } });
               continue;
@@ -1344,8 +1356,14 @@ export class WakeWorker {
         });
         if (!inbox) return null;
         if (inbox.run.origin === "outcome") {
-          const item = await tx.outcomeWorkItem.findUnique({ where: { id: inbox.run.outcomeWorkItemId! }, include: { outcome: true } });
-          if (!item || item.outcome.cancelledAt || ["completed", "failed", "cancelled", "waiting_decision", "waiting_human", "needs_review"].includes(item.status)) return null;
+          const found = await tx.outcomeWorkItem.findUnique({ where: { id: inbox.run.outcomeWorkItemId! }, select: { outcomeId: true } });
+          if (!found) return null;
+          await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`outcome:${found.outcomeId}`}))`;
+          await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`outcome-work-item:${inbox.run.outcomeWorkItemId}`}))`;
+          const item = await tx.outcomeWorkItem.findUnique({ where: { id: inbox.run.outcomeWorkItemId! }, include: { outcome: true, contractRevision: true } });
+          if (!item || item.outcome.cancelledAt || item.outcome.acceptedAt || !item.contractRevision.approvedAt
+            || !await isOutcomeDecisionRevisionActive(tx, item.outcomeId, item.contractRevisionId, item.id)
+            || ["completed", "failed", "cancelled", "waiting_decision", "waiting_human", "needs_review"].includes(item.status)) return null;
         }
         const identity = inbox.bot.subagentIdentity;
         if (identity?.subagentType === "computerUse") {

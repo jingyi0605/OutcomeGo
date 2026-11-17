@@ -66,4 +66,40 @@ describe.skipIf(!url)("Outcome recovery queries and metrics", () => {
       expect((await h.db.outcomeWorkItem.findUniqueOrThrow({ where: { id: item.id } })).recoveryCount).toBe(1);
     } finally { await h.cleanup(); }
   });
+
+  test("quality, interventions and notification usefulness derive from durable facts", async () => {
+    const h = await outcomeThreadFixture();
+    const service = new OutcomeRecoveryService(h.db, h.messaging);
+    try {
+      const item = await h.item();
+      const criterion = await h.db.outcomeAcceptanceCriterion.findFirstOrThrow({ where: { contractRevisionId: h.revision.id } });
+      const notifiedAt = new Date(Date.now() - 5000), actedAt = new Date(Date.now() - 1000);
+      for (const [index, result] of ["FAIL", "PASS"].entries()) await h.db.outcomeReview.create({ data: {
+        outcomeId: h.outcome.id, contractRevisionId: h.revision.id, criterionId: criterion.id,
+        sequence: index + 1, result: result as "FAIL" | "PASS", reviewedBy: "owner:local", reviewedAt: new Date(actedAt.getTime() + index),
+      } });
+      const decision = await h.db.outcomeDecision.create({ data: {
+        outcomeId: h.outcome.id, contractRevisionId: h.revision.id, workItemId: item.id, status: "resolved",
+        reasonCode: "fixture", completedSummary: "", problemSummary: "", nextStepSummary: "", options: [],
+        idempotencyKey: `fixture:${item.id}`, resolvedAt: actedAt, resolvedBy: "owner:local",
+      } });
+      const human = await h.db.outcomeWorkItem.create({ data: {
+        outcomeId: h.outcome.id, contractRevisionId: h.revision.id, botId: h.bot.id,
+        executorType: "human", kind: "human_action", status: "review_pending", ordinal: 2, title: "Inspect onsite",
+      } });
+      await h.db.outcomeHumanReceipt.create({ data: { outcomeId: h.outcome.id, workItemId: human.id, sequence: 1, submittedBy: "owner:local", submittedAt: actedAt, payload: {} } });
+      await h.db.channelNotification.createMany({ data: [
+        { key: `decision.required:${decision.id}`, channelId: h.channel.id, botId: h.bot.id, kind: "outcome", createdAt: notifiedAt, payload: { outcomeId: h.outcome.id, decisionId: decision.id, category: "decision_pending" } },
+        { key: `human_action.required:${human.id}`, channelId: h.channel.id, botId: h.bot.id, kind: "outcome", createdAt: notifiedAt, payload: { outcomeId: h.outcome.id, category: "human_action_pending" } },
+      ] });
+      await h.db.outcomeContractRevision.create({ data: { outcomeId: h.outcome.id, revision: 2, status: "draft", goal: [], boundaries: {}, executionBotId: h.bot.id, contentHash: "draft", createdBy: "owner:local" } });
+      await h.db.outcome.update({ where: { id: h.outcome.id }, data: { acceptedAt: new Date() } });
+      expect(await Effect.runPromise(service.metrics(h.outcome.id))).toMatchObject({
+        humanInterventionCount: 5, reviewCount: 2, decisionCount: 1, firstPassAccepted: false,
+        failedCriterionCount: 0, unverifiedCriterionCount: 0,
+        notificationCount: 2, actionableNotificationCount: 2, unnecessaryNotificationRatio: 0,
+        contractRevisionCount: 2, approvedRevisionCount: 1, contractTraceabilityRate: 0.5, attentionSeconds: null,
+      });
+    } finally { await h.cleanup(); }
+  });
 });

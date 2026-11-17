@@ -41,7 +41,7 @@ export class OutcomeRecoveryService {
     const completedItems = items.filter(item => item.status === "completed").map(item => item.id);
     const failures = await tx.outboxDelivery.findMany({
       where: { status: "failed", payload: { path: ["outcomeId"], equals: outcomeId } },
-      orderBy: { createdAt: "desc" }, take: 100, select: { id: true, status: true, attempts: true, error: true },
+      orderBy: { createdAt: "desc" }, take: 100, select: { id: true, status: true, attempts: true },
     });
     return { outcomeId, notificationFailures: failures.map(failure => {
       // Outbox errors can contain provider responses; derive a fixed code without reading them.
@@ -84,7 +84,7 @@ export class OutcomeRecoveryService {
     if (!outcome) throw new ApiError(404, "outcome_not_found", "Outcome not found");
     const [revisions, items, decisions, reviews, receipts, notifications, attention, reviewRequests] = await Promise.all([
       tx.outcomeContractRevision.findMany({ where: { outcomeId }, orderBy: { revision: "asc" }, select: { id: true, revision: true, approvedAt: true } }),
-      tx.outcomeWorkItem.findMany({ where: { outcomeId }, select: { startedAt: true, retryCount: true, recoveryCount: true } }),
+      tx.outcomeWorkItem.findMany({ where: { outcomeId, executorType: "agent" }, select: { startedAt: true, retryCount: true, recoveryCount: true } }),
       tx.outcomeDecision.findMany({ where: { outcomeId }, select: { id: true, resolvedAt: true } }),
       tx.outcomeReview.findMany({ where: { outcomeId }, orderBy: { sequence: "asc" }, select: { criterionId: true, sequence: true, result: true, reviewedAt: true, reviewedBy: true, contractRevisionId: true } }),
       tx.outcomeHumanReceipt.findMany({ where: { outcomeId }, select: { workItemId: true, submittedAt: true } }),

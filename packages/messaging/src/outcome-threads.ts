@@ -2,11 +2,12 @@ import { createHash } from "node:crypto";
 import { readdir } from "node:fs/promises";
 import { join, posix } from "node:path";
 import { OutcomeError } from "@outcomego/contracts/outcomes";
-import type { Prisma } from "@outcomego/db";
+import { Prisma } from "@outcomego/db";
 import type { AgentMessaging } from "./index";
 import { finalRunMessage, runGroupBackgroundWorkRunning } from "./automation-results";
 import { appendOutcomeEvent, recomputeOutcomeStatus, transitionWorkItem } from "./outcome-state";
 import { outcomeDispatchEnabled } from "./outcome-availability";
+import { isOutcomeDecisionRevisionActive, outcomeDecisionRevisionActiveSql } from "./outcome-decisions";
 
 export interface EnqueueOutcomeTurnInput {
   workItemId: string;
@@ -52,6 +53,8 @@ export async function enqueueOutcomeTurn(
     throw new OutcomeError("invalid_outcome_transition", "This work item cannot run", { currentStatus: item.status });
   if (!item.contractRevision.approvedAt || !["approved", "superseded"].includes(item.contractRevision.status))
     throw new OutcomeError("contract_revision_not_approved", "The work item's contract must be approved");
+  if (!await isOutcomeDecisionRevisionActive(tx, item.outcomeId, item.contractRevisionId, item.id))
+    throw new OutcomeError("contract_revision_not_approved", "A newer approved revision replaced this execution snapshot");
   // A capacity wait must never lose the content of a resolved decision or human receipt.
   if (!previous) await tx.idempotencyRecord.create({ data: {
     scope, key: input.clientId, requestHash, response: JSON.parse(JSON.stringify({ input })), status: "processing", expiresAt: ttl(),
@@ -103,9 +106,12 @@ export async function dispatchQueuedOutcomeWorkItems(tx: Prisma.TransactionClien
   const items = await tx.$queryRaw<Array<{ id: string; outcomeId: string }>>`
     SELECT w.id, w."outcomeId" FROM "outcomego_outcome_work_item" w
     JOIN "outcomego_outcome" o ON o.id = w."outcomeId"
+    JOIN "outcomego_outcome_contract_revision" revision ON revision.id = w."contractRevisionId"
     WHERE w."botId" = ${botId}::uuid AND w."executorType" = 'agent'
       AND w.status NOT IN ('completed', 'failed', 'cancelled')
       AND o."cancelledAt" IS NULL AND o."acceptedAt" IS NULL
+      AND revision."approvedAt" IS NOT NULL AND revision.status IN ('approved', 'superseded')
+      AND ${outcomeDecisionRevisionActiveSql(Prisma.sql`w."outcomeId"`, Prisma.sql`w."contractRevisionId"`, Prisma.sql`w.id`)}
       AND EXISTS (SELECT 1 FROM "outcomego_idempotency_record" r
         WHERE r.scope = 'outcome-turn:' || w.id::text AND r.status = 'processing')
     ORDER BY w."createdAt", w.id LIMIT 100`;
@@ -113,6 +119,9 @@ export async function dispatchQueuedOutcomeWorkItems(tx: Prisma.TransactionClien
     const [lock] = await tx.$queryRaw<Array<{ locked: boolean }>>`
       SELECT pg_try_advisory_xact_lock(hashtext(${`outcome:${item.outcomeId}`})) AS locked`;
     if (!lock?.locked) continue;
+    const current = await tx.outcomeWorkItem.findUnique({ where: { id: item.id }, include: { outcome: true, contractRevision: true } });
+    if (!current || terminal.includes(current.status) || current.outcome.cancelledAt || current.outcome.acceptedAt || !current.contractRevision.approvedAt
+      || !await isOutcomeDecisionRevisionActive(tx, current.outcomeId, current.contractRevisionId, current.id)) continue;
     const pending = await tx.idempotencyRecord.findFirst({
       where: { scope: scopeFor(item.id), status: "processing" }, orderBy: { createdAt: "asc" },
     });

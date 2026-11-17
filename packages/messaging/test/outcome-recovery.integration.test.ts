@@ -142,6 +142,26 @@ describe.skipIf(!url)("durable Outcome restart recovery", () => {
     } finally { await h.cleanup(); }
   });
 
+  test("exhausted started execution can request a Decision while its successor is only pending", async () => {
+    const h = await outcomeThreadFixture();
+    try {
+      const { item, runId } = await start(h);
+      await finish(h, runId);
+      await h.db.outcomeWorkItem.update({ where: { id: item.id }, data: { recoveryCount: 2 } });
+      await h.db.outcomeContractRevision.update({ where: { id: h.revision.id }, data: { status: "superseded" } });
+      const pending = await h.db.outcomeContractRevision.create({ data: {
+        outcomeId: h.outcome.id, revision: 2, status: "pending_approval", goal: [], boundaries: {},
+        executionBotId: h.bot.id, contentHash: "pending", createdBy: "owner:local",
+      } });
+      await h.db.outcome.update({ where: { id: h.outcome.id }, data: { currentRevisionId: pending.id } });
+      expect(await recover(h, item.id)).toBe("needs_review");
+      expect(await h.db.outcomeDecision.findFirstOrThrow({ where: { workItemId: item.id } })).toMatchObject({
+        contractRevisionId: h.revision.id, status: "open", reasonCode: "external_result_unknown",
+      });
+      expect(await h.db.run.count({ where: { outcomeWorkItemId: item.id } })).toBe(1);
+    } finally { await h.cleanup(); }
+  });
+
   test("scanner bounds batches at 100 and traverses old waiting work rather than starving later work", async () => {
     const h = await outcomeThreadFixture();
     try {

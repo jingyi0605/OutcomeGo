@@ -4,7 +4,7 @@ import { runGroupBackgroundWorkRunning } from "./automation-results";
 import { appendOutcomeEvent, transitionWorkItem } from "./outcome-state";
 import { dispatchQueuedOutcomeWorkItems, enqueueOutcomeTurn, settleOutcomeWorkItem, type OutcomeThreadRuntime } from "./outcome-threads";
 import { outcomeDispatchEnabled } from "./outcome-availability";
-import { createOutcomeDecision } from "./outcome-decisions";
+import { createOutcomeDecision, isOutcomeDecisionRevisionActive } from "./outcome-decisions";
 
 const actor = "system:outcome-recovery" as const;
 const terminal = ["completed", "failed", "cancelled", "accepted"];
@@ -79,11 +79,8 @@ export async function recoverOutcomeWorkItem(tx: Prisma.TransactionClient, workI
     return recoverOutcomeWorkItem(tx, item.id, runtime);
   }
   const latest = family[0];
-  const effectiveRevision = await tx.outcomeContractRevision.findFirst({
-    where: { outcomeId: item.outcomeId, approvedAt: { not: null }, status: { in: ["approved", "superseded"] } },
-    orderBy: { revision: "desc" }, select: { id: true },
-  });
-  const key = `recovery:${item.id}:${latest?.id ?? "unsubmitted"}:${effectiveRevision?.id ?? "none"}:${item.outcome.cancelledAt ? "cancelled" : "active"}`;
+  const revisionActive = Boolean(item.contractRevision.approvedAt) && await isOutcomeDecisionRevisionActive(tx, item.outcomeId, item.contractRevisionId, item.id);
+  const key = `recovery:${item.id}:${latest?.id ?? "unsubmitted"}:${revisionActive ? "active" : "stale"}:${item.outcome.cancelledAt ? "cancelled" : "open"}`;
   const scope = `outcome-recovery:${item.outcomeId}`;
   const record = await tx.idempotencyRecord.findUnique({ where: { scope_key: { scope, key } } });
   const write = async (action: OutcomeRecoveryAction, reason: string) => {
@@ -94,7 +91,7 @@ export async function recoverOutcomeWorkItem(tx: Prisma.TransactionClient, workI
     await tx.idempotencyRecord.create({ data: { scope, key, requestHash: key, status: "completed", response: { action, reason }, expiresAt: ttl() } });
     return action;
   };
-  if (!terminal.includes(item.status) && (item.outcome.cancelledAt || effectiveRevision?.id !== item.contractRevisionId)) {
+  if (!terminal.includes(item.status) && (item.outcome.cancelledAt || !revisionActive)) {
     // Never cancel a physical executor merely because an expired lease disappeared.
     if (active.some(run => run.status === "running")) return null;
     await transitionWorkItem(tx, { workItemId: item.id, to: "cancelled", reason: "contract_revision_superseded", actor });
@@ -134,7 +131,7 @@ export async function recoverOutcomeWorkItem(tx: Prisma.TransactionClient, workI
   if (["queued", "retry_pending"].includes(item.status)) await transitionWorkItem(tx, { workItemId: item.id, to: "running", reason, actor });
   if (item.status !== "needs_review") await transitionWorkItem(tx, { workItemId: item.id, to: "needs_review", reason, actor });
   const existing = await tx.outcomeDecision.findUnique({ where: { openWorkItemId: item.id } });
-  if (!existing && item.outcome.currentRevisionId === item.contractRevisionId) {
+  if (!existing) {
     await createOutcomeDecision(tx, {
       outcomeId: item.outcomeId, contractRevisionId: item.contractRevisionId, workItemId: item.id, runId: latest?.id,
       reasonCode: reason,
