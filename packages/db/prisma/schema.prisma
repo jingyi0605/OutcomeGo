@@ -99,6 +99,8 @@ enum RunOrigin {
   background_revival
   handoff_resume
   broadcast
+  /// One Outcome work item running as a sub-thread beside the bot's main conversation (specs/004 design §45).
+  outcome
   @@map("outcomego_run_origin")
 }
 
@@ -360,6 +362,8 @@ model Bot {
 
   @@index([status, updatedAt], map: "outcomego_bot_status_updated_at_idx")
   @@map("outcomego_bot")
+  outcomes         Outcome[]
+  outcomePlanningDrafts OutcomePlanningDraft[]
 }
 
 model TodoItem {
@@ -930,12 +934,18 @@ model Run {
   computerNetworkPolicyApprovals ComputerNetworkPolicyApproval[]
   externalReceipts ExternalMessageReceipt[]
   externalDeliveries ExternalOutboundDelivery[]
+  /// Every run in an Outcome sub-thread names its work item; ordinary runs leave it empty.
+  outcomeWorkItemId String?      @db.Uuid
+  outcomeWorkItem OutcomeWorkItem? @relation("OutcomeWorkItemRuns", fields: [outcomeWorkItemId], references: [id], onDelete: SetNull)
+  outcomeRootOf   OutcomeWorkItem? @relation("OutcomeWorkItemRootRun")
+  outcomeOutputs  OutcomeOutput[]
 
   @@index([botId, status], map: "outcomego_run_bot_id_status_idx")
   @@index([memoryReviewPending, completedAt], map: "outcomego_run_memory_review_pending_completed_at_idx")
   @@index([conversationId, createdAt], map: "outcomego_run_conversation_id_created_at_idx")
   @@index([channelId, createdAt], map: "outcomego_run_channel_id_created_at_idx")
   @@index([requestNextCheckAt], map: "outcomego_run_request_next_check_at_idx")
+  @@index([outcomeWorkItemId, createdAt], map: "outcomego_run_outcome_work_item_id_created_at_idx")
   @@map("outcomego_run")
 }
 
@@ -1799,4 +1809,312 @@ model NotificationPreferences {
   id String @id @default("global")
   smartEnabled Boolean @default(true)
   @@map("outcomego_notification_preferences")
+}
+
+// ---------------------------------------------------------------------------
+// Outcome planning, contract, execution and review (specs/004.2)
+// ---------------------------------------------------------------------------
+
+enum OutcomeStatus {
+  draft
+  planning
+  pending_approval
+  approved
+  running
+  review_pending
+  accepted
+  decision_pending
+  human_action_pending
+  paused
+  failed
+  cancelled
+  @@map("outcomego_outcome_status")
+}
+
+enum OutcomeContractRevisionStatus {
+  draft
+  pending_approval
+  approved
+  superseded
+  closed
+  @@map("outcomego_outcome_contract_revision_status")
+}
+
+enum OutcomePlanningDraftStatus {
+  ready
+  failed
+  consumed
+  expired
+  @@map("outcomego_outcome_planning_draft_status")
+}
+
+enum OutcomeWorkItemExecutorType {
+  agent
+  human
+  @@map("outcomego_outcome_work_item_executor_type")
+}
+
+enum OutcomeWorkItemKind {
+  initial
+  rework
+  supplement
+  human_action
+  @@map("outcomego_outcome_work_item_kind")
+}
+
+/// Agent states (specs/004 design §42.2) followed by human states (specs/004.4 design §16).
+enum OutcomeWorkItemStatus {
+  queued
+  running
+  waiting_decision
+  waiting_human
+  retry_pending
+  needs_review
+  completed
+  failed
+  cancelled
+  pending
+  ready
+  in_progress
+  paused
+  submitted
+  review_pending
+  accepted
+  rejected
+  @@map("outcomego_outcome_work_item_status")
+}
+
+enum OutcomeVerificationMethod {
+  human_review
+  deterministic_check
+  @@map("outcomego_outcome_verification_method")
+}
+
+enum OutcomeReviewResult {
+  PASS
+  FAIL
+  UNVERIFIED
+  WAIVED_BY_APPROVED_CHANGE
+  @@map("outcomego_outcome_review_result")
+}
+
+enum OutcomeEvidenceCredibility {
+  deterministic_check
+  human_confirmed
+  external_record
+  agent_report
+  ai_prereview
+  @@map("outcomego_outcome_evidence_credibility")
+}
+
+enum OutcomeOutputKind {
+  final_result
+  file
+  @@map("outcomego_outcome_output_kind")
+}
+
+/// A server-held planning snapshot; selections are resolved against it, never against client text.
+model OutcomePlanningDraft {
+  id String                     @id @default(uuid()) @db.Uuid
+  botId String                     @db.Uuid
+  bot        Bot                        @relation(fields: [botId], references: [id], onDelete: Cascade)
+  sourceText String
+  status OutcomePlanningDraftStatus @default(ready)
+  /// Options, conflicts and questions for goal, acceptance and boundaries.
+  snapshot Json
+  error Json?
+  createdAt DateTime                   @default(now())
+  expiresAt DateTime
+  outcome    Outcome?
+
+  @@index([status, expiresAt], map: "outcomego_outcome_planning_draft_status_expires_at_idx")
+  @@map("outcomego_outcome_planning_draft")
+}
+
+model Outcome {
+  id String         @id @default(uuid()) @db.Uuid
+  botId String         @db.Uuid
+  bot               Bot            @relation(fields: [botId], references: [id], onDelete: Cascade)
+  planningDraftId String?        @unique @db.Uuid
+  planningDraft     OutcomePlanningDraft? @relation(fields: [planningDraftId], references: [id], onDelete: SetNull)
+  title String
+  description String         @default("")
+  status OutcomeStatus  @default(draft)
+  /// The status to return to when a side state (decision, human action, pause) clears.
+  resumeStatus OutcomeStatus?
+  currentRevisionId String?        @unique @db.Uuid
+  currentRevision   OutcomeContractRevision? @relation("OutcomeCurrentRevision", fields: [currentRevisionId], references: [id], onDelete: SetNull)
+  revisions         OutcomeContractRevision[] @relation("OutcomeRevisions")
+  workItems         OutcomeWorkItem[]
+  outputs           OutcomeOutput[]
+  evidence          OutcomeEvidence[]
+  reviews           OutcomeReview[]
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  acceptedAt DateTime?
+  cancelledAt DateTime?
+
+  @@index([status, updatedAt], map: "outcomego_outcome_status_updated_at_idx")
+  @@index([updatedAt, id], map: "outcomego_outcome_updated_at_id_idx")
+  @@index([botId, status], map: "outcomego_outcome_bot_id_status_idx")
+  @@map("outcomego_outcome")
+}
+
+/// Approved revisions are never edited in place; any change of goal, acceptance or boundaries is a new revision.
+model OutcomeContractRevision {
+  id String                        @id @default(uuid()) @db.Uuid
+  outcomeId String                        @db.Uuid
+  outcome          Outcome                       @relation("OutcomeRevisions", fields: [outcomeId], references: [id], onDelete: Cascade)
+  currentOf        Outcome?                      @relation("OutcomeCurrentRevision")
+  revision Int
+  status OutcomeContractRevisionStatus @default(draft)
+  goal Json
+  boundaries Json
+  budget Json?
+  executionBotId String                        @db.Uuid
+  /// Planning conflicts found when the revision was created.
+  conflicts Json                          @default("[]")
+  /// sha256 over goal, criteria, boundaries, budget and executionBotId.
+  contentHash String
+  changeSummary String?
+  baseRevisionId String?                       @db.Uuid
+  sourceDecisionId String?                       @db.Uuid
+  createdBy String
+  approvedBy String?
+  approvedAt DateTime?
+  approvalProof Json?
+  criteria         OutcomeAcceptanceCriterion[]
+  workItems        OutcomeWorkItem[]
+  evidence         OutcomeEvidence[]
+  reviews          OutcomeReview[]
+  createdAt DateTime                      @default(now())
+  updatedAt DateTime                      @updatedAt
+
+  @@unique([outcomeId, revision], map: "outcomego_outcome_contract_revision_outcome_id_revision_key")
+  @@index([outcomeId, status], map: "outcomego_outcome_contract_revision_outcome_id_status_idx")
+  @@map("outcomego_outcome_contract_revision")
+}
+
+model OutcomeAcceptanceCriterion {
+  id String                    @id @default(uuid()) @db.Uuid
+  contractRevisionId String                    @db.Uuid
+  contractRevision   OutcomeContractRevision   @relation(fields: [contractRevisionId], references: [id], onDelete: Cascade)
+  ordinal Int
+  statement String
+  required Boolean
+  verificationMethod OutcomeVerificationMethod @default(human_review)
+  evidenceRequired Boolean                   @default(true)
+  evidence           OutcomeEvidence[]
+  reviews            OutcomeReview[]
+  createdAt DateTime                  @default(now())
+
+  @@unique([contractRevisionId, ordinal], map: "outcomego_outcome_acceptance_criterion_revision_id_ordinal_key")
+  @@map("outcomego_outcome_acceptance_criterion")
+}
+
+/// An agent work item runs as one Outcome sub-thread; its runs carry Run.outcomeWorkItemId.
+model OutcomeWorkItem {
+  id String                      @id @default(uuid()) @db.Uuid
+  outcomeId String                      @db.Uuid
+  outcome            Outcome                     @relation(fields: [outcomeId], references: [id], onDelete: Cascade)
+  contractRevisionId String                      @db.Uuid
+  contractRevision   OutcomeContractRevision     @relation(fields: [contractRevisionId], references: [id], onDelete: Cascade)
+  /// The executing bot, kept here so the per-bot sub-thread limit is one indexed query.
+  botId String                      @db.Uuid
+  executorType OutcomeWorkItemExecutorType
+  kind OutcomeWorkItemKind         @default(initial)
+  title String
+  instructions String                      @default("")
+  status OutcomeWorkItemStatus
+  statusReason String?
+  ordinal Int
+  /// Work item IDs this one waits for.
+  dependsOn Json                        @default("[]")
+  rootRunId String?                     @unique @db.Uuid
+  rootRun            Run?                        @relation("OutcomeWorkItemRootRun", fields: [rootRunId], references: [id], onDelete: SetNull)
+  runs               Run[]                       @relation("OutcomeWorkItemRuns")
+  reworkOfWorkItemId String?                     @db.Uuid
+  reworkOf           OutcomeWorkItem?            @relation("OutcomeWorkItemRework", fields: [reworkOfWorkItemId], references: [id], onDelete: SetNull)
+  reworks            OutcomeWorkItem[]           @relation("OutcomeWorkItemRework")
+  sourceDecisionId String?                     @db.Uuid
+  outputs            OutcomeOutput[]
+  evidence           OutcomeEvidence[]
+  startedAt DateTime?
+  completedAt DateTime?
+  createdAt DateTime                    @default(now())
+  updatedAt DateTime                    @updatedAt
+
+  @@unique([outcomeId, ordinal], map: "outcomego_outcome_work_item_outcome_id_ordinal_key")
+  @@index([outcomeId, status, createdAt], map: "outcomego_outcome_work_item_outcome_id_status_created_at_idx")
+  @@index([botId, executorType, status], map: "outcomego_outcome_work_item_bot_id_executor_type_status_idx")
+  @@map("outcomego_outcome_work_item")
+}
+
+model OutcomeOutput {
+  id String            @id @default(uuid()) @db.Uuid
+  outcomeId String            @db.Uuid
+  outcome    Outcome           @relation(fields: [outcomeId], references: [id], onDelete: Cascade)
+  workItemId String            @db.Uuid
+  workItem   OutcomeWorkItem   @relation(fields: [workItemId], references: [id], onDelete: Cascade)
+  runId String?           @db.Uuid
+  run        Run?              @relation(fields: [runId], references: [id], onDelete: SetNull)
+  kind OutcomeOutputKind
+  title String
+  content String?
+  contentRef String?
+  /// `final:<workItemId>` or `file:<workItemId>:<path>`, so a re-settled thread records each output once.
+  dedupeKey String            @unique
+  evidence   OutcomeEvidence[]
+  createdAt DateTime          @default(now())
+
+  @@index([workItemId, createdAt], map: "outcomego_outcome_output_work_item_id_created_at_idx")
+  @@map("outcomego_outcome_output")
+}
+
+model OutcomeEvidence {
+  id String                     @id @default(uuid()) @db.Uuid
+  outcomeId String                     @db.Uuid
+  outcome            Outcome                    @relation(fields: [outcomeId], references: [id], onDelete: Cascade)
+  contractRevisionId String                     @db.Uuid
+  contractRevision   OutcomeContractRevision    @relation(fields: [contractRevisionId], references: [id], onDelete: Cascade)
+  criterionId String?                    @db.Uuid
+  criterion          OutcomeAcceptanceCriterion? @relation(fields: [criterionId], references: [id], onDelete: SetNull)
+  workItemId String?                    @db.Uuid
+  workItem           OutcomeWorkItem?           @relation(fields: [workItemId], references: [id], onDelete: SetNull)
+  outputId String?                    @db.Uuid
+  output             OutcomeOutput?             @relation(fields: [outputId], references: [id], onDelete: SetNull)
+  runId String?                    @db.Uuid
+  sourceType String
+  sourceRef String
+  contentSummary String                     @default("")
+  contentHash String?
+  credibility OutcomeEvidenceCredibility
+  capturedBy String
+  capturedAt DateTime                   @default(now())
+
+  @@index([criterionId, contractRevisionId, capturedAt], map: "outcomego_outcome_evidence_criterion_revision_captured_at_idx")
+  @@index([outcomeId, capturedAt], map: "outcomego_outcome_evidence_outcome_id_captured_at_idx")
+  @@map("outcomego_outcome_evidence")
+}
+
+/// Reviews are appended, never edited; the latest sequence per criterion is current.
+model OutcomeReview {
+  id String                     @id @default(uuid()) @db.Uuid
+  outcomeId String                     @db.Uuid
+  outcome            Outcome                    @relation(fields: [outcomeId], references: [id], onDelete: Cascade)
+  contractRevisionId String                     @db.Uuid
+  contractRevision   OutcomeContractRevision    @relation(fields: [contractRevisionId], references: [id], onDelete: Cascade)
+  criterionId String                     @db.Uuid
+  criterion          OutcomeAcceptanceCriterion @relation(fields: [criterionId], references: [id], onDelete: Cascade)
+  sequence Int
+  result OutcomeReviewResult
+  evidenceIds Json                       @default("[]")
+  userConfirmed Boolean                    @default(false)
+  comment String                     @default("")
+  reviewedBy String
+  reviewedAt DateTime                   @default(now())
+
+  @@unique([criterionId, sequence], map: "outcomego_outcome_review_criterion_id_sequence_key")
+  @@index([outcomeId, reviewedAt], map: "outcomego_outcome_review_outcome_id_reviewed_at_idx")
+  @@map("outcomego_outcome_review")
 }

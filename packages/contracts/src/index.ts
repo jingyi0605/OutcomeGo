@@ -140,7 +140,8 @@ export const RunOrigin = Schema.Literal(
   "connector",
   "background_revival",
   "handoff_resume",
-  "broadcast"
+  "broadcast",
+  "outcome"
 );
 export type RunOrigin = typeof RunOrigin.Type;
 
@@ -2080,6 +2081,7 @@ export class ApiError extends Error {
 }
 export * from "./external-draft";
 export * from "./messages-send";
+export * from "./outcomes";
 export * from "./bot-recipe";
 
 export * from "./web-search";

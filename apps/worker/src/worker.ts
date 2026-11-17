@@ -214,6 +214,8 @@ const REQUEST_SOURCE_BY_ORIGIN = {
   background_revival: "background-revival",
   handoff_resume: "handoff-resume",
   broadcast: "broadcast",
+  // Outcome sub-threads follow the routine worker contract: no SendToUser, WakeParent for handoffs.
+  outcome: "automation",
 } as const satisfies Record<RunOrigin, RuntimeRequestSource>;
 
 export const runtimeRequestSourceForOrigin = (

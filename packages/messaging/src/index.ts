@@ -733,7 +733,8 @@ export interface WakeInput {
     | "connector"
     | "background_revival"
     | "handoff_resume"
-    | "broadcast";
+    | "broadcast"
+    | "outcome";
   type: string;
   content: string;
   images?: readonly AgentImageInput[];
