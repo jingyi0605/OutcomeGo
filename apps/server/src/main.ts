@@ -26,7 +26,6 @@ import { exploreRoutes } from "./routes/explore";
 import { outcomeInboxRoutes } from "./routes/outcome-inbox";
 import { routineRoutes } from "./routes/routine";
 import { humanWorkRoutes } from "./routes/human-work";
-import { HumanWorkService } from "./services/human-work-service";
 import { settingsRoutes } from "./routes/settings";
 import { transcriptionRoutes } from "./routes/transcription";
 import { systemVersion } from "./system-version";
@@ -57,7 +56,6 @@ if (process.argv[2] === "owner-credentials") {
 }
 
 const app = new AppService(authMode);
-const humanWork = new HumanWorkService(app.prisma);
 const serverUpdates = new ServerUpdates(
   app.agentData.assetRoot,
   release.releaseVersion,
@@ -350,7 +348,9 @@ const server = Bun.serve<VncConnection | NetworkConnection | VoiceConnectionData
         return json(await browserNetwork.egress(() => app.browserNetworkEgress()));
       if (path === "/api/server-settings/browser-network/retry" && request.method === "POST") return json(await browserNetwork.retry());
       for (const route of [
-        (context: RouteContext) => humanWorkRoutes(context, humanWork),
+        (context: RouteContext) => humanWorkRoutes(context, app.humanWork, {
+          humanReceipts: app.humanReceipts, knowledge: app.knowledge,
+        }),
         clientRoutes,
         pluginQueryRoutes,
         settingsRoutes,

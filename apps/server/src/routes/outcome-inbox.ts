@@ -42,7 +42,5 @@ export const createOutcomeInboxRoutes = (decisions: DecisionService, inbox: Outc
 export async function outcomeInboxRoutes(context: RouteContext): Promise<Response | undefined> {
   if (!/^\/api\/(outcome-inbox(?:$|\/)|decisions\/|outcomes\/[^/]+\/inbox$)/.test(context.path)) return undefined;
   const { app } = context;
-  const decisions = (app as typeof app & { outcomeDecisions?: DecisionService }).outcomeDecisions;
-  if (!decisions) throw new ApiError(503, "decision_effect_unavailable", "Outcome decision services have not been registered");
-  return createOutcomeInboxRoutes(decisions, new OutcomeInboxService(app.prisma))(context);
+  return createOutcomeInboxRoutes(app.outcomeDecisions, new OutcomeInboxService(app.prisma))(context);
 }

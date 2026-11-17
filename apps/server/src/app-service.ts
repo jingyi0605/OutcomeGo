@@ -3,6 +3,12 @@ import { withdrawSupersededDecisions } from "./services/decision-lifecycle";
 import { OutcomePlanningService } from "./services/outcome-planning-service";
 import { ExploreService } from "./services/explore-service";
 import { OutcomeRecoveryService } from "./services/outcome-recovery-service";
+import { DecisionService } from "./services/decision-service";
+import { createOutcomeDecisionTool } from "./services/outcome-decision-tool";
+import { createHumanWorkServices } from "./services/human-work-factory";
+import type { HumanKnowledgeService } from "./services/human-knowledge-service";
+import type { HumanWorkService } from "./services/human-work-service";
+import type { HumanReceiptService } from "./services/human-receipt-service";
 import { OutcomeReviewService } from "./services/outcome-review-service";
 import { OutcomeEvidenceConsumer } from "./services/outcome-evidence-consumer";
 import { outcomeInference } from "./services/outcome-inference";
@@ -85,6 +91,10 @@ export class AppService {
   readonly outcomePlanning: OutcomePlanningService;
   readonly explore: ExploreService;
   readonly outcomeRecovery: OutcomeRecoveryService;
+  readonly outcomeDecisions: DecisionService;
+  readonly knowledge: HumanKnowledgeService;
+  readonly humanWork: HumanWorkService;
+  readonly humanReceipts: HumanReceiptService;
   readonly outcomeReviews: OutcomeReviewService;
   private readonly outcomeEvidence: OutcomeEvidenceConsumer;
   readonly routines: RoutineService;
@@ -235,7 +245,16 @@ export class AppService {
     this.outcomePlanning = new OutcomePlanningService(this.prisma, inferOutcome);
     this.explore = new ExploreService(this.prisma, this.outcomePlanning);
     this.outcomeRecovery = new OutcomeRecoveryService(this.prisma, this.messaging);
-    this.outcomeReviews = new OutcomeReviewService(this.prisma, this.messaging, inferOutcome);
+    const humanServices = createHumanWorkServices(this.prisma, this.messaging, this.agentData, this.assets);
+    this.knowledge = humanServices.knowledge;
+    this.humanWork = humanServices.humanWork;
+    this.humanReceipts = humanServices.humanReceipts;
+    this.outcomeDecisions = new DecisionService(this.prisma, {
+      messaging: this.messaging,
+      createRevision: this.outcomes.createRevisionInTransaction,
+      humanActions: this.humanWork,
+    });
+    this.outcomeReviews = new OutcomeReviewService(this.prisma, this.messaging, inferOutcome, undefined, this.humanReceipts);
     this.outcomeEvidence = new OutcomeEvidenceConsumer(this.prisma, this.outcomeReviews, this.eventWakeup);
     this.voice = new VoiceService(this.prisma, this.channels, this.runs);
     this.todos = new TodoService(this.prisma);
@@ -322,7 +341,11 @@ export class AppService {
       (runId, messageId) => this.voice.onVisibleMessage(runId, messageId),
       (runId, callId, text) => this.voice.speakChunk(runId, callId, text),
       this.computerNetworkPolicy,
-      this.externalDelivery
+      this.externalDelivery,
+      {
+        RequestOutcomeDecision: createOutcomeDecisionTool(this.prisma, this.outcomeDecisions),
+        RequestHumanAction: humanServices.humanActionTool,
+      }
     );
     this.boss.on("error", (error) => console.error("pg-boss", error));
 
