@@ -1951,6 +1951,7 @@ model Outcome {
   outputs           OutcomeOutput[]
   evidence          OutcomeEvidence[]
   reviews           OutcomeReview[]
+  humanReceipts     OutcomeHumanReceipt[]
   createdAt DateTime       @default(now())
   updatedAt DateTime       @updatedAt
   acceptedAt DateTime?
@@ -2041,6 +2042,9 @@ model OutcomeWorkItem {
   reworkOf           OutcomeWorkItem?            @relation("OutcomeWorkItemRework", fields: [reworkOfWorkItemId], references: [id], onDelete: SetNull)
   reworks            OutcomeWorkItem[]           @relation("OutcomeWorkItemRework")
   sourceDecisionId String?                     @db.Uuid
+  humanActionCard    OutcomeHumanActionCard? @relation("HumanActionWorkItem")
+  requestedHumanActions OutcomeHumanActionCard[] @relation("HumanActionRequester")
+  humanReceipts      OutcomeHumanReceipt[]
   outputs            OutcomeOutput[]
   evidence           OutcomeEvidence[]
   startedAt DateTime?
@@ -2172,4 +2176,59 @@ model OutcomeDecision {
   @@index([status, expiresAt], map: "outcomego_outcome_decision_status_expires_at_idx")
   @@index([status, createdAt, id], map: "outcomego_outcome_decision_status_created_at_id_idx")
   @@map("outcomego_outcome_decision")
+}
+
+// ---------------------------------------------------------------------------
+// Spec 004.4: Human action snapshots and append-only receipts.
+// ---------------------------------------------------------------------------
+
+model OutcomeHumanActionCard {
+  workItemId String @id @db.Uuid
+  workItem OutcomeWorkItem @relation("HumanActionWorkItem", fields: [workItemId], references: [id], onDelete: Cascade)
+  purpose String
+  prerequisites Json @default("[]")
+  steps Json
+  inputFields Json @default("[]")
+  evidenceRequirements Json
+  references Json @default("[]")
+  requestedByWorkItemId String? @db.Uuid
+  requestedByWorkItem OutcomeWorkItem? @relation("HumanActionRequester", fields: [requestedByWorkItemId], references: [id], onDelete: SetNull)
+  sourceDecisionId String? @db.Uuid
+  draft Json?
+  startedBy String?
+  startedAt DateTime?
+  submittedAt DateTime?
+  acceptedAt DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([requestedByWorkItemId], map: "outcomego_human_card_requester_idx")
+  @@index([sourceDecisionId], map: "outcomego_human_card_decision_idx")
+  @@map("outcomego_outcome_human_action_card")
+}
+
+enum OutcomeHumanReceiptStatus {
+  submitted
+  accepted
+  rejected
+}
+
+model OutcomeHumanReceipt {
+  id String @id @default(uuid()) @db.Uuid
+  workItemId String @db.Uuid
+  workItem OutcomeWorkItem @relation(fields: [workItemId], references: [id], onDelete: Cascade)
+  outcomeId String @db.Uuid
+  outcome Outcome @relation(fields: [outcomeId], references: [id], onDelete: Cascade)
+  sequence Int
+  submittedBy String
+  payload Json
+  assetRefs Json @default("[]")
+  sourceRefs Json @default("[]")
+  observations Json @default("[]")
+  submittedAt DateTime @default(now())
+  status OutcomeHumanReceiptStatus @default(submitted)
+  reviewComment String?
+
+  @@unique([workItemId, sequence], map: "outcomego_human_receipt_item_sequence_key")
+  @@index([outcomeId, submittedAt], map: "outcomego_human_receipt_outcome_submitted_idx")
+  @@map("outcomego_outcome_human_receipt")
 }
