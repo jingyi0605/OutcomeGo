@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createPrismaClient, type Prisma } from "@outcomego/db";
 import { AgentDataStore, AgentMessaging, enqueueOutcomeTurn, transitionWorkItem } from "@outcomego/messaging";
-import { disposableDatabaseUrl, type RecoveryReport, type RecoveryScenario } from "./report";
+import { disposableDatabaseUrl, type RecoveryReport, type RecoveryScenario } from "../../../../../scripts/outcome-recovery/report";
 
 export async function recoveryFixture() {
   const db = createPrismaClient(disposableDatabaseUrl(process.env));
@@ -96,8 +96,7 @@ export async function recoveryFixture() {
       db.outcomeDecision.findMany({ where: { outcomeId: outcome.id }, select: { id: true } }),
       db.run.findMany({ where: { botId: bot.id }, select: { id: true } }),
     ]);
-    const notifications = await db.channelNotification.findMany({ where: { channelId: channel.id }, select: { id: true } });
-    const ids = [outcome.id, channel.id, ...items.map(row => row.id), ...decisions.map(row => row.id), ...runs.map(row => row.id), ...notifications.map(row => row.id)];
+    const ids = [outcome.id, channel.id, ...items.map(row => row.id), ...decisions.map(row => row.id), ...runs.map(row => row.id)];
     const events = await db.event.findMany({ where: { entityId: { in: ids } }, select: { payload: true } });
     const eventIds = events.flatMap(row => {
       const eventId = (row.payload as { eventId?: unknown } | null)?.eventId;

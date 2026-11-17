@@ -5,12 +5,12 @@ import {
   AssetStore, consumeOutcomeInboxEvent, createOutcomeDecision, recoverOutcomeWorkItem, settleOutcomeWorkItem, transitionWorkItem,
 } from "@outcomego/messaging";
 import type { Prisma, PrismaClient } from "@outcomego/db";
-import { DecisionService } from "../../apps/server/src/services/decision-service";
-import { HumanWorkService } from "../../apps/server/src/services/human-work-service";
-import { HumanReceiptService } from "../../apps/server/src/services/human-receipt-service";
-import { OutcomeReviewService } from "../../apps/server/src/services/outcome-review-service";
+import { DecisionService } from "../../../src/services/decision-service";
+import { HumanWorkService } from "../../../src/services/human-work-service";
+import { HumanReceiptService } from "../../../src/services/human-receipt-service";
+import { OutcomeReviewService } from "../../../src/services/outcome-review-service";
 import { recoveryFixture, type RecoveryFixture } from "./fixture";
-import type { RecoveryReport, RecoveryScenario } from "./report";
+import type { RecoveryReport, RecoveryScenario } from "../../../../../scripts/outcome-recovery/report";
 
 const actor = "owner:local" as const;
 const run = Effect.runPromise;
@@ -25,7 +25,7 @@ async function finish(f: RecoveryFixture, runId: string, status: "completed" | "
 async function restartRunningRun(f: RecoveryFixture) {
   const runId = await f.enqueue();
   const processHandle = Bun.spawn([process.execPath, join(import.meta.dir, "restart-process.ts"), runId, f.item.id], {
-    cwd: join(import.meta.dir, "../.."), env: process.env, stdout: "pipe", stderr: "ignore",
+    cwd: join(import.meta.dir, "../../.."), env: process.env, stdout: "pipe", stderr: "ignore",
   });
   let timeout: ReturnType<typeof setTimeout> | undefined;
   try {
@@ -50,7 +50,7 @@ async function restartRunningRun(f: RecoveryFixture) {
     processHandle.kill("SIGKILL");
     await processHandle.exited;
     const restarted = Bun.spawn([process.execPath, join(import.meta.dir, "recovery-process.ts"), f.item.id, runId, f.root], {
-      cwd: join(import.meta.dir, "../.."), env: process.env, stdout: "pipe", stderr: "ignore",
+      cwd: join(import.meta.dir, "../../.."), env: process.env, stdout: "pipe", stderr: "ignore",
     });
     const raw = await new Response(restarted.stdout).text();
     if (await restarted.exited !== 0) throw new Error("fixture_recovery_process_failed");
@@ -105,7 +105,7 @@ async function duplicateFinish(f: RecoveryFixture) {
     await f.db.event.count({ where: { entityId: f.outcome.id, topic: "outcome.accepted" } }) === 1);
   f.check("agent_only_completion_creates_no_human_facts", await f.db.outcomeWorkItem.count({ where: { outcomeId: f.outcome.id, executorType: "human" } }) === 0 &&
     await f.db.outcomeHumanReceipt.count({ where: { outcomeId: f.outcome.id } }) === 0);
-  return f.report("duplicate-finish-event", initial, event.id, 2);
+  return f.report("duplicate-finish-event", initial, event.sequence.toString(), 2);
 }
 
 async function interruptedResume(f: RecoveryFixture) {

@@ -19,7 +19,7 @@ export async function main(args = process.argv.slice(2)) {
   }
   disposableDatabaseUrl(process.env);
   // Delay product imports until execution so --list/--plan require no installed services.
-  const { runScenario } = await import("./outcome-recovery/scenarios");
+  const { runScenario } = await import("../apps/server/test/fixtures/outcome-recovery/scenarios");
   const report = await runScenario(options.scenario!, async result => {
     validateReport(result);
     const json = `${JSON.stringify(result, null, 2)}\n`;

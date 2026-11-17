@@ -1,5 +1,5 @@
 import { createPrismaClient } from "@outcomego/db";
-import { disposableDatabaseUrl } from "./report";
+import { disposableDatabaseUrl } from "../../../../../scripts/outcome-recovery/report";
 
 // This disposable executor owns only the supplied fixture Run. Its exit confirms
 // that local executor stopped; it provides no evidence about a remote Computer.

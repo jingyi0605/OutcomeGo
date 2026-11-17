@@ -5,7 +5,7 @@ import { validateReport } from "./report";
 describe.skipIf(!process.env.OUTCOMEGO_TEST_DATABASE_URL)("Six real transactional recovery replays", () => {
   for (const scenario of RECOVERY_SCENARIOS) {
     test(scenario, async () => {
-      const { runScenario } = await import("./scenarios");
+      const { runScenario } = await import("../../apps/server/test/fixtures/outcome-recovery/scenarios");
       const report = validateReport(await runScenario(scenario));
       expect(report.evidence.checks.filter(check => !check.passed)).toEqual([]);
       expect(report.status).toBe("PASS");

@@ -1,7 +1,7 @@
 import { createPrismaClient } from "@outcomego/db";
 import { AgentDataStore, AgentMessaging, recoverOutcomeWorkItem } from "@outcomego/messaging";
 import { join } from "node:path";
-import { disposableDatabaseUrl } from "./report";
+import { disposableDatabaseUrl } from "../../../../../scripts/outcome-recovery/report";
 
 const [workItemId, confirmedStoppedRunId, root] = process.argv.slice(2);
 if (!workItemId || !confirmedStoppedRunId || !root) throw new Error("fixture_identifiers_required");

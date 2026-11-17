@@ -6,7 +6,7 @@ const actor = "owner:local" as const;
 const canary = "FICTIONAL_PRIVATE_CONTENT_MUST_NOT_APPEAR";
 async function modules() {
   const [fixture, messaging, effect] = await Promise.all([
-    import("../../../scripts/outcome-recovery/fixture"),
+    import("./fixtures/outcome-recovery/fixture"),
     import("@outcomego/messaging"),
     import("effect"),
   ]);
