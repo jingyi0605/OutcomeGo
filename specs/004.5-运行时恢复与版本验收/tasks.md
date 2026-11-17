@@ -1,6 +1,6 @@
 # 任务清单 - 运行时恢复与版本验收（人话版）
 
-状态：IN_PROGRESS（第 2 波恢复代码已交接；全部代码合入后统一执行数据库、生命周期和跨阶段验证，最终验收未通过）
+状态：IN_PROGRESS（最终本机组合回归已通过；真实远端/provider、跨客户端安装/设备、CI 与完整旧镜像回退未验，整体发布不放行）
 
 关联文档：[README.md](README.md) · [requirements.md](requirements.md) · [design.md](design.md)
 
@@ -142,8 +142,11 @@
 
 ## 阶段 3：全项目验收和发布
 
-- [ ] 3.1 普通 Run 和主对话恢复隔离回归
-  - 状态：BLOCKED（2026-11-17，task-26 代码交付及最小检查完成；按负责人要求集中数据库/回放待执行，未满足正式验收）
+- [x] 3.1 普通 Run 和主对话恢复隔离回归
+  - 状态：DONE（2026-11-17，task-30；普通 Run/main/group/Routine 本机恢复隔离完整回归与九项专库实跑通过，不代替真实远端或客户端验收）
+  - 最终验证：Computer 1360/0/68、Messaging 857/0/0（`5e2ce81d8`）；Server 1535/0/11、Worker 236/0/3（`727d410f2`，无生产差异）；另专库 startup 6 PASS/32 assertions、dispatch 3 PASS/7 assertions。完整命令、raw SHA、82 skip/九项独立通过见[最终本机结果](../004-OutcomeGo整体项目/docs/20261117-第3波后端组合验收最终本机结果.md)。
+  - 完成范围：仅受控本地 PostgreSQL/fixture；metrics 的 T 未上报为 null，缺持久来源的重复计数为 null。没有 live UI 注意力采样、provider 日志、普遍 PII 审计或 latency percentile 证明，分位数 PENDING；真实 Bot/远端未证明；客户端/安装 3.2 与完整回退 3.4 保持未完成。
+  - 以下“第 3 波”字段是 task-26 开闸前历史，不代表当前未执行；原始最小检查与失败证据保留。
   - 第 3 波实现提交：`2d9eaeb43`、`e00496f5e`、`543eef450`、`d4de4846e`、`d330efc34`、`80ea59865`；`870ebac90` 仅为本线编译所需依赖合并，不拾取到集成线。
   - 第 3 波修改文件：父六 JSON/合同检查脚本；`scripts/test-outcome-recovery.ts`、`scripts/outcome-recovery/`、`apps/server/test/fixtures/outcome-recovery/`、新 cross-phase 测试；本任务文档。51 个既有测试文件的精确清单见交接与入口补齐记录。
   - 第 3 波数据库变化：none（本线不改 schema；恢复计数等为其他线原始提交依赖；没有启动或连接本线测试库）。
@@ -180,6 +183,7 @@
 
 - [x] 3.3 故障注入回放
   - 状态：DONE（2026-11-17，task-30 已实际执行六类本地故障，生成 §42 JSON 并与真实数据库对账；本地测试不替代远端 Computer/provider 或完整回归门槛）。
+  - 最终复验：生产冻结 `5e2ce81d8` 实际再次运行六类 CLI，全部 exit 0，6+8+8+5+9+4=40/40 checks。最终 JSON 与 42 命令 raw SHA 见[最终本机结果](../004-OutcomeGo整体项目/docs/20261117-第3波后端组合验收最终本机结果.md)。下列首轮 root 失败和 task-26 字段保留为历史；当前本机四包已零失败，不改变远端/provider PENDING。
   - 集中验证实现提交：`af6e9bf6a`（真实 PrismaPromise 外键断言、已等待的 executor 退出证明）；首轮证据提交 `60f6fab3e`；脚手架原始实现见以下 task-26 历史字段。
   - 集中验证修改文件：`scripts/test-outcome-recovery.ts`、实际 fixture/scenarios、`004.5/docs/final-replay.md`、本任务块及父文档 `20261117-第3波后端组合验收首轮结果.md`/同名证据目录。
   - 集中验证数据库变化：none；本线独立 PostgreSQL 17.12、`127.0.0.1:55439`；首次 schema deploy 与重复 deploy 均 PASS，未连接生产或远端库。
@@ -205,6 +209,7 @@
   - 对应设计：§27、§37、§42
 
 - [ ] 3.4 备份、回退演练和失败日志
+  - 最终边界：同版本本机 dump/restore 86 表/22 有数据表/123 FK 对账通过且原 dump 保留；Planning/Explore 没有填充数据，旧镜像未演练，不把这两项写 DONE。最终本机测试零失败不关闭本任务。
   - 状态：BLOCKED（2026-11-17，task-30 实际 populated pg_dump/restore 已通过；旧镜像未提供且 Planning/Explore 有数据回退未覆盖，未满足两级回退完整验收）。
   - 集中验证补充：`03cf82651` 源码，在本线 `55439/outcomego_w3_backup` 保留六个真实故障 fixture 后执行 custom pg_dump，恢复到独立空库 `outcomego_w3_restored`；86 表行数/内容摘要完全一致，22 表有数据，123 个 FK 全部 validated；dump 333755 bytes，SHA-256 `0e5f11d9b725efadd5d388a47c31f964d4ecd5e431077a0e07f4ed9e061baf69`。
   - 集中验证证据：[第二检查点](../004-OutcomeGo整体项目/docs/20261117-第3波后端组合验收第二检查点.md)、同目录 `20261117-第3波组合验收证据/populated-backup-result.json`。未启动旧镜像、未删除新表、未通过 SQL 修复业务状态；下面 task-26 的“未执行”字段保留为验证开闸前的历史记录。
@@ -224,8 +229,11 @@
   - 对应需求：需求 14
   - 对应设计：§48、§49
 
-- [ ] 3.5 指标和日志脱敏复核
-  - 状态：BLOCKED（2026-11-17，task-26 代码交付及最小检查完成；按负责人要求集中数据库/回放待执行，未满足正式验收）
+- [x] 3.5 指标和日志脱敏复核
+  - 状态：DONE（2026-11-17，task-30；本地 metrics/恢复诊断查询、四个 recovery service DB 案例及 cross-phase 脱敏 canary 通过，不代替真实远端或客户端验收）
+  - 最终验证：Computer 1360/0/68、Messaging 857/0/0（`5e2ce81d8`）；Server 1535/0/11、Worker 236/0/3（`727d410f2`，无生产差异）；另专库 startup 6 PASS/32 assertions、dispatch 3 PASS/7 assertions。完整命令、raw SHA、82 skip/九项独立通过见[最终本机结果](../004-OutcomeGo整体项目/docs/20261117-第3波后端组合验收最终本机结果.md)。
+  - 完成范围：仅受控本地 PostgreSQL/fixture；metrics 的 T 未上报为 null，缺持久来源的重复计数为 null。没有 live UI 注意力采样、provider 日志、普遍 PII 审计或 latency percentile 证明，分位数 PENDING；真实 Bot/远端未证明；客户端/安装 3.2 与完整回退 3.4 保持未完成。
+  - 以下“第 3 波”字段是 task-26 开闸前历史，不代表当前未执行；原始最小检查与失败证据保留。
   - 第 3 波实现提交：`2d9eaeb43`、`e00496f5e`、`543eef450`、`d4de4846e`、`d330efc34`、`80ea59865`；`870ebac90` 仅为本线编译所需依赖合并，不拾取到集成线。
   - 第 3 波修改文件：父六 JSON/合同检查脚本；`scripts/test-outcome-recovery.ts`、`scripts/outcome-recovery/`、`apps/server/test/fixtures/outcome-recovery/`、新 cross-phase 测试；本任务文档。51 个既有测试文件的精确清单见交接与入口补齐记录。
   - 第 3 波数据库变化：none（本线不改 schema；恢复计数等为其他线原始提交依赖；没有启动或连接本线测试库）。

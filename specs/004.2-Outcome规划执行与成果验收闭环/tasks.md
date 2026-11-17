@@ -139,7 +139,8 @@
 ## 阶段 3：Outcome 子线程执行
 
 - [ ] 3.1 增加 Outcome 子线程运行时支持
-  - 状态：BLOCKED（实现和定向验证完成；完整数据库既有失败仍阻塞验收，真实 Bot 回放 PENDING）
+  - 状态：BLOCKED（代码及最终本机完整回归已通过；真实 Bot、远端租约与精确停止回放 PENDING）
+  - 最终本机检查点（2026-11-17，task-30）：Computer 1360/0/68、Messaging 857/0/0（生产冻结 `5e2ce81d8`）；Server 1535/0/11、Worker 236/0/3（纯测试后继 `727d410f2`，生产相同）；另九项专库恢复及六 CLI 40 checks 通过。此前本块 wave1 canonical/dual-flag 计数均保留为历史，不与当前结果混并。真实环境门槛不据此放行，见[最终本机结果](../004-OutcomeGo整体项目/docs/20261117-第3波后端组合验收最终本机结果.md)。
   - 实现提交：`ce875ef7f`、`aaed9e362`、`4754659cc`、`e74706d97`
   - 修改文件：`packages/messaging/src/index.ts`、`request-progress.ts`、`automation-results.ts`；`apps/worker/src/worker.ts`、`test/outcome-thread.integration.test.ts`；computer 精确取消接入见 3.2。
   - 数据库变化：none
@@ -160,6 +161,7 @@
 
 - [ ] 3.2 实现 `POST /runs` 和 WorkItem 入队调度
   - 状态：BLOCKED（真实入队、服务及精确取消完成；集成负责人已证明本地 HTTP handler 装配，真实 Bot/远端回放 PENDING）
+  - 最终本机检查点（2026-11-17，task-30）：Computer 1360/0/68、Messaging 857/0/0（生产冻结 `5e2ce81d8`）；Server 1535/0/11、Worker 236/0/3（纯测试后继 `727d410f2`，生产相同）；另九项专库恢复及六 CLI 40 checks 通过。此前本块 wave1 canonical/dual-flag 计数均保留为历史，不与当前结果混并。真实环境门槛不据此放行，见[最终本机结果](../004-OutcomeGo整体项目/docs/20261117-第3波后端组合验收最终本机结果.md)。
   - 实现提交：`767663a96`（独立 contracts）、`ce875ef7f`、`aaed9e362`、`4754659cc`、`9ddfd10b1`、`5681c940c`、`5cc33fba0`
   - 修改文件：`packages/contracts/src/service-protocol.ts`；`packages/messaging/src/outcome-threads.ts`；`apps/server/src/services/outcome-service.ts`、`run-service.ts`；`apps/computer/src/main.ts`、`runtime.ts`、`runtime/tools.ts`；对应路径、服务、shell 停止测试。
   - 数据库变化：none；复用现有 IdempotencyRecord 保存容量等待意图，不建新队列。
@@ -180,13 +182,14 @@
 
 - [x] 3.3 注入 Outcome 执行上下文
   - 状态：DONE
+  - 最终本机检查点（2026-11-17，task-30）：Computer 1360/0/68、Messaging 857/0/0（生产冻结 `5e2ce81d8`）；Server 1535/0/11、Worker 236/0/3（纯测试后继 `727d410f2`，生产相同）；另九项专库恢复及六 CLI 40 checks 通过。此前本块 wave1 canonical/dual-flag 计数均保留为历史，不与当前结果混并。真实环境门槛不据此放行，见[最终本机结果](../004-OutcomeGo整体项目/docs/20261117-第3波后端组合验收最终本机结果.md)。
   - 实现提交：`ce875ef7f`、`4754659cc`、`e74706d97`
   - 修改文件：`packages/messaging/src/index.ts`、`outcome-threads.ts`；`test/outcome-context.test.ts`、`test/outcome-threads.integration.test.ts`、prompt fixture。
   - 数据库变化：none
   - 验证命令：证据文档命令 A；`bun test ./packages/messaging/test/outcome-context.test.ts`
   - 验证结果：普通/Routine prompt 与精确基线 `5070c6bc9` 快照一致；Outcome 隐藏上下文和输出目录要求通过；新未批准 revision 不替换旧已批准执行快照。
   - 证据文件：[`docs/20261117-子线程运行时验证.md`](docs/20261117-子线程运行时验证.md)
-  - 已知限制：真实 Bot 回放另记 PENDING；不改变完整数据库测试失败状态。
+  - 已知限制：真实 Bot 回放另记 PENDING；以下第 1 波失败为历史观测，当前本机结果见最终检查点。
   - 回滚方式：撤销对应 prompt/context 与快照提交。
   - 这一步到底做什么：`platformPrompt` 根据 `outcomeWorkItemId` 读取 WorkItem 和批准 revision，作为隐藏上下文注入；执行说明要求输出写入 `outcomes/<outcomeId>/<workItemId>/`。
   - 先依赖什么：3.1
@@ -199,7 +202,8 @@
   - 对应设计：§23
 
 - [ ] 3.4 实现运行组结算和 Output 记录
-  - 状态：BLOCKED（实现和确定性并发回归完成；既有全量失败、真实环境回放仍待关闭）
+  - 状态：BLOCKED（实现及最终本机完整回归已通过；真实 Bot/远端运行组回放仍待关闭）
+  - 最终本机检查点（2026-11-17，task-30）：Computer 1360/0/68、Messaging 857/0/0（生产冻结 `5e2ce81d8`）；Server 1535/0/11、Worker 236/0/3（纯测试后继 `727d410f2`，生产相同）；另九项专库恢复及六 CLI 40 checks 通过。此前本块 wave1 canonical/dual-flag 计数均保留为历史，不与当前结果混并。真实环境门槛不据此放行，见[最终本机结果](../004-OutcomeGo整体项目/docs/20261117-第3波后端组合验收最终本机结果.md)。
   - 实现提交：`ce875ef7f`、`aaed9e362`、`e74706d97`
   - 修改文件：`packages/messaging/src/automation-results.ts`、`outcome-threads.ts`、`index.ts`、`request-progress.ts`；`apps/worker/src/worker.ts`；messaging、worker、真实 Task 集成测试及并发 barrier fixture。
   - 数据库变化：none
@@ -220,6 +224,7 @@
 
 - [x] 3.5 实现子线程只读记录接口
   - 状态：DONE（本地服务和 HTTP handler 验证完成；真实远端/live API 回放另记 PENDING）
+  - 最终本机检查点（2026-11-17，task-30）：Computer 1360/0/68、Messaging 857/0/0（生产冻结 `5e2ce81d8`）；Server 1535/0/11、Worker 236/0/3（纯测试后继 `727d410f2`，生产相同）；另九项专库恢复及六 CLI 40 checks 通过。此前本块 wave1 canonical/dual-flag 计数均保留为历史，不与当前结果混并。真实环境门槛不据此放行，见[最终本机结果](../004-OutcomeGo整体项目/docs/20261117-第3波后端组合验收最终本机结果.md)。
   - 实现提交：`ce875ef7f`、`4754659cc`；路由装配由线 2/集成负责人交付，集成验证点 `af0c38d88`、`cb0f8af46`。
   - 修改文件：`packages/messaging/src/outcome-transcript.ts`、`index.ts`；`apps/server/src/services/outcome-service.ts`、`test/outcome-runs.test.ts`。
   - 数据库变化：none

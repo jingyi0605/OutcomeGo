@@ -1,0 +1,1211 @@
+{
+  "frozenSource": "5e2ce81d83b91e4e4d37388f54ac9a4685f6b36d",
+  "packages": [
+    {
+      "label": "final-canonical-computer",
+      "source": "97bf7f99a2a7acaab8057d0122a412f77b34938d",
+      "frozenSource": "5e2ce81d83b91e4e4d37388f54ac9a4685f6b36d",
+      "trackedTreeEqualsFrozen": true,
+      "command": [
+        "bun",
+        "--no-env-file",
+        "test",
+        "--pass-with-no-tests"
+      ],
+      "cwd": "/Users/jackson/Code/openteam-spec004-worktrees/w3-acceptance/apps/computer",
+      "databaseEndpoint": "127.0.0.1:55439/outcomego_w3_final_computer_20261117",
+      "exitCode": 0,
+      "seconds": 200.036,
+      "sha256": "e770a28aea12cc7fe7b6d15902982fc753fae405bdeefffad899697d92c93a4d",
+      "resultCounts": {
+        "pass": 1360,
+        "fail": 0,
+        "skip": 68,
+        "assertions": 31556,
+        "tests": 1428,
+        "files": 222
+      },
+      "failedOccurrences": [],
+      "skippedOccurrences": [
+        {
+          "file": "test/file-watcher-runtime.test.ts",
+          "title": "file watcher drains a burst and receives later changes without spinning",
+          "rawLine": 78
+        },
+        {
+          "file": "test/box-clock.integration.test.ts",
+          "title": "the box clock runs in the configured time zone",
+          "rawLine": 101
+        },
+        {
+          "file": "test/box-clock.integration.test.ts",
+          "title": "file mtimes read in the configured time zone",
+          "rawLine": 102
+        },
+        {
+          "file": "test/box-clock.integration.test.ts",
+          "title": "the clock script resolves letter case and refuses unknown zones",
+          "rawLine": 103
+        },
+        {
+          "file": "test/screen-stream.integration.test.ts",
+          "title": "live computer video produces continuous JPEGs and releases encoders on cancel",
+          "rawLine": 147
+        },
+        {
+          "file": "test/agent-process-linux.test.ts",
+          "title": "dropped child identity, private-file denial, cancellation and scoped ownership",
+          "rawLine": 160
+        },
+        {
+          "file": "test/agent-process-linux.test.ts",
+          "title": "restricted file transfer writes intact bytes and cancels without replacing a destination",
+          "rawLine": 161
+        },
+        {
+          "file": "test/agent-process-linux.test.ts",
+          "title": "native shell keeps its dropped identity and persists environment through a host-private capture",
+          "rawLine": 162
+        },
+        {
+          "file": "test/agent-process-linux.test.ts",
+          "title": "actual restricted desktop starts VNC and Chrome and destroys its child processes",
+          "rawLine": 163
+        },
+        {
+          "file": "test/task-capabilities.integration.test.ts",
+          "title": "the packaged computer advertises its desktop to Task workers",
+          "rawLine": 453
+        },
+        {
+          "file": "test/desktop-memory.integration.test.ts",
+          "title": "10 GiB is per desktop and inherited by ordinary and sudo descendants",
+          "rawLine": 466
+        },
+        {
+          "file": "test/desktop-memory.integration.test.ts",
+          "title": "an over-budget desktop OOM leaves its peer and supervisor alive",
+          "rawLine": 467
+        },
+        {
+          "file": "test/desktop-memory.integration.test.ts",
+          "title": "capped launch retains cancellation and process-group signalling",
+          "rawLine": 468
+        },
+        {
+          "file": "test/agent-store-permissions.integration.test.ts",
+          "title": "the server UID can remove shared agent files created by the supervisor",
+          "rawLine": 630
+        },
+        {
+          "file": "test/screen-actions.integration.test.ts",
+          "title": "real X11 computer input > (unnamed)",
+          "rawLine": 633
+        },
+        {
+          "file": "test/screen-actions.integration.test.ts",
+          "title": "real X11 computer input > repeated pointer coordinates return promptly",
+          "rawLine": 634
+        },
+        {
+          "file": "test/screen-actions.integration.test.ts",
+          "title": "real X11 computer input > repeated clicks deliver all 40 trusted inputs without coordinate stalls",
+          "rawLine": 635
+        },
+        {
+          "file": "test/screen-actions.integration.test.ts",
+          "title": "real X11 computer input > key modifiers select text and leave subsequent keys unmodified",
+          "rawLine": 636
+        },
+        {
+          "file": "test/screen-actions.integration.test.ts",
+          "title": "real X11 computer input > normalizes common key aliases and rejects unknown key names",
+          "rawLine": 637
+        },
+        {
+          "file": "test/screen-actions.integration.test.ts",
+          "title": "real X11 computer input > held clicks last for the requested duration and cancellation releases the button",
+          "rawLine": 638
+        },
+        {
+          "file": "test/screen-actions.integration.test.ts",
+          "title": "real X11 computer input > types exact multilingual text, emoji and newline with an inherited C locale",
+          "rawLine": 639
+        },
+        {
+          "file": "test/screen-actions.integration.test.ts",
+          "title": "real X11 computer input > types more unique Unicode characters than spare keycodes and restores the keymap",
+          "rawLine": 640
+        },
+        {
+          "file": "test/screen-actions.integration.test.ts",
+          "title": "real X11 computer input > drag paths tolerate repeated waypoints and release the button",
+          "rawLine": 641
+        },
+        {
+          "file": "test/screen-actions.integration.test.ts",
+          "title": "real X11 computer input > (unnamed)",
+          "rawLine": 642
+        },
+        {
+          "file": "test/screen-concurrent-desktop.integration.test.ts",
+          "title": "concurrent desktops, shared input, interruption and multiple VNC viewers",
+          "rawLine": 788
+        },
+        {
+          "file": "test/screen-desktop.integration.test.ts",
+          "title": "full desktop multilingual typing",
+          "rawLine": 1280
+        },
+        {
+          "file": "test/desktop-memory-ui.integration.test.ts",
+          "title": "two capped headed desktops preserve UI and tabs while one hits its memory limit",
+          "rawLine": 1406
+        },
+        {
+          "file": "test/screen-clipboard.integration.test.ts",
+          "title": "native clipboard > (unnamed)",
+          "rawLine": 1426
+        },
+        {
+          "file": "test/screen-clipboard.integration.test.ts",
+          "title": "native clipboard > successive fresh owners paste exact Unicode, multiline and large text",
+          "rawLine": 1427
+        },
+        {
+          "file": "test/screen-clipboard.integration.test.ts",
+          "title": "native clipboard > copy and cut return the current Unicode selection and cut removes it",
+          "rawLine": 1428
+        },
+        {
+          "file": "test/screen-clipboard.integration.test.ts",
+          "title": "native clipboard > canceled paste sends no input or clipboard owner",
+          "rawLine": 1429
+        },
+        {
+          "file": "test/screen-clipboard.integration.test.ts",
+          "title": "native clipboard > (unnamed)",
+          "rawLine": 1430
+        },
+        {
+          "file": "test/runtime/collaboration-plugins.test.ts",
+          "title": "all original Granola commands and its agent dispatch from the pinned provider source",
+          "rawLine": 2686
+        },
+        {
+          "file": "test/browser/cross-origin-form.integration.test.ts",
+          "title": "form values fill a cross-origin card frame and refuse an insecure foreign frame",
+          "rawLine": 2890
+        },
+        {
+          "file": "test/browser/interactive-descendants.integration.test.ts",
+          "title": "delegated click containers retain independently actionable descendants",
+          "rawLine": 2903
+        },
+        {
+          "file": "test/browser/aria-states.integration.test.ts",
+          "title": "ARIA control states remain observable before and after clicks",
+          "rawLine": 2906
+        },
+        {
+          "file": "test/browser/native-range-bounds.integration.test.ts",
+          "title": "native numeric control constraints remain observable after keyboard changes",
+          "rawLine": 2909
+        },
+        {
+          "file": "test/browser/reference-actions.integration.test.ts",
+          "title": "reference browser actions execute against a real synthetic page",
+          "rawLine": 2915
+        },
+        {
+          "file": "test/browser/range-states.integration.test.ts",
+          "title": "custom range values expose actual transitions and preserve private-value redaction",
+          "rawLine": 2918
+        },
+        {
+          "file": "test/browser/wait-duplicate-text.integration.test.ts",
+          "title": "text waits consider visible duplicates, not only the first match",
+          "rawLine": 2921
+        },
+        {
+          "file": "test/browser/svg-controls.integration.test.ts",
+          "title": "SVG controls remain discoverable and actionable",
+          "rawLine": 2924
+        },
+        {
+          "file": "test/browser/temporal-input.integration.test.ts",
+          "title": "temporal controls identify their type and recover from unsupported typing through fill",
+          "rawLine": 2927
+        },
+        {
+          "file": "test/browser/select-snapshot.integration.test.ts",
+          "title": "snapshots expose native dropdown choices and current selections without JavaScript inspection",
+          "rawLine": 2938
+        },
+        {
+          "file": "test/browser/form-document-binding.integration.test.ts",
+          "title": "reviewed form documents survive host restart, refuse reload, and explicitly remap without submit",
+          "rawLine": 2941
+        },
+        {
+          "file": "test/browser/click-budget.integration.test.ts",
+          "title": "blocked clicks yield promptly without forcing or replaying; transient blockers still settle",
+          "rawLine": 2961
+        },
+        {
+          "file": "test/browser/run-code.integration.test.ts",
+          "title": "batched Playwright scripts, fresh globals, tab selection, failures and limits on real Chromium",
+          "rawLine": 2965
+        },
+        {
+          "file": "test/browser/run-code-contract.integration.test.ts",
+          "title": "browser_run_code contract on real Chromium > (unnamed)",
+          "rawLine": 2968
+        },
+        {
+          "file": "test/browser/run-code-contract.integration.test.ts",
+          "title": "browser_run_code contract on real Chromium > refs from browser_snapshot work as aria-ref locators across calls and tools until re-rendered",
+          "rawLine": 2969
+        },
+        {
+          "file": "test/browser/run-code-contract.integration.test.ts",
+          "title": "browser_run_code contract on real Chromium > page.ariaSnapshot({ mode: 'ai' }) mints refs shared with browser tools; other modes stay stock",
+          "rawLine": 2970
+        },
+        {
+          "file": "test/browser/run-code-contract.integration.test.ts",
+          "title": "browser_run_code contract on real Chromium > image Blobs return as named images, at most four, and PDF Blobs are saved to the workspace",
+          "rawLine": 2971
+        },
+        {
+          "file": "test/browser/run-code-contract.integration.test.ts",
+          "title": "browser_run_code contract on real Chromium > blocked APIs fail with policy_denied naming the API",
+          "rawLine": 2972
+        },
+        {
+          "file": "test/browser/run-code-contract.integration.test.ts",
+          "title": "browser_run_code contract on real Chromium > uploads accept workspace paths, in-memory files and a chooser from an earlier call",
+          "rawLine": 2973
+        },
+        {
+          "file": "test/browser/run-code-contract.integration.test.ts",
+          "title": "browser_run_code contract on real Chromium > downloads land in the Downloads folder under Chrome's names and outlive the script",
+          "rawLine": 2974
+        },
+        {
+          "file": "test/browser/run-code-contract.integration.test.ts",
+          "title": "browser_run_code contract on real Chromium > actions time out after 5 s unless given a timeout; navigation keeps 30 s; failures carry codes",
+          "rawLine": 2975
+        },
+        {
+          "file": "test/browser/run-code-contract.integration.test.ts",
+          "title": "browser_run_code contract on real Chromium > each call has a page and only the documented globals",
+          "rawLine": 2976
+        },
+        {
+          "file": "test/browser/run-code-contract.integration.test.ts",
+          "title": "browser_run_code contract on real Chromium > (unnamed)",
+          "rawLine": 2977
+        },
+        {
+          "file": "test/browser/label-toggle.integration.test.ts",
+          "title": "visible labels expose refs and checked state for styled native toggles",
+          "rawLine": 2980
+        },
+        {
+          "file": "test/browser/stable-ref-lifetime.integration.test.ts",
+          "title": "stable refs survive find and scoped observations, retire on navigation, and upgrade live positional documents",
+          "rawLine": 2993
+        },
+        {
+          "file": "test/browser/run-code-recovery.integration.test.ts",
+          "title": "script recovery preserves frames, tab selection, logs and upload handoffs",
+          "rawLine": 2996
+        },
+        {
+          "file": "test/browser/reference-dom.integration.test.ts",
+          "title": "reference snapshots and fills handle shadow DOM, cross-origin frames, controlled inputs, OTP and remaps",
+          "rawLine": 3017
+        },
+        {
+          "file": "test/browser/find.integration.test.ts",
+          "title": "find recovers generic text, shadow/frame content and actionable refs; typing rejects non-editable targets without clicking",
+          "rawLine": 3021
+        },
+        {
+          "file": "test/browser/textarea-snapshot.integration.test.ts",
+          "title": "textarea snapshots preserve line boundaries with bounded, redacted values",
+          "rawLine": 3029
+        },
+        {
+          "file": "test/browser/form-select.integration.test.ts",
+          "title": "form values fill native dropdowns by expiry, country code, number, and visible label",
+          "rawLine": 3032
+        },
+        {
+          "file": "test/browser/dom-observation.integration.test.ts",
+          "title": "DOM observations supply actionable refs, preserve private text masking, and allow explicit images",
+          "rawLine": 3035
+        },
+        {
+          "file": "test/browser/hover-console.integration.test.ts",
+          "title": "hover reveals menu; console captures exceptions, bounds history and isolates tabs; snapshot marks non-editable controls",
+          "rawLine": 3042
+        },
+        {
+          "file": "test/browser/hover-console.integration.test.ts",
+          "title": "waits observe delayed visibility, disappearance, timeout and cancellation without replaying actions",
+          "rawLine": 3043
+        },
+        {
+          "file": "test/browser/hover-console.integration.test.ts",
+          "title": "snapshot exposes focusable hover containers and inherited disabled state without hiding child controls",
+          "rawLine": 3044
+        },
+        {
+          "file": "test/browser/batch-form.integration.test.ts",
+          "title": "batch fills text and checkbox states, and stops after unavailable targets",
+          "rawLine": 3067
+        }
+      ],
+      "log": "data/acceptance/logs/final-canonical-computer.log"
+    },
+    {
+      "label": "final-canonical-messaging",
+      "source": "97bf7f99a2a7acaab8057d0122a412f77b34938d",
+      "frozenSource": "5e2ce81d83b91e4e4d37388f54ac9a4685f6b36d",
+      "trackedTreeEqualsFrozen": true,
+      "command": [
+        "bun",
+        "--no-env-file",
+        "test",
+        "--pass-with-no-tests"
+      ],
+      "cwd": "/Users/jackson/Code/openteam-spec004-worktrees/w3-acceptance/packages/messaging",
+      "databaseEndpoint": "127.0.0.1:55439/outcomego_w3_final_messaging_20261117",
+      "exitCode": 0,
+      "seconds": 104.069,
+      "sha256": "d2a2305dbd094856fb6bfec1c510a11ddcf5bd9f7f5e3b25e7f9eddd3b0c2444",
+      "resultCounts": {
+        "pass": 857,
+        "fail": 0,
+        "skip": 0,
+        "assertions": 9706,
+        "tests": 857,
+        "files": 81
+      },
+      "failedOccurrences": [],
+      "skippedOccurrences": [],
+      "log": "data/acceptance/logs/final-canonical-messaging.log"
+    },
+    {
+      "label": "final-canonical-server",
+      "source": "97bf7f99a2a7acaab8057d0122a412f77b34938d",
+      "frozenSource": "5e2ce81d83b91e4e4d37388f54ac9a4685f6b36d",
+      "trackedTreeEqualsFrozen": true,
+      "command": [
+        "bun",
+        "--no-env-file",
+        "test",
+        "--pass-with-no-tests"
+      ],
+      "cwd": "/Users/jackson/Code/openteam-spec004-worktrees/w3-acceptance/apps/server",
+      "databaseEndpoint": "127.0.0.1:55439/outcomego_w3_final_server_20261117",
+      "exitCode": 1,
+      "seconds": 153.681,
+      "sha256": "b5de6966cc79fb8593004e37fb4b1df4ee424fbfd387c9489b25a39d6b71439f",
+      "resultCounts": {
+        "pass": 1534,
+        "fail": 1,
+        "skip": 11,
+        "assertions": 9837,
+        "tests": 1546,
+        "files": 234
+      },
+      "failedOccurrences": [
+        {
+          "file": "test/notification-read-chaos.integration.test.ts",
+          "title": "concurrent, duplicated and stale reads preserve newer messages and reactions",
+          "rawLine": 1520
+        }
+      ],
+      "skippedOccurrences": [
+        {
+          "file": "test/browser-network.test.ts",
+          "title": "connected device browser network > real Chromium HTTP/HTTPS, uploads, downloads, WS/WSS and workers use Node proxy and desktop exit",
+          "rawLine": 665
+        },
+        {
+          "file": "test/asset-session.integration.test.ts",
+          "title": "private attachment GET/HEAD/ranges require a valid owner session",
+          "rawLine": 1325
+        },
+        {
+          "file": "test/startup-task-recovery.integration.test.ts",
+          "title": "startup preserves uncheckpointed obligations and schedules one reconciliation",
+          "rawLine": 1461
+        },
+        {
+          "file": "test/startup-task-recovery.integration.test.ts",
+          "title": "startup fences new queue claims while it stops old Pi contexts",
+          "rawLine": 1462
+        },
+        {
+          "file": "test/startup-task-recovery.integration.test.ts",
+          "title": "an exhausted foreground recovery posts one resend notice instead of another continuation",
+          "rawLine": 1463
+        },
+        {
+          "file": "test/startup-task-recovery.integration.test.ts",
+          "title": "a failed context stop rolls recovery back without queuing duplicate work",
+          "rawLine": 1464
+        },
+        {
+          "file": "test/startup-task-recovery.integration.test.ts",
+          "title": "recovery exhaustion leaves an explicit parent-owned blocker with no automatic timer",
+          "rawLine": 1465
+        },
+        {
+          "file": "test/startup-task-recovery.integration.test.ts",
+          "title": "a parked helper never holds an update and resumes after the restart that update causes",
+          "rawLine": 1466
+        },
+        {
+          "file": "test/plugin/upstream-source.integration.test.ts",
+          "title": "pinned provider originals install, export, and materialize with exact source bytes",
+          "rawLine": 1899
+        },
+        {
+          "file": "test/plugin/catalog-lifecycle.integration.test.ts",
+          "title": "granola: actual catalog package installs, exports, loads workflows, isolates accounts, and uninstalls",
+          "rawLine": 1919
+        },
+        {
+          "file": "test/plugin/catalog-lifecycle.integration.test.ts",
+          "title": "notion: actual catalog package installs, exports, loads workflows, isolates accounts, and uninstalls",
+          "rawLine": 1921
+        }
+      ],
+      "log": "data/acceptance/logs/final-canonical-server.log"
+    },
+    {
+      "label": "final-canonical-worker",
+      "source": "97bf7f99a2a7acaab8057d0122a412f77b34938d",
+      "frozenSource": "5e2ce81d83b91e4e4d37388f54ac9a4685f6b36d",
+      "trackedTreeEqualsFrozen": true,
+      "command": [
+        "bun",
+        "--no-env-file",
+        "test",
+        "--pass-with-no-tests"
+      ],
+      "cwd": "/Users/jackson/Code/openteam-spec004-worktrees/w3-acceptance/apps/worker",
+      "databaseEndpoint": "127.0.0.1:55439/outcomego_w3_final_worker_20261117",
+      "exitCode": 1,
+      "seconds": 240.901,
+      "sha256": "79b2810de4ddd09747e043b1d97fba754e1e13a4080a3d437e214420d5abc386",
+      "resultCounts": {
+        "pass": 234,
+        "fail": 2,
+        "skip": 3,
+        "assertions": 1763,
+        "tests": 239,
+        "files": 61
+      },
+      "failedOccurrences": [
+        {
+          "file": "test/periodic-reconciliation.test.ts",
+          "title": "bounded periodic reconciliation > a deleted chat is never adopted back from its directory residue",
+          "rawLine": 204
+        },
+        {
+          "file": "test/routine-recovery.test.ts",
+          "title": "routine execution restart reconciliation > repairs a terminal group execution and its durable ledger",
+          "rawLine": 325
+        }
+      ],
+      "skippedOccurrences": [
+        {
+          "file": "test/runtime-dispatch.integration.test.ts",
+          "title": "startup cannot pass the dispatch fence until the computer has accepted the turn",
+          "rawLine": 224
+        },
+        {
+          "file": "test/runtime-dispatch.integration.test.ts",
+          "title": "a claimed turn invalidated by startup is never sent to the computer afterwards",
+          "rawLine": 225
+        },
+        {
+          "file": "test/runtime-dispatch.integration.test.ts",
+          "title": "dispatch timeout aborts the request and releases recovery's lock",
+          "rawLine": 226
+        }
+      ],
+      "log": "data/acceptance/logs/final-canonical-worker.log"
+    },
+    {
+      "label": "final-canonical-server-after60",
+      "source": "5dce4db34da31edd40c17f7067293776dd847420",
+      "frozenSource": "727d410f2f154d750faf021aa15b0a4cf13cdfc0",
+      "trackedTreeEqualsFrozen": true,
+      "command": [
+        "bun",
+        "--no-env-file",
+        "test",
+        "--pass-with-no-tests"
+      ],
+      "cwd": "/Users/jackson/Code/openteam-spec004-worktrees/w3-acceptance/apps/server",
+      "databaseEndpoint": "127.0.0.1:55439/outcomego_w3_final_server_followup_20261117",
+      "exitCode": 0,
+      "seconds": 149.222,
+      "sha256": "8fd45784a6527b5796f80b5dd8596a671bfebbe6f212f3aa4c68a3d272b7911c",
+      "resultCounts": {
+        "pass": 1535,
+        "fail": 0,
+        "skip": 11,
+        "assertions": 9845,
+        "tests": 1546,
+        "files": 234
+      },
+      "failedOccurrences": [],
+      "skippedOccurrences": [
+        {
+          "file": "test/browser-network.test.ts",
+          "title": "connected device browser network > real Chromium HTTP/HTTPS, uploads, downloads, WS/WSS and workers use Node proxy and desktop exit",
+          "rawLine": 665
+        },
+        {
+          "file": "test/asset-session.integration.test.ts",
+          "title": "private attachment GET/HEAD/ranges require a valid owner session",
+          "rawLine": 1343
+        },
+        {
+          "file": "test/startup-task-recovery.integration.test.ts",
+          "title": "startup preserves uncheckpointed obligations and schedules one reconciliation",
+          "rawLine": 1479
+        },
+        {
+          "file": "test/startup-task-recovery.integration.test.ts",
+          "title": "startup fences new queue claims while it stops old Pi contexts",
+          "rawLine": 1480
+        },
+        {
+          "file": "test/startup-task-recovery.integration.test.ts",
+          "title": "an exhausted foreground recovery posts one resend notice instead of another continuation",
+          "rawLine": 1481
+        },
+        {
+          "file": "test/startup-task-recovery.integration.test.ts",
+          "title": "a failed context stop rolls recovery back without queuing duplicate work",
+          "rawLine": 1482
+        },
+        {
+          "file": "test/startup-task-recovery.integration.test.ts",
+          "title": "recovery exhaustion leaves an explicit parent-owned blocker with no automatic timer",
+          "rawLine": 1483
+        },
+        {
+          "file": "test/startup-task-recovery.integration.test.ts",
+          "title": "a parked helper never holds an update and resumes after the restart that update causes",
+          "rawLine": 1484
+        },
+        {
+          "file": "test/plugin/upstream-source.integration.test.ts",
+          "title": "pinned provider originals install, export, and materialize with exact source bytes",
+          "rawLine": 1904
+        },
+        {
+          "file": "test/plugin/catalog-lifecycle.integration.test.ts",
+          "title": "granola: actual catalog package installs, exports, loads workflows, isolates accounts, and uninstalls",
+          "rawLine": 1924
+        },
+        {
+          "file": "test/plugin/catalog-lifecycle.integration.test.ts",
+          "title": "notion: actual catalog package installs, exports, loads workflows, isolates accounts, and uninstalls",
+          "rawLine": 1926
+        }
+      ],
+      "log": "data/acceptance/logs/final-canonical-server-after60.log"
+    },
+    {
+      "label": "final-canonical-worker-after61",
+      "source": "5dce4db34da31edd40c17f7067293776dd847420",
+      "frozenSource": "727d410f2f154d750faf021aa15b0a4cf13cdfc0",
+      "trackedTreeEqualsFrozen": true,
+      "command": [
+        "bun",
+        "--no-env-file",
+        "test",
+        "--pass-with-no-tests"
+      ],
+      "cwd": "/Users/jackson/Code/openteam-spec004-worktrees/w3-acceptance/apps/worker",
+      "databaseEndpoint": "127.0.0.1:55439/outcomego_w3_final_worker_followup_20261117",
+      "exitCode": 0,
+      "seconds": 228.537,
+      "sha256": "57f64e437b5941b58fcc091e6ccb1e70e2d6457fe8251691a040e6314e84173e",
+      "resultCounts": {
+        "pass": 236,
+        "fail": 0,
+        "skip": 3,
+        "assertions": 1774,
+        "tests": 239,
+        "files": 61
+      },
+      "failedOccurrences": [],
+      "skippedOccurrences": [
+        {
+          "file": "test/runtime-dispatch.integration.test.ts",
+          "title": "startup cannot pass the dispatch fence until the computer has accepted the turn",
+          "rawLine": 213
+        },
+        {
+          "file": "test/runtime-dispatch.integration.test.ts",
+          "title": "a claimed turn invalidated by startup is never sent to the computer afterwards",
+          "rawLine": 214
+        },
+        {
+          "file": "test/runtime-dispatch.integration.test.ts",
+          "title": "dispatch timeout aborts the request and releases recovery's lock",
+          "rawLine": 215
+        }
+      ],
+      "log": "data/acceptance/logs/final-canonical-worker-after61.log"
+    }
+  ],
+  "latestPackages": [
+    {
+      "label": "final-canonical-computer",
+      "source": "97bf7f99a2a7acaab8057d0122a412f77b34938d",
+      "frozenSource": "5e2ce81d83b91e4e4d37388f54ac9a4685f6b36d",
+      "trackedTreeEqualsFrozen": true,
+      "command": [
+        "bun",
+        "--no-env-file",
+        "test",
+        "--pass-with-no-tests"
+      ],
+      "cwd": "/Users/jackson/Code/openteam-spec004-worktrees/w3-acceptance/apps/computer",
+      "databaseEndpoint": "127.0.0.1:55439/outcomego_w3_final_computer_20261117",
+      "exitCode": 0,
+      "seconds": 200.036,
+      "sha256": "e770a28aea12cc7fe7b6d15902982fc753fae405bdeefffad899697d92c93a4d",
+      "resultCounts": {
+        "pass": 1360,
+        "fail": 0,
+        "skip": 68,
+        "assertions": 31556,
+        "tests": 1428,
+        "files": 222
+      },
+      "failedOccurrences": [],
+      "skippedOccurrences": [
+        {
+          "file": "test/file-watcher-runtime.test.ts",
+          "title": "file watcher drains a burst and receives later changes without spinning",
+          "rawLine": 78
+        },
+        {
+          "file": "test/box-clock.integration.test.ts",
+          "title": "the box clock runs in the configured time zone",
+          "rawLine": 101
+        },
+        {
+          "file": "test/box-clock.integration.test.ts",
+          "title": "file mtimes read in the configured time zone",
+          "rawLine": 102
+        },
+        {
+          "file": "test/box-clock.integration.test.ts",
+          "title": "the clock script resolves letter case and refuses unknown zones",
+          "rawLine": 103
+        },
+        {
+          "file": "test/screen-stream.integration.test.ts",
+          "title": "live computer video produces continuous JPEGs and releases encoders on cancel",
+          "rawLine": 147
+        },
+        {
+          "file": "test/agent-process-linux.test.ts",
+          "title": "dropped child identity, private-file denial, cancellation and scoped ownership",
+          "rawLine": 160
+        },
+        {
+          "file": "test/agent-process-linux.test.ts",
+          "title": "restricted file transfer writes intact bytes and cancels without replacing a destination",
+          "rawLine": 161
+        },
+        {
+          "file": "test/agent-process-linux.test.ts",
+          "title": "native shell keeps its dropped identity and persists environment through a host-private capture",
+          "rawLine": 162
+        },
+        {
+          "file": "test/agent-process-linux.test.ts",
+          "title": "actual restricted desktop starts VNC and Chrome and destroys its child processes",
+          "rawLine": 163
+        },
+        {
+          "file": "test/task-capabilities.integration.test.ts",
+          "title": "the packaged computer advertises its desktop to Task workers",
+          "rawLine": 453
+        },
+        {
+          "file": "test/desktop-memory.integration.test.ts",
+          "title": "10 GiB is per desktop and inherited by ordinary and sudo descendants",
+          "rawLine": 466
+        },
+        {
+          "file": "test/desktop-memory.integration.test.ts",
+          "title": "an over-budget desktop OOM leaves its peer and supervisor alive",
+          "rawLine": 467
+        },
+        {
+          "file": "test/desktop-memory.integration.test.ts",
+          "title": "capped launch retains cancellation and process-group signalling",
+          "rawLine": 468
+        },
+        {
+          "file": "test/agent-store-permissions.integration.test.ts",
+          "title": "the server UID can remove shared agent files created by the supervisor",
+          "rawLine": 630
+        },
+        {
+          "file": "test/screen-actions.integration.test.ts",
+          "title": "real X11 computer input > (unnamed)",
+          "rawLine": 633
+        },
+        {
+          "file": "test/screen-actions.integration.test.ts",
+          "title": "real X11 computer input > repeated pointer coordinates return promptly",
+          "rawLine": 634
+        },
+        {
+          "file": "test/screen-actions.integration.test.ts",
+          "title": "real X11 computer input > repeated clicks deliver all 40 trusted inputs without coordinate stalls",
+          "rawLine": 635
+        },
+        {
+          "file": "test/screen-actions.integration.test.ts",
+          "title": "real X11 computer input > key modifiers select text and leave subsequent keys unmodified",
+          "rawLine": 636
+        },
+        {
+          "file": "test/screen-actions.integration.test.ts",
+          "title": "real X11 computer input > normalizes common key aliases and rejects unknown key names",
+          "rawLine": 637
+        },
+        {
+          "file": "test/screen-actions.integration.test.ts",
+          "title": "real X11 computer input > held clicks last for the requested duration and cancellation releases the button",
+          "rawLine": 638
+        },
+        {
+          "file": "test/screen-actions.integration.test.ts",
+          "title": "real X11 computer input > types exact multilingual text, emoji and newline with an inherited C locale",
+          "rawLine": 639
+        },
+        {
+          "file": "test/screen-actions.integration.test.ts",
+          "title": "real X11 computer input > types more unique Unicode characters than spare keycodes and restores the keymap",
+          "rawLine": 640
+        },
+        {
+          "file": "test/screen-actions.integration.test.ts",
+          "title": "real X11 computer input > drag paths tolerate repeated waypoints and release the button",
+          "rawLine": 641
+        },
+        {
+          "file": "test/screen-actions.integration.test.ts",
+          "title": "real X11 computer input > (unnamed)",
+          "rawLine": 642
+        },
+        {
+          "file": "test/screen-concurrent-desktop.integration.test.ts",
+          "title": "concurrent desktops, shared input, interruption and multiple VNC viewers",
+          "rawLine": 788
+        },
+        {
+          "file": "test/screen-desktop.integration.test.ts",
+          "title": "full desktop multilingual typing",
+          "rawLine": 1280
+        },
+        {
+          "file": "test/desktop-memory-ui.integration.test.ts",
+          "title": "two capped headed desktops preserve UI and tabs while one hits its memory limit",
+          "rawLine": 1406
+        },
+        {
+          "file": "test/screen-clipboard.integration.test.ts",
+          "title": "native clipboard > (unnamed)",
+          "rawLine": 1426
+        },
+        {
+          "file": "test/screen-clipboard.integration.test.ts",
+          "title": "native clipboard > successive fresh owners paste exact Unicode, multiline and large text",
+          "rawLine": 1427
+        },
+        {
+          "file": "test/screen-clipboard.integration.test.ts",
+          "title": "native clipboard > copy and cut return the current Unicode selection and cut removes it",
+          "rawLine": 1428
+        },
+        {
+          "file": "test/screen-clipboard.integration.test.ts",
+          "title": "native clipboard > canceled paste sends no input or clipboard owner",
+          "rawLine": 1429
+        },
+        {
+          "file": "test/screen-clipboard.integration.test.ts",
+          "title": "native clipboard > (unnamed)",
+          "rawLine": 1430
+        },
+        {
+          "file": "test/runtime/collaboration-plugins.test.ts",
+          "title": "all original Granola commands and its agent dispatch from the pinned provider source",
+          "rawLine": 2686
+        },
+        {
+          "file": "test/browser/cross-origin-form.integration.test.ts",
+          "title": "form values fill a cross-origin card frame and refuse an insecure foreign frame",
+          "rawLine": 2890
+        },
+        {
+          "file": "test/browser/interactive-descendants.integration.test.ts",
+          "title": "delegated click containers retain independently actionable descendants",
+          "rawLine": 2903
+        },
+        {
+          "file": "test/browser/aria-states.integration.test.ts",
+          "title": "ARIA control states remain observable before and after clicks",
+          "rawLine": 2906
+        },
+        {
+          "file": "test/browser/native-range-bounds.integration.test.ts",
+          "title": "native numeric control constraints remain observable after keyboard changes",
+          "rawLine": 2909
+        },
+        {
+          "file": "test/browser/reference-actions.integration.test.ts",
+          "title": "reference browser actions execute against a real synthetic page",
+          "rawLine": 2915
+        },
+        {
+          "file": "test/browser/range-states.integration.test.ts",
+          "title": "custom range values expose actual transitions and preserve private-value redaction",
+          "rawLine": 2918
+        },
+        {
+          "file": "test/browser/wait-duplicate-text.integration.test.ts",
+          "title": "text waits consider visible duplicates, not only the first match",
+          "rawLine": 2921
+        },
+        {
+          "file": "test/browser/svg-controls.integration.test.ts",
+          "title": "SVG controls remain discoverable and actionable",
+          "rawLine": 2924
+        },
+        {
+          "file": "test/browser/temporal-input.integration.test.ts",
+          "title": "temporal controls identify their type and recover from unsupported typing through fill",
+          "rawLine": 2927
+        },
+        {
+          "file": "test/browser/select-snapshot.integration.test.ts",
+          "title": "snapshots expose native dropdown choices and current selections without JavaScript inspection",
+          "rawLine": 2938
+        },
+        {
+          "file": "test/browser/form-document-binding.integration.test.ts",
+          "title": "reviewed form documents survive host restart, refuse reload, and explicitly remap without submit",
+          "rawLine": 2941
+        },
+        {
+          "file": "test/browser/click-budget.integration.test.ts",
+          "title": "blocked clicks yield promptly without forcing or replaying; transient blockers still settle",
+          "rawLine": 2961
+        },
+        {
+          "file": "test/browser/run-code.integration.test.ts",
+          "title": "batched Playwright scripts, fresh globals, tab selection, failures and limits on real Chromium",
+          "rawLine": 2965
+        },
+        {
+          "file": "test/browser/run-code-contract.integration.test.ts",
+          "title": "browser_run_code contract on real Chromium > (unnamed)",
+          "rawLine": 2968
+        },
+        {
+          "file": "test/browser/run-code-contract.integration.test.ts",
+          "title": "browser_run_code contract on real Chromium > refs from browser_snapshot work as aria-ref locators across calls and tools until re-rendered",
+          "rawLine": 2969
+        },
+        {
+          "file": "test/browser/run-code-contract.integration.test.ts",
+          "title": "browser_run_code contract on real Chromium > page.ariaSnapshot({ mode: 'ai' }) mints refs shared with browser tools; other modes stay stock",
+          "rawLine": 2970
+        },
+        {
+          "file": "test/browser/run-code-contract.integration.test.ts",
+          "title": "browser_run_code contract on real Chromium > image Blobs return as named images, at most four, and PDF Blobs are saved to the workspace",
+          "rawLine": 2971
+        },
+        {
+          "file": "test/browser/run-code-contract.integration.test.ts",
+          "title": "browser_run_code contract on real Chromium > blocked APIs fail with policy_denied naming the API",
+          "rawLine": 2972
+        },
+        {
+          "file": "test/browser/run-code-contract.integration.test.ts",
+          "title": "browser_run_code contract on real Chromium > uploads accept workspace paths, in-memory files and a chooser from an earlier call",
+          "rawLine": 2973
+        },
+        {
+          "file": "test/browser/run-code-contract.integration.test.ts",
+          "title": "browser_run_code contract on real Chromium > downloads land in the Downloads folder under Chrome's names and outlive the script",
+          "rawLine": 2974
+        },
+        {
+          "file": "test/browser/run-code-contract.integration.test.ts",
+          "title": "browser_run_code contract on real Chromium > actions time out after 5 s unless given a timeout; navigation keeps 30 s; failures carry codes",
+          "rawLine": 2975
+        },
+        {
+          "file": "test/browser/run-code-contract.integration.test.ts",
+          "title": "browser_run_code contract on real Chromium > each call has a page and only the documented globals",
+          "rawLine": 2976
+        },
+        {
+          "file": "test/browser/run-code-contract.integration.test.ts",
+          "title": "browser_run_code contract on real Chromium > (unnamed)",
+          "rawLine": 2977
+        },
+        {
+          "file": "test/browser/label-toggle.integration.test.ts",
+          "title": "visible labels expose refs and checked state for styled native toggles",
+          "rawLine": 2980
+        },
+        {
+          "file": "test/browser/stable-ref-lifetime.integration.test.ts",
+          "title": "stable refs survive find and scoped observations, retire on navigation, and upgrade live positional documents",
+          "rawLine": 2993
+        },
+        {
+          "file": "test/browser/run-code-recovery.integration.test.ts",
+          "title": "script recovery preserves frames, tab selection, logs and upload handoffs",
+          "rawLine": 2996
+        },
+        {
+          "file": "test/browser/reference-dom.integration.test.ts",
+          "title": "reference snapshots and fills handle shadow DOM, cross-origin frames, controlled inputs, OTP and remaps",
+          "rawLine": 3017
+        },
+        {
+          "file": "test/browser/find.integration.test.ts",
+          "title": "find recovers generic text, shadow/frame content and actionable refs; typing rejects non-editable targets without clicking",
+          "rawLine": 3021
+        },
+        {
+          "file": "test/browser/textarea-snapshot.integration.test.ts",
+          "title": "textarea snapshots preserve line boundaries with bounded, redacted values",
+          "rawLine": 3029
+        },
+        {
+          "file": "test/browser/form-select.integration.test.ts",
+          "title": "form values fill native dropdowns by expiry, country code, number, and visible label",
+          "rawLine": 3032
+        },
+        {
+          "file": "test/browser/dom-observation.integration.test.ts",
+          "title": "DOM observations supply actionable refs, preserve private text masking, and allow explicit images",
+          "rawLine": 3035
+        },
+        {
+          "file": "test/browser/hover-console.integration.test.ts",
+          "title": "hover reveals menu; console captures exceptions, bounds history and isolates tabs; snapshot marks non-editable controls",
+          "rawLine": 3042
+        },
+        {
+          "file": "test/browser/hover-console.integration.test.ts",
+          "title": "waits observe delayed visibility, disappearance, timeout and cancellation without replaying actions",
+          "rawLine": 3043
+        },
+        {
+          "file": "test/browser/hover-console.integration.test.ts",
+          "title": "snapshot exposes focusable hover containers and inherited disabled state without hiding child controls",
+          "rawLine": 3044
+        },
+        {
+          "file": "test/browser/batch-form.integration.test.ts",
+          "title": "batch fills text and checkbox states, and stops after unavailable targets",
+          "rawLine": 3067
+        }
+      ],
+      "log": "data/acceptance/logs/final-canonical-computer.log"
+    },
+    {
+      "label": "final-canonical-messaging",
+      "source": "97bf7f99a2a7acaab8057d0122a412f77b34938d",
+      "frozenSource": "5e2ce81d83b91e4e4d37388f54ac9a4685f6b36d",
+      "trackedTreeEqualsFrozen": true,
+      "command": [
+        "bun",
+        "--no-env-file",
+        "test",
+        "--pass-with-no-tests"
+      ],
+      "cwd": "/Users/jackson/Code/openteam-spec004-worktrees/w3-acceptance/packages/messaging",
+      "databaseEndpoint": "127.0.0.1:55439/outcomego_w3_final_messaging_20261117",
+      "exitCode": 0,
+      "seconds": 104.069,
+      "sha256": "d2a2305dbd094856fb6bfec1c510a11ddcf5bd9f7f5e3b25e7f9eddd3b0c2444",
+      "resultCounts": {
+        "pass": 857,
+        "fail": 0,
+        "skip": 0,
+        "assertions": 9706,
+        "tests": 857,
+        "files": 81
+      },
+      "failedOccurrences": [],
+      "skippedOccurrences": [],
+      "log": "data/acceptance/logs/final-canonical-messaging.log"
+    },
+    {
+      "label": "final-canonical-server-after60",
+      "source": "5dce4db34da31edd40c17f7067293776dd847420",
+      "frozenSource": "727d410f2f154d750faf021aa15b0a4cf13cdfc0",
+      "trackedTreeEqualsFrozen": true,
+      "command": [
+        "bun",
+        "--no-env-file",
+        "test",
+        "--pass-with-no-tests"
+      ],
+      "cwd": "/Users/jackson/Code/openteam-spec004-worktrees/w3-acceptance/apps/server",
+      "databaseEndpoint": "127.0.0.1:55439/outcomego_w3_final_server_followup_20261117",
+      "exitCode": 0,
+      "seconds": 149.222,
+      "sha256": "8fd45784a6527b5796f80b5dd8596a671bfebbe6f212f3aa4c68a3d272b7911c",
+      "resultCounts": {
+        "pass": 1535,
+        "fail": 0,
+        "skip": 11,
+        "assertions": 9845,
+        "tests": 1546,
+        "files": 234
+      },
+      "failedOccurrences": [],
+      "skippedOccurrences": [
+        {
+          "file": "test/browser-network.test.ts",
+          "title": "connected device browser network > real Chromium HTTP/HTTPS, uploads, downloads, WS/WSS and workers use Node proxy and desktop exit",
+          "rawLine": 665
+        },
+        {
+          "file": "test/asset-session.integration.test.ts",
+          "title": "private attachment GET/HEAD/ranges require a valid owner session",
+          "rawLine": 1343
+        },
+        {
+          "file": "test/startup-task-recovery.integration.test.ts",
+          "title": "startup preserves uncheckpointed obligations and schedules one reconciliation",
+          "rawLine": 1479
+        },
+        {
+          "file": "test/startup-task-recovery.integration.test.ts",
+          "title": "startup fences new queue claims while it stops old Pi contexts",
+          "rawLine": 1480
+        },
+        {
+          "file": "test/startup-task-recovery.integration.test.ts",
+          "title": "an exhausted foreground recovery posts one resend notice instead of another continuation",
+          "rawLine": 1481
+        },
+        {
+          "file": "test/startup-task-recovery.integration.test.ts",
+          "title": "a failed context stop rolls recovery back without queuing duplicate work",
+          "rawLine": 1482
+        },
+        {
+          "file": "test/startup-task-recovery.integration.test.ts",
+          "title": "recovery exhaustion leaves an explicit parent-owned blocker with no automatic timer",
+          "rawLine": 1483
+        },
+        {
+          "file": "test/startup-task-recovery.integration.test.ts",
+          "title": "a parked helper never holds an update and resumes after the restart that update causes",
+          "rawLine": 1484
+        },
+        {
+          "file": "test/plugin/upstream-source.integration.test.ts",
+          "title": "pinned provider originals install, export, and materialize with exact source bytes",
+          "rawLine": 1904
+        },
+        {
+          "file": "test/plugin/catalog-lifecycle.integration.test.ts",
+          "title": "granola: actual catalog package installs, exports, loads workflows, isolates accounts, and uninstalls",
+          "rawLine": 1924
+        },
+        {
+          "file": "test/plugin/catalog-lifecycle.integration.test.ts",
+          "title": "notion: actual catalog package installs, exports, loads workflows, isolates accounts, and uninstalls",
+          "rawLine": 1926
+        }
+      ],
+      "log": "data/acceptance/logs/final-canonical-server-after60.log"
+    },
+    {
+      "label": "final-canonical-worker-after61",
+      "source": "5dce4db34da31edd40c17f7067293776dd847420",
+      "frozenSource": "727d410f2f154d750faf021aa15b0a4cf13cdfc0",
+      "trackedTreeEqualsFrozen": true,
+      "command": [
+        "bun",
+        "--no-env-file",
+        "test",
+        "--pass-with-no-tests"
+      ],
+      "cwd": "/Users/jackson/Code/openteam-spec004-worktrees/w3-acceptance/apps/worker",
+      "databaseEndpoint": "127.0.0.1:55439/outcomego_w3_final_worker_followup_20261117",
+      "exitCode": 0,
+      "seconds": 228.537,
+      "sha256": "57f64e437b5941b58fcc091e6ccb1e70e2d6457fe8251691a040e6314e84173e",
+      "resultCounts": {
+        "pass": 236,
+        "fail": 0,
+        "skip": 3,
+        "assertions": 1774,
+        "tests": 239,
+        "files": 61
+      },
+      "failedOccurrences": [],
+      "skippedOccurrences": [
+        {
+          "file": "test/runtime-dispatch.integration.test.ts",
+          "title": "startup cannot pass the dispatch fence until the computer has accepted the turn",
+          "rawLine": 213
+        },
+        {
+          "file": "test/runtime-dispatch.integration.test.ts",
+          "title": "a claimed turn invalidated by startup is never sent to the computer afterwards",
+          "rawLine": 214
+        },
+        {
+          "file": "test/runtime-dispatch.integration.test.ts",
+          "title": "dispatch timeout aborts the request and releases recovery's lock",
+          "rawLine": 215
+        }
+      ],
+      "log": "data/acceptance/logs/final-canonical-worker-after61.log"
+    }
+  ],
+  "latestTotals": {
+    "pass": 3988,
+    "fail": 0,
+    "skip": 82,
+    "assertions": 52881,
+    "tests": 4070,
+    "files": 598
+  },
+  "note": "The Server and Worker failures here are immutable first final-source observations. Later accepted fixes and reruns must be separate records."
+}

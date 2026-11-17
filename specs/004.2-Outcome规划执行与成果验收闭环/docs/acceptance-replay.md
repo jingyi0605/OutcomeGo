@@ -29,7 +29,7 @@ Fixture：[`research-pilot.json`](research-pilot.json)
 
 ## 2026-11-17 第 3 波受控失败实际检查点
 
-对应当前任务 5.2/5.3。task-30 已使用真实服务和本线一次性 PostgreSQL 执行下表检查；不改写上表远端研究试点 ID。精确源码、命令、SHA-256、六个实际故障 JSON 见 [后端组合验收首轮结果](../../004-OutcomeGo整体项目/docs/20261117-第3波后端组合验收首轮结果.md)。完整根测试仍有 351 FAIL，普通功能整体门槛不放行。
+对应当前任务 5.2/5.3。task-30 已使用真实服务和本线一次性 PostgreSQL 执行下表检查；不改写上表远端研究试点 ID。精确源码、命令、SHA-256、六个实际故障 JSON 见 [后端组合验收首轮结果](../../004-OutcomeGo整体项目/docs/20261117-第3波后端组合验收首轮结果.md)。首轮完整根测试记录 351 failed occurrences（340 个去重 package/file/title keys），以下为历史检查点。最终本机结果见下文。
 
 | 失败类别 | 现有/新增验证入口 | 状态 |
 |---|---|---|
@@ -43,7 +43,7 @@ Fixture：[`research-pilot.json`](research-pilot.json)
 
 主 Run/foreground lease/可见消息在等待、恢复、回执验收期间均作为独立对照；普通 user/group/routine 无 Outcome marker 的新增断言不修改原普通 fixture。没有人工动作的执行通过实际 Output→owner Review 路径验证，不依赖人工回执。
 
-精确执行步骤见 [第 3 波组合验证手册](../../004-OutcomeGo整体项目/docs/20261117-第3波组合验证运行手册.md)，恢复 JSON 见 [final-replay](../../004.5-运行时恢复与版本验收/docs/final-replay.md)。第 0 波与本次实际数据库失败均阻塞；新 canonical 入口扩大覆盖，不得将旧 canonical/dual-flag 历史结果混成新全绿结论。
+精确执行步骤见 [第 3 波组合验证手册](../../004-OutcomeGo整体项目/docs/20261117-第3波组合验证运行手册.md)，恢复 JSON 见 [final-replay](../../004.5-运行时恢复与版本验收/docs/final-replay.md)。该历史检查点未放行；原始数据库失败记录保留。最新本机已完成真实修复及复验，不能把不同源码/flag 的历史结果混并。
 
 
 ## 2026-11-17 第 1 波线 2 本地验证边界
@@ -68,4 +68,8 @@ Fixture：[`research-pilot.json`](research-pilot.json)
 | 子 Agent / shell 完成、最终 Output、下一排队项启动 | 尚无 | PENDING |
 | 新 computer 精确停止路径及旧 computer 404 的真实回放 | 尚无 | PENDING |
 
-本地定向验证通过；完整数据库测试仍有既有失败，未达到全绿放行。命令、实际计数、基线逐项对比、提交和接口交接见 [子线程运行时验证](20261117-子线程运行时验证.md)。真实环境可用后，由集成负责人经授权部署匹配的 server/worker/computer，再填写真实 ID、租约和结果。
+本地定向与最终四包完整回归均通过；真实研究试点及远端门槛仍未放行。命令、实际计数、基线逐项对比、提交和接口交接见 [子线程运行时验证](20261117-子线程运行时验证.md)。真实环境可用后，由集成负责人经授权部署匹配的 server/worker/computer，再填写真实 ID、租约和结果。
+
+## 2026-11-17 最终本机回归边界
+
+最新四包完整回归 3988 PASS / 0 FAIL / 82 SKIP，另九项专库恢复通过；六个 CLI 40 检查通过。Computer/Messaging 运行于生产冻结 `5e2ce81d8`，Server/Worker 运行于纯测试后继 `727d410f2`，无生产差异。详见[最终本机结果](../../004-OutcomeGo整体项目/docs/20261117-第3波后端组合验收最终本机结果.md)及其源码、逐项 skip、原始日志 SHA。该证据证明本地服务/fixture/数据库；上表真实 Bot、研究试点、租约、远端精确停止和 UI 记录继续空白/PENDING，不用测试 UUID 填充。

@@ -1,0 +1,61 @@
+{
+  "scenario": "restart-running-run",
+  "status": "PASS",
+  "initialState": {
+    "outcomeStatus": "running",
+    "workItemStatus": "running",
+    "recoveryCount": 0,
+    "runCount": 1
+  },
+  "injectedEventId": "executor-exit:4a660186-a126-49e1-a52e-7f107442369a",
+  "replayed": 2,
+  "finalState": {
+    "outcomeStatus": "running",
+    "workItemStatus": "running",
+    "recoveryCount": 1,
+    "runCount": 2
+  },
+  "outputCount": 0,
+  "decisionCount": 0,
+  "evidence": {
+    "fixtureBotId": "2d0a33ba-b591-4a3c-bd62-c1dc5dba78ed",
+    "outcomeId": "f71adc32-d082-4027-9bb8-5b19ccc25802",
+    "workItemId": "83da853e-15f3-4844-bb98-aa3bb85d5f8d",
+    "checks": [
+      {
+        "name": "expired_lease_without_stop_confirmation_does_not_replace_executor",
+        "passed": true
+      },
+      {
+        "name": "local_executor_exit_confirmed_before_recovery",
+        "passed": true
+      },
+      {
+        "name": "terminated_local_executor_resumes_exactly_once",
+        "passed": true
+      },
+      {
+        "name": "expired_outcome_lease_released",
+        "passed": true
+      },
+      {
+        "name": "foreground_run_lease_and_visible_messages_unchanged",
+        "passed": true
+      },
+      {
+        "name": "run_lineage_bound_to_same_work_item",
+        "passed": true
+      }
+    ],
+    "observations": {
+      "executor": "disposable-local-process",
+      "exitObserved": true,
+      "executorExitCode": 137,
+      "executorSignal": "SIGKILL",
+      "remoteComputerStop": "PENDING",
+      "recoveryAction": "resume_queued"
+    },
+    "execution": "local-disposable-database",
+    "remoteReplay": "PENDING"
+  }
+}

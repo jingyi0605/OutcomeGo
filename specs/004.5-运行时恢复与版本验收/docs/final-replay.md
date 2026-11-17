@@ -1,5 +1,23 @@
 # 第 3 波恢复与失败回放记录
 
+2026-11-17，task-30 最终本机结果：**四包完整回归 3988 PASS / 0 FAIL / 82 SKIP，另九项专库恢复与六类 CLI 的 40/40 checks 通过。** 发布仍 BLOCKED；真实 Bot/远端/provider、CI、设备及旧镜像门槛不据此放行。
+
+[最终本机结果](../../004-OutcomeGo整体项目/docs/20261117-第3波后端组合验收最终本机结果.md)保存精确命令、cwd、环境名称白名单、逐项 skip、42 raw log SHA 和六份实际 JSON。Computer 1360/0/68、Messaging 857/0/0 运行于生产冻结 `5e2ce81d8`；Server 1535/0/11、Worker 236/0/3 运行于纯测试后继 `727d410f2`，**无生产差异**。不混称同一测试树或新全项目 CI。
+
+82 项 package skip 中九项恢复案例使用全局扫描专库隔离，已实际分别运行 startup 6 PASS / 32 assertions、dispatch 3 PASS / 7 assertions；其余 73 项平台/外部 opt-in 未执行。包内 skip footer 保留，不改为 0。
+
+最终六份 JSON 覆盖真实本地 executor exit 137/SIGKILL、重复 finish/D18/Review、连续中断、并发 Decision、真实上传后 receipt 原子回滚/原 key 重试/统一 Review、未知外部回执不自动重发。unknown 使用虚构持久适配器 actualAttemptCount=1；不冒充生产 provider。真实主对话/UI/远端 lease/scoped stop 另待授权回放。
+
+本地指标/诊断可查询与脱敏 canary 通过：包含四个 recovery service DB 案例与 cross-phase 回归；未上报 T 为 null。**没有 live UI 注意力采样、provider 日志、普遍 PII 审计或 latency percentile 证明，分位数 PENDING**。本地服务 canary 不是全环境隐私保证。
+
+同版本 dump/restore 86 表/123 FK 对账通过，dump 保留；Planning/Explore 有数据回退、旧镜像回退仍 PENDING。清理仅本线准确命名的 55439 PG/fixture，结果见最终证据 cleanup.json。
+
+## 历史检查点（保留原始失败，不代表当前本机结果）
+
+以下为首轮及中间检查点记录；原命令、计数、失败原因保留。351 是 failed occurrences，340 个去重 package/file/title keys；Server 294 occurrences 为 283 keys。首轮失败后来实际分派修复，最终整包通过；未以“基线”豁免。
+
+### 首轮回放记录
+
 2026-11-17，task-26 脚手架交付、task-30 实际集中验证。当前状态：**六类本地故障 JSON/数据库对账 PASS；完整回归 BLOCKED**。冻结源码 `b58286ab3` 上完成首次六场景，`af6e9bf6a` 修正并实际重跑 executor 退出证据。完整根命令实际 `6570 PASS / 351 FAIL / 102 SKIP`、退出 1，不能放行发布。
 
 证据与精确命令见 [第 3 波后端组合验收首轮结果](../../004-OutcomeGo整体项目/docs/20261117-第3波后端组合验收首轮结果.md)、[六场景 JSON](../../004-OutcomeGo整体项目/docs/20261117-第3波组合验收证据/faults/receipt-retry.json)。各 JSON 的 fixture ID 是本地一次性测试数据，不填写为远端研究试点 ID。
@@ -11,7 +29,7 @@
 | 六类故障 | test-outcome-recovery.ts 与 server test fixture | 六场景实际 JSON PASS，详见下表 |
 | 备份/回退 | 真实故障 fixture 保留期间执行 custom pg_dump / 空库 restore | 同版本 PostgreSQL 86 表 / 123 FK 对账 PASS；Planning/Explore 有数据回退、旧镜像回退仍 PENDING，见[第二检查点](../../004-OutcomeGo整体项目/docs/20261117-第3波后端组合验收第二检查点.md) |
 | metrics/脱敏 | 新跨阶段 canary、attention 幂等断言 | 真实 DB 的四个 recovery/metrics 用例及跨阶段诊断 canary PASS；远端日志复核 PENDING |
-| canonical 测试入口 | 543eef450 的 51 个 legacy test/fixture 文件的 57 处 URL 读取 | 完整 canonical 根命令已执行，351 项失败逐一保留并分派 |
+| canonical 测试入口 | 543eef450 的 51 个 legacy test/fixture 文件的 57 处 URL 读取 | 完整 canonical 根命令已执行，351 failed occurrences（340 个去重 package/file/title keys）逐项保留并分派 |
 
 脚本入口：
 
