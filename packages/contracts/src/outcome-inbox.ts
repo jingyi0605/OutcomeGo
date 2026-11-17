@@ -1,5 +1,5 @@
-import { Schema } from "effect";
-import type { CreateContractRevisionInput, DecisionEffect } from "./outcomes";
+import { JSONSchema, Schema } from "effect";
+import { CreateContractRevisionInput, type DecisionEffect } from "./outcomes";
 
 export const DECISION_STATUSES = ["open", "presented", "resolved", "expired", "withdrawn"] as const;
 export type DecisionStatus = (typeof DECISION_STATUSES)[number];
@@ -26,6 +26,7 @@ export interface DecisionOption {
   reason?: string;
   contract?: CreateContractRevisionInput["contract"];
   manualAction?: DecisionActionCard;
+  supplement?: { title: string; instructions: string };
 }
 
 /** Internal service input; never accepted directly from the public resolve route. */
@@ -133,3 +134,42 @@ export const parseOutcomeInboxQuery = (params: URLSearchParams): OutcomeInboxQue
   }
   return { status: status as OutcomeInboxQuery["status"], category: category as OutcomeInboxCategory | undefined, limit: Math.min(limit, 100), cursor };
 };
+
+
+const DecisionToolText = (max: number) => Schema.String.pipe(Schema.minLength(1), Schema.maxLength(max));
+const DecisionManualAction = Schema.Struct({
+  title: DecisionToolText(200), purpose: DecisionToolText(4000),
+  steps: Schema.Array(DecisionToolText(2000)).pipe(Schema.minItems(1), Schema.maxItems(20)),
+  evidenceRequirements: Schema.Array(Schema.Struct({
+    criterionOrdinal: Schema.Number.pipe(Schema.int(), Schema.positive()), label: DecisionToolText(500),
+    kind: Schema.Literal("text", "asset", "sourceReference", "observation"),
+  })).pipe(Schema.minItems(1), Schema.maxItems(100)),
+  referenceIds: Schema.optional(Schema.Array(DecisionToolText(500)).pipe(Schema.maxItems(100))),
+});
+
+/** Agent proposals become immutable server-validated options; owner resolve never accepts effects. */
+export const RequestOutcomeDecisionInput = Schema.Struct({
+  completedSummary: DecisionToolText(4000), problemSummary: DecisionToolText(4000), nextStepSummary: DecisionToolText(4000),
+  reasonCode: Schema.Literal("scope_change_required", "missing_input", "acceptance_failed", "external_result_unknown", "manual_action_required", "budget_or_time_decision"),
+  options: Schema.Array(Schema.Struct({
+    label: DecisionToolText(200), consequence: DecisionToolText(4000),
+    recommended: Schema.optional(Schema.Boolean), reason: Schema.optional(DecisionToolText(2000)),
+    resolutionEffect: Schema.optional(Schema.Literal("plan_only", "scope_change", "acceptance_change", "cancel_branch", "manual_action")),
+    contract: Schema.optional(CreateContractRevisionInput.fields.contract),
+    manualAction: Schema.optional(DecisionManualAction),
+    supplement: Schema.optional(Schema.Struct({ title: DecisionToolText(200), instructions: DecisionToolText(4000) })),
+  })).pipe(Schema.minItems(1), Schema.maxItems(100)),
+});
+export type RequestOutcomeDecisionInput = typeof RequestOutcomeDecisionInput.Type;
+export interface RequestOutcomeDecisionResult { decisionId: string; status: "waiting_for_user" }
+export const REQUEST_OUTCOME_DECISION_TOOL = {
+  name: "RequestOutcomeDecision",
+  description: "Ask the Outcome owner for a decision. Explain what is complete, the problem (or no unresolved issue), and the next step. Provide 1-4 options; extra options are truncated. Effects require their complete snapshots. This ends the current Outcome turn; wait for a new turn after the owner decides. Never poll or send the question to the Bot's main conversation.",
+  inputSchema: JSONSchema.make(RequestOutcomeDecisionInput),
+} as const;
+
+
+/** Additive field on authenticated GET /notification-state; unknown fields remain safe for older clients. */
+export interface OutcomeNotificationState {
+  outcomeNotifications: import("./notification-content").OutcomeNotificationPayload[];
+}
