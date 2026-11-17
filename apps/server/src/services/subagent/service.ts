@@ -316,15 +316,23 @@ export class SubagentService {
    */
   stopRun = (runId: string) =>
     serviceEffect(async () => {
-      const run = await this.prisma.run.findUnique({ where: { id: runId }, select: { botId: true, status: true, error: true, completedAt: true, requestStoppedAt: true,
+      const run = await this.prisma.run.findUnique({ where: { id: runId }, select: { botId: true, origin: true, outcomeWorkItemId: true, status: true, error: true, completedAt: true, requestStoppedAt: true,
         inboxEvents: { take: 1, select: { payload: true, type: true } } } });
       if (!run) throw new ApiError(404, "run_not_found", "Run not found");
+      if (run.origin === "outcome" && !run.outcomeWorkItemId)
+        throw new ApiError(409, "request_context_inactive", "The Outcome run has no active work-item context");
+      if (run.outcomeWorkItemId) {
+        if (!this.runs.cancelOutcomeWorkItems)
+          throw new ApiError(503, "outcome_stop_incomplete", "Outcome run-group cancellation is not configured", { retryable: true });
+        await Effect.runPromise(this.runs.cancelOutcomeWorkItems([run.outcomeWorkItemId]));
+        return { ok: true, status: (await this.prisma.run.findUnique({ where: { id: runId }, select: { status: true } }))?.status ?? "cancelled" };
+      }
       const callId = `user-stop:${runId}`;
       const worker = await this.prisma.subagent.findFirst({
         where: { childBotId: run.botId, currentRunId: runId, status: { in: [...OPEN_STATUSES] } },
       });
       if (worker) {
-        await this.stopOne(worker.parentBotId, callId, worker);
+        await this.stopOne(worker.parentBotId, callId, worker, 0, true);
         const current = await this.prisma.run.findUnique({ where: { id: runId }, select: { status: true } });
         return { ok: true, status: current?.status ?? "cancelled" };
       }
@@ -350,7 +358,7 @@ export class SubagentService {
           result => ({ ok: true as const, result }),
           error => ({ ok: false as const, error }),
         ),
-        this.stopRunningSubagents(run.botId, callId, workerScope),
+        this.stopRunningSubagents(run.botId, callId, workerScope, true),
       ]);
       if (workers.some(worker => worker.outcome === "failed"))
         throw new ApiError(503, "bot_stop_incomplete", "Some work could not be stopped. Try Stop again.");
@@ -432,32 +440,60 @@ export class SubagentService {
       };
     });
 
-  async stop(parentBotId: string, callId: string, input: StopSubagentInput) {
-    if (input.all === true) return this.stopAll(parentBotId, callId);
+  async stop(parentBotId: string, callId: string, input: StopSubagentInput, callerRunId?: string) {
+    const caller = callerRunId ? await this.prisma.run.findUnique({ where: { id: callerRunId } }) : null;
+    if (callerRunId && (!caller || caller.botId !== parentBotId))
+      throw new ApiError(409, "request_context_inactive", "The request context is no longer active");
+    if (caller?.origin === "outcome" && !caller.outcomeWorkItemId)
+      throw new ApiError(409, "request_context_inactive", "The Outcome run has no active work-item context");
+    const family = caller?.outcomeWorkItemId
+      ? await this.prisma.run.findMany({ where: { botId: parentBotId, outcomeWorkItemId: caller.outcomeWorkItemId }, select: { id: true } })
+      : null;
+    if (input.all === true) return this.stopAll(parentBotId, callId, family?.map(run => run.id));
     const subagent = await this.runningOwned(parentBotId, input.subagent_id);
     if (typeof subagent === "string") return subagent;
-    const result = await this.stopOne(parentBotId, callId, subagent);
+    if (family && !family.some(run => run.id === subagent.parentRunId))
+      return this.noRunningSubagentMessage(parentBotId, input.subagent_id);
+    if (callerRunId && !family && (await this.outcomeOwnedParentRuns([subagent])).size)
+      return this.noRunningSubagentMessage(parentBotId, input.subagent_id);
+    const result = await this.stopOne(parentBotId, callId, subagent, 0, !!callerRunId);
     // A subagent that finished before the stop reached it is no longer running.
     return result.stopped || (ACTIVE_STATUSES as readonly string[]).includes(result.status) ? result : this.noRunningSubagentMessage(parentBotId, input.subagent_id);
   }
 
   /** Stop each running subagent on its own, so one failure never hides or blocks the others. */
-  private async stopAll(parentBotId: string, callId: string) {
+  private async stopAll(parentBotId: string, callId: string, outcomeRunIds?: string[]) {
+    if (outcomeRunIds) {
+      const outcomes = await this.stopRunningSubagents(parentBotId, callId, { parentRunId: { in: outcomeRunIds } });
+      const of = (outcome: string) => outcomes.filter(entry => entry.outcome === outcome).map(({ outcome: _, ...entry }) => entry);
+      return { stopped_all: true, stopped: of("stopped"), already_finished: of("finished"), failed: of("failed"), delegated: [] };
+    }
     await this.prisma.$transaction(tx => stopRequestProgress(tx, parentBotId));
-    const [outcomes, delegated] = await Promise.all([this.stopRunningSubagents(parentBotId, callId), this.stopDelegatedWork(parentBotId, callId)]);
+    const [outcomes, delegated] = await Promise.all([this.stopRunningSubagents(parentBotId, callId, {}, true), this.stopDelegatedWork(parentBotId, callId)]);
     const of = (outcome: string) => outcomes.filter((entry) => entry.outcome === outcome).map(({ outcome: _, ...entry }) => entry);
     return { stopped_all: true, stopped: of("stopped"), already_finished: of("finished"), failed: of("failed"), delegated };
   }
 
-  private async stopRunningSubagents(parentBotId: string, callId: string, scope: Prisma.SubagentWhereInput = {}) {
+  private async outcomeOwnedParentRuns(workers: readonly { parentRunId: string; requestRunId?: string | null }[]) {
+    const ids = [...new Set(workers.flatMap(worker => [worker.parentRunId, ...(worker.requestRunId ? [worker.requestRunId] : [])]))];
+    if (!ids.length) return new Set<string>();
+    const runs = await this.prisma.run.findMany({
+      where: { id: { in: ids }, OR: [{ origin: "outcome" }, { outcomeWorkItemId: { not: null } }] },
+      select: { id: true },
+    });
+    return new Set(runs.map(run => run.id));
+  }
+
+  private async stopRunningSubagents(parentBotId: string, callId: string, scope: Prisma.SubagentWhereInput = {}, excludeOutcome = false) {
     const running = await this.prisma.subagent.findMany({
       where: { ...scope, parentBotId, status: { in: [...OPEN_STATUSES] } },
       orderBy: { createdAt: "asc" },
     });
-    return Promise.all(running.map(async (subagent) => {
+    const protectedRuns = excludeOutcome ? await this.outcomeOwnedParentRuns(running) : new Set<string>();
+    return Promise.all(running.filter(worker => !protectedRuns.has(worker.parentRunId) && !(worker.requestRunId && protectedRuns.has(worker.requestRunId))).map(async (subagent) => {
       const summary = { subagent_id: botSubagentId(subagent.id), subagent_type: subagent.subagentType, title: subagentTitle(subagent.prompt) };
       try {
-        const result = await this.stopOne(parentBotId, callId, subagent);
+        const result = await this.stopOne(parentBotId, callId, subagent, 0, excludeOutcome || Object.keys(scope).length > 0);
         if (result.stopped) return { ...summary, outcome: "stopped" as const };
         return (ACTIVE_STATUSES as readonly string[]).includes(result.status)
           ? { ...summary, outcome: "failed" as const, error: "it started a new attempt while the stop was in flight" }
@@ -514,7 +550,18 @@ export class SubagentService {
     }));
   }
 
-  private async stopOne(parentBotId: string, callId: string, subagent: Awaited<ReturnType<SubagentService["owned"]>>, continuationRace = 0): Promise<{ stopped: boolean; subagent_id: string; status: string }> {
+  private async stopOne(parentBotId: string, callId: string, subagent: Awaited<ReturnType<SubagentService["owned"]>>, continuationRace = 0, protectBinding = false): Promise<{ stopped: boolean; subagent_id: string; status: string }> {
+    if (protectBinding) {
+      return this.prisma.$transaction(async tx => {
+        // Resume/Task holds this same parent lifecycle lock through rebinding.
+        // Keep it until cancellation effects finish so a fresh owner cannot inherit them.
+        await lockAgentLifecycle(tx, parentBotId);
+        const current = await tx.subagent.findUnique({ where: { id: subagent.id } });
+        if (!current || current.parentBotId !== parentBotId || current.parentRunId !== subagent.parentRunId || current.requestRunId !== subagent.requestRunId)
+          return { stopped: false, subagent_id: botSubagentId(subagent.id), status: "unavailable" };
+        return this.stopOne(parentBotId, callId, current, continuationRace);
+      }, { timeout: 30_000 });
+    }
     if (subagent.currentRunId) {
       try {
         await Effect.runPromise(this.runs.cancel(subagent.currentRunId));

@@ -770,7 +770,8 @@ export class InternalToolService {
         return this.subagents.stop(
           request.botId,
           request.callId,
-          Schema.decodeUnknownSync(StopSubagentInput)(request.arguments)
+          Schema.decodeUnknownSync(StopSubagentInput)(request.arguments),
+          context.runId
         );
       }
       if (request.tool === "CreateAgent") {

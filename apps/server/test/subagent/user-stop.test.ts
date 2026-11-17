@@ -14,6 +14,7 @@ function fixture() {
   ];
   const matches = (row: any, where: any) => Object.entries(where).every(([key, value]: any) =>
     key === "OR" ? value.some((condition: any) => matches(row, condition)) :
+    value && typeof value === "object" && "not" in value ? (row[key] ?? null) !== value.not :
     value && typeof value === "object" && "in" in value ? value.in.includes(row[key]) : (row[key] ?? null) === value);
   const events: any[] = [];
   const cancelled: string[] = [];
