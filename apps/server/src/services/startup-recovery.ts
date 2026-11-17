@@ -8,6 +8,7 @@ import type { ComputerFetch } from "./service-utils";
 import { appendEvent } from "./service-utils";
 import { SUBAGENT_RECOVERY_RUN_STATUSES, subagentRestartError } from "./subagent/recovery";
 import { recoverOutcomeWorkItems } from "@outcomego/messaging";
+import { PLUGIN_RESTART_UNKNOWN_OUTCOME } from "./plugin/invocation-outcomes";
 
 export const RESTART_INTERRUPTED_NOTICE =
   "This reply was interrupted by a restart. Send your message again to continue.";
@@ -75,6 +76,16 @@ export async function recover(
           code: "runtime_restart",
           message: "Runtime restarted during this turn",
         },
+      },
+    });
+    // A stopped host cannot know whether its in-flight provider call completed.
+    // Keep completed receipts intact and never redrive an uncertain operation.
+    await tx.pluginInvocation.updateMany({
+      where: { status: "running", runId: { in: activeRunIds } },
+      data: {
+        status: "failed",
+        error: PLUGIN_RESTART_UNKNOWN_OUTCOME,
+        completedAt: now,
       },
     });
     const wokenParents = new Set<string>();

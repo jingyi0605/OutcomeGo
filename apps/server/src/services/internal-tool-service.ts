@@ -725,7 +725,7 @@ export class InternalToolService {
           callId: request.callId,
           toolName: input.toolName,
           arguments: input.arguments ?? {},
-        }));
+        }, signal));
       }
       if (isStateTool(request.tool)) {
         const result = await this.durableState.executeTool(
