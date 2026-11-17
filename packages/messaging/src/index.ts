@@ -16,6 +16,10 @@ export { initialTaskProgress, settleTaskProgress, reportTaskProgress, dispatchTa
 import { taskProgressContext, taskScopeContext } from "./task-progress";
 export { taskScopeContext, taskScopeUpdates } from "./task-progress";
 export { readTranscript } from "./read-transcript";
+export { appendOutcomeEvent, recomputeOutcomeStatus, transitionWorkItem, type ActorRef, type TransitionWorkItemInput } from "./outcome-state";
+export { enqueueOutcomeTurn, settleOutcomeWorkItem, type EnqueueOutcomeTurnInput, type EnqueueOutcomeTurnResult } from "./outcome-threads";
+export { unavailableHumanActionPort, type DecisionEffect, type HumanActionPort, type HumanActionInput, type HumanActionResult } from "./outcome-actions";
+export { OutcomeThreadFake } from "./testing/outcome-thread-fake";
 export { readAgentActivity } from "./read-agent-activity";
 export {
   automationContextRoutine,

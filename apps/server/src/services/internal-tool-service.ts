@@ -43,6 +43,24 @@ import { bitwardenInstanceEnvironment, jsonObject } from "./plugin/values";
 import { toJson } from "./service-utils";
 import { withConnectorDraftCardReminder } from "./connector-draft-reminder";
 import { createHash, randomUUID } from "node:crypto";
+import { OUTCOME_THREAD_TOOL_NAMES } from "@outcomego/contracts/outcomes";
+
+export interface OutcomeThreadToolContext {
+  runId: string;
+  workItemId: string;
+  botId: string;
+}
+
+export type OutcomeThreadToolHandler = (
+  request: DynamicToolCallRequest,
+  context: OutcomeThreadToolContext
+) => Promise<unknown>;
+
+/** Line 3 and line 4 supply handlers from their independent service files. */
+export interface OutcomeThreadToolHandlers {
+  RequestOutcomeDecision?: OutcomeThreadToolHandler;
+  RequestHumanAction?: OutcomeThreadToolHandler;
+}
 
 const UUID = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
 const bitwardenCandidate = (
@@ -91,7 +109,8 @@ export class InternalToolService {
     private readonly onVisibleMessage?: (runId: string, messageId: string) => Promise<void>,
     private readonly onSpeechChunk?: (runId: string, callId: string, text: string) => Promise<boolean>,
     private readonly computerNetworkPolicy?: ComputerNetworkPolicyService,
-    private readonly externalDelivery?: ExternalDeliveryService
+    private readonly externalDelivery?: ExternalDeliveryService,
+    private readonly outcomeThreadTools: OutcomeThreadToolHandlers = {}
   ) {}
 
   /**
@@ -141,6 +160,14 @@ export class InternalToolService {
         !["running"].includes(run.status)
       ) {
         throw new ApiError(409, "tool_context_invalid", "Dynamic tool context is not active");
+      }
+      if ((OUTCOME_THREAD_TOOL_NAMES as readonly string[]).includes(request.tool)) {
+        if (run.origin !== "outcome" || !run.outcomeWorkItemId)
+          throw new ApiError(400, "outcome_thread_required", "This tool requires an Outcome sub-thread");
+        const handler = this.outcomeThreadTools[request.tool as keyof OutcomeThreadToolHandlers];
+        if (!handler)
+          throw new ApiError(503, "outcome_thread_tool_unavailable", `Outcome tool ${request.tool} has not been registered`);
+        return handler(request, { runId: run.id, workItemId: run.outcomeWorkItemId, botId: run.botId });
       }
       const inboxPayload = run.inboxEvents[0]?.payload as Record<string, unknown> | undefined;
       const context = {

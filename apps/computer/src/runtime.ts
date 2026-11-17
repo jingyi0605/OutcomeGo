@@ -340,6 +340,7 @@ export class ComputerRuntime {
       todoUpdate: request.todoUpdate ?? null,
       resetSelfSummaryCount: request.resetSelfSummaryCount !== false,
       requestSource: request.requestSource ?? "turn",
+      outcomeThread: request.outcomeThread,
       turnId: request.runId,
       session: null,
       sessionPath: null,

@@ -11,13 +11,12 @@ import {
   hasBlockingConflict,
   type ListOutcomesQuery,
   OUTCOME_ERROR_CODES,
-  OUTCOME_EVENT_SCHEMA_VERSION,
-  OUTCOME_STATUS_PRIORITY,
   type OutcomeBudget,
   type OutcomeDetail,
   OutcomeError,
   type OutcomeErrorCode,
   type OutcomeEventTopic,
+  type OutcomeEventPayloads,
   type OutcomeListPage,
   type OutcomeStatus,
   type PlanningConflict,
@@ -25,17 +24,16 @@ import {
   resolvePlanningSelections,
 } from "@outcomego/contracts/outcomes";
 import type { Prisma, PrismaClient } from "@outcomego/db";
-import { appendEvent, hashRequest, serviceEffect, toJson } from "./service-utils";
+import { hashRequest, serviceEffect, toJson } from "./service-utils";
 
-/** Who performed an action, derived from the request context, never from the body (specs/004 design §44). */
-export type ActorRef = `user:${string}` | "owner:local" | `bot:${string}` | `system:${string}`;
+import { appendOutcomeEvent, recomputeOutcomeStatus, transitionWorkItem, type ActorRef } from "@outcomego/messaging";
+export type { ActorRef } from "@outcomego/messaging";
 
 type Tx = Prisma.TransactionClient;
 
 const IDEMPOTENCY_TTL_MS = 30 * 24 * 60 * 60_000;
 const ACTIVE_AGENT_STATES = ["queued", "running", "retry_pending", "needs_review"] as const;
 const ACTIVE_HUMAN_STATES = ["pending", "ready", "in_progress", "paused", "submitted", "review_pending"] as const;
-const SIDE_STATUSES: readonly OutcomeStatus[] = ["paused", "decision_pending", "human_action_pending"];
 
 export const outcomeApiError = (code: OutcomeErrorCode, message: string, details: Record<string, unknown> = {}) =>
   new ApiError(OUTCOME_ERROR_CODES[code], code, message, { retryable: false, ...details });
@@ -190,8 +188,7 @@ export class OutcomeService {
           select: { id: true, status: true },
         });
         for (const item of unfinished) {
-          await tx.outcomeWorkItem.update({ where: { id: item.id }, data: { status: "cancelled", statusReason: "outcome_cancelled", completedAt: now } });
-          await this.event(tx, "outcome.work_item.updated", outcomeId, actor, input.clientRequestId, { from: item.status, to: "cancelled", reason: "outcome_cancelled" }, undefined, item.id);
+          await transitionWorkItem(tx, { workItemId: item.id, to: "cancelled", reason: "outcome_cancelled", actor, idempotencyKey: input.clientRequestId });
         }
         await this.recomputeStatus(tx, outcomeId, actor);
         return this.detail(tx, outcomeId);
@@ -238,51 +235,8 @@ export class OutcomeService {
       };
     });
 
-  /**
-   * Derives the Outcome status from its facts in the priority order of specs/004 design §42.3 and records the
-   * status a side state (decision, human action, pause) should return to.
-   */
-  async recomputeStatus(tx: Tx, outcomeId: string, actor: ActorRef): Promise<OutcomeStatus> {
-    const outcome = await tx.outcome.findUniqueOrThrow({
-      where: { id: outcomeId },
-      include: {
-        currentRevision: { select: { id: true, status: true } },
-        workItems: { select: { executorType: true, status: true, contractRevisionId: true } },
-      },
-    });
-    const current = outcome.currentRevision;
-    const items = outcome.workItems.filter((item) => item.contractRevisionId === current?.id);
-    const agent = items.filter((item) => item.executorType === "agent");
-    const human = items.filter((item) => item.executorType === "human");
-    const candidates = new Set<OutcomeStatus>();
-    if (outcome.cancelledAt) candidates.add("cancelled");
-    if (outcome.acceptedAt) candidates.add("accepted");
-    if (agent.some((item) => item.status === "waiting_decision")) candidates.add("decision_pending");
-    if (agent.some((item) => item.status === "waiting_human") || human.some((item) => (ACTIVE_HUMAN_STATES as readonly string[]).includes(item.status)))
-      candidates.add("human_action_pending");
-    const agentActive = agent.some((item) => (ACTIVE_AGENT_STATES as readonly string[]).includes(item.status));
-    if (agentActive) candidates.add("running");
-    else if (agent.some((item) => item.status === "completed") || human.some((item) => item.status === "accepted"))
-      candidates.add("review_pending");
-    else if (agent.length && agent.every((item) => ["failed", "cancelled"].includes(item.status)) && agent.some((item) => item.status === "failed"))
-      candidates.add("failed");
-    if (current?.status === "approved") candidates.add("approved");
-    if (current?.status === "pending_approval") candidates.add("pending_approval");
-    if (!current || current.status === "draft") candidates.add("draft");
-    // A pending revision N+1 takes the Outcome back to approval even while revision N work is recorded.
-    if (current?.status === "pending_approval") {
-      for (const status of ["running", "review_pending", "failed", "approved"] as const) candidates.delete(status);
-    }
-    const status = OUTCOME_STATUS_PRIORITY.find((candidate) => candidates.has(candidate)) ?? "draft";
-    const base = OUTCOME_STATUS_PRIORITY.find((candidate) => candidates.has(candidate) && !SIDE_STATUSES.includes(candidate)) ?? "draft";
-    const resumeStatus = SIDE_STATUSES.includes(status) ? base : null;
-    if (status !== outcome.status || resumeStatus !== outcome.resumeStatus) {
-      await tx.outcome.update({ where: { id: outcomeId }, data: { status, resumeStatus } });
-      if (status !== outcome.status)
-        await this.event(tx, "outcome.status_changed", outcomeId, actor, undefined, { from: outcome.status, to: status });
-    }
-    return status;
-  }
+  /** Compatibility entry point for callers of the original server service. */
+  recomputeStatus = recomputeOutcomeStatus;
 
   private async insertRevision(
     tx: Tx,
@@ -342,28 +296,17 @@ export class OutcomeService {
       throw outcomeApiError("invalid_outcome_transition", `This Outcome is ${status}`, { currentStatus: status });
   }
 
-  private event(
+  private event<T extends OutcomeEventTopic>(
     tx: Tx,
-    topic: OutcomeEventTopic,
+    topic: T,
     outcomeId: string,
     actor: ActorRef,
     idempotencyKey: string | undefined,
-    payload: Record<string, unknown>,
+    payload: OutcomeEventPayloads[T],
     contractRevision?: number,
     workItemId?: string
   ) {
-    const eventId = crypto.randomUUID();
-    return appendEvent(tx, topic, outcomeId, {
-      eventId,
-      schemaVersion: OUTCOME_EVENT_SCHEMA_VERSION,
-      occurredAt: new Date().toISOString(),
-      ...(contractRevision === undefined ? {} : { contractRevision }),
-      ...(workItemId ? { workItemId } : {}),
-      actorId: actor,
-      correlationId: idempotencyKey ?? eventId,
-      ...(idempotencyKey ? { idempotencyKey } : {}),
-      payload,
-    });
+    return appendOutcomeEvent(tx, topic, outcomeId, { actor, idempotencyKey, payload, contractRevision, workItemId });
   }
 
   /**
