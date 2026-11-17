@@ -297,6 +297,7 @@ model Computer {
 }
 
 model Bot {
+  exploreIdeas ExploreIdea[]
   id String       @id @default(uuid()) @db.Uuid
   name String
   title String       @default("")
@@ -1916,6 +1917,7 @@ enum OutcomeOutputKind {
 
 /// A server-held planning snapshot; selections are resolved against it, never against client text.
 model OutcomePlanningDraft {
+  exploreIdea ExploreIdea?
   id String                     @id @default(uuid()) @db.Uuid
   botId String                     @db.Uuid
   bot        Bot                        @relation(fields: [botId], references: [id], onDelete: Cascade)
@@ -1933,6 +1935,10 @@ model OutcomePlanningDraft {
 }
 
 model Outcome {
+  sourceExploreId String? @unique @db.Uuid
+  sourceExplore ExploreIdea? @relation("ExploreConversion", fields: [sourceExploreId], references: [id], onDelete: SetNull)
+  proposedForExplore ExploreIdea? @relation("ExploreProposedOutcome")
+  explorationSources ExploreIdea[] @relation("ExploreSourceOutcome")
   decisions OutcomeDecision[]
   id String         @id @default(uuid()) @db.Uuid
   botId String         @db.Uuid
@@ -1961,6 +1967,42 @@ model Outcome {
   @@index([updatedAt, id], map: "outcomego_outcome_updated_at_id_idx")
   @@index([botId, status], map: "outcomego_outcome_bot_id_status_idx")
   @@map("outcomego_outcome")
+}
+
+enum ExploreIdeaStatus {
+  draft
+  exploring
+  proposed_for_delivery
+  converted
+  discarded
+  @@map("outcomego_explore_idea_status")
+}
+
+/// Informal investigation; its planning draft and resulting delivery are separate facts.
+model ExploreIdea {
+  id String @id @default(uuid()) @db.Uuid
+  botId String? @db.Uuid
+  bot Bot? @relation(fields: [botId], references: [id], onDelete: SetNull)
+  title String
+  note String @default("")
+  status ExploreIdeaStatus @default(draft)
+  sourceOutcomeId String? @db.Uuid
+  sourceOutcome Outcome? @relation("ExploreSourceOutcome", fields: [sourceOutcomeId], references: [id], onDelete: SetNull)
+  sourceReferences Json @default("[]")
+  budget Json?
+  planningDraftId String? @unique @db.Uuid
+  planningDraft OutcomePlanningDraft? @relation(fields: [planningDraftId], references: [id], onDelete: SetNull)
+  proposedOutcomeId String? @unique @db.Uuid
+  proposedOutcome Outcome? @relation("ExploreProposedOutcome", fields: [proposedOutcomeId], references: [id], onDelete: SetNull)
+  convertedOutcome Outcome? @relation("ExploreConversion")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  discardedAt DateTime?
+
+  @@index([updatedAt, id], map: "outcomego_explore_idea_updated_at_id_idx")
+  @@index([status, updatedAt], map: "outcomego_explore_idea_status_updated_at_idx")
+  @@index([sourceOutcomeId], map: "outcomego_explore_idea_source_outcome_id_idx")
+  @@map("outcomego_explore_idea")
 }
 
 /// Approved revisions are never edited in place; any change of goal, acceptance or boundaries is a new revision.
