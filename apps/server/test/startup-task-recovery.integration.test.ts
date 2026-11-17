@@ -178,7 +178,7 @@ test.skipIf(!url)(
       });
       expect(reconcile).toHaveLength(1);
       // The resumed turn tells the person it was a restart, not a failed connection.
-      expect(JSON.stringify(reconcile[0]!.payload)).toContain("outcomeGo restarted");
+      expect(JSON.stringify(reconcile[0]!.payload)).toContain("OutcomeGo restarted");
       // A saved continuation owns the interrupted request. Asking the person
       // to send it again would compete with that recovery and risk duplicates.
       expect(await f.db.channelMessage.count({
