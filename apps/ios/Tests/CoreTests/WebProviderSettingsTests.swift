@@ -12,8 +12,8 @@ final class WebProviderSettingsTests: XCTestCase {
   func testCatalogOrderKeysAndLinks() {
     XCTAssertEqual(
       WebProviderCatalog.search.map(\.id),
-      ["exa", "brave", "parallel", "firecrawl", "bing-serpapi", "perplexity"])
-    XCTAssertEqual(WebProviderCatalog.fetch.map(\.id), ["builtin", "exa", "parallel", "firecrawl"])
+      ["exa", "brave", "parallel", "firecrawl", "bing-serpapi", "perplexity", "deepseek"])
+    XCTAssertEqual(WebProviderCatalog.fetch.map(\.id), ["builtin", "exa", "parallel", "firecrawl", "deepseek"])
     XCTAssertEqual(WebProviderCatalog.info(.search, "bing-serpapi")?.brand, "bing")
     // Exa is listed for both tools with different copy; each is configured independently.
     XCTAssertNotEqual(WebProviderCatalog.info(.fetch, "exa")?.description, exa.description)
@@ -24,6 +24,17 @@ final class WebProviderSettingsTests: XCTestCase {
     }
     XCTAssertFalse(builtin.needsKey)
     XCTAssertNil(builtin.setupURL)
+  }
+  func testDeepSeekUsesExistingProviderSelectionAndKeyContract() throws {
+    for tool in WebTool.allCases {
+      let provider = try XCTUnwrap(WebProviderCatalog.info(tool, "deepseek"))
+      XCTAssertEqual(provider.fields, [.apiKey])
+      XCTAssertTrue(provider.needsKey)
+      XCTAssertEqual(provider.brand, "deepseek")
+      XCTAssertEqual(provider.setupURL?.absoluteString, "https://platform.deepseek.com/api_keys")
+      XCTAssertEqual(WebProvidersRequest.select(tool, "deepseek"),
+        try json("{\"\(tool.rawValue)\":{\"selected\":\"deepseek\"}}"))
+    }
   }
   func testParsesPerToolProvidersAndChecks() throws {
     let view = WebProvidersView(

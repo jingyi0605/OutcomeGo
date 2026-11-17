@@ -70,6 +70,9 @@ public enum WebProviderCatalog {
     .init(
       "perplexity", "Perplexity", brand: "perplexity", "Results from Perplexity's search index.",
       keyURL: "https://www.perplexity.ai/account/api/keys"),
+    .init(
+      "deepseek", "DeepSeek", brand: "deepseek", "Live web search with page content.",
+      keyURL: "https://platform.deepseek.com/api_keys"),
   ]
   public static let fetch: [WebProviderInfo] = [
     .init(
@@ -85,6 +88,9 @@ public enum WebProviderCatalog {
       "firecrawl", "Firecrawl", brand: "firecrawl",
       "Renders JavaScript and returns clean Markdown.",
       keyURL: "https://www.firecrawl.dev/app/api-keys"),
+    .init(
+      "deepseek", "DeepSeek", brand: "deepseek", "Fetches public pages as Markdown.",
+      keyURL: "https://platform.deepseek.com/api_keys"),
   ]
   /// The search provider setup recommends: the most accurate results in our search benchmark.
   /// Only a recommendation; search stays off until someone checks and chooses a provider.
