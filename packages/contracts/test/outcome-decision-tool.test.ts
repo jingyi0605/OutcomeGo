@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { Schema } from "effect";
 import { REQUEST_OUTCOME_DECISION_TOOL, RequestOutcomeDecisionInput } from "../src/outcome-inbox";
-const input = { completedSummary: "Compared options", problemSummary: "No unresolved issue", nextStepSummary: "Choose the next step", reasonCode: "missing_input", options: [{ label: "Continue", consequence: "Keep the contract", recommended: true, reason: "Enough information" }] };
+const input = { completedSummary: "Compared options", problemSummary: "No unresolved issue", nextStepSummary: "Choose the next step", reasonCode: "missing_input", options: [{ label: "Continue", consequence: "Keep the contract", recommended: true, reason: "Enough information" }] } satisfies RequestOutcomeDecisionInput;
 test("Decision tool keeps the specified summaries and optional effect snapshots", () => {
   expect(Schema.decodeUnknownSync(RequestOutcomeDecisionInput)(input)).toEqual(input);
   expect(REQUEST_OUTCOME_DECISION_TOOL.name).toBe("RequestOutcomeDecision");
