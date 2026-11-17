@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { constants } from "node:fs";
 import { chmod, lstat, mkdir, open, readdir, readFile, rename, rm } from "node:fs/promises";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { isAllowedWechatUrl } from "./api";
 
 /** On-disk format version of every state file. Anything else is set aside, never guessed at. */
@@ -122,7 +122,10 @@ export class StateStore {
   /** Atomically replaces `name` with `value` serialized as JSON. */
   async writeJson(name: string, value: unknown): Promise<void> {
     const target = this.path(name);
-    const temporary = `${target}.${randomBytes(6).toString("hex")}.tmp`;
+    // Publish only committed names in the state directory. A reader can list
+    // that directory and inspect each file while another write is in flight.
+    // The private staging directory is on the same filesystem for atomic rename.
+    const temporary = this.path("tmp", `${basename(name)}.${randomBytes(6).toString("hex")}.tmp`);
     const handle = await open(temporary, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL, 0o600);
     try {
       await handle.writeFile(`${JSON.stringify(value)}\n`);
