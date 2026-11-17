@@ -9,6 +9,7 @@ import type { ApnsClient } from "../../worker/src/apns";
 import type { FcmClient } from "../../worker/src/fcm";
 import { OutcomeReviewService } from "../src/services/outcome-review-service";
 import { OutcomeInboxService } from "../src/services/outcome-inbox-service";
+import { parseAuthMode } from "../src/auth-mode";
 
 test.skipIf(!process.env.OUTCOMEGO_TEST_DATABASE_URL)("read review A, real FAIL/rework and repeated settlement produce exactly one new unread review B", async () => {
   const h = await outcomeThreadFixture();
@@ -76,9 +77,12 @@ test.skipIf(!process.env.OUTCOMEGO_TEST_DATABASE_URL)("read review A, real FAIL/
     expect(sent).toEqual([after[0]!.factKey]);
     expect(JSON.stringify(after)).not.toContain("comparison");
   } finally {
-    process.env.OUTCOMEGO_AUTH_MODE = originalAuth;
+    if (originalAuth === undefined) delete process.env.OUTCOMEGO_AUTH_MODE;
+    else process.env.OUTCOMEGO_AUTH_MODE = originalAuth;
     await h.db.outboxDelivery.deleteMany({ where: { target: device.id } });
     await h.db.pushDevice.delete({ where: { id: device.id } });
     await h.cleanup();
+    expect(parseAuthMode(process.env.OUTCOMEGO_AUTH_MODE)).toBe(parseAuthMode(originalAuth));
+    expect(process.env.OUTCOMEGO_AUTH_MODE).toBe(originalAuth);
   }
 });

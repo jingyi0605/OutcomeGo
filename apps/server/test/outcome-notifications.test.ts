@@ -9,6 +9,7 @@ import { PushNotificationDispatcher } from "../../worker/src/push-notifications"
 import type { ApnsClient } from "../../worker/src/apns";
 import type { FcmClient } from "../../worker/src/fcm";
 import { actor, fixture, run, testDb } from "./fixtures/outcome-inbox-fixture";
+import { parseAuthMode } from "../src/auth-mode";
 const url = process.env.OUTCOMEGO_TEST_DATABASE_URL;
 
 describe.skipIf(!url)("Outcome notification facts and delivery", () => {
@@ -20,12 +21,15 @@ describe.skipIf(!url)("Outcome notification facts and delivery", () => {
     const device = await db.pushDevice.create({ data: { installationId: `inbox-test-${crypto.randomUUID()}`, platform: "ios", provider: "apns", pushToken: crypto.randomUUID().replaceAll("-", "").repeat(2), authRequired: false, apnsEnvironment: "sandbox", apnsTopic: "test.outcomego", notificationScope: "fixture" } }); deviceId = device.id;
   });
   afterAll(async () => {
-    process.env.OUTCOMEGO_AUTH_MODE = originalAuth;
+    if (originalAuth === undefined) delete process.env.OUTCOMEGO_AUTH_MODE;
+    else process.env.OUTCOMEGO_AUTH_MODE = originalAuth;
     await db.outboxDelivery.deleteMany({ where: { target: deviceId } });
     await db.pushDevice.delete({ where: { id: deviceId } });
     await db.bot.deleteMany({ where: { id: { in: bots } } });
     await db.notificationPreferences.deleteMany({ where: { id: "global" } });
     await db.$disconnect();
+    expect(parseAuthMode(process.env.OUTCOMEGO_AUTH_MODE)).toBe(parseAuthMode(originalAuth));
+    expect(process.env.OUTCOMEGO_AUTH_MODE).toBe(originalAuth);
   });
   const create = async () => { const f = await fixture(db); bots.push(f.bot.id); return f; };
   const payload = (f: Awaited<ReturnType<typeof create>>, factKey: string) => outcomeNotificationPayload({ type: "outcome.review.required", factKey: `${f.outcome.id}:${factKey}`, outcomeId: f.outcome.id, botId: f.bot.id, channelId: f.channel.id, contractRevision: 1 });

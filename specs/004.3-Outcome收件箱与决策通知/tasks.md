@@ -33,6 +33,7 @@
   - 证据文件：[20261117-第一波服务端验证记录](docs/20261117-第一波服务端验证记录.md)；[通知能力矩阵](docs/notification-capability-matrix.md)
   - 已知限制：实际 Event 流与父设计默认行为不一致，已交集成者；三端设备回放第三波 PENDING
   - 回滚方式：撤销本线服务与通知入口提交，保留 Decision 事实与新增表；没有生产数据库变更
+  - 集成验证补充：task-48 修正通知和返工周期 fixture 对原本缺失的认证环境恢复方式，避免 Bun 将 undefined 写成字符串。生产 parser 真实红例 1 PASS / 2 FAIL；修正后 unset/required/disabled 各 10 PASS / 57 assertions。根 server 级联消除结果待执行者整合回放，见 [通知测试认证环境隔离修正记录](docs/20261117-通知测试认证环境隔离修正记录.md)。
 
 ## 阶段 1：Decision、Inbox 和 Agent 决策请求
 
