@@ -169,6 +169,7 @@
 | `POST` | `/api/v0/outcomes` | 从 PlanningDraft 创建 Outcome 和 revision 1 | `outcome-create` |
 | `GET` | `/api/v0/outcomes` | Outcome 列表（按状态过滤、cursor 分页） | 只读 |
 | `GET` | `/api/v0/outcomes/:id` | 返回 Outcome、当前 revision、WorkItems、Runs、Outputs、Evidence、Reviews 汇总 | 只读 |
+| `GET` | `/api/v0/outcomes/:id/revisions/:revision` | 返回该 Outcome 的真实历史 ContractRevisionView 和条款；不改变当前指针或控制资格 | 只读 |
 | `POST` | `/api/v0/outcomes/:id/revisions` | 用完整确认内容创建新 revision（解决冲突、变更范围） | `outcome-revision` |
 | `POST` | `/api/v0/outcomes/:id/revisions/:revision/approve` | 批准 revision | `outcome-approve` |
 | `POST` | `/api/v0/outcomes/:id/runs` | 从批准 revision 创建 WorkItem 并开启子线程 | `outcome-run` |

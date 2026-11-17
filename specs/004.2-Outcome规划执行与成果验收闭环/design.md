@@ -688,6 +688,10 @@ interface PlanningConflict {
 
 只读返回子线程运行组的消息记录摘要（复用现有 transcript 读取能力），不提供写入。
 
+### 19.10 `GET /api/v0/outcomes/:id/revisions/:revision`
+
+2026-11-17 负责人批准的只读接口增量：沿用既有 Outcome 认证，返回保留的真实 `ContractRevisionView`、该 revision 的条款及其最新 Review 结果。不存在的 Outcome/revision 使用既有 404 错误。该读取不移动 currentRevisionId，不迁移条款，也不放宽 Review/Decision/人工控制资格；Desktop 可据此独立加载人工动作绑定的 N，同时继续展示当前待批准 N+1。
+
 ### 19.3 `POST /approve`
 
 批准请求只能包含客户端意图：

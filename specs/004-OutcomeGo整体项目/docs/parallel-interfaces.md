@@ -308,12 +308,15 @@ OUTCOMEGO_TEST_DATABASE_URL=<一次性库> bun run test --force --continue=alway
 
 新 revision 创建记录同 Outcome 的 base revision、来源 Decision/服务端主体和摘要；批准成功后仅取消旧 revision 中 `startedAt=null` 的未开始任务，使用共享 `transitionWorkItem`，保持 Outcome → WorkItem 锁序。已开始任务及其 Output、Evidence、Review 仍绑定原 revision。容量等待意图和已入队未开始 Run 的清理由恢复/运行时所有者协作完成，不能将批准草案本身当作执行新任务的请求。
 
+为读取人工动作绑定的真实历史条款，新增经过既有认证的只读 `GET /api/v0/outcomes/:id/revisions/:revision`，返回现有 `ContractRevisionView`；Desktop `OutcomeClient.getRevision` 使用同一传输。读取历史不赋予控制权限，不能把旧 criteria 冒充当前版本。负责人冻结的 pending-only 规则由 L3/Recovery/L4 的共享判定控制：待批准后继不使实际已开始的已批准 N 失效；N+1 真正批准后，不再对 N 发起新的 Decision/人工控制/Review/续跑，既有执行只保留历史完成与查询。
+
 ## 12. Explore 后端与 Desktop 交接
 
 `@outcomego/contracts/explore` 定义 `ExploreIdeaView`、`ExploreIdeaPage`、`ExploreProposal` 及三个请求 Schema。正式状态为 `draft/exploring/proposed_for_delivery/converted/discarded`，不使用歧义缩写 `proposed`。
 
 - `POST /api/v0/explore`：title、可选 note/botId/sourceOutcomeId/sourceReferences/budget/status（仅 draft 或 exploring）及 clientRequestId，返回 ExploreIdeaView。
 - `GET /api/v0/explore`：status/cursor/limit 分页，返回 `{items,nextCursor}`；sourceReferences 保存 sourceRef 和可选 title/sourceType/version，不作为自动通过的 Evidence。
+- `GET /api/v0/explore/:id`：负责人批准的只读兼容增量，与列表使用同一个真实 View，供重新打开详情/刷新，不增加写动作或状态转换。
 - `POST /api/v0/explore/:id/propose`：可选 botId 和 clientRequestId，返回 `{idea,plan:PlanningDraftView}`。Bot 为空时须选择真实 Bot；idea.planningDraftId 是独立草案 FK，proposedOutcomeId 只保存真正转换后的 Outcome ID。
 - `POST /api/v0/explore/:id/discard`：clientRequestId，返回保留历史的 ExploreIdeaView。
 - 使用既有 Outcome 创建 API 提交真实 planId，服务端从草案关联识别 Explore，在同一事务创建新 Outcome 和 revision、消费草案并更新双向真实转换关联。请求不接受 sourceExploreId 标记；OutcomeDetail 仅增加可选 sourceExploreId。

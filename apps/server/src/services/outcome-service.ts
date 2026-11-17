@@ -291,6 +291,18 @@ export class OutcomeService {
       return this.toDetail(row);
     });
 
+  getRevision = (outcomeId: string, revisionNumber: number) => serviceEffect(() =>
+    this.prisma.$transaction(async tx => {
+      if (!await tx.outcome.findUnique({ where: { id: outcomeId }, select: { id: true } }))
+        throw outcomeApiError("outcome_not_found", "Outcome not found");
+      const revision = await tx.outcomeContractRevision.findUnique({
+        where: { outcomeId_revision: { outcomeId, revision: revisionNumber } },
+        include: { criteria: { orderBy: { ordinal: "asc" } }, reviews: { orderBy: { sequence: "asc" } } },
+      });
+      if (!revision) throw outcomeApiError("contract_revision_not_found", "Contract revision not found");
+      return this.revisionView(revision, revision.reviews);
+    }, { isolationLevel: "RepeatableRead" }));
+
   list = (query: ListOutcomesQuery) =>
     serviceEffect(async (): Promise<OutcomeListPage> => {
       const rows = await this.prisma.outcome.findMany({
@@ -445,12 +457,13 @@ export class OutcomeService {
     return this.toDetail(await tx.outcome.findUniqueOrThrow({ where: { id: outcomeId }, include: detailInclude }));
   }
 
-  private toDetail(row: OutcomeRow): OutcomeDetail {
-    const revision = row.currentRevision;
+  private revisionView(
+    revision: NonNullable<OutcomeRow["currentRevision"]>,
+    reviews: Array<Pick<OutcomeRow["reviews"][number], "criterionId" | "result">>,
+  ): ContractRevisionView {
     const latestResult = new Map<string, OutcomeRow["reviews"][number]["result"]>();
-    for (const review of row.reviews) latestResult.set(review.criterionId, review.result);
-    const currentRevisionView: ContractRevisionView | null = revision
-      ? {
+    for (const review of reviews) latestResult.set(review.criterionId, review.result);
+    return {
           id: revision.id,
           revision: revision.revision,
           status: revision.status,
@@ -474,8 +487,12 @@ export class OutcomeService {
             latestResult: latestResult.get(criterion.id) ?? null,
           })),
           createdAt: revision.createdAt.toISOString(),
-        }
-      : null;
+        };
+  }
+
+  private toDetail(row: OutcomeRow): OutcomeDetail {
+    const revision = row.currentRevision;
+    const currentRevisionView = revision ? this.revisionView(revision, row.reviews) : null;
     return {
       id: row.id,
       sourceExploreId: row.sourceExploreId,

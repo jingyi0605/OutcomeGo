@@ -1,7 +1,7 @@
 import type {
   PlanningDraftView, CreateOutcomePlanInput, CreateOutcomeInput, CreateContractRevisionInput,
   ApproveContractRevisionInput, SubmitOutcomeReviewInput, OutcomeReworkInput, CancelOutcomeInput,
-  StartOutcomeRunInput, OutcomeDetail, OutcomeListPage,
+  StartOutcomeRunInput, OutcomeDetail, OutcomeListPage, ContractRevisionView,
 } from "@outcomego/contracts/outcomes";
 
 export interface OutcomeClient {
@@ -10,6 +10,7 @@ export interface OutcomeClient {
   create(input: CreateOutcomeInput): Promise<OutcomeDetail>;
   list(query?: string): Promise<OutcomeListPage>;
   get(id: string): Promise<OutcomeDetail>;
+  getRevision?(id: string, revision: number): Promise<ContractRevisionView>;
   revise(id: string, input: CreateContractRevisionInput): Promise<OutcomeDetail>;
   approve(id: string, revision: number, input: ApproveContractRevisionInput): Promise<OutcomeDetail>;
   start(id: string, input: StartOutcomeRunInput): Promise<OutcomeDetail>;
@@ -29,6 +30,7 @@ return {
   create: input => outcomePost("/api/outcomes", input),
   list: (query = "") => request(`/api/outcomes${query ? `?${query}` : ""}`),
   get: id => request(outcomePath(id)),
+  getRevision: (id, revision) => request(`${outcomePath(id)}/revisions/${revision}`),
   revise: (id, input) => outcomePost(`${outcomePath(id)}/revisions`, input),
   approve: (id, revision, input) => outcomePost(`${outcomePath(id)}/revisions/${revision}/approve`, input),
   start: (id, input) => outcomePost(`${outcomePath(id)}/runs`, input),
