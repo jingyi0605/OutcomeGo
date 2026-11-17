@@ -1517,8 +1517,13 @@ export class WakeWorker {
           const folded = batch.folded.map((wake) => wake.id);
           await tx.inboxEvent.updateMany({ where: { id: { in: folded } }, data: { status: "completed", claimedAt: settledAt, completedAt: settledAt } });
           await tx.run.updateMany({ where: { id: { in: batch.folded.map((wake) => wake.runId) } }, data: { status: "completed", startedAt: settledAt, completedAt: settledAt } });
-          for (const wake of batch.folded)
+          for (const wake of batch.folded) {
+            await tx.inboxEvent.update({
+              where: { id: wake.id },
+              data: { payload: { ...(wake.payload as Prisma.JsonObject), batchedIntoRunId: inbox.runId } },
+            });
             await tx.event.create({ data: { topic: "inbox.completed", entityId: wake.id, payload: { inboxId: wake.id, runId: wake.runId, batchedIntoRunId: inbox.runId } } });
+          }
           // The claimed wake carries the whole batch from now on, also if it is claimed again.
           await tx.inboxEvent.update({ where: { id: inbox.id }, data: { payload: { ...(inbox.payload as Prisma.JsonObject), content: batch.content } } });
           const messageId = (inbox.payload as { messageId?: unknown }).messageId;
