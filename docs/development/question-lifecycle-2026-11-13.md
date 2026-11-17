@@ -76,7 +76,7 @@ Run on the branch after merging `main`:
 
 - **Unit tests:** 154 product-core, 289 messaging (the 214 database-backed ones skip without a test database), 80 client-core and 673 desktop tests pass. 305 Swift core tests pass, including the seeded receipt-history fault suite.
 - **Database:** four PostgreSQL tests with 159 assertions pass across question lifecycle, widget integration and durable message acceptance, including the answer/send races. Set `OPENTEAM_TEST_DATABASE_URL` to an empty database with the current schema.
-- **Electron:** the four direct/group/light/dark interaction scenarios with the motion checks (`bun --filter @openteam/desktop test:widget-group-parity`) and the two state-hook history replay cases (`test:question-history:chaos`) pass.
+- **Electron:** the four direct/group/light/dark interaction scenarios with the motion checks (`bun --filter @outcomego/desktop test:widget-group-parity`) and the two state-hook history replay cases (`test:question-history:chaos`) pass.
 - **iOS simulator:** six UI tests pass: Skip dismisses without an answer and Send answer stays unavailable until something is selected; a normal composer send abandons an unfinished card draft without a widget action and the card minimises; stale history does not reopen a dismissed card; answering collapses to the receipt; skipping removes the options and shrinks the card, also under reduced motion; completed cards keep labelled, checked answers in both themes.
 - Desktop and server TypeScript checks and the desktop build pass.
 
