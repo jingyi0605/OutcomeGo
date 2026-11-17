@@ -1,0 +1,10 @@
+bun test v1.4.4 (38afee6c8)
+
+apps/computer/test/bot-agent-store.test.ts:
+(pass) OutcomeGo-compatible agent SQLite stores > deleting an agent retires its directory even while its store was open [49.21ms]
+
+ 1 pass
+ 12 filtered out
+ 0 fail
+ 8 expect() calls
+Ran 1 test across 1 file. [130.00ms]
