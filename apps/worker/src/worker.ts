@@ -1356,11 +1356,23 @@ export class WakeWorker {
         });
         const candidates = [];
         for (const candidate of pendingCandidates) {
-          if (candidate.run.origin === "user" || candidate.run.origin === "outcome" || await requestWakeAllowed(tx, candidate)) candidates.push(candidate);
+          // Handoff and Stop serialize on this same bot claim lock. Recheck
+          // durable context facts even when the callback was queued earlier.
+          let automationEnded = candidate.run.origin === "routine" &&
+            !await automationContinuationRoute(tx, botId, candidate.runId);
+          if (candidate.type === "automation.wake_parent" && candidate.run.origin === "background_revival") {
+            const handoff = await tx.automationResult.findUnique({
+              where: { wakeRunId: candidate.runId },
+              select: { run: { select: { status: true, error: true, requestStoppedAt: true } } },
+            });
+            automationEnded = !!handoff && requestIsStopped(handoff.run);
+          }
+          if (!automationEnded && (candidate.run.origin === "user" || candidate.run.origin === "outcome" || await requestWakeAllowed(tx, candidate))) candidates.push(candidate);
           else {
             const settledAt = new Date();
+            const error = { code: automationEnded ? "automation_context_ended" : "request_check_superseded" };
             await tx.inboxEvent.update({ where: { id: candidate.id }, data: { status: "completed", completedAt: settledAt } });
-            await tx.run.update({ where: { id: candidate.runId }, data: { status: "cancelled", completedAt: settledAt, error: { code: "request_check_superseded" } } });
+            await tx.run.update({ where: { id: candidate.runId }, data: { status: "cancelled", completedAt: settledAt, error } });
           }
         }
         // As in the reference's automation runs, a routine hears from its background work once
