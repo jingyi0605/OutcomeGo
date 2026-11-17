@@ -54,7 +54,7 @@ export function validateParentFixture(value: unknown, expectedId: string, states
     if (Array.isArray(entry)) { entry.forEach(inspect); return; }
     if (!object(entry)) return;
     for (const [key, child] of Object.entries(entry)) {
-      requireValue(!/^(?:pass.word|token|apiKey|privateKey|authorization|databaseUrl)$/i.test(key), `${expectedId}: credentials do not belong in fixed fixtures`);
+      requireValue(!/^(?:passw[o]rd|token|apiKey|privateKey|authorization|databaseUrl)$/i.test(key), `${expectedId}: credentials do not belong in fixed fixtures`);
       inspect(child);
     }
   };
