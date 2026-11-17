@@ -5,13 +5,15 @@ import { Effect } from "effect";
 import { InternalToolService } from "../src/services/internal-tool-service";
 import { PluginConnectors } from "../src/services/plugin/connectors";
 import { PluginTransport } from "../src/services/plugin/transport";
+import { RunService } from "../src/services/run-service";
+import { SubagentService } from "../src/services/subagent/service";
 import { createReviewedEmailPlugin } from "./plugin/fixtures/reviewed-email-plugin";
 
 const url = process.env.OUTCOMEGO_TEST_DATABASE_URL;
 const integration = test.skipIf(!url);
 const gate = () => Promise.withResolvers<void>();
 
-async function fixture(nativeFiles = false) {
+async function fixture(nativeFiles = false, origin: "background_revival" | "user" | "routine" | "outcome" = "background_revival") {
   const db = createPrismaClient(url!);
   const bot = await db.bot.create({ data: {
     name: "Synthetic connected publication", status: "active", defaultDirectory: "/tmp", conversation: { create: {} },
@@ -25,9 +27,9 @@ async function fixture(nativeFiles = false) {
   } });
   const run = await db.run.create({ data: {
     botId: bot.id, conversationId: bot.conversation!.id, channelId: channel.id,
-    userMessageId: crypto.randomUUID(), origin: "background_revival", status: "running",
+    userMessageId: crypto.randomUUID(), origin, status: "running",
   } });
-  await db.inboxEvent.create({ data: {
+  if (origin === "background_revival") await db.inboxEvent.create({ data: {
     botId: bot.id, conversationId: bot.conversation!.id, runId: run.id,
     idempotencyKey: crypto.randomUUID(), type: "subagent.completed", payload: { taskContextRunId: root.id },
   } });
@@ -56,6 +58,12 @@ async function fixture(nativeFiles = false) {
   return {
     db, bot, root, run, input, connection, connector,
     stop: () => db.$transaction(tx => stopRequestProgress(tx, bot.id, root.id)),
+    stopSource: () => {
+      const computer = async () => Response.json({ stopped: true });
+      const service = new SubagentService(db, {} as never, new RunService(db, computer),
+        "/tmp", computer, {} as never);
+      return Effect.runPromise(service.stopRun(run.id));
+    },
     invocation: () => db.pluginInvocation.findUnique({ where: { callId: `connected-channel:${input.callId}` } }),
     async cleanup() {
       await db.bot.delete({ where: { id: bot.id } });
@@ -166,6 +174,77 @@ integration("Stop during packaged runtime preparation prevents the subsequent te
     expect(await f.invocation()).toMatchObject({ status: "failed" });
   } finally { release.resolve(); await pending.catch(() => undefined); await f.cleanup(); }
 });
+
+for (const native of [false, true]) integration(
+  `actual user source Stop during ${native ? "native token" : "text transport"} preparation prevents an unclaimed RPC`,
+  async () => {
+    const f = await fixture(native, "user");
+    const entered = gate(), release = gate();
+    let calls = 0;
+    const wrapped = new Proxy(f.db, { get(target, key) {
+      if (key !== "pluginConnection") return Reflect.get(target, key);
+      return new Proxy(target.pluginConnection, { get(model, method) {
+        if (method !== "findUnique") return Reflect.get(model, method);
+        return async (args: Parameters<typeof model.findUnique>[0]) => {
+          const result = await model.findUnique(args);
+          if (args.include?.installation) { entered.resolve(); await release.promise; }
+          return result;
+        };
+      } });
+    } });
+    const connector = f.connector(wrapped, { call: async () => { calls++; return { sent: true }; } },
+      async () => { entered.resolve(); await release.promise; return "synthetic-token"; });
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async () => { calls++; return Response.json({ id: "synthetic-message" }); }) as unknown as typeof fetch;
+    const tools = new InternalToolService(f.db, {} as never, {} as never, async () => {},
+      {} as never, {} as never, {} as never, {
+        deliverConnectedChannel: connector.deliverConnectedChannel,
+      } as never);
+    const pending = native ? connector.deliverConnectedChannel({
+      ...f.input, files: [{ assetId: "synthetic", name: "result.txt", mimeType: "text/plain", bytes: Buffer.from("Synthetic") }],
+    }) : Effect.runPromise(Effect.either(tools.execute({
+      botId: f.bot.id, runId: f.run.id, conversationId: f.run.conversationId,
+      channelId: f.run.channelId!, deliveryId: null, callId: f.input.callId, tool: "SendToUser",
+      arguments: { type: "text", channel: f.input.address, content: f.input.content },
+    }))).then(result => {
+      if (result._tag === "Left") throw result.left;
+      return result.right;
+    });
+    try {
+      await entered.promise;
+      await f.stopSource();
+      expect(await f.db.run.findUniqueOrThrow({ where: { id: f.run.id } }))
+        .toMatchObject({ status: "cancelled", requestStoppedAt: expect.any(Date) });
+      release.resolve();
+      await expect(pending).rejects.toMatchObject({ code: "request_stopped" });
+      expect(calls).toBe(0);
+    } finally {
+      release.resolve(); await pending.catch(() => undefined);
+      globalThis.fetch = originalFetch; await f.cleanup();
+    }
+  },
+);
+
+for (const origin of ["user", "routine", "outcome"] as const) integration(
+  `a cancelled ${origin} source cannot claim while an independent active ${origin} source still can`,
+  async () => {
+    const f = await fixture(false, origin);
+    let calls = 0;
+    const connector = f.connector(f.db, { call: async () => { calls++; return { sent: true }; } });
+    try {
+      await f.db.run.update({ where: { id: f.run.id }, data: { status: "cancelled", error: { code: "cancelled_by_user" } } });
+      await expect(connector.deliverConnectedChannel(f.input)).rejects.toMatchObject({ code: "request_stopped" });
+      expect(calls).toBe(0);
+      const fresh = await f.db.run.create({ data: {
+        botId: f.bot.id, conversationId: f.run.conversationId, channelId: f.run.channelId,
+        userMessageId: crypto.randomUUID(), origin, status: "running",
+      } });
+      await f.stop();
+      await connector.deliverConnectedChannel({ ...f.input, runId: fresh.id, callId: crypto.randomUUID() });
+      expect(calls).toBe(1);
+    } finally { await f.cleanup(); }
+  },
+);
 
 for (const stoppedFirst of [true, false]) integration(
   `${stoppedFirst ? "Stop before" : "Stop after"} the native file claim preserves the real publication boundary`,
