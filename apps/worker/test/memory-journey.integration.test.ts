@@ -35,7 +35,7 @@ test.skipIf(!databaseUrl)("a user remembers, corrects, recalls across fresh chat
   let worker: WakeWorker | undefined;
   let botId: string | undefined;
   let appStarts = 0;
-  const keys = ["DATABASE_URL", "OPENTEAM_COMPUTER_URL", "OPENTEAM_CONTROL_TOKEN", "OPENTEAM_WORKSPACE_ROOT", "OPENTEAM_AGENT_DATA_ROOT", "OPENTEAM_AUTH_MODE"] as const;
+  const keys = ["DATABASE_URL", "OUTCOMEGO_COMPUTER_URL", "OUTCOMEGO_CONTROL_TOKEN", "OUTCOMEGO_WORKSPACE_ROOT", "OUTCOMEGO_AGENT_DATA_ROOT", "OUTCOMEGO_AUTH_MODE"] as const;
   const previous = Object.fromEntries(keys.map(key => [key, process.env[key]]));
 
   // Public routes are the same handlers main.ts dispatches. The internal tool
@@ -165,8 +165,8 @@ test.skipIf(!databaseUrl)("a user remembers, corrects, recalls across fresh chat
     (await app!.prisma.contextPromptSnapshot.findUniqueOrThrow({ where: { contextSessionId } })).promptSections as Record<string, { render: string }>;
 
   try {
-    Object.assign(process.env, { DATABASE_URL: databaseUrl, OPENTEAM_COMPUTER_URL: computer.url.origin, OPENTEAM_CONTROL_TOKEN: token,
-      OPENTEAM_WORKSPACE_ROOT: root, OPENTEAM_AGENT_DATA_ROOT: join(root, "data"), OPENTEAM_AUTH_MODE: "disabled" });
+    Object.assign(process.env, { DATABASE_URL: databaseUrl, OUTCOMEGO_COMPUTER_URL: computer.url.origin, OUTCOMEGO_CONTROL_TOKEN: token,
+      OUTCOMEGO_WORKSPACE_ROOT: root, OUTCOMEGO_AGENT_DATA_ROOT: join(root, "data"), OUTCOMEGO_AUTH_MODE: "disabled" });
     await start();
     await app!.agentData.writeInferenceSettings({ providerId: "openai-codex", modelId: "controlled-memory-journey", reasoning: "low" });
     const bot = await http<{ id: string; conversationId: string }>("/api/bots", { name: "Memory user journey", clientRequestId: crypto.randomUUID() });

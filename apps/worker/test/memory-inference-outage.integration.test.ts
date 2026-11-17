@@ -71,7 +71,7 @@ for (const fault of ["unavailable", "malformed-json"] as const) databaseTest(
         { type: "turn.completed", turnId: input.runId, status: "completed" },
       ].map(event => JSON.stringify(event)).join("\n") + "\n", { headers: { "content-type": "application/x-ndjson" } });
     } });
-    const keys = ["DATABASE_URL", "OPENTEAM_COMPUTER_URL", "OPENTEAM_CONTROL_TOKEN", "OPENTEAM_WORKSPACE_ROOT", "OPENTEAM_AGENT_DATA_ROOT"] as const;
+    const keys = ["DATABASE_URL", "OUTCOMEGO_COMPUTER_URL", "OUTCOMEGO_CONTROL_TOKEN", "OUTCOMEGO_WORKSPACE_ROOT", "OUTCOMEGO_AGENT_DATA_ROOT"] as const;
     const previous = Object.fromEntries(keys.map(key => [key, process.env[key]]));
     const until = async (check: () => Promise<boolean>) => {
       const deadline = Date.now() + 30_000;
@@ -79,8 +79,8 @@ for (const fault of ["unavailable", "malformed-json"] as const) databaseTest(
       throw new Error("Memory outage journey timed out");
     };
     try {
-      Object.assign(process.env, { DATABASE_URL: databaseUrl, OPENTEAM_COMPUTER_URL: computer.url.origin,
-        OPENTEAM_CONTROL_TOKEN: "isolated-memory-outage", OPENTEAM_WORKSPACE_ROOT: root, OPENTEAM_AGENT_DATA_ROOT: join(root, "data") });
+      Object.assign(process.env, { DATABASE_URL: databaseUrl, OUTCOMEGO_COMPUTER_URL: computer.url.origin,
+        OUTCOMEGO_CONTROL_TOKEN: "isolated-memory-outage", OUTCOMEGO_WORKSPACE_ROOT: root, OUTCOMEGO_AGENT_DATA_ROOT: join(root, "data") });
       app = new AppService();
       await Effect.runPromise(app.boot());
       await app.agentData.writeInferenceSettings({ providerId: "openai-codex", modelId: "synthetic-outage-fixture", reasoning: "low" });

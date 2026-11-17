@@ -35,6 +35,7 @@ import {
   appendAgentTimelineEvent,
   AgentDataStore,
   AgentMessaging,
+  lockAgentLifecycle,
   appendRoutineRunLedger,
   buildSafeTranscript,
   PRIORITY,
@@ -516,6 +517,10 @@ export class WakeWorker {
   private routineTimer: ReturnType<typeof setInterval> | null = null;
   private agentStoreTimer: ReturnType<typeof setInterval> | null = null;
   private pushNotificationTimer: ReturnType<typeof setInterval> | null = null;
+  private memoryReviewTimer: ReturnType<typeof setInterval> | null = null;
+  private memoryReviewScanActive = false;
+  private memoryReviewCursor: string | null = null;
+  private readonly memoryReviews = new Map<string, Promise<void>>();
   private reconcilingAgentStores = false;
   private routinePassActive = false;
   private automationReconcileCursor: string | null = null;
@@ -583,6 +588,7 @@ export class WakeWorker {
     await this.boss.schedule("routine-dispatch", "* * * * *");
     await this.messaging.recoverRounds();
     await this.recoverDurableWork();
+    await this.recoverMemoryReviews();
     await dispatchTaskContinuations(this.prisma, this.messaging);
     await dispatchRequestChecks(this.prisma, this.messaging);
     await recoverRequestProgress(this.prisma, this.messaging);
@@ -630,6 +636,10 @@ export class WakeWorker {
         .catch((error) => console.error("push notification delivery", error));
     }, 2_000);
     this.pushNotificationTimer.unref();
+    this.memoryReviewTimer = setInterval(() => {
+      void this.recoverMemoryReviews().catch((error) => console.error("memory review recovery", error));
+    }, 5_000);
+    this.memoryReviewTimer.unref();
   }
 
   async stop(): Promise<void> {
@@ -640,8 +650,11 @@ export class WakeWorker {
     this.agentStoreTimer = null;
     if (this.pushNotificationTimer) clearInterval(this.pushNotificationTimer);
     this.pushNotificationTimer = null;
+    if (this.memoryReviewTimer) clearInterval(this.memoryReviewTimer);
+    this.memoryReviewTimer = null;
     await this.boss.stop({ graceful: true });
     await Promise.allSettled([...this.concurrentAutomations]);
+    await Promise.allSettled([...this.memoryReviews.values()]);
     await this.prisma.$disconnect();
   }
 
@@ -1566,6 +1579,8 @@ export class WakeWorker {
   }
 
   private async execute(claimed: Claimed): Promise<void> {
+    const needsMemoryReview = claimed.runtimeProfile === "agent" &&
+      ["user", "group"].includes(claimed.origin) && claimed.inboxType !== "user.reaction";
     const heartbeat = setInterval(() => {
       void this.heartbeat(claimed).catch((error) => console.error("run heartbeat", error));
     }, 30_000);
@@ -1732,11 +1747,21 @@ export class WakeWorker {
       const completionFailure = turnCompletionFailure(completion);
       if (completionFailure) throw completionFailure;
       await this.prisma.$transaction(async (tx) => {
+        if (needsMemoryReview) await lockAgentLifecycle(tx, claimed.botId);
         const completedAt = new Date();
         await tx.inboxEvent.update({
           where: { id: claimed.inboxId },
           data: { status: "completed", completedAt },
         });
+        if (needsMemoryReview) {
+          // Commit the review intent with settlement, before publication or inference.
+          const bot = await tx.bot.findUniqueOrThrow({ where: { id: claimed.botId }, select: { memoryRevision: true } });
+          const shared = await tx.memoryRevision.findUnique({ where: { scope: "user" }, select: { revision: true } });
+          await tx.run.update({ where: { id: claimed.runId }, data: {
+            memoryReviewPending: true,
+            memoryReviewRevision: bot.memoryRevision + (shared?.revision ?? 0),
+          } });
+        }
         const settledRoutine = await reconcileRoutineExecution(tx, claimed.runId);
         if (settledRoutine) await this.routines.afterExecution(tx, settledRoutine);
         await settleOutcomeWorkItem(tx, claimed.runId, { messaging: this.messaging, workspaceRoot: this.workspaceRoot });
@@ -1776,7 +1801,7 @@ export class WakeWorker {
       if (claimed.deliveryId) {
         await this.messaging.completeDelivery(claimed.deliveryId, "completed", undefined, claimed.runId);
       }
-      await this.recordMemoryFromRun(claimed);
+      if (needsMemoryReview) await this.reviewMemoryRun(claimed.runId);
       await this.syncRoutineRunFile(claimed.botId, claimed.runId);
     } catch (error) {
       // Without a completion the computer never settled the turn: it was
@@ -2184,43 +2209,112 @@ export class WakeWorker {
     await this.agentData.writeRoutine(botId, execution.routineId);
   }
 
-  private async recordMemoryFromRun(claimed: Claimed): Promise<void> {
-    const [inbox, messages, visibleAssistant] = await Promise.all([
-      this.prisma.inboxEvent.findUnique({
-        where: { id: claimed.inboxId },
-        select: { payload: true },
-      }),
+  private async recoverMemoryReviews(): Promise<void> {
+    if (this.stopping || this.memoryReviewScanActive) return;
+    this.memoryReviewScanActive = true;
+    try {
+      // Rotate one oldest eligible exchange per bot; a leased backlog must not
+      // starve other owners or launch a later exchange ahead of its local review.
+      const capacity = Math.max(0, 32 - this.memoryReviews.size);
+      if (!capacity) return;
+      const cursor = this.memoryReviewCursor;
+      const active = [...this.memoryReviews.keys()];
+      const pending = await this.prisma.$queryRaw<Array<{ id: string; botId: string }>>`
+        SELECT candidate."id", candidate."botId" FROM (
+          SELECT DISTINCT ON (r."botId") r."id", r."botId"
+          FROM "outcomego_run" r
+          WHERE r."memoryReviewPending" = true AND r."status" = 'completed'
+            AND EXISTS (SELECT 1 FROM "outcomego_inbox_event" i WHERE i."runId" = r."id" AND i."status" = 'completed')
+          ORDER BY r."botId", r."completedAt" ASC NULLS LAST, r."id"
+        ) candidate
+        WHERE NOT (candidate."id" = ANY(${active}::uuid[]))
+        ORDER BY CASE WHEN ${cursor}::uuid IS NULL OR candidate."botId" > ${cursor}::uuid THEN 0 ELSE 1 END,
+          candidate."botId"
+        LIMIT ${capacity}`;
+      if (this.stopping) return;
+      for (const run of pending) {
+        if (this.memoryReviews.size >= 32) break;
+        this.memoryReviewCursor = run.botId;
+        void this.reviewMemoryRun(run.id);
+      }
+    } finally {
+      this.memoryReviewScanActive = false;
+    }
+  }
+
+  private reviewMemoryRun(runId: string): Promise<void> {
+    const active = this.memoryReviews.get(runId);
+    if (active) return active;
+    const review = this.recordMemoryFromRun(runId)
+      .catch((error) => console.error(`memory review for run ${runId}`, error))
+      .finally(() => this.memoryReviews.delete(runId));
+    this.memoryReviews.set(runId, review);
+    return review;
+  }
+
+  private async recordMemoryFromRun(runId: string): Promise<void> {
+    const run = await this.prisma.run.findUnique({
+      where: { id: runId },
+      select: {
+        id: true, botId: true, channelId: true, deliveryId: true, origin: true,
+        status: true, memoryReviewPending: true,
+        bot: { select: { subagentIdentity: { select: { id: true } } } },
+        inboxEvents: { where: { status: "completed" }, orderBy: { createdAt: "asc" }, take: 1, select: { payload: true, type: true } },
+      },
+    });
+    if (!run?.memoryReviewPending || run.status !== "completed" || !run.inboxEvents.length) return;
+    if (run.bot.subagentIdentity || !["user", "group"].includes(run.origin) || run.inboxEvents[0]?.type === "user.reaction") {
+      await this.prisma.run.updateMany({ where: { id: runId }, data: { memoryReviewPending: false } });
+      return;
+    }
+    let groupUser: { content: string; createdAt: Date } | null = null;
+    if (run.deliveryId) {
+      // Settlement can commit before the buffered group reply is published.
+      await this.messaging.completeDelivery(run.deliveryId, "completed", undefined, run.id);
+      const delivery = await this.prisma.channelDelivery.findUnique({
+        where: { id: run.deliveryId },
+        select: { status: true, round: { select: { triggerMessage: { select: { sender: true, content: true, createdAt: true } } } } },
+      });
+      if (!delivery || delivery.status !== "completed") {
+        await this.prisma.run.updateMany({ where: { id: runId }, data: { memoryReviewPending: false } });
+        return;
+      }
+      if (delivery.round.triggerMessage.sender === "user") groupUser = delivery.round.triggerMessage;
+    }
+    const inbox = run.inboxEvents[0];
+    const [messages, visibleAssistant] = await Promise.all([
       this.prisma.message.findMany({
-        where: { runId: claimed.runId, status: "completed" },
+        where: { runId: run.id, status: "completed" },
         select: { role: true, content: true, createdAt: true },
         orderBy: { createdAt: "asc" },
       }),
       this.prisma.channelMessage.findMany({
         where: {
-          sourceRunId: claimed.runId,
+          sourceRunId: run.id,
           sender: "agent",
-          senderBotId: claimed.botId,
+          senderBotId: run.botId,
         },
         select: { content: true, metadata: true },
         orderBy: { sequence: "asc" },
       }),
-    ]).then(([inbox, messages, visible]) => [inbox, messages, visible.filter((message) => !isVoiceNarration(message.metadata))] as const);
+    ]).then(([messages, visible]) => [messages, visible.filter((message) => !isVoiceNarration(message.metadata))] as const);
     const payload =
       inbox?.payload && typeof inbox.payload === "object" && !Array.isArray(inbox.payload)
         ? (inbox.payload as Record<string, unknown>)
         : null;
-    const visibleUser =
-      claimed.channelId && typeof payload?.clientId === "string"
+    const channelId = run.channelId ?? (typeof payload?.channelId === "string" ? payload.channelId : null);
+    const visibleUser = groupUser ?? (
+      channelId && typeof payload?.clientId === "string"
         ? await this.prisma.channelMessage.findUnique({
             where: {
               channelId_clientId: {
-                channelId: claimed.channelId,
+                channelId,
                 clientId: payload.clientId,
               },
             },
             select: { content: true, createdAt: true },
           })
-        : null;
+        : null);
     const internalUser = messages.find((message) => message.role === "user");
     const internalAssistant = messages.filter((message) => message.role === "assistant");
     const exchange = resolveTurnMemoryExchange({
@@ -2229,15 +2323,15 @@ export class WakeWorker {
       visibleAssistant,
       internalAssistant,
     });
-    if (!exchange) return;
-    await this.agentData.recordTurnMemory(claimed.botId, {
-      runId: claimed.runId,
+    const reviewed = !exchange || await this.agentData.recordTurnMemory(run.botId, {
+      runId: run.id,
+      requirePendingRun: true,
       timeZone: await this.messaging.userTimeZone(),
       user: exchange.user,
       assistant: exchange.assistant,
-      hidden: !["user", "group"].includes(claimed.origin),
       occurredAt: exchange.occurredAt,
     });
+    if (reviewed) await this.prisma.run.updateMany({ where: { id: runId }, data: { memoryReviewPending: false } });
   }
 
   private async completeSubagent(tx: Prisma.TransactionClient, claimed: Claimed): Promise<void> {

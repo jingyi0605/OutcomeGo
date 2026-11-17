@@ -18,7 +18,7 @@ test.skipIf(!databaseUrl)("two worker processes serialize each bot's review back
   let maximumAcrossBots = 0;
   const fixtureErrors: string[] = [];
   const audit = `memory_review_ack_${crypto.randomUUID().replaceAll("-", "")}`;
-  const environmentKeys = ["DATABASE_URL", "OPENTEAM_COMPUTER_URL", "OPENTEAM_CONTROL_TOKEN", "OPENTEAM_WORKSPACE_ROOT", "OPENTEAM_AGENT_DATA_ROOT"] as const;
+  const environmentKeys = ["DATABASE_URL", "OUTCOMEGO_COMPUTER_URL", "OUTCOMEGO_CONTROL_TOKEN", "OUTCOMEGO_WORKSPACE_ROOT", "OUTCOMEGO_AGENT_DATA_ROOT"] as const;
   const previous = new Map(environmentKeys.map(key => [key, process.env[key]]));
   let auditCreated = false;
   const computer = Bun.serve({ hostname: "127.0.0.1", port: 0, idleTimeout: 255, async fetch(request, server) {
@@ -69,7 +69,7 @@ test.skipIf(!databaseUrl)("two worker processes serialize each bot's review back
   const start = async (token: string) => {
     const ready = join(root, `${token}.ready`);
     const child = Bun.spawn(["bun", join(import.meta.dir, "fixtures", "memory-restart-worker.ts")], {
-      env: { ...process.env, OPENTEAM_CONTROL_TOKEN: token, MEMORY_WORKER_READY: ready },
+      env: { ...process.env, OUTCOMEGO_CONTROL_TOKEN: token, MEMORY_WORKER_READY: ready },
       stdout: Bun.file(join(root, `${token}.out`)), stderr: Bun.file(join(root, `${token}.err`)),
     });
     processes.push({ token, child });
@@ -101,8 +101,8 @@ test.skipIf(!databaseUrl)("two worker processes serialize each bot's review back
     const run = { id, bot: botIndex, turn, marker, fact }; runs.push(run); return run;
   };
   try {
-    Object.assign(process.env, { DATABASE_URL: databaseUrl, OPENTEAM_COMPUTER_URL: computer.url.origin,
-      OPENTEAM_CONTROL_TOKEN: "multiworker-parent", OPENTEAM_WORKSPACE_ROOT: root, OPENTEAM_AGENT_DATA_ROOT: join(root, "data") });
+    Object.assign(process.env, { DATABASE_URL: databaseUrl, OUTCOMEGO_COMPUTER_URL: computer.url.origin,
+      OUTCOMEGO_CONTROL_TOKEN: "multiworker-parent", OUTCOMEGO_WORKSPACE_ROOT: root, OUTCOMEGO_AGENT_DATA_ROOT: join(root, "data") });
     const store = new AgentDataStore(db, { root: join(root, "data"), workspaceRoot: root });
     await store.writeInferenceSettings({ providerId: "openai-codex", modelId: "controlled-multiworker", reasoning: "low" });
     for (let index = 0; index < 3; index++) {
