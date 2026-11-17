@@ -217,6 +217,9 @@ if (result.renderer.violations.wasm.length > 0) {
 
 const lazyBudgets: Record<string, number> = {
   workspace: 800_000,
+  // Durable draft review loads only for its message type, including its journal.
+  externalDraft: 40_000,
+  imessageDraft: 30_000,
   largeCode: 600_000,
   // Sign-in recovery (Start again, session-mismatch guidance) and plugin setup
   // secrets for Bot processes bring the measured October closure to 51,380 bytes.
