@@ -2020,6 +2020,7 @@ export class WakeWorker {
     } satisfies Prisma.InputJsonObject;
     let priorityInterrupted = false;
     await this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT id FROM "outcomego_run" WHERE id = ${claimed.runId}::uuid FOR NO KEY UPDATE`;
       const current = await tx.run.findUnique({ where: { id: claimed.runId } });
       const currentError =
         current?.error && !Array.isArray(current.error) && typeof current.error === "object"
