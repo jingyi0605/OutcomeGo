@@ -10,6 +10,7 @@ import type { HumanKnowledgeResolver } from "./human-knowledge-service";
 import { hashRequest, toJson } from "./service-utils";
 import { mapOutcomeError } from "./outcome-write";
 import { assertHumanRevisionActive, humanRevisionActive } from "./human-revision-policy";
+import { lockAssetReferences } from "./asset-retention";
 
 type Tx = Prisma.TransactionClient;
 type Receipt = Prisma.OutcomeHumanReceiptGetPayload<Record<string, never>>;
@@ -90,16 +91,16 @@ export class HumanReceiptService implements HumanReviewPort {
         if (input.observations.some(observation => !criterionIds.includes(observation.criterionId)))
           throw new ApiError(400, "invalid_request", "An observation does not belong to this action's criteria");
         const assetRefs = [...new Set(input.assetRefs)].sort();
-        for (const assetRef of assetRefs) {
-          await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`human-receipt-asset:${assetRef}`}))`;
-          await this.asset(assetRef);
-          if (await tx.outcomeHumanReceipt.findFirst({ where: { workItemId: { not: item.id }, assetRefs: { array_contains: [assetRef] } }, select: { id: true } }))
-            throw fail("receipt_asset_conflict", "This asset is already associated with another human action");
-        }
         const knowledgeIds = [...new Set(input.sourceRefs.filter(source => source.type === "knowledge").map(source => source.ref))];
         const references = knowledgeIds.length ? await this.knowledge.resolve({
           outcomeId: item.outcomeId, projectScope: `bot:${item.botId}`, contractRevision: item.contractRevision.revision,
         }, knowledgeIds) : [];
+        const assetIds = await lockAssetReferences(tx, [...assetRefs, ...references.map(reference => reference.sourceRef)]);
+        for (const assetId of assetIds) await this.asset(`asset:${assetId}`);
+        for (const assetRef of assetRefs) {
+          if (await tx.outcomeHumanReceipt.findFirst({ where: { workItemId: { not: item.id }, assetRefs: { array_contains: [assetRef] } }, select: { id: true } }))
+            throw fail("receipt_asset_conflict", "This asset is already associated with another human action");
+        }
         const receiptId = crypto.randomUUID();
         const evidenceIds: string[] = [];
         const materialIds = new Map<string, string>();

@@ -15,6 +15,8 @@ import { hashRequest, toJson } from "./service-utils";
 import type { HumanKnowledgeResolver } from "./human-knowledge-service";
 import { humanReceiptView } from "./human-receipt-service";
 import { assertHumanRevisionActive } from "./human-revision-policy";
+import { lockAssetReferences } from "./asset-retention";
+import type { AssetStore } from "@outcomego/messaging";
 
 const include = {
   contractRevision: { select: { revision: true } },
@@ -33,7 +35,8 @@ const nextAction = (status: WorkItemStatus) => {
 };
 
 export class HumanWorkService implements HumanActionPort {
-  constructor(private readonly prisma: PrismaClient, private readonly knowledge?: HumanKnowledgeResolver) {}
+  constructor(private readonly prisma: PrismaClient, private readonly knowledge?: HumanKnowledgeResolver,
+    private readonly assets?: Pick<AssetStore, "metadata">) {}
 
   async createFromAgentRequest(tx: Tx, input: Parameters<HumanActionPort["createFromAgentRequest"]>[1]): Promise<HumanActionResult> {
     const parsed = humanActionInputSchema.safeParse(input.input);
@@ -143,6 +146,11 @@ export class HumanWorkService implements HumanActionPort {
     if (references.length !== ids.size || references.some((reference) =>
       !ids.has(reference.id) || reference.projectScope !== `bot:${outcome.botId}` || reference.stale
     )) throw error("human_evidence_missing", "Every requested reference requires a current scoped snapshot");
+    const assetIds = await lockAssetReferences(tx, references.map(reference => reference.sourceRef));
+    if (this.assets) for (const assetId of assetIds) {
+      try { await this.assets.metadata(assetId); }
+      catch { throw error("human_evidence_missing", "A referenced attachment is no longer available"); }
+    }
     const requirements = card.evidenceRequirements.map((requirement) => {
       const criterion = revision.criteria.find((candidate) => candidate.ordinal === requirement.criterionOrdinal);
       if (!criterion) throw error("human_evidence_missing", "An evidence requirement refers to an unknown criterion");

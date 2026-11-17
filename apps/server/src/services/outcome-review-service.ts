@@ -13,6 +13,7 @@ import type { OutcomeInference } from "./outcome-inference";
 import { lockOutcome, outcomeWrite } from "./outcome-write";
 import { serviceEffect, toJson } from "./service-utils";
 import type { HumanReviewPort } from "./human-receipt-service";
+import { lockAssetReferences } from "./asset-retention";
 
 type Tx = Prisma.TransactionClient;
 type Enqueue = typeof enqueueOutcomeTurn;
@@ -44,6 +45,13 @@ export class OutcomeReviewService {
       const criteria = new Map(revision.criteria.map(c => [c.id, c]));
       if (new Set(input.results.map(r => r.criterionId)).size !== input.results.length)
         throw new ApiError(400, "invalid_request", "Each criterion can appear only once in a review");
+      const assetIds = await lockAssetReferences(tx, (input.newEvidence ?? [])
+        .filter(entry => entry.sourceType === "asset" || entry.sourceType === "file")
+        .map(entry => entry.sourceRef));
+      for (const assetId of assetIds) {
+        try { await this.messaging.assets.metadata(assetId); }
+        catch { throw outcomeApiError("evidence_missing", "A referenced attachment is no longer available"); }
+      }
       const added = new Map<string, string[]>();
       for (const entry of input.newEvidence ?? []) {
         if (!criteria.has(entry.criterionId)) throw outcomeApiError("review_revision_conflict", "Evidence must refer to the current contract");

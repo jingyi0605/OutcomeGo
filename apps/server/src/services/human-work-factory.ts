@@ -12,7 +12,7 @@ export const createHumanWorkServices = (
   assets: Pick<AssetStore, "metadata" | "contentPath">,
 ) => {
   const knowledge = new HumanKnowledgeService(prisma, agentData, assets);
-  const humanWork = new HumanWorkService(prisma, knowledge);
+  const humanWork = new HumanWorkService(prisma, knowledge, assets);
   const humanReceipts = new HumanReceiptService(prisma, assets, knowledge, messaging);
   return { knowledge, humanWork, humanReceipts, humanActionTool: humanActionTool(prisma, humanWork) };
 };
