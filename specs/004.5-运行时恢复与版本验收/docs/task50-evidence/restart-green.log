@@ -1,0 +1,15 @@
+bun test v1.4.4 (38afee6c8)
+
+apps/worker/test/memory-restart.integration.test.ts:
+(pass) a worker killed at before-memory recovers the settled exchange without another turn [4349.56ms]
+(pass) a worker killed at inference recovers the settled exchange without another turn [3271.02ms]
+(pass) a worker killed at inference-natural-expiry recovers the settled exchange without another turn [32588.79ms]
+(node:80054) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `bun --trace-warnings ...` to show where the warning was created)
+(pass) a worker killed at before-publication recovers the settled exchange without another turn [2829.39ms]
+(pass) a worker killed at before-ack recovers the settled exchange without another turn [2200.48ms]
+
+ 5 pass
+ 0 fail
+ 82 expect() calls
+Ran 5 tests across 1 file. [45.96s]
