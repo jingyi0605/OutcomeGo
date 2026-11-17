@@ -1,6 +1,6 @@
 # 任务清单 - Outcome 收件箱与决策通知（人话版）
 
-状态：TODO（第 0 波接口冻结后按任务分波并行；第 1 波基础服务、第 2 波工具/事件、第 3 波客户端）
+状态：实施中（第 1 波服务端任务完成；第 2 波工具/事件、第 3 波客户端待实施）
 
 关联文档：[README.md](README.md) · [requirements.md](requirements.md) · [design.md](design.md)
 
@@ -12,8 +12,8 @@
 
 ## 阶段 0：通知基线
 
-- [ ] 0.1 盘点现有通知、Push 和客户端刷新链路
-  - 状态：TODO
+- [x] 0.1 盘点现有通知、Push 和客户端刷新链路
+  - 状态：DONE
   - 这一步到底做什么：确认 `ChannelNotification`、`ChannelReadState`、`OutboxDelivery`、`PushDevice`、`NotificationService.routing()`、`apps/server/src/event-stream.ts` 和三端通知/深链的真实调用路径；确认客户端用什么机制刷新数据。
   - 做完你能看到什么：`docs/notification-capability-matrix.md`。
   - 先依赖什么：第 0 波 B、`004.2` 任务 1.2（第 1 波线 3）。
@@ -25,10 +25,19 @@
   - 对应需求：需求 1、需求 7、需求 16
   - 对应设计：§6、§8、§18
 
+  - 实现提交：070ffe968、b49299da0；审计文档随本记录提交
+  - 修改文件：docs/notification-capability-matrix.md；完整路径清单见证据文件
+  - 数据库变化：none
+  - 验证命令：源码审查；43 项现有通知回归 PASS；精确组合命令见证据文件
+  - 验证结果：定向合并 80 PASS / 0 FAIL / 406 assertions；五个受影响包 typecheck PASS；未运行全量 CI，未声称第 0 波阻塞已消失
+  - 证据文件：[20261117-第一波服务端验证记录](docs/20261117-第一波服务端验证记录.md)；[通知能力矩阵](docs/notification-capability-matrix.md)
+  - 已知限制：实际 Event 流与父设计默认行为不一致，已交集成者；三端设备回放第三波 PENDING
+  - 回滚方式：撤销本线服务与通知入口提交，保留 Decision 事实与新增表；没有生产数据库变更
+
 ## 阶段 1：Decision、Inbox 和 Agent 决策请求
 
-- [ ] 1.1 实现 Decision 数据模型和状态服务
-  - 状态：TODO
+- [x] 1.1 实现 Decision 数据模型和状态服务
+  - 状态：DONE
   - 这一步到底做什么：`OutcomeDecision` 表和 `DecisionService`：create、present、resolve（条件更新、revision 检查、`resolutionEffect` 分流）、withdraw、expire；revision 被替代时自动 withdraw。
   - 先依赖什么：0.1、`004.2` 任务 1.3
   - 开始前先看：design §7、§13、§15、§29、§30、§31
@@ -39,8 +48,17 @@
   - 对应需求：需求 3、需求 5、需求 6、需求 10、需求 15、需求 16
   - 对应设计：§7、§13、§15、§29、§30、§31
 
-- [ ] 1.2 实现 Outcome Inbox 查询
-  - 状态：TODO
+  - 实现提交：e2764b948、a60e897ef、e8c662d7b、070ffe968、b49299da0
+  - 修改文件：schema.prisma；outcome-inbox.ts；decision-service.ts；decision-lifecycle.ts；decision-service.test.ts；完整路径清单见证据文件
+  - 数据库变化：新增 OutcomeDecision、五状态、FK/索引、唯一请求键和活动 WorkItem slot
+  - 验证命令：bun test apps/server/test/decision-service.test.ts；fresh-schema 和模型测试 PASS；精确组合命令见证据文件
+  - 验证结果：定向合并 80 PASS / 0 FAIL / 406 assertions；五个受影响包 typecheck PASS；未运行全量 CI，未声称第 0 波阻塞已消失
+  - 证据文件：[20261117-第一波服务端验证记录](docs/20261117-第一波服务端验证记录.md)；[通知能力矩阵](docs/notification-capability-matrix.md)
+  - 已知限制：生产 plan_only 依赖线 1 真实续跑；manual_action 默认 503；外部 revision/cancel 需集成者装配撤回 helper
+  - 回滚方式：撤销本线服务与通知入口提交，保留 Decision 事实与新增表；没有生产数据库变更
+
+- [x] 1.2 实现 Outcome Inbox 查询
+  - 状态：DONE
   - 这一步到底做什么：`GET /outcome-inbox`、`GET /outcomes/:id/inbox`、`GET /decisions/:id`、`POST /decisions/:id/resolve`、`POST /decisions/:id/withdraw`；四类项目、合并规则、cursor 分页、批量加载。
   - 先依赖什么：1.1
   - 开始前先看：design §9、§14、§16、§26、§27、§33
@@ -50,6 +68,15 @@
   - 怎么验证：fixture 查询、大数据分页（重复/漏项）、SQL 查询次数断言
   - 对应需求：需求 4、需求 8、需求 9、需求 13
   - 对应设计：§9、§14、§16、§27、§33
+
+  - 实现提交：a60e897ef、070ffe968、a2ec70549、b49299da0
+  - 修改文件：outcome-inbox 路由/服务；main.ts；对应 route/query 测试；完整路径清单见证据文件
+  - 数据库变化：none
+  - 验证命令：bun test apps/server/test/outcome-inbox-service.test.ts apps/server/test/outcome-inbox-routes.test.ts：PASS；全局页 1 SQL，无 N+1；精确组合命令见证据文件
+  - 验证结果：定向合并 80 PASS / 0 FAIL / 406 assertions；五个受影响包 typecheck PASS；未运行全量 CI，未声称第 0 波阻塞已消失
+  - 证据文件：[20261117-第一波服务端验证记录](docs/20261117-第一波服务端验证记录.md)；[通知能力矩阵](docs/notification-capability-matrix.md)
+  - 已知限制：实时事实已处理后从待处理列表消失；游标提供稳定排序和新事实快照边界，非跨请求历史 MVCC 快照
+  - 回滚方式：撤销本线服务与通知入口提交，保留 Decision 事实与新增表；没有生产数据库变更
 
 - [ ] 1.3 实现 `RequestOutcomeDecision` 和子线程继续执行
   - 状态：TODO
@@ -77,8 +104,8 @@
 
 ## 阶段 2：通知
 
-- [ ] 2.1 接入现有 ChannelNotification、Outbox 和通知偏好
-  - 状态：TODO
+- [x] 2.1 接入现有 ChannelNotification、Outbox 和通知偏好
+  - 状态：DONE
   - 这一步到底做什么：通知事实写入现有通知模型；遵守 `NotificationService.routing()` 和 Bot `notificationsEnabled`；同一 Outcome、同一 revision 的非紧急通知 60 秒内合并；`WakeParent` 与 Inbox 通知不重复。
   - 先依赖什么：1.1、1.2、0.1；第 1 波先按冻结事件 fixture 验证投递设施，第 2 波 1.4 接入真实事件。
   - 开始前先看：design §17、§18、§32、§43
@@ -89,8 +116,17 @@
   - 对应需求：需求 7、需求 9、需求 11、需求 16、需求 17
   - 对应设计：§17、§18、§32、§43
 
-- [ ] 2.2 实现 Push payload 脱敏和旧客户端兼容
-  - 状态：TODO
+  - 实现提交：070ffe968、b49299da0
+  - 修改文件：messaging/notifications.ts、index.ts；notification-service.ts；worker/push-notifications.ts；outcome-notifications.test.ts；完整路径清单见证据文件
+  - 数据库变化：none
+  - 验证命令：新投影/恢复/合并测试与 43 项原通知回归 PASS；provider failure/retry 真实 dispatcher 断言 PASS；精确组合命令见证据文件
+  - 验证结果：定向合并 80 PASS / 0 FAIL / 406 assertions；五个受影响包 typecheck PASS；未运行全量 CI，未声称第 0 波阻塞已消失
+  - 证据文件：[20261117-第一波服务端验证记录](docs/20261117-第一波服务端验证记录.md)；[通知能力矩阵](docs/notification-capability-matrix.md)
+  - 已知限制：第一波仅生产接入 decision.required；其他主题留给 1.4；没有 DM 时后续 drain 自动恢复
+  - 回滚方式：撤销本线服务与通知入口提交，保留 Decision 事实与新增表；没有生产数据库变更
+
+- [x] 2.2 实现 Push payload 脱敏和旧客户端兼容
+  - 状态：DONE
   - 先依赖什么：2.1
   - 主要改哪里：`packages/contracts/src/notification-content.ts`、`packages/contracts/src/app-deep-links.ts`（增加 `outcomes` 路径）、三端通知解析
   - 这一步先不做什么：不把完整 Decision 正文放入 payload；不删除既有通知类型。
@@ -98,6 +134,15 @@
   - 怎么验证：payload snapshot、旧 parser fixture、未登录深链 fixture
   - 对应需求：需求 11、需求 12
   - 对应设计：§10、§34、§35
+
+  - 实现提交：a60e897ef、070ffe968、b49299da0
+  - 修改文件：contracts notification-content/app-deep-links/index；worker apns/fcm；payload 与 legacy parser 测试；完整路径清单见证据文件
+  - 数据库变化：none
+  - 验证命令：bun test packages/contracts/test/outcome-inbox.test.ts apps/worker/test/outcome-push-payload.test.ts：PASS；普通 APNs/FCM 回归 PASS；精确组合命令见证据文件
+  - 验证结果：定向合并 80 PASS / 0 FAIL / 406 assertions；五个受影响包 typecheck PASS；未运行全量 CI，未声称第 0 波阻塞已消失
+  - 证据文件：[20261117-第一波服务端验证记录](docs/20261117-第一波服务端验证记录.md)；[通知能力矩阵](docs/notification-capability-matrix.md)
+  - 已知限制：真实三端新卡片、点击及未登录深链恢复为第三波，设备验证 PENDING
+  - 回滚方式：撤销本线服务与通知入口提交，保留 Decision 事实与新增表；没有生产数据库变更
 
 ## 阶段 3：客户端
 
