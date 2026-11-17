@@ -191,8 +191,16 @@
   - 对应需求：需求 7、需求 11、需求 12、需求 16
   - 对应设计：§24、§39、§44
 
-- [ ] 3.4 实现 Android/iOS 只读动作卡
-  - 状态：TODO
+- [x] 3.4 实现 Android/iOS 只读动作卡
+  - 状态：DONE（2026-11-17，实现交付；整体验证和设备验收 PENDING）
+  - 实现提交：`9d1eb4dce`、`b75ed7caf`
+  - 修改文件：共享 `OutcomeInbox.kt`、iOS Core `OutcomeInbox.swift`；Android `OutcomeInboxScreens.kt`/`OutcomeScreens.kt`/gateway；iOS `OutcomeInboxView.swift`/`OutcomesView.swift`/`AppStore.swift`；两端文案、fixtures 和模型测试。
+  - 数据库变化：none。
+  - 验证命令：`python3 /tmp/w3-mobile-test-inbox.py`；定点 Kotlin/Swift 类型检查；Swift 最终语法检查、`git diff --check`。
+  - 验证结果：共享 6 测试 PASS（含只读 human receipt 与未知字段/状态），定点检查通过；完整 Android wrapper、iOS Core/App 构建、真实 GET 无状态变化和设备检查 PENDING。
+  - 证据文件：[`20261117-第三波移动端收件箱与只读动作卡.md`](../004-OutcomeGo整体项目/docs/20261117-第三波移动端收件箱与只读动作卡.md)。
+  - 已知限制：仅展示动作、资料引用、服务端保存进度和 receipt 历史；没有 start/pause/receipt/review 写操作，均引导 Desktop。未将 fixture 验证等同真实 API 验收；第 0 波数据库阻塞保留。
+  - 回滚方式：先撤销 `b75ed7caf` UI，再撤销 `9d1eb4dce` 模型；无数据库回滚。
   - 先依赖什么：2.2、`004.2` 任务 6.1、6.2
   - 主要改哪里：`mobile/shared/.../core/Models.kt`、`apps/android/app/src/main/kotlin/com/outcomego/features/`、`apps/ios/Sources/App/`
   - 这一步先不做什么：不提供开始、暂停、提交和验收入口。
