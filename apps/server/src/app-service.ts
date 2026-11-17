@@ -1,3 +1,8 @@
+import { OutcomeService } from "./services/outcome-service";
+import { OutcomePlanningService } from "./services/outcome-planning-service";
+import { OutcomeReviewService } from "./services/outcome-review-service";
+import { OutcomeEvidenceConsumer } from "./services/outcome-evidence-consumer";
+import { outcomeInference } from "./services/outcome-inference";
 import { ApnsSettingsStore } from "@outcomego/db/apns-settings";
 import { MachineService } from "./services/machine-service";
 import {
@@ -73,6 +78,10 @@ export class AppService {
   readonly screenViewerHost: string;
   readonly agentData: AgentDataStore;
   readonly messaging: AgentMessaging;
+  readonly outcomes: OutcomeService;
+  readonly outcomePlanning: OutcomePlanningService;
+  readonly outcomeReviews: OutcomeReviewService;
+  private readonly outcomeEvidence: OutcomeEvidenceConsumer;
   readonly routines: RoutineService;
   readonly durableState: DurableStateService;
   readonly bots: BotService;
@@ -216,6 +225,11 @@ export class AppService {
       this.prisma,
       (path, init) => this.computerFetch(path, init)
     );
+    const inferOutcome = outcomeInference(this.agentData, (path, init) => this.computerJson(path, init));
+    this.outcomes = new OutcomeService(this.prisma);
+    this.outcomePlanning = new OutcomePlanningService(this.prisma, inferOutcome);
+    this.outcomeReviews = new OutcomeReviewService(this.prisma, this.messaging, inferOutcome);
+    this.outcomeEvidence = new OutcomeEvidenceConsumer(this.prisma, this.outcomeReviews, this.eventWakeup);
     this.voice = new VoiceService(this.prisma, this.channels, this.runs);
     this.todos = new TodoService(this.prisma);
     this.administration = new AdministrationService(
@@ -317,6 +331,7 @@ export class AppService {
       await this.automationWebhooks.loadPublicUrl();
       await this.eventWakeup.start();
       await this.voice.startGroupDeliveryWatcher(this.eventWakeup);
+      this.outcomeEvidence.start();
       await this.snapshots.pruneEvents();
       this.eventPruneTimer = setInterval(() => {
         void this.automationWebhooks
@@ -439,6 +454,7 @@ export class AppService {
       this.externalDelivery.stopRecovery();
       this.externalReminders.stop();
       await this.voice.stopGroupDeliveryWatcher();
+      await this.outcomeEvidence.stop();
       await this.eventWakeup.stop();
       await this.agentData.stopWatching();
       await this.boss.stop({ graceful: true });
@@ -447,6 +463,7 @@ export class AppService {
     });
 
   private async pruneUnreferencedAssets(): Promise<void> {
+    await this.outcomePlanning.pruneExpired().catch(error => console.error("outcome plan cleanup", error));
     // Extract only candidate ids in PostgreSQL. Pulling every message's complete
     // JSON metadata into Bun made the six-hour cleanup proportional to total
     // transcript bytes and could briefly duplicate a very large history in RAM.
