@@ -1,4 +1,8 @@
 import { createOutcomeApi } from "./outcome-api";
+import { createInboxApi } from "../components/outcomego/outcomes/inbox/inbox-api";
+import type { AttentionSample } from "../lib/outcome-attention";
+import { createHumanMaterialApi } from "../components/outcomego/outcomes/human-work/human-api";
+import type { OutcomeNotificationPayload } from "@outcomego/contracts/notification-content";
 import { createOutcomeGoClient } from "@outcomego/client-core";
 import { authHeaders, getDesktopMachineId } from "./auth";
 import { API_BASE, desktopTransportOptions } from "./http";
@@ -31,6 +35,12 @@ const outcomes = createOutcomeApi(request);
 
 export const api = {
   outcomes,
+  outcomeInbox: createInboxApi(request),
+  humanMaterials: createHumanMaterialApi(request),
+  outcomeNotificationState: () => request<{ outcomeNotifications?: OutcomeNotificationPayload[] }>("/api/notification-state"),
+  outcomeAttention: (id: string, sample: AttentionSample) => request<{ recorded: true }>(
+    `/api/outcomes/${encodeURIComponent(id)}/attention`, { method: "POST", body: JSON.stringify(sample) }
+  ),
   ...outcomeGoClient,
   authenticatePlugin: (connectionId: string, force = false) =>
     window.outcomego?.pluginOAuth

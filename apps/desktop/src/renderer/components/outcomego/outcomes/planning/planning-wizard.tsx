@@ -3,6 +3,7 @@ import { OUTCOME_PLANNING_DIMENSIONS, hasBlockingConflict, type PlanningDraftVie
 import { ContractConfirmation } from "./contract-confirmation";
 import { type OutcomeClient, OutcomeRequestIds, outcomeErrorMessage } from "./outcome-client";
 import { customPlanningEntries, emptySelections, planningConflicts, selectPlanningOption, selectionsFromPlan } from "./planning-state";
+import { useOutcomeAttention } from "../../../../hooks/use-outcome-attention";
 
 export function PlanningWizard({ botId, client, initialPlan, onSaved, onDone }: {
   botId: string; client: OutcomeClient; initialPlan?: PlanningDraftView;
@@ -16,6 +17,7 @@ export function PlanningWizard({ botId, client, initialPlan, onSaved, onDone }: 
   const [step, setStep] = useState(0);
   const [time, setTime] = useState(""); const [cost, setCost] = useState("");
   const [outcome, setOutcome] = useState<OutcomeDetail | null>(null);
+  const attention = useOutcomeAttention({ surface: "planning", outcomeId: outcome?.id });
   const [confirmation, setConfirmation] = useState("");
   const [busy, setBusy] = useState(false); const [error, setError] = useState<string | null>(null);
   const requestIds = useRef(new OutcomeRequestIds());
@@ -24,7 +26,7 @@ export function PlanningWizard({ botId, client, initialPlan, onSaved, onDone }: 
   const conflicts = draft ? planningConflicts(draft, selections, budget) : [];
   async function submit(action: () => Promise<void>) { if (busy) return; setBusy(true); setError(null); try { await action(); } catch (e) { setError(outcomeErrorMessage(e)); } finally { setBusy(false); } }
   const dimension = OUTCOME_PLANNING_DIMENSIONS[Math.min(step, 2)]!;
-  return <section aria-label="Outcome planning" className="space-y-4" aria-busy={busy}>
+  return <section ref={attention.ref} aria-label="Outcome planning" className="space-y-4" aria-busy={busy}>
     <h2 className="text-lg font-semibold">Plan an Outcome</h2>
     {error && <p role="alert">{error}</p>}
     {!draft && <>
@@ -52,7 +54,7 @@ export function PlanningWizard({ botId, client, initialPlan, onSaved, onDone }: 
         <button className="rounded border px-3 py-2" disabled={busy || !title.trim() || !validBudget || hasBlockingConflict(conflicts) || draft.status !== "ready"} onClick={() => void submit(async () => {
           const input = { planId: draft.planId, title, ...selections, budget };
           const result = await client.create({ ...input, clientRequestId: requestIds.current.for("create", input) });
-          setOutcome(result); onSaved?.({ outcomeId: result.id });
+          attention.attachOutcome(result.id); setOutcome(result); onSaved?.({ outcomeId: result.id });
         })}>Create contract for confirmation</button>
       </>}
       {draft.status !== "ready" && <p role="alert">This plan is {draft.status}. Generate a new plan.</p>}

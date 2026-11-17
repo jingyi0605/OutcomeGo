@@ -18,6 +18,8 @@ import type { DesktopNotificationTarget } from "@outcomego/contracts/notificatio
 import { CircleAlert, LoaderCircle, RefreshCw } from "lucide-react";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "./client/outcomego-api";
+import type { DesktopOutcomeTarget } from "./lib/outcome-target";
+import { startOutcomeNotificationSync } from "./lib/notifications";
 import { preloadMessageRenderers } from "./components/ai-elements/message";
 import { ChatPane } from "./components/outcomego/chat-pane";
 import { DesktopHeader } from "./components/outcomego/desktop-header";
@@ -126,6 +128,7 @@ const SearchDialog = lazy(() =>
   }))
 );
 const AboutPanel = lazy(() => import("./components/outcomego/settings/about"));
+const OutcomeWorkspace = lazy(() => import("./components/outcomego/outcomes/inbox/outcome-workspace"));
 const LiveVoiceLayer = lazy(() =>
   import("./components/outcomego/live-voice/live-voice-layer").then((module) => ({
     default: module.LiveVoiceLayer,
@@ -354,6 +357,20 @@ export default function App() {
     settings: false,
   });
   const appReady = Boolean(snapshot);
+  const [outcomeTarget, setOutcomeTarget] = useState<DesktopOutcomeTarget | null>(null);
+  useEffect(() => {
+    const native = window.outcomego?.outcomes;
+    if (!native) return;
+    let active = true;
+    const drain = () => void native.takePendingTarget().then(target => { if (active && target) setOutcomeTarget(target); }, () => undefined);
+    const unsubscribe = native.onTargetAvailable(drain);
+    drain();
+    return () => { active = false; unsubscribe(); };
+  }, []);
+  useEffect(() => {
+    if (!appReady || !window.outcomego?.outcomes) return;
+    return startOutcomeNotificationSync(api.outcomeNotificationState, items => window.outcomego?.outcomes?.syncNotifications(items));
+  }, [appReady]);
 
   const markChannelRead = useCallback(
     (channelId: string) => {
@@ -440,6 +457,7 @@ export default function App() {
       const url = (event as CustomEvent<{ url?: string }>).detail?.url;
       if (!url) return;
       const target = parseOutcomeGoDeepLink(url);
+      if (target?.kind === "outcome") setOutcomeTarget(target.target);
       if (target?.kind === "settings") {
         setSettingsTarget({ anchor: target.anchor, nonce: Date.now() });
         setSettingsOpen(true);
@@ -1324,6 +1342,8 @@ export default function App() {
     >
       <TooltipProvider>
         <main className="relative flex h-screen overflow-hidden bg-background text-foreground">
+          <button className="absolute bottom-4 right-4 z-30 rounded-lg border bg-background px-4 py-2 text-sm shadow-sm" onClick={() => setOutcomeTarget({})}>{t("Outcome Inbox")}</button>
+          {outcomeTarget && <Suspense fallback={<p className="absolute right-4 top-4 z-50" role="status">{t("Loading Inbox…")}</p>}><OutcomeWorkspace target={outcomeTarget} onClose={() => setOutcomeTarget(null)} /></Suspense>}
           {notificationOpening && (
             <div role={notificationOpening.error ? "alert" : "status"} data-notification-opening
               className="absolute bottom-28 left-1/2 z-50 flex max-w-md -translate-x-1/2 items-center gap-3 rounded-xl border bg-background px-4 py-3 shadow-lg">

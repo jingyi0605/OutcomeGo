@@ -62,7 +62,10 @@ import {
   type DesktopNotificationSnapshot,
   parseNotificationChannels,
   parseNotificationTarget,
+  DesktopOutcomeNotificationManager,
+  parseOutcomeNotifications,
 } from "./notifications";
+import { parseDesktopOutcomeLink, type DesktopOutcomeTarget } from "../renderer/lib/outcome-target";
 import {
   createComputerSettingsStore,
   type ComputerSettings,
@@ -97,6 +100,21 @@ ipcMain.handle("outcomego:window-activity", (event) => {
 let authTokenStore: DesktopAuthTokenStore | null = null;
 let computerSettings: ComputerSettingsStore | null = null;
 let desktopNotifications: DesktopNotificationManager | null = null;
+let outcomeNotifications: DesktopOutcomeNotificationManager | null = null;
+let pendingOutcomeTarget: DesktopOutcomeTarget | null = null;
+const queueOutcomeTarget = (target: DesktopOutcomeTarget) => {
+  pendingOutcomeTarget = target;
+  mainWindow?.webContents.send("outcomego:outcomes:target-available");
+};
+ipcMain.handle("outcomego:outcomes:take-pending", event => {
+  if (!mainWindow || event.sender !== mainWindow.webContents) return null;
+  const target = pendingOutcomeTarget; pendingOutcomeTarget = null; return target;
+});
+ipcMain.on("outcomego:outcomes:notifications", (event, value: unknown) => {
+  if (!mainWindow || event.sender !== mainWindow.webContents) return;
+  const parsed = parseOutcomeNotifications(value);
+  if (parsed) outcomeNotifications?.sync(parsed);
+});
 let durableSendJournals: DurableSendJournalStore | null = null;
 const activeNotifications = new Set<Notification>();
 const activityNotifications = new Map<string, Notification>();
@@ -907,7 +925,7 @@ ipcMain.on("outcomego:notifications:sync", (event, request: unknown) => {
 });
 
 ipcMain.on("outcomego:notifications:clear", (event) => {
-  if (mainWindow && event.sender === mainWindow.webContents) desktopNotifications?.clear();
+  if (mainWindow && event.sender === mainWindow.webContents) { desktopNotifications?.clear(); outcomeNotifications?.clear(); }
 });
 
 ipcMain.on("outcomego:notifications:visible-channel", (event, channelId: unknown) => {
@@ -1453,7 +1471,23 @@ ipcMain.handle("outcomego:application-menu-locale", (event, locale: unknown) => 
 // reuse the existing desktop instance instead of competing for its host bridge port.
 const hasSingleInstanceLock = !app.isPackaged || app.requestSingleInstanceLock();
 
-app.on("second-instance", focusMainWindow);
+app.on("second-instance", (_event, argv) => {
+  for (const argument of argv) {
+    const target = parseDesktopOutcomeLink(argument);
+    if (target) queueOutcomeTarget(target);
+  }
+  focusMainWindow();
+});
+app.on("open-url", (event, url) => {
+  const target = parseDesktopOutcomeLink(url);
+  if (!target) return;
+  event.preventDefault(); queueOutcomeTarget(target);
+  if (app.isReady()) focusMainWindow();
+});
+for (const argument of process.argv) {
+  const target = parseDesktopOutcomeLink(argument);
+  if (target) pendingOutcomeTarget = target;
+}
 app.on("child-process-gone", (_event, details) =>
   console.error("OutcomeGo child process exited", details)
 );
@@ -1464,6 +1498,7 @@ if (!hasSingleInstanceLock) {
   void app
     .whenReady()
     .then(async () => {
+      if (app.isPackaged) app.setAsDefaultProtocolClient("outcomego");
       rebuildApplicationMenu();
       localMachine.machineId = await loadMachineIdentity(
         join(app.getPath("userData"), "machine-id")
@@ -1570,6 +1605,26 @@ if (!hasSingleInstanceLock) {
               parseNotificationTarget(notificationEvent)
             );
           });
+          notification.show();
+        },
+      });
+      outcomeNotifications = new DesktopOutcomeNotificationManager({
+        isFocused: () => mainWindow?.isFocused() ?? false,
+        isSupported: () => Notification.isSupported(),
+        dismiss: id => { activityNotifications.get(`outcome:${id}`)?.close(); activityNotifications.delete(`outcome:${id}`); },
+        deliver: (id, target) => {
+          const notificationId = `outcome:${id}`;
+          const notification = new Notification({
+            id: notificationId, groupId: `outcome:${target.outcomeId}`,
+            title: target.category === "completed" ? "Outcome completed" : "An Outcome needs your attention",
+            body: target.category === "decision_pending" ? "Open OutcomeGo to decide the next step." : "Open OutcomeGo to view the outcome.",
+            silent: true,
+          });
+          activeNotifications.add(notification); activityNotifications.set(notificationId, notification);
+          const release = () => { activeNotifications.delete(notification); activityNotifications.delete(notificationId); };
+          notification.once("close", release);
+          notification.once("failed", release);
+          notification.on("click", () => { queueOutcomeTarget(target); focusMainWindow(); });
           notification.show();
         },
       });

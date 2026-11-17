@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { REVIEW_RESULTS, type OutcomeDetail, type SubmitOutcomeReviewInput, type ReviewResult } from "@outcomego/contracts/outcomes";
+import { useOutcomeAttention } from "../../../../hooks/use-outcome-attention";
 
 type ReviewEntry = SubmitOutcomeReviewInput["results"][number];
 export function initialReviewEntries(outcome: OutcomeDetail): Record<string, ReviewEntry> {
@@ -14,12 +15,13 @@ export function ReviewPanel({ outcome, busy, onSubmit, onRework }: {
   onRework: (ids: string[], comment: string) => void;
 }) {
   const [entries, setEntries] = useState(() => initialReviewEntries(outcome));
+  const attention = useOutcomeAttention({ surface: "review", outcomeId: outcome.id });
   const [references, setReferences] = useState<Record<string, string>>({});
   const [reworkIds, setReworkIds] = useState<string[]>([]); const [feedback, setFeedback] = useState("");
   const criteria = outcome.currentRevisionView?.criteria ?? [];
   const editable = outcome.currentRevisionView?.status === "approved" && !["accepted", "cancelled"].includes(outcome.status);
   const update = (id: string, changes: Partial<ReviewEntry>) => setEntries(current => ({ ...current, [id]: { ...current[id]!, ...changes } }));
-  return <section aria-label="Review and rework" className="space-y-4">
+  return <section ref={attention.ref} aria-label="Review and rework" className="space-y-4">
     <h3 className="font-medium">Acceptance review</h3>
     <p className="text-sm text-muted-foreground">Agent reports and AI prereviews are advisory. Required PASS needs independent evidence or your explicit confirmation.</p>
     <fieldset disabled={busy || !editable} className="space-y-4">
