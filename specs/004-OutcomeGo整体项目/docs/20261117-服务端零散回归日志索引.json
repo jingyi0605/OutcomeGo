@@ -1,0 +1,97 @@
+[
+  {
+    "log": "approval-red.log",
+    "sha256": "eac0c022ef0bd51145f2578969ab32df52d281d28796b4603601af251bb904cb",
+    "summary": "0 pass; 2 fail; 2 expect() calls"
+  },
+  {
+    "log": "badge-red.log",
+    "sha256": "f45ca42c6950258f13aced30b1c0a59d42259c6552aa8d0115ca03878a1bcd38",
+    "summary": "1 pass; 0 fail; 13 expect() calls"
+  },
+  {
+    "log": "bitwarden-green.log",
+    "sha256": "7f3ad4f3c6bf8c79386798fc24d0bd8108e7728d6f532b65ac0f1693ec9c87b9",
+    "summary": "1 pass; 0 fail; 22 expect() calls"
+  },
+  {
+    "log": "bitwarden-red.log",
+    "sha256": "0aaae245cbd508a657a26289f57843035cf05ac0821f40493463cc5f4cd3ba00",
+    "summary": "0 pass; 1 fail; 13 expect() calls"
+  },
+  {
+    "log": "delivery-final-green.log",
+    "sha256": "a312beacc0f9bd3d3a11c87ef3a965dd9a29bc0f14704935023fce05615939eb",
+    "summary": "33 pass; 0 fail; 116 expect() calls"
+  },
+  {
+    "log": "delivery-red.log",
+    "sha256": "2ad005b4350eb7c2930579da3efbe913399888688fcb69e93bc45e7e0db9aa6d",
+    "summary": "33 pass; 0 fail; 116 expect() calls"
+  },
+  {
+    "log": "publication-green.log",
+    "sha256": "0e810c9c49dd4c16a6b45ef0cf612eeba083c660b51ab8a24ee1f8ed4e6aa753",
+    "summary": "7 pass; 0 fail; 23 expect() calls"
+  },
+  {
+    "log": "publication-red.log",
+    "sha256": "6be5bf71b63ec0b93ba0138393bc57156556c9f0624db9d0d9e623b59119ae25",
+    "summary": "2 pass; 2 fail; 10 expect() calls"
+  },
+  {
+    "log": "question-all-final-green.log",
+    "sha256": "4f05a9ce7794b5c4271c2a6b34500fa1c4d7792a84663eb05d63d2a04d4bd76e",
+    "summary": "13 pass; 0 fail; 199 expect() calls"
+  },
+  {
+    "log": "question-final-green.log",
+    "sha256": "7618abf4d431c3248b7e51c574f7ebac56274e1cdb7b58ccb347870b328bcdb5",
+    "summary": "3 pass; 0 fail; 159 expect() calls"
+  },
+  {
+    "log": "question-green.log",
+    "sha256": "622494a700b9765e00cd0c8bb111f4374a52d31f403f0ec1a6a561a4a8fbc23c",
+    "summary": "1 pass; 0 fail; 143 expect() calls"
+  },
+  {
+    "log": "question-red.log",
+    "sha256": "94492c359b5deb3ae56ab25b38f42bd41d93512bdab4c20b5461cd6f75bef57a",
+    "summary": "0 pass; 1 fail; 1 expect() calls"
+  },
+  {
+    "log": "question-related-green.log",
+    "sha256": "b789f63898a09bed1c2ea7e4ea6c8c4e7c7c596343892da180eff8251eaa5a14",
+    "summary": "6 pass; 0 fail; 176 expect() calls"
+  },
+  {
+    "log": "ramp-green.log",
+    "sha256": "21b00f85878bb4d0388f0d76d1e8cb70acdc600d106db3f273aa1a4f8d091b91",
+    "summary": "1 pass; 0 fail; 6 expect() calls"
+  },
+  {
+    "log": "ramp-red.log",
+    "sha256": "f7bc26a8d999fd1544aad8731cb92d13db904e970963283ac2da00f15982964b",
+    "summary": "0 pass; 1 fail; 4 expect() calls"
+  },
+  {
+    "log": "release-green.log",
+    "sha256": "43d6eea06d3eb8df65b0f2a5423e574c5c588d7ef35f6203719d37449299a0d7",
+    "summary": "1 pass; 0 fail; 12 expect() calls"
+  },
+  {
+    "log": "release-red.log",
+    "sha256": "fbde0c380ff6a90d59d975d29a7a282f597bb292c6861053a3c1f3184f85fae4",
+    "summary": "0 pass; 1 fail; 9 expect() calls"
+  },
+  {
+    "log": "web-green.log",
+    "sha256": "b0f4f445e45d1d3058e8154d3f2b283f5878048cb92be0d92263781459f6fb94",
+    "summary": "5 pass; 0 fail; 118 expect() calls"
+  },
+  {
+    "log": "web-red.log",
+    "sha256": "585af2e45c98fa9dcf9dff38922b7a8dbdc31eaa09789f3f264e092427184d05",
+    "summary": "4 pass; 1 fail; 94 expect() calls"
+  }
+]
