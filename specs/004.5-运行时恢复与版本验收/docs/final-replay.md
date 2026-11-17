@@ -9,7 +9,7 @@
 | 固定输入/合同 | 父六 fixtures、check-outcome-contracts.ts | 合同检查 PASS，纯检查 13 PASS / 62 assertions |
 | 普通 Run 隔离 | outcome-cross-phase-regression.integration.test.ts | 真实 11 PASS / 61 assertions；普通全量仍有失败，隔离任务不整体放行 |
 | 六类故障 | test-outcome-recovery.ts 与 server test fixture | 六场景实际 JSON PASS，详见下表 |
-| 备份/回退 | 组合验证手册的 pg_dump/restore/两级回退步骤 | 未执行 |
+| 备份/回退 | 真实故障 fixture 保留期间执行 custom pg_dump / 空库 restore | 同版本 PostgreSQL 86 表 / 123 FK 对账 PASS；Planning/Explore 有数据回退、旧镜像回退仍 PENDING，见[第二检查点](../../004-OutcomeGo整体项目/docs/20261117-第3波后端组合验收第二检查点.md) |
 | metrics/脱敏 | 新跨阶段 canary、attention 幂等断言 | 真实 DB 的四个 recovery/metrics 用例及跨阶段诊断 canary PASS；远端日志复核 PENDING |
 | canonical 测试入口 | 543eef450 的 51 个 legacy test/fixture 文件的 57 处 URL 读取 | 完整 canonical 根命令已执行，351 项失败逐一保留并分派 |
 
