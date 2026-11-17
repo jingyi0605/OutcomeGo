@@ -32,7 +32,7 @@
 ## 阶段 1：共享合同、模型和 schema
 
 - [x] 1.1 实现 Outcome 共享 DTO 和解析函数
-  - 状态：DONE（2026-11-17，未提交）
+  - 状态：DONE（2026-11-17，实现提交 `69e5edd7c`）
   - 证据：`packages/contracts/src/outcomes.ts`（状态枚举、事件目录、错误码、DTO、请求 Schema、`resolvePlanningSelections`、`detectPlanningConflicts`、`requiredCriteriaSatisfied`、列表游标）；`packages/contracts/test/outcomes.test.ts` 18 项通过；contracts 全量 180 项通过；`bun --filter @outcomego/contracts typecheck` 通过；`scripts/check/contract-enum-parity.ts` 通过。
   - 这一步到底做什么：在 contracts 中定义 Outcome、ContractRevision、AcceptanceCriterion、WorkItem、Output、Evidence、Review、PlanningDraft 的类型、状态枚举、错误码和请求解析函数。
   - 先依赖什么：0.3
@@ -45,7 +45,7 @@
   - 对应设计：§9、§10、§16.2、§19、§20
 
 - [x] 1.2 增加数据库模型
-  - 状态：DONE（2026-11-17，未提交）
+  - 状态：DONE（2026-11-17，实现提交 `69e5edd7c`）
   - 证据：`packages/db/prisma/schema.prisma` 新增 9 个枚举和 8 个模型（`OutcomePlanningDraft`、`Outcome`、`OutcomeContractRevision`、`OutcomeAcceptanceCriterion`、`OutcomeWorkItem`、`OutcomeOutput`、`OutcomeEvidence`、`OutcomeReview`），`RunOrigin` 增加 `outcome`，`Run` 增加可选 `outcomeWorkItemId` 及索引；同步 `packages/contracts/src/index.ts` 的 `RunOrigin`、`packages/messaging/src/index.ts` 的 `WakeInput.origin`、`apps/worker/src/worker.ts` 的请求来源映射（`outcome` → `automation`）。本地一次性 PostgreSQL 17 容器上 `deploy-schema.ts` 成功；`packages/db/test/outcomes.integration.test.ts` 4 项、`fresh-schema.integration.test.ts` 3 项通过，db 全量 41 项通过；messaging、worker、server、computer、desktop typecheck 通过。
   - 与设计的差异：验收条款只存 `OutcomeAcceptanceCriterion`，revision 不另存 `acceptance` JSON（design §9.2 已同步）；`retryCount`、`recoveryCount` 留给 `004.5` 任务 1.1。
   - 这一步到底做什么：新增 Outcome、OutcomePlanningDraft、OutcomeContractRevision、OutcomeAcceptanceCriterion、OutcomeWorkItem、OutcomeOutput、OutcomeEvidence、OutcomeReview；`RunOrigin` 增加 `outcome`；`Run` 增加可选 `outcomeWorkItemId` 和索引。
@@ -59,7 +59,7 @@
   - 对应设计：§6、§9、§21
 
 - [x] 1.3 实现 Outcome/Contract 服务
-  - 状态：DONE（2026-11-17，未提交）
+  - 状态：DONE（2026-11-17，实现提交 `69e5edd7c`）
   - 证据：`apps/server/src/services/outcome-service.ts`（`createFromDraft`、`createRevision`、`approve`、`cancel`、`get`、`list`、`recomputeStatus`；业务写入、`outcome.*` 事件和 `IdempotencyRecord` 同一事务）；`apps/server/test/outcome-service.test.ts` 11 项通过（含重复请求回放、同 key 不同内容、过期草案、阻断冲突、并发批准只成功一次、revision 基线冲突、N+1 批准后 N 被替代、状态派生和 resumeStatus、取消、分页）；server typecheck 通过。
   - 已知限制：取消只改 WorkItem 状态，停止子线程 Run 在任务 3.2 实现；服务尚未注册到 `app-service` 和路由（任务 2.2）。
   - 这一步到底做什么：从 PlanningDraft 创建 Outcome 和 revision 1、创建新 revision、批准 revision、取消 Outcome，以及 Outcome 状态重新计算；全部在事务内写事件和 `IdempotencyRecord`。

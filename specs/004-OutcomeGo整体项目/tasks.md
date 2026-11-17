@@ -33,7 +33,8 @@
   - 对应设计：`design.md` §6
 
 - [ ] 1.3 修复 `OutcomeGo` 分支 CI 的 `checks` job
-  - 状态：IN_PROGRESS
+  - 状态：PENDING（本地准备完成，待授权推送及 GitHub CI 观测；负责人接受数据库基线暂红）
+  - 第 0 波 A 证据：规格 `2b9211c16`；偶发测试 `c686edae0`；SQL 表名 `5b9d4dc99`；004.2 阶段 1 `69e5edd7c`；[失败基线](docs/test-failure-baseline.md)。`checks` 增加 PostgreSQL 17、schema 部署和完整数据库测试；`turbo.json` 放行测试库环境。负责人选择全部数据库测试阻塞，未删除或跳过测试。
   - 这一步到底做什么：2026-11-17 起 `CI` workflow 的 `checks` job 在 `209c770e6`、`3b02ebfe6` 上失败。恢复绿色基线，否则无法判断 Outcome 改动是否引入回归。
   - 进展（2026-11-17，本地，未推送）：最近 4 次失败各不相同，属于 CI runner 上的偶发失败。已修复两项：`packages/plugins/wechat/connector/test/secrets.test.ts`（列目录时原子写临时文件已被重命名导致 ENOENT）、`packages/plugin-sdk/src/runtime-assets.test.ts`（20,001 条 tar 头的测试在 runner 上超过 5 秒默认超时）。仍待观察：Desktop code highlighter 测试、transport/acknowledgement 测试（run `43983034791`、`43980957724`）。
   - 本地带数据库运行时发现的既有问题（基线提交 `3b02ebfe6` 上同样失败，与 Outcome 改动无关；CI 未设置 `OUTCOMEGO_TEST_DATABASE_URL`，所以没有暴露）：
