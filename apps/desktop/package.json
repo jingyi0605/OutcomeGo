@@ -173,6 +173,7 @@
     "test:reaction-order": "bun scripts/test-reaction-order.ts",
     "test:asset-resource-sharing": "bun scripts/test-asset-resource-sharing.ts",
     "test:button-motion": "bun scripts/test-button-motion.ts",
+    "test:desktop-delivery": "bun scripts/test-desktop-delivery.ts",
     "test:draft-send-off": "bun scripts/test-draft-send-off.ts",
     "test:panel-parity": "bun scripts/test-panel-parity.ts",
     "test:search-parity": "bun scripts/test-search-parity.ts",
