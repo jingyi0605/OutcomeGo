@@ -1,6 +1,6 @@
 # 任务清单 - 现实任务与知识资料闭环（人话版）
 
-状态：TODO（第 1 波资料和人工表/API 骨架；第 2 波工具/回执；第 3 波客户端，不等待 `004.3` 最终检查点）
+状态：IN_PROGRESS（第 1 波资料和人工表/API 骨架完成；2.1 工具/来源与回执待第 2 波；第 3 波客户端）
 
 关联文档：[README.md](README.md) · [requirements.md](requirements.md) · [design.md](design.md)
 
@@ -12,8 +12,16 @@
 
 ## 阶段 0：资料、文件和项目范围基线
 
-- [ ] 0.1 盘点资料、文件和 asset 入口
-  - 状态：TODO
+- [x] 0.1 盘点资料、文件和 asset 入口
+  - 状态：DONE（2026-11-17，第一波）
+  - 实现提交：`fea60e9d9`；合同另见 `9790c2fd7`。
+  - 修改文件：`docs/knowledge-capability-matrix.md`；父 design §39 D19。
+  - 数据库变化：无。
+  - 验证命令：源码核对；`bun test apps/server/test/knowledge-provider.test.ts`。
+  - 验证结果：PASS；共享挂载读取路径经负责人确认，真实临时 Bot 文本、消息与附件读取验证通过。
+  - 证据文件：[第一波实现与验证](docs/20261117-第一波实现与验证.md)。
+  - 已知限制：真实环境共享挂载未观察（PENDING）；后续工具/回执/验收不在第一波完成范围；第 0 波全量数据库失败门槛继续保留。
+  - 回滚方式：撤销本线实现/合同，保留有数据的新表，按父设计关闭入口。
   - 这一步到底做什么：确认 `AgentFileState`、computer 文件读取（`/v1/read` 常量的处理端）、`SearchDocument`、`asset-service`、`asset-store` 和消息附件的真实调用路径，确定 ProjectFile provider 的检索和读取方式（D19）。
   - 做完你能看到什么：`docs/knowledge-capability-matrix.md`。
   - 先依赖什么：第 0 波 B、`004.2` 任务 1.2（第 1 波线 4）。
@@ -25,8 +33,16 @@
   - 对应需求：需求 5、需求 9、需求 10
   - 对应设计：§6、§15、§28、§29
 
-- [ ] 0.2 固定现实任务 fixture
-  - 状态：TODO
+- [x] 0.2 固定现实任务 fixture
+  - 状态：DONE（2026-11-17，第一波）
+  - 实现提交：`fea60e9d9`；合同另见 `9790c2fd7`。
+  - 修改文件：`docs/human-task-fixture.json`；`apps/server/test/knowledge-provider.test.ts`。
+  - 数据库变化：无。
+  - 验证命令：`bun test apps/server/test/knowledge-provider.test.ts`。
+  - 验证结果：PASS；虚构 fixture 的工具参数/start/pause 合同与后续回执/驳回/补交/通过/同子线程输入均已检查。
+  - 证据文件：[第一波实现与验证](docs/20261117-第一波实现与验证.md)。
+  - 已知限制：第二波阶段只提供 fixture 输入，未宣称已执行工具、回执和续跑；第 0 波全量数据库失败门槛继续保留。
+  - 回滚方式：撤销本线实现/合同，保留有数据的新表，按父设计关闭入口。
   - 先依赖什么：0.1
   - 主要改哪里：`docs/human-task-fixture.json`
   - 这一步先不做什么：不使用真实客户资料、真实照片或生产设备。
@@ -37,8 +53,16 @@
 
 ## 阶段 1：KnowledgeProvider
 
-- [ ] 1.1 定义 provider 合同并实现 FixtureKnowledgeProvider
-  - 状态：TODO
+- [x] 1.1 定义 provider 合同并实现 FixtureKnowledgeProvider
+  - 状态：DONE（2026-11-17，第一波）
+  - 实现提交：`fea60e9d9`；合同另见 `9790c2fd7`。
+  - 修改文件：`packages/contracts/src/knowledge.ts`；`knowledge-provider.ts`、`knowledge-scope-service.ts`、`fixture-knowledge-provider.ts`；合同测试。
+  - 数据库变化：无。
+  - 验证命令：contracts/server typecheck；`bun test apps/server/test/knowledge-provider.test.ts`。
+  - 验证结果：PASS；两个 provider 共用 search/read/去重/stale/跨范围/timeout/unreadable 合同，fixture 无生产默认注册。
+  - 证据文件：[第一波实现与验证](docs/20261117-第一波实现与验证.md)。
+  - 已知限制：真实环境共享挂载未观察（PENDING）；后续工具/回执/验收不在第一波完成范围；第 0 波全量数据库失败门槛继续保留。
+  - 回滚方式：撤销本线实现/合同，保留有数据的新表，按父设计关闭入口。
   - 先依赖什么：0.1
   - 主要改哪里：`packages/contracts/src/knowledge.ts`（新增）、`apps/server/src/services/knowledge-provider.ts`、`knowledge-scope-service.ts`、`fixture-knowledge-provider.ts`（新增）
   - 这一步先不做什么：不把全文缓存和 provider token 暴露给客户端；生产环境不默认启用 fixture provider。
@@ -47,8 +71,16 @@
   - 对应需求：需求 1、需求 5、需求 9、需求 10、需求 16
   - 对应设计：§7、§13、§14、§15、§28、§44
 
-- [ ] 1.2 实现 ProjectFileKnowledgeProvider
-  - 状态：TODO
+- [x] 1.2 实现 ProjectFileKnowledgeProvider
+  - 状态：DONE（2026-11-17，第一波）
+  - 实现提交：`fea60e9d9`；合同另见 `9790c2fd7`。
+  - 修改文件：`apps/server/src/services/knowledge-file-provider.ts`；`apps/server/test/knowledge-provider.test.ts`。
+  - 数据库变化：无。
+  - 验证命令：server typecheck；`bun test apps/server/test/knowledge-provider.test.ts`。
+  - 验证结果：PASS；实际临时共享目录文本 SHA-256、消息/附件、空向量兼容、scope-before-limit、失效和不可读行为均验证。
+  - 证据文件：[第一波实现与验证](docs/20261117-第一波实现与验证.md)。
+  - 已知限制：真实环境共享挂载未观察（PENDING）；后续工具/回执/验收不在第一波完成范围；第 0 波全量数据库失败门槛继续保留。
+  - 回滚方式：撤销本线实现/合同，保留有数据的新表，按父设计关闭入口。
   - 先依赖什么：1.1
   - 主要改哪里：`knowledge-file-provider.ts`（新增），按 0.1 结论接入 computer 读取和站内检索
   - 这一步先不做什么：不跨 Bot 检索。
@@ -60,7 +92,15 @@
 ## 阶段 2：人工 WorkItem 和动作卡
 
 - [ ] 2.1 实现人工 WorkItem 模型、状态和创建来源
-  - 状态：TODO
+  - 状态：IN_PROGRESS（表结构完成，工具和来源待第 2 波）
+  - 实现提交：`d67c1122b`（schema）；`9790c2fd7`（contracts）；`fea60e9d9`（内部构造与骨架）。
+  - 修改文件：`schema.prisma` 的 004.4 区段及必要逆向关系；`human-work.ts`；`human-work-service.ts`；本线测试。
+  - 数据库变化：新增 `OutcomeHumanActionCard`、`OutcomeHumanReceipt`/status enum、sequence 唯一约束与 FK；人工 WorkItem 复用已有表。
+  - 验证命令：Prisma generate/db typecheck；一次性库 deploy-schema；`bun test packages/db/test/human-work.integration.test.ts apps/server/test/human-work-service.test.ts`；共享状态转换穷举回归。
+  - 验证结果：第一波表结构、内部 `createCard`、状态/并发/事务验证 PASS；来源包装/工具注册/回执/验收/续跑尚未实现，不能把整个任务记为 DONE。
+  - 证据文件：[第一波实现与第二波交接](docs/20261117-第一波实现与验证.md)。
+  - 已知限制：`HumanActionPort` 两个来源包装仍使用明确失败替身；内部 builder 可在第二波来源验证/幂等事务内复用。没有改动工具列表或把 Agent 置为 waiting_human。
+  - 回滚方式：撤销入口与实现；保留有数据的新表，不执行破坏性 schema 回退。
   - 这一步到底做什么：`OutcomeHumanActionCard`、`OutcomeHumanReceipt` 表；§16 状态机；`RequestHumanAction` 工具（只在 Outcome 子线程）；Decision `manual_action` 创建入口；调用方 Agent WorkItem → `waiting_human`。
   - 先依赖什么：表结构/状态骨架：0.2、1.1、第 0 波 B；工具来源：`004.2` 3.2、3.4；Decision 来源：`004.3` 1.3（后两部分在第 2 波实现）。
   - 开始前先看：design §8、§16、§32；父 design §42.2、§45.3
@@ -71,8 +111,16 @@
   - 对应需求：需求 2、需求 6、需求 11、需求 15、需求 17
   - 对应设计：§8、§16、§32
 
-- [ ] 2.2 实现动作卡 API
-  - 状态：TODO
+- [x] 2.2 实现动作卡 API
+  - 状态：DONE（2026-11-17，第一波）
+  - 实现提交：`fea60e9d9`；合同另见 `9790c2fd7`。
+  - 修改文件：`apps/server/src/routes/human-work.ts`；`human-work-service.ts`；`main.ts` 路由注册；service/route 测试。
+  - 数据库变化：复用 2.1 新表，不另增表。
+  - 验证命令：`bun test apps/server/test/human-work-service.test.ts apps/server/test/human-work-routes.test.ts`；共享状态机回归。
+  - 验证结果：PASS；list/detail/start/pause、旧 revision、幂等/并发、非法状态、草稿恢复、服务端 actor；无独立验收接口。
+  - 证据文件：[第一波实现与验证](docs/20261117-第一波实现与验证.md)。
+  - 已知限制：真实环境共享挂载未观察（PENDING）；后续工具/回执/验收不在第一波完成范围；第 0 波全量数据库失败门槛继续保留。
+  - 回滚方式：撤销本线实现/合同，保留有数据的新表，按父设计关闭入口。
   - 先依赖什么：2.1 的表结构/状态骨架、1.2；第 1 波用 fixture 创建动作卡，不等待工具和 Decision 来源完成。
   - 主要改哪里：`apps/server/src/routes/human-work.ts`（新增）
   - 这一步先不做什么：不把客户端提交的 status 当作可信状态；不另设验收接口。
