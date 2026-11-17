@@ -155,6 +155,22 @@ describe.skipIf(!url)("account-owned location on disposable PostgreSQL", () => {
     expect(Date.parse(result.capturedAt)).toBeLessThanOrEqual(Date.now());
   });
 
+  test("session expiry is stable across database session time zones", async () => {
+    const a = await account();
+    const zoneFix = { ...fix, capturedAt: new Date(Date.now() - 60_000).toISOString() };
+    for (const zone of ["UTC", "Pacific/Kiritimati", "America/Los_Angeles"]) {
+      await expect(
+        prisma.$transaction(async (tx) => {
+          await tx.$executeRaw`SELECT set_config('TimeZone', ${zone}, true)`;
+          return service.record(tx, a.sessionId, { fix: zoneFix, sharingRevision: a.revision });
+        })
+      ).resolves.toMatchObject({
+        latitude: 1.3,
+        capturedAt: zoneFix.capturedAt,
+      });
+    }
+  });
+
   test("auth-disabled mode uses only its local owner namespace", async () => {
     const local = new UserLocationService(prisma, "disabled", () => true);
     const initial = await local.read(null);

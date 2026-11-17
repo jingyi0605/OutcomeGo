@@ -37,10 +37,11 @@ export class UserLocationService {
 
   private async owner(tx: Prisma.TransactionClient, sessionId: string | null): Promise<string> {
     if (this.authMode === "disabled") return "local";
-    // Keep sign-out/session deletion ordered with the accepting transaction.
+    // Keep sign-out ordered with acceptance. Existing Session timestamps are stored as UTC without TZ.
     const sessions = await tx.$queryRaw<Array<{ userId: string }>>`
       SELECT "userId" FROM "outcomego_session"
-      WHERE "id" = ${sessionId} AND "expiresAt" > clock_timestamp() FOR SHARE`;
+      WHERE "id" = ${sessionId}
+        AND "expiresAt" > (clock_timestamp() AT TIME ZONE 'UTC') FOR SHARE`;
     if (!sessions[0])
       throw new ApiError(401, "unauthorized", "A current OutcomeGo session is required");
     return `user:${sessions[0].userId}`;
