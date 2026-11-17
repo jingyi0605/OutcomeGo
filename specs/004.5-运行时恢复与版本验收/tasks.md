@@ -178,8 +178,16 @@
   - 对应需求：需求 4、需求 12、需求 14
   - 对应设计：§14、§28、§44、§48
 
-- [ ] 3.3 故障注入回放
-  - 状态：BLOCKED（2026-11-17，task-26 代码交付及最小检查完成；按负责人要求集中数据库/回放待执行，未满足正式验收）
+- [x] 3.3 故障注入回放
+  - 状态：DONE（2026-11-17，task-30 已实际执行六类本地故障，生成 §42 JSON 并与真实数据库对账；本地测试不替代远端 Computer/provider 或完整回归门槛）。
+  - 集中验证实现提交：`af6e9bf6a`（真实 PrismaPromise 外键断言、已等待的 executor 退出证明）；首轮证据提交 `60f6fab3e`；脚手架原始实现见以下 task-26 历史字段。
+  - 集中验证修改文件：`scripts/test-outcome-recovery.ts`、实际 fixture/scenarios、`004.5/docs/final-replay.md`、本任务块及父文档 `20261117-第3波后端组合验收首轮结果.md`/同名证据目录。
+  - 集中验证数据库变化：none；本线独立 PostgreSQL 17.12、`127.0.0.1:55439`；首次 schema deploy 与重复 deploy 均 PASS，未连接生产或远端库。
+  - 集中验证命令：显式本线 `OUTCOMEGO_TEST_DATABASE_URL`，依次运行 `bun scripts/test-outcome-recovery.ts --scenario <scenario> --output <独立JSON路径>`；restart 正式证据另运行 `restart-running-run-exit-proof.json`，保留最初元数据问题报告。
+  - 集中验证结果：restart 6、duplicate finish 8、interrupted 8、concurrent Decision 5、receipt retry 9、unknown receipt 4 项实际检查均 PASS；receipt 必须统一 Review 后续跑，unknown 外部动作没有自动重试。六个 JSON 在 fixture 清理前保存并归档实际 ID/状态/计数。
+  - 集中验证证据：[final-replay.md](docs/final-replay.md)、[首轮结果](../004-OutcomeGo整体项目/docs/20261117-第3波后端组合验收首轮结果.md)、[六场景 JSON](../004-OutcomeGo整体项目/docs/20261117-第3波组合验收证据/faults/receipt-retry.json)。
+  - 集中验证限制：executor 为本地脚本拥有的真实子进程；unknown 使用虚构持久测试适配器。真实 provider、远端 Computer、CI、设备、旧镜像仍 PENDING；根回归实际 351 FAIL，发布 BLOCKED。
+  - 集中验证回滚：只撤销本线脚手架/测试/证据变更；不通过 SQL 修复失败或删除业务表。以下保留 task-26 在验证开闸前的历史记录，其“未执行”仅描述该旧检查点。
   - 第 3 波实现提交：`2d9eaeb43`、`e00496f5e`、`543eef450`、`d4de4846e`、`d330efc34`、`80ea59865`；`870ebac90` 仅为本线编译所需依赖合并，不拾取到集成线。
   - 第 3 波修改文件：父六 JSON/合同检查脚本；`scripts/test-outcome-recovery.ts`、`scripts/outcome-recovery/`、`apps/server/test/fixtures/outcome-recovery/`、新 cross-phase 测试；本任务文档。51 个既有测试文件的精确清单见交接与入口补齐记录。
   - 第 3 波数据库变化：none（本线不改 schema；恢复计数等为其他线原始提交依赖；没有启动或连接本线测试库）。

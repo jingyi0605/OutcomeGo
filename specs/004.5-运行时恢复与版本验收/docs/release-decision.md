@@ -1,20 +1,20 @@
 # 运行时恢复与版本验收发布决策
 
-2026-11-17，第 3 波 task-26。决策：**BLOCKED，不放行发布**。
+2026-11-17，第 3 波 task-26 / task-30。决策：**BLOCKED，不放行发布**。
 
-本次交付固定 fixture、合同检查、故障回放脚手架和测试入口修复，没有执行发布、push、数据库备份/恢复、旧镜像启动、远端 rebuild 或设备操作。没有 CI 全绿证据。
+本线已经执行独立一次性 PostgreSQL 上的 schema 首次部署/重复部署、完整 canonical 根命令、六类故障 CLI 和真实服务定向复验。根命令退出 1，实际 `6570 PASS / 351 FAIL / 102 SKIP`。没有执行发布、push、旧镜像启动、远端 rebuild 或设备操作，没有 CI 全绿证据。原始日志摘要与各失败身份见 [首轮结果](../../004-OutcomeGo整体项目/docs/20261117-第3波后端组合验收首轮结果.md)。
 
 | 门槛 | 当前证据 | 状态/负责人 |
 |---|---|---|
 | 第 0 波完整数据库与 CI | 历史失败基线仍在；所有数据库失败阻塞 | BLOCKED，lead/原失败负责线 |
-| canonical 全量激活 | 543eef450 已修 51 个 legacy 读取点；新的实际集合未跑 | PENDING，集中验证负责人 |
-| 六场景实际 JSON/DB 对账 | 真实服务脚手架完成，未执行 | PENDING，task-26/组合验证 |
-| 普通聊天/Group/Routine/Memory/Stop | 历史结果保留；新跨阶段用例待跑 | PENDING，组合验证与各负责线 |
+| canonical 全量激活 | 51 个文件/57 处 legacy URL 读取支持 canonical；根命令串行、25 个 Turbo 任务均实际执行 | PASS（覆盖激活）；整体 4 包失败继续 BLOCKED |
+| 六场景实际 JSON/DB 对账 | 六个实际 JSON PASS，包含实际本地进程退出、真实 receipt 回滚、统一 Review、未知外部回执不重试 | PASS（本地一次性环境）；远端/provider PENDING |
+| 普通聊天/Group/Routine/Memory/Stop | 跨阶段 11 PASS；完整 server 294 FAIL、worker 51 FAIL，负责人持续修复 | BLOCKED，组合验证与各负责线 |
 | 备份 unknown table/missing target/orphan | 集成线已有校验修复，需实际负例/restore | PENDING，备份负责人/组合验证 |
 | `pg_dump` / restore | 没有本次备份文件、摘要或实际 restore 结果 | PENDING，获准的一次性环境执行人 |
 | 关闭 Outcome 入口 | 操作与断言已写手册；实际运行待验 | PENDING，恢复/集成负责人 |
 | populated Outcome 表回退旧镜像 | 已知 schema/fingerprint 风险；没有旧镜像运行日志 | PENDING，发布负责人 |
-| metrics/日志不含敏感正文 | 新 canary/attention 测试已编写；实际结果待验 | PENDING，恢复/组合验证 |
+| metrics/日志不含敏感正文 | 真实 metrics/attention 幂等与 provider error canary 检查 PASS，日志只使用虚构 fixture | PASS（本地查询与诊断）；远端复核 PENDING |
 | 远端 Computer、live API/真实模型 | 没有部署授权与本次回放 | PENDING，lead |
 | Desktop/Android/iOS 安装/签名/更新 | 其他 lane 提供各自证据；本线未执行 | PENDING，客户端/发布负责人 |
 
