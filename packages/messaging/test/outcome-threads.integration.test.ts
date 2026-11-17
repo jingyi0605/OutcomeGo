@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { AgentMessaging, enqueueOutcomeTurn, settleOutcomeWorkItem, dispatchQueuedOutcomeWorkItems, transitionWorkItem } from "../src";
+import { AgentMessaging, wakeAutomationParent, automationContinuationRoute, outcomeRunContext, enqueueOutcomeTurn, settleOutcomeWorkItem, dispatchQueuedOutcomeWorkItems, transitionWorkItem } from "../src";
 import { outcomeThreadFixture } from "./fixtures/outcome-thread";
 import { settleAgainstCallback } from "./fixtures/outcome-race";
 
@@ -92,6 +92,48 @@ describe.skipIf(!url)("Outcome turn enqueue and group settlement", () => {
       expect(await h.db.run.count({ where: { outcomeWorkItemId: item.id, status: "queued" } })).toBe(1);
       await h.db.$transaction(tx => settleOutcomeWorkItem(tx, runId, h.runtime));
       expect((await h.db.outcomeWorkItem.findUniqueOrThrow({ where: { id: item.id } })).status).toBe("running");
+    } finally { await h.cleanup(); }
+  });
+
+  test("platform handoff parks the Outcome, waits for the main conversation and ignores late callbacks", async () => {
+    const h = await outcomeThreadFixture();
+    try {
+      const item = await h.item();
+      const first = await h.db.$transaction(tx => enqueueOutcomeTurn(tx, h.messaging, { workItemId: item.id, content: "Execute", reason: "start", clientId: `start:${item.id}` }));
+      const runId = (first as { runId: string }).runId;
+      await h.db.$transaction(tx => transitionWorkItem(tx, { workItemId: item.id, to: "running", reason: "claimed", actor }));
+      await h.db.run.update({ where: { id: runId }, data: { status: "running" } });
+      const main = await h.db.$transaction(tx => h.messaging.enqueueWake(tx, { botId: h.bot.id, channelId: h.channel.id, origin: "user", type: "user.message", content: "Chat", clientId: `main:${item.id}`, priority: 300 }));
+      await h.db.run.update({ where: { id: main.run.id }, data: { status: "running" } });
+      const context = { botId: h.bot.id, runId, conversationId: h.bot.conversation!.id, channelId: h.channel.id,
+        origin: "outcome" as const, deliveryId: null, callId: "handoff", replyToMessageId: null, isFork: false };
+      const result = await wakeAutomationParent(h.messaging, context, { message: "Platform reconnection is required" });
+      expect(await wakeAutomationParent(h.messaging, context, { message: "Platform reconnection is required" })).toEqual(result);
+      expect(result.automation_run_ids).toEqual([runId]);
+      expect((await h.db.run.findUniqueOrThrow({ where: { id: main.run.id } })).status).toBe("running");
+      expect((await h.db.outcomeWorkItem.findUniqueOrThrow({ where: { id: item.id } })).status).toBe("needs_review");
+      expect(await h.db.$transaction(tx => automationContinuationRoute(tx, h.bot.id, runId))).toBeNull();
+      await h.db.run.update({ where: { id: runId }, data: { status: "completed" } });
+      await h.db.$transaction(tx => settleOutcomeWorkItem(tx, runId, h.runtime));
+      expect((await h.db.outcomeWorkItem.findUniqueOrThrow({ where: { id: item.id } })).status).toBe("needs_review");
+      const resumed = await h.db.$transaction(tx => enqueueOutcomeTurn(tx, h.messaging, { workItemId: item.id, content: "Reconnected; resume", reason: "recovery", clientId: `recovery:${item.id}:1` }));
+      expect(resumed.status).toBe("enqueued");
+      expect(await h.db.$transaction(tx => automationContinuationRoute(tx, h.bot.id, runId))).toBeNull();
+      expect(await h.db.channelMessage.count({ where: { channelId: h.channel.id } })).toBe(0);
+    } finally { await h.cleanup(); }
+  });
+
+  test("hidden context stays bound to the approved historical revision", async () => {
+    const h = await outcomeThreadFixture();
+    try {
+      const item = await h.item();
+      await h.db.outcomeContractRevision.update({ where: { id: h.revision.id }, data: { status: "superseded" } });
+      const next = await h.db.outcomeContractRevision.create({ data: { outcomeId: h.outcome.id, revision: 2, status: "pending_approval", goal: ["Unapproved replacement"], boundaries: {}, executionBotId: h.bot.id, contentHash: "next", createdBy: "owner:local" } });
+      await h.db.outcome.update({ where: { id: h.outcome.id }, data: { currentRevisionId: next.id } });
+      const context = await outcomeRunContext(h.db, h.bot.id, item.id);
+      expect(context).toContain("Compare two approaches");
+      expect(context).toContain("Cite sources");
+      expect(context).not.toContain("Unapproved replacement");
     } finally { await h.cleanup(); }
   });
 
