@@ -1,6 +1,6 @@
-import { expect, test } from "bun:test";
+import { expect, spyOn, test } from "bun:test";
 import { createSocket } from "node:dgram";
-import { createConnection, type AddressInfo } from "node:net";
+import { createConnection, Server, type AddressInfo } from "node:net";
 import {
   createDnsExchange,
   dnsFailure,
@@ -50,7 +50,7 @@ test("computer DNS handles UDP, split and coalesced TCP, and route failure witho
     ["127.0.0.1"]
   );
   const udp = createSocket("udp4");
-  const tcp = createConnection({ host: "127.0.0.1", port: dns.port });
+  const tcp = createConnection({ host: "127.0.0.1", port: dns.tcpPort });
   try {
     const response = new Promise<Buffer>((resolve, reject) => {
       udp.once("message", resolve);
@@ -90,6 +90,29 @@ test("computer DNS handles UDP, split and coalesced TCP, and route failure witho
     dns.close();
   }
 }, 10_000);
+
+test("ephemeral DNS allocates TCP independently when the UDP-selected port is unavailable to TCP", async () => {
+  const original = Server.prototype.listen;
+  // Model a TCP namespace where the UDP-selected number is already reserved.
+  // Port zero still delegates allocation to the kernel; no failed bind is retried.
+  const listen = spyOn(Server.prototype, "listen").mockImplementation(function (
+    this: Server, ...args: unknown[]
+  ) {
+    if ((args[0] as { port?: number }).port !== 0) {
+      throw Object.assign(new Error("Synthetic TCP port already reserved"), { code: "EADDRINUSE" });
+    }
+    return Reflect.apply(original, this, args);
+  } as typeof original);
+  let dns: Awaited<ReturnType<typeof startComputerDns>> | undefined;
+  try {
+    dns = await startComputerDns(async value => value, 0, ["127.0.0.1"]);
+    expect(dns.port).toBeGreaterThan(0);
+    expect(dns.tcpPort).toBeGreaterThan(0);
+  } finally {
+    dns?.close();
+    listen.mockRestore();
+  }
+});
 
 test("malformed DNS never opens a transport, and failed admission never falls back", async () => {
   let calls = 0;
