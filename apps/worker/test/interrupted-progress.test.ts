@@ -83,6 +83,9 @@ test("a turn the computer settled as stopped is cancelled even before the server
     new Proxy(overrides, { get: (target, key) => target[key as string] ?? (async () => null) });
   const tx = new Proxy({
     $executeRaw: async () => 0,
+    $queryRaw: async () => [{ live: true }],
+    inboxEvent: any({ findUnique: async () => ({ attempts: 1, runId: "run", botId: "bot", status: "processing" }) }),
+    botRunLease: any({ findUnique: async () => ({ ownerId: "owner" }) }),
     run: any({
       findUnique: async () => ({ id: "run", botId: "bot", status: "running", inputDeliveredAt: new Date(), error: null }),
       update: async (arg: any) => { runUpdates.push(arg.data); return {}; },
@@ -98,7 +101,7 @@ test("a turn the computer settled as stopped is cancelled even before the server
   worker.failSubagent = async (_tx: unknown, _claimed: unknown, _details: unknown, _interrupted: boolean, stopped: boolean) => { stoppedSubagent = stopped; };
   worker.syncRoutineRunFile = unused;
   const { TurnStoppedError } = await import("../src/worker");
-  await worker.fail({ botId: "bot", runId: "run", inboxId: "inbox", ownerId: "owner", origin: "user", inboxType: "message", conversationId: "c", channelId: "channel" },
+  await worker.fail({ botId: "bot", runId: "run", inboxId: "inbox", ownerId: "owner", attempt: 1, origin: "user", inboxType: "message", conversationId: "c", channelId: "channel" },
     new TurnStoppedError("Computer turn ended with status cancelled"));
   expect(runUpdates[0]?.status).toBe("cancelled");
   expect(wakes).toEqual([]);

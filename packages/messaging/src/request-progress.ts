@@ -553,14 +553,22 @@ export async function requestProgressSnapshot(
 /** Checked while holding the same claim lock as progress and cancellation. */
 export async function requestWakeAllowed(
   tx: Prisma.TransactionClient,
-  wake: { botId: string; type: string; idempotencyKey: string; payload: unknown }
+  wake: { botId: string; runId?: string; type: string; idempotencyKey: string; payload: unknown }
 ) {
-  const context = (wake.payload as { taskContextRunId?: string } | null)?.taskContextRunId;
+  let context = (wake.payload as { taskContextRunId?: string } | null)?.taskContextRunId;
+  if (!context && wake.type === "automation.wake_parent" && wake.runId) {
+    const handoff = await tx.automationResult.findUnique({
+      where: { wakeRunId: wake.runId }, select: { runId: true },
+    });
+    context = handoff?.runId;
+  }
   if (!context) return wake.type !== "request.check";
   const root = await tx.run.findUnique({ where: { id: context } });
   // A recorded stop is authoritative even if this legacy context never saved
   // progress. Otherwise a late completion can wake a model to publish its result.
   if (root?.requestStoppedAt) return false;
+  if (wake.type === "automation.wake_parent" && root &&
+      (root.botId !== wake.botId || requestIsStopped(root))) return false;
   // Preserve legacy automation/revival routing. Only request-tracked contexts
   // and the new check type use this additional revision/cancellation fence.
   if (!root?.requestProgress) return wake.type !== "request.check";

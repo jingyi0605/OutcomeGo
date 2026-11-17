@@ -1,5 +1,7 @@
 export { lockQuestions, dismissQuestions, questionScopeForReply } from "./question-lifecycle";
 export { lockAgentLifecycle, canonicalAgentId } from "./agent-lifecycle";
+export { AUTOMATION_ATTEMPT_LIMIT, AUTOMATION_RETRY_DELAYS_MS, automationRetryDelay, requeueAutomationWake } from "./automation-retry";
+export { finalizeInterruptedItems } from "./interrupted-progress";
 export { cleanupRetiredAgent, RETIRED_AGENT_CLEANUP_RETRY_MS } from "./retired-agent-cleanup";
 export {
   draftNotificationVariant,
@@ -11,6 +13,7 @@ export {
 export { ensureRequestForTask, reportRequestProgress, settleRequestProgress, recoverRequestProgress, dispatchRequestChecks, stopRequestProgress, requestProgressSnapshot, requestWakeAllowed, requestIsStopped } from "./request-progress";
 import { requestProgressSnapshot } from "./request-progress";
 export { assertBackgroundRequestDeliveryAllowed } from "./background-request-delivery";
+import { assertBackgroundRequestDeliveryAllowed } from "./background-request-delivery";
 import { renderTaskProgressContext } from "@outcomego/contracts/task-progress";
 export { initialTaskProgress, settleTaskProgress, reportTaskProgress, dispatchTaskContinuations, taskProgress, taskProgressContext, notifyTaskProgress, recoverTaskInterruption, TASK_RECOVERY_LOCK } from "./task-progress";
 import { taskProgressContext, taskScopeContext } from "./task-progress";
@@ -2409,6 +2412,7 @@ export class AgentMessaging {
     // A refused send is an answer the model reads, not a tool failure.
     const refusal = (acknowledgement: string) => ({ acknowledgement, interruptRunId: null });
     const result = await this.prisma.$transaction(async (tx) => {
+      await assertBackgroundRequestDeliveryAllowed(tx, context);
       const source = await tx.bot.findUnique({
         where: { id: context.botId },
         include: { subagentIdentity: { select: { id: true } } },
@@ -2740,6 +2744,7 @@ export class AgentMessaging {
     let content = standalone?.fileName ?? this.visibleContent(input);
     let groupRoundId: string | null = null;
     const result = await this.prisma.$transaction(async (tx) => {
+      await assertBackgroundRequestDeliveryAllowed(tx, context);
       if (target?.kind === "group") await lockGroupExecution(tx, context.channelId);
       const activeChannel = await tx.channel.findFirst({
         where: {
