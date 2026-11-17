@@ -720,7 +720,7 @@ D09–D20 涉及的共享函数和分波依赖以 [接口冻结文档](docs/para
 | D16 Inbox 存储 | 使用实时查询投影，不建 `OutcomeInboxItem` 表；通知复用 `ChannelNotification`、`OutboxDelivery`。查询性能不足时再加表（需先更新本表）。 | 默认基线 | `004.3` 任务 0.1 | `004.3` |
 | D17 恢复检查点 | 不新增 `OutcomeCheckpoint` 表。恢复依据 WorkItem 状态、子线程运行组状态和现有 Run 字段（`requestProgress` 等）。 | 默认基线 | `004.5` 任务 0.1 | `004.5` |
 | D18 事件去重 | 消费者使用 `IdempotencyRecord(scope="outcome-event:<handler>", key=eventId)`，不建专用处理记录表（§43）。 | 已确认（设计约束） | — | `004.3`、`004.5` |
-| D19 资料来源和 Explore | 第一版资料来源为 `FixtureKnowledgeProvider` 和 `ProjectFileKnowledgeProvider`。后者的范围是执行 Bot 的文件和消息附件：文件本体在远端 computer 上，`AgentFileState` 只有路径和摘要。读取路径候选为 computer `/v1/read`（常量见 `packages/contracts/src/service-protocol.ts:31`，处理端待核对），检索候选为现有 `SearchDocument`（kind 含 `file`、`message`）；由 `004.4` 任务 0.1 确认。Explore 轨道排在 `004.4` 最后阶段，可以整体延期。 | 默认基线 | `004.4` 任务 0.1 | `004.4` |
+| D19 资料来源和 Explore | 第一版资料来源为 `FixtureKnowledgeProvider` 和 `ProjectFileKnowledgeProvider`。正式 scope 为 `bot:<Outcome.botId>`：`AgentFileState` 只保存元数据，正文经 server/computer 共用的 agent-data 挂载，由注入的 `AgentDataStore.root/botDirectory` 有界读取当前 Bot 的普通文本文件，并比较实际 SHA-256；无挂载、缺失或非文本返回 `unreadable_source`。`/v1/read` 实为 Desktop `HOST_BRIDGE_PATHS.read`，不是 computer 读取端。检索复用 `SearchDocument` 的消息/附件投影（先按 Bot/channel 关系限定再限制条数），另按路径检索受管文件；消息读 `ChannelMessage`，文本附件须经该消息关联后从 `AssetStore` 读取。Explore 轨道排在 `004.4` 最后阶段，可以整体延期。 | 已确认（负责人共享挂载读取路径，2026-11-17） | `004.4` 任务 0.1 | `004.4` |
 | D20 验收入口和 Decision 过期 | 验收只有一个入口 `POST /api/v0/outcomes/:id/reviews`，人工回执的验收也走它。Decision 默认不过期（`expiresAt` 为空），由创建方显式设置。 | 默认基线 | `004.3` 任务 1.1 | `004.2`、`004.3`、`004.4` |
 
 实现层面的补充决定：
