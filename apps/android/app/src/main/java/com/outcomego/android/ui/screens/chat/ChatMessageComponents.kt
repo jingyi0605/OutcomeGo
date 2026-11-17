@@ -79,6 +79,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -543,6 +544,73 @@ internal fun VoiceConversationCard(messages: List<ChatMessage>, botName: String)
                         )
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+internal fun AgentExchangeRow(
+    count: Int,
+    incoming: Boolean,
+    peerName: String?,
+    peerBot: Conversation?,
+    accountName: String,
+    members: List<Conversation>,
+    onClick: () -> Unit,
+) {
+    val colors = SpatialTheme.colors
+    val name = peerName?.takeIf(String::isNotBlank)
+        ?: localizedText("another bot", "另一个机器人")
+    val label = when {
+        count == 1 && incoming -> localizedText("Message from $name", "来自${name}的消息")
+        count == 1 -> localizedText("Messaged $name", "已向${name}发送消息")
+        else -> localizedText("$count messages with $name", "与${name}的${count}条消息")
+    }
+    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+        SpatialGlassSurface(
+            tier = GlassTier.Subtle,
+            shape = CircleShape,
+            onClick = onClick,
+            modifier = Modifier
+                .testTag("agent-exchange-row")
+                .semantics {
+                    contentDescription = label
+                    role = Role.Button
+                },
+        ) {
+            Row(
+                Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Text(
+                    when {
+                        count == 1 && incoming -> localizedText("Message from", "来自")
+                        count == 1 -> localizedText("Messaged", "已发送给")
+                        else -> localizedText("$count messages with", "${count}条消息，与")
+                    },
+                    style = MaterialTheme.typography.labelMedium,
+                    color = colors.textSecondary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                peerBot?.let { target ->
+                    ConversationAvatar(
+                        conversation = target,
+                        accountName = accountName,
+                        members = members,
+                        size = 25.dp,
+                        ringColor = colors.canvasBase,
+                    )
+                }
+                Text(
+                    name,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = colors.textSecondary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
         }
     }

@@ -160,7 +160,11 @@ internal fun ChatScreen(
         uri?.let { onUpload(it.toString()) }
     }
     val contextRows = remember(threadContext) { threadContext.take(ChatHistoryPage.DEFAULT_CONTEXT_LIMIT) }
-    val chatRows = remember(messages) { messages.toChatRows() }
+    val chatRows = remember(messages, bot?.isBot) {
+        messages.toChatRows(collapseAgentExchanges = bot?.isBot == true)
+    }
+    var openedAgentExchange by remember(conversationId) { mutableStateOf<ChatRow.AgentExchange?>(null) }
+    var focusedAgentMessageId by remember(conversationId) { mutableStateOf<String?>(null) }
     var hasPositionedInitialMessages by remember(conversationId) { mutableStateOf(false) }
     val lastItemIndex = (if (hasMoreHistory) 1 else 0) + (if (contextRows.isNotEmpty()) 1 else 0) + chatRows.size + 1
     val currentLastItemIndex by rememberUpdatedState(lastItemIndex)
@@ -178,6 +182,11 @@ internal fun ChatScreen(
         if (historyLoading || messages.isEmpty()) return@LaunchedEffect
         val targetIndex = targetMessageId?.let { id -> chatRows.indexOfFirst { it.contains(id) } }?.takeIf { it >= 0 }
         if (targetIndex != null) {
+            val targetRow = chatRows[targetIndex]
+            if (targetRow is ChatRow.AgentExchange) {
+                openedAgentExchange = targetRow
+                focusedAgentMessageId = targetMessageId
+            }
             listState.scrollToItem(targetIndex + if (contextRows.isNotEmpty()) 1 else 0)
             hasPositionedInitialMessages = true
             return@LaunchedEffect
@@ -213,6 +222,11 @@ internal fun ChatScreen(
         val id = jumpToMessageId ?: return@LaunchedEffect
         val index = chatRows.indexOfFirst { it.contains(id) }
         if (index < 0) return@LaunchedEffect
+        val targetRow = chatRows[index]
+        if (targetRow is ChatRow.AgentExchange) {
+            openedAgentExchange = targetRow
+            focusedAgentMessageId = id
+        }
         listState.animateScrollToItem(index + if (contextRows.isNotEmpty()) 1 else 0)
         jumpToMessageId = null
         highlightedMessageId = id
@@ -446,6 +460,26 @@ internal fun ChatScreen(
                 onJumpToMessage = onJumpToMessage,
                 composerFocusedState = composerFocusedState,
                 onDismissComposerFocus = onDismissComposerFocus,
+                conversations = conversations,
+                onOpenAgentExchange = { exchange ->
+                    openedAgentExchange = exchange
+                    focusedAgentMessageId = null
+                },
+            )
+        }
+
+        openedAgentExchange?.let { exchange ->
+            AgentExchangeWindow(
+                exchange = exchange,
+                sourceBot = bot,
+                peerBot = conversations.firstOrNull { it.botId == exchange.peerId },
+                accountName = accountName,
+                members = groupMembers,
+                focusedMessageId = focusedAgentMessageId,
+                onDismiss = {
+                    openedAgentExchange = null
+                    focusedAgentMessageId = null
+                },
             )
         }
 
@@ -567,6 +601,8 @@ private fun ChatMessageList(
     onJumpToMessage: (String) -> Unit,
     composerFocusedState: State<Boolean>,
     onDismissComposerFocus: () -> Unit,
+    conversations: List<Conversation>,
+    onOpenAgentExchange: (ChatRow.AgentExchange) -> Unit,
 ) {
     val messagesById = remember(messages) { messages.associateBy(ChatMessage::id) }
     val currentMessages by rememberUpdatedState(messages)
@@ -621,29 +657,41 @@ private fun ChatMessageList(
             }
         }
         items(chatRows, key = ChatRow::key) { row ->
-            if (row is ChatRow.Voice) {
-                VoiceConversationCard(row.messages, bot?.title ?: "Assistant")
-                return@items
+            when (row) {
+                is ChatRow.Voice -> VoiceConversationCard(row.messages, bot?.title ?: "Assistant")
+                is ChatRow.AgentExchange -> {
+                    AgentExchangeRow(
+                        count = row.messages.size,
+                        incoming = row.incoming,
+                        peerName = row.peerName,
+                        peerBot = conversations.firstOrNull { it.botId == row.peerId },
+                        accountName = accountName,
+                        members = groupMembers,
+                        onClick = { onOpenAgentExchange(row) },
+                    )
+                }
+                is ChatRow.Single -> {
+                    val message = row.message
+                    MessageBubble(
+                        message = message,
+                        onRetry = onRetry,
+                        isTarget = message.id == targetMessageId || message.id == highlightedMessageId,
+                        operation = operation,
+                        onDownload = onDownload,
+                        onSaveAttachment = onSaveAttachment,
+                        onShareAttachment = onShareAttachment,
+                        onForwardAttachment = onForwardAttachment,
+                        onAction = onAction,
+                        onReaction = onReaction,
+                        onMessageAction = onMessageAction,
+                        onContext = onContext,
+                        onReply = onReply,
+                        onOpenRoutine = onOpenRoutine,
+                        replyOriginal = message.replyToMessageId?.let(messagesById::get),
+                        onOpenOriginal = onOpenOriginal,
+                    )
+                }
             }
-            val message = (row as ChatRow.Single).message
-            MessageBubble(
-                message = message,
-                onRetry = onRetry,
-                isTarget = message.id == targetMessageId || message.id == highlightedMessageId,
-                operation = operation,
-                onDownload = onDownload,
-                onSaveAttachment = onSaveAttachment,
-                onShareAttachment = onShareAttachment,
-                onForwardAttachment = onForwardAttachment,
-                onAction = onAction,
-                onReaction = onReaction,
-                onMessageAction = onMessageAction,
-                onContext = onContext,
-                onReply = onReply,
-                onOpenRoutine = onOpenRoutine,
-                replyOriginal = message.replyToMessageId?.let(messagesById::get),
-                onOpenOriginal = onOpenOriginal,
-            )
         }
         item(key = "bot-activity") {
             BotActivityRow(
