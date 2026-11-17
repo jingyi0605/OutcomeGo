@@ -220,6 +220,23 @@ integration("package update rolls back if account removal starts while its stop 
   } finally { release.resolve(); await updating; await f.close(); }
 }, 15_000);
 
+integration("package update does not stop an account whose private storage removal is pending", async () => {
+  const f = await fixture();
+  try {
+    f.hooks.beforeForget = async () => { throw new Error("Synthetic removal failure"); };
+    await expect(Effect.runPromise(f.service.removeAccount(f.id))).rejects.toThrow();
+    const before = await f.row();
+    const next = parsePluginDefinition({ ...parsePluginDefinition(f.installation.manifest), version: "1.1.0" });
+    let stops = 0;
+    const management = new PluginManagement(f.db, async () => [next], async () => {}, async () => {}, async () => { stops++; });
+    await expect(Effect.runPromise(management.update(f.pluginKey, pluginDigest(next))))
+      .rejects.toThrow("removal must finish");
+    expect(stops).toBe(0);
+    expect(await f.row()).toEqual(before);
+    expect((await f.db.pluginInstallation.findUniqueOrThrow({ where: { id: f.installation.id } })).version).toBe("1.0.0");
+  } finally { await f.close(); }
+}, 15_000);
+
 integration("compatible updates preserve private state and subsequent removal still deletes it", async () => {
   const f = await fixture();
   try {
