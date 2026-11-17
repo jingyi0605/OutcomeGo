@@ -102,8 +102,15 @@ for (const owner of ["user", "outcome"] as const) for (const phase of ["before",
         await h.db.botRunLease.create({ data: { botId: child.childBotId, scope: "foreground", runId: current.currentRunId!, ownerId: "fixture", expiresAt: new Date(Date.now() + 60_000) } });
         return current.currentRunId!;
       };
-      let reserved = false;
       const cancellationDb = new Proxy(h.db, { get(target, property) {
+        if (property === "run") return new Proxy(target.run, { get(delegate, method) {
+          if (method !== "findMany") return Reflect.get(delegate, method);
+          return async (query: Parameters<typeof target.run.findMany>[0]) => {
+            const runs = await delegate.findMany(query);
+            if (phase === "before" && !resumed && query?.where?.outcomeWorkItemId) { resumed = resume(); await resumed; }
+            return runs;
+          };
+        } });
         if (property === "subagent") return new Proxy(target.subagent, { get(delegate, method) {
           if (method !== "findUnique") return Reflect.get(delegate, method);
           return async (query: Parameters<typeof target.subagent.findUnique>[0]) => {
@@ -115,9 +122,6 @@ for (const owner of ["user", "outcome"] as const) for (const phase of ["before",
         } });
         if (property !== "$transaction") return Reflect.get(target, property);
         return async (write: (tx: Prisma.TransactionClient) => Promise<unknown>) => {
-          if (reserved) return target.$transaction(write);
-          reserved = true;
-          if (phase === "before") { resumed = resume(); await resumed; }
           return target.$transaction(async tx => {
             const delegate = new Proxy(tx.subagent, { get(delegate, method) {
               if (method !== "findUnique") return Reflect.get(delegate, method);
@@ -164,7 +168,6 @@ for (const owner of ["user", "outcome"] as const) for (const phase of ["before",
         remoteReady = true;
         await Effect.runPromise(service.cancel(h.outcome.id, input, actor));
       } else expect(firstCancel._tag).toBe("Right");
-      expect(reserved).toBe(true);
       expect(resumed).toBeDefined();
       const newRunId = await resumed!;
       expect(shells.has(originalRunId)).toBe(false);

@@ -3,7 +3,7 @@ import {
 } from "@outcomego/contracts";
 import { COMPUTER_API_PATHS } from "@outcomego/contracts/service-protocol";
 import type { PrismaClient } from "@outcomego/db";
-import { lockAgentLifecycle } from "@outcomego/messaging";
+import { lockAgentLifecycle, transitionWorkItem } from "@outcomego/messaging";
 import { Effect } from "effect";
 import { appendEvent, type ComputerFetch, serviceEffect } from "./service-utils";
 
@@ -21,6 +21,20 @@ export class RunService {
 
   /** Stop exact Outcome run groups, including delegated workers and their commands. */
   cancelOutcomeWorkItems = (workItemIds: readonly string[]) => serviceEffect(async () => {
+    // Stop and API cancellation share the same authoritative fence, even if the root turn already ended.
+    await this.prisma.$transaction(async tx => {
+      const items = await tx.outcomeWorkItem.findMany({
+        where: { id: { in: [...workItemIds] }, executorType: "agent" },
+        orderBy: [{ outcomeId: "asc" }, { id: "asc" }], select: { id: true, outcomeId: true },
+      });
+      for (const item of items) {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`outcome:${item.outcomeId}`}))`;
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`outcome-work-item:${item.id}`}))`;
+        const current = await tx.outcomeWorkItem.findUniqueOrThrow({ where: { id: item.id } });
+        if (!["completed", "failed", "cancelled", "accepted"].includes(current.status))
+          await transitionWorkItem(tx, { workItemId: item.id, to: "cancelled", reason: "outcome_stopped", actor: "system:outcome-runtime" });
+      }
+    });
     const runs = await this.prisma.run.findMany({ where: { outcomeWorkItemId: { in: [...workItemIds] } } });
     if (!runs.length) return { ok: true };
     const allRunIds = new Set(runs.map(run => run.id));
@@ -37,7 +51,7 @@ export class RunService {
     };
     for (const run of runs) await attempt(() => runCancellation(this.cancel(run.id)));
     // Drain nested workers, including a child created just before its parent's cancellation arrived.
-    for (let pass = 0; pass < 4; pass++) {
+    while (true) {
       const captured = await this.prisma.$transaction(async tx => {
         // Reserve the binding before effects. Resume takes this same parent lifecycle lock.
         for (const botId of [...runIdsByBot.keys()].sort()) await lockAgentLifecycle(tx, botId);
