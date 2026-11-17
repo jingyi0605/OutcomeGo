@@ -4,9 +4,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { COMPUTER_USE_TOOL } from "@outcomego/contracts";
 import { createPrismaClient } from "@outcomego/db";
-import { NativeToolExecutor } from "../../../apps/computer/src/native-tool-executor";
-import { RuntimeTools } from "../../../apps/computer/src/runtime/tools";
-import { readTranscript } from "../src/read-transcript";
+import { readTranscript } from "@outcomego/messaging";
+import { NativeToolExecutor } from "../src/native-tool-executor";
+import { RuntimeTools } from "../src/runtime/tools";
 
 const url = process.env.OUTCOMEGO_TEST_DATABASE_URL;
 test.skipIf(!url)("recovered canonical Computer receipts still lead to a readable screenshot without replaying private input", async () => {
@@ -24,7 +24,13 @@ test.skipIf(!url)("recovered canonical Computer receipts still lead to a readabl
     const tools = Object.assign(Object.create(RuntimeTools.prototype), {
       workspaceRoot: root, screens: { actComputerUse: async () => png },
     }) as unknown as {
-      callComputerUse(active: unknown, input: unknown): Promise<{ content: unknown[]; details: { path: string } }>;
+      callComputerUse(active: unknown, input: unknown): Promise<{
+        content: Array<
+          { type: "text"; text: string } |
+          { type: "image"; data: string; mimeType: string }
+        >;
+        details: { path: string };
+      }>;
     };
     // Exercise the production Computer result writer; only the screen transport is a fixture.
     const result = await tools.callComputerUse({ botId, screenBotId: botId, cwd: root, lastGraphicalSurface: "computer" }, { action: "type", text: "PRIVATE_TYPED_INPUT" });
