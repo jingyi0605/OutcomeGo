@@ -1,6 +1,6 @@
 import XCTest
 
-@testable import OpenTeamCore
+@testable import OutcomeGoCore
 
 final class SpreadsheetTableTests: XCTestCase {
   private func parse(_ text: String, _ name: String = "Data.csv", maxRows: Int = 5_000)

@@ -1,5 +1,5 @@
 import XCTest
-@testable import OpenTeamCore
+@testable import OutcomeGoCore
 
 final class EmailDraftReviewTests: XCTestCase {
   func testRecipientsMatchReviewedSendRules() {
