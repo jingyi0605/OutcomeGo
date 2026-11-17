@@ -57,7 +57,7 @@ export class DecisionController {
       const result = await this.client.resolve(this.id, { ...input, clientRequestId: this.ids.for("decision", input) });
       if (generation !== this.generation) return;
       this.ids.complete("decision");
-      this.update({ result, phase: "resolved" });
+      this.update({ result, phase: "resolved", decision: this.state.decision ? { ...this.state.decision, status: result.status } : null });
     } catch (error) {
       if (generation !== this.generation) return;
       if ([409, 410].includes(responseStatus(error) ?? 0)) {

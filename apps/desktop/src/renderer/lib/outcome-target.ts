@@ -26,6 +26,7 @@ export function parseDesktopOutcomeTarget(value: unknown): DesktopOutcomeTarget 
   };
 }
 export function parseDesktopOutcomeLink(value: string): DesktopOutcomeTarget | null {
+  try { if (new URL(value).href.includes("@")) return null; } catch { return null; }
   const parsed = parseOutcomeDeepLink(value);
   if (parsed) return parsed;
   try {

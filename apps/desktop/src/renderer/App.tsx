@@ -1343,7 +1343,7 @@ export default function App() {
       <TooltipProvider>
         <main className="relative flex h-screen overflow-hidden bg-background text-foreground">
           <button className="absolute bottom-4 right-4 z-30 rounded-lg border bg-background px-4 py-2 text-sm shadow-sm" onClick={() => setOutcomeTarget({})}>{t("Outcome Inbox")}</button>
-          {outcomeTarget && <Suspense fallback={<p className="absolute right-4 top-4 z-50" role="status">{t("Loading Inbox…")}</p>}><OutcomeWorkspace target={outcomeTarget} onClose={() => setOutcomeTarget(null)} /></Suspense>}
+          {outcomeTarget && <Suspense fallback={<p className="absolute right-4 top-4 z-50" role="status">{t("Loading Inbox…")}</p>}><OutcomeWorkspace target={outcomeTarget} bots={snapshot.bots} onClose={() => setOutcomeTarget(null)} /></Suspense>}
           {notificationOpening && (
             <div role={notificationOpening.error ? "alert" : "status"} data-notification-opening
               className="absolute bottom-28 left-1/2 z-50 flex max-w-md -translate-x-1/2 items-center gap-3 rounded-xl border bg-background px-4 py-3 shadow-lg">

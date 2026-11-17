@@ -3,9 +3,10 @@ import type { DecisionState } from "./decision-state";
 import { canResolveDecision, DecisionController } from "./decision-state";
 import type { InboxClient } from "./inbox-api";
 import type { OutcomeClient } from "../../../../client/outcome-api";
-import type { OutcomeDetail } from "@outcomego/contracts/outcomes";
+import type { OutcomeDetail, ContractRevisionView } from "@outcomego/contracts/outcomes";
 import { useI18n } from "../../../../lib/i18n";
 import { useOutcomeAttention } from "../../../../hooks/use-outcome-attention";
+import { RecoveryDiagnostics } from "./recovery-diagnostics";
 
 const control = "rounded border bg-background px-3 py-2";
 export function DecisionCard({ decisionId, client, outcomes, onOutcome, onResolved }: {
@@ -26,6 +27,8 @@ export function DecisionCardView({ state, onEdit, onRefresh, onResolve, outcomes
 }) {
   const { t } = useI18n();
   const [detail, setDetail] = useState<OutcomeDetail | null>(null);
+  const [contract, setContract] = useState<ContractRevisionView | null>(null);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   const [detailError, setDetailError] = useState(false);
   const [transcript, setTranscript] = useState<unknown>();
   const [loadingDetails, setLoadingDetails] = useState(false);
@@ -36,7 +39,13 @@ export function DecisionCardView({ state, onEdit, onRefresh, onResolve, outcomes
   const loadDetails = async () => {
     if (!decision || loadingDetails) return;
     setLoadingDetails(true); setDetailError(false);
-    try { setDetail(await outcomes.get(decision.outcomeId)); } catch { setDetailError(true); }
+    try {
+      const detail = await outcomes.get(decision.outcomeId);
+      setDetail(detail);
+      const contract = outcomes.getRevision ? await outcomes.getRevision(decision.outcomeId, decision.contractRevision) :
+        detail.currentRevisionView?.revision === decision.contractRevision ? detail.currentRevisionView : null;
+      setContract(contract);
+    } catch { setDetailError(true); }
     finally { setLoadingDetails(false); }
   };
   return <article aria-label={t("Decision")} aria-busy={busy} className="space-y-4">
@@ -44,7 +53,7 @@ export function DecisionCardView({ state, onEdit, onRefresh, onResolve, outcomes
     {state.error && <p role="alert">{t(state.error)}</p>}
     {state.phase === "loading" && <p role="status">{t("Loading Decision…")}</p>}
     {decision && <>
-      <p role="status">{t("Status")}: {decision.status} · {t("Revision")} {decision.contractRevision}</p>
+      <p role="status">{t("Status")}: {t(decision.status)} · {t("Revision")} {decision.contractRevision}</p>
       <dl className="space-y-2">
         <dt className="font-medium">{t("Completed")}</dt><dd className="whitespace-pre-wrap">{decision.completedSummary}</dd>
         <dt className="font-medium">{t("Current problem")}</dt><dd className="whitespace-pre-wrap">{decision.problemSummary || t("No unresolved problem.")}</dd>
@@ -52,7 +61,7 @@ export function DecisionCardView({ state, onEdit, onRefresh, onResolve, outcomes
       </dl>
       {state.phase === "expired" && <p role="alert">{t("This Decision is expired, withdrawn, or unavailable for action. Refresh the Outcome to continue.")}</p>}
       {state.phase === "conflict" && <p role="alert">{t("Your selection was kept. Check the current revision and options before resubmitting.")}</p>}
-      {state.phase === "resolved" && <p role="status">{t("Decision recorded.")} {state.result?.resume.status ?? decision.status}</p>}
+      {state.phase === "resolved" && <p role="status">{t("Decision recorded.")} {t(state.result?.resume.status ?? decision.status)}</p>}
       {decision.expiresAt && <p>{t("Expires")}: {new Date(decision.expiresAt).toLocaleString()}</p>}
       <fieldset disabled={busy || !allowed} className="space-y-3">
         <legend>{t("Choose the next step")}</legend>
@@ -76,13 +85,22 @@ export function DecisionCardView({ state, onEdit, onRefresh, onResolve, outcomes
         {detailError && <p role="alert">{t("Could not load details.")} <button onClick={() => void loadDetails()}>{t("Retry")}</button></p>}
         {detail && <><p>{t("Current revision")}: {detail.currentRevision}</p>
           {detail.currentRevision !== decision.contractRevision && <p role="alert">{t("This card belongs to a previous Contract revision.")}</p>}
+          {contract && <section className="my-3 space-y-2 rounded border p-3">
+            <h3 className="font-medium">{t("Decision Contract")}: {contract.revision} · {t(contract.status)}</h3>
+            {contract.changeSummary && <p>{contract.changeSummary}</p>}
+            <h4>{t("Goals")}</h4><ul>{contract.goal.map((goal, index) => <li key={index}>{goal}</li>)}</ul>
+            <h4>{t("Acceptance criteria")}</h4><ul>{contract.criteria.map(criterion => <li key={criterion.id}>{criterion.ordinal}. {criterion.statement} · {criterion.latestResult ?? "UNVERIFIED"}</li>)}</ul>
+            <h4>{t("Scope boundaries")}</h4><ul>{contract.boundaries.included.map((text, index) => <li key={`include:${index}`}>+ {text}</li>)}{contract.boundaries.excluded.map((text, index) => <li key={`exclude:${index}`}>− {text}</li>)}</ul>
+          </section>}
+          {detail.workItems.filter(item => item.id === decision.workItemId).map(item => <p key={item.id}>{item.title} · {t(item.status)} · {t("Revision")} {item.contractRevision}</p>)}
           {detail.evidence.filter(evidence => evidence.contractRevision === decision.contractRevision).map(evidence => <div key={evidence.id} className="my-2 rounded border p-2"><p>{evidence.contentSummary}</p><p className="break-all text-xs">{evidence.sourceType}: {evidence.sourceRef} · {evidence.credibility}</p></div>)}
-          <details><summary>{t("Advanced run and audit details")}</summary>
+          <details onToggle={event => setAdvancedOpen(event.currentTarget.open)}><summary>{t("Advanced run and audit details")}</summary>
             <p className="break-all">Decision {decision.id} · Outcome {decision.outcomeId} · Contract {decision.contractRevisionId}</p>
             <p>{t("Reason")}: {decision.reasonCode}</p>
             <p className="break-all">WorkItem {decision.workItemId ?? "—"} · Run {decision.runId ?? "—"}</p>
             {decision.workItemId && <button className={control} onClick={() => void outcomes.transcript(decision.outcomeId, decision.workItemId!).then(setTranscript, () => setDetailError(true))}>{t("Read-only transcript")}</button>}
             {transcript !== undefined && <pre className="max-h-64 overflow-auto whitespace-pre-wrap break-words text-xs">{JSON.stringify(transcript, null, 2)}</pre>}
+            {advancedOpen && <RecoveryDiagnostics outcomeId={decision.outcomeId} />}
           </details></>}
       </details>
       <button className={control} onClick={() => onOutcome(decision.outcomeId)}>{t("Open Outcome and acceptance review")}</button>

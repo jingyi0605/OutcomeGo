@@ -10,7 +10,7 @@ import { useI18n } from "../../../../lib/i18n";
 
 export function HumanAction({ workItemId, client, materials, upload, onReview, initialItem }: {
   workItemId: string; client: InboxClient; materials: HumanMaterialClient;
-  upload: (file: File) => Promise<{ assetRef: string }>; onReview: (outcomeId: string) => void;
+  upload: (file: File) => Promise<{ assetRef: string }>; onReview: (outcomeId: string, revision: number) => void;
   initialItem?: HumanWorkItemDetail;
 }) {
   const { t } = useI18n();
@@ -67,13 +67,22 @@ export function HumanAction({ workItemId, client, materials, upload, onReview, i
     {!item && busy && <p role="status">{t("Loading action card…")}</p>}
     {item && !card && <p role="status">{t("This WorkItem has no human action card.")}</p>}
     {item && card && <>
-      <p role="status">{t("Status")}: {item.status} · {t("Revision")} {card.contractRevision}</p>
+      <p role="status">{t("Status")}: {t(item.status)} · {t("Revision")} {card.contractRevision}</p>
+      {card.startedAt && <p className="text-sm">{t("Started by")}: {card.startedBy ?? "—"} · {card.startedAt}</p>}
+      {card.draft && <section aria-label={t("Saved progress")} className="rounded border p-3">
+        <h3 className="font-medium">{t("Saved progress")}</h3>
+        <p>{t("Current step")}: {card.steps.find(step => step.id === card.draft!.currentStepId)?.text ?? "—"}</p>
+        <p>{t("Pause reason")}: {card.draft.reason}</p>
+        <p className="whitespace-pre-wrap">{card.draft.draftSummary}</p>
+      </section>}
       <section><h3 className="font-medium">{t("Purpose")}</h3><p className="whitespace-pre-wrap">{card.purpose}</p></section>
       <section><h3 className="font-medium">{t("Prerequisites")}</h3>{card.prerequisites.length ? <ul>{card.prerequisites.map((prerequisite, index) => <li key={index}>{prerequisite.completed ? "✓" : "○"} {prerequisite.label}</li>)}</ul> : <p>{t("No additional prerequisites.")}</p>}</section>
       <section><h3 className="font-medium">{t("Steps")}</h3><p className="text-sm text-muted-foreground">{t("These instructions are performed by a person. They do not run automatically.")}</p><ol className="list-decimal space-y-2 pl-5">{card.steps.map(step => <li key={step.id}>{step.text}{step.optional && ` · ${t("Optional")}`}</li>)}</ol></section>
-      <KnowledgeReferences outcomeId={item.outcomeId} references={card.references} client={materials} onRead={id => setReadRefs(current => current.includes(id) ? current : [...current, id])} />
+      <KnowledgeReferences outcomeId={item.outcomeId} references={card.references} client={materials} onRead={id => {
+        if (card.references.some(reference => reference.id === id)) setReadRefs(current => current.includes(id) ? current : [...current, id]);
+      }} />
       <section><h3 className="font-medium">{t("Evidence requirements")}</h3><ul className="space-y-2">{card.evidenceRequirements.map((requirement, index) => <li key={`${requirement.criterionId}:${index}`}>{requirement.label} · {t(requirement.required ? "Required" : "Optional")} · {requirement.acceptedTypes.join(", ")}</li>)}</ul></section>
-      <div className="flex flex-wrap gap-2">{["pending", "ready", "paused", "rejected"].includes(card.status) && <button disabled={busy} className="rounded border px-3 py-2" onClick={() => void mutate("start")}>{t(card.status === "paused" || card.status === "rejected" ? "Resume action" : "Start action")}</button>}<button className="rounded border px-3 py-2" onClick={() => onReview(item.outcomeId)}>{t("Open Outcome and acceptance review")}</button></div>
+      <div className="flex flex-wrap gap-2">{["pending", "ready", "paused", "rejected"].includes(card.status) && <button disabled={busy} className="rounded border px-3 py-2" onClick={() => void mutate("start")}>{t(card.status === "paused" || card.status === "rejected" ? "Resume action" : "Start action")}</button>}<button className="rounded border px-3 py-2" onClick={() => onReview(item.outcomeId, card.contractRevision)}>{t("Open Outcome and acceptance review")}</button></div>
       {card.status === "in_progress" && <fieldset disabled={busy} className="space-y-2 rounded border p-3"><legend>{t("Pause and save progress")}</legend>
         <label className="block">{t("Current step")}<select className="ml-2 rounded border bg-background p-2" value={currentStep ?? ""} onChange={event => setCurrentStep(event.target.value || null)}><option value="">{t("Not selected")}</option>{card.steps.map(step => <option key={step.id} value={step.id}>{step.ordinal}. {step.text}</option>)}</select></label>
         <label className="block">{t("Pause reason")}<input maxLength={1000} className="mt-1 w-full rounded border bg-background p-2" value={pauseReason} onChange={event => setPauseReason(event.target.value)} /></label>
@@ -90,7 +99,7 @@ export function HumanAction({ workItemId, client, materials, upload, onReview, i
       <section aria-label={t("Receipt history")} className="space-y-3"><h3 className="font-medium">{t("Receipt history")}</h3>
         {!item.receipts?.length && <p>{t("No submitted receipts.")}</p>}
         {item.receipts?.map(receipt => <details key={receipt.id} className="rounded border p-3" open={receipt.status === "rejected" || receipt.missingRequirements.length > 0}>
-          <summary>#{receipt.sequence} · {receipt.status} · {receipt.submittedAt}</summary><p>{t("Submitted by")}: {receipt.submittedBy}</p>
+          <summary>#{receipt.sequence} · {t(receipt.status)} · {receipt.submittedAt}</summary><p>{t("Submitted by")}: {receipt.submittedBy}</p>
           {receipt.reviewComment && <p className="whitespace-pre-wrap">{receipt.reviewComment}</p>}
           {receipt.missingRequirements.length > 0 && <div role="status"><h4>{t("Missing materials")}</h4><ul>{receipt.missingRequirements.map((gap, index) => <li key={index}>{gap.label} · {gap.kind} · {gap.criterionId}</li>)}</ul></div>}
           <p className="whitespace-pre-wrap">{receipt.payload.text}</p><p>{receipt.payload.comment}</p>

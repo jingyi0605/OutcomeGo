@@ -5,9 +5,10 @@ import { OutcomeDetail } from "../src/renderer/components/outcomego/outcomes/det
 import { ReviewPanel, initialReviewEntries } from "../src/renderer/components/outcomego/outcomes/detail/review-panel";
 import type { OutcomeClient } from "../src/renderer/client/outcome-api";
 import { outcomeFixture } from "./outcome-fixture";
+import { I18nProvider } from "../src/renderer/lib/i18n";
 
 test("detail renders revision, WorkItem, Run, Output and advisory evidence provenance", () => {
-  const html = renderToStaticMarkup(createElement(OutcomeDetail, { outcomeId: outcomeFixture.id, client: {} as OutcomeClient, initialOutcome: outcomeFixture }));
+  const html = renderToStaticMarkup(createElement(I18nProvider, { children: createElement(OutcomeDetail, { outcomeId: outcomeFixture.id, client: {} as OutcomeClient, initialOutcome: outcomeFixture }) }));
   for (const text of ["Contract revision", "Research backups", "Root Run run-1", "Comparison report", "Agent report · advisory", "output:output-1", "Acceptance review", "Request rework", "Refresh from server", "Show read-only transcript"]) expect(html).toContain(text);
   expect(html).not.toContain('Read-only transcript</summary>');
 });

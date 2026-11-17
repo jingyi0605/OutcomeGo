@@ -25,12 +25,15 @@ export function useOutcomeAttention({ surface, outcomeId }: { surface: Attention
     update();
     window.addEventListener("focus", update);
     window.addEventListener("blur", update);
+    const stop = () => tracker.setActive(false);
+    window.addEventListener("pagehide", stop);
     document.addEventListener("visibilitychange", update);
     const interval = window.setInterval(() => { update(); void tracker.flush(); }, 30_000);
     return () => {
       window.clearInterval(interval);
       window.removeEventListener("focus", update);
       window.removeEventListener("blur", update);
+      window.removeEventListener("pagehide", stop);
       document.removeEventListener("visibilitychange", update);
       tracker.setActive(false);
     };

@@ -6,10 +6,12 @@
  * a catalog object here and registering it in the shared locale contract.
  */
 import { DEFAULT_LOCALE, type Locale } from "@outcomego/contracts/localization";
+import { outcomeTranslations } from "./outcome-i18n";
 
 export type TranslationValues = Record<string, string | number | null | undefined>;
 
 export const sourceTranslations: Record<string, string> = {
+  ...outcomeTranslations,
   Settings: "设置",
   "Configure OutcomeGo and application updates.": "配置 OutcomeGo 和应用更新。",
   General: "常规",

@@ -19,15 +19,21 @@ export class OutcomeAttentionTracker {
     this.activeSince = active ? this.now() : null;
     if (!active) void this.flush();
   }
-  attach(outcomeId: string) { this.outcomeId = outcomeId; void this.flush(); }
+  attach(outcomeId: string) {
+    if (this.outcomeId && this.outcomeId !== outcomeId) {
+      this.collect();
+      this.enqueueSeconds();
+    }
+    this.outcomeId = outcomeId;
+    void this.flush();
+  }
   private collect() {
     if (this.activeSince === null) return;
     const now = this.now();
     this.seconds += Math.max(0, now - this.activeSince) / 1000;
     this.activeSince = now;
   }
-  async flush() {
-    this.collect();
+  private enqueueSeconds() {
     if (this.outcomeId && this.seconds > 0) {
       while (this.seconds > 0) {
         const seconds = Math.min(this.seconds, 300);
@@ -35,6 +41,10 @@ export class OutcomeAttentionTracker {
         this.seconds -= seconds;
       }
     }
+  }
+  async flush() {
+    this.collect();
+    this.enqueueSeconds();
     if (this.draining) return;
     this.draining = true;
     try {

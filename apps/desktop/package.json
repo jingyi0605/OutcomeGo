@@ -57,6 +57,9 @@
   },
   "build": {
     "appId": "dev.outcomego.desktop",
+    "protocols": [
+      { "name": "OutcomeGo", "schemes": ["outcomego"] }
+    ],
     "productName": "OutcomeGo",
     "executableName": "outcomego",
     "asar": true,

@@ -1614,10 +1614,11 @@ if (!hasSingleInstanceLock) {
         dismiss: id => { activityNotifications.get(`outcome:${id}`)?.close(); activityNotifications.delete(`outcome:${id}`); },
         deliver: (id, target) => {
           const notificationId = `outcome:${id}`;
+          const chinese = applicationMenuLocale === "zh-CN";
           const notification = new Notification({
             id: notificationId, groupId: `outcome:${target.outcomeId}`,
-            title: target.category === "completed" ? "Outcome completed" : "An Outcome needs your attention",
-            body: target.category === "decision_pending" ? "Open OutcomeGo to decide the next step." : "Open OutcomeGo to view the outcome.",
+            title: target.category === "completed" ? chinese ? "Outcome 已完成" : "Outcome completed" : chinese ? "一个 Outcome 需要你处理" : "An Outcome needs your attention",
+            body: target.category === "decision_pending" ? chinese ? "打开 OutcomeGo 决定下一步。" : "Open OutcomeGo to decide the next step." : chinese ? "打开 OutcomeGo 查看结果。" : "Open OutcomeGo to view the outcome.",
             silent: true,
           });
           activeNotifications.add(notification); activityNotifications.set(notificationId, notification);

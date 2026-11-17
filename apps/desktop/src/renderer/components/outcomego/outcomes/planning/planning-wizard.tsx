@@ -1,12 +1,12 @@
 import { useRef, useState } from "react";
-import { OUTCOME_PLANNING_DIMENSIONS, hasBlockingConflict, type PlanningDraftView, type OutcomeDetail } from "@outcomego/contracts/outcomes";
+import { OUTCOME_PLANNING_DIMENSIONS, hasBlockingConflict, type PlanningDraftView, type OutcomeDetail, type OutcomeBudget } from "@outcomego/contracts/outcomes";
 import { ContractConfirmation } from "./contract-confirmation";
 import { type OutcomeClient, OutcomeRequestIds, outcomeErrorMessage } from "./outcome-client";
 import { customPlanningEntries, emptySelections, planningConflicts, selectPlanningOption, selectionsFromPlan } from "./planning-state";
 import { useOutcomeAttention } from "../../../../hooks/use-outcome-attention";
 
-export function PlanningWizard({ botId, client, initialPlan, onSaved, onDone }: {
-  botId: string; client: OutcomeClient; initialPlan?: PlanningDraftView;
+export function PlanningWizard({ botId, client, initialPlan, initialBudget, onSaved, onDone }: {
+  botId: string; client: OutcomeClient; initialPlan?: PlanningDraftView; initialBudget?: OutcomeBudget | null;
   onSaved?: (value: { planId?: string; outcomeId?: string }) => void;
   onDone: (outcome: OutcomeDetail) => void;
 }) {
@@ -15,7 +15,7 @@ export function PlanningWizard({ botId, client, initialPlan, onSaved, onDone }: 
   const [draft, setDraft] = useState(initialPlan ?? null);
   const [selections, setSelections] = useState(initialPlan ? selectionsFromPlan(initialPlan) : emptySelections());
   const [step, setStep] = useState(0);
-  const [time, setTime] = useState(""); const [cost, setCost] = useState("");
+  const [time, setTime] = useState(initialBudget?.timeLimitMinutes?.toString() ?? ""); const [cost, setCost] = useState(initialBudget?.costLimit?.toString() ?? "");
   const [outcome, setOutcome] = useState<OutcomeDetail | null>(null);
   const attention = useOutcomeAttention({ surface: "planning", outcomeId: outcome?.id });
   const [confirmation, setConfirmation] = useState("");
