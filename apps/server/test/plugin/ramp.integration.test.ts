@@ -31,8 +31,8 @@ test.skipIf(!databaseUrl)(
     const botId = crypto.randomUUID();
     const conversationId = crypto.randomUUID();
     const runId = crypto.randomUUID();
-    const previousRoot = process.env.OPENTEAM_AGENT_DATA_ROOT;
-    process.env.OPENTEAM_AGENT_DATA_ROOT = root;
+    const previousRoot = process.env.OUTCOMEGO_AGENT_DATA_ROOT;
+    process.env.OUTCOMEGO_AGENT_DATA_ROOT = root;
     const authorize = async (id: string, account: string) => {
       const started = await Effect.runPromise(service.authenticate(id));
       const url = new URL(started.authorizationUrl);
@@ -114,8 +114,8 @@ test.skipIf(!databaseUrl)(
       });
       expect(JSON.stringify(result)).toContain("Ramp account");
     } finally {
-      if (previousRoot === undefined) delete process.env.OPENTEAM_AGENT_DATA_ROOT;
-      else process.env.OPENTEAM_AGENT_DATA_ROOT = previousRoot;
+      if (previousRoot === undefined) delete process.env.OUTCOMEGO_AGENT_DATA_ROOT;
+      else process.env.OUTCOMEGO_AGENT_DATA_ROOT = previousRoot;
       await service.close();
       provider.close();
       await db.pluginInstallation.deleteMany({ where: { pluginKey: definition.key } });

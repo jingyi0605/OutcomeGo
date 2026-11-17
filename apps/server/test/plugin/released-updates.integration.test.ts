@@ -48,7 +48,7 @@ integration(
         where: { installation: { pluginKey: key }, kind: "plugin.updated" },
         orderBy: { createdAt: "desc" },
       });
-      expect(activity?.summary).toContain("1.1.0 with outcomeGo");
+      expect(activity?.summary).toContain("1.1.0 with OutcomeGo");
       // An uploaded draft of the same plugin is the administrator's choice: no automatic update.
       const draft = await prisma.pluginDraft.create({
         data: { name: "Uploaded copy", definition: JSON.parse(JSON.stringify(release("1.1.0"))) },
