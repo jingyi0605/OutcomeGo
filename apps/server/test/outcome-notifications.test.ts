@@ -122,11 +122,14 @@ describe.skipIf(!url)("Outcome notification facts and delivery", () => {
     const f = await create(); const d = await run(new DecisionService(db).create(f.input, actor));
     await db.channelNotification.delete({ where: { key: `decision.required:${d.id}` } });
     await db.outboxDelivery.deleteMany({ where: { target: deviceId } });
-    await db.outboxDelivery.create({ data: { deliveryKey: crypto.randomUUID(), topic: "push.notification", target: deviceId, payload: { schemaVersion: 1, kind: "badge-sync", badgeCount: 0 } } });
+    // The test requires an already-due ordinary delivery, independently of timestamp rounding at insertion.
+    const ordinary = await db.outboxDelivery.create({ data: { deliveryKey: crypto.randomUUID(), topic: "push.notification", target: deviceId,
+      availableAt: new Date(0), payload: { schemaVersion: 1, kind: "badge-sync", badgeCount: 0 } } });
     let attempts = 0; let sent = 0;
     const dispatcher = new PushNotificationDispatcher(db, "disabled", { send: async () => { sent++; return { status: 200 }; } } as unknown as ApnsClient, {} as FcmClient,
       async () => { attempts++; if (attempts === 1) throw new Error("injected transient database failure"); return reconcileOutcomeDecisionNotifications(db); });
     await dispatcher.drain(); expect(sent).toBe(1);
+    expect(await db.outboxDelivery.findUniqueOrThrow({ where: { id: ordinary.id } })).toMatchObject({ status: "delivered", attempts: 1 });
     expect(await db.channelNotification.count({ where: { key: `decision.required:${d.id}` } })).toBe(0);
     await dispatcher.drain(); expect(attempts).toBe(2);
     expect(await db.channelNotification.count({ where: { key: `decision.required:${d.id}` } })).toBe(1);
