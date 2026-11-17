@@ -1,4 +1,5 @@
 import { OutcomeService } from "./services/outcome-service";
+import { withdrawSupersededDecisions } from "./services/decision-lifecycle";
 import { OutcomePlanningService } from "./services/outcome-planning-service";
 import { OutcomeReviewService } from "./services/outcome-review-service";
 import { OutcomeEvidenceConsumer } from "./services/outcome-evidence-consumer";
@@ -226,7 +227,7 @@ export class AppService {
       (path, init) => this.computerFetch(path, init)
     );
     const inferOutcome = outcomeInference(this.agentData, (path, init) => this.computerJson(path, init));
-    this.outcomes = new OutcomeService(this.prisma);
+    this.outcomes = new OutcomeService(this.prisma, this.messaging, this.runs, withdrawSupersededDecisions);
     this.outcomePlanning = new OutcomePlanningService(this.prisma, inferOutcome);
     this.outcomeReviews = new OutcomeReviewService(this.prisma, this.messaging, inferOutcome);
     this.outcomeEvidence = new OutcomeEvidenceConsumer(this.prisma, this.outcomeReviews, this.eventWakeup);

@@ -13,7 +13,7 @@ describe.skipIf(!url)("DecisionService transactional state machine", () => {
   let decisions: DecisionService;
   const createFixture = async () => { const f = await fixture(db); bots.push(f.bot.id); return f; };
   const request = (expectedContractRevision = 1) => ({ optionId: "cancel", expectedContractRevision, clientRequestId: crypto.randomUUID() });
-  beforeAll(() => { decisions = new DecisionService(db, { createRevision: new OutcomeService(db, withdrawSupersededDecisions).createRevisionInTransaction }); });
+  beforeAll(() => { decisions = new DecisionService(db, { createRevision: new OutcomeService(db, undefined, undefined, withdrawSupersededDecisions).createRevisionInTransaction }); });
   afterAll(async () => { await db.bot.deleteMany({ where: { id: { in: bots } } }); await db.$disconnect(); });
 
   test("create retains snapshots, defaults to no expiry, truncates extras and replays a Run input", async () => {
@@ -115,7 +115,7 @@ describe.skipIf(!url)("DecisionService transactional state machine", () => {
   });
   test("revision supersession and cancellation automatically withdraw when refreshed", async () => {
     const f = await createFixture(); const d = await run(decisions.create(f.input, actor));
-    const outcomes = new OutcomeService(db, withdrawSupersededDecisions);
+    const outcomes = new OutcomeService(db, undefined, undefined, withdrawSupersededDecisions);
     await run(outcomes.createRevision(f.outcome.id, { baseRevision: 1, contract, clientRequestId: crypto.randomUUID() }, actor));
     expect((await db.outcomeDecision.findUniqueOrThrow({ where: { id: d.id } })).status).toBe("withdrawn");
     expect(await errorCode(decisions.resolve(d.id, request(), actor))).toBe("decision_revision_conflict");

@@ -8,6 +8,8 @@ import { OutcomeReviewService } from "../src/services/outcome-review-service";
 import type { AgentMessaging } from "@outcomego/messaging";
 import type { RouteContext } from "../src/routes/context";
 import { outcomeFixture, testDatabaseUrl, fixtureSelections, requestId } from "./fixtures/outcome-fixture";
+import { outcomeThreadFixture } from "../../../packages/messaging/test/fixtures/outcome-thread";
+import { OutcomeService } from "../src/services/outcome-service";
 
 // The production authentication gate must run before every feature route.
 test("main registers Outcome behind the existing authentication middleware", () => {
@@ -75,16 +77,22 @@ describe.skipIf(!testDatabaseUrl)("Outcome HTTP routes", () => {
     const cancelled = await call(`/outcomes/${x.outcome.id}/cancel`, "POST", { clientRequestId: requestId() });
     expect(await cancelled.json()).toMatchObject({ status: "cancelled", outputs: [{ id: x.output.id }] });
   });
-  test("reserved run and transcript routes use runtime methods when supplied", async () => {
-    const x = await f.completed();
-    const runtime = app.outcomes as typeof f.outcomes & { startRun?: (...args: unknown[]) => Effect.Effect<unknown, Error>; transcript?: (...args: unknown[]) => Effect.Effect<unknown, Error> };
-    runtime.startRun = (id, input, actor) => Effect.succeed({ id, input, actor });
-    runtime.transcript = (id, workItemId, query) => Effect.succeed({ id, workItemId, query, rows: [] });
+  test("run and transcript routes dispatch the real runtime and reject absent messaging", async () => {
+    const h = await outcomeThreadFixture();
+    const original = app.outcomes;
+    app.outcomes = new OutcomeService(h.db, h.messaging);
     try {
-      const run = await call(`/outcomes/${x.outcome.id}/runs`, "POST", { expectedRevision: 1, clientRequestId: requestId() });
-      expect(run.status).toBe(202); expect(await run.json()).toMatchObject({ actor: "owner:local" });
-      const transcript = await call(`/outcomes/${x.outcome.id}/work-items/${x.item.id}/transcript?limit=10`);
-      expect(await transcript.json()).toMatchObject({ workItemId: x.item.id, query: { limit: 10 }, rows: [] });
-    } finally { delete runtime.startRun; delete runtime.transcript; }
+      const response = await call(`/outcomes/${h.outcome.id}/runs`, "POST", { expectedRevision: 1, clientRequestId: requestId() });
+      expect(response.status).toBe(202);
+      const detail = await response.json() as { workItems: { id: string; rootRunId: string }[] };
+      const item = detail.workItems[0]!;
+      expect(await h.db.run.count({ where: { id: item.rootRunId, origin: "outcome" } })).toBe(1);
+      const transcript = await call(`/outcomes/${h.outcome.id}/work-items/${item.id}/transcript?limit=10`);
+      expect(await transcript.json()).toMatchObject({ total: 1, next_before: null, rows: [{ role: "user", status: "completed" }] });
+      app.outcomes = new OutcomeService(h.db);
+      const unavailable = await call(`/outcomes/${h.outcome.id}/runs`, "POST", { expectedRevision: 1, clientRequestId: requestId() });
+      expect(unavailable.status).toBe(409);
+      expect(await unavailable.json()).toMatchObject({ error: { code: "bot_not_runnable", details: { retryable: true } } });
+    } finally { app.outcomes = original; await h.cleanup(); }
   });
 });

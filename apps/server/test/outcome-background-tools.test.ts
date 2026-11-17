@@ -54,7 +54,7 @@ describe("Outcome background tools preserve the Routine communication boundary",
         ["UpdateComputerNetworkPolicy", "computer_network_policy_bot_forbidden"],
         ["VoiceSpeak", "speech_unavailable"], ["VoiceNarration", "narration_unavailable"],
         ["SearchBitwardenItems", "bitwarden_tool_forbidden"],
-      ]) expect(await failure(f.service, tool!)).toBe(code);
+      ] as const) expect(await failure(f.service, tool)).toBe(code);
       expect(f.calls).toEqual({ speech: 0, narration: 0, visible: 0, reminder: 0, acknowledgements: 0 });
     });
 

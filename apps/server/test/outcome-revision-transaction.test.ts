@@ -8,7 +8,7 @@ describe.skipIf(!testDatabaseUrl)("transaction-scoped contract revision", () => 
   test("shares caller transaction, invokes withdrawal hook and rolls back every revision fact", async () => {
     const { outcome } = await f.create();
     const calls: string[] = [];
-    const service = new OutcomeService(f.prisma, async (tx, id) => {
+    const service = new OutcomeService(f.prisma, undefined, undefined, async (tx, id) => {
       expect((await tx.outcome.findUniqueOrThrow({ where: { id } })).currentRevisionId).not.toBe(outcome.currentRevisionView!.id);
       calls.push(id);
     });
