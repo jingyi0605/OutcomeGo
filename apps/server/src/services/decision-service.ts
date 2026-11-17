@@ -2,7 +2,7 @@ import { ApiError } from "@outcomego/contracts";
 import type { DecisionCreateInput, DecisionOption, DecisionResolution, DecisionView, ResolveDecisionInput } from "@outcomego/contracts/outcome-inbox";
 import { OutcomeError, type CreateContractRevisionInput, type OutcomeDetail } from "@outcomego/contracts/outcomes";
 import { Prisma, type PrismaClient } from "@outcomego/db";
-import { appendOutcomeEvent, enqueueOutcomeTurn, transitionWorkItem, unavailableHumanActionPort, type ActorRef, type AgentMessaging, type HumanActionPort } from "@outcomego/messaging";
+import { createOutcomeDecision, closeOutcomeDecision, appendOutcomeEvent, enqueueOutcomeTurn, transitionWorkItem, unavailableHumanActionPort, type ActorRef, type AgentMessaging, type HumanActionPort } from "@outcomego/messaging";
 import { activeDecisionStatuses, revokeDecisionNotification, withdrawSupersededDecisions } from "./decision-lifecycle";
 import { NotificationService } from "./notification-service";
 import { Effect } from "effect";
@@ -37,51 +37,14 @@ export class DecisionService {
   constructor(private readonly prisma: PrismaClient, private readonly ports: DecisionServicePorts = {}) {}
 
   create = (input: DecisionCreateInput, actor: ActorRef) => serviceEffect(async () => {
-    const inputHash = hashRequest(input);
-    const idempotencyKey = `decision-request:${input.runId ?? input.workItemId ?? input.outcomeId}:${inputHash}`;
-    const result = await this.prisma.$transaction(async tx => {
-      await this.lock(tx, input.outcomeId);
-      const previous = await tx.outcomeDecision.findUnique({ where: { idempotencyKey }, include });
-      if (previous) return view(previous);
-      await withdrawSupersededDecisions(tx, input.outcomeId, actor);
-      const outcome = await tx.outcome.findUnique({ where: { id: input.outcomeId } });
-      const revision = await tx.outcomeContractRevision.findUnique({ where: { id: input.contractRevisionId } });
-      if (!outcome) throw apiError("outcome_not_found", "Outcome not found", undefined, 404);
-      if (!revision || revision.outcomeId !== outcome.id || outcome.currentRevisionId !== revision.id) throw apiError("decision_revision_conflict", "The decision revision is no longer current");
-      if (outcome.cancelledAt || outcome.acceptedAt) throw apiError("invalid_outcome_transition", "This Outcome is closed");
-      if (input.workItemId) {
-        const item = await tx.outcomeWorkItem.findUnique({ where: { id: input.workItemId } });
-        if (!item || item.outcomeId !== outcome.id || item.contractRevisionId !== revision.id) throw apiError("work_item_not_found", "The work item does not belong to this revision", undefined, 404);
-        const open = await tx.outcomeDecision.findUnique({ where: { openWorkItemId: item.id } });
-        if (open?.expiresAt && open.expiresAt <= new Date()) {
-          const expired = await tx.outcomeDecision.findUniqueOrThrow({ where: { id: open.id }, include });
-          await this.close(tx, expired, "expired", "system:decision-expiry");
-        } else if (open) throw apiError("decision_already_open", "This work item already has an open decision");
-      }
-      if (input.runId) {
-        const run = await tx.run.findUnique({ where: { id: input.runId } });
-        if (!run || !input.workItemId || run.outcomeWorkItemId !== input.workItemId) throw apiError("invalid_decision_source", "The run does not belong to the requesting work item", undefined, 422);
-      }
-      const options = input.options.slice(0, 4);
-      if (!options.length || new Set(options.map(option => option.id)).size !== options.length || options.some(option => !option.id || !option.label.trim() || !option.consequence.trim() || !["plan_only", "scope_change", "acceptance_change", "cancel_branch", "manual_action"].includes(option.resolutionEffect))) throw apiError("invalid_decision_options", "Provide one to four distinct options with a server-defined effect", undefined, 422);
-      const expiresAt = input.expiresAt ? new Date(input.expiresAt) : null;
-      if (expiresAt && !Number.isFinite(expiresAt.getTime())) throw apiError("invalid_decision_expiry", "expiresAt must be an ISO timestamp", undefined, 422);
-      const now = new Date();
-      const row = await tx.outcomeDecision.create({ data: {
-        outcomeId: outcome.id, contractRevisionId: revision.id, workItemId: input.workItemId, runId: input.runId,
-        reasonCode: input.reasonCode, completedSummary: input.completedSummary, problemSummary: input.problemSummary.trim() || "No unresolved issue.", nextStepSummary: input.nextStepSummary,
-        recommendation: input.recommendation ? toJson(input.recommendation) : undefined,
-        options: toJson(options.map(option => ({ ...option, createdAt: option.createdAt ?? now.toISOString() }))),
-        customEntryAllowed: input.customEntryAllowed !== false, expiresAt, idempotencyKey, openWorkItemId: input.workItemId,
-        truncatedOptionCount: Math.max(0, input.options.length - 4),
-      }, include });
-      await appendOutcomeEvent(tx, "outcome.decision.required", row.outcomeId, { actor, contractRevision: revision.revision, workItemId: input.workItemId, runId: input.runId, idempotencyKey, payload: { decisionId: row.id, reasonCode: row.reasonCode } });
-      return view(row);
-    }).catch(mapError);
+    const result = await this.prisma.$transaction(tx => this.createInTransaction(tx, input, actor)).catch(mapError);
     // Projection is retriable independently; provider/notification failures cannot undo the decision.
     await this.projectNotification(result.id).catch(() => undefined);
     return result;
   });
+
+  /** Caller owns commit: tool pause and Decision fact must succeed or roll back together. */
+  createInTransaction = createOutcomeDecision;
 
   /** Replayed creation retries an interrupted post-commit projection using the original fact. */
   private async projectNotification(decisionId: string) {
@@ -175,8 +138,27 @@ export class DecisionService {
       return { status: "waiting_human", workItemIds: [result.workItemId], cardId: result.cardId };
     }
     if (!this.ports.messaging) throw apiError("decision_effect_unavailable", "Outcome messaging has not been registered", row, 503);
+    let supplementId: string | undefined;
+    if (option?.supplement) {
+      const requester = await tx.outcomeWorkItem.findUniqueOrThrow({ where: { id: row.workItemId } });
+      const ordinal = await tx.outcomeWorkItem.aggregate({ where: { outcomeId: row.outcomeId }, _max: { ordinal: true } });
+      const supplement = await tx.outcomeWorkItem.create({ data: {
+        outcomeId: row.outcomeId, contractRevisionId: row.contractRevisionId, botId: requester.botId,
+        executorType: "agent", kind: "supplement", status: "queued", title: option.supplement.title,
+        instructions: option.supplement.instructions, ordinal: (ordinal._max.ordinal ?? 0) + 1,
+        sourceDecisionId: row.id, dependsOn: [requester.id],
+      } });
+      supplementId = supplement.id;
+      await appendOutcomeEvent(tx, "outcome.work_item.created", row.outcomeId, { actor, contractRevision: row.contractRevision.revision,
+        workItemId: supplement.id, idempotencyKey: `decision-supplement:${row.id}`,
+        payload: { workItemId: supplement.id, executorType: "agent", kind: "supplement" } });
+      await (this.ports.enqueueTurn ?? enqueueOutcomeTurn)(tx, this.ports.messaging, {
+        workItemId: supplement.id, content: option.supplement.instructions, reason: "start",
+        clientId: `outcome-run:${row.outcomeId}:${row.contractRevision.revision}:${supplement.id}`,
+      });
+    }
     const result = await (this.ports.enqueueTurn ?? enqueueOutcomeTurn)(tx, this.ports.messaging, { workItemId: row.workItemId, content: JSON.stringify({ decisionId: row.id, optionId: option?.id ?? null, choice: option?.label ?? null, customText }), reason: "decision_resolved", clientId: `decision:${row.id}` });
-    return { status: result.status, workItemIds: [row.workItemId] };
+    return { status: result.status, workItemIds: [row.workItemId, ...(supplementId ? [supplementId] : [])] };
   }
   private lock(tx: Tx, outcomeId: string) { return tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`outcome:${outcomeId}`}))`; }
   private async lockDecision(tx: Tx, id: string): Promise<Row> {
@@ -195,10 +177,5 @@ export class DecisionService {
     }
     return row;
   }
-  private async close(tx: Tx, row: Row, status: "expired" | "withdrawn", actor: ActorRef) {
-    const changed = await tx.outcomeDecision.updateMany({ where: { id: row.id, status: { in: [...activeDecisionStatuses] } }, data: { status, openWorkItemId: null } });
-    if (!changed.count) return;
-    await appendOutcomeEvent(tx, "outcome.decision.closed", row.outcomeId, { actor, contractRevision: row.contractRevision.revision, workItemId: row.workItemId ?? undefined, payload: { decisionId: row.id, reason: status } });
-    await revokeDecisionNotification(tx, row.id);
-  }
+  private close = closeOutcomeDecision;
 }

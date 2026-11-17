@@ -3277,3 +3277,5 @@ export async function buildSafeTranscript(
 }
 
 export { notificationRouting } from "./notification-presence";
+
+export { createOutcomeDecision, closeOutcomeDecision, revokeOutcomeDecisionNotification, withdrawSupersededOutcomeDecisions } from "./outcome-decisions";
