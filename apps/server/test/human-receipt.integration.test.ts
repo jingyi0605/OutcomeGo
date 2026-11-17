@@ -2,7 +2,7 @@ import { afterAll, describe, expect, test } from "bun:test";
 import { Effect } from "effect";
 import { ApiError } from "@outcomego/contracts";
 import { createPrismaClient } from "@outcomego/db";
-import { settleOutcomeWorkItem, transitionWorkItem } from "@outcomego/messaging";
+import { dispatchQueuedOutcomeWorkItems, settleOutcomeWorkItem, transitionWorkItem } from "@outcomego/messaging";
 import { HumanWorkService } from "../src/services/human-work-service";
 import { HumanReceiptService } from "../src/services/human-receipt-service";
 import { HumanKnowledgeService } from "../src/services/human-knowledge-service";
@@ -137,6 +137,7 @@ describe.skipIf(!url)("human action sources, receipts and unified review", () =>
     test(`${source} creates one human card and acceptance atomically resumes the same real Outcome thread`, async () => {
       const f = await setup(source);
       try {
+        expect(f.bot.status).toBe("active");
         const input = { ...request(), text: "Human observed DHCP and DNS succeeding" };
         const [receipt, duplicate] = await Promise.all([
           f.receipts.submit(f.card.workItemId, input, "owner:local"), f.receipts.submit(f.card.workItemId, input, "owner:local"),
@@ -154,12 +155,46 @@ describe.skipIf(!url)("human action sources, receipts and unified review", () =>
         const runs = await prisma.run.findMany({ where: { outcomeWorkItemId: f.agent.id }, orderBy: { createdAt: "asc" } });
         expect(runs).toHaveLength(2);
         expect(runs[1]).toMatchObject({ origin: "outcome", outcomeWorkItemId: f.agent.id, status: "queued" });
+        const continuationKey = `human-action-accepted:${f.card.workItemId}:${receipt.id}`;
+        expect(await prisma.idempotencyRecord.findUnique({
+          where: { scope_key: { scope: `outcome-turn:${f.agent.id}`, key: continuationKey } },
+        })).toMatchObject({ status: "completed", response: { status: "enqueued", runId: runs[1]!.id } });
+        const inbox = await prisma.inboxEvent.findMany({ where: { botId: f.bot.id, idempotencyKey: continuationKey } });
+        expect(inbox).toHaveLength(1);
+        expect(inbox[0]).toMatchObject({ runId: runs[1]!.id, payload: { origin: "outcome", outcomeWorkItemId: f.agent.id } });
         expect((await prisma.outcomeWorkItem.findUniqueOrThrow({ where: { id: f.agent.id } })).rootRunId).toBe(f.run.id);
         expect(await prisma.channelMessage.count({ where: { channelId: f.channel.id } })).toBe(0);
         expect((await f.humanWork.detail(f.card.workItemId)).receipts?.[0]?.status).toBe("accepted");
       } finally { await f.cleanup(); }
     });
   }
+
+  test("an unavailable Bot retains the accepted receipt continuation and drains it once after activation", async () => {
+    const f = await setup();
+    try {
+      await prisma.bot.update({ where: { id: f.bot.id }, data: { status: "provisioning" } });
+      const receipt = await f.receipts.submit(f.card.workItemId, { ...request(), text: "Human observed the real fixture" }, "owner:local");
+      const review = {
+        expectedRevision: 1, clientRequestId: crypto.randomUUID(), results: [{
+          criterionId: f.criterion.id, result: "PASS" as const, evidenceIds: receipt.evidenceIds, comment: "Verified",
+        }],
+      };
+      await Effect.runPromise(f.reviews.submit(f.outcome.id, review, "owner:local"));
+      const where = { scope_key: { scope: `outcome-turn:${f.agent.id}`, key: `human-action-accepted:${f.card.workItemId}:${receipt.id}` } };
+      expect(await prisma.idempotencyRecord.findUnique({ where })).toMatchObject({
+        status: "processing", response: { input: { workItemId: f.agent.id, reason: "human_action_accepted" } },
+      });
+      expect((await f.humanWork.detail(f.card.workItemId)).status).toBe("accepted");
+      expect(await prisma.run.count({ where: { outcomeWorkItemId: f.agent.id } })).toBe(1);
+      await prisma.bot.update({ where: { id: f.bot.id }, data: { status: "active" } });
+      await prisma.$transaction(tx => dispatchQueuedOutcomeWorkItems(tx, f.messaging, f.bot.id));
+      await prisma.$transaction(tx => dispatchQueuedOutcomeWorkItems(tx, f.messaging, f.bot.id));
+      await Effect.runPromise(f.reviews.submit(f.outcome.id, review, "owner:local"));
+      expect(await prisma.idempotencyRecord.findUnique({ where })).toMatchObject({ status: "completed" });
+      expect(await prisma.run.count({ where: { outcomeWorkItemId: f.agent.id } })).toBe(2);
+      expect((await prisma.outcomeWorkItem.findUniqueOrThrow({ where: { id: f.agent.id } })).rootRunId).toBe(f.run.id);
+    } finally { await f.cleanup(); }
+  });
 
   test("missing materials stay unverified; rejection preserves history and resubmission needs fresh receipt Evidence", async () => {
     const f = await setup("agent", "asset");

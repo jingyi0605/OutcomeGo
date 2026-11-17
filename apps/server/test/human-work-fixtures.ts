@@ -36,6 +36,7 @@ export async function humanWorkScenario(prisma: PrismaClient, service: HumanWork
 /** Real mailbox enqueue with synthetic filesystem/database state; never starts a worker or server. */
 export async function humanActionScenario(prisma: PrismaClient, service: HumanWorkService) {
   const fixture = await humanWorkScenario(prisma, service);
+  const bot = await prisma.bot.update({ where: { id: fixture.bot.id }, data: { status: "active" } });
   await prisma.outcomeWorkItem.delete({ where: { id: fixture.card.workItemId } });
   const root = await mkdtemp(join(import.meta.dir, ".human-action-test-"));
   const store = new AgentDataStore(prisma, { root: join(root, "agent-data"), workspaceRoot: root });
@@ -53,7 +54,7 @@ export async function humanActionScenario(prisma: PrismaClient, service: HumanWo
     outcomeWorkItemId: fixture.agent.id, status: "running", channelId: channel.id, startedAt: new Date(),
   } });
   await prisma.outcomeWorkItem.update({ where: { id: fixture.agent.id }, data: { rootRunId: run.id, startedAt: run.startedAt } });
-  return { ...fixture, root, store, assets, messaging, channel, run,
+  return { ...fixture, bot, root, store, assets, messaging, channel, run,
     async cleanup() {
       await prisma.bot.delete({ where: { id: fixture.bot.id } });
       await prisma.channel.delete({ where: { id: channel.id } });

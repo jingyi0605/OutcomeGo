@@ -93,6 +93,7 @@
 ## 阶段 2：人工 WorkItem 和动作卡
 
 - [ ] 2.1 实现人工 WorkItem 模型、状态和创建来源
+  - 后续实际复验（Task-39）：两来源续跑失败由真实 Bot fixture 默认 provisioning 引起，已改为 active；保留原第二个 Run 断言并增加唯一 Inbox/持久意图证明。完整回执文件 14 PASS / 0 FAIL / 117 expect，整体任务验收继续等待统一结果。见[复验修复](docs/20261117-人工回执续跑复验修复.md)。
   - 状态：IN_PROGRESS（第一波表结构完成；第二波工具和双来源实现已交付，生产组装和数据库验证 PENDING）
   - 实现提交：`d67c1122b`（schema）；`9790c2fd7`（contracts）；`fea60e9d9`（内部构造与骨架）。
   - 修改文件：`schema.prisma` 的 004.4 区段及必要逆向关系；`human-work.ts`；`human-work-service.ts`；本线测试。
@@ -154,6 +155,7 @@
 ## 阶段 3：回执、验收和客户端
 
 - [ ] 3.1 实现回执提交
+  - 后续实际复验（Task-39）：一次性 PostgreSQL 55434 上完整 `human-receipt.integration.test.ts` 为 14 PASS / 0 FAIL / 117 expect；包含幂等、资产冲突、缺材料和补交。全局验收状态不在本次局部修复中提前关闭，见[复验修复](docs/20261117-人工回执续跑复验修复.md)。
   - 状态：IN_PROGRESS（代码和测试编写完成，集成数据库验证 PENDING）
   - 实现提交：`f7601f5bf`（严格输入/DTO）、`473f46bd1`（合同测试）、`ab37843dc`（回执服务、HTTP 和测试）。
   - 修改文件：`human-receipt-service.ts`、`human-work.ts`、`routes/human-work.ts`、`human-work-service.ts`、本线回执/HTTP 测试和 fixture。
@@ -172,6 +174,7 @@
   - 对应设计：§18、§19、§34
 
 - [ ] 3.2 接入统一验收和 Agent 子线程继续执行
+  - 后续实际复验（Task-39）：原两例 `runs=1` 对 `expected=2` 实际复现后修正活动 Bot 前提；相同事务续跑与回放唯一性通过。新增 provisioning 持久意图、激活后两次 drain 仅续跑一次的真实测试，完整文件 14 PASS / 0 FAIL，见[复验修复](docs/20261117-人工回执续跑复验修复.md)。
   - 状态：IN_PROGRESS（代码和测试编写完成，集成数据库验证 PENDING）
   - 实现提交：`ab37843dc`。
   - 修改文件：`human-receipt-service.ts`、`human-revision-policy.ts`、`human-work-factory.ts`、`outcome-review-service.ts` 授权人工分支及人工 fixture、本线回执数据库测试。
