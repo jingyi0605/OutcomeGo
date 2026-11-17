@@ -76,7 +76,10 @@ export async function enqueueOutcomeTurn(
   const channel = await tx.channel.findFirst({
     where: { kind: "bot_dm", archivedAt: null, members: { some: { botId: item.botId } } }, orderBy: { createdAt: "asc" },
   });
-  if (!channel) throw new OutcomeError("bot_not_runnable", "The execution bot has no direct conversation", { retryable: true });
+  if (!channel) {
+    if (["queued", "running"].includes(item.status)) await transitionWorkItem(tx, { workItemId: item.id, to: "retry_pending", reason: "bot_conversation_unavailable", actor });
+    return { status: "queued_for_capacity" };
+  }
   const wake = await messaging.enqueueWake(tx, {
     botId: item.botId, channelId: channel.id, origin: "outcome", outcomeWorkItemId: item.id,
     type: "outcome.work_item", content: input.content, clientId: input.clientId, priority: 280, includeAttachmentPaths: false,
@@ -94,10 +97,15 @@ export async function enqueueOutcomeTurn(
 
 /** Try-lock other Outcomes so a drain cannot reverse Outcome -> WorkItem lock order. */
 export async function dispatchQueuedOutcomeWorkItems(tx: Prisma.TransactionClient, messaging: AgentMessaging, botId: string) {
-  const items = await tx.outcomeWorkItem.findMany({
-    where: { botId, executorType: "agent", status: { notIn: ["completed", "failed", "cancelled"] }, outcome: { cancelledAt: null, acceptedAt: null } },
-    orderBy: [{ createdAt: "asc" }, { id: "asc" }], take: 100,
-  });
+  const items = await tx.$queryRaw<Array<{ id: string; outcomeId: string }>>`
+    SELECT w.id, w."outcomeId" FROM "outcomego_outcome_work_item" w
+    JOIN "outcomego_outcome" o ON o.id = w."outcomeId"
+    WHERE w."botId" = ${botId}::uuid AND w."executorType" = 'agent'
+      AND w.status NOT IN ('completed', 'failed', 'cancelled')
+      AND o."cancelledAt" IS NULL AND o."acceptedAt" IS NULL
+      AND EXISTS (SELECT 1 FROM "outcomego_idempotency_record" r
+        WHERE r.scope = 'outcome-turn:' || w.id::text AND r.status = 'processing')
+    ORDER BY w."createdAt", w.id LIMIT 100`;
   for (const item of items) {
     const [lock] = await tx.$queryRaw<Array<{ locked: boolean }>>`
       SELECT pg_try_advisory_xact_lock(hashtext(${`outcome:${item.outcomeId}`})) AS locked`;
@@ -133,7 +141,7 @@ export async function settleOutcomeWorkItem(tx: Prisma.TransactionClient, runId:
   if (!run?.outcomeWorkItemId) return;
   const item = await lockWorkItem(tx, run.outcomeWorkItemId);
   if (item.executorType !== "agent" || ["waiting_decision", "waiting_human", "failed", "cancelled", "needs_review"].includes(item.status)) return;
-  const family = await tx.run.findMany({ where: { outcomeWorkItemId: item.id }, orderBy: [{ createdAt: "desc" }, { id: "desc" }] });
+  const family = await tx.run.findMany({ where: { outcomeWorkItemId: item.id }, orderBy: [{ startedAt: { sort: "desc", nulls: "last" } }, { createdAt: "desc" }, { id: "desc" }] });
   if (!family.length || family.some((entry) => activeRuns.includes(entry.status as typeof activeRuns[number]))) return;
   const ids = family.map((entry) => entry.id);
   if (await runGroupBackgroundWorkRunning(tx, item.botId, ids)) return;

@@ -358,6 +358,12 @@ export async function automationContinuationRoute(
   if (!source) return null;
   if (source.origin === "outcome") {
     if (!source.outcomeWorkItemId) return null;
+    const found = await tx.outcomeWorkItem.findUnique({ where: { id: source.outcomeWorkItemId }, select: { outcomeId: true } });
+    if (!found) return null;
+    // The caller retains these locks through enqueue. Settlement must not miss a
+    // continuation committed between its family snapshot and background-work check.
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`outcome:${found.outcomeId}`}))`;
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`outcome-work-item:${source.outcomeWorkItemId}`}))`;
     if ((await tx.automationResult.findUnique({ where: { runId: source.id }, select: { wakeRunId: true } }))?.wakeRunId) return null;
     const item = await tx.outcomeWorkItem.findUnique({
       where: { id: source.outcomeWorkItemId },

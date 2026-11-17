@@ -47,6 +47,30 @@ describe.skipIf(!url)("Outcome worker isolation", () => {
     } finally { await h.cleanup(); }
   });
 
+  test("computerUse shares one parent desktop with Outcome work while unrelated desktop behavior stays compatible", async () => {
+    const h = await outcomeThreadFixture();
+    const childIds = [crypto.randomUUID(), crypto.randomUUID()];
+    const worker = Object.assign(Object.create(WakeWorker.prototype), { prisma: h.db, messaging: h.messaging, agentData: h.store, workspaceRoot: h.root });
+    try {
+      const item = await h.item();
+      const enqueued = await h.db.$transaction(tx => enqueueOutcomeTurn(tx, h.messaging, { workItemId: item.id, content: "Execute", reason: "start", clientId: `start:${item.id}` }));
+      const outcomeRun = (enqueued as { runId: string }).runId;
+      const mainRun = await h.db.run.create({ data: { botId: h.bot.id, conversationId: h.bot.conversation!.id, channelId: h.channel.id, origin: "user", userMessageId: crypto.randomUUID(), status: "completed" } });
+      const childRuns: string[] = [];
+      for (const [index, id] of childIds.entries()) {
+        await h.db.bot.create({ data: { id, name: "Desktop worker", defaultDirectory: h.root, status: "active", conversation: { create: {} } } });
+        const child = await h.db.$transaction(tx => h.messaging.enqueueWake(tx, { botId: id, channelId: h.channel.id, origin: "agent", type: "subagent.task", content: "Inspect desktop", clientId: `desktop:${id}`, priority: 350 }));
+        childRuns.push(child.run.id);
+        await h.db.subagent.create({ data: { parentBotId: h.bot.id, childBotId: id, parentRunId: index === 0 ? outcomeRun : mainRun.id, parentChannelId: h.channel.id,
+          currentRunId: child.run.id, subagentType: "computerUse", status: "queued", launchCallId: `desktop:${id}`, description: "Inspect", prompt: "Inspect", outputPath: "/tmp/fixture" } });
+      }
+      expect((await worker.claim(childIds[0]))?.runId).toBe(childRuns[0]);
+      expect(await worker.claim(childIds[1])).toBeNull();
+      await h.db.run.update({ where: { id: childRuns[0]! }, data: { status: "completed" } });
+      expect((await worker.claim(childIds[1]))?.runId).toBe(childRuns[1]);
+    } finally { await h.db.bot.deleteMany({ where: { id: { in: childIds } } }); await h.cleanup(); }
+  });
+
   test("Outcome wake is independent of a superseded main request", async () => {
     const h = await outcomeThreadFixture();
     try {

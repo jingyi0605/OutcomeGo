@@ -1723,7 +1723,7 @@ export class WakeWorker {
         });
         await this.messaging.scheduleTranscriptProjection(tx, [claimed.botId]);
         await this.completeSubagent(tx, claimed);
-        if (claimed.runtimeProfile !== "subagent" && claimed.origin !== "routine") await settleRequestProgress(tx, this.messaging, claimed.botId, claimed.runId);
+        if (claimed.runtimeProfile !== "subagent" && !["routine", "outcome"].includes(claimed.origin)) await settleRequestProgress(tx, this.messaging, claimed.botId, claimed.runId);
       });
       // Memory extraction needs the published replies, not the buffered group outbox.
       if (claimed.deliveryId) {

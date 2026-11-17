@@ -1,8 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { enqueueOutcomeTurn, settleOutcomeWorkItem, dispatchQueuedOutcomeWorkItems, transitionWorkItem } from "../src";
+import { AgentMessaging, enqueueOutcomeTurn, settleOutcomeWorkItem, dispatchQueuedOutcomeWorkItems, transitionWorkItem } from "../src";
 import { outcomeThreadFixture } from "./fixtures/outcome-thread";
+import { settleAgainstCallback } from "./fixtures/outcome-race";
 
 const url = process.env.OUTCOMEGO_TEST_DATABASE_URL;
 const actor = "system:fixture" as const;
@@ -73,6 +74,69 @@ describe.skipIf(!url)("Outcome turn enqueue and group settlement", () => {
       expect((await h.db.outcomeWorkItem.findUniqueOrThrow({ where: { id: item.id } })).status).toBe("completed");
       expect((await h.db.outcomeOutput.findFirstOrThrow({ where: { workItemId: item.id } })).runId).toBe(continuation.id);
     } finally { await h.db.bot.deleteMany({ where: { id: childId } }); await h.cleanup(); }
+  });
+
+  test("settlement serializes a real shell callback after its family snapshot", async () => {
+    const h = await outcomeThreadFixture();
+    try {
+      const item = await h.item();
+      const result = await h.db.$transaction(tx => enqueueOutcomeTurn(tx, h.messaging, { workItemId: item.id, content: "Execute", reason: "start", clientId: `start:${item.id}` }));
+      const runId = (result as { runId: string }).runId;
+      await h.db.$transaction(tx => transitionWorkItem(tx, { workItemId: item.id, to: "running", reason: "claimed", actor }));
+      await h.db.run.update({ where: { id: runId }, data: { status: "completed" } });
+      await h.db.runItem.create({ data: { runId, kind: "command", status: "completed", content: { shellKind: "background", result: { details: { status: "running", outputPath: "/tmp/racing-shell.log" } } } } });
+      await settleAgainstCallback(h.db, runId, db => new AgentMessaging(db, h.messaging.boss, h.store).completeShell({
+        id: "racing", scope: h.bot.id, channelId: h.channel.id, automationRunId: runId, outputPath: "/tmp/racing-shell.log", exitCode: 0, title: "Check",
+      }));
+      expect((await h.db.outcomeWorkItem.findUniqueOrThrow({ where: { id: item.id } })).status).toBe("running");
+      expect(await h.db.run.count({ where: { outcomeWorkItemId: item.id, status: "queued" } })).toBe(1);
+      await h.db.$transaction(tx => settleOutcomeWorkItem(tx, runId, h.runtime));
+      expect((await h.db.outcomeWorkItem.findUniqueOrThrow({ where: { id: item.id } })).status).toBe("running");
+    } finally { await h.cleanup(); }
+  });
+
+  test("one hundred older waiting items cannot hide a capacity-queued intent", async () => {
+    const h = await outcomeThreadFixture();
+    try {
+      await h.db.outcomeWorkItem.createMany({ data: Array.from({ length: 100 }, (_, index) => ({
+        outcomeId: h.outcome.id, contractRevisionId: h.revision.id, botId: h.bot.id, executorType: "agent" as const,
+        title: "Older waiting fixture", status: "waiting_decision" as const, ordinal: index + 1, createdAt: new Date("2026-01-01"),
+      })) });
+      const items = await Promise.all([h.item(101), h.item(102), h.item(103)]);
+      const results = [];
+      for (const item of items) results.push(await h.db.$transaction(tx => enqueueOutcomeTurn(tx, h.messaging, {
+        workItemId: item.id, content: "Execute", reason: "start", clientId: `start:${item.id}`,
+      })));
+      expect(results[2]!.status).toBe("queued_for_capacity");
+      const runId = (results[0] as { runId: string }).runId;
+      await h.db.run.update({ where: { id: runId }, data: { status: "completed" } });
+      await h.db.$transaction(tx => settleOutcomeWorkItem(tx, runId, h.runtime));
+      expect((await h.db.outcomeWorkItem.findUniqueOrThrow({ where: { id: items[2]!.id } })).rootRunId).not.toBeNull();
+      expect(await h.db.outcomeWorkItem.count({ where: { outcomeId: h.outcome.id, status: "waiting_decision" } })).toBe(100);
+    } finally { await h.cleanup(); }
+  });
+
+  for (const lastStatus of ["completed", "failed"] as const) test(`actual last execution wins over enqueue order (${lastStatus})`, async () => {
+    const h = await outcomeThreadFixture();
+    try {
+      const item = await h.item();
+      const first = await h.db.$transaction(tx => enqueueOutcomeTurn(tx, h.messaging, { workItemId: item.id, content: "Execute", reason: "start", clientId: `start:${item.id}` }));
+      const rootId = (first as { runId: string }).runId;
+      await h.db.$transaction(tx => transitionWorkItem(tx, { workItemId: item.id, to: "running", reason: "claimed", actor }));
+      await h.db.run.update({ where: { id: rootId }, data: { status: "completed", startedAt: new Date("2026-01-01T00:00:00Z") } });
+      const make = (label: string) => h.db.$transaction(tx => h.messaging.enqueueWake(tx, { botId: h.bot.id, channelId: h.channel.id, origin: "outcome", outcomeWorkItemId: item.id,
+        content: label, type: "shell.completed", clientId: `${label}:${item.id}`, priority: label === "shell" ? 50 : 260 }));
+      const shell = await make("shell"); const child = await make("child");
+      await h.db.run.update({ where: { id: child.run.id }, data: { status: "completed", startedAt: new Date("2026-01-01T00:00:01Z") } });
+      await h.db.run.update({ where: { id: shell.run.id }, data: { status: lastStatus, startedAt: new Date("2026-01-01T00:00:02Z") } });
+      for (const [runId, text] of [[shell.run.id, "Actual final shell result"], [child.run.id, "Earlier executed child result"]])
+        await h.db.event.create({ data: { topic: "run_item.completed", entityId: runId!, payload: { item: { type: "agentMessage", text } } } });
+      await h.db.$transaction(tx => settleOutcomeWorkItem(tx, shell.run.id, h.runtime));
+      expect((await h.db.outcomeWorkItem.findUniqueOrThrow({ where: { id: item.id } })).status).toBe(lastStatus);
+      const output = await h.db.outcomeOutput.findFirst({ where: { workItemId: item.id } });
+      if (lastStatus === "completed") expect(output).toMatchObject({ runId: shell.run.id, content: "Actual final shell result" });
+      else expect(output).toBeNull();
+    } finally { await h.cleanup(); }
   });
 
   for (const [status, expected] of [["failed", "failed"], ["cancelled", "cancelled"], ["interrupted", "needs_review"]] as const) {

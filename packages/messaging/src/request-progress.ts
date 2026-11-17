@@ -12,6 +12,7 @@ import { requestIsStopped } from "./request-state";
 export { requestIsStopped } from "./request-state";
 
 const json = (value: unknown) => JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
+const independentOrigins = ["routine", "outcome"] as const;
 const openWorkers = ["provisioning", "queued", "running", "waiting"] as const;
 const lock = (tx: Prisma.TransactionClient, botId: string) =>
   tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`bot-run-claim:${botId}`}))`;
@@ -49,7 +50,7 @@ async function requestForRun(
   });
   if (!source || source.botId !== botId || source.status === "cancelled")
     throw new ApiError(409, "request_context_inactive", "The request context is no longer active");
-  if (source.origin === "routine") return null;
+  if (independentOrigins.includes(source.origin as typeof independentOrigins[number])) return null;
   const context = (source.inboxEvents[0]?.payload as { taskContextRunId?: string } | undefined)
     ?.taskContextRunId;
   const root = await tx.run.findUnique({ where: { id: requestedId ?? context ?? runId } });
@@ -66,7 +67,7 @@ async function requestForRun(
       "This request was stopped. A new instruction needs a new request; it does not restore earlier approval."
     );
   // Saved automations already have their own owner, context and delivery route.
-  if (root.origin === "routine") return null;
+  if (independentOrigins.includes(root.origin as typeof independentOrigins[number])) return null;
   if (!(await canContinueRequest(tx, root)))
     throw new ApiError(
       409,
@@ -82,6 +83,8 @@ export async function ensureRequestForTask(
   runId: string,
   requestedId?: string
 ) {
+  const source = await tx.run.findUnique({ where: { id: runId }, select: { origin: true } });
+  if (source && independentOrigins.includes(source.origin as typeof independentOrigins[number])) return null;
   await lock(tx, botId);
   const root = await requestForRun(tx, botId, runId, requestedId);
   if (!root) return null;
@@ -295,6 +298,8 @@ export async function settleRequestProgress(
   botId: string,
   runId: string
 ) {
+  const initial = await tx.run.findUnique({ where: { id: runId }, select: { origin: true } });
+  if (!initial || independentOrigins.includes(initial.origin as typeof independentOrigins[number])) return;
   await lock(tx, botId);
   const source = await tx.run.findUnique({
     where: { id: runId },
@@ -306,6 +311,7 @@ export async function settleRequestProgress(
   const roots = await tx.run.findMany({
     where: {
       botId,
+      origin: { notIn: [...independentOrigins] },
       channelId: source.channelId,
       requestStoppedAt: null,
       requestProgress: { path: ["state"], equals: "working" },
@@ -374,6 +380,7 @@ export async function settleRequestProgress(
 export async function recoverRequestProgress(prisma: PrismaClient, messaging: AgentMessaging) {
   const roots = await prisma.run.findMany({
     where: {
+      origin: { notIn: [...independentOrigins] },
       // Filter before distinct: a cancelled request must not hide a recoverable
       // request in the same conversation.
       OR: [
@@ -408,7 +415,7 @@ export async function dispatchRequestChecks(
   now = new Date()
 ) {
   const due = await prisma.run.findMany({
-    where: { requestNextCheckAt: { lte: now }, requestStoppedAt: null, bot: { status: "active" } },
+    where: { origin: { notIn: [...independentOrigins] }, requestNextCheckAt: { lte: now }, requestStoppedAt: null, bot: { status: "active" } },
     select: { id: true, botId: true },
     take: 100,
   });
@@ -469,6 +476,7 @@ export async function stopRequestProgress(
         include: { inboxEvents: { take: 1, select: { payload: true, type: true } } },
       })
     : null;
+  if (source?.origin === "outcome") return 0;
   const sourcePayload = source?.inboxEvents[0]?.payload as { taskContextRunId?: string; automationContextRunId?: string } | undefined;
   const handoff = source?.inboxEvents.some(event => event.type === "automation.wake_parent")
     ? await tx.automationResult.findUnique({ where: { wakeRunId: source.id }, select: { runId: true } }) : null;
@@ -501,6 +509,7 @@ export async function stopRequestProgress(
   const roots = await tx.run.findMany({
     where: {
       botId,
+      origin: { not: "outcome" },
       ...(context ? { id: context } : { OR: [
         { requestProgress: { not: Prisma.DbNull } },
         { id: { in: legacyOwners } },
@@ -528,6 +537,7 @@ export async function requestProgressSnapshot(
   const rows = await tx.run.findMany({
     where: {
       botId,
+      origin: { notIn: [...independentOrigins] },
       channelId,
       requestStoppedAt: null,
       requestProgress: { not: Prisma.DbNull },
@@ -558,6 +568,7 @@ export async function requestWakeAllowed(
   const context = (wake.payload as { taskContextRunId?: string } | null)?.taskContextRunId;
   if (!context) return wake.type !== "request.check";
   const root = await tx.run.findUnique({ where: { id: context } });
+  if (root?.origin === "outcome") return false;
   // A recorded stop is authoritative even if this legacy context never saved
   // progress. Otherwise a late completion can wake a model to publish its result.
   if (root?.requestStoppedAt) return false;
