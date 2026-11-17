@@ -480,6 +480,10 @@ export class PluginManagement {
         installation.connections.map((connection) => this.stop(connection.id, connection.transport))
       );
       await this.prisma.$transaction(async (tx) => {
+        // Match uninstall's installation-before-accounts lock order.
+        await tx.$queryRaw`
+          SELECT id FROM "outcomego_plugin_installation"
+          WHERE id = ${installation.id}::uuid FOR UPDATE`;
         await tx.$queryRaw`
           SELECT id FROM "outcomego_plugin_connection"
           WHERE "installationId" = ${installation.id}::uuid ORDER BY id FOR UPDATE`;
