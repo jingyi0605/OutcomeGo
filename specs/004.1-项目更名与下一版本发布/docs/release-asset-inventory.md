@@ -36,7 +36,7 @@
 ## 未包含
 
 - iOS：按负责人决定延期，不在 Release 资产中。
-- 服务端镜像：由 Release workflow 推送到 GHCR 稳定路径 `ghcr.io/jingyi0605/ai-teamos`；本清单未单独核对镜像 digest。
+- 服务端镜像：由 Release workflow 推送到 GHCR 路径 `ghcr.io/jingyi0605/outcomego`（原 `ai-teamos`）；本清单未单独核对镜像 digest。
 
 ## 已知发布健康问题（不属于 004.1 范围）
 

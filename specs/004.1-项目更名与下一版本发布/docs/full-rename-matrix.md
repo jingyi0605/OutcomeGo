@@ -22,4 +22,4 @@
 
 ## 禁止保留为运行时身份的模式
 
-除迁移文档、历史说明、明确 upstream fixture 和 name-inventory.md 指定的固定标识外，旧产品模式不得出现在新运行代码中。当前代码使用 `OutcomeGo`、`outcomego`、`OUTCOMEGO_*`、`com.outcomego`、`dev.outcomego`、`outcomego://`；仅 `userData=aiTeamOS`、Desktop artifact `aiTeamOS-*`、GHCR `ai-teamos` 和 Postgres channel `aiteamos_events` 按固定决策保留。
+除迁移文档、历史说明、明确 upstream fixture 和 name-inventory.md 指定的固定标识外，旧产品模式不得出现在新运行代码中。当前代码使用 `OutcomeGo`、`outcomego`、`OUTCOMEGO_*`、`com.outcomego`、`dev.outcomego`、`outcomego://`；仅 `userData=aiTeamOS`、Desktop artifact `aiTeamOS-*` 和 Postgres channel `aiteamos_events` 按固定决策保留；GHCR 路径已于 2026 年 11 月 17 日由 `ai-teamos` 改为 `outcomego`。

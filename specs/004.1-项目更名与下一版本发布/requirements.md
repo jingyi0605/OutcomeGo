@@ -151,7 +151,7 @@
 | Android | `aiTeamOS`、`aiteamos`、`com.teambots` | `OutcomeGo`、`com.outcomego.android` | update manifest 公钥沿用；不要求覆盖升级 | APK manifest/certificate/static checks |
 | Android namespace | `com.teambots.android` | `com.outcomego.android` | 新实例身份 | Gradle/test |
 | iOS | `OpenTeam`/`aiTeamOS` 混合现状 | OutcomeGo 显示名 | 新 Bundle/APNs/extensions；设备签名延期 | native config |
-| Compose/镜像 | `aiteamos_*` | `outcomego_*` | GHCR `ai-teamos` package path | compose render/schema checks |
+| Compose/镜像 | `aiteamos_*` | `outcomego_*` | GHCR `outcomego` package path（原 `ai-teamos`） | compose render/schema checks |
 | 上游身份 | `openteam` | 保留 | Fork 关系、协议和同步 | grep 分类审计 |
 
 ## 需求 10：发布资产和名称层级可追踪
