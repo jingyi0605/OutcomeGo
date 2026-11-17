@@ -87,7 +87,10 @@ async function duplicateFinish(f: RecoveryFixture) {
   const reviewEvent = await f.db.event.findFirstOrThrow({ where: { entityId: f.outcome.id, topic: "outcome.review.required" } });
   const firstDelivery = await f.db.$transaction(tx => consumeOutcomeInboxEvent(tx, reviewEvent.sequence));
   const repeatedDelivery = await f.db.$transaction(tx => consumeOutcomeInboxEvent(tx, reviewEvent.sequence));
-  f.check("duplicate_inbox_delivery_has_one_durable_consumer_receipt", firstDelivery.processed && !repeatedDelivery.processed);
+  const reviewEventId = (reviewEvent.payload as { eventId: string }).eventId;
+  f.check("duplicate_inbox_delivery_has_one_durable_consumer_receipt",
+    firstDelivery.processed && firstDelivery.projected && repeatedDelivery.processed && !repeatedDelivery.projected &&
+    await f.db.idempotencyRecord.count({ where: { scope: "outcome-event:inbox", key: reviewEventId } }) === 1);
   f.check("one_acceptance_notification", await f.db.channelNotification.count({
     where: { kind: "outcome", payload: { path: ["outcomeId"], equals: f.outcome.id } },
   }) === 1);
@@ -173,6 +176,7 @@ function failReceiptCreate(prisma: PrismaClient) {
 
 async function receiptRetry(f: RecoveryFixture) {
   const runId = await f.enqueue();
+  await f.db.run.update({ where: { id: runId }, data: { status: "running", startedAt: new Date() } });
   const knowledge = { resolve: async () => [] };
   const human = new HumanWorkService(f.db, knowledge);
   const card = await f.locked(tx => human.createFromAgentRequest(tx, {
@@ -199,7 +203,7 @@ async function receiptRetry(f: RecoveryFixture) {
   f.check("receipt_failure_rolls_back_evidence_status_and_events", await f.db.outcomeEvidence.count({ where: { workItemId: card.workItemId } }) === 0 &&
     await f.db.outcomeHumanReceipt.count({ where: { workItemId: card.workItemId } }) === 0 &&
     (await f.db.outcomeWorkItem.findUniqueOrThrow({ where: { id: card.workItemId } })).status === "in_progress" &&
-    await f.db.event.count({ where: { entityId: f.outcome.id, topic: "outcome.human_action.submitted" } }) === 0);
+    await f.db.event.count({ where: { entityId: f.outcome.id, topic: "outcome.human_receipt.submitted" } }) === 0);
   const service = new HumanReceiptService(f.db, assets, knowledge, f.messaging);
   const first = await service.submit(card.workItemId, request, actor);
   const replay = await service.submit(card.workItemId, request, actor);
@@ -207,8 +211,21 @@ async function receiptRetry(f: RecoveryFixture) {
     await f.db.outcomeHumanReceipt.count({ where: { workItemId: card.workItemId } }) === 1 &&
     await f.db.outcomeEvidence.count({ where: { workItemId: card.workItemId } }) === 1);
   f.check("already_uploaded_asset_survives_rollback", (await assets.metadata(upload.assetId)).assetId === upload.assetId);
+  f.check("receipt_submission_waits_for_review_before_resuming_agent",
+    await f.db.run.count({ where: { outcomeWorkItemId: f.item.id, status: "queued" } }) === 0 &&
+    (await f.db.outcomeWorkItem.findUniqueOrThrow({ where: { id: f.item.id } })).status === "waiting_human");
+  const review = new OutcomeReviewService(f.db, f.messaging, async () => { throw new Error("unused"); }, undefined, service);
+  const reviewInput = {
+    expectedRevision: 1, clientRequestId: crypto.randomUUID(), results: [{
+      criterionId: f.revision.criteria[0]!.id, result: "PASS" as const, evidenceIds: first.evidenceIds,
+      comment: "Owner inspected the fictional uploaded observation",
+    }],
+  };
+  await run(review.submit(f.outcome.id, reviewInput, actor));
+  await run(review.submit(f.outcome.id, reviewInput, actor));
   f.check("human_receipt_has_single_same_thread_resume", await f.db.run.count({ where: { outcomeWorkItemId: f.item.id, status: "queued" } }) === 1);
-  return f.report("receipt-retry", initial, `receipt-create-failure:${card.workItemId}`, 3, { humanWorkItemId: card.workItemId, receiptId: first.id, uploadedAssetId: upload.assetId });
+  f.check("receipt_accepted_by_unified_review", (await f.db.outcomeHumanReceipt.findUniqueOrThrow({ where: { id: first.id } })).status === "accepted");
+  return f.report("receipt-retry", initial, `receipt-create-failure:${card.workItemId}`, 5, { humanWorkItemId: card.workItemId, receiptId: first.id, uploadedAssetId: upload.assetId });
 }
 
 async function unknownExternalReceipt(f: RecoveryFixture) {
