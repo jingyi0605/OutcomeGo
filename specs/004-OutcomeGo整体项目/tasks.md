@@ -118,7 +118,8 @@
   - 对应设计：`design.md` §23、§37
 
 - [ ] 3.0a 跨阶段 API、事件和数据库合同复核
-  - 状态：TODO
+  - 状态：IN_PROGRESS（2026-11-17，第 1 波本地组合复核）
+  - 证据：[第 1 波集成验证记录](docs/20261117-第1波集成验证记录.md)。schema/contracts 分批并集合入，保留 L1/L2 共享服务方法和第四参数撤回回调；最终组合定向数据库/合同/工具/Desktop/Stop 553 PASS（39 文件、2315 断言），7 包类型通过。内部事件流过滤、未消费 Evidence 保留、开放 Decision/HumanAction 验收门槛、永久 Decision 通知恢复、取消重绑定与停止事实均已有实际定向验证和审查闭环。完整父级合同矩阵/后续波次和真实端到端尚未结束，不勾选本父任务；1.3 的远端 CI 继续 PENDING。
   - 先依赖什么：2.1、2.2、2.3、2.4 各自的模型任务
   - 这一步到底做什么：核对各子 Spec 使用的 DTO、事件名（只能使用 §14 目录）、revision、idempotency key 和 schema 变更是否一致。
   - 做完你能看到什么：`docs/cross-phase-contract-matrix.md`，每个跨阶段载荷都有生产者、消费者和兼容行为。
