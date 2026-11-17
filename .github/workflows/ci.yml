@@ -109,3 +109,28 @@ jobs:
         env:
           OUTCOMEGO_TEST_DATABASE_URL: postgresql://outcomego:outcomego@127.0.0.1:5432/postgres
         run: bun test packages/db/test/fresh-schema.integration.test.ts
+      - name: Initialize the disposable reliability database
+        env:
+          DATABASE_URL: postgresql://outcomego:outcomego@127.0.0.1:5432/postgres
+        run: |
+          bun run --filter @outcomego/db db:generate
+          bun run prepare:plugins
+          bun run --filter @outcomego/db db:deploy
+      - name: Verify retries, attempt fencing, Stop and restart recovery
+        env:
+          OUTCOMEGO_TEST_DATABASE_URL: postgresql://outcomego:outcomego@127.0.0.1:5432/postgres
+          # Existing routine/deletion fixtures still use this historical test-only variable.
+          OPENTEAM_TEST_DATABASE_URL: postgresql://outcomego:outcomego@127.0.0.1:5432/postgres
+          OUTCOMEGO_RECOVERY_TEST_DATABASE_URL: postgresql://outcomego:outcomego@127.0.0.1:5432/postgres
+        run: >-
+          bun test
+          apps/worker/test/automation-retry.integration.test.ts
+          apps/worker/test/request-check-outage.integration.test.ts
+          apps/worker/test/stalled-wake-recovery.integration.test.ts
+          apps/worker/test/terminal-lease-recovery.integration.test.ts
+          apps/worker/test/runtime-dispatch.integration.test.ts
+          apps/worker/test/superseded-wake-redrive.integration.test.ts
+          apps/worker/test/typed-message-supersedes-turn.integration.test.ts
+          apps/worker/test/routine-stop-ordering.integration.test.ts
+          apps/server/test/deletion-late-settlement.integration.test.ts
+          apps/server/test/startup-recovery.integration.test.ts
