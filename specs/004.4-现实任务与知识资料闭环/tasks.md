@@ -8,6 +8,8 @@
 
 2026-11-17 整理：合并了原先重复的 provider 合同测试（1.x/5.1）、状态机验证（2.1/5.3）、回执对账（3.x/5.4）、Explore（4.x/5.5）、全流程回放（4.3/5.6）、普通 Agent 回归（4.4/5.7）和三个最终检查点（4.5/5.8/5.9）；新增人工 WorkItem 创建来源（`RequestHumanAction`、Decision `manual_action`）和移动端只读动作卡任务；验收统一走 `004.2` 的 `/reviews`；Explore 移到最后，可整体延期。
 
+2026-11-17 后续范围确认：负责人明确要求完成整个 Spec004 的剩余代码，Explore 5.1 后端与 Desktop 已纳入本轮代码交付和组合验收，不使用上文历史分波的“可整体延期”作为豁免；移动端 Explore 不在本次客户端范围。代码实现完成与真实端到端 / 发布验收状态分别记录。
+
 分波及测试替身合同：[父接口冻结文档](../004-OutcomeGo整体项目/docs/parallel-interfaces.md)。需求见 [requirements.md](requirements.md)，业务设计见 [design.md](design.md)；本次只调整任务前置关系。
 
 ## 阶段 0：资料、文件和项目范围基线
