@@ -2102,3 +2102,5 @@ export const UpdateNotificationPresenceInput = Schema.Struct({
 export const UpdateNotificationPreferencesInput = Schema.Struct({ smartEnabled: Schema.Boolean });
 
 export * from "./outcome-inbox";
+export * from "./knowledge";
+export * from "./human-work";
