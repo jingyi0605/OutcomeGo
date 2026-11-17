@@ -14,6 +14,7 @@ import {
   type AgentMessaging,
   type AssetStore,
   PRIORITY,
+  lockAgentLifecycle,
 } from "@outcomego/messaging";
 import { cancelSkippedBootstrap } from "./channel/delivery";
 import { renameDirectChannel } from "./channel/direct-profile";
@@ -164,6 +165,12 @@ export class ChannelService {
       }
 
       const accepted = await this.prisma.$transaction(async (tx) => {
+        // Accept before retirement scans the queue, or reread its archived state.
+        // The lifecycle gate must precede any Bot/onboarding row lock.
+        const owner = await tx.conversation.findUnique({
+          where: { id: conversationId }, select: { botId: true },
+        });
+        if (owner) await lockAgentLifecycle(tx, owner.botId);
         const conversation = await tx.conversation.findUnique({
           where: { id: conversationId },
           include: { bot: { include: { subagentIdentity: { select: { id: true } } } } },

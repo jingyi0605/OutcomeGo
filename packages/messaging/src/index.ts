@@ -1,5 +1,6 @@
 export { lockQuestions, dismissQuestions, questionScopeForReply } from "./question-lifecycle";
 export { lockAgentLifecycle, canonicalAgentId } from "./agent-lifecycle";
+import { lockAgentLifecycle, canonicalAgentId } from "./agent-lifecycle";
 export { cleanupRetiredAgent, RETIRED_AGENT_CLEANUP_RETRY_MS } from "./retired-agent-cleanup";
 export {
   draftNotificationVariant,
@@ -927,6 +928,8 @@ export class AgentMessaging {
 
   async completeShell(input: ShellCompletionInput) {
     return this.prisma.$transaction(async (tx) => {
+      await lockAgentLifecycle(tx, input.scope);
+      if (input.channelId) await lockGroupExecution(tx, input.channelId);
       const clientId = `shell-completion:${input.scope}:${input.id}`;
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${clientId}))`;
       if (await tx.inboxEvent.findUnique({ where: { idempotencyKey: clientId } })) return { delivered: true, duplicate: true };
@@ -2424,7 +2427,12 @@ export class AgentMessaging {
     // A refused send is an answer the model reads, not a tool failure.
     const refusal = (acknowledgement: string) => ({ acknowledgement, interruptRunId: null });
     const result = await this.prisma.$transaction(async (tx) => {
+      // Both owners precede the source claim gate, including reciprocal sends.
+      for (const id of [...new Set([context.botId, input.target_id].map(canonicalAgentId))].sort()) {
+        await lockAgentLifecycle(tx, id);
+      }
       await assertBackgroundRequestDeliveryAllowed(tx, context);
+      await lockGroupExecution(tx, input.target_id);
       const source = await tx.bot.findUnique({
         where: { id: context.botId },
         include: { subagentIdentity: { select: { id: true } } },
@@ -2784,13 +2792,14 @@ export class AgentMessaging {
     let content = standalone?.fileName ?? this.visibleContent(input);
     let groupRoundId: string | null = null;
     const result = await this.prisma.$transaction(async (tx) => {
+      await lockAgentLifecycle(tx, context.botId);
       await assertBackgroundRequestDeliveryAllowed(tx, context);
       if (target?.kind === "group") await lockGroupExecution(tx, context.channelId);
       const activeChannel = await tx.channel.findFirst({
         where: {
           id: context.channelId,
           archivedAt: null,
-          members: { some: { botId: context.botId } },
+          members: { some: { botId: context.botId, bot: { status: "active" } } },
         },
         include: { members: { orderBy: { ordinal: "asc" } } },
       });

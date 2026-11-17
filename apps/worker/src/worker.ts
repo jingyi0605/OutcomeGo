@@ -36,6 +36,8 @@ import {
   AgentDataStore,
   AgentMessaging,
   lockAgentLifecycle,
+  cleanupRetiredAgent,
+  RETIRED_AGENT_CLEANUP_RETRY_MS,
   appendRoutineRunLedger,
   buildSafeTranscript,
   PRIORITY,
@@ -594,6 +596,7 @@ export class WakeWorker {
     await recoverRequestProgress(this.prisma, this.messaging);
     await this.recoverRoutineExecutions();
     while (this.outcomeRecoveryCursor) await this.recoverOutcomeWorkItems();
+    await this.reconcileRetiredAgents();
     await this.reconcileAgentStores();
     await this.agentData.reconcileAllActiveBots();
     await this.pushNotifications.drain();
@@ -620,7 +623,8 @@ export class WakeWorker {
     this.agentStoreTimer = setInterval(() => {
       if (this.reconcilingAgentStores) return;
       this.reconcilingAgentStores = true;
-      void this.reconcileAgentStores(false)
+      void this.reconcileRetiredAgents()
+        .then(() => this.reconcileAgentStores(false))
         .then(async (adopted) => {
           if (adopted > 0) await this.agentData.reconcileAllActiveBots();
         })
@@ -677,14 +681,37 @@ export class WakeWorker {
     }
   }
 
-  /** Ids the owner already deleted; their directory residue must never become a chat again. */
+  private async reconcileRetiredAgents(): Promise<void> {
+    const pending = await this.prisma.retiredAgent.findMany({
+      where: { cleanupPending: true, nextCleanupAt: { lte: new Date() } },
+      orderBy: [{ nextCleanupAt: "asc" }, { id: "asc" }],
+      take: 4,
+      select: { id: true },
+    });
+    await Promise.all(pending.map(async ({ id }) => {
+      try {
+        // Rotate failures out of the batch so one broken owner cannot starve cleanup.
+        await this.prisma.retiredAgent.update({ where: { id }, data: {
+          nextCleanupAt: new Date(Date.now() + RETIRED_AGENT_CLEANUP_RETRY_MS),
+        } });
+        const warnings = await cleanupRetiredAgent(
+          this.prisma, (path, init) => this.computerFetch(path, init), this.agentData, id
+        );
+        for (const warning of warnings) console.warn(`retired agent cleanup: ${warning}`);
+      } catch (error) {
+        console.warn(`retired agent cleanup ${id}: ${String(error)}`);
+      }
+    }));
+  }
+
+  /** Durable markers survive event pruning and prevent deleted chats from returning. */
   private async retiredAgentIds(ids: readonly string[]): Promise<Set<string>> {
     if (ids.length === 0) return new Set();
-    const retired = await this.prisma.event.findMany({
-      where: { entityId: { in: [...ids] }, topic: { in: [...RETIRED_AGENT_EVENT_TOPICS] } },
-      select: { entityId: true },
+    const retired = await this.prisma.retiredAgent.findMany({
+      where: { id: { in: [...ids] } },
+      select: { id: true },
     });
-    return new Set(retired.flatMap(({ entityId }) => (entityId ? [entityId] : [])));
+    return new Set(retired.map(({ id }) => id));
   }
 
   private async reconcileAgentStores(backfill = true): Promise<number> {
@@ -746,6 +773,8 @@ export class WakeWorker {
       if (existingBotIds.has(record.id) || retired.has(record.id)) continue;
       const created = await this.prisma.$transaction(async (tx) => {
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`adopt-agent:${record.id}`}))`;
+        await lockAgentLifecycle(tx, record.id);
+        if (await tx.retiredAgent.findUnique({ where: { id: record.id } })) return false;
         if (await tx.bot.findUnique({ where: { id: record.id } })) return false;
         await tx.bot.create({
           data: {
@@ -808,6 +837,9 @@ export class WakeWorker {
       }
       const created = await this.prisma.$transaction(async (tx) => {
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`adopt-group:${record.id}`}))`;
+        // Discovery is a snapshot; deletion may commit before this transaction runs.
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`channel:${record.id}`}))`;
+        if (await tx.retiredAgent.findUnique({ where: { id: record.id } })) return false;
         if (await tx.channel.findUnique({ where: { id: record.id } })) return false;
         await tx.channel.create({
           data: {
@@ -827,19 +859,21 @@ export class WakeWorker {
       if (created) adopted += 1;
     }
 
+    // A failed DELETE leaves discovery's ETag unchanged. Retain the record so a
+    // subsequent 304 still retries disposal instead of permanently hiding it.
+    for (const record of directories.filter(({ id }) => retired.has(id))) {
+      try {
+        const response = await this.computerFetch(COMPUTER_API_PATHS.agentStore(record.id), {
+          method: "DELETE", signal: AbortSignal.timeout(10_000),
+        });
+        if (!response.ok) throw new Error(`${response.status} ${await response.text()}`);
+      } catch (error) {
+        pending.set(record.id, record);
+        console.warn(`retired agent store ${record.id} could not be discarded: ${String(error)}`);
+      }
+    }
     this.pendingAgentStoreRecords = pending;
     if (responseEtag) this.agentStoreEtag = responseEtag;
-
-    // The chat is gone from PostgreSQL, so its durable directory is unreachable residue. Asking the
-    // computer to retire it closes the SQLite handles first, which is what makes removal stick.
-    for (const id of retired) {
-      await this.computerFetch(COMPUTER_API_PATHS.agentStore(id), {
-        method: "DELETE",
-        signal: AbortSignal.timeout(10_000),
-      }).catch((error) =>
-        console.warn(`retired agent store ${id} could not be discarded: ${String(error)}`)
-      );
-    }
 
     if (!backfill) return adopted;
 
