@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
+import { checkBackupReferences, currentBackupSchema } from "./backup-schema";
 
 type JsonObject = Record<string, unknown>;
 type PortableTable = JsonObject[];
@@ -96,8 +97,10 @@ const validateManifest = (value: unknown): OutcomeGoBackup["manifest"] => {
 const validateTables = (value: unknown): Record<string, PortableTable> => {
   const tables = assertObject(value, "backup.tables") as Record<string, unknown>;
   const validated: Record<string, PortableTable> = {};
+  const schema = currentBackupSchema();
   for (const [table, rows] of Object.entries(tables)) {
-    if (!/^outcomego_[a-z0-9_]+$/.test(table)) {
+    const model = schema.get(table);
+    if (!model) {
       throw new Error(`backup.tables.${table} is not a current OutcomeGo physical table name`);
     }
     if (
@@ -106,60 +109,16 @@ const validateTables = (value: unknown): Record<string, PortableTable> => {
     ) {
       throw new Error(`backup.tables.${table} must be an array of objects`);
     }
-    validated[table] = rows as PortableTable;
-  }
-  return validated;
-};
-
-const checkReferences = (tables: Record<string, PortableTable>): void => {
-  const ids = new Map<string, Set<unknown>>();
-  for (const [table, rows] of Object.entries(tables)) {
-    ids.set(
-      table,
-      new Set(rows.map((row) => row.id).filter((id) => id !== undefined && id !== null))
-    );
-  }
-
-  const references: Array<[string, string]> = [
-    ["botId", "outcomego_bot"],
-    ["parentBotId", "outcomego_bot"],
-    ["childBotId", "outcomego_bot"],
-    ["executorBotId", "outcomego_bot"],
-    ["writtenByBotId", "outcomego_bot"],
-    ["senderBotId", "outcomego_bot"],
-    ["initiatorBotId", "outcomego_bot"],
-    ["subagentBotId", "outcomego_bot"],
-    ["userId", "outcomego_user"],
-    ["channelId", "outcomego_channel"],
-    ["parentChannelId", "outcomego_channel"],
-    ["sourceChannelId", "outcomego_channel"],
-    ["runId", "outcomego_run"],
-    ["parentRunId", "outcomego_run"],
-    ["requestRunId", "outcomego_run"],
-    ["currentRunId", "outcomego_run"],
-    ["childRunId", "outcomego_run"],
-    ["sourceRunId", "outcomego_run"],
-    ["sessionId", "outcomego_context_session"],
-    ["contextSessionId", "outcomego_context_session"],
-    ["routineId", "outcomego_routine"],
-    ["routineRevisionId", "outcomego_routine_revision"],
-  ];
-
-  for (const [table, rows] of Object.entries(tables)) {
-    for (const row of rows) {
-      for (const [column, target] of references) {
-        const value = row[column];
-        if (
-          value !== undefined &&
-          value !== null &&
-          ids.has(target) &&
-          !ids.get(target)!.has(value)
-        ) {
-          throw new Error(`${table}.${column} references missing ${target} id ${String(value)}`);
+    for (const row of rows as PortableTable) {
+      for (const column of Object.keys(row)) {
+        if (!model.columns.has(column)) {
+          throw new Error(`backup.tables.${table}.${column} is not a current OutcomeGo physical column`);
         }
       }
     }
+    validated[table] = rows as PortableTable;
   }
+  return validated;
 };
 
 const validateBackupObject = (value: unknown): OutcomeGoBackup => {
@@ -180,7 +139,7 @@ const validateBackupObject = (value: unknown): OutcomeGoBackup => {
     throw new Error("backup.manifest.rowCounts does not match tables");
   }
 
-  checkReferences(tables);
+  checkBackupReferences(tables);
   return { manifest, tables };
 };
 
