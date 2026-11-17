@@ -22,6 +22,7 @@ import { eventRoutes } from "./routes/event";
 import { pluginMutationRoutes } from "./routes/plugin-mutation";
 import { pluginQueryRoutes } from "./routes/plugin-query";
 import { outcomeRoutes } from "./routes/outcome";
+import { outcomeInboxRoutes } from "./routes/outcome-inbox";
 import { routineRoutes } from "./routes/routine";
 import { humanWorkRoutes } from "./routes/human-work";
 import { HumanWorkService } from "./services/human-work-service";
@@ -358,6 +359,7 @@ const server = Bun.serve<VncConnection | NetworkConnection | VoiceConnectionData
         botRoutes,
         routineRoutes,
         outcomeRoutes,
+        outcomeInboxRoutes,
         channelRoutes,
         conversationRoutes,
         eventRoutes,

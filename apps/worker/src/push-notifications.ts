@@ -156,7 +156,7 @@ export class PushNotificationDispatcher {
         if (
           !device ||
           payload.schemaVersion !== 1 ||
-          !(payload.kind === "badge-sync" || isAgentNotificationKind(payload.kind))
+          !(payload.kind === "badge-sync" || payload.kind === "outcome" || isAgentNotificationKind(payload.kind))
         ) {
           return [];
         }
@@ -277,6 +277,22 @@ export class PushNotificationDispatcher {
     payload: PushNotificationPayload
   ): Promise<boolean> {
     if (payload.kind === "badge-sync") return true;
+    if (payload.kind === "outcome") {
+      const [bot, activity, state, preferences] = await Promise.all([
+        tx.bot.findUnique({ where: { id: payload.botId } }),
+        tx.channelNotification.findUnique({ where: { key: payload.factKey } }),
+        tx.channelReadState.findUnique({ where: { channelId: payload.channelId } }),
+        tx.notificationPreferences.findUnique({ where: { id: "global" } }),
+      ]);
+      if (preferences?.smartEnabled === false || !bot?.notificationsEnabled || !activity || activity.revoked || activity.sequence.toString() !== payload.notificationSequence ||
+        (state && activity.sequence <= state.lastReadNotificationSequence)) return false;
+      if (payload.decisionId) {
+        const decision = await tx.outcomeDecision.findUnique({ where: { id: payload.decisionId }, include: { outcome: { select: { currentRevisionId: true, cancelledAt: true, acceptedAt: true } } } });
+        if (!decision || !["open", "presented"].includes(decision.status) || decision.contractRevisionId !== decision.outcome.currentRevisionId || decision.outcome.cancelledAt || decision.outcome.acceptedAt ||
+          (decision.expiresAt && decision.expiresAt <= new Date())) return false;
+      }
+      return true;
+    }
     const [state, bot, channel] = await Promise.all([
       tx.channelReadState.findUnique({ where: { channelId: payload.channelId } }),
       tx.bot.findUnique({ where: { id: payload.botId } }),

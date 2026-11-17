@@ -51,6 +51,37 @@ export class NotificationService {
     private readonly authMode: PushAuthenticationMode = "required"
   ) {}
 
+  /** Only first-wave decision facts are projected here; progress is always silent. */
+  projectOutcomeEvent = (eventSequence: string) => serviceEffect(() => this.prisma.$transaction(async tx => {
+    const event = await tx.event.findUnique({ where: { sequence: BigInt(eventSequence) } });
+    if (!event || event.topic !== "outcome.decision.required" || !event.entityId) return { projected: false };
+    const envelope = event.payload as unknown as { eventId?: string; payload?: { decisionId?: string } };
+    const decisionId = envelope.payload?.decisionId;
+    if (!decisionId) return { projected: false };
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`outcome:${event.entityId}`}))`;
+    const scope = "outcome-event:inbox";
+    const eventId = envelope.eventId ?? event.sequence.toString();
+    const previous = await tx.idempotencyRecord.findUnique({ where: { scope_key: { scope, key: eventId } } });
+    if (previous) return { projected: false };
+    const decision = await tx.outcomeDecision.findUnique({ where: { id: decisionId }, include: { outcome: true, contractRevision: true } });
+    if (!decision || decision.outcomeId !== event.entityId || decision.outcome.currentRevisionId !== decision.contractRevisionId ||
+      !["open", "presented"].includes(decision.status) || decision.outcome.cancelledAt || decision.outcome.acceptedAt ||
+      (decision.expiresAt && decision.expiresAt <= new Date())) return { projected: false };
+    const channel = await tx.channel.findFirst({ where: { kind: "bot_dm", archivedAt: null, members: { some: { botId: decision.outcome.botId } } }, orderBy: { createdAt: "asc" } });
+    // A missing existing channel is retryable, not a fabricated user conversation.
+    if (!channel) return { projected: false };
+    const { outcomeNotificationPayload } = await import("@outcomego/contracts/notification-content");
+    const { publishOutcomeNotification } = await import("@outcomego/messaging");
+    await publishOutcomeNotification(tx, outcomeNotificationPayload({
+      type: "outcome.decision.required", factKey: `decision.required:${decision.id}`, outcomeId: decision.outcomeId,
+      decisionId: decision.id, botId: decision.outcome.botId, channelId: channel.id, contractRevision: decision.contractRevision.revision,
+      urgent: decision.reasonCode === "external_result_unknown",
+    }));
+    await tx.idempotencyRecord.create({ data: { scope, key: eventId, requestHash: event.topic, response: { projected: true },
+      status: "completed", expiresAt: new Date(Date.now() + 30 * 86400_000) } });
+    return { projected: true };
+  }));
+
   routing = () => serviceEffect(() => notificationRouting(this.prisma, this.authMode));
 
   updatePreferences = (smartEnabled: boolean) => serviceEffect(() => this.prisma.$transaction(async tx => {
