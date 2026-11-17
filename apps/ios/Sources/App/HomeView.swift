@@ -16,6 +16,8 @@ struct HomeView: View {
     var route: SettingsRoute?
   }
   @State private var settings: SettingsSheet?
+  @State private var outcomes = false
+  @State private var outcomesSupported = false
   @State private var marketplace = false
   @State private var marketplaceRevision = 0
   @State private var marketplaceHovered = false
@@ -126,6 +128,21 @@ struct HomeView: View {
         try? await Task.sleep(for: .seconds(1))
         if store.navigation.isEmpty, store.landing == nil { zoomChannel = nil }
       }
+    }
+    .task(id: store.api?.resourceGeneration) {
+      outcomesSupported = false
+      outcomes = false
+      do { outcomesSupported = try await store.listOutcomes() != nil }
+      catch {
+        if !UserFacingError.isCancelled(error) && (error as? APIError)?.status != 401 {
+          outcomesSupported = true
+        }
+      }
+    }
+    .sheet(isPresented: $outcomes) {
+      NavigationStack {
+        OutcomesView { outcomesSupported = false; outcomes = false }
+      }.id(store.api?.resourceGeneration).referenceSheet()
     }
     .sheet(isPresented: $marketplace, onDismiss: { marketplaceRevision += 1 }) {
       NavigationStack { PluginListView() }.referenceSheet()
@@ -547,6 +564,10 @@ struct HomeView: View {
       }
       Spacer()
       MobileUpdateBadge()
+      if outcomesSupported {
+        InboxChromeButton(title: "Outcomes", symbol: "checkmark.circle") { outcomes = true }
+          .accessibilityIdentifier("outcomes-button")
+      }
       InboxChromeButton(title: "Search", symbol: "magnifyingglass",
         pointSize: isSidebar ? SidebarMetrics.searchGlyph : 21) { search = true }
         .accessibilityIdentifier("search-button")
@@ -564,6 +585,10 @@ struct HomeView: View {
         if splitAvailable { sidebarToggle }
         Spacer(minLength: 12)
         creationMenu().frame(width: 44, height: 44).nativeInboxGlass()
+        if outcomesSupported {
+          InboxChromeButton(title: "Outcomes", symbol: "checkmark.circle") { outcomes = true }
+            .accessibilityIdentifier("outcomes-button")
+        }
         searchControl
         if !expandedReferenceSidebar, store.navigation.isEmpty {
           MarketplaceShortcut { marketplace = true }
@@ -583,6 +608,12 @@ struct HomeView: View {
   }
 
   @ToolbarContentBuilder private var inboxToolbar: some ToolbarContent {
+    if outcomesSupported {
+      ToolbarItem(id: "inbox.outcomes", placement: .topBarTrailing) {
+        Button("Outcomes", systemImage: "checkmark.circle") { outcomes = true }
+          .accessibilityIdentifier("outcomes-button")
+      }
+    }
     if toolbarOnSide {
       creationToolbarItem
       if #available(iOS 26.0, *) { ToolbarSpacer(.fixed, placement: .topBarTrailing) }

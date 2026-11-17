@@ -1800,6 +1800,13 @@ final class AppStore {
       throw error
     }
   }
+  func listOutcomes(cursor: String? = nil) async throws -> OutcomeListPage? {
+    var query = ["limit": "20"]
+    if let cursor { query["cursor"] = cursor }
+    do { return try await fetch("/api/v0/outcomes", as: OutcomeListPage.self, query: query) }
+    catch let error as APIError where error.status == 404 { return nil }
+  }
+
   func fetch<T: Decodable>(_ path: String, as type: T.Type, query: [String: String] = [:])
     async throws -> T
   {

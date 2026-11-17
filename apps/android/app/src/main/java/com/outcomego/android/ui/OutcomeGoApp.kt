@@ -30,6 +30,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.key
+import com.outcomego.features.OutcomesScreen
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -125,6 +127,7 @@ private const val COMPUTER = "bot/{conversationId}/computer"
 private const val MARKETPLACE = "marketplace"
 private const val ROUTINES = "routines"
 private const val ROUTINE_EDITOR = "routines/editor"
+private const val OUTCOMES = "outcomes"
 private const val SETTINGS = "settings"
 private const val NETWORK_SHARING_DETAILS = "network-sharing-details"
 private const val PROVIDERS = "providers"
@@ -312,6 +315,15 @@ fun OutcomeGoApp(
         return
     }
 
+    val outcomeGateway = appViewModel.outcomeReadGateway
+    var outcomesSupported by remember(state.session, outcomeGateway) { mutableStateOf(false) }
+    LaunchedEffect(state.session, outcomeGateway) {
+        if (state.session != null) outcomesSupported = outcomeGateway.listOutcomes().fold(
+            onSuccess = { it != null },
+            onFailure = { it !is UnsupportedOperationException },
+        )
+    }
+
     val liveVoiceActive = state.liveVoice.state != AndroidLiveVoiceState.Idle &&
         state.liveVoiceConversationId != null
     val liveVoiceBackdrop = rememberSpatialGlassBackdrop()
@@ -362,6 +374,7 @@ fun OutcomeGoApp(
                         },
                         onRoutines = { navController.navigate(CREATE) },
                         onOutbox = { navController.navigate(OUTBOX) },
+                        onOutcomes = if (outcomesSupported) ({ navController.navigate(OUTCOMES) }) else null,
                         onSettings = { navController.navigate(SETTINGS) { launchSingleTop = true } },
                         onSearch = appViewModel::search,
                         onClearSearch = appViewModel::clearSearch,
@@ -626,6 +639,18 @@ fun OutcomeGoApp(
                             onBack = { navController.popBackStack() },
                             onDelete = routine.id.takeIf(String::isNotBlank)?.let { { appViewModel.deleteRoutine() } },
                             operation = state.features.operation,
+                        )
+                    }
+                }
+                spatialComposable(OUTCOMES) {
+                    key(state.session, outcomeGateway) {
+                        OutcomesScreen(
+                            gateway = outcomeGateway,
+                            onBack = { navController.popBackStack() },
+                            onUnsupported = {
+                                outcomesSupported = false
+                                navController.popBackStack()
+                            },
                         )
                     }
                 }

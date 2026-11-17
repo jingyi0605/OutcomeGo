@@ -2,8 +2,15 @@ package com.outcomego.features
 
 import com.outcomego.android.data.MobileFeatureApi
 import com.outcomego.mobile.core.HttpMethod
+import com.outcomego.mobile.core.OutcomeDetail
+import com.outcomego.mobile.core.OutcomeGoRequestException
+import com.outcomego.mobile.core.OutcomeListPage
+import com.outcomego.mobile.core.outcomeDetailPath
+import com.outcomego.mobile.core.outcomeListPath
+import kotlinx.coroutines.CancellationException
 import com.outcomego.mobile.core.mobileJson
 import kotlinx.coroutines.delay
+import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
@@ -25,6 +32,20 @@ import java.net.URLDecoder
  * request client owns tokens, redirects, file I/O, and error translation.
  */
 class LiveFeatureGateway(private val client: MobileFeatureApi) : FeatureGateway {
+    override suspend fun listOutcomes(cursor: String?): Result<OutcomeListPage?> = runCatching {
+        try {
+            mobileJson.decodeFromJsonElement(OutcomeListPage.serializer(),
+                client.request(HttpMethod.GET, outcomeListPath(cursor)))
+        } catch (error: OutcomeGoRequestException) {
+            if (error.error.status == 404) null else throw error
+        }
+    }.onFailure { if (it is CancellationException) throw it }
+
+    override suspend fun outcomeDetail(id: String): Result<OutcomeDetail> = runCatching {
+        mobileJson.decodeFromJsonElement(OutcomeDetail.serializer(),
+            client.request(HttpMethod.GET, outcomeDetailPath(id)))
+    }.onFailure { if (it is CancellationException) throw it }
+
     override suspend fun submitRichAction(messageId: String, actionId: String, values: Map<String, String>): Result<Unit> =
         runCatching {
             val route = values["_richType"] ?: actionId

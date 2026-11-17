@@ -174,6 +174,7 @@ class AppViewModel @JvmOverloads constructor(
     private var activeFeatureGateway: FeatureGateway = featureGateway
         ?: (gateway as? MobileFeatureApi)?.let(::LiveFeatureGateway)
         ?: UnsupportedFeatureGateway
+    val outcomeReadGateway: FeatureGateway get() = activeFeatureGateway
     private var searchGeneration = 0L
     private var syncJob: Job? = null
     private var directoryRefreshJob: Job? = null

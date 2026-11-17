@@ -357,3 +357,93 @@ public enum MessageMerge {
     }
   }
 }
+
+// Open status strings preserve compatibility with newer Outcome servers.
+public struct OutcomeSummary: Decodable, Sendable, Identifiable, Equatable {
+  public let id: String
+  public let title: String
+  public let status: String
+  public let botId: String
+  public let currentRevision: Int?
+  public let updatedAt: String
+}
+
+public struct OutcomeListPage: Decodable, Sendable {
+  public let items: [OutcomeSummary]
+  public let nextCursor: String?
+}
+
+public struct OutcomeDetail: Decodable, Sendable, Identifiable {
+  public let id: String
+  public let title: String
+  public let status: String
+  public let botId: String
+  public let currentRevision: Int?
+  public let updatedAt: String
+  public let description: String
+  public let currentRevisionView: OutcomeContractRevision?
+  public let workItems: [OutcomeWorkItem]
+  public let outputs: [OutcomeOutput]
+  public let evidence: [OutcomeEvidence]
+  public let reviews: [OutcomeReview]
+}
+
+public struct OutcomeContractRevision: Decodable, Sendable, Identifiable {
+  public let id: String
+  public let revision: Int
+  public let status: String
+  public let goal: [String]
+  public let criteria: [OutcomeCriterion]
+}
+
+public struct OutcomeCriterion: Decodable, Sendable, Identifiable {
+  public let id: String
+  public let ordinal: Int
+  public let statement: String
+  public let required: Bool
+  public let verificationMethod: String
+  public let latestResult: String?
+}
+
+public struct OutcomeWorkItem: Decodable, Sendable, Identifiable {
+  public let id: String
+  public let contractRevision: Int
+  public let executorType: String
+  public let kind: String
+  public let title: String
+  public let status: String
+  public let statusReason: String?
+  public let ordinal: Int
+}
+
+public struct OutcomeOutput: Decodable, Sendable, Identifiable {
+  public let id: String
+  public let workItemId: String
+  public let kind: String
+  public let title: String
+  public let content: String?
+  public let contentRef: String?
+  public let createdAt: String
+}
+
+public struct OutcomeEvidence: Decodable, Sendable, Identifiable {
+  public let id: String
+  public let criterionId: String?
+  public let contractRevision: Int
+  public let sourceType: String
+  public let sourceRef: String
+  public let contentSummary: String
+  public let credibility: String
+}
+
+public struct OutcomeReview: Decodable, Sendable, Identifiable {
+  public let id: String
+  public let criterionId: String
+  public let contractRevision: Int
+  public let sequence: Int
+  public let result: String
+  public let evidenceIds: [String]
+  public let comment: String
+  public let reviewedBy: String
+  public let reviewedAt: String
+}

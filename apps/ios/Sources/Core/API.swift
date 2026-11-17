@@ -311,3 +311,17 @@ public struct API: Sendable {
     return try result["message"].decode(Message.self)
   }
 }
+
+extension API {
+  /// Only the missing collection route means that the server does not support Outcomes.
+  public func listOutcomes(cursor: String? = nil) async throws -> OutcomeListPage? {
+    var query = ["limit": "20"]
+    if let cursor { query["cursor"] = cursor }
+    do { return try await get("/api/v0/outcomes", as: OutcomeListPage.self, query: query) }
+    catch let error as APIError where error.status == 404 { return nil }
+  }
+
+  public func outcomeDetail(id: String) async throws -> OutcomeDetail {
+    try await get("/api/v0/outcomes/\(Self.segment(id))", as: OutcomeDetail.self)
+  }
+}
