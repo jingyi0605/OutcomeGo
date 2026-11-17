@@ -3,10 +3,11 @@ import "./imessage-send-card.css";
 import type { ChannelMessageView } from "@outcomego/contracts";
 import { clientErrorMessage } from "@outcomego/product-core/redaction";
 import { MessageCircle } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { getDesktopMachineId } from "../../client/auth";
 import { api } from "../../client/outcomego-api";
 import { useI18n } from "../../lib/i18n";
+import { useDraftReview } from "./use-draft-review";
 import { LoadingOrb } from "../ui/loading-orb";
 import { useMessagesIcon } from "./settings/messages-permissions-dialog";
 
@@ -33,12 +34,12 @@ function MessagesIcon({ size }: { size: number }) {
 export function IMessageSendCard({ message }: { message: ChannelMessageView }) {
   const { t } = useI18n();
   const inFlight = useRef(false);
-  const metadata = record(message.metadata);
+  const review = useDraftReview(message, () => api.mutateIMessageSend(message.id, "refresh"));
+  const metadata = record(review.message.metadata);
   const send = record(metadata.imessage);
-  const [state, setState] = useState(String(metadata.cardState ?? "pending"));
+  const state = review.state;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  useEffect(() => setState(String(metadata.cardState ?? "pending")), [metadata.cardState]);
   const text = String(send.text ?? "");
   const name =
     typeof send.recipientName === "string" && send.recipientName ? send.recipientName : "";
@@ -52,11 +53,13 @@ export function IMessageSendCard({ message }: { message: ChannelMessageView }) {
     inFlight.current = true;
     setBusy(true);
     setError("");
+    let started = false;
     try {
-      if (action !== "cancel") setState("sending");
+      started = await review.begin(action === "cancel" ? "cancel" : "send");
+      if (!started) return;
       const result = await api.mutateIMessageSend(message.id, action);
       const next = record(result.message.metadata);
-      setState(String(next.cardState ?? "pending"));
+      await review.acknowledge(result.message);
       if (next.cardState === "pending" && typeof next.sendError === "string")
         setError(next.sendError);
     } catch (failure) {
@@ -67,11 +70,10 @@ export function IMessageSendCard({ message }: { message: ChannelMessageView }) {
         )
       );
       // The server decides whether anything went out; never guess.
-      const checked = await api.mutateIMessageSend(message.id, "refresh").catch(() => null);
-      setState(
-        checked ? String(record(checked.message.metadata).cardState ?? "pending") : "pending"
-      );
+      if (started) review.finish();
+      await review.reconcile().catch(() => undefined);
     } finally {
+      if (started) review.finish();
       inFlight.current = false;
       setBusy(false);
     }
@@ -138,7 +140,7 @@ export function IMessageSendCard({ message }: { message: ChannelMessageView }) {
       aria-label={t("Send this message?")}
       className="draft-card rich-message-card imessage-card"
       onKeyDown={(event) => {
-        if (event.key === "Escape" && !busy && !sending) void act("cancel");
+        if (event.key === "Escape" && !busy && !sending && !review.locked) void act("cancel");
       }}
     >
       <div className="imessage-title">
@@ -168,16 +170,16 @@ export function IMessageSendCard({ message }: { message: ChannelMessageView }) {
         </div>
       </div>
       <p className="draft-note">{t("The message will be sent from {where}", { where })}</p>
-      {(error || sendError) && (
+      {(error || review.storageError || sendError) && (
         <p className="draft-note" role="alert">
-          {error || sendError}
+          {error || clientErrorMessage(review.storageError, "") || sendError}
         </p>
       )}
       <div className="imessage-actions">
         <button
           className="draft-button draft-button-primary"
           data-sending={sending ? "" : undefined}
-          disabled={busy || sending}
+          disabled={busy || sending || review.locked}
           onClick={() => void act("send")}
           type="button"
         >
@@ -187,7 +189,7 @@ export function IMessageSendCard({ message }: { message: ChannelMessageView }) {
         {send.allowable === true && handle ? (
           <button
             className="draft-button draft-button-secondary"
-            disabled={busy || sending}
+            disabled={busy || sending || review.locked}
             onClick={() => void act("allow")}
             type="button"
           >
@@ -196,7 +198,7 @@ export function IMessageSendCard({ message }: { message: ChannelMessageView }) {
         ) : null}
         <button
           className="draft-button draft-button-secondary"
-          disabled={busy || sending}
+          disabled={busy || sending || review.locked}
           onClick={() => void act("cancel")}
           title={t("Discard (Esc)")}
           type="button"

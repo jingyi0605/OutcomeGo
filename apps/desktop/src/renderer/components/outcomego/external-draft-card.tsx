@@ -13,6 +13,7 @@ import { DropdownMenu } from "radix-ui";
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { api } from "../../client/outcomego-api";
 import { useI18n } from "../../lib/i18n";
+import { useDraftReview } from "./use-draft-review";
 import { LoadingOrb } from "../ui/loading-orb";
 
 const record = (value: unknown): Record<string, unknown> =>
@@ -178,29 +179,31 @@ export function ExternalDraftCard({
   const { t } = useI18n();
   const inFlight = useRef(false);
   const body = useRef<HTMLTextAreaElement>(null);
-  const metadata = record(message.metadata);
+  const review = useDraftReview(message, () => api.mutateExternalDraft(message.id, "refresh"), {
+    body: draft.body, subject: draft.subject ?? "", to: draft.to?.join(", ") ?? "",
+    cc: draft.cc?.join(", ") ?? "", from: draft.from ?? "",
+  });
+  const metadata = record(review.message.metadata);
   const verification = record(
     record(metadata.draft).verification
   ) as Partial<ExternalDraftVerification>;
   const sendingAddresses = verification.sendingAddresses ?? [];
   const email = draft.platform === "email";
-  const [state, setState] = useState(String(metadata.cardState ?? "pending"));
-  const [from, setFrom] = useState(draft.from ?? "");
-  const [text, setText] = useState(draft.body);
-  const [subject, setSubject] = useState(draft.subject ?? "");
-  const [to, setTo] = useState(draft.to?.join(", ") ?? "");
-  const [cc, setCc] = useState(draft.cc?.join(", ") ?? "");
+  const state = review.state;
+  const { body: text = "", subject = "", to = "", cc = "", from = "" } = review.fields;
+  const setField = (key: string) => (value: string) => review.edit({ ...review.fields, [key]: value });
+  const setFrom = setField("from"), setText = setField("body"), setSubject = setField("subject");
+  const setTo = setField("to"), setCc = setField("cc");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  useEffect(() => {
+    if (state === "sent" || state === "dismissed") setError("");
+  }, [state]);
   const [notice, setNotice] = useState("");
   // The send's response was lost and the server couldn't be asked yet.
-  const [lost, setLost] = useState(false);
+  const lost = review.unconfirmed;
   const [overflowing, setOverflowing] = useState(false);
   const [expanded, setExpanded] = useState(false);
-  useEffect(() => {
-    setState(String(metadata.cardState ?? "pending"));
-    if (metadata.cardState === "sent") setError("");
-  }, [metadata.cardState]);
   useLayoutEffect(() => {
     const element = body.current;
     if (!element) return;
@@ -226,12 +229,14 @@ export function ExternalDraftCard({
   };
   const act = (action: "send" | "cancel") =>
     run(async () => {
+      let started = false;
       try {
         const edits = externalDraftReviewEdits(draft, action, fields, sendingAddresses);
-        if (action === "send") setState("sending");
+        started = await review.begin(action);
+        if (!started) return;
         const result = await api.mutateExternalDraft(message.id, action, edits);
         const next = record(result.message.metadata);
-        setState(String(next.cardState ?? "pending"));
+        await review.acknowledge(result.message);
         if (typeof next.sendError === "string")
           setError(t("Couldn't send this draft: {error}", { error: next.sendError }));
       } catch (failure) {
@@ -243,23 +248,17 @@ export function ExternalDraftCard({
               : t("Couldn't discard this draft. Try again.")
           )
         );
-        if (action !== "send") return;
-        // The server decides whether anything went out; never guess.
-        try {
-          const checked = await api.mutateExternalDraft(message.id, "refresh");
-          setState(String(record(checked.message.metadata).cardState ?? "pending"));
-        } catch {
-          setState("sending");
-          setLost(true);
-        }
+        // A failed send or discard is reconciled, never replayed.
+        if (started) review.finish();
+        await review.reconcile().catch(() => undefined);
+      } finally {
+        if (started) review.finish();
       }
     });
   const checkDelivery = () =>
     run(async () => {
       try {
-        const checked = await api.mutateExternalDraft(message.id, "refresh");
-        setState(String(record(checked.message.metadata).cardState ?? "pending"));
-        setLost(false);
+        await review.reconcile();
       } catch (failure) {
         setError(clientErrorMessage(failure, t("Couldn't check delivery. Try again.")));
       }
@@ -288,7 +287,7 @@ export function ExternalDraftCard({
   const sentUnder = record(metadata.sentUnder);
   const menu = bot ? (
     <Picker
-      disabled={busy}
+      disabled={busy || review.locked}
       display={(value) => t(MODE_LABEL[value])}
       label={t("Approval")}
       onChange={(next) => void setMode(next)}
@@ -324,9 +323,9 @@ export function ExternalDraftCard({
         <p className="draft-note">{t("Sent without review: drafts are off for this Bot")}</p>
       ) : null}
       {notice && <p className="draft-note">{notice}</p>}
-      {(error || (state === "pending" && sendError)) && (
+      {(error || review.storageError || (state === "pending" && sendError)) && (
         <p className="draft-note" role="alert">
-          {error || t("Couldn't send this draft: {error}", { error: sendError })}
+          {error || clientErrorMessage(review.storageError, "") || t("Couldn't send this draft: {error}", { error: sendError })}
         </p>
       )}
     </>
@@ -360,7 +359,7 @@ export function ExternalDraftCard({
     );
   }
   const sending = state === "sending";
-  const locked = busy || sending;
+  const locked = busy || sending || review.locked;
   return (
     <form
       aria-label={title}
