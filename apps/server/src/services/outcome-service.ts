@@ -21,12 +21,15 @@ import {
   type OutcomeStatus,
   type PlanningConflict,
   type PlanningDraftView,
+  type StartOutcomeRunInput,
   resolvePlanningSelections,
 } from "@outcomego/contracts/outcomes";
 import type { Prisma, PrismaClient } from "@outcomego/db";
+import { Effect } from "effect";
+import type { RunService } from "./run-service";
 import { hashRequest, serviceEffect, toJson } from "./service-utils";
 
-import { appendOutcomeEvent, recomputeOutcomeStatus, transitionWorkItem, type ActorRef } from "@outcomego/messaging";
+import { appendOutcomeEvent, recomputeOutcomeStatus, transitionWorkItem, enqueueOutcomeTurn, readOutcomeTranscript, type AgentMessaging, type ActorRef } from "@outcomego/messaging";
 export type { ActorRef } from "@outcomego/messaging";
 
 type Tx = Prisma.TransactionClient;
@@ -71,12 +74,14 @@ type OutcomeRow = Prisma.OutcomeGetPayload<{ include: typeof detailInclude }>;
 
 /**
  * Outcome, contract revision and status (specs/004.2 tasks 1.3). Every write runs in one transaction with its
- * events and its idempotency record; nothing here calls the worker or the computer.
+ * events and its idempotency record. Runtime cancellation is delegated after those transactions commit.
  */
 export class OutcomeService {
   constructor(
     private readonly prisma: PrismaClient,
-    private readonly onRevisionCreated?: (tx: Tx, outcomeId: string, actor: ActorRef) => Promise<void>
+    private readonly messaging?: AgentMessaging,
+    private readonly runService?: Pick<RunService, "cancel"> & Partial<Pick<RunService, "cancelOutcomeWorkItems">>,
+    private readonly onRevisionCreated?: (tx: Tx, outcomeId: string, actor: ActorRef) => Promise<void>,
   ) {}
 
   createFromDraft = (input: CreateOutcomeInput, actor: ActorRef) =>
@@ -184,25 +189,71 @@ export class OutcomeService {
       })
     );
 
-  /** Marks the Outcome and its unfinished work items cancelled. Stopping sub-thread runs is added with execution (task 3.2). */
+  startRun = (outcomeId: string, input: StartOutcomeRunInput, actor: ActorRef) =>
+    serviceEffect(() => this.idempotent(`outcome-run:${outcomeId}`, input.clientRequestId, input, async tx => {
+      const outcome = await this.lockOutcome(tx, outcomeId);
+      this.assertOpen(outcome.status);
+      const revision = outcome.currentRevisionId
+        ? await tx.outcomeContractRevision.findUnique({ where: { id: outcome.currentRevisionId } }) : null;
+      if (!revision || revision.revision !== input.expectedRevision)
+        throw outcomeApiError("contract_revision_conflict", "The contract changed; reload before execution");
+      if (revision.status !== "approved" || !revision.approvedAt)
+        throw outcomeApiError("contract_revision_not_approved", "Approve the contract before execution", { currentStatus: revision.status });
+      if (!this.messaging) throw outcomeApiError("bot_not_runnable", "Outcome execution messaging is not configured", { retryable: true });
+      // D11: repeated start gestures do not create a second initial work item in this revision.
+      const existing = await tx.outcomeWorkItem.findFirst({ where: { outcomeId, contractRevisionId: revision.id, executorType: "agent", kind: "initial" } });
+      if (existing) return this.detail(tx, outcomeId);
+      const last = await tx.outcomeWorkItem.findFirst({ where: { outcomeId }, orderBy: { ordinal: "desc" }, select: { ordinal: true } });
+      const item = await tx.outcomeWorkItem.create({ data: {
+        outcomeId, contractRevisionId: revision.id, botId: revision.executionBotId, executorType: "agent", kind: "initial",
+        title: outcome.title, instructions: "Execute the approved Outcome contract. Return a complete final result and write deliverable files to the assigned Outcome output directory.",
+        status: "queued", ordinal: (last?.ordinal ?? 0) + 1,
+      } });
+      await appendOutcomeEvent(tx, "outcome.work_item.created", outcomeId, {
+        actor, contractRevision: revision.revision, workItemId: item.id, idempotencyKey: input.clientRequestId,
+        payload: { workItemId: item.id, executorType: "agent", kind: "initial" },
+      });
+      await enqueueOutcomeTurn(tx, this.messaging, { workItemId: item.id, content: item.instructions, reason: "start",
+        clientId: `outcome-run:${outcomeId}:${revision.revision}:${item.id}` });
+      await this.recomputeStatus(tx, outcomeId, actor);
+      return this.detail(tx, outcomeId);
+    }));
+
+  /** Cancel facts atomically; stop only this Outcome's run groups outside the transaction. Retries reattempt incomplete stops. */
   cancel = (outcomeId: string, input: CancelOutcomeInput, actor: ActorRef) =>
-    serviceEffect(() =>
-      this.idempotent(`outcome-cancel:${outcomeId}`, input.clientRequestId, input, async (tx) => {
+    serviceEffect(async () => {
+      const result = await this.idempotent(`outcome-cancel:${outcomeId}`, input.clientRequestId, input, async tx => {
         const outcome = await this.lockOutcome(tx, outcomeId);
         this.assertOpen(outcome.status);
-        const now = new Date();
-        await tx.outcome.update({ where: { id: outcomeId }, data: { cancelledAt: now } });
+        await tx.outcome.update({ where: { id: outcomeId }, data: { cancelledAt: new Date() } });
+        if (this.onRevisionCreated) await this.onRevisionCreated(tx, outcomeId, actor);
         const unfinished = await tx.outcomeWorkItem.findMany({
-          where: { outcomeId, status: { in: [...ACTIVE_AGENT_STATES, "waiting_decision", "waiting_human", ...ACTIVE_HUMAN_STATES] } },
-          select: { id: true, status: true },
+          where: { outcomeId, status: { in: [...ACTIVE_AGENT_STATES, "waiting_decision", "waiting_human", ...ACTIVE_HUMAN_STATES] } }, select: { id: true },
         });
-        for (const item of unfinished) {
-          await transitionWorkItem(tx, { workItemId: item.id, to: "cancelled", reason: "outcome_cancelled", actor, idempotencyKey: input.clientRequestId });
-        }
+        for (const item of unfinished) await transitionWorkItem(tx, {
+          workItemId: item.id, to: "cancelled", reason: "outcome_cancelled", actor, idempotencyKey: input.clientRequestId,
+        });
         await this.recomputeStatus(tx, outcomeId, actor);
         return this.detail(tx, outcomeId);
-      })
-    );
+      });
+      const items = await this.prisma.outcomeWorkItem.findMany({ where: { outcomeId, executorType: "agent", rootRunId: { not: null } }, select: { id: true } });
+      if (items.length) {
+        if (!this.runService?.cancelOutcomeWorkItems)
+          throw new ApiError(503, "outcome_stop_incomplete", "Outcome run-group cancellation is not configured", { retryable: true });
+        const stop = await Effect.runPromise(Effect.either(this.runService.cancelOutcomeWorkItems(items.map(item => item.id))));
+        if (stop._tag === "Left") throw stop.left;
+      }
+      return result;
+    });
+
+  transcript = (outcomeId: string, workItemId: string, query: { before?: number; limit?: number } = {}) =>
+    serviceEffect(() => this.prisma.$transaction(async tx => {
+      const outcome = await tx.outcome.findUnique({ where: { id: outcomeId }, select: { id: true } });
+      if (!outcome) throw outcomeApiError("outcome_not_found", "Outcome not found");
+      const item = await tx.outcomeWorkItem.findFirst({ where: { id: workItemId, outcomeId, executorType: "agent" }, select: { id: true } });
+      if (!item) throw outcomeApiError("work_item_not_found", "Outcome work item not found");
+      return readOutcomeTranscript(tx, item.id, query);
+    }, { isolationLevel: "RepeatableRead" }));
 
   get = (outcomeId: string) =>
     serviceEffect(async () => {

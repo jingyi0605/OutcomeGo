@@ -60,6 +60,12 @@ test.skipIf(!url)("actual Outcome Task completion serializes with settlement and
     expect(await h.db.inboxEvent.count({ where: { botId: h.bot.id, type: "request.check" } })).toBe(0);
     expect(await h.db.run.count({ where: { botId: h.bot.id, origin: "background_revival" } })).toBe(0);
     expect(await h.db.channelMessage.count({ where: { channelId: h.channel.id } })).toBe(0);
+    await h.db.run.update({ where: { id: runId }, data: { status: "cancelled" } });
+    await expect(service.task({ botId: h.bot.id, runId, conversationId: h.bot.conversation!.id, channelId: h.channel.id,
+      deliveryId: null, origin: "outcome", callId: `late-task:${item.id}`, replyToMessageId: null, isFork: false },
+      { description: "Late task", subagent_type: "executor", prompt: "Must not dispatch after cancellation" }))
+      .rejects.toMatchObject({ code: "request_context_inactive" });
+    expect(await h.db.subagent.count({ where: { parentRunId: runId } })).toBe(1);
   } finally {
     await h.db.idempotencyRecord.deleteMany({ where: { scope: `subagent-task:${h.bot.id}` } });
     if (childId) await h.db.bot.delete({ where: { id: childId } });

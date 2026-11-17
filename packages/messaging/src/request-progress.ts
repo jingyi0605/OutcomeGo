@@ -83,8 +83,15 @@ export async function ensureRequestForTask(
   runId: string,
   requestedId?: string
 ) {
-  const source = await tx.run.findUnique({ where: { id: runId }, select: { origin: true } });
-  if (source && independentOrigins.includes(source.origin as typeof independentOrigins[number])) return null;
+  const source = await tx.run.findUnique({ where: { id: runId }, select: { origin: true, botId: true, status: true, outcomeWorkItemId: true } });
+  if (source?.origin === "outcome") {
+    const item = source.outcomeWorkItemId ? await tx.outcomeWorkItem.findUnique({
+      where: { id: source.outcomeWorkItemId }, include: { outcome: { select: { cancelledAt: true } } },
+    }) : null;
+    if (source.botId !== botId || source.status === "cancelled" || !item || item.status !== "running" || item.outcome.cancelledAt)
+      throw new ApiError(409, "request_context_inactive", "The Outcome execution context is no longer active");
+    return null;
+  }
   await lock(tx, botId);
   const root = await requestForRun(tx, botId, runId, requestedId);
   if (!root) return null;

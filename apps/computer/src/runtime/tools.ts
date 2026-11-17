@@ -306,7 +306,11 @@ const interruptibleByUser = <T extends { name: string; execute: (...args: any[])
 export class RuntimeTools {
   private readonly stepFileWriters = new Map<string, Set<Promise<unknown>>>();
   /** Box shells a stopped subagent left running in the background end with it. */
-  stopBackgroundShells(botId: string) { return this.nativeToolExecutor.stopBackgroundShells(botId); }
+  stopBackgroundShells(botId: string, runIds?: readonly string[]) {
+    return runIds === undefined
+      ? this.nativeToolExecutor.stopBackgroundShells(botId)
+      : this.nativeToolExecutor.stopAutomationShells(runIds);
+  }
 
   private async awaitShellForTurn(
     turn: ActiveTurn,
