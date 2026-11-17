@@ -3,6 +3,8 @@ import { outcomeFixture, testDatabaseUrl, requestId } from "./fixtures/outcome-f
 import { Effect } from "effect";
 import type { PrismaClient } from "@outcomego/db";
 import { OutcomeService } from "../src/services/outcome-service";
+import { DecisionService } from "../src/services/decision-service";
+import { withdrawSupersededDecisions } from "../src/services/decision-lifecycle";
 
 describe.skipIf(!testDatabaseUrl)("transaction-scoped contract revision", () => {
   const f = outcomeFixture();
@@ -65,4 +67,26 @@ describe.skipIf(!testDatabaseUrl)("transaction-scoped contract revision", () => 
     expect(result.currentRevision).toBe(2);
     expect(await f.prisma.idempotencyRecord.count({ where: { scope: `outcome-revision:${outcome.id}`, key: input.clientRequestId } })).toBe(0);
   });
+
+  for (const operation of ["revision", "cancel"] as const) {
+    test(`${operation} withdraws independent Decisions through the production hook before any refresh`, async () => {
+      const { outcome } = await f.create();
+      const decision = await Effect.runPromise(new DecisionService(f.prisma).create({
+        outcomeId: outcome.id, contractRevisionId: outcome.currentRevisionView!.id,
+        reasonCode: "missing_input", completedSummary: "", problemSummary: "Choose", nextStepSummary: "Wait",
+        options: [{ id: "plan", label: "Keep plan", consequence: "Continue", source: "runtime", resolutionEffect: "plan_only" }],
+      }, "owner:local"));
+      const service = new OutcomeService(f.prisma, undefined, undefined, withdrawSupersededDecisions);
+      if (operation === "revision") {
+        await Effect.runPromise(service.createRevision(outcome.id, {
+          baseRevision: 1, contract: { goal: ["Compare more plans"], acceptance: [{ statement: "Compare costs", required: true }], boundaries: { included: [], excluded: [] }, budget: null },
+          changeSummary: "Expanded comparison", clientRequestId: requestId(),
+        }, "owner:local"));
+      } else {
+        await Effect.runPromise(service.cancel(outcome.id, { clientRequestId: requestId() }, "owner:local"));
+      }
+      expect((await f.prisma.outcomeDecision.findUniqueOrThrow({ where: { id: decision.id } })).status).toBe("withdrawn");
+      expect(await f.prisma.event.count({ where: { entityId: outcome.id, topic: "outcome.decision.closed" } })).toBe(1);
+    });
+  }
 });

@@ -4,17 +4,9 @@ import {
   CancelOutcomeInput, SubmitOutcomeReviewInput, OutcomeReworkInput, StartOutcomeRunInput, parseListOutcomesQuery,
 } from "@outcomego/contracts/outcomes";
 import type { ActorRef } from "@outcomego/messaging";
-import type { OutcomeService } from "../services/outcome-service";
 import { json, parseBody } from "../http";
 import { mapOutcomeError } from "../services/outcome-write";
 import { run, type RouteContext } from "./context";
-import type { Effect } from "effect";
-
-/** Runtime supplies these methods; optional only during independent first-wave compilation. */
-export interface OutcomeRuntimeRoutes {
-  startRun?: (id: string, input: typeof StartOutcomeRunInput.Type, actor: ActorRef) => Effect.Effect<unknown, Error>;
-  transcript?: (id: string, itemId: string, query?: { before?: number; limit?: number }) => Effect.Effect<unknown, Error>;
-}
 export async function outcomeActor(context: RouteContext): Promise<ActorRef> {
   // The shared main request gate has already authenticated the request.
   if (!context.authenticatedSessionId) return "owner:local";
@@ -44,7 +36,7 @@ export async function outcomeRoutes(context: RouteContext): Promise<Response | u
     if (tail === "/cancel" && request.method === "POST") return json(await run(app.outcomes.cancel(id, await parseBody(request, CancelOutcomeInput), actor)));
     if (tail === "/reviews" && request.method === "POST") return json(await run(app.outcomeReviews.submit(id, await parseBody(request, SubmitOutcomeReviewInput), actor)));
     if (tail === "/rework" && request.method === "POST") return json(await run(app.outcomeReviews.rework(id, await parseBody(request, OutcomeReworkInput), actor)), 202);
-    const runtime: OutcomeService & OutcomeRuntimeRoutes = app.outcomes;
+    const runtime = app.outcomes;
     if (tail === "/runs" && request.method === "POST") {
       if (!runtime.startRun) throw new ApiError(503, "outcome_runtime_unavailable", "Outcome execution is not available yet", { retryable: true });
       return json(await run(runtime.startRun(id, await parseBody(request, StartOutcomeRunInput), actor)), 202);
