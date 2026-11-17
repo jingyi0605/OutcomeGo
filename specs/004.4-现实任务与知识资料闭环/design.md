@@ -173,7 +173,7 @@ Delivery Outcome:
 draft → planning → pending_approval → approved → running → accepted
 ```
 
-转换操作创建新 Outcome 或新 Contract revision，不能把探索记录直接改造成已批准交付对象。
+`propose` 只创建新的 PlanningDraft；用户通过既有三维确认流程创建独立 Outcome 和 revision，再明确批准。不能把探索记录直接改造成已批准交付对象，也不修改来源 Outcome 的 Contract。
 
 ## 11. 文件影响清单
 
@@ -706,22 +706,25 @@ Review 时服务端检查：
 ExploreIdea:
 id, botId nullable, title, note, status,
 sourceOutcomeId nullable, sourceReferences JSON,
-budget JSON nullable, proposedOutcomeId nullable,
+budget JSON nullable, planningDraftId nullable, proposedOutcomeId nullable,
 createdAt, updatedAt, discardedAt nullable
 ```
 
-ExploreIdea 的 `proposedOutcomeId` 是转换结果，不是对现有 Outcome 的可变引用。转换操作必须生成新的 PlanningDraft/Outcome。
+ExploreIdea 的 `planningDraftId` 仅关联待确认的 `OutcomePlanningDraft`；`proposedOutcomeId` 仅保存真实新 Outcome 的转换结果，不能放草案 ID。既有 Outcome 创建事务从真实草案关联识别 Explore，同时写新 Outcome 的 `sourceExploreId`、Explore 的真实转换 Outcome ID 和 converted 状态。失败时全部回滚，不修改来源 Outcome。
 
 ## 38. Explore/Delivery API
 
 ```text
 POST /api/v0/explore
 GET  /api/v0/explore
+GET  /api/v0/explore/:id
 POST /api/v0/explore/:id/propose
 POST /api/v0/explore/:id/discard
 ```
 
 `propose` 请求只创建 PlanningDraft，不直接批准或运行。`discard` 不删除引用过的资料和历史事件。
+
+2026-11-17 负责人批准额外只读详情 GET，支持真实刷新/重新打开，和列表共用 View 与现有认证。正式请求/响应见父冻结接口 §12 和 `@outcomego/contracts/explore`。模型调用不持有业务事务；最终写草案与 Explore 关联必须同事务，并重新检查未 discarded/converted。重复提议复用仍有效的同 Bot 草案；并发不同 Bot 的输家返回冲突，不悄悄改写执行主体。
 
 ## 39. UI 页面结构
 

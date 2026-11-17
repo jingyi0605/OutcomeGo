@@ -222,11 +222,19 @@
 ## 阶段 5：Explore（可整体延期，D19）
 
 - [ ] 5.1 实现 ExploreIdea 和转 PlanningDraft
-  - 状态：TODO
+  - 状态：IN_PROGRESS（后端代码已交付；Desktop 独立客户端及整合后组合验证另记，不提前勾选整个任务完成）
+  - 实现提交：`d0eadb5d6`（contracts）、`01f437220`（schema）、`de5a12db8`（后端）、`f3ad396c3`（并发主体冲突）。
+  - 修改文件：`packages/contracts/src/explore.ts`、exports、可选 OutcomeDetail 来源字段；`packages/db/prisma/schema.prisma`；`apps/server/src/services/explore-state.ts`、`explore-service.ts`、`outcome-planning-service.ts`、`outcome-service.ts`、`routes/explore.ts`、Explore contracts/routes/service 测试及对应冻结/设计文档。
+  - 数据库变化：新增 ExploreIdea/ExploreIdeaStatus，独立 PlanningDraft FK 和真实转换 Outcome 双向可选关联；不删除或重命名已有表/列，不写 migration 文件。
+  - 验证命令：`bun test packages/contracts/test/explore.test.ts apps/server/test/explore-routes.test.ts`；`bun --filter @outcomego/db db:generate`；定向 server `tsc` 编译检查。
+  - 验证结果：5 PASS / 0 FAIL、14 断言；Prisma 生成与 server 编译 PASS。7 个新增真实数据库场景仅完成用例代码，按代码优先要求保持未运行/PENDING；没有 broad suites、构建或回放通过声明。
+  - 证据文件：[`docs/20261117-Explore后端实现与验证.md`](docs/20261117-Explore后端实现与验证.md)。
+  - 已知限制：中心 app/main 装配由 integrator，Desktop Explore UI 由 w3-desktop；本线不启动服务/数据库，不执行远端真实模型调用；转换后的 readonly 和旧数据兼容待整合验证。
+  - 回滚方式：先撤销装配，再按本线提交撤销接口/服务，保留实际已有探索/交付数据，不在回滚时删除表。
   - 先依赖什么：4.1、`004.2` 任务 2.1
   - 主要改哪里：Explore model/service/route、contracts、Desktop 入口
   - 这一步先不做什么：不把 ExploreIdea 直接变成 approved Outcome；不为探索创建 Run。
-  - 怎么算完成：draft/exploring/proposed/converted/discarded 状态可查；转换产生新 PlanningDraft，原记录只读。
+  - 怎么算完成：draft/exploring/proposed_for_delivery/converted/discarded 状态可查；propose 产生新 PlanningDraft，确认创建真实独立 Outcome 后原记录只读，不自动批准或执行。
   - 怎么验证：状态转换、转换事务和 approved Contract 快照测试
   - 对应需求：需求 4、需求 8、需求 14
   - 对应设计：§21、§37、§38

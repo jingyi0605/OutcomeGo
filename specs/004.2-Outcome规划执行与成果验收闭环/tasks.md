@@ -332,11 +332,11 @@
 
 - [ ] 5.1 实现 Contract 变更追溯和未开始 WorkItem 处理
   - 状态：IN_PROGRESS（实现已交付，统一组合数据库验证待执行；不提前勾选验收完成）
-  - 实现提交：`cf96b8e17`（可选 DTO）、`fb8b5aa60`（事务规则与回归）、`ed4373ad8`（Desktop）。
+  - 实现提交：`cf96b8e17`（可选 DTO）、`fb8b5aa60`（事务规则与回归）、`ed4373ad8`（Desktop）、`82651fb83`（批准生命周期 hook）、`a7b3067e0`（真实历史只读）。
   - 修改文件：`packages/contracts/src/outcomes.ts`；`apps/server/src/services/outcome-service.ts`、`test/outcome-revision-successor.test.ts`；Desktop `outcomes/detail/outcome-detail.tsx`、`revision-history.tsx`、`outcomes/planning/contract-confirmation.tsx`、`test/outcome-revision-history.test.ts`；冻结接口 §11。
   - 数据库变化：none，复用既有 base/sourceDecision/createdBy/startedAt 字段。
   - 验证命令：`bun test apps/desktop/test/outcome-revision-history.test.ts`；仅对服务/新数据库测试执行 Bun Transpiler 语法检查；数据库组合命令见证据。
-  - 验证结果：Desktop 2 PASS / 0 FAIL、14 断言；定向语法 PASS；新增 4 个真实数据库回归尚未执行，按负责人“代码优先、组合后统一验证”的要求保持 PENDING。
+  - 验证结果：Desktop 2 PASS / 0 FAIL、14 断言；历史 route/client 2 PASS / 0 FAIL、4 断言；server 编译 PASS；新增 5 个批准/来源数据库回归及 1 个历史读数据库回归尚未执行，按负责人“代码优先、组合后统一验证”的要求保持 PENDING。
   - 证据文件：[`docs/20261117-第2波产品追溯验证.md`](docs/20261117-第2波产品追溯验证.md)。
   - 已知限制：Recovery 所有者处理已取消项的待执行 Run/Inbox/容量意图，不在批准路径增加物理停止；已开始旧任务保留原执行快照；live API/远端/浏览器回放未执行。
   - 回滚方式：仅撤销本线新提交，保留已有运行时与其他线改动；可选字段可被旧客户端忽略。
