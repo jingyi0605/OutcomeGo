@@ -62,10 +62,16 @@ export abstract class ScopedKnowledgeProvider implements KnowledgeProvider {
           query.scope.contractRevision !== this.scope.contractRevision)
         throw new KnowledgeError("knowledge_source_forbidden", "The query does not belong to the bound Outcome scope");
       const limit = Math.min(100, Math.max(1, Math.trunc(query.limit) || 1));
-      const sources = await this.searchSources({ ...query, text: query.text.slice(0, 200), limit }, signal);
+      const allowedSources = this.scope.allowedSources?.filter((sourceType) =>
+        !query.scope.allowedSources || query.scope.allowedSources.includes(sourceType)
+      ) ?? query.scope.allowedSources;
+      if (allowedSources?.length === 0) return [];
+      const sources = await this.searchSources({
+        ...query, scope: { ...this.scope, allowedSources }, text: query.text.slice(0, 200), limit,
+      }, signal);
       const found = new Map<string, KnowledgeReference>();
       for (const source of sources) {
-        if (!this.permits(source) || (query.scope.allowedSources && !query.scope.allowedSources.includes(source.sourceType))) continue;
+        if (!this.permits(source) || (allowedSources && !allowedSources.includes(source.sourceType))) continue;
         const key = `${source.sourceType}:${source.sourceRef}`;
         const reference: KnowledgeReference = {
           id: source.id, title: source.title, sourceType: source.sourceType, sourceRef: source.sourceRef,

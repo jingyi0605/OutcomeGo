@@ -69,12 +69,15 @@ export class ProjectFileKnowledgeStore implements ProjectKnowledgeStore {
   private get botId() { return this.scope.projectScope.slice("bot:".length); }
 
   async search(query: KnowledgeQuery, signal: AbortSignal) {
+    const sourceTypes = (query.scope.allowedSources ?? ["file", "message"])
+      .filter((sourceType) => sourceType === "file" || sourceType === "message");
+    if (!sourceTypes.length) return [];
     const tsQuery = prefixTsQuery(query.text);
     const rows = await this.prisma.$queryRaw<SearchRow[]>(Prisma.sql`
       SELECT document."id", document."kind", document."messageId", document."title"
       FROM "outcomego_search_document" AS document
       JOIN "outcomego_channel" AS channel ON channel."id" = document."channelId"
-      WHERE document."kind" IN ('file', 'message') AND channel."archivedAt" IS NULL
+      WHERE document."kind" IN (${Prisma.join(sourceTypes)}) AND channel."archivedAt" IS NULL
         AND EXISTS (
           SELECT 1 FROM "outcomego_channel_member" AS member
           WHERE member."channelId" = channel."id" AND member."botId" = ${this.botId}::uuid
@@ -87,10 +90,10 @@ export class ProjectFileKnowledgeStore implements ProjectKnowledgeStore {
         )` : Prisma.empty}
       ORDER BY document."updatedAt" DESC, document."id" ASC LIMIT ${query.limit}
     `);
-    const fileRows = await this.prisma.agentFileState.findMany({
+    const fileRows = sourceTypes.includes("file") ? await this.prisma.agentFileState.findMany({
       where: { botId: this.botId, exists: true, error: null, path: { contains: query.text, mode: "insensitive" } },
       orderBy: [{ updatedAt: "desc" }, { path: "asc" }], take: query.limit,
-    });
+    }) : [];
     const sources: KnowledgeSource[] = [];
     for (const file of fileRows) {
       if (this.safeTrackedPath(file.path)) sources.push(this.fileSource(file));

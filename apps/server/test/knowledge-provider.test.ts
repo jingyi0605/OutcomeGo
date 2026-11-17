@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import { afterAll, beforeAll, describe, expect, spyOn, test } from "bun:test";
 import { mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { KnowledgeError, type KnowledgeErrorCode, type KnowledgeProvider, type KnowledgeReference, type KnowledgeScope } from "@outcomego/contracts/knowledge";
@@ -256,6 +256,39 @@ describe.skipIf(!url)("ProjectFile provider actual mounted files, messages and a
     expect(reference.id.startsWith("file:")).toBe(true);
     await expectCode(() => provider.read(reference), "unreadable_source");
   });
+  for (const mode of ["query", "bound"] as const) {
+    test(`${mode} source filter applies before limit and skips tracked files for message-only search`, async () => {
+      const original = await prisma.channelMessage.findUniqueOrThrow({ where: { id: messageRef.id.slice("message:".length) } });
+      const keyword = `sourcefilter${mode}`;
+      const message = await prisma.channelMessage.create({ data: {
+        channelId: original.channelId, sender: "user", content: `${keyword} older message`,
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      } });
+      const attachment = await assets.ingestBytes({
+        fileName: `${keyword}.txt`, mimeType: "text/plain", bytes: Buffer.from("Newer excluded attachment"),
+      });
+      await prisma.channelMessage.create({ data: {
+        channelId: original.channelId, sender: "user", content: "", metadata: { attachments: [attachment] },
+        createdAt: new Date("2026-01-02T00:00:00.000Z"),
+      } });
+      const messageScope: KnowledgeScope = { ...scope, allowedSources: ["message"] };
+      const selected = createProjectFileKnowledgeProvider(
+        prisma, mode === "bound" ? messageScope : scope,
+        { root, botDirectory: (id: string) => join(root, "agents", id) }, assets,
+      );
+      const trackedFiles = spyOn(prisma.agentFileState, "findMany");
+      try {
+        const references = await selected.search({
+          text: keyword, scope: mode === "query" ? messageScope : scope, limit: 1,
+        });
+        expect(references.map((reference) => reference.id)).toEqual([`message:${message.id}`]);
+        expect(trackedFiles).not.toHaveBeenCalled();
+        expect(await selected.search({
+          text: keyword, scope: { ...scope, allowedSources: ["file"] }, limit: 1,
+        })).toHaveLength(mode === "bound" ? 0 : 1);
+      } finally { trackedFiles.mockRestore(); }
+    });
+  }
   test("message membership is revalidated on read, not trusted from selected references", async () => {
     const message = await prisma.channelMessage.findUniqueOrThrow({ where: { id: messageRef.id.slice("message:".length) } });
     const botId = bots[0]!;

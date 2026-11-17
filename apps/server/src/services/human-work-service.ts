@@ -134,9 +134,6 @@ export class HumanWorkService {
         });
         if (item.executorType !== "human" || !item.humanActionCard)
           throw error("human_work_item_not_active", "This WorkItem is not a human action");
-        if (item.contractRevisionId !== item.outcome.currentRevisionId ||
-            item.outcome.currentRevision?.revision !== input.expectedContractRevision)
-          throw error("review_revision_conflict", "The Contract revision has changed", { currentStatus: item.status });
         const scope = `human-work:${workItemId}`;
         const requestHash = hashRequest({ action, input, actor });
         const previous = await tx.idempotencyRecord.findUnique({
@@ -147,6 +144,9 @@ export class HumanWorkService {
             throw error("receipt_idempotency_conflict", "This request ID was used for different human work content");
           return previous.response as unknown as HumanWorkItemDetail;
         }
+        if (item.contractRevisionId !== item.outcome.currentRevisionId ||
+            item.outcome.currentRevision?.revision !== input.expectedContractRevision)
+          throw error("review_revision_conflict", "The Contract revision has changed", { currentStatus: item.status });
         if (["accepted", "cancelled"].includes(item.outcome.status))
           throw error("human_work_item_not_active", "The Outcome is no longer active", { currentStatus: item.status });
         const allowed = action === "start" ? ["pending", "ready", "paused", "rejected"] : ["in_progress"];

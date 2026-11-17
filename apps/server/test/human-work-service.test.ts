@@ -102,6 +102,37 @@ describe.skipIf(!url)("human work service (004.4 wave 1)", () => {
     expect(await code(() => service.start(card.workItemId, mutation(), "owner:local"))).toBe("human_work_item_not_active");
   });
 
+  for (const action of ["start", "pause"] as const) {
+    test(`${action} replays its original response after revision changes while new old-revision requests fail`, async () => {
+      const { card, outcome, revision, agent } = await scenario();
+      const input = action === "start" ? mutation() : pause();
+      if (action === "pause") await service.start(card.workItemId, mutation(), "owner:local");
+      const invoke = (request: typeof input) => action === "start"
+        ? service.start(card.workItemId, request, "owner:local")
+        : service.pause(card.workItemId, request as ReturnType<typeof pause>, "owner:local");
+      const original = await invoke(input);
+      const next = await prisma.outcomeContractRevision.create({ data: {
+        outcomeId: outcome.id, revision: 2, status: "draft", goal: [], boundaries: {}, executionBotId: agent.botId,
+        createdBy: "owner:local", contentHash: "revision-after-lost-response", baseRevisionId: revision.id,
+      } });
+      await prisma.outcome.update({ where: { id: outcome.id }, data: { currentRevisionId: next.id } });
+      await prisma.$transaction((tx) => transitionWorkItem(tx, {
+        workItemId: card.workItemId, to: "cancelled", reason: "Superseded Contract", actor: "owner:local",
+      }));
+      const events = await prisma.event.count({ where: { entityId: outcome.id } });
+      const replays = await Promise.all([invoke(input), invoke(input)]);
+      for (const replay of replays) expect(replay).toEqual(JSON.parse(JSON.stringify(original)));
+      expect(await code(() => invoke({ ...input, clientRequestId: crypto.randomUUID() }))).toBe("review_revision_conflict");
+      expect(await code(() => invoke({ ...input, expectedContractRevision: 2 }))).toBe("receipt_idempotency_conflict");
+      expect(await code(() => action === "start"
+        ? service.start(card.workItemId, input, "system:other-actor")
+        : service.pause(card.workItemId, input as ReturnType<typeof pause>, "system:other-actor")
+      )).toBe("receipt_idempotency_conflict");
+      expect(await prisma.event.count({ where: { entityId: outcome.id } })).toBe(events);
+      expect((await service.detail(card.workItemId)).status).toBe("cancelled");
+    });
+  }
+
   test("creation validates revision, requester, references and criteria atomically", async () => {
     const { cardInput, outcome } = await scenario();
     const count = await prisma.outcomeWorkItem.count({ where: { outcomeId: outcome.id } });
