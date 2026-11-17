@@ -108,7 +108,15 @@
 ## 阶段 2：跨阶段一致性
 
 - [ ] 3.0 建立跨阶段 fixture 目录和 ID 关系
-  - 状态：TODO
+  - 状态：BLOCKED（2026-11-17，task-26 代码交付及最小检查完成；按负责人要求集中数据库/回放待执行，未满足正式验收）
+  - 第 3 波实现提交：`2d9eaeb43`、`e00496f5e`、`543eef450`、`d4de4846e`、`d330efc34`、`80ea59865`；`870ebac90` 仅为本线编译所需依赖合并，不拾取到集成线。
+  - 第 3 波修改文件：父六 JSON/合同检查脚本；`scripts/test-outcome-recovery.ts`、`scripts/outcome-recovery/`、`apps/server/test/fixtures/outcome-recovery/`、新 cross-phase 测试；本任务文档。51 个既有测试文件的精确清单见交接与入口补齐记录。
+  - 第 3 波数据库变化：none（本线不改 schema；恢复计数等为其他线原始提交依赖；没有启动或连接本线测试库）。
+  - 第 3 波验证命令：`bun test ./scripts/check-outcome-contracts.test.ts ./scripts/outcome-recovery/report.test.ts ./scripts/check/test-database-gates.test.ts`；`bun scripts/check/outcome-regression-types.ts`；`bun scripts/test-outcome-recovery.ts --scenario receipt-retry --plan`；`git diff --check`。
+  - 第 3 波验证结果：13 PASS / 0 FAIL / 62 assertions；14 个本线文件语义诊断 0、依赖诊断 0；51 个旧测试文件语法通过；11+6 个新 DB 测试、六场景实际 JSON/DB 对账及备份回退均 PENDING。
+  - 第 3 波证据文件：[第3波回归脚手架交接](docs/20261117-第3波回归脚手架交接.md)；同目录组合验证手册/合同矩阵/数据库入口补齐记录；`004.5/docs/final-replay.md` 和 `release-decision.md`。
+  - 第 3 波已知限制：canonical 入口补齐已扩大覆盖，新的完整失败数未知；历史 canonical/dual-flag 基线分别保留且数据库失败仍阻塞；远端 CI/Computer/真实模型、安装与旧镜像未验，不宣称 CI 全绿。
+  - 第 3 波回滚方式：只撤销本线脚手架、测试 URL 回退与文档提交；保留其他线依赖、真实 Outcome/人工证据和旧 l1 原始日志。
   - 先依赖什么：`004.2` 任务 0.2（研究试点 fixture）
   - 这一步到底做什么：为研究任务、Decision、人工任务、重复事件、新安装导入和发布资产建立固定输入和预期状态。
   - 做完你能看到什么：`docs/fixtures/` 下 `research-outcome.json`、`decision-pending.json`、`human-action.json`、`duplicate-event.json`、`fresh-install-import.json`、`release-assets.json`，以及清理说明。
@@ -121,6 +129,15 @@
 - [ ] 3.0a 跨阶段 API、事件和数据库合同复核
   - 状态：IN_PROGRESS（2026-11-17，第 1 波本地组合复核）
   - 后续波次进展：[代码集成与覆盖矩阵](docs/20261117-后续波次代码集成记录.md) 从 `948ead5de` 继续，整个 Spec004 剩余代码及明确必做的 Explore 已整合，包括共享 Schema / 合同、Decision / 人工回执 / 恢复服务、真实工具 / 路由和客户端桥接。代码阶段只执行必要的编译与定向合并检查；后端、移动端、独立审查及静态合同的统一验收由负责人下一阶段启动。定向集成检查与所有者证据分列，正式验收仍未完成，本父任务保持未勾选。
+  - 第 3 波本线验收状态：BLOCKED（2026-11-17，task-26 代码交付及最小检查完成；按负责人要求集中数据库/回放待执行，未满足正式验收；此项为来源线状态，不覆盖父任务正在进行的整合与验证）
+  - 第 3 波实现提交：`2d9eaeb43`、`e00496f5e`、`543eef450`、`d4de4846e`、`d330efc34`、`80ea59865`；`870ebac90` 仅为本线编译所需依赖合并，不拾取到集成线。
+  - 第 3 波修改文件：父六 JSON/合同检查脚本；`scripts/test-outcome-recovery.ts`、`scripts/outcome-recovery/`、`apps/server/test/fixtures/outcome-recovery/`、新 cross-phase 测试；本任务文档。51 个既有测试文件的精确清单见交接与入口补齐记录。
+  - 第 3 波数据库变化：none（本线不改 schema；恢复计数等为其他线原始提交依赖；没有启动或连接本线测试库）。
+  - 第 3 波验证命令：`bun test ./scripts/check-outcome-contracts.test.ts ./scripts/outcome-recovery/report.test.ts ./scripts/check/test-database-gates.test.ts`；`bun scripts/check/outcome-regression-types.ts`；`bun scripts/test-outcome-recovery.ts --scenario receipt-retry --plan`；`git diff --check`。
+  - 第 3 波验证结果：13 PASS / 0 FAIL / 62 assertions；14 个本线文件语义诊断 0、依赖诊断 0；51 个旧测试文件语法通过；11+6 个新 DB 测试、六场景实际 JSON/DB 对账及备份回退均 PENDING。
+  - 第 3 波证据文件：[第3波回归脚手架交接](docs/20261117-第3波回归脚手架交接.md)；同目录组合验证手册/合同矩阵/数据库入口补齐记录；`004.5/docs/final-replay.md` 和 `release-decision.md`。
+  - 第 3 波已知限制：canonical 入口补齐已扩大覆盖，新的完整失败数未知；历史 canonical/dual-flag 基线分别保留且数据库失败仍阻塞；远端 CI/Computer/真实模型、安装与旧镜像未验，不宣称 CI 全绿。
+  - 第 3 波回滚方式：只撤销本线脚手架、测试 URL 回退与文档提交；保留其他线依赖、真实 Outcome/人工证据和旧 l1 原始日志。
   - 证据：[第 1 波集成验证记录](docs/20261117-第1波集成验证记录.md)。schema/contracts 分批并集合入，保留 L1/L2 共享服务方法和第四参数撤回回调；最终组合定向数据库/合同/工具/Desktop/Stop 553 PASS（39 文件、2315 断言），7 包类型通过。内部事件流过滤、未消费 Evidence 保留、开放 Decision/HumanAction 验收门槛、永久 Decision 通知恢复、取消重绑定与停止事实均已有实际定向验证和审查闭环。完整父级合同矩阵/后续波次和真实端到端尚未结束，不勾选本父任务；1.3 的远端 CI 继续 PENDING。
   - 先依赖什么：2.1、2.2、2.3、2.4 各自的模型任务
   - 这一步到底做什么：核对各子 Spec 使用的 DTO、事件名（只能使用 §14 目录）、revision、idempotency key 和 schema 变更是否一致。

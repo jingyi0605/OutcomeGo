@@ -27,6 +27,24 @@ Fixture：[`research-pilot.json`](research-pilot.json)
 
 失败路径记录：见任务 5.4。
 
+## 2026-11-17 第 3 波受控失败准备
+
+对应当前任务 5.2/5.3。此节只记录新测试代码与计划；实际集中数据库执行仍 PENDING，未改写上表真实试点 ID。
+
+| 失败类别 | 现有/新增验证入口 | 状态 |
+|---|---|---|
+| 规划非 JSON/空/超时 | outcome-planning-service.test.ts；新增 cross-phase 的失败草稿/同 key 不重生成 | 已有测试保留，新组合待跑 |
+| 事务失败/半对象 | outcome-revision-transaction.test.ts；新增 Review 后续失败回滚 Evidence/Review/accepted/idempotency | 新组合待跑 |
+| Bot 临时/永久不可运行 | 新 cross-phase provisioning→retry_pending、archived→failed，无部分 Run | 已编写，待跑 |
+| 子线程失败/中断 | outcome-threads.integration.test.ts；interrupted-thread-resume/restart-running-run CLI | 新组合待跑 |
+| Evidence/Receipt 写入失败 | receipt-retry 真实资产上传后 receipt.create 故障，整个事务回滚后同 key 重试 | 已编写，待跑 |
+| Review/finish 重复 | duplicate-finish-event 的真实 settlement/Inbox D18/并发 Review | 已编写，待跑 |
+| 外部回执未知 | unknown-external-receipt 的持久 test adapter 与实际恢复 Decision | 已编写；真实 provider 链仍待验 |
+
+主 Run/foreground lease/可见消息在等待、恢复、回执验收期间均作为独立对照；普通 user/group/routine 无 Outcome marker 的新增断言不修改原普通 fixture。没有人工动作的执行通过实际 Output→owner Review 路径验证，不依赖人工回执。
+
+精确执行步骤见 [第 3 波组合验证手册](../../004-OutcomeGo整体项目/docs/20261117-第3波组合验证运行手册.md)，恢复 JSON 见 [final-replay](../../004.5-运行时恢复与版本验收/docs/final-replay.md)。第 0 波数据库失败仍阻塞；新 canonical 入口扩大覆盖，不得将旧 canonical/dual-flag 历史结果混成新全绿结论。
+
 
 ## 2026-11-17 第 1 波线 2 本地验证边界
 
