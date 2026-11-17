@@ -494,17 +494,42 @@ export class AppService {
 
   private async pruneUnreferencedAssets(): Promise<void> {
     await this.outcomePlanning.pruneExpired().catch(error => console.error("outcome plan cleanup", error));
-    // Extract only candidate ids in PostgreSQL. Pulling every message's complete
-    // JSON metadata into Bun made the six-hour cleanup proportional to total
-    // transcript bytes and could briefly duplicate a very large history in RAM.
+    // Keep candidate extraction in PostgreSQL, including durable receipt history
+    // and knowledge snapshots whose attachments no longer occur in a message.
     const candidates = await this.prisma.$queryRaw<Array<{ assetId: string | null }>>(Prisma.sql`
-      SELECT DISTINCT candidate #>> '{}' AS "assetId"
-      FROM "outcomego_channel_message" AS message
-      CROSS JOIN LATERAL jsonb_path_query(
-        coalesce(message."metadata", '{}'::jsonb),
-        '$.**.assetId'::jsonpath
-      ) AS candidate
-      WHERE jsonb_typeof(candidate) = 'string'
+      WITH durable_references AS (
+        SELECT candidate #>> '{}' AS reference
+        FROM "outcomego_outcome_human_receipt" AS receipt
+        CROSS JOIN LATERAL jsonb_path_query(receipt."assetRefs", '$[*]'::jsonpath) AS candidate
+        WHERE jsonb_typeof(candidate) = 'string'
+        UNION ALL
+        SELECT evidence."sourceRef" AS reference
+        FROM "outcomego_outcome_evidence" AS evidence
+        WHERE evidence."sourceType" IN ('asset', 'knowledge', 'file')
+        UNION ALL
+        SELECT candidate #>> '{}' AS reference
+        FROM "outcomego_outcome_human_action_card" AS card
+        CROSS JOIN LATERAL jsonb_path_query(card."references", '$[*].sourceRef'::jsonpath) AS candidate
+        WHERE jsonb_typeof(candidate) = 'string'
+        UNION ALL
+        SELECT candidate #>> '{}' AS reference
+        FROM "outcomego_outcome_human_receipt" AS receipt
+        CROSS JOIN LATERAL jsonb_path_query(receipt."payload", '$.references[*].sourceRef'::jsonpath) AS candidate
+        WHERE jsonb_typeof(candidate) = 'string'
+      )
+      SELECT DISTINCT "assetId" FROM (
+        SELECT candidate #>> '{}' AS "assetId"
+        FROM "outcomego_channel_message" AS message
+        CROSS JOIN LATERAL jsonb_path_query(
+          coalesce(message."metadata", '{}'::jsonb),
+          '$.**.assetId'::jsonpath
+        ) AS candidate
+        WHERE jsonb_typeof(candidate) = 'string'
+        UNION ALL
+        SELECT right(reference, 64) AS "assetId"
+        FROM durable_references
+        WHERE reference ~ '^(asset:|file:[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}:[0-9]+:asset:)[a-f0-9]{64}$'
+      ) AS candidates
     `);
     const referenced = new Set(
       candidates.flatMap(({ assetId }) => (assetId && ASSET_ID.test(assetId) ? [assetId] : []))
