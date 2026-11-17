@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -60,6 +61,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -508,8 +510,9 @@ fun ChatAttachmentStrip(
     attachments: List<Attachment>,
     onPreview: (Attachment, AttachmentAction) -> Unit,
     onDownload: (Attachment, AttachmentAction) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
         attachments.forEach { attachment ->
             val localPath = attachment.localUri
             if (attachment.isImage) {
@@ -517,9 +520,23 @@ fun ChatAttachmentStrip(
                     if (localPath == null) onDownload(attachment, AttachmentAction.Download)
                 }
                 val bitmap = rememberDecodedBitmap(localPath, maxSizePx = 1024)
+                val maxImageWidth = 150.dp
+                val maxImageHeight = 160.dp
+                val sourceWidth = bitmap?.width ?: attachment.width
+                val sourceHeight = bitmap?.height ?: attachment.height
+                val (boxWidth, boxHeight) = if (sourceWidth != null && sourceHeight != null && sourceWidth > 0 && sourceHeight > 0) {
+                    val aspect = sourceWidth.toFloat() / sourceHeight.toFloat()
+                    if (aspect >= 1f) {
+                        maxImageWidth to (maxImageWidth / aspect).coerceIn(48.dp, maxImageHeight)
+                    } else {
+                        (maxImageHeight * aspect).coerceIn(56.dp, maxImageWidth) to maxImageHeight
+                    }
+                } else {
+                    140.dp to 60.dp
+                }
                 SpatialGlassSurface(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(18.dp),
+                    modifier = Modifier.testTag("attachment-card-${attachment.id}"),
+                    shape = RoundedCornerShape(12.dp),
                     tier = GlassTier.Card,
                     shadowElevation = 0.dp,
                     onClick = { onPreview(attachment, AttachmentAction.Preview) },
@@ -528,18 +545,23 @@ fun ChatAttachmentStrip(
                         Image(
                             bitmap,
                             contentDescription = attachment.alt ?: attachment.name,
-                            modifier = Modifier.fillMaxWidth().heightIn(max = 320.dp),
-                            contentScale = ContentScale.Fit,
+                            modifier = Modifier.size(width = boxWidth, height = boxHeight),
+                            contentScale = ContentScale.Crop,
                         )
                     } else {
-                        Box(Modifier.fillMaxWidth().height(120.dp), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp)
+                        Box(Modifier.size(width = boxWidth, height = boxHeight), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 1.75.dp)
                         }
                     }
                 }
             } else {
                 // As on macOS and iOS, the whole card opens the viewer; downloading starts from there.
-                FileAttachmentCard(attachment) { onPreview(attachment, AttachmentAction.Preview) }
+                FileAttachmentCard(
+                    attachment = attachment,
+                    modifier = Modifier.testTag("attachment-card-${attachment.id}"),
+                ) {
+                    onPreview(attachment, AttachmentAction.Preview)
+                }
             }
         }
     }
@@ -580,45 +602,51 @@ private fun glyphVariant(fileName: String): FileGlyphVariant {
 }
 
 @Composable
-private fun FileAttachmentCard(attachment: Attachment, onOpen: () -> Unit) {
-    val shape = RoundedCornerShape(18.dp)
+private fun FileAttachmentCard(
+    attachment: Attachment,
+    modifier: Modifier = Modifier,
+    onOpen: () -> Unit,
+) {
+    val shape = RoundedCornerShape(12.dp)
     SpatialGlassSurface(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.widthIn(min = 120.dp, max = 180.dp),
         shape = shape,
         tier = GlassTier.Card,
         shadowElevation = 0.dp,
         onClick = onOpen,
     ) {
         Row(
-            Modifier.fillMaxWidth().padding(14.dp),
+            Modifier.padding(horizontal = 9.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            FileGlyph(attachment.name)
-            Column(Modifier.weight(1f)) {
+            FileGlyph(attachment.name, scale = 0.55f)
+            Column(Modifier.weight(1f, fill = false)) {
                 Text(
                     attachment.name,
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Medium,
                     color = SpatialTheme.colors.textPrimary,
-                    maxLines = 2,
+                    maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
                     formatAttachmentSize(attachment.sizeBytes),
-                    style = MaterialTheme.typography.bodySmall,
+                    style = MaterialTheme.typography.labelSmall,
                     color = SpatialTheme.colors.textSecondary,
                     maxLines = 1,
                 )
             }
-            if (attachment.state == AttachmentState.Downloading) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+            if (attachment.state == AttachmentState.Downloading) {
+                CircularProgressIndicator(Modifier.size(14.dp), strokeWidth = 1.75.dp)
+            }
         }
     }
 }
 
-/** A 32x40 paper icon: lines of ink and a colored band by file type, as on macOS. */
+/** A 32x40 paper icon (scaled by [scale]): lines of ink and a colored band by file type, as on macOS. */
 @Composable
-fun FileGlyph(fileName: String, modifier: Modifier = Modifier) {
+fun FileGlyph(fileName: String, modifier: Modifier = Modifier, scale: Float = 1f) {
     val variant = glyphVariant(fileName)
     val dark = SpatialTheme.colors.isDark
     val ink = if (dark) Color(0x3DF5F5F5) else Color(0x2E1C1C1C)
@@ -630,14 +658,18 @@ fun FileGlyph(fileName: String, modifier: Modifier = Modifier) {
         FileGlyphVariant.Spreadsheet -> if (dark) Color(0xFF0E9F5A) else Color(0xFF10AB61)
         else -> null
     }
-    val paper = RoundedCornerShape(6.dp)
-    fun Modifier.line(width: Int) = this.width(width.dp).height(4.dp).clip(RoundedCornerShape(2.dp)).background(ink)
+    val paper = RoundedCornerShape((6f * scale).dp)
+    fun Modifier.line(width: Int) =
+        this.width((width * scale).dp)
+            .height((4f * scale).dp)
+            .clip(RoundedCornerShape((2f * scale).dp))
+            .background(ink)
     Column(
         modifier
-            .size(width = 32.dp, height = 40.dp)
+            .size(width = (32f * scale).dp, height = (40f * scale).dp)
             .clip(paper)
             .background(if (dark) Color(0xFF2C2C2C) else Color.White)
-            .border(0.5.dp, ink, paper),
+            .border((0.5f * scale).coerceAtLeast(0.4f).dp, ink, paper),
     ) {
         val symbol = when (variant) {
             FileGlyphVariant.Image -> Icons.Default.Image
@@ -648,32 +680,42 @@ fun FileGlyph(fileName: String, modifier: Modifier = Modifier) {
         }
         when {
             symbol != null -> Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                Icon(symbol, contentDescription = null, tint = mark, modifier = Modifier.size(16.dp))
+                Icon(symbol, contentDescription = null, tint = mark, modifier = Modifier.size((16f * scale).dp))
             }
             variant == FileGlyphVariant.Unknown -> Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                Text("?", fontSize = 17.sp, color = mark)
+                Text("?", fontSize = (17f * scale).sp, color = mark)
             }
             variant == FileGlyphVariant.Zip -> Column(
-                Modifier.weight(1f).fillMaxWidth().padding(top = 4.dp),
+                Modifier.weight(1f).fillMaxWidth().padding(top = (4f * scale).dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(3.dp),
+                verticalArrangement = Arrangement.spacedBy((3f * scale).dp),
             ) {
                 repeat(5) { row ->
-                    Box(Modifier.offset(x = if (row % 2 == 0) (-2.5).dp else 2.5.dp).size(width = 5.dp, height = 3.dp).background(ink))
+                    Box(
+                        Modifier
+                            .offset(x = ((if (row % 2 == 0) -2.5f else 2.5f) * scale).dp)
+                            .size(width = (5f * scale).dp, height = (3f * scale).dp)
+                            .background(ink),
+                    )
                 }
             }
             else -> Column(
-                Modifier.weight(1f).fillMaxWidth().padding(4.dp),
-                verticalArrangement = Arrangement.spacedBy(3.dp),
+                Modifier.weight(1f).fillMaxWidth().padding((4f * scale).dp),
+                verticalArrangement = Arrangement.spacedBy((3f * scale).dp),
             ) {
                 Box(Modifier.line(24))
                 if (stripe != null) {
-                    Row(Modifier.height(11.dp), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                        Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Row(Modifier.height((11f * scale).dp), horizontalArrangement = Arrangement.spacedBy((2f * scale).dp)) {
+                        Column(verticalArrangement = Arrangement.spacedBy((3f * scale).dp)) {
                             Box(Modifier.line(11))
                             Box(Modifier.line(11))
                         }
-                        Box(Modifier.size(11.dp).clip(RoundedCornerShape(2.dp)).background(ink))
+                        Box(
+                            Modifier
+                                .size((11f * scale).dp)
+                                .clip(RoundedCornerShape((2f * scale).dp))
+                                .background(ink),
+                        )
                     }
                 } else {
                     Box(Modifier.line(20))
@@ -682,7 +724,7 @@ fun FileGlyph(fileName: String, modifier: Modifier = Modifier) {
                 }
             }
         }
-        if (stripe != null) Box(Modifier.fillMaxWidth().height(12.dp).background(stripe))
+        if (stripe != null) Box(Modifier.fillMaxWidth().height((12f * scale).dp).background(stripe))
     }
 }
 

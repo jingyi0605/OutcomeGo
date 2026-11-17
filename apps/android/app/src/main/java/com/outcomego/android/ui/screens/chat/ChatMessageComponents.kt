@@ -302,11 +302,23 @@ internal fun MessageBubble(
                                 onOpen = { onOpenOriginal(reply) },
                             )
                         }
+                        if (message.attachments.isNotEmpty()) {
+                            ChatAttachmentStrip(
+                                attachments = message.attachments,
+                                onPreview = { attachment, _ ->
+                                    previewAttachment = attachment
+                                    if (!attachment.isImage && attachment.localUri == null) onDownload(message.id, attachment)
+                                },
+                                onDownload = { attachment, _ -> onDownload(message.id, attachment) },
+                                modifier = Modifier.testTag("message-attachments-${message.id}"),
+                            )
+                        }
                         val repeatsFileName = message.attachments.singleOrNull()?.let { it.name == message.body } == true ||
                             (message.attachments.isNotEmpty() && (message.metadata["type"] as? kotlinx.serialization.json.JsonPrimitive)?.content == "attachment")
                         message.displayBody?.takeUnless { message.richMessage?.isQuestion == true || repeatsFileName }?.let { body ->
                             MarkdownMessage(
                                 markdown = body,
+                                modifier = Modifier.testTag("message-body-${message.id}"),
                                 contentColor = if (message.isMine) colors.onUserBubble else colors.textPrimary,
                                 containerColor = if (message.isMine) colors.userBubbleStart else assistantFill,
                             )
@@ -316,16 +328,6 @@ internal fun MessageBubble(
                                 message = rich,
                                 operation = operation,
                                 onAction = { action, values -> onAction(message.id, action.id, values) },
-                            )
-                        }
-                        if (message.attachments.isNotEmpty()) {
-                            ChatAttachmentStrip(
-                                attachments = message.attachments,
-                                onPreview = { attachment, _ ->
-                                    previewAttachment = attachment
-                                    if (!attachment.isImage && attachment.localUri == null) onDownload(message.id, attachment)
-                                },
-                                onDownload = { attachment, _ -> onDownload(message.id, attachment) },
                             )
                         }
                         if (message.reactions.isNotEmpty() || (message.richMessage != null && message.richMessage?.isQuestion != true)) {

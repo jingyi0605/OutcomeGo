@@ -1,17 +1,24 @@
 package com.outcomego.android.features
 
-import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.assertDoesNotExist
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
+import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.unit.height
+import androidx.compose.ui.unit.width
 import com.outcomego.android.data.ChatMessage
 import com.outcomego.android.ui.ChatContextSummary
+import com.outcomego.android.ui.screens.chat.MessageBubble
+import com.outcomego.features.Attachment
+import com.outcomego.features.FeatureOperationState
 import com.outcomego.features.MarkdownMessage
 import com.outcomego.features.RichMessage
 import com.outcomego.features.RichMessageBlock
 import com.outcomego.features.RichFormField
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
@@ -126,5 +133,62 @@ class RichMessageRendererTest {
         compose.onNodeWithText("2610210023").assertExists()
         compose.onNodeWithText("316.66").assertExists()
         compose.onNodeWithText("| Order | Amount |", substring = true).assertDoesNotExist()
+    }
+
+    @Test
+    fun messageBubbleRendersCompactAttachmentsAboveMessageText() {
+        val message = ChatMessage(
+            id = "msg-attach-1",
+            author = "You",
+            body = "Please check the files",
+            isMine = true,
+            attachments = listOf(
+                Attachment(
+                    id = "img-1",
+                    name = "photo.png",
+                    mimeType = "image/png",
+                    sizeBytes = 2048,
+                    width = 1200,
+                    height = 1600,
+                ),
+                Attachment(
+                    id = "doc-1",
+                    name = "2025-report.docx",
+                    mimeType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    sizeBytes = 38_912,
+                ),
+            ),
+        )
+        compose.setContent {
+            MessageBubble(
+                message = message,
+                onRetry = {},
+                isTarget = false,
+                operation = FeatureOperationState.Idle,
+                onDownload = { _, _ -> },
+                onSaveAttachment = { _, _ -> },
+                onShareAttachment = {},
+                onForwardAttachment = {},
+                onAction = { _, _, _ -> },
+                onReaction = { _, _ -> },
+                onMessageAction = { _, _ -> },
+                onContext = {},
+                onReply = {},
+                onOpenRoutine = {},
+                replyOriginal = null,
+                onOpenOriginal = {},
+            )
+        }
+
+        val attachmentsBounds = compose.onNodeWithTag("message-attachments-msg-attach-1", useUnmergedTree = true).getUnclippedBoundsInRoot()
+        val bodyBounds = compose.onNodeWithTag("message-body-msg-attach-1", useUnmergedTree = true).getUnclippedBoundsInRoot()
+        val imageCardBounds = compose.onNodeWithTag("attachment-card-img-1", useUnmergedTree = true).getUnclippedBoundsInRoot()
+        val fileCardBounds = compose.onNodeWithTag("attachment-card-doc-1", useUnmergedTree = true).getUnclippedBoundsInRoot()
+
+        assertTrue(attachmentsBounds.bottom <= bodyBounds.top)
+        assertTrue(imageCardBounds.width.value <= 151f)
+        assertTrue(imageCardBounds.height.value <= 161f)
+        assertTrue(fileCardBounds.width.value <= 181f)
+        assertTrue(fileCardBounds.height.value <= 52f)
     }
 }
