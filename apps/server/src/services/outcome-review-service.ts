@@ -98,7 +98,17 @@ export class OutcomeReviewService {
       const remaining = await tx.outcomeWorkItem.findMany({ where: { outcomeId, contractRevisionId: revision.id } });
       const finished = remaining.some(item => item.status === "completed" || item.status === "accepted") &&
         remaining.every(item => item.executorType === "human" ? ["accepted", "cancelled"].includes(item.status) : ["completed", "failed", "cancelled"].includes(item.status));
-      if (finished && requiredCriteriaSatisfied(states)) {
+      // Independent Decisions need not own a WorkItem, so completion alone cannot establish acceptance.
+      const [openDecisions, openHumanActions] = await Promise.all([
+        tx.outcomeDecision.count({ where: {
+          outcomeId, contractRevisionId: revision.id, status: { in: ["open", "presented"] },
+          OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+        } }),
+        tx.outcomeHumanActionCard.count({ where: { workItem: {
+          outcomeId, contractRevisionId: revision.id, executorType: "human", status: { notIn: ["accepted", "cancelled"] },
+        } } }),
+      ]);
+      if (finished && !openDecisions && !openHumanActions && requiredCriteriaSatisfied(states)) {
         await tx.outcome.update({ where: { id: outcomeId }, data: { acceptedAt: new Date() } });
         await appendOutcomeEvent(tx, "outcome.accepted", outcomeId, { actor, contractRevision: revision.revision, idempotencyKey: input.clientRequestId,
           payload: { revisionId: revision.id, reviewIds: [...latest.values()].map(r => r.id) } });
