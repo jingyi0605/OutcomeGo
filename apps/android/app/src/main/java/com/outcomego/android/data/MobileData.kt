@@ -8,6 +8,8 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.Serializable
+import java.time.Duration
+import java.time.Instant
 import java.util.UUID
 
 data class Conversation(
@@ -173,7 +175,29 @@ data class ChatMessage(
         }
 }
 
-/** One list row: an ordinary message, or a run of realtime voice messages shown as one collapsed card. */
+data class AgentExchange(
+    val incoming: Boolean,
+    val peerId: String?,
+    val peerName: String?,
+) {
+    val peerKey: String?
+        get() = peerId ?: peerName
+}
+
+/** A bot-to-bot message's direction and peer, projected from its mirrored metadata. */
+val ChatMessage.agentExchange: AgentExchange?
+    get() {
+        val incoming = metadata["fromAgent"] as? JsonObject
+        val outgoing = metadata["toAgent"] as? JsonObject
+        val peer = incoming ?: outgoing ?: return null
+        return AgentExchange(
+            incoming = incoming != null,
+            peerId = (peer["id"] as? JsonPrimitive)?.contentOrNull,
+            peerName = (peer["name"] as? JsonPrimitive)?.contentOrNull,
+        )
+    }
+
+/** One list row: an ordinary message, a bot exchange, or a run of realtime voice messages. */
 sealed interface ChatRow {
     val key: String
     fun contains(messageId: String): Boolean
@@ -187,19 +211,58 @@ sealed interface ChatRow {
         override val key get() = "voice:${messages.first().id}"
         override fun contains(messageId: String) = messages.any { it.id == messageId }
     }
+
+    data class AgentExchange(
+        val peerId: String?,
+        val peerName: String?,
+        val incoming: Boolean,
+        val messages: List<ChatMessage>,
+    ) : ChatRow {
+        override val key get() = "agent-exchange:${messages.first().id}"
+        override fun contains(messageId: String) = messages.any { it.id == messageId }
+    }
 }
 
 /** The realtime voice session that produced this message, or null for ordinary messages. */
 val ChatMessage.voiceSessionId: String?
     get() = (metadata["voice"] as? JsonObject)?.let { (it["sessionId"] as? JsonPrimitive)?.contentOrNull.orEmpty() }
 
-/** Folds each consecutive run of messages from one voice session into a single [ChatRow.Voice]. */
-fun List<ChatMessage>.toChatRows(): List<ChatRow> {
+private const val AGENT_EXCHANGE_IDLE_GAP_MS = 30 * 60 * 1_000L
+
+private fun hasAgentExchangeIdleGap(previousCreatedAt: String, createdAt: String): Boolean {
+    val previous = runCatching { Instant.parse(previousCreatedAt) }.getOrNull() ?: return false
+    val current = runCatching { Instant.parse(createdAt) }.getOrNull() ?: return false
+    return Duration.between(previous, current).toMillis() >= AGENT_EXCHANGE_IDLE_GAP_MS
+}
+
+/** Folds bot exchanges and realtime voice runs into compact list rows when requested. */
+fun List<ChatMessage>.toChatRows(collapseAgentExchanges: Boolean = false): List<ChatRow> {
     val rows = mutableListOf<ChatRow>()
     for (message in this) {
+        val exchange = if (collapseAgentExchanges) message.agentExchange else null
         val sessionId = message.voiceSessionId
         val last = rows.lastOrNull()
         when {
+            exchange != null -> {
+                if (
+                    last is ChatRow.AgentExchange &&
+                    exchange.peerKey != null &&
+                    (last.peerId ?: last.peerName) == exchange.peerKey &&
+                    !hasAgentExchangeIdleGap(
+                        last.messages.lastOrNull()?.createdAt.orEmpty(),
+                        message.createdAt,
+                    )
+                ) {
+                    rows[rows.lastIndex] = last.copy(messages = last.messages + message)
+                } else {
+                    rows += ChatRow.AgentExchange(
+                        peerId = exchange.peerId,
+                        peerName = exchange.peerName,
+                        incoming = exchange.incoming,
+                        messages = listOf(message),
+                    )
+                }
+            }
             sessionId == null -> rows += ChatRow.Single(message)
             last is ChatRow.Voice && last.sessionId == sessionId ->
                 rows[rows.lastIndex] = last.copy(messages = last.messages + message)

@@ -48,7 +48,9 @@ test("retries a policy after a transient apply failure", async () => {
     },
   });
   try {
-    for (let i = 0; i < 100 && policy.status().state !== "applied"; i++) {
+    // The first retry has a one-second backoff; allow time for the subsequent fetch and apply.
+    const deadline = Date.now() + 3000;
+    while (Date.now() < deadline && policy.status().state !== "applied") {
       await Bun.sleep(10);
     }
     expect(attempts).toBeGreaterThanOrEqual(2);
