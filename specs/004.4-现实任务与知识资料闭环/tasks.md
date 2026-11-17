@@ -73,6 +73,7 @@
 
 - [x] 1.2 实现 ProjectFileKnowledgeProvider
   - 状态：DONE（2026-11-17，第一波）
+  - 独立复核修复：`6bd25528a`；bound/query allowedSources 交集在 SQL limit 前筛选；message-only 跳过受管文件候选。实际数据库新增两例回归由 FAIL 转 PASS，本线完整重跑 38 PASS / 0 FAIL。
   - 实现提交：`fea60e9d9`；合同另见 `9790c2fd7`。
   - 修改文件：`apps/server/src/services/knowledge-file-provider.ts`；`apps/server/test/knowledge-provider.test.ts`。
   - 数据库变化：无。
@@ -113,6 +114,7 @@
 
 - [x] 2.2 实现动作卡 API
   - 状态：DONE（2026-11-17，第一波）
+  - 独立复核修复：`6bd25528a`；成功请求先幂等回放，再对新请求检查 revision/status。start/pause 两例验证 revision 和取消状态变化后的并发原响应回放、旧 revision 新 key 冲突和无重复事件，本线完整重跑 38 PASS / 0 FAIL。
   - 实现提交：`fea60e9d9`；合同另见 `9790c2fd7`。
   - 修改文件：`apps/server/src/routes/human-work.ts`；`human-work-service.ts`；`main.ts` 路由注册；service/route 测试。
   - 数据库变化：复用 2.1 新表，不另增表。
