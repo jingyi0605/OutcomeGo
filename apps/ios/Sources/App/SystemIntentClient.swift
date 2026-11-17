@@ -27,6 +27,7 @@ struct SystemIntentClient {
     let session = try savedSession()
     let api = try API(server: session.server, token: session.token, timeout: 15)
     let bootstrap = try await loadBootstrap(session: session, api: api, as: Bootstrap.self)
+    LocationSharing.shared.useSession(session)
     return Self(session: session, api: api, bootstrap: bootstrap)
   }
 
@@ -39,8 +40,8 @@ struct SystemIntentClient {
       // app resumes. Invalidate that session too, otherwise a later cached-state
       // donation could repopulate the index using the revoked credentials.
       // An account changed while the request was in flight must be preserved.
-      if let current = try SecureSession.read(), current.server == session.server,
-        current.userID == session.userID, current.token == session.token {
+      if let current = try SecureSession.read(), current.sameCredentials(as: session) {
+        LocationSharing.shared.bind(nil)
         SystemDiscovery.shared.clear(removeTransfers: true)
         try SecureSession.clear()
       }
@@ -59,8 +60,7 @@ struct SystemIntentClient {
 
   static func validateSession(_ session: SessionRecord) throws {
     guard !UserDefaults.standard.bool(forKey: LocalDataReset.pendingKey),
-      let current = try SecureSession.read(), current.server == session.server,
-      current.userID == session.userID, current.token == session.token else {
+      let current = try SecureSession.read(), current.sameCredentials(as: session) else {
       throw APIError("Your OutcomeGo account changed. Choose the conversation again.")
     }
   }
@@ -174,8 +174,14 @@ struct SystemIntentClient {
     }
     let assets = try await upload(files)
     try validateSession()
-    let message = try await api.send(channel: target.channel, bot: target.bot,
-      input: SendInput(content: text, attachments: assets))
+    var input = SendInput(content: text, attachments: assets)
+    let submission = try await LocationSharing.shared.prepare(session: session)
+    try validateSession()
+    input.location = submission?.location
+    let preparedInput = input
+    let message = try await LocationSharing.shared.perform(submission, session: session) {
+      try await api.send(channel: target.channel, bot: target.bot, input: preparedInput)
+    }
     try validateSession()
     return message
   }
@@ -200,16 +206,12 @@ struct SystemIntentClient {
 
   func exportAttachment(_ value: String) async throws -> URL {
     let (_, asset) = try await attachment(value)
-    let directory = FileManager.default.temporaryDirectory.appendingPathComponent("OutcomeGoTransfers")
-      .appendingPathComponent(UUID().uuidString, isDirectory: true)
-    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true,
-      attributes: [.protectionKey: FileProtectionType.complete])
-    // Strip path components from server-supplied names.
-    let name = URL(fileURLWithPath: asset.fileName).lastPathComponent
-    let url = directory.appendingPathComponent(name.isEmpty ? "Attachment" : name)
+    let url = try SystemTransferFiles.createExport(scope: scope, fileName: asset.fileName)
+    let directory = url.deletingLastPathComponent()
     do {
       try await api.downloadAsset(asset, to: url)
       try validateSession()
+      try SystemTransferFiles.finishExport(url)
       return url
     } catch {
       try? FileManager.default.removeItem(at: directory)

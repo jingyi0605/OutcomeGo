@@ -250,6 +250,27 @@ import XCTest
     XCTAssertEqual(marker.frame.midY, markerY, accuracy: 1)
     XCTAssertEqual(picture.label, "Open portrait.png")
   }
+  func testMeasuringRowsAboveKeepsLatestMessageInPlace() async throws {
+    continueAfterFailure = false
+    try await control("__qa/scene", ["scene": "initial-media-layout"])
+    let app = XCUIApplication()
+    app.launchArguments = ["--ui-testing", "--server", base.absoluteString,
+      "--open-channel", "visual-chat"]
+    app.launch()
+    defer { app.terminate() }
+    let marker = app.staticTexts["Layout settled marker"]
+    XCTAssertTrue(marker.waitForExistence(timeout: 15))
+    XCTAssertTrue(app.descendants(matching: .any).matching(identifier: "chat-loading").firstMatch.waitForNonExistence(timeout: 15))
+    XCTAssertTrue(marker.isHittable)
+    let before = marker.frame
+    // Reading the full transcript can materialize estimated rows above the viewport.
+    let measured = app.tables["chat-history"].cells.allElementsBoundByIndex.map(\.frame)
+    XCTAssertFalse(measured.isEmpty)
+    XCTAssertTrue(marker.isHittable)
+    XCTAssertEqual(marker.frame.minY, before.minY, accuracy: 1)
+    XCTAssertEqual(marker.frame.height, before.height, accuracy: 1)
+  }
+
   func testStalledDocumentFallsBackToText() async throws {
     continueAfterFailure = false
     try await control("__qa/scene", ["scene": "initial-media-layout"])

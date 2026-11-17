@@ -44,6 +44,10 @@ struct OutcomeGoApp: App {
       .environment(\.locale, AppLanguage.normalized(language).locale)
       .onChange(of: scenePhase) { _, phase in
         store.setForeground(phase == .active)
+        if phase == .active, !Self.systemTestHost {
+          LocationSharing.shared.refresh()
+          Task { try? await store.refreshLocationSharing() }
+        }
         // iOS caches a launch picture for a new appearance or orientation at launch.
         if phase == .background {
           store.cancelPendingVoiceRecording()
