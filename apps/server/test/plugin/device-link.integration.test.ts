@@ -13,7 +13,7 @@ import { parsePluginDefinition } from "@outcomego/plugin-sdk";
 
 // Opt in to an existing test database. Only uniquely owned rows and a temporary
 // MCP state directory are created/deleted; no schema reset or Signal data is used.
-const databaseUrl = process.env.OPENTEAM_TEST_DATABASE_URL;
+const databaseUrl = (process.env.OUTCOMEGO_TEST_DATABASE_URL ?? process.env.OPENTEAM_TEST_DATABASE_URL);
 const integration = test.skipIf(!databaseUrl);
 const deferred = <T,>() => {
   let resolve!: (value: T) => void;

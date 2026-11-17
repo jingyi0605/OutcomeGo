@@ -12,7 +12,7 @@ import { clientRoutes } from "../../server/src/routes/client";
 import { conversationRoutes } from "../../server/src/routes/conversation";
 import { WakeWorker } from "../src/worker";
 
-const databaseUrl = process.env.OPENTEAM_TEST_DATABASE_URL;
+const databaseUrl = (process.env.OUTCOMEGO_TEST_DATABASE_URL ?? process.env.OPENTEAM_TEST_DATABASE_URL);
 const oldFact = "My favourite football player is Ronaldo.";
 const currentFact = "My favourite player is now Messi.";
 const question = "Who is my favourite football player?";

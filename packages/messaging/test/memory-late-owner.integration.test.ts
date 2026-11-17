@@ -6,7 +6,7 @@ import { createPrismaClient, type Prisma } from "@outcomego/db";
 import { AgentDataStore } from "../src/agent-data";
 import { lockAgentLifecycle } from "../src/agent-lifecycle";
 
-const url = process.env.OPENTEAM_LATE_OWNER_TEST_DATABASE_URL ?? process.env.OPENTEAM_TEST_DATABASE_URL;
+const url = process.env.OPENTEAM_LATE_OWNER_TEST_DATABASE_URL ?? (process.env.OUTCOMEGO_TEST_DATABASE_URL ?? process.env.OPENTEAM_TEST_DATABASE_URL);
 const dbTest = url ? test : test.skip;
 type Client = ReturnType<typeof createPrismaClient>;
 type Tx = Prisma.TransactionClient;

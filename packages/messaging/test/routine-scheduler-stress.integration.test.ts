@@ -12,7 +12,7 @@ import {
   followUserTimeZone,
 } from "../src/routines";
 
-const url = process.env.OPENTEAM_TEST_DATABASE_URL;
+const url = (process.env.OUTCOMEGO_TEST_DATABASE_URL ?? process.env.OPENTEAM_TEST_DATABASE_URL);
 const integration = url ? test : test.skip;
 afterEach(() => setSystemTime());
 

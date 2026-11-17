@@ -5,7 +5,7 @@ import { RoutineService } from "../src/routines";
 import { triggerIdentity } from "../src/automation-trigger";
 import { repairRoutineScheduling } from "../../../scripts/repair-routine-scheduling";
 
-const url = process.env.OPENTEAM_TEST_DATABASE_URL;
+const url = (process.env.OUTCOMEGO_TEST_DATABASE_URL ?? process.env.OPENTEAM_TEST_DATABASE_URL);
 const integration = url ? test : test.skip;
 const start = new Date("2026-01-01T00:00:00.123Z");
 const atMinute = (minutes: number) => new Date(start.getTime() + minutes * 60_000);

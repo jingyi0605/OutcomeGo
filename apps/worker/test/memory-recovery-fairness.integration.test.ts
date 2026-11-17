@@ -6,7 +6,7 @@ import { createPrismaClient } from "@outcomego/db";
 import { AgentDataStore } from "@outcomego/messaging";
 import { WakeWorker } from "../src/worker";
 
-const databaseUrl = process.env.OPENTEAM_TEST_DATABASE_URL;
+const databaseUrl = (process.env.OUTCOMEGO_TEST_DATABASE_URL ?? process.env.OPENTEAM_TEST_DATABASE_URL);
 const databaseTest = databaseUrl ? test : test.skip;
 const healthyFact = "The user's favorite tea is oolong.";
 

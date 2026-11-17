@@ -11,7 +11,7 @@ import { lockAgentLifecycle } from "@outcomego/messaging";
 import { SubagentService } from "../src/services/subagent/service";
 import { GroupAdministration } from "../src/services/channel/group-administration";
 
-const databaseUrl = process.env.OPENTEAM_TEST_DATABASE_URL;
+const databaseUrl = (process.env.OUTCOMEGO_TEST_DATABASE_URL ?? process.env.OPENTEAM_TEST_DATABASE_URL);
 
 test.skipIf(!databaseUrl)("deleting an executing agent cancels its parent and child runs before removing contexts", async () => {
   const prisma = createPrismaClient(databaseUrl!);

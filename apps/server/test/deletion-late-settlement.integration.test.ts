@@ -5,7 +5,7 @@ import { BotService } from "../src/services/bot-service";
 import { Projection } from "../../worker/src/projection";
 import { WakeWorker } from "../../worker/src/worker";
 
-const url = process.env.OPENTEAM_TEST_DATABASE_URL;
+const url = (process.env.OUTCOMEGO_TEST_DATABASE_URL ?? process.env.OPENTEAM_TEST_DATABASE_URL);
 const gate = () => Promise.withResolvers<void>();
 const files = { deleteAgentFiles: async () => {}, repairActiveAgentAfterDeletion: async () => null };
 

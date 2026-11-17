@@ -7,7 +7,7 @@ import { AgentDataStore, AgentMessaging, lockAgentLifecycle } from '@outcomego/m
 import { Effect } from 'effect';
 import { ExternalDraftService } from '../src/services/external-draft-service';
 
-const databaseUrl = process.env.OPENTEAM_TEST_DATABASE_URL;
+const databaseUrl = (process.env.OUTCOMEGO_TEST_DATABASE_URL ?? process.env.OPENTEAM_TEST_DATABASE_URL);
 const databaseTest = test.skipIf(!databaseUrl);
 /** A Bot chat plus a connector account that declares reviewed sending. */
 async function fixture(name: string) {

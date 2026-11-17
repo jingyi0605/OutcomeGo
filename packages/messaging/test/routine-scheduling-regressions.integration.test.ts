@@ -7,7 +7,7 @@ import { createPrismaClient } from "@outcomego/db";
 import { AgentMessaging } from "../src/index";
 import { followUserTimeZone, pinRoutinesToScheduledZone, RoutineService } from "../src/routines";
 
-const url = process.env.OPENTEAM_TEST_DATABASE_URL;
+const url = (process.env.OUTCOMEGO_TEST_DATABASE_URL ?? process.env.OPENTEAM_TEST_DATABASE_URL);
 
 async function fixture() {
   const db = createPrismaClient(url!);

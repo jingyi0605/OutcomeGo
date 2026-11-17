@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { Client } from "pg";
 import { createPrismaClient } from "../src/client";
 
-const databaseUrl = process.env.OPENTEAM_TEST_DATABASE_URL;
+const databaseUrl = (process.env.OUTCOMEGO_TEST_DATABASE_URL ?? process.env.OPENTEAM_TEST_DATABASE_URL);
 const dbTest = databaseUrl ? test : test.skip;
 const deploy = async (url: string) => {
   const marker = new Client({ connectionString: url });

@@ -9,12 +9,12 @@ import type { ToolContext } from "@outcomego/messaging";
 
 let harness: Awaited<ReturnType<typeof createRoutineHarness>>;
 beforeAll(async () => {
-  if (process.env.OPENTEAM_TEST_DATABASE_URL) harness = await createRoutineHarness();
+  if ((process.env.OUTCOMEGO_TEST_DATABASE_URL ?? process.env.OPENTEAM_TEST_DATABASE_URL)) harness = await createRoutineHarness();
 });
 afterAll(async () => {
   await harness?.close();
 });
-const integration = test.skipIf(!process.env.OPENTEAM_TEST_DATABASE_URL);
+const integration = test.skipIf(!(process.env.OUTCOMEGO_TEST_DATABASE_URL ?? process.env.OPENTEAM_TEST_DATABASE_URL));
 type Fixture = Awaited<ReturnType<typeof harness.fixture>>;
 const context = (
   f: Fixture,

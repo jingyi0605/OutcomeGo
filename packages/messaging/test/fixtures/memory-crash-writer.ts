@@ -2,7 +2,7 @@ import { createPrismaClient } from "@outcomego/db";
 import { AgentDataStore } from "../../src/agent-data";
 
 const { botId, sourceId, fact, root } = JSON.parse(process.env.OPENTEAM_MEMORY_CRASH_FIXTURE!);
-const prisma = createPrismaClient(process.env.OPENTEAM_TEST_DATABASE_URL);
+const prisma = createPrismaClient((process.env.OUTCOMEGO_TEST_DATABASE_URL ?? process.env.OPENTEAM_TEST_DATABASE_URL));
 const interrupted = new Proxy(prisma, {
   get(owner, key) {
     if (key === "$transaction") return (work: (tx: any) => Promise<unknown>) => owner.$transaction(async tx => {

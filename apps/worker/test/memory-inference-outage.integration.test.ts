@@ -7,7 +7,7 @@ import { Effect } from "effect";
 import { AppService } from "../../server/src/app-service";
 import { WakeWorker } from "../src/worker";
 
-const databaseUrl = process.env.OPENTEAM_TEST_DATABASE_URL;
+const databaseUrl = (process.env.OUTCOMEGO_TEST_DATABASE_URL ?? process.env.OPENTEAM_TEST_DATABASE_URL);
 const databaseTest = databaseUrl ? test : test.skip;
 for (const fault of ["unavailable", "malformed-json"] as const) databaseTest(
   `a real ${fault} inference outage retains review intent and cannot replay an older turn over a newer correction`,

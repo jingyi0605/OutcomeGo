@@ -10,7 +10,7 @@ import { pluginRuntimeContext } from "../../../worker/src/plugins";
 import { PluginService } from "../../src/services/plugin-service";
 import { createOAuthMcpFixture } from "./fixtures/oauth-mcp";
 
-const databaseUrl = process.env.OPENTEAM_TEST_DATABASE_URL;
+const databaseUrl = (process.env.OUTCOMEGO_TEST_DATABASE_URL ?? process.env.OPENTEAM_TEST_DATABASE_URL);
 
 test.skipIf(!databaseUrl)(
   "Ramp installs its playbooks and routes an authenticated MCP call through the Bot namespace",

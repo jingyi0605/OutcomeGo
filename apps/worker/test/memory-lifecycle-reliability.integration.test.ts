@@ -13,7 +13,7 @@ import { clientRoutes } from "../../server/src/routes/client";
 import { conversationRoutes } from "../../server/src/routes/conversation";
 import { WakeWorker } from "../src/worker";
 
-const databaseUrl = process.env.OPENTEAM_TEST_DATABASE_URL;
+const databaseUrl = (process.env.OUTCOMEGO_TEST_DATABASE_URL ?? process.env.OPENTEAM_TEST_DATABASE_URL);
 const dbTest = databaseUrl ? test : test.skip;
 type ToolCall = (tool: string, args: unknown) => Promise<any>;
 type Bot = { id: string; conversationId: string; channelId: string };

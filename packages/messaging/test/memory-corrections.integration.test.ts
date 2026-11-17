@@ -6,7 +6,7 @@ import { createPrismaClient } from "@outcomego/db";
 import { AgentDataStore } from "../src/agent-data";
 import { lockAgentLifecycle } from "../src/agent-lifecycle";
 
-const databaseUrl = process.env.OPENTEAM_TEST_DATABASE_URL;
+const databaseUrl = (process.env.OUTCOMEGO_TEST_DATABASE_URL ?? process.env.OPENTEAM_TEST_DATABASE_URL);
 const dbTest = databaseUrl ? test : test.skip;
 const oldFact = "My favourite football player is Ronaldo.";
 const newFact = "My favourite player is now Messi.";
@@ -388,7 +388,7 @@ dbTest("a fresh process recalls the corrected value and retains explicitly label
   const script = `
     import { createPrismaClient } from ${JSON.stringify(join(import.meta.dir, "../../db/src/index.ts"))};
     import { AgentDataStore } from ${JSON.stringify(join(import.meta.dir, "../src/agent-data.ts"))};
-    const prisma = createPrismaClient(process.env.OPENTEAM_TEST_DATABASE_URL);
+    const prisma = createPrismaClient((process.env.OUTCOMEGO_TEST_DATABASE_URL ?? process.env.OPENTEAM_TEST_DATABASE_URL));
     try {
       const store = new AgentDataStore(prisma);
       const input = { query: ${JSON.stringify(query)} };

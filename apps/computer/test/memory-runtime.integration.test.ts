@@ -15,7 +15,7 @@ import { ComputerRuntime } from "../src/runtime";
 import { AppService } from "../../server/src/app-service";
 import { errorResponse, parseBody } from "../../server/src/http";
 
-const databaseUrl = process.env.OPENTEAM_RUNTIME_TEST_DATABASE_URL ?? process.env.OPENTEAM_TEST_DATABASE_URL;
+const databaseUrl = process.env.OPENTEAM_RUNTIME_TEST_DATABASE_URL ?? (process.env.OUTCOMEGO_TEST_DATABASE_URL ?? process.env.OPENTEAM_TEST_DATABASE_URL);
 const dbTest = databaseUrl ? test : test.skip;
 const oldFact = "My favourite football player is Ronaldo.";
 const newFact = "My favourite player is now Messi.";

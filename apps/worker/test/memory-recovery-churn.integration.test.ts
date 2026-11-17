@@ -6,7 +6,7 @@ import { createPrismaClient } from "@outcomego/db";
 import { AgentDataStore } from "@outcomego/messaging";
 import { WakeWorker } from "../src/worker";
 
-const url = process.env.OPENTEAM_TEST_DATABASE_URL;
+const url = (process.env.OUTCOMEGO_TEST_DATABASE_URL ?? process.env.OPENTEAM_TEST_DATABASE_URL);
 const dbTest = url ? test : test.skip;
 type Bot = { id: string; conversationId: string };
 type Candidate = { id: string; botId: string };

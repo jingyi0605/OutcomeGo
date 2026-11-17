@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { createPrismaClient } from "@outcomego/db";
 import { AgentDataStore } from "@outcomego/messaging";
 
-const databaseUrl = process.env.OPENTEAM_TEST_DATABASE_URL;
+const databaseUrl = (process.env.OUTCOMEGO_TEST_DATABASE_URL ?? process.env.OPENTEAM_TEST_DATABASE_URL);
 
 test.skipIf(!databaseUrl)("two worker processes serialize each bot's review backlog and recover a killed owner after the real lease TTL", async () => {
   const root = await mkdtemp(join(tmpdir(), "memory-multiworker-"));

@@ -50,7 +50,7 @@ test("a result still being stored is waited for; an unknown id is refused with w
   expect(error).toBe("Nothing was sent: no places or routing tool result from the last day has places google:typo or routes route:9. Use ids exactly as such a tool returned them, call it again, or give the full place object.");
 });
 
-const databaseUrl = process.env.OPENTEAM_TEST_DATABASE_URL;
+const databaseUrl = (process.env.OUTCOMEGO_TEST_DATABASE_URL ?? process.env.OPENTEAM_TEST_DATABASE_URL);
 const pluginResult = (references?: unknown, text = "{}") => ({ tool: "CallDynamicTool", arguments: {}, result: { content: [{ type: "text", text }], details: { tool: "PluginCall", ...(references ? { presentationReferences: references } : {}) } } });
 test.skipIf(!databaseUrl)("the stored lookup reads plugin indexes from the bot and nested subagents, within a day, and nothing else", async () => {
   const prisma = createPrismaClient(databaseUrl!);

@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import { join } from "node:path";
 import { Client } from "pg";
 
-const url = process.env.OPENTEAM_TEST_DATABASE_URL;
+const url = (process.env.OUTCOMEGO_TEST_DATABASE_URL ?? process.env.OPENTEAM_TEST_DATABASE_URL);
 const deploy = async (databaseUrl: string) => {
   const child = Bun.spawn(["bun", "scripts/deploy-schema.ts"], {
     cwd: join(import.meta.dirname, ".."),

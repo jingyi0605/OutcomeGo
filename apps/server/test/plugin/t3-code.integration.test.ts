@@ -4,7 +4,7 @@ import { pluginCatalog } from "@outcomego/plugins";
 import { createPluginFlowFixture } from "./fixtures/plugin-flow";
 import { createOAuthMcpFixture } from "./fixtures/oauth-mcp";
 
-const databaseUrl = process.env.OPENTEAM_TEST_DATABASE_URL;
+const databaseUrl = (process.env.OUTCOMEGO_TEST_DATABASE_URL ?? process.env.OPENTEAM_TEST_DATABASE_URL);
 test.skipIf(!databaseUrl)(
   "resolved URL setup never exposes credential placeholders in legacy endpoints",
   async () => {

@@ -7,7 +7,7 @@ import { createPrismaClient } from "@outcomego/db";
 import { AgentDataStore } from "../src/agent-data";
 import { RoutineService } from "../src/routines";
 
-const url = process.env.OPENTEAM_TEST_DATABASE_URL;
+const url = (process.env.OUTCOMEGO_TEST_DATABASE_URL ?? process.env.OPENTEAM_TEST_DATABASE_URL);
 const integration = url ? test : test.skip;
 const at = new Date("2026-11-12T17:00:00Z");
 afterEach(() => setSystemTime());
