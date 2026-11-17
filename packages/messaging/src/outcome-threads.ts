@@ -6,6 +6,7 @@ import type { Prisma } from "@outcomego/db";
 import type { AgentMessaging } from "./index";
 import { finalRunMessage, runGroupBackgroundWorkRunning } from "./automation-results";
 import { appendOutcomeEvent, recomputeOutcomeStatus, transitionWorkItem } from "./outcome-state";
+import { outcomeDispatchEnabled } from "./outcome-availability";
 
 export interface EnqueueOutcomeTurnInput {
   workItemId: string;
@@ -55,6 +56,7 @@ export async function enqueueOutcomeTurn(
   if (!previous) await tx.idempotencyRecord.create({ data: {
     scope, key: input.clientId, requestHash, response: JSON.parse(JSON.stringify({ input })), status: "processing", expiresAt: ttl(),
   } });
+  if (!outcomeDispatchEnabled()) return { status: "queued_for_capacity" };
   const dependencies = Array.isArray(item.dependsOn) ? item.dependsOn.filter((id): id is string => typeof id === "string") : [];
   if (dependencies.length && await tx.outcomeWorkItem.count({
     where: { id: { in: dependencies }, outcomeId: item.outcomeId, status: { in: ["completed", "accepted"] } },
@@ -97,6 +99,7 @@ export async function enqueueOutcomeTurn(
 
 /** Try-lock other Outcomes so a drain cannot reverse Outcome -> WorkItem lock order. */
 export async function dispatchQueuedOutcomeWorkItems(tx: Prisma.TransactionClient, messaging: AgentMessaging, botId: string) {
+  if (!outcomeDispatchEnabled()) return;
   const items = await tx.$queryRaw<Array<{ id: string; outcomeId: string }>>`
     SELECT w.id, w."outcomeId" FROM "outcomego_outcome_work_item" w
     JOIN "outcomego_outcome" o ON o.id = w."outcomeId"

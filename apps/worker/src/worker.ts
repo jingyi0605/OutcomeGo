@@ -56,6 +56,8 @@ import {
   reconcileRoutineExecution,
   settleOutcomeWorkItem,
   dispatchQueuedOutcomeWorkItems,
+  recoverOutcomeWorkItems,
+  outcomeDispatchEnabled,
   transitionWorkItem,
   groupRoutineState,
   lockGroupExecution,
@@ -584,6 +586,7 @@ export class WakeWorker {
     await dispatchRequestChecks(this.prisma, this.messaging);
     await recoverRequestProgress(this.prisma, this.messaging);
     await this.recoverRoutineExecutions();
+    while (this.outcomeRecoveryCursor) await this.recoverOutcomeWorkItems();
     await this.reconcileAgentStores();
     await this.agentData.reconcileAllActiveBots();
     await this.pushNotifications.drain();
@@ -970,17 +973,29 @@ export class WakeWorker {
   private outcomeRecoveryCursor: string | null = null;
 
   private async recoverOutcomeWorkItems(): Promise<void> {
-    const items = await this.prisma.outcomeWorkItem.findMany({
-      where: { executorType: "agent", status: { in: ["queued", "running", "retry_pending", "completed"] }, outcome: { cancelledAt: null, acceptedAt: null }, ...(this.outcomeRecoveryCursor ? { id: { gt: this.outcomeRecoveryCursor } } : {}) },
-      orderBy: { id: "asc" }, take: 100, select: { id: true, botId: true, rootRunId: true },
+    // Physical cancellation is outside the transaction adapter. The adapter
+    // rechecks leases under the Outcome lock before consuming this confirmation.
+    const stale = await this.prisma.run.findMany({
+      where: { origin: "outcome", outcomeWorkItemId: { not: null },
+        AND: [
+          { OR: [{ status: "running" }, { status: "queued", inboxEvents: { none: { status: "pending" } } }] },
+          { OR: [{ lease: null }, { lease: { expiresAt: { lte: new Date() } } }] },
+        ],
+        ...(this.outcomeRecoveryCursor ? { outcomeWorkItem: { id: { gt: this.outcomeRecoveryCursor } } } : {}) },
+      orderBy: { outcomeWorkItemId: "asc" }, take: 100, select: { id: true },
     });
-    this.outcomeRecoveryCursor = items.length === 100 ? items.at(-1)!.id : null;
-    for (const item of items.filter(item => item.rootRunId)) {
-      await this.prisma.$transaction(tx => settleOutcomeWorkItem(tx, item.rootRunId!, { messaging: this.messaging, workspaceRoot: this.workspaceRoot }));
+    const confirmedStoppedRunIds = new Set<string>();
+    for (const { id: runId } of stale) {
+      try {
+        const response = await this.computerFetch(COMPUTER_API_PATHS.turnCancel(runId), { method: "POST", body: JSON.stringify({ recovery: true }) });
+        if (response.ok || response.status === 400 && (await response.text()).includes("Run is not actively executing")) confirmedStoppedRunIds.add(runId);
+      } catch { /* Keep the old facts until the computer confirms the turn stopped. */ }
     }
-    for (const botId of new Set(items.map(item => item.botId))) {
-      await this.prisma.$transaction(tx => dispatchQueuedOutcomeWorkItems(tx, this.messaging, botId));
-    }
+    const batch = await recoverOutcomeWorkItems(this.prisma, {
+      messaging: this.messaging, workspaceRoot: this.workspaceRoot,
+      confirmedStoppedRunIds,
+    }, this.outcomeRecoveryCursor);
+    this.outcomeRecoveryCursor = batch.nextCursor;
   }
 
   private async recoverGroupRoutineExecution(
@@ -1274,10 +1289,13 @@ export class WakeWorker {
             bot: { status: "active" },
             run: {
               status: { in: ["queued", "running"] },
+              // Expired Outcome execution is fenced by recovery before a new turn
+              // is created. Never dispatch the same running turn to a second owner.
+              NOT: { origin: "outcome", status: "running" },
               origin: { notIn: [
                 ...(foregroundBusy ? ["user", "agent", "group", "bootstrap", "event", "connector", "background_revival", "handoff_resume", "broadcast"] as const : []),
                 ...(automations.length >= 4 ? ["routine"] as const : []),
-                ...(outcomes.length >= 2 ? ["outcome"] as const : []),
+                ...(outcomes.length >= 2 || !outcomeDispatchEnabled() ? ["outcome"] as const : []),
               ] },
             },
           },
@@ -1302,7 +1320,20 @@ export class WakeWorker {
         const busyRoutines = new Set<string>();
         for (const context of new Set(candidates.flatMap((candidate) => routineRevivalContext(candidate) ?? [])))
           if (await automationBackgroundWorkRunning(tx, botId, context)) busyRoutines.add(context);
-        const inbox = candidates.find(candidate => {
+        const runnableCandidates = [];
+        for (const candidate of candidates) {
+          if (candidate.run.origin === "outcome") {
+            const item = candidate.run.outcomeWorkItemId
+              ? await tx.outcomeWorkItem.findUnique({ where: { id: candidate.run.outcomeWorkItemId }, include: { outcome: true } }) : null;
+            if (!item || item.outcome.cancelledAt || item.outcome.acceptedAt || ["completed", "failed", "cancelled", "waiting_decision", "waiting_human", "needs_review"].includes(item.status)) {
+              await tx.inboxEvent.updateMany({ where: { id: candidate.id, status: "pending" }, data: { status: "completed", completedAt: new Date() } });
+              await tx.run.updateMany({ where: { id: candidate.runId, status: "queued", startedAt: null }, data: { status: "cancelled", completedAt: new Date(), error: { code: "outcome_not_runnable" } } });
+              continue;
+            }
+          }
+          runnableCandidates.push(candidate);
+        }
+        const inbox = runnableCandidates.find(candidate => {
           if (candidate.run.origin === "outcome") {
             return !!candidate.run.outcomeWorkItemId && !outcomes.some(lease => lease.scope === `outcome:${candidate.run.outcomeWorkItemId}`);
           }
@@ -1314,7 +1345,7 @@ export class WakeWorker {
         if (!inbox) return null;
         if (inbox.run.origin === "outcome") {
           const item = await tx.outcomeWorkItem.findUnique({ where: { id: inbox.run.outcomeWorkItemId! }, include: { outcome: true } });
-          if (!item || item.outcome.cancelledAt || ["completed", "failed", "cancelled", "waiting_decision", "waiting_human"].includes(item.status)) return null;
+          if (!item || item.outcome.cancelledAt || ["completed", "failed", "cancelled", "waiting_decision", "waiting_human", "needs_review"].includes(item.status)) return null;
         }
         const identity = inbox.bot.subagentIdentity;
         if (identity?.subagentType === "computerUse") {
@@ -1763,13 +1794,16 @@ export class WakeWorker {
       // or its response was lost. Keep the lease until execute/fail settles it.
       await this.computerFetch(COMPUTER_API_PATHS.turnCancel(claimed.runId), { method: "POST" }).catch(() => undefined);
     }
-    await this.prisma.botRunLease.updateMany({
-      where: { botId: claimed.botId, ownerId: claimed.ownerId },
+    const renewed = await this.prisma.botRunLease.updateMany({
+      where: { botId: claimed.botId, ownerId: claimed.ownerId,
+        ...(claimed.origin === "outcome" ? { runId: claimed.runId, expiresAt: { gt: new Date() } } : {}) },
       data: {
         heartbeatAt: new Date(),
         expiresAt: new Date(Date.now() + LEASE_MS),
       },
     });
+    if (claimed.origin === "outcome" && renewed.count === 0)
+      await this.computerFetch(COMPUTER_API_PATHS.turnCancel(claimed.runId), { method: "POST", body: JSON.stringify({ recovery: true }) }).catch(() => undefined);
   }
 
   private computerFetch(path: string, init: RequestInit): Promise<Response> {

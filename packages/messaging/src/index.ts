@@ -19,6 +19,8 @@ export { readTranscript } from "./read-transcript";
 export { readOutcomeTranscript } from "./outcome-transcript";
 export { appendOutcomeEvent, recomputeOutcomeStatus, transitionWorkItem, type ActorRef, type TransitionWorkItemInput } from "./outcome-state";
 export { enqueueOutcomeTurn, settleOutcomeWorkItem, dispatchQueuedOutcomeWorkItems, outcomeRunContext, type OutcomeThreadRuntime, type EnqueueOutcomeTurnInput, type EnqueueOutcomeTurnResult } from "./outcome-threads";
+export { recoverOutcomeWorkItem, recoverOutcomeWorkItems, routeOutcomeNextStep, OUTCOME_RECOVERY_PROMPT, type OutcomeRecoveryRuntime, type OutcomeNextFact } from "./outcome-recovery";
+export { outcomeDispatchEnabled } from "./outcome-availability";
 export { unavailableHumanActionPort, type DecisionEffect, type HumanActionPort, type HumanActionInput, type HumanActionResult } from "./outcome-actions";
 export { OutcomeThreadFake } from "./testing/outcome-thread-fake";
 export { readAgentActivity } from "./read-agent-activity";
