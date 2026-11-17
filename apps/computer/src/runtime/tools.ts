@@ -1,6 +1,7 @@
 import { REQUEST_OUTCOME_DECISION_TOOL, RequestOutcomeDecisionInput } from "@outcomego/contracts/outcome-inbox";
 import { replaceTaskProgressContext } from "@outcomego/contracts/task-progress";
 import { OUTCOME_THREAD_TOOL_NAMES, type OutcomeThreadToolName } from "@outcomego/contracts/outcomes";
+import { REQUEST_HUMAN_ACTION_TOOL, humanActionInputSchema } from "@outcomego/contracts/human-work";
 import { applyArgumentAliases, normalizeMainToolArguments } from "@outcomego/contracts/reference-main-parsers";
 import { onlyPendingBackgroundWork } from "./background-status";
 import { markDelivered } from "./events";
@@ -259,6 +260,10 @@ const OUTCOME_THREAD_TOOLS: OutcomeThreadToolRegistry = {
     inputSchema: REQUEST_OUTCOME_DECISION_TOOL.inputSchema as unknown as Readonly<Record<string, unknown>>,
     source: "first-party",
     decodeArguments: Schema.decodeUnknownSync(RequestOutcomeDecisionInput),
+  },
+  RequestHumanAction: {
+    ...REQUEST_HUMAN_ACTION_TOOL, source: "first-party",
+    decodeArguments: (input) => humanActionInputSchema.parse(input),
   },
 };
 
@@ -1798,6 +1803,8 @@ export class RuntimeTools {
       (body as Record<string, unknown>).status === "waiting_for_user") {
       active.endTurnRequested = true;
     }
+    if (tool === "RequestHumanAction" && active.outcomeThread && body && typeof body === "object" &&
+        (body as Record<string, unknown>).waiting_for_human === true) active.endTurnRequested = true;
     if (
       tool === "WakeParent" &&
       body &&

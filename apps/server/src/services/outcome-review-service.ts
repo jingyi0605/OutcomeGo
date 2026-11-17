@@ -12,6 +12,7 @@ import { OutcomeService, outcomeApiError } from "./outcome-service";
 import type { OutcomeInference } from "./outcome-inference";
 import { lockOutcome, outcomeWrite } from "./outcome-write";
 import { serviceEffect, toJson } from "./service-utils";
+import type { HumanReviewPort } from "./human-receipt-service";
 
 type Tx = Prisma.TransactionClient;
 type Enqueue = typeof enqueueOutcomeTurn;
@@ -21,7 +22,8 @@ const closed = (status: string) => status === "accepted" || status === "cancelle
 export class OutcomeReviewService {
   private readonly outcomes: OutcomeService;
   constructor(private readonly prisma: PrismaClient, private readonly messaging: AgentMessaging,
-    private readonly infer: OutcomeInference, private readonly enqueue: Enqueue = enqueueOutcomeTurn) {
+    private readonly infer: OutcomeInference, private readonly enqueue: Enqueue = enqueueOutcomeTurn,
+    private readonly humanReviews?: HumanReviewPort) {
     this.outcomes = new OutcomeService(prisma);
   }
 
@@ -29,7 +31,13 @@ export class OutcomeReviewService {
     outcomeWrite(this.prisma, `outcome-review:${outcomeId}`, input.clientRequestId, { input, actor }, async tx => {
       const outcome = await lockOutcome(tx, outcomeId);
       if (closed(outcome.status)) throw outcomeApiError("invalid_outcome_transition", `This Outcome is ${outcome.status}`, { currentStatus: outcome.status });
-      const revision = await tx.outcomeContractRevision.findUnique({ where: { id: outcome.currentRevisionId ?? "00000000-0000-0000-0000-000000000000" }, include: { criteria: true } });
+      let revision = await tx.outcomeContractRevision.findUnique({ where: { id: outcome.currentRevisionId ?? "00000000-0000-0000-0000-000000000000" }, include: { criteria: true } });
+      if (revision?.revision !== input.expectedRevision && this.humanReviews) {
+        const activeId = await this.humanReviews.activeReviewRevision(tx, {
+          outcomeId, expectedRevision: input.expectedRevision, criterionIds: input.results.map(result => result.criterionId),
+        });
+        if (activeId) revision = await tx.outcomeContractRevision.findUnique({ where: { id: activeId }, include: { criteria: true } });
+      }
       if (!revision || revision.revision !== input.expectedRevision)
         throw outcomeApiError("review_revision_conflict", "The contract changed; reload before reviewing", { currentRevision: revision?.revision ?? null });
       if (revision.status !== "approved") throw outcomeApiError("contract_revision_not_approved", "Approve the current contract before reviewing", { currentStatus: revision.status });
@@ -83,17 +91,11 @@ export class OutcomeReviewService {
         };
       });
       const items = await tx.outcomeWorkItem.findMany({ where: { outcomeId, contractRevisionId: revision.id } });
-      for (const item of items.filter(i => i.executorType === "human" && ["submitted", "review_pending"].includes(i.status))) {
-        const relatedIds = new Set(evidence.filter(e => e.workItemId === item.id && e.criterionId).map(e => e.criterionId!));
-        const related = states.filter(s => relatedIds.has(s.criterionId));
-        if (!related.length) continue;
-        if (item.status === "submitted") await transitionWorkItem(tx, { workItemId: item.id, to: "review_pending", reason: "owner_review", actor });
-        const mandatory = related.filter(s => s.required);
-        const actionCriteria = mandatory.length ? mandatory : related;
-        if (actionCriteria.some(s => s.result === "FAIL"))
-          await transitionWorkItem(tx, { workItemId: item.id, to: "rejected", reason: "owner_review_failed", actor });
-        else if (actionCriteria.every(s => s.result === "PASS" && passIsSupported(s) || s.result === "WAIVED_BY_APPROVED_CHANGE" && s.waiverRevisionApproved))
-          await transitionWorkItem(tx, { workItemId: item.id, to: "accepted", reason: "owner_review_passed", actor });
+      if (items.some(item => item.executorType === "human" && ["submitted", "review_pending"].includes(item.status))) {
+        if (!this.humanReviews) throw new ApiError(503, "manual_action_unavailable", "Human receipt review has not been registered");
+        await this.humanReviews.reviewInTransaction(tx, {
+          outcomeId, revisionId: revision.id, actor, reviewedCriterionIds: input.results.map(result => result.criterionId),
+        });
       }
       const remaining = await tx.outcomeWorkItem.findMany({ where: { outcomeId, contractRevisionId: revision.id } });
       const finished = remaining.some(item => item.status === "completed" || item.status === "accepted") &&
@@ -108,7 +110,7 @@ export class OutcomeReviewService {
           outcomeId, contractRevisionId: revision.id, executorType: "human", status: { notIn: ["accepted", "cancelled"] },
         } } }),
       ]);
-      if (finished && !openDecisions && !openHumanActions && requiredCriteriaSatisfied(states)) {
+      if (revision.id === outcome.currentRevisionId && finished && !openDecisions && !openHumanActions && requiredCriteriaSatisfied(states)) {
         await tx.outcome.update({ where: { id: outcomeId }, data: { acceptedAt: new Date() } });
         await appendOutcomeEvent(tx, "outcome.accepted", outcomeId, { actor, contractRevision: revision.revision, idempotencyKey: input.clientRequestId,
           payload: { revisionId: revision.id, reviewIds: [...latest.values()].map(r => r.id) } });

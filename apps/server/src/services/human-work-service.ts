@@ -9,9 +9,12 @@ import { OutcomeError, OUTCOME_ERROR_CODES, type WorkItemExecutorType, type Work
 import type { Prisma, PrismaClient } from "@outcomego/db";
 import {
   appendOutcomeEvent, transitionWorkItem,
-  type ActorRef, type HumanActionInput, type HumanActionResult,
+  type ActorRef, type HumanActionInput, type HumanActionResult, type HumanActionPort,
 } from "@outcomego/messaging";
 import { hashRequest, toJson } from "./service-utils";
+import type { HumanKnowledgeResolver } from "./human-knowledge-service";
+import { humanReceiptView } from "./human-receipt-service";
+import { assertHumanRevisionActive } from "./human-revision-policy";
 
 const include = {
   contractRevision: { select: { revision: true } },
@@ -29,12 +32,86 @@ const nextAction = (status: WorkItemStatus) => {
   return undefined;
 };
 
-export class HumanWorkService {
-  constructor(private readonly prisma: PrismaClient) {}
+export class HumanWorkService implements HumanActionPort {
+  constructor(private readonly prisma: PrismaClient, private readonly knowledge?: HumanKnowledgeResolver) {}
+
+  async createFromAgentRequest(tx: Tx, input: Parameters<HumanActionPort["createFromAgentRequest"]>[1]): Promise<HumanActionResult> {
+    const parsed = humanActionInputSchema.safeParse(input.input);
+    if (!parsed.success) throw new ApiError(400, "invalid_request", "Invalid human action request");
+    const found = await tx.outcomeWorkItem.findUnique({ where: { id: input.workItemId }, select: { outcomeId: true } });
+    if (!found) throw new ApiError(404, "work_item_not_found", "Requesting WorkItem not found");
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`outcome:${found.outcomeId}`}))`;
+    const key = `human-action-request:${input.runId}:${hashRequest(parsed.data)}`;
+    return this.createOnce(tx, key, { runId: input.runId, workItemId: input.workItemId, card: parsed.data }, async () => {
+      const [item, run] = await Promise.all([
+        tx.outcomeWorkItem.findUniqueOrThrow({ where: { id: input.workItemId }, include: { contractRevision: true, outcome: true } }),
+        tx.run.findUnique({ where: { id: input.runId } }),
+      ]);
+      if (!run || run.origin !== "outcome" || run.outcomeWorkItemId !== item.id || run.botId !== item.botId || run.status !== "running" ||
+          item.executorType !== "agent" || item.status !== "running")
+        throw error("human_work_item_not_active", "Only an active Outcome Agent turn can request human work");
+      const actor = `bot:${item.botId}` as const;
+      const references = await this.references(item, parsed.data.referenceIds ?? []);
+      const result = await this.createCard(tx, {
+        outcomeId: item.outcomeId, expectedContractRevision: item.contractRevision.revision,
+        card: parsed.data, references, requestedByWorkItemId: item.id,
+      }, actor);
+      await transitionWorkItem(tx, { workItemId: item.id, to: "waiting_human", reason: "human_action_requested", actor, idempotencyKey: key });
+      return result;
+    });
+  }
+
+  async createFromDecision(tx: Tx, input: Parameters<HumanActionPort["createFromDecision"]>[1]): Promise<HumanActionResult> {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`outcome:${input.outcomeId}`}))`;
+    const parsed = humanActionInputSchema.safeParse(input.card);
+    if (!parsed.success) throw new ApiError(400, "invalid_request", "Invalid manual-action snapshot");
+    return this.createOnce(tx, `human-action-decision:${input.decisionId}`, {
+      outcomeId: input.outcomeId, requestedByWorkItemId: input.requestedByWorkItemId, card: parsed.data,
+    }, async () => {
+      const decision = await tx.outcomeDecision.findUnique({ where: { id: input.decisionId } });
+      const item = await tx.outcomeWorkItem.findUnique({ where: { id: input.requestedByWorkItemId }, include: { contractRevision: true, outcome: true } });
+      const option = decision?.resolvedOption as { resolutionEffect?: string; manualAction?: unknown } | null;
+      const snapshot = humanActionInputSchema.safeParse(option?.manualAction);
+      if (!decision || !item || decision.status !== "resolved" || decision.outcomeId !== input.outcomeId ||
+          decision.workItemId !== item.id || decision.contractRevisionId !== item.contractRevisionId ||
+          item.outcomeId !== input.outcomeId || item.executorType !== "agent" || item.status !== "waiting_decision" ||
+          option?.resolutionEffect !== "manual_action" || !snapshot.success || hashRequest(snapshot.data) !== hashRequest(parsed.data) ||
+          !decision.resolvedBy || !/^(owner:local|user:.+|bot:.+|system:.+)$/.test(decision.resolvedBy))
+        throw error("human_work_item_not_active", "The resolved Decision is not the source of this human action");
+      return this.createCard(tx, {
+        outcomeId: item.outcomeId, expectedContractRevision: item.contractRevision.revision, card: parsed.data,
+        references: await this.references(item, parsed.data.referenceIds ?? []),
+        requestedByWorkItemId: item.id, sourceDecisionId: decision.id,
+      }, decision.resolvedBy as ActorRef);
+    });
+  }
+
+  private async references(item: { outcomeId: string; botId: string; contractRevision: { revision: number } }, ids: readonly string[]) {
+    if (!ids.length) return [];
+    if (!this.knowledge) throw new ApiError(503, "manual_action_unavailable", "The knowledge source resolver has not been registered");
+    return this.knowledge.resolve({
+      outcomeId: item.outcomeId, contractRevision: item.contractRevision.revision, projectScope: `bot:${item.botId}`,
+    }, ids);
+  }
+
+  private async createOnce(tx: Tx, key: string, input: unknown, write: () => Promise<HumanActionResult>) {
+    const scope = "human-action-create";
+    const previous = await tx.idempotencyRecord.findUnique({ where: { scope_key: { scope, key } } });
+    const requestHash = hashRequest(input);
+    if (previous) {
+      if (previous.requestHash !== requestHash) throw error("receipt_idempotency_conflict", "This human-action source has different content");
+      return previous.response as unknown as HumanActionResult;
+    }
+    const result = await write();
+    await tx.idempotencyRecord.create({ data: {
+      scope, key, requestHash, response: toJson(result), status: "completed",
+      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60_000),
+    } });
+    return result;
+  }
 
   /**
-   * Internal snapshot builder for HumanActionPort implementations. Source validation,
-   * tool registration and Agent waiting/continuation are supplied in wave 2.
+   * Internal snapshot builder; source wrappers validate persisted Run/Decision facts.
    */
   async createCard(tx: Tx, input: {
     outcomeId: string;
@@ -48,16 +125,17 @@ export class HumanWorkService {
     if (!parsed.success) throw new ApiError(400, "invalid_request", "Invalid human action card", parsed.error.flatten());
     const card = parsed.data;
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`outcome:${input.outcomeId}`}))`;
-    const outcome = await tx.outcome.findUnique({
-      where: { id: input.outcomeId }, include: { currentRevision: { include: { criteria: true } } },
+    const outcome = await tx.outcome.findUnique({ where: { id: input.outcomeId } });
+    if (!outcome) throw new ApiError(404, "outcome_not_found", "Outcome not found");
+    const requester = await tx.outcomeWorkItem.findUnique({ where: { id: input.requestedByWorkItemId } });
+    const revision = requester && await tx.outcomeContractRevision.findUnique({
+      where: { id: requester.contractRevisionId }, include: { criteria: true },
     });
-    if (!outcome?.currentRevision) throw new ApiError(404, "outcome_not_found", "Outcome not found");
-    const revision = outcome.currentRevision;
-    if (revision.revision !== input.expectedContractRevision)
+    if (!revision || revision.revision !== input.expectedContractRevision)
       throw error("review_revision_conflict", "The Contract revision has changed");
+    await assertHumanRevisionActive(tx, { outcomeId: outcome.id, contractRevisionId: revision.id }, requester?.id ?? null);
     if (revision.status !== "approved" || ["cancelled", "accepted"].includes(outcome.status))
       throw error("human_work_item_not_active", "Human work requires an active approved Contract", { currentStatus: outcome.status });
-    const requester = await tx.outcomeWorkItem.findUnique({ where: { id: input.requestedByWorkItemId } });
     if (!requester || requester.outcomeId !== outcome.id || requester.contractRevisionId !== revision.id || requester.executorType !== "agent")
       throw error("human_work_item_not_active", "The requesting Agent WorkItem does not belong to this Contract");
     const references = input.references.map((reference) => ({ ...reference }));
@@ -144,9 +222,9 @@ export class HumanWorkService {
             throw error("receipt_idempotency_conflict", "This request ID was used for different human work content");
           return previous.response as unknown as HumanWorkItemDetail;
         }
-        if (item.contractRevisionId !== item.outcome.currentRevisionId ||
-            item.outcome.currentRevision?.revision !== input.expectedContractRevision)
+        if (item.contractRevision.revision !== input.expectedContractRevision)
           throw error("review_revision_conflict", "The Contract revision has changed", { currentStatus: item.status });
+        await assertHumanRevisionActive(tx, item, item.humanActionCard.requestedByWorkItemId);
         if (["accepted", "cancelled"].includes(item.outcome.status))
           throw error("human_work_item_not_active", "The Outcome is no longer active", { currentStatus: item.status });
         const allowed = action === "start" ? ["pending", "ready", "paused", "rejected"] : ["in_progress"];
@@ -216,6 +294,7 @@ export class HumanWorkService {
       startedBy: snapshot.startedBy, startedAt: snapshot.startedAt?.toISOString() ?? null,
       submittedAt: snapshot.submittedAt?.toISOString() ?? null, acceptedAt: snapshot.acceptedAt?.toISOString() ?? null,
     } : null;
-    return { ...this.view(item), card };
+    const receipts = await tx.outcomeHumanReceipt.findMany({ where: { workItemId }, orderBy: { sequence: "asc" } });
+    return { ...this.view(item), card, receipts: receipts.map(humanReceiptView) };
   }
 }

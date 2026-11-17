@@ -1,5 +1,8 @@
 import type { PrismaClient } from "@outcomego/db";
 import type { HumanWorkService } from "../src/services/human-work-service";
+import { AgentDataStore, AgentMessaging, AssetStore } from "@outcomego/messaging";
+import { mkdtemp, rm } from "node:fs/promises";
+import { join } from "node:path";
 
 /** All data is synthetic and isolated by a newly created Bot. */
 export async function humanWorkScenario(prisma: PrismaClient, service: HumanWorkService) {
@@ -28,4 +31,33 @@ export async function humanWorkScenario(prisma: PrismaClient, service: HumanWork
   };
   const card = await prisma.$transaction((tx) => service.createCard(tx, cardInput, "owner:local"));
   return { bot, outcome, revision, agent, card, cardInput };
+}
+
+/** Real mailbox enqueue with synthetic filesystem/database state; never starts a worker or server. */
+export async function humanActionScenario(prisma: PrismaClient, service: HumanWorkService) {
+  const fixture = await humanWorkScenario(prisma, service);
+  await prisma.outcomeWorkItem.delete({ where: { id: fixture.card.workItemId } });
+  const root = await mkdtemp(join(import.meta.dir, ".human-action-test-"));
+  const store = new AgentDataStore(prisma, { root: join(root, "agent-data"), workspaceRoot: root });
+  const assets = new AssetStore({ root: join(root, "assets") });
+  const messaging = new AgentMessaging(prisma, { send: async () => "synthetic-job" } as never, store, assets);
+  const channel = await prisma.channel.create({ data: {
+    name: "Synthetic action DM", kind: "bot_dm", members: { create: { botId: fixture.bot.id, ordinal: 0 } },
+  } });
+  const conversation = await prisma.conversation.findUniqueOrThrow({ where: { botId: fixture.bot.id } });
+  const message = await prisma.message.create({ data: {
+    botId: fixture.bot.id, conversationId: conversation.id, role: "user", content: "Synthetic root action", status: "completed",
+  } });
+  const run = await prisma.run.create({ data: {
+    botId: fixture.bot.id, conversationId: conversation.id, userMessageId: message.id, origin: "outcome",
+    outcomeWorkItemId: fixture.agent.id, status: "running", channelId: channel.id, startedAt: new Date(),
+  } });
+  await prisma.outcomeWorkItem.update({ where: { id: fixture.agent.id }, data: { rootRunId: run.id, startedAt: run.startedAt } });
+  return { ...fixture, root, store, assets, messaging, channel, run,
+    async cleanup() {
+      await prisma.bot.delete({ where: { id: fixture.bot.id } });
+      await prisma.channel.delete({ where: { id: channel.id } });
+      await rm(root, { recursive: true, force: true });
+    },
+  };
 }

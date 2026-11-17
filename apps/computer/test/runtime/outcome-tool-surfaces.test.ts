@@ -24,9 +24,13 @@ for (const requestSource of ["turn", "automation", "event"] as const) {
     });
     expect(snapshot(active)).toEqual(before[requestSource]);
     if (requestSource === "automation") {
-      const withOutcome = snapshot({ ...active, outcomeThread: { workItemId: "fixture" } });
-      expect(withOutcome.direct).toContain("RequestOutcomeDecision");
-      expect({ direct: withOutcome.direct.filter(name => name !== "RequestOutcomeDecision"), dynamic: withOutcome.dynamic.map(namespace => ({ ...namespace, tools: namespace.tools.filter(tool => tool !== "RequestOutcomeDecision") })) }).toEqual(before.automation);
+      const outcome = snapshot({ ...active, outcomeThread: { workItemId: "fixture" } });
+      const originalTools = (names: string[]) => names.filter(name => !(OUTCOME_THREAD_TOOL_NAMES as readonly string[]).includes(name));
+      expect({ direct: originalTools(outcome.direct), dynamic: outcome.dynamic.map(namespace => ({
+        ...namespace, tools: originalTools(namespace.tools),
+      })) }).toEqual(before.automation);
+      expect(outcome.direct).toContain("RequestHumanAction");
+      expect(outcome.direct).toContain("RequestOutcomeDecision");
     }
   });
 }
@@ -38,7 +42,7 @@ test("Outcome tools are selected only when implemented and the thread marker is 
   });
   const implemented = Object.fromEntries(OUTCOME_THREAD_TOOL_NAMES.map((name) => [name, definition(name)]));
   expect(outcomeThreadToolDefinitions({}, implemented)).toEqual([]);
-  expect(outcomeThreadToolDefinitions({ outcomeThread: { workItemId: "fixture" } }).map(tool => tool.name)).toEqual(["RequestOutcomeDecision"]);
+  expect(outcomeThreadToolDefinitions({ outcomeThread: { workItemId: "fixture" } }).map(tool => tool.name)).toEqual([...OUTCOME_THREAD_TOOL_NAMES]);
   expect(outcomeThreadToolDefinitions({ outcomeThread: { workItemId: "fixture" } }, implemented).map((tool) => tool.name))
     .toEqual([...OUTCOME_THREAD_TOOL_NAMES]);
 });

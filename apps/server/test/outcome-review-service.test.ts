@@ -2,6 +2,8 @@ import { afterAll, describe, expect, test } from "bun:test";
 import { Effect } from "effect";
 import { OutcomeThreadFake, type AgentMessaging } from "@outcomego/messaging";
 import { OutcomeReviewService } from "../src/services/outcome-review-service";
+import { HumanWorkService } from "../src/services/human-work-service";
+import { HumanReceiptService } from "../src/services/human-receipt-service";
 import {
   outcomeFixture,
   requestId,
@@ -13,13 +15,33 @@ import type { SubmitOutcomeReviewInput, ReviewResult } from "@outcomego/contract
 describe.skipIf(!testDatabaseUrl)("OutcomeReviewService", () => {
   const f = outcomeFixture();
   const fake = new OutcomeThreadFake();
+  const humanWork = new HumanWorkService(f.prisma);
+  const humanReceipts = new HumanReceiptService(f.prisma,
+    { metadata: async () => { throw new Error("No assets in these text receipt fixtures"); } },
+    { resolve: async () => [] }, {} as AgentMessaging,
+    (tx, messaging, input) => fake.enqueueOutcomeTurn(tx, messaging, input));
+  const submitHuman = async (x: Awaited<ReturnType<typeof f.completed>>, optional = false) => {
+    const card = await f.prisma.$transaction(tx => humanWork.createCard(tx, {
+      outcomeId: x.outcome.id, expectedContractRevision: 1, requestedByWorkItemId: x.item.id, references: [],
+      card: { title: "Inspection", purpose: "Collect real observations", steps: ["Human inspects the fixture"],
+        evidenceRequirements: [x.required, ...(optional ? [x.optional] : [])].map(criterion => ({
+          criterionOrdinal: criterion.ordinal, label: criterion.statement, kind: "text" as const,
+        })) },
+    }, "owner:local"));
+    await humanWork.start(card.workItemId, { clientRequestId: requestId(), expectedContractRevision: 1 }, "owner:local");
+    const receipt = await humanReceipts.submit(card.workItemId, {
+      clientRequestId: requestId(), expectedContractRevision: 1, text: "Human observed the synthetic inspection result",
+    }, "owner:local");
+    return { item: { id: card.workItemId }, receipt };
+  };
   const reviews = new OutcomeReviewService(
     f.prisma,
     {} as AgentMessaging,
     async () => {
       throw new Error("offline");
     },
-    (tx, messaging, input) => fake.enqueueOutcomeTurn(tx, messaging, input)
+    (tx, messaging, input) => fake.enqueueOutcomeTurn(tx, messaging, input),
+    humanReceipts
   );
   afterAll(() => f.close());
   const input = (
@@ -207,30 +229,8 @@ describe.skipIf(!testDatabaseUrl)("OutcomeReviewService", () => {
   });
   test("the unified review accepts submitted human receipt work via shared transitions", async () => {
     const x = await f.completed();
-    const item = await f.prisma.outcomeWorkItem.create({
-      data: {
-        outcomeId: x.outcome.id,
-        contractRevisionId: x.revision.id,
-        botId: x.bot.id,
-        executorType: "human",
-        kind: "human_action",
-        title: "Inspection",
-        ordinal: 2,
-        status: "submitted",
-      },
-    });
-    const evidence = await f.prisma.outcomeEvidence.create({
-      data: {
-        outcomeId: x.outcome.id,
-        contractRevisionId: x.revision.id,
-        criterionId: x.required.id,
-        workItemId: item.id,
-        sourceType: "receipt",
-        sourceRef: "receipt:test",
-        credibility: "human_confirmed",
-        capturedBy: "owner:local",
-      },
-    });
+    const { item, receipt } = await submitHuman(x);
+    const evidence = { id: receipt.evidenceIds[0]! };
     const detail = await Effect.runPromise(
       reviews.submit(
         x.outcome.id,
@@ -243,12 +243,8 @@ describe.skipIf(!testDatabaseUrl)("OutcomeReviewService", () => {
   });
   test("an optional receipt criterion failure does not reject an otherwise satisfied human action", async () => {
     const x = await f.completed();
-    const item = await f.prisma.outcomeWorkItem.create({ data: { outcomeId: x.outcome.id, contractRevisionId: x.revision.id, botId: x.bot.id, executorType: "human", kind: "human_action", title: "Inspection", ordinal: 2, status: "submitted" } });
-    const evidenceIds: string[] = [];
-    for (const criterion of [x.required, x.optional]) {
-      const evidence = await f.prisma.outcomeEvidence.create({ data: { outcomeId: x.outcome.id, contractRevisionId: x.revision.id, criterionId: criterion.id, workItemId: item.id, sourceType: "receipt", sourceRef: `receipt:${criterion.id}`, credibility: "human_confirmed", capturedBy: "owner:local" } });
-      evidenceIds.push(evidence.id);
-    }
+    const { item, receipt } = await submitHuman(x, true);
+    const evidenceIds = receipt.evidenceIds;
     const detail = await Effect.runPromise(reviews.submit(x.outcome.id, { expectedRevision: 1, results: [{ criterionId: x.required.id, result: "PASS", evidenceIds: [evidenceIds[0]!], comment: "Verified" }, { criterionId: x.optional.id, result: "FAIL", evidenceIds: [evidenceIds[1]!], comment: "Optional appendix missing" }], clientRequestId: requestId() }, "owner:local"));
     expect(detail.workItems.find(i => i.id === item.id)?.status).toBe("accepted");
     expect(detail.status).toBe("accepted");

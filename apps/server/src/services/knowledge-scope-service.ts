@@ -7,7 +7,7 @@ export interface KnowledgeScopeResolver {
 
 /** Resolve the declared scope against persisted Outcome facts on every operation. */
 export class KnowledgeScopeService implements KnowledgeScopeResolver {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(private readonly prisma: PrismaClient, private readonly allowHistoricalRevision = false) {}
 
   async resolve(scope: KnowledgeScope, allowFixture = false) {
     if (!scope.projectScope || !scope.outcomeId || !Number.isInteger(scope.contractRevision) || scope.contractRevision < 1)
@@ -22,8 +22,13 @@ export class KnowledgeScopeService implements KnowledgeScopeResolver {
     });
     if (!outcome || outcome.bot.status === "archived" || scope.projectScope !== `bot:${outcome.botId}`)
       throw new KnowledgeError("knowledge_source_forbidden", "The source does not belong to this Outcome's Bot");
-    if (outcome.currentRevision?.revision !== scope.contractRevision)
-      throw new KnowledgeError("knowledge_source_stale", "The Outcome revision has changed");
+    if (outcome.currentRevision?.revision !== scope.contractRevision) {
+      const historical = this.allowHistoricalRevision && await this.prisma.outcomeContractRevision.findFirst({
+        where: { outcomeId: outcome.id, revision: scope.contractRevision, approvedAt: { not: null } },
+        select: { id: true },
+      });
+      if (!historical) throw new KnowledgeError("knowledge_source_stale", "The Outcome revision has changed");
+    }
     return { botId: outcome.botId };
   }
 }

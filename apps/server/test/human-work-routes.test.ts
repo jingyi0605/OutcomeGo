@@ -65,7 +65,7 @@ describe.skipIf(!url)("human action card routes", () => {
     expect((await request("GET", `/api/v0/outcomes/${outcome.id}/work-items?status=Succeeded`))?.status).toBe(400);
     expect((await request("GET", `/api/v0/work-items/${crypto.randomUUID()}`))?.status).toBe(404);
     expect((await request("GET", "/api/v0/work-items/not-a-uuid"))?.status).toBe(400);
-    expect(await request("POST", `/api/v0/work-items/${card.workItemId}/receipts`, {})).toBeUndefined();
+    expect((await request("POST", `/api/v0/work-items/${card.workItemId}/receipts`, {}))?.status).toBe(503);
     expect(await request("POST", `/api/v0/work-items/${card.workItemId}/accept`, {})).toBeUndefined();
     expect((await service.detail(card.workItemId)).status).toBe("ready");
   });
