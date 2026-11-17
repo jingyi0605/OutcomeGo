@@ -1,0 +1,16 @@
+bun test v1.4.4 (38afee6c8)
+
+apps/worker/test/routine-275-regressions.integration.test.ts:
+(node:49530) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `bun --trace-warnings ...` to show where the warning was created)
+(pass) Stop fences late shell callbacks and parent handoffs [253.88ms]
+(pass) a callback queued before handoff is cancelled without another model turn [151.62ms]
+(pass) Stop cancels a parent handoff still waiting in the queue [73.63ms]
+(pass) unknown callback context never falls into the foreground [32.33ms]
+(pass) a folded completion receipt cannot mask a failed processing turn [70.61ms]
+
+ 5 pass
+ 7 filtered out
+ 0 fail
+ 16 expect() calls
+Ran 5 tests across 1 file. [826.00ms]

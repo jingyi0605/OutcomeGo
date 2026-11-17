@@ -1,0 +1,22 @@
+bun test v1.4.4 (38afee6c8)
+
+apps/worker/test/routine-retest-execution.integration.test.ts:
+(node:50828) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `bun --trace-warnings ...` to show where the warning was created)
+(pass) single group shell receipt records its actual processing turn's completed outcome [406.62ms]
+(pass) single group shell receipt records its actual processing turn's failed outcome [194.67ms]
+(pass) folded group shell receipt records its actual processing turn's completed outcome [205.28ms]
+(pass) folded group shell receipt records its actual processing turn's failed outcome [214.65ms]
+(pass) legacy-folded group shell receipt records its actual processing turn's completed outcome [146.03ms]
+(pass) legacy-folded group shell receipt records its actual processing turn's failed outcome [123.92ms]
+
+apps/worker/test/routine-275-regressions.integration.test.ts:
+(pass) group overlap waits for a real background process and releases on its completion [278.58ms]
+(pass) Stop releases a completed group turn's outstanding shell wait [288.92ms]
+(pass) a folded group shell receipt waits for its processing consumer [132.50ms]
+
+ 9 pass
+ 9 filtered out
+ 0 fail
+ 46 expect() calls
+Ran 9 tests across 2 files. [2.28s]
