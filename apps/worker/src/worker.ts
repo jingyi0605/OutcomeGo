@@ -1321,50 +1321,48 @@ export class WakeWorker {
         const busyRoutines = new Set<string>();
         for (const context of new Set(candidates.flatMap((candidate) => routineRevivalContext(candidate) ?? [])))
           if (await automationBackgroundWorkRunning(tx, botId, context)) busyRoutines.add(context);
-        const runnableCandidates = [];
+        let inbox: typeof candidates[number] | undefined;
         for (const candidate of candidates) {
-          if (candidate.run.origin === "outcome") {
-            const found = candidate.run.outcomeWorkItemId
-              ? await tx.outcomeWorkItem.findUnique({ where: { id: candidate.run.outcomeWorkItemId }, select: { outcomeId: true } }) : null;
-            if (found) {
-              await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`outcome:${found.outcomeId}`}))`;
-              await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`outcome-work-item:${candidate.run.outcomeWorkItemId}`}))`;
+          if (candidate.run.origin !== "outcome") {
+            if (candidate.run.origin !== "routine") {
+              if (foregroundBusy) continue;
+            } else {
+              const payload = candidate.payload as { automationContextRunId?: string };
+              if (busyRoutines.has(routineRevivalContext(candidate) ?? "")
+                || automations.some(lease => lease.scope === `automation:${payload.automationContextRunId ?? candidate.runId}`)) continue;
             }
-            const current = await tx.inboxEvent.findUnique({ where: { id: candidate.id }, include: { run: true } });
-            if (!current || current.run.status !== "queued"
-              || !(current.status === "pending" || current.status === "processing" && current.claimedAt && current.claimedAt < staleAt)) continue;
-            const item = candidate.run.outcomeWorkItemId
-              ? await tx.outcomeWorkItem.findUnique({ where: { id: candidate.run.outcomeWorkItemId }, include: { outcome: true, contractRevision: true } }) : null;
-            if (!item || item.outcome.cancelledAt || item.outcome.acceptedAt || !item.contractRevision.approvedAt
-              || !await isOutcomeDecisionRevisionActive(tx, item.outcomeId, item.contractRevisionId, item.id)
-              || ["completed", "failed", "cancelled", "waiting_decision", "waiting_human", "needs_review"].includes(item.status)) {
-              await tx.inboxEvent.updateMany({ where: { id: candidate.id, status: "pending" }, data: { status: "completed", completedAt: new Date() } });
-              await tx.run.updateMany({ where: { id: candidate.runId, status: "queued", startedAt: null }, data: { status: "cancelled", completedAt: new Date(), error: { code: "outcome_not_runnable" } } });
-              continue;
-            }
+            inbox = candidate;
+            break;
           }
-          runnableCandidates.push(candidate);
-        }
-        const inbox = runnableCandidates.find(candidate => {
-          if (candidate.run.origin === "outcome") {
-            return !!candidate.run.outcomeWorkItemId && !outcomes.some(lease => lease.scope === `outcome:${candidate.run.outcomeWorkItemId}`);
+          if (outcomes.some(lease => lease.scope === `outcome:${candidate.run.outcomeWorkItemId}`)) continue;
+          const found = candidate.run.outcomeWorkItemId
+            ? await tx.outcomeWorkItem.findUnique({ where: { id: candidate.run.outcomeWorkItemId }, select: { outcomeId: true } }) : null;
+          if (found) {
+            // A Stop can hold several Outcomes in UUID order. Candidate priority
+            // order differs, so never wait while retaining another candidate's lock.
+            const [outcomeLock] = await tx.$queryRaw<Array<{ locked: boolean }>>`
+              SELECT pg_try_advisory_xact_lock(hashtext(${`outcome:${found.outcomeId}`})) AS locked`;
+            if (!outcomeLock?.locked) continue;
+            const [itemLock] = await tx.$queryRaw<Array<{ locked: boolean }>>`
+              SELECT pg_try_advisory_xact_lock(hashtext(${`outcome-work-item:${candidate.run.outcomeWorkItemId}`})) AS locked`;
+            if (!itemLock?.locked) continue;
           }
-          if (candidate.run.origin !== "routine") return !foregroundBusy;
-          const payload = candidate.payload as { automationContextRunId?: string };
-          if (busyRoutines.has(routineRevivalContext(candidate) ?? "")) return false;
-          return !automations.some(lease => lease.scope === `automation:${payload.automationContextRunId ?? candidate.runId}`);
-        });
-        if (!inbox) return null;
-        if (inbox.run.origin === "outcome") {
-          const found = await tx.outcomeWorkItem.findUnique({ where: { id: inbox.run.outcomeWorkItemId! }, select: { outcomeId: true } });
-          if (!found) return null;
-          await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`outcome:${found.outcomeId}`}))`;
-          await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`outcome-work-item:${inbox.run.outcomeWorkItemId}`}))`;
-          const item = await tx.outcomeWorkItem.findUnique({ where: { id: inbox.run.outcomeWorkItemId! }, include: { outcome: true, contractRevision: true } });
+          const current = await tx.inboxEvent.findUnique({ where: { id: candidate.id }, include: { run: true } });
+          if (!current || current.run.status !== "queued"
+            || !(current.status === "pending" || current.status === "processing" && current.claimedAt && current.claimedAt < staleAt)) continue;
+          const item = candidate.run.outcomeWorkItemId
+            ? await tx.outcomeWorkItem.findUnique({ where: { id: candidate.run.outcomeWorkItemId }, include: { outcome: true, contractRevision: true } }) : null;
           if (!item || item.outcome.cancelledAt || item.outcome.acceptedAt || !item.contractRevision.approvedAt
             || !await isOutcomeDecisionRevisionActive(tx, item.outcomeId, item.contractRevisionId, item.id)
-            || ["completed", "failed", "cancelled", "waiting_decision", "waiting_human", "needs_review"].includes(item.status)) return null;
+            || ["completed", "failed", "cancelled", "waiting_decision", "waiting_human", "needs_review"].includes(item.status)) {
+            await tx.inboxEvent.updateMany({ where: { id: candidate.id, status: "pending" }, data: { status: "completed", completedAt: new Date() } });
+            await tx.run.updateMany({ where: { id: candidate.runId, status: "queued", startedAt: null }, data: { status: "cancelled", completedAt: new Date(), error: { code: "outcome_not_runnable" } } });
+            continue;
+          }
+          inbox = candidate;
+          break;
         }
+        if (!inbox) return null;
         const identity = inbox.bot.subagentIdentity;
         if (identity?.subagentType === "computerUse") {
           await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`computer-screen:${identity.parentBotId}`}))`;
