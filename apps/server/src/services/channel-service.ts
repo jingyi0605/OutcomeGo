@@ -1,4 +1,4 @@
-import { nextMessageAddress, lockGroupExecution, supersedeGroupUserTurns, toggleMessageReaction } from "@outcomego/messaging";
+import { nextMessageAddress, lockGroupExecution, supersedeGroupUserTurns, toggleMessageReaction, lockQuestions, dismissQuestions, questionScopeForReply } from "@outcomego/messaging";
 import {
   ApiError,
   type ChannelMessageView,
@@ -24,7 +24,6 @@ import {
   formatUserReactionPrompt,
 } from "./channel/formatting";
 import { GroupAdministration } from "./channel/group-administration";
-import { dismissMoveOnWidgets } from "./rich-message-service";
 import {
   appendEvent,
   type ComputerFetch,
@@ -182,19 +181,22 @@ export class ChannelService {
         ) {
           throw new ApiError(404, "conversation_not_found", "Runnable conversation not found");
         }
-        await tx.idempotencyRecord.create({
-          data: {
-            scope,
-            key: input.clientId,
-            requestHash,
-            expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1_000),
-          },
-        });
         const channel = await tx.channel.findUnique({
           where: { directKey: `bot:${conversation.botId}` },
         });
         if (!channel || channel.archivedAt) {
           throw new ApiError(409, "channel_unavailable", "Bot DM channel is unavailable");
+        }
+        await lockQuestions(tx, channel.id);
+        const duplicate = await tx.idempotencyRecord.findUnique({
+          where: { scope_key: { scope, key: input.clientId } },
+        });
+        if (duplicate) {
+          if (duplicate.requestHash !== requestHash)
+            throw new ApiError(409, "idempotency_conflict", "The idempotency key was already used for different content");
+          if (duplicate.response)
+            return { response: serialize(duplicate.response), bootstrapRunId: null, interruptRunId: null };
+          throw new ApiError(409, "request_in_progress", "This message is already being accepted");
         }
         const reply = input.replyToMessageId
           ? await tx.channelMessage.findFirst({
@@ -204,8 +206,17 @@ export class ChannelService {
         if (input.replyToMessageId && !reply) {
           throw new ApiError(404, "reply_target_not_found", "Reply target was not found");
         }
+        const questionScopeId = questionScopeForReply(input.isFork, reply);
+        await tx.idempotencyRecord.create({
+          data: {
+            scope,
+            key: input.clientId,
+            requestHash,
+            expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1_000),
+          },
+        });
         const bootstrapRunId = await this.messaging.skipBootstrapForUser(tx, conversation.botId);
-        await dismissMoveOnWidgets(tx, channel.id);
+        await dismissQuestions(tx, channel.id, questionScopeId, "moved-on");
         const mentionPeers = await tx.bot.findMany({
           where: {
             id: { not: conversation.botId },
@@ -231,7 +242,7 @@ export class ChannelService {
               ...(input.attachments?.length ? { attachments: input.attachments } : {}),
               ...(reply ? { replyTo: reply.id } : {}),
               ...(input.richText ? { richText: input.richText } : {}),
-              ...(input.isFork ? { branched: true } : {}),
+              ...(input.isFork ? { branched: true, questionScopeId } : {}),
               ...(input.timeZone ? { timeZone: input.timeZone } : {}),
               ...(input.voice ? { voice: input.voice } : {}),
             },
@@ -356,6 +367,7 @@ export class ChannelService {
         if (input.replyToMessageId && !reply) {
           throw new ApiError(404, "reply_target_not_found", "Reply target was not found");
         }
+        const questionScopeId = questionScopeForReply(input.isFork, reply);
         await tx.idempotencyRecord.create({
           data: {
             scope,
@@ -364,7 +376,8 @@ export class ChannelService {
             expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1_000),
           },
         });
-        await dismissMoveOnWidgets(tx, channelId);
+        await lockQuestions(tx, channelId);
+        await dismissQuestions(tx, channelId, questionScopeId, "moved-on");
         const sourceMachineId = input.sourceMachineId && await tx.hostMachine.findUnique({ where: { machineId: input.sourceMachineId }, select: { machineId: true } }) ? input.sourceMachineId : undefined;
         if (input.timeZone) await this.messaging.updateUserTimeZone(tx, { detected: input.timeZone });
         const address = await nextMessageAddress(tx, channelId, "user");
@@ -381,7 +394,7 @@ export class ChannelService {
               ...(input.attachments?.length ? { attachments: input.attachments } : {}),
               ...(reply ? { replyTo: reply.id } : {}),
               ...(input.richText ? { richText: input.richText } : {}),
-              ...(input.isFork ? { branched: true } : {}),
+              ...(input.isFork ? { branched: true, questionScopeId } : {}),
               ...(input.timeZone ? { timeZone: input.timeZone } : {}),
               ...(input.voice ? { voice: input.voice } : {}),
             },

@@ -1,4 +1,5 @@
 export { lockQuestions, dismissQuestions, questionScopeForReply } from "./question-lifecycle";
+import { lockQuestions, dismissQuestions, questionScopeForReply } from "./question-lifecycle";
 export { lockAgentLifecycle, canonicalAgentId } from "./agent-lifecycle";
 import { lockAgentLifecycle, canonicalAgentId } from "./agent-lifecycle";
 export { cleanupRetiredAgent, RETIRED_AGENT_CLEANUP_RETRY_MS } from "./retired-agent-cleanup";
@@ -2848,6 +2849,8 @@ export class AgentMessaging {
       if (replyAddress && !replyTarget) {
         throw new ApiError(404, "reply_target_not_found", "The reply target was not found");
       }
+      await lockQuestions(tx, channel.id);
+      const questionScopeId = questionScopeForReply(inheritsFork, replyTarget);
       const existing = await tx.channelMessage.findUnique({
         where: {
           channelId_clientId: {
@@ -2934,6 +2937,8 @@ export class AgentMessaging {
       const voiceTurn = input.type === "text"
         ? await tx.voiceTurn.findUnique({ where: { runId: context.runId }, select: { id: true, sessionId: true } })
         : null;
+      if (input.type === "widget")
+        await dismissQuestions(tx, channel.id, questionScopeId, "superseded");
       const message = await tx.channelMessage.create({
         data: {
           channelId: channel.id,
@@ -2949,7 +2954,7 @@ export class AgentMessaging {
             ...(routineRootMessageId ? { routineRootMessageId } : {}),
             address,
             ...(replyTarget ? { replyTo: replyTarget.id } : {}),
-            ...(inheritsFork ? { branched: true } : {}),
+            ...(inheritsFork ? { branched: true, questionScopeId } : {}),
             timeZone: resolveTimeZone(context.timeZone ?? (await this.userTimeZone(tx))),
           }),
         },
