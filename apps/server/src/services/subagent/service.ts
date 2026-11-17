@@ -362,7 +362,12 @@ export class SubagentService {
       ]);
       if (workers.some(worker => worker.outcome === "failed"))
         throw new ApiError(503, "bot_stop_incomplete", "Some work could not be stopped. Try Stop again.");
-      if (!cancellation.ok) throw cancellation.error;
+      if (!cancellation.ok) {
+        const current = await this.prisma.run.findUnique({ where: { id: runId }, select: { status: true } });
+        if (current && ["completed", "failed", "cancelled", "interrupted"].includes(current.status))
+          return { ok: true, status: current.status };
+        throw cancellation.error;
+      }
       return cancellation.result;
     });
 

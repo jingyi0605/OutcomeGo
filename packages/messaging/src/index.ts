@@ -11,6 +11,7 @@ export {
 export { ensureRequestForTask, reportRequestProgress, settleRequestProgress, recoverRequestProgress, dispatchRequestChecks, stopRequestProgress, requestProgressSnapshot, requestWakeAllowed, requestIsStopped } from "./request-progress";
 import { requestProgressSnapshot } from "./request-progress";
 export { assertBackgroundRequestDeliveryAllowed } from "./background-request-delivery";
+import { assertBackgroundRequestDeliveryAllowed } from "./background-request-delivery";
 import { renderTaskProgressContext } from "@outcomego/contracts/task-progress";
 export { initialTaskProgress, settleTaskProgress, reportTaskProgress, dispatchTaskContinuations, taskProgress, taskProgressContext, notifyTaskProgress, recoverTaskInterruption, TASK_RECOVERY_LOCK } from "./task-progress";
 import { taskProgressContext, taskScopeContext } from "./task-progress";
@@ -2782,6 +2783,7 @@ export class AgentMessaging {
     let content = standalone?.fileName ?? this.visibleContent(input);
     let groupRoundId: string | null = null;
     const result = await this.prisma.$transaction(async (tx) => {
+      await assertBackgroundRequestDeliveryAllowed(tx, context);
       if (target?.kind === "group") await lockGroupExecution(tx, context.channelId);
       const activeChannel = await tx.channel.findFirst({
         where: {
