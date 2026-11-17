@@ -10,6 +10,42 @@ interface Fact {
   decisionId: string | null; workItemId: string | null; urgent: boolean; availableAt: Date;
 }
 
+/** A criterion group changes only when a different result/receipt becomes ready, never on Event replay. */
+export const outcomeReviewNotificationFactsSql = Prisma.sql`
+  SELECT o.id AS "outcomeId", o."botId", r.id AS "contractRevisionId", r.revision AS "contractRevision",
+    'review.required:' || o.id::text || ':' || r.revision::text || ':' ||
+      md5(criteria.ids || ':' || COALESCE(ready.ids, 'all')) AS "factKey",
+    COALESCE(ready."availableAt", r."createdAt") AS "availableAt", criteria."criterionIds"
+  FROM "outcomego_outcome" o JOIN "outcomego_outcome_contract_revision" r ON r."outcomeId" = o.id
+  CROSS JOIN LATERAL (
+    SELECT COALESCE(string_agg(c.id::text, ',' ORDER BY c.ordinal), '') AS ids,
+      COALESCE(jsonb_agg(c.id ORDER BY c.ordinal), '[]'::jsonb) AS "criterionIds"
+    FROM "outcomego_outcome_acceptance_criterion" c WHERE c."contractRevisionId" = r.id
+  ) criteria
+  CROSS JOIN LATERAL (
+    SELECT string_agg(result.id, ',' ORDER BY result.id) AS ids, MAX(result."availableAt") AS "availableAt"
+    FROM (
+      SELECT w.id::text AS id, COALESCE(w."completedAt", w."createdAt") AS "availableAt"
+      FROM "outcomego_outcome_work_item" w
+      WHERE w."contractRevisionId" = r.id AND w."executorType" = 'agent' AND w.status = 'completed'
+        AND EXISTS (SELECT 1 FROM "outcomego_outcome_output" output WHERE output."workItemId" = w.id)
+        AND NOT EXISTS (SELECT 1 FROM "outcomego_outcome_work_item" rework
+          WHERE rework."reworkOfWorkItemId" = w.id AND rework.status <> 'cancelled')
+      UNION ALL
+      SELECT COALESCE(receipt.id::text, w.id::text), COALESCE(receipt."submittedAt", w."updatedAt")
+      FROM "outcomego_outcome_work_item" w
+      LEFT JOIN LATERAL (SELECT receipt.id, receipt."submittedAt" FROM "outcomego_outcome_human_receipt" receipt
+        WHERE receipt."workItemId" = w.id ORDER BY receipt.sequence DESC LIMIT 1) receipt ON true
+      WHERE w."contractRevisionId" = r.id AND w."executorType" = 'human' AND w.status IN ('submitted', 'review_pending')
+    ) result
+  ) ready
+  WHERE ${outcomeDecisionRevisionActiveSql(Prisma.sql`o.id`, Prisma.sql`r.id`, Prisma.sql`(SELECT w.id FROM "outcomego_outcome_work_item" w WHERE w."outcomeId" = o.id AND w."contractRevisionId" = r.id AND w."executorType" = 'agent' AND w."startedAt" IS NOT NULL ORDER BY w.ordinal LIMIT 1)`)}
+    AND o."cancelledAt" IS NULL AND o."acceptedAt" IS NULL AND r.status = 'approved'
+    AND (ready.ids IS NOT NULL OR (o.status = 'review_pending' AND NOT EXISTS (
+      SELECT 1 FROM "outcomego_outcome_work_item" rework WHERE rework."contractRevisionId" = r.id
+        AND rework."reworkOfWorkItemId" IS NOT NULL AND rework.status <> 'cancelled')))
+`;
+
 /** Current facts, shared by recovery, native read projection and the final push check. */
 export const outcomeInboxNotificationFactsSql = Prisma.sql`
   SELECT 'decision.required:' || d.id::text AS "factKey", 'outcome.decision.required' AS type,
@@ -22,17 +58,9 @@ export const outcomeInboxNotificationFactsSql = Prisma.sql`
     AND o."cancelledAt" IS NULL AND o."acceptedAt" IS NULL
     AND ${outcomeDecisionRevisionActiveSql(Prisma.sql`o.id`, Prisma.sql`d."contractRevisionId"`, Prisma.sql`d."workItemId"`)}
   UNION ALL
-  SELECT 'review.required:' || o.id::text || ':' || r.revision::text, 'outcome.review.required', o.id, o."botId", r.revision,
-    NULL, NULL, false, r."createdAt"
-  FROM "outcomego_outcome" o JOIN "outcomego_outcome_contract_revision" r ON r."outcomeId" = o.id
-  WHERE ${outcomeDecisionRevisionActiveSql(Prisma.sql`o.id`, Prisma.sql`r.id`, Prisma.sql`(SELECT w.id FROM "outcomego_outcome_work_item" w WHERE w."outcomeId" = o.id AND w."contractRevisionId" = r.id AND w."executorType" = 'agent' AND w."startedAt" IS NOT NULL ORDER BY w.ordinal LIMIT 1)`)}
-    AND o."cancelledAt" IS NULL AND o."acceptedAt" IS NULL AND r.status = 'approved'
-    AND (o.status = 'review_pending' OR EXISTS (
-      SELECT 1 FROM "outcomego_outcome_work_item" w WHERE w."outcomeId" = o.id AND w."contractRevisionId" = r.id
-        AND ((w."executorType" = 'human' AND w.status IN ('submitted', 'review_pending'))
-          OR (w."executorType" = 'agent' AND w.status = 'completed' AND EXISTS (
-            SELECT 1 FROM "outcomego_outcome_output" output WHERE output."workItemId" = w.id))))
-    )
+  SELECT review."factKey", 'outcome.review.required', review."outcomeId", review."botId", review."contractRevision",
+    NULL, NULL, false, review."availableAt"
+  FROM (${outcomeReviewNotificationFactsSql}) review
   UNION ALL
   SELECT 'human_action.required:' || w.id::text, 'outcome.human_action.required', o.id, o."botId", r.revision,
     NULL, w.id::text, false, card."createdAt"
@@ -75,8 +103,10 @@ export async function consumeOutcomeInboxEvent(tx: Prisma.TransactionClient, seq
     const key = event.topic === "outcome.decision.required" ? `decision.required:${envelope.payload?.decisionId}`
       : event.topic === "outcome.human_action.required" ? `human_action.required:${envelope.payload?.workItemId}`
       : event.topic === "outcome.accepted" ? `outcome.completed:${event.entityId}:${envelope.contractRevision}`
-      : `review.required:${event.entityId}:${envelope.contractRevision}`;
-    const [fact] = await tx.$queryRaw<Fact[]>(Prisma.sql`SELECT fact.* FROM (${outcomeInboxNotificationFactsSql}) fact WHERE fact."factKey" = ${key} AND fact."outcomeId" = ${event.entityId}::uuid`);
+      : null;
+    const [fact] = await tx.$queryRaw<Fact[]>(Prisma.sql`SELECT fact.* FROM (${outcomeInboxNotificationFactsSql}) fact
+      WHERE fact."outcomeId" = ${event.entityId}::uuid
+        AND ${key ? Prisma.sql`fact."factKey" = ${key}` : Prisma.sql`fact.type = 'outcome.review.required' AND fact."contractRevision" = ${envelope.contractRevision ?? -1}`}`);
     if (fact && (envelope.contractRevision === undefined || envelope.contractRevision === fact.contractRevision)) {
       projected = await publishFact(tx, fact);
       if (!projected) return { processed: false, projected: false };

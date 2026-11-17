@@ -3282,4 +3282,4 @@ export { notificationRouting } from "./notification-presence";
 
 export { createOutcomeDecision, isOutcomeDecisionRevisionActive, outcomeDecisionRevisionActiveSql, closeOutcomeDecision, revokeOutcomeDecisionNotification, withdrawSupersededOutcomeDecisions } from "./outcome-decisions";
 
-export { consumeOutcomeInboxEvent, reconcileOutcomeInboxNotifications, outcomeNotificationIsCurrent, unreadOutcomeNotifications } from "./outcome-inbox-notifications";
+export { consumeOutcomeInboxEvent, reconcileOutcomeInboxNotifications, outcomeNotificationIsCurrent, unreadOutcomeNotifications, outcomeReviewNotificationFactsSql } from "./outcome-inbox-notifications";

@@ -149,12 +149,19 @@ describe.skipIf(!url)("Outcome notification facts and delivery", () => {
       await db.outboxDelivery.updateMany({ where: { target: deviceId }, data: { status: "delivered" } });
       const f = await create();
       if (mode === "no-device") await db.pushDevice.update({ where: { id: deviceId }, data: { enabled: false } });
-      await db.outcome.update({ where: { id: f.outcome.id }, data: { status: "review_pending" } });
-      const first = payload(f, "first"); const second = payload(f, "second");
+      const action = async (ordinal: number) => {
+        const work = await db.outcomeWorkItem.create({ data: { outcomeId: f.outcome.id, contractRevisionId: f.revision.id, botId: f.bot.id,
+          title: "Inspect the action", ordinal, executorType: "human", kind: "human_action", status: "ready",
+          humanActionCard: { create: { purpose: "Inspect", steps: [], evidenceRequirements: [], requestedByWorkItemId: f.item.id } } } });
+        return outcomeNotificationPayload({ type: "outcome.human_action.required", factKey: `human_action.required:${work.id}`,
+          outcomeId: f.outcome.id, botId: f.bot.id, channelId: f.channel.id, contractRevision: 1 });
+      };
+      const first = await action(2);
       await db.$transaction(tx => publishOutcomeNotification(tx, first));
       const activity = await db.channelNotification.findUniqueOrThrow({ where: { key: first.factKey } });
       if (mode === "read") await db.channelReadState.create({ data: { channelId: f.channel.id, lastReadNotificationSequence: activity.sequence } });
       else await db.pushDevice.update({ where: { id: deviceId }, data: { enabled: true } });
+      const second = await action(3);
       await db.$transaction(tx => publishOutcomeNotification(tx, second));
       await db.outboxDelivery.updateMany({ where: { target: deviceId }, data: { availableAt: new Date(0) } });
       const delivered: string[] = [];
