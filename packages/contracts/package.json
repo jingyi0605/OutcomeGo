@@ -59,7 +59,8 @@
     "./localization": "./src/localization.ts",
     "./external-draft-revision": "./src/external-draft-revision.ts",
     "./presentation": "./src/presentation.ts",
-    "./outcomes": "./src/outcomes.ts"
+    "./outcomes": "./src/outcomes.ts",
+    "./outcome-inbox": "./src/outcome-inbox.ts"
   },
   "scripts": {
     "build": "bun build src/index.ts --outdir dist --target bun",

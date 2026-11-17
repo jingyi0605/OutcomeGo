@@ -267,7 +267,7 @@ export interface BadgeSyncNotificationPayload {
   readState?: NotificationReadState;
 }
 
-export type PushNotificationPayload = AgentNotificationPayload | BadgeSyncNotificationPayload;
+export type PushNotificationPayload = AgentNotificationPayload | BadgeSyncNotificationPayload | import("./notification-content").OutcomeNotificationPayload;
 
 /** Transient multimodal payload used only between trusted OutcomeGo services. */
 export const RuntimeInlineImage = Schema.Struct({
@@ -2100,3 +2100,5 @@ export const UpdateNotificationPresenceInput = Schema.Struct({
   ),
 });
 export const UpdateNotificationPreferencesInput = Schema.Struct({ smartEnabled: Schema.Boolean });
+
+export * from "./outcome-inbox";
