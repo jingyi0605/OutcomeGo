@@ -26,7 +26,7 @@ import {
   isStateTool,
 } from "@outcomego/contracts";
 import { Prisma, type PrismaClient } from "@outcomego/db";
-import { type AgentMessaging, validateSendToUserInput, wakeAutomationParent, automationContextRunId, assertBackgroundRequestDeliveryAllowed } from "@outcomego/messaging";
+import { type AgentMessaging, validateSendToUserInput, wakeAutomationParent, automationContextRunId, assertBackgroundRequestDeliveryAllowed, publishMessageNotification } from "@outcomego/messaging";
 import { Schema } from "effect";
 import type { DurableStateService } from "../update-state";
 import { formatMemoryToolResult } from "../memory-tool-result";
@@ -282,6 +282,7 @@ export class InternalToolService {
             expiresAt: new Date(Date.now() + 15 * 60_000),
           },
         });
+        let linked = false;
         try {
           const sent = await this.messaging.sendVisible(context, {
             type: "widget",
@@ -296,11 +297,21 @@ export class InternalToolService {
                 value: `${candidate.connectionId}:${candidate.itemId}`,
               })),
             },
+          }, async (tx, messageId) => {
+            await tx.bitwardenReadApproval.update({
+              where: { id: approval.id },
+              data: { widgetMessageId: messageId },
+            });
+            // A publication callback suppresses the default notice for external
+            // delivery. This owner approval still needs its original notice.
+            await publishMessageNotification(
+              tx, await tx.channelMessage.findUniqueOrThrow({ where: { id: messageId } }),
+            );
+            linked = true;
           });
           const messageId = sent.acknowledgement && typeof sent.acknowledgement === "object" && typeof sent.acknowledgement.message_id === "string"
             ? sent.acknowledgement.message_id : null;
-          if (!messageId) throw new Error("Bitwarden approval widget was not persisted");
-          await this.prisma.bitwardenReadApproval.update({ where: { id: approval.id }, data: { widgetMessageId: messageId } });
+          if (!messageId || !linked) throw new Error("Bitwarden approval widget was not persisted");
           return { sent: true, waiting_for_user: true };
         } catch (error) {
           await this.prisma.bitwardenReadApproval.update({ where: { id: approval.id }, data: { status: "denied" } }).catch(() => undefined);
