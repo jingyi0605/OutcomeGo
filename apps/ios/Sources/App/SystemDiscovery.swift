@@ -49,7 +49,14 @@ final class SystemDiscovery {
 
   /// Serialize deletion after any in-flight write. Cancelling an async Spotlight
   /// call alone doesn't guarantee that the underlying index stops writing.
-  func clear(removeTransfers: Bool = false) {
+  func clear(removeTransfers: Bool = false, transferScope: String? = nil) {
+    // Intent callers retire the saved account before clearing its Keychain record.
+    // Capture it now, before queued Spotlight work or a later account switch.
+    let scope = transferScope ?? (removeTransfers ? (try? SecureSession.read()).map {
+      SystemEntityID.scope(server: $0.server, userID: $0.userID)
+    } : nil)
+    let transfers = removeTransfers ? SystemTransferFiles.retiring(scope: scope,
+      legacy: FileManager.default.temporaryDirectory.appendingPathComponent("OutcomeGoTransfers")) : []
     revision = UUID()
     debounce?.cancel()
     debounce = nil
@@ -62,10 +69,7 @@ final class SystemDiscovery {
         UserDefaults.standard.removeObject(forKey: manifestKey)
         failure = nil
       } catch { failure = "Couldn’t remove Siri and Spotlight content. OutcomeGo will retry when you reconnect." }
-      if removeTransfers {
-        let transfers = FileManager.default.temporaryDirectory.appendingPathComponent("OutcomeGoTransfers")
-        try? FileManager.default.removeItem(at: transfers)
-      }
+      for transfer in transfers { try? FileManager.default.removeItem(at: transfer) }
     }
   }
 

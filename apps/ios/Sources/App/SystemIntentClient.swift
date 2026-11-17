@@ -206,16 +206,12 @@ struct SystemIntentClient {
 
   func exportAttachment(_ value: String) async throws -> URL {
     let (_, asset) = try await attachment(value)
-    let directory = FileManager.default.temporaryDirectory.appendingPathComponent("OutcomeGoTransfers")
-      .appendingPathComponent(UUID().uuidString, isDirectory: true)
-    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true,
-      attributes: [.protectionKey: FileProtectionType.complete])
-    // Strip path components from server-supplied names.
-    let name = URL(fileURLWithPath: asset.fileName).lastPathComponent
-    let url = directory.appendingPathComponent(name.isEmpty ? "Attachment" : name)
+    let url = try SystemTransferFiles.createExport(scope: scope, fileName: asset.fileName)
+    let directory = url.deletingLastPathComponent()
     do {
       try await api.downloadAsset(asset, to: url)
       try validateSession()
+      try SystemTransferFiles.finishExport(url)
       return url
     } catch {
       try? FileManager.default.removeItem(at: directory)

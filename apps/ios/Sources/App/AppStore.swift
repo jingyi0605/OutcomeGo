@@ -508,7 +508,7 @@ final class AppStore {
       systemDraft = nil
       pendingSystemItem = nil
       botVoiceLaunch.reset()
-      SystemDiscovery.shared.clear(removeTransfers: true)
+      SystemDiscovery.shared.clear(removeTransfers: true, transferScope: systemScope)
     }
     record = next
     #if canImport(UIKit)
@@ -2089,7 +2089,7 @@ final class AppStore {
     systemOpenGeneration = UUID()
     systemVoiceRequestID = nil
     botVoiceLaunch.reset()
-    SystemDiscovery.shared.clear(removeTransfers: true)
+    SystemDiscovery.shared.clear(removeTransfers: true, transferScope: systemScope)
     systemScope = nil
     systemDiscoveryEnabled = false
     systemDraft = nil
