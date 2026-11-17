@@ -26,7 +26,7 @@ import {
   isStateTool,
 } from "@outcomego/contracts";
 import { Prisma, type PrismaClient } from "@outcomego/db";
-import { type AgentMessaging, validateSendToUserInput, wakeAutomationParent, automationContextRunId } from "@outcomego/messaging";
+import { type AgentMessaging, validateSendToUserInput, wakeAutomationParent, automationContextRunId, assertBackgroundRequestDeliveryAllowed } from "@outcomego/messaging";
 import { Schema } from "effect";
 import type { DurableStateService } from "../update-state";
 import { formatMemoryToolResult } from "../memory-tool-result";
@@ -857,11 +857,20 @@ export class InternalToolService {
               const asset = await this.messaging.assets.ingestSource(source);
               return {assetId:asset.assetId,name:asset.fileName,mimeType:asset.mimeType,bytes:Buffer.from(await Bun.file(this.messaging.assets.contentPath(asset.assetId)).arrayBuffer())};
             }));
+            const address = input.channel;
+            if (context.origin === "background_revival") {
+              const receipt = await this.prisma.pluginInvocation.findUnique({
+                where: { callId: `connected-channel:${request.callId}` },
+                select: { status: true, botId: true, runId: true },
+              });
+              if (receipt?.status !== "completed" || receipt.botId !== request.botId || receipt.runId !== request.runId)
+                await this.prisma.$transaction(tx => assertBackgroundRequestDeliveryAllowed(tx, context));
+            }
             const delivery = await this.plugins.deliverConnectedChannel({
               botId: request.botId,
               runId: request.runId,
               callId: request.callId,
-              address: input.channel,
+              address,
               content,
               files,
             });
@@ -875,6 +884,7 @@ export class InternalToolService {
               interruptRunId: null,
             };
           } catch (error) {
+            if (error instanceof ApiError && ["request_stopped", "tool_context_invalid"].includes(error.code)) throw error;
             if(error instanceof ApiError&&error.code==="external_file_review_required")throw error;
             // Nothing left the box for these, so refuse now with the reason.
             if (error instanceof ApiError && error.code === "connected_channel_address_invalid")
