@@ -129,6 +129,10 @@ describe("nothing secret leaves through a tool or a log", () => {
     sim.enqueue({ messageId: "7200000000000000002", fromUserId: OWNER, text: "hi" });
     await until(() => assembly.spool.read(0, 5).length === 1, "queued");
     await call("wechat_deliver_message", { deliveryId: D1, peerId: OWNER, text: "reply" });
+    // A queued message is visible before the receiver removes its completed
+    // journal. Drain that writer so the directory walk observes one snapshot.
+    await assembly.receive.stopReceiving();
+    expect(assembly.receive.isRunning).toBe(false);
     const { stat } = await import("node:fs/promises");
     const state = join(root, "state");
     for (const name of await readdir(state)) {
