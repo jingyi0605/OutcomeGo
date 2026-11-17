@@ -77,7 +77,7 @@ export async function readTranscript(db: PrismaClient, context: {botId: string; 
     const includeTools = worker || botId === context.botId;
     const messageQuery = worker ? Prisma.sql`
       SELECT id::text, "createdAt" AS at, role::text AS kind, to_jsonb(content) AS body, status::text
-      FROM "message" WHERE "botId" = ${botId}::uuid AND role::text IN ('user', 'assistant')`
+      FROM "outcomego_message" WHERE "botId" = ${botId}::uuid AND role::text IN ('user', 'assistant')`
       : Prisma.sql`
       SELECT id::text, "createdAt" AS at, sender::text AS kind, to_jsonb(content) AS body, 'completed'::text AS status
       FROM "outcomego_channel_message" WHERE "channelId" IN (${Prisma.join(channelIds.map(id => Prisma.sql`${id}::uuid`))}) AND sender::text IN ('user', 'agent')`;
