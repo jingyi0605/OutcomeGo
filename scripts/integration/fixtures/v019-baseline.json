@@ -1,0 +1,1332 @@
+{
+  "schemaVersion": 1,
+  "recordedDate": "2026-11-17",
+  "phaseBranch": "merge/v019-baseline-audit",
+  "baseCommit": "0b68a5b7e0e554b685f405293a698d7616c5d869",
+  "originBaseAtStart": "90ad4e183a4f22e5313fd2bdb811ea016a7ab995",
+  "upstreamTag": "v0.0.19",
+  "upstreamTagObject": "9615cacdd10b9deeaf98088260ecf6b8a6532158",
+  "upstreamCommit": "67f9c70cb786cf6d3edaf9f4585fe8ee206cac1a",
+  "commonAncestor": "fd32377bfaaec4cd6cd3f275cfd2a301c667cfbc",
+  "previousTagCommit": "512e3a7d41775d2d675c286a54911e9736959977",
+  "excludedCommits": [
+    {
+      "sha": "cdda5241bbd7aa1e031cb94c27fc9edec94c1012",
+      "subject": "Keep draft outcomes durable and agent replies current (#320)"
+    },
+    {
+      "sha": "5d5da5d77ac8afc2e2ebc4902295331b0fa2ca80",
+      "subject": "fix(whatsapp): simplify setup to direct QR linking (#328)"
+    },
+    {
+      "sha": "4e788f36db00a8cd53c952880a874852cad2d246",
+      "subject": "Fix memory supersession and durable review reliability (#321)"
+    },
+    {
+      "sha": "ca6cf59686f20ce0e949f0951ecbd5d7f506fe74",
+      "subject": "Make the dictation bar's motion continuous and interruptible (#329)"
+    },
+    {
+      "sha": "4eb5942d122167ce09383de6c3e759e362810c36",
+      "subject": "Smooth the iOS voice bar's exits (#330)"
+    },
+    {
+      "sha": "1b53ac4e045ccb2a830887ffea413bbefe6018d1",
+      "subject": "Diagnose network resets and preserve 1Password lookup failures (#331)"
+    },
+    {
+      "sha": "ea0f06c10f6deb1762fca5aba69d43cf259f924e",
+      "subject": "Fence cancelled memory reviews and handle concurrent tool receipts (#332)"
+    },
+    {
+      "sha": "f0f2385064c91bcb7feb7e3527212d2789bb2510",
+      "subject": "Keep iOS voice notes transcribing after leaving the chat (#333)"
+    },
+    {
+      "sha": "b48e8f57075dc90ee6a35b4bc07e25eb541113ac",
+      "subject": "Animate Send and Discard on draft cards (#336)"
+    },
+    {
+      "sha": "030746c2665a61a83f8e8bd573b1e08c701cb451",
+      "subject": "Keep the Sent badge green on draft cards (#337)"
+    },
+    {
+      "sha": "d8fa5720b3857be2f3e9e34fa292829503f08a27",
+      "subject": "Close a draft card upward in a chat too short to scroll (#338)"
+    },
+    {
+      "sha": "6e20295abd5ba380f4092555ea88ef8080e5a5d7",
+      "subject": "Retire question cards when the conversation moves on, and redesign the card (#334)"
+    },
+    {
+      "sha": "e54f54cb18ca280593a636c868f6b603fb727fc4",
+      "subject": "chore: prepare v0.0.19 candidate metadata and docs"
+    },
+    {
+      "sha": "4568bc5f01a7adde9b1dba6acc36a20a8e29e314",
+      "subject": "test: align release QA fixtures and bound voice motion payload"
+    },
+    {
+      "sha": "303840de813d8195ee39034be647e5326da32f1c",
+      "subject": "Animate only the messages that arrive while you watch a chat (#340)"
+    },
+    {
+      "sha": "aeddde72bc0c0ff8fddb29fa33bb8acc954d5bc2",
+      "subject": "fix: stop memory inference retries after a correction"
+    },
+    {
+      "sha": "fc9de41b557ad1fd85f096990fe4b70eb7b0a4af",
+      "subject": "Merge commit '303840de813d8195ee39034be647e5326da32f1c' into HEAD"
+    },
+    {
+      "sha": "fd32377bfaaec4cd6cd3f275cfd2a301c667cfbc",
+      "subject": "Merge pull request #339 from raghavpillai/chore/prepare-v0-0-19"
+    }
+  ],
+  "effectiveCommits": [
+    {
+      "sha": "2b3b384bbac1ca0088f105b2a8e5af4207948768",
+      "subject": "Bot avatars move with live run activity, and an edge swipe reveals the hidden chat list (#341)"
+    },
+    {
+      "sha": "aa229f8f9496f1183fe10c5b98ab84f6587f2cc2",
+      "subject": "Let bots read the user's location with GetUserLocation (#335)"
+    },
+    {
+      "sha": "9fa7ca01003d3483f6b0c18f0b99f3c93f54a799",
+      "subject": "Fix iMessage PDF staging lifetime and sandbox access (#342)"
+    },
+    {
+      "sha": "c5e426556699870c581a40fbf7c078231ab70c8f",
+      "subject": "Keep the newest message in place when rows above the screen are measured (#343)"
+    },
+    {
+      "sha": "52962bac8342838db5ed98673f9ba7b433242c03",
+      "subject": "Keep iOS voice notes sending after switching apps (#345)"
+    },
+    {
+      "sha": "db36072409a3935266f9a9c07e54816ec27cb25b",
+      "subject": "Prevent desktop notification flashes during focus and read transitions (#348)"
+    },
+    {
+      "sha": "436e857146ea9d7520ba3b5e16c0d4c8b21f0d42",
+      "subject": "Stabilize notification chaos tests and record iOS audit (#349)"
+    },
+    {
+      "sha": "86971cbde746e33775e4fb05b0d83324f21f018b",
+      "subject": "Refresh README artwork with current desktop and iPhone UI (#351)"
+    },
+    {
+      "sha": "0fdc6d720522d105011befbcae29b055457538ff",
+      "subject": "Update home page app previews to the current desktop and iPhone UI (#352)"
+    },
+    {
+      "sha": "ef9c7091f4705f1d1e9b46ed848718b958d2e139",
+      "subject": "Fix iOS crash when a map with place photos opens full screen (#344)"
+    },
+    {
+      "sha": "35433be0a43a802ca92b9e930a8f7976913ddd77",
+      "subject": "Move Apple's map logo to the bottom-right corner on iOS, below the cards (#347)"
+    },
+    {
+      "sha": "0c30c304f0abb2a867284f7dd8efc04870fa039a",
+      "subject": "Shrink the desktop map credit to a small button in the bottom-right corner (#346)"
+    },
+    {
+      "sha": "32efd545555d1dddbf68a018e7a750572388e8aa",
+      "subject": "Record the desktop sizes main measures with Share location (#353)"
+    },
+    {
+      "sha": "64492a05431573ff3e23e7e388f62d3b8595b2e0",
+      "subject": "Bring the desktop app's animated bots to the home page (#356)"
+    },
+    {
+      "sha": "331378a9320d678e0f8cbcc5393c81bccf24bad1",
+      "subject": "Make routines and follow-up checks survive outages (#355)"
+    },
+    {
+      "sha": "6009237795b9eb3f8816957ec89e53e4f59f2edc",
+      "subject": "fix: align release budget checks with shared avatars"
+    },
+    {
+      "sha": "605a09dca8039bda767ae0fbd648dadce25b5c27",
+      "subject": "fix(worker): fence late failures after wake lease takeover"
+    },
+    {
+      "sha": "2ad629a667b7e6673cb71af9ec827830cf37cf30",
+      "subject": "Fence pending location sends across opt-out and account changes"
+    },
+    {
+      "sha": "17775cb036fe6beef123aa5567c93bdd05454e2d",
+      "subject": "Keep reply and unread entrances visible in inactive windows"
+    },
+    {
+      "sha": "fee223b09d90fc94e8e89338ba004ddeea79f5e6",
+      "subject": "Expect unconfirmed iMessage submissions in draft QA fixtures"
+    },
+    {
+      "sha": "7fc5154685c6dee05a6f9353c25f2859f8f23513",
+      "subject": "fix(worker): finish settlement after projected completion"
+    },
+    {
+      "sha": "1320e781627664055c73dcb9b40686e7ddc65561",
+      "subject": "Recheck location sharing after waiting for a device fix"
+    },
+    {
+      "sha": "a77708d9521fb4a09783c9800327d882ab5f1a8c",
+      "subject": "Revalidate intent account after awaiting device location"
+    },
+    {
+      "sha": "aa7e2ec5c2c72d770fdac975867e300f254ad2d6",
+      "subject": "Invalidate pending location sends when sharing ends"
+    },
+    {
+      "sha": "3decbc279642317a7a2fd91ea98cdb8d4f0162ce",
+      "subject": "Settle stopped wakes after buffered successful completion"
+    },
+    {
+      "sha": "67f9c70cb786cf6d3edaf9f4585fe8ee206cac1a",
+      "subject": "Merge pull request #358 from raghavpillai/chore/release-v0.0.19-refresh-20261116"
+    }
+  ],
+  "effectivePaths": [
+    {
+      "status": "M",
+      "path": "README.md"
+    },
+    {
+      "status": "M",
+      "path": "apps/computer/src/browser-network.ts"
+    },
+    {
+      "status": "M",
+      "path": "apps/computer/src/runtime/tools.ts"
+    },
+    {
+      "status": "M",
+      "path": "apps/computer/test/browser-network-worker.test.ts"
+    },
+    {
+      "status": "M",
+      "path": "apps/desktop/package.json"
+    },
+    {
+      "status": "M",
+      "path": "apps/desktop/scripts/test-draft-send-off.ts"
+    },
+    {
+      "status": "M",
+      "path": "apps/desktop/src/main/host/messages.ts"
+    },
+    {
+      "status": "M",
+      "path": "apps/desktop/src/main/index.ts"
+    },
+    {
+      "status": "M",
+      "path": "apps/desktop/src/main/notifications.ts"
+    },
+    {
+      "status": "M",
+      "path": "apps/desktop/src/preload/index.ts"
+    },
+    {
+      "status": "M",
+      "path": "apps/desktop/src/renderer/App.tsx"
+    },
+    {
+      "status": "M",
+      "path": "apps/desktop/src/renderer/client/openteam-api.ts"
+    },
+    {
+      "status": "M",
+      "path": "apps/desktop/src/renderer/components/openteam/avatar-picker-icons.tsx"
+    },
+    {
+      "status": "M",
+      "path": "apps/desktop/src/renderer/components/openteam/avatar-picker.tsx"
+    },
+    {
+      "status": "M",
+      "path": "apps/desktop/src/renderer/components/openteam/avatar.tsx"
+    },
+    {
+      "status": "M",
+      "path": "apps/desktop/src/renderer/components/openteam/bot-avatar-activity.tsx"
+    },
+    {
+      "status": "M",
+      "path": "apps/desktop/src/renderer/components/openteam/bot-screen.tsx"
+    },
+    {
+      "status": "M",
+      "path": "apps/desktop/src/renderer/components/openteam/chat-pane.tsx"
+    },
+    {
+      "status": "M",
+      "path": "apps/desktop/src/renderer/components/openteam/desktop-header.tsx"
+    },
+    {
+      "status": "M",
+      "path": "apps/desktop/src/renderer/components/openteam/group-activity.tsx"
+    },
+    {
+      "status": "M",
+      "path": "apps/desktop/src/renderer/components/openteam/imessage-send-card.tsx"
+    },
+    {
+      "status": "M",
+      "path": "apps/desktop/src/renderer/components/openteam/inspector.tsx"
+    },
+    {
+      "status": "M",
+      "path": "apps/desktop/src/renderer/components/openteam/new-bot-dialog.tsx"
+    },
+    {
+      "status": "M",
+      "path": "apps/desktop/src/renderer/components/openteam/presentation/presentation-message.tsx"
+    },
+    {
+      "status": "M",
+      "path": "apps/desktop/src/renderer/components/openteam/presentation/presentation.css"
+    },
+    {
+      "status": "M",
+      "path": "apps/desktop/src/renderer/components/openteam/settings/general.tsx"
+    },
+    {
+      "status": "A",
+      "path": "apps/desktop/src/renderer/components/openteam/settings/location.tsx"
+    },
+    {
+      "status": "M",
+      "path": "apps/desktop/src/renderer/components/openteam/setup/sign-in-visuals.tsx"
+    },
+    {
+      "status": "M",
+      "path": "apps/desktop/src/renderer/components/openteam/setup/visuals.tsx"
+    },
+    {
+      "status": "M",
+      "path": "apps/desktop/src/renderer/components/openteam/sidebar.tsx"
+    },
+    {
+      "status": "M",
+      "path": "apps/desktop/src/renderer/components/openteam/thread-tray.tsx"
+    },
+    {
+      "status": "M",
+      "path": "apps/desktop/src/renderer/env.d.ts"
+    },
+    {
+      "status": "A",
+      "path": "apps/desktop/src/renderer/lib/location.ts"
+    },
+    {
+      "status": "M",
+      "path": "apps/desktop/src/renderer/lib/thinking-activity.ts"
+    },
+    {
+      "status": "M",
+      "path": "apps/desktop/src/renderer/styles.css"
+    },
+    {
+      "status": "M",
+      "path": "apps/desktop/test/bot-avatar-activity.test.tsx"
+    },
+    {
+      "status": "M",
+      "path": "apps/desktop/test/browser/notification-opening-runner.cjs"
+    },
+    {
+      "status": "M",
+      "path": "apps/desktop/test/browser/window-activity-runner.cjs"
+    },
+    {
+      "status": "A",
+      "path": "apps/desktop/test/host/messages-send-chaos.test.ts"
+    },
+    {
+      "status": "M",
+      "path": "apps/desktop/test/host/messages-send.test.ts"
+    },
+    {
+      "status": "A",
+      "path": "apps/desktop/test/location-sharing.test.ts"
+    },
+    {
+      "status": "M",
+      "path": "apps/desktop/test/notification-manager.test.ts"
+    },
+    {
+      "status": "M",
+      "path": "apps/ios/Resources/Info.plist"
+    },
+    {
+      "status": "M",
+      "path": "apps/ios/Sources/App/AppStore.swift"
+    },
+    {
+      "status": "A",
+      "path": "apps/ios/Sources/App/BackgroundTime.swift"
+    },
+    {
+      "status": "M",
+      "path": "apps/ios/Sources/App/BotGlyph.swift"
+    },
+    {
+      "status": "M",
+      "path": "apps/ios/Sources/App/BrowserNetworkSettingsView.swift"
+    },
+    {
+      "status": "M",
+      "path": "apps/ios/Sources/App/ChatActivityFooter.swift"
+    },
+    {
+      "status": "M",
+      "path": "apps/ios/Sources/App/ChatView.swift"
+    },
+    {
+      "status": "M",
+      "path": "apps/ios/Sources/App/ComputerView.swift"
+    },
+    {
+      "status": "M",
+      "path": "apps/ios/Sources/App/GroupChannelAvatar.swift"
+    },
+    {
+      "status": "M",
+      "path": "apps/ios/Sources/App/HomeView.swift"
+    },
+    {
+      "status": "M",
+      "path": "apps/ios/Sources/App/LaunchRobotView.swift"
+    },
+    {
+      "status": "A",
+      "path": "apps/ios/Sources/App/LocationSharing.swift"
+    },
+    {
+      "status": "M",
+      "path": "apps/ios/Sources/App/NativeDesign.swift"
+    },
+    {
+      "status": "M",
+      "path": "apps/ios/Sources/App/NativeMessageList.swift"
+    },
+    {
+      "status": "M",
+      "path": "apps/ios/Sources/App/OpenTeamApp.swift"
+    },
+    {
+      "status": "M",
+      "path": "apps/ios/Sources/App/PresentationMessageView.swift"
+    },
+    {
+      "status": "M",
+      "path": "apps/ios/Sources/App/RobotMotionLab.swift"
+    },
+    {
+      "status": "M",
+      "path": "apps/ios/Sources/App/SettingsView.swift"
+    },
+    {
+      "status": "M",
+      "path": "apps/ios/Sources/App/SystemIntentClient.swift"
+    },
+    {
+      "status": "M",
+      "path": "apps/ios/Sources/App/VoiceMemo.swift"
+    },
+    {
+      "status": "A",
+      "path": "apps/ios/Sources/Core/BotAvatarActivity.swift"
+    },
+    {
+      "status": "M",
+      "path": "apps/ios/Sources/Core/Models.swift"
+    },
+    {
+      "status": "M",
+      "path": "apps/ios/Sources/Core/Resources/RobotArtwork.json"
+    },
+    {
+      "status": "M",
+      "path": "apps/ios/Sources/Core/RobotArtwork.swift"
+    },
+    {
+      "status": "M",
+      "path": "apps/ios/Sources/Core/RobotMotion.swift"
+    },
+    {
+      "status": "D",
+      "path": "apps/ios/Sources/Core/RobotProjection.swift"
+    },
+    {
+      "status": "A",
+      "path": "apps/ios/Sources/Core/RobotTransform.swift"
+    },
+    {
+      "status": "A",
+      "path": "apps/ios/Tests/CoreTests/BotAvatarActivityTests.swift"
+    },
+    {
+      "status": "A",
+      "path": "apps/ios/Tests/CoreTests/Fixtures/robot-parity.json"
+    },
+    {
+      "status": "M",
+      "path": "apps/ios/Tests/CoreTests/ProtocolTests.swift"
+    },
+    {
+      "status": "M",
+      "path": "apps/ios/Tests/CoreTests/RobotMotionTests.swift"
+    },
+    {
+      "status": "A",
+      "path": "apps/ios/Tests/CoreTests/RobotParityTests.swift"
+    },
+    {
+      "status": "M",
+      "path": "apps/ios/Tests/SystemTests/ActionFailureTests.swift"
+    },
+    {
+      "status": "A",
+      "path": "apps/ios/Tests/SystemTests/BackgroundTimeLedger.swift"
+    },
+    {
+      "status": "A",
+      "path": "apps/ios/Tests/SystemTests/LocationSharingTests.swift"
+    },
+    {
+      "status": "M",
+      "path": "apps/ios/Tests/SystemTests/VoiceLifecycleTests.swift"
+    },
+    {
+      "status": "M",
+      "path": "apps/ios/Tests/UITests/ChatMotionUITests.swift"
+    },
+    {
+      "status": "M",
+      "path": "apps/ios/Tests/UITests/NativePushUITests.swift"
+    },
+    {
+      "status": "M",
+      "path": "apps/ios/Tests/UITests/PresentationUITests.swift"
+    },
+    {
+      "status": "M",
+      "path": "apps/ios/Tests/UITests/RobotMotionUITests.swift"
+    },
+    {
+      "status": "M",
+      "path": "apps/ios/Tests/UITests/VoiceMemoUITests.swift"
+    },
+    {
+      "status": "M",
+      "path": "apps/ios/scripts/export-robot-artwork.ts"
+    },
+    {
+      "status": "M",
+      "path": "apps/ios/scripts/parity-server.ts"
+    },
+    {
+      "status": "A",
+      "path": "apps/ios/scripts/robot-motion-spec.ts"
+    },
+    {
+      "status": "M",
+      "path": "apps/ios/scripts/visual-fixtures.ts"
+    },
+    {
+      "status": "M",
+      "path": "apps/landing/app/alive.css"
+    },
+    {
+      "status": "A",
+      "path": "apps/landing/app/app-refresh.css"
+    },
+    {
+      "status": "M",
+      "path": "apps/landing/app/mobile-polish.css"
+    },
+    {
+      "status": "M",
+      "path": "apps/landing/app/page.tsx"
+    },
+    {
+      "status": "M",
+      "path": "apps/landing/components/app-connections.tsx"
+    },
+    {
+      "status": "M",
+      "path": "apps/landing/components/app-demo-details.tsx"
+    },
+    {
+      "status": "A",
+      "path": "apps/landing/components/app-ui.css"
+    },
+    {
+      "status": "A",
+      "path": "apps/landing/components/app-ui.tsx"
+    },
+    {
+      "status": "M",
+      "path": "apps/landing/components/app-window.tsx"
+    },
+    {
+      "status": "D",
+      "path": "apps/landing/components/bot-avatar.css"
+    },
+    {
+      "status": "M",
+      "path": "apps/landing/components/bot-avatar.tsx"
+    },
+    {
+      "status": "M",
+      "path": "apps/landing/components/brand.tsx"
+    },
+    {
+      "status": "M",
+      "path": "apps/landing/components/computer-workspace.tsx"
+    },
+    {
+      "status": "M",
+      "path": "apps/landing/components/desktop-demo.css"
+    },
+    {
+      "status": "M",
+      "path": "apps/landing/components/meeting-routine.tsx"
+    },
+    {
+      "status": "M",
+      "path": "apps/landing/components/model-connections.tsx"
+    },
+    {
+      "status": "M",
+      "path": "apps/landing/components/product-demo.tsx"
+    },
+    {
+      "status": "M",
+      "path": "apps/landing/components/section-bot.tsx"
+    },
+    {
+      "status": "M",
+      "path": "apps/landing/components/team-workflow-demo.tsx"
+    },
+    {
+      "status": "M",
+      "path": "apps/landing/components/worker-memory.tsx"
+    },
+    {
+      "status": "M",
+      "path": "apps/landing/components/worker-showcase.tsx"
+    },
+    {
+      "status": "M",
+      "path": "apps/server/src/app-service.ts"
+    },
+    {
+      "status": "M",
+      "path": "apps/server/src/routes/client.ts"
+    },
+    {
+      "status": "M",
+      "path": "apps/server/src/services/channel-service.ts"
+    },
+    {
+      "status": "M",
+      "path": "apps/server/src/services/internal-tool-service.ts"
+    },
+    {
+      "status": "M",
+      "path": "apps/server/src/services/messages-send-service.ts"
+    },
+    {
+      "status": "A",
+      "path": "apps/server/src/services/user-location.ts"
+    },
+    {
+      "status": "M",
+      "path": "apps/server/test/durable-message-acceptance.test.ts"
+    },
+    {
+      "status": "M",
+      "path": "apps/server/test/messages-send.test.ts"
+    },
+    {
+      "status": "A",
+      "path": "apps/server/test/user-location.test.ts"
+    },
+    {
+      "status": "M",
+      "path": "apps/worker/src/worker.ts"
+    },
+    {
+      "status": "A",
+      "path": "apps/worker/test/automation-retry.integration.test.ts"
+    },
+    {
+      "status": "M",
+      "path": "apps/worker/test/cross-device-notifications.integration.test.ts"
+    },
+    {
+      "status": "M",
+      "path": "apps/worker/test/memory-recovery-fairness.integration.test.ts"
+    },
+    {
+      "status": "A",
+      "path": "apps/worker/test/request-check-outage.integration.test.ts"
+    },
+    {
+      "status": "A",
+      "path": "apps/worker/test/stalled-wake-recovery.integration.test.ts"
+    },
+    {
+      "status": "A",
+      "path": "docs/development/notification-chaos-audit-2026-11-15.md"
+    },
+    {
+      "status": "A",
+      "path": "docs/images/SOURCES.md"
+    },
+    {
+      "status": "M",
+      "path": "docs/images/openteam-desktop-mobile.png"
+    },
+    {
+      "status": "M",
+      "path": "docs/integrations/maps.md"
+    },
+    {
+      "status": "M",
+      "path": "docs/usage/routines.md"
+    },
+    {
+      "status": "M",
+      "path": "packages/client-core/src/client.ts"
+    },
+    {
+      "status": "M",
+      "path": "packages/client-core/test/client.test.ts"
+    },
+    {
+      "status": "A",
+      "path": "packages/client-core/test/location-ownership.test.ts"
+    },
+    {
+      "status": "M",
+      "path": "packages/contracts/package.json"
+    },
+    {
+      "status": "M",
+      "path": "packages/contracts/src/index.ts"
+    },
+    {
+      "status": "M",
+      "path": "packages/contracts/src/robot-avatar.ts"
+    },
+    {
+      "status": "M",
+      "path": "packages/contracts/src/tool-results.ts"
+    },
+    {
+      "status": "A",
+      "path": "packages/contracts/src/user-location.ts"
+    },
+    {
+      "status": "M",
+      "path": "packages/contracts/test/messages-send.test.ts"
+    },
+    {
+      "status": "M",
+      "path": "packages/db/prisma/schema.prisma"
+    },
+    {
+      "status": "M",
+      "path": "packages/design-tokens/package.json"
+    },
+    {
+      "status": "A",
+      "path": "packages/design-tokens/src/robot-avatar-expressions.ts"
+    },
+    {
+      "status": "A",
+      "path": "packages/design-tokens/src/robot-avatar-gaze-scope.ts"
+    },
+    {
+      "status": "A",
+      "path": "packages/design-tokens/src/robot-avatar-gaze.ts"
+    },
+    {
+      "status": "M",
+      "path": "packages/design-tokens/src/robot-avatar-motion.ts"
+    },
+    {
+      "status": "A",
+      "path": "packages/design-tokens/src/robot-avatar-pokes.ts"
+    },
+    {
+      "status": "M",
+      "path": "packages/design-tokens/src/robot-avatar.css"
+    },
+    {
+      "status": "M",
+      "path": "packages/messaging/src/agent-data.ts"
+    },
+    {
+      "status": "M",
+      "path": "packages/messaging/src/routines.ts"
+    },
+    {
+      "status": "M",
+      "path": "packages/messaging/test/routine-wake-content.test.ts"
+    },
+    {
+      "status": "M",
+      "path": "packages/product-core/src/bot-avatar.ts"
+    },
+    {
+      "status": "M",
+      "path": "packages/product-core/test/bot-avatar.test.ts"
+    },
+    {
+      "status": "M",
+      "path": "scripts/performance/check-desktop-budgets.ts"
+    },
+    {
+      "status": "M",
+      "path": "scripts/performance/measure-desktop-build.ts"
+    }
+  ],
+  "protectedMainWorkspace": {
+    "path": "/Users/jackson/Code/openteam",
+    "branch": "OutcomeGo",
+    "head": "0b68a5b7e0e554b685f405293a698d7616c5d869",
+    "statusPorcelain": " M apps/android/app/src/androidTest/java/com/outcomego/android/features/RichMessageRendererTest.kt\n M apps/android/app/src/main/java/com/outcomego/android/data/MobileData.kt\n M apps/android/app/src/main/java/com/outcomego/android/ui/designsystem/SpatialTokens.kt\n M apps/android/app/src/main/java/com/outcomego/android/ui/screens/chat/ChatMessageComponents.kt\n M apps/android/app/src/main/java/com/outcomego/android/ui/screens/chat/ChatScreen.kt\n M apps/android/app/src/main/kotlin/com/outcomego/features/RichMessageAndAttachments.kt\n M apps/android/app/src/test/kotlin/com/outcomego/android/ChatRowsTest.kt\n?? apps/android/app/src/main/java/com/outcomego/android/ui/screens/chat/AgentExchangeWindow.kt\n",
+    "trackedDiffSha256": "79e6bd507de9d422dd800b781ab9b690660d39d2cea8e66f4c132972f17b045f",
+    "files": [
+      {
+        "path": "apps/android/app/src/androidTest/java/com/outcomego/android/features/RichMessageRendererTest.kt",
+        "status": " M",
+        "gitBlob": "45885b69d47ac6f29f1f28e5b72d5fd119d118af",
+        "sha256": "c36e130d3e0939ce03c8b0c4db243c1f789fea0b19294415caacafdaf8990a3d",
+        "indexEntry": "100644 3f3a3ba9fabdd7e3b40160815415a2bfe1190b7f 0\tapps/android/app/src/androidTest/java/com/outcomego/android/features/RichMessageRendererTest.kt"
+      },
+      {
+        "path": "apps/android/app/src/main/java/com/outcomego/android/data/MobileData.kt",
+        "status": " M",
+        "gitBlob": "ca5a6d7288518e9de0e73840c3b28bfbefc8cf1e",
+        "sha256": "fea2b924d53a100c0ee47e13ccac186d7c3c736b1eeb4c813bdc4fec48e2eb4b",
+        "indexEntry": "100644 d1beb20e4d44443ab50d5c630b5336d7c18654a8 0\tapps/android/app/src/main/java/com/outcomego/android/data/MobileData.kt"
+      },
+      {
+        "path": "apps/android/app/src/main/java/com/outcomego/android/ui/designsystem/SpatialTokens.kt",
+        "status": " M",
+        "gitBlob": "7a001535cfc7eb1cc5e107bc0eba01d93c627a50",
+        "sha256": "f2a9de99fb1cb36909921bd60414c675e7e3d6b009091949bb56220806717821",
+        "indexEntry": "100644 3f8e7834c2d3438655f018861e138b36c9c4ca59 0\tapps/android/app/src/main/java/com/outcomego/android/ui/designsystem/SpatialTokens.kt"
+      },
+      {
+        "path": "apps/android/app/src/main/java/com/outcomego/android/ui/screens/chat/ChatMessageComponents.kt",
+        "status": " M",
+        "gitBlob": "b39ea51afbaf91b00946e3bc604570c724cc9c49",
+        "sha256": "dc870377e6c97027e08db108817a2f7d3edd0833dd585674cfeac626f3f19162",
+        "indexEntry": "100644 01d658e5b232500ff4f53625f87fb30c60ab305d 0\tapps/android/app/src/main/java/com/outcomego/android/ui/screens/chat/ChatMessageComponents.kt"
+      },
+      {
+        "path": "apps/android/app/src/main/java/com/outcomego/android/ui/screens/chat/ChatScreen.kt",
+        "status": " M",
+        "gitBlob": "7468988fc629825304055547c452db0320aa574c",
+        "sha256": "01492334dbcea428e8bed9f7d427ebd5d113289e2bc66dc0b54561e4374946c5",
+        "indexEntry": "100644 c080b0363db6fca39b14493278958c8cc5b682d5 0\tapps/android/app/src/main/java/com/outcomego/android/ui/screens/chat/ChatScreen.kt"
+      },
+      {
+        "path": "apps/android/app/src/main/kotlin/com/outcomego/features/RichMessageAndAttachments.kt",
+        "status": " M",
+        "gitBlob": "612e45b883068ce040354fb90b6ce409f65ef1a1",
+        "sha256": "79e93653864574f2a9faf1889dab3b5da7bc0b543da387bcd824ba390d275f6f",
+        "indexEntry": "100644 2658de597bccc9f28779fb9825375d245b32d38f 0\tapps/android/app/src/main/kotlin/com/outcomego/features/RichMessageAndAttachments.kt"
+      },
+      {
+        "path": "apps/android/app/src/test/kotlin/com/outcomego/android/ChatRowsTest.kt",
+        "status": " M",
+        "gitBlob": "06f9487bb19df21d1788831a86ca6385fcc2963f",
+        "sha256": "9c40ea4029a2ae01aabbfcce8f86d0dde52d21039cbeda874cda393d382e8ed7",
+        "indexEntry": "100644 9545e6372c8a54cf2aabe3f45fbd508a4a34b8de 0\tapps/android/app/src/test/kotlin/com/outcomego/android/ChatRowsTest.kt"
+      },
+      {
+        "path": "apps/android/app/src/main/java/com/outcomego/android/ui/screens/chat/AgentExchangeWindow.kt",
+        "status": "??",
+        "gitBlob": "2611c5afe4e9a7c3439ebad6133301b21aeeb87f",
+        "sha256": "3e731179533fb1b028c45f45457cf6525d5a5b2eaecae49a3b93afe821583e2a",
+        "indexEntry": null
+      }
+    ]
+  },
+  "packages": [
+    {
+      "path": "apps/cli/package.json",
+      "upstreamName": "@openteam/cli",
+      "localName": "@outcomego/cli",
+      "upstreamVersion": "0.0.19",
+      "localVersion": "0.1.0-beta.19"
+    },
+    {
+      "path": "apps/computer/package.json",
+      "upstreamName": "@openteam/computer",
+      "localName": "@outcomego/computer",
+      "upstreamVersion": "0.0.19",
+      "localVersion": "0.1.0-beta.19"
+    },
+    {
+      "path": "apps/desktop/package.json",
+      "upstreamName": "@openteam/desktop",
+      "localName": "@outcomego/desktop",
+      "upstreamVersion": "0.0.19",
+      "localVersion": "0.1.0-beta.19"
+    },
+    {
+      "path": "apps/ios/package.json",
+      "upstreamName": "@openteam/ios",
+      "localName": "@outcomego/ios",
+      "upstreamVersion": "0.0.19",
+      "localVersion": "0.1.0-beta.19"
+    },
+    {
+      "path": "apps/landing/package.json",
+      "upstreamName": "@openteam/landing",
+      "localName": "@outcomego/landing",
+      "upstreamVersion": "0.0.19",
+      "localVersion": "0.1.0-beta.19"
+    },
+    {
+      "path": "apps/server/package.json",
+      "upstreamName": "@openteam/server",
+      "localName": "@outcomego/server",
+      "upstreamVersion": "0.0.19",
+      "localVersion": "0.1.0-beta.19"
+    },
+    {
+      "path": "apps/worker/package.json",
+      "upstreamName": "@openteam/worker",
+      "localName": "@outcomego/worker",
+      "upstreamVersion": "0.0.19",
+      "localVersion": "0.1.0-beta.19"
+    },
+    {
+      "path": "package.json",
+      "upstreamName": "openteam",
+      "localName": "outcomego",
+      "upstreamVersion": "0.0.19",
+      "localVersion": "0.1.0-beta.19"
+    },
+    {
+      "path": "packages/client-core/package.json",
+      "upstreamName": "@openteam/client-core",
+      "localName": "@outcomego/client-core",
+      "upstreamVersion": "0.0.19",
+      "localVersion": "0.1.0-beta.19"
+    },
+    {
+      "path": "packages/contracts/package.json",
+      "upstreamName": "@openteam/contracts",
+      "localName": "@outcomego/contracts",
+      "upstreamVersion": "0.0.19",
+      "localVersion": "0.1.0-beta.19"
+    },
+    {
+      "path": "packages/db/package.json",
+      "upstreamName": "@openteam/db",
+      "localName": "@outcomego/db",
+      "upstreamVersion": "0.0.19",
+      "localVersion": "0.1.0-beta.19"
+    },
+    {
+      "path": "packages/design-tokens/package.json",
+      "upstreamName": "@openteam/design-tokens",
+      "localName": "@outcomego/design-tokens",
+      "upstreamVersion": "0.0.19",
+      "localVersion": "0.1.0-beta.19"
+    },
+    {
+      "path": "packages/messaging/package.json",
+      "upstreamName": "@openteam/messaging",
+      "localName": "@outcomego/messaging",
+      "upstreamVersion": "0.0.19",
+      "localVersion": "0.1.0-beta.19"
+    },
+    {
+      "path": "packages/plugin-sdk/package.json",
+      "upstreamName": "@openteam/plugin-sdk",
+      "localName": "@outcomego/plugin-sdk",
+      "upstreamVersion": "0.0.19",
+      "localVersion": "0.1.0-beta.19"
+    },
+    {
+      "path": "packages/plugins/package.json",
+      "upstreamName": "@openteam/plugins",
+      "localName": "@outcomego/plugins",
+      "upstreamVersion": "0.0.19",
+      "localVersion": "0.1.0-beta.19"
+    },
+    {
+      "path": "packages/product-core/package.json",
+      "upstreamName": "@openteam/product-core",
+      "localName": "@outcomego/product-core",
+      "upstreamVersion": "0.0.19",
+      "localVersion": "0.1.0-beta.19"
+    },
+    {
+      "path": "packages/shell-jobs/package.json",
+      "upstreamName": "@openteam/shell-jobs",
+      "localName": "@outcomego/shell-jobs",
+      "upstreamVersion": "0.0.19",
+      "localVersion": "0.1.0-beta.19"
+    }
+  ],
+  "identityComparison": {
+    "desktop": {
+      "upstream": {
+        "appId": "dev.openteam.desktop",
+        "productName": "OpenTeam",
+        "executableName": "openteam",
+        "artifactName": "OpenTeam-${version}-${os}-${arch}.${ext}",
+        "publish": {
+          "provider": "github",
+          "owner": "raghavpillai",
+          "repo": "openteam"
+        }
+      },
+      "local": {
+        "appId": "dev.outcomego.desktop",
+        "productName": "OutcomeGo",
+        "executableName": "outcomego",
+        "artifactName": "aiTeamOS-${version}-${os}-${arch}.${ext}",
+        "publish": {
+          "provider": "github",
+          "owner": "jingyi0605",
+          "repo": "OutcomeGo"
+        }
+      }
+    },
+    "cli": {
+      "upstream": {
+        "openteam": "dist/openteam.js"
+      },
+      "local": {
+        "aiteamos": "dist/outcomego.js",
+        "outcomego": "dist/outcomego.js"
+      }
+    },
+    "ios": {
+      "upstream": {
+        "version": "0.0.19",
+        "buildNumber": "70",
+        "bundleIdentifier": "dev.openbot.mobile"
+      },
+      "local": {
+        "version": "0.1.0",
+        "buildNumber": "65",
+        "bundleIdentifier": "dev.outcomego.mobile"
+      }
+    },
+    "desktopUpdate": {
+      "upstream": "upstream GitHub latest; no persisted stable/beta selector",
+      "local": "OutcomeGo GitHub feed; persisted stable/beta; default stable"
+    }
+  },
+  "desktopPathMappings": [
+    {
+      "upstream": "apps/desktop/src/renderer/client/openteam-api.ts",
+      "local": "apps/desktop/src/renderer/client/outcomego-api.ts"
+    },
+    {
+      "upstream": "apps/desktop/src/renderer/components/openteam/avatar-picker-icons.tsx",
+      "local": "apps/desktop/src/renderer/components/outcomego/avatar-picker-icons.tsx"
+    },
+    {
+      "upstream": "apps/desktop/src/renderer/components/openteam/avatar-picker.tsx",
+      "local": "apps/desktop/src/renderer/components/outcomego/avatar-picker.tsx"
+    },
+    {
+      "upstream": "apps/desktop/src/renderer/components/openteam/avatar.tsx",
+      "local": "apps/desktop/src/renderer/components/outcomego/avatar.tsx"
+    },
+    {
+      "upstream": "apps/desktop/src/renderer/components/openteam/bot-avatar-activity.tsx",
+      "local": "apps/desktop/src/renderer/components/outcomego/bot-avatar-activity.tsx"
+    },
+    {
+      "upstream": "apps/desktop/src/renderer/components/openteam/bot-screen.tsx",
+      "local": "apps/desktop/src/renderer/components/outcomego/bot-screen.tsx"
+    },
+    {
+      "upstream": "apps/desktop/src/renderer/components/openteam/chat-pane.tsx",
+      "local": "apps/desktop/src/renderer/components/outcomego/chat-pane.tsx"
+    },
+    {
+      "upstream": "apps/desktop/src/renderer/components/openteam/desktop-header.tsx",
+      "local": "apps/desktop/src/renderer/components/outcomego/desktop-header.tsx"
+    },
+    {
+      "upstream": "apps/desktop/src/renderer/components/openteam/group-activity.tsx",
+      "local": "apps/desktop/src/renderer/components/outcomego/group-activity.tsx"
+    },
+    {
+      "upstream": "apps/desktop/src/renderer/components/openteam/imessage-send-card.tsx",
+      "local": "apps/desktop/src/renderer/components/outcomego/imessage-send-card.tsx"
+    },
+    {
+      "upstream": "apps/desktop/src/renderer/components/openteam/inspector.tsx",
+      "local": "apps/desktop/src/renderer/components/outcomego/inspector.tsx"
+    },
+    {
+      "upstream": "apps/desktop/src/renderer/components/openteam/new-bot-dialog.tsx",
+      "local": "apps/desktop/src/renderer/components/outcomego/new-bot-dialog.tsx"
+    },
+    {
+      "upstream": "apps/desktop/src/renderer/components/openteam/presentation/presentation-message.tsx",
+      "local": "apps/desktop/src/renderer/components/outcomego/presentation/presentation-message.tsx"
+    },
+    {
+      "upstream": "apps/desktop/src/renderer/components/openteam/presentation/presentation.css",
+      "local": "apps/desktop/src/renderer/components/outcomego/presentation/presentation.css"
+    },
+    {
+      "upstream": "apps/desktop/src/renderer/components/openteam/settings/general.tsx",
+      "local": "apps/desktop/src/renderer/components/outcomego/settings/general.tsx"
+    },
+    {
+      "upstream": "apps/desktop/src/renderer/components/openteam/settings/location.tsx",
+      "local": "apps/desktop/src/renderer/components/outcomego/settings/location.tsx"
+    },
+    {
+      "upstream": "apps/desktop/src/renderer/components/openteam/setup/sign-in-visuals.tsx",
+      "local": "apps/desktop/src/renderer/components/outcomego/setup/sign-in-visuals.tsx"
+    },
+    {
+      "upstream": "apps/desktop/src/renderer/components/openteam/setup/visuals.tsx",
+      "local": "apps/desktop/src/renderer/components/outcomego/setup/visuals.tsx"
+    },
+    {
+      "upstream": "apps/desktop/src/renderer/components/openteam/sidebar.tsx",
+      "local": "apps/desktop/src/renderer/components/outcomego/sidebar.tsx"
+    },
+    {
+      "upstream": "apps/desktop/src/renderer/components/openteam/thread-tray.tsx",
+      "local": "apps/desktop/src/renderer/components/outcomego/thread-tray.tsx"
+    }
+  ],
+  "contractChangedPaths": [
+    {
+      "status": "M",
+      "path": "packages/contracts/package.json"
+    },
+    {
+      "status": "M",
+      "path": "packages/contracts/src/index.ts"
+    },
+    {
+      "status": "M",
+      "path": "packages/contracts/src/robot-avatar.ts"
+    },
+    {
+      "status": "M",
+      "path": "packages/contracts/src/tool-results.ts"
+    },
+    {
+      "status": "A",
+      "path": "packages/contracts/src/user-location.ts"
+    },
+    {
+      "status": "M",
+      "path": "packages/contracts/test/messages-send.test.ts"
+    }
+  ],
+  "protectedSourceBlobs": {
+    ".github/workflows/cli-installer.yml": "b5c6ecdd300c307a60ecac16f2b8eda3f5bffb74",
+    ".github/workflows/release.yml": "f04efa78e5b5ea761d184c542aac8715ea4607c0",
+    "apps/cli/package.json": "d77cf126c005b698bbd19e1e102a6ade93569603",
+    "apps/cli/src/config.ts": "597250590942f21f19b0db09fddf239d88083dac",
+    "apps/cli/src/release-signing-key.ts": "995dc5c1560f2fa058be9605c5928d810720c4a4",
+    "apps/cli/src/release.ts": "daa1c5dc2381131a0041560fe4abe5b041bbb8f0",
+    "apps/computer/package.json": "4092a3387bda5ab292cfed4a2373c40e281102c2",
+    "apps/desktop/package.json": "defdd7d10c26837bc67d63a61e3d7ef617a69689",
+    "apps/desktop/src/main/computer-settings.ts": "0c81c0a609818cdb646358bf5b0290c870ed4bc8",
+    "apps/desktop/src/main/index.ts": "19f7421a8d2b7b1f4dc92946fc52743e56f74753",
+    "apps/desktop/src/main/user-data-path.ts": "0e3abf9bdfffec6948ca5ecf74910520254eea98",
+    "apps/ios/Resources/Info.plist": "4a87d6c5cdc4e9eb69f9f2c2028b1dfac9dc2d3e",
+    "apps/ios/package.json": "4094e3318586a2e4bf7c90583e2441c63af05281",
+    "apps/ios/release.json": "381247f4517b75186003fc23e295412888b0f9e0",
+    "apps/ios/scripts/generate-project.py": "8bf452ccbe1df91309ab8530a35f71a5acbe261b",
+    "apps/landing/package.json": "e32fbc10da44b238ab2295c196ac3a42b19c5fd6",
+    "apps/server/package.json": "f2c9ebc883d330cd843c7de937e1e4b3030cda0c",
+    "apps/worker/package.json": "1bb9b96a41d07868c7fab5f9d48ef3fe2b1c4c99",
+    "deploy/compose.yaml": "14a2635585c60785a5f6cfd8cbd85c5e168394e2",
+    "package.json": "cdd1717ca4903cdd7f82618d24eefc9ea2f7800c",
+    "packages/client-core/package.json": "5529fc35c237ff053483493ccd23267f97259573",
+    "packages/contracts/package.json": "2570c1b6bf6a4df8367967d6bea0f46ed3a5779c",
+    "packages/contracts/src/version-compatibility.ts": "74ced14d5b64b0a5f62f52a41766e42e7dd66e7c",
+    "packages/db/package.json": "fbc5cc3a815b57eefb0e775666e21fc5294dfe99",
+    "packages/db/prisma/schema.prisma": "9ed6ff2da11069d8fbdc758c1c2ee05e24ef7291",
+    "packages/db/prisma/sql/raw-schema.sql": "e09ebc6020595cedfd0acb3080bc0bcaf03561c3",
+    "packages/db/scripts/deploy-schema.ts": "1fb172e052631049789a300c59130135a9002d7b",
+    "packages/design-tokens/package.json": "72015ca1bef53c468067d33c4d11d7337dcf6641",
+    "packages/messaging/package.json": "25f98fe538a77bace86a0d66e91eaa539208da03",
+    "packages/plugin-sdk/package.json": "a5d84a4a2401a1e1cc5320f92b11f0a65d32f1f1",
+    "packages/plugins/package.json": "bfe21cfa1a1cab4f2bedfbb793c613ff0b41fba8",
+    "packages/product-core/package.json": "3657d46762c7bb28660662e6b5c0452fb9d04a2c",
+    "packages/shell-jobs/package.json": "62383280626a3141384ea799efa2343dc3bdca77",
+    "scripts/release/render-installers.ts": "993c736195e3a9c5a6bbd7eb15f65e80d15b19c9",
+    "scripts/render-release-compose.ts": "ccedb7df34f15bc6ab6b029a01ec7a8150881991"
+  },
+  "phase1AllowedPaths": [
+    "specs/007.1-同步上游0.0.19/docs/20261117-正式版增量集成基线审计.md",
+    "scripts/integration/fixtures/v019-baseline.json",
+    "scripts/integration/check-v019-baseline.py"
+  ],
+  "contractCompatibility": [
+    {
+      "id": "C01",
+      "surface": "packages/contracts/package.json",
+      "phase": 2,
+      "decision": "Add only ./user-location export; retain @outcomego scope, beta version and local exports"
+    },
+    {
+      "id": "C02",
+      "surface": "packages/contracts/src/index.ts",
+      "phase": 2,
+      "decision": "Add optional DeviceLocation to SendMessageInput; preserve all existing message and external_dm fields"
+    },
+    {
+      "id": "C03",
+      "surface": "packages/contracts/src/user-location.ts",
+      "phase": 2,
+      "decision": "Adapt new location schema/tool result; feature disabled by default; account and opt-out fencing required"
+    },
+    {
+      "id": "C04",
+      "surface": "packages/contracts/src/tool-results.ts",
+      "phase": 4,
+      "decision": "Distinguish submission, local history and delivery; unknown results must not resend automatically"
+    },
+    {
+      "id": "C05",
+      "surface": "packages/contracts/test/messages-send.test.ts",
+      "phase": 4,
+      "decision": "Adapt receipt assertions to local tool names and preserve local fixture coverage"
+    },
+    {
+      "id": "C06",
+      "surface": "packages/contracts/src/robot-avatar.ts",
+      "phase": 6,
+      "decision": "Defer upstream avatar mode expansion until explicit product approval"
+    },
+    {
+      "id": "C07",
+      "surface": "packages/client-core/src/client.ts",
+      "phase": 2,
+      "decision": "Keep createOutcomeGoClient canonical, compatibility aliases, durable clientId, and original credential ownership"
+    },
+    {
+      "id": "C08",
+      "surface": "packages/contracts/src/version-compatibility.ts",
+      "phase": 2,
+      "decision": "Preserve API protocol 2 and OutcomeGo prerelease compatibility window; upstream 0.0.x is not a local release"
+    },
+    {
+      "id": "C09",
+      "surface": "packages/db/prisma/schema.prisma",
+      "phase": 2,
+      "decision": "Map UserLocation to outcomego_user_location and retain all existing enum/table mappings"
+    },
+    {
+      "id": "C10",
+      "surface": "apps/server/src/services/external-messaging/delivery.ts",
+      "phase": 3,
+      "decision": "Compare bounded routine retries with existing delivery lease fencing and no-resend recovery semantics"
+    }
+  ],
+  "mainWorkspaceObservations": [
+    {
+      "observedAt": "2026-11-17T08:15:48+08:00",
+      "note": "Main files changed after the initial snapshot while this session only read that workspace. Original snapshot retained; writer not identified by Git. Do not restore or silently rebaseline.",
+      "changedFiles": [
+        {
+          "path": "apps/android/app/src/main/java/com/outcomego/android/ui/screens/chat/ChatMessageComponents.kt",
+          "originalGitBlob": "b39ea51afbaf91b00946e3bc604570c724cc9c49",
+          "observedGitBlob": "df45566bcf8f4c033427198b97d122c9cd402f03",
+          "originalSha256": "dc870377e6c97027e08db108817a2f7d3edd0833dd585674cfeac626f3f19162",
+          "observedSha256": "510456434b0cd0bcd79a593a6be075e9b4e817565d167a76d0e5c6ee1bd66e05"
+        },
+        {
+          "path": "apps/android/app/src/main/java/com/outcomego/android/ui/screens/chat/ChatScreen.kt",
+          "originalGitBlob": "7468988fc629825304055547c452db0320aa574c",
+          "observedGitBlob": "dd0d571868a431f78842b11d0579e06f4bf7bbac",
+          "originalSha256": "01492334dbcea428e8bed9f7d427ebd5d113289e2bc66dc0b54561e4374946c5",
+          "observedSha256": "fe558ed7bc8b7326d4021b0f29353c2e8ae653255c65ee0ce649bbe2c9bc9e86"
+        }
+      ],
+      "trackedDiffSha256": "cbfd18f42d3ce1f7539b7d488be47365e792fee30697cbc6f5235ac1b3954c03"
+    },
+    {
+      "observedAt": "2026-11-17T08:16:57+08:00",
+      "note": "Main branch and index advanced concurrently. This phase remains based on the original local OutcomeGo commit. Original snapshot is not replaced.",
+      "head": "6fd94cbc559e7d4c0f4e54f0d20146568990dade",
+      "branch": "OutcomeGo",
+      "originOutcomeGo": "209c770e6825bd9f5ada8d079af2e3d5419c3de9",
+      "statusPorcelain": " M apps/android/app/src/androidTest/java/com/outcomego/android/features/RichMessageRendererTest.kt\n M apps/android/app/src/main/java/com/outcomego/android/ui/designsystem/SpatialTokens.kt\n M apps/android/app/src/main/java/com/outcomego/android/ui/screens/chat/ChatMessageComponents.kt\n M apps/android/app/src/main/kotlin/com/outcomego/features/RichMessageAndAttachments.kt\n",
+      "files": [
+        {
+          "path": "apps/android/app/src/androidTest/java/com/outcomego/android/features/RichMessageRendererTest.kt",
+          "gitBlob": "45885b69d47ac6f29f1f28e5b72d5fd119d118af",
+          "sha256": "c36e130d3e0939ce03c8b0c4db243c1f789fea0b19294415caacafdaf8990a3d",
+          "indexEntry": "100644 3f3a3ba9fabdd7e3b40160815415a2bfe1190b7f 0\tapps/android/app/src/androidTest/java/com/outcomego/android/features/RichMessageRendererTest.kt"
+        },
+        {
+          "path": "apps/android/app/src/main/java/com/outcomego/android/data/MobileData.kt",
+          "gitBlob": "ca5a6d7288518e9de0e73840c3b28bfbefc8cf1e",
+          "sha256": "fea2b924d53a100c0ee47e13ccac186d7c3c736b1eeb4c813bdc4fec48e2eb4b",
+          "indexEntry": "100644 ca5a6d7288518e9de0e73840c3b28bfbefc8cf1e 0\tapps/android/app/src/main/java/com/outcomego/android/data/MobileData.kt"
+        },
+        {
+          "path": "apps/android/app/src/main/java/com/outcomego/android/ui/designsystem/SpatialTokens.kt",
+          "gitBlob": "7a001535cfc7eb1cc5e107bc0eba01d93c627a50",
+          "sha256": "f2a9de99fb1cb36909921bd60414c675e7e3d6b009091949bb56220806717821",
+          "indexEntry": "100644 3f8e7834c2d3438655f018861e138b36c9c4ca59 0\tapps/android/app/src/main/java/com/outcomego/android/ui/designsystem/SpatialTokens.kt"
+        },
+        {
+          "path": "apps/android/app/src/main/java/com/outcomego/android/ui/screens/chat/ChatMessageComponents.kt",
+          "gitBlob": "df45566bcf8f4c033427198b97d122c9cd402f03",
+          "sha256": "510456434b0cd0bcd79a593a6be075e9b4e817565d167a76d0e5c6ee1bd66e05",
+          "indexEntry": "100644 b5cac8462b48d99b285831a989807f2d75ee8bce 0\tapps/android/app/src/main/java/com/outcomego/android/ui/screens/chat/ChatMessageComponents.kt"
+        },
+        {
+          "path": "apps/android/app/src/main/java/com/outcomego/android/ui/screens/chat/ChatScreen.kt",
+          "gitBlob": "dd0d571868a431f78842b11d0579e06f4bf7bbac",
+          "sha256": "fe558ed7bc8b7326d4021b0f29353c2e8ae653255c65ee0ce649bbe2c9bc9e86",
+          "indexEntry": "100644 dd0d571868a431f78842b11d0579e06f4bf7bbac 0\tapps/android/app/src/main/java/com/outcomego/android/ui/screens/chat/ChatScreen.kt"
+        },
+        {
+          "path": "apps/android/app/src/main/kotlin/com/outcomego/features/RichMessageAndAttachments.kt",
+          "gitBlob": "612e45b883068ce040354fb90b6ce409f65ef1a1",
+          "sha256": "79e93653864574f2a9faf1889dab3b5da7bc0b543da387bcd824ba390d275f6f",
+          "indexEntry": "100644 2658de597bccc9f28779fb9825375d245b32d38f 0\tapps/android/app/src/main/kotlin/com/outcomego/features/RichMessageAndAttachments.kt"
+        },
+        {
+          "path": "apps/android/app/src/test/kotlin/com/outcomego/android/ChatRowsTest.kt",
+          "gitBlob": "06f9487bb19df21d1788831a86ca6385fcc2963f",
+          "sha256": "9c40ea4029a2ae01aabbfcce8f86d0dde52d21039cbeda874cda393d382e8ed7",
+          "indexEntry": "100644 06f9487bb19df21d1788831a86ca6385fcc2963f 0\tapps/android/app/src/test/kotlin/com/outcomego/android/ChatRowsTest.kt"
+        },
+        {
+          "path": "apps/android/app/src/main/java/com/outcomego/android/ui/screens/chat/AgentExchangeWindow.kt",
+          "gitBlob": "2611c5afe4e9a7c3439ebad6133301b21aeeb87f",
+          "sha256": "3e731179533fb1b028c45f45457cf6525d5a5b2eaecae49a3b93afe821583e2a",
+          "indexEntry": "100644 2611c5afe4e9a7c3439ebad6133301b21aeeb87f 0\tapps/android/app/src/main/java/com/outcomego/android/ui/screens/chat/AgentExchangeWindow.kt"
+        }
+      ]
+    }
+  ]
+}
