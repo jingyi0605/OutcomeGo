@@ -98,11 +98,11 @@
 
 - [x] 2.2 实现 Outcome HTTP API（不含执行和验收）
   - 状态：DONE（第 1 波本地实现；外部/跨线检查的 PENDING 见下）
-  - 实现提交：5f8a56471、a909e2d43
+  - 实现提交：5f8a56471、a909e2d43、410ca8976
   - 修改文件：`apps/server/src/routes/outcome.ts`、`services/outcome-service.ts`、`app-service.ts`、`main.ts`、路由/事务测试
   - 数据库变化：none（仅一次性测试库部署既有 schema）
   - 验证命令：`bun test apps/server/test/outcome-routes.test.ts apps/server/test/outcome-revision-transaction.test.ts apps/server/test/outcome-service.test.ts`；server typecheck
-  - 验证结果：路由格式/错误/认证注册顺序/持久 Session 主体/本地主体/幂等/事务回滚 PASS
+  - 验证结果：路由格式/错误/认证注册顺序/持久 Session 主体/本地主体/幂等/事务回滚 PASS；同 key 并发批准和修订屏障回归均由失败转为通过，原服务 11 项继续通过
   - 证据文件：[第 1 波线 2 验证记录](docs/20261117-第1波产品功能验证.md)
   - 已知限制：不启动 HTTP 服务；运行和 transcript 端口由线 1 合并后提供真实实现；Decision 撤回第四参数由集成装配
   - 回滚方式：按本线提交逆序 revert，保留其他线改动。
@@ -200,13 +200,13 @@
 
 - [x] 4.1 实现 Evidence 写入和可信度
   - 状态：DONE（第 1 波本地实现；外部/跨线检查的 PENDING 见下）
-  - 实现提交：a909e2d43、d24547414、eea0c0b87
-  - 修改文件：`apps/server/src/services/outcome-review-service.ts`、`outcome-evidence-consumer.ts`、`outcome-write.ts`、`app-service.ts`、对应测试
+  - 实现提交：a909e2d43、d24547414、eea0c0b87、a9a74fbb1（依赖 integrator 8c900af7c、7cf64f503）
+  - 修改文件：`apps/server/src/services/outcome-review-service.ts`、`outcome-evidence-consumer.ts`、`outcome-write.ts`、`app-service.ts`、对应测试及 `test/outcome-event-retention.test.ts`
   - 数据库变化：none（仅一次性测试库部署既有 schema）
-  - 验证命令：`bun test apps/server/test/outcome-review-service.test.ts apps/server/test/outcome-evidence-consumer.test.ts`；server typecheck
-  - 验证结果：真实 Prisma fixture、来源/可信度/去重/积压/重启/停止/晚提交低 sequence/调用期间 revision 变更 PASS
+  - 验证命令：`bun test apps/server/test/outcome-review-service.test.ts apps/server/test/outcome-evidence-consumer.test.ts apps/server/test/outcome-event-retention.test.ts`；server typecheck；完整最终七文件命令见证据
+  - 验证结果：真实 Prisma fixture、来源/可信度/去重/积压/重启/停止/晚提交低 sequence/调用期间 revision 变更 PASS；真实 100000 事件清理→handler 失败无回执→再次清理保留→重试产生 Evidence→清理移除 PASS；最终本线服务端 48 PASS / 0 FAIL、212 断言
   - 证据文件：[第 1 波线 2 验证记录](docs/20261117-第1波产品功能验证.md)
-  - 已知限制：选择 Server 持久 Event 订阅，冻结接口文档已补充；不在 Worker 中引用 Server
+  - 已知限制：选择 Server 持久 Event 订阅，冻结接口文档已补充；SnapshotService 和共享 SQL 由 integrator 独占，本线仅消费其已接纳提交；不在 Worker 中引用 Server
   - 回滚方式：按本线提交逆序 revert，保留其他线改动。
   - 先依赖什么：1.3 + 测试数据（可用 fixture 创建 Output，不再等待 3.4）。
   - 主要改哪里：`apps/server/src/services/outcome-review-service.ts`（新增）、asset 引用适配
@@ -224,7 +224,7 @@
   - 验证命令：`bun test apps/server/test/outcome-review-service.test.ts apps/server/test/outcome-routes.test.ts`；server typecheck
   - 验证结果：必需/可选/缺证据/FAIL/UNVERIFIED/批准变更豁免/重复文字拒绝/并发/幂等/人工条款 PASS
   - 证据文件：[第 1 波线 2 验证记录](docs/20261117-第1波产品功能验证.md)
-  - 已知限制：唯一入口 `/reviews`；人工接受后同子线程续跑属于线 4 第 2 波；不扩大豁免能力
+  - 已知限制：唯一入口 `/reviews`；独立 open/presented Decision 与 HumanAction 阻断依赖 integrator d5008544b（其组合测试结果见证据，本线未重复 guard）；人工接受后同子线程续跑属于线 4 第 2 波；不扩大豁免能力
   - 回滚方式：按本线提交逆序 revert，保留其他线改动。
   - 先依赖什么：4.1
   - 主要改哪里：`outcome-review-service.ts`、`POST /reviews` 路由
@@ -242,7 +242,7 @@
   - 验证命令：`bun test apps/server/test/outcome-review-service.test.ts`；server typecheck
   - 验证结果：FAIL/UNVERIFIED 返工、PASS 拒绝、原任务关联/旧 Review 保留、重复提交、事务调用冻结 fake PASS
   - 证据文件：[第 1 波线 2 验证记录](docs/20261117-第1波产品功能验证.md)
-  - 已知限制：真实 enqueueOutcomeTurn、容量/根 Run 联调 PENDING，待线 1 组合验证；未把 fake 当真实成功
+  - 已知限制：本线真实 enqueueOutcomeTurn、容量/根 Run 回放 PENDING；集成分支运行时已装配，其组合检查另行记录，未把 fake 当真实成功
   - 回滚方式：按本线提交逆序 revert，保留其他线改动。
   - 先依赖什么：4.2、3.2
   - 主要改哪里：`POST /rework` 路由、`outcome-service.ts`

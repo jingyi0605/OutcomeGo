@@ -274,7 +274,9 @@ OUTCOMEGO_TEST_DATABASE_URL=<一次性库> bun run test --force --continue=alway
 - `OutcomeService.getInTransaction(tx,outcomeId):Promise<OutcomeDetail>` 读取同一事务内的最新详情。
 - revision current 指针更新后调用事务内 `onRevisionCreated(tx,outcomeId,actor)`；与运行时构造参数组合时该回调在第四位，由集成人员注入线 3 `withdrawSupersededDecisions`。取消回调由线 1 放在同一事务。
 - Evidence 选择 **Server 订阅持久 `outcome.output.recorded`**：启动扫描积压，已有 EventWakeup 唤醒并带轮询回退，按 Output/WorkItem 事实幂等，保存 `outcome-event:output-evidence` 消费记录。查询相关事件时以缺少回执的 `NOT EXISTS` 为依据，sequence 只排序，不作已提交水位，避免事务提交乱序漏消费。Worker 无需调用 Server。另读 completed 状态事件触发独立 AI 预审，推理不在写事务中；关闭时先停止消费者再断开数据库。
+- Consumer 与 SnapshotService 精确保留使用同一个 `outcome-event-retention.ts` 导出的 `pendingOutcomeEvidenceEventSql`（固定别名 `event`）、`OUTCOME_EVIDENCE_EVENT_SCOPE`。相关事件为 Output 和 completed WorkItem，回执 key 使用 envelope eventId 或 sequence 字符串回退；handler 失败不写回执。helper/prune 分别由 integrator `8c900af7c`、`7cf64f503` 提供，线 2 `a9a74fbb1` 复用并以真实清理/失败重试验证。
 - Output 仅生成 `agent_report` 候选，预审仅生成 `ai_prereview`。原执行 revision 被替换时不迁移这些 Evidence，不写 Review 或自动 PASS。
 - `/reviews` 是人工和 Agent 成果的共同唯一验收入口。人工回执 Evidence 应带真实 criterionId/workItemId、当前 revision 和 `human_confirmed`；本线经共享 transition 更新 submitted/review_pending 人工项。线 4 第 2 波负责接受后原 Agent 子线程的同事务续跑，第一波不宣称已实现此链路。
 - 本线 Review 未满足接受时产生 `outcome.review.required`（`criterionIds/workItemIds`），满足当前 revision 必需条款且没有未完成任务时写 `acceptedAt`、`outcome.accepted`（`revisionId/reviewIds`）并重算状态；运行组首次完成的 review.required 由线 1 产生。
+- 跨线整合必须包含 integrator `d5008544b` 的同 Outcome 锁 Decision/HumanAction 验收阻断（design §25），当前 revision 有效 open/presented Decision 即使无 workItemId 也不能接受；线 2 不提供平行 guard 实现。
 - 客户端列表和详情响应继续直接使用 `OutcomeListPage` / `OutcomeDetail`，无额外响应外壳；本线只增加推理 kind，不修改冻结 Outcome DTO。
