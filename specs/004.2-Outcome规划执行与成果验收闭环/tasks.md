@@ -139,7 +139,15 @@
 ## 阶段 3：Outcome 子线程执行
 
 - [ ] 3.1 增加 Outcome 子线程运行时支持
-  - 状态：TODO
+  - 状态：BLOCKED（实现和定向验证完成；完整数据库既有失败仍阻塞验收，真实 Bot 回放 PENDING）
+  - 实现提交：`ce875ef7f`、`aaed9e362`、`4754659cc`、`e74706d97`
+  - 修改文件：`packages/messaging/src/index.ts`、`request-progress.ts`、`automation-results.ts`；`apps/worker/src/worker.ts`、`test/outcome-thread.integration.test.ts`；computer 精确取消接入见 3.2。
+  - 数据库变化：none
+  - 验证命令：证据文档命令 A、C、D、E、F；五包 typecheck、architecture、workflow。
+  - 验证结果：定向测试通过；首次 canonical worker `161 PASS / 51 SKIP / 14 FAIL`；最终原始全量 `157 PASS / 51 SKIP / 9 FAIL / 1 ERROR`，含 typed-message 启动超时；该文件单次隔离 `4 PASS / 6 FAIL` 恢复原六个 Stop 失败，其余 8 个有名失败与基线一致。dual-flag 对比基线两侧 `83 PASS / 18 FAIL`，名字逐项新增 0；真实租约回放 PENDING。原始计数不混并，详见证据。
+  - 证据文件：[`docs/20261117-子线程运行时验证.md`](docs/20261117-子线程运行时验证.md)、[`docs/acceptance-replay.md`](docs/acceptance-replay.md)
+  - 已知限制：不宣称 CI 全绿；远端 computer 未部署；前台 Stop 隔离的 `subagent/service.ts` 补丁由 integrator 独立交付。
+  - 回滚方式：按证据文档逆依赖顺序撤销线 1 提交，无 schema 回滚。
   - 这一步到底做什么：`WakeInput.outcomeWorkItemId` 写入 InboxEvent payload 和 `Run.outcomeWorkItemId`；`contextScopeForRun` 支持 `outcome`；`REQUEST_SOURCE_BY_ORIGIN` 映射为 `automation`；领取逻辑把 `outcome` 当作后台线程，租约 `outcome:<workItemId>`，每 Bot 上限 2；同一 Bot 桌面操作互斥。
   - 先依赖什么：1.2
   - 开始前先看：design §12.3；`docs/runtime-capability-matrix.md`
@@ -151,7 +159,15 @@
   - 对应设计：§12.3；父 design §45
 
 - [ ] 3.2 实现 `POST /runs` 和 WorkItem 入队调度
-  - 状态：TODO
+  - 状态：BLOCKED（真实入队、服务及精确取消完成；集成负责人已证明本地 HTTP handler 装配，真实 Bot/远端回放 PENDING）
+  - 实现提交：`767663a96`（独立 contracts）、`ce875ef7f`、`aaed9e362`、`4754659cc`、`9ddfd10b1`、`5681c940c`、`5cc33fba0`
+  - 修改文件：`packages/contracts/src/service-protocol.ts`；`packages/messaging/src/outcome-threads.ts`；`apps/server/src/services/outcome-service.ts`、`run-service.ts`；`apps/computer/src/main.ts`、`runtime.ts`、`runtime/tools.ts`；对应路径、服务、shell 停止测试。
+  - 数据库变化：none；复用现有 IdempotencyRecord 保存容量等待意图，不建新队列。
+  - 验证命令：证据文档命令 A、B；五包 typecheck。
+  - 验证结果：服务幂等、容量 2、下一项启动、精确停止及旧 computer 404 定向通过；真实 Task 重绑定竞争 4 项修复前失败/修复后通过；完成根直接 Stop 的 shell 回调、无根意图取消、兄弟项隔离和 6 层历史后代通过。集成负责人报告 `af0c38d88` 本地 routes/revision 11 PASS（含真实 runs/transcript handler），真实 Bot/远端/live API PENDING。
+  - 证据文件：[`docs/20261117-子线程运行时验证.md`](docs/20261117-子线程运行时验证.md)
+  - 已知限制：旧 computer 404 为可重试不完整取消，绝不改用全 Bot 停止；runs 路由和 app-service 装配归线 2，集成证据按来源标注；远端未重建。
+  - 回滚方式：先撤销服务/worker/computer 接入，再撤销 messaging 和 contracts 路径；旧停止路径不变。
   - 这一步到底做什么：从批准 revision 创建 1 个 Agent WorkItem，在同一事务内通过 `enqueueWake` 入队子线程根 Run；超出并发上限时保持 `queued`。
   - 先依赖什么：2.2、3.1
   - 开始前先看：design §12.2、§19.4、§22
@@ -162,8 +178,16 @@
   - 对应需求：需求 3、需求 8、需求 19
   - 对应设计：§12.2、§19.4、§22
 
-- [ ] 3.3 注入 Outcome 执行上下文
-  - 状态：TODO
+- [x] 3.3 注入 Outcome 执行上下文
+  - 状态：DONE
+  - 实现提交：`ce875ef7f`、`4754659cc`、`e74706d97`
+  - 修改文件：`packages/messaging/src/index.ts`、`outcome-threads.ts`；`test/outcome-context.test.ts`、`test/outcome-threads.integration.test.ts`、prompt fixture。
+  - 数据库变化：none
+  - 验证命令：证据文档命令 A；`bun test ./packages/messaging/test/outcome-context.test.ts`
+  - 验证结果：普通/Routine prompt 与精确基线 `5070c6bc9` 快照一致；Outcome 隐藏上下文和输出目录要求通过；新未批准 revision 不替换旧已批准执行快照。
+  - 证据文件：[`docs/20261117-子线程运行时验证.md`](docs/20261117-子线程运行时验证.md)
+  - 已知限制：真实 Bot 回放另记 PENDING；不改变完整数据库测试失败状态。
+  - 回滚方式：撤销对应 prompt/context 与快照提交。
   - 这一步到底做什么：`platformPrompt` 根据 `outcomeWorkItemId` 读取 WorkItem 和批准 revision，作为隐藏上下文注入；执行说明要求输出写入 `outcomes/<outcomeId>/<workItemId>/`。
   - 先依赖什么：3.1
   - 开始前先看：design §23
@@ -175,7 +199,15 @@
   - 对应设计：§23
 
 - [ ] 3.4 实现运行组结算和 Output 记录
-  - 状态：TODO
+  - 状态：BLOCKED（实现和确定性并发回归完成；既有全量失败、真实环境回放仍待关闭）
+  - 实现提交：`ce875ef7f`、`aaed9e362`、`e74706d97`
+  - 修改文件：`packages/messaging/src/automation-results.ts`、`outcome-threads.ts`、`index.ts`、`request-progress.ts`；`apps/worker/src/worker.ts`；messaging、worker、真实 Task 集成测试及并发 barrier fixture。
+  - 数据库变化：none
+  - 验证命令：证据文档命令 A、C、D、E、F。
+  - 验证结果：确定性 shell/子 Agent 回调竞争、幂等 Output/事件、等待状态保留、失败映射、执行顺序反转、100 旧等待项不饥饿、两参数事实结算后周期补齐全部通过；canonical 和双 flag 失败与基线一致。
+  - 证据文件：[`docs/20261117-子线程运行时验证.md`](docs/20261117-子线程运行时验证.md)
+  - 已知限制：两参数结算只处理持久化事实；生产 worker 三个入口均显式注入 runtime，文件扫描/下一项派发由 runtime 或周期恢复完成；不把 Output 自动验收为 PASS。
+  - 回滚方式：先撤销 worker 接入再撤销 messaging 实现；保留既有事实表和第 0 波状态接口。
   - 这一步到底做什么：从 `automation-results.ts` 抽出运行组判断；`settleOutcomeWorkItem` 在 Worker 回合结束处调用，更新 WorkItem 状态、写 Output、重新计算 Outcome，并调度下一个 `queued` WorkItem。
   - 先依赖什么：3.1、3.2
   - 开始前先看：design §12.4、§24；父 design §42.2
@@ -186,8 +218,16 @@
   - 对应需求：需求 4、需求 13、需求 19
   - 对应设计：§12.4、§24
 
-- [ ] 3.5 实现子线程只读记录接口
-  - 状态：TODO
+- [x] 3.5 实现子线程只读记录接口
+  - 状态：DONE（本地服务和 HTTP handler 验证完成；真实远端/live API 回放另记 PENDING）
+  - 实现提交：`ce875ef7f`、`4754659cc`；路由装配由线 2/集成负责人交付，集成验证点 `af0c38d88`、`cb0f8af46`。
+  - 修改文件：`packages/messaging/src/outcome-transcript.ts`、`index.ts`；`apps/server/src/services/outcome-service.ts`、`test/outcome-runs.test.ts`。
+  - 数据库变化：none
+  - 验证命令：证据文档命令 A；`bun test ./apps/server/test/outcome-runs.test.ts`；集成负责人执行 `OUTCOMEGO_TEST_DATABASE_URL=<55438 一次性库> bun test apps/server/test/outcome-routes.test.ts apps/server/test/outcome-revision-transaction.test.ts`。
+  - 验证结果：持久化运行组摘要、分页、内部字段/推理过滤及关联验证定向通过；集成负责人报告 routes/revision 11 PASS / 0 FAIL / 51 assertions，其中 routes 6 PASS 覆盖实际 OutcomeService/messaging 的 runs/transcript Request handler，未启动 HTTP server。
+  - 证据文件：[`docs/20261117-子线程运行时验证.md`](docs/20261117-子线程运行时验证.md)
+  - 已知限制：线 1 不修改 `routes/outcome.ts`；集成验证是负责人提供的证据，不冒充本线独立重跑；真实远端/live API 回放 PENDING，不宣称 CI 全绿。
+  - 回滚方式：撤销 transcript 服务和投影；不删除持久化消息。
   - 先依赖什么：3.4
   - 主要改哪里：`apps/server/src/routes/outcome.ts`、复用现有 transcript 读取
   - 这一步先不做什么：不提供在子线程中发消息的入口。

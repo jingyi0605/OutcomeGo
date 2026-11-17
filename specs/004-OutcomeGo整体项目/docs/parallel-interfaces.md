@@ -108,16 +108,37 @@ enqueueOutcomeTurn(
   input: EnqueueOutcomeTurnInput
 ): Promise<EnqueueOutcomeTurnResult>
 
-settleOutcomeWorkItem(tx: Prisma.TransactionClient, runId: string): Promise<void>
+interface OutcomeThreadRuntime {
+  messaging: AgentMessaging;
+  workspaceRoot?: string;
+}
+settleOutcomeWorkItem(
+  tx: Prisma.TransactionClient,
+  runId: string,
+  runtime?: OutcomeThreadRuntime
+): Promise<void>
+
+dispatchQueuedOutcomeWorkItems(
+  tx: Prisma.TransactionClient,
+  messaging: AgentMessaging,
+  botId: string
+): Promise<void>
 ```
 
-第 0 波 B 只提供签名、JSDoc 和明确异常：
+实现状态（2026-11-17，线 1）：`ce875ef7f` 实现真实入队与结算；`aaed9e362` 修复回调并发、主对话请求归属、最终回合顺序和候选饥饿；`4754659cc` 接入服务与精确取消；`e74706d97` 补齐平台移交和历史批准快照回归；`9ddfd10b1` 预留子 Agent 归属并按不可变尝试取消；`5681c940c` 统一所有取消入口的 WorkItem 事实栅栏并遍历完整历史后代。第 0 波占位异常已移除。详细验证和未放行项见 [子线程运行时验证](../../004.2-Outcome规划执行与成果验收闭环/docs/20261117-子线程运行时验证.md)。
 
-```text
-not implemented: owned by line 1 (004.2 task 3.2/3.4)
-```
+- 入队仍保持冻结的 `reason`、返回联合类型和事务边界；根 `clientId` 为 `outcome-run:<outcomeId>:<revision>:<workItemId>`，续跑必须使用带原因与序号的稳定 ID。只调用 `enqueueWake`，不写主对话可见消息、不传 `interruptedRunId`。同 Bot 的 Outcome 容量 2，独立于 Routine 容量 4。
+- 容量等待内容保存在既有 `IdempotencyRecord`，不是第二个运行状态表：scope 为 `outcome-turn:<workItemId>`、key 为 clientId，`processing` 的 response 为 `{input}`；成功创建 Run 后同事务改为 `completed` 并保存 `{status:"enqueued",runId}`。相同 key 不同内容冲突；相同输入重放同一结果。
+- 记录写入 30 天的 `expiresAt`。本线没有新增清理任务，入队与 drain 不按到期时间丢弃尚未消费的意图；不能把该字段描述为已实现的自动清理。未来清理必须保留待消费意图，终态记录也不能在仍允许旧请求重试时任意删除。
+- 经负责人批准，可选第三参数使用显式依赖注入。**两参数调用只结算持久化事实**，不扫描文件、不立即调度下一项；生产 Worker 的成功结束、失败结束、周期恢复三个调用点全部传 `{messaging,workspaceRoot}`。没有其他生产调用方。周期恢复分页扫描并补齐已完成项的文件输出，再通过 `dispatchQueuedOutcomeWorkItems` 排空可执行意图。不能把两参数调用的成功返回当作完整续跑验收通过。
+- drain 在 `LIMIT 100` 前只选择有 `processing` 意图的 WorkItem，等待 Decision/人工而没有意图的旧项不会挡住新项。跨 Outcome 使用 try-lock，保持 Outcome → WorkItem 锁序。
+- shell/子 Agent 回调在**同一个调用方事务**中，经 `automationContinuationRoute` 取得 Outcome → WorkItem 锁、重新验证来源，并持锁直至完成事实/回执与续跑 Run 一起提交；结算使用相同锁，不能在路由验证后提前提交。最终回合按实际 `startedAt` 优先排序，并排除合并回执，不按入队先后选结果。
+- Outcome 与 Routine 一样不拥有主对话 `requestProgress`，不产生 `request.check` 或普通请求恢复；原有普通/Routine 行为保留。桌面互斥、租约和容量位置见 [运行时能力矩阵](../../004.2-Outcome规划执行与成果验收闭环/docs/runtime-capability-matrix.md)。
+- Outcome `WakeParent` 是当前回合的终止移交：WorkItem 进入 `needs_review`，`AutomationResult` 移交 marker 绑定**当前 Outcome Run ID**；等待主对话空闲、不打断主对话。返回既有 `{woken,run_id,automation_run_ids}`。显式 `recovery` 可恢复原 WorkItem，旧 marker 继续阻止旧 shell/子 Agent 回调复活；同 Bot 新续跑携带 `origin:outcome` 和 `outcomeWorkItemId`。受托子 Agent 保留既有自身 origin，归属由 `Subagent.parentRunId` 追踪。
 
-不能在真实服务中将该异常当作入队成功。线 1 实现时需保持 reason 枚举、并发返回值、clientId 去重、运行组结算以及主对话隔离。调用方事务同时包含 Decision/回执事实和续跑入队；不要先提交 Decision 再另开事务创建 Run。
+调用方事务同时包含 Decision/回执事实和续跑入队；不要先提交 Decision 再另开事务创建 Run。线 2 负责 HTTP runs/transcript 路由和装配，线 1 提供 `OutcomeService.startRun`、`cancel`、`transcript`。构造器为 `(prisma,messaging?,runService?,onRevisionCreated?)`，第四参数在取消事实事务内 `cancelledAt` 更新后调用，与线 2 的 revision hook 保持同位。精确取消使用独立 `POST /v1/bots/:id/background-shells/stop-runs`、`{runIds:string[]}`；旧 computer 404 返回可重试的 `outcome_stop_incomplete`，重复同一取消请求继续尝试物理停止，绝不降级到全 Bot 停止。共享路径单独提交 `767663a96`，无数据库结构变更。
+
+`RunService.cancelOutcomeWorkItems(workItemIds)` 自身先在 Outcome → WorkItem 锁下将**仅传入的未终态 Agent 项**通过 `transitionWorkItem` 置 cancelled 并重算聚合，再取得 Run 快照和执行外部停止。即使根 Run 已完成、或者容量等待项没有 rootRunId，直接 Stop 入口也得到持久化栅栏；终态保持，重复调用无额外转换，不写整个 Outcome 的 cancelledAt。子 Agent 重绑定前在 parent lifecycle 和子行锁下预留，只取消旧尝试/steering 的精确运行 ID；历史尝试可供 404 后重试。遍历由已访问子 Agent 集合终止，没有任意深度上限。前台/global Stop 的选择与接线由 integrator 维护，global 路径应将 Bot 的全部活跃 Agent WorkItem（含 completed root 和无根容量意图）传给该原语；不能从 Run.status 判断是否存在活跃 Outcome 工作。
 
 替身为 `packages/messaging/src/testing/outcome-thread-fake.ts` 的 `OutcomeThreadFake`（从 messaging 导出）：
 
