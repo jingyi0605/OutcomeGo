@@ -28,6 +28,7 @@ import type { Prisma, PrismaClient } from "@outcomego/db";
 import { Effect } from "effect";
 import type { RunService } from "./run-service";
 import { hashRequest, serviceEffect, toJson } from "./service-utils";
+import { lockExploreIdea } from "./explore-state";
 
 import { appendOutcomeEvent, recomputeOutcomeStatus, transitionWorkItem, enqueueOutcomeTurn, readOutcomeTranscript, type AgentMessaging, type ActorRef } from "@outcomego/messaging";
 export type { ActorRef } from "@outcomego/messaging";
@@ -89,17 +90,22 @@ export class OutcomeService {
       this.idempotent("outcome-create", input.clientRequestId, input, async (tx) => {
         const draft = await tx.outcomePlanningDraft.findUnique({ where: { id: input.planId } });
         if (!draft) throw outcomeApiError("planning_draft_not_found", "Planning draft not found");
+        const source = await tx.exploreIdea.findUnique({ where: { planningDraftId: draft.id } });
+        const explore = source ? await lockExploreIdea(tx, source.id) : null;
+        if (explore && (explore.status !== "proposed_for_delivery" || explore.planningDraftId !== draft.id))
+          throw new ApiError(409, "explore_read_only", "This Explore proposal is no longer available for conversion", { currentStatus: explore.status, retryable: false });
         if (draft.status !== "ready" || draft.expiresAt <= new Date())
           throw outcomeApiError("planning_draft_expired", "This planning draft can no longer be used", { currentStatus: draft.status });
         const snapshot = draft.snapshot as unknown as Pick<PlanningDraftView, "goal" | "acceptance" | "boundaries">;
         const budget: OutcomeBudget | null = input.budget ?? null;
         const contract = resolvePlanningSelections(snapshot, input, budget);
         const outcome = await tx.outcome.create({
-          data: { botId: draft.botId, planningDraftId: draft.id, title: input.title.trim(), description: draft.sourceText },
+          data: { botId: draft.botId, planningDraftId: draft.id, title: input.title.trim(), description: draft.sourceText, sourceExploreId: explore?.id ?? null },
         });
         await tx.outcomePlanningDraft.update({ where: { id: draft.id }, data: { status: "consumed" } });
         await this.event(tx, "outcome.created", outcome.id, actor, input.clientRequestId, { title: outcome.title, botId: draft.botId });
         await this.insertRevision(tx, outcome.id, 1, contract, draft.botId, actor, input.clientRequestId, {});
+        if (explore) await tx.exploreIdea.update({ where: { id: explore.id }, data: { status: "converted", proposedOutcomeId: outcome.id } });
         await this.recomputeStatus(tx, outcome.id, actor);
         return this.detail(tx, outcome.id);
       })
@@ -471,6 +477,7 @@ export class OutcomeService {
       : null;
     return {
       id: row.id,
+      sourceExploreId: row.sourceExploreId,
       title: row.title,
       status: row.status,
       botId: row.botId,

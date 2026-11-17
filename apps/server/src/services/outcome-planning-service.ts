@@ -3,7 +3,7 @@ import {
   OUTCOME_LIMITS, OUTCOME_PLANNING_DIMENSIONS, planningOptionId,
   type CreateOutcomePlanInput, type PlanningDraftView, type PlanningOption,
 } from "@outcomego/contracts/outcomes";
-import type { PrismaClient, OutcomePlanningDraft } from "@outcomego/db";
+import type { Prisma, PrismaClient, OutcomePlanningDraft } from "@outcomego/db";
 import type { OutcomeInference } from "./outcome-inference";
 import { outcomeApiError } from "./outcome-service";
 import { outcomeWrite } from "./outcome-write";
@@ -38,6 +38,10 @@ export function parsePlanningGeneration(text: string): Pick<PlanningDraftView, "
   return { ...dimensions, conflicts: questions.map(message => ({ code: "ambiguous_scope", severity: "informational", dimensions: [...OUTCOME_PLANNING_DIMENSIONS], message: message.trim().slice(0, 500) })) };
 }
 
+export interface PreparedOutcomePlan {
+  snapshot: ReturnType<typeof parsePlanningGeneration> | null;
+}
+
 export class OutcomePlanningService {
   constructor(private readonly prisma: PrismaClient, private readonly infer: OutcomeInference) {}
 
@@ -46,34 +50,44 @@ export class OutcomePlanningService {
       throw new ApiError(400, "invalid_request", "A nonempty task description is required");
     const scope = "outcome-plan", key = input.clientRequestId;
     const previous = await this.prisma.idempotencyRecord.findUnique({ where: { scope_key: { scope, key } } });
-    let generated: ReturnType<typeof parsePlanningGeneration> | undefined;
-    let failed = false;
+    let prepared: PreparedOutcomePlan | undefined;
     if (!previous) {
-      const bot = await this.prisma.bot.findUnique({ where: { id: input.context.botId }, select: { name: true } });
-      if (!bot) throw outcomeApiError("bot_not_runnable", "Choose an existing Bot");
-      for (let attempt = 0; attempt < 2; attempt++) {
-        let text: string;
-        try { text = (await this.infer({ kind: "planning", instructions: INSTRUCTIONS, prompt: JSON.stringify({ task: input.sourceText, bot: bot.name }) }, signal)).text; }
-        catch { failed = true; break; }
-        try { generated = parsePlanningGeneration(text); break; }
-        catch { failed = true; }
-      }
+      prepared = await this.prepare(input, signal);
     } else if (previous.requestHash !== hashRequest(input)) {
       throw outcomeApiError("idempotency_conflict", "This request ID was already used for a different request");
     }
-    const view = await outcomeWrite(this.prisma, scope, key, input, async tx => {
-      const empty = { options: [], selectedOptionIds: [], customEntries: [] };
-      const snapshot = generated ?? { goal: empty, acceptance: empty, boundaries: empty, conflicts: [] };
-      const row = await tx.outcomePlanningDraft.create({ data: {
-        botId: input.context.botId, sourceText: input.sourceText.trim(), status: generated ? "ready" : "failed",
-        snapshot: toJson(snapshot), expiresAt: new Date(Date.now() + 24 * 60 * 60_000),
-        ...(!generated && failed ? { error: { code: "planning_generation_failed", retryable: true } } : {}),
-      } });
-      return this.view(row);
-    });
+    const view = await outcomeWrite(this.prisma, scope, key, input, tx => this.persistInTransaction(tx, input, prepared!));
     if (view.status === "failed") throw outcomeApiError("planning_generation_failed", "Planning could not be generated; retry with a new request ID", { retryable: true, planId: view.planId });
     return view;
   });
+
+  /** Generate outside the caller's business transaction; persistence can then be atomic with Explore state. */
+  async prepare(input: CreateOutcomePlanInput, signal?: AbortSignal): Promise<PreparedOutcomePlan> {
+    if (!input.sourceText.trim() || input.sourceText.length > OUTCOME_LIMITS.sourceTextChars)
+      throw new ApiError(400, "invalid_request", "A nonempty task description is required");
+    const bot = await this.prisma.bot.findUnique({ where: { id: input.context.botId }, select: { name: true } });
+    if (!bot) throw outcomeApiError("bot_not_runnable", "Choose an existing Bot");
+    for (let attempt = 0; attempt < 2; attempt++) {
+      let text: string;
+      try { text = (await this.infer({ kind: "planning", instructions: INSTRUCTIONS, prompt: JSON.stringify({ task: input.sourceText, bot: bot.name }) }, signal)).text; }
+      catch { break; }
+      try { return { snapshot: parsePlanningGeneration(text) }; }
+      catch { /* Retry malformed model JSON once, preserving the existing planning contract. */ }
+    }
+    return { snapshot: null };
+  }
+
+  /** The caller owns transaction/idempotency; this method never invokes the model or opens a transaction. */
+  async persistInTransaction(tx: Prisma.TransactionClient, input: CreateOutcomePlanInput, prepared: PreparedOutcomePlan): Promise<PlanningDraftView> {
+    const empty = { options: [], selectedOptionIds: [], customEntries: [] };
+    const row = await tx.outcomePlanningDraft.create({ data: {
+      botId: input.context.botId, sourceText: input.sourceText.trim(), status: prepared.snapshot ? "ready" : "failed",
+      snapshot: toJson(prepared.snapshot ?? { goal: empty, acceptance: empty, boundaries: empty, conflicts: [] }),
+      expiresAt: new Date(Date.now() + 24 * 60 * 60_000),
+      ...(!prepared.snapshot ? { error: { code: "planning_generation_failed", retryable: true } } : {}),
+    } });
+    return this.view(row);
+  }
 
   get = (planId: string) => serviceEffect(async () => {
     const row = await this.prisma.outcomePlanningDraft.findUnique({ where: { id: planId } });
@@ -83,7 +97,7 @@ export class OutcomePlanningService {
 
   pruneExpired = () => this.prisma.outcomePlanningDraft.deleteMany({ where: { expiresAt: { lte: new Date() } } });
 
-  private view(row: OutcomePlanningDraft): PlanningDraftView {
+  view(row: OutcomePlanningDraft): PlanningDraftView {
     return { ...(row.snapshot as unknown as Pick<PlanningDraftView, "goal" | "acceptance" | "boundaries" | "conflicts">),
       planId: row.id, sourceText: row.sourceText, botId: row.botId,
       status: row.expiresAt <= new Date() ? "expired" : row.status,
