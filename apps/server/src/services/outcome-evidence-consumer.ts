@@ -2,6 +2,7 @@ import { Prisma, type PrismaClient, type Event } from "@outcomego/db";
 import type { EventWakeup } from "../event-wakeup";
 import type { OutcomeReviewService } from "./outcome-review-service";
 import { outcomeWrite } from "./outcome-write";
+import { OUTCOME_EVIDENCE_EVENT_SCOPE, pendingOutcomeEvidenceEventSql } from "./outcome-event-retention";
 
 /** Durable receipts are the processing authority: sequence allocation does not imply commit ordering. */
 export class OutcomeEvidenceConsumer {
@@ -24,15 +25,10 @@ export class OutcomeEvidenceConsumer {
   }
 
   async drain(signal?: AbortSignal): Promise<number> {
-    const scope = "outcome-event:output-evidence";
+    const scope = OUTCOME_EVIDENCE_EVENT_SCOPE;
     const events = await this.prisma.$queryRaw<Event[]>(Prisma.sql`
       SELECT event.* FROM "outcomego_event" AS event
-      WHERE event."topic" IN ('outcome.output.recorded', 'outcome.work_item.updated')
-        AND NOT EXISTS (
-          SELECT 1 FROM "outcomego_idempotency_record" AS receipt
-          WHERE receipt."scope" = ${scope}
-            AND receipt."key" = coalesce(event."payload"->>'eventId', event."sequence"::text)
-        )
+      WHERE ${pendingOutcomeEvidenceEventSql}
       ORDER BY event."sequence" ASC LIMIT 100
     `);
     let processed = 0;
