@@ -1,0 +1,15 @@
+$ bun --no-install scripts/migration/validate-outcomego-backup.ts --input '/Users/jackson/Code/openteam-spec004-worktrees/l5b-ops/specs/004.5-运行时恢复与版本验收/docs/20261117-l5b-evidence/.l5b-checks-7x3nlxgc/backup-wrong-hash.json'
+exit=1
+166 |   const root = assertObject(value, "backup");
+167 |   const manifest = validateManifest(root.manifest);
+168 |   const tables = validateTables(root.tables);
+169 |   const calculatedHash = sha256(canonicalJson(tables));
+170 |   if (manifest.dataSha256 !== calculatedHash) {
+171 |     throw new Error(
+                    ^
+error: backup.manifest.dataSha256 does not match tables: expected 919052b590d7d6a1ad18e20527d28b03be7779aa7eb3f0f8306da993e726c15f, received 0000000000000000000000000000000000000000000000000000000000000000
+      at validateBackupObject (/Users/jackson/Code/openteam-spec004-worktrees/l5b-ops/scripts/migration/validate-outcomego-backup.ts:171:15)
+      at validateOutcomegoBackup (/Users/jackson/Code/openteam-spec004-worktrees/l5b-ops/scripts/migration/validate-outcomego-backup.ts:209:18)
+      at <anonymous> (/Users/jackson/Code/openteam-spec004-worktrees/l5b-ops/scripts/migration/validate-outcomego-backup.ts:218:10)
+
+Bun v1.4.4 (macOS arm64)

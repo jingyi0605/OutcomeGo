@@ -1,0 +1,19 @@
+{
+  "sourceCommit": "5070c6bc9c564cc2c0b982a25393860bcd82c774",
+  "rootVersion": "0.1.0-beta.19",
+  "schemaFingerprint": "7937b6f1f8aec63f98a3f0dbbbde72684b5d00f79c1c69eb058bc2811f0fd158",
+  "system": "Darwin",
+  "machine": "arm64",
+  "tools": {
+    "bun": "/Users/jackson/.bun/bin/bun",
+    "docker": "/usr/local/bin/docker",
+    "adb": "/opt/homebrew/bin/adb",
+    "cosign": null,
+    "openssl": "/usr/bin/openssl",
+    "python3": "/usr/local/bin/python3"
+  },
+  "nodeModulesPresent": false,
+  "dotenvPresent": false,
+  "externalServicesContacted": false,
+  "serversStarted": false
+}

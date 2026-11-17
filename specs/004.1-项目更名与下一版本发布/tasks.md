@@ -13,6 +13,8 @@ OutcomeGo 名称已经随 `v0.1.0-beta.14`（2026-11-12）公开发布，此后�
 
 已知 PENDING 项：3.1、3.2、6.1、6.3 的回滚演练部分、7.2 的跨平台旧资产混用负例、8.3、9.7。
 
+第 1 波线 5B 复核（2026-11-17）：上述遗留项已逐条登记到 [`004.5` 发布验收矩阵](../004.5-运行时恢复与版本验收/docs/release-acceptance-matrix.md)。本轮完成可执行离线检查与证据记录，真实新安装、导入、设备更新和两种回退均未获得隔离环境执行授权，继续 PENDING。备份校验发现三个实际 FAIL（未知表、缺少引用目标表、Outcome 孤儿引用被接受），不得依据校验成功推进真实导入；既有发布 DONE 和第 0 波门槛不变。
+
 ## 范围变更记录
 
 2026 年 11 月 12 日，负责人确认改为全量内部重命名：不要求旧安装平滑升级，新实例直接从包含全部最新字段的单一 schema 初始化；用户如需保留数据，采用“手动备份、校验、导入新实例”的外部运行方式。仓库不转换旧数据库字段或旧表名。原有 1.x–8.x 任务中的兼容保留项不再是最终验收条件；已完成的品牌预发布证据保留为历史记录，新全量迁移由阶段 9 负责。
@@ -154,6 +156,7 @@ OutcomeGo 名称已经随 `v0.1.0-beta.14`（2026-11-12）公开发布，此后�
 
 - [ ] 3.1 验收 OutcomeGo 新安装和手动备份导入
   - 状态：PENDING（已知限制，移交 `004.5` 任务 3.2 复核）
+  - 线 5B 证据（2026-11-17）：`../004.5-运行时恢复与版本验收/docs/release-acceptance-matrix.md` A1–A3、B1–B5；既有 validator 5 PASS，合成源文件校验前后 SHA-256 不变；F1–F3 是实际 FAIL。缺少指定候选/隔离新实例/测试账号、脱敏最新备份与导入运行手册，以及安装、启动和导入授权，真实验收保持 PENDING。
   - 原因：旧版原地升级不在范围内；新安装和最新 schema 备份导入由负责人在隔离环境验收。截至 2026-11-17 没有隔离环境新安装和手动导入的记录；CI `database-fresh-schema` job 只证明空库初始化。
   - 先依赖什么：2.2
   - 开始前先看：`docs/upgrade-matrix.md`
@@ -166,6 +169,7 @@ OutcomeGo 名称已经随 `v0.1.0-beta.14`（2026-11-12）公开发布，此后�
 
 - [ ] 3.2 执行签名、更新和回滚验证
   - 状态：PENDING（已知限制，移交 `004.5` 任务 3.2 复核）
+  - 线 5B 证据（2026-11-17）：同矩阵 C1–C6、D1/D2、E2；CLI 历史 fixture 载荷原语验签和 Android beta.14 fixture 验签/五类改动拒绝有证据，Desktop/共享更新 22 PASS。完整 CLI Sigstore/TUF/透明日志、实际 APK/桌面安装更新仍 PENDING；缺少已锁定依赖、实际候选/更新基线、指定设备/隔离目录及更新/回退授权。
   - 原因：签名和更新清单已随 beta.14–beta.19 发布（CLI Sigstore bundle、Android `android-update.json`、Desktop `latest*.yml`）；但设备上的在线更新、错误签名拒绝和回滚到旧资产没有真实演练记录。
   - 先依赖什么：3.1
   - 开始前先看：`.github/RELEASING.md`、`scripts/android/release-gate.sh`、更新测试
@@ -282,6 +286,7 @@ OutcomeGo 名称已经随 `v0.1.0-beta.14`（2026-11-12）公开发布，此后�
 
 - [ ] 6.1 完成 Desktop/CLI/server 新安装矩阵
   - 状态：PENDING（已知限制，移交 `004.5` 任务 3.2 复核）
+  - 线 5B 证据（2026-11-17）：同矩阵 A1/A2、B5；CLI 配置隔离重试 7 PASS，不代表服务可登录或 Bot/Routine 成功。缺少候选及镜像 digest、隔离目录/数据库/volume、测试账号和服务启动授权，继续 PENDING。
   - 原因：需要候选资产和隔离环境验证真实新安装及手动备份导入；模板见 `docs/upgrade-matrix.md`。
   - 先依赖什么：5.1、5.2、5.3
   - 主要改哪里：`docs/upgrade-matrix.md`、隔离环境 fixture。
@@ -305,6 +310,7 @@ OutcomeGo 名称已经随 `v0.1.0-beta.14`（2026-11-12）公开发布，此后�
 
 - [ ] 6.3 执行候选发布和回滚演练
   - 状态：PENDING（候选发布部分已完成；回滚演练为已知限制，移交 `004.5` 任务 3.2）
+  - 线 5B 证据（2026-11-17）：同矩阵 E1–E3 和 `docs/release-decision.md` 线 5B 补充；认可 marker 的指纹变化会走 `db push`，旧导入说明“一律拒绝”不能作为回退证据。入口关闭和旧镜像实际回放都未执行；缺少集成候选、明确关闭操作、旧/新 digest、含数据的可丢弃库和备份、状态变更授权。
   - 回填（2026-11-17）：候选发布已由 beta.14–beta.19 正式 Release 覆盖；beta.17、beta.19 的 Release workflow 失败后修复重跑成功，失败中止路径有真实记录。旧资产恢复和新入口关闭仍未演练。
   - 历史记录：beta.14 Android/macOS 有本地签名包，Android update-manifest 私钥已就绪；Windows 按 beta.13 方式发布未签名安装包；iOS 延期，正式发布尚未执行，须推送后由 CI 构建完整候选集。模板见 `docs/release-decision.md`、`docs/signing-builds.md`。
   - 先依赖什么：6.1、6.2
@@ -344,6 +350,7 @@ OutcomeGo 名称已经随 `v0.1.0-beta.14`（2026-11-12）公开发布，此后�
 
 - [ ] 7.2 执行错误版本/错误签名负例
   - 状态：PENDING（本地负例通过；跨平台旧资产混用负例为已知限制，移交 `004.5` 任务 3.2）
+  - 线 5B 证据（2026-11-17）：同矩阵 C1/C3、D1/D2；本地 beta.19 对 beta.13 错误 tag 预期退出 1，CLI/Android fixture 的 tag/repository/hash 改动拒绝；原语结果不代表完整 Sigstore。真实跨平台混用缺少两组候选、错误来源 fixture、隔离更新环境及授权，仍 PENDING。
   - 原因：在清除全部代理环境变量后，CLI 完整测试 756 项全部通过，包含历史仓库签名与仓库/tag/hash 绑定负例。Android 错误 hash、错误 tag、错误 certificate 静态负例已覆盖；真实 manifest 签名已用新 updater 私钥对 beta.14 APK 完成签署并通过公钥验证。剩余：候选资产齐备后的跨平台旧资产混用负例与 CI runner 验证。
   - 先依赖什么：7.1
   - 这一步到底做什么：验证 updater、CLI、Android manifest 和 Release workflow 会拒绝错误来源。
@@ -406,6 +413,7 @@ OutcomeGo 名称已经随 `v0.1.0-beta.14`（2026-11-12）公开发布，此后�
 
 - [ ] 8.3 记录名称可用性核查
   - 状态：PENDING（已知限制，不阻塞产品开发）
+  - 线 5B 范围核对（2026-11-17）：同矩阵“004.1 PENDING 逐项结论”；名称实时核查不在本线执行范围，未查询 npm/域名/商店/商标，保留 PENDING，由名称负责人提供核查范围与证据。
   - 原因：GitHub 仓库 slug 和当前公开仓库信息已由 GitHub API 核验；npm scope、域名完整范围、应用商店账号和商标仍未核验，故整体保留 PENDING。详情见 `docs/name-availability.md`。
   - 先依赖什么：无
   - 主要改哪里：`docs/name-availability.md`
@@ -457,6 +465,7 @@ OutcomeGo 名称已经随 `v0.1.0-beta.14`（2026-11-12）公开发布，此后�
 
 - [ ] 9.7 执行全量新安装和备份导入验收
   - 状态：PENDING（已知限制，移交 `004.5` 任务 3.2 复核）
+  - 线 5B 证据（2026-11-17）：同矩阵 B1–B5；九次合成文件校验前后 hash 全部相同，包含失败文件原样再次校验；这不是导入失败后的恢复。真实导入仍缺脱敏当前备份、source commit/schema 指纹、独立数据库/导入手册和故障注入/重建授权；F1–F3 先交数据库/备份脚本负责人处理。
   - 原因：新 PostgreSQL schema 测试、手动备份导入和设备验收由负责人在隔离环境执行；旧安装和旧数据库转换不属于待办范围。
   - 依赖：9.3–9.6
   - 证据：`docs/full-rename-import-rehearsal.md`

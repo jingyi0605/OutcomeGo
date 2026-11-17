@@ -1,0 +1,74 @@
+[
+  {
+    "case": "valid",
+    "beforeSha256": "035661ef6eaeda4ad9ac0e989cbb7df9404e60ec423784c67927e43d64a76fc1",
+    "afterSha256": "035661ef6eaeda4ad9ac0e989cbb7df9404e60ec423784c67927e43d64a76fc1",
+    "sourceUnchanged": true,
+    "exit": 0,
+    "expectedExit": 0
+  },
+  {
+    "case": "wrong-hash",
+    "beforeSha256": "820bed947711b084f0a8ab857c47358ef02b255f61f568093d678f9e747cae45",
+    "afterSha256": "820bed947711b084f0a8ab857c47358ef02b255f61f568093d678f9e747cae45",
+    "sourceUnchanged": true,
+    "exit": 1,
+    "expectedExit": 1
+  },
+  {
+    "case": "wrong-hash-retry",
+    "beforeSha256": "820bed947711b084f0a8ab857c47358ef02b255f61f568093d678f9e747cae45",
+    "afterSha256": "820bed947711b084f0a8ab857c47358ef02b255f61f568093d678f9e747cae45",
+    "sourceUnchanged": true,
+    "exit": 1,
+    "expectedExit": 1
+  },
+  {
+    "case": "legacy",
+    "beforeSha256": "49f687e039e3efe7522bfd4c8eafa7f72245dd36e06ce38466fd60e7b208b3b3",
+    "afterSha256": "49f687e039e3efe7522bfd4c8eafa7f72245dd36e06ce38466fd60e7b208b3b3",
+    "sourceUnchanged": true,
+    "exit": 1,
+    "expectedExit": 1
+  },
+  {
+    "case": "wrong-row-count",
+    "beforeSha256": "bd730269c6f23b537e2c6d4bbbb15b164ad0896274d6606f16fdc983a6a6f3a3",
+    "afterSha256": "bd730269c6f23b537e2c6d4bbbb15b164ad0896274d6606f16fdc983a6a6f3a3",
+    "sourceUnchanged": true,
+    "exit": 1,
+    "expectedExit": 1
+  },
+  {
+    "case": "broken-reference",
+    "beforeSha256": "8cb8bd1d854e5f3bbc609bc7e435eeafc3b074d51eec94b2d339991f7ae8ec5e",
+    "afterSha256": "8cb8bd1d854e5f3bbc609bc7e435eeafc3b074d51eec94b2d339991f7ae8ec5e",
+    "sourceUnchanged": true,
+    "exit": 1,
+    "expectedExit": 1
+  },
+  {
+    "case": "missing-reference-table",
+    "beforeSha256": "ddc8d19281e125647b418ecfc088b9d4db2ff79bc775f42ca09ccdcec3ae35d4",
+    "afterSha256": "ddc8d19281e125647b418ecfc088b9d4db2ff79bc775f42ca09ccdcec3ae35d4",
+    "sourceUnchanged": true,
+    "exit": 0,
+    "expectedExit": 1
+  },
+  {
+    "case": "unknown-table",
+    "beforeSha256": "900ac809d870b0c5bd3ad11b3dd18a6a0463d5fea044d0332543d1163f964829",
+    "afterSha256": "900ac809d870b0c5bd3ad11b3dd18a6a0463d5fea044d0332543d1163f964829",
+    "sourceUnchanged": true,
+    "exit": 0,
+    "expectedExit": 1
+  },
+  {
+    "case": "outcome-orphan",
+    "beforeSha256": "3b0f3bd0451f43a0c30b76b57c9852cdcc74a9fff75f88d5192e68f66402a0cd",
+    "afterSha256": "3b0f3bd0451f43a0c30b76b57c9852cdcc74a9fff75f88d5192e68f66402a0cd",
+    "sourceUnchanged": true,
+    "exit": 0,
+    "expectedExit": 1
+  }
+]

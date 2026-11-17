@@ -1,0 +1,6 @@
+$ bun --no-install scripts/migration/validate-outcomego-backup.ts --input '/Users/jackson/Code/openteam-spec004-worktrees/l5b-ops/specs/004.5-运行时恢复与版本验收/docs/20261117-l5b-evidence/.l5b-checks-7x3nlxgc/backup-outcome-orphan.json'
+exit=0
+Validated latest OutcomeGo backup at /Users/jackson/Code/openteam-spec004-worktrees/l5b-ops/specs/004.5-运行时恢复与版本验收/docs/20261117-l5b-evidence/.l5b-checks-7x3nlxgc/backup-outcome-orphan.json
+Schema: outcomego-v1
+Data SHA-256: 558d2da377c6ff1035ed34e5d3a717aca50b2c2904de4c5148e19332129e16ec
+Rows: {"outcomego_outcome":0,"outcomego_outcome_work_item":1}

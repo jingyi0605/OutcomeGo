@@ -1,0 +1,12 @@
+复核日期：2026-11-17
+工作树：/Users/jackson/Code/openteam-spec004-worktrees/l5b-ops
+PASS 既有文件改动限于授权的四个文档
+PASS 004.5 tasks.md 的任务3.2以外字节保持不变
+PASS 基线保持不变 specs/004-OutcomeGo整体项目/docs/test-failure-baseline.md SHA-256 55b6af09fd1cad4582333d2609ed43124c70ea53dd2ea5ac3c338dd89ae7463b
+PASS 基线保持不变 .github/workflows/ci.yml SHA-256 07b64ed2380efd86cbe45c4fb133cad435a05cd688ee609aab30e56d43bcb886
+PASS 授权文档全部本地相对链接可解析
+PASS 证据目录无临时目录/凭据文件，私钥/token模式扫描未命中
+PASS 全部命令结果均有关联原始日志，PASS与预期退出码一致
+PASS 九次合成备份完整文件SHA-256前后一致，失败hash样本原样重试
+PASS 本线证据脚本Python语法检查，无生成pycache
+PASS git diff --check

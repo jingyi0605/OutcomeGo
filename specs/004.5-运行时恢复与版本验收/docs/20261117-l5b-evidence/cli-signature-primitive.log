@@ -1,0 +1,26 @@
+$ bun --no-install --tsconfig-override '/Users/jackson/Code/openteam-spec004-worktrees/l5b-ops/specs/004.5-运行时恢复与版本验收/docs/20261117-l5b-evidence/.l5b-checks-7x3nlxgc/tsconfig.json' -e '
+import { verify } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { LOCAL_RELEASE_PUBLIC_KEY, localReleaseSigningPayload } from "./apps/cli/src/release-signing-key";
+import { DEFAULT_REPOSITORY } from "./apps/cli/src/constants";
+const artifact = readFileSync("./apps/cli/test/fixtures/local-release-artifact.txt");
+const bundle = JSON.parse(readFileSync("./apps/cli/test/fixtures/local-release-artifact.txt.sigstore.json", "utf8"));
+const signature = Buffer.from(bundle.messageSignature.signature, "base64");
+for (const [name, repository, version, bytes, expected] of [
+  ["historical-valid", "raghavpillai/openteam", "0.0.0", artifact, true],
+  ["wrong-repository", "attacker/repo", "0.0.0", artifact, false],
+  ["wrong-tag", "raghavpillai/openteam", "0.0.1", artifact, false],
+  ["wrong-hash", "raghavpillai/openteam", "0.0.0", Buffer.concat([artifact, Buffer.from("tampered")]), false],
+  ["renamed-repository", DEFAULT_REPOSITORY, "0.0.0", artifact, false],
+]) {
+  const accepted = verify("sha256", localReleaseSigningPayload(repository, version, bytes), LOCAL_RELEASE_PUBLIC_KEY, signature);
+  console.log(JSON.stringify({name, expected, accepted}));
+  if (accepted !== expected) process.exit(1);
+}
+'
+exit=0
+{"name":"historical-valid","expected":true,"accepted":true}
+{"name":"wrong-repository","expected":false,"accepted":false}
+{"name":"wrong-tag","expected":false,"accepted":false}
+{"name":"wrong-hash","expected":false,"accepted":false}
+{"name":"renamed-repository","expected":false,"accepted":false}

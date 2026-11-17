@@ -100,7 +100,16 @@
   - 对应设计：§34、§35
 
 - [ ] 3.2 复核 `004.1` 已知 PENDING 项和跨客户端矩阵
-  - 状态：TODO
+  - 状态：IN_PROGRESS（004.1 遗留项部分已完成：逐项复核与可执行离线证据已归档；真实验收仍有 FAIL/PENDING，跨客户端 Outcome 回归留第 3 波）
+  - 第 1 波线 5B 记录（2026-11-17）：[发布验收矩阵](docs/release-acceptance-matrix.md) 已覆盖新安装、校验/导入、签名/更新、错误来源和两种回退，并逐项回写 `004.1` PENDING；本任务不勾选完成。
+  - 实现提交：无产品实现提交；核验代码基线为 `5070c6bc9c564cc2c0b982a25393860bcd82c774`，本线文档/证据提交可用 `git log -1 -- specs/004.5-运行时恢复与版本验收/docs/release-acceptance-matrix.md` 查询。
+  - 修改文件：本任务前半证据块、`docs/release-acceptance-matrix.md`、`docs/20261117-l5b-evidence/`、`004.1/tasks.md` 的遗留项证据和 `004.1/docs/release-decision.md` 的复核补充。
+  - 数据库变化：none；未连接数据库或启动服务。
+  - 验证命令：`python3 specs/004.5-运行时恢复与版本验收/docs/20261117-l5b-evidence/run-checks.py`；内部逐条执行 `bun --no-install` 的版本/workflow/备份测试与校验器、精确本地 export 映射的 Desktop/CLI 配置测试、Android 静态/contract/公钥签名检查和 iOS native config；详见 `results.json`。
+  - 验证结果：既有备份测试 5 PASS；Desktop/共享更新 22 PASS；CLI 配置首次 6 PASS/1 超时、相同默认参数隔离重试 7 PASS；CLI/Android fixture 原语签名绑定和错误来源离线负例符合预期。三个不合法备份被校验器接受，记 FAIL；完整 CLI Sigstore/更新安全测试缺依赖，真实安装/导入/设备更新/回退缺隔离环境及执行授权，记 PENDING。采集脚本退出 0 不代表验收 PASS，必须读取逐项结果。
+  - 证据文件：`docs/20261117-l5b-evidence/results.json`、`backup-hashes.json`、`synthetic-backups.json`、`source-hashes.json` 和各命令 `*.log`。
+  - 已知限制：未知表名、缺失引用目标表、Outcome 孤儿引用由数据库/备份脚本负责人处理；一次文件写入超时保留原始失败，不宣称修复；`004.1` 旧指纹拒绝说明与当前 `db push` 行为有偏差。第 0 波 CI/完整数据库失败门槛和父任务 1.3 PENDING 未改；Outcome 跨端回归未执行。
+  - 回滚方式：仅撤销本线文档/证据提交。产品正式回退仍按设计关闭 Outcome 入口、保留新镜像/新表；关闭入口与旧镜像实际回放均 PENDING。
   - 先依赖什么：前半部分：父任务 1.2 和 `004.1` 发布资产/手动备份 fixture（第 1 波线 5B，可在第 0 波先行）；跨客户端 Outcome 矩阵：`004.2` 6.1、6.2，`004.3` 3.1–3.3，`004.4` 3.3、3.4。
   - 这一步到底做什么：在隔离环境执行 OutcomeGo 新安装、手动备份导入、回滚演练（关闭入口 vs 回退镜像）、跨平台旧资产混用负例；Desktop/Android/iOS 的深链、通知、登录和 Outcome/普通聊天回归。
   - 主要改哪里：`docs/release-acceptance-matrix.md`

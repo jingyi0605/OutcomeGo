@@ -1,0 +1,16 @@
+$ bun --no-install scripts/migration/validate-outcomego-backup.ts --input '/Users/jackson/Code/openteam-spec004-worktrees/l5b-ops/specs/004.5-运行时恢复与版本验收/docs/20261117-l5b-evidence/.l5b-checks-7x3nlxgc/backup-legacy.json'
+exit=1
+69 | };
+70 |
+71 | const validateManifest = (value: unknown): OutcomeGoBackup["manifest"] => {
+72 |   const manifest = assertObject(value, "backup.manifest");
+73 |   if (manifest.format !== OUTCOMEGO_BACKUP_FORMAT) {
+74 |     throw new Error(`backup.manifest.format must be ${OUTCOMEGO_BACKUP_FORMAT}`);
+                   ^
+error: backup.manifest.format must be outcomego-backup/v1
+      at validateManifest (/Users/jackson/Code/openteam-spec004-worktrees/l5b-ops/scripts/migration/validate-outcomego-backup.ts:74:15)
+      at validateBackupObject (/Users/jackson/Code/openteam-spec004-worktrees/l5b-ops/scripts/migration/validate-outcomego-backup.ts:167:20)
+      at validateOutcomegoBackup (/Users/jackson/Code/openteam-spec004-worktrees/l5b-ops/scripts/migration/validate-outcomego-backup.ts:209:18)
+      at <anonymous> (/Users/jackson/Code/openteam-spec004-worktrees/l5b-ops/scripts/migration/validate-outcomego-backup.ts:218:10)
+
+Bun v1.4.4 (macOS arm64)

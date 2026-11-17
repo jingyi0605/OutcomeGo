@@ -1,0 +1,24 @@
+$ bun --no-install test apps/desktop/test/update-status.test.ts apps/desktop/test/server-update-cache.test.ts
+exit=1
+bun test v1.4.4 (38afee6c8)
+
+apps/desktop/test/update-status.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+error: Cannot find module '@outcomego/contracts/version-compatibility' from '/Users/jackson/Code/openteam-spec004-worktrees/l5b-ops/apps/desktop/src/main/update-status.ts'
+-------------------------------
+
+
+apps/desktop/test/server-update-cache.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+error: Cannot find module '@outcomego/contracts/version-compatibility' from '/Users/jackson/Code/openteam-spec004-worktrees/l5b-ops/apps/desktop/src/renderer/lib/server-update-cache.ts'
+-------------------------------
+
+
+ 0 pass
+ 2 fail
+ 2 errors
+Ran 2 tests across 2 files. [99.00ms]
