@@ -1,6 +1,6 @@
 # 任务清单 - 运行时恢复与版本验收（人话版）
 
-状态：TODO（运维验证可先行；恢复在 `004.2` 3.2/3.4 合入后进入第 2 波；第 3 波回归和最终回放）
+状态：IN_PROGRESS（第 2 波恢复代码已交接；全部代码合入后统一执行数据库、生命周期和跨阶段验证，最终验收未通过）
 
 关联文档：[README.md](README.md) · [requirements.md](requirements.md) · [design.md](design.md)
 
@@ -12,8 +12,16 @@
 
 ## 阶段 0：运行时能力审计
 
-- [ ] 0.1 盘点恢复相关设施
-  - 状态：TODO
+- [x] 0.1 盘点恢复相关设施
+  - 状态：DONE（2026-11-17，源码审计完成；不表示运行回放通过）
+  - 实现提交：`6aae513e6`、`ee85a7977`；审计文档提交由 `git log -1 -- docs/runtime-recovery-matrix.md` 查询。
+  - 修改文件：`docs/runtime-recovery-matrix.md`、`docs/20261117-恢复运行时实现与验证记录.md`。
+  - 数据库变化：本审计无；任务 1.1 单独添加两个计数列。
+  - 验证命令：源码和冻结接口逐项审查；`git diff --check`。
+  - 验证结果：D17 成立，design §27 每个故障点均已关联代码或所属线入口；数据库回放 PENDING。
+  - 证据文件：[能力矩阵](docs/runtime-recovery-matrix.md)、[实现与验证](docs/20261117-恢复运行时实现与验证记录.md)。
+  - 已知限制：没有执行完整 Worker/Routine 回归，未产生外部验收 PASS。
+  - 回滚方式：撤销审计文档提交；不改运行数据。
   - 这一步到底做什么：确认 `startup-recovery.ts`、`BotRunLease`、Routine 运行组恢复、`IdempotencyRecord` 和 `004.2` 子线程结算的真实行为，确认 D17 是否成立。
   - 做完你能看到什么：`docs/runtime-recovery-matrix.md`。
   - 先依赖什么：第 0 波 B、`004.2` 任务 3.2、3.4（第 2 波线 6，不等待最终检查点）。
@@ -28,7 +36,14 @@
 ## 阶段 1：子线程恢复
 
 - [ ] 1.1 增加 WorkItem 恢复字段和恢复视图
-  - 状态：TODO
+  - 状态：IN_PROGRESS（代码完成，统一数据库部署与完整类型验证待集成）
+  - 实现提交：`943bbebca`、`8fa19b037`；服务映射 `6aae513e6`、`ee85a7977`。
+  - 修改文件：`packages/db/prisma/schema.prisma`、`packages/contracts/src/outcome-runtime.ts`、contracts 导出、`outcome-recovery-service.ts`。
+  - 数据库变化：仅 `OutcomeWorkItem.retryCount/recoveryCount Int @default(0)`；无检查点表和迁移目录。
+  - 验证命令/结果：Prisma generate 成功；新增合同/路由合计 4 PASS、21 断言；8 个变更文件语义诊断为 0。数据库部署和整包 typecheck PENDING。
+  - 证据文件：[实现与验证](docs/20261117-恢复运行时实现与验证记录.md)。
+  - 已知限制：未将生成成功描述为数据库部署成功。
+  - 回滚方式：撤销本线实现提交，保留已落库列和审计数据。
   - 先依赖什么：0.1
   - 主要改哪里：`packages/db/prisma/schema.prisma`（`OutcomeWorkItem.retryCount`、`recoveryCount`）、`packages/contracts/src/outcome-runtime.ts`（`OutcomeRecoveryView`）
   - 这一步先不做什么：不新建 checkpoint 表；不写入 `Run.requestProgress`。
@@ -38,7 +53,14 @@
   - 对应设计：§1、§8
 
 - [ ] 1.2 接入启动恢复
-  - 状态：TODO
+  - 状态：IN_PROGRESS（真实启动/周期代码完成，数据库与生命周期验证待集成）
+  - 实现提交：`6aae513e6`、`ee85a7977`；测试 `d4275f9c8`。
+  - 修改文件：`startup-recovery.ts`、Worker 恢复/心跳/claim 区块、共享 `outcome-recovery.ts`、`outcome-threads.ts`、三个数据库测试文件。
+  - 数据库变化：复用任务 1.1 两列，无其他变化。
+  - 验证命令/结果：精确变更文件语义诊断 0；20 项新增数据库/生命周期案例尚未执行，按要求等待全部代码集成。
+  - 证据文件：[能力矩阵](docs/runtime-recovery-matrix.md)、[实现与验证](docs/20261117-恢复运行时实现与验证记录.md)。
+  - 已知限制：共享 Decision 构造与 pending-only revision 谓词必须同步集成线 3 原始依赖。
+  - 回滚方式：先关闭新 Outcome 派发，保留运行组和事实；逆序撤销本线代码提交。
   - 先依赖什么：1.1、`004.2` 任务 3.2、3.4；依照冻结接口恢复同一子线程。
   - 主要改哪里：`apps/server/src/services/startup-recovery.ts`、`apps/server/src/services/outcome-recovery-service.ts`（新增）、`packages/messaging/src/outcome-threads.ts`
   - 这一步先不做什么：不盲目重跑所有 `running` 的 WorkItem；不触碰主对话租约。
@@ -48,7 +70,14 @@
   - 对应设计：§12、§17、§32
 
 - [ ] 1.3 实现恢复查询和 reconcile
-  - 状态：TODO
+  - 状态：IN_PROGRESS（服务实现完成，公共路由由 integrator 统一装配）
+  - 实现提交：`6aae513e6`、`ee85a7977`。
+  - 修改文件：新增 `apps/server/src/services/outcome-recovery-service.ts`；公共 `routes/outcome.ts` 留集成者。
+  - 数据库变化：none。
+  - 验证命令/结果：聚焦语义诊断 0；幂等对账、真实 startup、脱敏数据库案例已增加，未运行。
+  - 证据文件：[集成接口与验证记录](docs/20261117-恢复运行时实现与验证记录.md)。
+  - 已知限制：未将独立服务实现描述为公共 HTTP 路由已生效。
+  - 回滚方式：撤销服务与装配；不删除 WorkItem/Decision/输出。
   - 先依赖什么：1.2
   - 主要改哪里：`apps/server/src/routes/outcome.ts`（`GET /recovery`、`POST /reconcile`）
   - 这一步先不做什么：不提供绕过状态前置条件的强制成功接口。
@@ -60,7 +89,14 @@
 ## 阶段 2：幂等、路由和指标
 
 - [ ] 2.1 复核 Outcome 业务幂等和事件去重
-  - 状态：TODO
+  - 状态：IN_PROGRESS（源码矩阵完成，线 3/4 完整新代码的并发与重复回放待组合验证）
+  - 实现提交：`6aae513e6`、`d4275f9c8`、`ee85a7977`；跨线依赖见能力矩阵。
+  - 修改文件：`outcome-recovery.ts`、`outcome-threads.ts`、新增恢复/指标测试与能力矩阵。
+  - 数据库变化：none，复用 `IdempotencyRecord` 和业务唯一键。
+  - 验证命令/结果：源码复核 run/review/resolve/receipt/notification/consumer；新增回放尚未执行，不声明最终去重通过。
+  - 证据文件：[幂等审计](docs/runtime-recovery-matrix.md)。
+  - 已知限制：线 2/3/4 完整功能和事件保留由各 owner/集成者完成，不能以旧基线覆盖新代码。
+  - 回滚方式：撤销本线补充，保留历史业务事实与幂等记录。
   - 先依赖什么：0.1、`004.3` 任务 1.4
   - 主要改哪里：Outcome、Decision、人工任务服务和事件消费者
   - 这一步先不做什么：不替换现有消息幂等机制。
@@ -70,7 +106,14 @@
   - 对应设计：§9、§19、§20、§37、§38
 
 - [ ] 2.2 实现 WorkItem 下一步路由
-  - 状态：TODO
+  - 状态：IN_PROGRESS（五种事实的路由实现和纯测试通过，真实 Decision/HumanAction 全链路待集成）
+  - 实现提交：`6aae513e6`、`d4275f9c8`、`ee85a7977`。
+  - 修改文件：共享 `outcome-recovery.ts:routeOutcomeNextStep`、Server 恢复查询、纯路由测试。
+  - 数据库变化：none。
+  - 验证命令/结果：`bun test packages/contracts/test/outcome-runtime.test.ts packages/messaging/test/outcome-recovery.test.ts`，合计 4 PASS、21 断言。
+  - 证据文件：[实现与验证](docs/20261117-恢复运行时实现与验证记录.md)。
+  - 已知限制：没有分类或拦截工具；人工动作实际联调留组合阶段。
+  - 回滚方式：撤销事实路由与查询映射，不改业务对象。
   - 先依赖什么：1.2、`004.3` 任务 1.3；人工动作路由真实联调依赖 `004.4` 2.1、3.2。
   - 主要改哪里：`outcome-recovery-service.ts`
   - 这一步先不做什么：不分类或拦截 Agent 的工具调用。
@@ -80,7 +123,14 @@
   - 对应设计：§11、§23
 
 - [ ] 2.3 实现指标和注意力时间上报
-  - 状态：TODO
+  - 状态：IN_PROGRESS（聚合与上报服务完成，Desktop/公共路由装配及数据库指标 fixture 待组合验证）
+  - 实现提交：`943bbebca`、`8fa19b037`、`6aae513e6`、`d4275f9c8`、`ee85a7977`。
+  - 修改文件：运行时合同、`outcome-recovery-service.ts`、指标与计时回归；Desktop 由客户端 owner 实现。
+  - 数据库变化：none；计时增量保存在原 `IdempotencyRecord`，不新增指标事件。
+  - 验证命令/结果：计时合同聚焦测试通过；null/重复/hash 冲突/N/Q/通知比例/变更追溯数据库测试已写，未运行。
+  - 证据文件：[集成接口与验证记录](docs/20261117-恢复运行时实现与验证记录.md)。
+  - 已知限制：T 无样本为 null；没有持久重复次数来源时 `duplicateEventCount=null`；不可把日志收据数当作重复事件数。
+  - 回滚方式：停止客户端计时上报、撤销聚合服务；不清理业务事实。
   - 先依赖什么：2.1
   - 主要改哪里：Outcome 指标聚合查询、Desktop 规划/Decision/验收页面的前台计时上报接口
   - 这一步先不做什么：不建 dashboard，不设目标值，不新增指标事件。
