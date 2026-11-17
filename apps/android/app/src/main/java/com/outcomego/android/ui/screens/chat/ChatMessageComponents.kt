@@ -68,9 +68,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
@@ -87,6 +90,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.outcomego.android.R
@@ -209,49 +213,87 @@ internal fun MessageBubble(
             horizontalArrangement = if (message.isMine) Arrangement.End else Arrangement.Start,
         ) {
             Column(
-                Modifier.fillMaxWidth(if (message.isMine) 0.82f else 0.96f),
+                Modifier.fillMaxWidth(if (message.isMine) 0.82f else 0.88f),
                 horizontalAlignment = if (message.isMine) Alignment.End else Alignment.Start,
             ) {
                 if (!message.isMine) {
                     Text(
                         message.author,
-                        Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
-                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
-                        color = colors.textTertiary,
+                        Modifier.padding(start = 6.dp, bottom = 4.dp),
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontWeight = FontWeight.SemiBold,
+                            letterSpacing = 0.2.sp,
+                        ),
+                        color = colors.textSecondary,
                     )
                 }
                 val bubbleShape = RoundedCornerShape(
                     topStart = 20.dp,
                     topEnd = 20.dp,
-                    bottomStart = if (message.isMine) 20.dp else 8.dp,
+                    bottomStart = if (message.isMine) 20.dp else 6.dp,
                     bottomEnd = if (message.isMine) 6.dp else 20.dp,
                 )
-                val targetBorder = when {
-                    isTarget -> BorderStroke(1.2.dp, colors.accent)
-                    message.isMine -> null
-                    else -> null
+                val bubbleBorder = when {
+                    isTarget -> BorderStroke(1.25.dp, colors.accent)
+                    message.isMine -> {
+                        val isLightNeutral = !colors.isDark && colors.userBubbleStart.luminance() > 0.7f
+                        val topRim = when {
+                            isLightNeutral -> Color(0xFF0F172A).copy(alpha = 0.09f)
+                            colors.isDark -> Color.White.copy(alpha = 0.16f)
+                            else -> Color.White.copy(alpha = 0.26f)
+                        }
+                        val bottomRim = when {
+                            isLightNeutral -> Color(0xFF0F172A).copy(alpha = 0.04f)
+                            colors.isDark -> Color.White.copy(alpha = 0.05f)
+                            else -> Color.White.copy(alpha = 0.06f)
+                        }
+                        BorderStroke(0.75.dp, Brush.verticalGradient(listOf(topRim, bottomRim)))
+                    }
+                    else -> BorderStroke(
+                        0.75.dp,
+                        Brush.verticalGradient(listOf(colors.glassBorderStart, colors.glassBorderEnd)),
+                    )
                 }
-                val containerModifier = when {
-                    message.isMine -> Modifier
-                        .clip(bubbleShape)
-                        .background(colors.userBubbleStart, bubbleShape)
-                    isTarget -> Modifier
-                        .clip(bubbleShape)
-                        .background(colors.accent.copy(alpha = 0.08f), bubbleShape)
-                    else -> Modifier
+                val assistantFill = if (isTarget) {
+                    lerp(colors.assistantSurface, colors.accent, 0.10f)
+                } else {
+                    colors.assistantSurface
                 }
+                val lightShadowColor = Color(0xFF0F172A)
+                val containerModifier = Modifier
+                    .then(
+                        if (!colors.isDark) {
+                            Modifier.shadow(
+                                elevation = 2.dp,
+                                shape = bubbleShape,
+                                ambientColor = lightShadowColor.copy(alpha = 0.05f),
+                                spotColor = lightShadowColor.copy(alpha = 0.07f),
+                            )
+                        } else {
+                            Modifier
+                        },
+                    )
+                    .clip(bubbleShape)
+                    .then(
+                        if (message.isMine) {
+                            Modifier.background(
+                                Brush.verticalGradient(listOf(colors.userBubbleStart, colors.userBubbleEnd)),
+                                bubbleShape,
+                            )
+                        } else {
+                            Modifier.background(assistantFill, bubbleShape)
+                        },
+                    )
 
                 Surface(
                     modifier = containerModifier.testTag("message-row-${message.body.hashCode()}"),
                     shape = bubbleShape,
                     color = Color.Transparent,
-                    border = targetBorder,
+                    border = bubbleBorder,
                 ) {
                     Column(
-                        Modifier.padding(
-                            horizontal = if (message.isMine || isTarget) 15.dp else 4.dp,
-                            vertical = if (message.isMine || isTarget) 11.dp else 4.dp,
-                        ),
+                        Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         message.replyToMessageId?.let { reply ->
                             ReplyQuote(
@@ -266,7 +308,7 @@ internal fun MessageBubble(
                             MarkdownMessage(
                                 markdown = body,
                                 contentColor = if (message.isMine) colors.onUserBubble else colors.textPrimary,
-                                containerColor = if (message.isMine) colors.userBubbleStart else colors.canvasBase,
+                                containerColor = if (message.isMine) colors.userBubbleStart else assistantFill,
                             )
                         }
                         message.richMessage?.let { rich ->
@@ -311,10 +353,9 @@ internal fun MessageBubble(
                                 status,
                                 Modifier
                                     .align(Alignment.End)
-                                    .padding(top = 4.dp)
                                     .testTag("delivery-status-${message.body.hashCode()}"),
                                 style = MaterialTheme.typography.labelSmall,
-                                color = colors.onUserBubble.copy(alpha = 0.72f),
+                                color = colors.onUserBubble.copy(alpha = 0.68f),
                             )
                             if (message.delivery == Delivery.FAILED) {
                                 Row(
@@ -661,11 +702,12 @@ private fun ReplyQuote(original: ChatMessage?, ownMessage: Boolean, onOpen: () -
         }
     }.orEmpty().ifEmpty { localizedText("View original message", "查看原消息") }
     val tint = if (ownMessage) colors.onUserBubble else colors.textSecondary
+    val quoteShape = RoundedCornerShape(10.dp)
     Row(
         Modifier
-            .padding(bottom = 8.dp)
-            .clip(RoundedCornerShape(10.dp))
-            .background(tint.copy(alpha = 0.14f))
+            .clip(quoteShape)
+            .background(tint.copy(alpha = 0.10f))
+            .border(0.5.dp, tint.copy(alpha = 0.16f), quoteShape)
             .clickable(onClick = onOpen)
             .padding(horizontal = 10.dp, vertical = 5.dp)
             .testTag("reply-quote"),

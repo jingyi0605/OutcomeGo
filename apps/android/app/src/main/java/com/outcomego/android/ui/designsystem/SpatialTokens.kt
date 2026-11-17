@@ -5,6 +5,7 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.unit.dp
 import com.outcomego.features.AppSettings
 
@@ -89,9 +90,13 @@ fun buildSpatialColors(
     }
 
     return if (darkTheme) {
-        val userBubble = when (accent) {
-            AppSettings.Accent.Black -> Color(0xFF26262A)
-            else -> accentColor.copy(alpha = 0.88f)
+        val userBubbleTop = when (accent) {
+            AppSettings.Accent.Black -> Color(0xFF2D2D33)
+            else -> accentColor.copy(alpha = 0.94f)
+        }
+        val userBubbleBottom = when (accent) {
+            AppSettings.Accent.Black -> Color(0xFF232328)
+            else -> lerp(accentColor, Color(0xFF0A0B0F), 0.22f).copy(alpha = 0.92f)
         }
         val bubbleText = if (accent == AppSettings.Accent.Black) Color(0xFFF4F4F6) else onAccentColor
         val glowAlpha = if (accent == AppSettings.Accent.Black) 0.0f else 0.025f
@@ -119,10 +124,10 @@ fun buildSpatialColors(
             textPrimary = Color(0xFFF4F4F6),
             textSecondary = Color(0xFF989BA3),
             textTertiary = Color(0xFF6B6E76),
-            userBubbleStart = userBubble,
-            userBubbleEnd = userBubble,
+            userBubbleStart = userBubbleTop,
+            userBubbleEnd = userBubbleBottom,
             onUserBubble = bubbleText,
-            assistantSurface = Color.Transparent,
+            assistantSurface = Color(0xFF1A1A1F),
             codeSurface = Color(0xFF17171A),
             success = Color(0xFF6EE7B7),
             warning = Color(0xFFFCD34D),
@@ -130,9 +135,13 @@ fun buildSpatialColors(
             scrim = Color(0xFF070709).copy(alpha = 0.62f),
         )
     } else {
-        val userBubble = when (accent) {
-            AppSettings.Accent.Black -> Color(0xFFF1F3F6)
+        val userBubbleTop = when (accent) {
+            AppSettings.Accent.Black -> Color(0xFFEEEFF4)
             else -> accentColor
+        }
+        val userBubbleBottom = when (accent) {
+            AppSettings.Accent.Black -> Color(0xFFE4E7EE)
+            else -> lerp(accentColor, Color(0xFF0A0E17), 0.14f)
         }
         val bubbleText = if (accent == AppSettings.Accent.Black) Color(0xFF111318) else Color.White
         SpatialColors(
@@ -158,10 +167,10 @@ fun buildSpatialColors(
             textPrimary = Color(0xFF0D1117),
             textSecondary = Color(0xFF57606F),
             textTertiary = Color(0xFF8C95A6),
-            userBubbleStart = userBubble,
-            userBubbleEnd = userBubble,
+            userBubbleStart = userBubbleTop,
+            userBubbleEnd = userBubbleBottom,
             onUserBubble = bubbleText,
-            assistantSurface = Color.Transparent,
+            assistantSurface = Color(0xFFFFFFFF),
             codeSurface = Color(0xFFF3F5F8),
             success = Color(0xFF137C55),
             warning = Color(0xFFB45309),
