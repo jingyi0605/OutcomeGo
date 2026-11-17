@@ -22,7 +22,7 @@ export const outcomeDecisionView = (row: Row): DecisionView => ({
   createdAt: row.createdAt.toISOString(),
 });
 
-/** A draft successor does not replace the latest approved, already-started execution snapshot. */
+/** A draft successor preserves started execution and its explicitly resolved, dependency-bound supplements. */
 export const outcomeDecisionRevisionActiveSql = (outcomeId: Prisma.Sql, revisionId: Prisma.Sql, workItemId: Prisma.Sql): Prisma.Sql => Prisma.sql`
   EXISTS (SELECT 1 FROM "outcomego_outcome" execution_outcome
     WHERE execution_outcome.id = ${outcomeId} AND (
@@ -32,10 +32,25 @@ export const outcomeDecisionRevisionActiveSql = (outcomeId: Prisma.Sql, revision
         WHERE execution_revision.id = ${revisionId} AND execution_revision."outcomeId" = execution_outcome.id
           AND execution_revision.status IN ('approved', 'superseded') AND execution_revision."approvedAt" IS NOT NULL
           AND execution_item.id = ${workItemId} AND execution_item."outcomeId" = execution_outcome.id
-          AND execution_item."executorType" = 'agent' AND execution_item."startedAt" IS NOT NULL
-          AND EXISTS (SELECT 1 FROM "outcomego_run" execution_run
-            WHERE execution_run."outcomeWorkItemId" = execution_item.id AND execution_run."botId" = execution_item."botId"
-              AND execution_run.origin = 'outcome' AND execution_run."startedAt" IS NOT NULL)
+          AND execution_item."executorType" = 'agent'
+          AND ((execution_item."startedAt" IS NOT NULL AND EXISTS (SELECT 1 FROM "outcomego_run" execution_run
+              WHERE execution_run."outcomeWorkItemId" = execution_item.id AND execution_run."botId" = execution_item."botId"
+                AND execution_run.origin = 'outcome' AND execution_run."startedAt" IS NOT NULL))
+            OR (execution_item.kind = 'supplement' AND EXISTS (
+              SELECT 1 FROM "outcomego_outcome_decision" source_decision
+              JOIN "outcomego_outcome_work_item" requester ON requester.id = source_decision."workItemId"
+              WHERE source_decision.id = execution_item."sourceDecisionId" AND source_decision.status = 'resolved'
+                AND source_decision."outcomeId" = execution_outcome.id AND source_decision."contractRevisionId" = execution_revision.id
+                AND source_decision."resolvedOption"->>'resolutionEffect' = 'plan_only'
+                AND execution_item.title = source_decision."resolvedOption"#>>'{supplement,title}'
+                AND execution_item.instructions = source_decision."resolvedOption"#>>'{supplement,instructions}'
+                AND requester."outcomeId" = execution_outcome.id AND requester."contractRevisionId" = execution_revision.id
+                AND requester."executorType" = 'agent' AND requester."botId" = execution_item."botId"
+                AND requester."startedAt" IS NOT NULL AND execution_item."dependsOn" @> jsonb_build_array(requester.id::text)
+                AND EXISTS (SELECT 1 FROM "outcomego_run" requester_run
+                  WHERE requester_run."outcomeWorkItemId" = requester.id AND requester_run."botId" = requester."botId"
+                    AND requester_run.origin = 'outcome' AND requester_run."startedAt" IS NOT NULL)
+            )))
           AND EXISTS (SELECT 1 FROM "outcomego_outcome_contract_revision" pending_revision
             WHERE pending_revision.id = execution_outcome."currentRevisionId" AND pending_revision.status IN ('draft', 'pending_approval'))
           AND NOT EXISTS (SELECT 1 FROM "outcomego_outcome_contract_revision" successor
