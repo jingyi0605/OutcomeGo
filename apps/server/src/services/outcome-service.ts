@@ -375,8 +375,8 @@ export class OutcomeService {
    */
   private async idempotent<T>(scope: string, key: string, request: unknown, write: (tx: Tx) => Promise<T>): Promise<T> {
     const requestHash = hashRequest(request);
-    const replay = async () => {
-      const previous = await this.prisma.idempotencyRecord.findUnique({ where: { scope_key: { scope, key } } });
+    const replay = async (client: Pick<Tx, "idempotencyRecord"> = this.prisma) => {
+      const previous = await client.idempotencyRecord.findUnique({ where: { scope_key: { scope, key } } });
       if (!previous) return undefined;
       if (previous.requestHash !== requestHash)
         throw outcomeApiError("idempotency_conflict", "This request ID was already used for a different request");
@@ -386,6 +386,10 @@ export class OutcomeService {
     if (stored !== undefined) return stored;
     try {
       return await this.prisma.$transaction(async (tx) => {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`${scope}:${key}`}))`;
+        // Recheck after waiting: an earlier identical request may have changed the business state.
+        const committed = await replay(tx);
+        if (committed !== undefined) return committed;
         let result: T;
         try {
           result = await write(tx);
