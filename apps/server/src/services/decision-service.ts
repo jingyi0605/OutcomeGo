@@ -53,7 +53,10 @@ export class DecisionService {
         const item = await tx.outcomeWorkItem.findUnique({ where: { id: input.workItemId } });
         if (!item || item.outcomeId !== outcome.id || item.contractRevisionId !== revision.id) throw apiError("work_item_not_found", "The work item does not belong to this revision", undefined, 404);
         const open = await tx.outcomeDecision.findUnique({ where: { openWorkItemId: item.id } });
-        if (open) throw apiError("decision_already_open", "This work item already has an open decision");
+        if (open?.expiresAt && open.expiresAt <= new Date()) {
+          const expired = await tx.outcomeDecision.findUniqueOrThrow({ where: { id: open.id }, include });
+          await this.close(tx, expired, "expired", "system:decision-expiry");
+        } else if (open) throw apiError("decision_already_open", "This work item already has an open decision");
       }
       if (input.runId) {
         const run = await tx.run.findUnique({ where: { id: input.runId } });

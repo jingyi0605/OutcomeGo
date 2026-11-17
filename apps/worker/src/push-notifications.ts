@@ -1,5 +1,5 @@
 import { suppressMobileNotification } from "@outcomego/contracts/notification-presence";
-import { notificationRouting, unreadBadgeCount } from "@outcomego/messaging";
+import { notificationRouting, unreadBadgeCount, reconcileOutcomeDecisionNotifications } from "@outcomego/messaging";
 import { ApnsSettingsStore } from "@outcomego/db/apns-settings";
 import {
   PUSH_DELIVERY_ADVISORY_LOCK,
@@ -104,7 +104,8 @@ export class PushNotificationDispatcher {
     private readonly prisma: PrismaClient,
     private readonly authMode = pushAuthenticationModeFromEnvironment(),
     private readonly apns = new ApnsClient(async () => (await new ApnsSettingsStore(prisma).load()).config),
-    private readonly fcm = new FcmClient()
+    private readonly fcm = new FcmClient(),
+    private readonly recoverOutcomeNotifications: () => Promise<unknown> = () => reconcileOutcomeDecisionNotifications(prisma)
   ) {}
 
   async configurationStatus() {
@@ -115,6 +116,9 @@ export class PushNotificationDispatcher {
     if (this.draining) return;
     this.draining = true;
     try {
+      // Existing startup and periodic drains recover facts even when the producer crashed before projection.
+      try { await this.recoverOutcomeNotifications(); }
+      catch { console.warn("Outcome notification recovery failed; retrying on the next push drain"); }
       await this.drainNotifications();
     } finally {
       this.draining = false;

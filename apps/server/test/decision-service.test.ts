@@ -8,12 +8,12 @@ import { actor, errorCode, fixture, option, run, testDb } from "./fixtures/outco
 const url = process.env.OUTCOMEGO_TEST_DATABASE_URL;
 
 describe.skipIf(!url)("DecisionService transactional state machine", () => {
-  const db = testDb();
+  let db: ReturnType<typeof testDb>;
   const bots: string[] = [];
   let decisions: DecisionService;
   const createFixture = async () => { const f = await fixture(db); bots.push(f.bot.id); return f; };
   const request = (expectedContractRevision = 1) => ({ optionId: "cancel", expectedContractRevision, clientRequestId: crypto.randomUUID() });
-  beforeAll(() => { decisions = new DecisionService(db, { createRevision: new OutcomeService(db, undefined, undefined, withdrawSupersededDecisions).createRevisionInTransaction }); });
+  beforeAll(() => { db = testDb(); decisions = new DecisionService(db, { createRevision: new OutcomeService(db, undefined, undefined, withdrawSupersededDecisions).createRevisionInTransaction }); });
   afterAll(async () => { await db.bot.deleteMany({ where: { id: { in: bots } } }); await db.$disconnect(); });
 
   test("create retains snapshots, defaults to no expiry, truncates extras and replays a Run input", async () => {
@@ -112,6 +112,14 @@ describe.skipIf(!url)("DecisionService transactional state machine", () => {
       expect(await db.event.count({ where: { topic: "outcome.decision.closed", entityId: f2.outcome.id } })).toBe(1);
     }
     expect((await run(decisions.expire())).expiredCount).toBe(0);
+  });
+  test("an expired incumbent releases the active slot when a fresh request arrives without any read or job", async () => {
+    const f = await createFixture(); const old = await run(decisions.create({ ...f.input, expiresAt: new Date(Date.now()-1000).toISOString() }, actor));
+    const fresh = await run(decisions.create({ ...f.input, reasonCode: "fresh-request" }, actor));
+    expect(fresh.status).toBe("open"); expect(fresh.id).not.toBe(old.id);
+    const incumbent = await db.outcomeDecision.findUniqueOrThrow({ where: { id: old.id } });
+    expect(incumbent.status).toBe("expired"); expect(incumbent.openWorkItemId).toBeNull();
+    expect(await db.event.count({ where: { entityId: f.outcome.id, topic: "outcome.decision.closed" } })).toBe(1);
   });
   test("revision supersession and cancellation automatically withdraw when refreshed", async () => {
     const f = await createFixture(); const d = await run(decisions.create(f.input, actor));

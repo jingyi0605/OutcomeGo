@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { outcomeNotificationPayload } from "@outcomego/contracts/notification-content";
-import { publishOutcomeNotification } from "@outcomego/messaging";
+import { publishOutcomeNotification, reconcileOutcomeDecisionNotifications } from "@outcomego/messaging";
 import { DecisionService } from "../src/services/decision-service";
 import { NotificationService } from "../src/services/notification-service";
 import { OutcomeInboxService } from "../src/services/outcome-inbox-service";
@@ -12,9 +12,10 @@ import { actor, fixture, run, testDb } from "./fixtures/outcome-inbox-fixture";
 const url = process.env.OUTCOMEGO_TEST_DATABASE_URL;
 
 describe.skipIf(!url)("Outcome notification facts and delivery", () => {
-  const db = testDb(); const bots: string[] = []; let deviceId: string;
+  let db: ReturnType<typeof testDb>; const bots: string[] = []; let deviceId: string;
   const originalAuth = process.env.OUTCOMEGO_AUTH_MODE;
   beforeAll(async () => {
+    db = testDb();
     process.env.OUTCOMEGO_AUTH_MODE = "disabled";
     const device = await db.pushDevice.create({ data: { installationId: `inbox-test-${crypto.randomUUID()}`, platform: "ios", provider: "apns", pushToken: crypto.randomUUID().replaceAll("-", "").repeat(2), authRequired: false, apnsEnvironment: "sandbox", apnsTopic: "test.outcomego", notificationScope: "fixture" } }); deviceId = device.id;
   });
@@ -93,6 +94,72 @@ describe.skipIf(!url)("Outcome notification facts and delivery", () => {
     const good = new PushNotificationDispatcher(db, "disabled", { send: async () => ({ status: 200 }) } as unknown as ApnsClient, {} as FcmClient);
     await good.drain();
     expect((await db.outboxDelivery.findFirstOrThrow({ where })).status).toBe("delivered");
+  });
+  test("startup and periodic drains recover a crash gap after Event pruning and a late transaction commit", async () => {
+    const f = await create(); const d = await run(new DecisionService(db).create(f.input, actor));
+    await db.outboxDelivery.deleteMany({ where: { payload: { path: ["decisionId"], equals: d.id } } });
+    await db.channelNotification.delete({ where: { key: `decision.required:${d.id}` } });
+    await db.event.deleteMany({ where: { entityId: f.outcome.id, topic: "outcome.decision.required" } });
+    const dispatcher = new PushNotificationDispatcher(db, "disabled", { send: async () => ({ status: 200 }) } as unknown as ApnsClient, {} as FcmClient);
+    await dispatcher.drain();
+    expect(await db.channelNotification.count({ where: { key: `decision.required:${d.id}` } })).toBe(1);
+    expect(await db.outboxDelivery.count({ where: { target: deviceId, payload: { path: ["decisionId"], equals: d.id } } })).toBe(1);
+    await dispatcher.drain();
+    expect(await db.outboxDelivery.count({ where: { target: deviceId, payload: { path: ["decisionId"], equals: d.id } } })).toBe(1);
+    const late = await create(); let release!: () => void; let inserted!: () => void;
+    const gate = new Promise<void>(resolve => { release = resolve; }); const ready = new Promise<void>(resolve => { inserted = resolve; });
+    const id = crypto.randomUUID();
+    const transaction = db.$transaction(async tx => {
+      await tx.outcomeDecision.create({ data: { id, outcomeId: late.outcome.id, contractRevisionId: late.revision.id, reasonCode: "late", completedSummary: "Ready", problemSummary: "Choose", nextStepSummary: "Continue", options: [], idempotencyKey: crypto.randomUUID() } });
+      inserted(); await gate;
+    });
+    await ready; await dispatcher.drain();
+    expect(await db.channelNotification.count({ where: { key: `decision.required:${id}` } })).toBe(0);
+    release(); await transaction; await dispatcher.drain();
+    expect(await db.channelNotification.count({ where: { key: `decision.required:${id}` } })).toBe(1);
+  });
+  test("recovery failure leaves ordinary push delivery working and retries permanent facts on next drain", async () => {
+    const f = await create(); const d = await run(new DecisionService(db).create(f.input, actor));
+    await db.channelNotification.delete({ where: { key: `decision.required:${d.id}` } });
+    await db.outboxDelivery.deleteMany({ where: { target: deviceId } });
+    await db.outboxDelivery.create({ data: { deliveryKey: crypto.randomUUID(), topic: "push.notification", target: deviceId, payload: { schemaVersion: 1, kind: "badge-sync", badgeCount: 0 } } });
+    let attempts = 0; let sent = 0;
+    const dispatcher = new PushNotificationDispatcher(db, "disabled", { send: async () => { sent++; return { status: 200 }; } } as unknown as ApnsClient, {} as FcmClient,
+      async () => { attempts++; if (attempts === 1) throw new Error("injected transient database failure"); return reconcileOutcomeDecisionNotifications(db); });
+    await dispatcher.drain(); expect(sent).toBe(1);
+    expect(await db.channelNotification.count({ where: { key: `decision.required:${d.id}` } })).toBe(0);
+    await dispatcher.drain(); expect(attempts).toBe(2);
+    expect(await db.channelNotification.count({ where: { key: `decision.required:${d.id}` } })).toBe(1);
+  });
+  test("more than 100 missing-channel facts cannot starve an eligible decision, and a later channel is recovered", async () => {
+    const missing = await create();
+    await db.channel.delete({ where: { id: missing.channel.id } });
+    await db.outcomeDecision.createMany({ data: Array.from({ length: 101 }, () => ({ outcomeId: missing.outcome.id, contractRevisionId: missing.revision.id, reasonCode: "missing-channel", completedSummary: "Ready", problemSummary: "Choose", nextStepSummary: "Continue", options: [], idempotencyKey: crypto.randomUUID(), createdAt: new Date(Date.now()-5000) })) });
+    const f = await create(); const d = await run(new DecisionService(db).create(f.input, actor));
+    await db.channelNotification.delete({ where: { key: `decision.required:${d.id}` } });
+    await reconcileOutcomeDecisionNotifications(db);
+    expect(await db.channelNotification.count({ where: { key: `decision.required:${d.id}` } })).toBe(1);
+    const channel = await db.channel.create({ data: { kind: "bot_dm", name: "Late channel", members: { create: { botId: missing.bot.id, ordinal: 1 } } } });
+    await reconcileOutcomeDecisionNotifications(db); await reconcileOutcomeDecisionNotifications(db);
+    expect(await db.channelNotification.count({ where: { channelId: channel.id } })).toBe(101);
+    await db.outboxDelivery.updateMany({ where: { target: deviceId }, data: { status: "delivered" } });
+  });
+  test("read or absent merge targets never swallow a later required action", async () => {
+    for (const mode of ["read", "no-device"] as const) {
+      await db.outboxDelivery.updateMany({ where: { target: deviceId }, data: { status: "delivered" } });
+      const f = await create();
+      if (mode === "no-device") await db.pushDevice.update({ where: { id: deviceId }, data: { enabled: false } });
+      const first = payload(f, "first"); const second = payload(f, "second");
+      await db.$transaction(tx => publishOutcomeNotification(tx, first));
+      const activity = await db.channelNotification.findUniqueOrThrow({ where: { key: first.factKey } });
+      if (mode === "read") await db.channelReadState.create({ data: { channelId: f.channel.id, lastReadNotificationSequence: activity.sequence } });
+      else await db.pushDevice.update({ where: { id: deviceId }, data: { enabled: true } });
+      await db.$transaction(tx => publishOutcomeNotification(tx, second));
+      await db.outboxDelivery.updateMany({ where: { target: deviceId }, data: { availableAt: new Date(0) } });
+      const delivered: string[] = [];
+      await new PushNotificationDispatcher(db, "disabled", { send: async (_device: unknown, alert: { factKey?: string }) => { if (alert.factKey) delivered.push(alert.factKey); return { status: 200 }; } } as unknown as ApnsClient, {} as FcmClient).drain();
+      expect(delivered).toEqual([second.factKey]);
+    }
   });
   test("preference changes after queueing, read markers and withdrawal prevent provider sends", async () => {
     for (const mode of ["preference", "read", "withdraw"] as const) {

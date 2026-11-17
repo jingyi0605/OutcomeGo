@@ -11,6 +11,7 @@ export class OutcomeInboxService {
   list = (query: OutcomeInboxQuery, outcomeId?: string) => serviceEffect(async (): Promise<OutcomeInboxPage> => {
     if (outcomeId && !await this.prisma.outcome.findUnique({ where: { id: outcomeId }, select: { id: true } })) throw new ApiError(404, "outcome_not_found", "Outcome not found");
     const snapshotAt = query.cursor?.snapshotAt ?? new Date().toISOString();
+    const cursorCreatedAt = query.cursor?.createdAt ?? query.cursor?.availableAt;
     const rows = await this.prisma.$queryRaw<InboxRow[]>(Prisma.sql`
       WITH facts AS (
         SELECT 'decision_pending:' || d.id::text AS id, o.id AS "outcomeId", r.revision AS "contractRevision", d.id::text AS "decisionId", d."workItemId"::text AS "workItemId", NULL::jsonb AS "criterionIds",
@@ -28,7 +29,11 @@ export class OutcomeInboxService {
           'acceptance_pending', 1, o.title, 'Results are ready for review.', 'Acceptance needs your review.', 'Review the criteria on Desktop.', true,
           r."createdAt", r."createdAt", 'review.required:' || o.id::text || ':' || r.revision::text
         FROM "outcomego_outcome" o JOIN "outcomego_outcome_contract_revision" r ON r.id = o."currentRevisionId"
-        WHERE o.status = 'review_pending' AND o."cancelledAt" IS NULL AND o."acceptedAt" IS NULL
+        WHERE (o.status = 'review_pending' OR EXISTS (
+          SELECT 1 FROM "outcomego_outcome_work_item" receipt
+          WHERE receipt."outcomeId" = o.id AND receipt."contractRevisionId" = r.id
+            AND receipt."executorType" = 'human' AND receipt.status IN ('submitted', 'review_pending')
+        )) AND o."cancelledAt" IS NULL AND o."acceptedAt" IS NULL
         UNION ALL
         SELECT 'human_action_pending:' || w.id::text, o.id, r.revision, NULL, w.id::text, NULL,
           'human_action_pending', 2, w.title, 'The next action requires a person.', 'A manual action is pending.', 'Open the action card on Desktop.', true,
@@ -57,14 +62,15 @@ export class OutcomeInboxService {
         ${query.category ? Prisma.sql`AND f.category = ${query.category}` : Prisma.empty}
         ${query.cursor ? Prisma.sql`AND (f.priority < ${query.cursor.priority}
           OR (f.priority = ${query.cursor.priority} AND f."availableAt" > ${new Date(query.cursor.availableAt)})
-          OR (f.priority = ${query.cursor.priority} AND f."availableAt" = ${new Date(query.cursor.availableAt)} AND f.id > ${query.cursor.id}))` : Prisma.empty}
-      ORDER BY f.priority DESC, f."availableAt" ASC, f.id ASC LIMIT ${query.limit + 1}
+          OR (f.priority = ${query.cursor.priority} AND f."availableAt" = ${new Date(query.cursor.availableAt)} AND f."createdAt" > ${new Date(cursorCreatedAt!)})
+          OR (f.priority = ${query.cursor.priority} AND f."availableAt" = ${new Date(query.cursor.availableAt)} AND f."createdAt" = ${new Date(cursorCreatedAt!)} AND f.id > ${query.cursor.id}))` : Prisma.empty}
+      ORDER BY f.priority DESC, f."availableAt" ASC, f."createdAt" ASC, f.id ASC LIMIT ${query.limit + 1}
     `);
     const page = rows.slice(0, query.limit);
     const last = page.at(-1);
     return {
       items: page.map(row => ({ ...row, availableAt: row.availableAt.toISOString(), createdAt: row.createdAt.toISOString() })),
-      nextCursor: rows.length > query.limit && last ? encodeOutcomeInboxCursor({ priority: last.priority, availableAt: last.availableAt.toISOString(), id: last.id, snapshotAt }) : null,
+      nextCursor: rows.length > query.limit && last ? encodeOutcomeInboxCursor({ priority: last.priority, availableAt: last.availableAt.toISOString(), createdAt: last.createdAt.toISOString(), id: last.id, snapshotAt }) : null,
     };
   });
 }

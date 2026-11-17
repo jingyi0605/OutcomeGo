@@ -5,6 +5,7 @@ import {
   type ChannelNotificationView,
   agentNotificationPresentation,
   truncateNotificationText,
+  outcomeNotificationPayload,
 } from "@outcomego/contracts";
 import { channelMessageSummary } from "@outcomego/product-core/channel-events";
 import { Prisma } from "@outcomego/db";
@@ -261,9 +262,60 @@ export async function publishOutcomeNotification(
     }, orderBy: { sequence: "desc" } });
     mergeSequence = previous?.sequence ?? null;
   }
-  if (mergeSequence) return;
+  if (mergeSequence) {
+    const state = await tx.channelReadState.findUnique({ where: { channelId: input.channelId } });
+    const previousUnread = !state || mergeSequence > state.lastReadNotificationSequence;
+    const queued = previousUnread ? await tx.outboxDelivery.findMany({ where: {
+      topic: "push.notification", status: { in: ["pending", "failed"] },
+      target: { in: devices.map(device => device.id) },
+      AND: [{ payload: { path: ["notificationSequence"], equals: mergeSequence.toString() } }, { payload: { path: ["outcomeId"], equals: input.outcomeId } }],
+    } }) : [];
+    const mergedTargets = new Set(queued.map(delivery => delivery.target));
+    // Advance the surviving alert to the newest unread fact; never merge into read or absent delivery.
+    if (queued.length) await tx.outboxDelivery.updateMany({ where: { id: { in: queued.map(delivery => delivery.id) } }, data: { payload: payload as unknown as Prisma.InputJsonValue } });
+    const unmerged = devices.filter(device => !mergedTargets.has(device.id));
+    if (unmerged.length) await tx.outboxDelivery.createMany({ data: unmerged.map(device => ({
+      deliveryKey: `notification:outcome:${activity.sequence}:${device.id}`, topic: "push.notification", target: device.id,
+      payload: payload as unknown as Prisma.InputJsonValue, availableAt: new Date(Date.now() + 60_000),
+    })), skipDuplicates: true });
+    return;
+  }
   if (devices.length) await tx.outboxDelivery.createMany({ data: devices.map(device => ({
     deliveryKey: `notification:outcome:${activity.sequence}:${device.id}`, topic: "push.notification", target: device.id,
     payload: payload as unknown as Prisma.InputJsonValue, availableAt: new Date(Date.now() + (mergeable ? 60_000 : 1_500)),
   })), skipDuplicates: true });
+}
+
+
+/** Fact-backed projection also works after the originating Event has been pruned. */
+export async function publishRequiredDecisionNotification(tx: Prisma.TransactionClient, decisionId: string): Promise<boolean> {
+  const found = await tx.outcomeDecision.findUnique({ where: { id: decisionId }, select: { outcomeId: true } });
+  if (!found) return false;
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`outcome:${found.outcomeId}`}))`;
+  const decision = await tx.outcomeDecision.findUniqueOrThrow({ where: { id: decisionId }, include: { outcome: true, contractRevision: true } });
+  if (!["open", "presented"].includes(decision.status) || decision.outcome.currentRevisionId !== decision.contractRevisionId || decision.outcome.cancelledAt || decision.outcome.acceptedAt ||
+    (decision.expiresAt && decision.expiresAt <= new Date())) return false;
+  const channel = await tx.channel.findFirst({ where: { kind: "bot_dm", archivedAt: null, members: { some: { botId: decision.outcome.botId } } }, orderBy: { createdAt: "asc" } });
+  if (!channel) return false;
+  await publishOutcomeNotification(tx, outcomeNotificationPayload({ type: "outcome.decision.required", factKey: `decision.required:${decision.id}`,
+    outcomeId: decision.outcomeId, decisionId: decision.id, botId: decision.outcome.botId, channelId: channel.id,
+    contractRevision: decision.contractRevision.revision, urgent: decision.reasonCode === "external_result_unknown" }));
+  return true;
+}
+
+/** Bounded periodic reconciliation has no event high-water mark; eligibility precedes LIMIT. */
+export async function reconcileOutcomeDecisionNotifications(prisma: import("@outcomego/db").PrismaClient): Promise<number> {
+  const rows = await prisma.$queryRaw<Array<{ id: string }>>(Prisma.sql`
+    SELECT d.id FROM "outcomego_outcome_decision" d
+    JOIN "outcomego_outcome" o ON o.id = d."outcomeId" AND o."currentRevisionId" = d."contractRevisionId"
+    WHERE d.status IN ('open', 'presented') AND (d."expiresAt" IS NULL OR d."expiresAt" > CURRENT_TIMESTAMP)
+      AND o."cancelledAt" IS NULL AND o."acceptedAt" IS NULL
+      AND NOT EXISTS (SELECT 1 FROM "outcomego_channel_notification" n WHERE n.key = 'decision.required:' || d.id::text)
+      AND EXISTS (SELECT 1 FROM "outcomego_channel" c JOIN "outcomego_channel_member" m ON m."channelId" = c.id
+        WHERE c.kind = 'bot_dm' AND c."archivedAt" IS NULL AND m."botId" = o."botId")
+    ORDER BY d."createdAt", d.id LIMIT 100
+  `);
+  let projected = 0;
+  for (const row of rows) if (await prisma.$transaction(tx => publishRequiredDecisionNotification(tx, row.id))) projected++;
+  return projected;
 }
