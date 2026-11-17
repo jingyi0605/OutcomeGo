@@ -99,8 +99,11 @@ export class ExploreService {
       assertExploreWritable(idea);
       const existing = idea.planningDraftId ? await tx.outcomePlanningDraft.findUnique({ where: { id: idea.planningDraftId } }) : null;
       // A concurrent proposal may already have won; do not leave a second draft behind.
-      if (existing?.status === "ready" && existing.expiresAt > new Date())
+      if (existing?.status === "ready" && existing.expiresAt > new Date()) {
+        if (existing.botId !== phase.planInput.context.botId)
+          throw new ApiError(409, "explore_read_only", "Another proposal selected a different Bot; reload the Explore idea", { currentStatus: idea.status });
         return { idea: exploreIdeaView(idea), plan: this.planning.view(existing) };
+      }
       if (!prepared) throw new ApiError(409, "planning_draft_expired", "Generate a new delivery plan", { retryable: true });
       const plan = await this.planning.persistInTransaction(tx, phase.planInput, prepared);
       const updated = await tx.exploreIdea.update({ where: { id }, data: {

@@ -117,6 +117,34 @@ describe.skipIf(!testDatabaseUrl)("Explore and independent Delivery", () => {
     expect(calls).toBe(3);
   });
 
+  test("concurrent proposals cannot silently change the selected Bot or leave a losing draft", async () => {
+    const a = await f.bot(), b = await f.bot();
+    const releases: Array<() => void> = [];
+    let began!: () => void, firstBegan!: () => void;
+    const firstStarted = new Promise<void>(resolve => { firstBegan = resolve; });
+    const bothStarted = new Promise<void>(resolve => { began = resolve; });
+    const { explore } = services(async () => {
+      await new Promise<void>(resolve => {
+        releases.push(resolve);
+        if (releases.length === 1) firstBegan();
+        if (releases.length === 2) began();
+      });
+      return generation;
+    });
+    const idea = await create(explore);
+    const first = Effect.runPromise(explore.propose(idea.id, { botId: a.id, clientRequestId: requestId() }, actor));
+    await firstStarted;
+    const second = Effect.runPromise(Effect.either(explore.propose(idea.id, { botId: b.id, clientRequestId: requestId() }, actor)));
+    await bothStarted;
+    releases[0]!();
+    const winner = await first;
+    releases[1]!();
+    const loser = await second;
+    expect(winner.plan.botId).toBe(a.id);
+    expect(loser._tag).toBe("Left");
+    expect(await f.prisma.outcomePlanningDraft.count({ where: { botId: { in: [a.id, b.id] } } })).toBe(1);
+  });
+
   test("discarded proposal cannot be consumed through the ordinary Outcome creation route", async () => {
     const bot = await f.bot(), { explore } = services();
     const idea = await create(explore, bot.id);
