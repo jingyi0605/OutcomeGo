@@ -56,7 +56,7 @@ test("browser form entry, arbitrary execution and approval results remain exclud
 });
 
 test("desktop history retains screenshot receipts after interruption without replaying inputs or images", () => {
-  for (const tool of ["outcomego_computer", "Screenshot"]) {
+  for (const tool of ["Computer", "outcomego_computer", "Screenshot"]) {
     const value = transcriptToolProjection({tool,
       arguments: {action: "type", text: "PRIVATE_TYPED_INPUT", then: [{action: "key", key: "Return"}]},
       result: {content: [
@@ -67,5 +67,15 @@ test("desktop history retains screenshot receipts after interruption without rep
     });
     expect(value).toEqual({tool, output: "Screenshot saved to /workspace/shared/screenshots/desktop.png"});
     expect(boundTranscriptValue(value)).not.toContain("PRIVATE_");
+  }
+});
+
+test("first-party dynamic Computer receipts are observable without exposing other namespaces", () => {
+  const input = {tool: "CallDynamicTool", arguments: {namespace: "cursor", toolName: "Computer", arguments: {action: "type", text: "PRIVATE_INPUT"}},
+    result: {content: [{type: "text", text: "Screenshot saved to /workspace/shared/screenshots/native.png"}, {type: "image", data: "PRIVATE_IMAGE"}], details: {token: "PRIVATE_TOKEN"}}};
+  expect(transcriptToolProjection(input)).toEqual({tool: "Computer", output: "Screenshot saved to /workspace/shared/screenshots/native.png"});
+  for (const namespace of ["mcp", "untrusted-plugin"]) {
+    expect(transcriptToolProjection({...input, arguments: {...input.arguments, namespace}, result: {content: [{type: "text", text: "PRIVATE_RESULT"}]}}))
+      .toEqual({tool: "Computer", output_omitted: true});
   }
 });

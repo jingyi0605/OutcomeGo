@@ -1,4 +1,4 @@
-import { ApiError } from "@outcomego/contracts";
+import { ApiError, COMPUTER_USE_TOOL } from "@outcomego/contracts";
 import { parseReadTranscriptInput } from "@outcomego/contracts/read-transcript";
 import { Prisma, type PrismaClient } from "@outcomego/db";
 import { redactSensitiveText } from "@outcomego/product-core/redaction";
@@ -10,7 +10,7 @@ const object = (value: unknown): Record<string, unknown> => value && typeof valu
 // page observations as well as an action receipt; preserve that evidence just
 // like snapshots. Review cards and credential/form-entry payloads stay excluded.
 const observations = new Set([
-  "Shell", "Read", "WebFetch", "WebSearch", "outcomego_computer", "Screenshot", "browser_snapshot", "browser_take_screenshot",
+  "Shell", "Read", "WebFetch", "WebSearch", COMPUTER_USE_TOOL.name, "outcomego_computer", "Screenshot", "browser_snapshot", "browser_take_screenshot",
   "browser_tabs", "browser_console_messages", "browser_network_requests",
   "browser_navigate", "browser_click", "browser_press_key",
   "browser_hover", "browser_wait_for", "browser_find",
@@ -22,10 +22,13 @@ export function transcriptToolProjection(value: unknown) {
   const name = typeof tool === "string" ? tool : "tool";
   const result = object(record.result);
   const details = object(result.details);
+  // The native Computer returns a screenshot receipt, never its typed arguments.
+  // A same-named third-party dynamic tool is not that first-party observation.
+  const observable = observations.has(name) && (name !== COMPUTER_USE_TOOL.name || record.tool !== "CallDynamicTool" || args.namespace === "cursor");
   return { tool: name,
     ...(name === "Shell" && typeof details.exitCode === "number" ? {exit_code: details.exitCode} : {}),
     ...(name === "Shell" && typeof record.command === "string" ? { command: record.command } : {}),
-    ...(observations.has(name) && Array.isArray(result.content) ? { output: result.content.flatMap(part => {
+    ...(observable && Array.isArray(result.content) ? { output: result.content.flatMap(part => {
       const p = object(part); return p.type === "text" && typeof p.text === "string" ? [p.text] : [];
     }).join("\n") } : { output_omitted: true }),
   };
