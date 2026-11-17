@@ -3,10 +3,15 @@ import {
   CreateOutcomePlanInput, CreateOutcomeInput, CreateContractRevisionInput, ApproveContractRevisionInput,
   CancelOutcomeInput, SubmitOutcomeReviewInput, OutcomeReworkInput, StartOutcomeRunInput, parseListOutcomesQuery,
 } from "@outcomego/contracts/outcomes";
-import type { ActorRef } from "@outcomego/messaging";
+import { OutcomeAttentionInput, ReconcileOutcomeInput } from "@outcomego/contracts/outcome-runtime";
+import { outcomeDispatchEnabled, type ActorRef } from "@outcomego/messaging";
 import { json, parseBody } from "../http";
 import { mapOutcomeError } from "../services/outcome-write";
 import { run, type RouteContext } from "./context";
+export function requireOutcomeDispatch(): void {
+  if (!outcomeDispatchEnabled())
+    throw new ApiError(503, "outcome_dispatch_disabled", "New Outcome execution is temporarily disabled", { retryable: true });
+}
 export async function outcomeActor(context: RouteContext): Promise<ActorRef> {
   // The shared main request gate has already authenticated the request.
   if (!context.authenticatedSessionId) return "owner:local";
@@ -19,7 +24,10 @@ export async function outcomeRoutes(context: RouteContext): Promise<Response | u
   if (!/^\/api\/outcomes(?:\/|$)/.test(path)) return;
   try {
     const actor = await outcomeActor(context);
-    if (path === "/api/outcomes/plans" && request.method === "POST") return json(await run(app.outcomePlanning.create(await parseBody(request, CreateOutcomePlanInput))), 201);
+    if (path === "/api/outcomes/plans" && request.method === "POST") {
+      requireOutcomeDispatch();
+      return json(await run(app.outcomePlanning.create(await parseBody(request, CreateOutcomePlanInput))), 201);
+    }
     const plan = path.match(/^\/api\/outcomes\/plans\/([\da-f-]{36})$/i);
     if (plan && request.method === "GET") return json(await run(app.outcomePlanning.get(plan[1]!)));
     if (path === "/api/outcomes") {
@@ -30,6 +38,12 @@ export async function outcomeRoutes(context: RouteContext): Promise<Response | u
     if (!match) return;
     const id = match[1]!, tail = match[2];
     if (!tail && request.method === "GET") return json(await run(app.outcomes.get(id)));
+    if (tail === "/recovery" && request.method === "GET") return json(await run(app.outcomeRecovery.get(id)));
+    if (tail === "/reconcile" && request.method === "POST")
+      return json(await run(app.outcomeRecovery.reconcile(id, await parseBody(request, ReconcileOutcomeInput), actor)));
+    if (tail === "/metrics" && request.method === "GET") return json(await run(app.outcomeRecovery.metrics(id)));
+    if (tail === "/attention" && request.method === "POST")
+      return json(await run(app.outcomeRecovery.recordAttention(id, await parseBody(request, OutcomeAttentionInput), actor)));
     if (tail === "/revisions" && request.method === "POST") return json(await run(app.outcomes.createRevision(id, await parseBody(request, CreateContractRevisionInput), actor)), 201);
     const approve = tail?.match(/^\/revisions\/([1-9]\d*)\/approve$/);
     if (approve && request.method === "POST") return json(await run(app.outcomes.approve(id, Number(approve[1]), await parseBody(request, ApproveContractRevisionInput), actor)));
@@ -38,6 +52,7 @@ export async function outcomeRoutes(context: RouteContext): Promise<Response | u
     if (tail === "/rework" && request.method === "POST") return json(await run(app.outcomeReviews.rework(id, await parseBody(request, OutcomeReworkInput), actor)), 202);
     const runtime = app.outcomes;
     if (tail === "/runs" && request.method === "POST") {
+      requireOutcomeDispatch();
       if (!runtime.startRun) throw new ApiError(503, "outcome_runtime_unavailable", "Outcome execution is not available yet", { retryable: true });
       return json(await run(runtime.startRun(id, await parseBody(request, StartOutcomeRunInput), actor)), 202);
     }

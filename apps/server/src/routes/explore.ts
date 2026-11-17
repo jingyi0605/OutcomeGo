@@ -6,7 +6,7 @@ import { decodeOutcomeCursor } from "@outcomego/contracts/outcomes";
 import { json, parseBody } from "../http";
 import type { ExploreService } from "../services/explore-service";
 import { run, type RouteContext } from "./context";
-import { outcomeActor } from "./outcome";
+import { outcomeActor, requireOutcomeDispatch } from "./outcome";
 
 /** Registered behind the existing authentication gate; assembly supplies the real planning service. */
 export async function exploreRoutes(context: RouteContext, service: ExploreService): Promise<Response | undefined> {
@@ -33,7 +33,10 @@ export async function exploreRoutes(context: RouteContext, service: ExploreServi
   const match = path.match(/^\/api\/explore\/([\da-f-]{36})(?:\/(propose|discard))?$/i);
   if (match && !match[2] && request.method === "GET") return json(await run(service.get(match[1]!)));
   if (match?.[2] && request.method === "POST") {
-    if (match[2] === "propose") return json(await run(service.propose(match[1]!, await parseBody(request, ProposeExploreIdeaInput), actor)), 201);
+    if (match[2] === "propose") {
+      requireOutcomeDispatch();
+      return json(await run(service.propose(match[1]!, await parseBody(request, ProposeExploreIdeaInput), actor)), 201);
+    }
     return json(await run(service.discard(match[1]!, await parseBody(request, DiscardExploreIdeaInput), actor)));
   }
 }
