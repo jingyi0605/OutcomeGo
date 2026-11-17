@@ -420,7 +420,7 @@ final class AppStore {
     }
     let next = SessionRecord(
       server: candidate.baseURL.absoluteString, token: login.token, userID: login.userID,
-      userName: login.name, mode: mode)
+      userName: login.name, mode: mode, ownershipID: UUID().uuidString)
     if mode == "required", !testing {
       UserDefaults.standard.set(
         username.trimmingCharacters(in: .whitespacesAndNewlines),
@@ -511,6 +511,9 @@ final class AppStore {
       SystemDiscovery.shared.clear(removeTransfers: true)
     }
     record = next
+    #if canImport(UIKit)
+      LocationSharing.shared.bind(next)
+    #endif
     systemScope = scope
     systemDiscoveryEnabled = !testing && SystemDiscovery.enabled(scope: scope)
     SystemDiscovery.shared.clear()
@@ -1592,6 +1595,19 @@ final class AppStore {
             break sendAttempt
           }
           try budget.check()
+          var locatedInput = committed.input
+          #if canImport(UIKit)
+            let locationOwner = record
+            var locationSubmission: LocationSharing.Submission?
+            if let locationOwner {
+              locationSubmission = try await LocationSharing.shared.prepare(session: locationOwner)
+              locatedInput.location = locationSubmission?.location
+            }
+            let preparedLocation = locationSubmission
+          #endif
+          guard epoch == generation, !Task.isCancelled else { return }
+          try budget.check()
+          let input = locatedInput
           guard let index = state.outbox.firstIndex(where: { $0.id == pending.id }) else {
             break sendAttempt
           }
@@ -1603,8 +1619,15 @@ final class AppStore {
           submitting = true
           let targetBot = bot(for: channel)
           let message = try await sendOperation(id: pending.id, epoch: epoch, budget: budget) {
-            try await api.send(
-              channel: channel, bot: targetBot, input: committed.input,
+            #if canImport(UIKit)
+              if let locationOwner {
+                return try await LocationSharing.shared.perform(preparedLocation, session: locationOwner) {
+                  try await api.send(channel: channel, bot: targetBot, input: input,
+                    timeout: budget.overallRemaining())
+                }
+              }
+            #endif
+            return try await api.send(channel: channel, bot: targetBot, input: input,
               timeout: budget.overallRemaining())
           }
           submitting = false
@@ -2047,7 +2070,22 @@ final class AppStore {
       channelID: channelID, key: key, visible: visible)
   }
 
+  #if canImport(UIKit)
+    func refreshLocationSharing() async throws {
+      guard let record else { return }
+      try await LocationSharing.shared.refreshAvailability(session: record)
+    }
+    func setLocationSharing(_ enabled: Bool) async throws {
+      guard let record else { throw CancellationError() }
+      try await LocationSharing.shared.setEnabled(enabled, session: record)
+    }
+  #endif
+
   private func clearSystemContent() {
+    #if canImport(UIKit)
+      LocationSharing.shared.bind(nil)
+      VoiceMemoSessions.reset()
+    #endif
     systemOpenGeneration = UUID()
     systemVoiceRequestID = nil
     botVoiceLaunch.reset()
@@ -2060,6 +2098,10 @@ final class AppStore {
   func signOut() async {
     guard let api, !busy.contains("sign-out") else { return }
     busy.insert("sign-out")
+    #if canImport(UIKit)
+      // Fence delayed fixes before notification retirement or remote sign-out awaits.
+      LocationSharing.shared.bind(nil)
+    #endif
     defer { busy.remove("sign-out") }
     do {
       mobileNetworkProvider.stop(revokeConsent: false)
@@ -2109,6 +2151,7 @@ final class AppStore {
       self.error = UserFacingError.message(error)
       #if canImport(UIKit)
         if let record {
+          LocationSharing.shared.bind(record)
           NativeNotifications.shared.bind(record)
           await NativeNotifications.shared.resume()
         }

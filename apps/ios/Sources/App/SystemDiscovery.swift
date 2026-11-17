@@ -110,8 +110,7 @@ final class SystemDiscovery {
     let scope = SystemEntityID.scope(server: session.server, userID: session.userID)
     guard epoch == revision, Self.enabled(scope: scope),
       !UserDefaults.standard.bool(forKey: LocalDataReset.pendingKey),
-      let current = try SecureSession.read(), current.server == session.server,
-      current.userID == session.userID, current.token == session.token else { throw CancellationError() }
+      let current = try SecureSession.read(), current.sameCredentials(as: session) else { throw CancellationError() }
   }
 
   private func publish(_ snapshot: SystemDiscoverySnapshot, session: SessionRecord, epoch: UUID) async throws {

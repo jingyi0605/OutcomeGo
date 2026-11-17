@@ -496,13 +496,14 @@ struct ComposerView: View {
   private func configureVoice() {
     let store = self.store, channel = self.channel, key = self.key
     let threadRootID = self.threadRootID, replyRootID = self.replyRootID
+    let owner = store.api?.resourceGeneration
     memo.transcribe = { url in
-      guard let api = store.api else { return nil }
+      guard let api = store.api, api.resourceGeneration == owner else { return nil }
       let data = try Data(contentsOf: url)
       let (response, _) = try await api.raw(
         "/api/v0/transcriptions", method: "POST", data: data, contentType: "audio/mp4",
         timeout: 135)
-      guard store.api?.baseURL == api.baseURL, store.api?.token == api.token else { return nil }
+      guard store.api?.resourceGeneration == owner else { return nil }
       let value = try JSONDecoder().decode(JSON.self, from: response)["text"].string
       guard !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
         throw APIError(
@@ -511,15 +512,22 @@ struct ComposerView: View {
       return value
     }
     memo.deliver = { transcript in
+      guard store.api?.resourceGeneration == owner else { return }
       var d = store.draft(key)
       d.text = VoiceMemoText.message(draft: d.text, transcript: transcript)
       store.saveDraft(d, channel: key)
       // Like the Send button: the outbox owns delivery, so the bar never waits on the network.
       // One yield lets enqueue move the draft into the outbox before the composer reappears.
-      Task { await store.enqueue(channel, draftKey: key, threadRootID: threadRootID, replyRootID: replyRootID) }
+      Task {
+        guard store.api?.resourceGeneration == owner else { return }
+        await store.enqueue(channel, draftKey: key, threadRootID: threadRootID, replyRootID: replyRootID)
+      }
       await Task.yield()
     }
-    memo.report = { error in store.handle(error) }
+    memo.report = { error in
+      guard store.api?.resourceGeneration == owner else { return }
+      store.handle(error)
+    }
   }
   /// The draft's photos and videos, in order, for the full-screen gallery.
   private var draftMedia: [ComposerPhoto] {

@@ -6,6 +6,13 @@ struct SessionRecord: Codable, Sendable {
   var userID: String
   var userName: String
   var mode: String
+  /// New connections get a fresh local epoch, including A -> B -> A with identical credentials.
+  /// Optional so saved sessions from older app versions still decode.
+  var ownershipID: String? = nil
+
+  func sameCredentials(as other: SessionRecord) -> Bool {
+    server == other.server && userID == other.userID && token == other.token && ownershipID == other.ownershipID
+  }
 
   var displayName: String {
     let name = userName.trimmingCharacters(in: .whitespacesAndNewlines)

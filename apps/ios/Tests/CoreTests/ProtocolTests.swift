@@ -8,6 +8,22 @@ final class ProtocolTests: XCTestCase {
       forResource: "bootstrap", withExtension: "json", subdirectory: "Fixtures")!
     return try JSONDecoder().decode(Bootstrap.self, from: Data(contentsOf: url))
   }
+  func testOptionalLocationUsesOutcomeGoRevisionEnvelope() throws {
+    var input = SendInput(content: "Nearby", clientId: "location-fixture")
+    let off = try JSONSerialization.jsonObject(with: JSONEncoder().encode(input)) as! [String: Any]
+    XCTAssertNil(off["location"])
+    input.location = LocationSubmission(fix: DeviceLocation(latitude: 47.6097, longitude: -122.3331,
+      accuracyMeters: 5, capturedAt: Date(timeIntervalSince1970: 1_700_000_000)),
+      sharingRevision: "7ec8d8cc-46e3-4b59-a996-1317cfaad0a0")
+    let wire = try JSONSerialization.jsonObject(with: JSONEncoder().encode(input)) as! [String: Any]
+    let location = try XCTUnwrap(wire["location"] as? [String: Any])
+    XCTAssertEqual(location["sharingRevision"] as? String, input.location?.sharingRevision)
+    let fix = try XCTUnwrap(location["fix"] as? [String: Any])
+    XCTAssertEqual(fix["device"] as? String, "phone")
+    XCTAssertNil(fix["userId"])
+    let decoded = try JSONDecoder().decode(SendInput.self, from: JSONEncoder().encode(input))
+    XCTAssertEqual(decoded, input)
+  }
   func testDecodesExistingReactNativeFixture() throws {
     let snapshot = try fixture()
     XCTAssertEqual(snapshot.bots.count, 3)
