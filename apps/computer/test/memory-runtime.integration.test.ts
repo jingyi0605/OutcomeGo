@@ -27,9 +27,9 @@ for (const type of ["profile", "journal", "shared_profile", "shared_journal"] as
     const env: Record<string, string> = {
       DATABASE_URL: databaseUrl!,
       OUTCOMEGO_WORKSPACE_ROOT: root,
-      OPENTEAM_AGENT_DATA_ROOT: join(root, "data"),
+      OUTCOMEGO_AGENT_DATA_ROOT: join(root, "data"),
       OUTCOMEGO_PI_AGENT_DIR: join(root, "pi"),
-      OPENTEAM_CONTROL_TOKEN: token,
+      OUTCOMEGO_CONTROL_TOKEN: token,
     };
     const previous = new Map<string, string | undefined>();
     const setEnv = (key: string, value: string) => {
@@ -60,7 +60,7 @@ for (const type of ["profile", "journal", "shared_profile", "shared_journal"] as
         return Response.json(await Effect.runPromise(app.handleDynamicTool(input), { signal: request.signal }));
       } catch (error) { return errorResponse(error); }
     } });
-    setEnv("OPENTEAM_SERVER_URL", `http://127.0.0.1:${server.port}`);
+    setEnv("OUTCOMEGO_SERVER_URL", `http://127.0.0.1:${server.port}`);
     let runtime: any;
     try {
       await app.prisma.bot.create({ data: {
