@@ -130,6 +130,7 @@ data class AppState(
     val authChecking: Boolean = false,
     val validatedServer: String? = null,
     val pendingLink: ChatTarget? = null,
+    val pendingOutcomeLink: com.outcomego.mobile.core.OutcomeLinkTarget? = null,
     val pendingVoiceShortcut: Boolean = false,
     val pendingShare: SharePayload? = null,
     val pendingExternalUrl: String? = null,
@@ -260,6 +261,10 @@ class AppViewModel @JvmOverloads constructor(
     }
 
     fun acceptDeepLink(raw: String?) {
+        com.outcomego.mobile.core.parseOutcomeDeepLink(raw)?.let { target ->
+            mutableState.update { it.copy(pendingOutcomeLink = target, pendingLink = null) }
+            return
+        }
         val actionUri = raw?.let { runCatching { URI(it) }.getOrNull() }
         if (actionUri?.scheme == "outcomego" && actionUri.host == "action") {
             mutableState.update {
@@ -272,13 +277,28 @@ class AppViewModel @JvmOverloads constructor(
             return
         }
         val target = DeepLinkRouter.parse(raw) ?: return
-        mutableState.update { it.copy(pendingLink = target) }
+        mutableState.update { it.copy(pendingLink = target, pendingOutcomeLink = null) }
         if (mutableState.value.session != null) openConversation(target.conversationId, target.messageId)
     }
 
     fun acceptVoiceShortcut(botId: String) {
         mutableState.update { it.copy(pendingVoiceShortcut = true) }
         acceptDeepLink("outcomego://chat/${Uri.encode(botId)}")
+    }
+
+    fun consumeOutcomeDeepLink() {
+        mutableState.update { it.copy(pendingOutcomeLink = null) }
+    }
+
+    fun requireOutcomeAuthentication(
+        target: com.outcomego.mobile.core.OutcomeLinkTarget,
+        expectedSession: MobileSession?,
+        expectedGateway: FeatureGateway,
+    ): Boolean {
+        if (activeFeatureGateway !== expectedGateway || mutableState.value.session != expectedSession) return false
+        signOut()
+        mutableState.update { it.copy(restoringSession = false, pendingOutcomeLink = target) }
+        return true
     }
 
     fun consumeDeepLink() {

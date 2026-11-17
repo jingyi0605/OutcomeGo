@@ -31,6 +31,8 @@ final class AppStore {
   private(set) var foundServer: FoundServer?
   private var authGeneration = UUID()
   private var pendingDeepLink: URL?
+  private var pendingOutcomeNotificationScope: String?
+  var outcomeNavigation: OutcomeLinkTarget?
   var requiresAuthentication: Bool { record?.mode == "required" }
   var server = UserDefaults.standard.string(forKey: "server") ?? ""
   var userName = ""
@@ -1800,6 +1802,37 @@ final class AppStore {
       throw error
     }
   }
+  func outcomeInbox(category: String? = nil, cursor: String? = nil) async throws -> OutcomeInboxPage? {
+    do { return try await fetch("/api/v0/outcome-inbox", as: OutcomeInboxPage.self,
+      query: API.outcomeInboxQuery(category: category, cursor: cursor)) }
+    catch let error as APIError where error.status == 404 { return nil }
+  }
+  func readOutcomeDetail(_ id: String) async throws -> OutcomeDetail {
+    do { return try await fetch("/api/v0/outcomes/\(API.segment(id))", as: OutcomeDetail.self) }
+    catch {
+      if (error as? APIError)?.unauthorized == true,
+        let url = URL(string: "outcomego://app/v1/outcomes?id=\(id)") { pendingDeepLink = url }
+      throw error
+    }
+  }
+  func outcomeDecision(_ id: String) async throws -> OutcomeDecision {
+    do { return try await fetch("/api/v0/decisions/\(API.segment(id))", as: OutcomeDecision.self) }
+    catch {
+      if (error as? APIError)?.unauthorized == true,
+        let url = URL(string: "outcomego://app/v1/outcomes/decision?id=\(id)") { pendingDeepLink = url }
+      throw error
+    }
+  }
+  func resolveOutcomeDecision(_ id: String, input: ResolveOutcomeDecision) async throws -> OutcomeDecisionResolution {
+    do { return try await request("/api/v0/decisions/\(API.segment(id))/resolve", method: "POST", body: .encode(input))
+      .decode(OutcomeDecisionResolution.self) }
+    catch {
+      if (error as? APIError)?.unauthorized == true,
+        let url = URL(string: "outcomego://app/v1/outcomes/decision?id=\(id)") { pendingDeepLink = url }
+      throw error
+    }
+  }
+
   func listOutcomes(cursor: String? = nil) async throws -> OutcomeListPage? {
     var query = ["limit": "20"]
     if let cursor { query["cursor"] = cursor }
@@ -1909,9 +1942,17 @@ final class AppStore {
     navigation = [channelID]
   }
   func deepLink(_ url: URL) async {
+    if OutcomeLinkTarget.parse(url) != nil {
+      pendingDeepLink = url
+      pendingOutcomeNotificationScope = nil
+      await routePendingDeepLink()
+      return
+    }
     let parts = url.pathComponents.filter { $0 != "/" }
     guard ["outcomego", "outcomego-swift"].contains(url.scheme ?? ""), url.host == "chat",
       parts.count == 1, let id = parts.first else { return }
+    pendingOutcomeNotificationScope = nil
+    outcomeNavigation = nil
     guard phase == .ready else {
       pendingDeepLink = url
       return
@@ -1924,8 +1965,21 @@ final class AppStore {
   private func routePendingDeepLink() async {
     guard phase == .ready, let url = pendingDeepLink else { return }
     pendingDeepLink = nil
-    await deepLink(url)
+    if let target = OutcomeLinkTarget.parse(url) {
+      let notificationScope = pendingOutcomeNotificationScope
+      pendingOutcomeNotificationScope = nil
+      if let notificationScope {
+        guard let record, NativeNotifications.scope(record) == notificationScope else { return }
+      }
+      outcomeNavigation = target
+    } else { await deepLink(url) }
   }
+  func openOutcomeNotification(_ target: OutcomeLinkTarget, scope: String) async {
+    pendingDeepLink = target.url
+    pendingOutcomeNotificationScope = scope
+    await routePendingDeepLink()
+  }
+  func consumeOutcomeNavigation() { outcomeNavigation = nil }
   func setSystemDiscoveryEnabled(_ enabled: Bool) {
     guard let record, !testing else { return }
     systemDiscoveryEnabled = enabled
@@ -2144,6 +2198,8 @@ final class AppStore {
     focusedMessage = nil
     focusedRoutine = nil
     pendingDeepLink = nil
+    pendingOutcomeNotificationScope = nil
+    outcomeNavigation = nil
     busy = []
     sending = false
     online = false
@@ -2208,6 +2264,7 @@ final class AppStore {
       flushPersistence()
       stopPersistence()
       api = nil
+      outcomeNavigation = nil
       state = SavedState()
       disk = nil
       phase = .signedOut

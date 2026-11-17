@@ -17,6 +17,8 @@ struct HomeView: View {
   }
   @State private var settings: SettingsSheet?
   @State private var outcomes = false
+  @State private var outcomeInitialTarget: OutcomeLinkTarget?
+  @State private var outcomePresentation = UUID()
   @State private var outcomesSupported = false
   @State private var marketplace = false
   @State private var marketplaceRevision = 0
@@ -121,6 +123,7 @@ struct HomeView: View {
     }
     .readingBarRegions { barRegions = $0 }
     .onChange(of: store.navigation) { _, path in
+      if !path.isEmpty { outcomes = false }
       // Once the zoomed chat has closed (and zoomed back into its row), later
       // opens push as usual.
       guard path.isEmpty, zoomChannel != nil, store.landing == nil else { return }
@@ -131,7 +134,7 @@ struct HomeView: View {
     }
     .task(id: store.api?.resourceGeneration) {
       outcomesSupported = false
-      outcomes = false
+      if store.api == nil { outcomes = false; outcomeInitialTarget = nil }
       do { outcomesSupported = try await store.listOutcomes() != nil }
       catch {
         if !UserFacingError.isCancelled(error) && (error as? APIError)?.status != 401 {
@@ -139,10 +142,16 @@ struct HomeView: View {
         }
       }
     }
-    .sheet(isPresented: $outcomes) {
-      NavigationStack {
-        OutcomesView { outcomesSupported = false; outcomes = false }
-      }.id(store.api?.resourceGeneration).referenceSheet()
+    .onChange(of: store.outcomeNavigation, initial: true) { _, target in
+      guard let target else { return }
+      outcomeInitialTarget = target
+      outcomePresentation = UUID()
+      outcomes = true
+      store.consumeOutcomeNavigation()
+    }
+    .sheet(isPresented: $outcomes, onDismiss: { outcomeInitialTarget = nil }) {
+      OutcomeInboxView(initialTarget: outcomeInitialTarget) { outcomesSupported = false; outcomes = false }
+        .id("\(store.api?.resourceGeneration.uuidString ?? "")-\(outcomePresentation.uuidString)").referenceSheet()
     }
     .sheet(isPresented: $marketplace, onDismiss: { marketplaceRevision += 1 }) {
       NavigationStack { PluginListView() }.referenceSheet()

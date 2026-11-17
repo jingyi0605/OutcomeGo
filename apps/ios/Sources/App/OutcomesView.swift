@@ -67,7 +67,7 @@ struct OutcomesView: View {
   }
 }
 
-private struct OutcomeDetailView: View {
+struct OutcomeDetailView: View {
   @Environment(AppStore.self) private var store
   let id: String
   @State private var detail: OutcomeDetail?
@@ -94,6 +94,9 @@ private struct OutcomeDetailView: View {
               Text(outcomeStatus(item.status))
               Text("Revision \(item.contractRevision)").font(.caption)
               if let reason = item.statusReason { Text(reason) }
+              if item.executorType == "human" {
+                NavigationLink("View human action") { OutcomeHumanActionView(id: item.id) }
+              }
             }
           }
         }
@@ -139,7 +142,7 @@ private struct OutcomeDetailView: View {
     loading = true
     failure = nil
     defer { loading = false }
-    do { detail = try await store.fetch("/api/v0/outcomes/\(API.segment(id))", as: OutcomeDetail.self) }
+    do { detail = try await store.readOutcomeDetail(id) }
     catch { if !UserFacingError.isCancelled(error) { failure = UserFacingError.message(error) } }
   }
 }

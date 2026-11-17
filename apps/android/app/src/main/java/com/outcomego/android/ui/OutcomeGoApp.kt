@@ -31,7 +31,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.key
-import com.outcomego.features.OutcomesScreen
+import com.outcomego.features.OutcomeInboxScreen
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -315,6 +315,17 @@ fun OutcomeGoApp(
         return
     }
 
+    var outcomeOpening by remember(state.session) { mutableStateOf<com.outcomego.mobile.core.OutcomeLinkTarget?>(null) }
+    var outcomeOpeningGeneration by remember(state.session) { mutableStateOf(0) }
+    LaunchedEffect(state.pendingOutcomeLink, state.session) {
+        val target = state.pendingOutcomeLink ?: return@LaunchedEffect
+        if (state.session == null) return@LaunchedEffect
+        outcomeOpening = target
+        outcomeOpeningGeneration += 1
+        navController.navigate(OUTCOMES) { launchSingleTop = true }
+        appViewModel.consumeOutcomeDeepLink()
+    }
+
     val outcomeGateway = appViewModel.outcomeReadGateway
     var outcomesSupported by remember(state.session, outcomeGateway) { mutableStateOf(false) }
     LaunchedEffect(state.session, outcomeGateway) {
@@ -374,7 +385,7 @@ fun OutcomeGoApp(
                         },
                         onRoutines = { navController.navigate(CREATE) },
                         onOutbox = { navController.navigate(OUTBOX) },
-                        onOutcomes = if (outcomesSupported) ({ navController.navigate(OUTCOMES) }) else null,
+                        onOutcomes = if (outcomesSupported) ({ outcomeOpening = null; navController.navigate(OUTCOMES) }) else null,
                         onSettings = { navController.navigate(SETTINGS) { launchSingleTop = true } },
                         onSearch = appViewModel::search,
                         onClearSearch = appViewModel::clearSearch,
@@ -643,9 +654,15 @@ fun OutcomeGoApp(
                     }
                 }
                 spatialComposable(OUTCOMES) {
-                    key(state.session, outcomeGateway) {
-                        OutcomesScreen(
+                    key(state.session, outcomeGateway, outcomeOpeningGeneration, outcomeOpening) {
+                        OutcomeInboxScreen(
                             gateway = outcomeGateway,
+                            initialTarget = outcomeOpening,
+                            onAuthenticationRequired = { target ->
+                                if (appViewModel.requireOutcomeAuthentication(target, state.session, outcomeGateway)) {
+                                    navController.navigate(LOGIN) { popUpTo(navController.graph.id) { inclusive = true } }
+                                }
+                            },
                             onBack = { navController.popBackStack() },
                             onUnsupported = {
                                 outcomesSupported = false

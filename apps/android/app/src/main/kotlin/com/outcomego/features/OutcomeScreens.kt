@@ -28,7 +28,11 @@ import com.outcomego.android.ui.designsystem.SpatialGlassSurface
 import kotlinx.coroutines.launch
 
 @Composable
-fun OutcomesScreen(gateway: FeatureGateway, onBack: () -> Unit, onUnsupported: () -> Unit) {
+fun OutcomesScreen(
+    gateway: FeatureGateway, onBack: () -> Unit, onUnsupported: () -> Unit,
+    onHumanWorkItem: (String) -> Unit = {},
+    onAuthenticationRequired: (com.outcomego.mobile.core.OutcomeLinkTarget) -> Unit = {},
+) {
     var page by remember(gateway) { mutableStateOf<OutcomeListPage?>(null) }
     var detailID by remember(gateway) { mutableStateOf<String?>(null) }
     var loading by remember(gateway) { mutableStateOf(false) }
@@ -46,7 +50,12 @@ fun OutcomesScreen(gateway: FeatureGateway, onBack: () -> Unit, onUnsupported: (
                 if (next == null) onUnsupported()
                 else page = if (more) next.copy(items = (page?.items.orEmpty() + next.items).distinctBy { it.id }) else next
             },
-            onFailure = { failure = true },
+            onFailure = {
+                if ((it as? com.outcomego.mobile.core.OutcomeGoRequestException)?.error?.status == 401) {
+                    page = null
+                    onAuthenticationRequired(com.outcomego.mobile.core.OutcomeLinkTarget())
+                } else failure = true
+            },
         )
         loading = false
     }
@@ -54,7 +63,7 @@ fun OutcomesScreen(gateway: FeatureGateway, onBack: () -> Unit, onUnsupported: (
     val selected = detailID
     if (selected != null) {
         BackHandler { detailID = null }
-        OutcomeDetailScreen(gateway, selected) { detailID = null }
+        OutcomeDetailScreen(gateway, selected, { detailID = null }, onHumanWorkItem, onAuthenticationRequired)
         return
     }
     FeaturePage(localizedText("Outcomes", "成果"), onBack = onBack) {
@@ -79,7 +88,11 @@ fun OutcomesScreen(gateway: FeatureGateway, onBack: () -> Unit, onUnsupported: (
 }
 
 @Composable
-private fun OutcomeDetailScreen(gateway: FeatureGateway, id: String, onBack: () -> Unit) {
+internal fun OutcomeDetailScreen(
+    gateway: FeatureGateway, id: String, onBack: () -> Unit,
+    onHumanWorkItem: (String) -> Unit = {},
+    onAuthenticationRequired: (com.outcomego.mobile.core.OutcomeLinkTarget) -> Unit = {},
+) {
     var detail by remember(gateway, id) { mutableStateOf<OutcomeDetail?>(null) }
     var loading by remember(gateway, id) { mutableStateOf(false) }
     var failure by remember(gateway, id) { mutableStateOf(false) }
@@ -88,7 +101,12 @@ private fun OutcomeDetailScreen(gateway: FeatureGateway, id: String, onBack: () 
         if (loading) return
         loading = true
         failure = false
-        gateway.outcomeDetail(id).fold(onSuccess = { detail = it }, onFailure = { failure = true })
+        gateway.outcomeDetail(id).fold(onSuccess = { detail = it }, onFailure = {
+            if ((it as? com.outcomego.mobile.core.OutcomeGoRequestException)?.error?.status == 401) {
+                detail = null
+                onAuthenticationRequired(com.outcomego.mobile.core.OutcomeLinkTarget(outcomeId = id))
+            } else failure = true
+        })
         loading = false
     }
     LaunchedEffect(gateway, id) { load() }
@@ -112,6 +130,9 @@ private fun OutcomeDetailScreen(gateway: FeatureGateway, id: String, onBack: () 
                     Text(outcomeStatusLabel(work.status))
                     Text(localizedText("Revision ${work.contractRevision}", "修订 ${work.contractRevision}"))
                     work.statusReason?.let { Text(it) }
+                    if (work.executorType == "human") {
+                        TextButton(onClick = { onHumanWorkItem(work.id) }) { Text(localizedText("View human action", "查看人工动作")) }
+                    }
                 } }
                 item { Text(localizedText("Outputs", "输出"), style = MaterialTheme.typography.titleMedium) }
                 items(value.outputs, key = { it.id }) { output -> OutcomeCard {
