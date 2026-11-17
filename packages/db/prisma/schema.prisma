@@ -1787,6 +1787,21 @@ model NotificationPresence {
 
 /// The user's time zone. The apps report the zone their device detects; an override chosen in
 /// Settings wins. Routines, the box clock and the prompt's Time section all use override ?? detected.
+/// Account-owned location and opt-out tombstone. No credentials or message content are stored.
+model UserLocation {
+  ownerKey String @id(map: "outcomego_user_location_pkey")
+  sharingEnabled Boolean @default(false)
+  sharingRevision String @default(uuid()) @db.Uuid
+  latitude Float?
+  longitude Float?
+  accuracyMeters Float?
+  capturedAt DateTime? @db.Timestamptz(3)
+  device String?
+  updatedAt DateTime @default(now()) @updatedAt @db.Timestamptz(3)
+
+  @@map("outcomego_user_location")
+}
+
 model UserTimeZoneSettings {
   id String   @id @default("global")
   detected String?

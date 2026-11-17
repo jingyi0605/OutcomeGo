@@ -1,3 +1,5 @@
+import { LocationSubmission } from "./user-location";
+export * from "./user-location";
 export type {
   ServerUpdateView,
   ServerUpdateRequest,
@@ -305,6 +307,7 @@ export const UploadAssetInput = Schema.Struct({
 export type UploadAssetInput = typeof UploadAssetInput.Type;
 
 export const SendMessageInput = Schema.Struct({
+  location: Schema.optional(LocationSubmission),
   content: Schema.String,
   sourceMachineId: Schema.optional(
     Schema.String.pipe(Schema.pattern(/^[\da-f]{8}(-[\da-f]{4}){3}-[\da-f]{12}$/i))

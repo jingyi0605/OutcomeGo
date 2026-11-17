@@ -158,7 +158,7 @@ const routes = [
     "POST",
     /^\/api\/channels\/([^/]+)\/messages$/,
     SendMessageInput,
-    ({ app }, id, input) => app.sendChannelMessage(id, input),
+    ({ app, authenticatedSessionId }, id, input) => app.sendChannelMessage(id, input, { locationSessionId: authenticatedSessionId }),
     202
   ),
   bodyRoute("PATCH", /^\/api\/channels\/([^/]+)\/name$/, RenameChannelInput, ({ app }, id, input) =>

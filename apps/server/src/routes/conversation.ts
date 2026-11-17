@@ -49,7 +49,7 @@ const routes = [
     "POST",
     /^\/api\/conversations\/([^/]+)\/messages$/,
     SendMessageInput,
-    ({ app }, id, input) => app.sendMessage(id, input),
+    ({ app, authenticatedSessionId }, id, input) => app.sendMessage(id, input, authenticatedSessionId),
     202
   ),
   effectRoute("POST", /^\/api\/runs\/([^/]+)\/cancel$/, ({ app }, id) => app.cancelRun(id)),
