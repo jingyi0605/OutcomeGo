@@ -207,10 +207,14 @@
   },
   "RecallMemory": {
     "name": "RecallMemory",
-    "description": "Search your durable memory for facts that are not in the memory section of your prompt: older journal entries, notes that have aged out of the recent slice, and shared user facts recorded by any of this user's assistants.\nRead-only. Results list each fact with its date, memory type and, for shared facts, which assistant learned it.\nTo add or drop a fact use UpdateMemory. Prefer this tool over grepping memory folders.",
+    "description": "Search your durable memory for facts that are not in the memory section of your prompt: older journal entries, notes that have aged out of the recent slice, and shared user facts recorded by any of this user's assistants.\nRead-only. Results list each fact with its date, memory type and, for shared facts, which assistant learned it.\nBy default, only active facts are returned. Set includeHistory to true to include superseded facts labeled as historical. To add or drop a fact use UpdateMemory. Prefer this tool over grepping memory folders.",
     "inputSchema": {
       "type": "object",
       "properties": {
+        "includeHistory": {
+          "type": "boolean",
+          "description": "Include superseded facts, labeled as historical. Default false."
+        },
         "query": {
           "type": "string",
           "minLength": 1,
