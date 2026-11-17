@@ -11,7 +11,7 @@
 | 六场景实际 JSON/DB 对账 | 六个实际 JSON PASS，包含实际本地进程退出、真实 receipt 回滚、统一 Review、未知外部回执不重试 | PASS（本地一次性环境）；远端/provider PENDING |
 | 普通聊天/Group/Routine/Memory/Stop | 跨阶段 11 PASS；完整 server 294 FAIL、worker 51 FAIL，负责人持续修复 | BLOCKED，组合验证与各负责线 |
 | 备份 unknown table/missing target/orphan | 集成线已有校验修复，需实际负例/restore | PENDING，备份负责人/组合验证 |
-| `pg_dump` / restore | 没有本次备份文件、摘要或实际 restore 结果 | PENDING，获准的一次性环境执行人 |
+| `pg_dump` / restore | 实际 86 表行数/内容摘要一致，22 表有数据、123 FK validated；六个实际故障 fixture，dump 333755 bytes | PASS（本地 PostgreSQL 同版本），见第二检查点；Planning/Explore 有数据回退仍 PENDING |
 | 关闭 Outcome 入口 | 操作与断言已写手册；实际运行待验 | PENDING，恢复/集成负责人 |
 | populated Outcome 表回退旧镜像 | 已知 schema/fingerprint 风险；没有旧镜像运行日志 | PENDING，发布负责人 |
 | metrics/日志不含敏感正文 | 真实 metrics/attention 幂等与 provider error canary 检查 PASS，日志只使用虚构 fixture | PASS（本地查询与诊断）；远端复核 PENDING |

@@ -1,0 +1,1075 @@
+{
+  "status": "PASS",
+  "source": "03cf82651355cfd51be14cb394a83eabab77799d",
+  "postgres": "17.12",
+  "sourceDatabase": "127.0.0.1:55439/outcomego_w3_backup",
+  "restoredDatabase": "127.0.0.1:55439/outcomego_w3_restored",
+  "dump": "data/acceptance/populated-outcome.dump",
+  "dumpSha256": "0e5f11d9b725efadd5d388a47c31f964d4ecd5e431077a0e07f4ed9e061baf69",
+  "dumpBytes": 333755,
+  "before": {
+    "outcomego_account": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_agent_file_state": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_apns_settings": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_automation_result": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_automation_webhook": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_automation_webhook_settings": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_bitwarden_read_approval": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_bot": {
+      "count": 6,
+      "digest": "7415fce50dfcc23cc774adbb52ec632d"
+    },
+    "outcomego_bot_connector_state": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_bot_run_lease": {
+      "count": 6,
+      "digest": "d2fa5902884924b231408b0fbb90f3c8"
+    },
+    "outcomego_browser_network_settings": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_channel": {
+      "count": 6,
+      "digest": "583a8de4c9d80897d1cc2d7c04b4161a"
+    },
+    "outcomego_channel_delivery": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_channel_member": {
+      "count": 6,
+      "digest": "34f7234f135b41f0f129e10878557982"
+    },
+    "outcomego_channel_message": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_channel_notification": {
+      "count": 1,
+      "digest": "1ad79e7796cc25cbb02e3e91e50f9786"
+    },
+    "outcomego_channel_read_state": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_channel_round": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_computer": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_computer_display_settings": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_computer_network_policy": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_computer_network_policy_approval": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_connector_file_transfer": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_context_compaction": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_context_prompt_snapshot": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_context_session": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_conversation": {
+      "count": 6,
+      "digest": "26f5fd108b11ce93df5e7660e349b8c6"
+    },
+    "outcomego_event": {
+      "count": 68,
+      "digest": "356e0c2a1759460d4aca09acdc5dc325"
+    },
+    "outcomego_explore_idea": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_external_channel_mapping": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_external_message_receipt": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_external_messaging_binding": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_external_outbound_delivery": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_host_machine": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_idempotency_record": {
+      "count": 25,
+      "digest": "1f55e503d2d12adda5a355584458ee48"
+    },
+    "outcomego_inbox_event": {
+      "count": 17,
+      "digest": "ab53c1dcc3c790e32a3bf9e82b0b11a0"
+    },
+    "outcomego_memory_fact": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_memory_review_lease": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_memory_revision": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_message": {
+      "count": 17,
+      "digest": "1997e36768f5eac52466158f2e9d5ce4"
+    },
+    "outcomego_messages_allowed_recipient": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_notification_preferences": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_notification_presence": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_outbox_delivery": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_outcome": {
+      "count": 6,
+      "digest": "95790e96b8fd43356c0e7ff3c6a3ff59"
+    },
+    "outcomego_outcome_acceptance_criterion": {
+      "count": 6,
+      "digest": "144760660edc386d74f6ed3c89e8401a"
+    },
+    "outcomego_outcome_contract_revision": {
+      "count": 6,
+      "digest": "3fdbad65074d6535ff81ec76db72678c"
+    },
+    "outcomego_outcome_decision": {
+      "count": 3,
+      "digest": "918af907b40ace4c2a83691698db3ad9"
+    },
+    "outcomego_outcome_evidence": {
+      "count": 1,
+      "digest": "75c0aa9610430da3e4e7520797a75a0f"
+    },
+    "outcomego_outcome_human_action_card": {
+      "count": 1,
+      "digest": "38027dccf408a45f70bcdc9da996c8da"
+    },
+    "outcomego_outcome_human_receipt": {
+      "count": 1,
+      "digest": "469aec6f939fb84157332597c4da7822"
+    },
+    "outcomego_outcome_output": {
+      "count": 1,
+      "digest": "8a50395532fc7e5701e8674942be0ae8"
+    },
+    "outcomego_outcome_planning_draft": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_outcome_review": {
+      "count": 2,
+      "digest": "d30adf7a3dba9beee1c4e6c0d687c365"
+    },
+    "outcomego_outcome_work_item": {
+      "count": 7,
+      "digest": "7edb4d981439606f1f2b76b8ee7b45ea"
+    },
+    "outcomego_plugin_activity": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_plugin_connection": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_plugin_draft": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_plugin_installation": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_plugin_invocation": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_plugin_private_skill": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_plugin_source": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_process_secret": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_push_device": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_retired_agent": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_routine": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_routine_execution": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_routine_revision": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_run": {
+      "count": 17,
+      "digest": "429035e532fa7bcb8ed185bed2f9190c"
+    },
+    "outcomego_run_item": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_saved_skill": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_search_document": {
+      "count": 6,
+      "digest": "8e0cea5c7b8df38d550b890737ac6295"
+    },
+    "outcomego_session": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_subagent": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_subagent_attempt": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_task_settings": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_todo_item": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_user": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_user_time_zone_settings": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_verification": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_voice_session": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_voice_settings": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_voice_turn": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_web_fetch_settings": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_web_search_settings": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_web_tool_provider": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    }
+  },
+  "after": {
+    "outcomego_account": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_agent_file_state": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_apns_settings": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_automation_result": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_automation_webhook": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_automation_webhook_settings": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_bitwarden_read_approval": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_bot": {
+      "count": 6,
+      "digest": "7415fce50dfcc23cc774adbb52ec632d"
+    },
+    "outcomego_bot_connector_state": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_bot_run_lease": {
+      "count": 6,
+      "digest": "d2fa5902884924b231408b0fbb90f3c8"
+    },
+    "outcomego_browser_network_settings": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_channel": {
+      "count": 6,
+      "digest": "583a8de4c9d80897d1cc2d7c04b4161a"
+    },
+    "outcomego_channel_delivery": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_channel_member": {
+      "count": 6,
+      "digest": "34f7234f135b41f0f129e10878557982"
+    },
+    "outcomego_channel_message": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_channel_notification": {
+      "count": 1,
+      "digest": "1ad79e7796cc25cbb02e3e91e50f9786"
+    },
+    "outcomego_channel_read_state": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_channel_round": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_computer": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_computer_display_settings": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_computer_network_policy": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_computer_network_policy_approval": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_connector_file_transfer": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_context_compaction": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_context_prompt_snapshot": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_context_session": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_conversation": {
+      "count": 6,
+      "digest": "26f5fd108b11ce93df5e7660e349b8c6"
+    },
+    "outcomego_event": {
+      "count": 68,
+      "digest": "356e0c2a1759460d4aca09acdc5dc325"
+    },
+    "outcomego_explore_idea": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_external_channel_mapping": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_external_message_receipt": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_external_messaging_binding": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_external_outbound_delivery": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_host_machine": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_idempotency_record": {
+      "count": 25,
+      "digest": "1f55e503d2d12adda5a355584458ee48"
+    },
+    "outcomego_inbox_event": {
+      "count": 17,
+      "digest": "ab53c1dcc3c790e32a3bf9e82b0b11a0"
+    },
+    "outcomego_memory_fact": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_memory_review_lease": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_memory_revision": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_message": {
+      "count": 17,
+      "digest": "1997e36768f5eac52466158f2e9d5ce4"
+    },
+    "outcomego_messages_allowed_recipient": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_notification_preferences": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_notification_presence": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_outbox_delivery": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_outcome": {
+      "count": 6,
+      "digest": "95790e96b8fd43356c0e7ff3c6a3ff59"
+    },
+    "outcomego_outcome_acceptance_criterion": {
+      "count": 6,
+      "digest": "144760660edc386d74f6ed3c89e8401a"
+    },
+    "outcomego_outcome_contract_revision": {
+      "count": 6,
+      "digest": "3fdbad65074d6535ff81ec76db72678c"
+    },
+    "outcomego_outcome_decision": {
+      "count": 3,
+      "digest": "918af907b40ace4c2a83691698db3ad9"
+    },
+    "outcomego_outcome_evidence": {
+      "count": 1,
+      "digest": "75c0aa9610430da3e4e7520797a75a0f"
+    },
+    "outcomego_outcome_human_action_card": {
+      "count": 1,
+      "digest": "38027dccf408a45f70bcdc9da996c8da"
+    },
+    "outcomego_outcome_human_receipt": {
+      "count": 1,
+      "digest": "469aec6f939fb84157332597c4da7822"
+    },
+    "outcomego_outcome_output": {
+      "count": 1,
+      "digest": "8a50395532fc7e5701e8674942be0ae8"
+    },
+    "outcomego_outcome_planning_draft": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_outcome_review": {
+      "count": 2,
+      "digest": "d30adf7a3dba9beee1c4e6c0d687c365"
+    },
+    "outcomego_outcome_work_item": {
+      "count": 7,
+      "digest": "7edb4d981439606f1f2b76b8ee7b45ea"
+    },
+    "outcomego_plugin_activity": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_plugin_connection": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_plugin_draft": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_plugin_installation": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_plugin_invocation": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_plugin_private_skill": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_plugin_source": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_process_secret": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_push_device": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_retired_agent": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_routine": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_routine_execution": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_routine_revision": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_run": {
+      "count": 17,
+      "digest": "429035e532fa7bcb8ed185bed2f9190c"
+    },
+    "outcomego_run_item": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_saved_skill": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_search_document": {
+      "count": 6,
+      "digest": "8e0cea5c7b8df38d550b890737ac6295"
+    },
+    "outcomego_session": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_subagent": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_subagent_attempt": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_task_settings": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_todo_item": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_user": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_user_time_zone_settings": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_verification": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_voice_session": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_voice_settings": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_voice_turn": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_web_fetch_settings": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_web_search_settings": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "outcomego_web_tool_provider": {
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    }
+  },
+  "mismatches": [],
+  "foreignKeys": {
+    "total": 123,
+    "invalid": 0
+  },
+  "scenarioReports": [
+    {
+      "scenario": "restart-running-run",
+      "status": "PASS",
+      "initialState": {
+        "outcomeStatus": "running",
+        "workItemStatus": "running",
+        "recoveryCount": 0,
+        "runCount": 1
+      },
+      "injectedEventId": "executor-exit:ee593945-6fcc-4448-ae8b-4594e15aa6fd",
+      "replayed": 2,
+      "finalState": {
+        "outcomeStatus": "running",
+        "workItemStatus": "running",
+        "recoveryCount": 1,
+        "runCount": 2
+      },
+      "outputCount": 0,
+      "decisionCount": 0,
+      "evidence": {
+        "fixtureBotId": "3e81d11d-45ad-4751-992f-4b17fc93e170",
+        "outcomeId": "adecec7d-414e-461a-be92-61c87b764616",
+        "workItemId": "00e7b1c0-7db3-41fd-878b-0e0235b6bd8c",
+        "checks": [
+          {
+            "name": "expired_lease_without_stop_confirmation_does_not_replace_executor",
+            "passed": true
+          },
+          {
+            "name": "local_executor_exit_confirmed_before_recovery",
+            "passed": true
+          },
+          {
+            "name": "terminated_local_executor_resumes_exactly_once",
+            "passed": true
+          },
+          {
+            "name": "expired_outcome_lease_released",
+            "passed": true
+          },
+          {
+            "name": "foreground_run_lease_and_visible_messages_unchanged",
+            "passed": true
+          },
+          {
+            "name": "run_lineage_bound_to_same_work_item",
+            "passed": true
+          }
+        ],
+        "observations": {
+          "executor": "disposable-local-process",
+          "exitObserved": true,
+          "executorExitCode": 137,
+          "executorSignal": "SIGKILL",
+          "remoteComputerStop": "PENDING",
+          "recoveryAction": "resume_queued"
+        },
+        "execution": "local-disposable-database",
+        "remoteReplay": "PENDING"
+      }
+    },
+    {
+      "scenario": "duplicate-finish-event",
+      "status": "PASS",
+      "initialState": {
+        "outcomeStatus": "running",
+        "workItemStatus": "running",
+        "recoveryCount": 0,
+        "runCount": 1
+      },
+      "injectedEventId": "11",
+      "replayed": 2,
+      "finalState": {
+        "outcomeStatus": "accepted",
+        "workItemStatus": "completed",
+        "recoveryCount": 0,
+        "runCount": 1
+      },
+      "outputCount": 1,
+      "decisionCount": 0,
+      "evidence": {
+        "fixtureBotId": "35f67143-ddef-44de-8fb5-c834a54487a0",
+        "outcomeId": "09743398-e7c6-4ac2-a78b-103724f47f9b",
+        "workItemId": "6e55743a-b05c-4355-b448-19c16d229a2b",
+        "checks": [
+          {
+            "name": "duplicate_completion_has_one_final_output",
+            "passed": true
+          },
+          {
+            "name": "one_review_request",
+            "passed": true
+          },
+          {
+            "name": "duplicate_inbox_delivery_has_one_durable_consumer_receipt",
+            "passed": true
+          },
+          {
+            "name": "one_acceptance_notification",
+            "passed": true
+          },
+          {
+            "name": "duplicate_review_one_acceptance",
+            "passed": true
+          },
+          {
+            "name": "agent_only_completion_creates_no_human_facts",
+            "passed": true
+          },
+          {
+            "name": "foreground_run_lease_and_visible_messages_unchanged",
+            "passed": true
+          },
+          {
+            "name": "run_lineage_bound_to_same_work_item",
+            "passed": true
+          }
+        ],
+        "observations": {},
+        "execution": "local-disposable-database",
+        "remoteReplay": "PENDING"
+      }
+    },
+    {
+      "scenario": "interrupted-thread-resume",
+      "status": "PASS",
+      "initialState": {
+        "outcomeStatus": "running",
+        "workItemStatus": "running",
+        "recoveryCount": 0,
+        "runCount": 1
+      },
+      "injectedEventId": "interruption:96b5d7e4-65f5-41f7-bf56-5715b32a92c6",
+      "replayed": 3,
+      "finalState": {
+        "outcomeStatus": "running",
+        "workItemStatus": "needs_review",
+        "recoveryCount": 2,
+        "runCount": 3
+      },
+      "outputCount": 0,
+      "decisionCount": 1,
+      "evidence": {
+        "fixtureBotId": "be7d721e-6433-4c6e-9b6d-da0d412ba62b",
+        "outcomeId": "29848628-b34e-4f35-99ca-22da7c6ca798",
+        "workItemId": "54e91403-acae-40d9-9564-5468af85587a",
+        "checks": [
+          {
+            "name": "interruption_1_replays_without_duplicate_run",
+            "passed": true
+          },
+          {
+            "name": "interruption_1_preserves_context",
+            "passed": true
+          },
+          {
+            "name": "interruption_2_replays_without_duplicate_run",
+            "passed": true
+          },
+          {
+            "name": "interruption_2_preserves_context",
+            "passed": true
+          },
+          {
+            "name": "interruption_3_replays_without_duplicate_run",
+            "passed": true
+          },
+          {
+            "name": "third_interruption_requires_owner_decision",
+            "passed": true
+          },
+          {
+            "name": "foreground_run_lease_and_visible_messages_unchanged",
+            "passed": true
+          },
+          {
+            "name": "run_lineage_bound_to_same_work_item",
+            "passed": true
+          }
+        ],
+        "observations": {
+          "actions": [
+            "resume_queued",
+            "resume_queued",
+            "needs_review"
+          ]
+        },
+        "execution": "local-disposable-database",
+        "remoteReplay": "PENDING"
+      }
+    },
+    {
+      "scenario": "concurrent-decision",
+      "status": "PASS",
+      "initialState": {
+        "outcomeStatus": "decision_pending",
+        "workItemStatus": "waiting_decision",
+        "recoveryCount": 0,
+        "runCount": 1
+      },
+      "injectedEventId": "d1d65ccf-0c2d-4558-bd9c-5cfecc15909b",
+      "replayed": 3,
+      "finalState": {
+        "outcomeStatus": "running",
+        "workItemStatus": "running",
+        "recoveryCount": 0,
+        "runCount": 2
+      },
+      "outputCount": 0,
+      "decisionCount": 1,
+      "evidence": {
+        "fixtureBotId": "15c73146-dab1-4862-95df-1d29decf94e6",
+        "outcomeId": "4ad19a7b-e984-40a9-98d3-57dda87d17fe",
+        "workItemId": "cfc5646a-9b9d-42a5-b22e-0b3a205e731d",
+        "checks": [
+          {
+            "name": "two_distinct_choices_have_one_winner",
+            "passed": true
+          },
+          {
+            "name": "one_resolution_and_one_continuation",
+            "passed": true
+          },
+          {
+            "name": "approved_revision_unchanged",
+            "passed": true
+          },
+          {
+            "name": "foreground_run_lease_and_visible_messages_unchanged",
+            "passed": true
+          },
+          {
+            "name": "run_lineage_bound_to_same_work_item",
+            "passed": true
+          }
+        ],
+        "observations": {
+          "winningChoiceCount": 1
+        },
+        "execution": "local-disposable-database",
+        "remoteReplay": "PENDING"
+      }
+    },
+    {
+      "scenario": "receipt-retry",
+      "status": "PASS",
+      "initialState": {
+        "outcomeStatus": "human_action_pending",
+        "workItemStatus": "waiting_human",
+        "recoveryCount": 0,
+        "runCount": 1
+      },
+      "injectedEventId": "receipt-create-failure:ca4914f6-5870-43e8-be0d-a17d8af2e229",
+      "replayed": 5,
+      "finalState": {
+        "outcomeStatus": "running",
+        "workItemStatus": "running",
+        "recoveryCount": 0,
+        "runCount": 2
+      },
+      "outputCount": 0,
+      "decisionCount": 0,
+      "evidence": {
+        "fixtureBotId": "376a18ef-6855-426d-8d19-b00e31137aef",
+        "outcomeId": "a7ddea2e-261f-4fdf-9d58-e2d01526b521",
+        "workItemId": "26aa956d-5c98-4eb0-8739-d9dc0606a971",
+        "checks": [
+          {
+            "name": "receipt_failure_reached_real_transaction",
+            "passed": true
+          },
+          {
+            "name": "receipt_failure_rolls_back_evidence_status_and_events",
+            "passed": true
+          },
+          {
+            "name": "same_key_receipt_retry_creates_one_receipt_and_evidence",
+            "passed": true
+          },
+          {
+            "name": "already_uploaded_asset_survives_rollback",
+            "passed": true
+          },
+          {
+            "name": "receipt_submission_waits_for_review_before_resuming_agent",
+            "passed": true
+          },
+          {
+            "name": "human_receipt_has_single_same_thread_resume",
+            "passed": true
+          },
+          {
+            "name": "receipt_accepted_by_unified_review",
+            "passed": true
+          },
+          {
+            "name": "foreground_run_lease_and_visible_messages_unchanged",
+            "passed": true
+          },
+          {
+            "name": "run_lineage_bound_to_same_work_item",
+            "passed": true
+          }
+        ],
+        "observations": {
+          "humanWorkItemId": "ca4914f6-5870-43e8-be0d-a17d8af2e229",
+          "receiptId": "e06ed624-24d7-4f46-8a64-beef03adc867",
+          "uploadedAssetId": "daa764aa6bba8dac2a6b76afabb8d306b2433405208825d01ad5fdb26a7cfd5c"
+        },
+        "execution": "local-disposable-database",
+        "remoteReplay": "PENDING"
+      }
+    },
+    {
+      "scenario": "unknown-external-receipt",
+      "status": "PASS",
+      "initialState": {
+        "outcomeStatus": "running",
+        "workItemStatus": "running",
+        "recoveryCount": 0,
+        "runCount": 1
+      },
+      "injectedEventId": "4f6f1774-bebf-4723-b9f5-a6c7ee26df1d",
+      "replayed": 2,
+      "finalState": {
+        "outcomeStatus": "running",
+        "workItemStatus": "needs_review",
+        "recoveryCount": 0,
+        "runCount": 1
+      },
+      "outputCount": 0,
+      "decisionCount": 1,
+      "evidence": {
+        "fixtureBotId": "b413d041-4ac4-4589-af46-6c854db314f8",
+        "outcomeId": "a218b403-c6a9-4fc9-8adc-9cd533740045",
+        "workItemId": "b0a895ae-3e8a-4fc2-bbee-d1644350b6bd",
+        "checks": [
+          {
+            "name": "unknown_external_receipt_never_dispatches_a_retry",
+            "passed": true
+          },
+          {
+            "name": "unknown_result_has_one_owner_decision",
+            "passed": true
+          },
+          {
+            "name": "foreground_run_lease_and_visible_messages_unchanged",
+            "passed": true
+          },
+          {
+            "name": "run_lineage_bound_to_same_work_item",
+            "passed": true
+          }
+        ],
+        "observations": {
+          "externalAdapter": "fictional-durable-receipt-loss",
+          "actualAttemptCount": 1,
+          "classification": "unknown",
+          "productionProviderReplay": "PENDING"
+        },
+        "execution": "local-disposable-database",
+        "remoteReplay": "PENDING"
+      }
+    }
+  ],
+  "oldImageReplay": "PENDING",
+  "remoteReplay": "PENDING"
+}

@@ -205,7 +205,9 @@
   - 对应设计：§27、§37、§42
 
 - [ ] 3.4 备份、回退演练和失败日志
-  - 状态：BLOCKED（2026-11-17，task-26 代码交付及最小检查完成；按负责人要求集中数据库/回放待执行，未满足正式验收）
+  - 状态：BLOCKED（2026-11-17，task-30 实际 populated pg_dump/restore 已通过；旧镜像未提供且 Planning/Explore 有数据回退未覆盖，未满足两级回退完整验收）。
+  - 集中验证补充：`03cf82651` 源码，在本线 `55439/outcomego_w3_backup` 保留六个真实故障 fixture 后执行 custom pg_dump，恢复到独立空库 `outcomego_w3_restored`；86 表行数/内容摘要完全一致，22 表有数据，123 个 FK 全部 validated；dump 333755 bytes，SHA-256 `0e5f11d9b725efadd5d388a47c31f964d4ecd5e431077a0e07f4ed9e061baf69`。
+  - 集中验证证据：[第二检查点](../004-OutcomeGo整体项目/docs/20261117-第3波后端组合验收第二检查点.md)、同目录 `20261117-第3波组合验收证据/populated-backup-result.json`。未启动旧镜像、未删除新表、未通过 SQL 修复业务状态；下面 task-26 的“未执行”字段保留为验证开闸前的历史记录。
   - 第 3 波实现提交：`2d9eaeb43`、`e00496f5e`、`543eef450`、`d4de4846e`、`d330efc34`、`80ea59865`；`870ebac90` 仅为本线编译所需依赖合并，不拾取到集成线。
   - 第 3 波修改文件：父六 JSON/合同检查脚本；`scripts/test-outcome-recovery.ts`、`scripts/outcome-recovery/`、`apps/server/test/fixtures/outcome-recovery/`、新 cross-phase 测试；本任务文档。51 个既有测试文件的精确清单见交接与入口补齐记录。
   - 第 3 波数据库变化：none（本线不改 schema；恢复计数等为其他线原始提交依赖；没有启动或连接本线测试库）。
