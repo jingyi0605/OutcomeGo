@@ -18,6 +18,7 @@ import {
   PLUGIN_CONNECTION_STATUS_MAX_IDS,
 } from "@outcomego/contracts";
 import { Prisma, type PrismaClient } from "@outcomego/db";
+import type { AgentDataStore } from "@outcomego/messaging";
 import type { PluginDefinition } from "@outcomego/plugin-sdk";
 import { loadConnectionNamespaces } from "./namespaces";
 import { serviceEffect } from "../service-utils";
@@ -42,7 +43,8 @@ export class PluginQueries {
     private readonly prisma: PrismaClient,
     private readonly catalog: () => Promise<PluginDefinition[]>,
     private readonly definition: (pluginKey: string) => Promise<PluginDefinition | undefined>,
-    private readonly publicUrl: string
+    private readonly publicUrl: string,
+    private readonly skillLibrary?: Pick<AgentDataStore, "listSkills">
   ) {}
   settings = () =>
     serviceEffect(async (): Promise<PluginSettingsView> => {
@@ -325,7 +327,7 @@ export class PluginQueries {
 
   composer = (botId: string) =>
     serviceEffect(async () => {
-      const [namespaces, installations, privateSkills] = await Promise.all([
+      const [namespaces, installations, privateSkills, librarySkills] = await Promise.all([
         this.dynamicNamespaces(botId),
         this.prisma.pluginInstallation.findMany({
           where: { status: "installed" },
@@ -333,6 +335,7 @@ export class PluginQueries {
         this.prisma.pluginPrivateSkill.findMany({
           where: { enabledBotIds: { array_contains: [botId] } },
         }),
+        this.skillLibrary?.listSkills() ?? Promise.resolve([]),
       ]);
       return {
         items: [
@@ -358,6 +361,14 @@ export class PluginQueries {
             id: skill.id,
             label: skill.name,
             handle: `private:${skill.name.toLowerCase().replace(/[^a-z0-9.-]+/g, "-")}`,
+            trigger: "/" as const,
+            kind: "skill" as const,
+            status: "ready",
+          })),
+          ...librarySkills.map((skill) => ({
+            id: skill.id,
+            label: skill.name,
+            handle: skill.slug,
             trigger: "/" as const,
             kind: "skill" as const,
             status: "ready",
