@@ -33,14 +33,15 @@
   - 对应设计：`design.md` §6
 
 - [ ] 1.3 修复 `OutcomeGo` 分支 CI 的 `checks` job
-  - 状态：PENDING（本地准备完成，待授权推送及 GitHub CI 观测；负责人接受数据库基线暂红）
+  - 状态：PENDING（本地组合验收正在修复实际失败；待授权推送及 GitHub CI 观测，不能仅因历史同样失败而视为通过）
+  - 组合验收修复（2026-11-17）：原 `read-transcript.integration.test.ts:51` 失败已修复，来源 `7e6b0e028` → `49a7500c6`。原集成测试文件及隐私断言未改；补充真实 Computer 写图 → 持久历史 → Native Read 图片验证。integrator 实际重跑三个 transcript 文件与 Routine schema 文件共 25 PASS / 0 FAIL / 217 assertions，见[截图修复证据](../004.5-运行时恢复与版本验收/docs/20261117-历史截图回执修复与验证.md)。规范测试库变量激活后，广泛测试新观测仍须逐项分类和修复；不沿用旧 14 项计数，不声称全量或 CI 通过。
   - 后续波次代码进展（2026-11-17）：`543eef450` → 集成 `8667c7ba6` 将 51 处历史测试 / fixture 的数据库读取改为规范 `OUTCOMEGO_TEST_DATABASE_URL ?? OPENTEAM_TEST_DATABASE_URL`，保留专用隔离库优先级，未删除断言、skip 条件或工作流。该改动扩大规范命令实际激活的数据库用例，最终全量结果及失败身份比较待全部代码整合后统一执行；不能沿用旧计数宣称通过。见[后续波次集成记录](docs/20261117-后续波次代码集成记录.md)。
   - 第 0 波 A 证据：规格 `2b9211c16`；偶发测试 `c686edae0`；SQL 表名 `5b9d4dc99`；004.2 阶段 1 `69e5edd7c`；CI/基线 `b7ff0099a`；[失败基线](docs/test-failure-baseline.md)。`checks` 增加 PostgreSQL 17、schema 部署和完整数据库测试；`turbo.json` 放行测试库环境。负责人选择全部数据库测试阻塞，未删除或跳过测试。
   - 这一步到底做什么：2026-11-17 起 `CI` workflow 的 `checks` job 在 `209c770e6`、`3b02ebfe6` 上失败。恢复绿色基线，否则无法判断 Outcome 改动是否引入回归。
   - 进展（2026-11-17，本地，未推送）：最近 4 次失败各不相同，属于 CI runner 上的偶发失败。已修复两项：`packages/plugins/wechat/connector/test/secrets.test.ts`（列目录时原子写临时文件已被重命名导致 ENOENT）、`packages/plugin-sdk/src/runtime-assets.test.ts`（20,001 条 tar 头的测试在 runner 上超过 5 秒默认超时）。仍待观察：Desktop code highlighter 测试、transport/acknowledgement 测试（run `43983034791`、`43980957724`）。
   - 本地带数据库运行时发现的既有问题（基线提交 `3b02ebfe6` 上同样失败，与 Outcome 改动无关；CI 未设置 `OUTCOMEGO_TEST_DATABASE_URL`，所以没有暴露）：
     - 已修复：`packages/messaging/src/read-transcript.ts` 原始 SQL 仍查询更名前的表 `"message"`，生产环境 ReadTranscript 读取子 Agent 记录会报 `relation "message" does not exist`。已改为 `"outcomego_message"`。
-    - 未修复：`packages/messaging/test/read-transcript.integration.test.ts:51`（Computer 工具截图路径断言）；worker 集成测试 14 项失败，其中已抽查 `apps/worker/test/lifecycle.integration.test.ts`（bootstrap 欢迎消息断言），在基线上同样失败。
+    - 历史观测：`packages/messaging/test/read-transcript.integration.test.ts:51`（Computer 工具截图路径断言）现已按上述组合验收记录修复；当时 worker 集成测试 14 项失败，其中已抽查 `apps/worker/test/lifecycle.integration.test.ts`（bootstrap 欢迎消息断言），在基线上同样失败。该历史观测不代替本轮扩大覆盖后的实际结果。
   - 先依赖什么：无
   - 主要改哪里：按失败日志定位
   - 怎么算完成：`OutcomeGo` 分支最新提交 `CI` 全部 job 成功。
