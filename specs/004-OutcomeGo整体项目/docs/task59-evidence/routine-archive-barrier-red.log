@@ -1,0 +1,79 @@
+bun test v1.4.4 (38afee6c8)
+
+apps/worker/test/routine-retirement-locks.integration.test.ts:
+(node:55727) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `bun --trace-warnings ...` to show where the warning was created)
+128 |         const [row] = await harness.db.$queryRaw<Array<{ blockers: number[] }>>`
+129 |           SELECT pg_blocking_pids(${waiting}::int) AS blockers`;
+130 |         return row!.blockers.includes(blocker);
+131 |       });
+132 |       release.resolve();
+133 |       expect(await Promise.all([settling, archiving])).toEqual([{ ok: true }, { ok: true }]);
+                                                             ^
+error: expect(received).toEqual(expected)
+
+  [
+    {
+      "ok": true,
+    },
+    {
+-     "ok": true,
++     "error": 
++ "(FiberFailure) PrismaClientKnownRequestError: 
++ Invalid `tx.run.update()` invocation in
++ /Users/jackson/Code/openteam-spec004-worktrees/w3-worker-boundaries/packages/messaging/src/request-progress.ts:529:18
++ 
++   526   select: { id: true },
++   527 });
++   528 for (const root of roots) {
++ → 529   await tx.run.update(
++ Transaction failed due to a write conflict or a deadlock. Please retry your transaction
++     at handleRequestError (/Users/jackson/Code/openteam-spec004-worktrees/w3-worker-boundaries/node_modules/.bun/@prisma+client@7.10.0+34fe0cae3637db99/node_modules/@prisma/client/runtime/client.js:65:8649)
++     at handleAndLogRequestError (/Users/jackson/Code/openteam-spec004-worktrees/w3-worker-boundaries/node_modules/.bun/@prisma+client@7.10.0+34fe0cae3637db99/node_modules/@prisma/client/runtime/client.js:65:7932)
++     at request (/Users/jackson/Code/openteam-spec004-worktrees/w3-worker-boundaries/node_modules/.bun/@prisma+client@7.10.0+34fe0cae3637db99/node_modules/@prisma/client/runtime/client.js:65:7639)
++     at processTicksAndRejections (native:7:39)"
++ ,
+    },
+  ]
+
+- Expected  - 1
++ Received  + 15
+
+      at <anonymous> (/Users/jackson/Code/openteam-spec004-worktrees/w3-worker-boundaries/apps/worker/test/routine-retirement-locks.integration.test.ts:133:56)
+(fail) Routine failure and real archive finish without inverse lifecycle locks [1210.69ms]
+128 |         const [row] = await harness.db.$queryRaw<Array<{ blockers: number[] }>>`
+129 |           SELECT pg_blocking_pids(${waiting}::int) AS blockers`;
+130 |         return row!.blockers.includes(blocker);
+131 |       });
+132 |       release.resolve();
+133 |       expect(await Promise.all([settling, archiving])).toEqual([{ ok: true }, { ok: true }]);
+                                                             ^
+error: expect(received).toEqual(expected)
+
+  [
+    {
+-     "ok": true,
++     "error": 
++ "PrismaClientKnownRequestError: 
++ Invalid `prisma.$executeRaw()` invocation:
++ 
++ 
++ Raw query failed. Code: `40P01`. Message: `deadlock detected`"
++ ,
+    },
+    {
+      "ok": true,
+    },
+  ]
+
+- Expected  - 1
++ Received  + 7
+
+      at <anonymous> (/Users/jackson/Code/openteam-spec004-worktrees/w3-worker-boundaries/apps/worker/test/routine-retirement-locks.integration.test.ts:133:56)
+(fail) Routine archive and real archive finish without inverse lifecycle locks [1116.90ms]
+(pass) Routine recovery and real archive finish without inverse lifecycle locks [143.26ms]
+
+ 1 pass
+ 2 fail
+ 10 expect() calls
+Ran 3 tests across 1 file. [2.78s]
