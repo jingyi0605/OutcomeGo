@@ -1471,6 +1471,11 @@ final class AppStore {
       return false
     }
   }
+  /// Whether a flush sends this message now: it hasn't failed, and after a timeout it waits
+  /// for a requested retry before the same nonce is submitted again.
+  private func willSend(_ pending: PendingSend) -> Bool {
+    pending.failure == nil && (pending.deliveryUnconfirmed != true || requestedSendIDs.contains(pending.id))
+  }
   func flush() async {
     guard let api else { return }
     guard !sending else {
@@ -1479,6 +1484,12 @@ final class AppStore {
     }
     sending = true
     let epoch = generation
+    #if canImport(UIKit)
+      // Messages already sent from the composer still go out if the user switches apps.
+      let endBackgroundTime = state.outbox.contains(where: willSend)
+        ? BackgroundTime.begin("Send messages") : nil
+      defer { endBackgroundTime?() }
+    #endif
     defer {
       if epoch == generation {
         sending = false
@@ -1492,9 +1503,7 @@ final class AppStore {
       }
     }
     // One request per nonce at a time; after a timeout, reconcile before resubmitting that same nonce.
-    for pending in state.outbox where pending.failure == nil
-      && (pending.deliveryUnconfirmed != true || requestedSendIDs.contains(pending.id))
-    {
+    for pending in state.outbox where willSend(pending) {
       requestedSendIDs.remove(pending.id)
       activeSendID = pending.id
       sendRetryCounts[pending.id] = 0
