@@ -35,6 +35,31 @@ describe.skipIf(!testDatabaseUrl)("durable Output Evidence consumer", () => {
     expect(evidence.some(e => e.credibility === "ai_prereview")).toBe(true);
     const outcome = await Effect.runPromise(f.outcomes.get(x.outcome.id)); expect(outcome.currentRevision).toBe(2); expect(outcome.acceptedAt).toBeNull();
   });
+  test("late commits with lower sequence are not skipped after a newer event is processed", async () => {
+    const older = await f.completed(), newer = await f.completed();
+    const service = new OutcomeReviewService(f.prisma, {} as AgentMessaging, async () => { throw new Error("offline"); });
+    const consumer = new OutcomeEvidenceConsumer(f.prisma, service, new EventWakeup(testDatabaseUrl!));
+    let release!: () => void;
+    const hold = new Promise<void>(resolve => { release = resolve; });
+    let appended!: (sequence: bigint) => void;
+    const inserted = new Promise<bigint>(resolve => { appended = resolve; });
+    const producer = f.prisma.$transaction(async tx => {
+      const event = await appendOutcomeEvent(tx, "outcome.output.recorded", older.outcome.id, { actor: "system:test", workItemId: older.item.id, contractRevision: 1, payload: { outputId: older.output.id, kind: "final_result" } });
+      appended(event.sequence);
+      await hold;
+    }, { timeout: 10_000 });
+    const olderSequence = await inserted;
+    try {
+      const committed = await emit(newer);
+      expect(olderSequence < committed.sequence).toBe(true);
+      await consumer.drain();
+      expect(await f.prisma.outcomeEvidence.count({ where: { outputId: newer.output.id } })).toBe(2);
+      expect(await f.prisma.outcomeEvidence.count({ where: { outputId: older.output.id } })).toBe(0);
+    } finally { release(); await producer; }
+    await consumer.drain();
+    expect(await f.prisma.outcomeEvidence.count({ where: { outputId: older.output.id } })).toBe(2);
+    expect(await consumer.drain()).toBe(0);
+  });
   test("poll fallback without LISTEN drains new events and clean stop aborts waiting", async () => {
     const x = await f.completed(); await emit(x);
     const service = new OutcomeReviewService(f.prisma, {} as AgentMessaging, async () => { throw new Error("offline"); });

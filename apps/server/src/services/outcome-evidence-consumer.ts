@@ -1,9 +1,9 @@
-import type { PrismaClient } from "@outcomego/db";
+import { Prisma, type PrismaClient, type Event } from "@outcomego/db";
 import type { EventWakeup } from "../event-wakeup";
 import type { OutcomeReviewService } from "./outcome-review-service";
 import { outcomeWrite } from "./outcome-write";
 
-/** Durable Event backlog plus LISTEN wakeups; the cursor is committed only after idempotent business writes. */
+/** Durable receipts are the processing authority: sequence allocation does not imply commit ordering. */
 export class OutcomeEvidenceConsumer {
   private stopController: AbortController | null = null;
   private loop: Promise<void> | null = null;
@@ -24,10 +24,17 @@ export class OutcomeEvidenceConsumer {
   }
 
   async drain(signal?: AbortSignal): Promise<number> {
-    const scope = "outcome-evidence-cursor", key = "v1";
-    const cursor = await this.prisma.idempotencyRecord.findUnique({ where: { scope_key: { scope, key } } });
-    const response = cursor?.response as { sequence?: string } | null;
-    const events = await this.prisma.event.findMany({ where: { sequence: { gt: BigInt(response?.sequence ?? "0") }, topic: { in: ["outcome.output.recorded", "outcome.work_item.updated"] } }, orderBy: { sequence: "asc" }, take: 100 });
+    const scope = "outcome-event:output-evidence";
+    const events = await this.prisma.$queryRaw<Event[]>(Prisma.sql`
+      SELECT event.* FROM "outcomego_event" AS event
+      WHERE event."topic" IN ('outcome.output.recorded', 'outcome.work_item.updated')
+        AND NOT EXISTS (
+          SELECT 1 FROM "outcomego_idempotency_record" AS receipt
+          WHERE receipt."scope" = ${scope}
+            AND receipt."key" = coalesce(event."payload"->>'eventId', event."sequence"::text)
+        )
+      ORDER BY event."sequence" ASC LIMIT 100
+    `);
     let processed = 0;
     for (const event of events) {
       if (signal?.aborted) break;
@@ -40,16 +47,8 @@ export class OutcomeEvidenceConsumer {
         await this.reviews.prereview(envelope.workItemId, signal);
       }
       if (signal?.aborted) break;
-      await outcomeWrite(this.prisma, "outcome-event:output-evidence", envelope.eventId ?? event.sequence.toString(), { sequence: event.sequence.toString() }, async () => ({ processed: true }));
-      await this.prisma.$transaction(async tx => {
-        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${scope}))`;
-        const current = await tx.idempotencyRecord.findUnique({ where: { scope_key: { scope, key } } });
-        const value = current?.response as { sequence?: string } | null;
-        if (BigInt(value?.sequence ?? "0") < event.sequence) await tx.idempotencyRecord.upsert({ where: { scope_key: { scope, key } },
-          create: { scope, key, requestHash: "cursor", response: { sequence: event.sequence.toString() }, status: "completed", expiresAt: new Date("9999-01-01") },
-          update: { response: { sequence: event.sequence.toString() } },
-        });
-      });
+      const eventId = envelope.eventId ?? event.sequence.toString();
+      await outcomeWrite(this.prisma, scope, eventId, { eventId }, async () => ({ processed: true }));
       processed++;
     }
     return processed;

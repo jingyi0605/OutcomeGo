@@ -241,6 +241,18 @@ describe.skipIf(!testDatabaseUrl)("OutcomeReviewService", () => {
     expect(detail.workItems.find((i) => i.id === item.id)?.status).toBe("accepted");
     expect(detail.status).toBe("accepted");
   });
+  test("an optional receipt criterion failure does not reject an otherwise satisfied human action", async () => {
+    const x = await f.completed();
+    const item = await f.prisma.outcomeWorkItem.create({ data: { outcomeId: x.outcome.id, contractRevisionId: x.revision.id, botId: x.bot.id, executorType: "human", kind: "human_action", title: "Inspection", ordinal: 2, status: "submitted" } });
+    const evidenceIds: string[] = [];
+    for (const criterion of [x.required, x.optional]) {
+      const evidence = await f.prisma.outcomeEvidence.create({ data: { outcomeId: x.outcome.id, contractRevisionId: x.revision.id, criterionId: criterion.id, workItemId: item.id, sourceType: "receipt", sourceRef: `receipt:${criterion.id}`, credibility: "human_confirmed", capturedBy: "owner:local" } });
+      evidenceIds.push(evidence.id);
+    }
+    const detail = await Effect.runPromise(reviews.submit(x.outcome.id, { expectedRevision: 1, results: [{ criterionId: x.required.id, result: "PASS", evidenceIds: [evidenceIds[0]!], comment: "Verified" }, { criterionId: x.optional.id, result: "FAIL", evidenceIds: [evidenceIds[1]!], comment: "Optional appendix missing" }], clientRequestId: requestId() }, "owner:local"));
+    expect(detail.workItems.find(i => i.id === item.id)?.status).toBe("accepted");
+    expect(detail.status).toBe("accepted");
+  });
   test("FAIL rework creates a new thread, preserves history, and repeats safely; non-FAIL refused", async () => {
     const x = await f.completed();
     const request = {

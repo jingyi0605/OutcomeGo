@@ -88,9 +88,11 @@ export class OutcomeReviewService {
         const related = states.filter(s => relatedIds.has(s.criterionId));
         if (!related.length) continue;
         if (item.status === "submitted") await transitionWorkItem(tx, { workItemId: item.id, to: "review_pending", reason: "owner_review", actor });
-        if (related.some(s => s.result === "FAIL"))
+        const mandatory = related.filter(s => s.required);
+        const actionCriteria = mandatory.length ? mandatory : related;
+        if (actionCriteria.some(s => s.result === "FAIL"))
           await transitionWorkItem(tx, { workItemId: item.id, to: "rejected", reason: "owner_review_failed", actor });
-        else if (related.every(s => s.result === "PASS" && passIsSupported(s) || s.result === "WAIVED_BY_APPROVED_CHANGE" && s.waiverRevisionApproved))
+        else if (actionCriteria.every(s => s.result === "PASS" && passIsSupported(s) || s.result === "WAIVED_BY_APPROVED_CHANGE" && s.waiverRevisionApproved))
           await transitionWorkItem(tx, { workItemId: item.id, to: "accepted", reason: "owner_review_passed", actor });
       }
       const remaining = await tx.outcomeWorkItem.findMany({ where: { outcomeId, contractRevisionId: revision.id } });
