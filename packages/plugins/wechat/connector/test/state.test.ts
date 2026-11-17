@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { readdirSync, readFileSync, statSync } from "node:fs";
 import { mkdir, mkdtemp, readdir, readFile, rm, stat, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -62,6 +63,7 @@ describe("atomic writes", () => {
     expect(raw.endsWith("\n")).toBe(true);
     expect(JSON.parse(raw).version).toBe(STATE_VERSION);
     expect((await readdir(store.directory)).filter((name) => name.endsWith(".tmp"))).toEqual([]);
+    expect(await readdir(store.path("tmp"))).toEqual([]);
   });
 
   test("a failed write leaves the previous content and no temporary file", async () => {
@@ -71,6 +73,28 @@ describe("atomic writes", () => {
     await expect(store.writeJson("account.json", cyclic)).rejects.toThrow();
     expect(await store.readAccount()).toMatchObject({ status: "ok", value: { botToken: "tok-test-1" } });
     expect((await readdir(store.directory)).filter((name) => name.endsWith(".tmp"))).toEqual([]);
+    expect(await readdir(store.path("tmp"))).toEqual([]);
+  });
+
+  test("a live state scan sees committed files while a private replacement is being written", async () => {
+    await store.writeCursor("published");
+    // Serialization runs after the staging file is opened and before rename.
+    // Inspect that exact boundary without sleeps, polling or filesystem mocks.
+    await store.writeJson("cursor.json", {
+      toJSON() {
+        expect(readdirSync(store.directory).filter((name) => name.endsWith(".tmp"))).toEqual([]);
+        expect(JSON.parse(readFileSync(store.path("cursor.json"), "utf8")).getUpdatesBuf).toBe("published");
+        const staging = readdirSync(store.path("tmp"));
+        expect(staging).toHaveLength(1);
+        expect(statSync(store.path("tmp", staging[0]!)).mode & 0o777).toBe(0o600);
+        expect(statSync(store.path("tmp")).mode & 0o777).toBe(0o700);
+        return { version: STATE_VERSION, getUpdatesBuf: "replacement" };
+      },
+    });
+    expect(await store.readCursor()).toEqual({
+      status: "ok", value: { version: STATE_VERSION, getUpdatesBuf: "replacement" },
+    });
+    expect(await readdir(store.path("tmp"))).toEqual([]);
   });
 
   test("overwriting replaces the content whole", async () => {
