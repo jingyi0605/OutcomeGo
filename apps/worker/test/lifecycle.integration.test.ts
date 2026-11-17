@@ -405,7 +405,7 @@ test("durable bot mailboxes preserve Pi sessions, agent DMs, and ordered group r
 
     let peerId = "";
     onTurn = async (input) => {
-      if (input.content.includes("[outcomeGo first start]")) {
+      if (input.content.includes("[OutcomeGo first start]")) {
         await Effect.runPromise(
           app!.handleDynamicTool({
             runId: input.runId,
