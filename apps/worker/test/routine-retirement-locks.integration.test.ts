@@ -5,7 +5,7 @@ import type { Prisma, PrismaClient } from "@outcomego/db";
 import { BotService } from "../../server/src/services/bot-service";
 import { createRoutineHarness } from "./fixtures/routine-context";
 
-const url = process.env.OUTCOMEGO_TEST_DATABASE_URL ?? process.env.OPENTEAM_TEST_DATABASE_URL;
+const url = (process.env.OUTCOMEGO_TEST_DATABASE_URL ?? process.env.OPENTEAM_TEST_DATABASE_URL);
 const integration = test.skipIf(!url);
 let harness: Awaited<ReturnType<typeof createRoutineHarness>>;
 beforeAll(async () => {

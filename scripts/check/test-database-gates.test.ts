@@ -7,7 +7,8 @@ test("all legacy database read sites support the canonical CI environment", asyn
   const result = await checkTestDatabaseGates();
   expect(result.failures).toEqual([]);
   expect(result.status).toBe("PASS");
-  expect(result.files.filter(path => path.startsWith("apps/worker/"))).toHaveLength(11);
+  expect(result.files.filter(path => path.startsWith("apps/worker/"))).toHaveLength(12);
+  expect(result.files).toContain("apps/worker/test/routine-retirement-locks.integration.test.ts");
   expect(result.databaseExecution).toBe("PENDING");
 });
 
