@@ -94,7 +94,10 @@ test("stdout EOF with a live peer fails the transport and reaps the child", asyn
 test("closed process input fails the transport and reaps the child", async () => {
   const peer = rpc();
   await peer.request("closeInput");
-  await expect(peer.request("version", {}, 3000)).rejects.toThrow("input closed");
+  // The fixture may exit after stdin closes, so either pipe can report the disconnect first.
+  await expect(peer.request("version", {}, 3000)).rejects.toThrow(
+    /Signal (?:process input closed|output closed|process disconnected)/
+  );
   await peer.exited;
   expect(peer.connected).toBe(false);
   // Closing stdin can make the fixture exit before SIGTERM arrives. Either path must reap it.

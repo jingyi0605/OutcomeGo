@@ -11,7 +11,7 @@
   "scripts": {
     "build": "bun scripts/generate.ts && bun build src/index.ts --outdir dist --target bun",
     "typecheck": "bun run generate && tsc -p tsconfig.json",
-    "test": "bun run generate && bun test --pass-with-no-tests --isolate",
+    "test": "bun run generate && bun test --pass-with-no-tests",
     "upstream:check": "bun scripts/sync-upstream.ts --check",
     "upstream:sync": "bun scripts/sync-upstream.ts",
     "generate": "bun scripts/generate.ts"

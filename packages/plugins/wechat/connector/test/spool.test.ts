@@ -103,7 +103,7 @@ describe("acknowledgement", () => {
     await writeFile(store.path("exchange", "inbound", "2-0"), "bytes");
     await spool.append(message("1", { media: [media("1-0")] }), T0);
     await spool.append(message("2", { media: [media("2-0")] }), T0);
-    expect(await readdir(store.path("exchange", "inbound"))).toEqual(["1-0", "2-0"]);
+    expect((await readdir(store.path("exchange", "inbound"))).sort()).toEqual(["1-0", "2-0"]);
     await spool.ack("q1:1");
     expect(await readdir(store.path("exchange", "inbound"))).toEqual(["2-0"]);
     await spool.close();

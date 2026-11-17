@@ -4,6 +4,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { NativeToolExecutor } from "../src/native-tool-executor";
 
+const readOutput = (path: string) => readFile(path, "utf8").catch((error: NodeJS.ErrnoException) => {
+  if (error.code === "ENOENT") return "";
+  throw error;
+});
+
 for (const command of ["echo READY; sleep 3; echo UNEXPECTED", "trap '' TERM; echo READY; sleep 3; echo UNEXPECTED", "(trap '' TERM; sleep 3) & wait; echo UNEXPECTED"]) test(`foreground cancellation stops descendants: ${command}`, async () => {
   const root = await mkdtemp(join(tmpdir(), "outcomego-shell-cancel-"));
   await chmod(root, 0o755);
@@ -74,7 +79,8 @@ test("a routine handoff ends TERM-trapping background commands and records them 
   const result = await executor.shell({command: "trap '' TERM; echo READY; sleep 30 & wait", block_until_ms: 0}, root, undefined, undefined, "scope", {automationRunId: "routine-run"});
   const { shellId, outputPath } = result.details as { shellId: string; outputPath: string };
   try {
-    for (let i = 0; i < 200 && !(await readFile(outputPath, "utf8")).includes("READY"); i++) await Bun.sleep(10);
+    for (let i = 0; i < 200 && !(await readOutput(outputPath)).includes("READY"); i++) await Bun.sleep(10);
+    expect(await readOutput(outputPath)).toContain("READY");
     expect(executor.stopAutomationShells(["routine-run"])).toBe(1);
     expect((await executor.awaitShell({shell_id: shellId, block_until_ms: 3000}, undefined, "scope")).details.status).toBe("completed");
     expect(await readFile(outputPath, "utf8")).toContain("\nstatus: aborted  \n");
@@ -99,7 +105,7 @@ test("stopping a subagent ends its background commands, TERM-trapping ones too, 
   };
   const pidOf = async (path: string) => {
     for (let i = 0; i < 200; i++) {
-      const match = /^PID=(\d+)$/m.exec(await readFile(path, "utf8"));
+      const match = /^PID=(\d+)$/m.exec(await readOutput(path));
       if (match) return Number(match[1]);
       await Bun.sleep(10);
     }
