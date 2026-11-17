@@ -301,3 +301,9 @@ OUTCOMEGO_TEST_DATABASE_URL=<一次性库> bun run test --force --continue=alway
 - 本线 Review 未满足接受时产生 `outcome.review.required`（`criterionIds/workItemIds`），满足当前 revision 必需条款且没有未完成任务时写 `acceptedAt`、`outcome.accepted`（`revisionId/reviewIds`）并重算状态；运行组首次完成的 review.required 由线 1 产生。
 - 跨线整合必须包含 integrator `d5008544b` 的同 Outcome 锁 Decision/HumanAction 验收阻断（design §25），当前 revision 有效 open/presented Decision 即使无 workItemId 也不能接受；线 2 不提供平行 guard 实现。
 - 客户端列表和详情响应继续直接使用 `OutcomeListPage` / `OutcomeDetail`，无额外响应外壳；本线只增加推理 kind，不修改冻结 Outcome DTO。
+
+## 11. 第 2 波线 2 revision 追溯兼容增量
+
+负责人已批准仅增加可选响应字段：`ContractRevisionView.baseRevisionId?: string | null`；`OutcomeDetail.revisions[]` 增加可选 `baseRevisionId`、`sourceDecisionId`、`createdBy`。列表、现有字段、请求和事件保持原合同；旧响应可以省略新字段，旧客户端可以忽略它们。当前版本与历史版本分别显示，不新增持久化 stale 状态；Evidence、Review、Output 按其实际 revision/WorkItem 归属识别历史材料，不迁移旧事实。
+
+新 revision 创建记录同 Outcome 的 base revision、来源 Decision/服务端主体和摘要；批准成功后仅取消旧 revision 中 `startedAt=null` 的未开始任务，使用共享 `transitionWorkItem`，保持 Outcome → WorkItem 锁序。已开始任务及其 Output、Evidence、Review 仍绑定原 revision。容量等待意图和已入队未开始 Run 的清理由恢复/运行时所有者协作完成，不能将批准草案本身当作执行新任务的请求。

@@ -487,6 +487,8 @@ export interface ContractRevisionView {
   budget: OutcomeBudget | null;
   executionBotId: string;
   changeSummary: string | null;
+  /** Omitted by servers predating revision provenance in the detail response. */
+  baseRevisionId?: string | null;
   sourceDecisionId: string | null;
   createdBy: string;
   approvedBy: string | null;
@@ -565,7 +567,10 @@ export interface OutcomeDetail extends OutcomeSummary {
   createdAt: string;
   acceptedAt: string | null;
   currentRevisionView: ContractRevisionView | null;
-  revisions: Array<Pick<ContractRevisionView, "id" | "revision" | "status" | "changeSummary" | "createdAt">>;
+  revisions: Array<
+    Pick<ContractRevisionView, "id" | "revision" | "status" | "changeSummary" | "createdAt"> &
+    Partial<Pick<ContractRevisionView, "baseRevisionId" | "sourceDecisionId" | "createdBy">>
+  >;
   workItems: WorkItemView[];
   outputs: OutputView[];
   evidence: EvidenceView[];
