@@ -179,6 +179,33 @@ export const OUTCOME_EVENT_TOPICS = [
 export type OutcomeEventTopic = (typeof OUTCOME_EVENT_TOPICS)[number];
 export const OUTCOME_EVENT_SCHEMA_VERSION = 1;
 
+export const OUTCOME_THREAD_TOOL_NAMES = ["RequestOutcomeDecision", "RequestHumanAction"] as const;
+export type OutcomeThreadToolName = (typeof OUTCOME_THREAD_TOOL_NAMES)[number];
+
+export type DecisionEffect = "plan_only" | "scope_change" | "acceptance_change" | "cancel_branch" | "manual_action";
+
+/** Payloads live inside the existing Event envelope; identifiers common to all events stay in that envelope. */
+export interface OutcomeEventPayloads {
+  "outcome.created": { title: string; botId: string };
+  "outcome.status_changed": { from: OutcomeStatus; to: OutcomeStatus };
+  "outcome.contract.revision_created": {
+    revisionId: string; status: ContractRevisionStatus; baseRevisionId: string | null; sourceDecisionId: string | null;
+  };
+  "outcome.contract.revision_approved": { revisionId: string; contentHash: string };
+  "outcome.work_item.created": { workItemId: string; executorType: WorkItemExecutorType; kind: WorkItemKind };
+  "outcome.work_item.updated": { from: WorkItemStatus; to: WorkItemStatus; reason: string };
+  "outcome.output.recorded": { outputId: string; kind: OutputKind };
+  "outcome.review.required": { criterionIds: string[]; workItemIds: string[] };
+  "outcome.review.recorded": { reviewId: string; criterionId: string; result: ReviewResult; evidenceIds: string[] };
+  "outcome.decision.required": { decisionId: string; reasonCode: string };
+  "outcome.decision.resolved": { decisionId: string; resolutionEffect: DecisionEffect; optionId: string | null; customText: string | null };
+  "outcome.decision.closed": { decisionId: string; reason: "expired" | "withdrawn" };
+  "outcome.human_action.required": { workItemId: string; cardId: string; requestedByWorkItemId: string; decisionId: string | null };
+  "outcome.human_receipt.submitted": { workItemId: string; receiptId: string; evidenceIds: string[] };
+  "outcome.accepted": { revisionId: string; reviewIds: string[] };
+  "outcome.recovered": { workItemId: string; action: "resettle" | "resume_queued" | "needs_review" | "cancelled"; reason: string };
+}
+
 export interface OutcomeEventEnvelope<T = Record<string, unknown>> {
   eventId: string;
   eventType: OutcomeEventTopic;
@@ -224,6 +251,7 @@ export const OUTCOME_ERROR_CODES = {
   review_revision_conflict: 409,
   review_incomplete: 422,
   invalid_outcome_query: 400,
+  manual_action_unavailable: 503,
 } as const;
 export type OutcomeErrorCode = keyof typeof OUTCOME_ERROR_CODES;
 
