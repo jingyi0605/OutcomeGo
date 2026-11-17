@@ -106,6 +106,17 @@ describe.skipIf(!testDatabaseUrl)("approved contract successors", () => {
     expect(await f.prisma.outcomeWorkItem.findUniqueOrThrow({ where: { id: item.id } })).toEqual(started);
   });
 
+  test("the lifecycle hook observes actual successor approval in the same transaction", async () => {
+    const x = await f.create(), observed: string[] = [];
+    const service = new OutcomeService(f.prisma, undefined, undefined, async (tx, outcomeId) => {
+      const outcome = await tx.outcome.findUniqueOrThrow({ where: { id: outcomeId }, include: { currentRevision: true } });
+      observed.push(outcome.currentRevision!.status);
+    });
+    await Effect.runPromise(service.createRevision(x.outcome.id, change(1), actor));
+    await Effect.runPromise(service.approve(x.outcome.id, 2, approval(2), actor));
+    expect(observed).toEqual(["pending_approval", "approved"]);
+  });
+
   test("Decision provenance must be real and relevant; pending edits preserve the same Decision ancestry", async () => {
     const x = await f.create();
     const other = await f.create();

@@ -192,6 +192,7 @@ export class OutcomeService {
             }),
           },
         });
+        await this.onRevisionCreated?.(tx, outcomeId, actor);
         // Keep running snapshots intact; only work that has never started is replaced by the approved successor.
         const notStarted = await tx.outcomeWorkItem.findMany({
           where: {
