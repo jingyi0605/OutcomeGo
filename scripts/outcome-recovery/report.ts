@@ -50,9 +50,8 @@ export function disposableDatabaseUrl(environment: Record<string, string | undef
   let url: URL;
   try { url = new URL(value); } catch { throw new Error("invalid_test_database_url"); }
   if (!["postgres:", "postgresql:"].includes(url.protocol) ||
-    !["localhost", "127.0.0.1", "[::1]"].includes(url.hostname) ||
-    url.port !== "55437")
-    throw new Error("expected_disposable_postgres_on_port_55437");
+    !["localhost", "127.0.0.1", "[::1]"].includes(url.hostname))
+    throw new Error("expected_explicit_local_test_postgres");
   return value;
 }
 

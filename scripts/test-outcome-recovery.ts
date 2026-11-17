@@ -12,7 +12,7 @@ export async function main(args = process.argv.slice(2)) {
   if (options.plan) {
     console.log(JSON.stringify({
       scenario: options.scenario, status: "PENDING", executed: false,
-      database: "explicit local disposable PostgreSQL on port 55437",
+      database: "explicit local disposable PostgreSQL using the configured test port",
       requiredSources: ["Outcome recovery", "Decision builder", "Human receipt service"],
     }, null, 2));
     return 0;
