@@ -1,5 +1,6 @@
+import { humanActionInputSchema } from "@outcomego/contracts/human-work";
 import { ApiError } from "@outcomego/contracts";
-import type { DecisionCreateInput, DecisionOption, DecisionView } from "@outcomego/contracts/outcome-inbox";
+import { parseDecisionContractSnapshot, type DecisionCreateInput, type DecisionOption, type DecisionView } from "@outcomego/contracts/outcome-inbox";
 import { Prisma } from "@outcomego/db";
 import { createHash } from "node:crypto";
 import { appendOutcomeEvent, type ActorRef } from "./outcome-state";
@@ -21,6 +22,35 @@ export const outcomeDecisionView = (row: Row): DecisionView => ({
   createdAt: row.createdAt.toISOString(),
 });
 
+/** A draft successor does not replace the latest approved, already-started execution snapshot. */
+export const outcomeDecisionRevisionActiveSql = (outcomeId: Prisma.Sql, revisionId: Prisma.Sql, workItemId: Prisma.Sql): Prisma.Sql => Prisma.sql`
+  EXISTS (SELECT 1 FROM "outcomego_outcome" execution_outcome
+    WHERE execution_outcome.id = ${outcomeId} AND (
+      execution_outcome."currentRevisionId" = ${revisionId}
+      OR EXISTS (SELECT 1 FROM "outcomego_outcome_contract_revision" execution_revision
+        JOIN "outcomego_outcome_work_item" execution_item ON execution_item."contractRevisionId" = execution_revision.id
+        WHERE execution_revision.id = ${revisionId} AND execution_revision."outcomeId" = execution_outcome.id
+          AND execution_revision.status IN ('approved', 'superseded') AND execution_revision."approvedAt" IS NOT NULL
+          AND execution_item.id = ${workItemId} AND execution_item."outcomeId" = execution_outcome.id
+          AND execution_item."executorType" = 'agent' AND execution_item."startedAt" IS NOT NULL
+          AND EXISTS (SELECT 1 FROM "outcomego_run" execution_run
+            WHERE execution_run."outcomeWorkItemId" = execution_item.id AND execution_run."botId" = execution_item."botId"
+              AND execution_run.origin = 'outcome' AND execution_run."startedAt" IS NOT NULL)
+          AND EXISTS (SELECT 1 FROM "outcomego_outcome_contract_revision" pending_revision
+            WHERE pending_revision.id = execution_outcome."currentRevisionId" AND pending_revision.status IN ('draft', 'pending_approval'))
+          AND NOT EXISTS (SELECT 1 FROM "outcomego_outcome_contract_revision" successor
+            WHERE successor."outcomeId" = execution_outcome.id AND successor.status IN ('approved', 'superseded')
+              AND successor."approvedAt" IS NOT NULL AND successor.revision > execution_revision.revision)
+      )
+    ))
+`;
+export async function isOutcomeDecisionRevisionActive(tx: Tx, outcomeId: string, revisionId: string, workItemId?: string | null): Promise<boolean> {
+  const [row] = await tx.$queryRaw<Array<{ active: boolean }>>(Prisma.sql`SELECT ${outcomeDecisionRevisionActiveSql(
+    Prisma.sql`${outcomeId}::uuid`, Prisma.sql`${revisionId}::uuid`, Prisma.sql`${workItemId ?? null}::uuid`,
+  )} AS active`);
+  return row?.active === true;
+}
+
 /** One shared constructor for Server tools and Worker recovery; the caller owns the transaction. */
 export async function createOutcomeDecision(tx: Tx, input: DecisionCreateInput, actor: ActorRef, requestSnapshot: unknown = input): Promise<DecisionView> {
   const inputHash = createHash("sha256").update(JSON.stringify(requestSnapshot)).digest("hex");
@@ -32,7 +62,7 @@ export async function createOutcomeDecision(tx: Tx, input: DecisionCreateInput, 
   const outcome = await tx.outcome.findUnique({ where: { id: input.outcomeId } });
   const revision = await tx.outcomeContractRevision.findUnique({ where: { id: input.contractRevisionId } });
   if (!outcome) throw apiError("outcome_not_found", "Outcome not found", undefined, 404);
-  if (!revision || revision.outcomeId !== outcome.id || outcome.currentRevisionId !== revision.id) throw apiError("decision_revision_conflict", "The decision revision is no longer current");
+  if (!revision || revision.outcomeId !== outcome.id || !await isOutcomeDecisionRevisionActive(tx, outcome.id, revision.id, input.workItemId)) throw apiError("decision_revision_conflict", "The decision revision is no longer current");
   if (outcome.cancelledAt || outcome.acceptedAt) throw apiError("invalid_outcome_transition", "This Outcome is closed");
   if (input.workItemId) {
     const item = await tx.outcomeWorkItem.findUnique({ where: { id: input.workItemId } });
@@ -49,6 +79,20 @@ export async function createOutcomeDecision(tx: Tx, input: DecisionCreateInput, 
   }
   const options = input.options.slice(0, 4);
   if (!options.length || new Set(options.map(option => option.id)).size !== options.length || options.some(option => !option.id || !option.label.trim() || !option.consequence.trim() || !["plan_only", "scope_change", "acceptance_change", "cancel_branch", "manual_action"].includes(option.resolutionEffect))) throw apiError("invalid_decision_options", "Provide one to four distinct options with a server-defined effect", undefined, 422);
+  for (const option of options) {
+    if ((option.resolutionEffect === "scope_change" || option.resolutionEffect === "acceptance_change") && !option.contract)
+      throw apiError("invalid_decision_effect", "A revision effect requires a complete contract snapshot", undefined, 422);
+    if (option.contract) {
+      try { parseDecisionContractSnapshot(option.contract); }
+      catch { throw apiError("invalid_decision_effect", "The contract snapshot is invalid", undefined, 422); }
+    }
+    if (option.resolutionEffect === "manual_action" && (!option.manualAction || !humanActionInputSchema.safeParse(option.manualAction).success))
+      throw apiError("invalid_decision_effect", "A manual-action option requires a valid complete action card", undefined, 422);
+    if (option.supplement && (option.resolutionEffect !== "plan_only" || !option.supplement.title.trim() || !option.supplement.instructions.trim()))
+      throw apiError("invalid_decision_effect", "Supplementary work must preserve the contract and include instructions", undefined, 422);
+    if (option.recommended && !option.reason?.trim())
+      throw apiError("invalid_decision_options", "A recommended option requires its reason", undefined, 422);
+  }
   const expiresAt = input.expiresAt ? new Date(input.expiresAt) : null;
   if (expiresAt && !Number.isFinite(expiresAt.getTime())) throw apiError("invalid_decision_expiry", "expiresAt must be an ISO timestamp", undefined, 422);
   const now = new Date();
@@ -80,6 +124,7 @@ export async function withdrawSupersededOutcomeDecisions(tx: Tx, outcomeId: stri
   await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`outcome:${outcomeId}`}))`;
   const outcome = await tx.outcome.findUnique({ where: { id: outcomeId }, select: { currentRevisionId: true, cancelledAt: true } });
   if (!outcome) return;
-  const rows = await tx.outcomeDecision.findMany({ where: { outcomeId, status: { in: [...activeStatuses] }, ...(outcome.cancelledAt ? {} : { contractRevisionId: { not: outcome.currentRevisionId ?? "00000000-0000-0000-0000-000000000000" } }) }, include });
-  for (const row of rows) await closeOutcomeDecision(tx, row, "withdrawn", actor);
+  const rows = await tx.outcomeDecision.findMany({ where: { outcomeId, status: { in: [...activeStatuses] } }, include });
+  for (const row of rows) if (outcome.cancelledAt || !await isOutcomeDecisionRevisionActive(tx, outcomeId, row.contractRevisionId, row.workItemId))
+    await closeOutcomeDecision(tx, row, "withdrawn", actor);
 }
