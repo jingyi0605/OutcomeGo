@@ -63,6 +63,7 @@ export interface OutcomeThreadToolHandlers {
 }
 
 const UUID = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
+const isBackgroundOrigin = (origin: string) => origin === "routine" || origin === "outcome";
 const bitwardenCandidate = (
   value: unknown
 ): { connectionId: string; itemId: string; title: string; hostname: string } => {
@@ -187,12 +188,13 @@ export class InternalToolService {
         where: { childBotId: request.botId },
         select: { id: true, parentBotId: true, parentRunId: true, subagentType: true },
       });
+      const backgroundRun = isBackgroundOrigin(run.origin);
       // Private supervisor operation, never registered in any model catalog.
       if (request.tool === "RefreshToolCatalog") return {namespaces:await this.plugins.dynamicNamespaces(childIdentity?.parentBotId ?? request.botId)};
       if (request.tool === "ReadProcessSecrets") return { environment: await processEnvironment(this.prisma, request.botId) };
       const bitwardenCallerAllowed = !childIdentity || childIdentity.subagentType === "computerUse";
       if (["SearchBitwardenItems", "RequestBitwardenReadApproval", "ReadBitwardenCredential", "ConsumeBitwardenReadLease", "ConsumeBitwardenSearchLease"].includes(request.tool) &&
-          (!bitwardenCallerAllowed || run.origin === "routine"))
+          (!bitwardenCallerAllowed || backgroundRun))
         throw new ApiError(403, "bitwarden_tool_forbidden", "Bitwarden reads are available only to the user-facing agent");
       if (request.tool === "SearchBitwardenItems") {
         const input = jsonObject(request.arguments);
@@ -435,12 +437,12 @@ export class InternalToolService {
         });
         return { instances };
       }
-      if (run.origin === "routine" && AUTOMATION_PARENT_ONLY_TOOLS.has(request.tool)) {
+      if (backgroundRun && AUTOMATION_PARENT_ONLY_TOOLS.has(request.tool)) {
         throw new ApiError(403, "automation_tool_forbidden", AUTOMATION_RUN_VISIBLE_TRANSCRIPT_BLOCKED);
       }
       request={...request,arguments:normalizeMainToolArguments(request.tool,request.arguments)};
       if (request.tool === "ReportRequestProgress") {
-        if (childIdentity || run.origin === "routine") throw new ApiError(403, "request_progress_unavailable", "Only the user-facing parent may track a request");
+        if (childIdentity || backgroundRun) throw new ApiError(403, "request_progress_unavailable", "Only the user-facing parent may track a request");
         const result = await reportRequestProgress(this.prisma, context, Schema.decodeUnknownSync(RequestProgressInput)(request.arguments));
         return { ...(result as Record<string, unknown>), requests: await requestProgressSnapshot(this.prisma, request.botId, request.channelId) };
       }
@@ -459,8 +461,8 @@ export class InternalToolService {
         await Promise.allSettled(children.map((child) => this.subagents.stop(request.botId, request.callId, { subagent_id: botSubagentId(child.id) })));
         return woken;
       }
-      if (run.origin === "routine" && request.tool !== "AcknowledgeCardOutcomes" &&
-        (await this.prisma.automationResult.findUnique({ where: { runId: automationContextRunId(run.id, inboxPayload) }, select: { wakeRunId: true } }))?.wakeRunId) {
+      if (backgroundRun && request.tool !== "AcknowledgeCardOutcomes" &&
+        (await this.prisma.automationResult.findUnique({ where: { runId: run.origin === "outcome" ? run.id : automationContextRunId(run.id, inboxPayload) }, select: { wakeRunId: true } }))?.wakeRunId) {
         throw new ApiError(409, "automation_turn_ended", "This automation already handed control to its parent");
       }
       if (request.tool === "PrepareConnectorTransfer" || request.tool === "ExecuteConnectorTransfer") {
@@ -474,7 +476,7 @@ export class InternalToolService {
         return { acknowledged: true };
       }
       if (request.tool === "UpdateComputerNetworkPolicy") {
-        if (childIdentity || run.origin === "routine")
+        if (childIdentity || backgroundRun)
           throw new ApiError(403, "computer_network_policy_bot_forbidden", "Only an owner bot can request a firewall change.");
         if (!this.computerNetworkPolicy)
           throw new ApiError(503, "computer_network_policy_unavailable", "Firewall policy control is unavailable.");
@@ -574,14 +576,14 @@ export class InternalToolService {
 
       // Private to the computer: a finished sentence of a SendToUser message still being written, spoken at once.
       if (request.tool === "VoiceSpeak") {
-        if (childIdentity || run.origin === "routine") throw new ApiError(403, "speech_unavailable", "Only the user-facing parent may speak");
+        if (childIdentity || backgroundRun) throw new ApiError(403, "speech_unavailable", "Only the user-facing parent may speak");
         const input = (request.arguments ?? {}) as { callId?: unknown; text?: unknown };
         if (typeof input.callId !== "string" || typeof input.text !== "string" || !input.text.trim()) throw new ApiError(400, "invalid_speech", "A call id and text are required");
         return { spoken: this.onSpeechChunk ? await this.onSpeechChunk(request.runId, input.callId, input.text.slice(0, 2_000)) : false };
       }
       // Private to the computer's narrator, never registered in any model catalog.
       if (request.tool === "VoiceNarration") {
-        if (childIdentity || run.origin === "routine") throw new ApiError(403, "narration_unavailable", "Only the user-facing parent may narrate");
+        if (childIdentity || backgroundRun) throw new ApiError(403, "narration_unavailable", "Only the user-facing parent may narrate");
         const text = (request.arguments as { text?: unknown } | null)?.text;
         if (typeof text !== "string") throw new ApiError(400, "invalid_narration", "Narration text is required");
         const { acknowledgement } = await this.messaging.sendNarration(context, text);
@@ -714,10 +716,7 @@ export class InternalToolService {
         if (typeof input.connectionId !== "string" || typeof input.toolName !== "string") {
           throw new ApiError(400, "invalid_plugin_call", "Plugin call is missing identifiers");
         }
-        const automationChild = childIdentity && (await this.prisma.run.findUnique({
-          where: { id: childIdentity.parentRunId }, select: { origin: true },
-        }))?.origin === "routine";
-        return withConnectorDraftCardReminder(this.prisma, { connectionId: input.connectionId, toolName: input.toolName }, !childIdentity && run.origin !== "routine", await this.plugins.invoke({
+        return withConnectorDraftCardReminder(this.prisma, { connectionId: input.connectionId, toolName: input.toolName }, !childIdentity && !backgroundRun, await this.plugins.invoke({
           connectionId: input.connectionId,
           namespace: typeof input.namespace === "string" ? input.namespace : undefined,
           botId:
