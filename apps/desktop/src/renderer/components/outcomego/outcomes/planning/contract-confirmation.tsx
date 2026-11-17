@@ -6,6 +6,9 @@ export function ContractConfirmation({ revision, busy, confirmation, onConfirmat
 }) {
   return <section aria-label="Contract confirmation" className="space-y-3 rounded-lg border p-4">
     <h3 className="font-medium">Contract revision {revision.revision} · {revision.status}</h3>
+    {revision.baseRevisionId && <p className="break-all text-xs">Based on contract {revision.baseRevisionId}</p>}
+    {revision.changeSummary && <p>Change: {revision.changeSummary}</p>}
+    {revision.sourceDecisionId && <p className="break-all text-xs">Source Decision: {revision.sourceDecisionId}</p>}
     <div><h4>Goals</h4><ul className="list-inside list-disc">{revision.goal.map((goal, i) => <li key={i}>{goal}</li>)}</ul></div>
     <div><h4>Acceptance</h4><ul className="list-inside list-disc">{revision.criteria.map(c => <li key={c.id}>{c.required ? "Required" : "Optional"}: {c.statement}</li>)}</ul></div>
     <div><h4>Boundaries</h4><ul className="list-inside list-disc">{revision.boundaries.included.map((text, i) => <li key={`in${i}`}>Included: {text}</li>)}{revision.boundaries.excluded.map((text, i) => <li key={`out${i}`}>Excluded: {text}</li>)}</ul></div>
