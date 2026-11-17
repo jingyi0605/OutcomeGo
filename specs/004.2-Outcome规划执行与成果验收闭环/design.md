@@ -1,6 +1,6 @@
 # 设计文档 - Outcome 规划执行与成果验收闭环
 
-状态：Draft
+状态：Approved（2026-11-17，按“主线程 + 子线程”执行模型修订）
 
 关联文档：[README.md](README.md) · [requirements.md](requirements.md) · [tasks.md](tasks.md)
 
@@ -8,10 +8,12 @@
 
 ```text
 Outcome 1 ── * ContractRevision
+ContractRevision 1 ── * AcceptanceCriterion
 ContractRevision 1 ── * WorkItem
-WorkItem 1 ── * Run
-Run 1 ── * Evidence
+WorkItem(agent) 1 ── 1 Outcome 子线程 ── * Run（Run.outcomeWorkItemId）
+WorkItem 1 ── * Output
 AcceptanceCriterion 1 ── * Evidence
+AcceptanceCriterion 1 ── * Review
 ```
 
 最小对象：
@@ -19,9 +21,11 @@ AcceptanceCriterion 1 ── * Evidence
 - `Outcome`：成果目标和当前状态。
 - `ContractRevision`：目标、验收、边界和执行上下文的不可变版本。
 - `AcceptanceCriterion`：可验证完成条件。
-- `WorkItem`：可分派给 Agent 或人的最小动作。
-- `Run`：一次 OpenTeam 或人工执行实例。
-- `Evidence`：输出、来源、时间和验证结果。
+- `WorkItem`：可分派给 Agent 或人的最小动作。Agent WorkItem 对应一个 Outcome 子线程。
+- `Run`：现有运行时的一次 Agent 回合。一个子线程内可以有多个 Run（根 Run、后续回合、子 Agent 和后台 shell 唤醒的回合），统称**运行组**。
+- `Output`：运行组最终结果或输出目录文件。
+- `Evidence`：用于证明条款的材料、来源和可信度。
+- `Review`：用户对每条条款的结论。
 
 ## 2. 状态
 
@@ -66,31 +70,39 @@ interface PlanningDraft {
 
 建议最小接口：
 
-接口以 §19 为准，路径统一带 `/api/v0` 前缀（`apps/server/src/main.ts` 会把 `/api/v0` 映射为 `/api`）：
+接口以 requirements.md “API 合同需求”表和 §19 为准，路径统一带 `/api/v0` 前缀（`apps/server/src/main.ts:107` 会把 `/api/v0` 映射为 `/api`）：
 
 ```text
 POST /api/v0/outcomes/plans
+GET  /api/v0/outcomes/plans/:planId
 POST /api/v0/outcomes
+GET  /api/v0/outcomes
+GET  /api/v0/outcomes/:id
+POST /api/v0/outcomes/:id/revisions
 POST /api/v0/outcomes/:id/revisions/:revision/approve
 POST /api/v0/outcomes/:id/runs
-GET  /api/v0/outcomes/:id
 POST /api/v0/outcomes/:id/reviews
 POST /api/v0/outcomes/:id/rework
+POST /api/v0/outcomes/:id/cancel
+GET  /api/v0/outcomes/:id/work-items/:workItemId/transcript
 ```
 
 本阶段产生的事实事件（名称以父 design.md §14 为准）：
 
 ```text
 outcome.created
-contract.revision.created
-contract.revision.approved
-work_item.created
-run.started
-run.finished
-review.required
-review.recorded
+outcome.status_changed
+outcome.contract.revision_created
+outcome.contract.revision_approved
+outcome.work_item.created
+outcome.work_item.updated
+outcome.output.recorded
+outcome.review.required
+outcome.review.recorded
 outcome.accepted
 ```
+
+本阶段读取（不写入）的现有运行时事件：`run.completed`、`run.interrupted`、`run.cancelled`。
 
 事件 Envelope 和存储方式见父 design.md §14、§43。
 
@@ -101,9 +113,9 @@ Approved ContractRevision
         ↓
 WorkItem(subject, acceptance_refs, contract_revision)
         ↓
-OpenTeam Bot / Run
+Outcome 子线程（执行 Bot 下，独立上下文和租约，§12）
         ↓
-Output + Run events
+运行组结束 → Output
         ↓
 Evidence
         ↓
@@ -114,12 +126,11 @@ Acceptance review
 
 ## 6. 持久化
 
-数据库迁移必须：
+schema 变更按父 design §16：在 `schema.prisma` 中新增表和可选列，通过 `db:push` 部署，不写 Prisma Migrate 迁移。必须：
 
-- 新增表或字段时保持现有数据可读。
-- 为旧数据提供空值或默认兼容路径。
+- 新增表或字段时保持现有数据可读；`Run.outcomeWorkItemId` 为可选列，现有 Run 为空。
 - 不覆盖已批准 revision。
-- 为 Run、Evidence 和 Review 保存 Contract revision。
+- WorkItem、Evidence 和 Review 保存 Contract revision；Run 通过 `outcomeWorkItemId` 间接关联 revision。
 
 ## 7. 验收逻辑
 
@@ -127,19 +138,19 @@ Acceptance review
 
 ## 8. 当前代码基线和集成点
 
-在实现前必须以当前工作树为准更新此表。下表是已发现的首选集成点：
+下表已按任务 0.1 审计结果（`docs/runtime-capability-matrix.md`）更新：
 
 | 现有文件 | 责任 | 新增或调整 |
 |---|---|---|
-| `packages/contracts/src/index.ts` | 共享类型出口 | 导出 Outcome、Contract、Decision、Review 类型 |
-| `packages/contracts/src/service-protocol.ts` | 路由/协议常量 | 增加 Outcome API 路径 |
-| `packages/db/prisma/schema.prisma` | PostgreSQL 模型 | 增加 Outcome 相关模型和关系 |
+| `packages/contracts/src/outcomes.ts`（新增）、`index.ts` | 共享类型出口 | Outcome、Contract、WorkItem、Output、Evidence、Review DTO 和解析函数 |
+| `packages/db/prisma/schema.prisma` | PostgreSQL 模型 | 新增 Outcome 模型；`RunOrigin` 增加 `outcome`；`Run` 增加可选 `outcomeWorkItemId` |
 | `apps/server/src/main.ts` | HTTP route 注册和生命周期 | 注册 Outcome routes |
-| `apps/server/src/routes/` | 输入解析、鉴权和响应 | 新增 `outcome.ts` 或按现有组织方式拆分 |
-| `apps/server/src/services/channel-service.ts` | 现有用户消息到 Run | 复用窄化的 Run 创建入口，不复制消息接受逻辑 |
-| `apps/server/src/services/run-service.ts` | Run 取消/状态 | 增加 Outcome 关联查询或回调 |
-| `apps/server/src/services/internal-tool-service.ts` | Agent 可见输出 | 将 `sourceRunId` 输出转为 Outcome Output/Evidence 候选 |
-| `apps/worker/src/worker.ts` | Agent 回合执行 | 读取 Outcome context，不改变普通消息 prompt |
+| `apps/server/src/routes/outcome.ts`（新增） | 输入解析、鉴权和响应 | 按现有 route 组织方式实现 |
+| `packages/messaging/src/index.ts` | `enqueueWake`、`WakeInput` | `WakeInput` 增加可选 `outcomeWorkItemId`，写入 InboxEvent payload 和 `Run.outcomeWorkItemId`；`platformPrompt` 读取 Outcome context |
+| `packages/messaging/src/automation-results.ts` | Routine 运行组判断 | 抽出与 origin 无关的“运行组是否结束”判断，供 Routine 和 Outcome 共用 |
+| `apps/worker/src/worker.ts` | 领取 InboxEvent、租约、上下文 scope | `contextScopeForRun` 支持 `outcome`；领取逻辑把 `outcome` 当作后台线程 origin，租约 scope `outcome:<workItemId>`，每 Bot 上限 2；回合结束时调用 Outcome 运行组结算 |
+| `apps/computer/src/runtime/tools.ts` | 子线程工具列表 | `outcome` 请求来源沿用 Routine worker 工具约定，后续由 `004.3`/`004.4` 增加 `RequestOutcomeDecision`、`RequestHumanAction` |
+| `apps/server/src/services/run-service.ts` | Run 取消 | Outcome 取消时停止子线程运行组，复用现有取消语义 |
 | `apps/desktop/src/renderer/client/outcomego-api.ts` | Desktop API 客户端 | Outcome API 和错误类型 |
 | `apps/desktop/src/renderer/components/outcomego/chat-pane.tsx` | 当前聊天入口 | 从聊天输入进入 Planning UI |
 | `packages/db/prisma/migrations/` | 增量迁移 | 生成实际迁移，不手工覆盖已有迁移 |
@@ -186,11 +197,14 @@ outcomeId          UUID foreign key
 revision           integer
 status             draft | pending_approval | approved | superseded | closed
 goal               JSON
-acceptance         JSON
 boundaries         JSON
 budget             JSON nullable，可选的时间或费用上限，不设默认值
 executionBotId     UUID
+conflicts          JSON，创建时检测到的规划冲突
+contentHash        sha256(goal, 条款, boundaries, budget, executionBotId)
 changeSummary      text nullable
+baseRevisionId     UUID nullable
+sourceDecisionId   UUID nullable
 createdBy          actorRef（父 design.md §44）
 approvedBy         actorRef nullable
 approvedAt         timestamp nullable
@@ -198,7 +212,7 @@ approvalProof      JSON nullable
 createdAt          timestamp
 ```
 
-唯一约束：`(outcomeId, revision)`。批准后 `goal`、`acceptance`、`boundaries`、`budget` 和 `executionBotId` 不允许原位修改。本 Spec 不保存 authority 字段，原因见父 design.md §40。
+唯一约束：`(outcomeId, revision)`。验收条款只保存在 `OutcomeAcceptanceCriterion` 表中（§9.3），revision 不再另存一份 `acceptance` JSON，避免两个事实来源。批准后 `goal`、条款、`boundaries`、`budget` 和 `executionBotId` 不允许原位修改。本 Spec 不保存 authority 字段，原因见父 design.md §40。
 
 ### 9.3 `AcceptanceCriterion` 和 `Evidence`
 
@@ -219,29 +233,30 @@ credibility
 
 `contentSummary` 保存可展示的摘要；原始大文件继续使用现有 asset store 或文件引用，不直接塞入 Outcome 行。
 
-### 9.4 `WorkItem` 和 `OutcomeRun`
-
-如果现有 `Run` 不能直接扩展为 Outcome 关联，新增 `OutcomeWorkItem` 和关联表；不得复制一套 Agent Run 状态机。推荐：
+### 9.4 `OutcomeWorkItem` 和 Run 关联（D11、D14）
 
 ```text
 OutcomeWorkItem:
 id, outcomeId, contractRevisionId, executorType(agent|human),
-kind(initial|rework), title, instructions, status, ordinal, dependsOn JSON,
-runId nullable, assignedTo nullable, reworkOfWorkItemId nullable,
-createdAt, updatedAt
+kind(initial|rework|supplement|human_action), title, instructions,
+status, ordinal, dependsOn JSON（workItemId 数组）,
+rootRunId nullable, reworkOfWorkItemId nullable, sourceDecisionId nullable,
+statusReason nullable, startedAt, completedAt, createdAt, updatedAt
 
-OutcomeRunLink:
-workItemId, runId, contractRevisionId, linkedAt
+Run（现有表，新增可选列）:
+outcomeWorkItemId UUID nullable，索引 (outcomeWorkItemId, createdAt)
 ```
 
-若代码审计证明 `Run` 可直接增加 `contractRevisionId`，优先使用直接关系，减少映射表。
+- 不建 `OutcomeRunLink`。子线程运行组内的每个 Run（包括 Agent 后续回合）都写入 `outcomeWorkItemId`；WorkItem 的 `rootRunId` 指向子线程第一个 Run。
+- 不复制 Agent Run 状态机；WorkItem 状态由运行组派生（父 design §42.2）。
+- Human WorkItem 的专用字段（步骤、回执要求等）由 `004.4` 以可选列或关联表扩展，不另建 WorkItem 表。
 
 ### 9.5 `Output` 和 `Review`
 
 ```text
 OutcomeOutput:
-id, outcomeId, workItemId, runId nullable, kind,
-title, contentRef, sourceMessageId nullable, createdAt
+id, outcomeId, workItemId, runId nullable, kind(final_result|file),
+title, content text nullable, contentRef nullable, createdAt
 
 OutcomeReview:
 id, outcomeId, contractRevisionId, criterionId,
@@ -307,8 +322,8 @@ Content-Type: application/json
 {
   "planId": "<uuid>",
   "goal": {"options": [{"id":"goal-1","text":"形成可执行的选型建议"}],"selectedOptionIds":[],"customEntries":[]},
-  "acceptance": {"options": [{"id":"accept-1","text":"说明成本、恢复时间和限制"}],"selectedOptionIds":[],"customEntries":[]},
-  "boundaries": {"options": [{"id":"boundary-1","text":"不修改生产系统"}],"selectedOptionIds":[],"customEntries":[]},
+  "acceptance": {"options": [{"id":"acceptance-1","text":"说明成本、恢复时间和限制"}],"selectedOptionIds":[],"customEntries":[]},
+  "boundaries": {"options": [{"id":"boundaries-1","text":"不修改生产系统"}],"selectedOptionIds":[],"customEntries":[]},
   "conflicts": []
 }
 ```
@@ -317,9 +332,12 @@ Content-Type: application/json
 
 批准和执行的请求体见 §19.3、§19.4。
 
+幂等统一使用请求体中的 `clientRequestId`，不使用 `Idempotency-Key` 请求头。
+
 ```http
 POST /api/v0/outcomes/<outcomeId>/revisions/1/approve
-Idempotency-Key: approve:<outcomeId>:1
+
+{"expectedRevision":1,"confirmationText":"...","clientRequestId":"approve:<outcomeId>:1"}
 ```
 
 ```json
@@ -328,24 +346,69 @@ Idempotency-Key: approve:<outcomeId>:1
 
 ```http
 POST /api/v0/outcomes/<outcomeId>/runs
-Idempotency-Key: run:<outcomeId>:1
+
+{"expectedRevision":1,"clientRequestId":"run:<outcomeId>:1"}
 ```
 
-响应必须包含 `outcomeId`、`contractRevision`、`workItemIds`、`runIds`、`status`，不能只返回一个不可追踪的后台任务 ID。
+响应必须包含 `outcomeId`、`contractRevision`、`workItems`（含 `rootRunId`）和 `status`，不能只返回一个不可追踪的后台任务 ID。
 
-## 12. OpenTeam 执行桥接
+## 12. Outcome 子线程执行桥接（父 design §45，D09–D15）
 
-桥接复用 `AgentMessaging.acceptDirectUserMessage`（`packages/messaging/src/index.ts`）这一现有消息接受入口；它在一个事务里创建 Message、Run 和 InboxEvent：
+### 12.1 为什么不用 `acceptDirectUserMessage`
 
-1. 将 WorkItem 的执行说明转换为现有用户消息或内部任务输入。
-2. 使用服务端生成的 idempotency key，避免重复创建 ChannelMessage/Run。
-3. 保存 `runId` 与 `contractRevision` 关系。
-4. 监听已有 Run/Event 状态，不新建并行调度系统。
-5. Agent 的普通运行行为、工具、记忆和消息投递保持不变。
-6. `SendToUser` 产生的 `ChannelMessage.sourceRunId` 进入 Output 候选。
-7. Run 结束时生成 ReviewPending，而不是直接 Accepted。
+任务 0.1 审计确认：`AgentMessaging.acceptDirectUserMessage`（`packages/messaging/src/index.ts:1224`）以 `origin: "user"` 入队，并把 Bot 主对话中正在运行的回合标为 `interruptedRunId`（同文件 `:1240`）。用它提交 WorkItem 会打断用户聊天，用户再发消息又会打断 Outcome 任务；执行说明还会以用户消息的形式进入主对话。因此 Outcome 不使用该入口。
 
-Outcome context 的传递方式见 §23。不使用 `taskConfiguration`：它是 Bot 级执行器配置，`parseTaskConfiguration` 会拒绝未知字段。
+### 12.2 入队
+
+```text
+事务内：
+  创建 OutcomeWorkItem(status=queued)
+  若该 Bot 运行中的 Outcome 子线程 < 2：
+    messaging.enqueueWake(tx, {
+      botId: outcome.botId,
+      channelId: <执行 Bot 的 DM channel>,
+      origin: "outcome",
+      type: "outcome.work_item",
+      content: <WorkItem 执行说明，不含 Contract JSON>,
+      clientId: "outcome-run:<outcomeId>:<revision>:<workItemId>",
+      outcomeWorkItemId: <workItemId>,
+      priority: 280,
+    })
+    WorkItem.rootRunId = wake.run.id
+  写 outcome.work_item.created 事件
+```
+
+- `enqueueWake`（`packages/messaging/src/index.ts:989`）只写数据库（Message、Run、InboxEvent、Event），不调用 Worker，可以放在同一事务中。
+- 不传 `interruptedRunId`，不会顶替任何回合。
+- `channelId` 只用于运行时上下文；子线程不向该 channel 发送可见消息（§24）。
+- 超出并发上限的 WorkItem 保持 `queued`，不入队 Run；在任一 Outcome 子线程结算后，由同一结算事务挑选下一个 `queued` WorkItem 入队。
+
+### 12.3 Worker 侧
+
+| 位置 | 现状（Routine） | Outcome 子线程 |
+|---|---|---|
+| `contextScopeForRun`（`apps/worker/src/worker.ts:192`） | `routine` → `automation` scope | `outcome` → scope `outcome`，scopeId = `outcomeWorkItemId` |
+| InboxEvent 领取（`worker.ts:1240` 起） | 主对话忙时只领取 `routine`；Routine 数量上限 4 | 把 `outcome` 与 `routine` 一样视为后台线程 origin；同一 workItemId 已有租约时不领取；Outcome 子线程上限 2 |
+| 租约（`worker.ts:1307`） | `automation:<rootRunId>` | `outcome:<workItemId>` |
+| 回合结束（`worker.ts:1634`、`:1917`） | `reconcileRoutineExecution` | 同一位置调用 `settleOutcomeWorkItem(tx, runId)` |
+| 工具（`apps/computer/src/runtime/tools.ts:254`） | `requestSource=automation` 时提供 `WakeParent` | `outcome` 映射为同一类 worker 请求来源，额外工具由 `004.3`/`004.4` 增加 |
+
+### 12.4 运行组结算
+
+`settleOutcomeWorkItem(tx, runId)`：
+
+1. 找到 `Run.outcomeWorkItemId`；为空则直接返回（普通 Run 不受影响）。
+2. 加 `pg_advisory_xact_lock(hashtext('outcome-work-item:<id>'))`。
+3. 运行组 = 所有 `outcomeWorkItemId = <id>` 的 Run。若其中有 `queued`/`running`，或其子 Agent、后台 shell 未结束（复用从 `automationBackgroundWorkRunning` 抽出的判断），返回。
+4. 若 WorkItem 为 `waiting_decision` 或 `waiting_human`，不改变状态（Decision 解决或人工 WorkItem 被接受后会在同一子线程再入队）。
+5. 按最后一个 Run 的状态更新 WorkItem（父 design §42.2），写 `outcome.work_item.updated`。
+6. 若为 `completed`，读取最后一个 Run 的最终 agentMessage（与 `saveSilentAutomationResult` 相同来源：`run_item.completed` 事件中 `item.type = agentMessage` 的最后一条），写 `OutcomeOutput(kind=final_result)`，写 `outcome.output.recorded`；输出目录中的文件登记为 `kind=file`。
+7. 重新计算 Outcome 状态；所有 Agent WorkItem 结束且有 Output 时进入 `review_pending`，写 `outcome.review.required`。
+8. 挑选同一 Bot 下一个 `queued` WorkItem 入队（§12.2）。
+
+### 12.5 不改变的部分
+
+Agent 的普通运行行为、工具、记忆和主对话消息投递保持不变。Outcome context 的传递方式见 §23。不使用 `taskConfiguration`：它是 Bot 级执行器配置，`parseTaskConfiguration` 会拒绝未知字段。
 
 ## 13. 状态转换和事务边界
 
@@ -378,36 +441,40 @@ Approved revision → Superseded by revision N+1
 
 ### 共享契约和数据库
 
-- `packages/contracts/src/index.ts`
-- `packages/contracts/src/service-protocol.ts`
-- `packages/contracts/src/outcomes.ts`（新增）
-- `packages/db/prisma/schema.prisma`
-- `packages/db/prisma/migrations/<generated>_add_outcomes/`
-- `packages/db/test/outcomes.integration.test.ts`（新增）
+- `packages/contracts/src/outcomes.ts`（新增）、`packages/contracts/src/index.ts`、`packages/contracts/package.json`（exports）
+- `packages/contracts/test/outcomes.test.ts`（新增）
+- `packages/contracts/src/service-protocol.ts`（`ComputerInferenceRequest.kind` 增加 `planning`、`prereview`）
+- `packages/db/prisma/schema.prisma`（Outcome 模型、`RunOrigin.outcome`、`Run.outcomeWorkItemId`）
+- `packages/db/test/fresh-schema.integration.test.ts`（覆盖新表）
+- `packages/db/test/outcomes.integration.test.ts`（新增，唯一约束和 revision 不可变）
 
-### 服务端和 Worker
+### 服务端、messaging 和 Worker
 
 - `apps/server/src/main.ts`
 - `apps/server/src/routes/outcome.ts`（新增）
-- `apps/server/src/services/outcome-service.ts`（新增）
+- `apps/server/src/services/outcome-service.ts`（新增：Outcome、revision、批准、WorkItem、状态计算）
 - `apps/server/src/services/outcome-planning-service.ts`（新增，§31）
-- `packages/contracts/src/service-protocol.ts`（`ComputerInferenceRequest.kind` 增加 `planning`、`prereview`）
-- `apps/computer/src/main.ts`（无需改动；核对新 kind 透传）
-- `packages/messaging/src/index.ts`（WakeInput/InboxEvent payload 增加 `outcomeWorkItemId`；`platformPrompt` 读取 Outcome context）
-- `apps/server/src/services/contract-service.ts`（新增）
 - `apps/server/src/services/outcome-review-service.ts`（新增）
-- `apps/server/src/services/channel-service.ts`
-- `apps/server/src/services/run-service.ts`
-- `apps/server/src/services/internal-tool-service.ts`
-- `apps/worker/src/worker.ts`
-- `apps/worker/test/outcome-run.integration.test.ts`（新增）
+- `apps/server/src/services/run-service.ts`（取消子线程）
+- `packages/messaging/src/index.ts`（`WakeInput.outcomeWorkItemId`；`platformPrompt` 读取 Outcome context）
+- `packages/messaging/src/automation-results.ts`（抽出运行组判断）
+- `packages/messaging/src/outcome-threads.ts`（新增：`settleOutcomeWorkItem`、下一个 WorkItem 入队）
+- `apps/worker/src/worker.ts`（scope、领取、租约、结算调用）
+- `apps/computer/src/runtime/tools.ts`（`outcome` 请求来源）
+- `apps/worker/test/outcome-thread.integration.test.ts`（新增：主对话与子线程互不打断）
 
 ### Desktop
 
 - `apps/desktop/src/renderer/client/outcomego-api.ts`
-- `apps/desktop/src/renderer/components/outcomego/chat-pane.tsx`
+- `apps/desktop/src/renderer/components/outcomego/chat-pane.tsx`（入口）
 - `apps/desktop/src/renderer/components/outcomego/outcomes/`（新增）
 - `apps/desktop/test/outcome-planning.test.ts`（新增）
+
+### Android/iOS（只读，需求 20）
+
+- `mobile/shared/src/commonMain/kotlin/com/outcomego/mobile/core/Models.kt`、`Transport.kt`（Outcome DTO 和读取）
+- `apps/android/app/src/main/kotlin/com/outcomego/features/`（Outcome 列表和详情页面）
+- `apps/ios/Sources/Core/API.swift`、`Models.swift`，`apps/ios/Sources/App/`（Outcome 列表和详情视图）
 
 ### 测试数据和文档
 
@@ -480,8 +547,8 @@ interface PlanningConflict {
 
 用户确认 PlanningDraft 后，服务端执行：
 
-1. 验证 draft ID 属于当前 owner。
-2. 验证 draft 没有过期或被新的 draft supersede。
+1. 验证 draft 存在且状态为 `ready`（单 owner 系统，不做归属检查，父 design §44）。
+2. 验证 draft 没有过期或被消费。
 3. 根据选项 ID读取当时的 option snapshot。
 4. 合并 custom entries。
 5. 生成实际确认文字。
@@ -558,14 +625,68 @@ interface PlanningConflict {
 {
   "planId": "<uuid>",
   "goal": {"selectedOptionIds": ["goal-1"], "customEntries":[]},
-  "acceptance": {"selectedOptionIds": ["accept-1"], "customEntries":[]},
-  "boundaries": {"selectedOptionIds": ["boundary-1"], "customEntries":[]},
+  "acceptance": {"selectedOptionIds": ["acceptance-1"], "customEntries":[]},
+  "boundaries": {"selectedOptionIds": ["boundaries-1"], "customEntries":[]},
   "title": "备份方案选型建议",
   "clientRequestId": "outcome:<uuid>"
 }
 ```
 
-服务端返回 Outcome、Contract draft 和冲突；存在 blocking conflict 时可以创建 draft，但不能进入 `pending_approval`。
+服务端返回 Outcome、revision 1 和冲突。没有 blocking conflict 时 revision 1 直接进入 `pending_approval`；存在 blocking conflict 时 revision 1 停在 `draft`，客户端通过 §19.5 提交修改后的内容。
+
+### 19.5 `POST /api/v0/outcomes/:id/revisions`
+
+用完整确认内容创建新 revision，用于解决规划冲突，或在 Decision 要求变更范围后提交新范围：
+
+```json
+{
+  "baseRevision": 1,
+  "contract": {
+    "goal": ["形成可执行的选型建议"],
+    "acceptance": [{"statement": "比较两条可行路线", "required": true}],
+    "boundaries": {"included": ["公开资料研究"], "excluded": ["修改生产系统"]},
+    "budget": null
+  },
+  "changeSummary": "补充排除项",
+  "sourceDecisionId": null,
+  "clientRequestId": "revision:<outcomeId>:<n>"
+}
+```
+
+- `baseRevision` 必须等于当前 revision，否则返回 `409 contract_revision_conflict`。
+- 当前 revision 未批准时，旧 revision 标为 `superseded`；已批准时，新 revision 记录 `changeSummary` 和来源。
+- 新 revision 没有 blocking conflict 时进入 `pending_approval`。
+- `verificationMethod` 和 `required` 仍按 §17 规则由服务端确定，客户端提交的 `required` 只作为用户意图记录。
+
+### 19.6 `GET /api/v0/outcomes`
+
+查询参数：`status`（可多值）、`cursor`（`updatedAt` + `id` 组合游标）、`limit`（默认 20，最大 100）。返回 `{ items: OutcomeSummary[], nextCursor }`，`OutcomeSummary` 含 `id`、`title`、`status`、`botId`、`currentRevision`、`updatedAt`。
+
+### 19.7 `POST /api/v0/outcomes/:id/reviews`
+
+```json
+{
+  "expectedRevision": 1,
+  "results": [
+    {"criterionId": "<uuid>", "result": "PASS", "evidenceIds": ["<uuid>"], "comment": ""},
+    {"criterionId": "<uuid>", "result": "FAIL", "evidenceIds": [], "comment": "缺少恢复时间对比"}
+  ],
+  "newEvidence": [
+    {"criterionId": "<uuid>", "sourceType": "asset", "sourceRef": "asset:<id>", "contentSummary": "..."}
+  ],
+  "clientRequestId": "review:<outcomeId>:<n>"
+}
+```
+
+服务端先写 `newEvidence`（`credibility=human_confirmed`），再写 Review，并重新计算 Outcome 状态。这是唯一的验收入口（D20），`004.4` 的人工回执验收也使用它。
+
+### 19.8 `POST /api/v0/outcomes/:id/cancel`
+
+请求 `{ "clientRequestId": "cancel:<outcomeId>" }`。服务端在事务中把 Outcome 置为 `cancelled`、未结束的 WorkItem 置为 `cancelled`，并对运行中的子线程 Run 使用 `run-service` 现有取消语义；已产生的 Output、Evidence 和 Review 保留。
+
+### 19.9 `GET /api/v0/outcomes/:id/work-items/:workItemId/transcript`
+
+只读返回子线程运行组的消息记录摘要（复用现有 transcript 读取能力），不提供写入。
 
 ### 19.3 `POST /approve`
 
@@ -625,6 +746,9 @@ interface PlanningConflict {
 | Run 已创建 | 200 | stored response |
 | Review 缺 Evidence | 422 | `evidence_missing` |
 | Review revision 不一致 | 409 | `review_revision_conflict` |
+| revision 基线不一致 | 409 | `contract_revision_conflict` |
+| 执行 Bot 不可运行 | 409 | `bot_not_runnable`（details.retryable 视原因而定） |
+| Outcome 已取消或已接受 | 409 | `invalid_outcome_transition` |
 
 ## 21. 数据库约束和索引
 
@@ -634,17 +758,17 @@ interface PlanningConflict {
 - `Outcome.currentRevisionId` 只能指向该 Outcome 的 revision。
 - `AcceptanceCriterion(contractRevisionId, ordinal)` unique。
 - `WorkItem(outcomeId, ordinal)` unique。
-- `OutcomeReview(criterionId, contractRevisionId, reviewerId, reviewSequence)` 可追踪重复 Review。
-- idempotency key 按当前 owner/scope 唯一。
+- `OutcomeReview(criterionId, reviewSequence)` unique，可追踪重复 Review。
+- idempotency key 按 `IdempotencyRecord(scope, key)` 唯一（现有主键）。
 
 ### 查询索引
 
-- Outcome owner/status/updatedAt。
+- Outcome status/updatedAt。
 - ContractRevision outcome/status/revision。
-- WorkItem outcome/status/createdAt。
-- Run contractRevision/outcome/status。
+- WorkItem outcome/status/createdAt；WorkItem botId/status（并发上限查询，通过 Outcome 关联或冗余 botId 列）。
+- Run outcomeWorkItemId/createdAt。
 - Evidence criterion/contractRevision/createdAt。
-- Output run/sourceMessage。
+- Output workItem/createdAt。
 
 最终索引名称以 Prisma migration 生成结果为准，任务完成时将生成的 SQL/索引写入证据。
 
@@ -660,7 +784,7 @@ interface PlanningConflict {
 
 ### 创建 Run
 
-`acceptDirectUserMessage` 只写数据库（Message、Run、InboxEvent），不调用 Worker。因此 WorkItem、Message、Run、InboxEvent 和 `run.started` 前的 `work_item.created` 事件放在同一个事务里，WorkItem 直接保存 `runId`。Worker 通过现有 InboxEvent 队列领取任务，不需要第二个事务回写。只有当 Bot 当前不可运行（`acceptDirectUserMessage` 抛出错误）时，WorkItem 写入 `retry_pending` 或 `failed`。
+`enqueueWake` 只写数据库（Message、Run、InboxEvent、Event），不调用 Worker。因此 WorkItem、子线程根 Run、InboxEvent 和 `outcome.work_item.created` 事件放在同一个事务里，WorkItem 保存 `rootRunId`。Worker 通过现有 InboxEvent 队列领取任务，不需要第二个事务回写。只有当执行 Bot 当前不可运行（`enqueueWake` 抛出 `Runnable target bot ... was not found`）时，WorkItem 写入 `retry_pending`（Bot 处于 provisioning 等临时状态）或 `failed`（Bot 不存在或已停用）。
 
 ### Review
 
@@ -670,10 +794,11 @@ interface PlanningConflict {
 
 进入 Worker 的 Outcome context 不能通过拼接用户可见消息实现，也不使用 `taskConfiguration`。传递方式：
 
-1. 提交 WorkItem 时，在 `WakeInput` 增加可选字段 `outcomeWorkItemId`，由 `acceptDirectUserMessage` 写入 InboxEvent payload（与现有 `taskContextRunId` 相同的做法）。
+1. 提交 WorkItem 时，在 `WakeInput` 增加可选字段 `outcomeWorkItemId`，由 `enqueueWake` 写入 InboxEvent payload（与现有 `automationContextRunId`、`taskContextRunId` 相同的做法）和 `Run.outcomeWorkItemId`。
 2. Worker 领取 InboxEvent 后，`platformPrompt` 根据 `outcomeWorkItemId` 从数据库读取 WorkItem 和已批准 revision，生成下列结构，并作为 `ambientContext` 的一段隐藏上下文注入（与现有 ambient context 相同的 `[SAND_HIDDEN_PROMPT]` 通道）。
-3. 用户可见的 Message 内容只包含 WorkItem 的执行说明，不包含 Contract JSON。
+3. 子线程内部的 Message（运行时会话记录，不是用户可见的 `ChannelMessage`）只包含 WorkItem 的执行说明，不包含 Contract JSON。
 4. 普通 Run 的 payload 没有 `outcomeWorkItemId`，prompt 和请求快照保持不变。
+5. 子线程上下文 scope 为 `outcome`，与主对话的 `home` scope 隔离：子线程看不到主对话历史，主对话也看不到子线程过程。
 
 上下文结构：
 
@@ -698,19 +823,20 @@ interface PlanningConflict {
 }
 ```
 
-Agent 需要用户决策时调用 `RequestOutcomeDecision` 内部工具（`004.3` §41），该工具只在带 `outcomeWorkItemId` 的 Run 中提供。
+Agent 需要用户决策时调用 `RequestOutcomeDecision` 内部工具（`004.3` §41），需要人工现场动作时调用 `RequestHumanAction`（`004.4` §32）；两者只在 Outcome 子线程中提供。
 
-## 24. Agent 输出映射
+## 24. Agent 输出映射（D15）
 
-`SendToUser` 持久化为 `ChannelMessage` 后：
+子线程不向主对话发送可见消息。Output 有两个来源，都在运行组结算时写入（§12.4）：
 
-1. 通过 `sourceRunId` 找到关联 Run。
-2. 通过 Run 找到 OutcomeWorkItem。
-3. 创建 Output 记录，保存 message ID 和 sequence。
-4. 若消息包含用户提供的来源引用，创建 Evidence candidate；不自动标 PASS。
-5. `ReviewPending` 由 Run 完成和验收配置决定。
+1. **最终结果**：运行组最后一个 Run 的最后一条 agentMessage（`run_item.completed` 事件，`item.type = agentMessage`），写 `OutcomeOutput(kind=final_result, content=<文本>)`。这与 Routine 保存静默结果的来源相同（`saveSilentAutomationResult`）。
+2. **输出文件**：执行说明要求 Agent 把交付文件写入工作区 `outcomes/<outcomeId>/<workItemId>/`；结算时登记该目录下的文件为 `OutcomeOutput(kind=file, contentRef=<路径或 asset 引用>)`。
 
-普通 `agent.delta`、reasoning、tool call 和内部日志不是默认 Output。若需要把文件或命令结果作为 Evidence，必须通过明确的 Output/Evidence adapter 转换。
+规则：
+
+- Output 不自动成为 PASS 证据。系统为每个 Output 创建一条 `credibility=agent_report` 的 Evidence 候选，挂到相关条款，只供 Review 参考。
+- reasoning、tool call 和内部日志不是 Output。
+- 子线程不能调用 `SendToUser`：`outcome` 映射为 `automation` 请求来源后，`AUTOMATION_PARENT_ONLY_TOOLS`（`packages/contracts/src/automation-tools.ts`，含 `SendToUser`、`ReactToMessage`、`SendToAgent`、`RequestUserForm`、`DraftExternalMessage` 等）在子线程中不可用（`apps/computer/src/runtime/tools.ts:787`、`:882`）。实现时以工具列表快照测试固定。
 
 ## 25. Review 计算
 
@@ -825,16 +951,19 @@ specs/004.2-Outcome规划执行与成果验收闭环/docs/fixtures/
 
 ## 30. 设计决策记录
 
-实现前必须记录：
+本 Spec 的设计决策统一登记在父 design §39，这里只列出引用和本阶段补充的实现细节：
 
-- WorkItem 是否新建表，还是扩展现有 Run/ChannelDelivery。
-- Outcome 是否绑定一个 Bot/Conversation，还是允许多个 Bot（已决定：绑定一个执行 Bot，见父 design.md §39）。
-- 研究试点是否使用真实 OpenTeam Bot。
-- Evidence 大文件是否复用 asset store。
-- AcceptanceCriterion 的 `verificationMethod` 枚举。
-- Contract revision 的批准证明格式。
-- 客户端第一版是否只做 Desktop（已决定：规划、批准和验收第一版只做 Desktop，见父 design.md §41）。
-- Output 是否允许来自非 `SendToUser` 的现有消息类型。
+| 问题 | 结论 |
+|---|---|
+| WorkItem 存储、Run 关联 | `OutcomeWorkItem` 新表 + `Run.outcomeWorkItemId`（D14） |
+| 执行方式 | Outcome 子线程（D09、D10、§12） |
+| 一次运行创建几个 WorkItem | 1 个（D11） |
+| Output 来源 | 运行组最终结果 + 输出目录文件（D15、§24） |
+| 研究试点 | 使用真实开发 Bot，fixture 见 `docs/research-pilot.json`（D05） |
+| Evidence 大文件 | 复用现有 asset store，Evidence 只保存引用 |
+| `verificationMethod` | `human_review`、`deterministic_check`（§9.3） |
+| 批准证明 | `approvalProof = { confirmationText, contentHash(sha256 of goal/acceptance/boundaries/budget/executionBotId), actorRef, approvedAt }` |
+| 客户端范围 | Desktop 完整；Android/iOS 只读列表和详情（父 §41，需求 20） |
 
 ## 31. 规划候选项生成
 
@@ -878,7 +1007,7 @@ instructions 要求模型只返回 JSON：
 服务端解析后：
 
 1. 每个维度截断到 4 项，超长文字截断到 §16.2 的上限。
-2. 为每项生成稳定 ID（`goal-1` 等），保存到 PlanningDraft 快照。
+2. 为每项生成稳定 ID（格式 `<维度>-<序号>`，例如 `goal-1`、`acceptance-2`、`boundaries-1`），保存到 PlanningDraft 快照。
 3. JSON 无法解析时重试一次；仍失败则返回 `planning_generation_failed`，`details.retryable=true`。
 4. `questions` 作为 `ambiguous_scope` 类 informational conflict 返回，原规划 §6.1 的“只询问影响结果的关键问题”由此实现。
 

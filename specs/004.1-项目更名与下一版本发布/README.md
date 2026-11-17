@@ -2,7 +2,7 @@
 
 规格编号：`004.1`
 
-状态：草案
+状态：已完成（2026-11-17 收尾，带已知 PENDING 项，见 [tasks.md](tasks.md) “收尾记录”）
 
 日期：2026 年 11 月 11 日。
 
@@ -33,7 +33,7 @@
 
 当前已知基线：
 
-- 根版本为 `0.1.0-beta.14`，由 `scripts/release/version.ts` 统一检查。
+- 根版本：本阶段首个 OutcomeGo 版本为 `0.1.0-beta.14`（2026-11-12 发布）；截至 2026-11-17 已发布到 `0.1.0-beta.19`（Latest）。版本由 `scripts/release/version.ts` 统一检查。
 - CLI 默认仓库位于 `apps/cli/src/constants.ts`，配置目标为 `jingyi0605/OutcomeGo`；规范命令为 `outcomego`，安装器的 `aiteamos` 命令名调用同一 binary。GitHub 仓库和 fork 默认分支均使用 `OutcomeGo`；上游同步分支 `main` 保持不变。
 - Desktop 的产品名、可执行名和 `dev.outcomego.desktop` 位于 `apps/desktop/package.json`；安装包前缀暂保留 `aiTeamOS-*`，因为没有 beta.13 updater fixture 证明改名前缀后的更新元数据仍可解析。`userData` 路径按固定标识保留为 `aiTeamOS`，并在启动早期显式固定。
 - Android 用户可见名称在 `AndroidManifest.xml`，beta.14 正式包 ID 为 `com.outcomego.android`，源码 namespace 为 `com.outcomego.android`；不要求旧包覆盖升级。签名 APK 已本地构建，Android update manifest 私钥已轮换并通过签名验证，见 `docs/signing-builds.md`。
@@ -41,4 +41,6 @@
 - Compose、CI、Release Workflow 和服务端镜像使用新的 `outcomego` 运行标识；稳定 GHCR 镜像路径为 `ghcr.io/jingyi0605/ai-teamos`，另有 `OUTCOMEGO_*` 环境变量、保留的 Postgres LISTEN 通道 `aiteamos_events` 和新的 `outcomego://` URL scheme。
 - iOS 发布显示名由 `apps/ios/scripts/generate-project.py` 生成为 `OutcomeGo`，Debug 名称为 `OutcomeGo Dev`。
 
-退出条件：下一版本的本地候选、CLI、Desktop、Android、iOS 和文档用户可见名称统一为 OutcomeGo；当前 schema、平台身份和运行时内部标识完成全量命名。按固定决策保留 `aiTeamOS` Desktop `userData`、`aiteamos_events` 和 GHCR `ai-teamos` package path。尚未完成的完整候选、真实设备的新实例与手动备份导入、GitHub runner 和名称法律核查均明确为 BLOCKED/PENDING；Windows 沿用 beta.13 未签名方式，Android updater 私钥已轮换，iOS 发布延期。beta.14 尚未发布，推送与默认分支切换待本次执行。
+退出条件：下一版本的本地候选、CLI、Desktop、Android、iOS 和文档用户可见名称统一为 OutcomeGo；当前 schema、平台身份和运行时内部标识完成全量命名。按固定决策保留 `aiTeamOS` Desktop `userData`、`aiteamos_events` 和 GHCR `ai-teamos` package path。Windows 沿用 beta.13 未签名方式，Android updater 私钥已轮换，iOS 发布延期。
+
+收尾结论（2026-11-17）：退出条件已满足。beta.14–beta.19 已由 `Release` workflow 公开发布，资产见 `docs/release-asset-inventory.md`；GitHub 仓库和默认分支均为 `OutcomeGo`。真实设备新安装、手动备份导入、回滚演练、跨平台旧资产混用负例和名称可用性核查保持 PENDING，作为已知限制移交 `004.5` 最终发布验收。

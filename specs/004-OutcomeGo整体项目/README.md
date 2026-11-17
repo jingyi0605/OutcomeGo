@@ -2,11 +2,11 @@
 
 规格编号：`004`
 
-状态：草案
+状态：实施中（`004.1` 已于 2026-11-17 收尾；`004.2` 进入实施）
 
-日期：2026 年 11 月 11 日。
+日期：2026 年 11 月 11 日创建；2026 年 11 月 17 日更新。
 
-分支：待创建。
+分支：`OutcomeGo`（fork 默认分支）。
 
 本 Spec 是 OutcomeGo 整体项目的父规格，负责统一定义项目目标、阶段关系、全局验收标准和子规格边界。项目首先完成从 aiTeamOS 到 OutcomeGo 的项目更名，并在下一版本启用新名称；随后完成从 Outcome 规划到 OpenTeam 执行、成果验收、用户决策和现实任务支持的完整产品闭环。
 
@@ -24,6 +24,7 @@
 - 不建设没有明确产品需求支撑的防御式框架、泛化权限平台或大量 Feature Gate。
 - 只实现规划闭环、执行关联、必要决策、成果验收和可靠运行所需要的最小约束。
 - 继续使用现有 OpenTeam Runtime，不在本项目中重建 Agent Runtime、桌面容器系统或新的编排平台。
+- Bot 保留一个主对话线程；Outcome 的 Agent 工作在独立的子线程中运行，不打断主对话，需要时再汇报（`design.md` §45）。
 - `004.1` 使用全新 OutcomeGo 安装身份与单一最新数据库 schema；用户可在仓库外手动备份并导入，不提供旧数据库字段自动转换或旧安装覆盖升级。OpenTeam 上游同步与 GPL-3.0-only 归属继续保留。
 
 文档：
@@ -39,9 +40,10 @@
 
 当前代码基线：
 
-- 根工作区版本：`0.1.0-beta.13`，根 `package.json` 是版本单一来源。
-- 包管理器：Bun，工作区包括 `apps/*`、`packages/*`。
-- 数据库：`packages/db/prisma/schema.prisma`，PostgreSQL 运行时模型。
+- 根工作区版本：`0.1.0-beta.19`（2026-11-17 Latest），根 `package.json` 是版本单一来源。
+- 包管理器：Bun，工作区包括 `apps/*`、`packages/*`，包作用域 `@outcomego/*`。
+- 数据库：`packages/db/prisma/schema.prisma` 和 `prisma/sql/raw-schema.sql`，PostgreSQL；通过 `db:push` 和 schema 指纹部署，不使用 Prisma Migrate（`design.md` §16）。
+- 线程模型：主对话（scope `home`）、群聊（`channel`）、Routine（`automation`）三类上下文；Outcome 新增 `outcome` 子线程（`design.md` §45）。
 - 现有消息模型：`ChannelMessage`、`Message`、`Run`、`InboxEvent`、`OutboxDelivery` 和 `IdempotencyRecord`。
 - 现有服务端入口：`apps/server/src/main.ts`、`apps/server/src/app-service.ts`、`apps/server/src/routes/`、`apps/server/src/services/`。
 - 现有客户端：`apps/desktop`、`apps/android`、`apps/ios`，移动共享核心位于 `mobile/shared`。
@@ -49,8 +51,8 @@
 
 实施顺序必须遵守：
 
-1. 先完成 `004.1` 的品牌、全新安装身份、最新 schema 和发布门槛审计，并在下一版本启用 OutcomeGo。
-2. 再完成 `004.2` 的一条端到端 Outcome 主链路。
+1. 先完成 `004.1` 的品牌、全新安装身份、最新 schema 和发布门槛审计，并在下一版本启用 OutcomeGo。（已完成：beta.14 起启用，2026-11-17 收尾）
+2. 再完成 `004.2` 的一条端到端 Outcome 主链路。（当前阶段）
 3. `004.3`、`004.4` 和 `004.5` 可以在 `004.2` 稳定后依次交付；`004.5` 的最小 Run 状态和恢复任务可以提前并行。
 4. 每个子规格达到最终检查点后，立即回写其 `tasks.md`，并在父规格记录证据链接。
 

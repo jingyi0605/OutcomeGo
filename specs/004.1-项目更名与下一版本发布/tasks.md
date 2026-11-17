@@ -1,6 +1,17 @@
 # 任务清单 - 项目更名与下一版本发布（人话版）
 
-状态：IN_PROGRESS
+状态：DONE（2026-11-17 收尾，带已知 PENDING 项）
+
+## 收尾记录（2026-11-17）
+
+OutcomeGo 名称已经随 `v0.1.0-beta.14`（2026-11-12）公开发布，此后连续发布到 `v0.1.0-beta.19`（2026-11-17，Latest）。发布事实和资产摘要见 [`docs/release-asset-inventory.md`](docs/release-asset-inventory.md)，发布结论见 [`docs/release-decision.md`](docs/release-decision.md)。
+
+本阶段按以下规则收尾：
+
+- 有 GitHub Release、Release workflow 或 CI 证据的任务标记为 `DONE`。
+- 依赖真实设备、隔离环境人工导入、回滚演练或外部名称核查、且当前没有证据的任务，保持 `PENDING`，列为“已知限制”。它们不阻塞 `004.2` 开始，但由 `004.5` 最终发布验收重新检查，不能被写成 PASS。
+
+已知 PENDING 项：3.1、3.2、6.1、6.3 的回滚演练部分、7.2 的跨平台旧资产混用负例、8.3、9.7。
 
 ## 范围变更记录
 
@@ -125,9 +136,10 @@
   - 对应需求：需求 3、需求 6、需求 9
   - 对应设计：`design.md` §6.5、§7
 
-- [ ] 2.2 构建下一版本候选资产
-  - 状态：IN_PROGRESS
-  - 原因：Android beta.14 release APK 与 macOS beta.14 arm64 DMG/ZIP 已签名并完成本地/Apple 验证。Android updater manifest 私钥已轮换并写入 GitHub secret `ANDROID_UPDATE_SIGNING_PRIVATE_KEY_BASE64`（见 `docs/signing-builds.md`）。Windows 按 beta.13 方式发布未签名安装包（beta.13 实测 PE 证书表为空），不再是阻塞项；`release.yml` 缺证书时只输出 warning。iOS 继续延期。剩余工作：服务端/CLI/Desktop 全套候选资产须由 CI 在推送后构建。
+- [x] 2.2 构建下一版本候选资产
+  - 状态：DONE
+  - 完成证据（2026-11-17 回填）：`v0.1.0-beta.14`–`v0.1.0-beta.19` 均由 `Release` workflow 构建并发布完整资产集（Desktop macOS/Windows/Linux、Android APK 与签名更新清单、CLI 五平台二进制与 Sigstore bundle、Compose、安装器、校验和），见 `docs/release-asset-inventory.md`。
+  - 历史记录：Android beta.14 release APK 与 macOS beta.14 arm64 DMG/ZIP 已签名并完成本地/Apple 验证。Android updater manifest 私钥已轮换并写入 GitHub secret `ANDROID_UPDATE_SIGNING_PRIVATE_KEY_BASE64`（见 `docs/signing-builds.md`）。Windows 按 beta.13 方式发布未签名安装包（beta.13 实测 PE 证书表为空），不再是阻塞项；`release.yml` 缺证书时只输出 warning。iOS 继续延期。剩余工作：服务端/CLI/Desktop 全套候选资产须由 CI 在推送后构建。
   - 部分完成证据：`docs/signing-builds.md`；构建备份：`/Users/jackson/SynologyDrive/我的应用/配置文件备份/OutcomeGo/builds/`。
   - 先依赖什么：2.1
   - 开始前先看：`.github/RELEASING.md`、平台打包脚本和签名配置
@@ -141,8 +153,8 @@
 ## 阶段 3：新安装、回滚和发布
 
 - [ ] 3.1 验收 OutcomeGo 新安装和手动备份导入
-  - 状态：PENDING
-  - 原因：旧版原地升级不在范围内；新安装和最新 schema 备份导入由负责人在隔离环境验收。
+  - 状态：PENDING（已知限制，移交 `004.5` 任务 3.2 复核）
+  - 原因：旧版原地升级不在范围内；新安装和最新 schema 备份导入由负责人在隔离环境验收。截至 2026-11-17 没有隔离环境新安装和手动导入的记录；CI `database-fresh-schema` job 只证明空库初始化。
   - 先依赖什么：2.2
   - 开始前先看：`docs/upgrade-matrix.md`
   - 主要改哪里：隔离测试环境、新安装记录、客户端 fixture
@@ -153,8 +165,8 @@
   - 对应设计：`design.md` §2、§8
 
 - [ ] 3.2 执行签名、更新和回滚验证
-  - 状态：PENDING
-  - 原因：需要签名候选资产、真实 Release manifest 和回滚资产；本会话只完成本地 focused negative tests。
+  - 状态：PENDING（已知限制，移交 `004.5` 任务 3.2 复核）
+  - 原因：签名和更新清单已随 beta.14–beta.19 发布（CLI Sigstore bundle、Android `android-update.json`、Desktop `latest*.yml`）；但设备上的在线更新、错误签名拒绝和回滚到旧资产没有真实演练记录。
   - 先依赖什么：3.1
   - 开始前先看：`.github/RELEASING.md`、`scripts/android/release-gate.sh`、更新测试
   - 主要改哪里：验证记录和旧/新 Release asset
@@ -164,9 +176,9 @@
   - 对应需求：需求 6、需求 7、需求 8
   - 对应设计：`design.md` §7、§8
 
-- [ ] 3.3 发布 OutcomeGo 下一版本
-  - 状态：PENDING
-  - 原因：禁止 push、tag、GitHub Release 和正式发布。
+- [x] 3.3 发布 OutcomeGo 下一版本
+  - 状态：DONE
+  - 证据（2026-11-17 回填）：GitHub Release `OutcomeGo 0.1.0-beta.14`（2026-11-12T18:26:55Z）为首个 OutcomeGo 公开版本；当前 Latest 为 `OutcomeGo 0.1.0-beta.19`（2026-11-17T00:25:24Z，tag `v0.1.0-beta.19` → `7cbb75259`）。`aiTeamOS 0.1.0-beta.13` 及更早资产保留。迁移说明 `docs/20261112-从aiTeamOS迁移到OutcomeGo.md` 已在仓库中。
   - 先依赖什么：3.2、8.1、8.2、8.3
   - 开始前先看：全部前置任务和发布清单
   - 主要改哪里：目标分支、Tag、GitHub Release、迁移文档
@@ -178,9 +190,9 @@
 
 ### 最终检查
 
-- [ ] 3.4 Spec 最终检查点
-  - 状态：PENDING
-  - 原因：依赖 3.3 以及真实升级、签名和发布证据。
+- [x] 3.4 Spec 最终检查点
+  - 状态：DONE（带已知 PENDING 项）
+  - 结论（2026-11-17）：OutcomeGo 名称、全新安装身份、单一 `outcomego-v1` schema 和发布链路已经随 beta.14–beta.19 交付；父 Spec 可以进入 `004.2`。真实设备新安装、手动备份导入、回滚演练、跨平台旧资产混用负例和名称可用性核查仍为 PENDING，见本文件“收尾记录”和 `docs/release-decision.md`。
   - 先依赖什么：3.3
   - 这一步到底做什么：确认需求、设计、任务、升级证据和发布资产一致。
   - 怎么算完成：每一条需求有验证记录，父 Spec 可以进入 `004.2`。
@@ -242,9 +254,10 @@
   - 对应需求：需求 1、需求 7、需求 12
   - 对应设计：`design.md` §14、§29
 
-- [ ] 5.3 验证 Android 包身份和升级
-  - 状态：IN_REVIEW
-  - 原因：beta.14 APK 签名、package ID、versionName/versionCode 和 SHA-256 已核验；新的 Android 更新清单 ECDSA P-256 私钥已生成并备份，其公钥与 `AndroidUpdateManifest.kt` 中固定的 `PUBLIC_KEY_DER_HEX` 完全一致。已用 `scripts/android/create-update-manifest.py` 对真实 beta.14 APK 签署 manifest，并用公钥 `openssl dgst -verify` 验证通过（Verified OK）。按全新安装和手动备份导入决策，不要求旧 package ID 覆盖升级；真实设备安装与在线更新留待 3.x。
+- [x] 5.3 验证 Android 包身份和升级
+  - 状态：DONE
+  - 回填证据（2026-11-17）：beta.14–beta.19 Release 均包含 `OutcomeGo-<version>-android.apk` 和签名的 `android-update.json`；beta.19 APK SHA-256 `4927bb534658ea5e8b27128467b8be3b4ae8c75758fe43930d06f70640134cc8`。设备在线更新未测，归入 3.2。
+  - 历史记录：beta.14 APK 签名、package ID、versionName/versionCode 和 SHA-256 已核验；新的 Android 更新清单 ECDSA P-256 私钥已生成并备份，其公钥与 `AndroidUpdateManifest.kt` 中固定的 `PUBLIC_KEY_DER_HEX` 完全一致。已用 `scripts/android/create-update-manifest.py` 对真实 beta.14 APK 签署 manifest，并用公钥 `openssl dgst -verify` 验证通过（Verified OK）。按全新安装和手动备份导入决策，不要求旧 package ID 覆盖升级；真实设备安装与在线更新留待 3.x。
   - 证据：`docs/signing-builds.md`；APK 本地签名、元数据检查与 manifest 签名往返验证通过。
   - 先依赖什么：1.4、2.2
   - 主要改哪里：Manifest、Gradle、release gate 和升级报告。
@@ -268,7 +281,7 @@
 ## 阶段 6：新安装验收和仓库迁移
 
 - [ ] 6.1 完成 Desktop/CLI/server 新安装矩阵
-  - 状态：PENDING
+  - 状态：PENDING（已知限制，移交 `004.5` 任务 3.2 复核）
   - 原因：需要候选资产和隔离环境验证真实新安装及手动备份导入；模板见 `docs/upgrade-matrix.md`。
   - 先依赖什么：5.1、5.2、5.3
   - 主要改哪里：`docs/upgrade-matrix.md`、隔离环境 fixture。
@@ -278,7 +291,7 @@
   - 对应需求：需求 2、需求 7、需求 12
   - 对应设计：`design.md` §29
 
-- [ ] 6.2 决定是否执行 GitHub repository rename
+- [x] 6.2 决定是否执行 GitHub repository rename
   - 状态：DONE
   - 原因：fork 主分支已改为 `OutcomeGo`，GitHub 默认分支和保护规则均指向该分支；旧 `ai-TeamOS` ref 已删除，历史包含在 OutcomeGo 分支中；上游 `main` 保持独立。
   - 证据：`docs/repository-rename-decision.md`；GitHub API default=`OutcomeGo`、远端 SHA `048df07d40b3fbd3a0a0c52652daaf86fb15210a`；`origin/ai-TeamOS` 返回 404；active ruleset 只匹配 `refs/heads/OutcomeGo`；无未合并 PR。
@@ -291,8 +304,9 @@
   - 对应设计：`design.md` §26
 
 - [ ] 6.3 执行候选发布和回滚演练
-  - 状态：PENDING
-  - 原因：beta.14 Android/macOS 有本地签名包，Android update-manifest 私钥已就绪；Windows 按 beta.13 方式发布未签名安装包；iOS 延期，正式发布尚未执行，须推送后由 CI 构建完整候选集。模板见 `docs/release-decision.md`、`docs/signing-builds.md`。
+  - 状态：PENDING（候选发布部分已完成；回滚演练为已知限制，移交 `004.5` 任务 3.2）
+  - 回填（2026-11-17）：候选发布已由 beta.14–beta.19 正式 Release 覆盖；beta.17、beta.19 的 Release workflow 失败后修复重跑成功，失败中止路径有真实记录。旧资产恢复和新入口关闭仍未演练。
+  - 历史记录：beta.14 Android/macOS 有本地签名包，Android update-manifest 私钥已就绪；Windows 按 beta.13 方式发布未签名安装包；iOS 延期，正式发布尚未执行，须推送后由 CI 构建完整候选集。模板见 `docs/release-decision.md`、`docs/signing-builds.md`。
   - 先依赖什么：6.1、6.2
   - 主要改哪里：Release candidate、旧资产、迁移公告和回滚记录。
   - 这一步先不做什么：不轮换签名私钥。
@@ -303,9 +317,9 @@
 
 ### 最终检查增强项
 
-- [ ] 6.4 迁移报告和父 Spec 交接
-  - 状态：PENDING
-  - 原因：依赖 6.1–6.3 的真实升级、候选发布和回滚证据；GitHub slug rename 已完成，Actions 本地修复仍待推送验证。
+- [x] 6.4 迁移报告和父 Spec 交接
+  - 状态：DONE
+  - 证据（2026-11-17）：本文件“收尾记录”、`docs/release-decision.md`、`docs/release-asset-inventory.md`；父 `tasks.md` 任务 1.2 已标记 DONE 并引用本阶段 PENDING 项。
   - 先依赖什么：6.3
   - 主要改哪里：`docs/release-decision.md`、父 Spec `tasks.md`。
   - 怎么算完成：所有通过/PENDING/FAIL 项、责任人、回滚资产和下一阶段依赖已经写清。
@@ -315,9 +329,10 @@
 
 ## 阶段 7：发布证据和失败路径
 
-- [ ] 7.1 生成候选资产清单
-  - 状态：PENDING
-  - 原因：只有 Android beta.14 APK 与 macOS arm64 DMG/ZIP 有本地签名证据；完整 server/worker/computer/CLI/Desktop/Windows 集合不全（Windows 为未签名安装包），iOS 延期。完整资产清单须待候选资产齐备。
+- [x] 7.1 生成候选资产清单
+  - 状态：DONE
+  - 证据（2026-11-17）：`docs/release-asset-inventory.md`（beta.19 资产名、大小、GitHub SHA-256 digest、签名说明）。
+  - 历史记录：只有 Android beta.14 APK 与 macOS arm64 DMG/ZIP 有本地签名证据；完整 server/worker/computer/CLI/Desktop/Windows 集合不全（Windows 为未签名安装包），iOS 延期。完整资产清单须待候选资产齐备。
   - 先依赖什么：2.2、5.1、5.2、5.3、5.4
   - 这一步到底做什么：记录所有 server/worker/computer/CLI/Desktop/Android/iOS/Compose 资产。
   - 主要改哪里：`docs/release-asset-inventory.md`
@@ -328,7 +343,7 @@
   - 对应设计：`design.md` §24、§30
 
 - [ ] 7.2 执行错误版本/错误签名负例
-  - 状态：IN_PROGRESS（本地用例通过，等待候选资产与 runner 验证）
+  - 状态：PENDING（本地负例通过；跨平台旧资产混用负例为已知限制，移交 `004.5` 任务 3.2）
   - 原因：在清除全部代理环境变量后，CLI 完整测试 756 项全部通过，包含历史仓库签名与仓库/tag/hash 绑定负例。Android 错误 hash、错误 tag、错误 certificate 静态负例已覆盖；真实 manifest 签名已用新 updater 私钥对 beta.14 APK 完成签署并通过公钥验证。剩余：候选资产齐备后的跨平台旧资产混用负例与 CI runner 验证。
   - 先依赖什么：7.1
   - 这一步到底做什么：验证 updater、CLI、Android manifest 和 Release workflow 会拒绝错误来源。
@@ -339,9 +354,10 @@
   - 对应需求：需求 6、需求 12、需求 15
   - 对应设计：`design.md` §13、§15、§29
 
-- [ ] 7.3 验证新 schema 初始化和备份校验负例
-  - 状态：PENDING
-  - 原因：代码不再实现旧数据库字段转换、旧配置读取或原地升级；最新 schema PostgreSQL 集成测试和手动备份导入仍待负责人在隔离环境执行。
+- [x] 7.3 验证新 schema 初始化和备份校验负例
+  - 状态：DONE（新 schema 初始化和校验器负例部分；人工导入归入 9.7）
+  - 回填证据（2026-11-17）：CI `database-fresh-schema` job 在 `OutcomeGo` 分支运行成功（例如 run `44002122061`），执行 `packages/db/test/fresh-schema.integration.test.ts`；备份 validator 负例测试已在本地通过。
+  - 原因：代码不再实现旧数据库字段转换、旧配置读取或原地升级。
   - 证据：`docs/full-rename-import-rehearsal.md`；新空库测试 `packages/db/test/fresh-schema.integration.test.ts` 等待 PostgreSQL runner。
   - 先依赖什么：1.2、9.3
   - 这一步到底做什么：验证当前 schema 初始化边界和备份校验失败时源文件保持不变。
@@ -352,9 +368,9 @@
   - 对应需求：需求 4、需求 7、需求 8、需求 14
   - 对应设计：`design.md` §13、§25、§29
 
-- [ ] 7.4 Spec 发布门槛复核
-  - 状态：PENDING
-  - 原因：依赖 7.1、7.2 和 3.x/6.x 外部证据；当前门槛模板见 `docs/release-decision.md`。
+- [x] 7.4 Spec 发布门槛复核
+  - 状态：DONE
+  - 证据（2026-11-17）：`docs/release-decision.md` 已改为基于 beta.19 事实的结论，逐项区分 PASS 与 PENDING。
   - 先依赖什么：7.1、7.2、7.3
   - 这一步到底做什么：确认所有必需验收、PENDING 外部证据和回滚方式已记录。
   - 主要改哪里：`docs/release-decision.md`
@@ -389,7 +405,7 @@
   - 对应设计：`design.md` §34
 
 - [ ] 8.3 记录名称可用性核查
-  - 状态：PENDING
+  - 状态：PENDING（已知限制，不阻塞产品开发）
   - 原因：GitHub 仓库 slug 和当前公开仓库信息已由 GitHub API 核验；npm scope、域名完整范围、应用商店账号和商标仍未核验，故整体保留 PENDING。详情见 `docs/name-availability.md`。
   - 先依赖什么：无
   - 主要改哪里：`docs/name-availability.md`
@@ -413,8 +429,9 @@
   - 依赖：9.1
   - 验证：`bun install --frozen-lockfile --ignore-scripts`、workspace typecheck、CLI build/test、`outcomego --help`。
 
-- [ ] 9.3 使用单一最新 schema 并校验最新备份
-  - 状态：PENDING（静态检查和备份 validator 通过；PostgreSQL integration 尚未实际执行）
+- [x] 9.3 使用单一最新 schema 并校验最新备份
+  - 状态：DONE
+  - 回填证据（2026-11-17）：CI `database-fresh-schema` job 在真实 PostgreSQL 上执行 `fresh-schema.integration.test.ts` 成功；静态检查和备份 validator 早已通过。
   - 原因：当前 Prisma schema 和 raw schema 是唯一初始化来源；deploy script 只初始化空数据库或重试同一份中断初始化，schema 指纹不匹配时拒绝原地升级。已移除旧字段回填 SQL 和读取旧字段的运行逻辑。备份 validator 只接受 `outcomego-backup/v1` / `outcomego-v1`，验证物理表名、SHA-256、行数和关系。
   - 证据：`packages/db/prisma/schema.prisma`、`packages/db/prisma/sql/raw-schema.sql`、`packages/db/scripts/deploy-schema.ts`、`packages/db/test/fresh-schema.integration.test.ts`、`scripts/migration/validate-outcomego-backup.ts`、`docs/full-rename-import-rehearsal.md`；PG 集成执行待 CI runner。
   - 依赖：9.1
@@ -439,7 +456,7 @@
   - 验证：workflow/YAML/asset matrix、release dry-run、签名 identity fixture；旧资产只作为迁移输入，不要求旧 updater 兼容。
 
 - [ ] 9.7 执行全量新安装和备份导入验收
-  - 状态：PENDING
+  - 状态：PENDING（已知限制，移交 `004.5` 任务 3.2 复核）
   - 原因：新 PostgreSQL schema 测试、手动备份导入和设备验收由负责人在隔离环境执行；旧安装和旧数据库转换不属于待办范围。
   - 依赖：9.3–9.6
   - 证据：`docs/full-rename-import-rehearsal.md`

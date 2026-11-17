@@ -1,6 +1,6 @@
 # 需求文档 - OutcomeGo 整体项目
 
-状态：Draft
+状态：Approved（2026-11-17；决策基线见 `design.md` §39）
 
 关联文档：[README.md](README.md) · [design.md](design.md) · [tasks.md](tasks.md)
 
@@ -14,7 +14,9 @@ OutcomeGo 是基于现有 OpenTeam Runtime 的成果驱动工作系统。用户�
 
 - **Outcome**：用户希望实现的可验证成果。
 - **Contract**：固定目标、验收条件、边界和执行上下文的任务契约。
-- **Run**：一次 Agent 或人工执行实例。
+- **Run**：现有运行时的一次 Agent 回合（`RunStatus`）。人工执行不产生 Run。
+- **Outcome 子线程**：执行一个 Agent WorkItem 的独立上下文和运行租约，与 Bot 的主对话线程并行、互不打断（`design.md` §45）。
+- **主线程**：Bot 与用户的日常对话（DM）。
 - **Evidence**：用于证明验收条件的材料和来源。
 - **Decision**：需要用户选择、批准或补充信息的事项。
 - **Phase Spec**：编号为 `004.x` 的阶段子规格。
@@ -123,7 +125,7 @@ OutcomeGo 是基于现有 OpenTeam Runtime 的成果驱动工作系统。用户�
 
 ## 成功定义
 
-- 下一版本启用 OutcomeGo 名称并通过升级验证。
+- 下一版本启用 OutcomeGo 名称并完成发布（已由 beta.14–beta.19 达成；新安装和手动备份导入验证由 `004.5` 复核）。
 - 至少一个研究或文档任务完整跑通规划、执行、证据和验收。
 - 用户可以通过 Outcome 收件箱处理必要决策。
 - 至少一个现实任务可以通过人工回执完成闭环。
@@ -133,26 +135,26 @@ OutcomeGo 是基于现有 OpenTeam Runtime 的成果驱动工作系统。用户�
 
 ### 场景 A：新实例导入后创建并完成 Outcome
 
-给定用户在当前版本 `0.1.0-beta.13` 中有一个 Bot、一个 Bot DM channel 和历史消息，用户先手动备份并创建 OutcomeGo 新实例，再导入符合最新 schema 的数据后：
+给定用户有一个 OutcomeGo 实例（新安装，或从符合 `outcomego-v1` schema 的手动备份导入），其中有一个 Bot、该 Bot 的 DM 主对话和历史消息：
 
 1. 用户看到 OutcomeGo 品牌。
-2. 导入结果中的 Bot 和历史消息可读取；Spec 不要求对 beta.13 安装原地升级，也不要求转换旧数据库字段。
+2. 导入结果中的 Bot 和历史消息可读取；Spec 不要求对旧安装原地升级，也不要求转换旧数据库字段。
 3. 用户输入一项研究任务。
 4. `004.2` 生成目标、验收和边界选项。
 5. 用户确认后创建批准的 Contract revision。
-6. OpenTeam 运行产生一个可查询的 Run。
+6. Outcome 子线程运行，产生可查询的 WorkItem 和 Run；执行期间用户在同一 Bot 主对话中发一条消息，双方都不被打断。
 7. 结果包含至少一个输出和对应 Evidence。
 8. 用户逐项验收，Outcome 才进入 `Accepted`。
 
 ### 场景 B：执行中需要用户决策
 
-给定 Run 已完成当前 WorkItem，但继续执行需要用户提供新范围或选择下一步：
+给定 Outcome 子线程正在执行，继续执行需要用户提供新范围或选择下一步：
 
-1. `004.2` 保留 Run、Contract revision 和当前输出。
+1. Agent 调用 `RequestOutcomeDecision`；`004.2` 保留子线程、Contract revision 和当前输出，WorkItem 进入 `waiting_decision`。
 2. `004.3` 生成一个 Decision，并进入 Inbox。
 3. 普通内部进度不发送主动通知。
 4. 用户在 Decision 卡中选择或输入自定义内容。
-5. 系统记录 Decision 结果，并继续原分支或创建新的 Contract revision。
+5. 系统记录 Decision 结果，并在同一子线程中继续，或创建新的 Contract revision。
 6. 决策结果可以通过 Outcome、Run 和 Event 查询。
 
 ### 场景 C：现实任务闭环
@@ -160,17 +162,17 @@ OutcomeGo 是基于现有 OpenTeam Runtime 的成果驱动工作系统。用户�
 给定 Agent 根据资料生成现场检查步骤：
 
 1. `004.4` 展示资料来源、版本和适用项目。
-2. 系统创建 `executor_type=human` 的 WorkItem。
+2. Agent 在子线程中调用 `RequestHumanAction`，系统创建 `executorType=human` 的 WorkItem。
 3. 用户完成现场操作并上传回执。
 4. 回执关联到 AcceptanceCriterion。
-5. 缺少回执时 Outcome 保持 `HumanActionPending` 或 `UNVERIFIED`。
+5. 缺少回执时 Outcome 保持 `human_action_pending` 或 `UNVERIFIED`。
 6. 回执通过后才允许进入下一步。
 
 ### 场景 D：中断和重复事件
 
-给定 Run 在写入结果后服务进程重启，随后重复收到同一个完成事件：
+给定 Outcome 子线程的 Run 在写入结果后服务进程重启，随后重复收到同一个完成事件：
 
-1. `004.5` 根据已有状态恢复 Run。
+1. `004.5` 根据 WorkItem 和子线程运行组状态恢复。
 2. 重复 Event 不产生第二个 Output、Decision 或通知。
 3. 用户可以看到唯一的最终结果。
 4. 无法确认外部动作是否发生时，系统保留待处理状态，不自行假设完成。
@@ -180,7 +182,7 @@ OutcomeGo 是基于现有 OpenTeam Runtime 的成果驱动工作系统。用户�
 给定 Agent WorkItem 正在执行，Agent 发现完成目标需要扩大研究范围：
 
 1. Agent 调用 `RequestOutcomeDecision`，`004.3` 生成 `scope_change_required` Decision。
-2. 只有该 WorkItem 和依赖它的 WorkItem 等待，其他独立 WorkItem 继续。
+2. 只有该 WorkItem 和依赖它的 WorkItem 等待，其他独立 WorkItem 在各自的子线程中继续（第一版每个 revision 默认只有 1 个 Agent WorkItem，本步骤用 Decision 追加的补充 WorkItem 验证，见 `design.md` §39 D11）。
 3. 用户选择扩大范围后，系统创建 revision N+1 并进入 `pending_approval`。
 4. 用户批准后，未开始的 WorkItem 按新 revision 执行；已完成的 Output 和 Review 保留在 revision N。
 5. Outcome 详情可以展示 N 与 N+1 的变更摘要。
@@ -196,7 +198,7 @@ OutcomeGo 是基于现有 OpenTeam Runtime 的成果驱动工作系统。用户�
 
 ### 场景 G：结果不满足验收
 
-给定 Agent Run 为 `completed`，但必需条款缺少 Evidence：
+给定 Agent WorkItem 为 `completed`，但必需条款缺少 Evidence：
 
 1. Outcome 停留在 `review_pending`，Inbox 显示待验收及缺口。
 2. 用户选择“返工”，系统在同一 revision 下创建返工 WorkItem，携带 FAIL 条款和意见。
@@ -220,6 +222,7 @@ OutcomeGo 是基于现有 OpenTeam Runtime 的成果驱动工作系统。用户�
 | 需求 4：现实任务证据闭环 | `004.4` | [`004.4/design.md`](../004.4-现实任务与知识资料闭环/design.md) §2–§8 | 人工动作卡回放 |
 | 需求 5：可靠恢复和最终发布 | `004.5` | [`004.5/design.md`](../004.5-运行时恢复与版本验收/design.md) §2–§9 | 故障、升级和发布检查 |
 | 需求 11：决策基线 | 全部 | 父 `design.md` §39–§41 | 决策记录评审 |
+| 需求 13：不打断主对话 | `004.2`、`004.3`、`004.5` | 父 `design.md` §45；`004.2` design §12 | 场景 A 第 6 步、场景 B |
 | 需求 12：原规划覆盖 | 全部 | [`docs/20261112-OutcomeGo总体规划覆盖核对.md`](docs/20261112-OutcomeGo总体规划覆盖核对.md) | 覆盖核对评审 |
 
 父规格只能在所有子规格最终检查点为 `DONE`，且全局场景 A–D 和补充场景 E–H 有实际验证记录时标记为 `DONE`。
@@ -297,11 +300,24 @@ OutcomeGo 是基于现有 OpenTeam Runtime 的成果驱动工作系统。用户�
 1. WHEN 核对原规划 U01–U09、OG-001–OG-015、M0–M5、R0–R5 和第 17 节测试场景 THEN 每一项 SHALL 在覆盖核对文档中对应到子 Spec 的需求或任务，或标记为不在本项目范围并给出原因。
 2. WHEN 子 Spec 新增或删除需求 THEN 覆盖核对文档 SHALL 同步更新。
 
+## 需求 13：Outcome 工作不打断主对话
+
+**用户故事：** 作为用户，我希望 Outcome 任务在后台独立运行，以便我仍然可以和同一个 Bot 正常聊天，并且只在需要时收到汇报。
+
+#### 验收标准
+
+1. WHEN Outcome 的 Agent WorkItem 开始执行 THEN System SHALL 在独立的 Outcome 子线程中运行，不中断该 Bot 主对话中正在进行的回合，也不在主对话中显示执行说明。
+2. WHEN 用户在主对话中发送消息 THEN System SHALL 不中断任何正在运行的 Outcome 子线程。
+3. WHEN 子线程产生结果、需要决策或需要人工动作 THEN System SHALL 通过 Outcome Inbox 和通知送达；只有需要主线程处理的交接才唤醒主线程，且不打断主线程当前回合。
+4. WHEN 同一 Bot 下有多个可执行的 WorkItem THEN System SHALL 在并发上限内并行执行，超出部分排队。
+
+对应子规格：`004.2`（执行）、`004.3`（汇报）、`004.5`（恢复）。设计见 `design.md` §45。
+
 ## 全局非功能验收矩阵
 
 | 维度 | 必须证明的内容 | 证据位置 |
 |---|---|---|
-| 兼容性 | 旧版本升级、旧客户端读取、稳定标识 | `004.1/docs/`、`004.5/docs/` |
+| 兼容性 | 新安装和手动备份导入、旧客户端读取、稳定标识 | `004.1/docs/`、`004.5/docs/` |
 | 可追踪性 | Outcome→revision→WorkItem→Run/Evidence/Decision | `004.2/docs/` |
 | 可恢复性 | 重启、重复事件、unknown side effect | `004.5/docs/` |
 | 可用性 | Inbox、人工动作、错误状态 | `004.3/docs/`、`004.4/docs/` |

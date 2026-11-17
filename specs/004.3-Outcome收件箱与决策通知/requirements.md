@@ -1,6 +1,6 @@
 # 需求文档 - Outcome 收件箱与决策通知
 
-状态：Draft
+状态：Approved（2026-11-17）
 
 关联文档：[README.md](README.md) · [design.md](design.md) · [tasks.md](tasks.md)
 
@@ -24,7 +24,6 @@ Outcome Inbox 将用户真正需要处理的事项集中为待决策、待验收
 - 通用消息中心。
 - 全量替换现有聊天和通知系统。
 - 未经确认的复杂通知渠道编排。
-- 新的 `outcomego://` URL scheme（沿用 `outcomego://app/v1/`，见 design.md §10）。
 - 自定义静默时间窗口和逾期升级规则（复用现有通知偏好开关，见 design.md §43）。
 
 ## 需求
@@ -88,7 +87,7 @@ Outcome Inbox 将用户真正需要处理的事项集中为待决策、待验收
 1. WHEN 查询 Inbox THEN System SHALL 返回 `decision_pending`、`acceptance_pending`、`human_action_pending` 和 `completed` 四类项目。
 2. WHEN 同一个 Outcome 同时产生多个待处理事件 THEN System SHALL 按 Outcome 合并或明确显示多个独立动作，不生成重复卡片。
 3. WHEN 项目已被用户处理或被新 revision 覆盖 THEN 旧卡片 SHALL 不再出现在待处理列表。
-4. WHEN 用户没有权限访问 Outcome THEN API SHALL 不返回其标题、摘要或 Decision 内容。
+4. WHEN 请求未通过现有认证中间件 THEN API SHALL 不返回任何 Outcome 标题、摘要或 Decision 内容（单 owner 系统，不做按 owner 过滤，父 design §44）。
 
 ### 需求 5：Decision 卡片内容完整
 
@@ -111,7 +110,7 @@ Outcome Inbox 将用户真正需要处理的事项集中为待决策、待验收
 2. WHEN Decision 只影响执行计划 THEN System SHALL 允许原 Contract revision 继续，并记录计划变化。
 3. WHEN Decision 改变目标、验收或边界 THEN System SHALL 创建新的 Contract revision 或回到批准状态。
 4. WHEN Decision 已过期、撤回或属于旧 revision THEN System SHALL 拒绝解决并返回当前卡片状态。
-5. WHEN Decision 解决成功 THEN System SHALL 唤醒或重新提交关联 WorkItem，不能重复创建不相关 Run。
+5. WHEN Decision 解决成功且不改变范围 THEN System SHALL 在原 WorkItem 的同一 Outcome 子线程中开启新回合继续执行，不能重复创建不相关 Run，也不打断 Bot 主对话。
 
 ### 需求 7：通知策略与现有通道兼容
 
@@ -222,8 +221,8 @@ Outcome Inbox 将用户真正需要处理的事项集中为待决策、待验收
 
 | API | 成功 | 失败/边界 | 验证 |
 |---|---|---|---|
-| `GET /outcome-inbox` | 分页待处理项 | 无 auth、非法 cursor、越权 | route/integration |
-| `GET /decisions/:id` | 三段式详情 | expired、withdrawn、越权 | service/API |
+| `GET /outcome-inbox` | 分页待处理项 | 无 auth、非法 cursor | route/integration |
+| `GET /decisions/:id` | 三段式详情 | expired、withdrawn、不存在 | service/API |
 | `POST /decisions/:id/resolve` | stored result | revision conflict、并发、custom disabled | transaction/concurrency |
 | `POST /decisions/:id/withdraw` | withdrawn | already resolved、旧 revision | state tests |
 | notification projection | one fact/one intent | duplicate event/provider failure | projector/outbox |
@@ -234,9 +233,9 @@ Outcome Inbox 将用户真正需要处理的事项集中为待决策、待验收
 
 #### 验收标准
 
-1. WHEN 带 Outcome 上下文的 Run 需要用户选择 THEN Agent SHALL 能调用 `RequestOutcomeDecision`，提交已完成内容、当前问题、下一步和 1–4 个选项。
+1. WHEN Outcome 子线程中的 Agent 需要用户选择 THEN Agent SHALL 能调用 `RequestOutcomeDecision`，提交已完成内容、当前问题、下一步和 1–4 个选项，然后结束当前回合。
 2. WHEN 工具被调用 THEN System SHALL 创建 Decision，只把该 WorkItem 和依赖它的 WorkItem 置为 `waiting_decision`，其他独立 WorkItem 继续。
-3. WHEN 普通 Run（无 Outcome 上下文）THEN 该工具 SHALL 不出现在工具列表中。
+3. WHEN 普通 Run、主对话或 Routine 线程 THEN 该工具 SHALL 不出现在工具列表中。
 4. WHEN 同一 Run 重复调用相同请求 THEN System SHALL 只创建一个 Decision。
 
 ## 需求 15：Decision 推荐选项有上限和来源
@@ -254,3 +253,25 @@ Outcome Inbox 将用户真正需要处理的事项集中为待决策、待验收
 1. WHEN 用户在现有通知偏好中关闭智能通知或 Bot 通知 THEN Outcome 通知 SHALL 遵守相同设置，但 Inbox 中的事项保持可见。
 2. WHEN Decision 过期 THEN System SHALL 标记 `expired`，不得视为同意任何选项。
 3. WHEN 同一 Outcome 在短时间内产生多个非紧急通知 THEN System SHALL 按 design.md §33 合并。
+
+## 需求 17：子线程汇报不打扰主对话
+
+**用户故事：** 作为用户，我希望 Outcome 的汇报集中在 Inbox，而不是插进我和 Bot 的日常对话。
+
+#### 验收标准
+
+1. WHEN Outcome 子线程产生结果、待验收、待决策或待人工处理 THEN System SHALL 写入 Inbox 事实并按需通知，不向 Bot 主对话写入可见消息。
+2. WHEN 子线程需要主线程处理的交接（例如重新授权连接） THEN System SHALL 使用现有 `WakeParent`，等主线程空闲后处理，不打断主线程当前回合。
+3. WHEN 同一事实同时满足 Inbox 通知和 `WakeParent` 条件 THEN 用户 SHALL 只收到一次主动通知。
+
+## 需求 18：移动端可以查看 Inbox 并解决 Decision
+
+**用户故事：** 作为用户，我希望在手机上收到决策通知后直接处理。
+
+#### 验收标准
+
+1. WHEN 用户在 Android/iOS 打开 Outcome Inbox THEN System SHALL 显示四类待处理项和三段式卡片默认层。
+2. WHEN 用户在移动端选择选项或输入自定义内容 THEN System SHALL 使用与 Desktop 相同的 resolve API 和冲突处理。
+3. WHEN 卡片类别为待验收或待人工处理 THEN 移动端 SHALL 只读显示，并提示“请在 Desktop 完成”（父 design §41）。
+4. WHEN 用户点击通知 THEN 移动端 SHALL 通过深链打开对应 Decision 或 Outcome。
+

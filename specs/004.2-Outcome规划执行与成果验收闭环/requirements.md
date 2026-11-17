@@ -1,23 +1,24 @@
 # 需求文档 - Outcome 规划执行与成果验收闭环
 
-状态：Draft
+状态：Approved（2026-11-17）
 
 关联文档：[README.md](README.md) · [design.md](design.md) · [tasks.md](tasks.md)
 
 ## 简介
 
-本 Spec 让用户从一个想法或任务开始，使用目标、验收和边界三组规划形成 Contract，并将已批准 Contract 交给现有 OpenTeam Runtime 执行，最后基于 Evidence 对成果进行验收。
+本 Spec 让用户从一个想法或任务开始，使用目标、验收和边界三组规划形成 Contract，并将已批准 Contract 交给现有 OpenTeam Runtime 在 **Outcome 子线程**中执行（父 design §45），最后基于 Evidence 对成果进行验收。
 
 ## 范围说明
 
 ### In Scope
 
-- Outcome、ContractRevision、AcceptanceCriterion、WorkItem、Run、Evidence 的最小模型。
+- Outcome、ContractRevision、AcceptanceCriterion、WorkItem、Evidence、Output、Review 的最小模型，以及 `Run.outcomeWorkItemId` 关联。
 - 三维规划和多选自定义。
 - Contract 草案、批准和 revision。
-- OpenTeam Run 关联。
+- Outcome 子线程：独立上下文、独立运行租约、运行组完成判断，不打断 Bot 主对话。
 - 一个研究或文档任务试点。
-- 证据收集和验收结果。
+- 证据收集、验收结果和返工。
+- Desktop 的规划、批准、详情和验收；Android/iOS 的 Outcome 列表和只读详情（父 design §41）。
 
 ### Out of Scope
 
@@ -60,7 +61,7 @@
 
 1. WHEN Contract 未批准 THEN System SHALL 不提交正式 Run。
 2. WHEN Contract 已批准 THEN System SHALL 生成 WorkItem 并关联 Contract revision。
-3. WHEN WorkItem 提交 OpenTeam THEN System SHALL 保存原生 Bot 或 Run ID。
+3. WHEN WorkItem 提交执行 THEN System SHALL 为它开启一个 Outcome 子线程，并保存子线程根 Run ID；子线程内的每个 Run 都可以反查到该 WorkItem。
 
 ### 需求 4：记录执行输出和证据
 
@@ -130,9 +131,9 @@
 
 #### 验收标准
 
-1. WHEN WorkItem 创建 THEN System SHALL 保存 `outcomeId`、`contractId`、`contractRevision` 和 executor type。
-2. WHEN Run 提交到 OpenTeam THEN System SHALL 保存原生 Run ID 或等价关联，并保留创建时间。
-3. WHEN Run 完成或失败 THEN System SHALL 可通过 Outcome 查询 Run、输出、错误和验收状态。
+1. WHEN WorkItem 创建 THEN System SHALL 保存 `outcomeId`、`contractRevisionId`、`contractRevision` 和 executor type。
+2. WHEN 子线程 Run 入队 THEN System SHALL 在 `Run.outcomeWorkItemId` 上记录关联，并在 WorkItem 上保存 `rootRunId`。
+3. WHEN 子线程运行组结束或失败 THEN System SHALL 可通过 Outcome 查询 WorkItem、所有关联 Run、输出、错误和验收状态。
 4. WHEN Agent 结果提出新目标 THEN System SHALL 将其作为待决策内容，而不是自动追加到已批准 Contract。
 
 ### 需求 9：验收条款和 Evidence 逐项关联
@@ -153,24 +154,28 @@
 #### 验收标准
 
 1. WHEN 使用测试 fixture “比较两个备份方案并给出选型建议” THEN System SHALL 可以生成规划草案并完成批准。
-2. WHEN 试点执行 THEN System SHALL 使用现有 OpenTeam Bot/Run 路径，不直接绕过 Worker 伪造结果。
+2. WHEN 试点执行 THEN System SHALL 通过现有 Worker 在 Outcome 子线程中执行，不直接绕过 Worker 伪造结果。
 3. WHEN 试点完成 THEN System SHALL 产生可复核的输出、来源和验收记录。
 4. WHEN 试点重复执行 THEN 每次执行有独立 Outcome/Run，但同一次请求重试不能产生重复消息。
 
 ## API 合同需求
 
-以下路径是本阶段的正式讨论基线，路径实现前必须与当前 route 注册方式核对：
+以下路径是本阶段的正式合同（`apps/server/src/main.ts:107` 会把 `/api/v0` 映射为 `/api`）。所有写接口在请求体中携带 `clientRequestId`，服务端以 `IdempotencyRecord(scope, key=clientRequestId)` 去重，不使用 `Idempotency-Key` 请求头：
 
-| 方法 | 路径 | 作用 | 幂等要求 |
+| 方法 | 路径 | 作用 | 幂等 scope |
 |---|---|---|---|
-| `POST` | `/api/v0/outcomes/plans` | 生成三维 PlanningDraft | 可选 request ID，不写正式 Outcome |
-| `POST` | `/api/v0/outcomes` | 创建 Outcome 草案 | 客户端 request ID |
-| `GET` | `/api/v0/outcomes/:id` | 返回 Outcome、Contract、Run、Review 汇总 | 只读 |
-| `POST` | `/api/v0/outcomes/:id/revisions` | 从草案或变更创建 revision | revision request key |
-| `POST` | `/api/v0/outcomes/:id/revisions/:revision/approve` | 批准 revision | `approve:<revision>` |
-| `POST` | `/api/v0/outcomes/:id/runs` | 从批准 revision 创建 WorkItem/Run | `run:<outcome>:<revision>` |
-| `POST` | `/api/v0/outcomes/:id/reviews` | 提交条款结论和 Evidence | review key |
-| `POST` | `/api/v0/outcomes/:id/rework` | 对 FAIL/UNVERIFIED 条款发起返工 | `rework:<outcome>:<n>` |
+| `POST` | `/api/v0/outcomes/plans` | 生成三维 PlanningDraft | `outcome-plan`，不写正式 Outcome |
+| `GET` | `/api/v0/outcomes/plans/:planId` | 重新读取 PlanningDraft | 只读 |
+| `POST` | `/api/v0/outcomes` | 从 PlanningDraft 创建 Outcome 和 revision 1 | `outcome-create` |
+| `GET` | `/api/v0/outcomes` | Outcome 列表（按状态过滤、cursor 分页） | 只读 |
+| `GET` | `/api/v0/outcomes/:id` | 返回 Outcome、当前 revision、WorkItems、Runs、Outputs、Evidence、Reviews 汇总 | 只读 |
+| `POST` | `/api/v0/outcomes/:id/revisions` | 用完整确认内容创建新 revision（解决冲突、变更范围） | `outcome-revision` |
+| `POST` | `/api/v0/outcomes/:id/revisions/:revision/approve` | 批准 revision | `outcome-approve` |
+| `POST` | `/api/v0/outcomes/:id/runs` | 从批准 revision 创建 WorkItem 并开启子线程 | `outcome-run` |
+| `POST` | `/api/v0/outcomes/:id/reviews` | 提交条款结论和 Evidence（唯一验收入口，D20） | `outcome-review` |
+| `POST` | `/api/v0/outcomes/:id/rework` | 对 FAIL/UNVERIFIED 条款发起返工 | `outcome-rework` |
+| `POST` | `/api/v0/outcomes/:id/cancel` | 取消 Outcome，停止未结束的子线程 | `outcome-cancel` |
+| `GET` | `/api/v0/outcomes/:id/work-items/:workItemId/transcript` | 只读查看子线程记录 | 只读 |
 
 所有写接口必须返回稳定的错误码、当前状态和可重试信息。错误消息不得要求客户端猜测数据库状态。
 
@@ -182,8 +187,8 @@
 
 1. WHEN 普通用户消息没有 Outcome context THEN Worker SHALL 不增加 Outcome prompt 或状态写入。
 2. WHEN 普通 Run 完成 THEN System SHALL 不创建 Outcome Output、Review 或 Decision。
-3. WHEN Outcome API 或数据库迁移不可用 THEN 普通聊天路径 SHALL 仍能按现有行为运行。
-4. WHEN Outcome Run 失败 THEN 不得改变其他 Bot/Conversation 的普通消息状态。
+3. WHEN Outcome API 或 Outcome 表不可用 THEN 普通聊天路径 SHALL 仍能按现有行为运行。
+4. WHEN Outcome 子线程失败 THEN 不得改变任何 Bot 主对话或群聊的消息状态。
 
 ## 需求 12：Contract 变更可解释
 
@@ -198,7 +203,7 @@
 
 #### 验收标准
 
-1. WHEN Output 由 Agent 可见消息产生 THEN SHALL 保存 source message、Run 和 WorkItem。
+1. WHEN Output 由子线程运行组的最终结果或输出目录文件产生 THEN SHALL 保存来源 Run、WorkItem 和内容引用。
 2. WHEN Evidence 来自文件、资料或人工回执 THEN SHALL 保存 sourceRef、capturedAt、capturedBy 和 revision。
 3. WHEN Output 没有足够 Evidence THEN Review SHALL 使用 `UNVERIFIED` 或明确的待补材料状态。
 4. WHEN 结果被用户查看 THEN UI SHALL 能展开到来源和验收条款。
@@ -220,8 +225,9 @@
 | Planning | sourceText/context | PlanningDraft | plan fixture/API response |
 | Contract | selections/custom | Outcome + revision draft | DB/API snapshot |
 | Approval | confirmation | approved revision | approval proof |
-| Execution | approved revision | WorkItem + Run | Run/lease/event |
-| Output | SendToUser/asset | Output | sourceMessage/run link |
+| Execution | approved revision | WorkItem + 子线程运行组 | Run.outcomeWorkItemId/lease/event |
+| Output | 子线程最终结果/输出目录文件 | Output | run/workItem link |
+| Isolation | 主对话消息 + 子线程并行 | 双方都不被打断 | Run 状态和租约记录 |
 | Evidence | references/files | Evidence | source/digest/capturedBy |
 | Review | criterion results | Review + Outcome status | review response |
 | Regression | ordinary message | no Outcome facts | existing tests |
@@ -244,7 +250,7 @@
 #### 验收标准
 
 1. WHEN 必需条款为 FAIL 或 UNVERIFIED THEN 用户 SHALL 能对这些条款发起返工并附意见。
-2. WHEN 发起返工 THEN System SHALL 在同一 Contract revision 下创建返工 WorkItem，并通过现有 OpenTeam 路径执行。
+2. WHEN 发起返工 THEN System SHALL 在同一 Contract revision 下创建返工 WorkItem，并在新的 Outcome 子线程中执行。
 3. WHEN 返工完成 THEN 用户 SHALL 能对之前未通过的条款重新验收，旧 Review 保留为历史。
 4. WHEN 返工意见要求改变目标、验收或边界 THEN System SHALL 要求走 revision 变更流程。
 
@@ -265,3 +271,26 @@
 1. WHEN 写入 Evidence THEN SHALL 标记 `credibility`：确定性检查、人工确认、外部记录、Agent 输出或 AI 预审。
 2. WHEN 必需条款标记 PASS THEN SHALL 至少有一条非 `agent_report`、非 `ai_prereview` 的 Evidence，或用户明确确认。
 3. WHEN 展示 Evidence THEN UI SHALL 显示可信度标签。
+
+## 需求 19：Outcome 子线程不打断主对话（父需求 13）
+
+**用户故事：** 作为用户，我希望 Outcome 任务执行时仍能和同一个 Bot 正常聊天。
+
+#### 验收标准
+
+1. WHEN WorkItem 开始执行 THEN System SHALL 通过 `RunOrigin.outcome` 和独立运行租约开启子线程，不设置 `interruptedRunId`，不中断该 Bot 主对话正在运行的回合。
+2. WHEN 用户在主对话发送消息 THEN 正在运行的 Outcome 子线程 SHALL 继续运行。
+3. WHEN 子线程执行 THEN 主对话 SHALL 不出现执行说明、Contract 内容或子线程的可见消息。
+4. WHEN 子线程启动子 Agent 或后台 shell THEN WorkItem SHALL 保持 `running`，直到运行组全部结束。
+5. WHEN 同一 Bot 已有 2 个运行中的 Outcome 子线程 THEN 新的 WorkItem SHALL 保持 `queued`，有空位时自动开始（D13）。
+
+## 需求 20：移动端可以查看 Outcome（只读）
+
+**用户故事：** 作为用户，我希望在手机上看到 Outcome 的进度和结果，规划、批准和验收仍在 Desktop 完成。
+
+#### 验收标准
+
+1. WHEN 用户在 Android/iOS 打开 Outcome 列表 THEN System SHALL 显示标题、状态和更新时间。
+2. WHEN 用户打开 Outcome 详情 THEN System SHALL 只读显示当前 revision、WorkItem 状态、Output 和验收结果。
+3. WHEN 操作只能在 Desktop 完成（规划、批准、验收、返工） THEN 移动端 SHALL 显示“请在 Desktop 完成”，不提供提交入口。
+4. WHEN 移动端连接不支持 Outcome API 的旧服务端 THEN SHALL 隐藏 Outcome 入口。

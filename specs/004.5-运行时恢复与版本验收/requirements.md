@@ -1,6 +1,6 @@
 # 需求文档 - 运行时恢复与版本验收
 
-状态：Draft
+状态：Approved（2026-11-17）
 
 关联文档：[README.md](README.md) · [design.md](design.md) · [tasks.md](tasks.md)
 
@@ -17,7 +17,9 @@ OutcomeGo 的规划、执行和人工任务需要基本的状态恢复和重复�
 - 事件去重。
 - 支持范围内的幂等重试。
 - Contract revision 变化处理。
-- 计划功能所需的最小动作授权判断。
+- WorkItem 下一步交给谁的产品路由（不是授权判断，父 design §40）。
+- Outcome 子线程（WorkItem + 运行组）的恢复。
+- `004.1` 已知 PENDING 项（新安装、手动备份导入、回滚演练）的最终复核。
 - N/T/Q 和基础运行指标。
 - 全项目最终验收。
 
@@ -68,7 +70,7 @@ OutcomeGo 的规划、执行和人工任务需要基本的状态恢复和重复�
 #### 验收标准
 
 1. WHEN 执行父 Spec 端到端回放 THEN 所有关键阶段 SHALL 产生可追踪结果。
-2. WHEN 执行旧版本升级回放 THEN System SHALL 保留已确认的兼容能力。
+2. WHEN 执行新安装和手动备份导入回放 THEN System SHALL 得到可登录、Bot 和历史消息可读的新实例，源备份不被修改。
 3. WHEN 发布验收失败 THEN System SHALL 保留旧发布资产和明确的回退结论。
 
 ## 非功能需求
@@ -98,8 +100,8 @@ OutcomeGo 的规划、执行和人工任务需要基本的状态恢复和重复�
 
 #### 验收标准
 
-1. WHEN Outcome Run 进入 `running`、`waiting`、`paused` 或产生外部动作 THEN System SHALL 保存当前 Contract revision、WorkItem、下一步和关联输出。
-2. WHEN 服务进程重启 THEN System SHALL 将可恢复 Run 恢复为 `queued`、`waiting` 或明确的 `needs_review` 状态。
+1. WHEN Agent WorkItem 进入 `running`、`waiting_decision`、`waiting_human` 或结束 THEN System SHALL 在 WorkItem 上保存当前 Contract revision、状态原因和最近一次结算结果（D17）。
+2. WHEN 服务进程重启 THEN System SHALL 将可恢复的 WorkItem 恢复为 `queued`、保持 `waiting_decision`/`waiting_human`，或进入明确的 `needs_review`。
 3. WHEN Run 不具备安全续跑条件 THEN System SHALL 创建 Decision 或人工动作，不得自动重新执行不确定副作用。
 4. WHEN Checkpoint 被重复写入 THEN System SHALL 按 Run 和序列更新，不产生分叉状态。
 
@@ -156,7 +158,7 @@ OutcomeGo 的规划、执行和人工任务需要基本的状态恢复和重复�
 | Worker 断开 | Run submit/heartbeat | 保存状态，有限重试或 Decision | Run/lease 记录 |
 | 外部调用超时 | action adapter | 查询回执或暂停 | Decision/receipt |
 | DB 写入重试 | service transaction | 唯一业务对象 | idempotency record |
-| 旧客户端升级 | release fixture | 数据和登录保留 | upgrade report |
+| 新安装/手动备份导入 | release fixture | 数据和登录可用，源备份不变 | install/import report |
 
 ## 需求 10：恢复逻辑不改变普通 Run
 
@@ -193,13 +195,14 @@ OutcomeGo 的规划、执行和人工任务需要基本的状态恢复和重复�
 
 | 门槛 | 通过条件 | 失败结论 |
 |---|---|---|
-| 数据迁移 | 新安装和旧数据读取通过 | FAIL |
+| schema 部署 | 新安装 `db:push` 和 fresh-schema 测试通过 | FAIL |
 | 普通聊天回归 | 原有 focused tests 通过 | FAIL |
 | Outcome 主链路 | 004.2 fixture 通过 | FAIL |
 | Decision/Inbox | resolve/通知/旧客户端 fallback 通过 | FAIL/PENDING |
 | 人工任务 | receipt/review fixture 通过 | FAIL/PENDING |
 | 重复事件 | output/decision/notification 不重复 | FAIL |
-| Upgrade | 旧版本升级和数据保留通过 | FAIL |
+| 新安装/导入 | 新安装和手动备份导入回放通过 | FAIL/PENDING（设备或隔离环境缺失时 PENDING） |
+| 旧客户端 | 父场景 H 通过 | FAIL |
 | 外部设备 | 无设备时明确 PENDING | PENDING |
 
 ## 需求 13：注意力和质量指标可导出
@@ -218,5 +221,16 @@ OutcomeGo 的规划、执行和人工任务需要基本的状态恢复和重复�
 #### 验收标准
 
 1. WHEN 在发布验证环境应用 Outcome migration THEN SHALL 先完成数据库备份并记录路径。
-2. WHEN 执行回退演练 THEN 旧版本镜像 SHALL 能读取保留了新表的数据库。
+2. WHEN 执行回退演练 THEN SHALL 记录“关闭 Outcome 入口”和“回退镜像”两种方式的实际结果；回退镜像遇到父 design §16 已知风险时，结论写明并以关闭入口为正式回滚方式。
 3. WHEN 关键运行失败（needs_review、state_inconsistent、通知重试耗尽）THEN SHALL 写入错误日志并在 Outcome 详情可见。
+
+## 需求 15：Outcome 子线程可以恢复
+
+**用户故事：** 作为用户，我希望服务重启后 Outcome 任务能接着做，而且恢复过程不会打断我和 Bot 的主对话。
+
+#### 验收标准
+
+1. WHEN 服务或 Worker 重启 THEN System SHALL 按 WorkItem 和子线程运行组状态恢复：运行组中有 `interrupted` 且无后续 Run 的 WorkItem 重新入队或进入 `needs_review`；`waiting_decision`/`waiting_human` 保持等待。
+2. WHEN 恢复重新入队 THEN System SHALL 在原子线程上下文中入队（`origin=outcome`、同一 `outcomeWorkItemId`），不使用主对话租约，不打断主对话。
+3. WHEN 子线程运行组的结算在重启前未完成 THEN System SHALL 重新结算一次，且不产生重复的 Output 或通知。
+4. WHEN 恢复逻辑运行 THEN 主对话、群聊和 Routine 的现有恢复行为 SHALL 不变。

@@ -2,9 +2,9 @@
 
 规格编号：`004.2`
 
-状态：草案
+状态：实施中（阶段 0 完成，进入阶段 1）
 
-日期：2026 年 11 月 11 日。
+日期：2026 年 11 月 11 日创建；2026 年 11 月 17 日按“主线程 + 子线程”执行模型更新。
 
 父规格：[Spec 004：OutcomeGo 整体项目](../004-OutcomeGo整体项目/README.md)
 
@@ -17,7 +17,7 @@
   → 目标/验收/边界规划
   → Contract 草案
   → 用户批准
-  → WorkItem / OpenTeam Run
+  → WorkItem / Outcome 子线程（不打断 Bot 主对话）
   → 输出与 Evidence
   → 逐项验收
   → Outcome 结果
@@ -32,15 +32,17 @@
 
 ## 可实施边界
 
-本阶段是一个可运行的垂直产品切片，不是只定义数据库模型。实现完成后，测试人员必须能够使用固定输入创建 Outcome，完成三维规划和批准，触发现有 OpenTeam Run，读取输出，提交 Evidence，并得到逐条验收结果。
+本阶段是一个可运行的垂直产品切片，不是只定义数据库模型。实现完成后，测试人员必须能够使用固定输入创建 Outcome，完成三维规划和批准，在 Outcome 子线程中执行，读取输出，提交 Evidence，并得到逐条验收结果；执行期间同一 Bot 的主对话不受影响。
 
-当前代码中的可复用主链路：
+当前代码中的可复用主链路（详见 [`docs/runtime-capability-matrix.md`](docs/runtime-capability-matrix.md)）：
 
-- 用户输入和 Bot DM：`apps/server/src/services/channel-service.ts`。
-- Run 创建、取消和状态：`apps/server/src/services/run-service.ts`、`packages/db/prisma/schema.prisma` 的 `Run`。
-- Agent 可见消息：`apps/server/src/services/internal-tool-service.ts`、`ChannelMessage.sourceRunId`。
-- Worker 执行：`apps/worker/src/worker.ts`、`apps/worker/src/runtime-dispatch.ts`。
+- 入队唤醒：`packages/messaging/src/index.ts` 的 `enqueueWake`（不使用会顶替当前回合的 `acceptDirectUserMessage`）。
+- 子线程模式的先例：Routine 的 `automation` 上下文和 `automation:<id>` 租约（`apps/worker/src/worker.ts:198`、`:1307`），运行组判断 `packages/messaging/src/automation-results.ts`。
+- Run 取消和状态：`apps/server/src/services/run-service.ts`、`packages/db/prisma/schema.prisma` 的 `Run`。
+- Worker 执行：`apps/worker/src/worker.ts`、`apps/worker/src/projection.ts`（写入 `run.started`/`run.completed` 事件）。
 - 共享协议：`packages/contracts/src/`。
-- 数据库迁移：`packages/db/prisma/migrations/`。
+- 数据库：`packages/db/prisma/schema.prisma`，通过 `db:push` 部署（父 design §16）。
+
+执行模型见父 design §45 和本 Spec design §12；相关决策 D09–D15 见父 design §39。
 
 本阶段采用最小 Contract 结构，允许后续扩展，但不把六部分 Contract、复杂审批等级或通用流程编辑器一次性实现。三组规划是用户确认的核心；Budget 只作为可选字段，恢复信息由 `004.5` 负责，本项目不保存动作授权字段（父 design.md §40）。验收不合格时可以直接返工（design.md §32）。
