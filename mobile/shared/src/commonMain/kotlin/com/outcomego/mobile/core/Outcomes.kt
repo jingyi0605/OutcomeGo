@@ -121,7 +121,7 @@ fun outcomeListPath(cursor: String? = null): String =
 
 fun outcomeDetailPath(id: String): String = "/api/v0/outcomes/${outcomeSegment(id)}"
 
-private fun outcomeSegment(value: String): String = buildString {
+internal fun outcomeSegment(value: String): String = buildString {
     for (byte in value.encodeToByteArray()) {
         val code = byte.toInt() and 0xff
         if (code in 65..90 || code in 97..122 || code in 48..57 || code.toChar() in "-._~") append(code.toChar())
