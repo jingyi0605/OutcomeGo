@@ -107,7 +107,7 @@ export interface OutcomeInboxItemView {
   read: boolean;
 }
 export interface OutcomeInboxPage { items: OutcomeInboxItemView[]; nextCursor: string | null }
-export interface OutcomeInboxCursor { priority: number; availableAt: string; id: string; snapshotAt: string }
+export interface OutcomeInboxCursor { priority: number; availableAt: string; createdAt?: string; id: string; snapshotAt: string }
 export interface OutcomeInboxQuery {
   status: "pending" | "completed" | "all";
   category?: OutcomeInboxCategory;
@@ -128,7 +128,7 @@ export const parseOutcomeInboxQuery = (params: URLSearchParams): OutcomeInboxQue
       const raw = params.get("cursor")!;
       if (raw.length > 1000) throw new Error();
       cursor = JSON.parse(atob(raw.replace(/-/g, "+").replace(/_/g, "/")));
-      if (!cursor || !Number.isInteger(cursor.priority) || cursor.priority < 0 || cursor.priority > 4 || typeof cursor.id !== "string" || !/^[a-z_]+:[0-9a-f-]{36}$/i.test(cursor.id) || !Number.isFinite(Date.parse(cursor.availableAt)) || !Number.isFinite(Date.parse(cursor.snapshotAt))) throw new Error();
+      if (!cursor || !Number.isInteger(cursor.priority) || cursor.priority < 0 || cursor.priority > 4 || typeof cursor.id !== "string" || !/^[a-z_]+:[0-9a-f-]{36}$/i.test(cursor.id) || !Number.isFinite(Date.parse(cursor.availableAt)) || !Number.isFinite(Date.parse(cursor.snapshotAt)) || (cursor.createdAt !== undefined && !Number.isFinite(Date.parse(cursor.createdAt)))) throw new Error();
     } catch { throw new Error("Invalid inbox cursor"); }
   }
   return { status: status as OutcomeInboxQuery["status"], category: category as OutcomeInboxCategory | undefined, limit: Math.min(limit, 100), cursor };
