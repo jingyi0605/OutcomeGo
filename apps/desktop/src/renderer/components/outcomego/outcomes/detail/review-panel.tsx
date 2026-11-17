@@ -2,6 +2,8 @@ import { useState } from "react";
 import { REVIEW_RESULTS, type OutcomeDetail, type SubmitOutcomeReviewInput, type ReviewResult, type ContractRevisionView } from "@outcomego/contracts/outcomes";
 import { useOutcomeAttention } from "../../../../hooks/use-outcome-attention";
 import { translateCurrent } from "../../../../lib/i18n-catalog";
+import { OutcomeAsset } from "../outcome-asset";
+import { outcomeAssetId } from "../outcome-asset-resource";
 
 type ReviewEntry = SubmitOutcomeReviewInput["results"][number];
 export function initialReviewEntries(outcome: OutcomeDetail, revision = outcome.currentRevisionView): Record<string, ReviewEntry> {
@@ -22,6 +24,7 @@ export function ReviewPanel({ outcome, reviewRevisionView, busy, onSubmit, onRew
   const [references, setReferences] = useState<Record<string, string>>({});
   const [reworkIds, setReworkIds] = useState<string[]>([]); const [feedback, setFeedback] = useState("");
   const criteria = revision?.criteria ?? [];
+  const assetEvidence = outcome.evidence.filter(e => e.contractRevision === revision?.revision && e.sourceType === "asset" && outcomeAssetId(e.sourceRef));
   const current = revision?.revision === outcome.currentRevision;
   const pendingSuccessor = ["draft", "pending_approval"].includes(outcome.currentRevisionView?.status ?? "") &&
     outcome.workItems.some(item => item.executorType === "human" && item.contractRevision === revision?.revision && ["submitted", "review_pending"].includes(item.status));
@@ -31,6 +34,13 @@ export function ReviewPanel({ outcome, reviewRevisionView, busy, onSubmit, onRew
     <h3 className="font-medium">Acceptance review</h3>
     {revision && !current && <p role="status">{translateCurrent("Reviewing receipt Contract revision {revision}. The newer unapproved Contract remains separate; the server verifies whether this receipt is still actionable.", { revision: revision.revision })}</p>}
     <p className="text-sm text-muted-foreground">Agent reports and AI prereviews are advisory. Required PASS needs independent evidence or your explicit confirmation.</p>
+    {assetEvidence.length > 0 && <section aria-label={translateCurrent("Attached review materials")} className="space-y-3">
+      <h4 className="font-medium">{translateCurrent("Attached review materials")}</h4>
+      {assetEvidence.map(e => <div key={e.id} className="space-y-2 rounded border p-3">
+        <p>{e.contentSummary || e.sourceRef}</p>
+        <OutcomeAsset sourceRef={e.sourceRef} />
+      </div>)}
+    </section>}
     <fieldset disabled={busy || !editable} className="space-y-4">
       {criteria.map(criterion => {
         const entry = entries[criterion.id]!;

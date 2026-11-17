@@ -7,6 +7,7 @@ import { ReceiptForm } from "./receipt-form";
 import { OutcomeRequestIds } from "../planning/outcome-client";
 import { responseStatus } from "../inbox/decision-state";
 import { useI18n } from "../../../../lib/i18n";
+import { OutcomeAsset } from "../outcome-asset";
 
 export function HumanAction({ workItemId, client, materials, upload, onReview, initialItem }: {
   workItemId: string; client: InboxClient; materials: HumanMaterialClient;
@@ -103,7 +104,7 @@ export function HumanAction({ workItemId, client, materials, upload, onReview, i
           {receipt.reviewComment && <p className="whitespace-pre-wrap">{receipt.reviewComment}</p>}
           {receipt.missingRequirements.length > 0 && <div role="status"><h4>{t("Missing materials")}</h4><ul>{receipt.missingRequirements.map((gap, index) => <li key={index}>{gap.label} · {gap.kind} · {gap.criterionId}</li>)}</ul></div>}
           <p className="whitespace-pre-wrap">{receipt.payload.text}</p><p>{receipt.payload.comment}</p>
-          {receipt.payload.assetRefs.map(ref => <p key={ref} className="break-all text-xs">{t("Asset")}: {ref}</p>)}
+          {receipt.payload.assetRefs.map(ref => <div key={ref} className="space-y-2"><p className="break-all text-xs">{t("Asset")}: {ref}</p><OutcomeAsset sourceRef={ref} /></div>)}
           {receipt.payload.sourceRefs.map((ref, index) => <p key={index} className="break-all text-xs">{t("Source")}: {ref.type} · {ref.ref}</p>)}
           {receipt.payload.observations.map((observation, index) => <p key={index}>{observation.criterionId}: {observation.value}</p>)}
           <p className="break-all text-xs">Receipt {receipt.id} · {t("Evidence")}: {receipt.evidenceIds.join(", ")}</p>

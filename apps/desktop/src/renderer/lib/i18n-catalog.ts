@@ -10,6 +10,11 @@ import { DEFAULT_LOCALE, type Locale } from "@outcomego/contracts/localization";
 export type TranslationValues = Record<string, string | number | null | undefined>;
 
 export const sourceTranslations: Record<string, string> = {
+  "Attached review materials": "验收附件材料",
+  "Inspect attached asset": "查看附件材料",
+  "Download attached asset": "下载附件材料",
+  "Loading attached asset…": "正在加载附件材料…",
+  "Could not read the attached asset. Check your connection and access, then retry.": "无法读取附件材料，请检查网络和访问权限后重试。",
   "Outcome Inbox": "Outcome 收件箱",
   "Status": "状态",
   "Outcome workspace": "Outcome 工作区",
