@@ -1,0 +1,578 @@
+{
+  "observedAt": "2026-11-17T10:07:28.352585+00:00",
+  "integrationPreClosingHead": "225dc4b0c15ddbef071d21acd4961076e9289b1d",
+  "integrationClosingNote": "本次集成树只有待提交收尾技术文档；最终提交后的clean及精确manifest另行核对，不把当前文档暂存期描述为已经提交。",
+  "productionSource": "5e2ce81d83b91e4e4d37388f54ac9a4685f6b36d",
+  "testSuccessor": "727d410f2f154d750faf021aa15b0a4cf13cdfc0",
+  "nonSpecDeltaSinceProduction": [
+    "apps/server/test/notification-read-chaos.integration.test.ts",
+    "apps/server/test/startup-task-recovery.integration.test.ts",
+    "apps/worker/test/periodic-reconciliation.test.ts",
+    "apps/worker/test/routine-recovery.test.ts",
+    "apps/worker/test/routine-retirement-locks.integration.test.ts",
+    "scripts/check/test-database-gates.test.ts"
+  ],
+  "productionDelta": [],
+  "main": {
+    "path": "/Users/jackson/Code/openteam",
+    "registeredHead": "8443ec367f0912ea764c0d29fddd545cff3bb712",
+    "registeredBranch": "refs/heads/OutcomeGo",
+    "exists": true,
+    "head": "8443ec367f0912ea764c0d29fddd545cff3bb712",
+    "status": [],
+    "clean": true
+  },
+  "mainAttribution": "只读观察当前HEAD和状态；历史dc447、后来8443由外部推进，不能从HEAD变化归因于本任务；本任务不重置、不写入主树。",
+  "registeredWorktreeCount": 34,
+  "worktrees": [
+    {
+      "path": "/Users/jackson/Code/openteam",
+      "registeredHead": "8443ec367f0912ea764c0d29fddd545cff3bb712",
+      "registeredBranch": "refs/heads/OutcomeGo",
+      "exists": true,
+      "head": "8443ec367f0912ea764c0d29fddd545cff3bb712",
+      "status": [],
+      "clean": true
+    },
+    {
+      "path": "/Users/jackson/Code/openteam-merge-v019",
+      "registeredHead": "532272593002f145f1df008fc020c06d1a8ee473",
+      "registeredBranch": null,
+      "exists": true,
+      "head": "532272593002f145f1df008fc020c06d1a8ee473",
+      "status": [],
+      "clean": true
+    },
+    {
+      "path": "/Users/jackson/Code/openteam-spec004",
+      "registeredHead": "225dc4b0c15ddbef071d21acd4961076e9289b1d",
+      "registeredBranch": "refs/heads/outcome/spec004",
+      "exists": true,
+      "head": "225dc4b0c15ddbef071d21acd4961076e9289b1d",
+      "status": [
+        " M specs/004-OutcomeGo整体项目/docs/20261117-全规格组合验证与修复记录.md",
+        " M specs/004-OutcomeGo整体项目/tasks.md"
+      ],
+      "clean": false
+    },
+    {
+      "path": "/Users/jackson/Code/openteam-spec004-worktrees/l1-runtime",
+      "registeredHead": "b5e5b73824c0c25a431879e48bedc2e81ac84d63",
+      "registeredBranch": "refs/heads/outcome/l1-runtime",
+      "exists": true,
+      "head": "b5e5b73824c0c25a431879e48bedc2e81ac84d63",
+      "status": [],
+      "clean": true
+    },
+    {
+      "path": "/Users/jackson/Code/openteam-spec004-worktrees/l2-memory-fixture",
+      "registeredHead": "e4c8fe8fb0b998010d213bfdd368c86efadd6b8a",
+      "registeredBranch": "refs/heads/outcome/l2-memory-fixture",
+      "exists": true,
+      "head": "e4c8fe8fb0b998010d213bfdd368c86efadd6b8a",
+      "status": [],
+      "clean": true
+    },
+    {
+      "path": "/Users/jackson/Code/openteam-spec004-worktrees/l2-product",
+      "registeredHead": "4b8c6c3001e95f12e006d9eff5ac1da15c8d1a73",
+      "registeredBranch": "refs/heads/outcome/l2-product",
+      "exists": true,
+      "head": "4b8c6c3001e95f12e006d9eff5ac1da15c8d1a73",
+      "status": [],
+      "clean": true
+    },
+    {
+      "path": "/Users/jackson/Code/openteam-spec004-worktrees/l2-server-residual",
+      "registeredHead": "b150c8853ce874e36df71c0d73cbc132a91d2068",
+      "registeredBranch": "refs/heads/outcome/l2-server-residual",
+      "exists": true,
+      "head": "b150c8853ce874e36df71c0d73cbc132a91d2068",
+      "status": [],
+      "clean": true
+    },
+    {
+      "path": "/Users/jackson/Code/openteam-spec004-worktrees/l2-tools",
+      "registeredHead": "1d9d32bc41974b434a7e13b82947fbd000a7d45b",
+      "registeredBranch": "refs/heads/outcome/l2-tools",
+      "exists": true,
+      "head": "1d9d32bc41974b434a7e13b82947fbd000a7d45b",
+      "status": [],
+      "clean": true
+    },
+    {
+      "path": "/Users/jackson/Code/openteam-spec004-worktrees/l3-badge-isolation",
+      "registeredHead": "055295280d6879e44b5a7f21604b96f8376824ba",
+      "registeredBranch": "refs/heads/outcome/l3-badge-isolation",
+      "exists": true,
+      "head": "055295280d6879e44b5a7f21604b96f8376824ba",
+      "status": [],
+      "clean": true
+    },
+    {
+      "path": "/Users/jackson/Code/openteam-spec004-worktrees/l3-decision-tool",
+      "registeredHead": "c9e0ff43578737b5cc5f22744e4c3bb12bf20081",
+      "registeredBranch": "refs/heads/outcome/l3-decision-tool",
+      "exists": true,
+      "head": "c9e0ff43578737b5cc5f22744e4c3bb12bf20081",
+      "status": [],
+      "clean": true
+    },
+    {
+      "path": "/Users/jackson/Code/openteam-spec004-worktrees/l3-inbox",
+      "registeredHead": "b98455fb0192f6aed6fd689b9780464e1712c31d",
+      "registeredBranch": "refs/heads/outcome/l3-inbox",
+      "exists": true,
+      "head": "b98455fb0192f6aed6fd689b9780464e1712c31d",
+      "status": [],
+      "clean": true
+    },
+    {
+      "path": "/Users/jackson/Code/openteam-spec004-worktrees/l3-notification-fix",
+      "registeredHead": "1ee44ff42bf0321a7635cbe8b8bc1b8e320d5141",
+      "registeredBranch": "refs/heads/outcome/l3-notification-fix",
+      "exists": true,
+      "head": "1ee44ff42bf0321a7635cbe8b8bc1b8e320d5141",
+      "status": [],
+      "clean": true
+    },
+    {
+      "path": "/Users/jackson/Code/openteam-spec004-worktrees/l4-human-action",
+      "registeredHead": "6f05483e21fe5de3ccf2f72212630b6635832ee7",
+      "registeredBranch": "refs/heads/outcome/l4-human-action",
+      "exists": true,
+      "head": "6f05483e21fe5de3ccf2f72212630b6635832ee7",
+      "status": [],
+      "clean": true
+    },
+    {
+      "path": "/Users/jackson/Code/openteam-spec004-worktrees/l4-human-work",
+      "registeredHead": "1bd2cc5b84386d8547593fea0e413ff1fa688261",
+      "registeredBranch": "refs/heads/outcome/l4-human-work",
+      "exists": true,
+      "head": "1bd2cc5b84386d8547593fea0e413ff1fa688261",
+      "status": [],
+      "clean": true
+    },
+    {
+      "path": "/Users/jackson/Code/openteam-spec004-worktrees/l4-stop-fix",
+      "registeredHead": "5755e3b5a320d42e913d9ea3994b738efc0247ee",
+      "registeredBranch": "refs/heads/outcome/l4-stop-fix",
+      "exists": true,
+      "head": "5755e3b5a320d42e913d9ea3994b738efc0247ee",
+      "status": [],
+      "clean": true
+    },
+    {
+      "path": "/Users/jackson/Code/openteam-spec004-worktrees/l5a-mobile",
+      "registeredHead": "e1478af76547def78e85f47f208ace52886d82d0",
+      "registeredBranch": "refs/heads/outcome/l5a-mobile",
+      "exists": true,
+      "head": "e1478af76547def78e85f47f208ace52886d82d0",
+      "status": [],
+      "clean": true
+    },
+    {
+      "path": "/Users/jackson/Code/openteam-spec004-worktrees/l5b-ops",
+      "registeredHead": "e5394226dd725e392eba68f9b049925eea663004",
+      "registeredBranch": "refs/heads/outcome/l5b-ops",
+      "exists": true,
+      "head": "e5394226dd725e392eba68f9b049925eea663004",
+      "status": [],
+      "clean": true
+    },
+    {
+      "path": "/Users/jackson/Code/openteam-spec004-worktrees/l6-claim-lock-fix",
+      "registeredHead": "447e7d4df352e2cf12e56067367a214596b6a3a0",
+      "registeredBranch": "refs/heads/outcome/l6-claim-lock-fix",
+      "exists": true,
+      "head": "447e7d4df352e2cf12e56067367a214596b6a3a0",
+      "status": [],
+      "clean": true
+    },
+    {
+      "path": "/Users/jackson/Code/openteam-spec004-worktrees/l6-memory-recovery-fix",
+      "registeredHead": "7134fabbc5ef7fd07af26765fc7779690bff6ef6",
+      "registeredBranch": "refs/heads/outcome/l6-memory-recovery-fix",
+      "exists": true,
+      "head": "7134fabbc5ef7fd07af26765fc7779690bff6ef6",
+      "status": [],
+      "clean": true
+    },
+    {
+      "path": "/Users/jackson/Code/openteam-spec004-worktrees/l6-recovery",
+      "registeredHead": "4d26c6d3b82aebf98b1ff1abcd747d68a8f68729",
+      "registeredBranch": "refs/heads/outcome/l6-recovery",
+      "exists": true,
+      "head": "4d26c6d3b82aebf98b1ff1abcd747d68a8f68729",
+      "status": [],
+      "clean": true
+    },
+    {
+      "path": "/Users/jackson/Code/openteam-spec004-worktrees/l6-retirement-fix",
+      "registeredHead": "5aa8d91d59c2557957b638121a42d97805a78a7b",
+      "registeredBranch": "refs/heads/outcome/l6-retirement-fix",
+      "exists": true,
+      "head": "5aa8d91d59c2557957b638121a42d97805a78a7b",
+      "status": [],
+      "clean": true
+    },
+    {
+      "path": "/Users/jackson/Code/openteam-spec004-worktrees/l6-retirement-fixture-fix",
+      "registeredHead": "9343d2643a900104f7b121465e7ab97359eb248e",
+      "registeredBranch": "refs/heads/outcome/l6-retirement-fixture-fix",
+      "exists": true,
+      "head": "9343d2643a900104f7b121465e7ab97359eb248e",
+      "status": [],
+      "clean": true
+    },
+    {
+      "path": "/Users/jackson/Code/openteam-spec004-worktrees/l6-transcript-fix",
+      "registeredHead": "f829ba72acdd8932472e1c207f1c1ca58cf55c06",
+      "registeredBranch": "refs/heads/outcome/l6-transcript-fix",
+      "exists": true,
+      "head": "f829ba72acdd8932472e1c207f1c1ca58cf55c06",
+      "status": [],
+      "clean": true
+    },
+    {
+      "path": "/Users/jackson/Code/openteam-spec004-worktrees/plugin-manifest-compatibility",
+      "registeredHead": "c4fe41e6f7d77f85d18ad66a1d71bbaee5feaa79",
+      "registeredBranch": "refs/heads/outcome/plugin-manifest-compatibility",
+      "exists": true,
+      "head": "c4fe41e6f7d77f85d18ad66a1d71bbaee5feaa79",
+      "status": [],
+      "clean": true
+    },
+    {
+      "path": "/Users/jackson/Code/openteam-spec004-worktrees/plugin-residual-fix",
+      "registeredHead": "1370da9c0bb1ecf3117c0f4cb001c26ddcc2a16c",
+      "registeredBranch": "refs/heads/outcome/plugin-residual-fix",
+      "exists": true,
+      "head": "1370da9c0bb1ecf3117c0f4cb001c26ddcc2a16c",
+      "status": [],
+      "clean": true
+    },
+    {
+      "path": "/Users/jackson/Code/openteam-spec004-worktrees/spec004-backup-validation",
+      "registeredHead": "799b11e4b7381a84dc4d6ce4d75fc8961bd3c3c0",
+      "registeredBranch": "refs/heads/outcome/spec004-backup-validation",
+      "exists": true,
+      "head": "799b11e4b7381a84dc4d6ce4d75fc8961bd3c3c0",
+      "status": [],
+      "clean": true
+    },
+    {
+      "path": "/Users/jackson/Code/openteam-spec004-worktrees/w3-acceptance",
+      "registeredHead": "d4ad375c4d53c8dee117c9368bf617feae2bd8f2",
+      "registeredBranch": "refs/heads/outcome/w3-acceptance",
+      "exists": true,
+      "head": "d4ad375c4d53c8dee117c9368bf617feae2bd8f2",
+      "status": [],
+      "clean": true
+    },
+    {
+      "path": "/Users/jackson/Code/openteam-spec004-worktrees/w3-desktop",
+      "registeredHead": "3c249bb3eadaa9c125e03c9627dd48c71ee6e145",
+      "registeredBranch": "refs/heads/outcome/w3-desktop",
+      "exists": true,
+      "head": "3c249bb3eadaa9c125e03c9627dd48c71ee6e145",
+      "status": [],
+      "clean": true
+    },
+    {
+      "path": "/Users/jackson/Code/openteam-spec004-worktrees/w3-mobile",
+      "registeredHead": "bdba066d4cd47a520a9d435dd60b7ec55444b0cc",
+      "registeredBranch": "refs/heads/outcome/w3-mobile",
+      "exists": true,
+      "head": "bdba066d4cd47a520a9d435dd60b7ec55444b0cc",
+      "status": [],
+      "clean": true
+    },
+    {
+      "path": "/Users/jackson/Code/openteam-spec004-worktrees/w3-mobile-verification",
+      "registeredHead": "e780fe85b329e35c25da2e4a0c4fcdbed24715f0",
+      "registeredBranch": "refs/heads/outcome/w3-mobile-verification",
+      "exists": true,
+      "head": "e780fe85b329e35c25da2e4a0c4fcdbed24715f0",
+      "status": [],
+      "clean": true
+    },
+    {
+      "path": "/Users/jackson/Code/openteam-spec004-worktrees/w3-regression",
+      "registeredHead": "9bfdc1b7d23b2b867bba5f2d09d189554905600b",
+      "registeredBranch": "refs/heads/outcome/w3-regression",
+      "exists": true,
+      "head": "9bfdc1b7d23b2b867bba5f2d09d189554905600b",
+      "status": [],
+      "clean": true
+    },
+    {
+      "path": "/Users/jackson/Code/openteam-spec004-worktrees/w3-worker-boundaries",
+      "registeredHead": "4214dadb43222f97575160c74b6c82b4a01dced7",
+      "registeredBranch": "refs/heads/outcome/w3-worker-boundaries",
+      "exists": true,
+      "head": "4214dadb43222f97575160c74b6c82b4a01dced7",
+      "status": [],
+      "clean": true
+    },
+    {
+      "path": "/private/tmp/claude-501/-private-var-folders-q5-5jq71t9d131d8p-8l01rth400000gn-T-magpie-claude-work-501/cb4dcc62-8793-4538-b524-123ed69a46e5/scratchpad/openteam-event-routines-pr",
+      "registeredHead": "5d06b3c60cea3be967077580f61dc52b91ca5b51",
+      "registeredBranch": "refs/heads/fix/event-routines-in-list",
+      "exists": true,
+      "head": "5d06b3c60cea3be967077580f61dc52b91ca5b51",
+      "status": [],
+      "clean": true
+    },
+    {
+      "path": "/private/tmp/openteam-library-pr",
+      "registeredHead": "45dba8fdee99cf05e3e95e2978b7b452c0e0a1fe",
+      "registeredBranch": "refs/heads/fix/library-attachment-visibility",
+      "exists": true,
+      "head": "45dba8fdee99cf05e3e95e2978b7b452c0e0a1fe",
+      "status": [],
+      "clean": true
+    }
+  ],
+  "promptSymlink": {
+    "path": "/Users/jackson/Code/openteam/data/spec004-并行开发提示词",
+    "isSymlink": true,
+    "linkTarget": "/Users/jackson/Code/openteam-spec004/data/spec004-并行开发提示词",
+    "resolvedTarget": "/Users/jackson/Code/openteam-spec004/data/spec004-并行开发提示词",
+    "targetExists": true,
+    "valid": true
+  },
+  "ownedContainerAbsence": [
+    {
+      "name": "outcomego-integrator-assets-pg",
+      "command": [
+        "docker",
+        "ps",
+        "-a",
+        "--filter",
+        "name=^/outcomego-integrator-assets-pg$",
+        "--format",
+        "{{.ID}} {{.Names}}"
+      ],
+      "exitCode": 0,
+      "output": "",
+      "absent": true
+    },
+    {
+      "name": "outcomego-w3-acceptance-pg-20261117-runtime",
+      "command": [
+        "docker",
+        "ps",
+        "-a",
+        "--filter",
+        "name=^/outcomego-w3-acceptance-pg-20261117-runtime$",
+        "--format",
+        "{{.ID}} {{.Names}}"
+      ],
+      "exitCode": 0,
+      "output": "",
+      "absent": true
+    }
+  ],
+  "ownedCleanupArtifact": "data/spec004-final-validation/owned-pg-final-cleanup.json",
+  "runtimeCleanupArtifact": "specs/004-OutcomeGo整体项目/docs/20261117-第3波组合验收证据/final/cleanup.json",
+  "runtimeArtifactShaChecks": [
+    {
+      "path": "cleanup.json",
+      "sha256": "559a457f703cd63834b3c369c267731e9369bd6b90e89e6370be4122eefd05b3",
+      "match": true
+    },
+    {
+      "path": "faults/concurrent-decision.json",
+      "sha256": "604ce439e6f528077297510a644b42fa0bd9ad8920257fa18dac6bd1f0cb8740",
+      "match": true
+    },
+    {
+      "path": "faults/duplicate-finish-event.json",
+      "sha256": "f541c5ae5007da71513be09ce02db31e395611127930a6ad09b9aa7a173bccc8",
+      "match": true
+    },
+    {
+      "path": "faults/interrupted-thread-resume.json",
+      "sha256": "cc2f7d9298ef1cb7b76385bf79ab54fe9af35f65e0e6e51eb43e5832d95ba31c",
+      "match": true
+    },
+    {
+      "path": "faults/receipt-retry.json",
+      "sha256": "79458a67768d2dc6a1fa9a0409a235a42f61397c2ae24073bdf2688013d60e27",
+      "match": true
+    },
+    {
+      "path": "faults/restart-running-run.json",
+      "sha256": "2f40d7a13a6bfe7e5571a6a956811028abb387558a7debee727f3ddf7baa17a5",
+      "match": true
+    },
+    {
+      "path": "faults/unknown-external-receipt.json",
+      "sha256": "53bcf8a1728f368086d691f8f3ec64e64ab4cb19bbde4fe811369b177b494109",
+      "match": true
+    },
+    {
+      "path": "final-commands.json",
+      "sha256": "86f77c9407066f7e407c8042d4e87c84d0e317bf2880a16c7c54ee65099c02be",
+      "match": true
+    },
+    {
+      "path": "final-package-results.json",
+      "sha256": "50895addbb8ec1944034613ab79f2f1c5823bb8c2e0a7af1a39177eba1c8b373",
+      "match": true
+    },
+    {
+      "path": "final-server-unread-facts.json",
+      "sha256": "c8ff655aa01aaeb1bdbd67ce46944c6bed00c3ac19784702a0ba505ca7f9bf2d",
+      "match": true
+    },
+    {
+      "path": "final-skip-inventory.json",
+      "sha256": "77cabcdfea58741fbd1b33ac87c96a169e7bb606070d409fd8dab5f17729595f",
+      "match": true
+    },
+    {
+      "path": "source-ledger.json",
+      "sha256": "60c516ebb734093a4878c23eb3ac88e036f131489c4d7ae6862d0cf0a2634725",
+      "match": true
+    },
+    {
+      "path": "validation.json",
+      "sha256": "eba728d7ea410fe1766c6f9d8cad3962b271fd47d6f41d840b43f8e0b6261b64",
+      "match": true
+    }
+  ],
+  "preservedArtifacts": {
+    "apk": {
+      "path": "/Users/jackson/Code/openteam-spec004-worktrees/w3-mobile-verification/apps/android/app/build/outputs/apk/debug/androidApp-debug.apk",
+      "exists": true,
+      "bytes": 32423579,
+      "sha256": "10e7d4be71e59a5f71d7e0e086f339a72de7adada487793fe4c6c9aeea1f9151"
+    },
+    "dump": {
+      "path": "/Users/jackson/Code/openteam-spec004-worktrees/w3-acceptance/data/acceptance/populated-outcome.dump",
+      "exists": true,
+      "bytes": 333755,
+      "sha256": "0e5f11d9b725efadd5d388a47c31f964d4ecd5e431077a0e07f4ed9e061baf69"
+    }
+  },
+  "mobileDeltaSinceB582": [],
+  "finalReadOnlySnapshot": true,
+  "diffSanity": {
+    "checks": [
+      {
+        "label": "final-diff-baseline",
+        "command": [
+          "git",
+          "diff",
+          "--check",
+          "5070c6bc9c564cc2c0b982a25393860bcd82c774"
+        ],
+        "exitCode": 2,
+        "log": "data/spec004-final-validation/final-diff-baseline.log",
+        "sha256": "f7757fb8319aefdf360692c4d44281a50c1f6cef38c6d7223059e656206a01b2"
+      },
+      {
+        "label": "final-diff-source",
+        "command": [
+          "git",
+          "diff",
+          "--check",
+          "5070c6bc9c564cc2c0b982a25393860bcd82c774",
+          "--",
+          ".",
+          ":(exclude)specs/**"
+        ],
+        "exitCode": 0,
+        "log": "data/spec004-final-validation/final-diff-source.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "label": "final-diff-closing",
+        "command": [
+          "git",
+          "diff",
+          "--cached",
+          "--check"
+        ],
+        "exitCode": 0,
+        "log": "data/spec004-final-validation/final-diff-closing.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    ],
+    "baselineWideOutcome": "FAIL only 17 raw diagnostic trailing-space lines in 3 previously accepted evidence logs; immutable bytes preserved.",
+    "productionSourceAndClosingStagedOutcome": "PASS",
+    "findings": [
+      {
+        "path": "specs/004-OutcomeGo整体项目/docs/task58-evidence/reaction-actual-red.log",
+        "line": 50
+      },
+      {
+        "path": "specs/004-OutcomeGo整体项目/docs/task58-evidence/reaction-actual-red.log",
+        "line": 137
+      },
+      {
+        "path": "specs/004-OutcomeGo整体项目/docs/task58-evidence/reaction-actual-red.log",
+        "line": 180
+      },
+      {
+        "path": "specs/004-OutcomeGo整体项目/docs/task58-evidence/reaction-actual-red.log",
+        "line": 196
+      },
+      {
+        "path": "specs/004-OutcomeGo整体项目/docs/task59-evidence/routine-archive-barrier-red.log",
+        "line": 21
+      },
+      {
+        "path": "specs/004-OutcomeGo整体项目/docs/task59-evidence/routine-archive-barrier-red.log",
+        "line": 22
+      },
+      {
+        "path": "specs/004-OutcomeGo整体项目/docs/task59-evidence/routine-archive-barrier-red.log",
+        "line": 25
+      },
+      {
+        "path": "specs/004-OutcomeGo整体项目/docs/task59-evidence/routine-archive-barrier-red.log",
+        "line": 56
+      },
+      {
+        "path": "specs/004-OutcomeGo整体项目/docs/task59-evidence/routine-archive-barrier-red.log",
+        "line": 57
+      },
+      {
+        "path": "specs/004-OutcomeGo整体项目/docs/task59-evidence/routine-archive-barrier-red.log",
+        "line": 59
+      },
+      {
+        "path": "specs/004-OutcomeGo整体项目/docs/task59-evidence/routine-archive-barrier-red.log",
+        "line": 60
+      },
+      {
+        "path": "specs/004.5-运行时恢复与版本验收/docs/20261117-领取锁核验证据/frozen-baseline.log",
+        "line": 6
+      },
+      {
+        "path": "specs/004.5-运行时恢复与版本验收/docs/20261117-领取锁核验证据/frozen-baseline.log",
+        "line": 9
+      },
+      {
+        "path": "specs/004.5-运行时恢复与版本验收/docs/20261117-领取锁核验证据/frozen-baseline.log",
+        "line": 13
+      },
+      {
+        "path": "specs/004.5-运行时恢复与版本验收/docs/20261117-领取锁核验证据/frozen-baseline.log",
+        "line": 21
+      },
+      {
+        "path": "specs/004.5-运行时恢复与版本验收/docs/20261117-领取锁核验证据/frozen-baseline.log",
+        "line": 24
+      },
+      {
+        "path": "specs/004.5-运行时恢复与版本验收/docs/20261117-领取锁核验证据/frozen-baseline.log",
+        "line": 28
+      }
+    ]
+  }
+}
