@@ -2111,7 +2111,14 @@ class AppViewModel @JvmOverloads constructor(
                 val accent = runCatching { AppSettings.Accent.valueOf(settingsPreferences.getString("accent", null).orEmpty()) }.getOrDefault(value.accent)
                 val language = when (settingsPreferences.getString("language", null)) {
                     AppSettings.Language.Chinese.name -> AppSettings.Language.Chinese
-                    else -> AppSettings.Language.English
+                    AppSettings.Language.English.name -> AppSettings.Language.English
+                    // No explicit choice yet: follow the system language so localizedText() agrees
+                    // with the system-locale string resources.
+                    else -> if (java.util.Locale.getDefault().language == "zh") {
+                        AppSettings.Language.Chinese
+                    } else {
+                        AppSettings.Language.English
+                    }
                 }
                 val notifications = value.notifications.copy(
                     messages = settingsPreferences.getBoolean("notifications.messages", value.notifications.messages),
