@@ -237,7 +237,7 @@ integration("additive scheduling columns remain nullable without defaults in the
   try {
     const columns = await db.$queryRaw<Array<{ column_name: string; is_nullable: string; column_default: string | null }>>(Prisma.sql`
       SELECT column_name, is_nullable, column_default FROM information_schema.columns
-      WHERE table_schema = current_schema() AND table_name = 'Routine'
+      WHERE table_schema = current_schema() AND table_name = 'outcomego_routine'
       AND column_name IN ('scheduleAnchorAt', 'validationError') ORDER BY column_name
     `);
     expect(columns).toEqual([
