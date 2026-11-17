@@ -92,11 +92,12 @@ import {
   type ProductEventHandlers,
   readProductEventBatch,
 } from "./events";
-import { createJsonTransport, type OutcomeGoTransportOptions } from "./http";
+import { createJsonTransport } from "./http";
+import { createUserLocationClient, type UserLocationClientOptions } from "./user-location";
 
 /** A Mac's send settings: skip every approval card, or only for allowed recipients. */
 export interface MachineMessagesSettings { machineId: string; sendWithoutAsking: boolean; allowedRecipients: Array<{ recipient: string; recipientName: string | null }> }
-export interface OutcomeGoClientOptions extends OutcomeGoTransportOptions {
+export interface OutcomeGoClientOptions extends UserLocationClientOptions {
   createId?: () => string;
   timeZone?: () => string;
   sourceMachineId?: () => string | undefined;
@@ -119,6 +120,7 @@ const fallbackTimeZone = (): string => Intl.DateTimeFormat().resolvedOptions().t
 
 export const createOutcomeGoClient = (options: OutcomeGoClientOptions) => {
   const transport = createJsonTransport(options);
+  const location = createUserLocationClient(options);
   const createId = options.createId ?? fallbackId;
   const timeZone = options.timeZone ?? fallbackTimeZone;
 
@@ -161,6 +163,11 @@ export const createOutcomeGoClient = (options: OutcomeGoClientOptions) => {
   }
 
   return {
+    userLocation: location.userLocation,
+    writeUserLocation: location.writeUserLocation,
+    updateLocationSharing: location.updateLocationSharing,
+    clearUserLocation: location.clearUserLocation,
+    cancelPendingLocationRequests: location.cancelPendingLocationRequests,
     baseUrl: transport.baseUrl,
     botMemories: (botId: string) => transport.request<BotMemoryList>(`/api/v0/bots/${encodeURIComponent(botId)}/memories`),
     deleteBotMemory: (botId: string, memoryId: string) => transport.request<BotMemoryList>(`/api/v0/bots/${encodeURIComponent(botId)}/memories/${encodeURIComponent(memoryId)}`, { method: "DELETE" }),
@@ -670,12 +677,9 @@ export const createOutcomeGoClient = (options: OutcomeGoClientOptions) => {
         clientId: messageOptions?.clientId ?? createId(),
         timeZone: timeZone(),
       };
-      return transport.request<{ message: ChannelMessageView }>(
+      return location.sendMessage<{ message: ChannelMessageView }>(
         `/api/v0/conversations/${encodeURIComponent(conversationId)}/messages`,
-        {
-          method: "POST",
-          body: JSON.stringify(input),
-        }
+        input
       );
     },
     sendChannelMessage: (
@@ -696,12 +700,9 @@ export const createOutcomeGoClient = (options: OutcomeGoClientOptions) => {
         clientId: messageOptions?.clientId ?? createId(),
         timeZone: timeZone(),
       };
-      return transport.request<{ message: ChannelMessageView }>(
+      return location.sendMessage<{ message: ChannelMessageView }>(
         `/api/v0/channels/${encodeURIComponent(channelId)}/messages`,
-        {
-          method: "POST",
-          body: JSON.stringify(input),
-        }
+        input
       );
     },
     reactToMessage: (messageId: string, emoji: string) => {

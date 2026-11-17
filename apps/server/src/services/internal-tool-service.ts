@@ -43,6 +43,8 @@ import { bitwardenInstanceEnvironment, jsonObject } from "./plugin/values";
 import { toJson } from "./service-utils";
 import { withConnectorDraftCardReminder } from "./connector-draft-reminder";
 import { createHash, randomUUID } from "node:crypto";
+import { GET_USER_LOCATION_TOOL } from "@outcomego/contracts/user-location";
+import type { UserLocationService } from "./user-location";
 
 const UUID = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
 const bitwardenCandidate = (
@@ -91,7 +93,8 @@ export class InternalToolService {
     private readonly onVisibleMessage?: (runId: string, messageId: string) => Promise<void>,
     private readonly onSpeechChunk?: (runId: string, callId: string, text: string) => Promise<boolean>,
     private readonly computerNetworkPolicy?: ComputerNetworkPolicyService,
-    private readonly externalDelivery?: ExternalDeliveryService
+    private readonly externalDelivery?: ExternalDeliveryService,
+    private readonly userLocations?: UserLocationService
   ) {}
 
   /**
@@ -160,6 +163,16 @@ export class InternalToolService {
         where: { childBotId: request.botId },
         select: { id: true, parentBotId: true, parentRunId: true, subagentType: true },
       });
+      if (request.tool === GET_USER_LOCATION_TOOL.name) {
+        if (childIdentity)
+          throw new ApiError(403, "user_location_unavailable", "Only the deployment owner's parent bot can read location");
+        if (!this.userLocations)
+          throw new ApiError(404, "location_disabled", "Location sharing is not enabled");
+        if (request.arguments != null &&
+            (typeof request.arguments !== "object" || Array.isArray(request.arguments) || Object.keys(request.arguments).length))
+          throw new ApiError(400, "invalid_arguments", "GetUserLocation takes no arguments");
+        return this.userLocations.readForTool();
+      }
       // Private supervisor operation, never registered in any model catalog.
       if (request.tool === "RefreshToolCatalog") return {namespaces:await this.plugins.dynamicNamespaces(childIdentity?.parentBotId ?? request.botId)};
       if (request.tool === "ReadProcessSecrets") return { environment: await processEnvironment(this.prisma, request.botId) };

@@ -17,6 +17,7 @@ export * from "./auth";
 export * from "./account";
 export * from "./async";
 export * from "./client";
+export type { UserLocationClientOptions } from "./user-location";
 export * from "./events";
 export * from "./external-draft";
 export * from "./http";

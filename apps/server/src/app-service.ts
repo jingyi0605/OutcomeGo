@@ -1,4 +1,5 @@
 import { ApnsSettingsStore } from "@outcomego/db/apns-settings";
+import { UserLocationService } from "./services/user-location";
 import { MachineService } from "./services/machine-service";
 import {
   AutomationWebhooksService,
@@ -77,6 +78,7 @@ export class AppService {
   readonly durableState: DurableStateService;
   readonly bots: BotService;
   readonly channels: ChannelService;
+  readonly userLocations: UserLocationService;
   readonly administration: AdministrationService;
   readonly subagents: SubagentService;
   readonly todos: TodoService;
@@ -110,6 +112,7 @@ export class AppService {
   ) {
     const databaseUrl = process.env.DATABASE_URL;
     this.prisma = createPrismaClient(databaseUrl);
+    this.userLocations = new UserLocationService(this.prisma, authMode);
     this.apnsSettings = new ApnsSettingsStore(this.prisma);
     this.webProviders = new WebProviderSettingsService(this.prisma, async (request) => {
       // Checks run in the computer so they exercise the same code as the agent's tools.
@@ -195,7 +198,8 @@ export class AppService {
       this.workspaceRoot,
       (path, init) => this.computerFetch(path, init),
       this.agentData,
-      this.assets
+      this.assets,
+      this.userLocations
     );
     this.plugins = new PluginService(
       this.prisma,
@@ -301,7 +305,8 @@ export class AppService {
       (runId, messageId) => this.voice.onVisibleMessage(runId, messageId),
       (runId, callId, text) => this.voice.speakChunk(runId, callId, text),
       this.computerNetworkPolicy,
-      this.externalDelivery
+      this.externalDelivery,
+      this.userLocations
     );
     this.boss.on("error", (error) => console.error("pg-boss", error));
 
