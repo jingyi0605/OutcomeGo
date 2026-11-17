@@ -74,7 +74,10 @@ type OutcomeRow = Prisma.OutcomeGetPayload<{ include: typeof detailInclude }>;
  * events and its idempotency record; nothing here calls the worker or the computer.
  */
 export class OutcomeService {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(
+    private readonly prisma: PrismaClient,
+    private readonly onRevisionCreated?: (tx: Tx, outcomeId: string, actor: ActorRef) => Promise<void>
+  ) {}
 
   createFromDraft = (input: CreateOutcomeInput, actor: ActorRef) =>
     serviceEffect(() =>
@@ -100,34 +103,40 @@ export class OutcomeService {
   createRevision = (outcomeId: string, input: CreateContractRevisionInput, actor: ActorRef) =>
     serviceEffect(() =>
       this.idempotent(`outcome-revision:${outcomeId}`, input.clientRequestId, input, async (tx) => {
-        const outcome = await this.lockOutcome(tx, outcomeId);
-        this.assertOpen(outcome.status);
-        const current = outcome.currentRevisionId
-          ? await tx.outcomeContractRevision.findUniqueOrThrow({ where: { id: outcome.currentRevisionId } })
-          : null;
-        if (!current || current.revision !== input.baseRevision)
-          throw outcomeApiError("contract_revision_conflict", "The contract changed; reload before editing", { currentRevision: current?.revision ?? null });
-        const contract: ConfirmedContract = {
-          goal: input.contract.goal.map((text) => text.trim()),
-          acceptance: input.contract.acceptance.map(({ statement, required }) => ({ statement: statement.trim(), required, verificationMethod: "human_review" })),
-          boundaries: {
-            included: input.contract.boundaries.included.map((text) => text.trim()),
-            excluded: input.contract.boundaries.excluded.map((text) => text.trim()),
-          },
-          budget: input.contract.budget,
-        };
-        // An unapproved revision is replaced outright; an approved one stays in force until its successor is approved.
-        if (current.status !== "approved")
-          await tx.outcomeContractRevision.update({ where: { id: current.id }, data: { status: "superseded" } });
-        await this.insertRevision(tx, outcomeId, current.revision + 1, contract, current.executionBotId, actor, input.clientRequestId, {
-          changeSummary: input.changeSummary?.trim() || null,
-          baseRevisionId: current.id,
-          sourceDecisionId: input.sourceDecisionId ?? null,
-        });
-        await this.recomputeStatus(tx, outcomeId, actor);
-        return this.detail(tx, outcomeId);
+        return this.createRevisionInTransaction(tx, outcomeId, input, actor);
       })
     );
+
+  /** The caller owns the transaction and request idempotency (Decision resolution uses this entry point). */
+  createRevisionInTransaction = async (tx: Tx, outcomeId: string, input: CreateContractRevisionInput, actor: ActorRef): Promise<OutcomeDetail> => {
+    const outcome = await this.lockOutcome(tx, outcomeId);
+    this.assertOpen(outcome.status);
+    const current = outcome.currentRevisionId
+      ? await tx.outcomeContractRevision.findUniqueOrThrow({ where: { id: outcome.currentRevisionId } })
+      : null;
+    if (!current || current.revision !== input.baseRevision)
+      throw outcomeApiError("contract_revision_conflict", "The contract changed; reload before editing", { currentRevision: current?.revision ?? null });
+    const contract: ConfirmedContract = {
+      goal: input.contract.goal.map((text) => text.trim()),
+      acceptance: input.contract.acceptance.map(({ statement, required }) => ({ statement: statement.trim(), required, verificationMethod: "human_review" })),
+      boundaries: {
+        included: input.contract.boundaries.included.map((text) => text.trim()),
+        excluded: input.contract.boundaries.excluded.map((text) => text.trim()),
+      },
+      budget: input.contract.budget,
+    };
+    // An unapproved revision is replaced outright; an approved one stays in force until its successor is approved.
+    if (current.status !== "approved")
+      await tx.outcomeContractRevision.update({ where: { id: current.id }, data: { status: "superseded" } });
+    await this.insertRevision(tx, outcomeId, current.revision + 1, contract, current.executionBotId, actor, input.clientRequestId, {
+      changeSummary: input.changeSummary?.trim() || null,
+      baseRevisionId: current.id,
+      sourceDecisionId: input.sourceDecisionId ?? null,
+    });
+    await this.onRevisionCreated?.(tx, outcomeId, actor);
+    await this.recomputeStatus(tx, outcomeId, actor);
+    return this.detail(tx, outcomeId);
+  }
 
   approve = (outcomeId: string, revisionNumber: number, input: ApproveContractRevisionInput, actor: ActorRef) =>
     serviceEffect(() =>
@@ -345,6 +354,8 @@ export class OutcomeService {
       throw error;
     }
   }
+
+  getInTransaction = (tx: Tx, outcomeId: string) => this.detail(tx, outcomeId);
 
   private async detail(tx: Tx, outcomeId: string): Promise<OutcomeDetail> {
     return this.toDetail(await tx.outcome.findUniqueOrThrow({ where: { id: outcomeId }, include: detailInclude }));
