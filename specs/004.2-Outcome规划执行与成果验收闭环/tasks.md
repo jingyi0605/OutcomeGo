@@ -76,8 +76,16 @@
 
 ## 阶段 2：规划、API 和批准
 
-- [ ] 2.1 实现规划候选项服务
-  - 状态：TODO
+- [x] 2.1 实现规划候选项服务
+  - 状态：DONE（第 1 波本地实现；外部/跨线检查的 PENDING 见下）
+  - 实现提交：10363eea9、1b4b0e068、a909e2d43
+  - 修改文件：`packages/contracts/src/service-protocol.ts`、`apps/server/src/services/outcome-inference.ts`、`outcome-planning-service.ts`、`app-service.ts`、对应测试
+  - 数据库变化：none（仅一次性测试库部署既有 schema）
+  - 验证命令：`bun test apps/server/test/outcome-planning-service.test.ts packages/contracts/test/outcome-inference.test.ts`；contracts/server typecheck
+  - 验证结果：本地 fixture、上限/伪造 ID/关键问题/空输入/非 JSON/超时/过期/幂等 PASS；真实 computer 调用 PENDING
+  - 证据文件：[第 1 波线 2 验证记录](docs/20261117-第1波产品功能验证.md)
+  - 已知限制：本线未执行远端同步/重建/真实调用，部署状态未验证，见验收记录；未创建正式 Agent Run
+  - 回滚方式：按本线提交逆序 revert，保留其他线改动。
   - 这一步到底做什么：`OutcomePlanningService` 通过 computer `/v1/infer`（`kind=planning`）生成三维候选项，保存 `OutcomePlanningDraft`，处理非 JSON、超时和空结果。
   - 先依赖什么：1.3
   - 开始前先看：§10、§16、§31
@@ -88,8 +96,16 @@
   - 对应需求：需求 2、需求 6、需求 15
   - 对应设计：§10、§16、§31
 
-- [ ] 2.2 实现 Outcome HTTP API（不含执行和验收）
-  - 状态：TODO
+- [x] 2.2 实现 Outcome HTTP API（不含执行和验收）
+  - 状态：DONE（第 1 波本地实现；外部/跨线检查的 PENDING 见下）
+  - 实现提交：5f8a56471、a909e2d43
+  - 修改文件：`apps/server/src/routes/outcome.ts`、`services/outcome-service.ts`、`app-service.ts`、`main.ts`、路由/事务测试
+  - 数据库变化：none（仅一次性测试库部署既有 schema）
+  - 验证命令：`bun test apps/server/test/outcome-routes.test.ts apps/server/test/outcome-revision-transaction.test.ts apps/server/test/outcome-service.test.ts`；server typecheck
+  - 验证结果：路由格式/错误/认证注册顺序/持久 Session 主体/本地主体/幂等/事务回滚 PASS
+  - 证据文件：[第 1 波线 2 验证记录](docs/20261117-第1波产品功能验证.md)
+  - 已知限制：不启动 HTTP 服务；运行和 transcript 端口由线 1 合并后提供真实实现；Decision 撤回第四参数由集成装配
+  - 回滚方式：按本线提交逆序 revert，保留其他线改动。
   - 这一步到底做什么：注册 plans、outcomes 创建/列表/详情、revisions、approve、cancel 路由。
   - 先依赖什么：1.3、2.1
   - 开始前先看：requirements “API 合同需求”；design §11、§19、§20；`apps/server/src/main.ts` 现有 route 注册方式
@@ -100,8 +116,16 @@
   - 对应需求：需求 1、需求 3、需求 6、需求 7
   - 对应设计：§11、§19、§20
 
-- [ ] 2.3 实现 Desktop 规划和批准页面
-  - 状态：TODO
+- [x] 2.3 实现 Desktop 规划和批准页面
+  - 状态：DONE（第 1 波本地实现；外部/跨线检查的 PENDING 见下）
+  - 实现提交：b7f6aba7e
+  - 修改文件：Desktop `outcomes/planning/`、`client/outcome-api.ts`、`outcomego-api.ts`、`chat-pane.tsx`、`test/outcome-planning.test.ts`
+  - 数据库变化：none（仅一次性测试库部署既有 schema）
+  - 验证命令：`bun --filter @outcomego/desktop typecheck`；`bun test apps/desktop/test/outcome-planning.test.ts`
+  - 验证结果：类型检查与组件静态渲染/多选自定义/冲突/重试 ID/批准禁用/API 适配 PASS
+  - 证据文件：[第 1 波线 2 验证记录](docs/20261117-第1波产品功能验证.md)
+  - 已知限制：交互及视觉回放 PENDING，未启动前端或渲染服务；Budget 仅记录上下文
+  - 回滚方式：按本线提交逆序 revert，保留其他线改动。
   - 这一步到底做什么：PlanningWizard（逐维度多选、自定义、冲突提示、可选 Budget）和 Contract 确认批准。
   - 先依赖什么：2.2
   - 开始前先看：§26、§34
@@ -174,8 +198,16 @@
 
 ## 阶段 4：Evidence、验收和返工
 
-- [ ] 4.1 实现 Evidence 写入和可信度
-  - 状态：TODO
+- [x] 4.1 实现 Evidence 写入和可信度
+  - 状态：DONE（第 1 波本地实现；外部/跨线检查的 PENDING 见下）
+  - 实现提交：a909e2d43、d24547414、eea0c0b87
+  - 修改文件：`apps/server/src/services/outcome-review-service.ts`、`outcome-evidence-consumer.ts`、`outcome-write.ts`、`app-service.ts`、对应测试
+  - 数据库变化：none（仅一次性测试库部署既有 schema）
+  - 验证命令：`bun test apps/server/test/outcome-review-service.test.ts apps/server/test/outcome-evidence-consumer.test.ts`；server typecheck
+  - 验证结果：真实 Prisma fixture、来源/可信度/去重/积压/重启/停止/晚提交低 sequence/调用期间 revision 变更 PASS
+  - 证据文件：[第 1 波线 2 验证记录](docs/20261117-第1波产品功能验证.md)
+  - 已知限制：选择 Server 持久 Event 订阅，冻结接口文档已补充；不在 Worker 中引用 Server
+  - 回滚方式：按本线提交逆序 revert，保留其他线改动。
   - 先依赖什么：1.3 + 测试数据（可用 fixture 创建 Output，不再等待 3.4）。
   - 主要改哪里：`apps/server/src/services/outcome-review-service.ts`（新增）、asset 引用适配
   - 这一步先不做什么：不把大文件直接存进 JSON 字段。
@@ -184,8 +216,16 @@
   - 对应需求：需求 4、需求 9、需求 13、需求 18
   - 对应设计：§9.3、§24
 
-- [ ] 4.2 实现逐项 Review 和 Accepted 计算
-  - 状态：TODO
+- [x] 4.2 实现逐项 Review 和 Accepted 计算
+  - 状态：DONE（第 1 波本地实现；外部/跨线检查的 PENDING 见下）
+  - 实现提交：a909e2d43、d24547414、eea0c0b87
+  - 修改文件：`outcome-review-service.ts`、`outcome-write.ts`、`routes/outcome.ts`、对应测试
+  - 数据库变化：none（仅一次性测试库部署既有 schema）
+  - 验证命令：`bun test apps/server/test/outcome-review-service.test.ts apps/server/test/outcome-routes.test.ts`；server typecheck
+  - 验证结果：必需/可选/缺证据/FAIL/UNVERIFIED/批准变更豁免/重复文字拒绝/并发/幂等/人工条款 PASS
+  - 证据文件：[第 1 波线 2 验证记录](docs/20261117-第1波产品功能验证.md)
+  - 已知限制：唯一入口 `/reviews`；人工接受后同子线程续跑属于线 4 第 2 波；不扩大豁免能力
+  - 回滚方式：按本线提交逆序 revert，保留其他线改动。
   - 先依赖什么：4.1
   - 主要改哪里：`outcome-review-service.ts`、`POST /reviews` 路由
   - 这一步先不做什么：不使用模型结论替代 Review。
@@ -194,8 +234,16 @@
   - 对应需求：需求 5、需求 9、需求 18
   - 对应设计：§7、§19.7、§25
 
-- [ ] 4.3 实现返工
-  - 状态：TODO
+- [x] 4.3 实现返工
+  - 状态：DONE（第 1 波本地实现；外部/跨线检查的 PENDING 见下）
+  - 实现提交：a909e2d43、d24547414、eea0c0b87
+  - 修改文件：`outcome-review-service.ts`、`routes/outcome.ts`、`test/outcome-review-service.test.ts`
+  - 数据库变化：none（仅一次性测试库部署既有 schema）
+  - 验证命令：`bun test apps/server/test/outcome-review-service.test.ts`；server typecheck
+  - 验证结果：FAIL/UNVERIFIED 返工、PASS 拒绝、原任务关联/旧 Review 保留、重复提交、事务调用冻结 fake PASS
+  - 证据文件：[第 1 波线 2 验证记录](docs/20261117-第1波产品功能验证.md)
+  - 已知限制：真实 enqueueOutcomeTurn、容量/根 Run 联调 PENDING，待线 1 组合验证；未把 fake 当真实成功
+  - 回滚方式：按本线提交逆序 revert，保留其他线改动。
   - 先依赖什么：4.2、3.2
   - 主要改哪里：`POST /rework` 路由、`outcome-service.ts`
   - 这一步先不做什么：不实现自动重试循环。
@@ -204,8 +252,16 @@
   - 对应需求：需求 16
   - 对应设计：§32
 
-- [ ] 4.4 实现 AI 预审建议
-  - 状态：TODO
+- [x] 4.4 实现 AI 预审建议
+  - 状态：DONE（第 1 波本地实现；外部/跨线检查的 PENDING 见下）
+  - 实现提交：a909e2d43、d24547414、eea0c0b87
+  - 修改文件：`outcome-review-service.ts`、`outcome-inference.ts`、`outcome-evidence-consumer.ts`、对应测试
+  - 数据库变化：none（仅一次性测试库部署既有 schema）
+  - 验证命令：`bun test apps/server/test/outcome-review-service.test.ts apps/server/test/outcome-evidence-consumer.test.ts`；server typecheck
+  - 验证结果：独立模型 fixture、按条款保存 ai_prereview、去重、失败不阻塞、不可独立支撑 PASS、旧 revision 保留 PASS
+  - 证据文件：[第 1 波线 2 验证记录](docs/20261117-第1波产品功能验证.md)
+  - 已知限制：真实 computer 预审 PENDING；不写入 Review，不自动接受
+  - 回滚方式：按本线提交逆序 revert，保留其他线改动。
   - 先依赖什么：4.1、2.1
   - 主要改哪里：`outcome-review-service.ts`
   - 这一步先不做什么：不让预审结果写入 Review。
@@ -214,8 +270,16 @@
   - 对应需求：需求 17、需求 18
   - 对应设计：§33
 
-- [ ] 4.5 实现 Desktop Outcome 详情和验收页面
-  - 状态：TODO
+- [x] 4.5 实现 Desktop Outcome 详情和验收页面
+  - 状态：DONE（第 1 波本地实现；外部/跨线检查的 PENDING 见下）
+  - 实现提交：b7f6aba7e
+  - 修改文件：Desktop `outcomes/detail/`、`client/outcome-api.ts`、`test/outcome-detail.test.ts`
+  - 数据库变化：none（仅一次性测试库部署既有 schema）
+  - 验证命令：`bun --filter @outcomego/desktop typecheck`；`bun test apps/desktop/test/outcome-detail.test.ts`
+  - 验证结果：详情组件/可信度/来源/最新服务端 Review 状态/终态禁用/只读 transcript 入口静态验证 PASS
+  - 证据文件：[第 1 波线 2 验证记录](docs/20261117-第1波产品功能验证.md)
+  - 已知限制：真实 transcript 与交互视觉回放 PENDING；刷新清除旧本地判定，原 Review 历史保留
+  - 回滚方式：按本线提交逆序 revert，保留其他线改动。
   - 先依赖什么：4.2、4.3、3.5
   - 主要改哪里：`apps/desktop/src/renderer/components/outcomego/outcomes/`（OutcomeDetail、ReviewPanel）
   - 这一步先不做什么：不默认展示子线程完整记录。

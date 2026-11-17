@@ -264,3 +264,17 @@ OUTCOMEGO_TEST_DATABASE_URL=<一次性库> bun run test --force --continue=alway
 ## 9. 交付证据
 
 实现提交为 `23bc29151`（contracts）、`ad4b5de94`（共享实现与测试）。六个受影响包 typecheck、architecture、workflow 检查通过；定向测试 334 + 64 项通过；全量与 A 基线逐项比较及四个偶发项的 A/B 隔离复核见 [失败基线](test-failure-baseline.md)。本文件及任务依赖更新单独提交，作为第 1 波交接依据。
+
+
+## 10. 第 1 波线 2 产品接口交接
+
+实现：线 2 `5f8a56471`（事务内 revision）、`a909e2d43`（服务端产品）。详细验证见 [线 2 验证记录](../../004.2-Outcome规划执行与成果验收闭环/docs/20261117-第1波产品功能验证.md)。本节不改变既有状态、事件名或 payload。
+
+- `OutcomeService.createRevisionInTransaction(tx,outcomeId,input:CreateContractRevisionInput,actor):Promise<OutcomeDetail>` 为绑定方法。Decision resolve 调用方拥有事务和幂等；普通 revision API 复用同一实现，不在调用方事务中再次开启 serviceEffect 事务。
+- `OutcomeService.getInTransaction(tx,outcomeId):Promise<OutcomeDetail>` 读取同一事务内的最新详情。
+- revision current 指针更新后调用事务内 `onRevisionCreated(tx,outcomeId,actor)`；与运行时构造参数组合时该回调在第四位，由集成人员注入线 3 `withdrawSupersededDecisions`。取消回调由线 1 放在同一事务。
+- Evidence 选择 **Server 订阅持久 `outcome.output.recorded`**：启动扫描积压，已有 EventWakeup 唤醒并带轮询回退，按 Output/WorkItem 事实幂等，保存 `outcome-event:output-evidence` 消费记录。查询相关事件时以缺少回执的 `NOT EXISTS` 为依据，sequence 只排序，不作已提交水位，避免事务提交乱序漏消费。Worker 无需调用 Server。另读 completed 状态事件触发独立 AI 预审，推理不在写事务中；关闭时先停止消费者再断开数据库。
+- Output 仅生成 `agent_report` 候选，预审仅生成 `ai_prereview`。原执行 revision 被替换时不迁移这些 Evidence，不写 Review 或自动 PASS。
+- `/reviews` 是人工和 Agent 成果的共同唯一验收入口。人工回执 Evidence 应带真实 criterionId/workItemId、当前 revision 和 `human_confirmed`；本线经共享 transition 更新 submitted/review_pending 人工项。线 4 第 2 波负责接受后原 Agent 子线程的同事务续跑，第一波不宣称已实现此链路。
+- 本线 Review 未满足接受时产生 `outcome.review.required`（`criterionIds/workItemIds`），满足当前 revision 必需条款且没有未完成任务时写 `acceptedAt`、`outcome.accepted`（`revisionId/reviewIds`）并重算状态；运行组首次完成的 review.required 由线 1 产生。
+- 客户端列表和详情响应继续直接使用 `OutcomeListPage` / `OutcomeDetail`，无额外响应外壳；本线只增加推理 kind，不修改冻结 Outcome DTO。
