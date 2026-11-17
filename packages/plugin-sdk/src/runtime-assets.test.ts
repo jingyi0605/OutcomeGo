@@ -365,6 +365,18 @@ describe("managed runtime archive confinement", () => {
     await emptyCache(cache);
   });
 
+  test("counts root headers while accepting an archive at the entry limit", async () => {
+    const { cache } = await fixture();
+    const data = archive([
+      ...Array.from({ length: 19_999 }, () => ({ path: "./", type: "5" })),
+      { path: "bin/tool", body: bytes },
+    ]);
+    const environment = await new ManagedRuntimeCache(cache, download(data))
+      .resolve(assets(archivePin(data)), undefined, platform);
+    expect(await readFile(environment.OPENTEAM_RUNTIME_TOOL!)).toEqual(bytes);
+    expect((await lstat(dirname(dirname(environment.OPENTEAM_RUNTIME_TOOL!)))).mode & 0o777).toBe(0o700);
+  });
+
   test.each([
     { path: "other", body: bytes },
     { path: "bin/tool", type: "5" },
