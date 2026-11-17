@@ -7,6 +7,7 @@ import {
   type NotificationSender,
   isAgentNotificationKind,
   type DesktopNotificationTarget,
+  type NotificationReadState,
 } from "@outcomego/contracts/notification-content";
 
 export const parseNotificationTarget = (value: unknown): DesktopNotificationTarget | null => {
@@ -28,6 +29,21 @@ export const parseNotificationTarget = (value: unknown): DesktopNotificationTarg
 };
 
 export type DesktopNotificationKind = AgentNotificationKind;
+
+export const parseNotificationReadState = (value: unknown): NotificationReadState | null => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const state = value as Record<string, unknown>;
+  if (typeof state.channelId !== "string" || !state.channelId.trim() || state.channelId.length > 128)
+    return null;
+  for (const key of ["lastReadSequence", "lastReadNotificationSequence"] as const) {
+    if (typeof state[key] !== "string" || !/^\d{1,20}$/.test(state[key])) return null;
+  }
+  return {
+    channelId: state.channelId,
+    lastReadSequence: state.lastReadSequence as string,
+    lastReadNotificationSequence: state.lastReadNotificationSequence as string,
+  };
+};
 
 export interface DesktopNotificationSnapshot {
   cursor?: string;
@@ -120,6 +136,14 @@ export { truncateNotificationText };
  * burst of replies produces a single banner.
  */
 export const NOTIFICATION_THROTTLE_MS = 5_000;
+/** Let an arriving read receipt or window-focus transition settle before showing a banner. */
+export const NOTIFICATION_DELIVERY_DELAY_MS = 300;
+
+const scheduleNotification = (callback: () => void, delay: number): (() => void) => {
+  const timer = setTimeout(callback, delay);
+  timer.unref?.();
+  return () => clearTimeout(timer);
+};
 
 export class DesktopNotificationManager {
   private readonly unreadByChannel = new Map<string, number>();
@@ -130,10 +154,17 @@ export class DesktopNotificationManager {
   private lastBadge = "";
   private activityCursors = new Map<string, bigint>();
   private deliveredActivity = new Map<string, ChannelNotificationView>();
+  private readonly localReads = new Map<string, NotificationReadState>();
+  private readonly channelStates = new Map<string, DesktopNotificationSnapshot["channels"][number]>();
+  private readonly pendingActivity = new Map<
+    string,
+    { notification: ChannelNotificationView; cancel: () => void }
+  >();
 
   constructor(
     private readonly adapter: DesktopNotificationAdapter,
-    private readonly now: () => number = Date.now
+    private readonly now: () => number = Date.now,
+    private readonly schedule: typeof scheduleNotification = scheduleNotification
   ) {}
 
   private updateBadge(): void {
@@ -148,9 +179,67 @@ export class DesktopNotificationManager {
   }
 
   setVisibleChannel(channelId: string | null): void {
+    // Even a brief return to the app consumes pending banners, without replay on blur.
+    if (channelId !== null) {
+      for (const id of this.pendingActivity.keys()) this.cancelPending(id);
+    }
     if (channelId === this.visibleChannelId) return;
     this.visibleChannelId = channelId;
     this.updateBadge();
+  }
+
+  private cancelPending(channelId: string): void {
+    this.pendingActivity.get(channelId)?.cancel();
+    this.pendingActivity.delete(channelId);
+  }
+
+  private isLocallyRead(notification: ChannelNotificationView): boolean {
+    const state = this.localReads.get(notification.channelId);
+    return Boolean(state && notificationIsRead(notification, state));
+  }
+
+  private unreadCount(channel: DesktopNotificationSnapshot["channels"][number]): number {
+    const read = this.localReads.get(channel.channelId);
+    if (!read) return channel.unreadCount;
+    // A click on an older message must not consume newer messages or activity.
+    if (channel.notifications.length > 0 &&
+      BigInt(read.lastReadNotificationSequence) >= BigInt(channel.notificationCursor) &&
+      channel.notifications.every((notification) => notificationIsRead(notification, read))) return 0;
+    const readMessages = new Set(channel.notifications.filter((notification) =>
+      notification.kind === "message" &&
+      BigInt(notification.messageSequence) > BigInt(channel.lastReadSequence) &&
+      BigInt(notification.messageSequence) <= BigInt(read.lastReadSequence)
+    ).map((notification) => notification.messageSequence));
+    return Math.max(0, channel.unreadCount - readMessages.size);
+  }
+
+  /** The user has viewed these messages, even if persisting the read is slow or fails. */
+  markRead(state: NotificationReadState): void {
+    const previous = this.localReads.get(state.channelId);
+    const max = (a: string, b: string) => (BigInt(a) > BigInt(b) ? a : b);
+    this.localReads.set(state.channelId, {
+      channelId: state.channelId,
+      lastReadSequence: max(previous?.lastReadSequence ?? "0", state.lastReadSequence),
+      lastReadNotificationSequence: max(
+        previous?.lastReadNotificationSequence ?? "0",
+        state.lastReadNotificationSequence
+      ),
+    });
+    const pending = this.pendingActivity.get(state.channelId);
+    if (pending && this.isLocallyRead(pending.notification)) this.cancelPending(state.channelId);
+    for (const [id, notification] of this.deliveredActivity) {
+      if (this.isLocallyRead(notification)) {
+        this.adapter.dismiss?.(id);
+        this.deliveredActivity.delete(id);
+      }
+    }
+    const channel = this.channelStates.get(state.channelId);
+    if (channel) {
+      const unread = this.unreadCount(channel);
+      this.totalUnread += unread - (this.unreadByChannel.get(state.channelId) ?? 0);
+      this.unreadByChannel.set(state.channelId, unread);
+      this.updateBadge();
+    }
   }
 
   sync(snapshot: DesktopNotificationSnapshot): void {
@@ -160,6 +249,13 @@ export class DesktopNotificationManager {
     if (cursor !== null) this.lastCursor = cursor;
     const channels = snapshot.channels;
     const byChannel = new Map(channels.map((channel) => [channel.channelId, channel]));
+    this.channelStates.clear();
+    for (const channel of channels) this.channelStates.set(channel.channelId, channel);
+    for (const [channelId, { notification }] of this.pendingActivity) {
+      const state = byChannel.get(channelId);
+      if (!state || notificationIsRead(notification, state) || this.isLocallyRead(notification))
+        this.cancelPending(channelId);
+    }
     // Read on this Mac or on the iPhone: either way the banner has done its job.
     for (const [id, notification] of this.deliveredActivity) {
       const state = byChannel.get(notification.channelId);
@@ -173,8 +269,9 @@ export class DesktopNotificationManager {
     // Newest unread message per conversation; older ones in this sync are superseded.
     const pending = new Map<string, { sequence: bigint; notification: ChannelNotificationView }>();
     for (const channel of channels) {
-      this.unreadByChannel.set(channel.channelId, channel.unreadCount);
-      this.totalUnread += channel.unreadCount;
+      const unread = this.unreadCount(channel);
+      this.unreadByChannel.set(channel.channelId, unread);
+      this.totalUnread += unread;
       const previousCursor = this.activityCursors.get(channel.channelId);
       const channelCursor = BigInt(channel.notificationCursor);
       if (previousCursor !== undefined && channelCursor < previousCursor) continue;
@@ -185,7 +282,8 @@ export class DesktopNotificationManager {
         if (
           sequence <= previousCursor ||
           notification.kind === "reaction" ||
-          notificationIsRead(notification, channel)
+          notificationIsRead(notification, channel) ||
+          this.isLocallyRead(notification)
         )
           continue;
         if ((pending.get(channel.channelId)?.sequence ?? -1n) > sequence) continue;
@@ -195,24 +293,51 @@ export class DesktopNotificationManager {
     for (const channelId of this.activityCursors.keys()) {
       if (!byChannel.has(channelId)) this.activityCursors.delete(channelId);
     }
+    for (const channelId of this.localReads.keys()) {
+      if (!byChannel.has(channelId)) this.localReads.delete(channelId);
+    }
     const now = this.now();
     for (const [channelId, at] of this.lastAlertAt) {
       if (now - at >= NOTIFICATION_THROTTLE_MS) this.lastAlertAt.delete(channelId);
     }
     // While the window has focus, replies show in the app instead of as banners.
-    if (!this.adapter.isFocused() && this.adapter.isSupported()) {
+    if (this.adapter.isFocused()) {
+      // Native focus can overtake the renderer's separate visible-channel IPC.
+      for (const channelId of this.pendingActivity.keys()) this.cancelPending(channelId);
+    } else if (this.adapter.isSupported()) {
       for (const [channelId, { notification }] of pending) {
         if (this.lastAlertAt.has(channelId)) continue;
-        this.lastAlertAt.set(channelId, now);
-        const event = alertEvent(notification);
-        this.deliveredActivity.set(event.notificationId, notification);
-        this.adapter.deliver(event);
+        const existing = this.pendingActivity.get(channelId);
+        if (existing) {
+          // Coalesce a burst without extending the original delivery deadline.
+          existing.notification = notification;
+          continue;
+        }
+        const entry = { notification, cancel: () => {} };
+        this.pendingActivity.set(channelId, entry);
+        entry.cancel = this.schedule(() => {
+          if (this.pendingActivity.get(channelId) !== entry) return;
+          this.pendingActivity.delete(channelId);
+          if (
+            this.adapter.isFocused() ||
+            !this.adapter.isSupported() ||
+            this.isLocallyRead(entry.notification)
+          )
+            return;
+          this.lastAlertAt.set(channelId, this.now());
+          const event = alertEvent(entry.notification);
+          this.deliveredActivity.set(event.notificationId, entry.notification);
+          this.adapter.deliver(event);
+        }, NOTIFICATION_DELIVERY_DELAY_MS);
       }
     }
     this.updateBadge();
   }
 
   clear(): void {
+    for (const channelId of this.pendingActivity.keys()) this.cancelPending(channelId);
+    this.localReads.clear();
+    this.channelStates.clear();
     for (const id of this.deliveredActivity.keys()) this.adapter.dismiss?.(id);
     this.deliveredActivity.clear();
     this.activityCursors.clear();

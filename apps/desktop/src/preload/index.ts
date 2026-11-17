@@ -329,6 +329,7 @@ contextBridge.exposeInMainWorld("outcomego", {
   },
   notifications: {
     clear: () => ipcRenderer.send("outcomego:notifications:clear"),
+    read: (state: unknown) => ipcRenderer.send("outcomego:notifications:read", state),
     activity: () => ipcRenderer.invoke("outcomego:notifications:activity"),
     onActivityChange: (callback: () => void) => {
       ipcRenderer.on("outcomego:notifications:activity-changed", callback);

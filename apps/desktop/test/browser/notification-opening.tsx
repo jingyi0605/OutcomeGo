@@ -1,3 +1,4 @@
+import { I18nProvider } from "../../src/renderer/lib/i18n";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import type { ChannelMessageView } from "@outcomego/contracts";
@@ -242,6 +243,6 @@ Object.assign(window, {
 });
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <App />
+    <I18nProvider><App /></I18nProvider>
   </StrictMode>
 );
