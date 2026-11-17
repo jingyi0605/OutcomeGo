@@ -17,7 +17,7 @@
 - README、FORK、公开文档和迁移说明中的用户可见品牌。
 - CLI、Desktop、Android、iOS 的显示名和发布文案。
 - Release workflow 标题与 Android 资产显示名。
-- Desktop artifact 前缀和图标路径保持现有值；`userData=aiTeamOS`、Postgres channel `aiteamos_events` 和 GHCR `ai-teamos` 按固定清单保留，其他获批的新 `outcomego` 运行身份属于品牌迁移。
+- Desktop artifact 前缀和图标路径保持现有值；`userData=aiTeamOS`、Postgres channel `aiteamos_events` 按固定清单保留；GHCR 路径已于 2026 年 11 月 17 日改为 `outcomego`，其他获批的新 `outcomego` 运行身份属于品牌迁移。
 
 ## 实际执行结果
 

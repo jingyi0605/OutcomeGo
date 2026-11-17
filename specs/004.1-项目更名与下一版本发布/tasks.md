@@ -44,7 +44,7 @@
   - 开始前先看：`design.md` §6
   - 主要改哪里：`docs/name-inventory.md`
   - 这一步先不做什么：不运行全局替换。
-  - 怎么算完成：名称扫描结果全部有处理结论；GHCR `ghcr.io/.../ai-teamos`、`OUTCOMEGO_*`、保留的 `aiteamos_events`、新的 `outcomego://`、Desktop `userData=aiTeamOS` 和 iOS `APP_DISPLAY_NAME` 都有分类及理由（`design.md` §12）。
+  - 怎么算完成：名称扫描结果全部有处理结论；GHCR `ghcr.io/.../outcomego`（原 `ai-teamos` 已迁移）、`OUTCOMEGO_*`、保留的 `aiteamos_events`、新的 `outcomego://`、Desktop `userData=aiTeamOS` 和 iOS `APP_DISPLAY_NAME` 都有分类及理由（`design.md` §12）。
   - 怎么验证：`rg -n -i 'outcomego|outcomeGo|outcomego|openteam|com\.teambots|com\.outcomego'`，再人工抽查 root、CLI、Desktop、Android、iOS、Compose、CI、Release、Docker 和文档。
   - 对应需求：需求 5、需求 16
   - 对应设计：`design.md` §6、§12
@@ -404,7 +404,7 @@
 - [x] 9.1 建立全量命名映射和禁止残留清单
   - 状态：DONE
   - 证据：`docs/full-rename-matrix.md`、`docs/name-inventory.md`；最终全树扫描 147 个命中均已归入迁移说明、历史/别名或固定 preserve 项，未发现新的用户可见旧品牌运行字符串。
-  - 目标：覆盖 package scope、代码符号、文件/目录、环境变量、Compose、数据库、平台身份、协议、CI、Release 和测试 fixture；显式记录 `aiTeamOS` userData、`aiteamos_events`、GHCR `ai-teamos` 为 preserve。
+  - 目标：覆盖 package scope、代码符号、文件/目录、环境变量、Compose、数据库、平台身份、协议、CI、Release 和测试 fixture；显式记录 `aiTeamOS` userData、`aiteamos_events` 为 preserve，GHCR 由 `ai-teamos` 迁移为 `outcomego`。
   - 验证：结构化扫描、旧模式残留分组、命名约定审查。
 
 - [x] 9.2 重命名 Bun workspace、TypeScript 符号和 CLI
@@ -434,7 +434,7 @@
 
 - [x] 9.6 重命名 CI、GHCR、Release asset 和签名身份
   - 状态：DONE
-  - 证据：`.github/workflows/*.yml`、`.github/RELEASING.md`、`scripts/check/release-workflows.ts`、asset matchers、Compose render；稳定 GHCR `ai-teamos` 与 workflow identities 已分类，workflow/YAML 静态检查通过。beta.13 API 显示 Android QA 和 CLI installer 曾重复响应 tag；本地修复未推送，runner 验证仍 PENDING。
+  - 证据：`.github/workflows/*.yml`、`.github/RELEASING.md`、`scripts/check/release-workflows.ts`、asset matchers、Compose render；GHCR `outcomego`（已由 `ai-teamos` 迁移）与 workflow identities 已分类，workflow/YAML 静态检查通过。beta.13 API 显示 Android QA 和 CLI installer 曾重复响应 tag；本地修复未推送，runner 验证仍 PENDING。
   - 依赖：9.2–9.5
   - 验证：workflow/YAML/asset matrix、release dry-run、签名 identity fixture；旧资产只作为迁移输入，不要求旧 updater 兼容。
 
@@ -444,3 +444,10 @@
   - 依赖：9.3–9.6
   - 证据：`docs/full-rename-import-rehearsal.md`
   - 验证：空安装、最新 schema 备份校验、人工导入、失败导入和删除新实例后重新导入。
+
+- [ ] 9.8 首次发布 `outcomego-*` GHCR 包并清理旧 `ai-teamos-*` 包
+  - 状态：PENDING（需下一次 tag 发布，GitHub runner 验证）
+  - 原因：GitHub 仓库重命名不会迁移 Container Registry package。2026-11-17 负责人授权将镜像路径由 `ai-teamos` 改为 `outcomego`，代码与工作流已改，但新包要等下一次发布才会出现在仓库 Packages 列表。
+  - 依赖：9.6
+  - 证据：`.github/workflows/release.yml`、`.github/workflows/verify-images.yml`、`apps/cli/src/constants.ts`、`scripts/check/release-workflows.ts`、`.github/RELEASING.md`、`docs/repository-rename-decision.md`；本地 `release-workflows.ts` 检查通过，CLI 完整测试 758 pass、0 fail。
+  - 验证：发布后 `outcomego-{server,worker,migrate,computer,computer-base}` 出现在 Packages；四个产品包设为 public 并通过 `verify-images` 匿名拉取；旧 `ai-teamos-*` 包由负责人手动删除或保留给旧安装。旧版 CLI 仍指向旧路径，不会获得新镜像。
