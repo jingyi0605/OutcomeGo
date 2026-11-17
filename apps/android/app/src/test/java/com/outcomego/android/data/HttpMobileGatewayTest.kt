@@ -1,8 +1,11 @@
 package com.outcomego.android.data
 
+import com.outcomego.features.RichMessageBlock
+import com.outcomego.features.isSecretRequest
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class HttpMobileGatewayTest {
@@ -123,5 +126,53 @@ class HttpMobileGatewayTest {
     fun activityFallsBackToBackgroundTasks() {
         assertEquals(ChannelActivity.Background, activity("""{"runs":[],"subagents":[{"parentChannelId":"c1","status":"running"}]}"""))
         assertEquals(null, activity("""{"runs":[],"subagents":[{"parentChannelId":"c1","status":"waiting"}]}"""))
+    }
+
+    @Test
+    fun parsesTopLevelSecretRequestFromLiveAndProjectedMetadata() {
+        val liveMetadata = Json.parseToJsonElement(
+            """
+            {
+              "type": "secret-request",
+              "secret": {
+                "label": "webhook 回调地址",
+                "name": "WEBHOOK_URL",
+                "description": "Copied from routine details"
+              }
+            }
+            """.trimIndent(),
+        ).jsonObject
+
+        val liveRich = liveMetadata.parseRichMessage("msg-secret-1", "Secret requested: webhook 回调地址")!!
+        assertTrue(liveRich.isSecretRequest)
+        val liveBlock = liveRich.blocks.single() as RichMessageBlock.Secret
+        assertEquals("webhook 回调地址", liveBlock.prompt)
+        assertEquals("WEBHOOK_URL", liveBlock.name)
+        assertEquals("bot", liveBlock.scope)
+        assertEquals("Copied from routine details", liveBlock.description)
+        assertEquals(null, liveRich.metadata["secretProvided"])
+
+        val providedMetadata = Json.parseToJsonElement(
+            """
+            {
+              "type": "secret-request",
+              "secretRequest": {
+                "label": "GitHub PAT",
+                "connector": "github",
+                "field": "token",
+                "description": "Personal access token"
+              },
+              "secretProvided": true
+            }
+            """.trimIndent(),
+        ).jsonObject
+
+        val providedRich = providedMetadata.parseRichMessage("msg-secret-2", "Secret requested: GitHub PAT")!!
+        assertTrue(providedRich.isSecretRequest)
+        val providedBlock = providedRich.blocks.single() as RichMessageBlock.Secret
+        assertEquals("GitHub PAT", providedBlock.prompt)
+        assertEquals("github", providedBlock.connector)
+        assertEquals("token", providedBlock.field)
+        assertEquals("true", providedRich.metadata["secretProvided"])
     }
 }

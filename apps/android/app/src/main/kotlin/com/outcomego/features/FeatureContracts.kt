@@ -28,6 +28,10 @@ data class RichMessage(
 val RichMessage.isQuestion: Boolean
     get() = blocks.isNotEmpty() && actions.isEmpty() && blocks.all { it is RichMessageBlock.Widget }
 
+/** A message that is only a secret-request card. Its fallback body is replaced by the interactive card. */
+val RichMessage.isSecretRequest: Boolean
+    get() = blocks.isNotEmpty() && actions.isEmpty() && blocks.all { it is RichMessageBlock.Secret }
+
 sealed interface RichMessageBlock {
     data class Markdown(val text: String) : RichMessageBlock
     data class Code(val language: String?, val code: String) : RichMessageBlock
@@ -36,7 +40,15 @@ sealed interface RichMessageBlock {
     data class Mermaid(val source: String) : RichMessageBlock
     data class Card(val title: String, val body: String, val action: RichMessageAction? = null) : RichMessageBlock
     data class Form(val title: String, val fields: List<RichFormField>, val submit: RichMessageAction) : RichMessageBlock
-    data class Secret(val prompt: String, val submit: RichMessageAction) : RichMessageBlock
+    data class Secret(
+        val prompt: String,
+        val submit: RichMessageAction = RichMessageAction("submit", "Save securely", route = "secret"),
+        val description: String? = null,
+        val name: String? = null,
+        val scope: String? = null,
+        val connector: String? = null,
+        val field: String? = null,
+    ) : RichMessageBlock
     data class Approval(val title: String, val detail: String, val approve: RichMessageAction, val reject: RichMessageAction) : RichMessageBlock
     data class Widget(
         val prompt: String,

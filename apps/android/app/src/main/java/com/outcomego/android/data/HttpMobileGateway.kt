@@ -730,12 +730,6 @@ class HttpMobileGateway(context: Context) :
         fun responseHeader(name: String): String? = headers.entries.firstOrNull { it.key.equals(name, ignoreCase = true) }?.value
     }
 
-    private fun JsonObject.string(vararg names: String): String = names.firstNotNullOfOrNull { this[it]?.jsonPrimitive?.contentOrNull }.orEmpty()
-    private fun JsonObject.int(name: String): Int = this[name]?.jsonPrimitive?.intOrNull ?: 0
-    private fun JsonObject.boolean(name: String, default: Boolean = false): Boolean = this[name]?.jsonPrimitive?.content?.toBooleanStrictOrNull() ?: default
-    private fun JsonObject.objectAt(name: String): JsonObject = this[name]?.jsonObjectOrNull() ?: JsonObject(emptyMap())
-    private fun JsonObject.arrayAt(vararg names: String): List<kotlinx.serialization.json.JsonElement> =
-        names.firstNotNullOfOrNull { this[it]?.jsonArray } ?: emptyList()
     private fun JsonObject.toChatMessage(): ChatMessage {
         val message = runCatching { mobileJson.decodeFromJsonElement(MobileMessage.serializer(), this) }
             .getOrElse {
@@ -776,7 +770,7 @@ class HttpMobileGateway(context: Context) :
             sourceRunId = sourceRunIdOverride ?: metadata.string("sourceRunId").ifBlank { null },
             createdAt = projection.createdAt,
             metadata = projection.metadata,
-            richMessage = projection.metadata.toRichMessage(projection.id, projection.body),
+            richMessage = projection.metadata.parseRichMessage(projection.id, projection.body),
             attachments = projection.attachments.map { asset ->
                 Attachment(asset.assetId, asset.fileName, asset.mimeType, asset.byteSize, kind = asset.kind, width = asset.width, height = asset.height, alt = asset.alt)
             },
@@ -800,108 +794,6 @@ class HttpMobileGateway(context: Context) :
         revision = string("revision"),
     )
 
-    private fun JsonObject.toRichMessage(id: String, body: String): RichMessage? {
-        val richText = this["richText"]?.jsonObjectOrNull()
-        val rawBlocks = arrayAt("blocks").ifEmpty { richText?.arrayAt("blocks").orEmpty() }
-        val blocks = rawBlocks.mapNotNull { it.toRichBlock() }.toMutableList()
-        when (string("type")) {
-            "widget" -> objectAt("widget").toWidget()?.let(blocks::add)
-            "user-form" -> objectAt("form").toForm()?.let(blocks::add)
-        }
-        if (blocks.isEmpty() && (richText != null || string("format").isNotBlank())) {
-            blocks += RichMessageBlock.Markdown(body)
-        }
-        val actions = arrayAt("actions").mapNotNull { it.toAction() }
-        if (blocks.isEmpty() && actions.isEmpty()) return null
-        // Card state the server writes back after the user answers or dismisses a question.
-        val state = buildMap {
-            this@toRichMessage["respondedValue"]?.jsonPrimitive?.contentOrNull?.let { put("respondedValue", it) }
-            if (boolean("widgetDismissed")) put("widgetDismissed", "true")
-        }
-        return RichMessage(id, blocks, actions, state)
-    }
-
-    private fun JsonElement.toRichBlock(): RichMessageBlock? {
-        val value = jsonObjectOrNull() ?: return null
-        val type = value.string("type", "kind").lowercase()
-        return when (type) {
-            "markdown", "text" -> RichMessageBlock.Markdown(value.string("text", "content", "body"))
-            "code" -> RichMessageBlock.Code(value.string("language").ifBlank { null }, value.string("code", "content"))
-            "math" -> RichMessageBlock.Math(value.string("expression", "content"))
-            "mermaid" -> RichMessageBlock.Mermaid(value.string("source", "content"))
-            "table" -> RichMessageBlock.Table(
-                value.arrayAt("headers").mapNotNull { it.asString() },
-                value.arrayAt("rows").map { row -> row.jsonArrayOrEmpty()?.mapNotNull { it.asString() }.orEmpty() },
-            )
-            "card" -> RichMessageBlock.Card(value.string("title"), value.string("body", "content"), value["action"]?.toAction())
-            "form", "user-form" -> value.toForm()
-            "secret-request", "secret" -> RichMessageBlock.Secret(
-                value.string("prompt", "title", "label", "name"),
-                value["submit"]?.toAction("submit") ?: RichMessageAction("submit", "Submit", route = "secret"),
-            )
-            "approval" -> RichMessageBlock.Approval(
-                value.string("title"), value.string("detail", "body"),
-                value["approve"]?.toAction("approve") ?: return null,
-                value["reject"]?.toAction("reject") ?: return null,
-            )
-            "widget" -> value.toWidget()
-            else -> null
-        }
-    }
-
-    private fun JsonObject.toForm(): RichMessageBlock.Form? {
-        val fields = arrayAt("fields").mapNotNull { element ->
-            val field = element.jsonObjectOrNull() ?: return@mapNotNull null
-            RichFormField(
-                id = field.string("id", "name"),
-                label = field.string("label", "title", "id", "name"),
-                value = field.string("value", "default"),
-                secret = field.boolean("secret"),
-                required = field.boolean("required"),
-                options = field.arrayAt("options").mapNotNull { option -> option.asString() ?: option.jsonObjectOrNull()?.string("label", "value") },
-            )
-        }
-        val submit = this["submit"]?.toAction("submit") ?: RichMessageAction("submit", "Submit", route = "user-form")
-        return RichMessageBlock.Form(string("title", "prompt", "name"), fields, submit)
-    }
-
-    private fun JsonObject.toWidget(): RichMessageBlock.Widget? {
-        val options = arrayAt("options").mapNotNull { element ->
-            val option = element.jsonObjectOrNull() ?: return@mapNotNull element.asString()?.let { RichWidgetOption(it) }
-            RichWidgetOption(
-                label = option.string("label", "value"),
-                value = option.string("value", "label"),
-                description = option.string("description").ifBlank { null },
-                style = option.string("style").ifBlank { null },
-            )
-        }
-        return RichMessageBlock.Widget(
-            string("prompt", "title", "question"),
-            options,
-            boolean("multiSelect"),
-            boolean("allowCustom"),
-            boolean("dismissOnMoveOn"),
-            string("helpText").ifBlank { null },
-        )
-    }
-
-    private fun JsonElement.toAction(defaultId: String = "action"): RichMessageAction? {
-        val value = jsonObjectOrNull() ?: return asString()?.let { RichMessageAction(defaultId, it) }
-        val id = value.string("id", "action", "value").ifBlank { defaultId }
-        val kind = when (value.string("kind", "style").lowercase()) {
-            "secondary", "default" -> RichMessageAction.Kind.Secondary
-            "destructive", "danger" -> RichMessageAction.Kind.Destructive
-            else -> RichMessageAction.Kind.Primary
-        }
-        return RichMessageAction(
-            id,
-            value.string("label", "title", "id").ifBlank { id },
-            kind,
-            value.boolean("enabled", true),
-            value.string("route", "type", "actionType").ifBlank { null },
-        )
-    }
-
     private fun JsonObject.toReactions(fallback: Map<String, List<String>>): List<Reaction> {
         val raw = this["reactions"]?.jsonObjectOrNull() ?: return fallback.map { (emoji, users) -> Reaction(emoji, users.size) }
         return raw.map { (emoji, element) ->
@@ -911,13 +803,142 @@ class HttpMobileGateway(context: Context) :
         }
     }
 
-    private fun JsonElement.asString(): String? = runCatching { jsonPrimitive.contentOrNull }.getOrNull()
-    private fun JsonElement.jsonObjectOrNull(): JsonObject? = runCatching { jsonObject }.getOrNull()
-    private fun JsonElement.jsonArrayOrEmpty(): List<JsonElement>? = runCatching { jsonArray }.getOrNull()
-
     private companion object {
         const val PASSWORD_FIELD = "pass" + "word"
     }
+}
+
+private fun JsonObject.string(vararg names: String): String = names.firstNotNullOfOrNull { this[it]?.jsonPrimitive?.contentOrNull }.orEmpty()
+private fun JsonObject.int(name: String): Int = this[name]?.jsonPrimitive?.intOrNull ?: 0
+private fun JsonObject.boolean(name: String, default: Boolean = false): Boolean = this[name]?.jsonPrimitive?.content?.toBooleanStrictOrNull() ?: default
+private fun JsonObject.objectAt(name: String): JsonObject = this[name]?.jsonObjectOrNull() ?: JsonObject(emptyMap())
+private fun JsonObject.arrayAt(vararg names: String): List<JsonElement> =
+    names.firstNotNullOfOrNull { this[it]?.jsonArray } ?: emptyList()
+private fun JsonElement.asString(): String? = runCatching { jsonPrimitive.contentOrNull }.getOrNull()
+private fun JsonElement.jsonObjectOrNull(): JsonObject? = runCatching { jsonObject }.getOrNull()
+private fun JsonElement.jsonArrayOrEmpty(): List<JsonElement>? = runCatching { jsonArray }.getOrNull()
+
+internal fun JsonObject.parseRichMessage(id: String, body: String): RichMessage? {
+    val richText = this["richText"]?.jsonObjectOrNull()
+    val rawBlocks = arrayAt("blocks").ifEmpty { richText?.arrayAt("blocks").orEmpty() }
+    val blocks = rawBlocks.mapNotNull { it.toRichBlock() }.toMutableList()
+    when (string("type")) {
+        "widget" -> objectAt("widget").toWidget()?.let(blocks::add)
+        "user-form" -> objectAt("form").toForm()?.let(blocks::add)
+        "secret-request" -> (this["secretRequest"]?.jsonObjectOrNull() ?: this["secret"]?.jsonObjectOrNull())
+            ?.toSecret()
+            ?.let(blocks::add)
+    }
+    if (blocks.isEmpty() && (richText != null || string("format").isNotBlank())) {
+        blocks += RichMessageBlock.Markdown(body)
+    }
+    val actions = arrayAt("actions").mapNotNull { it.toAction() }
+    if (blocks.isEmpty() && actions.isEmpty()) return null
+    // Card state the server writes back after the user answers, dismisses, or provides a secret.
+    val state = buildMap {
+        this@parseRichMessage["respondedValue"]?.jsonPrimitive?.contentOrNull?.let { put("respondedValue", it) }
+        if (boolean("widgetDismissed")) put("widgetDismissed", "true")
+        if (boolean("secretProvided")) put("secretProvided", "true")
+    }
+    return RichMessage(id, blocks, actions, state)
+}
+
+private fun JsonElement.toRichBlock(): RichMessageBlock? {
+    val value = jsonObjectOrNull() ?: return null
+    val type = value.string("type", "kind").lowercase()
+    return when (type) {
+        "markdown", "text" -> RichMessageBlock.Markdown(value.string("text", "content", "body"))
+        "code" -> RichMessageBlock.Code(value.string("language").ifBlank { null }, value.string("code", "content"))
+        "math" -> RichMessageBlock.Math(value.string("expression", "content"))
+        "mermaid" -> RichMessageBlock.Mermaid(value.string("source", "content"))
+        "table" -> RichMessageBlock.Table(
+            value.arrayAt("headers").mapNotNull { it.asString() },
+            value.arrayAt("rows").map { row -> row.jsonArrayOrEmpty()?.mapNotNull { it.asString() }.orEmpty() },
+        )
+        "card" -> RichMessageBlock.Card(value.string("title"), value.string("body", "content"), value["action"]?.toAction())
+        "form", "user-form" -> value.toForm()
+        "secret-request", "secret" -> value.toSecret()
+        "approval" -> RichMessageBlock.Approval(
+            value.string("title"), value.string("detail", "body"),
+            value["approve"]?.toAction("approve") ?: return null,
+            value["reject"]?.toAction("reject") ?: return null,
+        )
+        "widget" -> value.toWidget()
+        else -> null
+    }
+}
+
+private fun JsonObject.toSecret(): RichMessageBlock.Secret? {
+    val label = string("label", "prompt", "title", "name").trim()
+    if (label.isBlank()) return null
+    val name = string("name").ifBlank { null }
+    val scope = if (name != null) {
+        if (string("scope") == "personal") "personal" else "bot"
+    } else {
+        null
+    }
+    return RichMessageBlock.Secret(
+        prompt = label,
+        submit = this["submit"]?.toAction("submit") ?: RichMessageAction("submit", "Save securely", route = "secret"),
+        description = string("description").ifBlank { null },
+        name = name,
+        scope = scope,
+        connector = string("connector").ifBlank { null },
+        field = string("field").ifBlank { null },
+    )
+}
+
+private fun JsonObject.toForm(): RichMessageBlock.Form? {
+    val fields = arrayAt("fields").mapNotNull { element ->
+        val field = element.jsonObjectOrNull() ?: return@mapNotNull null
+        RichFormField(
+            id = field.string("id", "name"),
+            label = field.string("label", "title", "id", "name"),
+            value = field.string("value", "default"),
+            secret = field.boolean("secret"),
+            required = field.boolean("required"),
+            options = field.arrayAt("options").mapNotNull { option -> option.asString() ?: option.jsonObjectOrNull()?.string("label", "value") },
+        )
+    }
+    val submit = this["submit"]?.toAction("submit") ?: RichMessageAction("submit", "Submit", route = "user-form")
+    return RichMessageBlock.Form(string("title", "prompt", "name"), fields, submit)
+}
+
+private fun JsonObject.toWidget(): RichMessageBlock.Widget? {
+    val options = arrayAt("options").mapNotNull { element ->
+        val option = element.jsonObjectOrNull() ?: return@mapNotNull element.asString()?.let { RichWidgetOption(it) }
+        RichWidgetOption(
+            label = option.string("label", "value"),
+            value = option.string("value", "label"),
+            description = option.string("description").ifBlank { null },
+            style = option.string("style").ifBlank { null },
+        )
+    }
+    return RichMessageBlock.Widget(
+        string("prompt", "title", "question"),
+        options,
+        boolean("multiSelect"),
+        boolean("allowCustom"),
+        boolean("dismissOnMoveOn"),
+        string("helpText").ifBlank { null },
+    )
+}
+
+private fun JsonElement.toAction(defaultId: String = "action"): RichMessageAction? {
+    val value = jsonObjectOrNull() ?: return asString()?.let { RichMessageAction(defaultId, it) }
+    val id = value.string("id", "action", "value").ifBlank { defaultId }
+    val kind = when (value.string("kind", "style").lowercase()) {
+        "secondary", "default" -> RichMessageAction.Kind.Secondary
+        "destructive", "danger" -> RichMessageAction.Kind.Destructive
+        else -> RichMessageAction.Kind.Primary
+    }
+    return RichMessageAction(
+        id,
+        value.string("label", "title", "id").ifBlank { id },
+        kind,
+        value.boolean("enabled", true),
+        value.string("route", "type", "actionType").ifBlank { null },
+    )
 }
 
 private val ACTIVE_RUN_STATUSES = setOf("queued", "running")
