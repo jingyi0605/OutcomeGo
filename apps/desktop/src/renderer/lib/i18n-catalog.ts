@@ -10,6 +10,7 @@ import { DEFAULT_LOCALE, type Locale } from "@outcomego/contracts/localization";
 export type TranslationValues = Record<string, string | number | null | undefined>;
 
 export const sourceTranslations: Record<string, string> = {
+  "Planning generation failed. Your idea was kept. Retry to generate a new planning draft.": "规划生成失败，探索想法已保留。请重试以生成新的规划草稿。",
   "Attached review materials": "验收附件材料",
   "Inspect attached asset": "查看附件材料",
   "Download attached asset": "下载附件材料",

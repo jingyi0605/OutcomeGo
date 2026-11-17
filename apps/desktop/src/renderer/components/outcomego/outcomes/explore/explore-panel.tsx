@@ -6,6 +6,7 @@ import { PlanningWizard } from "../planning/planning-wizard";
 import { OutcomeRequestIds } from "../planning/outcome-client";
 import { responseStatus } from "../inbox/decision-state";
 import { useI18n } from "../../../../lib/i18n";
+import { isExplorePlanningFailure, proposeExploreIdea } from "./explore-state";
 
 const control = "rounded border bg-background px-3 py-2";
 export function ExplorePanel({ client, outcomes, bots, onOutcome, initialPage }: {
@@ -62,21 +63,21 @@ export function ExplorePanel({ client, outcomes, bots, onOutcome, initialPage }:
       } else if (selected) {
         const input = action === "propose" ? { botId: botId || selected.botId || undefined } : {};
         const key = `${action}:${selected.id}`;
-        const clientRequestId = ids.current.for(key, input);
         if (action === "propose") {
-          const result = await client.propose(selected.id, { ...input, clientRequestId });
+          const result = await proposeExploreIdea(client, ids.current, selected.id, input);
           if (request !== generation.current) return;
           merge(result.idea); setProposal(result);
         } else {
-          const result = await client.discard(selected.id, { clientRequestId });
+          const result = await client.discard(selected.id, { clientRequestId: ids.current.for(key, input) });
           if (request !== generation.current) return;
           merge(result); setProposal(null);
         }
-        ids.current.complete(key);
+        if (action === "discard") ids.current.complete(key);
       }
     } catch (cause) {
       if (request !== generation.current) return;
-      setError(responseStatus(cause) === 409 ? "This idea changed or is read-only. Refresh its current state." :
+      setError(action === "propose" && isExplorePlanningFailure(cause) ? "Planning generation failed. Your idea was kept. Retry to generate a new planning draft." :
+        responseStatus(cause) === 409 ? "This idea changed or is read-only. Refresh its current state." :
         responseStatus(cause) === 422 ? "Choose an execution Bot before proposing delivery." : "Could not confirm this Explore action. Your input was kept. Retry the same request.");
       if (responseStatus(cause) === 409 && selected) {
         try { const idea = await client.get(selected.id); if (request === generation.current) merge(idea); } catch { /* The conflict and previous history remain visible. */ }
