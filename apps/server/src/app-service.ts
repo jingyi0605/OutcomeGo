@@ -1,6 +1,7 @@
 import { OutcomeService } from "./services/outcome-service";
 import { withdrawSupersededDecisions } from "./services/decision-lifecycle";
 import { OutcomePlanningService } from "./services/outcome-planning-service";
+import { ExploreService } from "./services/explore-service";
 import { OutcomeReviewService } from "./services/outcome-review-service";
 import { OutcomeEvidenceConsumer } from "./services/outcome-evidence-consumer";
 import { outcomeInference } from "./services/outcome-inference";
@@ -81,6 +82,7 @@ export class AppService {
   readonly messaging: AgentMessaging;
   readonly outcomes: OutcomeService;
   readonly outcomePlanning: OutcomePlanningService;
+  readonly explore: ExploreService;
   readonly outcomeReviews: OutcomeReviewService;
   private readonly outcomeEvidence: OutcomeEvidenceConsumer;
   readonly routines: RoutineService;
@@ -229,6 +231,7 @@ export class AppService {
     const inferOutcome = outcomeInference(this.agentData, (path, init) => this.computerJson(path, init));
     this.outcomes = new OutcomeService(this.prisma, this.messaging, this.runs, withdrawSupersededDecisions);
     this.outcomePlanning = new OutcomePlanningService(this.prisma, inferOutcome);
+    this.explore = new ExploreService(this.prisma, this.outcomePlanning);
     this.outcomeReviews = new OutcomeReviewService(this.prisma, this.messaging, inferOutcome);
     this.outcomeEvidence = new OutcomeEvidenceConsumer(this.prisma, this.outcomeReviews, this.eventWakeup);
     this.voice = new VoiceService(this.prisma, this.channels, this.runs);
