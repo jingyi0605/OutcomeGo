@@ -173,3 +173,6 @@ export const REQUEST_OUTCOME_DECISION_TOOL = {
 export interface OutcomeNotificationState {
   outcomeNotifications: import("./notification-content").OutcomeNotificationPayload[];
 }
+
+/** The shared Decision constructor validates revisions without adding a second schema. */
+export const parseDecisionContractSnapshot = Schema.decodeUnknownSync(CreateContractRevisionInput.fields.contract);
