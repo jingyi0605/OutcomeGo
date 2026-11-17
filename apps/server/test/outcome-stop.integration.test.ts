@@ -35,19 +35,22 @@ test.skipIf(!url)("direct group Stop fences completed-root callbacks before IO a
     const requests: string[] = [];
     const runs = new RunService(h.db, async path => {
       requests.push(path);
-      expect((await h.db.outcomeWorkItem.findUniqueOrThrow({ where: { id: items[0]!.id } })).status).toBe("cancelled");
-      expect(await callback("during-stop")).toMatchObject({ delivered: false, ignored: true });
+      const status = (await h.db.outcomeWorkItem.findUniqueOrThrow({ where: { id: items[0]!.id } })).status;
+      const receipt = await callback("during-stop");
+      expect(status).toBe("cancelled");
+      expect(receipt).toMatchObject({ delivered: false, ignored: true });
       callbackDuringStop = true;
       return Response.json({ stopped: 1, runIds: [ids[0]] });
     });
-    // Rootless capacity intents need the same fence, even though there is no physical run to stop.
-    await Effect.runPromise(runs.cancelOutcomeWorkItems([items[2]!.id]));
-    expect(requests).toHaveLength(0);
-    expect((await h.db.outcomeWorkItem.findUniqueOrThrow({ where: { id: items[2]!.id } })).status).toBe("cancelled");
     await Effect.runPromise(runs.cancelOutcomeWorkItems([items[0]!.id]));
     await Effect.runPromise(runs.cancelOutcomeWorkItems([items[0]!.id]));
     expect(callbackDuringStop).toBe(true);
     expect(await callback("after-stop")).toMatchObject({ delivered: false, ignored: true });
+    // Rootless capacity intents need the same fence, even though there is no physical run to stop.
+    const requestsBefore = requests.length;
+    await Effect.runPromise(runs.cancelOutcomeWorkItems([items[2]!.id]));
+    expect(requests).toHaveLength(requestsBefore);
+    expect((await h.db.outcomeWorkItem.findUniqueOrThrow({ where: { id: items[2]!.id } })).status).toBe("cancelled");
     await h.db.$transaction(tx => dispatchQueuedOutcomeWorkItems(tx, h.messaging, h.bot.id));
     expect(await h.db.run.count({ where: { outcomeWorkItemId: items[0]!.id } })).toBe(1);
     expect(await h.db.run.count({ where: { outcomeWorkItemId: items[2]!.id } })).toBe(0);
