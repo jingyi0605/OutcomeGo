@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { Schema } from "effect";
 
 export interface OutcomeRecoveryView {
   id: string;
@@ -19,18 +19,24 @@ export interface OutcomeRecoveryView {
   createdAt: string;
 }
 
-export const ReconcileOutcomeInput = z.object({
-  clientRequestId: z.string().min(1).max(200),
-}).strict();
-export type ReconcileOutcomeInput = z.infer<typeof ReconcileOutcomeInput>;
+export const ReconcileOutcomeInput = Schema.Struct({
+  clientRequestId: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(200)),
+});
+export type ReconcileOutcomeInput = typeof ReconcileOutcomeInput.Type;
 
 /** Each sample is a foreground duration delta; replay uses the same sample ID. */
-export const OutcomeAttentionInput = z.object({
-  clientRequestId: z.string().min(1).max(200),
-  surface: z.enum(["planning", "decision", "review"]),
-  seconds: z.number().finite().positive().max(300),
-}).strict();
-export type OutcomeAttentionInput = z.infer<typeof OutcomeAttentionInput>;
+export const OutcomeAttentionInput = Schema.Struct({
+  clientRequestId: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(200)),
+  surface: Schema.Literal("planning", "decision", "review"),
+  seconds: Schema.Number.pipe(Schema.finite(), Schema.positive(), Schema.lessThanOrEqualTo(300)),
+});
+export type OutcomeAttentionInput = typeof OutcomeAttentionInput.Type;
+
+export interface OutcomeRecoveryPage {
+  outcomeId: string;
+  items: OutcomeRecoveryView[];
+  notificationFailures: Array<{ id: string; status: string; attempts: number; errorCode: string | null }>;
+}
 
 export interface OutcomeMetrics {
   outcomeId: string;
