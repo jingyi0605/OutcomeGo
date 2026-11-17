@@ -258,8 +258,8 @@
 
 ## 阶段 6：移动端只读
 
-- [ ] 6.1 Android Outcome 列表和只读详情
-  - 状态：TODO
+- [x] 6.1 Android Outcome 列表和只读详情
+  - 状态：DONE（实现交付；外部验收仍为 PENDING）
   - 先依赖什么：2.2、4.2
   - 主要改哪里：`mobile/shared/src/commonMain/kotlin/com/outcomego/mobile/core/Models.kt`、`Transport.kt`、`apps/android/app/src/main/kotlin/com/outcomego/features/`
   - 这一步先不做什么：不提供规划、批准、验收和返工入口。
@@ -267,9 +267,17 @@
   - 怎么验证：`bash scripts/android/package-debug.sh`；KMP 共享测试
   - 对应需求：需求 20
   - 对应设计：§14
+  - 实现提交：`7a8803bd7`（移动端）；`40e2b41f2`（Android 可选测试包装入口）。
+  - 数据库变化：none。
+  - 证据文件：[`docs/20261117-移动端Outcome只读验证.md`](docs/20261117-移动端Outcome只读验证.md)。
+  - 修改文件：`mobile/shared/.../core/Outcomes.kt`、`commonTest/.../OutcomeReadTests.kt`；Android `AppViewModel.kt`、`OutcomeGoApp.kt`、`DirectoryScreen.kt`；`features/FeatureContracts.kt`、`LiveFeatureGateway.kt`、`OutcomeScreens.kt`；`OutcomeGatewayTest.kt`；`scripts/android/package-debug.sh`。
+  - 验证命令：`bash scripts/android/package-debug.sh --test`；`shasum -a 256 apps/android/app/build/outputs/apk/debug/androidApp-debug.apk`。
+  - 验证结果：PASS，共享核心 37 项、Android 单测 84 项，失败/错误/跳过为 0；打包成功。最终 APK 绝对路径及 SHA-256 见证据文件。
+  - 已知限制：设备安装/启动与真实 API + PostgreSQL 联调均 PENDING；不把未执行的设备/数据库检查记为通过，第 0 波数据库阻塞保留。
+  - 回滚方式：由负责人撤销上述实现提交；无数据库回滚。
 
-- [ ] 6.2 iOS Outcome 列表和只读详情
-  - 状态：TODO
+- [x] 6.2 iOS Outcome 列表和只读详情
+  - 状态：DONE（实现交付；外部验收仍为 PENDING）
   - 先依赖什么：2.2、4.2
   - 主要改哪里：`apps/ios/Sources/Core/API.swift`、`Models.swift`、`apps/ios/Sources/App/`
   - 这一步先不做什么：不提供规划、批准、验收和返工入口。
@@ -277,6 +285,14 @@
   - 怎么验证：iOS Core 测试和 native config 检查；设备不可用时记录 PENDING
   - 对应需求：需求 20
   - 对应设计：§14
+  - 实现提交：`7a8803bd7`（移动端）；`40e2b41f2`（Android 可选测试包装入口）。
+  - 数据库变化：none。
+  - 证据文件：[`docs/20261117-移动端Outcome只读验证.md`](docs/20261117-移动端Outcome只读验证.md)。
+  - 修改文件：`Sources/Core/API.swift`、`Models.swift`；`Sources/App/AppStore.swift`、`HomeView.swift`、`OutcomesView.swift`；`Sources/Localizable.xcstrings`；`Tests/CoreTests/OutcomeReadTests.swift`、`Fixtures/outcome-detail.json`。
+  - 验证命令：`DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcrun swift test --package-path apps/ios -j 4`；隔离 harness 定向及可编译测试；`python3 apps/ios/scripts/check-native-config.py`；新增视图模拟器目标类型检查和修改文件语法检查。完整命令及 harness 重建方式见证据文件。
+  - 验证结果：Outcome 4 项和既有传输 15 项 PASS；原生配置与定向类型/语法检查 PASS。原始全量 Core suite BLOCKED（10 个既有旧模块导入）；可编译测试执行 243 项，242 项通过，1 项既有 provider catalog 测试产生 2 个断言失败，创建基线同样复现。
+  - 已知限制：完整 App 模拟器编译因固定依赖获取停滞而安全停止，PENDING；真机/模拟器运行、真实 HTTP + PostgreSQL 联调 PENDING。没有声明全量 iOS 测试或数据库门槛为绿。
+  - 回滚方式：由负责人撤销上述实现提交；无数据库回滚。
 
 ## 阶段 7：交付检查
 
