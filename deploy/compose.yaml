@@ -174,6 +174,7 @@ services:
     logging: *outcomego-logging
     image: ${OUTCOMEGO_IMAGE_PREFIX:?OUTCOMEGO_IMAGE_PREFIX is required}-server:${OUTCOMEGO_VERSION:?OUTCOMEGO_VERSION is required}
     environment:
+      OUTCOMEGO_OUTCOMES_ENABLED: ${OUTCOMEGO_OUTCOMES_ENABLED:-true}
       OUTCOMEGO_VERSION: ${OUTCOMEGO_VERSION:?OUTCOMEGO_VERSION is required}
       OUTCOMEGO_UPDATE_CHANNEL: ${OUTCOMEGO_UPDATE_CHANNEL:-stable}
       DATABASE_URL: postgresql://outcomego:${OUTCOMEGO_POSTGRES_PASSWORD}@postgres:5432/outcomego
@@ -250,6 +251,7 @@ services:
     logging: *outcomego-logging
     image: ${OUTCOMEGO_IMAGE_PREFIX:?OUTCOMEGO_IMAGE_PREFIX is required}-worker:${OUTCOMEGO_VERSION:?OUTCOMEGO_VERSION is required}
     environment:
+      OUTCOMEGO_OUTCOMES_ENABLED: ${OUTCOMEGO_OUTCOMES_ENABLED:-true}
       DATABASE_URL: postgresql://outcomego:${OUTCOMEGO_POSTGRES_PASSWORD}@postgres:5432/outcomego
       OUTCOMEGO_COMPUTER_URL: http://computer:8790
       OUTCOMEGO_CONTROL_TOKEN: ${OUTCOMEGO_CONTROL_TOKEN:?OUTCOMEGO_CONTROL_TOKEN is required}
