@@ -363,7 +363,8 @@ describe("managed runtime archive confinement", () => {
     await expect(new ManagedRuntimeCache(cache, download(data)).resolve(assets(archivePin(data)), undefined, platform))
       .rejects.toThrow(/extraction limits/);
     await emptyCache(cache);
-  });
+    // Building and walking 20,001 tar headers takes about 1s locally and over 5s on shared CI runners.
+  }, 30_000);
 
   test.each([
     { path: "other", body: bytes },
