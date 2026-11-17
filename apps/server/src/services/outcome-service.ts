@@ -63,7 +63,7 @@ const asBoundaries = (value: Prisma.JsonValue) => {
 
 const detailInclude = {
   currentRevision: { include: { criteria: { orderBy: { ordinal: "asc" } } } },
-  revisions: { orderBy: { revision: "asc" }, select: { id: true, revision: true, status: true, changeSummary: true, createdAt: true } },
+  revisions: { orderBy: { revision: "asc" }, select: { id: true, revision: true, status: true, changeSummary: true, baseRevisionId: true, sourceDecisionId: true, createdBy: true, createdAt: true } },
   workItems: { orderBy: { ordinal: "asc" }, include: { contractRevision: { select: { revision: true } }, runs: { select: { id: true }, orderBy: { createdAt: "asc" } } } },
   outputs: { orderBy: { createdAt: "asc" } },
   evidence: { orderBy: { capturedAt: "asc" }, include: { contractRevision: { select: { revision: true } } } },
@@ -121,6 +121,12 @@ export class OutcomeService {
       : null;
     if (!current || current.revision !== input.baseRevision)
       throw outcomeApiError("contract_revision_conflict", "The contract changed; reload before editing", { currentRevision: current?.revision ?? null });
+    if (input.sourceDecisionId) {
+      const source = await tx.outcomeDecision.findUnique({ where: { id: input.sourceDecisionId }, select: { outcomeId: true, contractRevisionId: true } });
+      if (!source || source.outcomeId !== outcomeId ||
+        (source.contractRevisionId !== current.id && input.sourceDecisionId !== current.sourceDecisionId))
+        throw outcomeApiError("contract_revision_conflict", "The source decision does not belong to this contract", { currentRevision: current.revision });
+    }
     const contract: ConfirmedContract = {
       goal: input.contract.goal.map((text) => text.trim()),
       acceptance: input.contract.acceptance.map(({ statement, required }) => ({ statement: statement.trim(), required, verificationMethod: "human_review" })),
@@ -134,7 +140,7 @@ export class OutcomeService {
     if (current.status !== "approved")
       await tx.outcomeContractRevision.update({ where: { id: current.id }, data: { status: "superseded" } });
     await this.insertRevision(tx, outcomeId, current.revision + 1, contract, current.executionBotId, actor, input.clientRequestId, {
-      changeSummary: input.changeSummary?.trim() || null,
+      changeSummary: input.changeSummary?.trim() || `Contract updated from revision ${current.revision}`,
       baseRevisionId: current.id,
       sourceDecisionId: input.sourceDecisionId ?? null,
     });
@@ -179,6 +185,22 @@ export class OutcomeService {
               approvedAt: approvedAt.toISOString(),
             }),
           },
+        });
+        // Keep running snapshots intact; only work that has never started is replaced by the approved successor.
+        const notStarted = await tx.outcomeWorkItem.findMany({
+          where: {
+            outcomeId, contractRevisionId: { not: revision.id }, startedAt: null,
+            OR: [
+              { executorType: "agent", status: { in: ["queued", "retry_pending"] } },
+              { executorType: "human", status: { in: ["pending", "ready"] } },
+            ],
+          },
+          orderBy: { ordinal: "asc" },
+          select: { id: true },
+        });
+        for (const item of notStarted) await transitionWorkItem(tx, {
+          workItemId: item.id, to: "cancelled", reason: "contract_revision_superseded", actor,
+          idempotencyKey: `revision-approved:${revision.id}`,
         });
         await this.event(tx, "outcome.contract.revision_approved", outcomeId, actor, input.clientRequestId, {
           revisionId: revision.id,
@@ -430,6 +452,7 @@ export class OutcomeService {
           budget: (revision.budget as unknown as OutcomeBudget | null) ?? null,
           executionBotId: revision.executionBotId,
           changeSummary: revision.changeSummary,
+          baseRevisionId: revision.baseRevisionId,
           sourceDecisionId: revision.sourceDecisionId,
           createdBy: revision.createdBy,
           approvedBy: revision.approvedBy,
