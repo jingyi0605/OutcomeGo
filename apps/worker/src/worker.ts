@@ -1310,7 +1310,7 @@ export class WakeWorker {
     const ownerId = crypto.randomUUID();
     const staleAt = new Date(Date.now() - LEASE_MS);
     try {
-      return await this.prisma.$transaction(async (tx) => {
+      const select = () => this.prisma.$transaction<Claimed | "retry" | null>(async (tx) => {
         await tx.$executeRaw`SELECT pg_advisory_xact_lock_shared(hashtext(${TASK_RECOVERY_LOCK}))`;
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`bot-run-claim:${botId}`}))`;
         // A crash can land between the terminal run event and lease cleanup.
@@ -1377,6 +1377,36 @@ export class WakeWorker {
               const payload = candidate.payload as { automationContextRunId?: string };
               if (busyRoutines.has(routineRevivalContext(candidate) ?? "")
                 || automations.some(lease => lease.scope === `automation:${payload.automationContextRunId ?? candidate.runId}`)) continue;
+            }
+            if (candidate.type === "user.reaction") {
+              const channelId = candidate.run.channelId;
+              if (channelId) {
+                await lockGroupExecution(tx, channelId);
+                await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`channel:${channelId}`}))`;
+              }
+              const current = await tx.inboxEvent.findUnique({
+                where: { id: candidate.id },
+                include: { run: true },
+              });
+              if (!current ||
+                !(current.status === "pending" || current.status === "processing" && current.claimedAt && current.claimedAt < staleAt) ||
+                !["queued", "running"].includes(current.run.status)) return "retry";
+              if (!channelId || !await tx.channel.count({
+                where: { id: channelId, archivedAt: null, members: { some: { botId } } },
+              })) {
+                const completedAt = new Date();
+                const error = { code: "reaction_channel_unavailable" };
+                await tx.inboxEvent.update({
+                  where: { id: candidate.id },
+                  data: { status: "completed", completedAt, error },
+                });
+                await tx.run.update({
+                  where: { id: candidate.runId },
+                  data: { status: "cancelled", completedAt, error },
+                });
+                // Release this room's locks before looking at another candidate.
+                return "retry";
+              }
             }
             inbox = candidate;
             break;
@@ -1604,6 +1634,9 @@ export class WakeWorker {
             : [],
         };
       });
+      let selected = await select();
+      while (selected === "retry") selected = await select();
+      return selected;
     } catch (error) {
       if (error instanceof BotRunLeaseContended) return null;
       const code = (error as { code?: string }).code;
