@@ -1,6 +1,6 @@
 # 任务清单 - 现实任务与知识资料闭环（人话版）
 
-状态：TODO（等待 `004.3`）
+状态：TODO（第 1 波资料和人工表/API 骨架；第 2 波工具/回执；第 3 波客户端，不等待 `004.3` 最终检查点）
 
 关联文档：[README.md](README.md) · [requirements.md](requirements.md) · [design.md](design.md)
 
@@ -8,13 +8,15 @@
 
 2026-11-17 整理：合并了原先重复的 provider 合同测试（1.x/5.1）、状态机验证（2.1/5.3）、回执对账（3.x/5.4）、Explore（4.x/5.5）、全流程回放（4.3/5.6）、普通 Agent 回归（4.4/5.7）和三个最终检查点（4.5/5.8/5.9）；新增人工 WorkItem 创建来源（`RequestHumanAction`、Decision `manual_action`）和移动端只读动作卡任务；验收统一走 `004.2` 的 `/reviews`；Explore 移到最后，可整体延期。
 
+分波及测试替身合同：[父接口冻结文档](../004-OutcomeGo整体项目/docs/parallel-interfaces.md)。需求见 [requirements.md](requirements.md)，业务设计见 [design.md](design.md)；本次只调整任务前置关系。
+
 ## 阶段 0：资料、文件和项目范围基线
 
 - [ ] 0.1 盘点资料、文件和 asset 入口
   - 状态：TODO
   - 这一步到底做什么：确认 `AgentFileState`、computer 文件读取（`/v1/read` 常量的处理端）、`SearchDocument`、`asset-service`、`asset-store` 和消息附件的真实调用路径，确定 ProjectFile provider 的检索和读取方式（D19）。
   - 做完你能看到什么：`docs/knowledge-capability-matrix.md`。
-  - 先依赖什么：`004.2` 任务 1.2
+  - 先依赖什么：第 0 波 B、`004.2` 任务 1.2（第 1 波线 4）。
   - 开始前先看：design §6、§15、§28、§29
   - 主要改哪里：`docs/`
   - 这一步先不做什么：不接入 X-File 或新的外部知识库。
@@ -60,7 +62,7 @@
 - [ ] 2.1 实现人工 WorkItem 模型、状态和创建来源
   - 状态：TODO
   - 这一步到底做什么：`OutcomeHumanActionCard`、`OutcomeHumanReceipt` 表；§16 状态机；`RequestHumanAction` 工具（只在 Outcome 子线程）；Decision `manual_action` 创建入口；调用方 Agent WorkItem → `waiting_human`。
-  - 先依赖什么：0.2、1.1、`004.2` 任务 3.4、`004.3` 任务 1.3
+  - 先依赖什么：表结构/状态骨架：0.2、1.1、第 0 波 B；工具来源：`004.2` 3.2、3.4；Decision 来源：`004.3` 1.3（后两部分在第 2 波实现）。
   - 开始前先看：design §8、§16、§32；父 design §42.2、§45.3
   - 主要改哪里：`packages/contracts/src/human-work.ts`（新增）、`packages/db/prisma/schema.prisma`、`apps/server/src/services/human-work-service.ts`（新增）、`apps/computer/src/runtime/tools.ts`、`apps/server/src/services/internal-tool-service.ts`
   - 这一步先不做什么：不复制 Agent Run 状态机；不从 Contract 自动推断人工任务；不自动执行现场命令。
@@ -71,7 +73,7 @@
 
 - [ ] 2.2 实现动作卡 API
   - 状态：TODO
-  - 先依赖什么：2.1、1.2
+  - 先依赖什么：2.1 的表结构/状态骨架、1.2；第 1 波用 fixture 创建动作卡，不等待工具和 Decision 来源完成。
   - 主要改哪里：`apps/server/src/routes/human-work.ts`（新增）
   - 这一步先不做什么：不把客户端提交的 status 当作可信状态；不另设验收接口。
   - 怎么算完成：list/detail/start/pause 有 revision 条件和幂等；重新打开从服务端恢复。
@@ -81,7 +83,7 @@
 
 - [ ] 2.3 实现 Desktop 动作卡和资料引用
   - 状态：TODO
-  - 先依赖什么：2.2
+  - 先依赖什么：2.2、2.1 的两种来源、3.2（第 3 波 Desktop）。
   - 主要改哪里：`apps/desktop/src/renderer/components/outcomego/outcomes/HumanActionCard.tsx`、`KnowledgeReferences.tsx`、API client
   - 这一步先不做什么：不默认展示完整资料正文。
   - 怎么算完成：目的、前置条件、步骤、资料、输入和 Evidence 要求可读；暂停和刷新后状态恢复。
@@ -93,7 +95,7 @@
 
 - [ ] 3.1 实现回执提交
   - 状态：TODO
-  - 先依赖什么：2.2
+  - 先依赖什么：2.2、2.1 的来源实现（第 2 波）。
   - 主要改哪里：`apps/server/src/services/human-receipt-service.ts`（新增）、receipts 路由
   - 这一步先不做什么：不直接保存无归属的本地路径。
   - 怎么算完成：文本、asset refs、source refs、observations 幂等提交；资产已被其他 WorkItem 回执引用时拒绝；提交后生成 `human_confirmed` Evidence，WorkItem → `review_pending`。
@@ -103,7 +105,7 @@
 
 - [ ] 3.2 接入统一验收和 Agent 子线程继续执行
   - 状态：TODO
-  - 先依赖什么：3.1、`004.2` 任务 4.2
+  - 先依赖什么：3.1、`004.2` 任务 3.2、3.4、4.2（同一子线程续跑和统一验收，第 2 波）。
   - 主要改哪里：`outcome-review-service.ts`、`human-work-service.ts`、`packages/messaging/src/outcome-threads.ts`
   - 这一步先不做什么：不把 Agent 说明或不可读外部 URL 标为 PASS。
   - 怎么算完成：通过 `/reviews` 接受或驳回人工 WorkItem；接受后调用方 Agent WorkItem 在同一子线程继续；驳回保留回执历史和缺口。

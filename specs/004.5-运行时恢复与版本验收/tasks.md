@@ -1,6 +1,6 @@
 # 任务清单 - 运行时恢复与版本验收（人话版）
 
-状态：TODO（阶段 0–2 可在 `004.2` 阶段 3 完成后与 `004.3` 并行）
+状态：TODO（运维验证可先行；恢复在 `004.2` 3.2/3.4 合入后进入第 2 波；第 3 波回归和最终回放）
 
 关联文档：[README.md](README.md) · [requirements.md](requirements.md) · [design.md](design.md)
 
@@ -8,13 +8,15 @@
 
 2026-11-17 整理：恢复对象改为“WorkItem + 子线程运行组”，不建 checkpoint 表（D17）；事件去重使用 `IdempotencyRecord`（D18）；“旧版本升级”改为新安装和手动备份导入；合并了原先重复的普通 Run 隔离（4.1/6.1）、跨客户端矩阵（3.2/5.2）、父场景回放（3.1/7.1）和最终检查（3.3/5.3/7.2）。
 
+分波及测试替身合同：[父接口冻结文档](../004-OutcomeGo整体项目/docs/parallel-interfaces.md)。需求见 [requirements.md](requirements.md)，业务设计见 [design.md](design.md)；本次只调整任务前置关系。
+
 ## 阶段 0：运行时能力审计
 
 - [ ] 0.1 盘点恢复相关设施
   - 状态：TODO
   - 这一步到底做什么：确认 `startup-recovery.ts`、`BotRunLease`、Routine 运行组恢复、`IdempotencyRecord` 和 `004.2` 子线程结算的真实行为，确认 D17 是否成立。
   - 做完你能看到什么：`docs/runtime-recovery-matrix.md`。
-  - 先依赖什么：`004.2` 任务 3.4
+  - 先依赖什么：第 0 波 B、`004.2` 任务 3.2、3.4（第 2 波线 6，不等待最终检查点）。
   - 开始前先看：design §1、§7、§12、§17；`004.2/docs/runtime-capability-matrix.md`
   - 主要改哪里：`docs/`
   - 这一步先不做什么：不引入新的队列、编排器或权限平台。
@@ -37,7 +39,7 @@
 
 - [ ] 1.2 接入启动恢复
   - 状态：TODO
-  - 先依赖什么：1.1
+  - 先依赖什么：1.1、`004.2` 任务 3.2、3.4；依照冻结接口恢复同一子线程。
   - 主要改哪里：`apps/server/src/services/startup-recovery.ts`、`apps/server/src/services/outcome-recovery-service.ts`（新增）、`packages/messaging/src/outcome-threads.ts`
   - 这一步先不做什么：不盲目重跑所有 `running` 的 WorkItem；不触碰主对话租约。
   - 怎么算完成：按 §17.2 重新结算、在同一子线程续跑（最多 2 次）、保持等待或进入 `needs_review`；写 `outcome.recovered` 事件。
@@ -69,7 +71,7 @@
 
 - [ ] 2.2 实现 WorkItem 下一步路由
   - 状态：TODO
-  - 先依赖什么：1.2、`004.3` 任务 1.3
+  - 先依赖什么：1.2、`004.3` 任务 1.3；人工动作路由真实联调依赖 `004.4` 2.1、3.2。
   - 主要改哪里：`outcome-recovery-service.ts`
   - 这一步先不做什么：不分类或拦截 Agent 的工具调用。
   - 怎么算完成：§11 表中五种事实各有对应路由和测试。
@@ -99,7 +101,7 @@
 
 - [ ] 3.2 复核 `004.1` 已知 PENDING 项和跨客户端矩阵
   - 状态：TODO
-  - 先依赖什么：父任务 2.1–2.3 完成
+  - 先依赖什么：前半部分：父任务 1.2 和 `004.1` 发布资产/手动备份 fixture（第 1 波线 5B，可在第 0 波先行）；跨客户端 Outcome 矩阵：`004.2` 6.1、6.2，`004.3` 3.1–3.3，`004.4` 3.3、3.4。
   - 这一步到底做什么：在隔离环境执行 OutcomeGo 新安装、手动备份导入、回滚演练（关闭入口 vs 回退镜像）、跨平台旧资产混用负例；Desktop/Android/iOS 的深链、通知、登录和 Outcome/普通聊天回归。
   - 主要改哪里：`docs/release-acceptance-matrix.md`
   - 这一步先不做什么：不改变稳定包 ID 和签名；设备或环境缺失时记 PENDING。
@@ -110,7 +112,7 @@
 
 - [ ] 3.3 故障注入回放
   - 状态：TODO
-  - 先依赖什么：1.2、2.1、`004.2`/`004.3`/`004.4` 最终检查点
+  - 先依赖什么：1.2、2.1、`004.2` 3.4、4.2，`004.3` 1.3、1.4，`004.4` 3.1、3.2（第 3 波回归，不依赖最终检查点）。
   - 主要改哪里：`scripts/test-outcome-recovery.ts`、`docs/final-replay.md`
   - 这一步先不做什么：不通过直接 SQL 改状态修复失败。
   - 怎么算完成：§42 每个 scenario 输出 JSON 和数据库对账。
@@ -140,7 +142,7 @@
 
 - [ ] 4.1 父场景 A–H 回放报告和发布决策
   - 状态：TODO
-  - 先依赖什么：3.1–3.5、所有子 Spec 最终检查点
+  - 先依赖什么：3.1–3.5、`004.2` 7.3、`004.3` 4.4、`004.4` 6.1；不依赖本规格 4.2，避免最终检查点循环。
   - 主要改哪里：`docs/final-replay.md`、`docs/release-decision.md`
   - 这一步先不做什么：不在验收阶段新增功能；不以“以后补测试”替代未通过的门槛。
   - 怎么算完成：新安装/导入、主链路、主对话不被打断、Decision、人工任务、重启、重复事件和回滚都有记录；PASS/PENDING/FAIL、责任人和回滚方法明确。

@@ -113,3 +113,49 @@ CI 使用 `turbo.json` 的 `test.passThroughEnv` 精确传递测试库变量，�
 - 未修改无关 Worker、通知、插件或发送业务。测试偶发失败及真正业务失败均保留门槛。
 - 回滚：撤销对应源码/CI 提交；数据库只在一次性容器内创建，无生产数据库变化。
 - 第 0 波 B 验证和后续 CI 结果写入后续验证记录，不覆盖本次观测。
+
+## 第 0 波 B 验证记录
+
+实现提交：`23bc29151`（共享合同）、`ad4b5de94`（状态实现、工具接入和测试）。数据库结构无变化。
+
+定向验证：
+
+- contracts、db、messaging、worker、server、computer 类型检查全部通过。
+- `bun run check:architecture` 和 `bun run check:workflows` 通过。
+- 临时 PostgreSQL 上的状态矩阵、端口、原 OutcomeService、工具分发、模型测试：334 PASS / 0 FAIL；其中原 OutcomeService 11 项全部通过。
+- contracts 与 Computer 工具列表快照：64 PASS / 0 FAIL。主对话、Routine、普通事件 Run 列表与修改前完全一致，两个未实现工具未暴露。
+- 全量数据库复核在同一容器内的新数据库 `outcomego_w0_verify` 执行：`OUTCOMEGO_TEST_DATABASE_URL=<该临时库> bun run test --force --continue=always`，使用 Turbo 严格环境白名单，日志 `/tmp/openteam-wave0/full-database-after.log`。
+
+| 包 | 第 0 波 A PASS / FAIL / SKIP | 第 0 波 B PASS / FAIL / SKIP |
+|---|---|---|
+| cli | 758 / 0 / 0 | 758 / 0 / 0 |
+| client-core | 82 / 0 / 0 | 82 / 0 / 0 |
+| computer | 1347 / 0 / 72 | 1352 / 0 / 72 |
+| contracts | 180 / 0 / 0 | 180 / 0 / 0 |
+| db | 41 / 0 / 4 | 41 / 0 / 4 |
+| design-tokens | 4 / 0 / 0 | 4 / 0 / 0 |
+| desktop | 726 / 0 / 0 | 726 / 0 / 0 |
+| ios | 7 / 0 / 0 | 7 / 0 / 0 |
+| landing | 61 / 0 / 0 | 61 / 0 / 0 |
+| messaging | 322 / 2 / 185 | 635 / 2 / 185 |
+| plugin-sdk | 260 / 0 / 0 | 260 / 0 / 0 |
+| plugins | 780 / 1 / 19 | 780 / 1 / 19 |
+| product-core | 157 / 0 / 0 | 157 / 0 / 0 |
+| server | 1125 / 12 / 178 | 1133 / 10 / 178 |
+| shell-jobs | 18 / 0 / 0 | 18 / 0 / 0 |
+| worker | 155 / 16 / 51 | 157 / 14 / 51 |
+
+第 0 波 A 有 31 个不同失败，第 0 波 B 有 27 个不同失败；两次均为 21/25 Turbo 任务成功，命令退出 1。全量重放仍有以下 4 个在第二次出现、第一次未出现的失败：
+
+| 文件 | 测试名 | 复核结果 |
+|---|---|---|
+| `packages/plugins/test/bitwarden.test.ts` | network, authentication, sync and provider failures never forward raw CLI output or stale results | A 基线与 B 当前实现逐文件隔离回放均通过 |
+| `apps/server/test/routine-validation.integration.test.ts` | bot and group routine routes reject invalid schedules without changing saved routines | A 基线与 B 当前实现逐文件隔离回放均通过 |
+| `packages/messaging/test/file/watcher-startup.integration.test.ts` | watching imports new skill directories after repeated atomic profile replacements | A 基线与 B 当前实现逐文件隔离回放均通过 |
+| `apps/server/test/external-messaging/reminder.integration.test.ts` | daily reminder > the answer > "1" after a reminder keeps the channel open and wakes nobody | A 基线与 B 当前实现逐文件隔离回放均通过 |
+
+复核方法：在 `/tmp/openteam-wave0/baseline` 建立 detached worktree，固定 `b7ff0099a`（第 0 波 B 前），独立安装依赖和生成 Prisma/plugin 产物，使用临时库 `outcomego_w0_baseline_replay`；当前分支使用另一临时库 `outcomego_w0_current_replay`。两个版本分别执行上述四个文件：A 为 13 + 52 PASS / 0 FAIL，B 为 65 PASS / 0 FAIL。日志为 `/tmp/openteam-wave0/baseline-replay.log`、`baseline-reminder-replay.log`、`current-replay.log`。
+
+结论：未发现可重复的第 0 波 B 新失败；全量执行中的偶发/并发问题仍然使 CI 失败，未将其隐藏或标为 PASS。既有确定失败继续保留。所有新 Outcome 测试在定向和全量运行中通过。不能根据两次不同失败数宣称修复了这些无关业务问题。
+
+回滚：撤销第 0 波 B 两个实现提交；保留 A 的 Outcome 基础模型与 CI 测试门槛。测试结束删除本次一次性容器，独立 worktree 在检查无用户改动后移除；原始日志保留在本机临时目录。没有重建远端 computer。

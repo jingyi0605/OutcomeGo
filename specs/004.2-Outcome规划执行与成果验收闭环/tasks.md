@@ -8,6 +8,8 @@
 
 2026-11-17 整理：按“主线程 + 子线程”执行模型重排；合并了原先重复的最终检查点（4.6/5.5/7.2）、普通聊天回归（4.5/5.3/6.4）和失败回放（5.4/6.1/6.2）；原阶段 8 的规划服务、返工、预审和 Budget 并入对应阶段，解决“2.1 需要的 `kind=planning` 在 8.1 才实现”的顺序问题。
 
+分波及测试替身合同：[父接口冻结文档](../004-OutcomeGo整体项目/docs/parallel-interfaces.md)。需求见 [requirements.md](requirements.md)，业务设计见 [design.md](design.md)；本次只调整任务前置关系。
+
 ## 阶段 0：代码基线和试点冻结
 
 - [x] 0.1 画出当前消息到 Run 的真实调用链
@@ -174,7 +176,7 @@
 
 - [ ] 4.1 实现 Evidence 写入和可信度
   - 状态：TODO
-  - 先依赖什么：3.4
+  - 先依赖什么：1.3 + 测试数据（可用 fixture 创建 Output，不再等待 3.4）。
   - 主要改哪里：`apps/server/src/services/outcome-review-service.ts`（新增）、asset 引用适配
   - 这一步先不做什么：不把大文件直接存进 JSON 字段。
   - 怎么算完成：Evidence 记录来源、时间、主体、revision、criterion 和 credibility；Output 自动生成 `agent_report` 候选。

@@ -34,7 +34,7 @@
 
 - [ ] 1.3 修复 `OutcomeGo` 分支 CI 的 `checks` job
   - 状态：PENDING（本地准备完成，待授权推送及 GitHub CI 观测；负责人接受数据库基线暂红）
-  - 第 0 波 A 证据：规格 `2b9211c16`；偶发测试 `c686edae0`；SQL 表名 `5b9d4dc99`；004.2 阶段 1 `69e5edd7c`；[失败基线](docs/test-failure-baseline.md)。`checks` 增加 PostgreSQL 17、schema 部署和完整数据库测试；`turbo.json` 放行测试库环境。负责人选择全部数据库测试阻塞，未删除或跳过测试。
+  - 第 0 波 A 证据：规格 `2b9211c16`；偶发测试 `c686edae0`；SQL 表名 `5b9d4dc99`；004.2 阶段 1 `69e5edd7c`；CI/基线 `b7ff0099a`；[失败基线](docs/test-failure-baseline.md)。`checks` 增加 PostgreSQL 17、schema 部署和完整数据库测试；`turbo.json` 放行测试库环境。负责人选择全部数据库测试阻塞，未删除或跳过测试。
   - 这一步到底做什么：2026-11-17 起 `CI` workflow 的 `checks` job 在 `209c770e6`、`3b02ebfe6` 上失败。恢复绿色基线，否则无法判断 Outcome 改动是否引入回归。
   - 进展（2026-11-17，本地，未推送）：最近 4 次失败各不相同，属于 CI runner 上的偶发失败。已修复两项：`packages/plugins/wechat/connector/test/secrets.test.ts`（列目录时原子写临时文件已被重命名导致 ENOENT）、`packages/plugin-sdk/src/runtime-assets.test.ts`（20,001 条 tar 头的测试在 runner 上超过 5 秒默认超时）。仍待观察：Desktop code highlighter 测试、transport/acknowledgement 测试（run `43983034791`、`43980957724`）。
   - 本地带数据库运行时发现的既有问题（基线提交 `3b02ebfe6` 上同样失败，与 Outcome 改动无关；CI 未设置 `OUTCOMEGO_TEST_DATABASE_URL`，所以没有暴露）：
@@ -46,6 +46,20 @@
   - 怎么验证：`gh run list -R jingyi0605/OutcomeGo --branch OutcomeGo --workflow CI`
   - 对应需求：需求 9
   - 对应设计：`design.md` §25
+
+- [x] 1.4 完成并行开发第 0 波接口冻结与依赖同步
+  - 状态：DONE（2026-11-17，本地）
+  - 先依赖什么：1.3 的本地基线提交 `b7ff0099a`；负责人选择全部数据库测试阻塞，接受现有失败使 CI 暂红。1.3 的远端绿色检查点继续 PENDING。
+  - 实现提交：`23bc29151`（contracts）、`ad4b5de94`（共享实现、测试和接入）。
+  - 修改文件：`packages/contracts/src/{outcomes,index}.ts`；`packages/messaging/src/outcome-{state,threads,actions}.ts`、`testing/outcome-thread-fake.ts`、导出和测试；Server Outcome/InternalTool 服务；Computer marker 传递、工具注册点与快照测试；父/子规格依赖说明。
+  - 数据库变化：无（复用第 0 波 A 模型）。
+  - 验证命令：六个受影响包 typecheck、`bun run check:architecture`、`bun run check:workflows`、Outcome 定向数据库测试、工具快照、完整数据库测试与基线隔离复核。
+  - 验证结果：类型/架构/workflow 通过；定向 334 + 64 项通过；全量存在已记录失败，四个第二次才出现的失败在 A/B 隔离回放中均通过。
+  - 证据文件：[接口冻结](docs/parallel-interfaces.md)、[失败基线与比较](docs/test-failure-baseline.md)。
+  - 已知限制：`enqueueOutcomeTurn/settleOutcomeWorkItem` 是线 1 占位签名；Decision/人工工具尚未登记；`unavailableHumanActionPort` 明确报错；未推送、未重建远端 computer。
+  - 回滚方式：撤销第 0 波 B 实现提交，保留 A 的基础模型和测试证据。
+  - 对应需求：需求 6、需求 7、需求 10、需求 13。
+  - 对应设计：§14、§26、§39、§42–§45；[接口冻结](docs/parallel-interfaces.md)。
 
 ## 阶段 1：核心产品闭环
 
@@ -62,7 +76,7 @@
 
 - [ ] 2.2 完成 `004.3` Outcome 收件箱与决策通知
   - 状态：TODO
-  - 先依赖什么：2.1
+  - 先依赖什么：第 0 波 A/B；`004.2` 任务 1.2、1.3 提供模型；Decision 续跑依赖 `004.2` 3.2、3.4，事件接入依赖 4.2；不等待 `004.2` 最终检查点。
   - 开始前先看：`../004.3-Outcome收件箱与决策通知/` 三个主文档
   - 这一步先不做什么：不建设通用消息中心。
   - 怎么算完成：`004.3` 最终检查点为 DONE；Desktop、Android、iOS 都能查看 Inbox 并解决 Decision。
@@ -72,7 +86,7 @@
 
 - [ ] 2.3 完成 `004.4` 现实任务与知识资料闭环
   - 状态：TODO
-  - 先依赖什么：2.2
+  - 先依赖什么：第 0 波 B；资料和人工表/API 骨架依赖 `004.2` 1.2、1.3；工具来源依赖 `004.2` 3.2、3.4 和 `004.3` 1.3，回执验收依赖 `004.2` 4.2。
   - 开始前先看：`../004.4-现实任务与知识资料闭环/` 三个主文档
   - 这一步先不做什么：不把人工动作自动执行成 Agent 动作。
   - 怎么算完成：`004.4` 最终检查点为 DONE；人工动作卡、资料来源、人工回执和验收能够闭环。
@@ -82,7 +96,7 @@
 
 - [ ] 2.4 完成 `004.5` 运行时恢复与版本验收
   - 状态：TODO
-  - 先依赖什么：2.1；`004.5` 阶段 0–2 可与 2.2 并行
+  - 先依赖什么：第 0 波 B；恢复依赖 `004.2` 3.2、3.4；Decision 路由依赖 `004.3` 1.3、1.4；`004.1` 遗留运维验证可先行，最终回放依赖产品闭环。
   - 开始前先看：`../004.5-运行时恢复与版本验收/` 三个主文档
   - 这一步先不做什么：不建设泛化安全平台或复杂权限体系。
   - 怎么算完成：`004.5` 最终检查点为 DONE。

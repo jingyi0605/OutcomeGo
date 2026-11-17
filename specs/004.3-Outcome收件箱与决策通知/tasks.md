@@ -1,6 +1,6 @@
 # 任务清单 - Outcome 收件箱与决策通知（人话版）
 
-状态：TODO（等待 `004.2` 相关任务）
+状态：TODO（第 0 波接口冻结后按任务分波并行；第 1 波基础服务、第 2 波工具/事件、第 3 波客户端）
 
 关联文档：[README.md](README.md) · [requirements.md](requirements.md) · [design.md](design.md)
 
@@ -8,13 +8,15 @@
 
 2026-11-17 整理：合并了原先重复的 Decision 并发（2.4/4.4/5.1）、通知去重（2.2/4.3/5.2）、旧客户端兼容（3.2/5.3）、分页性能（3.3/5.4）、普通通知回归（2.5/4.5/6.3）和两个最终检查点（4.6/6.4）；新增 Android/iOS 的 Inbox 和 Decision 解决任务；Decision 解决后的继续执行改为在同一 Outcome 子线程中开启新回合。
 
+分波及测试替身合同：[父接口冻结文档](../004-OutcomeGo整体项目/docs/parallel-interfaces.md)。需求见 [requirements.md](requirements.md)，业务设计见 [design.md](design.md)；本次只调整任务前置关系。
+
 ## 阶段 0：通知基线
 
 - [ ] 0.1 盘点现有通知、Push 和客户端刷新链路
   - 状态：TODO
   - 这一步到底做什么：确认 `ChannelNotification`、`ChannelReadState`、`OutboxDelivery`、`PushDevice`、`NotificationService.routing()`、`apps/server/src/event-stream.ts` 和三端通知/深链的真实调用路径；确认客户端用什么机制刷新数据。
   - 做完你能看到什么：`docs/notification-capability-matrix.md`。
-  - 先依赖什么：`004.2` 任务 1.2
+  - 先依赖什么：第 0 波 B、`004.2` 任务 1.2（第 1 波线 3）。
   - 开始前先看：design §6、§18
   - 主要改哪里：`docs/`
   - 这一步先不做什么：不新增通知服务。
@@ -52,7 +54,7 @@
 - [ ] 1.3 实现 `RequestOutcomeDecision` 和子线程继续执行
   - 状态：TODO
   - 这一步到底做什么：在 computer 工具列表和 `internal-tool-service.ts` 中新增该工具，只在 Outcome 子线程提供；resolve 后按 `resolutionEffect` 在同一子线程开启新回合、创建新 revision、创建人工 WorkItem 或追加补充 WorkItem。
-  - 先依赖什么：1.1、`004.2` 任务 3.4
+  - 先依赖什么：1.1、第 0 波 B 工具分发点；真实续跑依赖 `004.2` 任务 3.2、3.4，之前可用 OutcomeThreadFake（第 2 波线 3）。
   - 开始前先看：design §41；`004.2` design §12；父 design §45.5
   - 主要改哪里：`packages/contracts/src/`（工具定义）、`apps/computer/src/runtime/tools.ts`、`apps/server/src/services/internal-tool-service.ts`、`decision-service.ts`、`packages/messaging/src/outcome-threads.ts`
   - 这一步先不做什么：不向主对话、群聊、Routine 或普通 Run 暴露该工具。
@@ -64,7 +66,7 @@
 - [ ] 1.4 接入待验收、待人工处理和完成事件
   - 状态：TODO
   - 这一步到底做什么：消费 `outcome.review.required`、`outcome.human_action.required`、`outcome.accepted`、`outcome.decision.closed`，生成对应 Inbox 项和通知事实；消费者用 `IdempotencyRecord(scope="outcome-event:inbox")` 去重。
-  - 先依赖什么：1.2、`004.2` 任务 4.2；人工动作部分依赖 `004.4` 任务 2.1
+  - 先依赖什么：1.2、`004.2` 任务 4.2；人工动作真实事件依赖 `004.4` 任务 2.1 的来源实现，之前使用冻结 payload fixture（第 2 波）。
   - 开始前先看：design §8、§17；父 design §14、§43
   - 主要改哪里：`outcome-inbox-service.ts`、事件消费者
   - 这一步先不做什么：不提前实现 Push。
@@ -78,7 +80,7 @@
 - [ ] 2.1 接入现有 ChannelNotification、Outbox 和通知偏好
   - 状态：TODO
   - 这一步到底做什么：通知事实写入现有通知模型；遵守 `NotificationService.routing()` 和 Bot `notificationsEnabled`；同一 Outcome、同一 revision 的非紧急通知 60 秒内合并；`WakeParent` 与 Inbox 通知不重复。
-  - 先依赖什么：1.4
+  - 先依赖什么：1.1、1.2、0.1；第 1 波先按冻结事件 fixture 验证投递设施，第 2 波 1.4 接入真实事件。
   - 开始前先看：design §17、§18、§32、§43
   - 主要改哪里：`packages/messaging/src/notifications.ts`、`apps/server/src/services/notification-service.ts`、`apps/worker/src/push-notifications.ts`
   - 这一步先不做什么：不新增 Push provider；不新增偏好设置项。
@@ -101,7 +103,7 @@
 
 - [ ] 3.1 Desktop Inbox、Decision 卡和通知
   - 状态：TODO
-  - 先依赖什么：1.2、2.2
+  - 先依赖什么：1.2、1.3、1.4、2.2（第 2 波合入后进入第 3 波客户端）。
   - 主要改哪里：`apps/desktop/src/renderer/components/outcomego/outcomes/OutcomeInbox.tsx`、Decision 卡、`apps/desktop/src/main/notifications.ts`、API client
   - 这一步先不做什么：不默认显示完整日志；主进程不缓存完整 Decision 文本。
   - 怎么算完成：默认层/展开层/高级层；loading/ready/resolving/conflict/expired/error 状态；banner 点击和深链打开；刷新不丢选择。
@@ -111,7 +113,7 @@
 
 - [ ] 3.2 Android Inbox、Decision 解决和通知深链
   - 状态：TODO
-  - 先依赖什么：1.2、2.2、`004.2` 任务 6.1
+  - 先依赖什么：1.2、1.3、1.4、2.2、`004.2` 任务 6.1（第 3 波）。
   - 主要改哪里：`mobile/shared/src/commonMain/kotlin/com/outcomego/mobile/core/`（DTO、Transport）、`apps/android/app/src/main/kotlin/com/outcomego/features/`、`apps/android/app/src/main/kotlin/com/outcomego/platform/AndroidNotifications.kt`
   - 这一步先不做什么：不改稳定 package ID；待验收和待人工处理只读。
   - 怎么算完成：Inbox 列表、Decision 解决（含冲突刷新）、通知点击打开对应卡片、未登录先认证。
@@ -121,7 +123,7 @@
 
 - [ ] 3.3 iOS Inbox、Decision 解决和通知深链
   - 状态：TODO
-  - 先依赖什么：1.2、2.2、`004.2` 任务 6.2
+  - 先依赖什么：1.2、1.3、1.4、2.2、`004.2` 任务 6.2（第 3 波）。
   - 主要改哪里：`apps/ios/Sources/Core/`（API、Models、`InboxPresentation.swift` 旁新增 Outcome 类型）、`apps/ios/Sources/App/NativeNotifications.swift`、`AppStore.swift`
   - 这一步先不做什么：不改稳定 bundle ID；待验收和待人工处理只读。
   - 怎么算完成：同 3.2；启动、后台恢复和通知点击进入同一个 pending deep link 处理。
