@@ -208,13 +208,13 @@
   - 对应设计：§24、§39、§44
 
 - [x] 3.4 实现 Android/iOS 只读动作卡
-  - 状态：DONE（2026-11-17，实现交付；整体验证和设备验收 PENDING）
+  - 状态：DONE（2026-11-17，实现交付及整合后 Android 构建/JVM、原始 Swift Core 测试通过；设备/UI、真实 API 与完整 iOS App 验收 PENDING）
   - 实现提交：`9d1eb4dce`、`b75ed7caf`
   - 修改文件：共享 `OutcomeInbox.kt`、iOS Core `OutcomeInbox.swift`；Android `OutcomeInboxScreens.kt`/`OutcomeScreens.kt`/gateway；iOS `OutcomeInboxView.swift`/`OutcomesView.swift`/`AppStore.swift`；两端文案、fixtures 和模型测试。
   - 数据库变化：none。
-  - 验证命令：`python3 /tmp/w3-mobile-test-inbox.py`；定点 Kotlin/Swift 类型检查；Swift 最终语法检查、`git diff --check`。
-  - 验证结果：共享 6 测试 PASS（含只读 human receipt 与未知字段/状态），定点检查通过；完整 Android wrapper、iOS Core/App 构建、真实 GET 无状态变化和设备检查 PENDING。
-  - 证据文件：[`20261117-第三波移动端收件箱与只读动作卡.md`](../004-OutcomeGo整体项目/docs/20261117-第三波移动端收件箱与只读动作卡.md)。
+  - 验证命令：`bash scripts/android/package-debug.sh --test`；`DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcrun swift test --package-path apps/ios`；native/Siri 配置检查。
+  - 验证结果：shared 43、Android 86、原始 Swift Core 329 tests，全部 0 failures；包含只读 human receipt、未知字段/状态与真实传输测试；Android 新 APK 已记录。iOS 全 App 外部固定包 TLS 拉取停滞，真实 GET 无状态变化和设备/UI 检查 PENDING。
+  - 证据文件：[`20261117-整合后移动端真实构建与测试.md`](../004-OutcomeGo整体项目/docs/20261117-整合后移动端真实构建与测试.md)。
   - 已知限制：仅展示动作、资料引用、服务端保存进度和 receipt 历史；没有 start/pause/receipt/review 写操作，均引导 Desktop。未将 fixture 验证等同真实 API 验收；第 0 波数据库阻塞保留。
   - 回滚方式：先撤销 `b75ed7caf` UI，再撤销 `9d1eb4dce` 模型；无数据库回滚。
   - 先依赖什么：2.2、`004.2` 任务 6.1、6.2

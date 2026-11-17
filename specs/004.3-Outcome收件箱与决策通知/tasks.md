@@ -181,14 +181,14 @@
   - 对应设计：§16、§19、§20、§35
 
 - [x] 3.2 Android Inbox、Decision 解决和通知深链
-  - 状态：DONE（2026-11-17，实现交付；依负责人安排，合并后的广泛构建、真实 API 和设备验收 PENDING）
+  - 状态：DONE（2026-11-17，实现交付及整合后真实 Android 构建/指定 JVM 测试通过；真实 API 和设备/UI 验收 PENDING）
   - 实现提交：`9d1eb4dce`、`b75ed7caf`
   - 修改文件：共享 `core/OutcomeInbox.kt`、`Outcomes.kt`；Android `features/OutcomeInboxScreens.kt`、`OutcomeScreens.kt`、`FeatureContracts.kt`、`LiveFeatureGateway.kt`、`AppViewModel.kt`、`OutcomeGoApp.kt`、`DeepLinkRouter.kt`、`AndroidNotifications.kt`、`AndroidPlatformRuntime.kt` 和对应测试。
   - 数据库变化：none。
-  - 验证命令：`python3 /tmp/w3-mobile-test-inbox.py`；定点 Kotlin 编译；`git diff --check`。正式 `bash scripts/android/package-debug.sh --test` 延后至整体验证。
-  - 验证结果：共享新增 6 测试 PASS；定点 shared/Compose 编译通过（外部 UI 使用临时声明，不是完整 App 编译）；gateway 临时检查因错误的源文件路径停止，新增 Android 测试未运行；正式打包、真实 UI/通知/API 验证 PENDING。
-  - 证据文件：[`20261117-第三波移动端收件箱与只读动作卡.md`](../004-OutcomeGo整体项目/docs/20261117-第三波移动端收件箱与只读动作卡.md)。
-  - 已知限制：本波无新 APK/hash；不能将模型/临时类型检查当作 UI 运行验证；第 0 波数据库失败门槛保留。
+  - 验证命令：精确整合源码 `b58286ab309e2223d5c8adb90f3096dec69e40ea` 上单次 `bash scripts/android/package-debug.sh --test`；直接解析 JUnit XML；独立 `shasum -a 256`。
+  - 验证结果：正式 wrapper exit 0；shared 43、Android 86 tests，均 0 failures/errors/skips，新增 Inbox gateway 与 router 测试通过；assembleDebug PASS。真实 UI/通知/API 验证 PENDING。
+  - 证据文件：[`20261117-整合后移动端真实构建与测试.md`](../004-OutcomeGo整体项目/docs/20261117-整合后移动端真实构建与测试.md)，含新 APK 完整绝对路径及 SHA-256 `10e7d4be71e59a5f71d7e0e086f339a72de7adada487793fe4c6c9aeea1f9151`。
+  - 已知限制：未安装/启动设备；不能将 JVM 测试和真实编译当作 UI 运行验证；第 0 波数据库失败门槛保留。
   - 回滚方式：先撤销 `b75ed7caf` 的 UI，再撤销 `9d1eb4dce` 的共享模型；不改其他线历史。
   - 先依赖什么：1.2、1.3、1.4、2.2、`004.2` 任务 6.1（第 3 波）。
   - 主要改哪里：`mobile/shared/src/commonMain/kotlin/com/outcomego/mobile/core/`（DTO、Transport）、`apps/android/app/src/main/kotlin/com/outcomego/features/`、`apps/android/app/src/main/kotlin/com/outcomego/platform/AndroidNotifications.kt`
@@ -199,14 +199,14 @@
   - 对应设计：§20、§35
 
 - [x] 3.3 iOS Inbox、Decision 解决和通知深链
-  - 状态：DONE（2026-11-17，实现交付；完整 Core/App 构建、真实 API 和设备验收 PENDING）
+  - 状态：DONE（2026-11-17，实现交付及整合后原始完整 Core 套件通过；完整 App、真实 API 和设备/UI 验收 PENDING）
   - 实现提交：`8d75fc154`、`9d1eb4dce`、`b6a222c18`、`b75ed7caf`
   - 修改文件：Core `OutcomeInbox.swift`、`NotificationReads.swift`、`WebProviderSettings.swift`；App `OutcomeInboxView.swift`、`OutcomesView.swift`、`AppStore.swift`、`HomeView.swift`、`NativeNotifications.swift`；`Localizable.xcstrings`、新夹具和相关 Core 测试。
   - 数据库变化：none。
-  - 验证命令：定点 `swiftc -typecheck`；最终变更 `xcrun swiftc -frontend -parse`；本地化 JSON 检查；正式 `swift test --package-path apps/ios` 延后整体验证。
-  - 验证结果：真实 Core 与定点新视图类型检查、最终语法/JSON 检查 PASS；视图检查使用外部 UI 临时声明，不是完整 App 编译。新增 XCTest、完整套件、xcodebuild 与设备 PENDING。
-  - 证据文件：[`20261117-第三波移动端收件箱与只读动作卡.md`](../004-OutcomeGo整体项目/docs/20261117-第三波移动端收件箱与只读动作卡.md)。
-  - 已知限制：十处旧模块 import 和真实 DeepSeek 目录缺口已修代码，但未重跑完整套件，不能标为全绿；真实通知冷/热启动与账号切换仍待验收；第 0 波数据库失败门槛保留。
+  - 验证命令：`DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcrun swift test --package-path apps/ios`；`check-native-config.py`、`check-siri-skills.py`；真实 xcodebuild，完整参数见证据。
+  - 验证结果：原始完整 XCTest 329 tests、0 failures、exit 0；包括 Outcome Inbox 6、Outcome read 4、WebProvider 8。native/Siri 配置检查 PASS；xcodebuild 未进入 App 编译，外部包 GitHub TLS 拉取停滞，安全终止 exit 143，记 PENDING。
+  - 证据文件：[`20261117-整合后移动端真实构建与测试.md`](../004-OutcomeGo整体项目/docs/20261117-整合后移动端真实构建与测试.md)。
+  - 已知限制：首次默认 CLT 缺 XCTest，以单命令 DEVELOPER_DIR 修复环境后原套件通过，未改系统选择；完整 App/真实通知冷热启动/账号切换仍待验收；第 0 波数据库失败门槛保留。
   - 回滚方式：先撤销 `b75ed7caf`，再按依赖撤销 `9d1eb4dce`；两个 iOS 旧代码修正可独立决定。
   - 先依赖什么：1.2、1.3、1.4、2.2、`004.2` 任务 6.2（第 3 波）。
   - 主要改哪里：`apps/ios/Sources/Core/`（API、Models、`InboxPresentation.swift` 旁新增 Outcome 类型）、`apps/ios/Sources/App/NativeNotifications.swift`、`AppStore.swift`
