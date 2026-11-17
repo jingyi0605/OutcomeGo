@@ -120,6 +120,7 @@ import com.outcomego.features.ReactionState
 import com.outcomego.features.ReactionsAndActionsRow
 import com.outcomego.features.RichMessageCardScreen
 import com.outcomego.features.isQuestion
+import com.outcomego.features.isSecretRequest
 import com.outcomego.features.localizedText
 import com.outcomego.features.rememberDecodedBitmap
 import com.outcomego.platform.NativeAttachmentPreview
@@ -315,7 +316,8 @@ internal fun MessageBubble(
                         }
                         val repeatsFileName = message.attachments.singleOrNull()?.let { it.name == message.body } == true ||
                             (message.attachments.isNotEmpty() && (message.metadata["type"] as? kotlinx.serialization.json.JsonPrimitive)?.content == "attachment")
-                        message.displayBody?.takeUnless { message.richMessage?.isQuestion == true || repeatsFileName }?.let { body ->
+                        val suppressesFallbackBody = message.richMessage?.let { it.isQuestion || it.isSecretRequest } == true
+                        message.displayBody?.takeUnless { suppressesFallbackBody || repeatsFileName }?.let { body ->
                             MarkdownMessage(
                                 markdown = body,
                                 modifier = Modifier.testTag("message-body-${message.id}"),
@@ -330,7 +332,7 @@ internal fun MessageBubble(
                                 onAction = { action, values -> onAction(message.id, action.id, values) },
                             )
                         }
-                        if (message.reactions.isNotEmpty() || (message.richMessage != null && message.richMessage?.isQuestion != true)) {
+                        if (message.reactions.isNotEmpty() || (message.richMessage != null && !suppressesFallbackBody)) {
                             ReactionsAndActionsRow(
                                 state = ReactionState(message.reactions, operation),
                                 onReaction = { emoji -> onReaction(message.id, emoji) },

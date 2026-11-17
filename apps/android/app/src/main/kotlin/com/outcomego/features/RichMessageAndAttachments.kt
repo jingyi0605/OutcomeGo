@@ -27,6 +27,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
@@ -34,6 +36,7 @@ import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.TextFields
+import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -64,6 +67,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
@@ -98,11 +103,11 @@ fun RichMessageCardScreen(
     onAction: (RichMessageAction, Map<String, String>) -> Unit,
 ) {
     val values = remember(message.id) { mutableStateMapOf<String, String>() }
-    // A question card is the whole message, so it renders directly in the bubble.
-    val questionOnly = message.isQuestion
+    // A standalone question or secret-request card is the whole message, so it renders directly in the bubble.
+    val cardOnly = message.isQuestion || message.isSecretRequest
     val content: @Composable () -> Unit = {
         Column(
-            Modifier.padding(if (questionOnly) 0.dp else 16.dp),
+            Modifier.padding(if (cardOnly) 0.dp else 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             message.blocks.forEach { block ->
@@ -147,19 +152,7 @@ fun RichMessageCardScreen(
                         }
                         ActionButton(block.submit) { onAction(block.submit, values.toMap() + ("_richType" to "user-form")) }
                     }
-                    is RichMessageBlock.Secret -> {
-                        Text(block.prompt, fontWeight = FontWeight.Bold, color = SpatialTheme.colors.textPrimary)
-                        var value by remember(message.id, block.prompt) { mutableStateOf("") }
-                        SpatialGlassTextField(
-                            value = value,
-                            onValueChange = { value = it },
-                            label = localizedText("Secret", "密钥"),
-                            visualTransformation = PasswordVisualTransformation(),
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true,
-                        )
-                        ActionButton(block.submit) { onAction(block.submit, mapOf("value" to value, "_richType" to "secret")) }
-                    }
+                    is RichMessageBlock.Secret -> SecretRequestCard(message, block, operation, onAction)
                     is RichMessageBlock.Approval -> {
                         Text(block.title, fontWeight = FontWeight.Bold, color = SpatialTheme.colors.textPrimary)
                         Text(block.detail, color = SpatialTheme.colors.textSecondary)
@@ -175,7 +168,7 @@ fun RichMessageCardScreen(
             OperationStatus(operation)
         }
     }
-    if (questionOnly) {
+    if (cardOnly) {
         Box(Modifier.fillMaxWidth()) { content() }
     } else {
         SpatialGlassSurface(
@@ -183,6 +176,174 @@ fun RichMessageCardScreen(
             shape = RoundedCornerShape(SpatialRadii.lg),
             tier = GlassTier.Card,
         ) { content() }
+    }
+}
+
+private fun secretRequestPlaceholder(label: String): String {
+    val hasDeterminer = Regex("^(?:a|an|the|your|my)\\s", RegexOption.IGNORE_CASE).containsMatchIn(label)
+    return "Paste ${if (hasDeterminer) label else "your $label"}"
+}
+
+/**
+ * Masked credential prompt matching Desktop's SecretCard: collapses into a "Saved" receipt once
+ * `secretProvided` is set, and never exposes the entered value back into the transcript.
+ */
+@Composable
+private fun SecretRequestCard(
+    message: RichMessage,
+    block: RichMessageBlock.Secret,
+    operation: FeatureOperationState,
+    onAction: (RichMessageAction, Map<String, String>) -> Unit,
+) {
+    val colors = SpatialTheme.colors
+    val haptics = LocalAppHaptics.current
+    val provided = message.metadata["secretProvided"] == "true"
+    val botSecret = !block.name.isNullOrBlank() && block.scope != "personal"
+    val variableNote = block.name?.takeIf { it.isNotBlank() }?.let { envName ->
+        if (botSecret) {
+            localizedText(
+                "Saved securely for all users of this bot and exposed as $envName",
+                "已为此机器人的所有用户安全保存，并以 $envName 公开",
+            )
+        } else {
+            localizedText(
+                "Saved securely for you and exposed as $envName",
+                "已为你安全保存，并以 $envName 公开",
+            )
+        }
+    }
+
+    if (provided) {
+        Row(
+            modifier = Modifier.fillMaxWidth().testTag("secret-request-receipt-${message.id}"),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                Text(block.prompt, fontWeight = FontWeight.Medium, color = colors.textPrimary)
+                variableNote?.let {
+                    Text(it, style = MaterialTheme.typography.bodySmall, color = colors.textSecondary)
+                }
+                Text(
+                    if (botSecret) {
+                        localizedText(
+                            "Saved for all users of this bot. Configure in bot settings.",
+                            "已为此机器人的所有用户保存。可在机器人设置中配置。",
+                        )
+                    } else {
+                        localizedText(
+                            "Saved securely and kept private.",
+                            "已安全保存并保持私密。",
+                        )
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colors.textSecondary,
+                )
+            }
+            Row(
+                modifier = Modifier
+                    .clip(CircleShape)
+                    .background(colors.success.copy(alpha = if (colors.isDark) 0.18f else 0.12f))
+                    .padding(horizontal = 12.dp, vertical = 6.dp)
+                    .testTag("secret-saved-badge"),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Icon(
+                    Icons.Default.Check,
+                    contentDescription = null,
+                    modifier = Modifier.size(14.dp),
+                    tint = colors.success,
+                )
+                Text(
+                    localizedText("Saved", "已保存"),
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Medium,
+                    color = colors.success,
+                )
+            }
+        }
+        return
+    }
+
+    var value by remember(message.id, block.prompt) { mutableStateOf("") }
+    val busy = operation is FeatureOperationState.Pending
+    fun submit() {
+        val secret = value
+        if (secret.isBlank() || busy || !block.submit.enabled) return
+        haptics.play(HapticEffect.Light)
+        value = ""
+        onAction(block.submit, mapOf("value" to secret, "_richType" to "secret"))
+    }
+
+    Column(
+        modifier = Modifier.fillMaxWidth().testTag("secret-request-pending-${message.id}"),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(block.prompt, fontWeight = FontWeight.Medium, color = colors.textPrimary)
+            variableNote?.let {
+                Text(it, style = MaterialTheme.typography.bodySmall, color = colors.textSecondary)
+            }
+            block.description?.takeIf { it.isNotBlank() }?.let {
+                Text(it, style = MaterialTheme.typography.bodySmall, color = colors.textSecondary)
+            }
+        }
+        SpatialGlassTextField(
+            value = value,
+            onValueChange = { value = it },
+            placeholder = localizedText(secretRequestPlaceholder(block.prompt), "粘贴 ${block.prompt}"),
+            enabled = !busy,
+            visualTransformation = PasswordVisualTransformation(),
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(
+                autoCorrectEnabled = false,
+                keyboardType = KeyboardType.Password,
+                imeAction = ImeAction.Done,
+            ),
+            keyboardActions = KeyboardActions(onDone = { submit() }),
+            modifier = Modifier.fillMaxWidth().testTag("secret-request-input-${message.id}"),
+        )
+        val submitLabel = if (block.submit.label == "Save securely" || block.submit.label == "Submit") {
+            localizedText("Save securely", "安全保存")
+        } else {
+            block.submit.label
+        }
+        SpatialPrimaryButton(
+            label = submitLabel,
+            onClick = ::submit,
+            enabled = value.isNotBlank() && !busy && block.submit.enabled,
+            testTag = "secret-request-submit-${message.id}",
+        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Icon(
+                Icons.Outlined.Shield,
+                contentDescription = null,
+                modifier = Modifier.size(14.dp),
+                tint = colors.textSecondary,
+            )
+            Text(
+                if (botSecret) {
+                    localizedText(
+                        "Saved for all users of this bot. Never shown to other bots.",
+                        "已为此机器人的所有用户保存，不会向其他机器人显示。",
+                    )
+                } else {
+                    localizedText(
+                        "Stored securely, never shown to your Bot.",
+                        "已安全存储，不会向你的机器人显示。",
+                    )
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = colors.textSecondary,
+            )
+        }
     }
 }
 

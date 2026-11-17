@@ -1,11 +1,13 @@
 package com.outcomego.android.features
 
-import androidx.compose.ui.test.assertDoesNotExist
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.unit.height
 import androidx.compose.ui.unit.width
 import com.outcomego.android.data.ChatMessage
@@ -190,5 +192,78 @@ class RichMessageRendererTest {
         assertTrue(imageCardBounds.height.value <= 161f)
         assertTrue(fileCardBounds.width.value <= 181f)
         assertTrue(fileCardBounds.height.value <= 52f)
+    }
+
+    @Test
+    fun secretRequestCardSubmitsMaskedSecretAndRendersProvidedReceipt() {
+        val submitted = mutableListOf<Map<String, String>>()
+        compose.setContent {
+            com.outcomego.features.RichMessageCardScreen(
+                message = RichMessage(
+                    id = "secret-1",
+                    blocks = listOf(
+                        RichMessageBlock.Secret(
+                            prompt = "webhook 回调地址",
+                            description = "Paste the webhook URL with token",
+                            name = "WEBHOOK_URL",
+                            scope = "bot",
+                        ),
+                    ),
+                ),
+                onAction = { _, values -> submitted += values },
+            )
+        }
+
+        compose.onNodeWithText("webhook 回调地址").assertExists()
+        compose.onNodeWithText("Paste the webhook URL with token").assertExists()
+        compose.onNodeWithText("WEBHOOK_URL", substring = true).assertExists()
+        compose.onNodeWithTag("secret-request-submit-secret-1").assertIsNotEnabled()
+
+        compose.onNodeWithTag("secret-request-input-secret-1").performTextInput("https://example.test/hook")
+        compose.onNodeWithTag("secret-request-submit-secret-1").assertIsEnabled()
+        compose.onNodeWithTag("secret-request-submit-secret-1").performClick()
+
+        assertEquals(1, submitted.size)
+        assertEquals("https://example.test/hook", submitted.single()["value"])
+        assertEquals("secret", submitted.single()["_richType"])
+    }
+
+    @Test
+    fun secretRequestReceiptHidesInputAndMessageBubbleSuppressesFallbackBody() {
+        val message = ChatMessage(
+            id = "secret-2",
+            author = "研发",
+            body = "Secret requested: webhook 回调地址",
+            richMessage = RichMessage(
+                id = "secret-2",
+                blocks = listOf(RichMessageBlock.Secret(prompt = "webhook 回调地址")),
+                metadata = mapOf("secretProvided" to "true"),
+            ),
+        )
+        compose.setContent {
+            MessageBubble(
+                message = message,
+                onRetry = {},
+                isTarget = false,
+                operation = FeatureOperationState.Idle,
+                onDownload = { _, _ -> },
+                onSaveAttachment = { _, _ -> },
+                onShareAttachment = {},
+                onForwardAttachment = {},
+                onAction = { _, _, _ -> },
+                onReaction = { _, _ -> },
+                onMessageAction = { _, _ -> },
+                onContext = {},
+                onReply = {},
+                onOpenRoutine = {},
+                replyOriginal = null,
+                onOpenOriginal = {},
+            )
+        }
+
+        compose.onNodeWithText("Secret requested: webhook 回调地址").assertDoesNotExist()
+        compose.onNodeWithTag("secret-request-receipt-secret-2", useUnmergedTree = true).assertExists()
+        compose.onNodeWithTag("secret-saved-badge", useUnmergedTree = true).assertExists()
+        compose.onNodeWithTag("secret-request-input-secret-2", useUnmergedTree = true).assertDoesNotExist()
     }
 }
