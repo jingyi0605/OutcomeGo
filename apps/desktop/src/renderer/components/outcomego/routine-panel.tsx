@@ -1506,9 +1506,11 @@ export function RoutineEditor({
               )}
               {routineEventListeners(routine?.trigger)
                 .filter((listener) => listener.type !== "webhook")
-                .map((listener, index) => {
+                .map((listener) => {
                   const { key, params } = describeRoutineEventListener(listener);
-                  return <EventTriggerCard key={`event-${index}`} label={t(key, params)} />;
+                  return (
+                    <EventTriggerCard key={JSON.stringify(listener)} label={t(key, params)} />
+                  );
                 })}
               {draft.schedules.map((item, index) => (
                 <ScheduleCard
