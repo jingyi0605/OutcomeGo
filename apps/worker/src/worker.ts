@@ -1001,7 +1001,7 @@ export class WakeWorker {
           const updated = await this.prisma.$transaction(async tx => {
             // Follow-up creation takes this gate; archive takes it before
             // stopping runs and executions, so acquire it before settlement.
-            if (execution.routine.botId) await lockAgentLifecycle(tx, execution.routine.botId);
+            await this.lockRoutineRunLifecycle(tx, execution.runId!);
             const settled = await reconcileRoutineExecution(tx, execution.runId!);
             if (settled) await this.routines.afterExecution(tx, settled);
             return settled;
@@ -1858,6 +1858,7 @@ export class WakeWorker {
       const completionFailure = turnCompletionFailure(completion);
       if (completionFailure) throw completionFailure;
       await this.prisma.$transaction(async (tx) => {
+        if (claimed.origin === "routine") await this.lockRoutineRunLifecycle(tx, claimed.runId);
         if (needsMemoryReview) await lockAgentLifecycle(tx, claimed.botId);
         const completedAt = new Date();
         await tx.inboxEvent.update({
@@ -2116,6 +2117,16 @@ export class WakeWorker {
     });
   }
 
+  private async lockRoutineRunLifecycle(tx: Prisma.TransactionClient, runId: string): Promise<void> {
+    const run = await tx.run.findUnique({
+      where: { id: runId },
+      select: { origin: true, botId: true },
+    });
+    // Routine follow-ups acquire this same gate. Take it before Run/Inbox/
+    // execution mutations, in the order used by retirement.
+    if (run?.origin === "routine") await lockAgentLifecycle(tx, run.botId);
+  }
+
   private async fail(claimed: Claimed, error: unknown, interrupted = false): Promise<void> {
     if (
       interrupted &&
@@ -2131,6 +2142,7 @@ export class WakeWorker {
     } satisfies Prisma.InputJsonObject;
     let priorityInterrupted = false;
     await this.prisma.$transaction(async (tx) => {
+      if (claimed.origin === "routine") await this.lockRoutineRunLifecycle(tx, claimed.runId);
       await tx.$executeRaw`SELECT id FROM "outcomego_run" WHERE id = ${claimed.runId}::uuid FOR NO KEY UPDATE`;
       const current = await tx.run.findUnique({ where: { id: claimed.runId } });
       const currentError =
