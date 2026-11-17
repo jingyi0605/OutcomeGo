@@ -1,4 +1,4 @@
-import { nextMessageAddress, lockGroupExecution, supersedeGroupUserTurns } from "@outcomego/messaging";
+import { nextMessageAddress, lockGroupExecution, supersedeGroupUserTurns, toggleMessageReaction } from "@outcomego/messaging";
 import {
   ApiError,
   type ChannelMessageView,
@@ -422,27 +422,28 @@ export class ChannelService {
     serviceEffect(async () => {
       const scope = `channel-message:${messageId}:user-reaction`;
       const requestHash = hashRequest(input);
-      const existing = await this.prisma.idempotencyRecord.findUnique({
-        where: { scope_key: { scope, key: input.clientId } },
-      });
-      if (existing) {
-        if (existing.requestHash !== requestHash) {
-          throw new ApiError(409, "idempotency_conflict", "Reaction idempotency key changed");
-        }
-        if (existing.response) {
-          const message = await this.prisma.channelMessage.findUnique({
-            where: { id: messageId },
-          });
-          if (!message) throw new ApiError(404, "message_not_found", "Message was not found");
-          return {
-            ...(serialize(existing.response) as Omit<ReactToChannelMessageView, "message">),
-            message: channelMessageView(message),
-          } as ReactToChannelMessageView;
-        }
-        throw new ApiError(409, "request_in_progress", "This reaction is already being applied");
-      }
-
       const response = await this.prisma.$transaction(async (tx) => {
+        // Both user and Bot reactions serialize their metadata changes on the same message.
+        await tx.$queryRaw`SELECT id FROM "outcomego_channel_message" WHERE id = ${messageId}::uuid FOR NO KEY UPDATE`;
+        const existing = await tx.idempotencyRecord.findUnique({
+          where: { scope_key: { scope, key: input.clientId } },
+        });
+        if (existing) {
+          if (existing.requestHash !== requestHash) {
+            throw new ApiError(409, "idempotency_conflict", "Reaction idempotency key changed");
+          }
+          if (existing.response) {
+            const message = await tx.channelMessage.findUnique({
+              where: { id: messageId },
+            });
+            if (!message) throw new ApiError(404, "message_not_found", "Message was not found");
+            return {
+              ...(serialize(existing.response) as Omit<ReactToChannelMessageView, "message">),
+              message: channelMessageView(message),
+            } as ReactToChannelMessageView;
+          }
+          throw new ApiError(409, "request_in_progress", "This reaction is already being applied");
+        }
         const message = await tx.channelMessage.findUnique({
           where: { id: messageId },
           include: {
@@ -473,13 +474,7 @@ export class ChannelService {
                 typeof (reaction as Record<string, unknown>).emoji === "string"
             )
           : [];
-        const removed = reactions.some(
-          (reaction) => reaction.by === "me" && reaction.emoji === input.emoji
-        );
-        const next = reactions.filter(
-          (reaction) => !(reaction.by === "me" && reaction.emoji === input.emoji)
-        );
-        if (!removed) next.push({ by: "me", emoji: input.emoji });
+        const { reactions: next, removed } = toggleMessageReaction(reactions, input.emoji, "me");
         if (next.length > 0) metadata.reactions = next;
         else delete metadata.reactions;
         const updatedMessage = await tx.channelMessage.update({
@@ -493,6 +488,7 @@ export class ChannelService {
           !removed &&
           message.sender === "agent" &&
           message.senderBot &&
+          message.channel.members.some(member => member.botId === message.senderBot!.id) &&
           ["active", "provisioning"].includes(message.senderBot.status)
         ) {
           const wake = await this.messaging.enqueueWake(tx, {

@@ -2639,19 +2639,45 @@ export class AgentMessaging {
         note: `${JSON.stringify(input.message_address)} isn't a valid message address. React with the [t3u]-style tag shown on the user's message.`,
       };
     if (!context.channelId) throw new Error("No active chat for this reaction");
-    const scope = `reaction:${context.botId}`;
+    const scope = `reaction:${context.botId}:${context.runId}:${context.channelId}`;
     const requestHash = `${input.message_address}:${input.emoji}`;
-    const receipt = await this.prisma.idempotencyRecord.findUnique({
-      where: { scope_key: { scope, key: context.callId } },
-    });
-    if (receipt) {
-      if (receipt.requestHash !== requestHash) {
-        throw new Error("This reaction call id was already used with different arguments");
-      }
-      if (receipt.response) return receipt.response as Record<string, unknown>;
-    }
-
     return this.prisma.$transaction(async (tx) => {
+      // Unknown message addresses also need a stable receipt, so serialize the call before resolving the target.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`${scope}:${context.callId}`}))`;
+      const receipt = await tx.idempotencyRecord.findUnique({
+        where: { scope_key: { scope, key: context.callId } },
+      });
+      if (receipt) {
+        if (receipt.requestHash !== requestHash) throw new Error("This reaction call id was already used with different arguments");
+        if (receipt.response) return receipt.response as Record<string, unknown>;
+        throw new Error("This reaction is already being applied");
+      }
+      // Old receipts omitted Run and channel identity. Replay only when an existing notification proves both.
+      const legacy = await tx.idempotencyRecord.findUnique({
+        where: { scope_key: { scope: `reaction:${context.botId}`, key: context.callId } },
+      });
+      if (legacy) {
+        const run = await tx.run.findFirst({ where: { id: context.runId, botId: context.botId, channelId: context.channelId } });
+        if (!run) throw new Error("Cannot safely match an old reaction receipt to this turn");
+        if (legacy.createdAt >= run.createdAt) {
+          const separator = legacy.requestHash.indexOf(":");
+          const address = legacy.requestHash.slice(0, separator);
+          const emoji = legacy.requestHash.slice(separator + 1);
+          const target = separator > 0 ? await resolveMessageAddress(tx, context.channelId!, address) : null;
+          const notification = target ? await tx.channelNotification.findUnique({
+            where: { key: `reaction:${target.id}:${context.botId}:${emoji}:${context.callId}` },
+          }) : null;
+          const payload = notification?.payload as { runId?: string; messageId?: string; channelId?: string; botId?: string } | null;
+          if (legacy.status !== "completed" || !legacy.response || !notification || notification.channelId !== context.channelId ||
+            notification.botId !== context.botId || payload?.runId !== context.runId || payload.messageId !== target?.id ||
+            payload.channelId !== context.channelId || payload.botId !== context.botId)
+            throw new Error("Cannot safely match an old reaction receipt to this turn");
+          if (legacy.requestHash !== requestHash) throw new Error("This reaction call id was already used with different arguments");
+          await tx.idempotencyRecord.create({ data: { scope, key: context.callId, requestHash,
+            status: "completed", response: legacy.response as Prisma.InputJsonValue, expiresAt: legacy.expiresAt } });
+          return legacy.response as Record<string, unknown>;
+        }
+      }
       await tx.idempotencyRecord.create({
         data: {
           scope,
@@ -2661,8 +2687,10 @@ export class AgentMessaging {
         },
       });
       const addressed = await resolveMessageAddress(tx, context.channelId!, input.message_address);
+      if (addressed?.sender === "user")
+        await tx.$queryRaw`SELECT id FROM "outcomego_channel_message" WHERE id = ${addressed.id}::uuid FOR NO KEY UPDATE`;
       const message = addressed?.sender === "user" ? await tx.channelMessage.findFirst({
-        where:{id:addressed.id,channel:{members:{some:{botId:context.botId}}}},
+        where:{id:addressed.id,sender:"user",channel:{archivedAt:null,members:{some:{botId:context.botId}}}},
         include:{channel:{include:{members:{select:{botId:true}}}}}
       }) : null;
       if (!message) {
@@ -2703,7 +2731,7 @@ export class AgentMessaging {
         await tx.channelNotification.updateMany({ where: { key: { startsWith: `${notificationKey}:` } }, data: { revoked: true } });
       } else {
         const bot = await tx.bot.findUniqueOrThrow({ where: { id: context.botId } });
-        await publishChannelNotification(tx, `${notificationKey}:${context.callId}`, {
+        await publishChannelNotification(tx, `${notificationKey}:${context.runId}:${context.callId}`, {
           schemaVersion: 1, kind: "reaction", botId: context.botId, channelId: message.channelId,
           runId: context.runId, messageSequence: message.sequence.toString(),
           messageId: message.id,
