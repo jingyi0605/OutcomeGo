@@ -2424,6 +2424,7 @@ export class AgentMessaging {
     // A refused send is an answer the model reads, not a tool failure.
     const refusal = (acknowledgement: string) => ({ acknowledgement, interruptRunId: null });
     const result = await this.prisma.$transaction(async (tx) => {
+      await assertBackgroundRequestDeliveryAllowed(tx, context);
       const source = await tx.bot.findUnique({
         where: { id: context.botId },
         include: { subagentIdentity: { select: { id: true } } },

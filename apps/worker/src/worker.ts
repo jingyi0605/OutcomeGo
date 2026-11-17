@@ -1,4 +1,4 @@
-import { settleTaskProgress, dispatchTaskContinuations, settleRequestProgress, recoverRequestProgress, dispatchRequestChecks, requestWakeAllowed, taskProgress, recoverTaskInterruption, TASK_RECOVERY_LOCK } from "@outcomego/messaging";
+import { settleTaskProgress, dispatchTaskContinuations, settleRequestProgress, recoverRequestProgress, dispatchRequestChecks, requestWakeAllowed, requestIsStopped, taskProgress, recoverTaskInterruption, TASK_RECOVERY_LOCK } from "@outcomego/messaging";
 import {
   isManagedDraftWake,
   isTreatmentDraftWake,
@@ -1961,9 +1961,9 @@ export class WakeWorker {
     if (!claimed.interruptedRunId) return false;
     const run = await this.prisma.run.findFirst({
       where: { id: claimed.interruptedRunId, botId: claimed.botId },
-      select: { status: true, inputDeliveredAt: true },
+      select: { status: true, inputDeliveredAt: true, requestStoppedAt: true, error: true },
     });
-    return Boolean(run?.inputDeliveredAt && ["cancelled", "interrupted"].includes(run.status));
+    return Boolean(run?.inputDeliveredAt && !requestIsStopped(run) && ["cancelled", "interrupted"].includes(run.status));
   }
 
   /** A wake cut off by a typed or priority message runs again after it, a bounded number of times. */
@@ -2032,11 +2032,18 @@ export class WakeWorker {
         where: { botId: claimed.botId, payload: { path: ["interruptedRunId"], equals: claimed.runId } },
         select: { id: true },
       });
-      priorityInterrupted = currentError?.code === "priority_peer_interrupt" ||
-        (Boolean(supersededByUser) && current?.status !== "failed");
-      const failureDetails = (priorityInterrupted || current?.status === "cancelled") && currentError ? currentError : details;
+      const explicitlyStopped = error instanceof TurnStoppedError || (!!current && requestIsStopped(current));
+      priorityInterrupted = !explicitlyStopped && (currentError?.code === "priority_peer_interrupt" ||
+        (Boolean(supersededByUser) && current?.status !== "failed"));
+      let failureDetails: Prisma.InputJsonObject = details;
+      if (explicitlyStopped) {
+        failureDetails = currentError && currentError.code !== "priority_peer_interrupt"
+          ? currentError : { code: "cancelled_by_user", message: "The user stopped this turn" };
+      } else if ((priorityInterrupted || current?.status === "cancelled") && currentError) {
+        failureDetails = currentError;
+      }
       const finalStatus =
-        current?.status === "cancelled" || (error instanceof TurnStoppedError && current?.status !== "failed")
+        current?.status === "cancelled" || (explicitlyStopped && current?.status !== "failed")
           ? "cancelled"
           : current?.status === "failed"
             ? "failed"
