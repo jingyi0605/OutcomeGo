@@ -47,8 +47,8 @@ if (dockerBuildsInCi !== 1 || dockerBuildsInRelease !== 2) {
 }
 
 requireText(constants, 'DEFAULT_REPOSITORY = "jingyi0605/OutcomeGo"', "OutcomeGo repository identity");
-requireText(constants, 'DEFAULT_IMAGE_PREFIX = "ghcr.io/jingyi0605/ai-teamos"', "stable GHCR identity");
-requireText(release, '/ai-teamos"', "release GHCR identity");
+requireText(constants, 'DEFAULT_IMAGE_PREFIX = "ghcr.io/jingyi0605/outcomego"', "stable GHCR identity");
+requireText(release, '/outcomego"', "release GHCR identity");
 requireText(release, "apps/cli/release/*", "CLI intermediate artifact upload");
 requireText(release, "outcomego-linux-x64.gz", "versionless CLI release asset");
 if (release.includes("aiteamos-") || release.includes("create-legacy-cli-aliases")) {
