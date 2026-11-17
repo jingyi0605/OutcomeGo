@@ -1,0 +1,81 @@
+bun test v1.4.4 (38afee6c8)
+
+apps/worker/test/outcome-claim-locks.integration.test.ts:
+(node:11979) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `bun --trace-warnings ...` to show where the warning was created)
+60 | 
+61 | Example:
+62 |   await prisma.$executeRawUnsafe(\`ALTER USER prisma WITH PASSWORD '\${password}'\`)
+63 | 
+64 | More Information: https://pris.ly/d/execute-raw
+65 | `)}var zi=({clientMethod:e,activeProvider:t,clientVersion:r})=>n=>{let i="",o;if(Ur(n))i=n.sql,o={values:It(n.values,r),__prismaRawParameters__:!0};else if(Array.isArray(n)){let[s,...a]=n;i=s,o={values:It(a||[],r),__prismaRawParameters__:!0}}else switch(t){case"sqlite":case"mysql":{i=n.sql,o={values:It(n.values,r),__prismaRawParameters__:!0};break}case"cockroachdb":case"postgresql":case"postgres":{i=n.text,o={values:It(n.values,r),__prismaRawParameters__:!0};break}case"sqlserver":{i=Al(n),o={values:It(n.values,r),__prismaRawParameters__:!0};break}default:throw new Error(`The ${t} provider does not support ${e}`)}return o?.values?Ol(`prisma.${e}(${i}, ${o.values})`):Ol(`prisma.${e}(${i})`),{query:i,parameters:o}},Dl={requestArgsToMiddlewareArgs(e){return[e.strings,...e.values]},middlewareArgsToRequestArgs(e){let[t,...r]=e;return new Nl.Sql(t,r)}},Ml={requestArgsToMiddlewareArgs(e){return[e]},middlewareArgsToRequestArgs(e){return e[0]}};function Hi(e){return function(r,n){let i,o=(s=e)=>{try{return s===void 0||
+
+(FiberFailure) PrismaClientKnownRequestError: 
+Invalid `prisma.$executeRaw()` invocation:
+
+
+Raw query failed. Code: `40P01`. Message: `deadlock detected`
+ effect/Runtime/FiberFailure: Symbol(effect/Runtime/FiberFailure),
+ effect/Runtime/FiberFailure/Cause: {
+  _tag: "Fail",
+  error: 60 | 
+61 | Example:
+62 |   await prisma.$executeRawUnsafe(\`ALTER USER prisma WITH PASSWORD '\${password}'\`)
+63 | 
+64 | More Information: https://pris.ly/d/execute-raw
+65 | `)}var zi=({clientMethod:e,activeProvider:t,clientVersion:r})=>n=>{let i="",o;if(Ur(n))i=n.sql,o={values:It(n.values,r),__prismaRawParameters__:!0};else if(Array.isArray(n)){let[s,...a]=n;i=s,o={values:It(a||[],r),__prismaRawParameters__:!0}}else switch(t){case"sqlite":case"mysql":{i=n.sql,o={values:It(n.values,r),__prismaRawParameters__:!0};break}case"cockroachdb":case"postgresql":case"postgres":{i=n.text,o={values:It(n.values,r),__prismaRawParameters__:!0};break}case"sqlserver":{i=Al(n),o={values:It(n.values,r),__prismaRawParameters__:!0};break}default:throw new Error(`The ${t} provider does not support ${e}`)}return o?.values?Ol(`prisma.${e}(${i}, ${o.values})`):Ol(`prisma.${e}(${i})`),{query:i,parameters:o}},Dl={requestArgsToMiddlewareArgs(e){return[e.strings,...e.values]},middlewareArgsToRequestArgs(e){let[t,...r]=e;return new Nl.Sql(t,r)}},Ml={requestArgsToMiddlewareArgs(e){return[e]},middlewareArgsToRequestArgs(e){return e[0]}};function Hi(e){return function(r,n){let i,o=(s=e)=>{try{return s===void 0||
+
+PrismaClientKnownRequestError: 
+Invalid `prisma.$executeRaw()` invocation:
+
+
+Raw query failed. Code: `40P01`. Message: `deadlock detected`
+       meta: {
+    driverAdapterError: 661 |       this.onError(e);
+662 |     }
+663 |   }
+664 |   onError(error) {
+665 |     debug("Error in performIO: %O", error);
+666 |     throw new DriverAdapterError(convertDriverError(error));
+                ^
+DriverAdapterError: TransactionWriteConflict
+ cause: {
+      originalCode: "40P01",
+      originalMessage: "deadlock detected",
+      kind: "TransactionWriteConflict",
+    },
+
+      at onError (/Users/jackson/Code/openteam-spec004-worktrees/l6-claim-lock-fix/node_modules/.bun/@prisma+adapter-pg@7.10.0/node_modules/@prisma/adapter-pg/dist/index.mjs:666:11)
+      at performIO (/Users/jackson/Code/openteam-spec004-worktrees/l6-claim-lock-fix/node_modules/.bun/@prisma+adapter-pg@7.10.0/node_modules/@prisma/adapter-pg/dist/index.mjs:661:12)
+      at async executeRaw (/Users/jackson/Code/openteam-spec004-worktrees/l6-claim-lock-fix/node_modules/.bun/@prisma+adapter-pg@7.10.0/node_modules/@prisma/adapter-pg/dist/index.mjs:634:24)
+,
+  },
+ clientVersion: "7.10.0",
+       code: "P2010"
+
+      at handleRequestError (/Users/jackson/Code/openteam-spec004-worktrees/l6-claim-lock-fix/node_modules/.bun/@prisma+client@7.10.0+34fe0cae3637db99/node_modules/@prisma/client/runtime/client.js:65:8649)
+      at handleAndLogRequestError (/Users/jackson/Code/openteam-spec004-worktrees/l6-claim-lock-fix/node_modules/.bun/@prisma+client@7.10.0+34fe0cae3637db99/node_modules/@prisma/client/runtime/client.js:65:7932)
+      at request (/Users/jackson/Code/openteam-spec004-worktrees/l6-claim-lock-fix/node_modules/.bun/@prisma+client@7.10.0+34fe0cae3637db99/node_modules/@prisma/client/runtime/client.js:65:7639)
+      at processTicksAndRejections (native:7:39)
+,
+  [Symbol(effect/Cause)]: [Object ...],
+  [Symbol(effect/Hash)]: [Function],
+  [Symbol(effect/Equal)]: [Function],
+  pipe: [Function: pipe],
+  toJSON: [Function: toJSON],
+  toString: [Function: toString],
+  [Symbol(nodejs.util.inspect.custom)]: [Function],
+},
+
+      at handleRequestError (/Users/jackson/Code/openteam-spec004-worktrees/l6-claim-lock-fix/node_modules/.bun/@prisma+client@7.10.0+34fe0cae3637db99/node_modules/@prisma/client/runtime/client.js:65:8649)
+      at handleAndLogRequestError (/Users/jackson/Code/openteam-spec004-worktrees/l6-claim-lock-fix/node_modules/.bun/@prisma+client@7.10.0+34fe0cae3637db99/node_modules/@prisma/client/runtime/client.js:65:7932)
+      at request (/Users/jackson/Code/openteam-spec004-worktrees/l6-claim-lock-fix/node_modules/.bun/@prisma+client@7.10.0+34fe0cae3637db99/node_modules/@prisma/client/runtime/client.js:65:7639)
+      at processTicksAndRejections (native:7:39)
+(fail) Outcome claim lock order > real multi-Outcome Stop and reverse-priority claim both commit [1298.27ms]
+(fail) Outcome claim lock order > a contended higher-priority Outcome cannot hold up foreground input [5001.17ms]
+  ^ this test timed out after 5000ms.
+
+ 0 pass
+ 2 fail
+ 1 expect() calls
+Ran 2 tests across 1 file. [6.53s]

@@ -1,0 +1,12 @@
+bun test v1.4.4 (38afee6c8)
+
+apps/worker/test/outcome-claim-locks.integration.test.ts:
+(node:13439) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `bun --trace-warnings ...` to show where the warning was created)
+(pass) Outcome claim lock order > real multi-Outcome Stop and reverse-priority claim both commit [581.49ms]
+(pass) Outcome claim lock order > a contended higher-priority Outcome cannot hold up foreground input [304.00ms]
+
+ 2 pass
+ 0 fail
+ 6 expect() calls
+Ran 2 tests across 1 file. [1207.00ms]
