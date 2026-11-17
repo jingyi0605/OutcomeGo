@@ -971,6 +971,9 @@ export class WakeWorker {
     }
   }
 
+  private routineRecoveryCursor: string | null = null;
+  private routineFollowUpCursor: string | null = null;
+
   private async recoverRoutineExecutions(): Promise<void> {
     const executions = await this.prisma.routineExecution.findMany({
       where: {
@@ -979,6 +982,7 @@ export class WakeWorker {
         routine: {
           OR: [{ bot: { status: "active" } }, { channel: { kind: "group", archivedAt: null } }],
         },
+        ...(this.routineRecoveryCursor ? { id: { gt: this.routineRecoveryCursor } } : {}),
       },
       select: {
         id: true,
@@ -987,22 +991,29 @@ export class WakeWorker {
         routine: { select: { botId: true, channelId: true } },
         run: { select: { status: true, completedAt: true, error: true } },
       },
+      orderBy: { id: "asc" },
       take: 100,
     });
+    this.routineRecoveryCursor = executions.length === 100 ? executions[99]!.id : null;
     for (const execution of executions) {
-      if (execution.runId && execution.run) {
-        const updated = await this.prisma.$transaction(async tx => {
-          const settled = await reconcileRoutineExecution(tx, execution.runId!);
-          if (settled) await this.routines.afterExecution(tx, settled);
-          return settled;
-        });
-        if (updated && execution.routine.botId) {
-          await this.syncRoutineRunFile(execution.routine.botId, execution.runId);
+      try {
+        if (execution.runId && execution.run) {
+          const updated = await this.prisma.$transaction(async tx => {
+            // Follow-up creation takes this gate; archive takes it before
+            // stopping runs and executions, so acquire it before settlement.
+            if (execution.routine.botId) await lockAgentLifecycle(tx, execution.routine.botId);
+            const settled = await reconcileRoutineExecution(tx, execution.runId!);
+            if (settled) await this.routines.afterExecution(tx, settled);
+            return settled;
+          });
+          if (updated && execution.routine.botId) {
+            await this.syncRoutineRunFile(execution.routine.botId, execution.runId);
+          }
+        } else if (execution.channelMessageId && execution.routine.channelId) {
+          await this.recoverGroupRoutineExecution(execution.id, execution.channelMessageId);
         }
-        continue;
-      }
-      if (execution.channelMessageId && execution.routine.channelId) {
-        await this.recoverGroupRoutineExecution(execution.id, execution.channelMessageId);
+      } catch (error) {
+        console.error("Routine execution recovery deferred", execution.id, error);
       }
     }
     // A follow-up holding coalesced events has no wake or room turn until the run before it settles.
@@ -1010,11 +1021,20 @@ export class WakeWorker {
       where: {
         status: "queued", runId: null, channelMessageId: null,
         routine: { OR: [{ bot: { status: "active" } }, { channel: { kind: "group", archivedAt: null } }] },
+        ...(this.routineFollowUpCursor ? { id: { gt: this.routineFollowUpCursor } } : {}),
       },
-      select: { routineId: true },
+      select: { id: true, routineId: true },
+      orderBy: { id: "asc" },
       take: 100,
     });
-    for (const { routineId } of followUps) await this.routines.runEventFollowUp(routineId);
+    this.routineFollowUpCursor = followUps.length === 100 ? followUps[99]!.id : null;
+    for (const { routineId } of followUps) {
+      try {
+        await this.routines.runEventFollowUp(routineId);
+      } catch (error) {
+        console.error("Routine follow-up recovery deferred", routineId, error);
+      }
+    }
     await this.recoverOutcomeWorkItems();
   }
 
@@ -1050,6 +1070,13 @@ export class WakeWorker {
     executionId: string,
     rootMessageId: string
   ): Promise<void> {
+    // The round is committed before its initial handoff. Retry that handoff
+    // outside the settlement transaction after an interrupted launch.
+    const pendingRounds = await this.prisma.channelRound.findMany({
+      where: { rootMessageId, status: { in: ["queued", "running"] } },
+      select: { id: true },
+    });
+    for (const round of pendingRounds) await this.messaging.advanceRound(round.id);
     const settled = await this.prisma.$transaction(async (tx) => {
       const execution = await tx.routineExecution.findUnique({
         where: { id: executionId },
