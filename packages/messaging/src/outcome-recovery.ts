@@ -101,6 +101,9 @@ export async function recoverOutcomeWorkItem(tx: Prisma.TransactionClient, workI
     return write("cancelled", "contract_revision_superseded");
   }
   if (active.length || ["waiting_decision", "waiting_human"].includes(item.status)) return null;
+  // WakeParent deliberately parks this thread until the main conversation resolves
+  // its platform blocker; a restart must not turn that handoff into an automatic retry.
+  if (item.status === "needs_review" && item.statusReason === "platform_handoff") return null;
   if (record) {
     await dispatchQueuedOutcomeWorkItems(tx, runtime.messaging, item.botId);
     return null;

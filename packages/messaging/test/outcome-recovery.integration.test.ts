@@ -77,12 +77,12 @@ describe.skipIf(!url)("durable Outcome restart recovery", () => {
     } finally { await h.cleanup(); }
   });
 
-  for (const status of ["waiting_decision", "waiting_human"] as const) test(`${status} survives restart without a continuation`, async () => {
+  for (const status of ["waiting_decision", "waiting_human", "needs_review"] as const) test(`${status} survives restart without a continuation`, async () => {
     const h = await outcomeThreadFixture();
     try {
       const { item, runId } = await start(h);
-      await h.db.$transaction(tx => transitionWorkItem(tx, { workItemId: item.id, to: status, reason: "fixture", actor: "system:fixture" }));
-      await finish(h, runId, "completed");
+      await h.db.$transaction(tx => transitionWorkItem(tx, { workItemId: item.id, to: status, reason: status === "needs_review" ? "platform_handoff" : "fixture", actor: "system:fixture" }));
+      await finish(h, runId, status === "needs_review" ? "interrupted" : "completed");
       expect(await recover(h, item.id)).toBeNull();
       expect(await h.db.run.count({ where: { outcomeWorkItemId: item.id } })).toBe(1);
       expect((await h.db.outcomeWorkItem.findUniqueOrThrow({ where: { id: item.id } })).status).toBe(status);
