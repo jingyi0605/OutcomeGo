@@ -377,10 +377,23 @@ export class SubagentService {
       if (!bot) throw new ApiError(404, "bot_not_found", "Bot not found");
       const runs = await this.prisma.run.findMany({
         where: { botId, status: { in: ["queued", "running"] } },
-        select: { id: true },
+        select: { id: true, outcomeWorkItemId: true },
         orderBy: { createdAt: "asc" },
       });
-      await Promise.allSettled(runs.map((run) => Effect.runPromise(this.stopRun(run.id))));
+      // A completed turn can still own commands. Fence its WorkItem before late callbacks arrive.
+      const outcomeItems = await this.prisma.outcomeWorkItem.findMany({
+        where: { botId, executorType: "agent", status: { notIn: ["completed", "failed"] } },
+        select: { id: true },
+      });
+      const outcomeStop = outcomeItems.length
+        ? this.runs.cancelOutcomeWorkItems
+          ? Effect.runPromise(this.runs.cancelOutcomeWorkItems(outcomeItems.map(item => item.id)))
+          : Promise.reject(new ApiError(503, "outcome_stop_incomplete", "Outcome run-group cancellation is not configured", { retryable: true }))
+        : Promise.resolve();
+      const outcomeStopped = await outcomeStop.then(() => true, () => false);
+      const stopped = await Promise.allSettled([
+        ...runs.filter(run => !run.outcomeWorkItemId).map(run => Effect.runPromise(this.stopRun(run.id))),
+      ]);
       const requests = await this.prisma.$transaction(tx => stopRequestProgress(tx, botId));
       const workers = await this.stopRunningSubagents(botId, `user-stop:bot:${botId}`);
       // Stop is best effort across all targets, but success must not hide a
@@ -388,9 +401,9 @@ export class SubagentService {
       const remaining = runs.length ? await this.prisma.run.count({
         where: { id: { in: runs.map(run => run.id) }, status: { in: ["queued", "running"] } },
       }) : 0;
-      if (remaining || workers.some(worker => worker.outcome === "failed"))
+      if (remaining || !outcomeStopped || stopped.some(result => result.status === "rejected") || workers.some(worker => worker.outcome === "failed"))
         throw new ApiError(503, "bot_stop_incomplete", "Some work could not be stopped. Try Stop again.");
-      return { hadActiveRun: runs.length > 0 || workers.length > 0 || requests > 0 };
+      return { hadActiveRun: runs.length > 0 || outcomeItems.length > 0 || workers.length > 0 || requests > 0 };
     });
 
   /**

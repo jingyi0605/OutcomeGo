@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { Effect } from "effect";
-import { enqueueOutcomeTurn } from "@outcomego/messaging";
+import { enqueueOutcomeTurn, transitionWorkItem } from "@outcomego/messaging";
 import { outcomeThreadFixture } from "../../../packages/messaging/test/fixtures/outcome-thread";
 import { RunService } from "../src/services/run-service";
 import { SubagentService } from "../src/services/subagent/service";
@@ -10,7 +10,11 @@ async function fixture() {
   const h = await outcomeThreadFixture();
   const children: string[] = [];
   const paths: string[] = [];
-  const computerFetch = async (path: string) => { paths.push(path); return Response.json({ ok: true, stopped: 1 }); };
+  const transport = { scopedStatus: 200 };
+  const computerFetch = async (path: string) => {
+    paths.push(path);
+    return Response.json({ ok: true, stopped: 1 }, { status: path.endsWith("/stop-runs") ? transport.scopedStatus : 200 });
+  };
   const runs = new RunService(h.db, computerFetch);
   const service = new SubagentService(h.db, h.messaging, runs, h.root, computerFetch, h.store);
   const parent = async (origin: "user" | "routine" | "outcome") => {
@@ -40,7 +44,7 @@ async function fixture() {
     } });
     return { worker, run };
   };
-  return { ...h, parent, child, service, paths, async close() {
+  return { ...h, parent, child, service, paths, transport, async close() {
     await h.db.bot.deleteMany({ where: { id: { in: children.reverse() } } });
     await h.cleanup();
   } };
@@ -94,5 +98,52 @@ test.skipIf(!databaseUrl)("a worker rebound after selection is never stopped by 
     await h.service.stop(h.bot.id, "old-caller", { subagent_id: worker.worker.id }, main.id);
     expect((await h.db.run.findUniqueOrThrow({ where: { id: worker.run.id } })).status).toBe("running");
     expect(h.paths).toEqual([]);
+  } finally { await h.close(); }
+});
+
+for (const stop of ["run", "bot"] as const) {
+  test.skipIf(!databaseUrl)(`${stop} Stop fences completed Outcome roots before actual late shell completion`, async () => {
+    const h = await fixture();
+    try {
+      const root = await h.parent("outcome");
+      const sibling = stop === "run" ? await h.parent("outcome") : null;
+      const queuedIntent = stop === "bot" ? await h.item(2) : null;
+      await h.db.$transaction(tx => transitionWorkItem(tx, {
+        workItemId: root.outcomeWorkItemId!, to: "running", reason: "claimed", actor: "system:test",
+      }));
+      await h.db.run.update({ where: { id: root.id }, data: { status: "completed" } });
+      await h.db.runItem.create({ data: {
+        runId: root.id, kind: "command", status: "completed",
+        content: { shellKind: "background", result: { details: { status: "running", outputPath: "/tmp/stopped-shell.log" } } },
+      } });
+      if (stop === "run") await Effect.runPromise(h.service.stopRun(root.id));
+      else await Effect.runPromise(h.service.stopBot(h.bot.id));
+      const before = await h.db.run.count({ where: { outcomeWorkItemId: root.outcomeWorkItemId } });
+      expect(await h.messaging.completeShell({
+        id: crypto.randomUUID(), scope: h.bot.id, channelId: h.channel.id,
+        automationRunId: root.id, outputPath: "/tmp/stopped-shell.log", exitCode: 0, title: "Old result",
+      })).toMatchObject({ delivered: false, ignored: true });
+      expect(await h.db.run.count({ where: { outcomeWorkItemId: root.outcomeWorkItemId } })).toBe(before);
+      expect((await h.db.outcomeWorkItem.findUniqueOrThrow({ where: { id: root.outcomeWorkItemId! } })).status).toBe("cancelled");
+      if (sibling)
+        expect((await h.db.outcomeWorkItem.findUniqueOrThrow({ where: { id: sibling.outcomeWorkItemId! } })).status).toBe("queued");
+      if (queuedIntent)
+        expect((await h.db.outcomeWorkItem.findUniqueOrThrow({ where: { id: queuedIntent.id } })).status).toBe("cancelled");
+    } finally { await h.close(); }
+  });
+}
+
+test.skipIf(!databaseUrl)("global Stop retries physical cancellation after the WorkItem fact was already committed", async () => {
+  const h = await fixture();
+  try {
+    const root = await h.parent("outcome");
+    await h.db.run.update({ where: { id: root.id }, data: { status: "completed" } });
+    h.transport.scopedStatus = 404;
+    expect((await Effect.runPromise(Effect.either(h.service.stopBot(h.bot.id))))._tag).toBe("Left");
+    expect((await h.db.outcomeWorkItem.findUniqueOrThrow({ where: { id: root.outcomeWorkItemId! } })).status).toBe("cancelled");
+    const count = h.paths.filter(path => path.endsWith("/stop-runs")).length;
+    h.transport.scopedStatus = 200;
+    expect((await Effect.runPromise(Effect.either(h.service.stopBot(h.bot.id))))._tag).toBe("Right");
+    expect(h.paths.filter(path => path.endsWith("/stop-runs")).length).toBeGreaterThan(count);
   } finally { await h.close(); }
 });

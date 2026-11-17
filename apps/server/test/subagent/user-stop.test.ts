@@ -22,6 +22,7 @@ function fixture() {
   const db: any = {
     $executeRaw: async () => 1,
     bot: { findUnique: async ({ where }: any) => (["bot", "idle-bot"].includes(where.id) ? { id: where.id } : null) },
+    outcomeWorkItem: { findMany: async () => [] },
     run: {
       findUnique: async ({ where }: any) => (runs[where.id] ? { ...runs[where.id], inboxEvents: [] } : null),
       findMany: async ({ where, select }: any) => where.requestProgress ? [] : Object.values(runs).filter((row) => matches(row, where)).map((row) => select?.inboxEvents ? { ...row, inboxEvents: [] } : { id: row.id }),
