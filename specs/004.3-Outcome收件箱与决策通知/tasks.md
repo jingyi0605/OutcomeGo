@@ -163,9 +163,17 @@
 ## 阶段 3：客户端
 
 - [ ] 3.1 Desktop Inbox、Decision 卡和通知
-  - 状态：TODO
+  - 状态：IN_PROGRESS（Desktop 代码完成；按负责人要求，统一集成后的正式验证 PENDING，暂不勾选）
+  - 实现提交：`3abfc861e`、`4ed536b33`；依赖原始提交与本工作树映射见证据文档。
+  - 修改文件：`outcomes/inbox/`、`outcomego-api.ts`、最小 App/深链/原生通知/preload/本地化接线；准确清单见证据文档。
+  - 数据库变化：本线无；消费其他线已冻结合同，不把依赖提交归为本线实现。
+  - 验证命令：`bun test apps/desktop/test/outcome-inbox-state.test.ts apps/desktop/test/outcome-attention.test.ts apps/desktop/test/outcome-native-notifications.test.ts`；32 个变更 Desktop 根文件的聚焦编译；39 个源/测试文件语法检查；`git diff --check`。
+  - 验证结果：15 PASS / 0 FAIL / 50 assertions；聚焦编译及语法检查 0 diagnostics。未执行完整 Desktop typecheck、SSR 组件组、旧通知全套、无障碍和浏览器/打包回放。
+  - 证据文件：[桌面客户端代码与最小检查](../004.4-现实任务与知识资料闭环/docs/20261117-桌面客户端代码与最小检查.md)。
+  - 已知限制：真实通知、登录前深链、双客户端冲突与所有正式外部验收仍为 PENDING；此记录不宣称父 Spec 或阶段验收完成。
+  - 回滚方式：撤销两个本线代码提交和本次文档提交；保留其他线合同、数据库和用户数据。
   - 先依赖什么：1.2、1.3、1.4、2.2（第 2 波合入后进入第 3 波客户端）。
-  - 主要改哪里：`apps/desktop/src/renderer/components/outcomego/outcomes/OutcomeInbox.tsx`、Decision 卡、`apps/desktop/src/main/notifications.ts`、API client
+  - 主要改哪里：`apps/desktop/src/renderer/components/outcomego/outcomes/inbox/`、`apps/desktop/src/main/notifications.ts`、API client
   - 这一步先不做什么：不默认显示完整日志；主进程不缓存完整 Decision 文本。
   - 怎么算完成：默认层/展开层/高级层；loading/ready/resolving/conflict/expired/error 状态；banner 点击和深链打开；刷新不丢选择。
   - 怎么验证：`bun --filter @outcomego/desktop typecheck`、组件测试、无障碍检查

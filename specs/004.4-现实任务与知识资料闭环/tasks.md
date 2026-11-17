@@ -134,9 +134,17 @@
   - 对应设计：§9、§17、§33
 
 - [ ] 2.3 实现 Desktop 动作卡和资料引用
-  - 状态：TODO
+  - 状态：IN_PROGRESS（Desktop 代码完成；统一集成后的正式验证 PENDING）
+  - 实现提交：`3abfc861e`、`4ed536b33`。
+  - 修改文件：`outcomes/human-work/human-action.tsx`、`knowledge-references.tsx`、`human-api.ts`、Inbox 导航和最小 API/本地化接线。
+  - 数据库变化：本线无。
+  - 验证命令：15 项聚焦状态/适配器测试；32 个变更 Desktop 根文件的聚焦编译；39 个源/测试文件语法检查；`git diff --check`。
+  - 验证结果：15 PASS / 0 FAIL / 50 assertions；聚焦编译及语法 0 diagnostics；SSR/浏览器/真实服务统一验证 PENDING。
+  - 证据文件：[桌面客户端代码与最小检查](docs/20261117-桌面客户端代码与最小检查.md)。
+  - 已知限制：仅将服务端已保存的步骤、摘要、已读引用和状态称为恢复；未提交的完整本地 File 对象不宣称可跨应用重启恢复。资料正文只在主动读取时请求，不持久化到客户端缓存。
+  - 回滚方式：撤销本线代码和文档提交；保留服务端表与真实材料。
   - 先依赖什么：2.2、2.1 的两种来源、3.2（第 3 波 Desktop）。
-  - 主要改哪里：`apps/desktop/src/renderer/components/outcomego/outcomes/HumanActionCard.tsx`、`KnowledgeReferences.tsx`、API client
+  - 主要改哪里：`apps/desktop/src/renderer/components/outcomego/outcomes/human-work/`、API client
   - 这一步先不做什么：不默认展示完整资料正文。
   - 怎么算完成：目的、前置条件、步骤、资料、输入和 Evidence 要求可读；暂停和刷新后状态恢复。
   - 怎么验证：`bun --filter @outcomego/desktop typecheck`、组件测试
@@ -182,7 +190,15 @@
   - 对应设计：§20、§32、§35
 
 - [ ] 3.3 实现 Desktop 回执表单和错误恢复
-  - 状态：TODO
+  - 状态：IN_PROGRESS（Desktop 代码完成；统一集成后的正式验证 PENDING）
+  - 实现提交：`3abfc861e`、`4ed536b33`；真实历史契约读取接口依赖原始提交 `a7b3067e0`。
+  - 修改文件：`human-work/receipt-form.tsx`、`receipt-state.ts`、动作卡/回执历史、`detail/outcome-detail.tsx`、`detail/review-panel.tsx`、统一导航。
+  - 数据库变化：本线无。
+  - 验证命令：15 项聚焦状态/适配器测试；32 个变更 Desktop 根文件的聚焦编译；39 个源/测试文件语法检查；`git diff --check`。
+  - 验证结果：15 PASS / 0 FAIL / 50 assertions；部分上传失败后保留成功引用的回归通过；SSR 的缺材料、驳回和真实 N / 待批 N+1 案例已添加未执行。
+  - 证据文件：[桌面客户端代码与最小检查](docs/20261117-桌面客户端代码与最小检查.md)。
+  - 已知限制：真实服务回执、验收和续跑联验 PENDING。历史契约读取失败时禁止验收，不回退到 N+1；N+1 真正批准后旧 N 控制由服务端拒绝，客户端刷新事实。
+  - 回滚方式：撤销本线代码和文档提交；保留资产、Receipt 和 Evidence。
   - 先依赖什么：3.1、3.2
   - 主要改哪里：`ReceiptForm.tsx`、asset 上传状态、验收状态
   - 这一步先不做什么：不清空已上传资产和已填写草稿。
@@ -227,10 +243,10 @@
   - 对应需求：需求 15
   - 对应设计：§22
 
-## 阶段 5：Explore（可整体延期，D19）
+## 阶段 5：Explore（2026-11-17 负责人要求本轮实现）
 
 - [ ] 5.1 实现 ExploreIdea 和转 PlanningDraft
-  - 状态：IN_PROGRESS（后端代码已交付；Desktop 独立客户端及整合后组合验证另记，不提前勾选整个任务完成）
+  - 状态：IN_PROGRESS（后端与 Desktop 代码均已交付；统一组合验证 PENDING，不提前勾选整个任务完成）
   - 实现提交：`d0eadb5d6`（contracts）、`01f437220`（schema）、`de5a12db8`（后端）、`f3ad396c3`（并发主体冲突）。
   - 修改文件：`packages/contracts/src/explore.ts`、exports、可选 OutcomeDetail 来源字段；`packages/db/prisma/schema.prisma`；`apps/server/src/services/explore-state.ts`、`explore-service.ts`、`outcome-planning-service.ts`、`outcome-service.ts`、`routes/explore.ts`、Explore contracts/routes/service 测试及对应冻结/设计文档。
   - 数据库变化：新增 ExploreIdea/ExploreIdeaStatus，独立 PlanningDraft FK 和真实转换 Outcome 双向可选关联；不删除或重命名已有表/列，不写 migration 文件。
@@ -239,6 +255,14 @@
   - 证据文件：[`docs/20261117-Explore后端实现与验证.md`](docs/20261117-Explore后端实现与验证.md)。
   - 已知限制：中心 app/main 装配由 integrator，Desktop Explore UI 由 w3-desktop；本线不启动服务/数据库，不执行远端真实模型调用；转换后的 readonly 和旧数据兼容待整合验证。
   - 回滚方式：先撤销装配，再按本线提交撤销接口/服务，保留实际已有探索/交付数据，不在回滚时删除表。
+  - Desktop 代码进度（2026-11-17，负责人要求本轮完整实现）：DONE；正式统一验收 PENDING。此行不替代产品线的后端实现与验收记录。
+  - Desktop 实现提交：`4ed536b33`；冻结 Explore 合同原始提交 `d0eadb5d6`。
+  - Desktop 修改文件：`outcomes/explore/{explore-api.ts,explore-panel.tsx}`、`planning/planning-wizard.tsx` 的可选预算桥接、Inbox 工作区/最小 API/本地化接线。
+  - Desktop 数据库变化：无；后端模型与转换事务由产品线拥有。
+  - Desktop 验证：聚焦状态/适配器测试 15 PASS / 0 FAIL；聚焦编译 0 diagnostics；只读历史/规划桥接 SSR 测试已添加未执行；真实 Propose→PlanningDraft→确认→新 Outcome 回放 PENDING。
+  - Desktop 证据：[桌面客户端代码与最小检查](docs/20261117-桌面客户端代码与最小检查.md)。
+  - Desktop 已知限制：不创建自动 Run、不自动批准；`proposed_for_delivery` 是冻结规范值，转换或丢弃后只读保留历史；不因 UI 完成宣称整个任务验证完成。
+  - Desktop 回滚：撤销 `4ed536b33` 和文档记录，保留后端数据和转换来源。
   - 先依赖什么：4.1、`004.2` 任务 2.1
   - 主要改哪里：Explore model/service/route、contracts、Desktop 入口
   - 这一步先不做什么：不把 ExploreIdea 直接变成 approved Outcome；不为探索创建 Run。
