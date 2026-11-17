@@ -373,10 +373,17 @@ export default function App() {
       const newestKnown = index.latestMessageByChannel.get(channelId)?.sequence;
       const viewingOlder = notifiedSequence && newestKnown && /^\d+$/.test(newestKnown)
         && BigInt(notifiedSequence) < BigInt(newestKnown);
+      const throughNotificationSequence = viewingOlder
+        ? channel?.notificationState?.lastReadNotificationSequence ?? "0"
+        : channel?.notificationState?.notificationCursor ?? "0";
+      // Suppress native banners before slow persistence or avatar projection catches up.
+      window.outcomego?.notifications.read?.({
+        channelId,
+        lastReadSequence: throughSequence,
+        lastReadNotificationSequence: throughNotificationSequence,
+      });
       void readReceipts.current.request(channelId, throughSequence, {
-        throughNotificationSequence: viewingOlder
-          ? channel?.notificationState?.lastReadNotificationSequence ?? "0"
-          : channel?.notificationState?.notificationCursor,
+        throughNotificationSequence,
         send: (id, sequence, activity) => api.markChannelRead(id, sequence, activity),
         onAcknowledged: () => refresh(true),
       });
