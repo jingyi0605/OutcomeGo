@@ -5,7 +5,7 @@ import { COMPUTER_API_PATHS } from "@outcomego/contracts/service-protocol";
 import type { PrismaClient } from "@outcomego/db";
 import { lockAgentLifecycle } from "@outcomego/messaging";
 import { Effect } from "effect";
-import { appendEvent, type ComputerFetch, serviceEffect, stopSubagentShells } from "./service-utils";
+import { appendEvent, type ComputerFetch, serviceEffect } from "./service-utils";
 
 const runCancellation = async <A>(effect: Effect.Effect<A, Error>): Promise<A> => {
   const result = await Effect.runPromise(Effect.either(effect));
@@ -24,6 +24,11 @@ export class RunService {
     const runs = await this.prisma.run.findMany({ where: { outcomeWorkItemId: { in: [...workItemIds] } } });
     if (!runs.length) return { ok: true };
     const allRunIds = new Set(runs.map(run => run.id));
+    const runIdsByBot = new Map<string, Set<string>>();
+    for (const run of runs) {
+      if (!runIdsByBot.has(run.botId)) runIdsByBot.set(run.botId, new Set());
+      runIdsByBot.get(run.botId)!.add(run.id);
+    }
     const stoppedChildren = new Set<string>();
     let incomplete = false;
     const attempt = async (operation: () => Promise<unknown>) => {
@@ -33,45 +38,76 @@ export class RunService {
     for (const run of runs) await attempt(() => runCancellation(this.cancel(run.id)));
     // Drain nested workers, including a child created just before its parent's cancellation arrived.
     for (let pass = 0; pass < 4; pass++) {
-      const children = await this.prisma.$transaction(async tx => {
-        // Task dispatch holds the same lifecycle lock through its context check and insertion.
-        for (const botId of [...new Set(runs.map(run => run.botId))].sort()) await lockAgentLifecycle(tx, botId);
-        return tx.subagent.findMany({ where: { parentRunId: { in: [...allRunIds] }, id: { notIn: [...stoppedChildren] } } });
-      });
-      if (!children.length) break;
-      for (const child of children) {
-        const current = await this.prisma.subagent.findUnique({ where: { id: child.id } });
-        if (!current || !allRunIds.has(current.parentRunId)) { stoppedChildren.add(child.id); continue; }
-        const childRuns = await this.prisma.run.findMany({ where: { botId: child.childBotId } });
-        let stopped = true;
-        for (const run of childRuns) {
-          allRunIds.add(run.id);
-          if (!await attempt(() => runCancellation(this.cancel(run.id)))) stopped = false;
-        }
-        if (!await attempt(() => stopSubagentShells(this.computerFetch, child.childBotId))) stopped = false;
-        if (!stopped) continue;
-        await this.prisma.$transaction(async tx => {
+      const captured = await this.prisma.$transaction(async tx => {
+        // Reserve the binding before effects. Resume takes this same parent lifecycle lock.
+        for (const botId of [...runIdsByBot.keys()].sort()) await lockAgentLifecycle(tx, botId);
+        const candidates = await tx.subagent.findMany({
+          where: { id: { notIn: [...stoppedChildren] }, OR: [
+            { parentRunId: { in: [...allRunIds] } },
+            { attempts: { some: { parentRunId: { in: [...allRunIds] } } } },
+          ] }, orderBy: { id: "asc" }, select: { id: true },
+        });
+        const captured: Array<{ childId: string; botId: string; runIds: string[] }> = [];
+        for (const candidate of candidates) {
+          // Steering and periodic task continuation also update this row before committing a new run.
+          await tx.$queryRaw`SELECT id FROM "outcomego_subagent" WHERE id = ${candidate.id}::uuid FOR UPDATE`;
+          const child = await tx.subagent.findUnique({
+            where: { id: candidate.id }, include: { attempts: { orderBy: [{ createdAt: "asc" }, { id: "asc" }] } },
+          });
+          if (!child) continue;
+          const ownedAttempts = child.attempts.filter(entry => allRunIds.has(entry.parentRunId));
+          const ids = new Set(ownedAttempts.flatMap(entry => entry.childRunId ? [entry.childRunId] : []));
+          if (allRunIds.has(child.parentRunId) && child.currentRunId) ids.add(child.currentRunId);
+          // Attempts keep the latest steered run. Resolve their original mailbox identities as well.
+          const keys = ownedAttempts.flatMap(entry => [
+            `subagent:${child.id}:resume:${entry.parentToolCallId}`,
+            ...(entry.parentToolCallId.startsWith("continuation:") ? [entry.parentToolCallId] : []),
+          ]);
+          if (child.attempts[0] && allRunIds.has(child.attempts[0].parentRunId)) keys.push(`subagent:${child.id}:initial`);
+          for (const inbox of await tx.inboxEvent.findMany({
+            where: { botId: child.childBotId, idempotencyKey: { in: keys } }, select: { runId: true },
+          })) ids.add(inbox.runId);
+          // Scope updates retain each steering run. A resume entry starts the next parent's segment.
+          let parentRunId = child.attempts[0]?.parentRunId ?? child.parentRunId;
+          for (const update of Array.isArray(child.scopeUpdates) ? child.scopeUpdates : []) {
+            if (!update || typeof update !== "object" || Array.isArray(update)) continue;
+            const binding = child.attempts.find(entry => entry.parentToolCallId === update.callId);
+            if (binding) parentRunId = binding.parentRunId;
+            if (allRunIds.has(parentRunId) && typeof update.runId === "string") ids.add(update.runId);
+          }
           const now = new Date();
           const stopped = await tx.subagent.updateMany({
-            where: { id: child.id, currentRunId: child.currentRunId, parentRunId: child.parentRunId, status: { in: ["provisioning", "queued", "running", "waiting"] } },
+            where: { id: child.id, currentRunId: child.currentRunId, parentRunId: { in: [...allRunIds] }, status: { in: ["provisioning", "queued", "running", "waiting"] } },
             data: { status: "stopped", stoppedAt: now, completedAt: now, nextCheckAt: null },
           });
-          if (stopped.count) {
-            await tx.subagentAttempt.updateMany({
-              where: { subagentId: child.id, status: { in: ["provisioning", "queued", "running", "waiting"] } },
-              data: { status: "stopped", stoppedAt: now, completedAt: now },
-            });
+          await tx.subagentAttempt.updateMany({
+            where: { id: { in: ownedAttempts.map(entry => entry.id) }, status: { in: ["provisioning", "queued", "running", "waiting"] } },
+            data: { status: "stopped", stoppedAt: now, completedAt: now },
+          });
+          if (stopped.count)
             await appendEvent(tx, "subagent.stopped", child.id, { parentBotId: child.parentBotId, subagentId: child.id, runId: child.currentRunId, callId: "outcome-cancel" });
-          }
-        });
-        stoppedChildren.add(child.id);
+          const ownedRuns = await tx.run.findMany({ where: { botId: child.childBotId, id: { in: [...ids] } }, select: { id: true } });
+          captured.push({ childId: child.id, botId: child.childBotId, runIds: ownedRuns.map(run => run.id) });
+        }
+        return captured;
+      });
+      if (!captured.length) break;
+      for (const child of captured) {
+        if (!runIdsByBot.has(child.botId)) runIdsByBot.set(child.botId, new Set());
+        for (const runId of child.runIds) {
+          allRunIds.add(runId);
+          runIdsByBot.get(child.botId)!.add(runId);
+          await attempt(() => runCancellation(this.cancel(runId)));
+        }
+        stoppedChildren.add(child.childId);
       }
     }
     const remaining = await this.prisma.subagent.count({
       where: { parentRunId: { in: [...allRunIds] }, status: { in: ["provisioning", "queued", "running", "waiting"] } },
     });
-    for (const botId of new Set(runs.map(run => run.botId))) {
-      const runIds = runs.filter(run => run.botId === botId).map(run => run.id);
+    for (const [botId, ids] of runIdsByBot) {
+      const runIds = [...ids];
+      if (!runIds.length) continue;
       await attempt(async () => {
         const response = await this.computerFetch(COMPUTER_API_PATHS.backgroundShellRunsStop(botId), {
           method: "POST", body: JSON.stringify({ runIds }), signal: AbortSignal.timeout(10_000),

@@ -114,8 +114,9 @@ describe.skipIf(!url)("Outcome execution service", () => {
       for (const other of others) expect((await h.db.run.findUniqueOrThrow({ where: { id: other.id } })).status).toBe("running");
       for (const child of children.slice(0, 2)) expect((await h.db.subagent.findUniqueOrThrow({ where: { id: child.id } })).status).toBe("stopped");
       expect((await h.db.subagent.findUniqueOrThrow({ where: { id: children[2]!.id } })).status).toBe("running");
-      const stop = requests.findLast(request => request.path.endsWith("/stop-runs"));
+      const stop = requests.findLast(request => request.path === COMPUTER_API_PATHS.backgroundShellRunsStop(h.bot.id));
       expect(stop?.body).toEqual({ runIds: [rootId] });
+      expect(requests.every(request => !request.path.endsWith("/background-shells/stop"))).toBe(true);
     } finally { await h.db.bot.deleteMany({ where: { id: { in: childIds } } }); await h.cleanup(); }
   });
 
