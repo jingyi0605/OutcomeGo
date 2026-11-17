@@ -1,3 +1,4 @@
+import { createOutcomeApi } from "./outcome-api";
 import { createOutcomeGoClient } from "@outcomego/client-core";
 import { authHeaders, getDesktopMachineId } from "./auth";
 import { API_BASE, desktopTransportOptions } from "./http";
@@ -26,7 +27,10 @@ export const outcomeGoClient = createOutcomeGoClient({
 
 export type { ChannelClientState, ClientBootstrapView } from "@outcomego/contracts";
 
+const outcomes = createOutcomeApi(request);
+
 export const api = {
+  outcomes,
   ...outcomeGoClient,
   authenticatePlugin: (connectionId: string, force = false) =>
     window.outcomego?.pluginOAuth

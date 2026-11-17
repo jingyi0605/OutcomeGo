@@ -1054,6 +1054,8 @@ const VoiceConversationCard = memo(function VoiceConversationCard({
   );
 });
 
+const OutcomeEntryPoint = lazy(() => import("./outcomes/planning/outcome-entry-point"));
+
 export const ChatPane = memo(function ChatPane({
   composerFocusRequest,
   incomingDraft,
@@ -1661,6 +1663,9 @@ export const ChatPane = memo(function ChatPane({
       data-chat-drop-target=""
       ref={fileDropTargetRef}
     >
+      {active && selectedBot && channel.kind === "bot_dm" && !onboardingInProgress && (
+        <Suspense fallback={null}><OutcomeEntryPoint key={selectedBot.id} botId={selectedBot.id} /></Suspense>
+      )}
       {active && (
         <Conversation contextRef={conversationRef}>
           <ConversationTopDivider />
