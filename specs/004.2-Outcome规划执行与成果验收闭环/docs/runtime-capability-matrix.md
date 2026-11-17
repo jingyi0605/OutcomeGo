@@ -61,3 +61,9 @@
 ## 4. 一次本地测试任务
 
 本审计为源码走查。真实开发 Bot 上的子线程回放属于任务 3.1 的验证范围，届时在 `docs/acceptance-replay.md` 记录 Run ID 和租约记录。
+
+## 5. 第 1 波实现位置（2026-11-17）
+
+- 桌面互斥放在 `apps/worker/src/worker.ts` 的 `claim`：`computerUse` 子 Agent 领取时取得 `computer-screen:<parentBotId>` 事务锁，检查同一父 Bot 的有效运行租约。Outcome 来源与其他来源竞争同一桌面时串行，普通来源之间保留既有行为；互斥持续到既有子 Agent Run 租约释放或到期，不另建锁表。
+- 入队容量按同一 Bot 的已保留根 Run 和活跃运行组计数，领取容量独立于 Routine 的 4 个上限；输出目录为 `outcomes/<outcomeId>/<workItemId>/`。
+- `settleOutcomeWorkItem(tx, runId, runtime?)` 保留两参数事实结算入口，可选第三参数显式提供 messaging 和 workspaceRoot；生产 Worker 提供该参数，在同一事务登记输出文件并调度下一项。只有两参数时不读取文件系统、不立即调度；Worker 的定期调度补齐已完成项文件和就绪队列，不能把两参数调用当作完整调度验证。

@@ -54,6 +54,9 @@ import {
   automationContinuationRoute,
   automationContextRunId,
   reconcileRoutineExecution,
+  settleOutcomeWorkItem,
+  dispatchQueuedOutcomeWorkItems,
+  transitionWorkItem,
   groupRoutineState,
   lockGroupExecution,
 } from "@outcomego/messaging";
@@ -179,6 +182,7 @@ interface Claimed {
   channelId: string;
   deliveryId: string | null;
   origin: RunOrigin;
+  outcomeWorkItemId?: string | null;
   runtimeProfile: "agent" | "subagent";
   subagentType: SubagentType | null;
   readOnly: boolean;
@@ -194,8 +198,13 @@ export const contextScopeForRun = (
   origin: RunOrigin,
   channelId: string | null,
   conversationId: string,
-  automationRunId?: string
-): { scope: "home" | "channel" | "automation"; scopeId: string } => {
+  automationRunId?: string,
+  outcomeWorkItemId?: string | null
+): { scope: "home" | "channel" | "automation" | "outcome"; scopeId: string } => {
+  if (origin === "outcome") {
+    if (!outcomeWorkItemId) throw new Error("An Outcome requires its work item ID");
+    return { scope: "outcome", scopeId: outcomeWorkItemId };
+  }
   if (origin === "routine") {
     if (!automationRunId) throw new Error("An automation requires its own context run ID");
     return { scope: "automation", scopeId: automationRunId };
@@ -955,6 +964,23 @@ export class WakeWorker {
       take: 100,
     });
     for (const { routineId } of followUps) await this.routines.runEventFollowUp(routineId);
+    await this.recoverOutcomeWorkItems();
+  }
+
+  private outcomeRecoveryCursor: string | null = null;
+
+  private async recoverOutcomeWorkItems(): Promise<void> {
+    const items = await this.prisma.outcomeWorkItem.findMany({
+      where: { executorType: "agent", status: { in: ["queued", "running", "retry_pending", "completed"] }, outcome: { cancelledAt: null, acceptedAt: null }, ...(this.outcomeRecoveryCursor ? { id: { gt: this.outcomeRecoveryCursor } } : {}) },
+      orderBy: { id: "asc" }, take: 100, select: { id: true, botId: true, rootRunId: true },
+    });
+    this.outcomeRecoveryCursor = items.length === 100 ? items.at(-1)!.id : null;
+    for (const item of items.filter(item => item.rootRunId)) {
+      await this.prisma.$transaction(tx => settleOutcomeWorkItem(tx, item.rootRunId!, { messaging: this.messaging, workspaceRoot: this.workspaceRoot }));
+    }
+    for (const botId of new Set(items.map(item => item.botId))) {
+      await this.prisma.$transaction(tx => dispatchQueuedOutcomeWorkItems(tx, this.messaging, botId));
+    }
   }
 
   private async recoverGroupRoutineExecution(
@@ -1205,7 +1231,7 @@ export class WakeWorker {
     while (!this.stopping) {
       const claimed = await this.claim(botId);
       if (!claimed) return;
-      if (claimed.origin === "routine") {
+      if (["routine", "outcome"].includes(claimed.origin)) {
         const task = this.execute(claimed).catch(() => {
           console.warn("Automation execution failed; durable recovery will reconcile its run", { runId: claimed.runId });
         }).finally(() => {
@@ -1235,7 +1261,8 @@ export class WakeWorker {
         const existingLeases = await tx.botRunLease.findMany({ where: { botId } });
         const foregroundBusy = existingLeases.some(lease => lease.scope === "foreground");
         const automations = existingLeases.filter(lease => lease.scope.startsWith("automation:"));
-        if (foregroundBusy && automations.length >= 4) return null;
+        const outcomes = existingLeases.filter(lease => lease.scope.startsWith("outcome:"));
+        if (foregroundBusy && automations.length >= 4 && outcomes.length >= 2) return null;
         const pendingCandidates = await tx.inboxEvent.findMany({
           where: {
             botId,
@@ -1247,7 +1274,11 @@ export class WakeWorker {
             bot: { status: "active" },
             run: {
               status: { in: ["queued", "running"] },
-              ...(foregroundBusy ? { origin: "routine" as const } : automations.length >= 4 ? { origin: { not: "routine" as const } } : {}),
+              origin: { notIn: [
+                ...(foregroundBusy ? ["user", "agent", "group", "bootstrap", "event", "connector", "background_revival", "handoff_resume", "broadcast"] as const : []),
+                ...(automations.length >= 4 ? ["routine"] as const : []),
+                ...(outcomes.length >= 2 ? ["outcome"] as const : []),
+              ] },
             },
           },
           orderBy: [{ priority: "desc" }, { createdAt: "asc" }],
@@ -1259,7 +1290,7 @@ export class WakeWorker {
         });
         const candidates = [];
         for (const candidate of pendingCandidates) {
-          if (candidate.run.origin === "user" || await requestWakeAllowed(tx, candidate)) candidates.push(candidate);
+          if (candidate.run.origin === "user" || candidate.run.origin === "outcome" || await requestWakeAllowed(tx, candidate)) candidates.push(candidate);
           else {
             const settledAt = new Date();
             await tx.inboxEvent.update({ where: { id: candidate.id }, data: { status: "completed", completedAt: settledAt } });
@@ -1272,12 +1303,31 @@ export class WakeWorker {
         for (const context of new Set(candidates.flatMap((candidate) => routineRevivalContext(candidate) ?? [])))
           if (await automationBackgroundWorkRunning(tx, botId, context)) busyRoutines.add(context);
         const inbox = candidates.find(candidate => {
+          if (candidate.run.origin === "outcome") {
+            return !!candidate.run.outcomeWorkItemId && !outcomes.some(lease => lease.scope === `outcome:${candidate.run.outcomeWorkItemId}`);
+          }
           if (candidate.run.origin !== "routine") return !foregroundBusy;
           const payload = candidate.payload as { automationContextRunId?: string };
           if (busyRoutines.has(routineRevivalContext(candidate) ?? "")) return false;
           return !automations.some(lease => lease.scope === `automation:${payload.automationContextRunId ?? candidate.runId}`);
         });
         if (!inbox) return null;
+        if (inbox.run.origin === "outcome") {
+          const item = await tx.outcomeWorkItem.findUnique({ where: { id: inbox.run.outcomeWorkItemId! }, include: { outcome: true } });
+          if (!item || item.outcome.cancelledAt || ["completed", "failed", "cancelled", "waiting_decision", "waiting_human"].includes(item.status)) return null;
+        }
+        const identity = inbox.bot.subagentIdentity;
+        if (identity?.subagentType === "computerUse") {
+          await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`computer-screen:${identity.parentBotId}`}))`;
+          const peers = await tx.subagent.findMany({
+            where: { parentBotId: identity.parentBotId, subagentType: "computerUse", childBotId: { not: botId } },
+            select: { childBotId: true, parentRunId: true },
+          });
+          const parentRuns = await tx.run.findMany({ where: { id: { in: [identity.parentRunId, ...peers.map(peer => peer.parentRunId)] } }, select: { id: true, origin: true } });
+          const outcomeParents = new Set(parentRuns.filter(run => run.origin === "outcome").map(run => run.id));
+          const conflicting = peers.filter(peer => outcomeParents.has(identity.parentRunId) || outcomeParents.has(peer.parentRunId));
+          if (await tx.botRunLease.count({ where: { botId: { in: conflicting.map(peer => peer.childBotId) }, expiresAt: { gt: new Date() }, run: { status: "running" } } })) return null;
+        }
         if (inbox.run.deliveryId && inbox.run.channelId) {
           // Selection is only a snapshot. Serialize the claim with room
           // supersession before changing any inbox, delivery, or run state.
@@ -1309,7 +1359,7 @@ export class WakeWorker {
         const lease = await tx.botRunLease.createMany({
           data: {
             botId,
-            scope: inbox.run.origin === "routine" ? `automation:${payload.automationContextRunId ?? inbox.runId}` : "foreground",
+            scope: inbox.run.origin === "outcome" ? `outcome:${inbox.run.outcomeWorkItemId}` : inbox.run.origin === "routine" ? `automation:${payload.automationContextRunId ?? inbox.runId}` : "foreground",
             runId: inbox.runId,
             ownerId,
             expiresAt: new Date(Date.now() + LEASE_MS),
@@ -1371,6 +1421,10 @@ export class WakeWorker {
           where: { runId: inbox.runId, status: "queued" },
           data: { status: "running", startedAt: new Date() },
         });
+        if (inbox.run.origin === "outcome") {
+          const item = await tx.outcomeWorkItem.findUniqueOrThrow({ where: { id: inbox.run.outcomeWorkItemId! } });
+          if (item.status !== "running") await transitionWorkItem(tx, { workItemId: item.id, to: "running", reason: "lease_acquired", actor: "system:worker" });
+        }
         if (inbox.run.origin === "bootstrap") {
           await tx.bot.update({
             where: { id: botId },
@@ -1396,7 +1450,8 @@ export class WakeWorker {
           inbox.run.origin,
           inbox.run.channelId,
           inbox.conversationId,
-          payload.automationContextRunId ?? inbox.runId
+          payload.automationContextRunId ?? inbox.runId,
+          inbox.run.outcomeWorkItemId
         );
         const contextSession = await tx.contextSession.upsert({
           where: {
@@ -1440,6 +1495,7 @@ export class WakeWorker {
           channelId: inbox.run.channelId ?? String(payload.channelId ?? ""),
           deliveryId: inbox.run.deliveryId,
           origin: inbox.run.origin,
+          outcomeWorkItemId: inbox.run.outcomeWorkItemId,
           runtimeProfile: inbox.bot.subagentIdentity ? "subagent" : "agent",
           subagentType:
             (inbox.bot.subagentIdentity?.subagentType as SubagentType | undefined) ?? null,
@@ -1487,11 +1543,11 @@ export class WakeWorker {
       // Plugin skills are global/read-only inputs. User workflows are rendered
       // later by platformInstructions and therefore win on conflict.
       const platformPrompt = await this.messaging.platformPrompt(claimed.botId, claimed.contextSessionId,
-        pluginContext.skillInstructions, claimed.runChannelId, taskConfiguration, claimed.origin);
+        pluginContext.skillInstructions, claimed.runChannelId, taskConfiguration, claimed.origin, claimed.outcomeWorkItemId ?? undefined);
       // Replay failed user inputs whose durable-session delivery was never
       // acknowledged, including a turn a typed message superseded before its input
       // reached the model. Runtime message IDs prevent duplication after a lost ack.
-      const missed = claimed.runtimeProfile === "agent" && claimed.origin !== "routine" ? await this.prisma.inboxEvent.findMany({ where: { botId: claimed.botId, conversationId: claimed.conversationId, runId: { not: claimed.runId }, run: { channelId: claimed.channelId, origin: "user", inputDeliveredAt: null, OR: [{ status: { in: ["failed", "interrupted"] } }, { status: "cancelled", error: { path: ["code"], equals: "priority_peer_interrupt" } }] } }, orderBy: { createdAt: "asc" }, take: 20 }) : [];
+      const missed = claimed.runtimeProfile === "agent" && !["routine", "outcome"].includes(claimed.origin) ? await this.prisma.inboxEvent.findMany({ where: { botId: claimed.botId, conversationId: claimed.conversationId, runId: { not: claimed.runId }, run: { channelId: claimed.channelId, origin: "user", inputDeliveredAt: null, OR: [{ status: { in: ["failed", "interrupted"] } }, { status: "cancelled", error: { path: ["code"], equals: "priority_peer_interrupt" } }] } }, orderBy: { createdAt: "asc" }, take: 20 }) : [];
       // Replayed inputs travel in the same request as this turn's images, so they share its
       // inline budget (the computer refuses bodies over 128 MiB); this turn's images go first.
       const budget = {
@@ -1575,6 +1631,7 @@ export class WakeWorker {
         todoUpdate: platformPrompt.todoUpdate,
         resetSelfSummaryCount: wakeResetsSelfSummaryCount(claimed.inboxType),
         requestSource: runtimeRequestSourceForOrigin(claimed.origin, claimed.inboxType),
+        ...(claimed.outcomeWorkItemId ? { outcomeThread: { workItemId: claimed.outcomeWorkItemId } } : {}),
         channelId: claimed.channelId,
         deliveryId: claimed.deliveryId,
         runtimeProfile: claimed.runtimeProfile,
@@ -1635,6 +1692,7 @@ export class WakeWorker {
         });
         const settledRoutine = await reconcileRoutineExecution(tx, claimed.runId);
         if (settledRoutine) await this.routines.afterExecution(tx, settledRoutine);
+        await settleOutcomeWorkItem(tx, claimed.runId, { messaging: this.messaging, workspaceRoot: this.workspaceRoot });
         if (claimed.origin === "bootstrap") {
           const onboarding = await tx.bot.updateMany({
             where: { id: claimed.botId, onboardingStatus: "running" },
@@ -1918,6 +1976,7 @@ export class WakeWorker {
       });
       const settledRoutine = await reconcileRoutineExecution(tx, claimed.runId);
       if (settledRoutine) await this.routines.afterExecution(tx, settledRoutine);
+      await settleOutcomeWorkItem(tx, claimed.runId, { messaging: this.messaging, workspaceRoot: this.workspaceRoot });
       if (priorityInterrupted) await this.redriveSupersededWake(tx, claimed);
       if (claimed.origin === "bootstrap") {
         const onboarding = await tx.bot.updateMany({
@@ -2336,7 +2395,7 @@ export class WakeWorker {
       botId: subagent.parentBotId,
       channelId: subagent.parentChannelId,
       ...route,
-      taskContextRunId: subagent.requestRunId ?? sourcePayload?.taskContextRunId ?? subagent.parentRunId,
+      ...(route.origin === "outcome" ? {} : { taskContextRunId: subagent.requestRunId ?? sourcePayload?.taskContextRunId ?? subagent.parentRunId }),
       type: `subagent.${status}`,
       content: (routine
         ? renderQuietSubagentRevivalPrompt({ ...revival, routine })

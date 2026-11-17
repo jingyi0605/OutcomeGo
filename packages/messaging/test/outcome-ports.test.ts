@@ -4,12 +4,12 @@ import type { AgentMessaging } from "../src";
 import { unavailableHumanActionPort } from "../src/outcome-actions";
 import { enqueueOutcomeTurn, settleOutcomeWorkItem } from "../src/outcome-threads";
 
-test("thread interfaces identify the owning implementation instead of claiming success", async () => {
-  const tx = {} as Prisma.TransactionClient;
+test("implemented thread interfaces reject missing work and ignore ordinary runs", async () => {
+  const tx = { outcomeWorkItem: { findUnique: async () => null }, run: { findUnique: async () => null } } as unknown as Prisma.TransactionClient;
   await expect(enqueueOutcomeTurn(tx, {} as AgentMessaging, {
     workItemId: "fixture", content: "Continue", reason: "recovery", clientId: "fixture",
-  })).rejects.toThrow("not implemented: owned by line 1 (004.2 task 3.2/3.4)");
-  await expect(settleOutcomeWorkItem(tx, "fixture")).rejects.toThrow("not implemented: owned by line 1 (004.2 task 3.2/3.4)");
+  })).rejects.toMatchObject({ code: "work_item_not_found" });
+  await expect(settleOutcomeWorkItem(tx, "fixture")).resolves.toBeUndefined();
 });
 
 test("both missing human-action entry points fail explicitly", async () => {

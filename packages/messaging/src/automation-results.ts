@@ -7,6 +7,7 @@ import {
   type WakeInput,
 } from "./index";
 import { requestIsStopped } from "./request-state";
+import { transitionWorkItem } from "./outcome-state";
 
 export function automationContextRunId(runId: string, payload: unknown): string {
   const id =
@@ -159,6 +160,32 @@ export async function pendingAutomationShells(
   return (await automationShellState(tx, botId, familyIds, waitForCompletionTurn)).active;
 }
 
+/** Shared run-group liveness; independent of the originating workflow. */
+export async function runGroupBackgroundWorkRunning(
+  tx: Prisma.TransactionClient,
+  botId: string,
+  runIds: string[]
+): Promise<boolean> {
+  if (await tx.subagent.count({
+    where: {
+      parentRunId: { in: runIds },
+      status: { in: ["provisioning", "queued", "running", "waiting"] },
+    },
+  })) return true;
+  return pendingAutomationShells(tx, botId, runIds);
+}
+
+/** The last streamed assistant message, in authoritative event order. */
+export async function finalRunMessage(tx: Prisma.TransactionClient, runId: string): Promise<string> {
+  const final = await tx.event.findFirst({
+    where: { entityId: runId, topic: "run_item.completed", payload: { path: ["item", "type"], equals: "agentMessage" } },
+    orderBy: { sequence: "desc" },
+    select: { payload: true },
+  });
+  const payload = final?.payload as { item?: { text?: unknown } } | undefined;
+  return typeof payload?.item?.text === "string" ? payload.item.text.trim() : "";
+}
+
 /** Whether background work an automation context started (background subagents, or background
  * shells nothing has reported yet) is still running; its results wait until all of it is done. */
 export async function automationBackgroundWorkRunning(
@@ -183,16 +210,7 @@ export async function automationBackgroundWorkRunning(
       select: { id: true },
     })
   ).map((entry) => entry.id);
-  if (
-    await tx.subagent.count({
-      where: {
-        parentRunId: { in: family },
-        status: { in: ["provisioning", "queued", "running", "waiting"] },
-      },
-    })
-  )
-    return true;
-  return pendingAutomationShells(tx, botId, family);
+  return runGroupBackgroundWorkRunning(tx, botId, family);
 }
 
 /** One saved occurrence can span several parent turns and delegated workers. Returns the
@@ -246,22 +264,7 @@ export async function reconcileRoutineExecution(
   if (
     !stopped &&
     !handoff?.wakeRunId &&
-    (await tx.subagent.count({
-      where: {
-        parentRunId: { in: family.map((entry) => entry.id) },
-        status: { in: ["provisioning", "queued", "running", "waiting"] },
-      },
-    }))
-  )
-    return;
-  if (
-    !stopped &&
-    !handoff?.wakeRunId &&
-    (await pendingAutomationShells(
-      tx,
-      root.botId,
-      family.map((entry) => entry.id)
-    ))
+    (await runGroupBackgroundWorkRunning(tx, root.botId, family.map((entry) => entry.id)))
   )
     return;
   // Folded wakes are receipts for the turn consuming their batch. Their synthetic
@@ -346,13 +349,24 @@ export async function automationContinuationRoute(
   tx: Prisma.TransactionClient,
   botId: string,
   sourceRunId: string
-): Promise<Pick<WakeInput, "origin" | "automationContextRunId"> | null> {
+): Promise<Pick<WakeInput, "origin" | "automationContextRunId" | "outcomeWorkItemId"> | null> {
   if (!/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(sourceRunId)) return null;
   const source = await tx.run.findFirst({
     where: { id: sourceRunId, botId },
     include: { inboxEvents: { take: 1, select: { payload: true } } },
   });
   if (!source) return null;
+  if (source.origin === "outcome") {
+    if (!source.outcomeWorkItemId) return null;
+    if ((await tx.automationResult.findUnique({ where: { runId: source.id }, select: { wakeRunId: true } }))?.wakeRunId) return null;
+    const item = await tx.outcomeWorkItem.findUnique({
+      where: { id: source.outcomeWorkItemId },
+      include: { outcome: { select: { cancelledAt: true } } },
+    });
+    return item && !item.outcome.cancelledAt && item.status === "running" && !requestIsStopped(source)
+      ? { origin: "outcome", outcomeWorkItemId: item.id }
+      : null;
+  }
   if (source.origin !== "routine")
     return requestIsStopped(source) ? null : { origin: "background_revival" };
   const payload = source.inboxEvents[0]?.payload;
@@ -406,7 +420,7 @@ export async function wakeAutomationParent(
     if (
       !run ||
       run.botId !== context.botId ||
-      run.origin !== "routine" ||
+      !["routine", "outcome"].includes(run.origin) ||
       run.channelId !== context.channelId ||
       !["running"].includes(run.status)
     ) {
@@ -415,6 +429,26 @@ export async function wakeAutomationParent(
         "wake_parent_unavailable",
         "WakeParent is available only in an active automation"
       );
+    }
+    if (run.origin === "outcome") {
+      if (!run.outcomeWorkItemId) throw new ApiError(403, "wake_parent_unavailable", "Outcome work item is missing");
+      const item = await tx.outcomeWorkItem.findUniqueOrThrow({ where: { id: run.outcomeWorkItemId } });
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`outcome:${item.outcomeId}`}))`;
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`outcome-work-item:${item.id}`}))`;
+      const automation_run_ids = (await tx.run.findMany({ where: { outcomeWorkItemId: item.id }, select: { id: true } })).map(entry => entry.id);
+      const existing = await tx.automationResult.findUnique({ where: { runId: run.id } });
+      if (existing?.wakeRunId) return { woken: true, run_id: existing.wakeRunId, automation_run_ids };
+      const current = await tx.outcomeWorkItem.findUniqueOrThrow({ where: { id: item.id }, include: { outcome: true } });
+      if (current.status !== "running" || current.outcome.cancelledAt)
+        throw new ApiError(403, "wake_parent_unavailable", "This Outcome thread is no longer running");
+      const wake = await messaging.enqueueWake(tx, {
+        botId: run.botId, channelId: context.channelId, origin: "background_revival", type: "automation.wake_parent",
+        content: renderAutomationHandoffPrompt(input.message), handoff: input.message,
+        clientId: `outcome:${run.id}:wake-parent`, priority: 260,
+      });
+      await tx.automationResult.create({ data: { runId: run.id, message: input.message, wakeRunId: wake.run.id } });
+      await transitionWorkItem(tx, { workItemId: item.id, to: "needs_review", reason: "platform_handoff", actor: `bot:${run.botId}` });
+      return { woken: true, run_id: wake.run.id, automation_run_ids };
     }
     const rootId = automationContextRunId(run.id, run.inboxEvents[0]?.payload);
     const root = await tx.run.findFirst({
@@ -525,17 +559,7 @@ export async function saveSilentAutomationResult(tx: Prisma.TransactionClient, r
     return;
   // Event sequence preserves stream order even when several messages share a
   // millisecond timestamp. Sorting Message.updatedAt can select earlier prose.
-  const final = await tx.event.findFirst({
-    where: {
-      entityId: runId,
-      topic: "run_item.completed",
-      payload: { path: ["item", "type"], equals: "agentMessage" },
-    },
-    orderBy: { sequence: "desc" },
-    select: { payload: true },
-  });
-  const payload = final?.payload as { item?: { text?: unknown } } | undefined;
-  const message = typeof payload?.item?.text === "string" ? payload.item.text.trim() : "";
+  const message = await finalRunMessage(tx, runId);
   if (!message) return;
   await tx.automationResult.upsert({
     where: { runId: rootId },

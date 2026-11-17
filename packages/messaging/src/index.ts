@@ -16,8 +16,9 @@ export { initialTaskProgress, settleTaskProgress, reportTaskProgress, dispatchTa
 import { taskProgressContext, taskScopeContext } from "./task-progress";
 export { taskScopeContext, taskScopeUpdates } from "./task-progress";
 export { readTranscript } from "./read-transcript";
+export { readOutcomeTranscript } from "./outcome-transcript";
 export { appendOutcomeEvent, recomputeOutcomeStatus, transitionWorkItem, type ActorRef, type TransitionWorkItemInput } from "./outcome-state";
-export { enqueueOutcomeTurn, settleOutcomeWorkItem, type EnqueueOutcomeTurnInput, type EnqueueOutcomeTurnResult } from "./outcome-threads";
+export { enqueueOutcomeTurn, settleOutcomeWorkItem, dispatchQueuedOutcomeWorkItems, outcomeRunContext, type OutcomeThreadRuntime, type EnqueueOutcomeTurnInput, type EnqueueOutcomeTurnResult } from "./outcome-threads";
 export { unavailableHumanActionPort, type DecisionEffect, type HumanActionPort, type HumanActionInput, type HumanActionResult } from "./outcome-actions";
 export { OutcomeThreadFake } from "./testing/outcome-thread-fake";
 export { readAgentActivity } from "./read-agent-activity";
@@ -35,6 +36,7 @@ import { nextMessageAddress, resolveMessageAddress } from "./message-address";
 export { nextMessageAddress, resolveMessageAddress } from "./message-address";
 export { parseAutomationEvent, matchesAutomationEvent, type AutomationEvent } from "./automation-events";
 export { wakeAutomationParent, saveSilentAutomationResult, automationBackgroundWorkRunning, automationContinuationRoute, automationContextRunId, reconcileRoutineExecution } from "./automation-results";
+import { outcomeRunContext } from "./outcome-threads";
 import { AUTOMATION_RUN_INSTRUCTIONS, automationContinuationRoute } from "./automation-results";
 import { join } from "node:path";
 import { publishChannelNotification, publishMessageNotification } from "./notifications";
@@ -752,6 +754,7 @@ export interface WakeInput {
   replyToMessageId?: string;
   isFork?: boolean;
   automationContextRunId?: string;
+  outcomeWorkItemId?: string;
   taskContextRunId?: string;
   includeAttachmentPaths?: boolean;
   revival?: RevivalCompletion;
@@ -1044,6 +1047,7 @@ export class AgentMessaging {
         origin: input.origin,
         channelId: input.channelId,
         deliveryId: input.deliveryId,
+        outcomeWorkItemId: input.outcomeWorkItemId,
       },
     });
     await tx.message.update({ where: { id: messageId }, data: { runId } });
@@ -1066,6 +1070,7 @@ export class AgentMessaging {
           isFork: input.isFork === true,
           timeZone,
           automationContextRunId: input.automationContextRunId,
+          outcomeWorkItemId: input.outcomeWorkItemId,
           taskContextRunId: input.taskContextRunId,
           revival: input.revival,
           handoff: input.handoff,
@@ -2108,7 +2113,7 @@ export class AgentMessaging {
   }
 
   /** channelId is the run's channel (null for a home run); undefined renders no pending automation results. */
-  async platformPrompt(botId: string, contextSessionId: string, connectorInstructions = "", channelId?: string | null, taskConfigurationSnapshot?: TaskConfiguration, wakeOrigin?: string): Promise<PlatformPrompt> {
+  async platformPrompt(botId: string, contextSessionId: string, connectorInstructions = "", channelId?: string | null, taskConfigurationSnapshot?: TaskConfiguration, wakeOrigin?: string, outcomeWorkItemId?: string): Promise<PlatformPrompt> {
     const timeZone = await this.userTimeZone();
     const bot = await this.prisma.bot.findUniqueOrThrow({
       where: { id: botId },
@@ -2161,7 +2166,9 @@ export class AgentMessaging {
       };
     }
     const context = await this.prisma.contextSession.findFirst({ where: { id: contextSessionId, botId }, select: { scope: true, scopeId: true } });
-    const automation = context?.scope === "automation";
+    const outcome = context?.scope === "outcome";
+    const outcomeContext = outcome ? await outcomeRunContext(this.prisma, botId, outcomeWorkItemId ?? context!.scopeId) : null;
+    const automation = context?.scope === "automation" || outcome;
     const [agentPrompt, taskConfiguration] = await Promise.all([
       this.agentData.promptContext(botId, contextSessionId, channelId),
       taskConfigurationSnapshot ?? this.agentData.loadTaskConfiguration(),
@@ -2351,7 +2358,7 @@ export class AgentMessaging {
       instructions,
       instructionsUpdate: [frozen.update, frozen.memory?.update].filter(Boolean).join("\n\n") || null,
       automationStatus: frozen.automationStatus?.note ?? null,
-      ambientContext: automation ? null : [
+      ambientContext: outcomeContext ?? (automation ? null : [
         dismissedWidgetPrompts.length > 0 ? buildDismissedQuestionsNote(dismissedWidgetPrompts) : "",
         ...richMessagePrompts,
         ...automationResults.map((result) => {
@@ -2359,7 +2366,7 @@ export class AgentMessaging {
           const source = routine ? `routine ${JSON.stringify(routine.name)} (folder ${routine.slug}), run ${result.runId}` : result.runId;
           return `[Silent automation result: ${source}]\nThis result waited for your next natural boundary and has not been shown to the user. Use it as relevant to the current task; it is not a request for an unsolicited notification.\n${result.message}`;
         }),
-      ].filter(Boolean).join("\n\n") || null,
+      ].filter(Boolean).join("\n\n") || null),
       acknowledgement: { identity: agentPrompt.identityReceipt, sections: frozen.receipts, memory: frozen.memory?.receipt, automationStatus: frozen.automationStatus?.receipt, automationResultRunIds: automationResults.map((result) => result.runId), dismissedMessageIds: automation ? [] : dismissedIds, unansweredMessageIds: automation ? [] : unansweredIds, outcomeIds: (automation ? [] : pendingRichMessages).flatMap((message) => {
         const metadata = message.metadata as Record<string, unknown>;
         return typeof metadata.outcomeId === "string" && typeof metadata.outcomeText === "string" ? [{ messageId: message.id, outcomeId: metadata.outcomeId }] : [];
