@@ -28,6 +28,7 @@ async function restartRunningRun(f: RecoveryFixture) {
     cwd: join(import.meta.dir, "../../.."), env: process.env, stdout: "pipe", stderr: "ignore",
   });
   let timeout: ReturnType<typeof setTimeout> | undefined;
+  let executorExited = false;
   try {
     const reader = processHandle.stdout.getReader();
     let text = "";
@@ -48,7 +49,9 @@ async function restartRunningRun(f: RecoveryFixture) {
     f.check("expired_lease_without_stop_confirmation_does_not_replace_executor", before === null &&
       (await f.db.run.findUniqueOrThrow({ where: { id: runId } })).status === "running");
     processHandle.kill("SIGKILL");
-    await processHandle.exited;
+    const executorExitCode = await processHandle.exited;
+    executorExited = true;
+    f.check("local_executor_exit_confirmed_before_recovery", Number.isInteger(executorExitCode));
     const restarted = Bun.spawn([process.execPath, join(import.meta.dir, "recovery-process.ts"), f.item.id, runId, f.root], {
       cwd: join(import.meta.dir, "../../.."), env: process.env, stdout: "pipe", stderr: "ignore",
     });
@@ -63,12 +66,13 @@ async function restartRunningRun(f: RecoveryFixture) {
       await f.db.run.count({ where: { outcomeWorkItemId: f.item.id } }) === count && continuation?.origin === "outcome");
     f.check("expired_outcome_lease_released", await f.db.botRunLease.count({ where: { runId } }) === 0);
     return f.report("restart-running-run", initial, `executor-exit:${runId}`, 2, {
-      executor: "disposable-local-process", exitObserved: processHandle.exitCode !== null,
+      executor: "disposable-local-process", exitObserved: executorExited,
+      executorExitCode, executorSignal: processHandle.signalCode,
       remoteComputerStop: "PENDING", recoveryAction: action,
     });
   } finally {
     if (timeout) clearTimeout(timeout);
-    if (processHandle.exitCode === null) { processHandle.kill("SIGKILL"); await processHandle.exited; }
+    if (!executorExited) { processHandle.kill("SIGKILL"); await processHandle.exited; }
   }
 }
 

@@ -183,14 +183,14 @@ describe.skipIf(!url)("Cross-phase Outcome compatibility and failure boundaries"
     const f = await m.recoveryFixture();
     try {
       const missing = crypto.randomUUID();
-      await expect(f.db.outcomeOutput.create({ data: {
+      await expect(Promise.resolve(f.db.outcomeOutput.create({ data: {
         outcomeId: f.outcome.id, workItemId: missing, kind: "final_result", title: "Fictional orphan",
         dedupeKey: `orphan:${f.item.id}`,
-      } })).rejects.toMatchObject({ code: "P2003" });
-      await expect(f.db.outcomeEvidence.create({ data: {
+      } }))).rejects.toMatchObject({ code: "P2003" });
+      await expect(Promise.resolve(f.db.outcomeEvidence.create({ data: {
         outcomeId: f.outcome.id, contractRevisionId: f.revision.id, criterionId: missing,
         sourceType: "url", sourceRef: "https://example.test/fictional", credibility: "human_confirmed", capturedBy: actor,
-      } })).rejects.toMatchObject({ code: "P2003" });
+      } }))).rejects.toMatchObject({ code: "P2003" });
       expect(await f.db.outcomeOutput.count({ where: { outcomeId: f.outcome.id } })).toBe(0);
       expect(await f.db.outcomeEvidence.count({ where: { outcomeId: f.outcome.id } })).toBe(0);
     } finally { await f.cleanup(); }
