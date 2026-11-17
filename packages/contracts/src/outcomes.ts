@@ -562,6 +562,8 @@ export interface OutcomeSummary {
 }
 
 export interface OutcomeDetail extends OutcomeSummary {
+  /** Present when this independent delivery was created from an Explore planning draft. */
+  sourceExploreId?: string | null;
   description: string;
   resumeStatus: OutcomeStatus | null;
   createdAt: string;

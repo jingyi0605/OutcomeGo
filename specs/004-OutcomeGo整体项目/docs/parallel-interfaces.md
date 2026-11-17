@@ -307,3 +307,14 @@ OUTCOMEGO_TEST_DATABASE_URL=<一次性库> bun run test --force --continue=alway
 负责人已批准仅增加可选响应字段：`ContractRevisionView.baseRevisionId?: string | null`；`OutcomeDetail.revisions[]` 增加可选 `baseRevisionId`、`sourceDecisionId`、`createdBy`。列表、现有字段、请求和事件保持原合同；旧响应可以省略新字段，旧客户端可以忽略它们。当前版本与历史版本分别显示，不新增持久化 stale 状态；Evidence、Review、Output 按其实际 revision/WorkItem 归属识别历史材料，不迁移旧事实。
 
 新 revision 创建记录同 Outcome 的 base revision、来源 Decision/服务端主体和摘要；批准成功后仅取消旧 revision 中 `startedAt=null` 的未开始任务，使用共享 `transitionWorkItem`，保持 Outcome → WorkItem 锁序。已开始任务及其 Output、Evidence、Review 仍绑定原 revision。容量等待意图和已入队未开始 Run 的清理由恢复/运行时所有者协作完成，不能将批准草案本身当作执行新任务的请求。
+
+## 12. Explore 后端与 Desktop 交接
+
+`@outcomego/contracts/explore` 定义 `ExploreIdeaView`、`ExploreIdeaPage`、`ExploreProposal` 及三个请求 Schema。正式状态为 `draft/exploring/proposed_for_delivery/converted/discarded`，不使用歧义缩写 `proposed`。
+
+- `POST /api/v0/explore`：title、可选 note/botId/sourceOutcomeId/sourceReferences/budget/status（仅 draft 或 exploring）及 clientRequestId，返回 ExploreIdeaView。
+- `GET /api/v0/explore`：status/cursor/limit 分页，返回 `{items,nextCursor}`；sourceReferences 保存 sourceRef 和可选 title/sourceType/version，不作为自动通过的 Evidence。
+- `POST /api/v0/explore/:id/propose`：可选 botId 和 clientRequestId，返回 `{idea,plan:PlanningDraftView}`。Bot 为空时须选择真实 Bot；idea.planningDraftId 是独立草案 FK，proposedOutcomeId 只保存真正转换后的 Outcome ID。
+- `POST /api/v0/explore/:id/discard`：clientRequestId，返回保留历史的 ExploreIdeaView。
+- 使用既有 Outcome 创建 API 提交真实 planId，服务端从草案关联识别 Explore，在同一事务创建新 Outcome 和 revision、消费草案并更新双向真实转换关联。请求不接受 sourceExploreId 标记；OutcomeDetail 仅增加可选 sourceExploreId。
+- propose 只生成 PlanningDraft，不批准、不启动 Run、不修改来源 Outcome Contract。转换后 Explore 只读；丢弃后禁止转换，来源和历史保留。模型推理在事务外，草案持久化与 Explore 关联在同一最终事务，防止并发丢弃产生孤立草案。
