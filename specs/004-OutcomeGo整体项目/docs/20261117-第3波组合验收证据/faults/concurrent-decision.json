@@ -1,0 +1,52 @@
+{
+  "scenario": "concurrent-decision",
+  "status": "PASS",
+  "initialState": {
+    "outcomeStatus": "decision_pending",
+    "workItemStatus": "waiting_decision",
+    "recoveryCount": 0,
+    "runCount": 1
+  },
+  "injectedEventId": "7ddcab69-8003-44ec-8d62-74c24cc64b49",
+  "replayed": 3,
+  "finalState": {
+    "outcomeStatus": "running",
+    "workItemStatus": "running",
+    "recoveryCount": 0,
+    "runCount": 2
+  },
+  "outputCount": 0,
+  "decisionCount": 1,
+  "evidence": {
+    "fixtureBotId": "1cb48358-9d59-4238-b5b5-7552bb2a58bc",
+    "outcomeId": "db9f2a57-d956-489d-bdb6-55f54776e287",
+    "workItemId": "bf2176d1-f2ad-4d04-adda-825e6f37ab65",
+    "checks": [
+      {
+        "name": "two_distinct_choices_have_one_winner",
+        "passed": true
+      },
+      {
+        "name": "one_resolution_and_one_continuation",
+        "passed": true
+      },
+      {
+        "name": "approved_revision_unchanged",
+        "passed": true
+      },
+      {
+        "name": "foreground_run_lease_and_visible_messages_unchanged",
+        "passed": true
+      },
+      {
+        "name": "run_lineage_bound_to_same_work_item",
+        "passed": true
+      }
+    ],
+    "observations": {
+      "winningChoiceCount": 1
+    },
+    "execution": "local-disposable-database",
+    "remoteReplay": "PENDING"
+  }
+}
