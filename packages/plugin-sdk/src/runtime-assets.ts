@@ -285,7 +285,10 @@ export class ManagedRuntimeCache {
               entries <= 20_000 &&
               !signal.aborted;
             invalid ||= !safe;
-            return safe && !invalid;
+            // The private payload root already exists. Count and validate root
+            // headers without asking tar to rewrite its metadata for each one.
+            const payloadRoot = entry.type === "Directory" && (!path || path === ".");
+            return safe && !invalid && !payloadRoot;
           },
         });
         if (invalid)
