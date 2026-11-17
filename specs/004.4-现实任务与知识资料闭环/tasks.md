@@ -1,6 +1,6 @@
 # 任务清单 - 现实任务与知识资料闭环（人话版）
 
-状态：IN_PROGRESS（第 1 波资料和人工表/API 骨架完成；2.1 工具/来源与回执待第 2 波；第 3 波客户端）
+状态：IN_PROGRESS（第 1 波完成；第 2 波工具/双来源/回执/统一验收与续跑代码已交付，集成数据库验证 PENDING；第 3 波客户端）
 
 关联文档：[README.md](README.md) · [requirements.md](requirements.md) · [design.md](design.md)
 
@@ -93,14 +93,16 @@
 ## 阶段 2：人工 WorkItem 和动作卡
 
 - [ ] 2.1 实现人工 WorkItem 模型、状态和创建来源
-  - 状态：IN_PROGRESS（表结构完成，工具和来源待第 2 波）
+  - 状态：IN_PROGRESS（第一波表结构完成；第二波工具和双来源实现已交付，生产组装和数据库验证 PENDING）
   - 实现提交：`d67c1122b`（schema）；`9790c2fd7`（contracts）；`fea60e9d9`（内部构造与骨架）。
   - 修改文件：`schema.prisma` 的 004.4 区段及必要逆向关系；`human-work.ts`；`human-work-service.ts`；本线测试。
   - 数据库变化：新增 `OutcomeHumanActionCard`、`OutcomeHumanReceipt`/status enum、sequence 唯一约束与 FK；人工 WorkItem 复用已有表。
   - 验证命令：Prisma generate/db typecheck；一次性库 deploy-schema；`bun test packages/db/test/human-work.integration.test.ts apps/server/test/human-work-service.test.ts`；共享状态转换穷举回归。
-  - 验证结果：第一波表结构、内部 `createCard`、状态/并发/事务验证 PASS；来源包装/工具注册/回执/验收/续跑尚未实现，不能把整个任务记为 DONE。
-  - 证据文件：[第一波实现与第二波交接](docs/20261117-第一波实现与验证.md)。
-  - 已知限制：`HumanActionPort` 两个来源包装仍使用明确失败替身；内部 builder 可在第二波来源验证/幂等事务内复用。没有改动工具列表或把 Agent 置为 waiting_human。
+  - 第二波实现提交：`f7601f5bf`（contracts）、`473f46bd1`（合同测试）、`ab37843dc`（双来源、工具和真实资料消费）。
+  - 第二波修改文件：`human-action-tool.ts`、`human-work-service.ts`、`human-knowledge-service.ts`、`human-revision-policy.ts`、`human-work-factory.ts`、`runtime/tools.ts` 和本线测试。
+  - 验证结果：第一波表结构、内部 `createCard`、状态/并发/事务验证 PASS；第二波 server/computer/contracts 类型检查 PASS，最小无数据库测试 11 PASS / 0 FAIL。两来源和 pending successor 的数据库测试已写，按负责人要求等待整体集成执行；不能把整个任务记为 DONE。
+  - 证据文件：[第一波实现](docs/20261117-第一波实现与验证.md)、[第二波代码交付与待验项](docs/20261117-第二波人工动作回执交付.md)。
+  - 已知限制：integrator 负责将真实 `HumanActionPort`、工具 handler、HTTP 依赖和 Review 第五参数组装到生产；Decision pending resolve 依赖 L3 `515abb275`。来源 A 进入 `waiting_human`，来源 B 按冻结策略保持 `waiting_decision` 到人工接受；不宣称生产部署或数据库全链路已通过。
   - 回滚方式：撤销入口与实现；保留有数据的新表，不执行破坏性 schema 回退。
   - 这一步到底做什么：`OutcomeHumanActionCard`、`OutcomeHumanReceipt` 表；§16 状态机；`RequestHumanAction` 工具（只在 Outcome 子线程）；Decision `manual_action` 创建入口；调用方 Agent WorkItem → `waiting_human`。
   - 先依赖什么：表结构/状态骨架：0.2、1.1、第 0 波 B；工具来源：`004.2` 3.2、3.4；Decision 来源：`004.3` 1.3（后两部分在第 2 波实现）。
@@ -144,7 +146,15 @@
 ## 阶段 3：回执、验收和客户端
 
 - [ ] 3.1 实现回执提交
-  - 状态：TODO
+  - 状态：IN_PROGRESS（代码和测试编写完成，集成数据库验证 PENDING）
+  - 实现提交：`f7601f5bf`（严格输入/DTO）、`473f46bd1`（合同测试）、`ab37843dc`（回执服务、HTTP 和测试）。
+  - 修改文件：`human-receipt-service.ts`、`human-work.ts`、`routes/human-work.ts`、`human-work-service.ts`、本线回执/HTTP 测试和 fixture。
+  - 数据库变化：无；复用第一波人工表与 sequence 约束。
+  - 验证命令：server/computer/contracts `tsc`；`bun test packages/contracts/test/human-work.test.ts apps/computer/test/runtime/human-action-tool.test.ts apps/computer/test/runtime/outcome-tool-surfaces.test.ts apps/server/test/human-action-routes.test.ts`。
+  - 验证结果：三个类型检查 PASS；4 文件 11 PASS / 0 FAIL / 32 expect。回执并发/幂等、资产冲突、缺材料和补交等数据库用例已添加，未执行。
+  - 证据文件：[第二波代码交付与待验项](docs/20261117-第二波人工动作回执交付.md)。
+  - 已知限制：按负责人“代码完成后统一验证”执行；生产组装与一次性数据库验收 PENDING，第 0 波数据库失败门槛保留。
+  - 回滚方式：撤销入口与服务，保留有数据的人工表。
   - 先依赖什么：2.2、2.1 的来源实现（第 2 波）。
   - 主要改哪里：`apps/server/src/services/human-receipt-service.ts`（新增）、receipts 路由
   - 这一步先不做什么：不直接保存无归属的本地路径。
@@ -154,7 +164,15 @@
   - 对应设计：§18、§19、§34
 
 - [ ] 3.2 接入统一验收和 Agent 子线程继续执行
-  - 状态：TODO
+  - 状态：IN_PROGRESS（代码和测试编写完成，集成数据库验证 PENDING）
+  - 实现提交：`ab37843dc`。
+  - 修改文件：`human-receipt-service.ts`、`human-revision-policy.ts`、`human-work-factory.ts`、`outcome-review-service.ts` 授权人工分支及人工 fixture、本线回执数据库测试。
+  - 数据库变化：无。
+  - 验证命令：server/computer/contracts `tsc`；本线最小无数据库测试；待集成运行 `human-receipt.integration.test.ts`、`outcome-review-service.test.ts` 和 004.2 研究试点回归。
+  - 验证结果：类型检查和本线最小无数据库测试 PASS；接受/驳回/补交、同线程真实 enqueue、事务回滚和 pending successor 边界共 13 个新增数据库用例已写，未执行，不能标记 DONE。
+  - 证据文件：[第二波代码交付与待验项](docs/20261117-第二波人工动作回执交付.md)。
+  - 已知限制：唯一 `/reviews` 注入第五参数 `HumanReviewPort`，人工项/回执/原请求 Agent 续跑在同事务；真实生产组装由 integrator 合并。N+1 pending 时只接受有实际启动证明的 N 人工上下文；N+1 批准后新旧控制 409；N 的 Review 不得全局接受 N+1。部署挂载观察与第 0 波数据库门槛仍 PENDING。
+  - 回滚方式：撤销人工事务钩子及入口，不另设验收 API，不破坏历史回执。
   - 先依赖什么：3.1、`004.2` 任务 3.2、3.4、4.2（同一子线程续跑和统一验收，第 2 波）。
   - 主要改哪里：`outcome-review-service.ts`、`human-work-service.ts`、`packages/messaging/src/outcome-threads.ts`
   - 这一步先不做什么：不把 Agent 说明或不可读外部 URL 标为 PASS。
