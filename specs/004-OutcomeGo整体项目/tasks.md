@@ -34,6 +34,7 @@
 
 - [ ] 1.3 修复 `OutcomeGo` 分支 CI 的 `checks` job
   - 状态：PENDING（本地准备完成，待授权推送及 GitHub CI 观测；负责人接受数据库基线暂红）
+  - 后续波次代码进展（2026-11-17）：`543eef450` → 集成 `8667c7ba6` 将 51 处历史测试 / fixture 的数据库读取改为规范 `OUTCOMEGO_TEST_DATABASE_URL ?? OPENTEAM_TEST_DATABASE_URL`，保留专用隔离库优先级，未删除断言、skip 条件或工作流。该改动扩大规范命令实际激活的数据库用例，最终全量结果及失败身份比较待全部代码整合后统一执行；不能沿用旧计数宣称通过。见[后续波次集成记录](docs/20261117-后续波次代码集成记录.md)。
   - 第 0 波 A 证据：规格 `2b9211c16`；偶发测试 `c686edae0`；SQL 表名 `5b9d4dc99`；004.2 阶段 1 `69e5edd7c`；CI/基线 `b7ff0099a`；[失败基线](docs/test-failure-baseline.md)。`checks` 增加 PostgreSQL 17、schema 部署和完整数据库测试；`turbo.json` 放行测试库环境。负责人选择全部数据库测试阻塞，未删除或跳过测试。
   - 这一步到底做什么：2026-11-17 起 `CI` workflow 的 `checks` job 在 `209c770e6`、`3b02ebfe6` 上失败。恢复绿色基线，否则无法判断 Outcome 改动是否引入回归。
   - 进展（2026-11-17，本地，未推送）：最近 4 次失败各不相同，属于 CI runner 上的偶发失败。已修复两项：`packages/plugins/wechat/connector/test/secrets.test.ts`（列目录时原子写临时文件已被重命名导致 ENOENT）、`packages/plugin-sdk/src/runtime-assets.test.ts`（20,001 条 tar 头的测试在 runner 上超过 5 秒默认超时）。仍待观察：Desktop code highlighter 测试、transport/acknowledgement 测试（run `43983034791`、`43980957724`）。
@@ -119,6 +120,7 @@
 
 - [ ] 3.0a 跨阶段 API、事件和数据库合同复核
   - 状态：IN_PROGRESS（2026-11-17，第 1 波本地组合复核）
+  - 后续波次进展：[代码集成与覆盖矩阵](docs/20261117-后续波次代码集成记录.md) 从 `948ead5de` 继续，纳入整个 Spec004 剩余代码及明确必做的 Explore。共享 Schema / 合同、Decision / 人工回执 / 恢复服务及真实工具 / 路由正在按并集整合；全部代码完成前不重复广泛验证。定向集成检查与所有者证据分列，正式验收仍未完成，本父任务保持未勾选。
   - 证据：[第 1 波集成验证记录](docs/20261117-第1波集成验证记录.md)。schema/contracts 分批并集合入，保留 L1/L2 共享服务方法和第四参数撤回回调；最终组合定向数据库/合同/工具/Desktop/Stop 553 PASS（39 文件、2315 断言），7 包类型通过。内部事件流过滤、未消费 Evidence 保留、开放 Decision/HumanAction 验收门槛、永久 Decision 通知恢复、取消重绑定与停止事实均已有实际定向验证和审查闭环。完整父级合同矩阵/后续波次和真实端到端尚未结束，不勾选本父任务；1.3 的远端 CI 继续 PENDING。
   - 先依赖什么：2.1、2.2、2.3、2.4 各自的模型任务
   - 这一步到底做什么：核对各子 Spec 使用的 DTO、事件名（只能使用 §14 目录）、revision、idempotency key 和 schema 变更是否一致。
