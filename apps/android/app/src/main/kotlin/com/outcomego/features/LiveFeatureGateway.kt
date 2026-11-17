@@ -4,6 +4,7 @@ import com.outcomego.android.data.MobileFeatureApi
 import com.outcomego.mobile.core.HttpMethod
 import com.outcomego.mobile.core.mobileJson
 import kotlinx.coroutines.delay
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
@@ -106,7 +107,8 @@ class LiveFeatureGateway(private val client: MobileFeatureApi) : FeatureGateway 
         val body = buildJsonObject {
             put("name", routine.name)
             put("prompt", routine.prompt)
-            put("schedule", routine.schedule.serverSchedule())
+            // Event and composite triggers are preserved server-side by leaving the schedule out.
+            if (routine.scheduleEditable) put("schedule", routine.schedule.serverSchedule())
             put("enabled", routine.enabled)
             put("expectedRevision", routine.revision)
             put("clientId", clientId())
@@ -447,16 +449,43 @@ private fun JsonObject.pluginValue(): Plugin = (this["plugin"]?.jsonObjectOrNull
 private fun JsonObject.toRoutine(): Routine {
     val timeZone = string("timezone", "timeZone").ifBlank { "UTC" }
     val execution = objectAt("latestExecution")
+    val trigger = this["trigger"]?.jsonObjectOrNull()
+    val eventTriggers = trigger.eventTriggers()
+    val schedules = (this["schedules"] as? JsonArray).orEmpty().mapNotNull { it.jsonPrimitive.contentOrNull }
+    val isEventKind = string("scheduleKind") == "event"
+    // Only a single cron/interval schedule round-trips through the simple editor.
+    val editable = !isEventKind && schedules.size <= 1 && trigger?.string("type") != "group"
+    val primary = string("schedule")
+    val cronSchedules = if (isEventKind) emptyList() else schedules.ifEmpty { listOf(primary) }.map { parseSchedule(it, timeZone) }
     return Routine(
         id = string("id"),
         name = string("name"),
         prompt = string("prompt"),
-        schedule = parseSchedule(string("schedule"), timeZone),
+        schedule = cronSchedules.firstOrNull() ?: RoutineSchedule(timeZone = timeZone),
         enabled = boolean("enabled", true),
         revision = int("revision"),
         nextRunAt = string("nextRunAt").ifBlank { null },
         executions = if (execution.isEmpty()) emptyList() else listOf(RoutineExecution(execution.string("id"), execution.string("status"), execution.string("createdAt"))),
+        schedules = cronSchedules,
+        eventTriggers = eventTriggers,
+        scheduleEditable = editable,
     )
+}
+
+/** Non-cron listeners of a trigger, with groups flattened. */
+private fun JsonObject?.eventTriggers(): List<RoutineEventTrigger> {
+    val trigger = this ?: return emptyList()
+    return when (val type = trigger.string("type")) {
+        "", "cron" -> emptyList()
+        "group" -> (trigger["listeners"] as? JsonArray).orEmpty().flatMap { it.jsonObjectOrNull().eventTriggers() }
+        "email" -> listOf(RoutineEventTrigger(type, trigger.string("inbox"), (trigger["from"] as? JsonArray).orEmpty().mapNotNull { it.jsonPrimitive.contentOrNull }.joinToString(", ")))
+        "slack" -> {
+            val match = trigger.objectAt("match")
+            listOf(RoutineEventTrigger(type, match.string("kind"), match.string("keyword")))
+        }
+        "github", "origin" -> listOf(RoutineEventTrigger(type, trigger.string("repo")))
+        else -> listOf(RoutineEventTrigger(type))
+    }
 }
 
 private fun RoutineSchedule.serverSchedule(): String {

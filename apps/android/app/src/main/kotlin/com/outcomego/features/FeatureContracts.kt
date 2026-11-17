@@ -218,7 +218,60 @@ data class Routine(
     val revision: Int = 0,
     val nextRunAt: String? = null,
     val executions: List<RoutineExecution> = emptyList(),
+    /** Every cron/interval schedule of the routine; [schedule] is the first one, the only one the editor changes. */
+    val schedules: List<RoutineSchedule> = emptyList(),
+    /** Event triggers (email, Slack, GitHub, webhook, ...). They are authored by the agent and read-only here. */
+    val eventTriggers: List<RoutineEventTrigger> = emptyList(),
+    /** False for event-only or composite triggers: the editor must not send [schedule] back, or it would flatten them. */
+    val scheduleEditable: Boolean = true,
 )
+
+/** One non-cron listener of a routine trigger. [detail] and [extra] depend on [type]; see [summary]. */
+data class RoutineEventTrigger(val type: String, val detail: String = "", val extra: String = "") {
+    /** English description, e.g. "When email arrives at a@b.com". */
+    fun summary(): String = when (type) {
+        "webhook" -> "When a webhook is called"
+        "email" -> when {
+            detail.isBlank() -> "When an email arrives"
+            extra.isBlank() -> "When email arrives at $detail"
+            else -> "When email arrives at $detail from $extra"
+        }
+        "slack" -> when (detail) {
+            "mention" -> "When mentioned on Slack"
+            "keyword" -> "When \"$extra\" is mentioned on Slack"
+            "reaction" -> "On a Slack reaction"
+            else -> "On a Slack message"
+        }
+        "github", "origin" -> if (detail.isBlank()) "On GitHub activity" else "On GitHub activity in $detail"
+        "microsoftTeams" -> "On a Microsoft Teams message"
+        "linear" -> "On a Linear event"
+        "sentry" -> "On a Sentry event"
+        "pagerduty" -> "On a PagerDuty event"
+        else -> "On an event"
+    }
+
+    /** Chinese description matching [summary]. */
+    fun summaryZh(): String = when (type) {
+        "webhook" -> "Webhook 被调用时"
+        "email" -> when {
+            detail.isBlank() -> "收到邮件时"
+            extra.isBlank() -> "收到发往 $detail 的邮件时"
+            else -> "收到发往 $detail、来自 $extra 的邮件时"
+        }
+        "slack" -> when (detail) {
+            "mention" -> "在 Slack 被 @ 时"
+            "keyword" -> "Slack 中提到「$extra」时"
+            "reaction" -> "Slack 出现表情回应时"
+            else -> "收到 Slack 消息时"
+        }
+        "github", "origin" -> if (detail.isBlank()) "有 GitHub 动态时" else "$detail 有 GitHub 动态时"
+        "microsoftTeams" -> "收到 Microsoft Teams 消息时"
+        "linear" -> "Linear 有事件时"
+        "sentry" -> "Sentry 有事件时"
+        "pagerduty" -> "PagerDuty 有事件时"
+        else -> "有事件发生时"
+    }
+}
 
 data class RoutineExecution(val id: String, val status: String, val createdAt: String)
 

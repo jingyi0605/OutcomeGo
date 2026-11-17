@@ -177,6 +177,88 @@ class LiveFeatureGatewayTest {
     }
 
     @Test
+    fun eventRoutinesListTheirTriggersAndKeepTheServerScheduleOnSave() = runBlocking {
+        val client = RecordingFeatureClient(
+            response = buildJsonObject {
+                put("routines", buildJsonArray {
+                    add(buildJsonObject {
+                        put("id", "mail")
+                        put("name", "Release mail")
+                        put("prompt", "Summarize it")
+                        put("schedule", "Event: email")
+                        put("scheduleKind", "event")
+                        put("schedules", buildJsonArray { })
+                        put("revision", 3)
+                        put("trigger", buildJsonObject {
+                            put("type", "email")
+                            put("inbox", "me@example.com")
+                            put("from", buildJsonArray { add(JsonPrimitive("notifications@github.com")) })
+                        })
+                    })
+                    add(buildJsonObject {
+                        put("id", "daily")
+                        put("name", "Daily")
+                        put("prompt", "Plan")
+                        put("schedule", "0 9 * * *")
+                        put("scheduleKind", "cron")
+                        put("schedules", buildJsonArray { add(JsonPrimitive("0 9 * * *")) })
+                        put("revision", 1)
+                    })
+                })
+            },
+        )
+        val gateway = LiveFeatureGateway(client)
+
+        val (mail, daily) = gateway.listRoutines("bot-1").getOrThrow()
+
+        assertEquals(false, mail.scheduleEditable)
+        assertEquals(
+            listOf("When email arrives at me@example.com from notifications@github.com"),
+            mail.eventTriggers.map { it.summary() },
+        )
+        assertTrue(mail.schedules.isEmpty())
+        assertEquals(true, daily.scheduleEditable)
+        assertTrue(daily.eventTriggers.isEmpty())
+
+        gateway.saveRoutine("bot-1", mail.copy(name = "Renamed")).getOrThrow()
+
+        assertEquals("/api/v0/routines/mail", client.lastPath)
+        assertEquals("Renamed", client.lastBody?.get("name")?.jsonPrimitive?.content)
+        assertEquals(null, client.lastBody?.get("schedule"))
+    }
+
+    @Test
+    fun groupedTriggersFlattenIntoSchedulesAndEvents() = runBlocking {
+        val client = RecordingFeatureClient(
+            response = buildJsonObject {
+                put("routines", buildJsonArray {
+                    add(buildJsonObject {
+                        put("id", "mixed")
+                        put("name", "Mixed")
+                        put("prompt", "Go")
+                        put("schedule", "0 9 * * *")
+                        put("scheduleKind", "cron")
+                        put("schedules", buildJsonArray { add(JsonPrimitive("0 9 * * *")) })
+                        put("trigger", buildJsonObject {
+                            put("type", "group")
+                            put("listeners", buildJsonArray {
+                                add(buildJsonObject { put("type", "cron"); put("schedule", "0 9 * * *") })
+                                add(buildJsonObject { put("type", "webhook") })
+                            })
+                        })
+                    })
+                })
+            },
+        )
+
+        val mixed = LiveFeatureGateway(client).listRoutines("bot-1").getOrThrow().single()
+
+        assertEquals(false, mixed.scheduleEditable)
+        assertEquals(1, mixed.schedules.size)
+        assertEquals(listOf("webhook"), mixed.eventTriggers.map { it.type })
+    }
+
+    @Test
     fun settingsLoadAndProviderDisconnectUseDedicatedServerOperations() = runBlocking {
         val client = RecordingFeatureClient(
             responsesByPath = mapOf(
