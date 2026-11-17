@@ -6,6 +6,7 @@ import {
   parseRoutineSchedule,
   type RoutineView,
   routineDraftValid,
+  routineEventTriggerLabels,
   routineHasWebhookTrigger,
   routinePresentationDrafts,
   routinePresentationValue,
@@ -190,5 +191,46 @@ describe("OutcomeGo-compatible routine schedule editor", () => {
         ]
       )
     ).toBe(false);
+  });
+});
+
+describe("event trigger labels for the routine list", () => {
+  test("describes email, Slack, GitHub and webhook listeners", () => {
+    expect(routineEventTriggerLabels({ type: "email", inbox: "a@b.com" })).toEqual([
+      { key: "When email arrives at {inbox}", params: { inbox: "a@b.com" } },
+    ]);
+    expect(
+      routineEventTriggerLabels({ type: "email", inbox: "a@b.com", from: ["x@y.com", "z@y.com"] })
+    ).toEqual([
+      {
+        key: "When email arrives at {inbox} from {senders}",
+        params: { inbox: "a@b.com", senders: "x@y.com, z@y.com" },
+      },
+    ]);
+    expect(
+      routineEventTriggerLabels({ type: "slack", channel: "*", match: { kind: "mention" } })
+    ).toEqual([{ key: "When mentioned on Slack" }]);
+    expect(routineEventTriggerLabels({ type: "github", repo: "o/r", events: [] })).toEqual([
+      { key: "On GitHub activity in {repo}", params: { repo: "o/r" } },
+    ]);
+    expect(routineEventTriggerLabels({ type: "webhook" })).toEqual([
+      { key: "When a webhook is called" },
+    ]);
+  });
+
+  test("skips cron members and flattens groups", () => {
+    expect(routineEventTriggerLabels({ type: "cron", schedule: "0 9 * * *" })).toEqual([]);
+    expect(
+      routineEventTriggerLabels({
+        type: "group",
+        listeners: [
+          { type: "cron", schedule: "0 9 * * *" },
+          { type: "email", inbox: "a@b.com" },
+          { type: "webhook" },
+        ],
+      })
+    ).toHaveLength(2);
+    expect(routineEventTriggerLabels(null)).toEqual([]);
+    expect(routineEventTriggerLabels({ type: "mystery" })).toEqual([{ key: "On an event" }]);
   });
 });

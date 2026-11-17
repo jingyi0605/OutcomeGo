@@ -63,6 +63,81 @@ const containsWebhookTrigger = (value: unknown): boolean => {
 export const routineHasWebhookTrigger = (trigger: unknown): boolean =>
   containsWebhookTrigger(trigger);
 
+/** A translatable label: `key` is an i18n catalog key and `params` fills its placeholders. */
+export interface RoutineTriggerLabel {
+  key: string;
+  params?: Record<string, string>;
+}
+
+const asRecord = (value: unknown): Record<string, unknown> | null =>
+  value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+
+const triggerStringList = (value: unknown): string[] =>
+  Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+
+/** Every non-cron listener of a trigger, flattening groups. */
+export const routineEventListeners = (trigger: unknown): Array<Record<string, unknown>> => {
+  const record = asRecord(trigger);
+  if (!record) return [];
+  if (record.type === "group") {
+    return (Array.isArray(record.listeners) ? record.listeners : []).flatMap(routineEventListeners);
+  }
+  return typeof record.type === "string" && record.type !== "cron" ? [record] : [];
+};
+
+/** Describes one event listener (email, Slack, GitHub, webhook, ...) for list and detail rows. */
+export const describeRoutineEventListener = (
+  listener: Record<string, unknown>
+): RoutineTriggerLabel => {
+  switch (listener.type) {
+    case "webhook":
+      return { key: "When a webhook is called" };
+    case "email": {
+      const inbox = typeof listener.inbox === "string" ? listener.inbox : "";
+      const senders = triggerStringList(listener.from);
+      if (inbox && senders.length > 0)
+        return {
+          key: "When email arrives at {inbox} from {senders}",
+          params: { inbox, senders: senders.join(", ") },
+        };
+      return inbox
+        ? { key: "When email arrives at {inbox}", params: { inbox } }
+        : { key: "When an email arrives" };
+    }
+    case "slack": {
+      const match = asRecord(listener.match);
+      if (match?.kind === "mention") return { key: "When mentioned on Slack" };
+      if (match?.kind === "keyword" && typeof match.keyword === "string")
+        return { key: 'When "{keyword}" is mentioned on Slack', params: { keyword: match.keyword } };
+      if (match?.kind === "reaction") return { key: "On a Slack reaction" };
+      return { key: "On a Slack message" };
+    }
+    case "github":
+    case "origin": {
+      const repo = typeof listener.repo === "string" ? listener.repo : "";
+      return repo
+        ? { key: "On GitHub activity in {repo}", params: { repo } }
+        : { key: "On GitHub activity" };
+    }
+    case "microsoftTeams":
+      return { key: "On a Microsoft Teams message" };
+    case "linear":
+      return { key: "On a Linear event" };
+    case "sentry":
+      return { key: "On a Sentry event" };
+    case "pagerduty":
+      return { key: "On a PagerDuty event" };
+    default:
+      return { key: "On an event" };
+  }
+};
+
+/** Labels for every event trigger of a routine; cron schedules are described separately. */
+export const routineEventTriggerLabels = (trigger: unknown): RoutineTriggerLabel[] =>
+  routineEventListeners(trigger).map(describeRoutineEventListener);
+
 export const formatRoutineExecutionTime = (
   execution: RoutineExecutionView,
   now = new Date(),
