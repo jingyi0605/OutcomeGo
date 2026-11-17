@@ -7,6 +7,7 @@ import {
   publishMessageNotification,
 } from "@outcomego/messaging";
 import { postgresJson } from "./postgres-json";
+import { lockWakeAttempt, ownsWakeAttempt, type WakeAttempt } from "./wake-attempt";
 
 const json = (value: unknown): Prisma.InputJsonValue =>
   postgresJson(value) as Prisma.InputJsonValue;
@@ -45,11 +46,28 @@ export class Projection {
     private readonly agentData?: AgentDataStore
   ) {}
 
-  async apply(runId: string, conversationId: string, botId: string, event: ComputerEvent) {
+  async apply(runId: string, conversationId: string, botId: string, event: ComputerEvent, attempt?: WakeAttempt): Promise<boolean> {
     event = postgresJson(event) as ComputerEvent;
+    if (!attempt) {
+      await this.project(this.prisma, (work) => this.prisma.$transaction(work), runId, conversationId, botId, event);
+      return true;
+    }
+    return this.prisma.$transaction(async (tx) => {
+      await lockWakeAttempt(tx, attempt);
+      if (!(await ownsWakeAttempt(tx, attempt))) return false;
+      await this.project(tx, (work) => work(tx), runId, conversationId, botId, event);
+      return true;
+    });
+  }
+
+  private async project(
+    db: Prisma.TransactionClient,
+    transaction: <T>(work: (tx: Prisma.TransactionClient) => Promise<T>) => Promise<T>,
+    runId: string, conversationId: string, botId: string, event: ComputerEvent
+  ): Promise<void> {
     switch (event.type) {
       case "session.attached":
-        await this.prisma.$transaction(async (tx) => {
+        await transaction(async (tx) => {
           const bot = await tx.bot.findUniqueOrThrow({
             where: { id: botId },
           });
@@ -118,7 +136,7 @@ export class Projection {
         });
         break;
       case "context.state":
-        await this.prisma.$transaction(async (tx) => {
+        await transaction(async (tx) => {
           const contextSession = await tx.contextSession.findUniqueOrThrow({
             where: { id: event.contextSessionId },
           });
@@ -195,7 +213,7 @@ export class Projection {
         });
         break;
       case "turn.started":
-        await this.prisma.$transaction(async (tx) => {
+        await transaction(async (tx) => {
           const started = await tx.run.updateMany({
             where: {
               id: runId,
@@ -216,11 +234,9 @@ export class Projection {
         });
         break;
       case "agent.delta":
-        // item.started already created the RunItem. Keep the hot token path to
-        // one atomic statement: wrapping it in a transaction and re-upserting
-        // the same RunItem added three redundant database round trips per
-        // coalesced fragment.
-        await this.prisma.$executeRaw`
+        // item.started already created the RunItem. The delta itself remains one
+        // atomic upsert inside the attempt gate, without re-upserting that item.
+        await db.$executeRaw`
           INSERT INTO "outcomego_message" AS "message" (
             "id", "botId", "conversationId", "runId", "upstreamItemId",
             "role", "content", "status", "createdAt", "updatedAt"
@@ -250,7 +266,7 @@ export class Projection {
         const item = event.item as Record<string, unknown>;
         const upstreamItemId = String(item.id ?? crypto.randomUUID());
         const completed = event.type === "item.completed";
-        await this.prisma.$transaction(async (tx) => {
+        await transaction(async (tx) => {
           await tx.runItem.upsert({
             where: { runId_upstreamItemId: { runId, upstreamItemId } },
             create: {
@@ -316,7 +332,7 @@ export class Projection {
         break;
       }
       case "compaction":
-        await this.prisma.$transaction(async (tx) => {
+        await transaction(async (tx) => {
           const contextSession = await tx.contextSession.findUniqueOrThrow({
             where: { id: event.contextSessionId },
           });
@@ -366,7 +382,7 @@ export class Projection {
         });
         break;
       case "runtime.error":
-        await this.prisma.$transaction(async (tx) => {
+        await transaction(async (tx) => {
           await tx.runItem.create({
             data: {
               runId,
@@ -391,7 +407,7 @@ export class Projection {
               : event.status === "failed"
                 ? "failed"
                 : "interrupted";
-        await this.prisma.$transaction(async (tx) => {
+        await transaction(async (tx) => {
           // A completion may have been buffered before deletion cancelled this turn. Serialize
           // the read and final write with cancellation so its stale snapshot cannot undo it.
           await tx.$executeRaw`SELECT id FROM "outcomego_run" WHERE id = ${runId}::uuid FOR NO KEY UPDATE`;

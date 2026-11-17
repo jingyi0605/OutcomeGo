@@ -1,5 +1,6 @@
 import type { PrismaClient } from "@outcomego/db";
 import { TASK_RECOVERY_LOCK } from "@outcomego/messaging";
+import { lockWakeAttempt, ownsWakeAttempt, type WakeAttempt } from "./wake-attempt";
 
 /** Fence the gap between claiming a run and the computer accepting it. Startup
  * must either see and stop that turn, or invalidate it before it is dispatched.
@@ -8,7 +9,8 @@ export async function dispatchComputerTurn(
   prisma: PrismaClient,
   runId: string,
   send: (signal: AbortSignal) => Promise<Response>,
-  timeoutMs = 60_000
+  timeoutMs = 60_000,
+  attempt?: WakeAttempt
 ): Promise<Response> {
   const abort = new AbortController();
   const timer = setTimeout(
@@ -19,6 +21,10 @@ export async function dispatchComputerTurn(
     return await prisma.$transaction(
       async (tx) => {
         await tx.$executeRaw`SELECT pg_advisory_xact_lock_shared(hashtext(${TASK_RECOVERY_LOCK}))`;
+        if (attempt) {
+          await lockWakeAttempt(tx, attempt);
+          if (!(await ownsWakeAttempt(tx, attempt))) throw new Error("Wake attempt was superseded before runtime dispatch");
+        }
         // Deletion persists cancellation before contacting the computer. Hold the run row until
         // acceptance so it cannot commit a cancellation, observe "not active", and then let this
         // already-validated request start work afterwards. Ordinary status updates take this lock too.

@@ -27,9 +27,10 @@ test.skipIf(!databaseUrl)("a wake cut off by a typed message runs again after it
       await db.run.update({ where: { id: inbox.runId }, data: { status: "running" } });
       await db.botRunLease.deleteMany({ where: { botId } });
       await db.botRunLease.create({ data: { botId, runId: inbox.runId, ownerId, expiresAt: new Date(Date.now() + 120_000) } });
+      await db.inboxEvent.update({ where: { id: inboxId }, data: { status: "processing", attempts: { increment: 1 } } });
       return {
         inboxId, inboxType: inbox.type, runId: inbox.runId, botId, contextSessionId: "context", runChannelId: channelId,
-        screenBotId: botId, pluginBotId: botId, conversationId, ownerId, content: payload.content, images: [],
+        screenBotId: botId, pluginBotId: botId, conversationId, ownerId, attempt: inbox.attempts + 1, content: payload.content, images: [],
         clientId: payload.clientId, cwd: root, sessionPath: null, channelId, deliveryId: null,
         origin: inbox.run.origin, runtimeProfile: "agent", subagentType: null, readOnly: false, inferenceParentRunId: null,
         taskConfiguration: null, fileAttachments: [], attachmentOwnerBotId: botId,
