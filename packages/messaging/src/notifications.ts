@@ -1,3 +1,4 @@
+import { isOutcomeDecisionRevisionActive, outcomeDecisionRevisionActiveSql } from "./outcome-decisions";
 import { normalizeRobotAvatarShape } from "@outcomego/contracts/robot-avatar";
 import {
   type AgentNotificationPayload,
@@ -293,7 +294,7 @@ export async function publishRequiredDecisionNotification(tx: Prisma.Transaction
   if (!found) return false;
   await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`outcome:${found.outcomeId}`}))`;
   const decision = await tx.outcomeDecision.findUniqueOrThrow({ where: { id: decisionId }, include: { outcome: true, contractRevision: true } });
-  if (!["open", "presented"].includes(decision.status) || decision.outcome.currentRevisionId !== decision.contractRevisionId || decision.outcome.cancelledAt || decision.outcome.acceptedAt ||
+  if (!["open", "presented"].includes(decision.status) || !await isOutcomeDecisionRevisionActive(tx, decision.outcomeId, decision.contractRevisionId, decision.workItemId) || decision.outcome.cancelledAt || decision.outcome.acceptedAt ||
     (decision.expiresAt && decision.expiresAt <= new Date())) return false;
   const channel = await tx.channel.findFirst({ where: { kind: "bot_dm", archivedAt: null, members: { some: { botId: decision.outcome.botId } } }, orderBy: { createdAt: "asc" } });
   if (!channel) return false;
@@ -307,8 +308,9 @@ export async function publishRequiredDecisionNotification(tx: Prisma.Transaction
 export async function reconcileOutcomeDecisionNotifications(prisma: import("@outcomego/db").PrismaClient): Promise<number> {
   const rows = await prisma.$queryRaw<Array<{ id: string }>>(Prisma.sql`
     SELECT d.id FROM "outcomego_outcome_decision" d
-    JOIN "outcomego_outcome" o ON o.id = d."outcomeId" AND o."currentRevisionId" = d."contractRevisionId"
-    WHERE d.status IN ('open', 'presented') AND (d."expiresAt" IS NULL OR d."expiresAt" > CURRENT_TIMESTAMP)
+    JOIN "outcomego_outcome" o ON o.id = d."outcomeId"
+    WHERE ${outcomeDecisionRevisionActiveSql(Prisma.sql`o.id`, Prisma.sql`d."contractRevisionId"`, Prisma.sql`d."workItemId"`)}
+      AND d.status IN ('open', 'presented') AND (d."expiresAt" IS NULL OR d."expiresAt" > CURRENT_TIMESTAMP)
       AND o."cancelledAt" IS NULL AND o."acceptedAt" IS NULL
       AND NOT EXISTS (SELECT 1 FROM "outcomego_channel_notification" n WHERE n.key = 'decision.required:' || d.id::text)
       AND EXISTS (SELECT 1 FROM "outcomego_channel" c JOIN "outcomego_channel_member" m ON m."channelId" = c.id

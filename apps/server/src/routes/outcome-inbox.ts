@@ -3,7 +3,6 @@ import { ApiError } from "@outcomego/contracts";
 import { parseOutcomeInboxQuery, ResolveDecisionInput, WithdrawDecisionInput } from "@outcomego/contracts/outcome-inbox";
 import { DecisionService } from "../services/decision-service";
 import { OutcomeInboxService } from "../services/outcome-inbox-service";
-import { OutcomeService } from "../services/outcome-service";
 import { json, parseBody } from "../http";
 import { run, type RouteContext } from "./context";
 
@@ -43,6 +42,7 @@ export const createOutcomeInboxRoutes = (decisions: DecisionService, inbox: Outc
 export async function outcomeInboxRoutes(context: RouteContext): Promise<Response | undefined> {
   if (!/^\/api\/(outcome-inbox(?:$|\/)|decisions\/|outcomes\/[^/]+\/inbox$)/.test(context.path)) return undefined;
   const { app } = context;
-  const outcomes = new OutcomeService(app.prisma);
-  return createOutcomeInboxRoutes(new DecisionService(app.prisma, { messaging: app.messaging, createRevision: outcomes.createRevisionInTransaction }), new OutcomeInboxService(app.prisma))(context);
+  const decisions = (app as typeof app & { outcomeDecisions?: DecisionService }).outcomeDecisions;
+  if (!decisions) throw new ApiError(503, "decision_effect_unavailable", "Outcome decision services have not been registered");
+  return createOutcomeInboxRoutes(decisions, new OutcomeInboxService(app.prisma))(context);
 }

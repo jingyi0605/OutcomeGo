@@ -1,3 +1,4 @@
+import { outcomeDecisionRevisionActiveSql } from "@outcomego/messaging";
 import { ApiError } from "@outcomego/contracts";
 import { encodeOutcomeInboxCursor, type OutcomeInboxItemView, type OutcomeInboxPage, type OutcomeInboxQuery } from "@outcomego/contracts/outcome-inbox";
 import { Prisma, type PrismaClient } from "@outcomego/db";
@@ -19,17 +20,23 @@ export class OutcomeInboxService {
           o.title, d."completedSummary" AS completed, d."problemSummary" AS problem, d."nextStepSummary" AS next, true AS "requiresAction",
           d."createdAt" AS "availableAt", d."createdAt", 'decision.required:' || d.id::text AS "factKey"
         FROM "outcomego_outcome_decision" d
-          JOIN "outcomego_outcome" o ON o.id = d."outcomeId" AND o."currentRevisionId" = d."contractRevisionId"
+          JOIN "outcomego_outcome" o ON o.id = d."outcomeId"
           JOIN "outcomego_outcome_contract_revision" r ON r.id = d."contractRevisionId"
-        WHERE d.status IN ('open', 'presented') AND (d."expiresAt" IS NULL OR d."expiresAt" > CURRENT_TIMESTAMP)
+        WHERE ${outcomeDecisionRevisionActiveSql(Prisma.sql`o.id`, Prisma.sql`d."contractRevisionId"`, Prisma.sql`d."workItemId"`)}
+          AND d.status IN ('open', 'presented') AND (d."expiresAt" IS NULL OR d."expiresAt" > CURRENT_TIMESTAMP)
           AND o."cancelledAt" IS NULL AND o."acceptedAt" IS NULL
         UNION ALL
         SELECT 'acceptance_pending:' || o.id::text, o.id, r.revision, NULL, NULL,
           (SELECT COALESCE(jsonb_agg(c.id ORDER BY c.ordinal), '[]'::jsonb) FROM "outcomego_outcome_acceptance_criterion" c WHERE c."contractRevisionId" = r.id),
           'acceptance_pending', 1, o.title, 'Results are ready for review.', 'Acceptance needs your review.', 'Review the criteria on Desktop.', true,
           r."createdAt", r."createdAt", 'review.required:' || o.id::text || ':' || r.revision::text
-        FROM "outcomego_outcome" o JOIN "outcomego_outcome_contract_revision" r ON r.id = o."currentRevisionId"
-        WHERE (o.status = 'review_pending' OR EXISTS (
+        FROM "outcomego_outcome" o JOIN "outcomego_outcome_contract_revision" r ON r."outcomeId" = o.id
+        WHERE ${outcomeDecisionRevisionActiveSql(Prisma.sql`o.id`, Prisma.sql`r.id`, Prisma.sql`(SELECT w.id FROM "outcomego_outcome_work_item" w WHERE w."outcomeId" = o.id AND w."contractRevisionId" = r.id AND w."executorType" = 'agent' AND w."startedAt" IS NOT NULL ORDER BY w.ordinal LIMIT 1)`)}
+          AND (o.status = 'review_pending' OR EXISTS (
+          SELECT 1 FROM "outcomego_outcome_work_item" agent
+          WHERE agent."outcomeId" = o.id AND agent."contractRevisionId" = r.id AND agent."executorType" = 'agent' AND agent.status = 'completed'
+            AND EXISTS (SELECT 1 FROM "outcomego_outcome_output" output WHERE output."workItemId" = agent.id)
+        ) OR EXISTS (
           SELECT 1 FROM "outcomego_outcome_work_item" receipt
           WHERE receipt."outcomeId" = o.id AND receipt."contractRevisionId" = r.id
             AND receipt."executorType" = 'human' AND receipt.status IN ('submitted', 'review_pending')
@@ -39,9 +46,11 @@ export class OutcomeInboxService {
           'human_action_pending', 2, w.title, 'The next action requires a person.', 'A manual action is pending.', 'Open the action card on Desktop.', true,
           w."createdAt", w."createdAt", 'human_action.required:' || w.id::text
         FROM "outcomego_outcome_work_item" w
-          JOIN "outcomego_outcome" o ON o.id = w."outcomeId" AND o."currentRevisionId" = w."contractRevisionId"
+          JOIN "outcomego_outcome" o ON o.id = w."outcomeId"
           JOIN "outcomego_outcome_contract_revision" r ON r.id = w."contractRevisionId"
-        WHERE w."executorType" = 'human' AND w.status IN ('pending', 'ready', 'in_progress', 'paused', 'rejected')
+          LEFT JOIN "outcomego_outcome_human_action_card" card ON card."workItemId" = w.id
+        WHERE ${outcomeDecisionRevisionActiveSql(Prisma.sql`o.id`, Prisma.sql`r.id`, Prisma.sql`card."requestedByWorkItemId"`)}
+          AND w."executorType" = 'human' AND w.status IN ('pending', 'ready', 'in_progress', 'paused', 'rejected')
           AND o."cancelledAt" IS NULL AND o."acceptedAt" IS NULL
         UNION ALL
         SELECT 'completed:' || o.id::text, o.id, r.revision, NULL, NULL, NULL,

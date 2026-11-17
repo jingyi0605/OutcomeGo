@@ -23,8 +23,11 @@ for (const requestSource of ["turn", "automation", "event"] as const) {
       })),
     });
     expect(snapshot(active)).toEqual(before[requestSource]);
-    if (requestSource === "automation")
-      expect(snapshot({ ...active, outcomeThread: { workItemId: "fixture" } })).toEqual(before.automation);
+    if (requestSource === "automation") {
+      const withOutcome = snapshot({ ...active, outcomeThread: { workItemId: "fixture" } });
+      expect(withOutcome.direct).toContain("RequestOutcomeDecision");
+      expect({ direct: withOutcome.direct.filter(name => name !== "RequestOutcomeDecision"), dynamic: withOutcome.dynamic.map(namespace => ({ ...namespace, tools: namespace.tools.filter(tool => tool !== "RequestOutcomeDecision") })) }).toEqual(before.automation);
+    }
   });
 }
 
@@ -35,7 +38,7 @@ test("Outcome tools are selected only when implemented and the thread marker is 
   });
   const implemented = Object.fromEntries(OUTCOME_THREAD_TOOL_NAMES.map((name) => [name, definition(name)]));
   expect(outcomeThreadToolDefinitions({}, implemented)).toEqual([]);
-  expect(outcomeThreadToolDefinitions({ outcomeThread: { workItemId: "fixture" } })).toEqual([]);
+  expect(outcomeThreadToolDefinitions({ outcomeThread: { workItemId: "fixture" } }).map(tool => tool.name)).toEqual(["RequestOutcomeDecision"]);
   expect(outcomeThreadToolDefinitions({ outcomeThread: { workItemId: "fixture" } }, implemented).map((tool) => tool.name))
     .toEqual([...OUTCOME_THREAD_TOOL_NAMES]);
 });

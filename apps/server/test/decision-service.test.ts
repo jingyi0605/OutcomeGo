@@ -71,7 +71,7 @@ describe.skipIf(!url)("DecisionService transactional state machine", () => {
   test("absent production enqueue and human ports never persist a resolved result", async () => {
     for (const effect of ["plan_only", "manual_action"] as const) {
       const f = await createFixture();
-      const d = await run(decisions.create({ ...f.input, options: [option({ resolutionEffect: effect, manualAction: { title: "Check", purpose: "Observe", steps: ["Inspect"], evidenceRequirements: [] } })] }, actor));
+      const d = await run(decisions.create({ ...f.input, options: [option({ resolutionEffect: effect, manualAction: { title: "Check", purpose: "Observe", steps: ["Inspect"], evidenceRequirements: [{ criterionOrdinal: 1, label: "Observation", kind: "text" }] } })] }, actor));
       expect(await errorCode(decisions.resolve(d.id, request(), actor))).toBe(effect === "manual_action" ? "manual_action_unavailable" : "decision_effect_unavailable");
       expect((await run(decisions.get(d.id))).status).toBe("open");
       expect(await db.event.count({ where: { topic: "outcome.decision.resolved", entityId: f.outcome.id } })).toBe(0);

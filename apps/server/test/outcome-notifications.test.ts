@@ -149,6 +149,7 @@ describe.skipIf(!url)("Outcome notification facts and delivery", () => {
       await db.outboxDelivery.updateMany({ where: { target: deviceId }, data: { status: "delivered" } });
       const f = await create();
       if (mode === "no-device") await db.pushDevice.update({ where: { id: deviceId }, data: { enabled: false } });
+      await db.outcome.update({ where: { id: f.outcome.id }, data: { status: "review_pending" } });
       const first = payload(f, "first"); const second = payload(f, "second");
       await db.$transaction(tx => publishOutcomeNotification(tx, first));
       const activity = await db.channelNotification.findUniqueOrThrow({ where: { key: first.factKey } });

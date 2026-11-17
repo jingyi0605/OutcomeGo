@@ -51,23 +51,11 @@ export class NotificationService {
     private readonly authMode: PushAuthenticationMode = "required"
   ) {}
 
-  /** Only first-wave decision facts are projected here; progress is always silent. */
+  /** The shared consumer records D18 receipts and projects only committed current facts. */
   projectOutcomeEvent = (eventSequence: string) => serviceEffect(() => this.prisma.$transaction(async tx => {
-    const event = await tx.event.findUnique({ where: { sequence: BigInt(eventSequence) } });
-    if (!event || event.topic !== "outcome.decision.required" || !event.entityId) return { projected: false };
-    const envelope = event.payload as unknown as { eventId?: string; payload?: { decisionId?: string } };
-    const decisionId = envelope.payload?.decisionId;
-    if (!decisionId) return { projected: false };
-    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`outcome:${event.entityId}`}))`;
-    const scope = "outcome-event:inbox";
-    const eventId = envelope.eventId ?? event.sequence.toString();
-    const previous = await tx.idempotencyRecord.findUnique({ where: { scope_key: { scope, key: eventId } } });
-    if (previous) return { projected: false };
-    const { publishRequiredDecisionNotification } = await import("@outcomego/messaging");
-    if (!await publishRequiredDecisionNotification(tx, decisionId)) return { projected: false };
-    await tx.idempotencyRecord.create({ data: { scope, key: eventId, requestHash: event.topic, response: { projected: true },
-      status: "completed", expiresAt: new Date(Date.now() + 30 * 86400_000) } });
-    return { projected: true };
+    const { consumeOutcomeInboxEvent } = await import("@outcomego/messaging");
+    const result = await consumeOutcomeInboxEvent(tx, BigInt(eventSequence));
+    return { projected: result.projected };
   }));
 
   routing = () => serviceEffect(() => notificationRouting(this.prisma, this.authMode));
@@ -176,11 +164,12 @@ export class NotificationService {
   // multiple conversations on desktop still retires every acknowledged alert.
   snapshot = () => serviceEffect(async () => this.prisma.$transaction(async (tx) => {
     const event = await tx.event.findFirst({ orderBy: { sequence: "desc" }, select: { sequence: true } });
-    const [states, badgeCount] = await Promise.all([
+    const [states, badgeCount, outcomeNotifications] = await Promise.all([
       tx.channelReadState.findMany({ select: { channelId: true, lastReadSequence: true, lastReadNotificationSequence: true } }),
       unreadBadgeCount(tx),
+      import("@outcomego/messaging").then(({ unreadOutcomeNotifications }) => unreadOutcomeNotifications(tx)),
     ]);
-    return { notificationRouting: await notificationRouting(tx, this.authMode), cursor: (event?.sequence ?? 0n).toString(), badgeCount, readStates: states.map(s => ({
+    return { outcomeNotifications, notificationRouting: await notificationRouting(tx, this.authMode), cursor: (event?.sequence ?? 0n).toString(), badgeCount, readStates: states.map(s => ({
       channelId: s.channelId, lastReadSequence: s.lastReadSequence.toString(),
       lastReadNotificationSequence: s.lastReadNotificationSequence.toString(),
     })) };

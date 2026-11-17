@@ -1,3 +1,4 @@
+import { REQUEST_OUTCOME_DECISION_TOOL, RequestOutcomeDecisionInput } from "@outcomego/contracts/outcome-inbox";
 import { replaceTaskProgressContext } from "@outcomego/contracts/task-progress";
 import { OUTCOME_THREAD_TOOL_NAMES, type OutcomeThreadToolName } from "@outcomego/contracts/outcomes";
 import { applyArgumentAliases, normalizeMainToolArguments } from "@outcomego/contracts/reference-main-parsers";
@@ -252,7 +253,14 @@ export const SUBAGENT_PRIVATE_NATIVE_TOOLS: ReadonlySet<string> = new Set([
 
 type OutcomeThreadToolRegistry = Partial<Record<OutcomeThreadToolName, Omit<RuntimeDynamicTool, "execute">>>;
 // Line 3 registers RequestOutcomeDecision here; line 4 registers RequestHumanAction independently.
-const OUTCOME_THREAD_TOOLS: OutcomeThreadToolRegistry = {};
+const OUTCOME_THREAD_TOOLS: OutcomeThreadToolRegistry = {
+  RequestOutcomeDecision: {
+    ...REQUEST_OUTCOME_DECISION_TOOL,
+    inputSchema: REQUEST_OUTCOME_DECISION_TOOL.inputSchema as unknown as Readonly<Record<string, unknown>>,
+    source: "first-party",
+    decodeArguments: Schema.decodeUnknownSync(RequestOutcomeDecisionInput),
+  },
+};
 
 export const outcomeThreadToolDefinitions = (
   active: Pick<ActiveTurn, "outcomeThread">,
@@ -1784,6 +1792,10 @@ export class RuntimeTools {
       active.instructions = replaceTaskProgressContext(active.instructions, (body as Record<string, unknown>).progress);
     }
     if (["ReportTaskProgress", "ReportRequestProgress"].includes(tool) && body && typeof body === "object" && (body as Record<string, unknown>).deferred === true) {
+      active.endTurnRequested = true;
+    }
+    if (tool === "RequestOutcomeDecision" && active.outcomeThread && body && typeof body === "object" &&
+      (body as Record<string, unknown>).status === "waiting_for_user") {
       active.endTurnRequested = true;
     }
     if (

@@ -2,7 +2,7 @@ import { ApiError } from "@outcomego/contracts";
 import type { DecisionCreateInput, DecisionOption, DecisionResolution, DecisionView, ResolveDecisionInput } from "@outcomego/contracts/outcome-inbox";
 import { OutcomeError, type CreateContractRevisionInput, type OutcomeDetail } from "@outcomego/contracts/outcomes";
 import { Prisma, type PrismaClient } from "@outcomego/db";
-import { createOutcomeDecision, closeOutcomeDecision, appendOutcomeEvent, enqueueOutcomeTurn, transitionWorkItem, unavailableHumanActionPort, type ActorRef, type AgentMessaging, type HumanActionPort } from "@outcomego/messaging";
+import { createOutcomeDecision, isOutcomeDecisionRevisionActive, closeOutcomeDecision, appendOutcomeEvent, enqueueOutcomeTurn, transitionWorkItem, unavailableHumanActionPort, type ActorRef, type AgentMessaging, type HumanActionPort } from "@outcomego/messaging";
 import { activeDecisionStatuses, revokeDecisionNotification, withdrawSupersededDecisions } from "./decision-lifecycle";
 import { NotificationService } from "./notification-service";
 import { Effect } from "effect";
@@ -71,7 +71,7 @@ export class DecisionService {
       }
       if (row.contractRevision.revision !== input.expectedContractRevision) return apiError("decision_revision_conflict", "The revision number changed; reload the decision", row);
       const outcome = await tx.outcome.findUniqueOrThrow({ where: { id: row.outcomeId } });
-      if (outcome.currentRevisionId !== row.contractRevisionId) return apiError("decision_revision_conflict", "The Outcome revision changed; reload the decision", row);
+      if (!await isOutcomeDecisionRevisionActive(tx, row.outcomeId, row.contractRevisionId, row.workItemId)) return apiError("decision_revision_conflict", "The Outcome revision changed; reload the decision", row);
       if (!active(row)) return apiError(row.status === "resolved" ? "decision_already_resolved" : `decision_${row.status}`, `This decision is ${row.status}`, row, row.status === "expired" ? 410 : 409);
       if (outcome.cancelledAt || outcome.acceptedAt) return apiError("decision_revision_conflict", "The Outcome changed; reload the decision", row);
       const options = row.options as unknown as DecisionOption[];
@@ -120,6 +120,8 @@ export class DecisionService {
   private async applyEffect(tx: Tx, row: Row, option: DecisionOption | undefined, customText: string | null, requestId: string, actor: ActorRef): Promise<DecisionResolution["resume"]> {
     const effect = option?.resolutionEffect ?? "plan_only";
     if (effect === "scope_change" || effect === "acceptance_change") {
+      const outcome = await tx.outcome.findUniqueOrThrow({ where: { id: row.outcomeId }, select: { currentRevisionId: true } });
+      if (outcome.currentRevisionId !== row.contractRevisionId) throw apiError("decision_revision_conflict", "Edit the pending contract revision before applying another scope change", row);
       if (!option?.contract) throw apiError("invalid_decision_effect", "The option has no contract snapshot", row, 422);
       if (!this.ports.createRevision) throw apiError("decision_effect_unavailable", "The revision writer has not been registered", row, 503);
       const revision = await this.ports.createRevision(tx, row.outcomeId, { baseRevision: row.contractRevision.revision, contract: option.contract, sourceDecisionId: row.id, changeSummary: option.consequence, clientRequestId: `decision:${row.id}:${requestId}` }, actor);

@@ -90,3 +90,45 @@ test("context selection requires an Outcome identity and leaves existing scopes 
   expect(contextScopeForRun("routine", "dm", "conversation", "root")).toEqual({ scope: "automation", scopeId: "root" });
   expect(contextScopeForRun("user", "dm", "conversation")).toEqual({ scope: "channel", scopeId: "dm" });
 });
+
+// The tool pause and owner continuation must use the real worker's same Outcome context.
+describe.skipIf(!url)("Outcome decision pause and continuation", () => {
+  test("a decision ends one turn, keeps the work paused and resumes alongside the main chat", async () => {
+    const { createOutcomeDecisionTool } = await import("../../server/src/services/outcome-decision-tool");
+    const { DecisionService } = await import("../../server/src/services/decision-service");
+    const { settleOutcomeWorkItem } = await import("@outcomego/messaging");
+    const { Effect } = await import("effect");
+    const h = await outcomeThreadFixture();
+    const worker = Object.assign(Object.create(WakeWorker.prototype), { prisma: h.db, messaging: h.messaging, agentData: h.store, workspaceRoot: h.root });
+    try {
+      const item = await h.item();
+      await h.db.$transaction(tx => enqueueOutcomeTurn(tx, h.messaging, { workItemId: item.id, content: "Research", reason: "start", clientId: `outcome-run:${h.outcome.id}:1:${item.id}` }));
+      const initial = await worker.claim(h.bot.id);
+      if (!initial) throw new Error("Expected the initial Outcome turn");
+      const source = await h.db.run.findUniqueOrThrow({ where: { id: initial.runId } });
+      const decisions = new DecisionService(h.db, { messaging: h.messaging });
+      const tool = createOutcomeDecisionTool(h.db, decisions);
+      const result = await tool({ runId: source.id, botId: h.bot.id, conversationId: source.conversationId, channelId: source.channelId!, deliveryId: source.deliveryId, callId: "pause", tool: "RequestOutcomeDecision", arguments: {
+        completedSummary: "Compared approaches", problemSummary: "Choose one approach", nextStepSummary: "Choose the next step", reasonCode: "missing_input", options: [{ label: "Continue", consequence: "Continue with the current contract" }],
+      } }, { runId: source.id, workItemId: item.id, botId: h.bot.id }) as { decisionId: string };
+      await h.db.run.update({ where: { id: source.id }, data: { status: "completed", completedAt: new Date() } });
+      await h.db.inboxEvent.updateMany({ where: { runId: source.id }, data: { status: "completed", completedAt: new Date() } });
+      await h.db.botRunLease.deleteMany({ where: { runId: source.id } });
+      await h.db.$transaction(tx => settleOutcomeWorkItem(tx, source.id, h.runtime));
+      expect((await h.db.outcomeWorkItem.findUniqueOrThrow({ where: { id: item.id } })).status).toBe("waiting_decision");
+      const foreground = await h.db.$transaction(tx => h.messaging.acceptDirectUserMessage(tx, { botId: h.bot.id, channelId: h.channel.id, clientId: crypto.randomUUID(), content: "Keep discussing the unrelated main topic" }));
+      const main = await worker.claim(h.bot.id);
+      expect(main?.runId).toBe(foreground.run.id);
+      expect((await h.db.run.findUniqueOrThrow({ where: { id: foreground.run.id } })).status).toBe("running");
+      const resolve = { optionId: "option-1", expectedContractRevision: 1, clientRequestId: crypto.randomUUID() };
+      const outcomes = await Promise.all([resolve, { ...resolve, clientRequestId: crypto.randomUUID() }].map(input => Effect.runPromise(Effect.either(decisions.resolve(result.decisionId, input, "owner:local")))));
+      expect(outcomes.filter(result => result._tag === "Right")).toHaveLength(1);
+      const resumed = await worker.claim(h.bot.id);
+      expect(resumed?.contextSessionId).toBe(initial.contextSessionId);
+      expect(resumed?.outcomeWorkItemId).toBe(item.id);
+      expect(resumed?.runId).not.toBe(initial.runId);
+      expect((await h.db.run.findUniqueOrThrow({ where: { id: foreground.run.id } })).status).toBe("running");
+      expect(await h.db.channelMessage.count({ where: { channelId: h.channel.id, senderBotId: h.bot.id } })).toBe(0);
+    } finally { await h.cleanup(); }
+  });
+});
