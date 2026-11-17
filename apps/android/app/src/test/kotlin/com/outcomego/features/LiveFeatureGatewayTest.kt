@@ -463,6 +463,34 @@ class LiveFeatureGatewayTest {
         assertEquals(null, grouped[ChannelLibrarySection.Last7Days])
     }
 
+    @Test
+    fun secretSubmissionPostsValueAndClientIdAndRejectsUnacceptedResponse() = runBlocking {
+        val acceptedClient = RecordingFeatureClient(
+            buildJsonObject {
+                put("accepted", true)
+                put("message", buildJsonObject { put("metadata", buildJsonObject { put("secretProvided", true) }) })
+            },
+        )
+        val acceptedGateway = LiveFeatureGateway(acceptedClient)
+
+        acceptedGateway.submitRichAction("msg-secret", "submit", mapOf("value" to "s3cr3t", "_richType" to "secret")).getOrThrow()
+
+        assertEquals(HttpMethod.POST, acceptedClient.lastMethod)
+        assertEquals("/api/v0/channel-messages/msg-secret/secret", acceptedClient.lastPath)
+        assertEquals("s3cr3t", acceptedClient.lastBody?.get("value")?.jsonPrimitive?.content)
+        assertTrue(acceptedClient.lastBody?.get("clientId")?.jsonPrimitive?.content?.isNotBlank() == true)
+
+        val rejectedClient = RecordingFeatureClient(
+            buildJsonObject {
+                put("accepted", false)
+                put("message", buildJsonObject { put("metadata", buildJsonObject { put("secretProvided", false) }) })
+            },
+        )
+        val rejected = LiveFeatureGateway(rejectedClient)
+            .submitRichAction("msg-secret", "submit", mapOf("value" to "s3cr3t", "_richType" to "secret"))
+        assertTrue(rejected.isFailure)
+    }
+
     private class RecordingFeatureClient(
         private val response: JsonObject = JsonObject(emptyMap()),
         private val responsesByPath: Map<String, JsonObject> = emptyMap(),

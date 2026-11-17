@@ -1301,7 +1301,28 @@ class AppViewModel @JvmOverloads constructor(
     }
 
     fun submitChatAction(messageId: String, actionId: String, values: Map<String, String> = emptyMap()) {
-        runFeatureOperation { activeFeatureGateway.submitRichAction(messageId, actionId, values).onFailure(::reportFeatureFailure) }
+        runFeatureOperation {
+            activeFeatureGateway.submitRichAction(messageId, actionId, values)
+                .onSuccess {
+                    if (values["_richType"] in setOf("secret", "secret-request") || actionId == "secret") {
+                        mutableState.update { state ->
+                            state.copy(
+                                messages = state.messages.map { message ->
+                                    val rich = message.richMessage
+                                    if (message.id == messageId && rich != null) {
+                                        message.copy(
+                                            richMessage = rich.copy(metadata = rich.metadata + ("secretProvided" to "true")),
+                                        )
+                                    } else {
+                                        message
+                                    }
+                                },
+                            )
+                        }
+                    }
+                }
+                .onFailure(::reportFeatureFailure)
+        }
     }
 
     fun reactToChatMessage(messageId: String, emoji: String) {

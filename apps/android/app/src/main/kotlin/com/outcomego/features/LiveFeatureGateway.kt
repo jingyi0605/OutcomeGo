@@ -46,7 +46,20 @@ class LiveFeatureGateway(private val client: MobileFeatureApi) : FeatureGateway 
                     put("clientId", clientId())
                 }
             }
-            client.request(HttpMethod.POST, "/api/v0/channel-messages/${segment(messageId)}/$path", body)
+            val response = client.request(HttpMethod.POST, "/api/v0/channel-messages/${segment(messageId)}/$path", body)
+            if (path == "secret" && response.containsKey("accepted")) {
+                val accepted = response["accepted"]?.jsonPrimitive?.contentOrNull?.toBooleanStrictOrNull() == true
+                val provided = (response["message"] as? JsonObject)
+                    ?.get("metadata")
+                    ?.let { it as? JsonObject }
+                    ?.get("secretProvided")
+                    ?.jsonPrimitive
+                    ?.contentOrNull
+                    ?.toBooleanStrictOrNull() == true
+                if (!accepted && !provided) {
+                    error("This value could not be saved. Enter it again to retry.")
+                }
+            }
         }.map { Unit }
 
     override suspend fun uploadAttachment(uri: String): Result<Attachment> = runCatching {
