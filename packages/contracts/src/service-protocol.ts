@@ -172,7 +172,7 @@ export interface AgentDirectorySnapshot {
 }
 
 export interface ComputerInferenceRequest {
-  kind: "extraction" | "verification" | "connection-check";
+  kind: "extraction" | "verification" | "connection-check" | "planning" | "prereview";
   /** Internal verification only: capture this desktop locally, never accept image bytes from the actor. */
   screenBotId?: string;
   instructions: string;
@@ -189,7 +189,7 @@ export interface ComputerInferenceResponse {
 
 export const parseComputerInferenceRequest = (value: unknown): ComputerInferenceRequest => {
   const input = isRecord(value) ? value : {};
-  if (!["extraction", "verification", "connection-check"].includes(String(input.kind))) {
+  if (!["extraction", "verification", "connection-check", "planning", "prereview"].includes(String(input.kind))) {
     throw new Error("Inference kind is invalid");
   }
   const instructions = requiredString(input.instructions, "Inference instructions");
