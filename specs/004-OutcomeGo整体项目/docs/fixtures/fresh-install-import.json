@@ -1,0 +1,74 @@
+{
+  "schemaVersion": 1,
+  "fictional": true,
+  "owner": "owner:local",
+  "bot": "$bot",
+  "cleanup": {
+    "scope": "fixture-created-bot",
+    "preserveSourceInputs": true,
+    "remove": [
+      "scoped events and idempotency receipts",
+      "fixture Bot with cascaded Outcome facts",
+      "fixture-owned channel and workspace directory"
+    ]
+  },
+  "fixtureId": "fresh-install-import",
+  "parentScenarios": [
+    "A",
+    "H"
+  ],
+  "input": {
+    "format": "outcomego-v1",
+    "source": "synthetic-outcomego-backup",
+    "target": "disposable-empty-database",
+    "immutableSource": true,
+    "negativeCases": [
+      "unknown physical table",
+      "missing reference target table",
+      "orphan Outcome relation"
+    ]
+  },
+  "initialState": {
+    "targetHasData": false,
+    "sourceModified": false
+  },
+  "requests": [
+    {
+      "action": "validate-current-schema-backup"
+    },
+    {
+      "action": "reject-invalid-backup-fixtures"
+    },
+    {
+      "action": "restore-into-disposable-instance"
+    },
+    {
+      "action": "verify-bot-and-history-readable"
+    },
+    {
+      "action": "compare-source-sha256"
+    }
+  ],
+  "expectedStates": [
+    {
+      "entity": "install",
+      "values": [
+        "empty",
+        "validated",
+        "imported",
+        "readable"
+      ]
+    }
+  ],
+  "idRelations": [
+    "importedBot.id=sourceBot.id",
+    "importedMessage.channelId=sourceChannel.id"
+  ],
+  "notificationCategories": [],
+  "assertions": [
+    "no old-schema conversion or in-place upgrade is implied",
+    "source backup hash stays unchanged",
+    "ordinary clients retain chat/Routine/notification parsing",
+    "real install/import execution remains PENDING until separately authorized"
+  ]
+}

@@ -1,0 +1,102 @@
+{
+  "schemaVersion": 1,
+  "fictional": true,
+  "owner": "owner:local",
+  "bot": "$bot",
+  "cleanup": {
+    "scope": "fixture-created-bot",
+    "preserveSourceInputs": true,
+    "remove": [
+      "scoped events and idempotency receipts",
+      "fixture Bot with cascaded Outcome facts",
+      "fixture-owned channel and workspace directory"
+    ]
+  },
+  "fixtureId": "decision-pending",
+  "parentScenarios": [
+    "B",
+    "E"
+  ],
+  "input": {
+    "reasonCode": "missing_input",
+    "completedSummary": "已比较两条虚构路线",
+    "problemSummary": "需要选择补充方向",
+    "nextStepSummary": "保留范围继续或提出待批准变更",
+    "options": [
+      {
+        "id": "continue",
+        "label": "继续原范围",
+        "consequence": "同一子线程继续",
+        "resolutionEffect": "plan_only",
+        "source": "runtime"
+      },
+      {
+        "id": "cancel",
+        "label": "取消分支",
+        "consequence": "只取消该分支",
+        "resolutionEffect": "cancel_branch",
+        "source": "runtime"
+      }
+    ],
+    "customTextCanary": "w3-private-decision-text-canary"
+  },
+  "initialState": {
+    "agentStatus": "running",
+    "mainRunStatus": "running"
+  },
+  "requests": [
+    {
+      "action": "RequestOutcomeDecision",
+      "saveAs": "decision"
+    },
+    {
+      "action": "finish-requesting-turn",
+      "saveAs": "run"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v0/outcome-inbox"
+    },
+    {
+      "action": "resolve-concurrently-with-two-client-ids",
+      "saveAs": "resolution"
+    },
+    {
+      "action": "verify-same-thread-continuation",
+      "saveAs": "continuation"
+    }
+  ],
+  "expectedStates": [
+    {
+      "entity": "agent",
+      "values": [
+        "running",
+        "waiting_decision",
+        "running"
+      ]
+    },
+    {
+      "entity": "decision",
+      "values": [
+        "open",
+        "presented",
+        "resolved"
+      ]
+    }
+  ],
+  "idRelations": [
+    "decision.outcomeId=outcome.id",
+    "decision.workItemId=workItem.id",
+    "continuation.outcomeWorkItemId=workItem.id",
+    "decision.contractRevisionId=revision.id"
+  ],
+  "notificationCategories": [
+    "decision_pending"
+  ],
+  "assertions": [
+    "only one concurrent choice commits",
+    "custom text stays in authenticated facts, not notification or diagnostic JSON",
+    "scope/acceptance change creates pending revision N+1 without rewriting revision N",
+    "a waiting item and its dependencies do not stop independent sibling threads"
+  ]
+}

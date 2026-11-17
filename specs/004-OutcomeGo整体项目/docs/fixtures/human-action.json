@@ -1,0 +1,126 @@
+{
+  "schemaVersion": 1,
+  "fictional": true,
+  "owner": "owner:local",
+  "bot": "$bot",
+  "cleanup": {
+    "scope": "fixture-created-bot",
+    "preserveSourceInputs": true,
+    "remove": [
+      "scoped events and idempotency receipts",
+      "fixture Bot with cascaded Outcome facts",
+      "fixture-owned channel and workspace directory"
+    ]
+  },
+  "fixtureId": "human-action",
+  "parentScenarios": [
+    "C"
+  ],
+  "input": {
+    "title": "虚构实验室现场网络核对",
+    "purpose": "由人提交实测事实，Agent 只准备步骤",
+    "steps": [
+      "核对 DHCP 与 DNS 并保留日志",
+      "上传虚构测试记录"
+    ],
+    "evidenceRequirements": [
+      {
+        "criterionOrdinal": 1,
+        "label": "现场网络日志",
+        "kind": "asset"
+      }
+    ],
+    "receipt": {
+      "text": "虚构网络检查完成",
+      "comment": "只供隔离测试",
+      "assetRefs": [
+        "$uploadedAsset"
+      ],
+      "sourceRefs": [],
+      "observations": []
+    },
+    "knowledgeBodyCanary": "w3-private-knowledge-body-canary"
+  },
+  "initialState": {
+    "agentStatus": "running",
+    "receiptCount": 0
+  },
+  "requests": [
+    {
+      "action": "RequestHumanAction",
+      "saveAs": "card"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v0/work-items/$human/start"
+    },
+    {
+      "action": "pause-and-reopen-card"
+    },
+    {
+      "action": "submit-missing-materials-and-reject"
+    },
+    {
+      "action": "upload-asset",
+      "saveAs": "uploadedAsset"
+    },
+    {
+      "action": "abort-receipt-transaction-once"
+    },
+    {
+      "action": "retry-same-receipt-key",
+      "saveAs": "receipt"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v0/outcomes/$outcome/reviews",
+      "saveAs": "review"
+    },
+    {
+      "action": "verify-same-agent-thread-continuation",
+      "saveAs": "continuation"
+    }
+  ],
+  "expectedStates": [
+    {
+      "entity": "agent",
+      "values": [
+        "running",
+        "waiting_human",
+        "running"
+      ]
+    },
+    {
+      "entity": "human",
+      "values": [
+        "ready",
+        "in_progress",
+        "paused",
+        "in_progress",
+        "review_pending",
+        "rejected",
+        "in_progress",
+        "review_pending",
+        "accepted"
+      ]
+    }
+  ],
+  "idRelations": [
+    "card.requestedByWorkItemId=workItem.id",
+    "receipt.workItemId=human.id",
+    "receipt.workItem.contractRevisionId=revision.id",
+    "evidence.workItemId=human.id",
+    "continuation.outcomeWorkItemId=workItem.id"
+  ],
+  "notificationCategories": [
+    "human_action_pending",
+    "acceptance_pending"
+  ],
+  "assertions": [
+    "human action creates no Agent Run for human WorkItem",
+    "upload survives receipt transaction rollback",
+    "same request retry creates one Receipt",
+    "only owner Review acceptance resumes Agent",
+    "ordinary chat creates no HumanAction or KnowledgeReference"
+  ]
+}
