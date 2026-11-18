@@ -525,6 +525,7 @@ class HttpMobileGateway(context: Context) :
                     botId = botId.ifBlank { null },
                     isBot = kind == "bot_dm",
                     isGroup = kind == "group",
+                    notificationsMuted = channel.boolean("notificationsMuted"),
                     memberBotIds = channel.arrayAt("members").mapNotNull { it.jsonObjectOrNull()?.string("botId")?.takeIf(String::isNotBlank) },
                     notificationsEnabled = bot?.boolean("notificationsEnabled", true) ?: true,
                     botIcon = bot?.string("icon").orEmpty(),

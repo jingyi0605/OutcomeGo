@@ -91,7 +91,10 @@ class MainActivity : ComponentActivity() {
                     state.features.settings.notifications.routineRuns
                 if (previous != null && notificationsEnabled) {
                     state.conversations
-                        .filter { it.id != state.activeConversationId && it.unread > (previous[it.id] ?: 0) }
+                        .filter {
+                            !it.notificationsMuted && it.id != state.activeConversationId &&
+                                it.unread > (previous[it.id] ?: 0)
+                        }
                         .forEach { conversation ->
                             platform.showLocalNotification(
                                 conversation.id,

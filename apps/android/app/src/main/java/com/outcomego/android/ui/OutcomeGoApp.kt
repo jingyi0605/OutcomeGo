@@ -495,6 +495,7 @@ fun OutcomeGoApp(
                             appViewModel.updateGroup(current, name, description, botIds)
                             navController.popBackStack()
                         },
+                        onGroupNotificationMute = appViewModel::setGroupNotificationMute,
                         onBack = { navController.popBackStack() },
                     )
                 }

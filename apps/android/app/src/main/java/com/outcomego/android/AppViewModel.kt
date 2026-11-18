@@ -1257,6 +1257,16 @@ class AppViewModel @JvmOverloads constructor(
         }
     }
 
+    fun setGroupNotificationMute(conversation: Conversation, muted: Boolean) {
+        runConversationMutation {
+            request(
+                HttpMethod.PATCH,
+                "/api/v0/channels/${Uri.encode(conversation.id)}/notification-mute",
+                buildJsonObject { put("muted", muted) },
+            )
+        }
+    }
+
     fun setConversationHidden(conversation: Conversation, hidden: Boolean) {
         runConversationMutation(after = { loadHiddenConversations() }) {
             if (conversation.isBot && conversation.botId != null) {

@@ -39,6 +39,7 @@ data class Conversation(
     val avatarPath: String? = null,
     /** True while a run or async task is executing in this channel (the desktop's green dot). */
     val working: Boolean = false,
+    val notificationsMuted: Boolean = false,
 ) {
     /** Text shown under the title: the latest message, else the bot/channel description. */
     val preview: String?

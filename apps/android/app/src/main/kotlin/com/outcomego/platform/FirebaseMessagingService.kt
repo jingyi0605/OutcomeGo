@@ -29,9 +29,14 @@ class OutcomeGoFirebaseMessagingService : FirebaseMessagingService() {
             MODE_PRIVATE,
         ).getString(AndroidNotificationStorage.SCOPE, null).orEmpty()
         if (!notification.isForScope(expectedScope)) return
+        val presenter = AndroidNotificationPresenter(this)
+        if (notification.kind == "badge-sync") {
+            presenter.syncBadge(notification)
+            return
+        }
         NotificationChannels(this).create()
         val tap = AndroidNotificationTapIntent.create(this, com.outcomego.android.MainActivity::class.java, notification)
-        AndroidNotificationPresenter(this).show(notification, tap)
+        presenter.show(notification, tap)
     }
 
     override fun onNewToken(token: String) {
