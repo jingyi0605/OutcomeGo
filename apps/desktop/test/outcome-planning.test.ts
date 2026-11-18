@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { createElement } from "react";
+import { createElement, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { OutcomeClient } from "../src/renderer/client/outcome-api";
 import { createOutcomeApi } from "../src/renderer/client/outcome-api";
@@ -8,14 +8,18 @@ import { ContractConfirmation } from "../src/renderer/components/outcomego/outco
 import { OutcomeRequestIds } from "../src/renderer/components/outcomego/outcomes/planning/outcome-client";
 import { emptySelections, selectPlanningOption, customPlanningEntries, planningConflicts, selectionsFromPlan } from "../src/renderer/components/outcomego/outcomes/planning/planning-state";
 import { planFixture, outcomeFixture } from "./outcome-fixture";
+import { I18nProvider } from "../src/renderer/lib/i18n";
+
+const render = (element: ReactNode) =>
+  renderToStaticMarkup(createElement(I18nProvider, { children: element }));
 
 describe("Outcome planning components and state", () => {
   test("wizard renders source input and multi-select options with recommendation reasons", () => {
     const client = {} as OutcomeClient;
-    const source = renderToStaticMarkup(createElement(PlanningWizard, { botId: planFixture.botId, client, onDone() {} }));
+    const source = render(createElement(PlanningWizard, { botId: planFixture.botId, client, onDone() {} }));
     expect(source).toContain("Task description"); expect(source).toContain("Generate planning options");
     expect(source).toContain("disabled");
-    const options = renderToStaticMarkup(createElement(PlanningWizard, { botId: planFixture.botId, client, initialPlan: planFixture, onDone() {} }));
+    const options = render(createElement(PlanningWizard, { botId: planFixture.botId, client, initialPlan: planFixture, onDone() {} }));
     expect(options).toContain('type="checkbox"'); expect(options).toContain("Recommend a plan");
     expect(options).toContain("The request asks for a decision"); expect(options).toContain("Custom goal");
   });
@@ -32,7 +36,7 @@ describe("Outcome planning components and state", () => {
     expect(fresh.goal.selectedOptionIds).not.toBe(planFixture.goal.selectedOptionIds);
   });
   test("approval controls disable in flight and retain the confirmation text", () => {
-    const html = renderToStaticMarkup(createElement(ContractConfirmation, { revision: { ...outcomeFixture.currentRevisionView!, status: "pending_approval", approvedAt: null }, busy: true, confirmation: "Keep my confirmation after a failed request", onConfirmation() {}, onApprove() {} }));
+    const html = render(createElement(ContractConfirmation, { revision: { ...outcomeFixture.currentRevisionView!, status: "pending_approval", approvedAt: null }, busy: true, confirmation: "Keep my confirmation after a failed request", onConfirmation() {}, onApprove() {} }));
     expect(html).toContain("Keep my confirmation after a failed request"); expect(html).toContain("Submitting");
     expect(html).toContain("disabled"); expect(html).toContain("No time limit specified");
   });
