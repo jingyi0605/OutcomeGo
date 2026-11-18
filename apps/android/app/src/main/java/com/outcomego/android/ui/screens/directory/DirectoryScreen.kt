@@ -62,6 +62,7 @@ import com.outcomego.android.ui.designsystem.SpatialTheme
 import com.outcomego.android.ui.designsystem.rememberSpatialGlassBackdrop
 import com.outcomego.android.ui.designsystem.spatialGlassBackdropSource
 import com.outcomego.android.ui.groupConversations
+import androidx.compose.material3.TextButton
 import com.outcomego.features.HapticEffect
 import com.outcomego.features.localizedText
 
@@ -84,6 +85,7 @@ internal fun DirectoryScreen(
     onTogglePin: (String) -> Unit,
     onMoveToSection: (String, String?) -> Unit,
     onToggleSection: (String?) -> Unit,
+    onOutcomes: (() -> Unit)? = null,
 ) {
     var searchVisible by remember { mutableStateOf(false) }
     var query by remember { mutableStateOf("") }
@@ -324,6 +326,11 @@ internal fun DirectoryScreen(
                             }
                         }
                         Spacer(Modifier.weight(1f))
+                        onOutcomes?.let { open ->
+                            TextButton(onClick = open) {
+                                Text(localizedText("Outcomes", "成果"))
+                            }
+                        }
                         SpatialIconOrb(
                             icon = Icons.Default.Refresh,
                             contentDescription = localizedText("Outbox", "发件箱"),

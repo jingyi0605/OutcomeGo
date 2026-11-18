@@ -1,0 +1,17 @@
+$ bun test --no-install --tsconfig-override '/Users/jackson/Code/openteam-spec004-worktrees/l5b-ops/specs/004.5-运行时恢复与版本验收/docs/20261117-l5b-evidence/.l5b-retry-6drd7ryg/tsconfig.json' apps/cli/test/config.test.ts
+exit=0
+bun test v1.4.4 (38afee6c8)
+
+apps/cli/test/config.test.ts:
+(pass) installation configuration > uses a cross-platform per-user installation directory [0.71ms]
+(pass) installation configuration > creates random single-line secrets and stable release settings [1.20ms]
+(pass) installation configuration > marks prerelease installations as beta channel [0.26ms]
+(pass) installation configuration > chooses a safe task limit from the available CPU count [0.04ms]
+(pass) installation configuration > updates one environment setting without changing secrets [0.28ms]
+(pass) installation configuration > writes secret files privately and atomically [3.99ms]
+(pass) installation configuration > normalizes release identifiers [1.04ms]
+
+ 7 pass
+ 0 fail
+ 37 expect() calls
+Ran 7 tests across 1 file. [189.00ms]

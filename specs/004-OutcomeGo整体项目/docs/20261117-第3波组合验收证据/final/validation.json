@@ -1,0 +1,42 @@
+{
+  "rawLogsVerified": 42,
+  "faultScenarios": [
+    {
+      "scenario": "concurrent-decision",
+      "checks": 5,
+      "passed": true,
+      "sha256": "604ce439e6f528077297510a644b42fa0bd9ad8920257fa18dac6bd1f0cb8740"
+    },
+    {
+      "scenario": "duplicate-finish-event",
+      "checks": 8,
+      "passed": true,
+      "sha256": "f541c5ae5007da71513be09ce02db31e395611127930a6ad09b9aa7a173bccc8"
+    },
+    {
+      "scenario": "interrupted-thread-resume",
+      "checks": 8,
+      "passed": true,
+      "sha256": "cc2f7d9298ef1cb7b76385bf79ab54fe9af35f65e0e6e51eb43e5832d95ba31c"
+    },
+    {
+      "scenario": "receipt-retry",
+      "checks": 9,
+      "passed": true,
+      "sha256": "79458a67768d2dc6a1fa9a0409a235a42f61397c2ae24073bdf2688013d60e27"
+    },
+    {
+      "scenario": "restart-running-run",
+      "checks": 6,
+      "passed": true,
+      "sha256": "2f40d7a13a6bfe7e5571a6a956811028abb387558a7debee727f3ddf7baa17a5"
+    },
+    {
+      "scenario": "unknown-external-receipt",
+      "checks": 4,
+      "passed": true,
+      "sha256": "53bcf8a1728f368086d691f8f3ec64e64ab4cb19bbde4fe811369b177b494109"
+    }
+  ],
+  "faultChecks": 40
+}

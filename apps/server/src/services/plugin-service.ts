@@ -134,7 +134,8 @@ export class PluginService {
       prisma,
       () => this.catalog(),
       (key) => this.definition(key),
-      this.publicUrl
+      this.publicUrl,
+      skillLibrary
     );
 
     this.transport = new PluginTransport(prisma, this.http, this.publicUrl, computerFetch);

@@ -1,0 +1,80 @@
+{
+  "id": "outcome-1",
+  "title": "Compare backup plans",
+  "status": "future_outcome_status",
+  "botId": "bot-1",
+  "currentRevision": 2,
+  "updatedAt": "2026-11-17T10:00:00.123Z",
+  "description": "Compare two fictional backup plans.",
+  "futureField": {
+    "enabled": true
+  },
+  "currentRevisionView": {
+    "id": "revision-2",
+    "revision": 2,
+    "status": "approved",
+    "goal": [
+      "Recommend a backup plan"
+    ],
+    "criteria": [
+      {
+        "id": "criterion-1",
+        "ordinal": 1,
+        "statement": "Compare cost and recovery time",
+        "required": true,
+        "verificationMethod": "future_verification",
+        "latestResult": "future_review_result",
+        "futureField": true
+      }
+    ]
+  },
+  "workItems": [
+    {
+      "id": "work-1",
+      "contractRevision": 2,
+      "executorType": "agent",
+      "kind": "execution",
+      "title": "Research plans",
+      "status": "future_work_status",
+      "statusReason": null,
+      "ordinal": 1
+    }
+  ],
+  "outputs": [
+    {
+      "id": "output-1",
+      "workItemId": "work-1",
+      "kind": "future_output_kind",
+      "title": "Comparison",
+      "content": "Plan A recovers faster.",
+      "contentRef": "outcomes/outcome-1/work-1/report.md",
+      "createdAt": "2026-11-17T09:00:00Z"
+    }
+  ],
+  "evidence": [
+    {
+      "id": "evidence-1",
+      "criterionId": "criterion-1",
+      "contractRevision": 2,
+      "sourceType": "file",
+      "sourceRef": "report.md",
+      "contentSummary": "Recovery comparison",
+      "credibility": "future_credibility"
+    }
+  ],
+  "reviews": [
+    {
+      "id": "review-1",
+      "criterionId": "criterion-1",
+      "contractRevision": 2,
+      "sequence": 1,
+      "result": "FAIL",
+      "evidenceIds": [
+        "evidence-1"
+      ],
+      "comment": "Add cost comparison",
+      "reviewedBy": "owner:local",
+      "reviewedAt": "2026-11-17T10:00:00Z"
+    }
+  ]
+}

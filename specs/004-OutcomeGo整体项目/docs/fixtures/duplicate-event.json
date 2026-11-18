@@ -1,0 +1,88 @@
+{
+  "schemaVersion": 1,
+  "fictional": true,
+  "owner": "owner:local",
+  "bot": "$bot",
+  "cleanup": {
+    "scope": "fixture-created-bot",
+    "preserveSourceInputs": true,
+    "remove": [
+      "scoped events and idempotency receipts",
+      "fixture Bot with cascaded Outcome facts",
+      "fixture-owned channel and workspace directory"
+    ]
+  },
+  "fixtureId": "duplicate-event",
+  "parentScenarios": [
+    "D"
+  ],
+  "input": {
+    "scenarios": [
+      "restart-running-run",
+      "duplicate-finish-event",
+      "interrupted-thread-resume",
+      "concurrent-decision",
+      "receipt-retry",
+      "unknown-external-receipt"
+    ],
+    "stableEventId": "$finishEvent",
+    "externalReceiptStatus": "unknown",
+    "recoveryLimit": 2
+  },
+  "initialState": {
+    "agentStatus": "running",
+    "outputCount": 0,
+    "decisionCount": 0
+  },
+  "requests": [
+    {
+      "action": "claim-run-and-expire-test-lease",
+      "saveAs": "run"
+    },
+    {
+      "action": "terminate-producer-process"
+    },
+    {
+      "action": "restart-recovery-process"
+    },
+    {
+      "action": "replay-same-finish-event-twice",
+      "saveAs": "finishEvent"
+    },
+    {
+      "action": "reconcile-database-counts"
+    }
+  ],
+  "expectedStates": [
+    {
+      "entity": "agent",
+      "values": [
+        "running",
+        "completed"
+      ]
+    },
+    {
+      "entity": "outcome",
+      "values": [
+        "running",
+        "review_pending"
+      ]
+    }
+  ],
+  "idRelations": [
+    "run.outcomeWorkItemId=workItem.id",
+    "output.workItemId=workItem.id",
+    "decision.workItemId=workItem.id",
+    "event.entityId=outcome.id"
+  ],
+  "notificationCategories": [
+    "acceptance_pending",
+    "decision_pending"
+  ],
+  "assertions": [
+    "duplicate finish creates one final Output and one notification intent",
+    "restart preserves waiting_decision and waiting_human",
+    "unknown external receipt never triggers an external resend",
+    "two interrupted recovery attempts lead to one Decision and no third automatic resume"
+  ]
+}

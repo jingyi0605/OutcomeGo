@@ -1,0 +1,2415 @@
+{
+  "scenario": "research",
+  "status": "PASS",
+  "execution": "local-real-services-controlled-inference-and-computer-events",
+  "realBotReplay": "PENDING",
+  "nativeUIReplay": "PENDING",
+  "fixture": "research-pilot-backup-choice",
+  "runKey": "product-replay:28dd2476-cf5c-4dba-b00e-30846b87789a",
+  "checks": [
+    {
+      "name": "planning_same_key_returns_same_draft",
+      "passed": true
+    },
+    {
+      "name": "create_same_key_returns_same_outcome",
+      "passed": true
+    },
+    {
+      "name": "approval_replay_preserves_approved_snapshot",
+      "passed": true
+    },
+    {
+      "name": "run_replay_has_same_work_item_and_root",
+      "passed": true
+    },
+    {
+      "name": "run_replay_does_not_create_second_run",
+      "passed": true
+    },
+    {
+      "name": "actual_worker_claims_enqueued_outcome_root",
+      "passed": true
+    },
+    {
+      "name": "actual_context_is_scoped_to_work_item",
+      "passed": true
+    },
+    {
+      "name": "main_message_claims_independently",
+      "passed": true
+    },
+    {
+      "name": "main_message_does_not_interrupt_outcome",
+      "passed": true
+    },
+    {
+      "name": "output_evidence_consumer_is_idempotent",
+      "passed": true
+    },
+    {
+      "name": "settlement_records_real_output_and_review_pending",
+      "passed": true
+    },
+    {
+      "name": "output_created_agent_report_candidates",
+      "passed": true
+    },
+    {
+      "name": "final_review_retry_returns_exact_response",
+      "passed": true
+    },
+    {
+      "name": "same_outcome_has_output_evidence_review_and_acceptance",
+      "passed": true
+    },
+    {
+      "name": "outcome_does_not_mutate_main_run_or_lease",
+      "passed": true
+    },
+    {
+      "name": "outcome_never_publishes_main_visible_messages",
+      "passed": true
+    },
+    {
+      "name": "run_lineage_never_changes_revision_or_work_item",
+      "passed": true
+    },
+    {
+      "name": "all_output_ids_bind_real_outcome_item_and_run",
+      "passed": true
+    },
+    {
+      "name": "all_evidence_and_reviews_bind_actual_approved_criteria",
+      "passed": true
+    }
+  ],
+  "requests": [
+    {
+      "operation": "controlled-inference",
+      "input": {
+        "kind": "planning"
+      },
+      "result": {
+        "adapter": "fixture",
+        "network": false
+      }
+    },
+    {
+      "operation": "planning.create",
+      "input": {
+        "sourceText": "比较两个备份方案并给出选型建议",
+        "context": {
+          "botId": "361bce12-1dea-4dac-9ac4-36b25cf0d3a2"
+        },
+        "clientRequestId": "product-replay:28dd2476-cf5c-4dba-b00e-30846b87789a:plan"
+      },
+      "result": {
+        "goal": {
+          "options": [
+            {
+              "id": "goal-1",
+              "text": "形成可执行的选型建议",
+              "reason": "直接对应用户请求中的决策目标",
+              "recommended": true
+            },
+            {
+              "id": "goal-2",
+              "text": "列出两种方案的适用场景"
+            }
+          ],
+          "customEntries": [],
+          "selectedOptionIds": []
+        },
+        "conflicts": [],
+        "acceptance": {
+          "options": [
+            {
+              "id": "acceptance-1",
+              "text": "比较两条可行路线的成本、恢复时间和限制",
+              "required": true
+            },
+            {
+              "id": "acceptance-2",
+              "text": "每个结论附来源",
+              "required": true
+            },
+            {
+              "id": "acceptance-3",
+              "text": "给出一个推荐方案和理由",
+              "required": true
+            }
+          ],
+          "customEntries": [],
+          "selectedOptionIds": []
+        },
+        "boundaries": {
+          "options": [
+            {
+              "id": "boundaries-1",
+              "kind": "included",
+              "text": "只使用公开资料"
+            },
+            {
+              "id": "boundaries-2",
+              "kind": "excluded",
+              "text": "不修改生产系统"
+            }
+          ],
+          "customEntries": [],
+          "selectedOptionIds": []
+        },
+        "planId": "163b65d8-e007-4168-b63c-562721bab723",
+        "sourceText": "比较两个备份方案并给出选型建议",
+        "botId": "361bce12-1dea-4dac-9ac4-36b25cf0d3a2",
+        "status": "ready",
+        "generatedAt": "2026-11-17T12:31:21.385Z",
+        "expiresAt": "2026-11-18T12:31:21.384Z"
+      }
+    },
+    {
+      "operation": "outcomes.createFromDraft",
+      "input": {
+        "planId": "163b65d8-e007-4168-b63c-562721bab723",
+        "clientRequestId": "product-replay:28dd2476-cf5c-4dba-b00e-30846b87789a:create",
+        "title": "备份方案选型建议",
+        "goal": {
+          "selectedOptionIds": [
+            "goal-1"
+          ],
+          "customEntries": []
+        },
+        "acceptance": {
+          "selectedOptionIds": [
+            "acceptance-1",
+            "acceptance-2",
+            "acceptance-3"
+          ],
+          "customEntries": []
+        },
+        "boundaries": {
+          "selectedOptionIds": [
+            "boundaries-1",
+            "boundaries-2"
+          ],
+          "customEntries": []
+        }
+      },
+      "result": {
+        "id": "1a83b977-3d50-4bc3-816f-1c582e4e180c",
+        "sourceExploreId": null,
+        "title": "备份方案选型建议",
+        "status": "pending_approval",
+        "botId": "361bce12-1dea-4dac-9ac4-36b25cf0d3a2",
+        "currentRevision": 1,
+        "updatedAt": "2026-11-17T12:31:21.407Z",
+        "description": "比较两个备份方案并给出选型建议",
+        "resumeStatus": null,
+        "createdAt": "2026-11-17T12:31:21.394Z",
+        "acceptedAt": null,
+        "currentRevisionView": {
+          "id": "25ae47c1-331b-40b5-b3a8-2725641d3c77",
+          "revision": 1,
+          "status": "pending_approval",
+          "goal": [
+            "形成可执行的选型建议"
+          ],
+          "boundaries": {
+            "included": [
+              "只使用公开资料"
+            ],
+            "excluded": [
+              "不修改生产系统"
+            ]
+          },
+          "budget": null,
+          "executionBotId": "361bce12-1dea-4dac-9ac4-36b25cf0d3a2",
+          "changeSummary": null,
+          "baseRevisionId": null,
+          "sourceDecisionId": null,
+          "createdBy": "owner:local",
+          "approvedBy": null,
+          "approvedAt": null,
+          "conflicts": [],
+          "criteria": [
+            {
+              "id": "1c9ee3df-80c4-4d3d-9efc-9018f2ac01a3",
+              "ordinal": 1,
+              "statement": "比较两条可行路线的成本、恢复时间和限制",
+              "required": true,
+              "verificationMethod": "human_review",
+              "latestResult": null
+            },
+            {
+              "id": "ce25636c-7ac0-4d78-8216-ea8ad6d34b02",
+              "ordinal": 2,
+              "statement": "每个结论附来源",
+              "required": true,
+              "verificationMethod": "human_review",
+              "latestResult": null
+            },
+            {
+              "id": "c1a26284-0cbd-47d8-82e5-8d498846ec79",
+              "ordinal": 3,
+              "statement": "给出一个推荐方案和理由",
+              "required": true,
+              "verificationMethod": "human_review",
+              "latestResult": null
+            }
+          ],
+          "createdAt": "2026-11-17T12:31:21.399Z"
+        },
+        "revisions": [
+          {
+            "id": "25ae47c1-331b-40b5-b3a8-2725641d3c77",
+            "revision": 1,
+            "status": "pending_approval",
+            "changeSummary": null,
+            "baseRevisionId": null,
+            "sourceDecisionId": null,
+            "createdBy": "owner:local",
+            "createdAt": "2026-11-17T12:31:21.399Z"
+          }
+        ],
+        "workItems": [],
+        "outputs": [],
+        "evidence": [],
+        "reviews": []
+      }
+    },
+    {
+      "operation": "outcomes.approve",
+      "input": {
+        "expectedRevision": 1,
+        "confirmationText": "Owner confirms this fictional local Contract",
+        "clientRequestId": "product-replay:28dd2476-cf5c-4dba-b00e-30846b87789a:approve"
+      },
+      "result": {
+        "id": "1a83b977-3d50-4bc3-816f-1c582e4e180c",
+        "sourceExploreId": null,
+        "title": "备份方案选型建议",
+        "status": "approved",
+        "botId": "361bce12-1dea-4dac-9ac4-36b25cf0d3a2",
+        "currentRevision": 1,
+        "updatedAt": "2026-11-17T12:31:21.428Z",
+        "description": "比较两个备份方案并给出选型建议",
+        "resumeStatus": null,
+        "createdAt": "2026-11-17T12:31:21.394Z",
+        "acceptedAt": null,
+        "currentRevisionView": {
+          "id": "25ae47c1-331b-40b5-b3a8-2725641d3c77",
+          "revision": 1,
+          "status": "approved",
+          "goal": [
+            "形成可执行的选型建议"
+          ],
+          "boundaries": {
+            "included": [
+              "只使用公开资料"
+            ],
+            "excluded": [
+              "不修改生产系统"
+            ]
+          },
+          "budget": null,
+          "executionBotId": "361bce12-1dea-4dac-9ac4-36b25cf0d3a2",
+          "changeSummary": null,
+          "baseRevisionId": null,
+          "sourceDecisionId": null,
+          "createdBy": "owner:local",
+          "approvedBy": "owner:local",
+          "approvedAt": "2026-11-17T12:31:21.422Z",
+          "conflicts": [],
+          "criteria": [
+            {
+              "id": "1c9ee3df-80c4-4d3d-9efc-9018f2ac01a3",
+              "ordinal": 1,
+              "statement": "比较两条可行路线的成本、恢复时间和限制",
+              "required": true,
+              "verificationMethod": "human_review",
+              "latestResult": null
+            },
+            {
+              "id": "ce25636c-7ac0-4d78-8216-ea8ad6d34b02",
+              "ordinal": 2,
+              "statement": "每个结论附来源",
+              "required": true,
+              "verificationMethod": "human_review",
+              "latestResult": null
+            },
+            {
+              "id": "c1a26284-0cbd-47d8-82e5-8d498846ec79",
+              "ordinal": 3,
+              "statement": "给出一个推荐方案和理由",
+              "required": true,
+              "verificationMethod": "human_review",
+              "latestResult": null
+            }
+          ],
+          "createdAt": "2026-11-17T12:31:21.399Z"
+        },
+        "revisions": [
+          {
+            "id": "25ae47c1-331b-40b5-b3a8-2725641d3c77",
+            "revision": 1,
+            "status": "approved",
+            "changeSummary": null,
+            "baseRevisionId": null,
+            "sourceDecisionId": null,
+            "createdBy": "owner:local",
+            "createdAt": "2026-11-17T12:31:21.399Z"
+          }
+        ],
+        "workItems": [],
+        "outputs": [],
+        "evidence": [],
+        "reviews": []
+      }
+    },
+    {
+      "operation": "outcomes.startRun",
+      "input": {
+        "expectedRevision": 1,
+        "clientRequestId": "product-replay:28dd2476-cf5c-4dba-b00e-30846b87789a:start"
+      },
+      "result": {
+        "id": "1a83b977-3d50-4bc3-816f-1c582e4e180c",
+        "sourceExploreId": null,
+        "title": "备份方案选型建议",
+        "status": "running",
+        "botId": "361bce12-1dea-4dac-9ac4-36b25cf0d3a2",
+        "currentRevision": 1,
+        "updatedAt": "2026-11-17T12:31:21.473Z",
+        "description": "比较两个备份方案并给出选型建议",
+        "resumeStatus": null,
+        "createdAt": "2026-11-17T12:31:21.394Z",
+        "acceptedAt": null,
+        "currentRevisionView": {
+          "id": "25ae47c1-331b-40b5-b3a8-2725641d3c77",
+          "revision": 1,
+          "status": "approved",
+          "goal": [
+            "形成可执行的选型建议"
+          ],
+          "boundaries": {
+            "included": [
+              "只使用公开资料"
+            ],
+            "excluded": [
+              "不修改生产系统"
+            ]
+          },
+          "budget": null,
+          "executionBotId": "361bce12-1dea-4dac-9ac4-36b25cf0d3a2",
+          "changeSummary": null,
+          "baseRevisionId": null,
+          "sourceDecisionId": null,
+          "createdBy": "owner:local",
+          "approvedBy": "owner:local",
+          "approvedAt": "2026-11-17T12:31:21.422Z",
+          "conflicts": [],
+          "criteria": [
+            {
+              "id": "1c9ee3df-80c4-4d3d-9efc-9018f2ac01a3",
+              "ordinal": 1,
+              "statement": "比较两条可行路线的成本、恢复时间和限制",
+              "required": true,
+              "verificationMethod": "human_review",
+              "latestResult": null
+            },
+            {
+              "id": "ce25636c-7ac0-4d78-8216-ea8ad6d34b02",
+              "ordinal": 2,
+              "statement": "每个结论附来源",
+              "required": true,
+              "verificationMethod": "human_review",
+              "latestResult": null
+            },
+            {
+              "id": "c1a26284-0cbd-47d8-82e5-8d498846ec79",
+              "ordinal": 3,
+              "statement": "给出一个推荐方案和理由",
+              "required": true,
+              "verificationMethod": "human_review",
+              "latestResult": null
+            }
+          ],
+          "createdAt": "2026-11-17T12:31:21.399Z"
+        },
+        "revisions": [
+          {
+            "id": "25ae47c1-331b-40b5-b3a8-2725641d3c77",
+            "revision": 1,
+            "status": "approved",
+            "changeSummary": null,
+            "baseRevisionId": null,
+            "sourceDecisionId": null,
+            "createdBy": "owner:local",
+            "createdAt": "2026-11-17T12:31:21.399Z"
+          }
+        ],
+        "workItems": [
+          {
+            "id": "dddfc07b-b801-41e2-bc53-271c7d50aab1",
+            "contractRevision": 1,
+            "executorType": "agent",
+            "kind": "initial",
+            "title": "备份方案选型建议",
+            "status": "queued",
+            "statusReason": null,
+            "ordinal": 1,
+            "dependsOn": [],
+            "rootRunId": "e8ea11ec-2dfe-4e1c-87f4-b180ad0a240f",
+            "runIds": [
+              "e8ea11ec-2dfe-4e1c-87f4-b180ad0a240f"
+            ],
+            "reworkOfWorkItemId": null,
+            "createdAt": "2026-11-17T12:31:21.445Z",
+            "updatedAt": "2026-11-17T12:31:21.470Z"
+          }
+        ],
+        "outputs": [],
+        "evidence": [],
+        "reviews": []
+      }
+    },
+    {
+      "operation": "worker.claim",
+      "input": {
+        "botId": "361bce12-1dea-4dac-9ac4-36b25cf0d3a2"
+      },
+      "result": {
+        "runChannelId": "26a9d5b7-098c-4752-9666-86a32a80919e",
+        "inboxId": "737fd475-7233-4cfa-ba32-2920ca430821",
+        "inboxType": "outcome.work_item",
+        "runId": "e8ea11ec-2dfe-4e1c-87f4-b180ad0a240f",
+        "botId": "361bce12-1dea-4dac-9ac4-36b25cf0d3a2",
+        "contextSessionId": "b0ecd48d-b0e9-4422-8322-7693fd576d4f",
+        "screenBotId": "361bce12-1dea-4dac-9ac4-36b25cf0d3a2",
+        "pluginBotId": "361bce12-1dea-4dac-9ac4-36b25cf0d3a2",
+        "conversationId": "ebf7f806-484e-4e51-be24-61dd0597d211",
+        "ownerId": "97d8dc6f-344f-45f5-bc6f-86fc85b94ab6",
+        "content": "<timestamp>Tuesday, Nov 17, 2026, 12:31 PM (UTC+0)</timestamp>\n<user_query>\nExecute the approved Outcome contract. Return a complete final result and write deliverable files to the assigned Outcome output directory.\n</user_query>",
+        "interruptedRunId": null,
+        "images": [],
+        "clientId": "outcome-run:1a83b977-3d50-4bc3-816f-1c582e4e180c:1:dddfc07b-b801-41e2-bc53-271c7d50aab1",
+        "cwd": "/var/folders/q5/5jq71t9d131d8p_8l01rth400000gn/T/outcomego-product-replay-ifL6VT",
+        "instructions": "",
+        "sessionPath": null,
+        "channelId": "26a9d5b7-098c-4752-9666-86a32a80919e",
+        "deliveryId": null,
+        "origin": "outcome",
+        "outcomeWorkItemId": "dddfc07b-b801-41e2-bc53-271c7d50aab1",
+        "runtimeProfile": "agent",
+        "subagentType": null,
+        "readOnly": false,
+        "inferenceParentRunId": null,
+        "taskConfiguration": null,
+        "attachmentOwnerBotId": "361bce12-1dea-4dac-9ac4-36b25cf0d3a2",
+        "fileAttachments": []
+      }
+    },
+    {
+      "operation": "messaging.acceptDirectUserMessage",
+      "input": {
+        "botId": "361bce12-1dea-4dac-9ac4-36b25cf0d3a2",
+        "channelId": "26a9d5b7-098c-4752-9666-86a32a80919e",
+        "content": "今天天气怎么样？",
+        "clientId": "product-replay:28dd2476-cf5c-4dba-b00e-30846b87789a:main-chat"
+      },
+      "result": {
+        "runId": "310944ef-01e0-4f80-9db9-65a81b13c5c1",
+        "interruptRunId": null,
+        "claim": {
+          "runChannelId": "26a9d5b7-098c-4752-9666-86a32a80919e",
+          "inboxId": "bb5d6d5d-990a-427a-8a51-d3b19585507c",
+          "inboxType": "user.message",
+          "runId": "310944ef-01e0-4f80-9db9-65a81b13c5c1",
+          "botId": "361bce12-1dea-4dac-9ac4-36b25cf0d3a2",
+          "contextSessionId": "e5069bcc-7d8f-4703-8357-5a6adc851782",
+          "screenBotId": "361bce12-1dea-4dac-9ac4-36b25cf0d3a2",
+          "pluginBotId": "361bce12-1dea-4dac-9ac4-36b25cf0d3a2",
+          "conversationId": "ebf7f806-484e-4e51-be24-61dd0597d211",
+          "ownerId": "21b64b89-8183-4564-92ae-279b69a43757",
+          "content": "<timestamp>Tuesday, Nov 17, 2026, 12:31 PM (UTC+0)</timestamp>\n<user_query>\n今天天气怎么样？\n</user_query>",
+          "interruptedRunId": null,
+          "images": [],
+          "clientId": "product-replay:28dd2476-cf5c-4dba-b00e-30846b87789a:main-chat",
+          "cwd": "/var/folders/q5/5jq71t9d131d8p_8l01rth400000gn/T/outcomego-product-replay-ifL6VT",
+          "instructions": "",
+          "sessionPath": null,
+          "channelId": "26a9d5b7-098c-4752-9666-86a32a80919e",
+          "deliveryId": null,
+          "origin": "user",
+          "outcomeWorkItemId": null,
+          "runtimeProfile": "agent",
+          "subagentType": null,
+          "readOnly": false,
+          "inferenceParentRunId": null,
+          "taskConfiguration": null,
+          "attachmentOwnerBotId": "361bce12-1dea-4dac-9ac4-36b25cf0d3a2",
+          "fileAttachments": []
+        }
+      }
+    },
+    {
+      "operation": "controlled-computer-completion",
+      "input": {
+        "runId": "e8ea11ec-2dfe-4e1c-87f4-b180ad0a240f",
+        "adapter": "Projection.apply"
+      },
+      "result": {
+        "run": {
+          "id": "e8ea11ec-2dfe-4e1c-87f4-b180ad0a240f",
+          "status": "completed"
+        },
+        "workItems": [
+          {
+            "id": "dddfc07b-b801-41e2-bc53-271c7d50aab1",
+            "outcomeId": "1a83b977-3d50-4bc3-816f-1c582e4e180c",
+            "executorType": "agent",
+            "kind": "initial",
+            "status": "completed",
+            "title": "备份方案选型建议",
+            "contractRevision": 1,
+            "runId": "e8ea11ec-2dfe-4e1c-87f4-b180ad0a240f",
+            "evidenceCount": 0,
+            "startedAt": "2026-11-17T12:31:21.499Z"
+          }
+        ]
+      }
+    },
+    {
+      "operation": "controlled-inference",
+      "input": {
+        "kind": "prereview"
+      },
+      "result": {
+        "adapter": "fixture",
+        "network": false
+      }
+    },
+    {
+      "operation": "evidenceConsumer.drain",
+      "input": {
+        "boundedDurableEvents": true
+      },
+      "result": {
+        "processed": 2
+      }
+    },
+    {
+      "operation": "reviews.submit.final",
+      "input": {
+        "expectedRevision": 1,
+        "clientRequestId": "product-replay:28dd2476-cf5c-4dba-b00e-30846b87789a:review-final",
+        "results": [
+          {
+            "criterionId": "1c9ee3df-80c4-4d3d-9efc-9018f2ac01a3",
+            "result": "PASS",
+            "evidenceIds": [],
+            "comment": "Owner verified the controlled local report against this criterion"
+          },
+          {
+            "criterionId": "ce25636c-7ac0-4d78-8216-ea8ad6d34b02",
+            "result": "PASS",
+            "evidenceIds": [],
+            "comment": "Owner verified the controlled local report against this criterion"
+          },
+          {
+            "criterionId": "c1a26284-0cbd-47d8-82e5-8d498846ec79",
+            "result": "PASS",
+            "evidenceIds": [],
+            "comment": "Owner verified the controlled local report against this criterion"
+          }
+        ],
+        "newEvidence": [
+          {
+            "criterionId": "1c9ee3df-80c4-4d3d-9efc-9018f2ac01a3",
+            "sourceType": "check",
+            "sourceRef": "local-replay:1a83b977-3d50-4bc3-816f-1c582e4e180c:1c9ee3df-80c4-4d3d-9efc-9018f2ac01a3",
+            "contentSummary": "Fictional owner observation recorded through the actual review service"
+          },
+          {
+            "criterionId": "ce25636c-7ac0-4d78-8216-ea8ad6d34b02",
+            "sourceType": "check",
+            "sourceRef": "local-replay:1a83b977-3d50-4bc3-816f-1c582e4e180c:ce25636c-7ac0-4d78-8216-ea8ad6d34b02",
+            "contentSummary": "Fictional owner observation recorded through the actual review service"
+          },
+          {
+            "criterionId": "c1a26284-0cbd-47d8-82e5-8d498846ec79",
+            "sourceType": "check",
+            "sourceRef": "local-replay:1a83b977-3d50-4bc3-816f-1c582e4e180c:c1a26284-0cbd-47d8-82e5-8d498846ec79",
+            "contentSummary": "Fictional owner observation recorded through the actual review service"
+          }
+        ]
+      },
+      "result": {
+        "id": "1a83b977-3d50-4bc3-816f-1c582e4e180c",
+        "sourceExploreId": null,
+        "title": "备份方案选型建议",
+        "status": "accepted",
+        "botId": "361bce12-1dea-4dac-9ac4-36b25cf0d3a2",
+        "currentRevision": 1,
+        "updatedAt": "2026-11-17T12:31:21.606Z",
+        "description": "比较两个备份方案并给出选型建议",
+        "resumeStatus": null,
+        "createdAt": "2026-11-17T12:31:21.394Z",
+        "acceptedAt": "2026-11-17T12:31:21.604Z",
+        "currentRevisionView": {
+          "id": "25ae47c1-331b-40b5-b3a8-2725641d3c77",
+          "revision": 1,
+          "status": "approved",
+          "goal": [
+            "形成可执行的选型建议"
+          ],
+          "boundaries": {
+            "included": [
+              "只使用公开资料"
+            ],
+            "excluded": [
+              "不修改生产系统"
+            ]
+          },
+          "budget": null,
+          "executionBotId": "361bce12-1dea-4dac-9ac4-36b25cf0d3a2",
+          "changeSummary": null,
+          "baseRevisionId": null,
+          "sourceDecisionId": null,
+          "createdBy": "owner:local",
+          "approvedBy": "owner:local",
+          "approvedAt": "2026-11-17T12:31:21.422Z",
+          "conflicts": [],
+          "criteria": [
+            {
+              "id": "1c9ee3df-80c4-4d3d-9efc-9018f2ac01a3",
+              "ordinal": 1,
+              "statement": "比较两条可行路线的成本、恢复时间和限制",
+              "required": true,
+              "verificationMethod": "human_review",
+              "latestResult": "PASS"
+            },
+            {
+              "id": "ce25636c-7ac0-4d78-8216-ea8ad6d34b02",
+              "ordinal": 2,
+              "statement": "每个结论附来源",
+              "required": true,
+              "verificationMethod": "human_review",
+              "latestResult": "PASS"
+            },
+            {
+              "id": "c1a26284-0cbd-47d8-82e5-8d498846ec79",
+              "ordinal": 3,
+              "statement": "给出一个推荐方案和理由",
+              "required": true,
+              "verificationMethod": "human_review",
+              "latestResult": "PASS"
+            }
+          ],
+          "createdAt": "2026-11-17T12:31:21.399Z"
+        },
+        "revisions": [
+          {
+            "id": "25ae47c1-331b-40b5-b3a8-2725641d3c77",
+            "revision": 1,
+            "status": "approved",
+            "changeSummary": null,
+            "baseRevisionId": null,
+            "sourceDecisionId": null,
+            "createdBy": "owner:local",
+            "createdAt": "2026-11-17T12:31:21.399Z"
+          }
+        ],
+        "workItems": [
+          {
+            "id": "dddfc07b-b801-41e2-bc53-271c7d50aab1",
+            "contractRevision": 1,
+            "executorType": "agent",
+            "kind": "initial",
+            "title": "备份方案选型建议",
+            "status": "completed",
+            "statusReason": "run_completed",
+            "ordinal": 1,
+            "dependsOn": [],
+            "rootRunId": "e8ea11ec-2dfe-4e1c-87f4-b180ad0a240f",
+            "runIds": [
+              "e8ea11ec-2dfe-4e1c-87f4-b180ad0a240f"
+            ],
+            "reworkOfWorkItemId": null,
+            "createdAt": "2026-11-17T12:31:21.445Z",
+            "updatedAt": "2026-11-17T12:31:21.544Z"
+          }
+        ],
+        "outputs": [
+          {
+            "id": "a0e309b3-d306-4d03-9fd5-ac143617ffcd",
+            "workItemId": "dddfc07b-b801-41e2-bc53-271c7d50aab1",
+            "runId": "e8ea11ec-2dfe-4e1c-87f4-b180ad0a240f",
+            "kind": "final_result",
+            "title": "备份方案选型建议",
+            "content": "Fictional backup comparison: plan A has lower cost; plan B has faster recovery. Sources and limits are stated.",
+            "contentRef": null,
+            "createdAt": "2026-11-17T12:31:21.541Z"
+          }
+        ],
+        "evidence": [
+          {
+            "id": "862ef29f-d592-4304-865c-462d289ff7e7",
+            "criterionId": "1c9ee3df-80c4-4d3d-9efc-9018f2ac01a3",
+            "contractRevision": 1,
+            "workItemId": "dddfc07b-b801-41e2-bc53-271c7d50aab1",
+            "runId": "e8ea11ec-2dfe-4e1c-87f4-b180ad0a240f",
+            "sourceType": "output",
+            "sourceRef": "output:a0e309b3-d306-4d03-9fd5-ac143617ffcd",
+            "contentSummary": "Fictional backup comparison: plan A has lower cost; plan B has faster recovery. Sources and limits are stated.",
+            "credibility": "agent_report",
+            "capturedBy": "bot:361bce12-1dea-4dac-9ac4-36b25cf0d3a2",
+            "capturedAt": "2026-11-17T12:31:21.565Z"
+          },
+          {
+            "id": "76cd09b4-ac34-4418-bfea-34353687997c",
+            "criterionId": "ce25636c-7ac0-4d78-8216-ea8ad6d34b02",
+            "contractRevision": 1,
+            "workItemId": "dddfc07b-b801-41e2-bc53-271c7d50aab1",
+            "runId": "e8ea11ec-2dfe-4e1c-87f4-b180ad0a240f",
+            "sourceType": "output",
+            "sourceRef": "output:a0e309b3-d306-4d03-9fd5-ac143617ffcd",
+            "contentSummary": "Fictional backup comparison: plan A has lower cost; plan B has faster recovery. Sources and limits are stated.",
+            "credibility": "agent_report",
+            "capturedBy": "bot:361bce12-1dea-4dac-9ac4-36b25cf0d3a2",
+            "capturedAt": "2026-11-17T12:31:21.566Z"
+          },
+          {
+            "id": "aa3111c2-bbd3-4177-a03e-cd8fbbf1bc2e",
+            "criterionId": "c1a26284-0cbd-47d8-82e5-8d498846ec79",
+            "contractRevision": 1,
+            "workItemId": "dddfc07b-b801-41e2-bc53-271c7d50aab1",
+            "runId": "e8ea11ec-2dfe-4e1c-87f4-b180ad0a240f",
+            "sourceType": "output",
+            "sourceRef": "output:a0e309b3-d306-4d03-9fd5-ac143617ffcd",
+            "contentSummary": "Fictional backup comparison: plan A has lower cost; plan B has faster recovery. Sources and limits are stated.",
+            "credibility": "agent_report",
+            "capturedBy": "bot:361bce12-1dea-4dac-9ac4-36b25cf0d3a2",
+            "capturedAt": "2026-11-17T12:31:21.567Z"
+          },
+          {
+            "id": "e3df653f-eaa4-4635-b4d3-671b65a0ec77",
+            "criterionId": "1c9ee3df-80c4-4d3d-9efc-9018f2ac01a3",
+            "contractRevision": 1,
+            "workItemId": "dddfc07b-b801-41e2-bc53-271c7d50aab1",
+            "runId": null,
+            "sourceType": "prereview",
+            "sourceRef": "prereview:dddfc07b-b801-41e2-bc53-271c7d50aab1:1c9ee3df-80c4-4d3d-9efc-9018f2ac01a3",
+            "contentSummary": "unclear: Controlled local prereview; owner verification is required",
+            "credibility": "ai_prereview",
+            "capturedBy": "system:outcome-prereview",
+            "capturedAt": "2026-11-17T12:31:21.573Z"
+          },
+          {
+            "id": "e7a171e8-19d8-4b99-ab15-aafb7bbbe966",
+            "criterionId": "ce25636c-7ac0-4d78-8216-ea8ad6d34b02",
+            "contractRevision": 1,
+            "workItemId": "dddfc07b-b801-41e2-bc53-271c7d50aab1",
+            "runId": null,
+            "sourceType": "prereview",
+            "sourceRef": "prereview:dddfc07b-b801-41e2-bc53-271c7d50aab1:ce25636c-7ac0-4d78-8216-ea8ad6d34b02",
+            "contentSummary": "unclear: Controlled local prereview; owner verification is required",
+            "credibility": "ai_prereview",
+            "capturedBy": "system:outcome-prereview",
+            "capturedAt": "2026-11-17T12:31:21.573Z"
+          },
+          {
+            "id": "bfb346f2-a8c2-4dde-8ea8-d6976bd5bcc6",
+            "criterionId": "c1a26284-0cbd-47d8-82e5-8d498846ec79",
+            "contractRevision": 1,
+            "workItemId": "dddfc07b-b801-41e2-bc53-271c7d50aab1",
+            "runId": null,
+            "sourceType": "prereview",
+            "sourceRef": "prereview:dddfc07b-b801-41e2-bc53-271c7d50aab1:c1a26284-0cbd-47d8-82e5-8d498846ec79",
+            "contentSummary": "unclear: Controlled local prereview; owner verification is required",
+            "credibility": "ai_prereview",
+            "capturedBy": "system:outcome-prereview",
+            "capturedAt": "2026-11-17T12:31:21.573Z"
+          },
+          {
+            "id": "0edafaa8-0aa1-4bf8-be8c-b21e533d3d43",
+            "criterionId": "1c9ee3df-80c4-4d3d-9efc-9018f2ac01a3",
+            "contractRevision": 1,
+            "workItemId": null,
+            "runId": null,
+            "sourceType": "check",
+            "sourceRef": "local-replay:1a83b977-3d50-4bc3-816f-1c582e4e180c:1c9ee3df-80c4-4d3d-9efc-9018f2ac01a3",
+            "contentSummary": "Fictional owner observation recorded through the actual review service",
+            "credibility": "human_confirmed",
+            "capturedBy": "owner:local",
+            "capturedAt": "2026-11-17T12:31:21.591Z"
+          },
+          {
+            "id": "f68b2d4b-098c-44c3-8a05-dd52a9892068",
+            "criterionId": "ce25636c-7ac0-4d78-8216-ea8ad6d34b02",
+            "contractRevision": 1,
+            "workItemId": null,
+            "runId": null,
+            "sourceType": "check",
+            "sourceRef": "local-replay:1a83b977-3d50-4bc3-816f-1c582e4e180c:ce25636c-7ac0-4d78-8216-ea8ad6d34b02",
+            "contentSummary": "Fictional owner observation recorded through the actual review service",
+            "credibility": "human_confirmed",
+            "capturedBy": "owner:local",
+            "capturedAt": "2026-11-17T12:31:21.591Z"
+          },
+          {
+            "id": "ac6d555f-410d-464c-b6d4-752fd76cce0c",
+            "criterionId": "c1a26284-0cbd-47d8-82e5-8d498846ec79",
+            "contractRevision": 1,
+            "workItemId": null,
+            "runId": null,
+            "sourceType": "check",
+            "sourceRef": "local-replay:1a83b977-3d50-4bc3-816f-1c582e4e180c:c1a26284-0cbd-47d8-82e5-8d498846ec79",
+            "contentSummary": "Fictional owner observation recorded through the actual review service",
+            "credibility": "human_confirmed",
+            "capturedBy": "owner:local",
+            "capturedAt": "2026-11-17T12:31:21.592Z"
+          }
+        ],
+        "reviews": [
+          {
+            "id": "df762264-aae8-4647-adf5-99e987d0523c",
+            "criterionId": "1c9ee3df-80c4-4d3d-9efc-9018f2ac01a3",
+            "contractRevision": 1,
+            "sequence": 1,
+            "result": "PASS",
+            "evidenceIds": [
+              "0edafaa8-0aa1-4bf8-be8c-b21e533d3d43"
+            ],
+            "comment": "Owner verified the controlled local report against this criterion",
+            "reviewedBy": "owner:local",
+            "reviewedAt": "2026-11-17T12:31:21.594Z"
+          },
+          {
+            "id": "aa3452c2-5dd4-4eea-b318-519d2c49f1db",
+            "criterionId": "c1a26284-0cbd-47d8-82e5-8d498846ec79",
+            "contractRevision": 1,
+            "sequence": 1,
+            "result": "PASS",
+            "evidenceIds": [
+              "ac6d555f-410d-464c-b6d4-752fd76cce0c"
+            ],
+            "comment": "Owner verified the controlled local report against this criterion",
+            "reviewedBy": "owner:local",
+            "reviewedAt": "2026-11-17T12:31:21.597Z"
+          },
+          {
+            "id": "8ca74131-53b2-4b27-98a7-5679267b1da7",
+            "criterionId": "ce25636c-7ac0-4d78-8216-ea8ad6d34b02",
+            "contractRevision": 1,
+            "sequence": 1,
+            "result": "PASS",
+            "evidenceIds": [
+              "f68b2d4b-098c-44c3-8a05-dd52a9892068"
+            ],
+            "comment": "Owner verified the controlled local report against this criterion",
+            "reviewedBy": "owner:local",
+            "reviewedAt": "2026-11-17T12:31:21.596Z"
+          }
+        ]
+      }
+    }
+  ],
+  "ids": {
+    "botId": "361bce12-1dea-4dac-9ac4-36b25cf0d3a2",
+    "channelId": "26a9d5b7-098c-4752-9666-86a32a80919e",
+    "planId": "163b65d8-e007-4168-b63c-562721bab723",
+    "outcomeId": "1a83b977-3d50-4bc3-816f-1c582e4e180c",
+    "revisionId": "25ae47c1-331b-40b5-b3a8-2725641d3c77",
+    "workItemId": "dddfc07b-b801-41e2-bc53-271c7d50aab1",
+    "rootRunId": "e8ea11ec-2dfe-4e1c-87f4-b180ad0a240f",
+    "contextSessionId": "b0ecd48d-b0e9-4422-8322-7693fd576d4f",
+    "mainRunId": "310944ef-01e0-4f80-9db9-65a81b13c5c1"
+  },
+  "contexts": [
+    {
+      "runChannelId": "26a9d5b7-098c-4752-9666-86a32a80919e",
+      "inboxId": "737fd475-7233-4cfa-ba32-2920ca430821",
+      "inboxType": "outcome.work_item",
+      "runId": "e8ea11ec-2dfe-4e1c-87f4-b180ad0a240f",
+      "botId": "361bce12-1dea-4dac-9ac4-36b25cf0d3a2",
+      "contextSessionId": "b0ecd48d-b0e9-4422-8322-7693fd576d4f",
+      "screenBotId": "361bce12-1dea-4dac-9ac4-36b25cf0d3a2",
+      "pluginBotId": "361bce12-1dea-4dac-9ac4-36b25cf0d3a2",
+      "conversationId": "ebf7f806-484e-4e51-be24-61dd0597d211",
+      "ownerId": "97d8dc6f-344f-45f5-bc6f-86fc85b94ab6",
+      "content": "<timestamp>Tuesday, Nov 17, 2026, 12:31 PM (UTC+0)</timestamp>\n<user_query>\nExecute the approved Outcome contract. Return a complete final result and write deliverable files to the assigned Outcome output directory.\n</user_query>",
+      "interruptedRunId": null,
+      "images": [],
+      "clientId": "outcome-run:1a83b977-3d50-4bc3-816f-1c582e4e180c:1:dddfc07b-b801-41e2-bc53-271c7d50aab1",
+      "cwd": "/var/folders/q5/5jq71t9d131d8p_8l01rth400000gn/T/outcomego-product-replay-ifL6VT",
+      "instructions": "",
+      "sessionPath": null,
+      "channelId": "26a9d5b7-098c-4752-9666-86a32a80919e",
+      "deliveryId": null,
+      "origin": "outcome",
+      "outcomeWorkItemId": "dddfc07b-b801-41e2-bc53-271c7d50aab1",
+      "runtimeProfile": "agent",
+      "subagentType": null,
+      "readOnly": false,
+      "inferenceParentRunId": null,
+      "taskConfiguration": null,
+      "attachmentOwnerBotId": "361bce12-1dea-4dac-9ac4-36b25cf0d3a2",
+      "fileAttachments": []
+    }
+  ],
+  "runs": [
+    {
+      "id": "e8ea11ec-2dfe-4e1c-87f4-b180ad0a240f",
+      "origin": "outcome",
+      "status": "completed",
+      "outcomeWorkItemId": "dddfc07b-b801-41e2-bc53-271c7d50aab1",
+      "startedAt": "2026-11-17T12:31:21.495Z",
+      "completedAt": "2026-11-17T12:31:21.527Z"
+    }
+  ],
+  "inbox": [
+    {
+      "id": "737fd475-7233-4cfa-ba32-2920ca430821",
+      "runId": "e8ea11ec-2dfe-4e1c-87f4-b180ad0a240f",
+      "idempotencyKey": "outcome-run:1a83b977-3d50-4bc3-816f-1c582e4e180c:1:dddfc07b-b801-41e2-bc53-271c7d50aab1",
+      "status": "completed",
+      "payload": {
+        "isFork": false,
+        "origin": "outcome",
+        "content": "<timestamp>Tuesday, Nov 17, 2026, 12:31 PM (UTC+0)</timestamp>\n<user_query>\nExecute the approved Outcome contract. Return a complete final result and write deliverable files to the assigned Outcome output directory.\n</user_query>",
+        "clientId": "outcome-run:1a83b977-3d50-4bc3-816f-1c582e4e180c:1:dddfc07b-b801-41e2-bc53-271c7d50aab1",
+        "timeZone": "UTC",
+        "channelId": "26a9d5b7-098c-4752-9666-86a32a80919e",
+        "messageId": "de40f391-0995-4da3-aeb7-b0e4149801e4",
+        "deliveryId": null,
+        "attachments": [],
+        "replyToMessageId": null,
+        "outcomeWorkItemId": "dddfc07b-b801-41e2-bc53-271c7d50aab1"
+      }
+    }
+  ],
+  "lineage": {
+    "outputs": [
+      {
+        "id": "a0e309b3-d306-4d03-9fd5-ac143617ffcd",
+        "outcomeId": "1a83b977-3d50-4bc3-816f-1c582e4e180c",
+        "workItemId": "dddfc07b-b801-41e2-bc53-271c7d50aab1",
+        "runId": "e8ea11ec-2dfe-4e1c-87f4-b180ad0a240f",
+        "kind": "final_result",
+        "title": "备份方案选型建议",
+        "content": "Fictional backup comparison: plan A has lower cost; plan B has faster recovery. Sources and limits are stated.",
+        "contentRef": null,
+        "dedupeKey": "final:dddfc07b-b801-41e2-bc53-271c7d50aab1",
+        "createdAt": "2026-11-17T12:31:21.541Z"
+      }
+    ],
+    "evidence": [
+      {
+        "id": "862ef29f-d592-4304-865c-462d289ff7e7",
+        "outcomeId": "1a83b977-3d50-4bc3-816f-1c582e4e180c",
+        "contractRevisionId": "25ae47c1-331b-40b5-b3a8-2725641d3c77",
+        "criterionId": "1c9ee3df-80c4-4d3d-9efc-9018f2ac01a3",
+        "workItemId": "dddfc07b-b801-41e2-bc53-271c7d50aab1",
+        "outputId": "a0e309b3-d306-4d03-9fd5-ac143617ffcd",
+        "runId": "e8ea11ec-2dfe-4e1c-87f4-b180ad0a240f",
+        "sourceType": "output",
+        "sourceRef": "output:a0e309b3-d306-4d03-9fd5-ac143617ffcd",
+        "contentSummary": "Fictional backup comparison: plan A has lower cost; plan B has faster recovery. Sources and limits are stated.",
+        "contentHash": null,
+        "credibility": "agent_report",
+        "capturedBy": "bot:361bce12-1dea-4dac-9ac4-36b25cf0d3a2",
+        "capturedAt": "2026-11-17T12:31:21.565Z"
+      },
+      {
+        "id": "76cd09b4-ac34-4418-bfea-34353687997c",
+        "outcomeId": "1a83b977-3d50-4bc3-816f-1c582e4e180c",
+        "contractRevisionId": "25ae47c1-331b-40b5-b3a8-2725641d3c77",
+        "criterionId": "ce25636c-7ac0-4d78-8216-ea8ad6d34b02",
+        "workItemId": "dddfc07b-b801-41e2-bc53-271c7d50aab1",
+        "outputId": "a0e309b3-d306-4d03-9fd5-ac143617ffcd",
+        "runId": "e8ea11ec-2dfe-4e1c-87f4-b180ad0a240f",
+        "sourceType": "output",
+        "sourceRef": "output:a0e309b3-d306-4d03-9fd5-ac143617ffcd",
+        "contentSummary": "Fictional backup comparison: plan A has lower cost; plan B has faster recovery. Sources and limits are stated.",
+        "contentHash": null,
+        "credibility": "agent_report",
+        "capturedBy": "bot:361bce12-1dea-4dac-9ac4-36b25cf0d3a2",
+        "capturedAt": "2026-11-17T12:31:21.566Z"
+      },
+      {
+        "id": "aa3111c2-bbd3-4177-a03e-cd8fbbf1bc2e",
+        "outcomeId": "1a83b977-3d50-4bc3-816f-1c582e4e180c",
+        "contractRevisionId": "25ae47c1-331b-40b5-b3a8-2725641d3c77",
+        "criterionId": "c1a26284-0cbd-47d8-82e5-8d498846ec79",
+        "workItemId": "dddfc07b-b801-41e2-bc53-271c7d50aab1",
+        "outputId": "a0e309b3-d306-4d03-9fd5-ac143617ffcd",
+        "runId": "e8ea11ec-2dfe-4e1c-87f4-b180ad0a240f",
+        "sourceType": "output",
+        "sourceRef": "output:a0e309b3-d306-4d03-9fd5-ac143617ffcd",
+        "contentSummary": "Fictional backup comparison: plan A has lower cost; plan B has faster recovery. Sources and limits are stated.",
+        "contentHash": null,
+        "credibility": "agent_report",
+        "capturedBy": "bot:361bce12-1dea-4dac-9ac4-36b25cf0d3a2",
+        "capturedAt": "2026-11-17T12:31:21.567Z"
+      },
+      {
+        "id": "e3df653f-eaa4-4635-b4d3-671b65a0ec77",
+        "outcomeId": "1a83b977-3d50-4bc3-816f-1c582e4e180c",
+        "contractRevisionId": "25ae47c1-331b-40b5-b3a8-2725641d3c77",
+        "criterionId": "1c9ee3df-80c4-4d3d-9efc-9018f2ac01a3",
+        "workItemId": "dddfc07b-b801-41e2-bc53-271c7d50aab1",
+        "outputId": null,
+        "runId": null,
+        "sourceType": "prereview",
+        "sourceRef": "prereview:dddfc07b-b801-41e2-bc53-271c7d50aab1:1c9ee3df-80c4-4d3d-9efc-9018f2ac01a3",
+        "contentSummary": "unclear: Controlled local prereview; owner verification is required",
+        "contentHash": null,
+        "credibility": "ai_prereview",
+        "capturedBy": "system:outcome-prereview",
+        "capturedAt": "2026-11-17T12:31:21.573Z"
+      },
+      {
+        "id": "e7a171e8-19d8-4b99-ab15-aafb7bbbe966",
+        "outcomeId": "1a83b977-3d50-4bc3-816f-1c582e4e180c",
+        "contractRevisionId": "25ae47c1-331b-40b5-b3a8-2725641d3c77",
+        "criterionId": "ce25636c-7ac0-4d78-8216-ea8ad6d34b02",
+        "workItemId": "dddfc07b-b801-41e2-bc53-271c7d50aab1",
+        "outputId": null,
+        "runId": null,
+        "sourceType": "prereview",
+        "sourceRef": "prereview:dddfc07b-b801-41e2-bc53-271c7d50aab1:ce25636c-7ac0-4d78-8216-ea8ad6d34b02",
+        "contentSummary": "unclear: Controlled local prereview; owner verification is required",
+        "contentHash": null,
+        "credibility": "ai_prereview",
+        "capturedBy": "system:outcome-prereview",
+        "capturedAt": "2026-11-17T12:31:21.573Z"
+      },
+      {
+        "id": "bfb346f2-a8c2-4dde-8ea8-d6976bd5bcc6",
+        "outcomeId": "1a83b977-3d50-4bc3-816f-1c582e4e180c",
+        "contractRevisionId": "25ae47c1-331b-40b5-b3a8-2725641d3c77",
+        "criterionId": "c1a26284-0cbd-47d8-82e5-8d498846ec79",
+        "workItemId": "dddfc07b-b801-41e2-bc53-271c7d50aab1",
+        "outputId": null,
+        "runId": null,
+        "sourceType": "prereview",
+        "sourceRef": "prereview:dddfc07b-b801-41e2-bc53-271c7d50aab1:c1a26284-0cbd-47d8-82e5-8d498846ec79",
+        "contentSummary": "unclear: Controlled local prereview; owner verification is required",
+        "contentHash": null,
+        "credibility": "ai_prereview",
+        "capturedBy": "system:outcome-prereview",
+        "capturedAt": "2026-11-17T12:31:21.573Z"
+      },
+      {
+        "id": "0edafaa8-0aa1-4bf8-be8c-b21e533d3d43",
+        "outcomeId": "1a83b977-3d50-4bc3-816f-1c582e4e180c",
+        "contractRevisionId": "25ae47c1-331b-40b5-b3a8-2725641d3c77",
+        "criterionId": "1c9ee3df-80c4-4d3d-9efc-9018f2ac01a3",
+        "workItemId": null,
+        "outputId": null,
+        "runId": null,
+        "sourceType": "check",
+        "sourceRef": "local-replay:1a83b977-3d50-4bc3-816f-1c582e4e180c:1c9ee3df-80c4-4d3d-9efc-9018f2ac01a3",
+        "contentSummary": "Fictional owner observation recorded through the actual review service",
+        "contentHash": null,
+        "credibility": "human_confirmed",
+        "capturedBy": "owner:local",
+        "capturedAt": "2026-11-17T12:31:21.591Z"
+      },
+      {
+        "id": "f68b2d4b-098c-44c3-8a05-dd52a9892068",
+        "outcomeId": "1a83b977-3d50-4bc3-816f-1c582e4e180c",
+        "contractRevisionId": "25ae47c1-331b-40b5-b3a8-2725641d3c77",
+        "criterionId": "ce25636c-7ac0-4d78-8216-ea8ad6d34b02",
+        "workItemId": null,
+        "outputId": null,
+        "runId": null,
+        "sourceType": "check",
+        "sourceRef": "local-replay:1a83b977-3d50-4bc3-816f-1c582e4e180c:ce25636c-7ac0-4d78-8216-ea8ad6d34b02",
+        "contentSummary": "Fictional owner observation recorded through the actual review service",
+        "contentHash": null,
+        "credibility": "human_confirmed",
+        "capturedBy": "owner:local",
+        "capturedAt": "2026-11-17T12:31:21.591Z"
+      },
+      {
+        "id": "ac6d555f-410d-464c-b6d4-752fd76cce0c",
+        "outcomeId": "1a83b977-3d50-4bc3-816f-1c582e4e180c",
+        "contractRevisionId": "25ae47c1-331b-40b5-b3a8-2725641d3c77",
+        "criterionId": "c1a26284-0cbd-47d8-82e5-8d498846ec79",
+        "workItemId": null,
+        "outputId": null,
+        "runId": null,
+        "sourceType": "check",
+        "sourceRef": "local-replay:1a83b977-3d50-4bc3-816f-1c582e4e180c:c1a26284-0cbd-47d8-82e5-8d498846ec79",
+        "contentSummary": "Fictional owner observation recorded through the actual review service",
+        "contentHash": null,
+        "credibility": "human_confirmed",
+        "capturedBy": "owner:local",
+        "capturedAt": "2026-11-17T12:31:21.592Z"
+      }
+    ],
+    "reviews": [
+      {
+        "id": "df762264-aae8-4647-adf5-99e987d0523c",
+        "outcomeId": "1a83b977-3d50-4bc3-816f-1c582e4e180c",
+        "contractRevisionId": "25ae47c1-331b-40b5-b3a8-2725641d3c77",
+        "criterionId": "1c9ee3df-80c4-4d3d-9efc-9018f2ac01a3",
+        "sequence": 1,
+        "result": "PASS",
+        "evidenceIds": [
+          "0edafaa8-0aa1-4bf8-be8c-b21e533d3d43"
+        ],
+        "userConfirmed": false,
+        "comment": "Owner verified the controlled local report against this criterion",
+        "reviewedBy": "owner:local",
+        "reviewedAt": "2026-11-17T12:31:21.594Z"
+      },
+      {
+        "id": "aa3452c2-5dd4-4eea-b318-519d2c49f1db",
+        "outcomeId": "1a83b977-3d50-4bc3-816f-1c582e4e180c",
+        "contractRevisionId": "25ae47c1-331b-40b5-b3a8-2725641d3c77",
+        "criterionId": "c1a26284-0cbd-47d8-82e5-8d498846ec79",
+        "sequence": 1,
+        "result": "PASS",
+        "evidenceIds": [
+          "ac6d555f-410d-464c-b6d4-752fd76cce0c"
+        ],
+        "userConfirmed": false,
+        "comment": "Owner verified the controlled local report against this criterion",
+        "reviewedBy": "owner:local",
+        "reviewedAt": "2026-11-17T12:31:21.597Z"
+      },
+      {
+        "id": "8ca74131-53b2-4b27-98a7-5679267b1da7",
+        "outcomeId": "1a83b977-3d50-4bc3-816f-1c582e4e180c",
+        "contractRevisionId": "25ae47c1-331b-40b5-b3a8-2725641d3c77",
+        "criterionId": "ce25636c-7ac0-4d78-8216-ea8ad6d34b02",
+        "sequence": 1,
+        "result": "PASS",
+        "evidenceIds": [
+          "f68b2d4b-098c-44c3-8a05-dd52a9892068"
+        ],
+        "userConfirmed": false,
+        "comment": "Owner verified the controlled local report against this criterion",
+        "reviewedBy": "owner:local",
+        "reviewedAt": "2026-11-17T12:31:21.596Z"
+      }
+    ]
+  },
+  "idempotency": [
+    {
+      "scope": "outcome-approve:1a83b977-3d50-4bc3-816f-1c582e4e180c",
+      "key": "product-replay:28dd2476-cf5c-4dba-b00e-30846b87789a:approve",
+      "status": "completed",
+      "requestHash": "bae973246ea7c16896750dc60580f0a7ed2d1db7225c1df66ab412705d33a0fe",
+      "response": {
+        "id": "1a83b977-3d50-4bc3-816f-1c582e4e180c",
+        "botId": "361bce12-1dea-4dac-9ac4-36b25cf0d3a2",
+        "title": "备份方案选型建议",
+        "status": "approved",
+        "outputs": [],
+        "reviews": [],
+        "evidence": [],
+        "createdAt": "2026-11-17T12:31:21.394Z",
+        "revisions": [
+          {
+            "id": "25ae47c1-331b-40b5-b3a8-2725641d3c77",
+            "status": "approved",
+            "revision": 1,
+            "createdAt": "2026-11-17T12:31:21.399Z",
+            "createdBy": "owner:local",
+            "changeSummary": null,
+            "baseRevisionId": null,
+            "sourceDecisionId": null
+          }
+        ],
+        "updatedAt": "2026-11-17T12:31:21.428Z",
+        "workItems": [],
+        "acceptedAt": null,
+        "description": "比较两个备份方案并给出选型建议",
+        "resumeStatus": null,
+        "currentRevision": 1,
+        "sourceExploreId": null,
+        "currentRevisionView": {
+          "id": "25ae47c1-331b-40b5-b3a8-2725641d3c77",
+          "goal": [
+            "形成可执行的选型建议"
+          ],
+          "budget": null,
+          "status": "approved",
+          "criteria": [
+            {
+              "id": "1c9ee3df-80c4-4d3d-9efc-9018f2ac01a3",
+              "ordinal": 1,
+              "required": true,
+              "statement": "比较两条可行路线的成本、恢复时间和限制",
+              "latestResult": null,
+              "verificationMethod": "human_review"
+            },
+            {
+              "id": "ce25636c-7ac0-4d78-8216-ea8ad6d34b02",
+              "ordinal": 2,
+              "required": true,
+              "statement": "每个结论附来源",
+              "latestResult": null,
+              "verificationMethod": "human_review"
+            },
+            {
+              "id": "c1a26284-0cbd-47d8-82e5-8d498846ec79",
+              "ordinal": 3,
+              "required": true,
+              "statement": "给出一个推荐方案和理由",
+              "latestResult": null,
+              "verificationMethod": "human_review"
+            }
+          ],
+          "revision": 1,
+          "conflicts": [],
+          "createdAt": "2026-11-17T12:31:21.399Z",
+          "createdBy": "owner:local",
+          "approvedAt": "2026-11-17T12:31:21.422Z",
+          "approvedBy": "owner:local",
+          "boundaries": {
+            "excluded": [
+              "不修改生产系统"
+            ],
+            "included": [
+              "只使用公开资料"
+            ]
+          },
+          "changeSummary": null,
+          "baseRevisionId": null,
+          "executionBotId": "361bce12-1dea-4dac-9ac4-36b25cf0d3a2",
+          "sourceDecisionId": null
+        }
+      }
+    },
+    {
+      "scope": "outcome-create",
+      "key": "product-replay:28dd2476-cf5c-4dba-b00e-30846b87789a:create",
+      "status": "completed",
+      "requestHash": "2f23f7cf1170205c2fe975628ae69f8c0bb2832c31c9f268ef38ad4e9d19d261",
+      "response": {
+        "id": "1a83b977-3d50-4bc3-816f-1c582e4e180c",
+        "botId": "361bce12-1dea-4dac-9ac4-36b25cf0d3a2",
+        "title": "备份方案选型建议",
+        "status": "pending_approval",
+        "outputs": [],
+        "reviews": [],
+        "evidence": [],
+        "createdAt": "2026-11-17T12:31:21.394Z",
+        "revisions": [
+          {
+            "id": "25ae47c1-331b-40b5-b3a8-2725641d3c77",
+            "status": "pending_approval",
+            "revision": 1,
+            "createdAt": "2026-11-17T12:31:21.399Z",
+            "createdBy": "owner:local",
+            "changeSummary": null,
+            "baseRevisionId": null,
+            "sourceDecisionId": null
+          }
+        ],
+        "updatedAt": "2026-11-17T12:31:21.407Z",
+        "workItems": [],
+        "acceptedAt": null,
+        "description": "比较两个备份方案并给出选型建议",
+        "resumeStatus": null,
+        "currentRevision": 1,
+        "sourceExploreId": null,
+        "currentRevisionView": {
+          "id": "25ae47c1-331b-40b5-b3a8-2725641d3c77",
+          "goal": [
+            "形成可执行的选型建议"
+          ],
+          "budget": null,
+          "status": "pending_approval",
+          "criteria": [
+            {
+              "id": "1c9ee3df-80c4-4d3d-9efc-9018f2ac01a3",
+              "ordinal": 1,
+              "required": true,
+              "statement": "比较两条可行路线的成本、恢复时间和限制",
+              "latestResult": null,
+              "verificationMethod": "human_review"
+            },
+            {
+              "id": "ce25636c-7ac0-4d78-8216-ea8ad6d34b02",
+              "ordinal": 2,
+              "required": true,
+              "statement": "每个结论附来源",
+              "latestResult": null,
+              "verificationMethod": "human_review"
+            },
+            {
+              "id": "c1a26284-0cbd-47d8-82e5-8d498846ec79",
+              "ordinal": 3,
+              "required": true,
+              "statement": "给出一个推荐方案和理由",
+              "latestResult": null,
+              "verificationMethod": "human_review"
+            }
+          ],
+          "revision": 1,
+          "conflicts": [],
+          "createdAt": "2026-11-17T12:31:21.399Z",
+          "createdBy": "owner:local",
+          "approvedAt": null,
+          "approvedBy": null,
+          "boundaries": {
+            "excluded": [
+              "不修改生产系统"
+            ],
+            "included": [
+              "只使用公开资料"
+            ]
+          },
+          "changeSummary": null,
+          "baseRevisionId": null,
+          "executionBotId": "361bce12-1dea-4dac-9ac4-36b25cf0d3a2",
+          "sourceDecisionId": null
+        }
+      }
+    },
+    {
+      "scope": "outcome-plan",
+      "key": "product-replay:28dd2476-cf5c-4dba-b00e-30846b87789a:plan",
+      "status": "completed",
+      "requestHash": "bef59747e36b48da7e2a7eba74a88895eb7e4298dbd8a8ca3a227d4b16bb0bb9",
+      "response": {
+        "goal": {
+          "options": [
+            {
+              "id": "goal-1",
+              "text": "形成可执行的选型建议",
+              "reason": "直接对应用户请求中的决策目标",
+              "recommended": true
+            },
+            {
+              "id": "goal-2",
+              "text": "列出两种方案的适用场景"
+            }
+          ],
+          "customEntries": [],
+          "selectedOptionIds": []
+        },
+        "botId": "361bce12-1dea-4dac-9ac4-36b25cf0d3a2",
+        "planId": "163b65d8-e007-4168-b63c-562721bab723",
+        "status": "ready",
+        "conflicts": [],
+        "expiresAt": "2026-11-18T12:31:21.384Z",
+        "acceptance": {
+          "options": [
+            {
+              "id": "acceptance-1",
+              "text": "比较两条可行路线的成本、恢复时间和限制",
+              "required": true
+            },
+            {
+              "id": "acceptance-2",
+              "text": "每个结论附来源",
+              "required": true
+            },
+            {
+              "id": "acceptance-3",
+              "text": "给出一个推荐方案和理由",
+              "required": true
+            }
+          ],
+          "customEntries": [],
+          "selectedOptionIds": []
+        },
+        "boundaries": {
+          "options": [
+            {
+              "id": "boundaries-1",
+              "kind": "included",
+              "text": "只使用公开资料"
+            },
+            {
+              "id": "boundaries-2",
+              "kind": "excluded",
+              "text": "不修改生产系统"
+            }
+          ],
+          "customEntries": [],
+          "selectedOptionIds": []
+        },
+        "sourceText": "比较两个备份方案并给出选型建议",
+        "generatedAt": "2026-11-17T12:31:21.385Z"
+      }
+    },
+    {
+      "scope": "outcome-review:1a83b977-3d50-4bc3-816f-1c582e4e180c",
+      "key": "product-replay:28dd2476-cf5c-4dba-b00e-30846b87789a:review-final",
+      "status": "completed",
+      "requestHash": "f67949519b84237ad47f71051f5d56efbdbaedefa0af5070db904960bea512a1",
+      "response": {
+        "id": "1a83b977-3d50-4bc3-816f-1c582e4e180c",
+        "botId": "361bce12-1dea-4dac-9ac4-36b25cf0d3a2",
+        "title": "备份方案选型建议",
+        "status": "accepted",
+        "outputs": [
+          {
+            "id": "a0e309b3-d306-4d03-9fd5-ac143617ffcd",
+            "kind": "final_result",
+            "runId": "e8ea11ec-2dfe-4e1c-87f4-b180ad0a240f",
+            "title": "备份方案选型建议",
+            "content": "Fictional backup comparison: plan A has lower cost; plan B has faster recovery. Sources and limits are stated.",
+            "createdAt": "2026-11-17T12:31:21.541Z",
+            "contentRef": null,
+            "workItemId": "dddfc07b-b801-41e2-bc53-271c7d50aab1"
+          }
+        ],
+        "reviews": [
+          {
+            "id": "df762264-aae8-4647-adf5-99e987d0523c",
+            "result": "PASS",
+            "comment": "Owner verified the controlled local report against this criterion",
+            "sequence": 1,
+            "reviewedAt": "2026-11-17T12:31:21.594Z",
+            "reviewedBy": "owner:local",
+            "criterionId": "1c9ee3df-80c4-4d3d-9efc-9018f2ac01a3",
+            "evidenceIds": [
+              "0edafaa8-0aa1-4bf8-be8c-b21e533d3d43"
+            ],
+            "contractRevision": 1
+          },
+          {
+            "id": "aa3452c2-5dd4-4eea-b318-519d2c49f1db",
+            "result": "PASS",
+            "comment": "Owner verified the controlled local report against this criterion",
+            "sequence": 1,
+            "reviewedAt": "2026-11-17T12:31:21.597Z",
+            "reviewedBy": "owner:local",
+            "criterionId": "c1a26284-0cbd-47d8-82e5-8d498846ec79",
+            "evidenceIds": [
+              "ac6d555f-410d-464c-b6d4-752fd76cce0c"
+            ],
+            "contractRevision": 1
+          },
+          {
+            "id": "8ca74131-53b2-4b27-98a7-5679267b1da7",
+            "result": "PASS",
+            "comment": "Owner verified the controlled local report against this criterion",
+            "sequence": 1,
+            "reviewedAt": "2026-11-17T12:31:21.596Z",
+            "reviewedBy": "owner:local",
+            "criterionId": "ce25636c-7ac0-4d78-8216-ea8ad6d34b02",
+            "evidenceIds": [
+              "f68b2d4b-098c-44c3-8a05-dd52a9892068"
+            ],
+            "contractRevision": 1
+          }
+        ],
+        "evidence": [
+          {
+            "id": "862ef29f-d592-4304-865c-462d289ff7e7",
+            "runId": "e8ea11ec-2dfe-4e1c-87f4-b180ad0a240f",
+            "sourceRef": "output:a0e309b3-d306-4d03-9fd5-ac143617ffcd",
+            "capturedAt": "2026-11-17T12:31:21.565Z",
+            "capturedBy": "bot:361bce12-1dea-4dac-9ac4-36b25cf0d3a2",
+            "sourceType": "output",
+            "workItemId": "dddfc07b-b801-41e2-bc53-271c7d50aab1",
+            "credibility": "agent_report",
+            "criterionId": "1c9ee3df-80c4-4d3d-9efc-9018f2ac01a3",
+            "contentSummary": "Fictional backup comparison: plan A has lower cost; plan B has faster recovery. Sources and limits are stated.",
+            "contractRevision": 1
+          },
+          {
+            "id": "76cd09b4-ac34-4418-bfea-34353687997c",
+            "runId": "e8ea11ec-2dfe-4e1c-87f4-b180ad0a240f",
+            "sourceRef": "output:a0e309b3-d306-4d03-9fd5-ac143617ffcd",
+            "capturedAt": "2026-11-17T12:31:21.566Z",
+            "capturedBy": "bot:361bce12-1dea-4dac-9ac4-36b25cf0d3a2",
+            "sourceType": "output",
+            "workItemId": "dddfc07b-b801-41e2-bc53-271c7d50aab1",
+            "credibility": "agent_report",
+            "criterionId": "ce25636c-7ac0-4d78-8216-ea8ad6d34b02",
+            "contentSummary": "Fictional backup comparison: plan A has lower cost; plan B has faster recovery. Sources and limits are stated.",
+            "contractRevision": 1
+          },
+          {
+            "id": "aa3111c2-bbd3-4177-a03e-cd8fbbf1bc2e",
+            "runId": "e8ea11ec-2dfe-4e1c-87f4-b180ad0a240f",
+            "sourceRef": "output:a0e309b3-d306-4d03-9fd5-ac143617ffcd",
+            "capturedAt": "2026-11-17T12:31:21.567Z",
+            "capturedBy": "bot:361bce12-1dea-4dac-9ac4-36b25cf0d3a2",
+            "sourceType": "output",
+            "workItemId": "dddfc07b-b801-41e2-bc53-271c7d50aab1",
+            "credibility": "agent_report",
+            "criterionId": "c1a26284-0cbd-47d8-82e5-8d498846ec79",
+            "contentSummary": "Fictional backup comparison: plan A has lower cost; plan B has faster recovery. Sources and limits are stated.",
+            "contractRevision": 1
+          },
+          {
+            "id": "e3df653f-eaa4-4635-b4d3-671b65a0ec77",
+            "runId": null,
+            "sourceRef": "prereview:dddfc07b-b801-41e2-bc53-271c7d50aab1:1c9ee3df-80c4-4d3d-9efc-9018f2ac01a3",
+            "capturedAt": "2026-11-17T12:31:21.573Z",
+            "capturedBy": "system:outcome-prereview",
+            "sourceType": "prereview",
+            "workItemId": "dddfc07b-b801-41e2-bc53-271c7d50aab1",
+            "credibility": "ai_prereview",
+            "criterionId": "1c9ee3df-80c4-4d3d-9efc-9018f2ac01a3",
+            "contentSummary": "unclear: Controlled local prereview; owner verification is required",
+            "contractRevision": 1
+          },
+          {
+            "id": "e7a171e8-19d8-4b99-ab15-aafb7bbbe966",
+            "runId": null,
+            "sourceRef": "prereview:dddfc07b-b801-41e2-bc53-271c7d50aab1:ce25636c-7ac0-4d78-8216-ea8ad6d34b02",
+            "capturedAt": "2026-11-17T12:31:21.573Z",
+            "capturedBy": "system:outcome-prereview",
+            "sourceType": "prereview",
+            "workItemId": "dddfc07b-b801-41e2-bc53-271c7d50aab1",
+            "credibility": "ai_prereview",
+            "criterionId": "ce25636c-7ac0-4d78-8216-ea8ad6d34b02",
+            "contentSummary": "unclear: Controlled local prereview; owner verification is required",
+            "contractRevision": 1
+          },
+          {
+            "id": "bfb346f2-a8c2-4dde-8ea8-d6976bd5bcc6",
+            "runId": null,
+            "sourceRef": "prereview:dddfc07b-b801-41e2-bc53-271c7d50aab1:c1a26284-0cbd-47d8-82e5-8d498846ec79",
+            "capturedAt": "2026-11-17T12:31:21.573Z",
+            "capturedBy": "system:outcome-prereview",
+            "sourceType": "prereview",
+            "workItemId": "dddfc07b-b801-41e2-bc53-271c7d50aab1",
+            "credibility": "ai_prereview",
+            "criterionId": "c1a26284-0cbd-47d8-82e5-8d498846ec79",
+            "contentSummary": "unclear: Controlled local prereview; owner verification is required",
+            "contractRevision": 1
+          },
+          {
+            "id": "0edafaa8-0aa1-4bf8-be8c-b21e533d3d43",
+            "runId": null,
+            "sourceRef": "local-replay:1a83b977-3d50-4bc3-816f-1c582e4e180c:1c9ee3df-80c4-4d3d-9efc-9018f2ac01a3",
+            "capturedAt": "2026-11-17T12:31:21.591Z",
+            "capturedBy": "owner:local",
+            "sourceType": "check",
+            "workItemId": null,
+            "credibility": "human_confirmed",
+            "criterionId": "1c9ee3df-80c4-4d3d-9efc-9018f2ac01a3",
+            "contentSummary": "Fictional owner observation recorded through the actual review service",
+            "contractRevision": 1
+          },
+          {
+            "id": "f68b2d4b-098c-44c3-8a05-dd52a9892068",
+            "runId": null,
+            "sourceRef": "local-replay:1a83b977-3d50-4bc3-816f-1c582e4e180c:ce25636c-7ac0-4d78-8216-ea8ad6d34b02",
+            "capturedAt": "2026-11-17T12:31:21.591Z",
+            "capturedBy": "owner:local",
+            "sourceType": "check",
+            "workItemId": null,
+            "credibility": "human_confirmed",
+            "criterionId": "ce25636c-7ac0-4d78-8216-ea8ad6d34b02",
+            "contentSummary": "Fictional owner observation recorded through the actual review service",
+            "contractRevision": 1
+          },
+          {
+            "id": "ac6d555f-410d-464c-b6d4-752fd76cce0c",
+            "runId": null,
+            "sourceRef": "local-replay:1a83b977-3d50-4bc3-816f-1c582e4e180c:c1a26284-0cbd-47d8-82e5-8d498846ec79",
+            "capturedAt": "2026-11-17T12:31:21.592Z",
+            "capturedBy": "owner:local",
+            "sourceType": "check",
+            "workItemId": null,
+            "credibility": "human_confirmed",
+            "criterionId": "c1a26284-0cbd-47d8-82e5-8d498846ec79",
+            "contentSummary": "Fictional owner observation recorded through the actual review service",
+            "contractRevision": 1
+          }
+        ],
+        "createdAt": "2026-11-17T12:31:21.394Z",
+        "revisions": [
+          {
+            "id": "25ae47c1-331b-40b5-b3a8-2725641d3c77",
+            "status": "approved",
+            "revision": 1,
+            "createdAt": "2026-11-17T12:31:21.399Z",
+            "createdBy": "owner:local",
+            "changeSummary": null,
+            "baseRevisionId": null,
+            "sourceDecisionId": null
+          }
+        ],
+        "updatedAt": "2026-11-17T12:31:21.606Z",
+        "workItems": [
+          {
+            "id": "dddfc07b-b801-41e2-bc53-271c7d50aab1",
+            "kind": "initial",
+            "title": "备份方案选型建议",
+            "runIds": [
+              "e8ea11ec-2dfe-4e1c-87f4-b180ad0a240f"
+            ],
+            "status": "completed",
+            "ordinal": 1,
+            "createdAt": "2026-11-17T12:31:21.445Z",
+            "dependsOn": [],
+            "rootRunId": "e8ea11ec-2dfe-4e1c-87f4-b180ad0a240f",
+            "updatedAt": "2026-11-17T12:31:21.544Z",
+            "executorType": "agent",
+            "statusReason": "run_completed",
+            "contractRevision": 1,
+            "reworkOfWorkItemId": null
+          }
+        ],
+        "acceptedAt": "2026-11-17T12:31:21.604Z",
+        "description": "比较两个备份方案并给出选型建议",
+        "resumeStatus": null,
+        "currentRevision": 1,
+        "sourceExploreId": null,
+        "currentRevisionView": {
+          "id": "25ae47c1-331b-40b5-b3a8-2725641d3c77",
+          "goal": [
+            "形成可执行的选型建议"
+          ],
+          "budget": null,
+          "status": "approved",
+          "criteria": [
+            {
+              "id": "1c9ee3df-80c4-4d3d-9efc-9018f2ac01a3",
+              "ordinal": 1,
+              "required": true,
+              "statement": "比较两条可行路线的成本、恢复时间和限制",
+              "latestResult": "PASS",
+              "verificationMethod": "human_review"
+            },
+            {
+              "id": "ce25636c-7ac0-4d78-8216-ea8ad6d34b02",
+              "ordinal": 2,
+              "required": true,
+              "statement": "每个结论附来源",
+              "latestResult": "PASS",
+              "verificationMethod": "human_review"
+            },
+            {
+              "id": "c1a26284-0cbd-47d8-82e5-8d498846ec79",
+              "ordinal": 3,
+              "required": true,
+              "statement": "给出一个推荐方案和理由",
+              "latestResult": "PASS",
+              "verificationMethod": "human_review"
+            }
+          ],
+          "revision": 1,
+          "conflicts": [],
+          "createdAt": "2026-11-17T12:31:21.399Z",
+          "createdBy": "owner:local",
+          "approvedAt": "2026-11-17T12:31:21.422Z",
+          "approvedBy": "owner:local",
+          "boundaries": {
+            "excluded": [
+              "不修改生产系统"
+            ],
+            "included": [
+              "只使用公开资料"
+            ]
+          },
+          "changeSummary": null,
+          "baseRevisionId": null,
+          "executionBotId": "361bce12-1dea-4dac-9ac4-36b25cf0d3a2",
+          "sourceDecisionId": null
+        }
+      }
+    },
+    {
+      "scope": "outcome-run:1a83b977-3d50-4bc3-816f-1c582e4e180c",
+      "key": "product-replay:28dd2476-cf5c-4dba-b00e-30846b87789a:start",
+      "status": "completed",
+      "requestHash": "f4e4c429b770cf88e359270dd13826384f67ceee338ad1113f616269078c7234",
+      "response": {
+        "id": "1a83b977-3d50-4bc3-816f-1c582e4e180c",
+        "botId": "361bce12-1dea-4dac-9ac4-36b25cf0d3a2",
+        "title": "备份方案选型建议",
+        "status": "running",
+        "outputs": [],
+        "reviews": [],
+        "evidence": [],
+        "createdAt": "2026-11-17T12:31:21.394Z",
+        "revisions": [
+          {
+            "id": "25ae47c1-331b-40b5-b3a8-2725641d3c77",
+            "status": "approved",
+            "revision": 1,
+            "createdAt": "2026-11-17T12:31:21.399Z",
+            "createdBy": "owner:local",
+            "changeSummary": null,
+            "baseRevisionId": null,
+            "sourceDecisionId": null
+          }
+        ],
+        "updatedAt": "2026-11-17T12:31:21.473Z",
+        "workItems": [
+          {
+            "id": "dddfc07b-b801-41e2-bc53-271c7d50aab1",
+            "kind": "initial",
+            "title": "备份方案选型建议",
+            "runIds": [
+              "e8ea11ec-2dfe-4e1c-87f4-b180ad0a240f"
+            ],
+            "status": "queued",
+            "ordinal": 1,
+            "createdAt": "2026-11-17T12:31:21.445Z",
+            "dependsOn": [],
+            "rootRunId": "e8ea11ec-2dfe-4e1c-87f4-b180ad0a240f",
+            "updatedAt": "2026-11-17T12:31:21.470Z",
+            "executorType": "agent",
+            "statusReason": null,
+            "contractRevision": 1,
+            "reworkOfWorkItemId": null
+          }
+        ],
+        "acceptedAt": null,
+        "description": "比较两个备份方案并给出选型建议",
+        "resumeStatus": null,
+        "currentRevision": 1,
+        "sourceExploreId": null,
+        "currentRevisionView": {
+          "id": "25ae47c1-331b-40b5-b3a8-2725641d3c77",
+          "goal": [
+            "形成可执行的选型建议"
+          ],
+          "budget": null,
+          "status": "approved",
+          "criteria": [
+            {
+              "id": "1c9ee3df-80c4-4d3d-9efc-9018f2ac01a3",
+              "ordinal": 1,
+              "required": true,
+              "statement": "比较两条可行路线的成本、恢复时间和限制",
+              "latestResult": null,
+              "verificationMethod": "human_review"
+            },
+            {
+              "id": "ce25636c-7ac0-4d78-8216-ea8ad6d34b02",
+              "ordinal": 2,
+              "required": true,
+              "statement": "每个结论附来源",
+              "latestResult": null,
+              "verificationMethod": "human_review"
+            },
+            {
+              "id": "c1a26284-0cbd-47d8-82e5-8d498846ec79",
+              "ordinal": 3,
+              "required": true,
+              "statement": "给出一个推荐方案和理由",
+              "latestResult": null,
+              "verificationMethod": "human_review"
+            }
+          ],
+          "revision": 1,
+          "conflicts": [],
+          "createdAt": "2026-11-17T12:31:21.399Z",
+          "createdBy": "owner:local",
+          "approvedAt": "2026-11-17T12:31:21.422Z",
+          "approvedBy": "owner:local",
+          "boundaries": {
+            "excluded": [
+              "不修改生产系统"
+            ],
+            "included": [
+              "只使用公开资料"
+            ]
+          },
+          "changeSummary": null,
+          "baseRevisionId": null,
+          "executionBotId": "361bce12-1dea-4dac-9ac4-36b25cf0d3a2",
+          "sourceDecisionId": null
+        }
+      }
+    },
+    {
+      "scope": "outcome-turn:dddfc07b-b801-41e2-bc53-271c7d50aab1",
+      "key": "outcome-run:1a83b977-3d50-4bc3-816f-1c582e4e180c:1:dddfc07b-b801-41e2-bc53-271c7d50aab1",
+      "status": "completed",
+      "requestHash": "ebac198c7ea584f2d3230399d30b2fdf1a387f1fbc78c67a36e9ceb82037d47f",
+      "response": {
+        "runId": "e8ea11ec-2dfe-4e1c-87f4-b180ad0a240f",
+        "status": "enqueued"
+      }
+    }
+  ],
+  "events": [
+    {
+      "sequence": "1",
+      "topic": "outcome.created",
+      "payload": {
+        "actorId": "owner:local",
+        "eventId": "374001c7-abcb-4fad-b286-55130e71833e",
+        "payload": {
+          "botId": "361bce12-1dea-4dac-9ac4-36b25cf0d3a2",
+          "title": "备份方案选型建议"
+        },
+        "occurredAt": "2026-11-17T12:31:21.397Z",
+        "correlationId": "product-replay:28dd2476-cf5c-4dba-b00e-30846b87789a:create",
+        "schemaVersion": 1,
+        "idempotencyKey": "product-replay:28dd2476-cf5c-4dba-b00e-30846b87789a:create"
+      }
+    },
+    {
+      "sequence": "2",
+      "topic": "outcome.contract.revision_created",
+      "payload": {
+        "actorId": "owner:local",
+        "eventId": "cbe5cab5-9bfb-4342-b112-9f9dcb1938e3",
+        "payload": {
+          "status": "pending_approval",
+          "revisionId": "25ae47c1-331b-40b5-b3a8-2725641d3c77",
+          "baseRevisionId": null,
+          "sourceDecisionId": null
+        },
+        "occurredAt": "2026-11-17T12:31:21.403Z",
+        "correlationId": "product-replay:28dd2476-cf5c-4dba-b00e-30846b87789a:create",
+        "schemaVersion": 1,
+        "idempotencyKey": "product-replay:28dd2476-cf5c-4dba-b00e-30846b87789a:create",
+        "contractRevision": 1
+      }
+    },
+    {
+      "sequence": "3",
+      "topic": "outcome.status_changed",
+      "payload": {
+        "actorId": "owner:local",
+        "eventId": "8c7cba86-c5df-4f1a-b159-9c8a1bf5aebd",
+        "payload": {
+          "to": "pending_approval",
+          "from": "draft"
+        },
+        "occurredAt": "2026-11-17T12:31:21.407Z",
+        "correlationId": "8c7cba86-c5df-4f1a-b159-9c8a1bf5aebd",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "sequence": "4",
+      "topic": "outcome.contract.revision_approved",
+      "payload": {
+        "actorId": "owner:local",
+        "eventId": "2faf22c7-1377-46e1-bdd1-3ec61c27a9a3",
+        "payload": {
+          "revisionId": "25ae47c1-331b-40b5-b3a8-2725641d3c77",
+          "contentHash": "5405a1d5607e91278bfdb4db4eb0841f8bc22bf86059e6f41b15023c06894384"
+        },
+        "occurredAt": "2026-11-17T12:31:21.425Z",
+        "correlationId": "product-replay:28dd2476-cf5c-4dba-b00e-30846b87789a:approve",
+        "schemaVersion": 1,
+        "idempotencyKey": "product-replay:28dd2476-cf5c-4dba-b00e-30846b87789a:approve",
+        "contractRevision": 1
+      }
+    },
+    {
+      "sequence": "5",
+      "topic": "outcome.status_changed",
+      "payload": {
+        "actorId": "owner:local",
+        "eventId": "287c9715-98d2-4c3f-b840-7138b705de62",
+        "payload": {
+          "to": "approved",
+          "from": "pending_approval"
+        },
+        "occurredAt": "2026-11-17T12:31:21.428Z",
+        "correlationId": "287c9715-98d2-4c3f-b840-7138b705de62",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "sequence": "6",
+      "topic": "outcome.work_item.created",
+      "payload": {
+        "actorId": "owner:local",
+        "eventId": "5ce03d67-93cb-43a7-ab8c-7bbc209acbfc",
+        "payload": {
+          "kind": "initial",
+          "workItemId": "dddfc07b-b801-41e2-bc53-271c7d50aab1",
+          "executorType": "agent"
+        },
+        "occurredAt": "2026-11-17T12:31:21.446Z",
+        "workItemId": "dddfc07b-b801-41e2-bc53-271c7d50aab1",
+        "correlationId": "product-replay:28dd2476-cf5c-4dba-b00e-30846b87789a:start",
+        "schemaVersion": 1,
+        "idempotencyKey": "product-replay:28dd2476-cf5c-4dba-b00e-30846b87789a:start",
+        "contractRevision": 1
+      }
+    },
+    {
+      "sequence": "8",
+      "topic": "outcome.status_changed",
+      "payload": {
+        "actorId": "owner:local",
+        "eventId": "6e384f17-8f12-4d5d-ae28-733f2aa71093",
+        "payload": {
+          "to": "running",
+          "from": "approved"
+        },
+        "occurredAt": "2026-11-17T12:31:21.473Z",
+        "correlationId": "6e384f17-8f12-4d5d-ae28-733f2aa71093",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "sequence": "9",
+      "topic": "outcome.work_item.updated",
+      "payload": {
+        "actorId": "system:worker",
+        "eventId": "b6b15aed-ef08-4b1e-baf6-dbbb0cc70867",
+        "payload": {
+          "to": "running",
+          "from": "queued",
+          "reason": "lease_acquired"
+        },
+        "occurredAt": "2026-11-17T12:31:21.500Z",
+        "workItemId": "dddfc07b-b801-41e2-bc53-271c7d50aab1",
+        "correlationId": "b6b15aed-ef08-4b1e-baf6-dbbb0cc70867",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "sequence": "15",
+      "topic": "outcome.output.recorded",
+      "payload": {
+        "runId": "e8ea11ec-2dfe-4e1c-87f4-b180ad0a240f",
+        "actorId": "system:outcome-runtime",
+        "eventId": "1495fcd0-dd0c-4616-b02e-1d744ee8b609",
+        "payload": {
+          "kind": "final_result",
+          "outputId": "a0e309b3-d306-4d03-9fd5-ac143617ffcd"
+        },
+        "occurredAt": "2026-11-17T12:31:21.542Z",
+        "workItemId": "dddfc07b-b801-41e2-bc53-271c7d50aab1",
+        "correlationId": "final:dddfc07b-b801-41e2-bc53-271c7d50aab1",
+        "schemaVersion": 1,
+        "idempotencyKey": "final:dddfc07b-b801-41e2-bc53-271c7d50aab1",
+        "contractRevision": 1
+      }
+    },
+    {
+      "sequence": "16",
+      "topic": "outcome.work_item.updated",
+      "payload": {
+        "actorId": "system:outcome-runtime",
+        "eventId": "884325d3-0f75-49dd-869c-33958c36ef94",
+        "payload": {
+          "to": "completed",
+          "from": "running",
+          "reason": "run_completed"
+        },
+        "occurredAt": "2026-11-17T12:31:21.544Z",
+        "workItemId": "dddfc07b-b801-41e2-bc53-271c7d50aab1",
+        "correlationId": "settle:e8ea11ec-2dfe-4e1c-87f4-b180ad0a240f",
+        "schemaVersion": 1,
+        "idempotencyKey": "settle:e8ea11ec-2dfe-4e1c-87f4-b180ad0a240f"
+      }
+    },
+    {
+      "sequence": "17",
+      "topic": "outcome.status_changed",
+      "payload": {
+        "actorId": "system:outcome-runtime",
+        "eventId": "54c7f97a-acbf-492d-8867-40802b091177",
+        "payload": {
+          "to": "review_pending",
+          "from": "running"
+        },
+        "occurredAt": "2026-11-17T12:31:21.546Z",
+        "correlationId": "54c7f97a-acbf-492d-8867-40802b091177",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "sequence": "18",
+      "topic": "outcome.review.required",
+      "payload": {
+        "actorId": "system:outcome-runtime",
+        "eventId": "c925c541-6e54-4e93-b4f4-ab13c3a8d696",
+        "payload": {
+          "workItemIds": [
+            "dddfc07b-b801-41e2-bc53-271c7d50aab1"
+          ],
+          "criterionIds": [
+            "1c9ee3df-80c4-4d3d-9efc-9018f2ac01a3",
+            "ce25636c-7ac0-4d78-8216-ea8ad6d34b02",
+            "c1a26284-0cbd-47d8-82e5-8d498846ec79"
+          ]
+        },
+        "occurredAt": "2026-11-17T12:31:21.550Z",
+        "correlationId": "review-required:25ae47c1-331b-40b5-b3a8-2725641d3c77",
+        "schemaVersion": 1,
+        "idempotencyKey": "review-required:25ae47c1-331b-40b5-b3a8-2725641d3c77",
+        "contractRevision": 1
+      }
+    },
+    {
+      "sequence": "19",
+      "topic": "outcome.review.recorded",
+      "payload": {
+        "actorId": "owner:local",
+        "eventId": "86e203f2-9fd6-42b9-98dc-92d5a15a3e95",
+        "payload": {
+          "result": "PASS",
+          "reviewId": "df762264-aae8-4647-adf5-99e987d0523c",
+          "criterionId": "1c9ee3df-80c4-4d3d-9efc-9018f2ac01a3",
+          "evidenceIds": [
+            "0edafaa8-0aa1-4bf8-be8c-b21e533d3d43"
+          ]
+        },
+        "occurredAt": "2026-11-17T12:31:21.595Z",
+        "correlationId": "product-replay:28dd2476-cf5c-4dba-b00e-30846b87789a:review-final",
+        "schemaVersion": 1,
+        "idempotencyKey": "product-replay:28dd2476-cf5c-4dba-b00e-30846b87789a:review-final",
+        "contractRevision": 1
+      }
+    },
+    {
+      "sequence": "20",
+      "topic": "outcome.review.recorded",
+      "payload": {
+        "actorId": "owner:local",
+        "eventId": "4a1059bf-3ad2-42b1-a8ff-f16ca4b19a4e",
+        "payload": {
+          "result": "PASS",
+          "reviewId": "8ca74131-53b2-4b27-98a7-5679267b1da7",
+          "criterionId": "ce25636c-7ac0-4d78-8216-ea8ad6d34b02",
+          "evidenceIds": [
+            "f68b2d4b-098c-44c3-8a05-dd52a9892068"
+          ]
+        },
+        "occurredAt": "2026-11-17T12:31:21.596Z",
+        "correlationId": "product-replay:28dd2476-cf5c-4dba-b00e-30846b87789a:review-final",
+        "schemaVersion": 1,
+        "idempotencyKey": "product-replay:28dd2476-cf5c-4dba-b00e-30846b87789a:review-final",
+        "contractRevision": 1
+      }
+    },
+    {
+      "sequence": "21",
+      "topic": "outcome.review.recorded",
+      "payload": {
+        "actorId": "owner:local",
+        "eventId": "cb0fea7d-806e-4d86-b5b9-142e3da22951",
+        "payload": {
+          "result": "PASS",
+          "reviewId": "aa3452c2-5dd4-4eea-b318-519d2c49f1db",
+          "criterionId": "c1a26284-0cbd-47d8-82e5-8d498846ec79",
+          "evidenceIds": [
+            "ac6d555f-410d-464c-b6d4-752fd76cce0c"
+          ]
+        },
+        "occurredAt": "2026-11-17T12:31:21.598Z",
+        "correlationId": "product-replay:28dd2476-cf5c-4dba-b00e-30846b87789a:review-final",
+        "schemaVersion": 1,
+        "idempotencyKey": "product-replay:28dd2476-cf5c-4dba-b00e-30846b87789a:review-final",
+        "contractRevision": 1
+      }
+    },
+    {
+      "sequence": "22",
+      "topic": "outcome.accepted",
+      "payload": {
+        "actorId": "owner:local",
+        "eventId": "4b892206-c95a-456d-a7d5-59e6148b7adb",
+        "payload": {
+          "reviewIds": [
+            "df762264-aae8-4647-adf5-99e987d0523c",
+            "8ca74131-53b2-4b27-98a7-5679267b1da7",
+            "aa3452c2-5dd4-4eea-b318-519d2c49f1db"
+          ],
+          "revisionId": "25ae47c1-331b-40b5-b3a8-2725641d3c77"
+        },
+        "occurredAt": "2026-11-17T12:31:21.605Z",
+        "correlationId": "product-replay:28dd2476-cf5c-4dba-b00e-30846b87789a:review-final",
+        "schemaVersion": 1,
+        "idempotencyKey": "product-replay:28dd2476-cf5c-4dba-b00e-30846b87789a:review-final",
+        "contractRevision": 1
+      }
+    },
+    {
+      "sequence": "23",
+      "topic": "outcome.status_changed",
+      "payload": {
+        "actorId": "owner:local",
+        "eventId": "4f997af4-359f-4fc0-8387-4723a3b1048c",
+        "payload": {
+          "to": "accepted",
+          "from": "review_pending"
+        },
+        "occurredAt": "2026-11-17T12:31:21.607Z",
+        "correlationId": "4f997af4-359f-4fc0-8387-4723a3b1048c",
+        "schemaVersion": 1
+      }
+    }
+  ],
+  "finalDetail": {
+    "id": "1a83b977-3d50-4bc3-816f-1c582e4e180c",
+    "sourceExploreId": null,
+    "title": "备份方案选型建议",
+    "status": "accepted",
+    "botId": "361bce12-1dea-4dac-9ac4-36b25cf0d3a2",
+    "currentRevision": 1,
+    "updatedAt": "2026-11-17T12:31:21.606Z",
+    "description": "比较两个备份方案并给出选型建议",
+    "resumeStatus": null,
+    "createdAt": "2026-11-17T12:31:21.394Z",
+    "acceptedAt": "2026-11-17T12:31:21.604Z",
+    "currentRevisionView": {
+      "id": "25ae47c1-331b-40b5-b3a8-2725641d3c77",
+      "revision": 1,
+      "status": "approved",
+      "goal": [
+        "形成可执行的选型建议"
+      ],
+      "boundaries": {
+        "included": [
+          "只使用公开资料"
+        ],
+        "excluded": [
+          "不修改生产系统"
+        ]
+      },
+      "budget": null,
+      "executionBotId": "361bce12-1dea-4dac-9ac4-36b25cf0d3a2",
+      "changeSummary": null,
+      "baseRevisionId": null,
+      "sourceDecisionId": null,
+      "createdBy": "owner:local",
+      "approvedBy": "owner:local",
+      "approvedAt": "2026-11-17T12:31:21.422Z",
+      "conflicts": [],
+      "criteria": [
+        {
+          "id": "1c9ee3df-80c4-4d3d-9efc-9018f2ac01a3",
+          "ordinal": 1,
+          "statement": "比较两条可行路线的成本、恢复时间和限制",
+          "required": true,
+          "verificationMethod": "human_review",
+          "latestResult": "PASS"
+        },
+        {
+          "id": "ce25636c-7ac0-4d78-8216-ea8ad6d34b02",
+          "ordinal": 2,
+          "statement": "每个结论附来源",
+          "required": true,
+          "verificationMethod": "human_review",
+          "latestResult": "PASS"
+        },
+        {
+          "id": "c1a26284-0cbd-47d8-82e5-8d498846ec79",
+          "ordinal": 3,
+          "statement": "给出一个推荐方案和理由",
+          "required": true,
+          "verificationMethod": "human_review",
+          "latestResult": "PASS"
+        }
+      ],
+      "createdAt": "2026-11-17T12:31:21.399Z"
+    },
+    "revisions": [
+      {
+        "id": "25ae47c1-331b-40b5-b3a8-2725641d3c77",
+        "revision": 1,
+        "status": "approved",
+        "changeSummary": null,
+        "baseRevisionId": null,
+        "sourceDecisionId": null,
+        "createdBy": "owner:local",
+        "createdAt": "2026-11-17T12:31:21.399Z"
+      }
+    ],
+    "workItems": [
+      {
+        "id": "dddfc07b-b801-41e2-bc53-271c7d50aab1",
+        "contractRevision": 1,
+        "executorType": "agent",
+        "kind": "initial",
+        "title": "备份方案选型建议",
+        "status": "completed",
+        "statusReason": "run_completed",
+        "ordinal": 1,
+        "dependsOn": [],
+        "rootRunId": "e8ea11ec-2dfe-4e1c-87f4-b180ad0a240f",
+        "runIds": [
+          "e8ea11ec-2dfe-4e1c-87f4-b180ad0a240f"
+        ],
+        "reworkOfWorkItemId": null,
+        "createdAt": "2026-11-17T12:31:21.445Z",
+        "updatedAt": "2026-11-17T12:31:21.544Z"
+      }
+    ],
+    "outputs": [
+      {
+        "id": "a0e309b3-d306-4d03-9fd5-ac143617ffcd",
+        "workItemId": "dddfc07b-b801-41e2-bc53-271c7d50aab1",
+        "runId": "e8ea11ec-2dfe-4e1c-87f4-b180ad0a240f",
+        "kind": "final_result",
+        "title": "备份方案选型建议",
+        "content": "Fictional backup comparison: plan A has lower cost; plan B has faster recovery. Sources and limits are stated.",
+        "contentRef": null,
+        "createdAt": "2026-11-17T12:31:21.541Z"
+      }
+    ],
+    "evidence": [
+      {
+        "id": "862ef29f-d592-4304-865c-462d289ff7e7",
+        "criterionId": "1c9ee3df-80c4-4d3d-9efc-9018f2ac01a3",
+        "contractRevision": 1,
+        "workItemId": "dddfc07b-b801-41e2-bc53-271c7d50aab1",
+        "runId": "e8ea11ec-2dfe-4e1c-87f4-b180ad0a240f",
+        "sourceType": "output",
+        "sourceRef": "output:a0e309b3-d306-4d03-9fd5-ac143617ffcd",
+        "contentSummary": "Fictional backup comparison: plan A has lower cost; plan B has faster recovery. Sources and limits are stated.",
+        "credibility": "agent_report",
+        "capturedBy": "bot:361bce12-1dea-4dac-9ac4-36b25cf0d3a2",
+        "capturedAt": "2026-11-17T12:31:21.565Z"
+      },
+      {
+        "id": "76cd09b4-ac34-4418-bfea-34353687997c",
+        "criterionId": "ce25636c-7ac0-4d78-8216-ea8ad6d34b02",
+        "contractRevision": 1,
+        "workItemId": "dddfc07b-b801-41e2-bc53-271c7d50aab1",
+        "runId": "e8ea11ec-2dfe-4e1c-87f4-b180ad0a240f",
+        "sourceType": "output",
+        "sourceRef": "output:a0e309b3-d306-4d03-9fd5-ac143617ffcd",
+        "contentSummary": "Fictional backup comparison: plan A has lower cost; plan B has faster recovery. Sources and limits are stated.",
+        "credibility": "agent_report",
+        "capturedBy": "bot:361bce12-1dea-4dac-9ac4-36b25cf0d3a2",
+        "capturedAt": "2026-11-17T12:31:21.566Z"
+      },
+      {
+        "id": "aa3111c2-bbd3-4177-a03e-cd8fbbf1bc2e",
+        "criterionId": "c1a26284-0cbd-47d8-82e5-8d498846ec79",
+        "contractRevision": 1,
+        "workItemId": "dddfc07b-b801-41e2-bc53-271c7d50aab1",
+        "runId": "e8ea11ec-2dfe-4e1c-87f4-b180ad0a240f",
+        "sourceType": "output",
+        "sourceRef": "output:a0e309b3-d306-4d03-9fd5-ac143617ffcd",
+        "contentSummary": "Fictional backup comparison: plan A has lower cost; plan B has faster recovery. Sources and limits are stated.",
+        "credibility": "agent_report",
+        "capturedBy": "bot:361bce12-1dea-4dac-9ac4-36b25cf0d3a2",
+        "capturedAt": "2026-11-17T12:31:21.567Z"
+      },
+      {
+        "id": "e3df653f-eaa4-4635-b4d3-671b65a0ec77",
+        "criterionId": "1c9ee3df-80c4-4d3d-9efc-9018f2ac01a3",
+        "contractRevision": 1,
+        "workItemId": "dddfc07b-b801-41e2-bc53-271c7d50aab1",
+        "runId": null,
+        "sourceType": "prereview",
+        "sourceRef": "prereview:dddfc07b-b801-41e2-bc53-271c7d50aab1:1c9ee3df-80c4-4d3d-9efc-9018f2ac01a3",
+        "contentSummary": "unclear: Controlled local prereview; owner verification is required",
+        "credibility": "ai_prereview",
+        "capturedBy": "system:outcome-prereview",
+        "capturedAt": "2026-11-17T12:31:21.573Z"
+      },
+      {
+        "id": "e7a171e8-19d8-4b99-ab15-aafb7bbbe966",
+        "criterionId": "ce25636c-7ac0-4d78-8216-ea8ad6d34b02",
+        "contractRevision": 1,
+        "workItemId": "dddfc07b-b801-41e2-bc53-271c7d50aab1",
+        "runId": null,
+        "sourceType": "prereview",
+        "sourceRef": "prereview:dddfc07b-b801-41e2-bc53-271c7d50aab1:ce25636c-7ac0-4d78-8216-ea8ad6d34b02",
+        "contentSummary": "unclear: Controlled local prereview; owner verification is required",
+        "credibility": "ai_prereview",
+        "capturedBy": "system:outcome-prereview",
+        "capturedAt": "2026-11-17T12:31:21.573Z"
+      },
+      {
+        "id": "bfb346f2-a8c2-4dde-8ea8-d6976bd5bcc6",
+        "criterionId": "c1a26284-0cbd-47d8-82e5-8d498846ec79",
+        "contractRevision": 1,
+        "workItemId": "dddfc07b-b801-41e2-bc53-271c7d50aab1",
+        "runId": null,
+        "sourceType": "prereview",
+        "sourceRef": "prereview:dddfc07b-b801-41e2-bc53-271c7d50aab1:c1a26284-0cbd-47d8-82e5-8d498846ec79",
+        "contentSummary": "unclear: Controlled local prereview; owner verification is required",
+        "credibility": "ai_prereview",
+        "capturedBy": "system:outcome-prereview",
+        "capturedAt": "2026-11-17T12:31:21.573Z"
+      },
+      {
+        "id": "0edafaa8-0aa1-4bf8-be8c-b21e533d3d43",
+        "criterionId": "1c9ee3df-80c4-4d3d-9efc-9018f2ac01a3",
+        "contractRevision": 1,
+        "workItemId": null,
+        "runId": null,
+        "sourceType": "check",
+        "sourceRef": "local-replay:1a83b977-3d50-4bc3-816f-1c582e4e180c:1c9ee3df-80c4-4d3d-9efc-9018f2ac01a3",
+        "contentSummary": "Fictional owner observation recorded through the actual review service",
+        "credibility": "human_confirmed",
+        "capturedBy": "owner:local",
+        "capturedAt": "2026-11-17T12:31:21.591Z"
+      },
+      {
+        "id": "f68b2d4b-098c-44c3-8a05-dd52a9892068",
+        "criterionId": "ce25636c-7ac0-4d78-8216-ea8ad6d34b02",
+        "contractRevision": 1,
+        "workItemId": null,
+        "runId": null,
+        "sourceType": "check",
+        "sourceRef": "local-replay:1a83b977-3d50-4bc3-816f-1c582e4e180c:ce25636c-7ac0-4d78-8216-ea8ad6d34b02",
+        "contentSummary": "Fictional owner observation recorded through the actual review service",
+        "credibility": "human_confirmed",
+        "capturedBy": "owner:local",
+        "capturedAt": "2026-11-17T12:31:21.591Z"
+      },
+      {
+        "id": "ac6d555f-410d-464c-b6d4-752fd76cce0c",
+        "criterionId": "c1a26284-0cbd-47d8-82e5-8d498846ec79",
+        "contractRevision": 1,
+        "workItemId": null,
+        "runId": null,
+        "sourceType": "check",
+        "sourceRef": "local-replay:1a83b977-3d50-4bc3-816f-1c582e4e180c:c1a26284-0cbd-47d8-82e5-8d498846ec79",
+        "contentSummary": "Fictional owner observation recorded through the actual review service",
+        "credibility": "human_confirmed",
+        "capturedBy": "owner:local",
+        "capturedAt": "2026-11-17T12:31:21.592Z"
+      }
+    ],
+    "reviews": [
+      {
+        "id": "df762264-aae8-4647-adf5-99e987d0523c",
+        "criterionId": "1c9ee3df-80c4-4d3d-9efc-9018f2ac01a3",
+        "contractRevision": 1,
+        "sequence": 1,
+        "result": "PASS",
+        "evidenceIds": [
+          "0edafaa8-0aa1-4bf8-be8c-b21e533d3d43"
+        ],
+        "comment": "Owner verified the controlled local report against this criterion",
+        "reviewedBy": "owner:local",
+        "reviewedAt": "2026-11-17T12:31:21.594Z"
+      },
+      {
+        "id": "aa3452c2-5dd4-4eea-b318-519d2c49f1db",
+        "criterionId": "c1a26284-0cbd-47d8-82e5-8d498846ec79",
+        "contractRevision": 1,
+        "sequence": 1,
+        "result": "PASS",
+        "evidenceIds": [
+          "ac6d555f-410d-464c-b6d4-752fd76cce0c"
+        ],
+        "comment": "Owner verified the controlled local report against this criterion",
+        "reviewedBy": "owner:local",
+        "reviewedAt": "2026-11-17T12:31:21.597Z"
+      },
+      {
+        "id": "8ca74131-53b2-4b27-98a7-5679267b1da7",
+        "criterionId": "ce25636c-7ac0-4d78-8216-ea8ad6d34b02",
+        "contractRevision": 1,
+        "sequence": 1,
+        "result": "PASS",
+        "evidenceIds": [
+          "f68b2d4b-098c-44c3-8a05-dd52a9892068"
+        ],
+        "comment": "Owner verified the controlled local report against this criterion",
+        "reviewedBy": "owner:local",
+        "reviewedAt": "2026-11-17T12:31:21.596Z"
+      }
+    ]
+  },
+  "humanDetail": null
+}

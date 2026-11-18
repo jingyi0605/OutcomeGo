@@ -1,0 +1,68 @@
+apps/computer/src/agent-file-io.ts(125,11): error TS2339: Property 'on' does not exist on type 'ChildProcessWithoutNullStreams'.
+apps/computer/src/agent-file-io.ts(127,11): error TS2339: Property 'on' does not exist on type 'ChildProcessWithoutNullStreams'.
+apps/computer/src/agent-file-io.ts(127,24): error TS7006: Parameter 'code' implicitly has an 'any' type.
+apps/computer/src/agent-file-stream.ts(28,11): error TS2339: Property 'once' does not exist on type 'ChildProcessWithoutNullStreams'.
+apps/computer/src/agent-file-stream.ts(28,26): error TS7006: Parameter 'error' implicitly has an 'any' type.
+apps/computer/src/agent-file-stream.ts(31,11): error TS2339: Property 'once' does not exist on type 'ChildProcessWithoutNullStreams'.
+apps/computer/src/agent-file-stream.ts(31,26): error TS7006: Parameter 'code' implicitly has an 'any' type.
+apps/computer/src/agent-process.ts(49,9): error TS2339: Property 'once' does not exist on type 'ChildProcess'.
+apps/computer/src/browser-network.ts(87,11): error TS2339: Property 'once' does not exist on type 'ChildProcess'.
+apps/computer/src/browser-network.ts(88,11): error TS2339: Property 'once' does not exist on type 'ChildProcess'.
+apps/computer/src/browser-network.ts(207,14): error TS2339: Property 'on' does not exist on type 'ChildProcessWithoutNullStreams'.
+apps/computer/src/browser-network.ts(211,14): error TS2339: Property 'once' does not exist on type 'ChildProcessWithoutNullStreams'.
+apps/computer/src/browser-network.ts(292,16): error TS2339: Property 'once' does not exist on type 'ChildProcess'.
+apps/computer/src/browser/find.ts(52,12): error TS2339: Property 'once' does not exist on type 'ChildProcessWithoutNullStreams'.
+apps/computer/src/browser/find.ts(52,26): error TS7006: Parameter 'error' implicitly has an 'any' type.
+apps/computer/src/browser/find.ts(53,12): error TS2339: Property 'once' does not exist on type 'ChildProcessWithoutNullStreams'.
+apps/computer/src/browser/find.ts(53,26): error TS7006: Parameter 'code' implicitly has an 'any' type.
+apps/computer/src/browser/playwright-driver.ts(18,42): error TS7016: Could not find a declaration file for module 'playwright-core/lib/outofprocess'. '/Users/jackson/Code/openteam-spec004-worktrees/l6-memory-recovery-fix/node_modules/.bun/playwright-core@1.55.0/node_modules/playwright-core/lib/outofprocess.js' implicitly has an 'any' type.
+  If the 'playwright-core' package actually exposes this module, try adding a new declaration (.d.ts) file containing `declare module 'playwright-core/lib/outofprocess';`
+apps/computer/src/browser/playwright-driver.ts(40,15): error TS2339: Property 'once' does not exist on type 'ChildProcess'.
+apps/computer/src/browser/playwright-driver.ts(41,15): error TS2339: Property 'once' does not exist on type 'ChildProcess'.
+apps/computer/src/browser/playwright-driver.ts(42,15): error TS2339: Property 'once' does not exist on type 'ChildProcess'.
+apps/computer/src/browser/run-code.ts(606,11): error TS2339: Property 'on' does not exist on type 'ChildProcess'.
+apps/computer/src/browser/run-code.ts(606,23): error TS7006: Parameter 'error' implicitly has an 'any' type.
+apps/computer/src/browser/run-code.ts(627,11): error TS2339: Property 'on' does not exist on type 'ChildProcess'.
+apps/computer/src/browser/run-code.ts(627,23): error TS7006: Parameter 'code' implicitly has an 'any' type.
+apps/computer/src/builtin-fetch.ts(494,11): error TS2339: Property 'once' does not exist on type 'ChildProcessWithoutNullStreams'.
+apps/computer/src/builtin-fetch.ts(501,11): error TS2339: Property 'once' does not exist on type 'ChildProcessWithoutNullStreams'.
+apps/computer/src/builtin-fetch.ts(501,26): error TS7006: Parameter 'code' implicitly has an 'any' type.
+apps/computer/src/native-tool-executor.ts(234,11): error TS2339: Property 'once' does not exist on type 'ChildProcess'.
+apps/computer/src/native-tool-executor.ts(302,11): error TS2339: Property 'once' does not exist on type 'ChildProcess'.
+apps/computer/src/native-tool-executor.ts(326,13): error TS2339: Property 'once' does not exist on type 'ChildProcess'.
+apps/computer/src/native-tool-executor.ts(326,28): error TS7006: Parameter 'error' implicitly has an 'any' type.
+apps/computer/src/native-tool-executor.ts(334,13): error TS2339: Property 'once' does not exist on type 'ChildProcess'.
+apps/computer/src/native-tool-executor.ts(334,28): error TS7006: Parameter 'code' implicitly has an 'any' type.
+apps/computer/src/native-tool-executor.ts(334,34): error TS7006: Parameter 'closeSignal' implicitly has an 'any' type.
+apps/computer/src/native-tool-executor.ts(724,13): error TS2339: Property 'once' does not exist on type 'ChildProcess'.
+apps/computer/src/native-tool-executor.ts(725,13): error TS2339: Property 'once' does not exist on type 'ChildProcess'.
+apps/computer/src/native-tool-executor.ts(725,27): error TS7006: Parameter 'code' implicitly has an 'any' type.
+apps/computer/src/native-tool-executor.ts(745,13): error TS2339: Property 'once' does not exist on type 'ChildProcessWithoutNullStreams'.
+apps/computer/src/native-tool-executor.ts(746,13): error TS2339: Property 'once' does not exist on type 'ChildProcessWithoutNullStreams'.
+apps/computer/src/native-tool-executor.ts(746,28): error TS7006: Parameter 'code' implicitly has an 'any' type.
+apps/computer/src/runtime/plugin-components.ts(64,11): error TS2339: Property 'on' does not exist on type 'ChildProcessWithoutNullStreams'.
+apps/computer/src/runtime/plugin-components.ts(65,11): error TS2339: Property 'on' does not exist on type 'ChildProcessWithoutNullStreams'.
+apps/computer/src/runtime/plugin-components.ts(65,24): error TS7006: Parameter 'code' implicitly has an 'any' type.
+apps/computer/src/screen-broker.ts(275,15): error TS2339: Property 'once' does not exist on type 'ChildProcess'.
+apps/computer/src/screen-broker.ts(786,13): error TS2339: Property 'once' does not exist on type 'ChildProcess'.
+apps/computer/src/screen-broker.ts(826,11): error TS2339: Property 'once' does not exist on type 'ChildProcess'.
+apps/computer/src/screen-broker.ts(826,26): error TS7006: Parameter 'error' implicitly has an 'any' type.
+apps/computer/src/screen-broker.ts(832,11): error TS2339: Property 'once' does not exist on type 'ChildProcess'.
+apps/computer/src/screen/clipboard.ts(29,11): error TS2339: Property 'once' does not exist on type 'ChildProcessByStdio<Writable, null, null>'.
+apps/computer/src/screen/clipboard.ts(29,25): error TS7006: Parameter 'value' implicitly has an 'any' type.
+apps/computer/src/screen/frame-stream.ts(142,9): error TS2339: Property 'once' does not exist on type 'ChildProcessByStdio<null, Readable, null>'.
+apps/computer/src/screen/frame-stream.ts(143,9): error TS2339: Property 'once' does not exist on type 'ChildProcessByStdio<null, Readable, null>'.
+apps/computer/src/screen/processes.ts(47,11): error TS2339: Property 'once' does not exist on type 'ChildProcessByStdio<null, Readable, Readable>'.
+apps/computer/src/screen/processes.ts(49,11): error TS2339: Property 'once' does not exist on type 'ChildProcessByStdio<null, Readable, Readable>'.
+apps/computer/src/screen/processes.ts(49,26): error TS7006: Parameter 'code' implicitly has an 'any' type.
+apps/computer/src/screen/processes.ts(112,60): error TS2339: Property 'removeListener' does not exist on type 'ChildProcess'.
+apps/computer/src/screen/processes.ts(122,15): error TS2339: Property 'once' does not exist on type 'ChildProcess'.
+apps/computer/src/screen/typing.ts(24,13): error TS2339: Property 'once' does not exist on type 'ChildProcessByStdio<Writable, null, null>'.
+apps/computer/src/screen/typing.ts(24,27): error TS7006: Parameter 'e' implicitly has an 'any' type.
+apps/computer/src/screen/typing.ts(42,16): error TS2339: Property 'on' does not exist on type 'ChildProcessByStdio<Writable, null, null>'.
+packages/messaging/test/read-transcript-screenshot.integration.test.ts(44,78): error TS2322: Type '{ content: unknown[]; details: { path: string; }; }' is not assignable to type 'InputJsonValue | null | undefined'.
+  Type '{ content: unknown[]; details: { path: string; }; }' is not assignable to type 'InputJsonObject'.
+    Property 'content' is incompatible with index signature.
+      Type 'unknown[]' is not assignable to type 'InputJsonValue | null | undefined'.
+        Type 'unknown[]' is not assignable to type 'InputJsonObject'.
+          Index signature for type 'string' is missing in type 'unknown[]'.

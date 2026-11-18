@@ -1,0 +1,193 @@
+{
+  "valid": {
+    "manifest": {
+      "format": "outcomego-backup/v1",
+      "product": "OutcomeGo",
+      "schema": "outcomego-v1",
+      "schemaVersion": 1,
+      "dataSha256": "919052b590d7d6a1ad18e20527d28b03be7779aa7eb3f0f8306da993e726c15f",
+      "rowCounts": {
+        "outcomego_bot": 1,
+        "outcomego_channel": 1
+      }
+    },
+    "tables": {
+      "outcomego_bot": [
+        {
+          "id": "bot-1",
+          "name": "Synthetic OutcomeGo"
+        }
+      ],
+      "outcomego_channel": [
+        {
+          "id": "channel-1",
+          "botId": "bot-1"
+        }
+      ]
+    }
+  },
+  "wrongHash": {
+    "manifest": {
+      "format": "outcomego-backup/v1",
+      "product": "OutcomeGo",
+      "schema": "outcomego-v1",
+      "schemaVersion": 1,
+      "dataSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "rowCounts": {
+        "outcomego_bot": 1,
+        "outcomego_channel": 1
+      }
+    },
+    "tables": {
+      "outcomego_bot": [
+        {
+          "id": "bot-1",
+          "name": "Synthetic OutcomeGo"
+        }
+      ],
+      "outcomego_channel": [
+        {
+          "id": "channel-1",
+          "botId": "bot-1"
+        }
+      ]
+    }
+  },
+  "legacy": {
+    "manifest": {
+      "format": "legacy-backup/v1",
+      "product": "OutcomeGo",
+      "schema": "outcomego-v1",
+      "schemaVersion": 1,
+      "dataSha256": "919052b590d7d6a1ad18e20527d28b03be7779aa7eb3f0f8306da993e726c15f",
+      "rowCounts": {
+        "outcomego_bot": 1,
+        "outcomego_channel": 1
+      }
+    },
+    "tables": {
+      "outcomego_bot": [
+        {
+          "id": "bot-1",
+          "name": "Synthetic OutcomeGo"
+        }
+      ],
+      "outcomego_channel": [
+        {
+          "id": "channel-1",
+          "botId": "bot-1"
+        }
+      ]
+    }
+  },
+  "wrongRowCount": {
+    "manifest": {
+      "format": "outcomego-backup/v1",
+      "product": "OutcomeGo",
+      "schema": "outcomego-v1",
+      "schemaVersion": 1,
+      "dataSha256": "919052b590d7d6a1ad18e20527d28b03be7779aa7eb3f0f8306da993e726c15f",
+      "rowCounts": {
+        "outcomego_bot": 2,
+        "outcomego_channel": 1
+      }
+    },
+    "tables": {
+      "outcomego_bot": [
+        {
+          "id": "bot-1",
+          "name": "Synthetic OutcomeGo"
+        }
+      ],
+      "outcomego_channel": [
+        {
+          "id": "channel-1",
+          "botId": "bot-1"
+        }
+      ]
+    }
+  },
+  "brokenReference": {
+    "manifest": {
+      "format": "outcomego-backup/v1",
+      "product": "OutcomeGo",
+      "schema": "outcomego-v1",
+      "schemaVersion": 1,
+      "dataSha256": "833015f6f34cf1ed91091e9d849a57aa9d8e7fd572b356d74194341eb2514e3b",
+      "rowCounts": {
+        "outcomego_bot": 0,
+        "outcomego_channel": 1
+      }
+    },
+    "tables": {
+      "outcomego_bot": [],
+      "outcomego_channel": [
+        {
+          "id": "channel-1",
+          "botId": "missing"
+        }
+      ]
+    }
+  },
+  "missingReferenceTable": {
+    "manifest": {
+      "format": "outcomego-backup/v1",
+      "product": "OutcomeGo",
+      "schema": "outcomego-v1",
+      "schemaVersion": 1,
+      "dataSha256": "e7ded4b5489ed8a7c2b0c02986e48500ef53434423a3538f6ddb55cf5971a924",
+      "rowCounts": {
+        "outcomego_channel": 1
+      }
+    },
+    "tables": {
+      "outcomego_channel": [
+        {
+          "id": "channel-1",
+          "botId": "missing"
+        }
+      ]
+    }
+  },
+  "unknownTable": {
+    "manifest": {
+      "format": "outcomego-backup/v1",
+      "product": "OutcomeGo",
+      "schema": "outcomego-v1",
+      "schemaVersion": 1,
+      "dataSha256": "759e9647d4c97ae9cedd8b502a2b752d28c41bfe148dadea5df6d2a86deb2776",
+      "rowCounts": {
+        "outcomego_nonexistent_table": 1
+      }
+    },
+    "tables": {
+      "outcomego_nonexistent_table": [
+        {
+          "id": "synthetic"
+        }
+      ]
+    }
+  },
+  "outcomeOrphan": {
+    "manifest": {
+      "format": "outcomego-backup/v1",
+      "product": "OutcomeGo",
+      "schema": "outcomego-v1",
+      "schemaVersion": 1,
+      "dataSha256": "558d2da377c6ff1035ed34e5d3a717aca50b2c2904de4c5148e19332129e16ec",
+      "rowCounts": {
+        "outcomego_outcome": 0,
+        "outcomego_outcome_work_item": 1
+      }
+    },
+    "tables": {
+      "outcomego_outcome": [],
+      "outcomego_outcome_work_item": [
+        {
+          "id": "work-1",
+          "outcomeId": "missing"
+        }
+      ]
+    }
+  }
+}

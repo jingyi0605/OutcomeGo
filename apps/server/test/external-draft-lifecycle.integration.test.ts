@@ -6,8 +6,9 @@ import { createPrismaClient } from '@outcomego/db';
 import { AgentDataStore, AgentMessaging, lockAgentLifecycle } from '@outcomego/messaging';
 import { Effect } from 'effect';
 import { ExternalDraftService } from '../src/services/external-draft-service';
+import { createReviewedEmailPlugin } from './plugin/fixtures/reviewed-email-plugin';
 
-const databaseUrl = process.env.OPENTEAM_TEST_DATABASE_URL;
+const databaseUrl = (process.env.OUTCOMEGO_TEST_DATABASE_URL ?? process.env.OPENTEAM_TEST_DATABASE_URL);
 const databaseTest = test.skipIf(!databaseUrl);
 /** A Bot chat plus a connector account that declares reviewed sending. */
 async function fixture(name: string) {
@@ -16,7 +17,7 @@ async function fixture(name: string) {
  const pluginKey = `mail-${crypto.randomUUID().slice(0, 8)}`;
  const data = new AgentDataStore(prisma, { root: join(root, 'data'), workspaceRoot: root });
  const messaging = new AgentMessaging(prisma, { send: async () => crypto.randomUUID(), sendDebounced: async () => crypto.randomUUID() } as never, data);
- const installation = await prisma.pluginInstallation.create({ data: { pluginKey, version: '1.0.0', name: 'Mail', publisher: 'Test', manifest: { key: pluginKey, name: 'Mail', skills: [], connections: [{ key: 'email', transport: 'stdio', drafts: { platform: 'email', tool: 'send_reviewed_email' } }] } } });
+ const installation = await prisma.pluginInstallation.create({ data: { pluginKey, version: '1.0.0', name: 'Mail', publisher: 'Test', manifest: JSON.parse(JSON.stringify(createReviewedEmailPlugin(pluginKey))) } });
  const connection = await prisma.pluginConnection.create({ data: { installationId: installation.id, connectorKey: 'email', name: 'Mail', transport: 'stdio', authType: 'none', status: 'ready' } });
  await prisma.bot.create({ data: { id: botId, name: `${name} fixture`, defaultDirectory: root, status: 'active', onboardingStatus: 'completed', conversation: { create: { id: conversationId } }, contextSessions: { create: { id: contextId, scope: 'home', scopeId: conversationId } } } });
  await prisma.channel.create({ data: { id: channelId, kind: 'bot_dm', directKey: `bot:${botId}`, name: `${name} fixture`, members: { create: { botId, ordinal: 0 } } } });
@@ -125,7 +126,8 @@ databaseTest('settlement-first holds retirement until its wake is in the cancell
  for (const variant of ['control', 'treatment'] as const) {
   const f = await fixture(`settlement-first-${variant}`), retirementDb = createPrismaClient(databaseUrl!);
   const entered = deferred(), release = deferred();
-  const service = new ExternalDraftService(f.prisma, f.messaging, { invoke: async () => ({ identity: 'me@example.com' }) } as never,
+  const service = new ExternalDraftService(f.prisma, f.messaging, { invoke: async (input: any) =>
+   input.arguments.action === 'verify' ? { identity: 'me@example.com' } : { id: 'synthetic-confirmed' } } as never,
    { treatmentPercent: variant === 'treatment' ? '100' : '0' });
   const transaction = f.prisma.$transaction.bind(f.prisma);
   let armed = false, committed = false, cancelling: Promise<any> | undefined, retiring: Promise<any> | undefined;
@@ -143,14 +145,14 @@ databaseTest('settlement-first holds retirement until its wake is in the cancell
     return work(tx);
    }, options)) as typeof f.prisma.$transaction;
    armed = true;
-   cancelling = Effect.runPromise(service.mutate(card.message_id, { action: 'cancel' })).then(value => ({ value }), error => ({ error }));
+   cancelling = Effect.runPromise(service.mutate(card.message_id, { action: 'send' })).then(value => ({ value }), error => ({ error }));
    await entered.promise;
    retiring = retire(retirementDb, f.botId, f.context('').channelId).then(() => { committed = true; });
    const waiting = await retirementWaitsForLifecycle(retirementDb, f.botId, () => committed);
    release.resolve(); const response = await cancelling; await retiring;
    expect(waiting).toBe(true);
    expect(response.error).toBeUndefined();
-   expect(await f.card(card.message_id)).toMatchObject({ cardState: 'dismissed', outcomeId: expect.any(String) });
+   expect(await f.card(card.message_id)).toMatchObject({ cardState: 'sent', outcomeId: expect.any(String) });
    expect(await f.prisma.run.count({ where: { botId: f.botId, status: { in: ['queued', 'running'] } } })).toBe(0);
    expect(await f.prisma.inboxEvent.count({ where: { botId: f.botId, status: 'pending' } })).toBe(0);
    const outcome = await f.prisma.inboxEvent.findFirstOrThrow({ where: { botId: f.botId, type: 'draft.response' } });

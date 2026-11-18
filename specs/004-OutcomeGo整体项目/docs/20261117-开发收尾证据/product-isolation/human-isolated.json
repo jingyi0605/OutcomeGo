@@ -1,0 +1,4618 @@
+{
+  "scenario": "human",
+  "status": "PASS",
+  "execution": "local-real-services-controlled-inference-and-computer-events",
+  "realBotReplay": "PENDING",
+  "nativeUIReplay": "PENDING",
+  "fixture": "human-task-fixture",
+  "runKey": "product-replay:4d5553fd-eb3b-4c31-8f18-8d0233c75f1d",
+  "checks": [
+    {
+      "name": "planning_same_key_returns_same_draft",
+      "passed": true
+    },
+    {
+      "name": "create_same_key_returns_same_outcome",
+      "passed": true
+    },
+    {
+      "name": "approval_replay_preserves_approved_snapshot",
+      "passed": true
+    },
+    {
+      "name": "run_replay_has_same_work_item_and_root",
+      "passed": true
+    },
+    {
+      "name": "run_replay_does_not_create_second_run",
+      "passed": true
+    },
+    {
+      "name": "actual_worker_claims_enqueued_outcome_root",
+      "passed": true
+    },
+    {
+      "name": "actual_context_is_scoped_to_work_item",
+      "passed": true
+    },
+    {
+      "name": "main_message_claims_independently",
+      "passed": true
+    },
+    {
+      "name": "main_message_does_not_interrupt_outcome",
+      "passed": true
+    },
+    {
+      "name": "knowledge_reads_actual_mounted_bytes",
+      "passed": true
+    },
+    {
+      "name": "human_tool_replay_returns_same_card",
+      "passed": true
+    },
+    {
+      "name": "human_tool_ends_turn",
+      "passed": true
+    },
+    {
+      "name": "settlement_preserves_waiting_human",
+      "passed": true
+    },
+    {
+      "name": "paused_draft_survives_reopen",
+      "passed": true
+    },
+    {
+      "name": "missing_material_is_explicit_not_success",
+      "passed": true
+    },
+    {
+      "name": "missing_human_material_rejects_pass",
+      "passed": true
+    },
+    {
+      "name": "rejection_preserves_receipt",
+      "passed": true
+    },
+    {
+      "name": "receipt_retry_is_exact",
+      "passed": true
+    },
+    {
+      "name": "human_review_retry_is_exact",
+      "passed": true
+    },
+    {
+      "name": "review_accepts_human_only_before_agent_finishes",
+      "passed": true
+    },
+    {
+      "name": "human_review_enqueues_once",
+      "passed": true
+    },
+    {
+      "name": "continuation_uses_actual_same_context_and_root",
+      "passed": true
+    },
+    {
+      "name": "output_evidence_consumer_is_idempotent",
+      "passed": true
+    },
+    {
+      "name": "settlement_records_real_output_and_review_pending",
+      "passed": true
+    },
+    {
+      "name": "output_created_agent_report_candidates",
+      "passed": true
+    },
+    {
+      "name": "final_review_retry_returns_exact_response",
+      "passed": true
+    },
+    {
+      "name": "same_outcome_has_output_evidence_review_and_acceptance",
+      "passed": true
+    },
+    {
+      "name": "outcome_does_not_mutate_main_run_or_lease",
+      "passed": true
+    },
+    {
+      "name": "outcome_never_publishes_main_visible_messages",
+      "passed": true
+    },
+    {
+      "name": "run_lineage_never_changes_revision_or_work_item",
+      "passed": true
+    },
+    {
+      "name": "all_output_ids_bind_real_outcome_item_and_run",
+      "passed": true
+    },
+    {
+      "name": "all_evidence_and_reviews_bind_actual_approved_criteria",
+      "passed": true
+    }
+  ],
+  "requests": [
+    {
+      "operation": "controlled-inference",
+      "input": {
+        "kind": "planning"
+      },
+      "result": {
+        "adapter": "fixture",
+        "network": false
+      }
+    },
+    {
+      "operation": "planning.create",
+      "input": {
+        "sourceText": "虚构海棠实验室现场网络核对",
+        "context": {
+          "botId": "c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb"
+        },
+        "clientRequestId": "product-replay:4d5553fd-eb3b-4c31-8f18-8d0233c75f1d:plan"
+      },
+      "result": {
+        "goal": {
+          "options": [
+            {
+              "id": "goal-1",
+              "text": "虚构海棠实验室现场网络核对"
+            }
+          ],
+          "customEntries": [],
+          "selectedOptionIds": []
+        },
+        "conflicts": [],
+        "acceptance": {
+          "options": [
+            {
+              "id": "acceptance-1",
+              "text": "提交现场网络实测日志",
+              "required": true
+            }
+          ],
+          "customEntries": [],
+          "selectedOptionIds": []
+        },
+        "boundaries": {
+          "options": [
+            {
+              "id": "boundaries-1",
+              "kind": "excluded",
+              "text": "Production systems and real customer data"
+            }
+          ],
+          "customEntries": [],
+          "selectedOptionIds": []
+        },
+        "planId": "86617247-9b19-444b-9d9a-1782af6bd6da",
+        "sourceText": "虚构海棠实验室现场网络核对",
+        "botId": "c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb",
+        "status": "ready",
+        "generatedAt": "2026-11-17T12:50:27.878Z",
+        "expiresAt": "2026-11-18T12:50:27.876Z"
+      }
+    },
+    {
+      "operation": "outcomes.createFromDraft",
+      "input": {
+        "planId": "86617247-9b19-444b-9d9a-1782af6bd6da",
+        "clientRequestId": "product-replay:4d5553fd-eb3b-4c31-8f18-8d0233c75f1d:create",
+        "title": "虚构海棠实验室现场网络核对",
+        "goal": {
+          "selectedOptionIds": [
+            "goal-1"
+          ],
+          "customEntries": []
+        },
+        "acceptance": {
+          "selectedOptionIds": [
+            "acceptance-1"
+          ],
+          "customEntries": []
+        },
+        "boundaries": {
+          "selectedOptionIds": [
+            "boundaries-1"
+          ],
+          "customEntries": []
+        }
+      },
+      "result": {
+        "id": "6e536ee3-f26d-43bd-b771-695fd61c969f",
+        "sourceExploreId": null,
+        "title": "虚构海棠实验室现场网络核对",
+        "status": "pending_approval",
+        "botId": "c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb",
+        "currentRevision": 1,
+        "updatedAt": "2026-11-17T12:50:27.908Z",
+        "description": "虚构海棠实验室现场网络核对",
+        "resumeStatus": null,
+        "createdAt": "2026-11-17T12:50:27.895Z",
+        "acceptedAt": null,
+        "currentRevisionView": {
+          "id": "286c6de9-11b7-424a-be4a-49506931cd0f",
+          "revision": 1,
+          "status": "pending_approval",
+          "goal": [
+            "虚构海棠实验室现场网络核对"
+          ],
+          "boundaries": {
+            "included": [],
+            "excluded": [
+              "Production systems and real customer data"
+            ]
+          },
+          "budget": null,
+          "executionBotId": "c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb",
+          "changeSummary": null,
+          "baseRevisionId": null,
+          "sourceDecisionId": null,
+          "createdBy": "owner:local",
+          "approvedBy": null,
+          "approvedAt": null,
+          "conflicts": [],
+          "criteria": [
+            {
+              "id": "da712531-0f61-4fcd-a25b-cf059eb92503",
+              "ordinal": 1,
+              "statement": "提交现场网络实测日志",
+              "required": true,
+              "verificationMethod": "human_review",
+              "latestResult": null
+            }
+          ],
+          "createdAt": "2026-11-17T12:50:27.900Z"
+        },
+        "revisions": [
+          {
+            "id": "286c6de9-11b7-424a-be4a-49506931cd0f",
+            "revision": 1,
+            "status": "pending_approval",
+            "changeSummary": null,
+            "baseRevisionId": null,
+            "sourceDecisionId": null,
+            "createdBy": "owner:local",
+            "createdAt": "2026-11-17T12:50:27.900Z"
+          }
+        ],
+        "workItems": [],
+        "outputs": [],
+        "evidence": [],
+        "reviews": []
+      }
+    },
+    {
+      "operation": "outcomes.approve",
+      "input": {
+        "expectedRevision": 1,
+        "confirmationText": "Owner confirms this fictional local Contract",
+        "clientRequestId": "product-replay:4d5553fd-eb3b-4c31-8f18-8d0233c75f1d:approve"
+      },
+      "result": {
+        "id": "6e536ee3-f26d-43bd-b771-695fd61c969f",
+        "sourceExploreId": null,
+        "title": "虚构海棠实验室现场网络核对",
+        "status": "approved",
+        "botId": "c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb",
+        "currentRevision": 1,
+        "updatedAt": "2026-11-17T12:50:27.931Z",
+        "description": "虚构海棠实验室现场网络核对",
+        "resumeStatus": null,
+        "createdAt": "2026-11-17T12:50:27.895Z",
+        "acceptedAt": null,
+        "currentRevisionView": {
+          "id": "286c6de9-11b7-424a-be4a-49506931cd0f",
+          "revision": 1,
+          "status": "approved",
+          "goal": [
+            "虚构海棠实验室现场网络核对"
+          ],
+          "boundaries": {
+            "included": [],
+            "excluded": [
+              "Production systems and real customer data"
+            ]
+          },
+          "budget": null,
+          "executionBotId": "c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb",
+          "changeSummary": null,
+          "baseRevisionId": null,
+          "sourceDecisionId": null,
+          "createdBy": "owner:local",
+          "approvedBy": "owner:local",
+          "approvedAt": "2026-11-17T12:50:27.925Z",
+          "conflicts": [],
+          "criteria": [
+            {
+              "id": "da712531-0f61-4fcd-a25b-cf059eb92503",
+              "ordinal": 1,
+              "statement": "提交现场网络实测日志",
+              "required": true,
+              "verificationMethod": "human_review",
+              "latestResult": null
+            }
+          ],
+          "createdAt": "2026-11-17T12:50:27.900Z"
+        },
+        "revisions": [
+          {
+            "id": "286c6de9-11b7-424a-be4a-49506931cd0f",
+            "revision": 1,
+            "status": "approved",
+            "changeSummary": null,
+            "baseRevisionId": null,
+            "sourceDecisionId": null,
+            "createdBy": "owner:local",
+            "createdAt": "2026-11-17T12:50:27.900Z"
+          }
+        ],
+        "workItems": [],
+        "outputs": [],
+        "evidence": [],
+        "reviews": []
+      }
+    },
+    {
+      "operation": "outcomes.startRun",
+      "input": {
+        "expectedRevision": 1,
+        "clientRequestId": "product-replay:4d5553fd-eb3b-4c31-8f18-8d0233c75f1d:start"
+      },
+      "result": {
+        "id": "6e536ee3-f26d-43bd-b771-695fd61c969f",
+        "sourceExploreId": null,
+        "title": "虚构海棠实验室现场网络核对",
+        "status": "running",
+        "botId": "c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb",
+        "currentRevision": 1,
+        "updatedAt": "2026-11-17T12:50:27.975Z",
+        "description": "虚构海棠实验室现场网络核对",
+        "resumeStatus": null,
+        "createdAt": "2026-11-17T12:50:27.895Z",
+        "acceptedAt": null,
+        "currentRevisionView": {
+          "id": "286c6de9-11b7-424a-be4a-49506931cd0f",
+          "revision": 1,
+          "status": "approved",
+          "goal": [
+            "虚构海棠实验室现场网络核对"
+          ],
+          "boundaries": {
+            "included": [],
+            "excluded": [
+              "Production systems and real customer data"
+            ]
+          },
+          "budget": null,
+          "executionBotId": "c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb",
+          "changeSummary": null,
+          "baseRevisionId": null,
+          "sourceDecisionId": null,
+          "createdBy": "owner:local",
+          "approvedBy": "owner:local",
+          "approvedAt": "2026-11-17T12:50:27.925Z",
+          "conflicts": [],
+          "criteria": [
+            {
+              "id": "da712531-0f61-4fcd-a25b-cf059eb92503",
+              "ordinal": 1,
+              "statement": "提交现场网络实测日志",
+              "required": true,
+              "verificationMethod": "human_review",
+              "latestResult": null
+            }
+          ],
+          "createdAt": "2026-11-17T12:50:27.900Z"
+        },
+        "revisions": [
+          {
+            "id": "286c6de9-11b7-424a-be4a-49506931cd0f",
+            "revision": 1,
+            "status": "approved",
+            "changeSummary": null,
+            "baseRevisionId": null,
+            "sourceDecisionId": null,
+            "createdBy": "owner:local",
+            "createdAt": "2026-11-17T12:50:27.900Z"
+          }
+        ],
+        "workItems": [
+          {
+            "id": "37c74862-f8b9-40be-9ba3-89d287581c12",
+            "contractRevision": 1,
+            "executorType": "agent",
+            "kind": "initial",
+            "title": "虚构海棠实验室现场网络核对",
+            "status": "queued",
+            "statusReason": null,
+            "ordinal": 1,
+            "dependsOn": [],
+            "rootRunId": "3f362f58-c38e-4165-8339-18934a5ac451",
+            "runIds": [
+              "3f362f58-c38e-4165-8339-18934a5ac451"
+            ],
+            "reworkOfWorkItemId": null,
+            "createdAt": "2026-11-17T12:50:27.945Z",
+            "updatedAt": "2026-11-17T12:50:27.971Z"
+          }
+        ],
+        "outputs": [],
+        "evidence": [],
+        "reviews": []
+      }
+    },
+    {
+      "operation": "worker.claim",
+      "input": {
+        "botId": "c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb"
+      },
+      "result": {
+        "runChannelId": "41ae5ab2-0804-467a-b8b2-5e905f59cc32",
+        "inboxId": "d1530680-d73d-4c5f-9398-42e4817b6206",
+        "inboxType": "outcome.work_item",
+        "runId": "3f362f58-c38e-4165-8339-18934a5ac451",
+        "botId": "c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb",
+        "contextSessionId": "526ad134-7612-4a09-a645-c0d95686a0fd",
+        "screenBotId": "c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb",
+        "pluginBotId": "c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb",
+        "conversationId": "cf516241-be8b-4903-8f98-ed0e8048758d",
+        "ownerId": "c5289879-a83f-4830-b0d7-6fdec94d54fe",
+        "content": "<timestamp>Tuesday, Nov 17, 2026, 12:50 PM (UTC+0)</timestamp>\n<user_query>\nExecute the approved Outcome contract. Return a complete final result and write deliverable files to the assigned Outcome output directory.\n</user_query>",
+        "interruptedRunId": null,
+        "images": [],
+        "clientId": "outcome-run:6e536ee3-f26d-43bd-b771-695fd61c969f:1:37c74862-f8b9-40be-9ba3-89d287581c12",
+        "cwd": "/var/folders/q5/5jq71t9d131d8p_8l01rth400000gn/T/outcomego-product-replay-5S8zec",
+        "instructions": "",
+        "sessionPath": null,
+        "channelId": "41ae5ab2-0804-467a-b8b2-5e905f59cc32",
+        "deliveryId": null,
+        "origin": "outcome",
+        "outcomeWorkItemId": "37c74862-f8b9-40be-9ba3-89d287581c12",
+        "runtimeProfile": "agent",
+        "subagentType": null,
+        "readOnly": false,
+        "inferenceParentRunId": null,
+        "taskConfiguration": null,
+        "attachmentOwnerBotId": "c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb",
+        "fileAttachments": []
+      }
+    },
+    {
+      "operation": "messaging.acceptDirectUserMessage",
+      "input": {
+        "botId": "c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb",
+        "channelId": "41ae5ab2-0804-467a-b8b2-5e905f59cc32",
+        "content": "今天天气怎么样？",
+        "clientId": "product-replay:4d5553fd-eb3b-4c31-8f18-8d0233c75f1d:main-chat"
+      },
+      "result": {
+        "runId": "4bb5b535-e18b-434c-8fde-81b0b16dde06",
+        "interruptRunId": null,
+        "claim": {
+          "runChannelId": "41ae5ab2-0804-467a-b8b2-5e905f59cc32",
+          "inboxId": "576bd55f-8a65-430e-b36d-1691adf9ba28",
+          "inboxType": "user.message",
+          "runId": "4bb5b535-e18b-434c-8fde-81b0b16dde06",
+          "botId": "c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb",
+          "contextSessionId": "7c936540-b974-41c9-bb2f-dd9c69b48037",
+          "screenBotId": "c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb",
+          "pluginBotId": "c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb",
+          "conversationId": "cf516241-be8b-4903-8f98-ed0e8048758d",
+          "ownerId": "f85b8f67-8dca-4309-bbdd-f49446bc86a2",
+          "content": "<timestamp>Tuesday, Nov 17, 2026, 12:50 PM (UTC+0)</timestamp>\n<user_query>\n今天天气怎么样？\n</user_query>",
+          "interruptedRunId": null,
+          "images": [],
+          "clientId": "product-replay:4d5553fd-eb3b-4c31-8f18-8d0233c75f1d:main-chat",
+          "cwd": "/var/folders/q5/5jq71t9d131d8p_8l01rth400000gn/T/outcomego-product-replay-5S8zec",
+          "instructions": "",
+          "sessionPath": null,
+          "channelId": "41ae5ab2-0804-467a-b8b2-5e905f59cc32",
+          "deliveryId": null,
+          "origin": "user",
+          "outcomeWorkItemId": null,
+          "runtimeProfile": "agent",
+          "subagentType": null,
+          "readOnly": false,
+          "inferenceParentRunId": null,
+          "taskConfiguration": null,
+          "attachmentOwnerBotId": "c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb",
+          "fileAttachments": []
+        }
+      }
+    },
+    {
+      "operation": "knowledge.search/read",
+      "input": {
+        "outcomeId": "6e536ee3-f26d-43bd-b771-695fd61c969f",
+        "text": "network-checklist",
+        "referenceId": "agent-file:/var/folders/q5/5jq71t9d131d8p_8l01rth400000gn/T/outcomego-product-replay-5S8zec/agent-data/agents/c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb/network-checklist.txt"
+      },
+      "result": {
+        "reference": {
+          "id": "agent-file:/var/folders/q5/5jq71t9d131d8p_8l01rth400000gn/T/outcomego-product-replay-5S8zec/agent-data/agents/c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb/network-checklist.txt",
+          "title": "network-checklist.txt",
+          "sourceType": "file",
+          "sourceRef": "agent-file:/var/folders/q5/5jq71t9d131d8p_8l01rth400000gn/T/outcomego-product-replay-5S8zec/agent-data/agents/c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb/network-checklist.txt",
+          "version": "0:023892408bb9e8372581f7087258e09cef0a5b36ae81233d3236917b843dabee",
+          "updatedAt": "2026-11-17T12:50:28.033Z",
+          "projectScope": "bot:c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb",
+          "digest": "023892408bb9e8372581f7087258e09cef0a5b36ae81233d3236917b843dabee",
+          "stale": false,
+          "permissionSummary": "Available within the executing Bot scope"
+        },
+        "document": {
+          "text": "由人检查 DHCP、DNS 与出口连通性，记录测试时间与结果。",
+          "digest": "023892408bb9e8372581f7087258e09cef0a5b36ae81233d3236917b843dabee"
+        }
+      }
+    },
+    {
+      "operation": "RequestHumanAction",
+      "input": {
+        "runId": "3f362f58-c38e-4165-8339-18934a5ac451",
+        "botId": "c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb",
+        "conversationId": "cf516241-be8b-4903-8f98-ed0e8048758d",
+        "channelId": "41ae5ab2-0804-467a-b8b2-5e905f59cc32",
+        "deliveryId": null,
+        "callId": "product-replay:4d5553fd-eb3b-4c31-8f18-8d0233c75f1d:request-human",
+        "tool": "RequestHumanAction",
+        "arguments": {
+          "title": "现场网络核对",
+          "purpose": "由人记录真实网络测试，不由 Agent 自动执行。",
+          "steps": [
+            "说明：确认链路；执行者：human；输入：检查清单；操作：检查 DHCP 和 DNS；完成材料：实测日志；失败处理：停止并补充情况。",
+            "说明：保留事实；执行者：human；输入：日志；操作：提交测试记录；完成材料：文本回执；失败处理：保存草稿并重试。"
+          ],
+          "evidenceRequirements": [
+            {
+              "criterionOrdinal": 1,
+              "label": "现场测试日志",
+              "kind": "text"
+            }
+          ],
+          "referenceIds": [
+            "agent-file:/var/folders/q5/5jq71t9d131d8p_8l01rth400000gn/T/outcomego-product-replay-5S8zec/agent-data/agents/c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb/network-checklist.txt"
+          ]
+        }
+      },
+      "result": {
+        "workItemId": "468e3703-8304-46f5-a2d7-e44ed99505cd",
+        "cardId": "468e3703-8304-46f5-a2d7-e44ed99505cd",
+        "status": "waiting_human",
+        "waiting_for_human": true,
+        "end_turn": true,
+        "knowledge": [
+          {
+            "referenceId": "agent-file:/var/folders/q5/5jq71t9d131d8p_8l01rth400000gn/T/outcomego-product-replay-5S8zec/agent-data/agents/c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb/network-checklist.txt",
+            "sourceRef": "agent-file:/var/folders/q5/5jq71t9d131d8p_8l01rth400000gn/T/outcomego-product-replay-5S8zec/agent-data/agents/c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb/network-checklist.txt",
+            "version": "0:023892408bb9e8372581f7087258e09cef0a5b36ae81233d3236917b843dabee",
+            "digest": "023892408bb9e8372581f7087258e09cef0a5b36ae81233d3236917b843dabee",
+            "excerpt": "由人检查 DHCP、DNS 与出口连通性，记录测试时间与结果。"
+          }
+        ],
+        "detail": {
+          "id": "468e3703-8304-46f5-a2d7-e44ed99505cd",
+          "outcomeId": "6e536ee3-f26d-43bd-b771-695fd61c969f",
+          "executorType": "human",
+          "kind": "human_action",
+          "status": "ready",
+          "title": "现场网络核对",
+          "contractRevision": 1,
+          "humanActionCardId": "468e3703-8304-46f5-a2d7-e44ed99505cd",
+          "evidenceCount": 0,
+          "nextAction": "start",
+          "startedAt": null,
+          "card": {
+            "id": "468e3703-8304-46f5-a2d7-e44ed99505cd",
+            "workItemId": "468e3703-8304-46f5-a2d7-e44ed99505cd",
+            "outcomeId": "6e536ee3-f26d-43bd-b771-695fd61c969f",
+            "contractRevision": 1,
+            "title": "现场网络核对",
+            "purpose": "由人记录真实网络测试，不由 Agent 自动执行。",
+            "prerequisites": [],
+            "steps": [
+              {
+                "id": "step-1",
+                "text": "说明：确认链路；执行者：human；输入：检查清单；操作：检查 DHCP 和 DNS；完成材料：实测日志；失败处理：停止并补充情况。",
+                "ordinal": 1,
+                "optional": false
+              },
+              {
+                "id": "step-2",
+                "text": "说明：保留事实；执行者：human；输入：日志；操作：提交测试记录；完成材料：文本回执；失败处理：保存草稿并重试。",
+                "ordinal": 2,
+                "optional": false
+              }
+            ],
+            "inputFields": [],
+            "evidenceRequirements": [
+              {
+                "label": "现场测试日志",
+                "required": true,
+                "criterionId": "da712531-0f61-4fcd-a25b-cf059eb92503",
+                "acceptedTypes": [
+                  "text"
+                ]
+              }
+            ],
+            "references": [
+              {
+                "id": "agent-file:/var/folders/q5/5jq71t9d131d8p_8l01rth400000gn/T/outcomego-product-replay-5S8zec/agent-data/agents/c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb/network-checklist.txt",
+                "stale": false,
+                "title": "network-checklist.txt",
+                "digest": "023892408bb9e8372581f7087258e09cef0a5b36ae81233d3236917b843dabee",
+                "excerpt": "由人检查 DHCP、DNS 与出口连通性，记录测试时间与结果。",
+                "version": "0:023892408bb9e8372581f7087258e09cef0a5b36ae81233d3236917b843dabee",
+                "sourceRef": "agent-file:/var/folders/q5/5jq71t9d131d8p_8l01rth400000gn/T/outcomego-product-replay-5S8zec/agent-data/agents/c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb/network-checklist.txt",
+                "updatedAt": "2026-11-17T12:50:28.033Z",
+                "sourceType": "file",
+                "projectScope": "bot:c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb",
+                "permissionSummary": "Available within the executing Bot scope"
+              }
+            ],
+            "status": "ready",
+            "draft": null,
+            "startedBy": null,
+            "startedAt": null,
+            "submittedAt": null,
+            "acceptedAt": null
+          },
+          "receipts": []
+        }
+      }
+    },
+    {
+      "operation": "controlled-computer-completion",
+      "input": {
+        "runId": "3f362f58-c38e-4165-8339-18934a5ac451",
+        "adapter": "Projection.apply"
+      },
+      "result": {
+        "run": {
+          "id": "3f362f58-c38e-4165-8339-18934a5ac451",
+          "status": "completed"
+        },
+        "workItems": [
+          {
+            "id": "37c74862-f8b9-40be-9ba3-89d287581c12",
+            "outcomeId": "6e536ee3-f26d-43bd-b771-695fd61c969f",
+            "executorType": "agent",
+            "kind": "initial",
+            "status": "waiting_human",
+            "title": "虚构海棠实验室现场网络核对",
+            "contractRevision": 1,
+            "runId": "3f362f58-c38e-4165-8339-18934a5ac451",
+            "evidenceCount": 0,
+            "startedAt": "2026-11-17T12:50:28.006Z"
+          },
+          {
+            "id": "468e3703-8304-46f5-a2d7-e44ed99505cd",
+            "outcomeId": "6e536ee3-f26d-43bd-b771-695fd61c969f",
+            "executorType": "human",
+            "kind": "human_action",
+            "status": "ready",
+            "title": "现场网络核对",
+            "contractRevision": 1,
+            "humanActionCardId": "468e3703-8304-46f5-a2d7-e44ed99505cd",
+            "evidenceCount": 0,
+            "nextAction": "start",
+            "startedAt": null
+          }
+        ]
+      }
+    },
+    {
+      "operation": "human.start",
+      "input": {
+        "expectedContractRevision": 1,
+        "clientRequestId": "product-replay:4d5553fd-eb3b-4c31-8f18-8d0233c75f1d:human-start"
+      },
+      "result": {
+        "id": "468e3703-8304-46f5-a2d7-e44ed99505cd",
+        "outcomeId": "6e536ee3-f26d-43bd-b771-695fd61c969f",
+        "executorType": "human",
+        "kind": "human_action",
+        "status": "in_progress",
+        "title": "现场网络核对",
+        "contractRevision": 1,
+        "humanActionCardId": "468e3703-8304-46f5-a2d7-e44ed99505cd",
+        "evidenceCount": 0,
+        "nextAction": "submit_receipt",
+        "startedAt": "2026-11-17T12:50:28.119Z",
+        "card": {
+          "id": "468e3703-8304-46f5-a2d7-e44ed99505cd",
+          "workItemId": "468e3703-8304-46f5-a2d7-e44ed99505cd",
+          "outcomeId": "6e536ee3-f26d-43bd-b771-695fd61c969f",
+          "contractRevision": 1,
+          "title": "现场网络核对",
+          "purpose": "由人记录真实网络测试，不由 Agent 自动执行。",
+          "prerequisites": [],
+          "steps": [
+            {
+              "id": "step-1",
+              "text": "说明：确认链路；执行者：human；输入：检查清单；操作：检查 DHCP 和 DNS；完成材料：实测日志；失败处理：停止并补充情况。",
+              "ordinal": 1,
+              "optional": false
+            },
+            {
+              "id": "step-2",
+              "text": "说明：保留事实；执行者：human；输入：日志；操作：提交测试记录；完成材料：文本回执；失败处理：保存草稿并重试。",
+              "ordinal": 2,
+              "optional": false
+            }
+          ],
+          "inputFields": [],
+          "evidenceRequirements": [
+            {
+              "label": "现场测试日志",
+              "required": true,
+              "criterionId": "da712531-0f61-4fcd-a25b-cf059eb92503",
+              "acceptedTypes": [
+                "text"
+              ]
+            }
+          ],
+          "references": [
+            {
+              "id": "agent-file:/var/folders/q5/5jq71t9d131d8p_8l01rth400000gn/T/outcomego-product-replay-5S8zec/agent-data/agents/c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb/network-checklist.txt",
+              "stale": false,
+              "title": "network-checklist.txt",
+              "digest": "023892408bb9e8372581f7087258e09cef0a5b36ae81233d3236917b843dabee",
+              "excerpt": "由人检查 DHCP、DNS 与出口连通性，记录测试时间与结果。",
+              "version": "0:023892408bb9e8372581f7087258e09cef0a5b36ae81233d3236917b843dabee",
+              "sourceRef": "agent-file:/var/folders/q5/5jq71t9d131d8p_8l01rth400000gn/T/outcomego-product-replay-5S8zec/agent-data/agents/c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb/network-checklist.txt",
+              "updatedAt": "2026-11-17T12:50:28.033Z",
+              "sourceType": "file",
+              "projectScope": "bot:c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb",
+              "permissionSummary": "Available within the executing Bot scope"
+            }
+          ],
+          "status": "in_progress",
+          "draft": null,
+          "startedBy": "owner:local",
+          "startedAt": "2026-11-17T12:50:28.119Z",
+          "submittedAt": null,
+          "acceptedAt": null
+        },
+        "receipts": []
+      }
+    },
+    {
+      "operation": "human.pause",
+      "input": {
+        "expectedContractRevision": 1,
+        "clientRequestId": "human-pause:fixture:1",
+        "currentStepId": "step-1",
+        "draftSummary": "已检查 DHCP，待检查 DNS",
+        "readReferenceIds": [
+          "agent-file:/var/folders/q5/5jq71t9d131d8p_8l01rth400000gn/T/outcomego-product-replay-5S8zec/agent-data/agents/c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb/network-checklist.txt"
+        ],
+        "reason": "等待现场窗口"
+      },
+      "result": {
+        "id": "468e3703-8304-46f5-a2d7-e44ed99505cd",
+        "outcomeId": "6e536ee3-f26d-43bd-b771-695fd61c969f",
+        "executorType": "human",
+        "kind": "human_action",
+        "status": "paused",
+        "title": "现场网络核对",
+        "contractRevision": 1,
+        "humanActionCardId": "468e3703-8304-46f5-a2d7-e44ed99505cd",
+        "evidenceCount": 0,
+        "nextAction": "start",
+        "startedAt": "2026-11-17T12:50:28.119Z",
+        "card": {
+          "id": "468e3703-8304-46f5-a2d7-e44ed99505cd",
+          "workItemId": "468e3703-8304-46f5-a2d7-e44ed99505cd",
+          "outcomeId": "6e536ee3-f26d-43bd-b771-695fd61c969f",
+          "contractRevision": 1,
+          "title": "现场网络核对",
+          "purpose": "由人记录真实网络测试，不由 Agent 自动执行。",
+          "prerequisites": [],
+          "steps": [
+            {
+              "id": "step-1",
+              "text": "说明：确认链路；执行者：human；输入：检查清单；操作：检查 DHCP 和 DNS；完成材料：实测日志；失败处理：停止并补充情况。",
+              "ordinal": 1,
+              "optional": false
+            },
+            {
+              "id": "step-2",
+              "text": "说明：保留事实；执行者：human；输入：日志；操作：提交测试记录；完成材料：文本回执；失败处理：保存草稿并重试。",
+              "ordinal": 2,
+              "optional": false
+            }
+          ],
+          "inputFields": [],
+          "evidenceRequirements": [
+            {
+              "label": "现场测试日志",
+              "required": true,
+              "criterionId": "da712531-0f61-4fcd-a25b-cf059eb92503",
+              "acceptedTypes": [
+                "text"
+              ]
+            }
+          ],
+          "references": [
+            {
+              "id": "agent-file:/var/folders/q5/5jq71t9d131d8p_8l01rth400000gn/T/outcomego-product-replay-5S8zec/agent-data/agents/c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb/network-checklist.txt",
+              "stale": false,
+              "title": "network-checklist.txt",
+              "digest": "023892408bb9e8372581f7087258e09cef0a5b36ae81233d3236917b843dabee",
+              "excerpt": "由人检查 DHCP、DNS 与出口连通性，记录测试时间与结果。",
+              "version": "0:023892408bb9e8372581f7087258e09cef0a5b36ae81233d3236917b843dabee",
+              "sourceRef": "agent-file:/var/folders/q5/5jq71t9d131d8p_8l01rth400000gn/T/outcomego-product-replay-5S8zec/agent-data/agents/c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb/network-checklist.txt",
+              "updatedAt": "2026-11-17T12:50:28.033Z",
+              "sourceType": "file",
+              "projectScope": "bot:c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb",
+              "permissionSummary": "Available within the executing Bot scope"
+            }
+          ],
+          "status": "paused",
+          "draft": {
+            "reason": "等待现场窗口",
+            "draftSummary": "已检查 DHCP，待检查 DNS",
+            "currentStepId": "step-1",
+            "readReferenceIds": [
+              "agent-file:/var/folders/q5/5jq71t9d131d8p_8l01rth400000gn/T/outcomego-product-replay-5S8zec/agent-data/agents/c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb/network-checklist.txt"
+            ]
+          },
+          "startedBy": "owner:local",
+          "startedAt": "2026-11-17T12:50:28.119Z",
+          "submittedAt": null,
+          "acceptedAt": null
+        },
+        "receipts": []
+      }
+    },
+    {
+      "operation": "human.start",
+      "input": {
+        "expectedContractRevision": 1,
+        "clientRequestId": "product-replay:4d5553fd-eb3b-4c31-8f18-8d0233c75f1d:human-resume"
+      },
+      "result": {
+        "id": "468e3703-8304-46f5-a2d7-e44ed99505cd",
+        "outcomeId": "6e536ee3-f26d-43bd-b771-695fd61c969f",
+        "executorType": "human",
+        "kind": "human_action",
+        "status": "in_progress",
+        "title": "现场网络核对",
+        "contractRevision": 1,
+        "humanActionCardId": "468e3703-8304-46f5-a2d7-e44ed99505cd",
+        "evidenceCount": 0,
+        "nextAction": "submit_receipt",
+        "startedAt": "2026-11-17T12:50:28.119Z",
+        "card": {
+          "id": "468e3703-8304-46f5-a2d7-e44ed99505cd",
+          "workItemId": "468e3703-8304-46f5-a2d7-e44ed99505cd",
+          "outcomeId": "6e536ee3-f26d-43bd-b771-695fd61c969f",
+          "contractRevision": 1,
+          "title": "现场网络核对",
+          "purpose": "由人记录真实网络测试，不由 Agent 自动执行。",
+          "prerequisites": [],
+          "steps": [
+            {
+              "id": "step-1",
+              "text": "说明：确认链路；执行者：human；输入：检查清单；操作：检查 DHCP 和 DNS；完成材料：实测日志；失败处理：停止并补充情况。",
+              "ordinal": 1,
+              "optional": false
+            },
+            {
+              "id": "step-2",
+              "text": "说明：保留事实；执行者：human；输入：日志；操作：提交测试记录；完成材料：文本回执；失败处理：保存草稿并重试。",
+              "ordinal": 2,
+              "optional": false
+            }
+          ],
+          "inputFields": [],
+          "evidenceRequirements": [
+            {
+              "label": "现场测试日志",
+              "required": true,
+              "criterionId": "da712531-0f61-4fcd-a25b-cf059eb92503",
+              "acceptedTypes": [
+                "text"
+              ]
+            }
+          ],
+          "references": [
+            {
+              "id": "agent-file:/var/folders/q5/5jq71t9d131d8p_8l01rth400000gn/T/outcomego-product-replay-5S8zec/agent-data/agents/c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb/network-checklist.txt",
+              "stale": false,
+              "title": "network-checklist.txt",
+              "digest": "023892408bb9e8372581f7087258e09cef0a5b36ae81233d3236917b843dabee",
+              "excerpt": "由人检查 DHCP、DNS 与出口连通性，记录测试时间与结果。",
+              "version": "0:023892408bb9e8372581f7087258e09cef0a5b36ae81233d3236917b843dabee",
+              "sourceRef": "agent-file:/var/folders/q5/5jq71t9d131d8p_8l01rth400000gn/T/outcomego-product-replay-5S8zec/agent-data/agents/c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb/network-checklist.txt",
+              "updatedAt": "2026-11-17T12:50:28.033Z",
+              "sourceType": "file",
+              "projectScope": "bot:c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb",
+              "permissionSummary": "Available within the executing Bot scope"
+            }
+          ],
+          "status": "in_progress",
+          "draft": {
+            "reason": "等待现场窗口",
+            "draftSummary": "已检查 DHCP，待检查 DNS",
+            "currentStepId": "step-1",
+            "readReferenceIds": [
+              "agent-file:/var/folders/q5/5jq71t9d131d8p_8l01rth400000gn/T/outcomego-product-replay-5S8zec/agent-data/agents/c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb/network-checklist.txt"
+            ]
+          },
+          "startedBy": "owner:local",
+          "startedAt": "2026-11-17T12:50:28.119Z",
+          "submittedAt": null,
+          "acceptedAt": null
+        },
+        "receipts": []
+      }
+    },
+    {
+      "operation": "receipts.submit.missing",
+      "input": {
+        "expectedContractRevision": 1,
+        "clientRequestId": "product-replay:4d5553fd-eb3b-4c31-8f18-8d0233c75f1d:receipt-missing"
+      },
+      "result": {
+        "id": "f0157494-cb5e-4b64-afb3-c5fe91313d53",
+        "workItemId": "468e3703-8304-46f5-a2d7-e44ed99505cd",
+        "outcomeId": "6e536ee3-f26d-43bd-b771-695fd61c969f",
+        "sequence": 1,
+        "status": "submitted",
+        "submittedBy": "owner:local",
+        "submittedAt": "2026-11-17T12:50:28.158Z",
+        "reviewComment": null,
+        "payload": {
+          "text": "",
+          "comment": "",
+          "assetRefs": [],
+          "sourceRefs": [],
+          "observations": [],
+          "clientRequestId": "product-replay:4d5553fd-eb3b-4c31-8f18-8d0233c75f1d:receipt-missing",
+          "expectedContractRevision": 1
+        },
+        "evidenceIds": [],
+        "missingRequirements": [
+          {
+            "kind": "text",
+            "label": "现场测试日志",
+            "criterionId": "da712531-0f61-4fcd-a25b-cf059eb92503"
+          }
+        ]
+      }
+    },
+    {
+      "operation": "reviews.submit.UNVERIFIED",
+      "input": {
+        "expectedRevision": 1,
+        "clientRequestId": "product-replay:4d5553fd-eb3b-4c31-8f18-8d0233c75f1d:review-unverified",
+        "results": [
+          {
+            "criterionId": "da712531-0f61-4fcd-a25b-cf059eb92503",
+            "result": "UNVERIFIED",
+            "evidenceIds": [],
+            "comment": "No observed material yet"
+          }
+        ]
+      },
+      "result": {
+        "id": "6e536ee3-f26d-43bd-b771-695fd61c969f",
+        "sourceExploreId": null,
+        "title": "虚构海棠实验室现场网络核对",
+        "status": "human_action_pending",
+        "botId": "c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb",
+        "currentRevision": 1,
+        "updatedAt": "2026-11-17T12:50:28.077Z",
+        "description": "虚构海棠实验室现场网络核对",
+        "resumeStatus": "approved",
+        "createdAt": "2026-11-17T12:50:27.895Z",
+        "acceptedAt": null,
+        "currentRevisionView": {
+          "id": "286c6de9-11b7-424a-be4a-49506931cd0f",
+          "revision": 1,
+          "status": "approved",
+          "goal": [
+            "虚构海棠实验室现场网络核对"
+          ],
+          "boundaries": {
+            "included": [],
+            "excluded": [
+              "Production systems and real customer data"
+            ]
+          },
+          "budget": null,
+          "executionBotId": "c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb",
+          "changeSummary": null,
+          "baseRevisionId": null,
+          "sourceDecisionId": null,
+          "createdBy": "owner:local",
+          "approvedBy": "owner:local",
+          "approvedAt": "2026-11-17T12:50:27.925Z",
+          "conflicts": [],
+          "criteria": [
+            {
+              "id": "da712531-0f61-4fcd-a25b-cf059eb92503",
+              "ordinal": 1,
+              "statement": "提交现场网络实测日志",
+              "required": true,
+              "verificationMethod": "human_review",
+              "latestResult": "UNVERIFIED"
+            }
+          ],
+          "createdAt": "2026-11-17T12:50:27.900Z"
+        },
+        "revisions": [
+          {
+            "id": "286c6de9-11b7-424a-be4a-49506931cd0f",
+            "revision": 1,
+            "status": "approved",
+            "changeSummary": null,
+            "baseRevisionId": null,
+            "sourceDecisionId": null,
+            "createdBy": "owner:local",
+            "createdAt": "2026-11-17T12:50:27.900Z"
+          }
+        ],
+        "workItems": [
+          {
+            "id": "37c74862-f8b9-40be-9ba3-89d287581c12",
+            "contractRevision": 1,
+            "executorType": "agent",
+            "kind": "initial",
+            "title": "虚构海棠实验室现场网络核对",
+            "status": "waiting_human",
+            "statusReason": "human_action_requested",
+            "ordinal": 1,
+            "dependsOn": [],
+            "rootRunId": "3f362f58-c38e-4165-8339-18934a5ac451",
+            "runIds": [
+              "3f362f58-c38e-4165-8339-18934a5ac451"
+            ],
+            "reworkOfWorkItemId": null,
+            "createdAt": "2026-11-17T12:50:27.945Z",
+            "updatedAt": "2026-11-17T12:50:28.075Z"
+          },
+          {
+            "id": "468e3703-8304-46f5-a2d7-e44ed99505cd",
+            "contractRevision": 1,
+            "executorType": "human",
+            "kind": "human_action",
+            "title": "现场网络核对",
+            "status": "review_pending",
+            "statusReason": "human_receipt_review_required",
+            "ordinal": 2,
+            "dependsOn": [],
+            "rootRunId": null,
+            "runIds": [],
+            "reworkOfWorkItemId": null,
+            "createdAt": "2026-11-17T12:50:28.065Z",
+            "updatedAt": "2026-11-17T12:50:28.166Z"
+          }
+        ],
+        "outputs": [],
+        "evidence": [],
+        "reviews": [
+          {
+            "id": "5e10536a-550a-4fe8-84a0-d0e87b7bede4",
+            "criterionId": "da712531-0f61-4fcd-a25b-cf059eb92503",
+            "contractRevision": 1,
+            "sequence": 1,
+            "result": "UNVERIFIED",
+            "evidenceIds": [],
+            "comment": "No observed material yet",
+            "reviewedBy": "owner:local",
+            "reviewedAt": "2026-11-17T12:50:28.179Z"
+          }
+        ]
+      }
+    },
+    {
+      "operation": "reviews.submit.missing-PASS",
+      "input": {
+        "expectedRevision": 1,
+        "clientRequestId": "product-replay:4d5553fd-eb3b-4c31-8f18-8d0233c75f1d:review-missing-pass",
+        "results": [
+          {
+            "criterionId": "da712531-0f61-4fcd-a25b-cf059eb92503",
+            "result": "PASS",
+            "evidenceIds": [],
+            "userConfirmed": true,
+            "comment": "Missing materials cannot be waived by confirmation"
+          }
+        ]
+      },
+      "result": {
+        "errorCode": "human_evidence_missing"
+      }
+    },
+    {
+      "operation": "reviews.submit.FAIL",
+      "input": {
+        "expectedRevision": 1,
+        "clientRequestId": "product-replay:4d5553fd-eb3b-4c31-8f18-8d0233c75f1d:review-reject",
+        "results": [
+          {
+            "criterionId": "da712531-0f61-4fcd-a25b-cf059eb92503",
+            "result": "FAIL",
+            "evidenceIds": [],
+            "comment": "请补充 DNS 实测结果"
+          }
+        ]
+      },
+      "result": {
+        "id": "6e536ee3-f26d-43bd-b771-695fd61c969f",
+        "sourceExploreId": null,
+        "title": "虚构海棠实验室现场网络核对",
+        "status": "human_action_pending",
+        "botId": "c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb",
+        "currentRevision": 1,
+        "updatedAt": "2026-11-17T12:50:28.077Z",
+        "description": "虚构海棠实验室现场网络核对",
+        "resumeStatus": "approved",
+        "createdAt": "2026-11-17T12:50:27.895Z",
+        "acceptedAt": null,
+        "currentRevisionView": {
+          "id": "286c6de9-11b7-424a-be4a-49506931cd0f",
+          "revision": 1,
+          "status": "approved",
+          "goal": [
+            "虚构海棠实验室现场网络核对"
+          ],
+          "boundaries": {
+            "included": [],
+            "excluded": [
+              "Production systems and real customer data"
+            ]
+          },
+          "budget": null,
+          "executionBotId": "c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb",
+          "changeSummary": null,
+          "baseRevisionId": null,
+          "sourceDecisionId": null,
+          "createdBy": "owner:local",
+          "approvedBy": "owner:local",
+          "approvedAt": "2026-11-17T12:50:27.925Z",
+          "conflicts": [],
+          "criteria": [
+            {
+              "id": "da712531-0f61-4fcd-a25b-cf059eb92503",
+              "ordinal": 1,
+              "statement": "提交现场网络实测日志",
+              "required": true,
+              "verificationMethod": "human_review",
+              "latestResult": "FAIL"
+            }
+          ],
+          "createdAt": "2026-11-17T12:50:27.900Z"
+        },
+        "revisions": [
+          {
+            "id": "286c6de9-11b7-424a-be4a-49506931cd0f",
+            "revision": 1,
+            "status": "approved",
+            "changeSummary": null,
+            "baseRevisionId": null,
+            "sourceDecisionId": null,
+            "createdBy": "owner:local",
+            "createdAt": "2026-11-17T12:50:27.900Z"
+          }
+        ],
+        "workItems": [
+          {
+            "id": "37c74862-f8b9-40be-9ba3-89d287581c12",
+            "contractRevision": 1,
+            "executorType": "agent",
+            "kind": "initial",
+            "title": "虚构海棠实验室现场网络核对",
+            "status": "waiting_human",
+            "statusReason": "human_action_requested",
+            "ordinal": 1,
+            "dependsOn": [],
+            "rootRunId": "3f362f58-c38e-4165-8339-18934a5ac451",
+            "runIds": [
+              "3f362f58-c38e-4165-8339-18934a5ac451"
+            ],
+            "reworkOfWorkItemId": null,
+            "createdAt": "2026-11-17T12:50:27.945Z",
+            "updatedAt": "2026-11-17T12:50:28.075Z"
+          },
+          {
+            "id": "468e3703-8304-46f5-a2d7-e44ed99505cd",
+            "contractRevision": 1,
+            "executorType": "human",
+            "kind": "human_action",
+            "title": "现场网络核对",
+            "status": "rejected",
+            "statusReason": "human_receipt_rejected",
+            "ordinal": 2,
+            "dependsOn": [],
+            "rootRunId": null,
+            "runIds": [],
+            "reworkOfWorkItemId": null,
+            "createdAt": "2026-11-17T12:50:28.065Z",
+            "updatedAt": "2026-11-17T12:50:28.224Z"
+          }
+        ],
+        "outputs": [],
+        "evidence": [],
+        "reviews": [
+          {
+            "id": "5e10536a-550a-4fe8-84a0-d0e87b7bede4",
+            "criterionId": "da712531-0f61-4fcd-a25b-cf059eb92503",
+            "contractRevision": 1,
+            "sequence": 1,
+            "result": "UNVERIFIED",
+            "evidenceIds": [],
+            "comment": "No observed material yet",
+            "reviewedBy": "owner:local",
+            "reviewedAt": "2026-11-17T12:50:28.179Z"
+          },
+          {
+            "id": "9f9a4461-b76c-4785-b877-62fcbdc63cf7",
+            "criterionId": "da712531-0f61-4fcd-a25b-cf059eb92503",
+            "contractRevision": 1,
+            "sequence": 2,
+            "result": "FAIL",
+            "evidenceIds": [],
+            "comment": "请补充 DNS 实测结果",
+            "reviewedBy": "owner:local",
+            "reviewedAt": "2026-11-17T12:50:28.217Z"
+          }
+        ]
+      }
+    },
+    {
+      "operation": "human.start",
+      "input": {
+        "expectedContractRevision": 1,
+        "clientRequestId": "product-replay:4d5553fd-eb3b-4c31-8f18-8d0233c75f1d:human-resubmit-start"
+      },
+      "result": {
+        "id": "468e3703-8304-46f5-a2d7-e44ed99505cd",
+        "outcomeId": "6e536ee3-f26d-43bd-b771-695fd61c969f",
+        "executorType": "human",
+        "kind": "human_action",
+        "status": "in_progress",
+        "title": "现场网络核对",
+        "contractRevision": 1,
+        "humanActionCardId": "468e3703-8304-46f5-a2d7-e44ed99505cd",
+        "evidenceCount": 0,
+        "nextAction": "submit_receipt",
+        "startedAt": "2026-11-17T12:50:28.119Z",
+        "card": {
+          "id": "468e3703-8304-46f5-a2d7-e44ed99505cd",
+          "workItemId": "468e3703-8304-46f5-a2d7-e44ed99505cd",
+          "outcomeId": "6e536ee3-f26d-43bd-b771-695fd61c969f",
+          "contractRevision": 1,
+          "title": "现场网络核对",
+          "purpose": "由人记录真实网络测试，不由 Agent 自动执行。",
+          "prerequisites": [],
+          "steps": [
+            {
+              "id": "step-1",
+              "text": "说明：确认链路；执行者：human；输入：检查清单；操作：检查 DHCP 和 DNS；完成材料：实测日志；失败处理：停止并补充情况。",
+              "ordinal": 1,
+              "optional": false
+            },
+            {
+              "id": "step-2",
+              "text": "说明：保留事实；执行者：human；输入：日志；操作：提交测试记录；完成材料：文本回执；失败处理：保存草稿并重试。",
+              "ordinal": 2,
+              "optional": false
+            }
+          ],
+          "inputFields": [],
+          "evidenceRequirements": [
+            {
+              "label": "现场测试日志",
+              "required": true,
+              "criterionId": "da712531-0f61-4fcd-a25b-cf059eb92503",
+              "acceptedTypes": [
+                "text"
+              ]
+            }
+          ],
+          "references": [
+            {
+              "id": "agent-file:/var/folders/q5/5jq71t9d131d8p_8l01rth400000gn/T/outcomego-product-replay-5S8zec/agent-data/agents/c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb/network-checklist.txt",
+              "stale": false,
+              "title": "network-checklist.txt",
+              "digest": "023892408bb9e8372581f7087258e09cef0a5b36ae81233d3236917b843dabee",
+              "excerpt": "由人检查 DHCP、DNS 与出口连通性，记录测试时间与结果。",
+              "version": "0:023892408bb9e8372581f7087258e09cef0a5b36ae81233d3236917b843dabee",
+              "sourceRef": "agent-file:/var/folders/q5/5jq71t9d131d8p_8l01rth400000gn/T/outcomego-product-replay-5S8zec/agent-data/agents/c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb/network-checklist.txt",
+              "updatedAt": "2026-11-17T12:50:28.033Z",
+              "sourceType": "file",
+              "projectScope": "bot:c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb",
+              "permissionSummary": "Available within the executing Bot scope"
+            }
+          ],
+          "status": "in_progress",
+          "draft": {
+            "reason": "等待现场窗口",
+            "draftSummary": "已检查 DHCP，待检查 DNS",
+            "currentStepId": "step-1",
+            "readReferenceIds": [
+              "agent-file:/var/folders/q5/5jq71t9d131d8p_8l01rth400000gn/T/outcomego-product-replay-5S8zec/agent-data/agents/c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb/network-checklist.txt"
+            ]
+          },
+          "startedBy": "owner:local",
+          "startedAt": "2026-11-17T12:50:28.119Z",
+          "submittedAt": "2026-11-17T12:50:28.158Z",
+          "acceptedAt": null
+        },
+        "receipts": [
+          {
+            "id": "f0157494-cb5e-4b64-afb3-c5fe91313d53",
+            "workItemId": "468e3703-8304-46f5-a2d7-e44ed99505cd",
+            "outcomeId": "6e536ee3-f26d-43bd-b771-695fd61c969f",
+            "sequence": 1,
+            "status": "rejected",
+            "submittedBy": "owner:local",
+            "submittedAt": "2026-11-17T12:50:28.158Z",
+            "reviewComment": "da712531-0f61-4fcd-a25b-cf059eb92503: 请补充 DNS 实测结果",
+            "payload": {
+              "text": "",
+              "comment": "",
+              "assetRefs": [],
+              "sourceRefs": [],
+              "observations": [],
+              "clientRequestId": "product-replay:4d5553fd-eb3b-4c31-8f18-8d0233c75f1d:receipt-missing",
+              "expectedContractRevision": 1
+            },
+            "evidenceIds": [],
+            "missingRequirements": [
+              {
+                "kind": "text",
+                "label": "现场测试日志",
+                "criterionId": "da712531-0f61-4fcd-a25b-cf059eb92503"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "operation": "receipts.submit.resubmitted",
+      "input": {
+        "expectedContractRevision": 1,
+        "clientRequestId": "product-replay:4d5553fd-eb3b-4c31-8f18-8d0233c75f1d:receipt-resubmit",
+        "text": "DHCP 与 DNS 测试成功，虚构记录 2026-11-17T02:00:00Z"
+      },
+      "result": {
+        "id": "d798022a-9309-4de3-ab5d-8c3c19ed51bd",
+        "workItemId": "468e3703-8304-46f5-a2d7-e44ed99505cd",
+        "outcomeId": "6e536ee3-f26d-43bd-b771-695fd61c969f",
+        "sequence": 2,
+        "status": "submitted",
+        "submittedBy": "owner:local",
+        "submittedAt": "2026-11-17T12:50:28.255Z",
+        "reviewComment": null,
+        "payload": {
+          "text": "DHCP 与 DNS 测试成功，虚构记录 2026-11-17T02:00:00Z",
+          "comment": "",
+          "assetRefs": [],
+          "sourceRefs": [],
+          "observations": [],
+          "clientRequestId": "product-replay:4d5553fd-eb3b-4c31-8f18-8d0233c75f1d:receipt-resubmit",
+          "expectedContractRevision": 1
+        },
+        "evidenceIds": [
+          "863d5b8e-0a48-4351-9c82-418d9dee6929"
+        ],
+        "missingRequirements": []
+      }
+    },
+    {
+      "operation": "reviews.submit.human-PASS",
+      "input": {
+        "expectedRevision": 1,
+        "clientRequestId": "product-replay:4d5553fd-eb3b-4c31-8f18-8d0233c75f1d:review-human",
+        "results": [
+          {
+            "criterionId": "da712531-0f61-4fcd-a25b-cf059eb92503",
+            "result": "PASS",
+            "evidenceIds": [
+              "863d5b8e-0a48-4351-9c82-418d9dee6929"
+            ],
+            "comment": "Owner verified the fictional observed network log"
+          }
+        ]
+      },
+      "result": {
+        "id": "6e536ee3-f26d-43bd-b771-695fd61c969f",
+        "sourceExploreId": null,
+        "title": "虚构海棠实验室现场网络核对",
+        "status": "running",
+        "botId": "c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb",
+        "currentRevision": 1,
+        "updatedAt": "2026-11-17T12:50:28.296Z",
+        "description": "虚构海棠实验室现场网络核对",
+        "resumeStatus": null,
+        "createdAt": "2026-11-17T12:50:27.895Z",
+        "acceptedAt": null,
+        "currentRevisionView": {
+          "id": "286c6de9-11b7-424a-be4a-49506931cd0f",
+          "revision": 1,
+          "status": "approved",
+          "goal": [
+            "虚构海棠实验室现场网络核对"
+          ],
+          "boundaries": {
+            "included": [],
+            "excluded": [
+              "Production systems and real customer data"
+            ]
+          },
+          "budget": null,
+          "executionBotId": "c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb",
+          "changeSummary": null,
+          "baseRevisionId": null,
+          "sourceDecisionId": null,
+          "createdBy": "owner:local",
+          "approvedBy": "owner:local",
+          "approvedAt": "2026-11-17T12:50:27.925Z",
+          "conflicts": [],
+          "criteria": [
+            {
+              "id": "da712531-0f61-4fcd-a25b-cf059eb92503",
+              "ordinal": 1,
+              "statement": "提交现场网络实测日志",
+              "required": true,
+              "verificationMethod": "human_review",
+              "latestResult": "PASS"
+            }
+          ],
+          "createdAt": "2026-11-17T12:50:27.900Z"
+        },
+        "revisions": [
+          {
+            "id": "286c6de9-11b7-424a-be4a-49506931cd0f",
+            "revision": 1,
+            "status": "approved",
+            "changeSummary": null,
+            "baseRevisionId": null,
+            "sourceDecisionId": null,
+            "createdBy": "owner:local",
+            "createdAt": "2026-11-17T12:50:27.900Z"
+          }
+        ],
+        "workItems": [
+          {
+            "id": "37c74862-f8b9-40be-9ba3-89d287581c12",
+            "contractRevision": 1,
+            "executorType": "agent",
+            "kind": "initial",
+            "title": "虚构海棠实验室现场网络核对",
+            "status": "running",
+            "statusReason": "human_action_accepted",
+            "ordinal": 1,
+            "dependsOn": [],
+            "rootRunId": "3f362f58-c38e-4165-8339-18934a5ac451",
+            "runIds": [
+              "3f362f58-c38e-4165-8339-18934a5ac451",
+              "e7ea8466-d9b5-4b8a-883c-e90421fb40b4"
+            ],
+            "reworkOfWorkItemId": null,
+            "createdAt": "2026-11-17T12:50:27.945Z",
+            "updatedAt": "2026-11-17T12:50:28.294Z"
+          },
+          {
+            "id": "468e3703-8304-46f5-a2d7-e44ed99505cd",
+            "contractRevision": 1,
+            "executorType": "human",
+            "kind": "human_action",
+            "title": "现场网络核对",
+            "status": "accepted",
+            "statusReason": "human_receipt_accepted",
+            "ordinal": 2,
+            "dependsOn": [],
+            "rootRunId": null,
+            "runIds": [],
+            "reworkOfWorkItemId": null,
+            "createdAt": "2026-11-17T12:50:28.065Z",
+            "updatedAt": "2026-11-17T12:50:28.277Z"
+          }
+        ],
+        "outputs": [],
+        "evidence": [
+          {
+            "id": "863d5b8e-0a48-4351-9c82-418d9dee6929",
+            "criterionId": "da712531-0f61-4fcd-a25b-cf059eb92503",
+            "contractRevision": 1,
+            "workItemId": "468e3703-8304-46f5-a2d7-e44ed99505cd",
+            "runId": null,
+            "sourceType": "receipt_text",
+            "sourceRef": "human-receipt:d798022a-9309-4de3-ab5d-8c3c19ed51bd:text",
+            "contentSummary": "DHCP 与 DNS 测试成功，虚构记录 2026-11-17T02:00:00Z",
+            "credibility": "human_confirmed",
+            "capturedBy": "owner:local",
+            "capturedAt": "2026-11-17T12:50:28.253Z"
+          }
+        ],
+        "reviews": [
+          {
+            "id": "5e10536a-550a-4fe8-84a0-d0e87b7bede4",
+            "criterionId": "da712531-0f61-4fcd-a25b-cf059eb92503",
+            "contractRevision": 1,
+            "sequence": 1,
+            "result": "UNVERIFIED",
+            "evidenceIds": [],
+            "comment": "No observed material yet",
+            "reviewedBy": "owner:local",
+            "reviewedAt": "2026-11-17T12:50:28.179Z"
+          },
+          {
+            "id": "9f9a4461-b76c-4785-b877-62fcbdc63cf7",
+            "criterionId": "da712531-0f61-4fcd-a25b-cf059eb92503",
+            "contractRevision": 1,
+            "sequence": 2,
+            "result": "FAIL",
+            "evidenceIds": [],
+            "comment": "请补充 DNS 实测结果",
+            "reviewedBy": "owner:local",
+            "reviewedAt": "2026-11-17T12:50:28.217Z"
+          },
+          {
+            "id": "f5cf33a8-98bf-4d7d-a3ec-2405722ed75c",
+            "criterionId": "da712531-0f61-4fcd-a25b-cf059eb92503",
+            "contractRevision": 1,
+            "sequence": 3,
+            "result": "PASS",
+            "evidenceIds": [
+              "863d5b8e-0a48-4351-9c82-418d9dee6929"
+            ],
+            "comment": "Owner verified the fictional observed network log",
+            "reviewedBy": "owner:local",
+            "reviewedAt": "2026-11-17T12:50:28.269Z"
+          }
+        ]
+      }
+    },
+    {
+      "operation": "worker.claim.continuation",
+      "input": {
+        "botId": "c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb"
+      },
+      "result": {
+        "runChannelId": "41ae5ab2-0804-467a-b8b2-5e905f59cc32",
+        "inboxId": "f9494b42-4ec0-4737-b862-00ec41dff368",
+        "inboxType": "outcome.work_item",
+        "runId": "e7ea8466-d9b5-4b8a-883c-e90421fb40b4",
+        "botId": "c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb",
+        "contextSessionId": "526ad134-7612-4a09-a645-c0d95686a0fd",
+        "screenBotId": "c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb",
+        "pluginBotId": "c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb",
+        "conversationId": "cf516241-be8b-4903-8f98-ed0e8048758d",
+        "ownerId": "241d3d8d-c3e1-4b0d-aee3-5a92abfc082a",
+        "content": "<timestamp>Tuesday, Nov 17, 2026, 12:50 PM (UTC+0)</timestamp>\n<user_query>\n{\"humanAction\":{\"workItemId\":\"468e3703-8304-46f5-a2d7-e44ed99505cd\",\"receiptId\":\"d798022a-9309-4de3-ab5d-8c3c19ed51bd\",\"sequence\":2,\"text\":\"DHCP 与 DNS 测试成功，虚构记录 2026-11-17T02:00:00Z\",\"comment\":\"\",\"observations\":[],\"assetRefs\":[]},\"knowledge\":[{\"referenceId\":\"agent-file:/var/folders/q5/5jq71t9d131d8p_8l01rth400000gn/T/outcomego-product-replay-5S8zec/agent-data/agents/c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb/network-checklist.txt\",\"sourceRef\":\"agent-file:/var/folders/q5/5jq71t9d131d8p_8l01rth400000gn/T/outcomego-product-replay-5S8zec/agent-data/agents/c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb/network-checklist.txt\",\"version\":\"0:023892408bb9e8372581f7087258e09cef0a5b36ae81233d3236917b843dabee\",\"digest\":\"023892408bb9e8372581f7087258e09cef0a5b36ae81233d3236917b843dabee\",\"excerpt\":\"由人检查 DHCP、DNS 与出口连通性，记录测试时间与结果。\"}]}\n</user_query>",
+        "interruptedRunId": null,
+        "images": [],
+        "clientId": "human-action-accepted:468e3703-8304-46f5-a2d7-e44ed99505cd:d798022a-9309-4de3-ab5d-8c3c19ed51bd",
+        "cwd": "/var/folders/q5/5jq71t9d131d8p_8l01rth400000gn/T/outcomego-product-replay-5S8zec",
+        "instructions": "",
+        "sessionPath": null,
+        "channelId": "41ae5ab2-0804-467a-b8b2-5e905f59cc32",
+        "deliveryId": null,
+        "origin": "outcome",
+        "outcomeWorkItemId": "37c74862-f8b9-40be-9ba3-89d287581c12",
+        "runtimeProfile": "agent",
+        "subagentType": null,
+        "readOnly": false,
+        "inferenceParentRunId": null,
+        "taskConfiguration": null,
+        "attachmentOwnerBotId": "c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb",
+        "fileAttachments": []
+      }
+    },
+    {
+      "operation": "controlled-computer-completion",
+      "input": {
+        "runId": "e7ea8466-d9b5-4b8a-883c-e90421fb40b4",
+        "adapter": "Projection.apply"
+      },
+      "result": {
+        "run": {
+          "id": "e7ea8466-d9b5-4b8a-883c-e90421fb40b4",
+          "status": "completed"
+        },
+        "workItems": [
+          {
+            "id": "37c74862-f8b9-40be-9ba3-89d287581c12",
+            "outcomeId": "6e536ee3-f26d-43bd-b771-695fd61c969f",
+            "executorType": "agent",
+            "kind": "initial",
+            "status": "completed",
+            "title": "虚构海棠实验室现场网络核对",
+            "contractRevision": 1,
+            "runId": "3f362f58-c38e-4165-8339-18934a5ac451",
+            "evidenceCount": 0,
+            "startedAt": "2026-11-17T12:50:28.006Z"
+          },
+          {
+            "id": "468e3703-8304-46f5-a2d7-e44ed99505cd",
+            "outcomeId": "6e536ee3-f26d-43bd-b771-695fd61c969f",
+            "executorType": "human",
+            "kind": "human_action",
+            "status": "accepted",
+            "title": "现场网络核对",
+            "contractRevision": 1,
+            "humanActionCardId": "468e3703-8304-46f5-a2d7-e44ed99505cd",
+            "evidenceCount": 1,
+            "startedAt": "2026-11-17T12:50:28.119Z"
+          }
+        ]
+      }
+    },
+    {
+      "operation": "controlled-inference",
+      "input": {
+        "kind": "prereview"
+      },
+      "result": {
+        "adapter": "fixture",
+        "network": false
+      }
+    },
+    {
+      "operation": "evidenceConsumer.drain",
+      "input": {
+        "boundedDurableEvents": true
+      },
+      "result": {
+        "processed": 2
+      }
+    },
+    {
+      "operation": "reviews.submit.final",
+      "input": {
+        "expectedRevision": 1,
+        "clientRequestId": "product-replay:4d5553fd-eb3b-4c31-8f18-8d0233c75f1d:review-final",
+        "results": [
+          {
+            "criterionId": "da712531-0f61-4fcd-a25b-cf059eb92503",
+            "result": "PASS",
+            "evidenceIds": [],
+            "comment": "Owner verified the controlled local report against this criterion"
+          }
+        ],
+        "newEvidence": [
+          {
+            "criterionId": "da712531-0f61-4fcd-a25b-cf059eb92503",
+            "sourceType": "check",
+            "sourceRef": "local-replay:6e536ee3-f26d-43bd-b771-695fd61c969f:da712531-0f61-4fcd-a25b-cf059eb92503",
+            "contentSummary": "Fictional owner observation recorded through the actual review service"
+          }
+        ]
+      },
+      "result": {
+        "id": "6e536ee3-f26d-43bd-b771-695fd61c969f",
+        "sourceExploreId": null,
+        "title": "虚构海棠实验室现场网络核对",
+        "status": "accepted",
+        "botId": "c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb",
+        "currentRevision": 1,
+        "updatedAt": "2026-11-17T12:50:28.412Z",
+        "description": "虚构海棠实验室现场网络核对",
+        "resumeStatus": null,
+        "createdAt": "2026-11-17T12:50:27.895Z",
+        "acceptedAt": "2026-11-17T12:50:28.408Z",
+        "currentRevisionView": {
+          "id": "286c6de9-11b7-424a-be4a-49506931cd0f",
+          "revision": 1,
+          "status": "approved",
+          "goal": [
+            "虚构海棠实验室现场网络核对"
+          ],
+          "boundaries": {
+            "included": [],
+            "excluded": [
+              "Production systems and real customer data"
+            ]
+          },
+          "budget": null,
+          "executionBotId": "c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb",
+          "changeSummary": null,
+          "baseRevisionId": null,
+          "sourceDecisionId": null,
+          "createdBy": "owner:local",
+          "approvedBy": "owner:local",
+          "approvedAt": "2026-11-17T12:50:27.925Z",
+          "conflicts": [],
+          "criteria": [
+            {
+              "id": "da712531-0f61-4fcd-a25b-cf059eb92503",
+              "ordinal": 1,
+              "statement": "提交现场网络实测日志",
+              "required": true,
+              "verificationMethod": "human_review",
+              "latestResult": "PASS"
+            }
+          ],
+          "createdAt": "2026-11-17T12:50:27.900Z"
+        },
+        "revisions": [
+          {
+            "id": "286c6de9-11b7-424a-be4a-49506931cd0f",
+            "revision": 1,
+            "status": "approved",
+            "changeSummary": null,
+            "baseRevisionId": null,
+            "sourceDecisionId": null,
+            "createdBy": "owner:local",
+            "createdAt": "2026-11-17T12:50:27.900Z"
+          }
+        ],
+        "workItems": [
+          {
+            "id": "37c74862-f8b9-40be-9ba3-89d287581c12",
+            "contractRevision": 1,
+            "executorType": "agent",
+            "kind": "initial",
+            "title": "虚构海棠实验室现场网络核对",
+            "status": "completed",
+            "statusReason": "run_completed",
+            "ordinal": 1,
+            "dependsOn": [],
+            "rootRunId": "3f362f58-c38e-4165-8339-18934a5ac451",
+            "runIds": [
+              "3f362f58-c38e-4165-8339-18934a5ac451",
+              "e7ea8466-d9b5-4b8a-883c-e90421fb40b4"
+            ],
+            "reworkOfWorkItemId": null,
+            "createdAt": "2026-11-17T12:50:27.945Z",
+            "updatedAt": "2026-11-17T12:50:28.347Z"
+          },
+          {
+            "id": "468e3703-8304-46f5-a2d7-e44ed99505cd",
+            "contractRevision": 1,
+            "executorType": "human",
+            "kind": "human_action",
+            "title": "现场网络核对",
+            "status": "accepted",
+            "statusReason": "human_receipt_accepted",
+            "ordinal": 2,
+            "dependsOn": [],
+            "rootRunId": null,
+            "runIds": [],
+            "reworkOfWorkItemId": null,
+            "createdAt": "2026-11-17T12:50:28.065Z",
+            "updatedAt": "2026-11-17T12:50:28.277Z"
+          }
+        ],
+        "outputs": [
+          {
+            "id": "d9064292-8d86-43b2-9ffc-d4a01365ee0a",
+            "workItemId": "37c74862-f8b9-40be-9ba3-89d287581c12",
+            "runId": "e7ea8466-d9b5-4b8a-883c-e90421fb40b4",
+            "kind": "final_result",
+            "title": "虚构海棠实验室现场网络核对",
+            "content": "Fictional human observations incorporated into the network report.",
+            "contentRef": null,
+            "createdAt": "2026-11-17T12:50:28.344Z"
+          }
+        ],
+        "evidence": [
+          {
+            "id": "863d5b8e-0a48-4351-9c82-418d9dee6929",
+            "criterionId": "da712531-0f61-4fcd-a25b-cf059eb92503",
+            "contractRevision": 1,
+            "workItemId": "468e3703-8304-46f5-a2d7-e44ed99505cd",
+            "runId": null,
+            "sourceType": "receipt_text",
+            "sourceRef": "human-receipt:d798022a-9309-4de3-ab5d-8c3c19ed51bd:text",
+            "contentSummary": "DHCP 与 DNS 测试成功，虚构记录 2026-11-17T02:00:00Z",
+            "credibility": "human_confirmed",
+            "capturedBy": "owner:local",
+            "capturedAt": "2026-11-17T12:50:28.253Z"
+          },
+          {
+            "id": "191ba4c7-a361-41d2-b57c-9e8c09bca816",
+            "criterionId": "da712531-0f61-4fcd-a25b-cf059eb92503",
+            "contractRevision": 1,
+            "workItemId": "37c74862-f8b9-40be-9ba3-89d287581c12",
+            "runId": "e7ea8466-d9b5-4b8a-883c-e90421fb40b4",
+            "sourceType": "output",
+            "sourceRef": "output:d9064292-8d86-43b2-9ffc-d4a01365ee0a",
+            "contentSummary": "Fictional human observations incorporated into the network report.",
+            "credibility": "agent_report",
+            "capturedBy": "bot:c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb",
+            "capturedAt": "2026-11-17T12:50:28.368Z"
+          },
+          {
+            "id": "e3fb7ca0-d2f2-4802-9629-943793e664a1",
+            "criterionId": "da712531-0f61-4fcd-a25b-cf059eb92503",
+            "contractRevision": 1,
+            "workItemId": "37c74862-f8b9-40be-9ba3-89d287581c12",
+            "runId": null,
+            "sourceType": "prereview",
+            "sourceRef": "prereview:37c74862-f8b9-40be-9ba3-89d287581c12:da712531-0f61-4fcd-a25b-cf059eb92503",
+            "contentSummary": "unclear: Controlled local prereview; owner verification is required",
+            "credibility": "ai_prereview",
+            "capturedBy": "system:outcome-prereview",
+            "capturedAt": "2026-11-17T12:50:28.376Z"
+          },
+          {
+            "id": "52e49481-a7b7-4670-b5bb-ab690834b13d",
+            "criterionId": "da712531-0f61-4fcd-a25b-cf059eb92503",
+            "contractRevision": 1,
+            "workItemId": null,
+            "runId": null,
+            "sourceType": "check",
+            "sourceRef": "local-replay:6e536ee3-f26d-43bd-b771-695fd61c969f:da712531-0f61-4fcd-a25b-cf059eb92503",
+            "contentSummary": "Fictional owner observation recorded through the actual review service",
+            "credibility": "human_confirmed",
+            "capturedBy": "owner:local",
+            "capturedAt": "2026-11-17T12:50:28.400Z"
+          }
+        ],
+        "reviews": [
+          {
+            "id": "5e10536a-550a-4fe8-84a0-d0e87b7bede4",
+            "criterionId": "da712531-0f61-4fcd-a25b-cf059eb92503",
+            "contractRevision": 1,
+            "sequence": 1,
+            "result": "UNVERIFIED",
+            "evidenceIds": [],
+            "comment": "No observed material yet",
+            "reviewedBy": "owner:local",
+            "reviewedAt": "2026-11-17T12:50:28.179Z"
+          },
+          {
+            "id": "9f9a4461-b76c-4785-b877-62fcbdc63cf7",
+            "criterionId": "da712531-0f61-4fcd-a25b-cf059eb92503",
+            "contractRevision": 1,
+            "sequence": 2,
+            "result": "FAIL",
+            "evidenceIds": [],
+            "comment": "请补充 DNS 实测结果",
+            "reviewedBy": "owner:local",
+            "reviewedAt": "2026-11-17T12:50:28.217Z"
+          },
+          {
+            "id": "f5cf33a8-98bf-4d7d-a3ec-2405722ed75c",
+            "criterionId": "da712531-0f61-4fcd-a25b-cf059eb92503",
+            "contractRevision": 1,
+            "sequence": 3,
+            "result": "PASS",
+            "evidenceIds": [
+              "863d5b8e-0a48-4351-9c82-418d9dee6929"
+            ],
+            "comment": "Owner verified the fictional observed network log",
+            "reviewedBy": "owner:local",
+            "reviewedAt": "2026-11-17T12:50:28.269Z"
+          },
+          {
+            "id": "5aeae5ea-b5a4-4783-bca4-64966faad225",
+            "criterionId": "da712531-0f61-4fcd-a25b-cf059eb92503",
+            "contractRevision": 1,
+            "sequence": 4,
+            "result": "PASS",
+            "evidenceIds": [
+              "52e49481-a7b7-4670-b5bb-ab690834b13d"
+            ],
+            "comment": "Owner verified the controlled local report against this criterion",
+            "reviewedBy": "owner:local",
+            "reviewedAt": "2026-11-17T12:50:28.402Z"
+          }
+        ]
+      }
+    }
+  ],
+  "ids": {
+    "botId": "c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb",
+    "channelId": "41ae5ab2-0804-467a-b8b2-5e905f59cc32",
+    "planId": "86617247-9b19-444b-9d9a-1782af6bd6da",
+    "outcomeId": "6e536ee3-f26d-43bd-b771-695fd61c969f",
+    "revisionId": "286c6de9-11b7-424a-be4a-49506931cd0f",
+    "workItemId": "37c74862-f8b9-40be-9ba3-89d287581c12",
+    "rootRunId": "3f362f58-c38e-4165-8339-18934a5ac451",
+    "contextSessionId": "526ad134-7612-4a09-a645-c0d95686a0fd",
+    "mainRunId": "4bb5b535-e18b-434c-8fde-81b0b16dde06",
+    "humanWorkItemId": "468e3703-8304-46f5-a2d7-e44ed99505cd"
+  },
+  "contexts": [
+    {
+      "runChannelId": "41ae5ab2-0804-467a-b8b2-5e905f59cc32",
+      "inboxId": "d1530680-d73d-4c5f-9398-42e4817b6206",
+      "inboxType": "outcome.work_item",
+      "runId": "3f362f58-c38e-4165-8339-18934a5ac451",
+      "botId": "c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb",
+      "contextSessionId": "526ad134-7612-4a09-a645-c0d95686a0fd",
+      "screenBotId": "c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb",
+      "pluginBotId": "c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb",
+      "conversationId": "cf516241-be8b-4903-8f98-ed0e8048758d",
+      "ownerId": "c5289879-a83f-4830-b0d7-6fdec94d54fe",
+      "content": "<timestamp>Tuesday, Nov 17, 2026, 12:50 PM (UTC+0)</timestamp>\n<user_query>\nExecute the approved Outcome contract. Return a complete final result and write deliverable files to the assigned Outcome output directory.\n</user_query>",
+      "interruptedRunId": null,
+      "images": [],
+      "clientId": "outcome-run:6e536ee3-f26d-43bd-b771-695fd61c969f:1:37c74862-f8b9-40be-9ba3-89d287581c12",
+      "cwd": "/var/folders/q5/5jq71t9d131d8p_8l01rth400000gn/T/outcomego-product-replay-5S8zec",
+      "instructions": "",
+      "sessionPath": null,
+      "channelId": "41ae5ab2-0804-467a-b8b2-5e905f59cc32",
+      "deliveryId": null,
+      "origin": "outcome",
+      "outcomeWorkItemId": "37c74862-f8b9-40be-9ba3-89d287581c12",
+      "runtimeProfile": "agent",
+      "subagentType": null,
+      "readOnly": false,
+      "inferenceParentRunId": null,
+      "taskConfiguration": null,
+      "attachmentOwnerBotId": "c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb",
+      "fileAttachments": []
+    },
+    {
+      "runChannelId": "41ae5ab2-0804-467a-b8b2-5e905f59cc32",
+      "inboxId": "f9494b42-4ec0-4737-b862-00ec41dff368",
+      "inboxType": "outcome.work_item",
+      "runId": "e7ea8466-d9b5-4b8a-883c-e90421fb40b4",
+      "botId": "c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb",
+      "contextSessionId": "526ad134-7612-4a09-a645-c0d95686a0fd",
+      "screenBotId": "c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb",
+      "pluginBotId": "c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb",
+      "conversationId": "cf516241-be8b-4903-8f98-ed0e8048758d",
+      "ownerId": "241d3d8d-c3e1-4b0d-aee3-5a92abfc082a",
+      "content": "<timestamp>Tuesday, Nov 17, 2026, 12:50 PM (UTC+0)</timestamp>\n<user_query>\n{\"humanAction\":{\"workItemId\":\"468e3703-8304-46f5-a2d7-e44ed99505cd\",\"receiptId\":\"d798022a-9309-4de3-ab5d-8c3c19ed51bd\",\"sequence\":2,\"text\":\"DHCP 与 DNS 测试成功，虚构记录 2026-11-17T02:00:00Z\",\"comment\":\"\",\"observations\":[],\"assetRefs\":[]},\"knowledge\":[{\"referenceId\":\"agent-file:/var/folders/q5/5jq71t9d131d8p_8l01rth400000gn/T/outcomego-product-replay-5S8zec/agent-data/agents/c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb/network-checklist.txt\",\"sourceRef\":\"agent-file:/var/folders/q5/5jq71t9d131d8p_8l01rth400000gn/T/outcomego-product-replay-5S8zec/agent-data/agents/c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb/network-checklist.txt\",\"version\":\"0:023892408bb9e8372581f7087258e09cef0a5b36ae81233d3236917b843dabee\",\"digest\":\"023892408bb9e8372581f7087258e09cef0a5b36ae81233d3236917b843dabee\",\"excerpt\":\"由人检查 DHCP、DNS 与出口连通性，记录测试时间与结果。\"}]}\n</user_query>",
+      "interruptedRunId": null,
+      "images": [],
+      "clientId": "human-action-accepted:468e3703-8304-46f5-a2d7-e44ed99505cd:d798022a-9309-4de3-ab5d-8c3c19ed51bd",
+      "cwd": "/var/folders/q5/5jq71t9d131d8p_8l01rth400000gn/T/outcomego-product-replay-5S8zec",
+      "instructions": "",
+      "sessionPath": null,
+      "channelId": "41ae5ab2-0804-467a-b8b2-5e905f59cc32",
+      "deliveryId": null,
+      "origin": "outcome",
+      "outcomeWorkItemId": "37c74862-f8b9-40be-9ba3-89d287581c12",
+      "runtimeProfile": "agent",
+      "subagentType": null,
+      "readOnly": false,
+      "inferenceParentRunId": null,
+      "taskConfiguration": null,
+      "attachmentOwnerBotId": "c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb",
+      "fileAttachments": []
+    }
+  ],
+  "sourceReference": {
+    "id": "agent-file:/var/folders/q5/5jq71t9d131d8p_8l01rth400000gn/T/outcomego-product-replay-5S8zec/agent-data/agents/c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb/network-checklist.txt",
+    "title": "network-checklist.txt",
+    "sourceType": "file",
+    "sourceRef": "agent-file:/var/folders/q5/5jq71t9d131d8p_8l01rth400000gn/T/outcomego-product-replay-5S8zec/agent-data/agents/c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb/network-checklist.txt",
+    "version": "0:023892408bb9e8372581f7087258e09cef0a5b36ae81233d3236917b843dabee",
+    "updatedAt": "2026-11-17T12:50:28.033Z",
+    "projectScope": "bot:c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb",
+    "digest": "023892408bb9e8372581f7087258e09cef0a5b36ae81233d3236917b843dabee",
+    "stale": false,
+    "permissionSummary": "Available within the executing Bot scope"
+  },
+  "runs": [
+    {
+      "id": "3f362f58-c38e-4165-8339-18934a5ac451",
+      "origin": "outcome",
+      "status": "completed",
+      "outcomeWorkItemId": "37c74862-f8b9-40be-9ba3-89d287581c12",
+      "startedAt": "2026-11-17T12:50:28.000Z",
+      "completedAt": "2026-11-17T12:50:28.094Z"
+    },
+    {
+      "id": "e7ea8466-d9b5-4b8a-883c-e90421fb40b4",
+      "origin": "outcome",
+      "status": "completed",
+      "outcomeWorkItemId": "37c74862-f8b9-40be-9ba3-89d287581c12",
+      "startedAt": "2026-11-17T12:50:28.320Z",
+      "completedAt": "2026-11-17T12:50:28.329Z"
+    }
+  ],
+  "inbox": [
+    {
+      "id": "d1530680-d73d-4c5f-9398-42e4817b6206",
+      "runId": "3f362f58-c38e-4165-8339-18934a5ac451",
+      "idempotencyKey": "outcome-run:6e536ee3-f26d-43bd-b771-695fd61c969f:1:37c74862-f8b9-40be-9ba3-89d287581c12",
+      "status": "completed",
+      "payload": {
+        "isFork": false,
+        "origin": "outcome",
+        "content": "<timestamp>Tuesday, Nov 17, 2026, 12:50 PM (UTC+0)</timestamp>\n<user_query>\nExecute the approved Outcome contract. Return a complete final result and write deliverable files to the assigned Outcome output directory.\n</user_query>",
+        "clientId": "outcome-run:6e536ee3-f26d-43bd-b771-695fd61c969f:1:37c74862-f8b9-40be-9ba3-89d287581c12",
+        "timeZone": "UTC",
+        "channelId": "41ae5ab2-0804-467a-b8b2-5e905f59cc32",
+        "messageId": "783f2ef7-5d15-4ed3-a466-4ad51e602113",
+        "deliveryId": null,
+        "attachments": [],
+        "replyToMessageId": null,
+        "outcomeWorkItemId": "37c74862-f8b9-40be-9ba3-89d287581c12"
+      }
+    },
+    {
+      "id": "f9494b42-4ec0-4737-b862-00ec41dff368",
+      "runId": "e7ea8466-d9b5-4b8a-883c-e90421fb40b4",
+      "idempotencyKey": "human-action-accepted:468e3703-8304-46f5-a2d7-e44ed99505cd:d798022a-9309-4de3-ab5d-8c3c19ed51bd",
+      "status": "completed",
+      "payload": {
+        "isFork": false,
+        "origin": "outcome",
+        "content": "<timestamp>Tuesday, Nov 17, 2026, 12:50 PM (UTC+0)</timestamp>\n<user_query>\n{\"humanAction\":{\"workItemId\":\"468e3703-8304-46f5-a2d7-e44ed99505cd\",\"receiptId\":\"d798022a-9309-4de3-ab5d-8c3c19ed51bd\",\"sequence\":2,\"text\":\"DHCP 与 DNS 测试成功，虚构记录 2026-11-17T02:00:00Z\",\"comment\":\"\",\"observations\":[],\"assetRefs\":[]},\"knowledge\":[{\"referenceId\":\"agent-file:/var/folders/q5/5jq71t9d131d8p_8l01rth400000gn/T/outcomego-product-replay-5S8zec/agent-data/agents/c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb/network-checklist.txt\",\"sourceRef\":\"agent-file:/var/folders/q5/5jq71t9d131d8p_8l01rth400000gn/T/outcomego-product-replay-5S8zec/agent-data/agents/c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb/network-checklist.txt\",\"version\":\"0:023892408bb9e8372581f7087258e09cef0a5b36ae81233d3236917b843dabee\",\"digest\":\"023892408bb9e8372581f7087258e09cef0a5b36ae81233d3236917b843dabee\",\"excerpt\":\"由人检查 DHCP、DNS 与出口连通性，记录测试时间与结果。\"}]}\n</user_query>",
+        "clientId": "human-action-accepted:468e3703-8304-46f5-a2d7-e44ed99505cd:d798022a-9309-4de3-ab5d-8c3c19ed51bd",
+        "timeZone": "UTC",
+        "channelId": "41ae5ab2-0804-467a-b8b2-5e905f59cc32",
+        "messageId": "31f192bb-93bc-42e0-828f-78b189e5b480",
+        "deliveryId": null,
+        "attachments": [],
+        "replyToMessageId": null,
+        "outcomeWorkItemId": "37c74862-f8b9-40be-9ba3-89d287581c12"
+      }
+    }
+  ],
+  "lineage": {
+    "outputs": [
+      {
+        "id": "d9064292-8d86-43b2-9ffc-d4a01365ee0a",
+        "outcomeId": "6e536ee3-f26d-43bd-b771-695fd61c969f",
+        "workItemId": "37c74862-f8b9-40be-9ba3-89d287581c12",
+        "runId": "e7ea8466-d9b5-4b8a-883c-e90421fb40b4",
+        "kind": "final_result",
+        "title": "虚构海棠实验室现场网络核对",
+        "content": "Fictional human observations incorporated into the network report.",
+        "contentRef": null,
+        "dedupeKey": "final:37c74862-f8b9-40be-9ba3-89d287581c12",
+        "createdAt": "2026-11-17T12:50:28.344Z"
+      }
+    ],
+    "evidence": [
+      {
+        "id": "863d5b8e-0a48-4351-9c82-418d9dee6929",
+        "outcomeId": "6e536ee3-f26d-43bd-b771-695fd61c969f",
+        "contractRevisionId": "286c6de9-11b7-424a-be4a-49506931cd0f",
+        "criterionId": "da712531-0f61-4fcd-a25b-cf059eb92503",
+        "workItemId": "468e3703-8304-46f5-a2d7-e44ed99505cd",
+        "outputId": null,
+        "runId": null,
+        "sourceType": "receipt_text",
+        "sourceRef": "human-receipt:d798022a-9309-4de3-ab5d-8c3c19ed51bd:text",
+        "contentSummary": "DHCP 与 DNS 测试成功，虚构记录 2026-11-17T02:00:00Z",
+        "contentHash": "4ad15c36811eae8c1187a600aff5f6c5f9a4cfaa36f9f0f84ce38704f771560d",
+        "credibility": "human_confirmed",
+        "capturedBy": "owner:local",
+        "capturedAt": "2026-11-17T12:50:28.253Z"
+      },
+      {
+        "id": "191ba4c7-a361-41d2-b57c-9e8c09bca816",
+        "outcomeId": "6e536ee3-f26d-43bd-b771-695fd61c969f",
+        "contractRevisionId": "286c6de9-11b7-424a-be4a-49506931cd0f",
+        "criterionId": "da712531-0f61-4fcd-a25b-cf059eb92503",
+        "workItemId": "37c74862-f8b9-40be-9ba3-89d287581c12",
+        "outputId": "d9064292-8d86-43b2-9ffc-d4a01365ee0a",
+        "runId": "e7ea8466-d9b5-4b8a-883c-e90421fb40b4",
+        "sourceType": "output",
+        "sourceRef": "output:d9064292-8d86-43b2-9ffc-d4a01365ee0a",
+        "contentSummary": "Fictional human observations incorporated into the network report.",
+        "contentHash": null,
+        "credibility": "agent_report",
+        "capturedBy": "bot:c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb",
+        "capturedAt": "2026-11-17T12:50:28.368Z"
+      },
+      {
+        "id": "e3fb7ca0-d2f2-4802-9629-943793e664a1",
+        "outcomeId": "6e536ee3-f26d-43bd-b771-695fd61c969f",
+        "contractRevisionId": "286c6de9-11b7-424a-be4a-49506931cd0f",
+        "criterionId": "da712531-0f61-4fcd-a25b-cf059eb92503",
+        "workItemId": "37c74862-f8b9-40be-9ba3-89d287581c12",
+        "outputId": null,
+        "runId": null,
+        "sourceType": "prereview",
+        "sourceRef": "prereview:37c74862-f8b9-40be-9ba3-89d287581c12:da712531-0f61-4fcd-a25b-cf059eb92503",
+        "contentSummary": "unclear: Controlled local prereview; owner verification is required",
+        "contentHash": null,
+        "credibility": "ai_prereview",
+        "capturedBy": "system:outcome-prereview",
+        "capturedAt": "2026-11-17T12:50:28.376Z"
+      },
+      {
+        "id": "52e49481-a7b7-4670-b5bb-ab690834b13d",
+        "outcomeId": "6e536ee3-f26d-43bd-b771-695fd61c969f",
+        "contractRevisionId": "286c6de9-11b7-424a-be4a-49506931cd0f",
+        "criterionId": "da712531-0f61-4fcd-a25b-cf059eb92503",
+        "workItemId": null,
+        "outputId": null,
+        "runId": null,
+        "sourceType": "check",
+        "sourceRef": "local-replay:6e536ee3-f26d-43bd-b771-695fd61c969f:da712531-0f61-4fcd-a25b-cf059eb92503",
+        "contentSummary": "Fictional owner observation recorded through the actual review service",
+        "contentHash": null,
+        "credibility": "human_confirmed",
+        "capturedBy": "owner:local",
+        "capturedAt": "2026-11-17T12:50:28.400Z"
+      }
+    ],
+    "reviews": [
+      {
+        "id": "5e10536a-550a-4fe8-84a0-d0e87b7bede4",
+        "outcomeId": "6e536ee3-f26d-43bd-b771-695fd61c969f",
+        "contractRevisionId": "286c6de9-11b7-424a-be4a-49506931cd0f",
+        "criterionId": "da712531-0f61-4fcd-a25b-cf059eb92503",
+        "sequence": 1,
+        "result": "UNVERIFIED",
+        "evidenceIds": [],
+        "userConfirmed": false,
+        "comment": "No observed material yet",
+        "reviewedBy": "owner:local",
+        "reviewedAt": "2026-11-17T12:50:28.179Z"
+      },
+      {
+        "id": "9f9a4461-b76c-4785-b877-62fcbdc63cf7",
+        "outcomeId": "6e536ee3-f26d-43bd-b771-695fd61c969f",
+        "contractRevisionId": "286c6de9-11b7-424a-be4a-49506931cd0f",
+        "criterionId": "da712531-0f61-4fcd-a25b-cf059eb92503",
+        "sequence": 2,
+        "result": "FAIL",
+        "evidenceIds": [],
+        "userConfirmed": false,
+        "comment": "请补充 DNS 实测结果",
+        "reviewedBy": "owner:local",
+        "reviewedAt": "2026-11-17T12:50:28.217Z"
+      },
+      {
+        "id": "f5cf33a8-98bf-4d7d-a3ec-2405722ed75c",
+        "outcomeId": "6e536ee3-f26d-43bd-b771-695fd61c969f",
+        "contractRevisionId": "286c6de9-11b7-424a-be4a-49506931cd0f",
+        "criterionId": "da712531-0f61-4fcd-a25b-cf059eb92503",
+        "sequence": 3,
+        "result": "PASS",
+        "evidenceIds": [
+          "863d5b8e-0a48-4351-9c82-418d9dee6929"
+        ],
+        "userConfirmed": false,
+        "comment": "Owner verified the fictional observed network log",
+        "reviewedBy": "owner:local",
+        "reviewedAt": "2026-11-17T12:50:28.269Z"
+      },
+      {
+        "id": "5aeae5ea-b5a4-4783-bca4-64966faad225",
+        "outcomeId": "6e536ee3-f26d-43bd-b771-695fd61c969f",
+        "contractRevisionId": "286c6de9-11b7-424a-be4a-49506931cd0f",
+        "criterionId": "da712531-0f61-4fcd-a25b-cf059eb92503",
+        "sequence": 4,
+        "result": "PASS",
+        "evidenceIds": [
+          "52e49481-a7b7-4670-b5bb-ab690834b13d"
+        ],
+        "userConfirmed": false,
+        "comment": "Owner verified the controlled local report against this criterion",
+        "reviewedBy": "owner:local",
+        "reviewedAt": "2026-11-17T12:50:28.402Z"
+      }
+    ]
+  },
+  "idempotency": [
+    {
+      "scope": "human-receipt:468e3703-8304-46f5-a2d7-e44ed99505cd",
+      "key": "product-replay:4d5553fd-eb3b-4c31-8f18-8d0233c75f1d:receipt-missing",
+      "status": "completed",
+      "requestHash": "5dff3eafd052bc9d02383d943f125688f5bafdea9c92705c8d380adab6f9e966",
+      "response": {
+        "id": "f0157494-cb5e-4b64-afb3-c5fe91313d53",
+        "status": "submitted",
+        "payload": {
+          "text": "",
+          "comment": "",
+          "assetRefs": [],
+          "sourceRefs": [],
+          "observations": [],
+          "clientRequestId": "product-replay:4d5553fd-eb3b-4c31-8f18-8d0233c75f1d:receipt-missing",
+          "expectedContractRevision": 1
+        },
+        "sequence": 1,
+        "outcomeId": "6e536ee3-f26d-43bd-b771-695fd61c969f",
+        "workItemId": "468e3703-8304-46f5-a2d7-e44ed99505cd",
+        "evidenceIds": [],
+        "submittedAt": "2026-11-17T12:50:28.158Z",
+        "submittedBy": "owner:local",
+        "reviewComment": null,
+        "missingRequirements": [
+          {
+            "kind": "text",
+            "label": "现场测试日志",
+            "criterionId": "da712531-0f61-4fcd-a25b-cf059eb92503"
+          }
+        ]
+      }
+    },
+    {
+      "scope": "human-receipt:468e3703-8304-46f5-a2d7-e44ed99505cd",
+      "key": "product-replay:4d5553fd-eb3b-4c31-8f18-8d0233c75f1d:receipt-resubmit",
+      "status": "completed",
+      "requestHash": "4e032158a0d712ac6a7589ce4a149f3b0e877b0e0830f2de98dd7cc03202e965",
+      "response": {
+        "id": "d798022a-9309-4de3-ab5d-8c3c19ed51bd",
+        "status": "submitted",
+        "payload": {
+          "text": "DHCP 与 DNS 测试成功，虚构记录 2026-11-17T02:00:00Z",
+          "comment": "",
+          "assetRefs": [],
+          "sourceRefs": [],
+          "observations": [],
+          "clientRequestId": "product-replay:4d5553fd-eb3b-4c31-8f18-8d0233c75f1d:receipt-resubmit",
+          "expectedContractRevision": 1
+        },
+        "sequence": 2,
+        "outcomeId": "6e536ee3-f26d-43bd-b771-695fd61c969f",
+        "workItemId": "468e3703-8304-46f5-a2d7-e44ed99505cd",
+        "evidenceIds": [
+          "863d5b8e-0a48-4351-9c82-418d9dee6929"
+        ],
+        "submittedAt": "2026-11-17T12:50:28.255Z",
+        "submittedBy": "owner:local",
+        "reviewComment": null,
+        "missingRequirements": []
+      }
+    },
+    {
+      "scope": "human-work:468e3703-8304-46f5-a2d7-e44ed99505cd",
+      "key": "human-pause:fixture:1",
+      "status": "completed",
+      "requestHash": "0dd5459771d30f3e3b2e02fe5cddda7a437473fa3667075f1095bcbe8707133f",
+      "response": {
+        "id": "468e3703-8304-46f5-a2d7-e44ed99505cd",
+        "card": {
+          "id": "468e3703-8304-46f5-a2d7-e44ed99505cd",
+          "draft": {
+            "reason": "等待现场窗口",
+            "draftSummary": "已检查 DHCP，待检查 DNS",
+            "currentStepId": "step-1",
+            "readReferenceIds": [
+              "agent-file:/var/folders/q5/5jq71t9d131d8p_8l01rth400000gn/T/outcomego-product-replay-5S8zec/agent-data/agents/c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb/network-checklist.txt"
+            ]
+          },
+          "steps": [
+            {
+              "id": "step-1",
+              "text": "说明：确认链路；执行者：human；输入：检查清单；操作：检查 DHCP 和 DNS；完成材料：实测日志；失败处理：停止并补充情况。",
+              "ordinal": 1,
+              "optional": false
+            },
+            {
+              "id": "step-2",
+              "text": "说明：保留事实；执行者：human；输入：日志；操作：提交测试记录；完成材料：文本回执；失败处理：保存草稿并重试。",
+              "ordinal": 2,
+              "optional": false
+            }
+          ],
+          "title": "现场网络核对",
+          "status": "paused",
+          "purpose": "由人记录真实网络测试，不由 Agent 自动执行。",
+          "outcomeId": "6e536ee3-f26d-43bd-b771-695fd61c969f",
+          "startedAt": "2026-11-17T12:50:28.119Z",
+          "startedBy": "owner:local",
+          "acceptedAt": null,
+          "references": [
+            {
+              "id": "agent-file:/var/folders/q5/5jq71t9d131d8p_8l01rth400000gn/T/outcomego-product-replay-5S8zec/agent-data/agents/c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb/network-checklist.txt",
+              "stale": false,
+              "title": "network-checklist.txt",
+              "digest": "023892408bb9e8372581f7087258e09cef0a5b36ae81233d3236917b843dabee",
+              "excerpt": "由人检查 DHCP、DNS 与出口连通性，记录测试时间与结果。",
+              "version": "0:023892408bb9e8372581f7087258e09cef0a5b36ae81233d3236917b843dabee",
+              "sourceRef": "agent-file:/var/folders/q5/5jq71t9d131d8p_8l01rth400000gn/T/outcomego-product-replay-5S8zec/agent-data/agents/c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb/network-checklist.txt",
+              "updatedAt": "2026-11-17T12:50:28.033Z",
+              "sourceType": "file",
+              "projectScope": "bot:c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb",
+              "permissionSummary": "Available within the executing Bot scope"
+            }
+          ],
+          "workItemId": "468e3703-8304-46f5-a2d7-e44ed99505cd",
+          "inputFields": [],
+          "submittedAt": null,
+          "prerequisites": [],
+          "contractRevision": 1,
+          "evidenceRequirements": [
+            {
+              "label": "现场测试日志",
+              "required": true,
+              "criterionId": "da712531-0f61-4fcd-a25b-cf059eb92503",
+              "acceptedTypes": [
+                "text"
+              ]
+            }
+          ]
+        },
+        "kind": "human_action",
+        "title": "现场网络核对",
+        "status": "paused",
+        "receipts": [],
+        "outcomeId": "6e536ee3-f26d-43bd-b771-695fd61c969f",
+        "startedAt": "2026-11-17T12:50:28.119Z",
+        "nextAction": "start",
+        "executorType": "human",
+        "evidenceCount": 0,
+        "contractRevision": 1,
+        "humanActionCardId": "468e3703-8304-46f5-a2d7-e44ed99505cd"
+      }
+    },
+    {
+      "scope": "human-work:468e3703-8304-46f5-a2d7-e44ed99505cd",
+      "key": "product-replay:4d5553fd-eb3b-4c31-8f18-8d0233c75f1d:human-resubmit-start",
+      "status": "completed",
+      "requestHash": "caee96764619d2d669abb30cee379307f7c07220623ce12ad26f851162d28092",
+      "response": {
+        "id": "468e3703-8304-46f5-a2d7-e44ed99505cd",
+        "card": {
+          "id": "468e3703-8304-46f5-a2d7-e44ed99505cd",
+          "draft": {
+            "reason": "等待现场窗口",
+            "draftSummary": "已检查 DHCP，待检查 DNS",
+            "currentStepId": "step-1",
+            "readReferenceIds": [
+              "agent-file:/var/folders/q5/5jq71t9d131d8p_8l01rth400000gn/T/outcomego-product-replay-5S8zec/agent-data/agents/c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb/network-checklist.txt"
+            ]
+          },
+          "steps": [
+            {
+              "id": "step-1",
+              "text": "说明：确认链路；执行者：human；输入：检查清单；操作：检查 DHCP 和 DNS；完成材料：实测日志；失败处理：停止并补充情况。",
+              "ordinal": 1,
+              "optional": false
+            },
+            {
+              "id": "step-2",
+              "text": "说明：保留事实；执行者：human；输入：日志；操作：提交测试记录；完成材料：文本回执；失败处理：保存草稿并重试。",
+              "ordinal": 2,
+              "optional": false
+            }
+          ],
+          "title": "现场网络核对",
+          "status": "in_progress",
+          "purpose": "由人记录真实网络测试，不由 Agent 自动执行。",
+          "outcomeId": "6e536ee3-f26d-43bd-b771-695fd61c969f",
+          "startedAt": "2026-11-17T12:50:28.119Z",
+          "startedBy": "owner:local",
+          "acceptedAt": null,
+          "references": [
+            {
+              "id": "agent-file:/var/folders/q5/5jq71t9d131d8p_8l01rth400000gn/T/outcomego-product-replay-5S8zec/agent-data/agents/c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb/network-checklist.txt",
+              "stale": false,
+              "title": "network-checklist.txt",
+              "digest": "023892408bb9e8372581f7087258e09cef0a5b36ae81233d3236917b843dabee",
+              "excerpt": "由人检查 DHCP、DNS 与出口连通性，记录测试时间与结果。",
+              "version": "0:023892408bb9e8372581f7087258e09cef0a5b36ae81233d3236917b843dabee",
+              "sourceRef": "agent-file:/var/folders/q5/5jq71t9d131d8p_8l01rth400000gn/T/outcomego-product-replay-5S8zec/agent-data/agents/c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb/network-checklist.txt",
+              "updatedAt": "2026-11-17T12:50:28.033Z",
+              "sourceType": "file",
+              "projectScope": "bot:c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb",
+              "permissionSummary": "Available within the executing Bot scope"
+            }
+          ],
+          "workItemId": "468e3703-8304-46f5-a2d7-e44ed99505cd",
+          "inputFields": [],
+          "submittedAt": "2026-11-17T12:50:28.158Z",
+          "prerequisites": [],
+          "contractRevision": 1,
+          "evidenceRequirements": [
+            {
+              "label": "现场测试日志",
+              "required": true,
+              "criterionId": "da712531-0f61-4fcd-a25b-cf059eb92503",
+              "acceptedTypes": [
+                "text"
+              ]
+            }
+          ]
+        },
+        "kind": "human_action",
+        "title": "现场网络核对",
+        "status": "in_progress",
+        "receipts": [
+          {
+            "id": "f0157494-cb5e-4b64-afb3-c5fe91313d53",
+            "status": "rejected",
+            "payload": {
+              "text": "",
+              "comment": "",
+              "assetRefs": [],
+              "sourceRefs": [],
+              "observations": [],
+              "clientRequestId": "product-replay:4d5553fd-eb3b-4c31-8f18-8d0233c75f1d:receipt-missing",
+              "expectedContractRevision": 1
+            },
+            "sequence": 1,
+            "outcomeId": "6e536ee3-f26d-43bd-b771-695fd61c969f",
+            "workItemId": "468e3703-8304-46f5-a2d7-e44ed99505cd",
+            "evidenceIds": [],
+            "submittedAt": "2026-11-17T12:50:28.158Z",
+            "submittedBy": "owner:local",
+            "reviewComment": "da712531-0f61-4fcd-a25b-cf059eb92503: 请补充 DNS 实测结果",
+            "missingRequirements": [
+              {
+                "kind": "text",
+                "label": "现场测试日志",
+                "criterionId": "da712531-0f61-4fcd-a25b-cf059eb92503"
+              }
+            ]
+          }
+        ],
+        "outcomeId": "6e536ee3-f26d-43bd-b771-695fd61c969f",
+        "startedAt": "2026-11-17T12:50:28.119Z",
+        "nextAction": "submit_receipt",
+        "executorType": "human",
+        "evidenceCount": 0,
+        "contractRevision": 1,
+        "humanActionCardId": "468e3703-8304-46f5-a2d7-e44ed99505cd"
+      }
+    },
+    {
+      "scope": "human-work:468e3703-8304-46f5-a2d7-e44ed99505cd",
+      "key": "product-replay:4d5553fd-eb3b-4c31-8f18-8d0233c75f1d:human-resume",
+      "status": "completed",
+      "requestHash": "418ec12a841b98b3918833acbbc9dc379e4d8958f454367274cdbf5e7da5379c",
+      "response": {
+        "id": "468e3703-8304-46f5-a2d7-e44ed99505cd",
+        "card": {
+          "id": "468e3703-8304-46f5-a2d7-e44ed99505cd",
+          "draft": {
+            "reason": "等待现场窗口",
+            "draftSummary": "已检查 DHCP，待检查 DNS",
+            "currentStepId": "step-1",
+            "readReferenceIds": [
+              "agent-file:/var/folders/q5/5jq71t9d131d8p_8l01rth400000gn/T/outcomego-product-replay-5S8zec/agent-data/agents/c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb/network-checklist.txt"
+            ]
+          },
+          "steps": [
+            {
+              "id": "step-1",
+              "text": "说明：确认链路；执行者：human；输入：检查清单；操作：检查 DHCP 和 DNS；完成材料：实测日志；失败处理：停止并补充情况。",
+              "ordinal": 1,
+              "optional": false
+            },
+            {
+              "id": "step-2",
+              "text": "说明：保留事实；执行者：human；输入：日志；操作：提交测试记录；完成材料：文本回执；失败处理：保存草稿并重试。",
+              "ordinal": 2,
+              "optional": false
+            }
+          ],
+          "title": "现场网络核对",
+          "status": "in_progress",
+          "purpose": "由人记录真实网络测试，不由 Agent 自动执行。",
+          "outcomeId": "6e536ee3-f26d-43bd-b771-695fd61c969f",
+          "startedAt": "2026-11-17T12:50:28.119Z",
+          "startedBy": "owner:local",
+          "acceptedAt": null,
+          "references": [
+            {
+              "id": "agent-file:/var/folders/q5/5jq71t9d131d8p_8l01rth400000gn/T/outcomego-product-replay-5S8zec/agent-data/agents/c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb/network-checklist.txt",
+              "stale": false,
+              "title": "network-checklist.txt",
+              "digest": "023892408bb9e8372581f7087258e09cef0a5b36ae81233d3236917b843dabee",
+              "excerpt": "由人检查 DHCP、DNS 与出口连通性，记录测试时间与结果。",
+              "version": "0:023892408bb9e8372581f7087258e09cef0a5b36ae81233d3236917b843dabee",
+              "sourceRef": "agent-file:/var/folders/q5/5jq71t9d131d8p_8l01rth400000gn/T/outcomego-product-replay-5S8zec/agent-data/agents/c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb/network-checklist.txt",
+              "updatedAt": "2026-11-17T12:50:28.033Z",
+              "sourceType": "file",
+              "projectScope": "bot:c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb",
+              "permissionSummary": "Available within the executing Bot scope"
+            }
+          ],
+          "workItemId": "468e3703-8304-46f5-a2d7-e44ed99505cd",
+          "inputFields": [],
+          "submittedAt": null,
+          "prerequisites": [],
+          "contractRevision": 1,
+          "evidenceRequirements": [
+            {
+              "label": "现场测试日志",
+              "required": true,
+              "criterionId": "da712531-0f61-4fcd-a25b-cf059eb92503",
+              "acceptedTypes": [
+                "text"
+              ]
+            }
+          ]
+        },
+        "kind": "human_action",
+        "title": "现场网络核对",
+        "status": "in_progress",
+        "receipts": [],
+        "outcomeId": "6e536ee3-f26d-43bd-b771-695fd61c969f",
+        "startedAt": "2026-11-17T12:50:28.119Z",
+        "nextAction": "submit_receipt",
+        "executorType": "human",
+        "evidenceCount": 0,
+        "contractRevision": 1,
+        "humanActionCardId": "468e3703-8304-46f5-a2d7-e44ed99505cd"
+      }
+    },
+    {
+      "scope": "human-work:468e3703-8304-46f5-a2d7-e44ed99505cd",
+      "key": "product-replay:4d5553fd-eb3b-4c31-8f18-8d0233c75f1d:human-start",
+      "status": "completed",
+      "requestHash": "af59fc7a8c775b4c7b01ea3525a45d19a535c2db7b3e62f7e7d8dc4b5d62b8d3",
+      "response": {
+        "id": "468e3703-8304-46f5-a2d7-e44ed99505cd",
+        "card": {
+          "id": "468e3703-8304-46f5-a2d7-e44ed99505cd",
+          "draft": null,
+          "steps": [
+            {
+              "id": "step-1",
+              "text": "说明：确认链路；执行者：human；输入：检查清单；操作：检查 DHCP 和 DNS；完成材料：实测日志；失败处理：停止并补充情况。",
+              "ordinal": 1,
+              "optional": false
+            },
+            {
+              "id": "step-2",
+              "text": "说明：保留事实；执行者：human；输入：日志；操作：提交测试记录；完成材料：文本回执；失败处理：保存草稿并重试。",
+              "ordinal": 2,
+              "optional": false
+            }
+          ],
+          "title": "现场网络核对",
+          "status": "in_progress",
+          "purpose": "由人记录真实网络测试，不由 Agent 自动执行。",
+          "outcomeId": "6e536ee3-f26d-43bd-b771-695fd61c969f",
+          "startedAt": "2026-11-17T12:50:28.119Z",
+          "startedBy": "owner:local",
+          "acceptedAt": null,
+          "references": [
+            {
+              "id": "agent-file:/var/folders/q5/5jq71t9d131d8p_8l01rth400000gn/T/outcomego-product-replay-5S8zec/agent-data/agents/c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb/network-checklist.txt",
+              "stale": false,
+              "title": "network-checklist.txt",
+              "digest": "023892408bb9e8372581f7087258e09cef0a5b36ae81233d3236917b843dabee",
+              "excerpt": "由人检查 DHCP、DNS 与出口连通性，记录测试时间与结果。",
+              "version": "0:023892408bb9e8372581f7087258e09cef0a5b36ae81233d3236917b843dabee",
+              "sourceRef": "agent-file:/var/folders/q5/5jq71t9d131d8p_8l01rth400000gn/T/outcomego-product-replay-5S8zec/agent-data/agents/c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb/network-checklist.txt",
+              "updatedAt": "2026-11-17T12:50:28.033Z",
+              "sourceType": "file",
+              "projectScope": "bot:c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb",
+              "permissionSummary": "Available within the executing Bot scope"
+            }
+          ],
+          "workItemId": "468e3703-8304-46f5-a2d7-e44ed99505cd",
+          "inputFields": [],
+          "submittedAt": null,
+          "prerequisites": [],
+          "contractRevision": 1,
+          "evidenceRequirements": [
+            {
+              "label": "现场测试日志",
+              "required": true,
+              "criterionId": "da712531-0f61-4fcd-a25b-cf059eb92503",
+              "acceptedTypes": [
+                "text"
+              ]
+            }
+          ]
+        },
+        "kind": "human_action",
+        "title": "现场网络核对",
+        "status": "in_progress",
+        "receipts": [],
+        "outcomeId": "6e536ee3-f26d-43bd-b771-695fd61c969f",
+        "startedAt": "2026-11-17T12:50:28.119Z",
+        "nextAction": "submit_receipt",
+        "executorType": "human",
+        "evidenceCount": 0,
+        "contractRevision": 1,
+        "humanActionCardId": "468e3703-8304-46f5-a2d7-e44ed99505cd"
+      }
+    },
+    {
+      "scope": "outcome-approve:6e536ee3-f26d-43bd-b771-695fd61c969f",
+      "key": "product-replay:4d5553fd-eb3b-4c31-8f18-8d0233c75f1d:approve",
+      "status": "completed",
+      "requestHash": "fd8cbb9125442cb877fd9eae2958b5f426fd34a28be6e6c808b1a5691635fd46",
+      "response": {
+        "id": "6e536ee3-f26d-43bd-b771-695fd61c969f",
+        "botId": "c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb",
+        "title": "虚构海棠实验室现场网络核对",
+        "status": "approved",
+        "outputs": [],
+        "reviews": [],
+        "evidence": [],
+        "createdAt": "2026-11-17T12:50:27.895Z",
+        "revisions": [
+          {
+            "id": "286c6de9-11b7-424a-be4a-49506931cd0f",
+            "status": "approved",
+            "revision": 1,
+            "createdAt": "2026-11-17T12:50:27.900Z",
+            "createdBy": "owner:local",
+            "changeSummary": null,
+            "baseRevisionId": null,
+            "sourceDecisionId": null
+          }
+        ],
+        "updatedAt": "2026-11-17T12:50:27.931Z",
+        "workItems": [],
+        "acceptedAt": null,
+        "description": "虚构海棠实验室现场网络核对",
+        "resumeStatus": null,
+        "currentRevision": 1,
+        "sourceExploreId": null,
+        "currentRevisionView": {
+          "id": "286c6de9-11b7-424a-be4a-49506931cd0f",
+          "goal": [
+            "虚构海棠实验室现场网络核对"
+          ],
+          "budget": null,
+          "status": "approved",
+          "criteria": [
+            {
+              "id": "da712531-0f61-4fcd-a25b-cf059eb92503",
+              "ordinal": 1,
+              "required": true,
+              "statement": "提交现场网络实测日志",
+              "latestResult": null,
+              "verificationMethod": "human_review"
+            }
+          ],
+          "revision": 1,
+          "conflicts": [],
+          "createdAt": "2026-11-17T12:50:27.900Z",
+          "createdBy": "owner:local",
+          "approvedAt": "2026-11-17T12:50:27.925Z",
+          "approvedBy": "owner:local",
+          "boundaries": {
+            "excluded": [
+              "Production systems and real customer data"
+            ],
+            "included": []
+          },
+          "changeSummary": null,
+          "baseRevisionId": null,
+          "executionBotId": "c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb",
+          "sourceDecisionId": null
+        }
+      }
+    },
+    {
+      "scope": "outcome-create",
+      "key": "product-replay:4d5553fd-eb3b-4c31-8f18-8d0233c75f1d:create",
+      "status": "completed",
+      "requestHash": "7bc18a91b3073d0f885e63b515ba22faba1f00b50791e47183e9a4479baf8cf6",
+      "response": {
+        "id": "6e536ee3-f26d-43bd-b771-695fd61c969f",
+        "botId": "c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb",
+        "title": "虚构海棠实验室现场网络核对",
+        "status": "pending_approval",
+        "outputs": [],
+        "reviews": [],
+        "evidence": [],
+        "createdAt": "2026-11-17T12:50:27.895Z",
+        "revisions": [
+          {
+            "id": "286c6de9-11b7-424a-be4a-49506931cd0f",
+            "status": "pending_approval",
+            "revision": 1,
+            "createdAt": "2026-11-17T12:50:27.900Z",
+            "createdBy": "owner:local",
+            "changeSummary": null,
+            "baseRevisionId": null,
+            "sourceDecisionId": null
+          }
+        ],
+        "updatedAt": "2026-11-17T12:50:27.908Z",
+        "workItems": [],
+        "acceptedAt": null,
+        "description": "虚构海棠实验室现场网络核对",
+        "resumeStatus": null,
+        "currentRevision": 1,
+        "sourceExploreId": null,
+        "currentRevisionView": {
+          "id": "286c6de9-11b7-424a-be4a-49506931cd0f",
+          "goal": [
+            "虚构海棠实验室现场网络核对"
+          ],
+          "budget": null,
+          "status": "pending_approval",
+          "criteria": [
+            {
+              "id": "da712531-0f61-4fcd-a25b-cf059eb92503",
+              "ordinal": 1,
+              "required": true,
+              "statement": "提交现场网络实测日志",
+              "latestResult": null,
+              "verificationMethod": "human_review"
+            }
+          ],
+          "revision": 1,
+          "conflicts": [],
+          "createdAt": "2026-11-17T12:50:27.900Z",
+          "createdBy": "owner:local",
+          "approvedAt": null,
+          "approvedBy": null,
+          "boundaries": {
+            "excluded": [
+              "Production systems and real customer data"
+            ],
+            "included": []
+          },
+          "changeSummary": null,
+          "baseRevisionId": null,
+          "executionBotId": "c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb",
+          "sourceDecisionId": null
+        }
+      }
+    },
+    {
+      "scope": "outcome-plan",
+      "key": "product-replay:4d5553fd-eb3b-4c31-8f18-8d0233c75f1d:plan",
+      "status": "completed",
+      "requestHash": "c726b822264482f010699cdc6f746f167a48b549a01b2d5308b9b325101ea1a6",
+      "response": {
+        "goal": {
+          "options": [
+            {
+              "id": "goal-1",
+              "text": "虚构海棠实验室现场网络核对"
+            }
+          ],
+          "customEntries": [],
+          "selectedOptionIds": []
+        },
+        "botId": "c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb",
+        "planId": "86617247-9b19-444b-9d9a-1782af6bd6da",
+        "status": "ready",
+        "conflicts": [],
+        "expiresAt": "2026-11-18T12:50:27.876Z",
+        "acceptance": {
+          "options": [
+            {
+              "id": "acceptance-1",
+              "text": "提交现场网络实测日志",
+              "required": true
+            }
+          ],
+          "customEntries": [],
+          "selectedOptionIds": []
+        },
+        "boundaries": {
+          "options": [
+            {
+              "id": "boundaries-1",
+              "kind": "excluded",
+              "text": "Production systems and real customer data"
+            }
+          ],
+          "customEntries": [],
+          "selectedOptionIds": []
+        },
+        "sourceText": "虚构海棠实验室现场网络核对",
+        "generatedAt": "2026-11-17T12:50:27.878Z"
+      }
+    },
+    {
+      "scope": "outcome-review:6e536ee3-f26d-43bd-b771-695fd61c969f",
+      "key": "product-replay:4d5553fd-eb3b-4c31-8f18-8d0233c75f1d:review-final",
+      "status": "completed",
+      "requestHash": "49313838325e6c171dbf5f9120c29724123a4ce6ba4e22fa6c44a9d95ac4ace2",
+      "response": {
+        "id": "6e536ee3-f26d-43bd-b771-695fd61c969f",
+        "botId": "c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb",
+        "title": "虚构海棠实验室现场网络核对",
+        "status": "accepted",
+        "outputs": [
+          {
+            "id": "d9064292-8d86-43b2-9ffc-d4a01365ee0a",
+            "kind": "final_result",
+            "runId": "e7ea8466-d9b5-4b8a-883c-e90421fb40b4",
+            "title": "虚构海棠实验室现场网络核对",
+            "content": "Fictional human observations incorporated into the network report.",
+            "createdAt": "2026-11-17T12:50:28.344Z",
+            "contentRef": null,
+            "workItemId": "37c74862-f8b9-40be-9ba3-89d287581c12"
+          }
+        ],
+        "reviews": [
+          {
+            "id": "5e10536a-550a-4fe8-84a0-d0e87b7bede4",
+            "result": "UNVERIFIED",
+            "comment": "No observed material yet",
+            "sequence": 1,
+            "reviewedAt": "2026-11-17T12:50:28.179Z",
+            "reviewedBy": "owner:local",
+            "criterionId": "da712531-0f61-4fcd-a25b-cf059eb92503",
+            "evidenceIds": [],
+            "contractRevision": 1
+          },
+          {
+            "id": "9f9a4461-b76c-4785-b877-62fcbdc63cf7",
+            "result": "FAIL",
+            "comment": "请补充 DNS 实测结果",
+            "sequence": 2,
+            "reviewedAt": "2026-11-17T12:50:28.217Z",
+            "reviewedBy": "owner:local",
+            "criterionId": "da712531-0f61-4fcd-a25b-cf059eb92503",
+            "evidenceIds": [],
+            "contractRevision": 1
+          },
+          {
+            "id": "f5cf33a8-98bf-4d7d-a3ec-2405722ed75c",
+            "result": "PASS",
+            "comment": "Owner verified the fictional observed network log",
+            "sequence": 3,
+            "reviewedAt": "2026-11-17T12:50:28.269Z",
+            "reviewedBy": "owner:local",
+            "criterionId": "da712531-0f61-4fcd-a25b-cf059eb92503",
+            "evidenceIds": [
+              "863d5b8e-0a48-4351-9c82-418d9dee6929"
+            ],
+            "contractRevision": 1
+          },
+          {
+            "id": "5aeae5ea-b5a4-4783-bca4-64966faad225",
+            "result": "PASS",
+            "comment": "Owner verified the controlled local report against this criterion",
+            "sequence": 4,
+            "reviewedAt": "2026-11-17T12:50:28.402Z",
+            "reviewedBy": "owner:local",
+            "criterionId": "da712531-0f61-4fcd-a25b-cf059eb92503",
+            "evidenceIds": [
+              "52e49481-a7b7-4670-b5bb-ab690834b13d"
+            ],
+            "contractRevision": 1
+          }
+        ],
+        "evidence": [
+          {
+            "id": "863d5b8e-0a48-4351-9c82-418d9dee6929",
+            "runId": null,
+            "sourceRef": "human-receipt:d798022a-9309-4de3-ab5d-8c3c19ed51bd:text",
+            "capturedAt": "2026-11-17T12:50:28.253Z",
+            "capturedBy": "owner:local",
+            "sourceType": "receipt_text",
+            "workItemId": "468e3703-8304-46f5-a2d7-e44ed99505cd",
+            "credibility": "human_confirmed",
+            "criterionId": "da712531-0f61-4fcd-a25b-cf059eb92503",
+            "contentSummary": "DHCP 与 DNS 测试成功，虚构记录 2026-11-17T02:00:00Z",
+            "contractRevision": 1
+          },
+          {
+            "id": "191ba4c7-a361-41d2-b57c-9e8c09bca816",
+            "runId": "e7ea8466-d9b5-4b8a-883c-e90421fb40b4",
+            "sourceRef": "output:d9064292-8d86-43b2-9ffc-d4a01365ee0a",
+            "capturedAt": "2026-11-17T12:50:28.368Z",
+            "capturedBy": "bot:c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb",
+            "sourceType": "output",
+            "workItemId": "37c74862-f8b9-40be-9ba3-89d287581c12",
+            "credibility": "agent_report",
+            "criterionId": "da712531-0f61-4fcd-a25b-cf059eb92503",
+            "contentSummary": "Fictional human observations incorporated into the network report.",
+            "contractRevision": 1
+          },
+          {
+            "id": "e3fb7ca0-d2f2-4802-9629-943793e664a1",
+            "runId": null,
+            "sourceRef": "prereview:37c74862-f8b9-40be-9ba3-89d287581c12:da712531-0f61-4fcd-a25b-cf059eb92503",
+            "capturedAt": "2026-11-17T12:50:28.376Z",
+            "capturedBy": "system:outcome-prereview",
+            "sourceType": "prereview",
+            "workItemId": "37c74862-f8b9-40be-9ba3-89d287581c12",
+            "credibility": "ai_prereview",
+            "criterionId": "da712531-0f61-4fcd-a25b-cf059eb92503",
+            "contentSummary": "unclear: Controlled local prereview; owner verification is required",
+            "contractRevision": 1
+          },
+          {
+            "id": "52e49481-a7b7-4670-b5bb-ab690834b13d",
+            "runId": null,
+            "sourceRef": "local-replay:6e536ee3-f26d-43bd-b771-695fd61c969f:da712531-0f61-4fcd-a25b-cf059eb92503",
+            "capturedAt": "2026-11-17T12:50:28.400Z",
+            "capturedBy": "owner:local",
+            "sourceType": "check",
+            "workItemId": null,
+            "credibility": "human_confirmed",
+            "criterionId": "da712531-0f61-4fcd-a25b-cf059eb92503",
+            "contentSummary": "Fictional owner observation recorded through the actual review service",
+            "contractRevision": 1
+          }
+        ],
+        "createdAt": "2026-11-17T12:50:27.895Z",
+        "revisions": [
+          {
+            "id": "286c6de9-11b7-424a-be4a-49506931cd0f",
+            "status": "approved",
+            "revision": 1,
+            "createdAt": "2026-11-17T12:50:27.900Z",
+            "createdBy": "owner:local",
+            "changeSummary": null,
+            "baseRevisionId": null,
+            "sourceDecisionId": null
+          }
+        ],
+        "updatedAt": "2026-11-17T12:50:28.412Z",
+        "workItems": [
+          {
+            "id": "37c74862-f8b9-40be-9ba3-89d287581c12",
+            "kind": "initial",
+            "title": "虚构海棠实验室现场网络核对",
+            "runIds": [
+              "3f362f58-c38e-4165-8339-18934a5ac451",
+              "e7ea8466-d9b5-4b8a-883c-e90421fb40b4"
+            ],
+            "status": "completed",
+            "ordinal": 1,
+            "createdAt": "2026-11-17T12:50:27.945Z",
+            "dependsOn": [],
+            "rootRunId": "3f362f58-c38e-4165-8339-18934a5ac451",
+            "updatedAt": "2026-11-17T12:50:28.347Z",
+            "executorType": "agent",
+            "statusReason": "run_completed",
+            "contractRevision": 1,
+            "reworkOfWorkItemId": null
+          },
+          {
+            "id": "468e3703-8304-46f5-a2d7-e44ed99505cd",
+            "kind": "human_action",
+            "title": "现场网络核对",
+            "runIds": [],
+            "status": "accepted",
+            "ordinal": 2,
+            "createdAt": "2026-11-17T12:50:28.065Z",
+            "dependsOn": [],
+            "rootRunId": null,
+            "updatedAt": "2026-11-17T12:50:28.277Z",
+            "executorType": "human",
+            "statusReason": "human_receipt_accepted",
+            "contractRevision": 1,
+            "reworkOfWorkItemId": null
+          }
+        ],
+        "acceptedAt": "2026-11-17T12:50:28.408Z",
+        "description": "虚构海棠实验室现场网络核对",
+        "resumeStatus": null,
+        "currentRevision": 1,
+        "sourceExploreId": null,
+        "currentRevisionView": {
+          "id": "286c6de9-11b7-424a-be4a-49506931cd0f",
+          "goal": [
+            "虚构海棠实验室现场网络核对"
+          ],
+          "budget": null,
+          "status": "approved",
+          "criteria": [
+            {
+              "id": "da712531-0f61-4fcd-a25b-cf059eb92503",
+              "ordinal": 1,
+              "required": true,
+              "statement": "提交现场网络实测日志",
+              "latestResult": "PASS",
+              "verificationMethod": "human_review"
+            }
+          ],
+          "revision": 1,
+          "conflicts": [],
+          "createdAt": "2026-11-17T12:50:27.900Z",
+          "createdBy": "owner:local",
+          "approvedAt": "2026-11-17T12:50:27.925Z",
+          "approvedBy": "owner:local",
+          "boundaries": {
+            "excluded": [
+              "Production systems and real customer data"
+            ],
+            "included": []
+          },
+          "changeSummary": null,
+          "baseRevisionId": null,
+          "executionBotId": "c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb",
+          "sourceDecisionId": null
+        }
+      }
+    },
+    {
+      "scope": "outcome-review:6e536ee3-f26d-43bd-b771-695fd61c969f",
+      "key": "product-replay:4d5553fd-eb3b-4c31-8f18-8d0233c75f1d:review-human",
+      "status": "completed",
+      "requestHash": "4873cbd230be4d689d7095708f3f0daefc8c10ef31b3970075bbf52e13e53595",
+      "response": {
+        "id": "6e536ee3-f26d-43bd-b771-695fd61c969f",
+        "botId": "c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb",
+        "title": "虚构海棠实验室现场网络核对",
+        "status": "running",
+        "outputs": [],
+        "reviews": [
+          {
+            "id": "5e10536a-550a-4fe8-84a0-d0e87b7bede4",
+            "result": "UNVERIFIED",
+            "comment": "No observed material yet",
+            "sequence": 1,
+            "reviewedAt": "2026-11-17T12:50:28.179Z",
+            "reviewedBy": "owner:local",
+            "criterionId": "da712531-0f61-4fcd-a25b-cf059eb92503",
+            "evidenceIds": [],
+            "contractRevision": 1
+          },
+          {
+            "id": "9f9a4461-b76c-4785-b877-62fcbdc63cf7",
+            "result": "FAIL",
+            "comment": "请补充 DNS 实测结果",
+            "sequence": 2,
+            "reviewedAt": "2026-11-17T12:50:28.217Z",
+            "reviewedBy": "owner:local",
+            "criterionId": "da712531-0f61-4fcd-a25b-cf059eb92503",
+            "evidenceIds": [],
+            "contractRevision": 1
+          },
+          {
+            "id": "f5cf33a8-98bf-4d7d-a3ec-2405722ed75c",
+            "result": "PASS",
+            "comment": "Owner verified the fictional observed network log",
+            "sequence": 3,
+            "reviewedAt": "2026-11-17T12:50:28.269Z",
+            "reviewedBy": "owner:local",
+            "criterionId": "da712531-0f61-4fcd-a25b-cf059eb92503",
+            "evidenceIds": [
+              "863d5b8e-0a48-4351-9c82-418d9dee6929"
+            ],
+            "contractRevision": 1
+          }
+        ],
+        "evidence": [
+          {
+            "id": "863d5b8e-0a48-4351-9c82-418d9dee6929",
+            "runId": null,
+            "sourceRef": "human-receipt:d798022a-9309-4de3-ab5d-8c3c19ed51bd:text",
+            "capturedAt": "2026-11-17T12:50:28.253Z",
+            "capturedBy": "owner:local",
+            "sourceType": "receipt_text",
+            "workItemId": "468e3703-8304-46f5-a2d7-e44ed99505cd",
+            "credibility": "human_confirmed",
+            "criterionId": "da712531-0f61-4fcd-a25b-cf059eb92503",
+            "contentSummary": "DHCP 与 DNS 测试成功，虚构记录 2026-11-17T02:00:00Z",
+            "contractRevision": 1
+          }
+        ],
+        "createdAt": "2026-11-17T12:50:27.895Z",
+        "revisions": [
+          {
+            "id": "286c6de9-11b7-424a-be4a-49506931cd0f",
+            "status": "approved",
+            "revision": 1,
+            "createdAt": "2026-11-17T12:50:27.900Z",
+            "createdBy": "owner:local",
+            "changeSummary": null,
+            "baseRevisionId": null,
+            "sourceDecisionId": null
+          }
+        ],
+        "updatedAt": "2026-11-17T12:50:28.296Z",
+        "workItems": [
+          {
+            "id": "37c74862-f8b9-40be-9ba3-89d287581c12",
+            "kind": "initial",
+            "title": "虚构海棠实验室现场网络核对",
+            "runIds": [
+              "3f362f58-c38e-4165-8339-18934a5ac451",
+              "e7ea8466-d9b5-4b8a-883c-e90421fb40b4"
+            ],
+            "status": "running",
+            "ordinal": 1,
+            "createdAt": "2026-11-17T12:50:27.945Z",
+            "dependsOn": [],
+            "rootRunId": "3f362f58-c38e-4165-8339-18934a5ac451",
+            "updatedAt": "2026-11-17T12:50:28.294Z",
+            "executorType": "agent",
+            "statusReason": "human_action_accepted",
+            "contractRevision": 1,
+            "reworkOfWorkItemId": null
+          },
+          {
+            "id": "468e3703-8304-46f5-a2d7-e44ed99505cd",
+            "kind": "human_action",
+            "title": "现场网络核对",
+            "runIds": [],
+            "status": "accepted",
+            "ordinal": 2,
+            "createdAt": "2026-11-17T12:50:28.065Z",
+            "dependsOn": [],
+            "rootRunId": null,
+            "updatedAt": "2026-11-17T12:50:28.277Z",
+            "executorType": "human",
+            "statusReason": "human_receipt_accepted",
+            "contractRevision": 1,
+            "reworkOfWorkItemId": null
+          }
+        ],
+        "acceptedAt": null,
+        "description": "虚构海棠实验室现场网络核对",
+        "resumeStatus": null,
+        "currentRevision": 1,
+        "sourceExploreId": null,
+        "currentRevisionView": {
+          "id": "286c6de9-11b7-424a-be4a-49506931cd0f",
+          "goal": [
+            "虚构海棠实验室现场网络核对"
+          ],
+          "budget": null,
+          "status": "approved",
+          "criteria": [
+            {
+              "id": "da712531-0f61-4fcd-a25b-cf059eb92503",
+              "ordinal": 1,
+              "required": true,
+              "statement": "提交现场网络实测日志",
+              "latestResult": "PASS",
+              "verificationMethod": "human_review"
+            }
+          ],
+          "revision": 1,
+          "conflicts": [],
+          "createdAt": "2026-11-17T12:50:27.900Z",
+          "createdBy": "owner:local",
+          "approvedAt": "2026-11-17T12:50:27.925Z",
+          "approvedBy": "owner:local",
+          "boundaries": {
+            "excluded": [
+              "Production systems and real customer data"
+            ],
+            "included": []
+          },
+          "changeSummary": null,
+          "baseRevisionId": null,
+          "executionBotId": "c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb",
+          "sourceDecisionId": null
+        }
+      }
+    },
+    {
+      "scope": "outcome-review:6e536ee3-f26d-43bd-b771-695fd61c969f",
+      "key": "product-replay:4d5553fd-eb3b-4c31-8f18-8d0233c75f1d:review-reject",
+      "status": "completed",
+      "requestHash": "036407a92e1b3f7bc6c717f71fdf806ca19575b32192bd9ccc488018bc9d8bd1",
+      "response": {
+        "id": "6e536ee3-f26d-43bd-b771-695fd61c969f",
+        "botId": "c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb",
+        "title": "虚构海棠实验室现场网络核对",
+        "status": "human_action_pending",
+        "outputs": [],
+        "reviews": [
+          {
+            "id": "5e10536a-550a-4fe8-84a0-d0e87b7bede4",
+            "result": "UNVERIFIED",
+            "comment": "No observed material yet",
+            "sequence": 1,
+            "reviewedAt": "2026-11-17T12:50:28.179Z",
+            "reviewedBy": "owner:local",
+            "criterionId": "da712531-0f61-4fcd-a25b-cf059eb92503",
+            "evidenceIds": [],
+            "contractRevision": 1
+          },
+          {
+            "id": "9f9a4461-b76c-4785-b877-62fcbdc63cf7",
+            "result": "FAIL",
+            "comment": "请补充 DNS 实测结果",
+            "sequence": 2,
+            "reviewedAt": "2026-11-17T12:50:28.217Z",
+            "reviewedBy": "owner:local",
+            "criterionId": "da712531-0f61-4fcd-a25b-cf059eb92503",
+            "evidenceIds": [],
+            "contractRevision": 1
+          }
+        ],
+        "evidence": [],
+        "createdAt": "2026-11-17T12:50:27.895Z",
+        "revisions": [
+          {
+            "id": "286c6de9-11b7-424a-be4a-49506931cd0f",
+            "status": "approved",
+            "revision": 1,
+            "createdAt": "2026-11-17T12:50:27.900Z",
+            "createdBy": "owner:local",
+            "changeSummary": null,
+            "baseRevisionId": null,
+            "sourceDecisionId": null
+          }
+        ],
+        "updatedAt": "2026-11-17T12:50:28.077Z",
+        "workItems": [
+          {
+            "id": "37c74862-f8b9-40be-9ba3-89d287581c12",
+            "kind": "initial",
+            "title": "虚构海棠实验室现场网络核对",
+            "runIds": [
+              "3f362f58-c38e-4165-8339-18934a5ac451"
+            ],
+            "status": "waiting_human",
+            "ordinal": 1,
+            "createdAt": "2026-11-17T12:50:27.945Z",
+            "dependsOn": [],
+            "rootRunId": "3f362f58-c38e-4165-8339-18934a5ac451",
+            "updatedAt": "2026-11-17T12:50:28.075Z",
+            "executorType": "agent",
+            "statusReason": "human_action_requested",
+            "contractRevision": 1,
+            "reworkOfWorkItemId": null
+          },
+          {
+            "id": "468e3703-8304-46f5-a2d7-e44ed99505cd",
+            "kind": "human_action",
+            "title": "现场网络核对",
+            "runIds": [],
+            "status": "rejected",
+            "ordinal": 2,
+            "createdAt": "2026-11-17T12:50:28.065Z",
+            "dependsOn": [],
+            "rootRunId": null,
+            "updatedAt": "2026-11-17T12:50:28.224Z",
+            "executorType": "human",
+            "statusReason": "human_receipt_rejected",
+            "contractRevision": 1,
+            "reworkOfWorkItemId": null
+          }
+        ],
+        "acceptedAt": null,
+        "description": "虚构海棠实验室现场网络核对",
+        "resumeStatus": "approved",
+        "currentRevision": 1,
+        "sourceExploreId": null,
+        "currentRevisionView": {
+          "id": "286c6de9-11b7-424a-be4a-49506931cd0f",
+          "goal": [
+            "虚构海棠实验室现场网络核对"
+          ],
+          "budget": null,
+          "status": "approved",
+          "criteria": [
+            {
+              "id": "da712531-0f61-4fcd-a25b-cf059eb92503",
+              "ordinal": 1,
+              "required": true,
+              "statement": "提交现场网络实测日志",
+              "latestResult": "FAIL",
+              "verificationMethod": "human_review"
+            }
+          ],
+          "revision": 1,
+          "conflicts": [],
+          "createdAt": "2026-11-17T12:50:27.900Z",
+          "createdBy": "owner:local",
+          "approvedAt": "2026-11-17T12:50:27.925Z",
+          "approvedBy": "owner:local",
+          "boundaries": {
+            "excluded": [
+              "Production systems and real customer data"
+            ],
+            "included": []
+          },
+          "changeSummary": null,
+          "baseRevisionId": null,
+          "executionBotId": "c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb",
+          "sourceDecisionId": null
+        }
+      }
+    },
+    {
+      "scope": "outcome-review:6e536ee3-f26d-43bd-b771-695fd61c969f",
+      "key": "product-replay:4d5553fd-eb3b-4c31-8f18-8d0233c75f1d:review-unverified",
+      "status": "completed",
+      "requestHash": "cf98db764586600fd1ecf979bbe9bd0a565e57dcac7518ecdbbb9f4d5489b0f6",
+      "response": {
+        "id": "6e536ee3-f26d-43bd-b771-695fd61c969f",
+        "botId": "c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb",
+        "title": "虚构海棠实验室现场网络核对",
+        "status": "human_action_pending",
+        "outputs": [],
+        "reviews": [
+          {
+            "id": "5e10536a-550a-4fe8-84a0-d0e87b7bede4",
+            "result": "UNVERIFIED",
+            "comment": "No observed material yet",
+            "sequence": 1,
+            "reviewedAt": "2026-11-17T12:50:28.179Z",
+            "reviewedBy": "owner:local",
+            "criterionId": "da712531-0f61-4fcd-a25b-cf059eb92503",
+            "evidenceIds": [],
+            "contractRevision": 1
+          }
+        ],
+        "evidence": [],
+        "createdAt": "2026-11-17T12:50:27.895Z",
+        "revisions": [
+          {
+            "id": "286c6de9-11b7-424a-be4a-49506931cd0f",
+            "status": "approved",
+            "revision": 1,
+            "createdAt": "2026-11-17T12:50:27.900Z",
+            "createdBy": "owner:local",
+            "changeSummary": null,
+            "baseRevisionId": null,
+            "sourceDecisionId": null
+          }
+        ],
+        "updatedAt": "2026-11-17T12:50:28.077Z",
+        "workItems": [
+          {
+            "id": "37c74862-f8b9-40be-9ba3-89d287581c12",
+            "kind": "initial",
+            "title": "虚构海棠实验室现场网络核对",
+            "runIds": [
+              "3f362f58-c38e-4165-8339-18934a5ac451"
+            ],
+            "status": "waiting_human",
+            "ordinal": 1,
+            "createdAt": "2026-11-17T12:50:27.945Z",
+            "dependsOn": [],
+            "rootRunId": "3f362f58-c38e-4165-8339-18934a5ac451",
+            "updatedAt": "2026-11-17T12:50:28.075Z",
+            "executorType": "agent",
+            "statusReason": "human_action_requested",
+            "contractRevision": 1,
+            "reworkOfWorkItemId": null
+          },
+          {
+            "id": "468e3703-8304-46f5-a2d7-e44ed99505cd",
+            "kind": "human_action",
+            "title": "现场网络核对",
+            "runIds": [],
+            "status": "review_pending",
+            "ordinal": 2,
+            "createdAt": "2026-11-17T12:50:28.065Z",
+            "dependsOn": [],
+            "rootRunId": null,
+            "updatedAt": "2026-11-17T12:50:28.166Z",
+            "executorType": "human",
+            "statusReason": "human_receipt_review_required",
+            "contractRevision": 1,
+            "reworkOfWorkItemId": null
+          }
+        ],
+        "acceptedAt": null,
+        "description": "虚构海棠实验室现场网络核对",
+        "resumeStatus": "approved",
+        "currentRevision": 1,
+        "sourceExploreId": null,
+        "currentRevisionView": {
+          "id": "286c6de9-11b7-424a-be4a-49506931cd0f",
+          "goal": [
+            "虚构海棠实验室现场网络核对"
+          ],
+          "budget": null,
+          "status": "approved",
+          "criteria": [
+            {
+              "id": "da712531-0f61-4fcd-a25b-cf059eb92503",
+              "ordinal": 1,
+              "required": true,
+              "statement": "提交现场网络实测日志",
+              "latestResult": "UNVERIFIED",
+              "verificationMethod": "human_review"
+            }
+          ],
+          "revision": 1,
+          "conflicts": [],
+          "createdAt": "2026-11-17T12:50:27.900Z",
+          "createdBy": "owner:local",
+          "approvedAt": "2026-11-17T12:50:27.925Z",
+          "approvedBy": "owner:local",
+          "boundaries": {
+            "excluded": [
+              "Production systems and real customer data"
+            ],
+            "included": []
+          },
+          "changeSummary": null,
+          "baseRevisionId": null,
+          "executionBotId": "c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb",
+          "sourceDecisionId": null
+        }
+      }
+    },
+    {
+      "scope": "outcome-run:6e536ee3-f26d-43bd-b771-695fd61c969f",
+      "key": "product-replay:4d5553fd-eb3b-4c31-8f18-8d0233c75f1d:start",
+      "status": "completed",
+      "requestHash": "ac9daba291264a0b2ef6945a588faf90c39862bb1e9196e92ed3abd0926343da",
+      "response": {
+        "id": "6e536ee3-f26d-43bd-b771-695fd61c969f",
+        "botId": "c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb",
+        "title": "虚构海棠实验室现场网络核对",
+        "status": "running",
+        "outputs": [],
+        "reviews": [],
+        "evidence": [],
+        "createdAt": "2026-11-17T12:50:27.895Z",
+        "revisions": [
+          {
+            "id": "286c6de9-11b7-424a-be4a-49506931cd0f",
+            "status": "approved",
+            "revision": 1,
+            "createdAt": "2026-11-17T12:50:27.900Z",
+            "createdBy": "owner:local",
+            "changeSummary": null,
+            "baseRevisionId": null,
+            "sourceDecisionId": null
+          }
+        ],
+        "updatedAt": "2026-11-17T12:50:27.975Z",
+        "workItems": [
+          {
+            "id": "37c74862-f8b9-40be-9ba3-89d287581c12",
+            "kind": "initial",
+            "title": "虚构海棠实验室现场网络核对",
+            "runIds": [
+              "3f362f58-c38e-4165-8339-18934a5ac451"
+            ],
+            "status": "queued",
+            "ordinal": 1,
+            "createdAt": "2026-11-17T12:50:27.945Z",
+            "dependsOn": [],
+            "rootRunId": "3f362f58-c38e-4165-8339-18934a5ac451",
+            "updatedAt": "2026-11-17T12:50:27.971Z",
+            "executorType": "agent",
+            "statusReason": null,
+            "contractRevision": 1,
+            "reworkOfWorkItemId": null
+          }
+        ],
+        "acceptedAt": null,
+        "description": "虚构海棠实验室现场网络核对",
+        "resumeStatus": null,
+        "currentRevision": 1,
+        "sourceExploreId": null,
+        "currentRevisionView": {
+          "id": "286c6de9-11b7-424a-be4a-49506931cd0f",
+          "goal": [
+            "虚构海棠实验室现场网络核对"
+          ],
+          "budget": null,
+          "status": "approved",
+          "criteria": [
+            {
+              "id": "da712531-0f61-4fcd-a25b-cf059eb92503",
+              "ordinal": 1,
+              "required": true,
+              "statement": "提交现场网络实测日志",
+              "latestResult": null,
+              "verificationMethod": "human_review"
+            }
+          ],
+          "revision": 1,
+          "conflicts": [],
+          "createdAt": "2026-11-17T12:50:27.900Z",
+          "createdBy": "owner:local",
+          "approvedAt": "2026-11-17T12:50:27.925Z",
+          "approvedBy": "owner:local",
+          "boundaries": {
+            "excluded": [
+              "Production systems and real customer data"
+            ],
+            "included": []
+          },
+          "changeSummary": null,
+          "baseRevisionId": null,
+          "executionBotId": "c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb",
+          "sourceDecisionId": null
+        }
+      }
+    },
+    {
+      "scope": "outcome-turn:37c74862-f8b9-40be-9ba3-89d287581c12",
+      "key": "human-action-accepted:468e3703-8304-46f5-a2d7-e44ed99505cd:d798022a-9309-4de3-ab5d-8c3c19ed51bd",
+      "status": "completed",
+      "requestHash": "ba8d1c012f4b2276e3c3d5651b767c8a21576814b948cf2ae14b6c3c7572c68e",
+      "response": {
+        "runId": "e7ea8466-d9b5-4b8a-883c-e90421fb40b4",
+        "status": "enqueued"
+      }
+    },
+    {
+      "scope": "outcome-turn:37c74862-f8b9-40be-9ba3-89d287581c12",
+      "key": "outcome-run:6e536ee3-f26d-43bd-b771-695fd61c969f:1:37c74862-f8b9-40be-9ba3-89d287581c12",
+      "status": "completed",
+      "requestHash": "3e9dfdc02502146ef86e6f21b787e325b8476912e14a4a1bbcb796785a7580a0",
+      "response": {
+        "runId": "3f362f58-c38e-4165-8339-18934a5ac451",
+        "status": "enqueued"
+      }
+    }
+  ],
+  "events": [
+    {
+      "sequence": "1",
+      "topic": "outcome.created",
+      "payload": {
+        "actorId": "owner:local",
+        "eventId": "4fdc5a50-b529-4338-aa8a-ca1f560fc4ce",
+        "payload": {
+          "botId": "c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb",
+          "title": "虚构海棠实验室现场网络核对"
+        },
+        "occurredAt": "2026-11-17T12:50:27.897Z",
+        "correlationId": "product-replay:4d5553fd-eb3b-4c31-8f18-8d0233c75f1d:create",
+        "schemaVersion": 1,
+        "idempotencyKey": "product-replay:4d5553fd-eb3b-4c31-8f18-8d0233c75f1d:create"
+      }
+    },
+    {
+      "sequence": "2",
+      "topic": "outcome.contract.revision_created",
+      "payload": {
+        "actorId": "owner:local",
+        "eventId": "81261cd4-52a1-4dd2-8c98-a2a194598bf7",
+        "payload": {
+          "status": "pending_approval",
+          "revisionId": "286c6de9-11b7-424a-be4a-49506931cd0f",
+          "baseRevisionId": null,
+          "sourceDecisionId": null
+        },
+        "occurredAt": "2026-11-17T12:50:27.904Z",
+        "correlationId": "product-replay:4d5553fd-eb3b-4c31-8f18-8d0233c75f1d:create",
+        "schemaVersion": 1,
+        "idempotencyKey": "product-replay:4d5553fd-eb3b-4c31-8f18-8d0233c75f1d:create",
+        "contractRevision": 1
+      }
+    },
+    {
+      "sequence": "3",
+      "topic": "outcome.status_changed",
+      "payload": {
+        "actorId": "owner:local",
+        "eventId": "63aa1aa8-3c5e-4ba0-bd0a-6a19548ec325",
+        "payload": {
+          "to": "pending_approval",
+          "from": "draft"
+        },
+        "occurredAt": "2026-11-17T12:50:27.909Z",
+        "correlationId": "63aa1aa8-3c5e-4ba0-bd0a-6a19548ec325",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "sequence": "4",
+      "topic": "outcome.contract.revision_approved",
+      "payload": {
+        "actorId": "owner:local",
+        "eventId": "3a2b8aee-d71c-4b92-bf21-db1b31906e6c",
+        "payload": {
+          "revisionId": "286c6de9-11b7-424a-be4a-49506931cd0f",
+          "contentHash": "e987b86744dc6359874f4fa6d252cee3d5c2b1981b290d010624f18ffa9d66f0"
+        },
+        "occurredAt": "2026-11-17T12:50:27.929Z",
+        "correlationId": "product-replay:4d5553fd-eb3b-4c31-8f18-8d0233c75f1d:approve",
+        "schemaVersion": 1,
+        "idempotencyKey": "product-replay:4d5553fd-eb3b-4c31-8f18-8d0233c75f1d:approve",
+        "contractRevision": 1
+      }
+    },
+    {
+      "sequence": "5",
+      "topic": "outcome.status_changed",
+      "payload": {
+        "actorId": "owner:local",
+        "eventId": "b0ed9d05-169f-48e2-b486-126563c68f0e",
+        "payload": {
+          "to": "approved",
+          "from": "pending_approval"
+        },
+        "occurredAt": "2026-11-17T12:50:27.932Z",
+        "correlationId": "b0ed9d05-169f-48e2-b486-126563c68f0e",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "sequence": "6",
+      "topic": "outcome.work_item.created",
+      "payload": {
+        "actorId": "owner:local",
+        "eventId": "445b2f56-d0d5-445a-941b-50c555bc7b44",
+        "payload": {
+          "kind": "initial",
+          "workItemId": "37c74862-f8b9-40be-9ba3-89d287581c12",
+          "executorType": "agent"
+        },
+        "occurredAt": "2026-11-17T12:50:27.946Z",
+        "workItemId": "37c74862-f8b9-40be-9ba3-89d287581c12",
+        "correlationId": "product-replay:4d5553fd-eb3b-4c31-8f18-8d0233c75f1d:start",
+        "schemaVersion": 1,
+        "idempotencyKey": "product-replay:4d5553fd-eb3b-4c31-8f18-8d0233c75f1d:start",
+        "contractRevision": 1
+      }
+    },
+    {
+      "sequence": "8",
+      "topic": "outcome.status_changed",
+      "payload": {
+        "actorId": "owner:local",
+        "eventId": "e53004f3-7f7a-48ca-a75d-1e8ea68e081e",
+        "payload": {
+          "to": "running",
+          "from": "approved"
+        },
+        "occurredAt": "2026-11-17T12:50:27.975Z",
+        "correlationId": "e53004f3-7f7a-48ca-a75d-1e8ea68e081e",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "sequence": "9",
+      "topic": "outcome.work_item.updated",
+      "payload": {
+        "actorId": "system:worker",
+        "eventId": "e57180f7-7d91-4e8e-b5ab-9295c8f5c50d",
+        "payload": {
+          "to": "running",
+          "from": "queued",
+          "reason": "lease_acquired"
+        },
+        "occurredAt": "2026-11-17T12:50:28.007Z",
+        "workItemId": "37c74862-f8b9-40be-9ba3-89d287581c12",
+        "correlationId": "e57180f7-7d91-4e8e-b5ab-9295c8f5c50d",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "sequence": "13",
+      "topic": "outcome.work_item.created",
+      "payload": {
+        "actorId": "bot:c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb",
+        "eventId": "2444a137-7925-43ad-84d1-85c1566f3412",
+        "payload": {
+          "kind": "human_action",
+          "workItemId": "468e3703-8304-46f5-a2d7-e44ed99505cd",
+          "executorType": "human"
+        },
+        "occurredAt": "2026-11-17T12:50:28.067Z",
+        "workItemId": "468e3703-8304-46f5-a2d7-e44ed99505cd",
+        "correlationId": "2444a137-7925-43ad-84d1-85c1566f3412",
+        "schemaVersion": 1,
+        "contractRevision": 1
+      }
+    },
+    {
+      "sequence": "14",
+      "topic": "outcome.human_action.required",
+      "payload": {
+        "actorId": "bot:c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb",
+        "eventId": "6be007e4-b894-4442-b210-6009cd7d615e",
+        "payload": {
+          "cardId": "468e3703-8304-46f5-a2d7-e44ed99505cd",
+          "decisionId": null,
+          "workItemId": "468e3703-8304-46f5-a2d7-e44ed99505cd",
+          "requestedByWorkItemId": "37c74862-f8b9-40be-9ba3-89d287581c12"
+        },
+        "occurredAt": "2026-11-17T12:50:28.067Z",
+        "workItemId": "468e3703-8304-46f5-a2d7-e44ed99505cd",
+        "correlationId": "6be007e4-b894-4442-b210-6009cd7d615e",
+        "schemaVersion": 1,
+        "contractRevision": 1
+      }
+    },
+    {
+      "sequence": "15",
+      "topic": "outcome.work_item.updated",
+      "payload": {
+        "actorId": "bot:c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb",
+        "eventId": "97f6475f-599a-473d-9e02-12956ddade5b",
+        "payload": {
+          "to": "ready",
+          "from": "pending",
+          "reason": "Human action references resolved"
+        },
+        "occurredAt": "2026-11-17T12:50:28.070Z",
+        "workItemId": "468e3703-8304-46f5-a2d7-e44ed99505cd",
+        "correlationId": "97f6475f-599a-473d-9e02-12956ddade5b",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "sequence": "16",
+      "topic": "outcome.status_changed",
+      "payload": {
+        "actorId": "bot:c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb",
+        "eventId": "8ec466c6-f44c-441e-8ed1-3acd5e82b7e6",
+        "payload": {
+          "to": "human_action_pending",
+          "from": "running"
+        },
+        "occurredAt": "2026-11-17T12:50:28.072Z",
+        "correlationId": "8ec466c6-f44c-441e-8ed1-3acd5e82b7e6",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "sequence": "17",
+      "topic": "outcome.work_item.updated",
+      "payload": {
+        "actorId": "bot:c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb",
+        "eventId": "076be91e-5fbc-406f-9e71-2e1a64693cea",
+        "payload": {
+          "to": "waiting_human",
+          "from": "running",
+          "reason": "human_action_requested"
+        },
+        "occurredAt": "2026-11-17T12:50:28.075Z",
+        "workItemId": "37c74862-f8b9-40be-9ba3-89d287581c12",
+        "correlationId": "human-action-request:3f362f58-c38e-4165-8339-18934a5ac451:36c4fd972d2fe692721cff0d1bd362a81b6957f7b06da0f92fe098f543644561",
+        "schemaVersion": 1,
+        "idempotencyKey": "human-action-request:3f362f58-c38e-4165-8339-18934a5ac451:36c4fd972d2fe692721cff0d1bd362a81b6957f7b06da0f92fe098f543644561"
+      }
+    },
+    {
+      "sequence": "20",
+      "topic": "outcome.work_item.updated",
+      "payload": {
+        "actorId": "owner:local",
+        "eventId": "0b302483-f082-47a8-8a9f-6429b4036136",
+        "payload": {
+          "to": "in_progress",
+          "from": "ready",
+          "reason": "Human action started"
+        },
+        "occurredAt": "2026-11-17T12:50:28.120Z",
+        "workItemId": "468e3703-8304-46f5-a2d7-e44ed99505cd",
+        "correlationId": "0b302483-f082-47a8-8a9f-6429b4036136",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "sequence": "21",
+      "topic": "outcome.work_item.updated",
+      "payload": {
+        "actorId": "owner:local",
+        "eventId": "494c5bac-8f51-44a1-a696-b5f45346308b",
+        "payload": {
+          "to": "paused",
+          "from": "in_progress",
+          "reason": "等待现场窗口"
+        },
+        "occurredAt": "2026-11-17T12:50:28.135Z",
+        "workItemId": "468e3703-8304-46f5-a2d7-e44ed99505cd",
+        "correlationId": "494c5bac-8f51-44a1-a696-b5f45346308b",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "sequence": "22",
+      "topic": "outcome.work_item.updated",
+      "payload": {
+        "actorId": "owner:local",
+        "eventId": "67f2435b-c7da-4614-9d9a-029ab961594d",
+        "payload": {
+          "to": "in_progress",
+          "from": "paused",
+          "reason": "Human action started"
+        },
+        "occurredAt": "2026-11-17T12:50:28.145Z",
+        "workItemId": "468e3703-8304-46f5-a2d7-e44ed99505cd",
+        "correlationId": "67f2435b-c7da-4614-9d9a-029ab961594d",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "sequence": "23",
+      "topic": "outcome.work_item.updated",
+      "payload": {
+        "actorId": "owner:local",
+        "eventId": "7c2c6ef0-e3de-4ba7-9480-e0fdf165543f",
+        "payload": {
+          "to": "submitted",
+          "from": "in_progress",
+          "reason": "human_receipt_submitted"
+        },
+        "occurredAt": "2026-11-17T12:50:28.163Z",
+        "workItemId": "468e3703-8304-46f5-a2d7-e44ed99505cd",
+        "correlationId": "7c2c6ef0-e3de-4ba7-9480-e0fdf165543f",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "sequence": "24",
+      "topic": "outcome.work_item.updated",
+      "payload": {
+        "actorId": "owner:local",
+        "eventId": "e5c33e13-50d9-4370-a54a-41c11090697a",
+        "payload": {
+          "to": "review_pending",
+          "from": "submitted",
+          "reason": "human_receipt_review_required"
+        },
+        "occurredAt": "2026-11-17T12:50:28.166Z",
+        "workItemId": "468e3703-8304-46f5-a2d7-e44ed99505cd",
+        "correlationId": "e5c33e13-50d9-4370-a54a-41c11090697a",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "sequence": "25",
+      "topic": "outcome.human_receipt.submitted",
+      "payload": {
+        "actorId": "owner:local",
+        "eventId": "11d619a8-0e5a-4fe8-a661-440c49ce3ea2",
+        "payload": {
+          "receiptId": "f0157494-cb5e-4b64-afb3-c5fe91313d53",
+          "workItemId": "468e3703-8304-46f5-a2d7-e44ed99505cd",
+          "evidenceIds": []
+        },
+        "occurredAt": "2026-11-17T12:50:28.168Z",
+        "workItemId": "468e3703-8304-46f5-a2d7-e44ed99505cd",
+        "correlationId": "product-replay:4d5553fd-eb3b-4c31-8f18-8d0233c75f1d:receipt-missing",
+        "schemaVersion": 1,
+        "idempotencyKey": "product-replay:4d5553fd-eb3b-4c31-8f18-8d0233c75f1d:receipt-missing",
+        "contractRevision": 1
+      }
+    },
+    {
+      "sequence": "26",
+      "topic": "outcome.review.required",
+      "payload": {
+        "actorId": "owner:local",
+        "eventId": "8badf5b2-c943-49d2-8a99-bf69142b0770",
+        "payload": {
+          "workItemIds": [
+            "468e3703-8304-46f5-a2d7-e44ed99505cd"
+          ],
+          "criterionIds": [
+            "da712531-0f61-4fcd-a25b-cf059eb92503"
+          ]
+        },
+        "occurredAt": "2026-11-17T12:50:28.168Z",
+        "workItemId": "468e3703-8304-46f5-a2d7-e44ed99505cd",
+        "correlationId": "product-replay:4d5553fd-eb3b-4c31-8f18-8d0233c75f1d:receipt-missing",
+        "schemaVersion": 1,
+        "idempotencyKey": "product-replay:4d5553fd-eb3b-4c31-8f18-8d0233c75f1d:receipt-missing",
+        "contractRevision": 1
+      }
+    },
+    {
+      "sequence": "27",
+      "topic": "outcome.review.recorded",
+      "payload": {
+        "actorId": "owner:local",
+        "eventId": "7f7cc2f0-b32c-4237-a568-e56df2363db2",
+        "payload": {
+          "result": "UNVERIFIED",
+          "reviewId": "5e10536a-550a-4fe8-84a0-d0e87b7bede4",
+          "criterionId": "da712531-0f61-4fcd-a25b-cf059eb92503",
+          "evidenceIds": []
+        },
+        "occurredAt": "2026-11-17T12:50:28.180Z",
+        "correlationId": "product-replay:4d5553fd-eb3b-4c31-8f18-8d0233c75f1d:review-unverified",
+        "schemaVersion": 1,
+        "idempotencyKey": "product-replay:4d5553fd-eb3b-4c31-8f18-8d0233c75f1d:review-unverified",
+        "contractRevision": 1
+      }
+    },
+    {
+      "sequence": "28",
+      "topic": "outcome.review.required",
+      "payload": {
+        "actorId": "owner:local",
+        "eventId": "ff9d4154-4cc5-43a1-b7a4-fc7cb3b9f6c3",
+        "payload": {
+          "workItemIds": [
+            "37c74862-f8b9-40be-9ba3-89d287581c12",
+            "468e3703-8304-46f5-a2d7-e44ed99505cd"
+          ],
+          "criterionIds": [
+            "da712531-0f61-4fcd-a25b-cf059eb92503"
+          ]
+        },
+        "occurredAt": "2026-11-17T12:50:28.190Z",
+        "correlationId": "product-replay:4d5553fd-eb3b-4c31-8f18-8d0233c75f1d:review-unverified",
+        "schemaVersion": 1,
+        "idempotencyKey": "product-replay:4d5553fd-eb3b-4c31-8f18-8d0233c75f1d:review-unverified",
+        "contractRevision": 1
+      }
+    },
+    {
+      "sequence": "30",
+      "topic": "outcome.review.recorded",
+      "payload": {
+        "actorId": "owner:local",
+        "eventId": "9442aa50-7b13-475c-b47f-a085e776d23a",
+        "payload": {
+          "result": "FAIL",
+          "reviewId": "9f9a4461-b76c-4785-b877-62fcbdc63cf7",
+          "criterionId": "da712531-0f61-4fcd-a25b-cf059eb92503",
+          "evidenceIds": []
+        },
+        "occurredAt": "2026-11-17T12:50:28.217Z",
+        "correlationId": "product-replay:4d5553fd-eb3b-4c31-8f18-8d0233c75f1d:review-reject",
+        "schemaVersion": 1,
+        "idempotencyKey": "product-replay:4d5553fd-eb3b-4c31-8f18-8d0233c75f1d:review-reject",
+        "contractRevision": 1
+      }
+    },
+    {
+      "sequence": "31",
+      "topic": "outcome.work_item.updated",
+      "payload": {
+        "actorId": "owner:local",
+        "eventId": "581aa487-6efe-4455-9bb3-1cabd3ae301b",
+        "payload": {
+          "to": "rejected",
+          "from": "review_pending",
+          "reason": "human_receipt_rejected"
+        },
+        "occurredAt": "2026-11-17T12:50:28.225Z",
+        "workItemId": "468e3703-8304-46f5-a2d7-e44ed99505cd",
+        "correlationId": "581aa487-6efe-4455-9bb3-1cabd3ae301b",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "sequence": "32",
+      "topic": "outcome.review.required",
+      "payload": {
+        "actorId": "owner:local",
+        "eventId": "db5ac15b-3d21-4f30-beee-d5a2fca01ada",
+        "payload": {
+          "workItemIds": [
+            "37c74862-f8b9-40be-9ba3-89d287581c12",
+            "468e3703-8304-46f5-a2d7-e44ed99505cd"
+          ],
+          "criterionIds": [
+            "da712531-0f61-4fcd-a25b-cf059eb92503"
+          ]
+        },
+        "occurredAt": "2026-11-17T12:50:28.231Z",
+        "correlationId": "product-replay:4d5553fd-eb3b-4c31-8f18-8d0233c75f1d:review-reject",
+        "schemaVersion": 1,
+        "idempotencyKey": "product-replay:4d5553fd-eb3b-4c31-8f18-8d0233c75f1d:review-reject",
+        "contractRevision": 1
+      }
+    },
+    {
+      "sequence": "33",
+      "topic": "outcome.work_item.updated",
+      "payload": {
+        "actorId": "owner:local",
+        "eventId": "91b6fde4-2807-4b8c-8492-91246a35d7c2",
+        "payload": {
+          "to": "in_progress",
+          "from": "rejected",
+          "reason": "Human action started"
+        },
+        "occurredAt": "2026-11-17T12:50:28.244Z",
+        "workItemId": "468e3703-8304-46f5-a2d7-e44ed99505cd",
+        "correlationId": "91b6fde4-2807-4b8c-8492-91246a35d7c2",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "sequence": "34",
+      "topic": "outcome.work_item.updated",
+      "payload": {
+        "actorId": "owner:local",
+        "eventId": "dd64b2d9-cb62-4bad-b338-851d243392a2",
+        "payload": {
+          "to": "submitted",
+          "from": "in_progress",
+          "reason": "human_receipt_submitted"
+        },
+        "occurredAt": "2026-11-17T12:50:28.258Z",
+        "workItemId": "468e3703-8304-46f5-a2d7-e44ed99505cd",
+        "correlationId": "dd64b2d9-cb62-4bad-b338-851d243392a2",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "sequence": "35",
+      "topic": "outcome.work_item.updated",
+      "payload": {
+        "actorId": "owner:local",
+        "eventId": "d2edc414-1dbe-42f6-88db-d85ac149c861",
+        "payload": {
+          "to": "review_pending",
+          "from": "submitted",
+          "reason": "human_receipt_review_required"
+        },
+        "occurredAt": "2026-11-17T12:50:28.261Z",
+        "workItemId": "468e3703-8304-46f5-a2d7-e44ed99505cd",
+        "correlationId": "d2edc414-1dbe-42f6-88db-d85ac149c861",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "sequence": "36",
+      "topic": "outcome.human_receipt.submitted",
+      "payload": {
+        "actorId": "owner:local",
+        "eventId": "9665558b-b9bb-4b6f-b762-261410ffa77b",
+        "payload": {
+          "receiptId": "d798022a-9309-4de3-ab5d-8c3c19ed51bd",
+          "workItemId": "468e3703-8304-46f5-a2d7-e44ed99505cd",
+          "evidenceIds": [
+            "863d5b8e-0a48-4351-9c82-418d9dee6929"
+          ]
+        },
+        "occurredAt": "2026-11-17T12:50:28.262Z",
+        "workItemId": "468e3703-8304-46f5-a2d7-e44ed99505cd",
+        "correlationId": "product-replay:4d5553fd-eb3b-4c31-8f18-8d0233c75f1d:receipt-resubmit",
+        "schemaVersion": 1,
+        "idempotencyKey": "product-replay:4d5553fd-eb3b-4c31-8f18-8d0233c75f1d:receipt-resubmit",
+        "contractRevision": 1
+      }
+    },
+    {
+      "sequence": "37",
+      "topic": "outcome.review.required",
+      "payload": {
+        "actorId": "owner:local",
+        "eventId": "aee1ac0f-116a-4bdd-a6bc-8b993f015ae0",
+        "payload": {
+          "workItemIds": [
+            "468e3703-8304-46f5-a2d7-e44ed99505cd"
+          ],
+          "criterionIds": [
+            "da712531-0f61-4fcd-a25b-cf059eb92503"
+          ]
+        },
+        "occurredAt": "2026-11-17T12:50:28.262Z",
+        "workItemId": "468e3703-8304-46f5-a2d7-e44ed99505cd",
+        "correlationId": "product-replay:4d5553fd-eb3b-4c31-8f18-8d0233c75f1d:receipt-resubmit",
+        "schemaVersion": 1,
+        "idempotencyKey": "product-replay:4d5553fd-eb3b-4c31-8f18-8d0233c75f1d:receipt-resubmit",
+        "contractRevision": 1
+      }
+    },
+    {
+      "sequence": "38",
+      "topic": "outcome.review.recorded",
+      "payload": {
+        "actorId": "owner:local",
+        "eventId": "d786eb97-a0e1-4440-84b5-3a965949e5a3",
+        "payload": {
+          "result": "PASS",
+          "reviewId": "f5cf33a8-98bf-4d7d-a3ec-2405722ed75c",
+          "criterionId": "da712531-0f61-4fcd-a25b-cf059eb92503",
+          "evidenceIds": [
+            "863d5b8e-0a48-4351-9c82-418d9dee6929"
+          ]
+        },
+        "occurredAt": "2026-11-17T12:50:28.269Z",
+        "correlationId": "product-replay:4d5553fd-eb3b-4c31-8f18-8d0233c75f1d:review-human",
+        "schemaVersion": 1,
+        "idempotencyKey": "product-replay:4d5553fd-eb3b-4c31-8f18-8d0233c75f1d:review-human",
+        "contractRevision": 1
+      }
+    },
+    {
+      "sequence": "39",
+      "topic": "outcome.work_item.updated",
+      "payload": {
+        "actorId": "owner:local",
+        "eventId": "64e73c75-be21-4ff6-be90-105b597b744f",
+        "payload": {
+          "to": "accepted",
+          "from": "review_pending",
+          "reason": "human_receipt_accepted"
+        },
+        "occurredAt": "2026-11-17T12:50:28.277Z",
+        "workItemId": "468e3703-8304-46f5-a2d7-e44ed99505cd",
+        "correlationId": "64e73c75-be21-4ff6-be90-105b597b744f",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "sequence": "41",
+      "topic": "outcome.work_item.updated",
+      "payload": {
+        "actorId": "system:outcome-runtime",
+        "eventId": "53d81902-8137-42f8-964e-97654d3a9bdc",
+        "payload": {
+          "to": "running",
+          "from": "waiting_human",
+          "reason": "human_action_accepted"
+        },
+        "occurredAt": "2026-11-17T12:50:28.294Z",
+        "workItemId": "37c74862-f8b9-40be-9ba3-89d287581c12",
+        "correlationId": "53d81902-8137-42f8-964e-97654d3a9bdc",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "sequence": "42",
+      "topic": "outcome.status_changed",
+      "payload": {
+        "actorId": "system:outcome-runtime",
+        "eventId": "ea3f6a01-3404-413c-890b-a1bbf11cfd5a",
+        "payload": {
+          "to": "running",
+          "from": "human_action_pending"
+        },
+        "occurredAt": "2026-11-17T12:50:28.296Z",
+        "correlationId": "ea3f6a01-3404-413c-890b-a1bbf11cfd5a",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "sequence": "43",
+      "topic": "outcome.review.required",
+      "payload": {
+        "actorId": "owner:local",
+        "eventId": "82d7c98a-21fb-4485-975d-c7fdc0380271",
+        "payload": {
+          "workItemIds": [
+            "37c74862-f8b9-40be-9ba3-89d287581c12",
+            "468e3703-8304-46f5-a2d7-e44ed99505cd"
+          ],
+          "criterionIds": []
+        },
+        "occurredAt": "2026-11-17T12:50:28.298Z",
+        "correlationId": "product-replay:4d5553fd-eb3b-4c31-8f18-8d0233c75f1d:review-human",
+        "schemaVersion": 1,
+        "idempotencyKey": "product-replay:4d5553fd-eb3b-4c31-8f18-8d0233c75f1d:review-human",
+        "contractRevision": 1
+      }
+    },
+    {
+      "sequence": "47",
+      "topic": "outcome.output.recorded",
+      "payload": {
+        "runId": "e7ea8466-d9b5-4b8a-883c-e90421fb40b4",
+        "actorId": "system:outcome-runtime",
+        "eventId": "571cf016-aeab-4e19-aafb-aa6a13a0ebb4",
+        "payload": {
+          "kind": "final_result",
+          "outputId": "d9064292-8d86-43b2-9ffc-d4a01365ee0a"
+        },
+        "occurredAt": "2026-11-17T12:50:28.344Z",
+        "workItemId": "37c74862-f8b9-40be-9ba3-89d287581c12",
+        "correlationId": "final:37c74862-f8b9-40be-9ba3-89d287581c12",
+        "schemaVersion": 1,
+        "idempotencyKey": "final:37c74862-f8b9-40be-9ba3-89d287581c12",
+        "contractRevision": 1
+      }
+    },
+    {
+      "sequence": "48",
+      "topic": "outcome.work_item.updated",
+      "payload": {
+        "actorId": "system:outcome-runtime",
+        "eventId": "73dc52c3-9c96-4529-93cb-5065c554b439",
+        "payload": {
+          "to": "completed",
+          "from": "running",
+          "reason": "run_completed"
+        },
+        "occurredAt": "2026-11-17T12:50:28.347Z",
+        "workItemId": "37c74862-f8b9-40be-9ba3-89d287581c12",
+        "correlationId": "settle:e7ea8466-d9b5-4b8a-883c-e90421fb40b4",
+        "schemaVersion": 1,
+        "idempotencyKey": "settle:e7ea8466-d9b5-4b8a-883c-e90421fb40b4"
+      }
+    },
+    {
+      "sequence": "49",
+      "topic": "outcome.status_changed",
+      "payload": {
+        "actorId": "system:outcome-runtime",
+        "eventId": "6bcfa41e-db12-4a3d-8a82-bd2bb88b1ea6",
+        "payload": {
+          "to": "review_pending",
+          "from": "running"
+        },
+        "occurredAt": "2026-11-17T12:50:28.350Z",
+        "correlationId": "6bcfa41e-db12-4a3d-8a82-bd2bb88b1ea6",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "sequence": "50",
+      "topic": "outcome.review.required",
+      "payload": {
+        "actorId": "system:outcome-runtime",
+        "eventId": "8e601e93-f0b1-4563-b02c-632c7af490f8",
+        "payload": {
+          "workItemIds": [
+            "37c74862-f8b9-40be-9ba3-89d287581c12"
+          ],
+          "criterionIds": [
+            "da712531-0f61-4fcd-a25b-cf059eb92503"
+          ]
+        },
+        "occurredAt": "2026-11-17T12:50:28.355Z",
+        "correlationId": "review-required:286c6de9-11b7-424a-be4a-49506931cd0f",
+        "schemaVersion": 1,
+        "idempotencyKey": "review-required:286c6de9-11b7-424a-be4a-49506931cd0f",
+        "contractRevision": 1
+      }
+    },
+    {
+      "sequence": "51",
+      "topic": "outcome.review.recorded",
+      "payload": {
+        "actorId": "owner:local",
+        "eventId": "bbc104f4-f015-4288-a8a0-84aaa62dfe48",
+        "payload": {
+          "result": "PASS",
+          "reviewId": "5aeae5ea-b5a4-4783-bca4-64966faad225",
+          "criterionId": "da712531-0f61-4fcd-a25b-cf059eb92503",
+          "evidenceIds": [
+            "52e49481-a7b7-4670-b5bb-ab690834b13d"
+          ]
+        },
+        "occurredAt": "2026-11-17T12:50:28.403Z",
+        "correlationId": "product-replay:4d5553fd-eb3b-4c31-8f18-8d0233c75f1d:review-final",
+        "schemaVersion": 1,
+        "idempotencyKey": "product-replay:4d5553fd-eb3b-4c31-8f18-8d0233c75f1d:review-final",
+        "contractRevision": 1
+      }
+    },
+    {
+      "sequence": "52",
+      "topic": "outcome.accepted",
+      "payload": {
+        "actorId": "owner:local",
+        "eventId": "26c6489e-6323-4d64-8db6-a2aa2aea4dcc",
+        "payload": {
+          "reviewIds": [
+            "5aeae5ea-b5a4-4783-bca4-64966faad225"
+          ],
+          "revisionId": "286c6de9-11b7-424a-be4a-49506931cd0f"
+        },
+        "occurredAt": "2026-11-17T12:50:28.410Z",
+        "correlationId": "product-replay:4d5553fd-eb3b-4c31-8f18-8d0233c75f1d:review-final",
+        "schemaVersion": 1,
+        "idempotencyKey": "product-replay:4d5553fd-eb3b-4c31-8f18-8d0233c75f1d:review-final",
+        "contractRevision": 1
+      }
+    },
+    {
+      "sequence": "53",
+      "topic": "outcome.status_changed",
+      "payload": {
+        "actorId": "owner:local",
+        "eventId": "f95e6f86-ffc6-4e57-9b26-7a6240daafa2",
+        "payload": {
+          "to": "accepted",
+          "from": "review_pending"
+        },
+        "occurredAt": "2026-11-17T12:50:28.413Z",
+        "correlationId": "f95e6f86-ffc6-4e57-9b26-7a6240daafa2",
+        "schemaVersion": 1
+      }
+    }
+  ],
+  "finalDetail": {
+    "id": "6e536ee3-f26d-43bd-b771-695fd61c969f",
+    "sourceExploreId": null,
+    "title": "虚构海棠实验室现场网络核对",
+    "status": "accepted",
+    "botId": "c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb",
+    "currentRevision": 1,
+    "updatedAt": "2026-11-17T12:50:28.412Z",
+    "description": "虚构海棠实验室现场网络核对",
+    "resumeStatus": null,
+    "createdAt": "2026-11-17T12:50:27.895Z",
+    "acceptedAt": "2026-11-17T12:50:28.408Z",
+    "currentRevisionView": {
+      "id": "286c6de9-11b7-424a-be4a-49506931cd0f",
+      "revision": 1,
+      "status": "approved",
+      "goal": [
+        "虚构海棠实验室现场网络核对"
+      ],
+      "boundaries": {
+        "included": [],
+        "excluded": [
+          "Production systems and real customer data"
+        ]
+      },
+      "budget": null,
+      "executionBotId": "c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb",
+      "changeSummary": null,
+      "baseRevisionId": null,
+      "sourceDecisionId": null,
+      "createdBy": "owner:local",
+      "approvedBy": "owner:local",
+      "approvedAt": "2026-11-17T12:50:27.925Z",
+      "conflicts": [],
+      "criteria": [
+        {
+          "id": "da712531-0f61-4fcd-a25b-cf059eb92503",
+          "ordinal": 1,
+          "statement": "提交现场网络实测日志",
+          "required": true,
+          "verificationMethod": "human_review",
+          "latestResult": "PASS"
+        }
+      ],
+      "createdAt": "2026-11-17T12:50:27.900Z"
+    },
+    "revisions": [
+      {
+        "id": "286c6de9-11b7-424a-be4a-49506931cd0f",
+        "revision": 1,
+        "status": "approved",
+        "changeSummary": null,
+        "baseRevisionId": null,
+        "sourceDecisionId": null,
+        "createdBy": "owner:local",
+        "createdAt": "2026-11-17T12:50:27.900Z"
+      }
+    ],
+    "workItems": [
+      {
+        "id": "37c74862-f8b9-40be-9ba3-89d287581c12",
+        "contractRevision": 1,
+        "executorType": "agent",
+        "kind": "initial",
+        "title": "虚构海棠实验室现场网络核对",
+        "status": "completed",
+        "statusReason": "run_completed",
+        "ordinal": 1,
+        "dependsOn": [],
+        "rootRunId": "3f362f58-c38e-4165-8339-18934a5ac451",
+        "runIds": [
+          "3f362f58-c38e-4165-8339-18934a5ac451",
+          "e7ea8466-d9b5-4b8a-883c-e90421fb40b4"
+        ],
+        "reworkOfWorkItemId": null,
+        "createdAt": "2026-11-17T12:50:27.945Z",
+        "updatedAt": "2026-11-17T12:50:28.347Z"
+      },
+      {
+        "id": "468e3703-8304-46f5-a2d7-e44ed99505cd",
+        "contractRevision": 1,
+        "executorType": "human",
+        "kind": "human_action",
+        "title": "现场网络核对",
+        "status": "accepted",
+        "statusReason": "human_receipt_accepted",
+        "ordinal": 2,
+        "dependsOn": [],
+        "rootRunId": null,
+        "runIds": [],
+        "reworkOfWorkItemId": null,
+        "createdAt": "2026-11-17T12:50:28.065Z",
+        "updatedAt": "2026-11-17T12:50:28.277Z"
+      }
+    ],
+    "outputs": [
+      {
+        "id": "d9064292-8d86-43b2-9ffc-d4a01365ee0a",
+        "workItemId": "37c74862-f8b9-40be-9ba3-89d287581c12",
+        "runId": "e7ea8466-d9b5-4b8a-883c-e90421fb40b4",
+        "kind": "final_result",
+        "title": "虚构海棠实验室现场网络核对",
+        "content": "Fictional human observations incorporated into the network report.",
+        "contentRef": null,
+        "createdAt": "2026-11-17T12:50:28.344Z"
+      }
+    ],
+    "evidence": [
+      {
+        "id": "863d5b8e-0a48-4351-9c82-418d9dee6929",
+        "criterionId": "da712531-0f61-4fcd-a25b-cf059eb92503",
+        "contractRevision": 1,
+        "workItemId": "468e3703-8304-46f5-a2d7-e44ed99505cd",
+        "runId": null,
+        "sourceType": "receipt_text",
+        "sourceRef": "human-receipt:d798022a-9309-4de3-ab5d-8c3c19ed51bd:text",
+        "contentSummary": "DHCP 与 DNS 测试成功，虚构记录 2026-11-17T02:00:00Z",
+        "credibility": "human_confirmed",
+        "capturedBy": "owner:local",
+        "capturedAt": "2026-11-17T12:50:28.253Z"
+      },
+      {
+        "id": "191ba4c7-a361-41d2-b57c-9e8c09bca816",
+        "criterionId": "da712531-0f61-4fcd-a25b-cf059eb92503",
+        "contractRevision": 1,
+        "workItemId": "37c74862-f8b9-40be-9ba3-89d287581c12",
+        "runId": "e7ea8466-d9b5-4b8a-883c-e90421fb40b4",
+        "sourceType": "output",
+        "sourceRef": "output:d9064292-8d86-43b2-9ffc-d4a01365ee0a",
+        "contentSummary": "Fictional human observations incorporated into the network report.",
+        "credibility": "agent_report",
+        "capturedBy": "bot:c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb",
+        "capturedAt": "2026-11-17T12:50:28.368Z"
+      },
+      {
+        "id": "e3fb7ca0-d2f2-4802-9629-943793e664a1",
+        "criterionId": "da712531-0f61-4fcd-a25b-cf059eb92503",
+        "contractRevision": 1,
+        "workItemId": "37c74862-f8b9-40be-9ba3-89d287581c12",
+        "runId": null,
+        "sourceType": "prereview",
+        "sourceRef": "prereview:37c74862-f8b9-40be-9ba3-89d287581c12:da712531-0f61-4fcd-a25b-cf059eb92503",
+        "contentSummary": "unclear: Controlled local prereview; owner verification is required",
+        "credibility": "ai_prereview",
+        "capturedBy": "system:outcome-prereview",
+        "capturedAt": "2026-11-17T12:50:28.376Z"
+      },
+      {
+        "id": "52e49481-a7b7-4670-b5bb-ab690834b13d",
+        "criterionId": "da712531-0f61-4fcd-a25b-cf059eb92503",
+        "contractRevision": 1,
+        "workItemId": null,
+        "runId": null,
+        "sourceType": "check",
+        "sourceRef": "local-replay:6e536ee3-f26d-43bd-b771-695fd61c969f:da712531-0f61-4fcd-a25b-cf059eb92503",
+        "contentSummary": "Fictional owner observation recorded through the actual review service",
+        "credibility": "human_confirmed",
+        "capturedBy": "owner:local",
+        "capturedAt": "2026-11-17T12:50:28.400Z"
+      }
+    ],
+    "reviews": [
+      {
+        "id": "5e10536a-550a-4fe8-84a0-d0e87b7bede4",
+        "criterionId": "da712531-0f61-4fcd-a25b-cf059eb92503",
+        "contractRevision": 1,
+        "sequence": 1,
+        "result": "UNVERIFIED",
+        "evidenceIds": [],
+        "comment": "No observed material yet",
+        "reviewedBy": "owner:local",
+        "reviewedAt": "2026-11-17T12:50:28.179Z"
+      },
+      {
+        "id": "9f9a4461-b76c-4785-b877-62fcbdc63cf7",
+        "criterionId": "da712531-0f61-4fcd-a25b-cf059eb92503",
+        "contractRevision": 1,
+        "sequence": 2,
+        "result": "FAIL",
+        "evidenceIds": [],
+        "comment": "请补充 DNS 实测结果",
+        "reviewedBy": "owner:local",
+        "reviewedAt": "2026-11-17T12:50:28.217Z"
+      },
+      {
+        "id": "f5cf33a8-98bf-4d7d-a3ec-2405722ed75c",
+        "criterionId": "da712531-0f61-4fcd-a25b-cf059eb92503",
+        "contractRevision": 1,
+        "sequence": 3,
+        "result": "PASS",
+        "evidenceIds": [
+          "863d5b8e-0a48-4351-9c82-418d9dee6929"
+        ],
+        "comment": "Owner verified the fictional observed network log",
+        "reviewedBy": "owner:local",
+        "reviewedAt": "2026-11-17T12:50:28.269Z"
+      },
+      {
+        "id": "5aeae5ea-b5a4-4783-bca4-64966faad225",
+        "criterionId": "da712531-0f61-4fcd-a25b-cf059eb92503",
+        "contractRevision": 1,
+        "sequence": 4,
+        "result": "PASS",
+        "evidenceIds": [
+          "52e49481-a7b7-4670-b5bb-ab690834b13d"
+        ],
+        "comment": "Owner verified the controlled local report against this criterion",
+        "reviewedBy": "owner:local",
+        "reviewedAt": "2026-11-17T12:50:28.402Z"
+      }
+    ]
+  },
+  "humanDetail": {
+    "id": "468e3703-8304-46f5-a2d7-e44ed99505cd",
+    "outcomeId": "6e536ee3-f26d-43bd-b771-695fd61c969f",
+    "executorType": "human",
+    "kind": "human_action",
+    "status": "accepted",
+    "title": "现场网络核对",
+    "contractRevision": 1,
+    "humanActionCardId": "468e3703-8304-46f5-a2d7-e44ed99505cd",
+    "evidenceCount": 1,
+    "startedAt": "2026-11-17T12:50:28.119Z",
+    "card": {
+      "id": "468e3703-8304-46f5-a2d7-e44ed99505cd",
+      "workItemId": "468e3703-8304-46f5-a2d7-e44ed99505cd",
+      "outcomeId": "6e536ee3-f26d-43bd-b771-695fd61c969f",
+      "contractRevision": 1,
+      "title": "现场网络核对",
+      "purpose": "由人记录真实网络测试，不由 Agent 自动执行。",
+      "prerequisites": [],
+      "steps": [
+        {
+          "id": "step-1",
+          "text": "说明：确认链路；执行者：human；输入：检查清单；操作：检查 DHCP 和 DNS；完成材料：实测日志；失败处理：停止并补充情况。",
+          "ordinal": 1,
+          "optional": false
+        },
+        {
+          "id": "step-2",
+          "text": "说明：保留事实；执行者：human；输入：日志；操作：提交测试记录；完成材料：文本回执；失败处理：保存草稿并重试。",
+          "ordinal": 2,
+          "optional": false
+        }
+      ],
+      "inputFields": [],
+      "evidenceRequirements": [
+        {
+          "label": "现场测试日志",
+          "required": true,
+          "criterionId": "da712531-0f61-4fcd-a25b-cf059eb92503",
+          "acceptedTypes": [
+            "text"
+          ]
+        }
+      ],
+      "references": [
+        {
+          "id": "agent-file:/var/folders/q5/5jq71t9d131d8p_8l01rth400000gn/T/outcomego-product-replay-5S8zec/agent-data/agents/c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb/network-checklist.txt",
+          "stale": false,
+          "title": "network-checklist.txt",
+          "digest": "023892408bb9e8372581f7087258e09cef0a5b36ae81233d3236917b843dabee",
+          "excerpt": "由人检查 DHCP、DNS 与出口连通性，记录测试时间与结果。",
+          "version": "0:023892408bb9e8372581f7087258e09cef0a5b36ae81233d3236917b843dabee",
+          "sourceRef": "agent-file:/var/folders/q5/5jq71t9d131d8p_8l01rth400000gn/T/outcomego-product-replay-5S8zec/agent-data/agents/c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb/network-checklist.txt",
+          "updatedAt": "2026-11-17T12:50:28.033Z",
+          "sourceType": "file",
+          "projectScope": "bot:c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb",
+          "permissionSummary": "Available within the executing Bot scope"
+        }
+      ],
+      "status": "accepted",
+      "draft": {
+        "reason": "等待现场窗口",
+        "draftSummary": "已检查 DHCP，待检查 DNS",
+        "currentStepId": "step-1",
+        "readReferenceIds": [
+          "agent-file:/var/folders/q5/5jq71t9d131d8p_8l01rth400000gn/T/outcomego-product-replay-5S8zec/agent-data/agents/c5c4ceaf-9cd4-4d63-93d1-91f8dcce8bbb/network-checklist.txt"
+        ]
+      },
+      "startedBy": "owner:local",
+      "startedAt": "2026-11-17T12:50:28.119Z",
+      "submittedAt": "2026-11-17T12:50:28.255Z",
+      "acceptedAt": "2026-11-17T12:50:28.280Z"
+    },
+    "receipts": [
+      {
+        "id": "f0157494-cb5e-4b64-afb3-c5fe91313d53",
+        "workItemId": "468e3703-8304-46f5-a2d7-e44ed99505cd",
+        "outcomeId": "6e536ee3-f26d-43bd-b771-695fd61c969f",
+        "sequence": 1,
+        "status": "rejected",
+        "submittedBy": "owner:local",
+        "submittedAt": "2026-11-17T12:50:28.158Z",
+        "reviewComment": "da712531-0f61-4fcd-a25b-cf059eb92503: 请补充 DNS 实测结果",
+        "payload": {
+          "text": "",
+          "comment": "",
+          "assetRefs": [],
+          "sourceRefs": [],
+          "observations": [],
+          "clientRequestId": "product-replay:4d5553fd-eb3b-4c31-8f18-8d0233c75f1d:receipt-missing",
+          "expectedContractRevision": 1
+        },
+        "evidenceIds": [],
+        "missingRequirements": [
+          {
+            "kind": "text",
+            "label": "现场测试日志",
+            "criterionId": "da712531-0f61-4fcd-a25b-cf059eb92503"
+          }
+        ]
+      },
+      {
+        "id": "d798022a-9309-4de3-ab5d-8c3c19ed51bd",
+        "workItemId": "468e3703-8304-46f5-a2d7-e44ed99505cd",
+        "outcomeId": "6e536ee3-f26d-43bd-b771-695fd61c969f",
+        "sequence": 2,
+        "status": "accepted",
+        "submittedBy": "owner:local",
+        "submittedAt": "2026-11-17T12:50:28.255Z",
+        "reviewComment": null,
+        "payload": {
+          "text": "DHCP 与 DNS 测试成功，虚构记录 2026-11-17T02:00:00Z",
+          "comment": "",
+          "assetRefs": [],
+          "sourceRefs": [],
+          "observations": [],
+          "clientRequestId": "product-replay:4d5553fd-eb3b-4c31-8f18-8d0233c75f1d:receipt-resubmit",
+          "expectedContractRevision": 1
+        },
+        "evidenceIds": [
+          "863d5b8e-0a48-4351-9c82-418d9dee6929"
+        ],
+        "missingRequirements": []
+      }
+    ]
+  },
+  "databaseIsolation": {
+    "databaseName": "outcomego_product_replay_57d64b19638f426baa3ee9c82b2db9ad",
+    "inheritedData": false,
+    "removed": true
+  }
+}

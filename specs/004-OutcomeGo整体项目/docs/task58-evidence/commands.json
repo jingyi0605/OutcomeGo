@@ -1,0 +1,179 @@
+[
+  {
+    "label": "reaction-actual-red",
+    "args": [
+      "bun",
+      "test",
+      "./apps/worker/test/reaction-claim-availability.integration.test.ts"
+    ],
+    "source": "8735d3f9ae3c4fb0f16af6a1ec6bd2d43a83b777",
+    "exit": 1,
+    "seconds": 1.616,
+    "sha256": "50551243b27b68d2f720431d27c239c2f99713f2e444b4264fa230b83e5184ad"
+  },
+  {
+    "label": "reaction-green",
+    "args": [
+      "bun",
+      "test",
+      "./apps/worker/test/reaction-claim-availability.integration.test.ts",
+      "./apps/worker/test/outcome-claim-locks.integration.test.ts",
+      "./apps/worker/test/outcome-recovery.integration.test.ts"
+    ],
+    "source": "8735d3f9ae3c4fb0f16af6a1ec6bd2d43a83b777",
+    "exit": 0,
+    "seconds": 2.749,
+    "sha256": "2f819732a8fb450c6571244611bc80a74606da1836a8e54b391354965e7a9272"
+  },
+  {
+    "label": "reaction-worker-types",
+    "args": [
+      "bunx",
+      "tsc",
+      "-p",
+      "apps/worker/tsconfig.json",
+      "--noEmit"
+    ],
+    "source": "8735d3f9ae3c4fb0f16af6a1ec6bd2d43a83b777",
+    "exit": 0,
+    "seconds": 6.863,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "label": "routine-actual-red",
+    "args": [
+      "bun",
+      "test",
+      "./apps/worker/test/routine-275-regressions.integration.test.ts",
+      "./apps/worker/test/routine-retest-execution.integration.test.ts"
+    ],
+    "source": "46fca51703f3212ad45bc994f0baf9979dfdbe7a",
+    "exit": 1,
+    "seconds": 2.447,
+    "sha256": "efb0e6853f38d8f452fb7c470098f9d9b5f30e37bda054cc9553fbba50734335"
+  },
+  {
+    "label": "routine-claim-green",
+    "args": [
+      "bun",
+      "test",
+      "./apps/worker/test/routine-275-regressions.integration.test.ts",
+      "--test-name-pattern",
+      "Stop fences|callback queued before handoff|Stop cancels a parent|unknown callback|folded completion receipt"
+    ],
+    "source": "46fca51703f3212ad45bc994f0baf9979dfdbe7a",
+    "exit": 0,
+    "seconds": 0.836,
+    "sha256": "56304e6cc99c2fd6ab7b3adcf55fda9e7f895d01110a84d485a1e870e979a430"
+  },
+  {
+    "label": "routine-claim-types",
+    "args": [
+      "bunx",
+      "tsc",
+      "-p",
+      "apps/worker/tsconfig.json",
+      "--noEmit"
+    ],
+    "source": "46fca51703f3212ad45bc994f0baf9979dfdbe7a",
+    "exit": 0,
+    "seconds": 6.973,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "label": "routine-shell-green",
+    "args": [
+      "bun",
+      "test",
+      "./apps/worker/test/routine-retest-execution.integration.test.ts",
+      "./apps/worker/test/routine-275-regressions.integration.test.ts",
+      "--test-name-pattern",
+      "group shell receipt|group overlap waits|Stop releases|folded group shell"
+    ],
+    "source": "edb8cfa3ce20fd970936713c91ab1dbc0c5cde53",
+    "exit": 0,
+    "seconds": 2.287,
+    "sha256": "ce7662181b22eaa1d1018736d2558c927a1bba95cbcde605bcca7c2c6efbc7c1"
+  },
+  {
+    "label": "routine-shell-worker-types",
+    "args": [
+      "bunx",
+      "tsc",
+      "-p",
+      "apps/worker/tsconfig.json",
+      "--noEmit"
+    ],
+    "source": "edb8cfa3ce20fd970936713c91ab1dbc0c5cde53",
+    "exit": 0,
+    "seconds": 6.134,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "label": "routine-shell-messaging-types",
+    "args": [
+      "bunx",
+      "tsc",
+      "-p",
+      "packages/messaging/tsconfig.json",
+      "--noEmit"
+    ],
+    "source": "edb8cfa3ce20fd970936713c91ab1dbc0c5cde53",
+    "exit": 0,
+    "seconds": 4.396,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "label": "routine-recovery-lifecycle-green",
+    "args": [
+      "bun",
+      "test",
+      "./apps/worker/test/routine-275-regressions.integration.test.ts",
+      "./apps/worker/test/routine-retest-execution.integration.test.ts"
+    ],
+    "source": "c9099051a7f1053c978832fab3b92bafae124195",
+    "exit": 0,
+    "seconds": 3.744,
+    "sha256": "d3ee5ea17ab36492bb4e69a2e515a8ba1714f440cb07416574a6ef9789ef9d62"
+  },
+  {
+    "label": "routine-recovery-types",
+    "args": [
+      "bunx",
+      "tsc",
+      "-p",
+      "apps/worker/tsconfig.json",
+      "--noEmit"
+    ],
+    "source": "c9099051a7f1053c978832fab3b92bafae124195",
+    "exit": 0,
+    "seconds": 5.999,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "label": "branding-actual-red",
+    "args": [
+      "bun",
+      "test",
+      "./apps/worker/test/wake-parent.integration.test.ts",
+      "./apps/worker/test/lifecycle.integration.test.ts"
+    ],
+    "source": "8fd904f51fa21962282040b575a97f75bf087f86",
+    "exit": 1,
+    "seconds": 11.39,
+    "sha256": "cf57b40b21d85b30559af021581ac68e77edfe042f7f473bac2f2ab19d95dccc"
+  },
+  {
+    "label": "branding-green",
+    "args": [
+      "bun",
+      "test",
+      "./apps/worker/test/wake-parent.integration.test.ts",
+      "./apps/worker/test/lifecycle.integration.test.ts"
+    ],
+    "source": "8fd904f51fa21962282040b575a97f75bf087f86",
+    "exit": 0,
+    "seconds": 12.1,
+    "sha256": "a9e2c229466f404b289cd8bfa334b1493351f340628c5723fa025780ea8fc9d3"
+  }
+]

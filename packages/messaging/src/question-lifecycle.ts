@@ -28,7 +28,7 @@ export const dismissQuestions = async (
   exceptId?: string
 ) => {
   const messages = await tx.$queryRaw<Array<{ id: string }>>(Prisma.sql`
-    UPDATE "outcomego_channel_message"
+    UPDATE "outcomego_channel_message" AS message
     SET "metadata" = "metadata" || ${JSON.stringify({
       widgetDismissed: true,
       widgetDismissalReason: reason,
@@ -40,6 +40,14 @@ export const dismissQuestions = async (
       AND coalesce(("metadata"->>'widgetDismissed')::boolean, false) = false
       AND coalesce("metadata"->>'questionScopeId', '') = ${scopeId ?? ""}
       AND coalesce(("metadata"->>'branched')::boolean, false) = ${scopeId !== null}
+      AND NOT EXISTS (
+        SELECT 1 FROM "outcomego_bitwarden_read_approval" approval
+        WHERE approval."widgetMessageId" = message.id
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM "outcomego_computer_network_policy_approval" approval
+        WHERE approval."widgetMessageId" = message.id
+      )
       ${exceptId ? Prisma.sql`AND "id" <> ${exceptId}::uuid` : Prisma.empty}
     RETURNING "id"
   `);

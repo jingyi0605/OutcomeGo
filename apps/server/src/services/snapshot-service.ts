@@ -23,6 +23,7 @@ import { RuntimeHealth } from "./snapshot/runtime-health";
 import { channelViews, messageViews, roundViews, runViews, workspaceView } from "./snapshot/views";
 import { subagentActivityView } from "./subagent/view";
 import { toBotView } from "./view-mappers";
+import { pendingOutcomeEvidenceEventSql } from "./outcome-event-retention";
 
 const DEFAULT_HISTORY_LIMIT = 100;
 
@@ -616,7 +617,7 @@ export class SnapshotService {
         _max: { sequence: true },
       }),
       this.prisma.event.findMany({
-        where: { sequence: { gt: sequence } },
+        where: { sequence: { gt: sequence }, NOT: { topic: { startsWith: "outcome." } } },
         orderBy: { sequence: "asc" },
         take: limit,
       }),
@@ -643,7 +644,7 @@ export class SnapshotService {
     return (await this.eventWindowAfter(sequence)).events;
   }
 
-  /** Retain a bounded replay window; stale clients are sent snapshot.required. */
+  /** Retain the replay window and unreceipted inputs for the durable Evidence consumer. */
   async pruneEvents(): Promise<number> {
     return this.prisma.$executeRaw`
       WITH retention_floor AS (
@@ -653,8 +654,9 @@ export class SnapshotService {
         OFFSET ${MAX_RETAINED_EVENTS - 1}
         LIMIT 1
       )
-      DELETE FROM "outcomego_event"
-      WHERE "sequence" < (SELECT "sequence" FROM retention_floor)
+      DELETE FROM "outcomego_event" AS event
+      WHERE event."sequence" < (SELECT "sequence" FROM retention_floor)
+        AND NOT COALESCE(${pendingOutcomeEvidenceEventSql}, FALSE)
     `;
   }
 

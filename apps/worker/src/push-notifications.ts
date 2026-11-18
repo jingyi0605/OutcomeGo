@@ -1,5 +1,5 @@
 import { suppressMobileNotification } from "@outcomego/contracts/notification-presence";
-import { notificationRouting, unreadBadgeCount } from "@outcomego/messaging";
+import { notificationRouting, unreadBadgeCount, reconcileOutcomeInboxNotifications, outcomeNotificationIsCurrent } from "@outcomego/messaging";
 import { ApnsSettingsStore } from "@outcomego/db/apns-settings";
 import {
   PUSH_DELIVERY_ADVISORY_LOCK,
@@ -97,6 +97,14 @@ export const claimOutboxDeliveries = async (
 
 type PushAttempt = { delivery: ClaimedDelivery; device: Prisma.PushDeviceGetPayload<{}>; payload: PushNotificationPayload };
 
+const logExhaustedOutcomePush = (delivery: ClaimedDelivery, payload: PushNotificationPayload): void => {
+  if (payload.kind !== "outcome" || delivery.attempts < MAX_ATTEMPTS) return;
+  console.error("Outcome notification retries exhausted", {
+    outcomeId: payload.outcomeId, contractRevision: payload.contractRevision,
+    notificationSequence: payload.notificationSequence, deliveryId: delivery.id, code: "notification_retry_exhausted",
+  });
+};
+
 export class PushNotificationDispatcher {
   private draining = false;
 
@@ -104,7 +112,8 @@ export class PushNotificationDispatcher {
     private readonly prisma: PrismaClient,
     private readonly authMode = pushAuthenticationModeFromEnvironment(),
     private readonly apns = new ApnsClient(async () => (await new ApnsSettingsStore(prisma).load()).config),
-    private readonly fcm = new FcmClient()
+    private readonly fcm = new FcmClient(),
+    private readonly recoverOutcomeNotifications: () => Promise<unknown> = () => reconcileOutcomeInboxNotifications(prisma)
   ) {}
 
   async configurationStatus() {
@@ -115,6 +124,9 @@ export class PushNotificationDispatcher {
     if (this.draining) return;
     this.draining = true;
     try {
+      // Existing startup and periodic drains recover facts even when the producer crashed before projection.
+      try { await this.recoverOutcomeNotifications(); }
+      catch { console.warn("Outcome notification recovery failed; retrying on the next push drain"); }
       await this.drainNotifications();
     } finally {
       this.draining = false;
@@ -156,7 +168,7 @@ export class PushNotificationDispatcher {
         if (
           !device ||
           payload.schemaVersion !== 1 ||
-          !(payload.kind === "badge-sync" || isAgentNotificationKind(payload.kind))
+          !(payload.kind === "badge-sync" || payload.kind === "outcome" || isAgentNotificationKind(payload.kind))
         ) {
           return [];
         }
@@ -233,6 +245,7 @@ export class PushNotificationDispatcher {
         );
       } catch (error) {
         for (const item of sendable) {
+          logExhaustedOutcomePush(item.delivery, item.payload);
           await this.prisma.outboxDelivery.update({
             where: { id: item.delivery.id },
             data: {
@@ -256,6 +269,7 @@ export class PushNotificationDispatcher {
           ? result.status === 404 || result.reason === "UNREGISTERED"
           : result.status === 410 || (result.status === 400 && ["BadDeviceToken", "DeviceTokenNotForTopic"].includes(result.reason ?? ""));
         const accepted = result.status === 200 || retired;
+        if (!accepted) logExhaustedOutcomePush(item.delivery, item.payload);
         if (retired) await tx.pushDevice.updateMany({ where: { id: item.device.id }, data: { enabled: false } });
         await tx.outboxDelivery.update({ where: { id: item.delivery.id }, data: {
           status: accepted ? "delivered" : "failed",
@@ -265,6 +279,7 @@ export class PushNotificationDispatcher {
           error: accepted ? Prisma.DbNull : json({ message: `${item.device.platform === "android" ? "FCM" : "APNs"} rejected notification (${result.status})`, reason: result.reason ?? "Unknown" }),
         } });
       } catch (error) {
+        logExhaustedOutcomePush(item.delivery, item.payload);
         await tx.outboxDelivery.update({ where: { id: item.delivery.id }, data: {
           status: "failed", availableAt: retryAt(item.delivery.attempts), error: json({ message: errorMessage(error) }),
         } });
@@ -277,6 +292,22 @@ export class PushNotificationDispatcher {
     payload: PushNotificationPayload
   ): Promise<boolean> {
     if (payload.kind === "badge-sync") return true;
+    if (payload.kind === "outcome") {
+      const [bot, activity, state, preferences] = await Promise.all([
+        tx.bot.findUnique({ where: { id: payload.botId } }),
+        tx.channelNotification.findUnique({ where: { key: payload.factKey } }),
+        tx.channelReadState.findUnique({ where: { channelId: payload.channelId } }),
+        tx.notificationPreferences.findUnique({ where: { id: "global" } }),
+      ]);
+      if (preferences?.smartEnabled === false || !bot?.notificationsEnabled || !activity || activity.revoked || activity.sequence.toString() !== payload.notificationSequence ||
+        (state && activity.sequence <= state.lastReadNotificationSequence)) return false;
+      if (payload.decisionId) {
+        const decision = await tx.outcomeDecision.findUnique({ where: { id: payload.decisionId }, include: { outcome: { select: { currentRevisionId: true, cancelledAt: true, acceptedAt: true } } } });
+        if (!decision || !["open", "presented"].includes(decision.status) || decision.outcome.cancelledAt || decision.outcome.acceptedAt ||
+          (decision.expiresAt && decision.expiresAt <= new Date())) return false;
+      }
+      return outcomeNotificationIsCurrent(tx, payload);
+    }
     const [state, bot, channel] = await Promise.all([
       tx.channelReadState.findUnique({ where: { channelId: payload.channelId } }),
       tx.bot.findUnique({ where: { id: payload.botId } }),

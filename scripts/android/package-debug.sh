@@ -5,6 +5,25 @@ set -euo pipefail
 ROOT_DIR=$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)
 APK_PATH="$ROOT_DIR/apps/android/app/build/outputs/apk/debug/androidApp-debug.apk"
 
+RUN_TESTS=false
+case "${1:-}" in
+  "") ;;
+  --test) RUN_TESTS=true ;;
+  --help|-h)
+    echo "Usage: bash scripts/android/package-debug.sh [--test]"
+    echo "  --test  Run shared-core and Android unit tests before packaging."
+    exit 0
+    ;;
+  *)
+    echo "Unknown argument: $1" >&2
+    exit 2
+    ;;
+esac
+if (( $# > 1 )); then
+  echo "Usage: bash scripts/android/package-debug.sh [--test]" >&2
+  exit 2
+fi
+
 java_major() {
   "$1/bin/java" -version 2>&1 | awk -F'"' '/version/ {print $2}' \
     | sed -E 's/^1\.//' | cut -d. -f1
@@ -63,6 +82,9 @@ echo "Building :mobile:androidApp:assembleDebug"
 
 (
   cd "$ROOT_DIR"
+  if [[ "$RUN_TESTS" == true ]]; then
+    ./gradlew --no-daemon :mobile:shared:testDebugUnitTest :mobile:androidApp:testDebugUnitTest
+  fi
   ./gradlew --no-daemon :mobile:androidApp:assembleDebug
 )
 

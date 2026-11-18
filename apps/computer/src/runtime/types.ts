@@ -49,6 +49,7 @@ export interface ActiveTurn {
   todoUpdate: string | null;
   resetSelfSummaryCount: boolean;
   requestSource: NonNullable<ComputerTurnRequest["requestSource"]>;
+  outcomeThread?: ComputerTurnRequest["outcomeThread"];
   draftStatusAcknowledged?: boolean;
   draftStateRevision?: string;
   pendingDraftStateRevision?: string;

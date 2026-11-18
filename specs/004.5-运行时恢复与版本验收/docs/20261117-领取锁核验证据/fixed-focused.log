@@ -1,0 +1,18 @@
+bun test v1.4.4 (38afee6c8)
+
+apps/worker/test/outcome-claim-locks.integration.test.ts:
+(node:10787) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `bun --trace-warnings ...` to show where the warning was created)
+(pass) Outcome claim lock order > real multi-Outcome Stop and reverse-priority claim both commit [355.09ms]
+(pass) Outcome claim lock order > a contended higher-priority Outcome cannot hold up foreground input [139.20ms]
+
+apps/worker/test/outcome-recovery.integration.test.ts:
+(pass) Outcome recovery ownership and mailbox fairness > a cancelled queued head is retired and the same claim reaches valid later work [163.62ms]
+(pass) Outcome recovery ownership and mailbox fairness > two worker claims produce one valid owner for one Outcome thread [105.38ms]
+(pass) Outcome recovery ownership and mailbox fairness > expired Outcome ownership cannot renew itself or be redispatched as the same Run [98.06ms]
+(pass) Outcome recovery ownership and mailbox fairness > closing Outcome dispatch preserves pending intents, foreground claims and business history [76.47ms]
+
+ 6 pass
+ 0 fail
+ 22 expect() calls
+Ran 6 tests across 2 files. [1197.00ms]

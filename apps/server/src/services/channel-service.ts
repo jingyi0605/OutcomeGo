@@ -1,4 +1,4 @@
-import { nextMessageAddress, lockGroupExecution, supersedeGroupUserTurns } from "@outcomego/messaging";
+import { nextMessageAddress, lockGroupExecution, supersedeGroupUserTurns, toggleMessageReaction, lockQuestions, dismissQuestions, questionScopeForReply } from "@outcomego/messaging";
 import {
   ApiError,
   type ChannelMessageView,
@@ -14,6 +14,7 @@ import {
   type AgentMessaging,
   type AssetStore,
   PRIORITY,
+  lockAgentLifecycle,
 } from "@outcomego/messaging";
 import { cancelSkippedBootstrap } from "./channel/delivery";
 import { renameDirectChannel } from "./channel/direct-profile";
@@ -23,7 +24,6 @@ import {
   formatUserReactionPrompt,
 } from "./channel/formatting";
 import { GroupAdministration } from "./channel/group-administration";
-import { dismissMoveOnWidgets } from "./rich-message-service";
 import {
   appendEvent,
   type ComputerFetch,
@@ -164,6 +164,12 @@ export class ChannelService {
       }
 
       const accepted = await this.prisma.$transaction(async (tx) => {
+        // Accept before retirement scans the queue, or reread its archived state.
+        // The lifecycle gate must precede any Bot/onboarding row lock.
+        const owner = await tx.conversation.findUnique({
+          where: { id: conversationId }, select: { botId: true },
+        });
+        if (owner) await lockAgentLifecycle(tx, owner.botId);
         const conversation = await tx.conversation.findUnique({
           where: { id: conversationId },
           include: { bot: { include: { subagentIdentity: { select: { id: true } } } } },
@@ -175,19 +181,22 @@ export class ChannelService {
         ) {
           throw new ApiError(404, "conversation_not_found", "Runnable conversation not found");
         }
-        await tx.idempotencyRecord.create({
-          data: {
-            scope,
-            key: input.clientId,
-            requestHash,
-            expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1_000),
-          },
-        });
         const channel = await tx.channel.findUnique({
           where: { directKey: `bot:${conversation.botId}` },
         });
         if (!channel || channel.archivedAt) {
           throw new ApiError(409, "channel_unavailable", "Bot DM channel is unavailable");
+        }
+        await lockQuestions(tx, channel.id);
+        const duplicate = await tx.idempotencyRecord.findUnique({
+          where: { scope_key: { scope, key: input.clientId } },
+        });
+        if (duplicate) {
+          if (duplicate.requestHash !== requestHash)
+            throw new ApiError(409, "idempotency_conflict", "The idempotency key was already used for different content");
+          if (duplicate.response)
+            return { response: serialize(duplicate.response), bootstrapRunId: null, interruptRunId: null };
+          throw new ApiError(409, "request_in_progress", "This message is already being accepted");
         }
         const reply = input.replyToMessageId
           ? await tx.channelMessage.findFirst({
@@ -197,8 +206,17 @@ export class ChannelService {
         if (input.replyToMessageId && !reply) {
           throw new ApiError(404, "reply_target_not_found", "Reply target was not found");
         }
+        const questionScopeId = questionScopeForReply(input.isFork, reply);
+        await tx.idempotencyRecord.create({
+          data: {
+            scope,
+            key: input.clientId,
+            requestHash,
+            expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1_000),
+          },
+        });
         const bootstrapRunId = await this.messaging.skipBootstrapForUser(tx, conversation.botId);
-        await dismissMoveOnWidgets(tx, channel.id);
+        await dismissQuestions(tx, channel.id, questionScopeId, "moved-on");
         const mentionPeers = await tx.bot.findMany({
           where: {
             id: { not: conversation.botId },
@@ -224,7 +242,7 @@ export class ChannelService {
               ...(input.attachments?.length ? { attachments: input.attachments } : {}),
               ...(reply ? { replyTo: reply.id } : {}),
               ...(input.richText ? { richText: input.richText } : {}),
-              ...(input.isFork ? { branched: true } : {}),
+              ...(input.isFork ? { branched: true, questionScopeId } : {}),
               ...(input.timeZone ? { timeZone: input.timeZone } : {}),
               ...(input.voice ? { voice: input.voice } : {}),
             },
@@ -349,6 +367,7 @@ export class ChannelService {
         if (input.replyToMessageId && !reply) {
           throw new ApiError(404, "reply_target_not_found", "Reply target was not found");
         }
+        const questionScopeId = questionScopeForReply(input.isFork, reply);
         await tx.idempotencyRecord.create({
           data: {
             scope,
@@ -357,7 +376,8 @@ export class ChannelService {
             expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1_000),
           },
         });
-        await dismissMoveOnWidgets(tx, channelId);
+        await lockQuestions(tx, channelId);
+        await dismissQuestions(tx, channelId, questionScopeId, "moved-on");
         const sourceMachineId = input.sourceMachineId && await tx.hostMachine.findUnique({ where: { machineId: input.sourceMachineId }, select: { machineId: true } }) ? input.sourceMachineId : undefined;
         if (input.timeZone) await this.messaging.updateUserTimeZone(tx, { detected: input.timeZone });
         const address = await nextMessageAddress(tx, channelId, "user");
@@ -374,7 +394,7 @@ export class ChannelService {
               ...(input.attachments?.length ? { attachments: input.attachments } : {}),
               ...(reply ? { replyTo: reply.id } : {}),
               ...(input.richText ? { richText: input.richText } : {}),
-              ...(input.isFork ? { branched: true } : {}),
+              ...(input.isFork ? { branched: true, questionScopeId } : {}),
               ...(input.timeZone ? { timeZone: input.timeZone } : {}),
               ...(input.voice ? { voice: input.voice } : {}),
             },
@@ -422,27 +442,28 @@ export class ChannelService {
     serviceEffect(async () => {
       const scope = `channel-message:${messageId}:user-reaction`;
       const requestHash = hashRequest(input);
-      const existing = await this.prisma.idempotencyRecord.findUnique({
-        where: { scope_key: { scope, key: input.clientId } },
-      });
-      if (existing) {
-        if (existing.requestHash !== requestHash) {
-          throw new ApiError(409, "idempotency_conflict", "Reaction idempotency key changed");
-        }
-        if (existing.response) {
-          const message = await this.prisma.channelMessage.findUnique({
-            where: { id: messageId },
-          });
-          if (!message) throw new ApiError(404, "message_not_found", "Message was not found");
-          return {
-            ...(serialize(existing.response) as Omit<ReactToChannelMessageView, "message">),
-            message: channelMessageView(message),
-          } as ReactToChannelMessageView;
-        }
-        throw new ApiError(409, "request_in_progress", "This reaction is already being applied");
-      }
-
       const response = await this.prisma.$transaction(async (tx) => {
+        // Both user and Bot reactions serialize their metadata changes on the same message.
+        await tx.$queryRaw`SELECT id FROM "outcomego_channel_message" WHERE id = ${messageId}::uuid FOR NO KEY UPDATE`;
+        const existing = await tx.idempotencyRecord.findUnique({
+          where: { scope_key: { scope, key: input.clientId } },
+        });
+        if (existing) {
+          if (existing.requestHash !== requestHash) {
+            throw new ApiError(409, "idempotency_conflict", "Reaction idempotency key changed");
+          }
+          if (existing.response) {
+            const message = await tx.channelMessage.findUnique({
+              where: { id: messageId },
+            });
+            if (!message) throw new ApiError(404, "message_not_found", "Message was not found");
+            return {
+              ...(serialize(existing.response) as Omit<ReactToChannelMessageView, "message">),
+              message: channelMessageView(message),
+            } as ReactToChannelMessageView;
+          }
+          throw new ApiError(409, "request_in_progress", "This reaction is already being applied");
+        }
         const message = await tx.channelMessage.findUnique({
           where: { id: messageId },
           include: {
@@ -473,13 +494,7 @@ export class ChannelService {
                 typeof (reaction as Record<string, unknown>).emoji === "string"
             )
           : [];
-        const removed = reactions.some(
-          (reaction) => reaction.by === "me" && reaction.emoji === input.emoji
-        );
-        const next = reactions.filter(
-          (reaction) => !(reaction.by === "me" && reaction.emoji === input.emoji)
-        );
-        if (!removed) next.push({ by: "me", emoji: input.emoji });
+        const { reactions: next, removed } = toggleMessageReaction(reactions, input.emoji, "me");
         if (next.length > 0) metadata.reactions = next;
         else delete metadata.reactions;
         const updatedMessage = await tx.channelMessage.update({
@@ -493,6 +508,7 @@ export class ChannelService {
           !removed &&
           message.sender === "agent" &&
           message.senderBot &&
+          message.channel.members.some(member => member.botId === message.senderBot!.id) &&
           ["active", "provisioning"].includes(message.senderBot.status)
         ) {
           const wake = await this.messaging.enqueueWake(tx, {

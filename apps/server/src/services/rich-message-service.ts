@@ -15,7 +15,7 @@ import {
 } from "@outcomego/contracts";
 import { createHash, randomUUID } from "node:crypto";
 import { Prisma, type PrismaClient } from "@outcomego/db";
-import { type AgentMessaging, type ToolContext, PRIORITY } from "@outcomego/messaging";
+import { type AgentMessaging, type ToolContext, PRIORITY, lockQuestions } from "@outcomego/messaging";
 import { Effect } from "effect";
 import type { PluginService } from "./plugin-service";
 import { UserFormRefusal, type ScreenService } from "./screen-service";
@@ -204,6 +204,8 @@ export class RichMessageService {
     serviceEffect(
       async (): Promise<RichMessageMutationView> =>
         this.prisma.$transaction(async (tx) => {
+          const target = await tx.channelMessage.findUnique({ where: { id: messageId }, select: { channelId: true } });
+          if (target) await lockQuestions(tx, target.channelId);
           await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`rich-message:${messageId}`}))`;
           const message = await tx.channelMessage.findUnique({
             where: { id: messageId },
@@ -372,6 +374,8 @@ export class RichMessageService {
     serviceEffect(
       async (): Promise<RichMessageMutationView> =>
         this.prisma.$transaction(async (tx) => {
+          const target = await tx.channelMessage.findUnique({ where: { id: messageId }, select: { channelId: true } });
+          if (target) await lockQuestions(tx, target.channelId);
           await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`rich-message:${messageId}`}))`;
           const message = await tx.channelMessage.findUnique({
             where: { id: messageId },
@@ -408,6 +412,7 @@ export class RichMessageService {
               metadata: toJson({
                 ...metadata,
                 widgetDismissed: true,
+                widgetDismissalReason: "dismissed",
                 widgetDismissClientId: input.clientId,
               }),
             },

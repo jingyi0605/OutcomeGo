@@ -140,7 +140,8 @@ export const RunOrigin = Schema.Literal(
   "connector",
   "background_revival",
   "handoff_resume",
-  "broadcast"
+  "broadcast",
+  "outcome"
 );
 export type RunOrigin = typeof RunOrigin.Type;
 
@@ -266,7 +267,7 @@ export interface BadgeSyncNotificationPayload {
   readState?: NotificationReadState;
 }
 
-export type PushNotificationPayload = AgentNotificationPayload | BadgeSyncNotificationPayload;
+export type PushNotificationPayload = AgentNotificationPayload | BadgeSyncNotificationPayload | import("./notification-content").OutcomeNotificationPayload;
 
 /** Transient multimodal payload used only between trusted OutcomeGo services. */
 export const RuntimeInlineImage = Schema.Struct({
@@ -1557,6 +1558,8 @@ export const ComputerTurnRequest = Schema.Struct({
   todoUpdate: Schema.optional(Schema.NullOr(Schema.String)),
   resetSelfSummaryCount: Schema.optional(Schema.Boolean),
   requestSource: Schema.optional(RuntimeRequestSource),
+  /** Set by the worker only for an Outcome sub-thread; routine and ordinary turns omit it. */
+  outcomeThread: Schema.optional(Schema.Struct({ workItemId: Schema.String })),
   channelId: Schema.String,
   deliveryId: Schema.NullOr(Schema.String),
   runtimeProfile: Schema.optional(Schema.Literal("agent", "subagent")),
@@ -2080,6 +2083,7 @@ export class ApiError extends Error {
 }
 export * from "./external-draft";
 export * from "./messages-send";
+export * from "./outcomes";
 export * from "./bot-recipe";
 
 export * from "./web-search";
@@ -2096,3 +2100,8 @@ export const UpdateNotificationPresenceInput = Schema.Struct({
   ),
 });
 export const UpdateNotificationPreferencesInput = Schema.Struct({ smartEnabled: Schema.Boolean });
+
+export * from "./outcome-inbox";
+export * from "./knowledge";
+export * from "./human-work";
+export * from "./explore";

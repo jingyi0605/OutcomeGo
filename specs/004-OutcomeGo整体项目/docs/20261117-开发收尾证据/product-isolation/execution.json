@@ -1,0 +1,76 @@
+[
+  {
+    "name": "focused",
+    "command": [
+      "bun",
+      "--no-env-file",
+      "test",
+      "apps/server/test/outcome-product-replay.integration.test.ts"
+    ],
+    "cwd": "/Users/jackson/Code/openteam-spec004",
+    "canonicalDatabaseEndpoint": "127.0.0.1:55443/task70_canonical",
+    "executionDatabase": "fresh-owned-template0-database-per-call",
+    "environmentNames": [
+      "HOME",
+      "LANG",
+      "LC_ALL",
+      "PATH",
+      "TMPDIR",
+      "OUTCOMEGO_TEST_DATABASE_URL"
+    ],
+    "exitCode": 0,
+    "seconds": 5.935,
+    "log": "data/acceptance/task70-20261117/isolation/final-focused.log",
+    "sha256": "b362bca0c5f728df522066044264e30c499887fbf8e426f66c35fdad9bd4da9c"
+  },
+  {
+    "name": "research",
+    "command": [
+      "bun",
+      "--no-env-file",
+      "scripts/outcome-recovery/product-replay.ts",
+      "research",
+      "/Users/jackson/Code/openteam-spec004/data/acceptance/task70-20261117/isolation/research-isolated.json"
+    ],
+    "cwd": "/Users/jackson/Code/openteam-spec004",
+    "canonicalDatabaseEndpoint": "127.0.0.1:55443/task70_canonical",
+    "executionDatabase": "fresh-owned-template0-database-per-call",
+    "environmentNames": [
+      "HOME",
+      "LANG",
+      "LC_ALL",
+      "PATH",
+      "TMPDIR",
+      "OUTCOMEGO_TEST_DATABASE_URL"
+    ],
+    "exitCode": 0,
+    "seconds": 1.323,
+    "log": "data/acceptance/task70-20261117/isolation/final-research.log",
+    "sha256": "85399cb240af9fc84a9fc7255a9d7f8cccaf5444e4c63596c4d862babb4ba1b3"
+  },
+  {
+    "name": "human",
+    "command": [
+      "bun",
+      "--no-env-file",
+      "scripts/outcome-recovery/product-replay.ts",
+      "human",
+      "/Users/jackson/Code/openteam-spec004/data/acceptance/task70-20261117/isolation/human-isolated.json"
+    ],
+    "cwd": "/Users/jackson/Code/openteam-spec004",
+    "canonicalDatabaseEndpoint": "127.0.0.1:55443/task70_canonical",
+    "executionDatabase": "fresh-owned-template0-database-per-call",
+    "environmentNames": [
+      "HOME",
+      "LANG",
+      "LC_ALL",
+      "PATH",
+      "TMPDIR",
+      "OUTCOMEGO_TEST_DATABASE_URL"
+    ],
+    "exitCode": 0,
+    "seconds": 1.703,
+    "log": "data/acceptance/task70-20261117/isolation/final-human.log",
+    "sha256": "acd86f03a0824747a78c71fc054e8e0fcc3f6949cd48a63537b3b05e1d2abb7f"
+  }
+]

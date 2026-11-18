@@ -21,7 +21,11 @@ import { conversationRoutes } from "./routes/conversation";
 import { eventRoutes } from "./routes/event";
 import { pluginMutationRoutes } from "./routes/plugin-mutation";
 import { pluginQueryRoutes } from "./routes/plugin-query";
+import { outcomeRoutes } from "./routes/outcome";
+import { exploreRoutes } from "./routes/explore";
+import { outcomeInboxRoutes } from "./routes/outcome-inbox";
 import { routineRoutes } from "./routes/routine";
+import { humanWorkRoutes } from "./routes/human-work";
 import { settingsRoutes } from "./routes/settings";
 import { transcriptionRoutes } from "./routes/transcription";
 import { systemVersion } from "./system-version";
@@ -344,6 +348,9 @@ const server = Bun.serve<VncConnection | NetworkConnection | VoiceConnectionData
         return json(await browserNetwork.egress(() => app.browserNetworkEgress()));
       if (path === "/api/server-settings/browser-network/retry" && request.method === "POST") return json(await browserNetwork.retry());
       for (const route of [
+        (context: RouteContext) => humanWorkRoutes(context, app.humanWork, {
+          humanReceipts: app.humanReceipts, knowledge: app.knowledge,
+        }),
         clientRoutes,
         pluginQueryRoutes,
         settingsRoutes,
@@ -352,6 +359,9 @@ const server = Bun.serve<VncConnection | NetworkConnection | VoiceConnectionData
         pluginMutationRoutes,
         botRoutes,
         routineRoutes,
+        outcomeRoutes,
+        (context: RouteContext) => exploreRoutes(context, app.explore),
+        outcomeInboxRoutes,
         channelRoutes,
         conversationRoutes,
         eventRoutes,

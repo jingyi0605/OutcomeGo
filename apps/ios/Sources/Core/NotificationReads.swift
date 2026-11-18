@@ -25,8 +25,10 @@ public struct NativePush: Sendable {
   public var scope: String { data["notificationScope"].string }
   public var channelId: String { data["channelId"].string }
   public var isSync: Bool { data["kind"].string == "badge-sync" }
+  public var outcomeTarget: OutcomeLinkTarget? { OutcomeLinkTarget.push(data) }
   public var isAlert: Bool {
-    ["message", "reaction"].contains(data["kind"].string)
+    if data["kind"].string == "outcome" { return outcomeTarget != nil }
+    return ["message", "reaction"].contains(data["kind"].string)
       && !channelId.isEmpty
   }
   public var readMarker: NotificationReadMarker? {
@@ -88,7 +90,7 @@ public struct NotificationReads: Codable, Sendable {
     return true
   }
   public func hasRead(_ push: NativePush) -> Bool {
-    guard push.scope == scope, push.isAlert, let marker = markers[push.channelId] else {
+    guard push.outcomeTarget == nil, push.scope == scope, push.isAlert, let marker = markers[push.channelId] else {
       return false
     }
     if push.data["kind"].string != "reaction" {

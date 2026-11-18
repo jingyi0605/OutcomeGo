@@ -1,6 +1,6 @@
 # 需求文档 - 现实任务与知识资料闭环
 
-状态：Draft
+状态：Approved（2026-11-17）
 
 关联文档：[README.md](README.md) · [design.md](design.md) · [tasks.md](tasks.md)
 
@@ -17,7 +17,9 @@
 - 人工动作卡。
 - 人工执行回执和 Evidence。
 - 现实任务验收。
-- 探索轨和交付轨的最小区分。
+- 人工 WorkItem 的两种创建来源：子线程中的 `RequestHumanAction` 工具和 Decision 的 `manual_action` 选项（父 design §39 D12）。
+- Desktop 动作卡和回执；Android/iOS 只读动作卡。
+- 探索轨和交付轨的最小区分（排在最后阶段，可整体延期，D19）。
 
 ### Out of Scope
 
@@ -46,7 +48,7 @@
 
 #### 验收标准
 
-1. WHEN WorkItem 的执行者是人 THEN System SHALL 创建人工动作卡。
+1. WHEN Outcome 子线程中的 Agent 调用 `RequestHumanAction`，或用户在 Decision 中选择 `manual_action` THEN System SHALL 创建 `executorType=human` 的 WorkItem 和人工动作卡。
 2. WHEN 人工动作卡展示 THEN SHALL 包含目的、步骤、输入、风险提示和完成材料。
 3. WHEN Agent 只生成了步骤但没有人工回执 THEN System SHALL 不标记动作完成。
 
@@ -108,7 +110,7 @@
 
 1. WHEN 用户提交文本、文件、照片、日志、测试单或外部记录引用 THEN System SHALL 创建 HumanReceipt/Evidence 并关联 WorkItem。
 2. WHEN 回执缺少必需材料 THEN System SHALL 保持 `submitted`、`review_pending` 或 `UNVERIFIED`，不能自动完成。
-3. WHEN Reviewer 通过全部必需材料 THEN System SHALL 将 WorkItem 标记 `accepted` 并允许 Outcome 继续。
+3. WHEN Reviewer 通过 `POST /api/v0/outcomes/:id/reviews`（唯一验收入口，D20）通过全部必需条款 THEN System SHALL 将 WorkItem 标记 `accepted` 并允许 Outcome 继续。
 4. WHEN Reviewer 驳回回执 THEN System SHALL 返回缺口和下一步，保留原回执历史。
 
 ### 需求 8：探索和交付范围分开
@@ -149,8 +151,11 @@
 | 状态 | 用户可见内容 | 是否可进入下一步 |
 |---|---|---|
 | `pending` | 目的、前置条件、建议步骤 | 否 |
+| `ready` | 资料已解析，可以开始 | 否 |
 | `in_progress` | 当前步骤、已填内容、资料 | 否 |
-| `submitted` | 回执摘要、缺失项 | 否，等待 Review |
+| `paused` | 已保存的步骤和草稿 | 否 |
+| `submitted` | 回执摘要、缺失项 | 否，等待结构校验 |
+| `review_pending` | 回执和待验收条款 | 否，等待 Review |
 | `accepted` | Reviewer、Evidence、完成时间 | 是 |
 | `rejected` | 缺口、修正建议、原回执 | 否 |
 | `cancelled` | 取消原因和关联 Outcome 状态 | 否 |
@@ -261,3 +266,22 @@
 | reviewer accept | all required pass | accepted + next step |
 | explore convert | idea → delivery | new PlanningDraft |
 
+## 需求 17：人工 WorkItem 的来源明确
+
+**用户故事：** 作为用户，我希望只有在 Agent 明确提出或我自己选择时，系统才创建现场任务。
+
+#### 验收标准
+
+1. WHEN Outcome 子线程中的 Agent 判断某一步必须由人在现场执行 THEN Agent SHALL 调用 `RequestHumanAction`，提交目的、步骤、所需材料和关联条款；调用后结束当前回合。
+2. WHEN 工具被调用 THEN System SHALL 在一个事务内创建人工 WorkItem（`kind=human_action`、`dependsOn` 为空）、把调用方 Agent WorkItem 置为 `waiting_human`（父 design §42.2，见 design §32），写 `outcome.human_action.required` 事件。
+3. WHEN 用户在 Decision 中选择 `manual_action` THEN System SHALL 以同样方式创建人工 WorkItem。
+4. WHEN 人工 WorkItem 被接受 THEN System SHALL 在原 Agent WorkItem 的同一子线程中开启新回合，带上回执摘要继续执行。
+5. WHEN 主对话、Routine 或普通 Run THEN `RequestHumanAction` SHALL 不出现在工具列表中。
+6. System SHALL 不从 Contract 内容自动推断人工 WorkItem。
+
+## 需求 18：移动端只读动作卡
+
+#### 验收标准
+
+1. WHEN 用户在 Android/iOS 打开人工 WorkItem THEN System SHALL 只读显示目的、步骤、资料引用和状态。
+2. WHEN 需要开始、暂停、提交回执或验收 THEN 移动端 SHALL 显示“请在 Desktop 完成”，不得把只读查看记为开始或完成。

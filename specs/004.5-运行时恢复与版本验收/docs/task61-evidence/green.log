@@ -1,0 +1,18 @@
+bun test v1.4.4 (38afee6c8)
+
+apps/worker/test/periodic-reconciliation.test.ts:
+(pass) bounded periodic reconciliation > automation safety sweeps cap each tick and cover every active bot [2.29ms]
+(pass) bounded periodic reconciliation > unchanged agent/group snapshots use bulk lookups, then a conditional no-op [2.01ms]
+(pass) bounded periodic reconciliation > a deleted chat is never adopted back from its directory residue [0.14ms]
+
+apps/worker/test/routine-recovery.test.ts:
+(pass) routine execution restart reconciliation > redrives only interrupted wakes that owe the user a visible delivery [0.04ms]
+(pass) routine execution restart reconciliation > maps terminal linked runs without terminating live runs [0.02ms]
+(pass) routine execution restart reconciliation > maps terminal group rounds and preserves live rounds [0.02ms]
+(pass) routine execution restart reconciliation > repairs a terminal group execution and its durable ledger [0.62ms]
+(pass) routine execution restart reconciliation > repairs a nonterminal execution whose linked run died during restart [0.16ms]
+
+ 8 pass
+ 0 fail
+ 170 expect() calls
+Ran 8 tests across 2 files. [219.00ms]

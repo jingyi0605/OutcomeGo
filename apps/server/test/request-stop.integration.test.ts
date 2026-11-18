@@ -9,7 +9,7 @@ import { InternalToolService } from "../src/services/internal-tool-service";
 import { RunService } from "../src/services/run-service";
 import { SubagentService } from "../src/services/subagent/service";
 
-const url = process.env.OPENTEAM_TEST_DATABASE_URL;
+const url = (process.env.OUTCOMEGO_TEST_DATABASE_URL ?? process.env.OPENTEAM_TEST_DATABASE_URL);
 
 async function fixture(body: (f: Awaited<ReturnType<typeof setup>>) => Promise<void>) {
   const f = await setup();

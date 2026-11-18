@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { createPrismaClient } from "@outcomego/db";
 import { AgentDataStore } from "../src/agent-data";
 
-const databaseUrl = process.env.OPENTEAM_TEST_DATABASE_URL;
+const databaseUrl = (process.env.OUTCOMEGO_TEST_DATABASE_URL ?? process.env.OPENTEAM_TEST_DATABASE_URL);
 const dbTest = databaseUrl ? test : test.skip;
 const revisionOf = async (prisma: ReturnType<typeof createPrismaClient>, botId: string) =>
   (await prisma.bot.findUniqueOrThrow({ where: { id: botId } })).memoryRevision +

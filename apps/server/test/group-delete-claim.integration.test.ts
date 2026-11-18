@@ -8,7 +8,7 @@ import { NativeToolExecutor } from "../../computer/src/native-tool-executor";
 import { chmod, mkdtemp, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-const databaseUrl = process.env.OPENTEAM_TEST_DATABASE_URL;
+const databaseUrl = (process.env.OUTCOMEGO_TEST_DATABASE_URL ?? process.env.OPENTEAM_TEST_DATABASE_URL);
 const gate = () => { let resolve!: () => void; const promise = new Promise<void>(r => { resolve = r; }); return { promise, resolve }; };
 
 test.skipIf(!databaseUrl)('a stale queued claim exits cleanly when room deletion commits first', async () => {

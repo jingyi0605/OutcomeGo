@@ -464,10 +464,41 @@ export class PluginManagement {
         );
       parsePluginDefinition(next);
       await assertPluginEnvironmentAvailable(this.prisma, next);
+      for (const account of installation.connections) {
+        if (jsonObject(account.credentials).stateRemovalPending === true)
+          throw new ApiError(409, "plugin_update_conflict", "Account removal must finish before updating this package");
+        const oldConnector = previous.connections.find(connector => connector.key === account.connectorKey);
+        const nextConnector = next.connections.find(connector => connector.key === account.connectorKey);
+        if (oldConnector?.persistentState && !nextConnector?.persistentState)
+          throw new ApiError(
+            409,
+            "plugin_private_storage_in_use",
+            "Uninstall this package to remove its private storage before removing or disabling this connector"
+          );
+      }
       await Promise.all(
         installation.connections.map((connection) => this.stop(connection.id, connection.transport))
       );
       await this.prisma.$transaction(async (tx) => {
+        // Match uninstall's installation-before-accounts lock order.
+        await tx.$queryRaw`
+          SELECT id FROM "outcomego_plugin_installation"
+          WHERE id = ${installation.id}::uuid FOR UPDATE`;
+        await tx.$queryRaw`
+          SELECT id FROM "outcomego_plugin_connection"
+          WHERE "installationId" = ${installation.id}::uuid ORDER BY id FOR UPDATE`;
+        const currentAccounts = await tx.pluginConnection.findMany({
+          where: { installationId: installation.id },
+        });
+        if (
+          currentAccounts.length !== installation.connections.length ||
+          currentAccounts.some(account => {
+            const before = installation.connections.find(connection => connection.id === account.id);
+            return !before || account.runtimeGeneration !== before.runtimeGeneration ||
+              jsonObject(account.credentials).stateRemovalPending === true;
+          })
+        )
+          throw new ApiError(409, "plugin_update_conflict", "An account changed while the package was stopping; review the update again");
         // The UI review is tied to this installed snapshot as well as the candidate digest.
         const locked = await tx.pluginInstallation.updateMany({
           where: { id: installation.id, updatedAt: installation.updatedAt },

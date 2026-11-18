@@ -1,0 +1,15 @@
+$ bun --no-install scripts/migration/validate-outcomego-backup.ts --input '/Users/jackson/Code/openteam-spec004-worktrees/l5b-ops/specs/004.5-运行时恢复与版本验收/docs/20261117-l5b-evidence/.l5b-checks-7x3nlxgc/backup-wrong-row-count.json'
+exit=1
+175 |
+176 |   const calculatedRowCounts = Object.fromEntries(
+177 |     Object.entries(tables).map(([table, rows]) => [table, rows.length])
+178 |   );
+179 |   if (canonicalJson(manifest.rowCounts) !== canonicalJson(calculatedRowCounts)) {
+180 |     throw new Error("backup.manifest.rowCounts does not match tables");
+                    ^
+error: backup.manifest.rowCounts does not match tables
+      at validateBackupObject (/Users/jackson/Code/openteam-spec004-worktrees/l5b-ops/scripts/migration/validate-outcomego-backup.ts:180:15)
+      at validateOutcomegoBackup (/Users/jackson/Code/openteam-spec004-worktrees/l5b-ops/scripts/migration/validate-outcomego-backup.ts:209:18)
+      at <anonymous> (/Users/jackson/Code/openteam-spec004-worktrees/l5b-ops/scripts/migration/validate-outcomego-backup.ts:218:10)
+
+Bun v1.4.4 (macOS arm64)

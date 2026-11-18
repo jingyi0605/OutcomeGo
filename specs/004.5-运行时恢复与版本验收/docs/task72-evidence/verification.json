@@ -1,0 +1,70 @@
+{
+  "cwd": "/Users/jackson/Code/openteam-spec004-worktrees/task72-populated-backup",
+  "sourceHead": "93d5ff66510ddb77d1f8b7fb589c365fe4b537f1",
+  "sourceState": "uncommitted-owned-task72-files",
+  "commands": [
+    {
+      "command": [
+        "bun",
+        "--no-env-file",
+        "test",
+        "./scripts/outcome-recovery/populated-backup.test.ts",
+        "./scripts/migration/validate-outcomego-backup.test.ts"
+      ],
+      "exitCode": 0,
+      "pass": 25,
+      "fail": 0,
+      "assertions": 53,
+      "log": "focused-tests.log"
+    },
+    {
+      "command": [
+        "bun",
+        "--no-env-file",
+        "data/task72/typecheck.ts"
+      ],
+      "exitCode": 0,
+      "targetFiles": 3,
+      "dependencyDiagnostics": 0,
+      "log": "typecheck.log"
+    },
+    {
+      "command": [
+        "bun",
+        "--no-env-file",
+        "scripts/deploy-schema.ts"
+      ],
+      "cwd": "/Users/jackson/Code/openteam-spec004-worktrees/task72-populated-backup/packages/db",
+      "exitCode": 0,
+      "log": "schema-deploy.log"
+    }
+  ],
+  "dependencySetup": [
+    [
+      "bun",
+      "--no-env-file",
+      "install",
+      "--frozen-lockfile",
+      "--ignore-scripts",
+      "--offline"
+    ],
+    [
+      "bun",
+      "--no-env-file",
+      "run",
+      "--filter",
+      "@outcomego/db",
+      "db:generate"
+    ],
+    [
+      "bun",
+      "--no-env-file",
+      "run",
+      "--filter",
+      "@outcomego/plugins",
+      "generate"
+    ]
+  ],
+  "actualRestoreCommand": "command.json",
+  "noBroaderCampaignRun": true
+}

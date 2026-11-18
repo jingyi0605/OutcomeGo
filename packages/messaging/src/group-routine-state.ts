@@ -1,4 +1,6 @@
 import type { Prisma } from "@outcomego/db";
+import { automationShellState } from "./automation-results";
+import { requestIsStopped } from "./request-state";
 
 /** Include late worker continuations and the peer rounds their results start. */
 export async function groupRoutineState(tx: Prisma.TransactionClient, rootMessageId: string) {
@@ -40,6 +42,22 @@ export async function groupRoutineState(tx: Prisma.TransactionClient, rootMessag
       })
     : [];
   const family = [...sourceIds, ...continuations.map((run) => run.id)];
+  const shellRuns = family.length ? await tx.run.findMany({
+    where: { id: { in: family } },
+    select: { id: true, botId: true, status: true, error: true, requestStoppedAt: true },
+  }) : [];
+  const shellsByBot = new Map<string, string[]>();
+  for (const run of shellRuns) {
+    // Explicit Stop releases background waiting even when the original turn
+    // completed before the process did.
+    if (requestIsStopped(run)) continue;
+    const ids = shellsByBot.get(run.botId) ?? [];
+    ids.push(run.id);
+    shellsByBot.set(run.botId, ids);
+  }
+  const shells = [];
+  for (const [botId, ids] of shellsByBot)
+    shells.push(await automationShellState(tx, botId, ids, true));
   const children = family.length
     ? await tx.subagentAttempt.findMany({
         where: { parentRunId: { in: family } },
@@ -49,18 +67,20 @@ export async function groupRoutineState(tx: Prisma.TransactionClient, rootMessag
       })
     : [];
   const deliveries = rounds.flatMap((round) => round.deliveries);
-  const completedTimes = [...rounds, ...continuations, ...children].flatMap(item => item.completedAt ? [item.completedAt.getTime()] : []);
+  const completedTimes = [...rounds, ...continuations, ...children, ...shells].flatMap(item => item.completedAt ? [item.completedAt.getTime()] : []);
   return {
     completedAt: completedTimes.length ? new Date(Math.max(...completedTimes)) : null,
     active:
       rounds.some((round) => ["queued", "running"].includes(round.status)) ||
       continuations.some((run) => ["queued", "running"].includes(run.status)) ||
+      shells.some((shell) => shell.active) ||
       children.some((child) => ["provisioning", "queued", "running", "waiting"].includes(child.status)),
     failed:
       rounds.some((round) => round.status === "failed") ||
       deliveries.some((delivery) => delivery.status === "failed") ||
       (deliveries.length > 0 && deliveries.every((delivery) => delivery.status === "skipped")) ||
       continuations.some((run) => ["failed", "cancelled"].includes(run.status)) ||
+      shells.some((shell) => shell.failed) ||
       children.some((child) => ["failed", "stopped"].includes(child.status)),
   };
 }

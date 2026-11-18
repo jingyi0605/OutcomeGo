@@ -7,7 +7,7 @@ import { createPrismaClient } from "@outcomego/db";
 import { AgentDataStore } from "../src/agent-data";
 import { memoryLogicalId } from "../src/memory-facts";
 
-const databaseUrl = process.env.OPENTEAM_TEST_DATABASE_URL;
+const databaseUrl = (process.env.OUTCOMEGO_TEST_DATABASE_URL ?? process.env.OPENTEAM_TEST_DATABASE_URL);
 for (const scope of ["agent", "user"] as const) test.skipIf(!databaseUrl)(
   `an ${scope} memory remains current and forgettable after 4,000 accumulated revisions`,
   async () => {

@@ -1,0 +1,31 @@
+{
+  "command": [
+    "bun",
+    "--no-env-file",
+    "scripts/test-outcome-populated-backup.ts",
+    "--container",
+    "outcomego-task72-populated-backup-pg-20261117",
+    "--restore-database",
+    "outcomego_task72_exact_restored",
+    "--output",
+    "data/task72/exact-proof"
+  ],
+  "cwd": "/Users/jackson/Code/openteam-spec004-worktrees/task72-populated-backup",
+  "environmentNames": [
+    "DATABASE_URL",
+    "HOME",
+    "LANG",
+    "LOGNAME",
+    "NO_COLOR",
+    "OUTCOMEGO_TEST_DATABASE_URL",
+    "PATH",
+    "SHELL",
+    "TMPDIR",
+    "USER"
+  ],
+  "databaseEndpoint": "127.0.0.1:55439/outcomego_task72_exact_source",
+  "sourceHead": "93d5ff66510ddb77d1f8b7fb589c365fe4b537f1",
+  "seconds": 1.272,
+  "exitCode": 0,
+  "logSha256": "f1d02ad960bf49e26de062644a43d3f4f2a0feb988f65cdd2adb1e4a9a135ca9"
+}

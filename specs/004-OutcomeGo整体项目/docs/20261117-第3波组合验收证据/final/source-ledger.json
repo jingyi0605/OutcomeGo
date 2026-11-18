@@ -1,0 +1,18 @@
+{
+  "productionSource": "5e2ce81d83b91e4e4d37388f54ac9a4685f6b36d",
+  "testSuccessor": "727d410f2f154d750faf021aa15b0a4cf13cdfc0",
+  "acceptanceSource": "5dce4db34da31edd40c17f7067293776dd847420",
+  "trackedTreeEqualsTestSuccessorBeforeEvidence": true,
+  "nonSpecDiffPaths": [
+    "apps/server/test/notification-read-chaos.integration.test.ts",
+    "apps/server/test/startup-task-recovery.integration.test.ts",
+    "apps/worker/test/periodic-reconciliation.test.ts",
+    "apps/worker/test/routine-recovery.test.ts",
+    "apps/worker/test/routine-retirement-locks.integration.test.ts",
+    "scripts/check/test-database-gates.test.ts"
+  ],
+  "productionDiffPaths": [],
+  "rawEvidenceRoot": "/Users/jackson/Code/openteam-spec004-worktrees/w3-acceptance/data/acceptance",
+  "rawLogCount": 42,
+  "note": "文档归档后的 HEAD 只增加本次证据；实际执行源码以各 command 的 source/frozenSource 为准。"
+}

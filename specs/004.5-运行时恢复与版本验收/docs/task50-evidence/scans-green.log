@@ -1,0 +1,20 @@
+bun test v1.4.4 (38afee6c8)
+
+apps/worker/test/memory-recovery-churn.integration.test.ts:
+(pass) equal completion timestamps use UUID order even when runs were inserted in reverse [319.34ms]
+(pass) a full scan invalidated before dispatch still reaches later owners and wraps across lease-owner churn [288.12ms]
+(pass) a dispatch snapshot cannot learn after its run is cancelled, loses its completed inbox, or is deleted before claim [152.12ms]
+
+apps/worker/test/memory-recovery-fairness.integration.test.ts:
+(pass) memory recovery acknowledges historical automation and reaction intents without learning their business content [121.67ms]
+(pass) durable memory recovery retains visible answers and excludes voice narration [151.24ms]
+(pass) a leased bot's 33 older pending reviews cannot starve another healthy bot across recovery scans [270.20ms]
+(pass) recovery rotates past more than 32 leased bots to reach a later healthy bot [416.74ms]
+(pass) an in-flight local oldest review prevents launching the bot's later review during recovery [86.08ms]
+(pass) an oldest pending review without a completed inbox cannot permanently gate the bot's later eligible review [61.20ms]
+(pass) background recovery keeps at most 32 slow reviews active across scans and uses released capacity [347.50ms]
+
+ 10 pass
+ 0 fail
+ 231 expect() calls
+Ran 10 tests across 2 files. [2.48s]

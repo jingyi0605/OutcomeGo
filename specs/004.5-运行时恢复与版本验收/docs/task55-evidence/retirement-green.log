@@ -1,0 +1,428 @@
+bun test v1.4.4 (38afee6c8)
+
+apps/server/test/chat-deletion.integration.test.ts:
+(pass) deleting an executing agent cancels its parent and child runs before removing contexts [444.80ms]
+group delete cleanup: background commands f106c431-b695-4d01-b2a8-e36b1adaadc3: Error: offline
+group delete cleanup: screen f106c431-b695-4d01-b2a8-e36b1adaadc3: Error: offline
+group delete cleanup: agent store f106c431-b695-4d01-b2a8-e36b1adaadc3: Error: offline
+retired agent store f106c431-b695-4d01-b2a8-e36b1adaadc3 could not be discarded: Error: 503 offline
+(pass) a deleted group cannot return after event pruning or a failed directory cleanup [150.28ms]
+(pass) archive includes a child whose launch commits while deletion waits for the lifecycle lock [155.15ms]
+(pass) Task that passed its first parent check cannot launch after deletion commits [163.14ms]
+bot archive cleanup: turn 4e17ee6c-79e7-4844-9e73-050b83cbd3ec: Error: 503 offline
+bot archive cleanup: context session cc77a3d9-d46b-43f1-98ef-50d303ff4da7: Error: 503 offline
+bot archive cleanup: background commands b5d80a04-5538-4923-873e-6be4b07a9d2b: Error: 503 offline
+bot archive cleanup: screen b5d80a04-5538-4923-873e-6be4b07a9d2b: Error: 503 offline
+bot archive cleanup: turn 4e17ee6c-79e7-4844-9e73-050b83cbd3ec: Error: 503 offline
+bot archive cleanup: context session cc77a3d9-d46b-43f1-98ef-50d303ff4da7: Error: 503 offline
+bot archive cleanup: background commands b5d80a04-5538-4923-873e-6be4b07a9d2b: Error: 503 offline
+bot archive cleanup: screen b5d80a04-5538-4923-873e-6be4b07a9d2b: Error: 503 offline
+(pass) a restarted worker retries failed runtime cleanup after the directory has disappeared [137.85ms]
+bot archive cleanup: agent store 804c2e6b-8717-452e-a561-23682c723ef1: Error: 500 Error: ENOTEMPTY: directory not empty, rm '/var/folders/q5/5jq71t9d131d8p_8l01rth400000gn/T/openteam-retired-disposal-sol5IT/retired/804c2e6b-8717-452e-a561-23682c723ef1.mwkgz9io.3ee3caad-89df-43fa-b127-afb581777ad0'
+(pass) worker retry disposes a permission-blocked directory after it has left the roster [137.00ms]
+
+apps/server/test/retirement-entrypoints.integration.test.ts:
+(pass) peer cannot leave a new queued wake behind target retirement [157.73ms]
+(pass) manual-routine cannot leave a new queued wake behind target retirement [285.33ms]
+(pass) scheduled-routine cannot leave a new queued wake behind target retirement [258.42ms]
+(pass) event-followup cannot leave a new queued wake behind target retirement [344.03ms]
+(pass) shell-callback cannot leave a new queued wake behind target retirement [223.34ms]
+(node:40342) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `bun --trace-warnings ...` to show where the warning was created)
+(pass) an admitted room send cannot publish after its source agent was retired [261.57ms]
+(pass) room deletion and a manual routine seed cannot deadlock on foreign keys [369.44ms]
+(pass) room deletion and a scheduled routine seed cannot deadlock on foreign keys [266.13ms]
+(pass) retirement disables a routine whose creation already checked the owner [200.28ms]
+(pass) late peer sends, routine launches, callbacks, and room output stay rejected after retirement [332.47ms]
+(pass) reciprocal peer sends complete and callback retries produce exactly one wake [444.99ms]
+(pass) a shell callback for a deleted room is ignored while its member remains active [235.41ms]
+
+apps/server/test/deletion-races.integration.test.ts:
+(pass) stale adoption snapshots must not recreate a group deleted by another worker [116.46ms]
+(pass) a delayed runtime acceptance must not start work after archive already returned [167.88ms]
+(pass) an expired dispatch releases cancellation and deletion can finish [367.03ms]
+(pass) the adoption locks still allow an ordinary unknown group to be adopted once [84.00ms]
+
+apps/server/test/retired-cleanup-recovery.integration.test.ts:
+retired agent cleanup: background commands 51765bd9-1174-4cd8-9150-768876376c66: Error: 503 Injected owner cleanup outage
+retired agent cleanup: screen 51765bd9-1174-4cd8-9150-768876376c66: Error: 503 Injected owner cleanup outage
+retired agent cleanup: agent store 51765bd9-1174-4cd8-9150-768876376c66: Error: 503 Injected owner cleanup outage
+retired agent cleanup: background commands 8b836354-1374-44c0-9ce2-ab923b921ee0: Error: 503 Injected owner cleanup outage
+retired agent cleanup: screen 8b836354-1374-44c0-9ce2-ab923b921ee0: Error: 503 Injected owner cleanup outage
+retired agent cleanup: agent store 8b836354-1374-44c0-9ce2-ab923b921ee0: Error: 503 Injected owner cleanup outage
+retired agent cleanup: background commands 5292d565-c1a2-4b36-8625-54a3445f729c: Error: 503 Injected owner cleanup outage
+retired agent cleanup: screen 5292d565-c1a2-4b36-8625-54a3445f729c: Error: 503 Injected owner cleanup outage
+retired agent cleanup: agent store 5292d565-c1a2-4b36-8625-54a3445f729c: Error: 503 Injected owner cleanup outage
+retired agent cleanup: background commands 7fb8ebf5-f0bf-415b-ba02-387a78fbac77: Error: 503 Injected owner cleanup outage
+retired agent cleanup: screen 7fb8ebf5-f0bf-415b-ba02-387a78fbac77: Error: 503 Injected owner cleanup outage
+retired agent cleanup: agent store 7fb8ebf5-f0bf-415b-ba02-387a78fbac77: Error: 503 Injected owner cleanup outage
+(pass) failed retirement cleanup rotates past an outage backlog without touching a healthy agent [124.28ms]
+
+apps/server/test/deletion-message-acceptance.integration.test.ts:
+(pass) deletion includes a direct message accepted while it waits for the bot row [278.31ms]
+
+apps/server/test/retirement-combined-chaos.integration.test.ts:
+bot archive cleanup: turn 9d3b8069-fb0d-4ae8-b144-4338d6055b95: Error: 503 injected cleanup outage
+bot archive cleanup: turn 6023fe7a-2682-41f0-9711-258d51c8976f: Error: 503 injected cleanup outage
+bot archive cleanup: turn 774ce262-9458-40a1-a119-29439a9101c4: Error: 503 injected cleanup outage
+bot archive cleanup: turn 7d1537d4-5751-4512-b984-e2fc6cac251d: Error: 503 injected cleanup outage
+bot archive cleanup: turn 51578cb4-eb2b-4c92-a627-b842a66936aa: Error: 503 injected cleanup outage
+bot archive cleanup: turn fed4cfe0-a37a-4403-9a30-bd6dc32bb7d7: Error: 503 injected cleanup outage
+bot archive cleanup: turn 31187ec2-8903-4102-bd05-46db04f07a18: Error: 503 injected cleanup outage
+bot archive cleanup: context session 091e4b6b-1a94-448d-aeba-3d1137d3ed69: Error: 503 injected cleanup outage
+bot archive cleanup: background commands dfe474ee-aa6a-41b6-8502-9a096dc07aa3: Error: 503 injected cleanup outage
+bot archive cleanup: screen dfe474ee-aa6a-41b6-8502-9a096dc07aa3: Error: 503 injected cleanup outage
+bot archive cleanup: agent store dfe474ee-aa6a-41b6-8502-9a096dc07aa3: Error: 503 injected cleanup outage
+bot archive cleanup: turn 2d46c863-0c78-4666-931f-9f0d5231601f: Error: 503 injected cleanup outage
+bot archive cleanup: context session 0ed8a1d7-97bc-41ac-825c-8d807e0f708c: Error: 503 injected cleanup outage
+bot archive cleanup: background commands 11db1eb7-ca42-41b0-b341-de0bed0e0a7e: Error: 503 injected cleanup outage
+bot archive cleanup: screen 11db1eb7-ca42-41b0-b341-de0bed0e0a7e: Error: 503 injected cleanup outage
+bot archive cleanup: agent store 11db1eb7-ca42-41b0-b341-de0bed0e0a7e: Error: 503 injected cleanup outage
+bot archive cleanup: turn 2d46c863-0c78-4666-931f-9f0d5231601f: Error: 503 injected cleanup outage
+bot archive cleanup: context session 0ed8a1d7-97bc-41ac-825c-8d807e0f708c: Error: 503 injected cleanup outage
+bot archive cleanup: background commands 11db1eb7-ca42-41b0-b341-de0bed0e0a7e: Error: 503 injected cleanup outage
+bot archive cleanup: screen 11db1eb7-ca42-41b0-b341-de0bed0e0a7e: Error: 503 injected cleanup outage
+bot archive cleanup: agent store 11db1eb7-ca42-41b0-b341-de0bed0e0a7e: Error: 503 injected cleanup outage
+bot archive cleanup: turn 6023fe7a-2682-41f0-9711-258d51c8976f: Error: 503 injected cleanup outage
+bot archive cleanup: turn 7d1537d4-5751-4512-b984-e2fc6cac251d: Error: 503 injected cleanup outage
+bot archive cleanup: turn 31187ec2-8903-4102-bd05-46db04f07a18: Error: 503 injected cleanup outage
+bot archive cleanup: turn 51578cb4-eb2b-4c92-a627-b842a66936aa: Error: 503 injected cleanup outage
+bot archive cleanup: turn fed4cfe0-a37a-4403-9a30-bd6dc32bb7d7: Error: 503 injected cleanup outage
+bot archive cleanup: turn 774ce262-9458-40a1-a119-29439a9101c4: Error: 503 injected cleanup outage
+bot archive cleanup: turn 9d3b8069-fb0d-4ae8-b144-4338d6055b95: Error: 503 injected cleanup outage
+bot archive cleanup: context session 091e4b6b-1a94-448d-aeba-3d1137d3ed69: Error: 503 injected cleanup outage
+bot archive cleanup: background commands dfe474ee-aa6a-41b6-8502-9a096dc07aa3: Error: 503 injected cleanup outage
+bot archive cleanup: screen dfe474ee-aa6a-41b6-8502-9a096dc07aa3: Error: 503 injected cleanup outage
+bot archive cleanup: agent store dfe474ee-aa6a-41b6-8502-9a096dc07aa3: Error: 503 injected cleanup outage
+bot archive cleanup: turn 2d46c863-0c78-4666-931f-9f0d5231601f: Error: 503 injected cleanup outage
+bot archive cleanup: context session 0ed8a1d7-97bc-41ac-825c-8d807e0f708c: Error: 503 injected cleanup outage
+bot archive cleanup: background commands 11db1eb7-ca42-41b0-b341-de0bed0e0a7e: Error: 503 injected cleanup outage
+bot archive cleanup: screen 11db1eb7-ca42-41b0-b341-de0bed0e0a7e: Error: 503 injected cleanup outage
+bot archive cleanup: agent store 11db1eb7-ca42-41b0-b341-de0bed0e0a7e: Error: 503 injected cleanup outage
+bot archive cleanup: turn 774ce262-9458-40a1-a119-29439a9101c4: Error: 503 injected cleanup outage
+bot archive cleanup: turn 9d3b8069-fb0d-4ae8-b144-4338d6055b95: Error: 503 injected cleanup outage
+bot archive cleanup: turn 6023fe7a-2682-41f0-9711-258d51c8976f: Error: 503 injected cleanup outage
+bot archive cleanup: turn 7d1537d4-5751-4512-b984-e2fc6cac251d: Error: 503 injected cleanup outage
+bot archive cleanup: turn 51578cb4-eb2b-4c92-a627-b842a66936aa: Error: 503 injected cleanup outage
+bot archive cleanup: turn fed4cfe0-a37a-4403-9a30-bd6dc32bb7d7: Error: 503 injected cleanup outage
+bot archive cleanup: turn 31187ec2-8903-4102-bd05-46db04f07a18: Error: 503 injected cleanup outage
+bot archive cleanup: context session 091e4b6b-1a94-448d-aeba-3d1137d3ed69: Error: 503 injected cleanup outage
+bot archive cleanup: background commands dfe474ee-aa6a-41b6-8502-9a096dc07aa3: Error: 503 injected cleanup outage
+bot archive cleanup: screen dfe474ee-aa6a-41b6-8502-9a096dc07aa3: Error: 503 injected cleanup outage
+bot archive cleanup: agent store dfe474ee-aa6a-41b6-8502-9a096dc07aa3: Error: 503 injected cleanup outage
+bot archive cleanup: turn 2d46c863-0c78-4666-931f-9f0d5231601f: Error: 503 injected cleanup outage
+bot archive cleanup: context session 0ed8a1d7-97bc-41ac-825c-8d807e0f708c: Error: 503 injected cleanup outage
+bot archive cleanup: background commands 11db1eb7-ca42-41b0-b341-de0bed0e0a7e: Error: 503 injected cleanup outage
+bot archive cleanup: screen 11db1eb7-ca42-41b0-b341-de0bed0e0a7e: Error: 503 injected cleanup outage
+bot archive cleanup: agent store 11db1eb7-ca42-41b0-b341-de0bed0e0a7e: Error: 503 injected cleanup outage
+bot archive cleanup: turn 774ce262-9458-40a1-a119-29439a9101c4: Error: 503 injected cleanup outage
+bot archive cleanup: turn 6023fe7a-2682-41f0-9711-258d51c8976f: Error: 503 injected cleanup outage
+bot archive cleanup: turn 7d1537d4-5751-4512-b984-e2fc6cac251d: Error: 503 injected cleanup outage
+bot archive cleanup: turn 31187ec2-8903-4102-bd05-46db04f07a18: Error: 503 injected cleanup outage
+bot archive cleanup: turn 51578cb4-eb2b-4c92-a627-b842a66936aa: Error: 503 injected cleanup outage
+bot archive cleanup: turn 9d3b8069-fb0d-4ae8-b144-4338d6055b95: Error: 503 injected cleanup outage
+bot archive cleanup: turn fed4cfe0-a37a-4403-9a30-bd6dc32bb7d7: Error: 503 injected cleanup outage
+bot archive cleanup: context session 091e4b6b-1a94-448d-aeba-3d1137d3ed69: Error: 503 injected cleanup outage
+bot archive cleanup: background commands dfe474ee-aa6a-41b6-8502-9a096dc07aa3: Error: 503 injected cleanup outage
+bot archive cleanup: screen dfe474ee-aa6a-41b6-8502-9a096dc07aa3: Error: 503 injected cleanup outage
+bot archive cleanup: agent store dfe474ee-aa6a-41b6-8502-9a096dc07aa3: Error: 503 injected cleanup outage
+bot archive cleanup: turn 2d46c863-0c78-4666-931f-9f0d5231601f: Error: 503 injected cleanup outage
+bot archive cleanup: context session 0ed8a1d7-97bc-41ac-825c-8d807e0f708c: Error: 503 injected cleanup outage
+bot archive cleanup: background commands 11db1eb7-ca42-41b0-b341-de0bed0e0a7e: Error: 503 injected cleanup outage
+bot archive cleanup: screen 11db1eb7-ca42-41b0-b341-de0bed0e0a7e: Error: 503 injected cleanup outage
+bot archive cleanup: agent store 11db1eb7-ca42-41b0-b341-de0bed0e0a7e: Error: 503 injected cleanup outage
+bot archive cleanup: turn 7d1537d4-5751-4512-b984-e2fc6cac251d: Error: 503 injected cleanup outage
+bot archive cleanup: turn 6023fe7a-2682-41f0-9711-258d51c8976f: Error: 503 injected cleanup outage
+bot archive cleanup: turn 9d3b8069-fb0d-4ae8-b144-4338d6055b95: Error: 503 injected cleanup outage
+bot archive cleanup: turn fed4cfe0-a37a-4403-9a30-bd6dc32bb7d7: Error: 503 injected cleanup outage
+bot archive cleanup: turn 51578cb4-eb2b-4c92-a627-b842a66936aa: Error: 503 injected cleanup outage
+bot archive cleanup: turn 31187ec2-8903-4102-bd05-46db04f07a18: Error: 503 injected cleanup outage
+bot archive cleanup: turn 774ce262-9458-40a1-a119-29439a9101c4: Error: 503 injected cleanup outage
+bot archive cleanup: context session 091e4b6b-1a94-448d-aeba-3d1137d3ed69: Error: 503 injected cleanup outage
+bot archive cleanup: background commands dfe474ee-aa6a-41b6-8502-9a096dc07aa3: Error: 503 injected cleanup outage
+bot archive cleanup: screen dfe474ee-aa6a-41b6-8502-9a096dc07aa3: Error: 503 injected cleanup outage
+bot archive cleanup: agent store dfe474ee-aa6a-41b6-8502-9a096dc07aa3: Error: 503 injected cleanup outage
+bot archive cleanup: turn 2d46c863-0c78-4666-931f-9f0d5231601f: Error: 503 injected cleanup outage
+bot archive cleanup: context session 0ed8a1d7-97bc-41ac-825c-8d807e0f708c: Error: 503 injected cleanup outage
+bot archive cleanup: background commands 11db1eb7-ca42-41b0-b341-de0bed0e0a7e: Error: 503 injected cleanup outage
+bot archive cleanup: screen 11db1eb7-ca42-41b0-b341-de0bed0e0a7e: Error: 503 injected cleanup outage
+bot archive cleanup: agent store 11db1eb7-ca42-41b0-b341-de0bed0e0a7e: Error: 503 injected cleanup outage
+bot archive cleanup: turn 9d3b8069-fb0d-4ae8-b144-4338d6055b95: Error: 503 injected cleanup outage
+bot archive cleanup: turn 774ce262-9458-40a1-a119-29439a9101c4: Error: 503 injected cleanup outage
+bot archive cleanup: turn 51578cb4-eb2b-4c92-a627-b842a66936aa: Error: 503 injected cleanup outage
+bot archive cleanup: turn 7d1537d4-5751-4512-b984-e2fc6cac251d: Error: 503 injected cleanup outage
+bot archive cleanup: turn fed4cfe0-a37a-4403-9a30-bd6dc32bb7d7: Error: 503 injected cleanup outage
+bot archive cleanup: turn 6023fe7a-2682-41f0-9711-258d51c8976f: Error: 503 injected cleanup outage
+bot archive cleanup: turn 31187ec2-8903-4102-bd05-46db04f07a18: Error: 503 injected cleanup outage
+bot archive cleanup: context session 091e4b6b-1a94-448d-aeba-3d1137d3ed69: Error: 503 injected cleanup outage
+bot archive cleanup: background commands dfe474ee-aa6a-41b6-8502-9a096dc07aa3: Error: 503 injected cleanup outage
+bot archive cleanup: screen dfe474ee-aa6a-41b6-8502-9a096dc07aa3: Error: 503 injected cleanup outage
+bot archive cleanup: agent store dfe474ee-aa6a-41b6-8502-9a096dc07aa3: Error: 503 injected cleanup outage
+(pass) retirement survives concurrent late work and a cleanup outage, seed 1 [1075.36ms]
+bot archive cleanup: turn ea4fad48-5b9c-4bb8-b600-422a12f4eff5: Error: 503 injected cleanup outage
+bot archive cleanup: context session dd9c3bd4-57c7-489c-ba8d-d203ce8e24da: Error: 503 injected cleanup outage
+bot archive cleanup: background commands ca6142bf-a204-4cde-b8c9-dcb809e28b06: Error: 503 injected cleanup outage
+bot archive cleanup: screen ca6142bf-a204-4cde-b8c9-dcb809e28b06: Error: 503 injected cleanup outage
+bot archive cleanup: agent store ca6142bf-a204-4cde-b8c9-dcb809e28b06: Error: 503 injected cleanup outage
+bot archive cleanup: turn a49cf0d2-dac6-4928-a3de-5db6b570f90a: Error: 503 injected cleanup outage
+bot archive cleanup: turn b434145c-28c4-4620-b9ec-435a765e470f: Error: 503 injected cleanup outage
+bot archive cleanup: context session 1ce5f5ff-3aba-497c-b1db-cc0d48ff6fea: Error: 503 injected cleanup outage
+bot archive cleanup: background commands ceb8374e-6700-4bf5-8e02-6d9188917633: Error: 503 injected cleanup outage
+bot archive cleanup: screen ceb8374e-6700-4bf5-8e02-6d9188917633: Error: 503 injected cleanup outage
+bot archive cleanup: agent store ceb8374e-6700-4bf5-8e02-6d9188917633: Error: 503 injected cleanup outage
+bot archive cleanup: turn ea4fad48-5b9c-4bb8-b600-422a12f4eff5: Error: 503 injected cleanup outage
+bot archive cleanup: context session dd9c3bd4-57c7-489c-ba8d-d203ce8e24da: Error: 503 injected cleanup outage
+bot archive cleanup: background commands ca6142bf-a204-4cde-b8c9-dcb809e28b06: Error: 503 injected cleanup outage
+bot archive cleanup: screen ca6142bf-a204-4cde-b8c9-dcb809e28b06: Error: 503 injected cleanup outage
+bot archive cleanup: agent store ca6142bf-a204-4cde-b8c9-dcb809e28b06: Error: 503 injected cleanup outage
+bot archive cleanup: turn ea4fad48-5b9c-4bb8-b600-422a12f4eff5: Error: 503 injected cleanup outage
+bot archive cleanup: context session dd9c3bd4-57c7-489c-ba8d-d203ce8e24da: Error: 503 injected cleanup outage
+bot archive cleanup: background commands ca6142bf-a204-4cde-b8c9-dcb809e28b06: Error: 503 injected cleanup outage
+bot archive cleanup: screen ca6142bf-a204-4cde-b8c9-dcb809e28b06: Error: 503 injected cleanup outage
+bot archive cleanup: agent store ca6142bf-a204-4cde-b8c9-dcb809e28b06: Error: 503 injected cleanup outage
+bot archive cleanup: turn a49cf0d2-dac6-4928-a3de-5db6b570f90a: Error: 503 injected cleanup outage
+bot archive cleanup: turn b434145c-28c4-4620-b9ec-435a765e470f: Error: 503 injected cleanup outage
+bot archive cleanup: context session 1ce5f5ff-3aba-497c-b1db-cc0d48ff6fea: Error: 503 injected cleanup outage
+bot archive cleanup: background commands ceb8374e-6700-4bf5-8e02-6d9188917633: Error: 503 injected cleanup outage
+bot archive cleanup: screen ceb8374e-6700-4bf5-8e02-6d9188917633: Error: 503 injected cleanup outage
+bot archive cleanup: agent store ceb8374e-6700-4bf5-8e02-6d9188917633: Error: 503 injected cleanup outage
+bot archive cleanup: turn a49cf0d2-dac6-4928-a3de-5db6b570f90a: Error: 503 injected cleanup outage
+bot archive cleanup: turn b434145c-28c4-4620-b9ec-435a765e470f: Error: 503 injected cleanup outage
+bot archive cleanup: context session 1ce5f5ff-3aba-497c-b1db-cc0d48ff6fea: Error: 503 injected cleanup outage
+bot archive cleanup: background commands ceb8374e-6700-4bf5-8e02-6d9188917633: Error: 503 injected cleanup outage
+bot archive cleanup: screen ceb8374e-6700-4bf5-8e02-6d9188917633: Error: 503 injected cleanup outage
+bot archive cleanup: agent store ceb8374e-6700-4bf5-8e02-6d9188917633: Error: 503 injected cleanup outage
+bot archive cleanup: turn ea4fad48-5b9c-4bb8-b600-422a12f4eff5: Error: 503 injected cleanup outage
+bot archive cleanup: context session dd9c3bd4-57c7-489c-ba8d-d203ce8e24da: Error: 503 injected cleanup outage
+bot archive cleanup: background commands ca6142bf-a204-4cde-b8c9-dcb809e28b06: Error: 503 injected cleanup outage
+bot archive cleanup: screen ca6142bf-a204-4cde-b8c9-dcb809e28b06: Error: 503 injected cleanup outage
+bot archive cleanup: agent store ca6142bf-a204-4cde-b8c9-dcb809e28b06: Error: 503 injected cleanup outage
+bot archive cleanup: turn a49cf0d2-dac6-4928-a3de-5db6b570f90a: Error: 503 injected cleanup outage
+bot archive cleanup: turn b434145c-28c4-4620-b9ec-435a765e470f: Error: 503 injected cleanup outage
+bot archive cleanup: context session 1ce5f5ff-3aba-497c-b1db-cc0d48ff6fea: Error: 503 injected cleanup outage
+bot archive cleanup: background commands ceb8374e-6700-4bf5-8e02-6d9188917633: Error: 503 injected cleanup outage
+bot archive cleanup: screen ceb8374e-6700-4bf5-8e02-6d9188917633: Error: 503 injected cleanup outage
+bot archive cleanup: agent store ceb8374e-6700-4bf5-8e02-6d9188917633: Error: 503 injected cleanup outage
+bot archive cleanup: turn ea4fad48-5b9c-4bb8-b600-422a12f4eff5: Error: 503 injected cleanup outage
+bot archive cleanup: context session dd9c3bd4-57c7-489c-ba8d-d203ce8e24da: Error: 503 injected cleanup outage
+bot archive cleanup: background commands ca6142bf-a204-4cde-b8c9-dcb809e28b06: Error: 503 injected cleanup outage
+bot archive cleanup: screen ca6142bf-a204-4cde-b8c9-dcb809e28b06: Error: 503 injected cleanup outage
+bot archive cleanup: agent store ca6142bf-a204-4cde-b8c9-dcb809e28b06: Error: 503 injected cleanup outage
+bot archive cleanup: turn a49cf0d2-dac6-4928-a3de-5db6b570f90a: Error: 503 injected cleanup outage
+bot archive cleanup: turn b434145c-28c4-4620-b9ec-435a765e470f: Error: 503 injected cleanup outage
+bot archive cleanup: context session 1ce5f5ff-3aba-497c-b1db-cc0d48ff6fea: Error: 503 injected cleanup outage
+bot archive cleanup: background commands ceb8374e-6700-4bf5-8e02-6d9188917633: Error: 503 injected cleanup outage
+bot archive cleanup: screen ceb8374e-6700-4bf5-8e02-6d9188917633: Error: 503 injected cleanup outage
+bot archive cleanup: agent store ceb8374e-6700-4bf5-8e02-6d9188917633: Error: 503 injected cleanup outage
+bot archive cleanup: turn ea4fad48-5b9c-4bb8-b600-422a12f4eff5: Error: 503 injected cleanup outage
+bot archive cleanup: context session dd9c3bd4-57c7-489c-ba8d-d203ce8e24da: Error: 503 injected cleanup outage
+bot archive cleanup: background commands ca6142bf-a204-4cde-b8c9-dcb809e28b06: Error: 503 injected cleanup outage
+bot archive cleanup: screen ca6142bf-a204-4cde-b8c9-dcb809e28b06: Error: 503 injected cleanup outage
+bot archive cleanup: agent store ca6142bf-a204-4cde-b8c9-dcb809e28b06: Error: 503 injected cleanup outage
+bot archive cleanup: turn a49cf0d2-dac6-4928-a3de-5db6b570f90a: Error: 503 injected cleanup outage
+bot archive cleanup: turn b434145c-28c4-4620-b9ec-435a765e470f: Error: 503 injected cleanup outage
+bot archive cleanup: context session 1ce5f5ff-3aba-497c-b1db-cc0d48ff6fea: Error: 503 injected cleanup outage
+bot archive cleanup: background commands ceb8374e-6700-4bf5-8e02-6d9188917633: Error: 503 injected cleanup outage
+bot archive cleanup: screen ceb8374e-6700-4bf5-8e02-6d9188917633: Error: 503 injected cleanup outage
+bot archive cleanup: agent store ceb8374e-6700-4bf5-8e02-6d9188917633: Error: 503 injected cleanup outage
+(pass) retirement survives concurrent late work and a cleanup outage, seed 7 [743.99ms]
+bot archive cleanup: turn 79d1c849-135c-48e8-80d2-2b036fa2aae5: Error: 503 injected cleanup outage
+bot archive cleanup: context session aabd1828-bc25-472b-a81d-efb3f9c8b634: Error: 503 injected cleanup outage
+bot archive cleanup: background commands 0253b6cc-3c4e-49bb-83c1-6bedbdb4153d: Error: 503 injected cleanup outage
+bot archive cleanup: screen 0253b6cc-3c4e-49bb-83c1-6bedbdb4153d: Error: 503 injected cleanup outage
+bot archive cleanup: agent store 0253b6cc-3c4e-49bb-83c1-6bedbdb4153d: Error: 503 injected cleanup outage
+bot archive cleanup: turn ea7eeb2e-730f-44b1-95cf-f2be2c976de3: Error: 503 injected cleanup outage
+bot archive cleanup: context session 9fac1343-7ccb-41d0-ac25-bec0b4476fbc: Error: 503 injected cleanup outage
+bot archive cleanup: background commands 6e210e30-e969-4148-98df-c336a8422cc7: Error: 503 injected cleanup outage
+bot archive cleanup: screen 6e210e30-e969-4148-98df-c336a8422cc7: Error: 503 injected cleanup outage
+bot archive cleanup: agent store 6e210e30-e969-4148-98df-c336a8422cc7: Error: 503 injected cleanup outage
+bot archive cleanup: turn ea7eeb2e-730f-44b1-95cf-f2be2c976de3: Error: 503 injected cleanup outage
+bot archive cleanup: context session 9fac1343-7ccb-41d0-ac25-bec0b4476fbc: Error: 503 injected cleanup outage
+bot archive cleanup: background commands 6e210e30-e969-4148-98df-c336a8422cc7: Error: 503 injected cleanup outage
+bot archive cleanup: screen 6e210e30-e969-4148-98df-c336a8422cc7: Error: 503 injected cleanup outage
+bot archive cleanup: agent store 6e210e30-e969-4148-98df-c336a8422cc7: Error: 503 injected cleanup outage
+bot archive cleanup: turn 79d1c849-135c-48e8-80d2-2b036fa2aae5: Error: 503 injected cleanup outage
+bot archive cleanup: context session aabd1828-bc25-472b-a81d-efb3f9c8b634: Error: 503 injected cleanup outage
+bot archive cleanup: background commands 0253b6cc-3c4e-49bb-83c1-6bedbdb4153d: Error: 503 injected cleanup outage
+bot archive cleanup: screen 0253b6cc-3c4e-49bb-83c1-6bedbdb4153d: Error: 503 injected cleanup outage
+bot archive cleanup: agent store 0253b6cc-3c4e-49bb-83c1-6bedbdb4153d: Error: 503 injected cleanup outage
+bot archive cleanup: turn ea7eeb2e-730f-44b1-95cf-f2be2c976de3: Error: 503 injected cleanup outage
+bot archive cleanup: context session 9fac1343-7ccb-41d0-ac25-bec0b4476fbc: Error: 503 injected cleanup outage
+bot archive cleanup: background commands 6e210e30-e969-4148-98df-c336a8422cc7: Error: 503 injected cleanup outage
+bot archive cleanup: screen 6e210e30-e969-4148-98df-c336a8422cc7: Error: 503 injected cleanup outage
+bot archive cleanup: agent store 6e210e30-e969-4148-98df-c336a8422cc7: Error: 503 injected cleanup outage
+bot archive cleanup: turn ea7eeb2e-730f-44b1-95cf-f2be2c976de3: Error: 503 injected cleanup outage
+bot archive cleanup: context session 9fac1343-7ccb-41d0-ac25-bec0b4476fbc: Error: 503 injected cleanup outage
+bot archive cleanup: background commands 6e210e30-e969-4148-98df-c336a8422cc7: Error: 503 injected cleanup outage
+bot archive cleanup: screen 6e210e30-e969-4148-98df-c336a8422cc7: Error: 503 injected cleanup outage
+bot archive cleanup: agent store 6e210e30-e969-4148-98df-c336a8422cc7: Error: 503 injected cleanup outage
+bot archive cleanup: turn 79d1c849-135c-48e8-80d2-2b036fa2aae5: Error: 503 injected cleanup outage
+bot archive cleanup: context session aabd1828-bc25-472b-a81d-efb3f9c8b634: Error: 503 injected cleanup outage
+bot archive cleanup: background commands 0253b6cc-3c4e-49bb-83c1-6bedbdb4153d: Error: 503 injected cleanup outage
+bot archive cleanup: screen 0253b6cc-3c4e-49bb-83c1-6bedbdb4153d: Error: 503 injected cleanup outage
+bot archive cleanup: agent store 0253b6cc-3c4e-49bb-83c1-6bedbdb4153d: Error: 503 injected cleanup outage
+bot archive cleanup: turn 79d1c849-135c-48e8-80d2-2b036fa2aae5: Error: 503 injected cleanup outage
+bot archive cleanup: context session aabd1828-bc25-472b-a81d-efb3f9c8b634: Error: 503 injected cleanup outage
+bot archive cleanup: background commands 0253b6cc-3c4e-49bb-83c1-6bedbdb4153d: Error: 503 injected cleanup outage
+bot archive cleanup: screen 0253b6cc-3c4e-49bb-83c1-6bedbdb4153d: Error: 503 injected cleanup outage
+bot archive cleanup: agent store 0253b6cc-3c4e-49bb-83c1-6bedbdb4153d: Error: 503 injected cleanup outage
+bot archive cleanup: turn ea7eeb2e-730f-44b1-95cf-f2be2c976de3: Error: 503 injected cleanup outage
+bot archive cleanup: context session 9fac1343-7ccb-41d0-ac25-bec0b4476fbc: Error: 503 injected cleanup outage
+bot archive cleanup: background commands 6e210e30-e969-4148-98df-c336a8422cc7: Error: 503 injected cleanup outage
+bot archive cleanup: screen 6e210e30-e969-4148-98df-c336a8422cc7: Error: 503 injected cleanup outage
+bot archive cleanup: agent store 6e210e30-e969-4148-98df-c336a8422cc7: Error: 503 injected cleanup outage
+bot archive cleanup: turn ea7eeb2e-730f-44b1-95cf-f2be2c976de3: Error: 503 injected cleanup outage
+bot archive cleanup: context session 9fac1343-7ccb-41d0-ac25-bec0b4476fbc: Error: 503 injected cleanup outage
+bot archive cleanup: background commands 6e210e30-e969-4148-98df-c336a8422cc7: Error: 503 injected cleanup outage
+bot archive cleanup: screen 6e210e30-e969-4148-98df-c336a8422cc7: Error: 503 injected cleanup outage
+bot archive cleanup: agent store 6e210e30-e969-4148-98df-c336a8422cc7: Error: 503 injected cleanup outage
+bot archive cleanup: turn 79d1c849-135c-48e8-80d2-2b036fa2aae5: Error: 503 injected cleanup outage
+bot archive cleanup: context session aabd1828-bc25-472b-a81d-efb3f9c8b634: Error: 503 injected cleanup outage
+bot archive cleanup: background commands 0253b6cc-3c4e-49bb-83c1-6bedbdb4153d: Error: 503 injected cleanup outage
+bot archive cleanup: screen 0253b6cc-3c4e-49bb-83c1-6bedbdb4153d: Error: 503 injected cleanup outage
+bot archive cleanup: agent store 0253b6cc-3c4e-49bb-83c1-6bedbdb4153d: Error: 503 injected cleanup outage
+bot archive cleanup: turn 79d1c849-135c-48e8-80d2-2b036fa2aae5: Error: 503 injected cleanup outage
+bot archive cleanup: context session aabd1828-bc25-472b-a81d-efb3f9c8b634: Error: 503 injected cleanup outage
+bot archive cleanup: background commands 0253b6cc-3c4e-49bb-83c1-6bedbdb4153d: Error: 503 injected cleanup outage
+bot archive cleanup: screen 0253b6cc-3c4e-49bb-83c1-6bedbdb4153d: Error: 503 injected cleanup outage
+bot archive cleanup: agent store 0253b6cc-3c4e-49bb-83c1-6bedbdb4153d: Error: 503 injected cleanup outage
+(pass) retirement survives concurrent late work and a cleanup outage, seed 29 [1410.61ms]
+bot archive cleanup: turn 1b2d6b8b-28e6-45bd-ad3c-ad62ba7c0c66: Error: 503 injected cleanup outage
+bot archive cleanup: context session 4ab3c591-2cfd-44a7-9d2e-c24aa6d72bf6: Error: 503 injected cleanup outage
+bot archive cleanup: background commands 8349968e-a6ff-426c-b489-99f070847183: Error: 503 injected cleanup outage
+bot archive cleanup: screen 8349968e-a6ff-426c-b489-99f070847183: Error: 503 injected cleanup outage
+bot archive cleanup: agent store 8349968e-a6ff-426c-b489-99f070847183: Error: 503 injected cleanup outage
+bot archive cleanup: turn ee7d7de1-6fa3-4212-9a24-07b7fc597fd1: Error: 503 injected cleanup outage
+bot archive cleanup: turn e80817fb-7303-4712-9ef6-af1c3b21e930: Error: 503 injected cleanup outage
+bot archive cleanup: context session d722847f-5612-4c85-b276-91231acd0fad: Error: 503 injected cleanup outage
+bot archive cleanup: background commands 10fdc0b9-98d4-4a91-b294-4ec2a60f98f9: Error: 503 injected cleanup outage
+bot archive cleanup: screen 10fdc0b9-98d4-4a91-b294-4ec2a60f98f9: Error: 503 injected cleanup outage
+bot archive cleanup: agent store 10fdc0b9-98d4-4a91-b294-4ec2a60f98f9: Error: 503 injected cleanup outage
+bot archive cleanup: turn 1b2d6b8b-28e6-45bd-ad3c-ad62ba7c0c66: Error: 503 injected cleanup outage
+bot archive cleanup: context session 4ab3c591-2cfd-44a7-9d2e-c24aa6d72bf6: Error: 503 injected cleanup outage
+bot archive cleanup: background commands 8349968e-a6ff-426c-b489-99f070847183: Error: 503 injected cleanup outage
+bot archive cleanup: screen 8349968e-a6ff-426c-b489-99f070847183: Error: 503 injected cleanup outage
+bot archive cleanup: agent store 8349968e-a6ff-426c-b489-99f070847183: Error: 503 injected cleanup outage
+bot archive cleanup: turn e80817fb-7303-4712-9ef6-af1c3b21e930: Error: 503 injected cleanup outage
+bot archive cleanup: turn ee7d7de1-6fa3-4212-9a24-07b7fc597fd1: Error: 503 injected cleanup outage
+bot archive cleanup: context session d722847f-5612-4c85-b276-91231acd0fad: Error: 503 injected cleanup outage
+bot archive cleanup: background commands 10fdc0b9-98d4-4a91-b294-4ec2a60f98f9: Error: 503 injected cleanup outage
+bot archive cleanup: screen 10fdc0b9-98d4-4a91-b294-4ec2a60f98f9: Error: 503 injected cleanup outage
+bot archive cleanup: agent store 10fdc0b9-98d4-4a91-b294-4ec2a60f98f9: Error: 503 injected cleanup outage
+bot archive cleanup: turn 1b2d6b8b-28e6-45bd-ad3c-ad62ba7c0c66: Error: 503 injected cleanup outage
+bot archive cleanup: context session 4ab3c591-2cfd-44a7-9d2e-c24aa6d72bf6: Error: 503 injected cleanup outage
+bot archive cleanup: background commands 8349968e-a6ff-426c-b489-99f070847183: Error: 503 injected cleanup outage
+bot archive cleanup: screen 8349968e-a6ff-426c-b489-99f070847183: Error: 503 injected cleanup outage
+bot archive cleanup: agent store 8349968e-a6ff-426c-b489-99f070847183: Error: 503 injected cleanup outage
+bot archive cleanup: turn 1b2d6b8b-28e6-45bd-ad3c-ad62ba7c0c66: Error: 503 injected cleanup outage
+bot archive cleanup: context session 4ab3c591-2cfd-44a7-9d2e-c24aa6d72bf6: Error: 503 injected cleanup outage
+bot archive cleanup: background commands 8349968e-a6ff-426c-b489-99f070847183: Error: 503 injected cleanup outage
+bot archive cleanup: screen 8349968e-a6ff-426c-b489-99f070847183: Error: 503 injected cleanup outage
+bot archive cleanup: agent store 8349968e-a6ff-426c-b489-99f070847183: Error: 503 injected cleanup outage
+bot archive cleanup: turn ee7d7de1-6fa3-4212-9a24-07b7fc597fd1: Error: 503 injected cleanup outage
+bot archive cleanup: turn e80817fb-7303-4712-9ef6-af1c3b21e930: Error: 503 injected cleanup outage
+bot archive cleanup: context session d722847f-5612-4c85-b276-91231acd0fad: Error: 503 injected cleanup outage
+bot archive cleanup: background commands 10fdc0b9-98d4-4a91-b294-4ec2a60f98f9: Error: 503 injected cleanup outage
+bot archive cleanup: screen 10fdc0b9-98d4-4a91-b294-4ec2a60f98f9: Error: 503 injected cleanup outage
+bot archive cleanup: agent store 10fdc0b9-98d4-4a91-b294-4ec2a60f98f9: Error: 503 injected cleanup outage
+bot archive cleanup: turn 1b2d6b8b-28e6-45bd-ad3c-ad62ba7c0c66: Error: 503 injected cleanup outage
+bot archive cleanup: context session 4ab3c591-2cfd-44a7-9d2e-c24aa6d72bf6: Error: 503 injected cleanup outage
+bot archive cleanup: background commands 8349968e-a6ff-426c-b489-99f070847183: Error: 503 injected cleanup outage
+bot archive cleanup: screen 8349968e-a6ff-426c-b489-99f070847183: Error: 503 injected cleanup outage
+bot archive cleanup: agent store 8349968e-a6ff-426c-b489-99f070847183: Error: 503 injected cleanup outage
+bot archive cleanup: turn e80817fb-7303-4712-9ef6-af1c3b21e930: Error: 503 injected cleanup outage
+bot archive cleanup: turn ee7d7de1-6fa3-4212-9a24-07b7fc597fd1: Error: 503 injected cleanup outage
+bot archive cleanup: context session d722847f-5612-4c85-b276-91231acd0fad: Error: 503 injected cleanup outage
+bot archive cleanup: background commands 10fdc0b9-98d4-4a91-b294-4ec2a60f98f9: Error: 503 injected cleanup outage
+bot archive cleanup: screen 10fdc0b9-98d4-4a91-b294-4ec2a60f98f9: Error: 503 injected cleanup outage
+bot archive cleanup: agent store 10fdc0b9-98d4-4a91-b294-4ec2a60f98f9: Error: 503 injected cleanup outage
+bot archive cleanup: turn 1b2d6b8b-28e6-45bd-ad3c-ad62ba7c0c66: Error: 503 injected cleanup outage
+bot archive cleanup: context session 4ab3c591-2cfd-44a7-9d2e-c24aa6d72bf6: Error: 503 injected cleanup outage
+bot archive cleanup: background commands 8349968e-a6ff-426c-b489-99f070847183: Error: 503 injected cleanup outage
+bot archive cleanup: screen 8349968e-a6ff-426c-b489-99f070847183: Error: 503 injected cleanup outage
+bot archive cleanup: agent store 8349968e-a6ff-426c-b489-99f070847183: Error: 503 injected cleanup outage
+bot archive cleanup: turn ee7d7de1-6fa3-4212-9a24-07b7fc597fd1: Error: 503 injected cleanup outage
+bot archive cleanup: turn e80817fb-7303-4712-9ef6-af1c3b21e930: Error: 503 injected cleanup outage
+bot archive cleanup: context session d722847f-5612-4c85-b276-91231acd0fad: Error: 503 injected cleanup outage
+bot archive cleanup: background commands 10fdc0b9-98d4-4a91-b294-4ec2a60f98f9: Error: 503 injected cleanup outage
+bot archive cleanup: screen 10fdc0b9-98d4-4a91-b294-4ec2a60f98f9: Error: 503 injected cleanup outage
+bot archive cleanup: agent store 10fdc0b9-98d4-4a91-b294-4ec2a60f98f9: Error: 503 injected cleanup outage
+bot archive cleanup: turn ee7d7de1-6fa3-4212-9a24-07b7fc597fd1: Error: 503 injected cleanup outage
+bot archive cleanup: turn e80817fb-7303-4712-9ef6-af1c3b21e930: Error: 503 injected cleanup outage
+bot archive cleanup: context session d722847f-5612-4c85-b276-91231acd0fad: Error: 503 injected cleanup outage
+bot archive cleanup: background commands 10fdc0b9-98d4-4a91-b294-4ec2a60f98f9: Error: 503 injected cleanup outage
+bot archive cleanup: screen 10fdc0b9-98d4-4a91-b294-4ec2a60f98f9: Error: 503 injected cleanup outage
+bot archive cleanup: agent store 10fdc0b9-98d4-4a91-b294-4ec2a60f98f9: Error: 503 injected cleanup outage
+(pass) retirement survives concurrent late work and a cleanup outage, seed 101 [1012.10ms]
+bot archive cleanup: turn bcb5a03b-1770-490d-87e6-78b7eb8d6dc7: Error: 503 injected cleanup outage
+bot archive cleanup: turn c60b6069-c012-4046-8b94-5a7ce1366d79: Error: 503 injected cleanup outage
+bot archive cleanup: context session caedcbf0-fec8-4fd5-8cc4-de7716cb97ab: Error: 503 injected cleanup outage
+bot archive cleanup: background commands 9296d449-45ce-4a41-9b5f-3c2cb7d2e97e: Error: 503 injected cleanup outage
+bot archive cleanup: screen 9296d449-45ce-4a41-9b5f-3c2cb7d2e97e: Error: 503 injected cleanup outage
+bot archive cleanup: agent store 9296d449-45ce-4a41-9b5f-3c2cb7d2e97e: Error: 503 injected cleanup outage
+bot archive cleanup: turn 1bfa3f3b-6440-477e-89ce-54698f8c6a83: Error: 503 injected cleanup outage
+bot archive cleanup: context session a43cc0ad-2119-4901-94df-748d9b42b835: Error: 503 injected cleanup outage
+bot archive cleanup: background commands 25e46936-0e23-417c-9f61-40803afed908: Error: 503 injected cleanup outage
+bot archive cleanup: screen 25e46936-0e23-417c-9f61-40803afed908: Error: 503 injected cleanup outage
+bot archive cleanup: agent store 25e46936-0e23-417c-9f61-40803afed908: Error: 503 injected cleanup outage
+bot archive cleanup: turn c60b6069-c012-4046-8b94-5a7ce1366d79: Error: 503 injected cleanup outage
+bot archive cleanup: turn bcb5a03b-1770-490d-87e6-78b7eb8d6dc7: Error: 503 injected cleanup outage
+bot archive cleanup: context session caedcbf0-fec8-4fd5-8cc4-de7716cb97ab: Error: 503 injected cleanup outage
+bot archive cleanup: background commands 9296d449-45ce-4a41-9b5f-3c2cb7d2e97e: Error: 503 injected cleanup outage
+bot archive cleanup: screen 9296d449-45ce-4a41-9b5f-3c2cb7d2e97e: Error: 503 injected cleanup outage
+bot archive cleanup: agent store 9296d449-45ce-4a41-9b5f-3c2cb7d2e97e: Error: 503 injected cleanup outage
+bot archive cleanup: turn 1bfa3f3b-6440-477e-89ce-54698f8c6a83: Error: 503 injected cleanup outage
+bot archive cleanup: context session a43cc0ad-2119-4901-94df-748d9b42b835: Error: 503 injected cleanup outage
+bot archive cleanup: background commands 25e46936-0e23-417c-9f61-40803afed908: Error: 503 injected cleanup outage
+bot archive cleanup: screen 25e46936-0e23-417c-9f61-40803afed908: Error: 503 injected cleanup outage
+bot archive cleanup: agent store 25e46936-0e23-417c-9f61-40803afed908: Error: 503 injected cleanup outage
+bot archive cleanup: turn c60b6069-c012-4046-8b94-5a7ce1366d79: Error: 503 injected cleanup outage
+bot archive cleanup: turn bcb5a03b-1770-490d-87e6-78b7eb8d6dc7: Error: 503 injected cleanup outage
+bot archive cleanup: context session caedcbf0-fec8-4fd5-8cc4-de7716cb97ab: Error: 503 injected cleanup outage
+bot archive cleanup: background commands 9296d449-45ce-4a41-9b5f-3c2cb7d2e97e: Error: 503 injected cleanup outage
+bot archive cleanup: screen 9296d449-45ce-4a41-9b5f-3c2cb7d2e97e: Error: 503 injected cleanup outage
+bot archive cleanup: agent store 9296d449-45ce-4a41-9b5f-3c2cb7d2e97e: Error: 503 injected cleanup outage
+bot archive cleanup: turn bcb5a03b-1770-490d-87e6-78b7eb8d6dc7: Error: 503 injected cleanup outage
+bot archive cleanup: turn c60b6069-c012-4046-8b94-5a7ce1366d79: Error: 503 injected cleanup outage
+bot archive cleanup: context session caedcbf0-fec8-4fd5-8cc4-de7716cb97ab: Error: 503 injected cleanup outage
+bot archive cleanup: background commands 9296d449-45ce-4a41-9b5f-3c2cb7d2e97e: Error: 503 injected cleanup outage
+bot archive cleanup: screen 9296d449-45ce-4a41-9b5f-3c2cb7d2e97e: Error: 503 injected cleanup outage
+bot archive cleanup: agent store 9296d449-45ce-4a41-9b5f-3c2cb7d2e97e: Error: 503 injected cleanup outage
+bot archive cleanup: turn 1bfa3f3b-6440-477e-89ce-54698f8c6a83: Error: 503 injected cleanup outage
+bot archive cleanup: context session a43cc0ad-2119-4901-94df-748d9b42b835: Error: 503 injected cleanup outage
+bot archive cleanup: background commands 25e46936-0e23-417c-9f61-40803afed908: Error: 503 injected cleanup outage
+bot archive cleanup: screen 25e46936-0e23-417c-9f61-40803afed908: Error: 503 injected cleanup outage
+bot archive cleanup: agent store 25e46936-0e23-417c-9f61-40803afed908: Error: 503 injected cleanup outage
+bot archive cleanup: turn 1bfa3f3b-6440-477e-89ce-54698f8c6a83: Error: 503 injected cleanup outage
+bot archive cleanup: context session a43cc0ad-2119-4901-94df-748d9b42b835: Error: 503 injected cleanup outage
+bot archive cleanup: background commands 25e46936-0e23-417c-9f61-40803afed908: Error: 503 injected cleanup outage
+bot archive cleanup: screen 25e46936-0e23-417c-9f61-40803afed908: Error: 503 injected cleanup outage
+bot archive cleanup: agent store 25e46936-0e23-417c-9f61-40803afed908: Error: 503 injected cleanup outage
+bot archive cleanup: turn bcb5a03b-1770-490d-87e6-78b7eb8d6dc7: Error: 503 injected cleanup outage
+bot archive cleanup: turn c60b6069-c012-4046-8b94-5a7ce1366d79: Error: 503 injected cleanup outage
+bot archive cleanup: context session caedcbf0-fec8-4fd5-8cc4-de7716cb97ab: Error: 503 injected cleanup outage
+bot archive cleanup: background commands 9296d449-45ce-4a41-9b5f-3c2cb7d2e97e: Error: 503 injected cleanup outage
+bot archive cleanup: screen 9296d449-45ce-4a41-9b5f-3c2cb7d2e97e: Error: 503 injected cleanup outage
+bot archive cleanup: agent store 9296d449-45ce-4a41-9b5f-3c2cb7d2e97e: Error: 503 injected cleanup outage
+bot archive cleanup: turn 1bfa3f3b-6440-477e-89ce-54698f8c6a83: Error: 503 injected cleanup outage
+bot archive cleanup: context session a43cc0ad-2119-4901-94df-748d9b42b835: Error: 503 injected cleanup outage
+bot archive cleanup: background commands 25e46936-0e23-417c-9f61-40803afed908: Error: 503 injected cleanup outage
+bot archive cleanup: screen 25e46936-0e23-417c-9f61-40803afed908: Error: 503 injected cleanup outage
+bot archive cleanup: agent store 25e46936-0e23-417c-9f61-40803afed908: Error: 503 injected cleanup outage
+bot archive cleanup: turn bcb5a03b-1770-490d-87e6-78b7eb8d6dc7: Error: 503 injected cleanup outage
+bot archive cleanup: turn c60b6069-c012-4046-8b94-5a7ce1366d79: Error: 503 injected cleanup outage
+bot archive cleanup: context session caedcbf0-fec8-4fd5-8cc4-de7716cb97ab: Error: 503 injected cleanup outage
+bot archive cleanup: background commands 9296d449-45ce-4a41-9b5f-3c2cb7d2e97e: Error: 503 injected cleanup outage
+bot archive cleanup: screen 9296d449-45ce-4a41-9b5f-3c2cb7d2e97e: Error: 503 injected cleanup outage
+bot archive cleanup: agent store 9296d449-45ce-4a41-9b5f-3c2cb7d2e97e: Error: 503 injected cleanup outage
+bot archive cleanup: turn 1bfa3f3b-6440-477e-89ce-54698f8c6a83: Error: 503 injected cleanup outage
+bot archive cleanup: context session a43cc0ad-2119-4901-94df-748d9b42b835: Error: 503 injected cleanup outage
+bot archive cleanup: background commands 25e46936-0e23-417c-9f61-40803afed908: Error: 503 injected cleanup outage
+bot archive cleanup: screen 25e46936-0e23-417c-9f61-40803afed908: Error: 503 injected cleanup outage
+bot archive cleanup: agent store 25e46936-0e23-417c-9f61-40803afed908: Error: 503 injected cleanup outage
+(pass) retirement survives concurrent late work and a cleanup outage, seed 284 [1075.69ms]
+
+ 29 pass
+ 0 fail
+ 218 expect() calls
+Ran 29 tests across 6 files. [11.76s]

@@ -1,5 +1,5 @@
 import XCTest
-@testable import OpenTeamCore
+@testable import OutcomeGoCore
 
 final class PresentationTests: XCTestCase {
   private func fixture() throws -> JSON {

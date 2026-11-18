@@ -18,6 +18,7 @@ final class NativeNotifications {
   private var registeredKey: String?
   private var retiring = false
   private var pendingTap: NativePush?
+  private var pendingOutcomeTap: (target: OutcomeLinkTarget, scope: String)?
   private var presence: NotificationPresence?
   private var foreground = UIApplication.shared.applicationState == .active
   private var routingTime = -Double.infinity
@@ -284,6 +285,7 @@ final class NativeNotifications {
     await clearDelivered()
   }
   func reset() {
+    pendingOutcomeTap = nil
     presence?.setActive(false)
     presence = nil
     smartEnabled = nil
@@ -302,6 +304,7 @@ final class NativeNotifications {
   }
   /// Local reset must finish offline. Retire the old server registration independently.
   func forgetLocally() {
+    pendingOutcomeTap = nil
     let oldAPI = api
     let installationID = defaults.string(forKey: "native-push-installation:" + reads.scope)
     let pendingRegistration = registering
@@ -373,7 +376,7 @@ final class NativeNotifications {
     }
     await removeReadNotifications()
     let result = await synchronize()
-    if push.isAlert {
+    if push.isAlert && push.outcomeTarget == nil {
       await store?.readNotifiedChat(push.channelId, sequence: push.data["messageSequence"].string)
     }
     await reportForQA(push)
@@ -394,17 +397,29 @@ final class NativeNotifications {
     guard available, session != nil, enabled, push.scope == reads.scope, push.isAlert,
       !reads.hasRead(push)
     else { return false }
+    if push.outcomeTarget != nil { return true }
     return
       !(UIApplication.shared.applicationState == .active && store?.activeChannel == push.channelId)
   }
   func tapped(_ push: NativePush) async {
     guard push.isAlert else { return }
+    if let target = push.outcomeTarget {
+      pendingTap = nil
+      pendingOutcomeTap = (target, push.scope)
+      await routePendingTap()
+      return
+    }
+    pendingOutcomeTap = nil
     store?.noteNotified(push.channelId, sequence: push.data["messageSequence"].string)
     pendingTap = push
     await routePendingTap()
     await reportForQA(push, stage: "routed")
   }
   func routePendingTap() async {
+    if let pending = pendingOutcomeTap, let store {
+      pendingOutcomeTap = nil
+      await store.openOutcomeNotification(pending.target, scope: pending.scope)
+    }
     guard let push = pendingTap, let store, store.phase == .ready else { return }
     let current = epoch
     pendingTap = nil

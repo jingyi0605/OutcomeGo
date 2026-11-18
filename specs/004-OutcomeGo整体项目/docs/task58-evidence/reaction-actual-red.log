@@ -1,0 +1,253 @@
+bun test v1.4.4 (38afee6c8)
+
+apps/worker/test/reaction-claim-availability.integration.test.ts:
+(node:37715) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `bun --trace-warnings ...` to show where the warning was created)
+38 | for (const emoji of ["👍", "👎"]) {
+39 |   test.skipIf(!url)(`queued ${emoji} feedback cannot claim after the author is removed from its group`, () => fixture(async f => {
+40 |     const result = await f.react(emoji);
+41 |     expect(result.runId).toBeString();
+42 |     await Effect.runPromise(f.service.setGroupMembers(f.group.id, { botIds: [f.peer.id], clientId: crypto.randomUUID() }));
+43 |     expect(await f.worker.claim(f.bot.id)).toBeNull();
+                                                ^
+error: expect(received).toBeNull()
+
+Received: {
+  runChannelId: "4ad335ad-e294-45ac-b1eb-c14b634ba6fb",
+  inboxId: "a9c2d235-78cd-47b7-a39d-863a45bfc76e",
+  inboxType: "user.reaction",
+  runId: "8646e27d-a4c8-4a7e-8051-8c2b2cf10a19",
+  botId: "bcda5c9f-8188-4c38-a4a4-e48f006dd1ba",
+  contextSessionId: "a61cbc48-0cd2-4eb4-b780-f35affa6d338",
+  screenBotId: "bcda5c9f-8188-4c38-a4a4-e48f006dd1ba",
+  pluginBotId: "bcda5c9f-8188-4c38-a4a4-e48f006dd1ba",
+  conversationId: "a89a71e2-308f-458e-acbc-9bbfed0b53f0",
+  ownerId: "108f9b87-50d7-423f-bb7d-dc44fdf7f0e5",
+  content: "<timestamp>Tuesday, Nov 17, 2026, 9:07 AM (UTC+0)</timestamp>\n<user_query>\n[SAND_HIDDEN_PROMPT][The user reacted 👍 to your message: \"The answer is 391.\". You don't need to reply; act on it only if it's useful (e.g. acknowledge, adjust, or continue).][SAND_HIDDEN_PROMPT]\n</user_query>",
+  interruptedRunId: null,
+  images: [],
+  clientId: "reaction:d55123b6-9874-43c3-8da1-a5bc93c30ad4:38fdb648-665c-4c5b-993a-503b6c2d2a67",
+  cwd: "/tmp",
+  instructions: "",
+  sessionPath: null,
+  channelId: "4ad335ad-e294-45ac-b1eb-c14b634ba6fb",
+  deliveryId: null,
+  origin: "user",
+  outcomeWorkItemId: null,
+  runtimeProfile: "agent",
+  subagentType: null,
+  readOnly: false,
+  inferenceParentRunId: null,
+  taskConfiguration: null,
+  attachmentOwnerBotId: "bcda5c9f-8188-4c38-a4a4-e48f006dd1ba",
+  fileAttachments: [],
+}
+
+      at <anonymous> (/Users/jackson/Code/openteam-spec004-worktrees/w3-worker-boundaries/apps/worker/test/reaction-claim-availability.integration.test.ts:43:44)
+      at async fixture (/Users/jackson/Code/openteam-spec004-worktrees/w3-worker-boundaries/apps/worker/test/reaction-claim-availability.integration.test.ts:12:15)
+(fail) queued 👍 feedback cannot claim after the author is removed from its group [311.20ms]
+47 |   }));
+48 | 
+49 |   test.skipIf(!url)(`queued ${emoji} feedback cannot claim after its chat is archived`, () => fixture(async f => {
+50 |     const result = await f.react(emoji);
+51 |     await f.db.channel.update({ where: { id: f.group.id }, data: { archivedAt: new Date() } });
+52 |     expect(await f.worker.claim(f.bot.id)).toBeNull();
+                                                ^
+error: expect(received).toBeNull()
+
+Received: {
+  runChannelId: "8ba89ef3-bbdb-4eb0-996b-7e45643c0238",
+  inboxId: "bef38ca5-b693-4518-851a-2fc4b5099670",
+  inboxType: "user.reaction",
+  runId: "9041116f-910f-4bc3-b6f6-8bc03c10dd25",
+  botId: "364fd900-b734-4b50-9244-be335d6ccb6d",
+  contextSessionId: "d33c8ed0-d47b-4268-99cd-17ccc1bdfe5c",
+  screenBotId: "364fd900-b734-4b50-9244-be335d6ccb6d",
+  pluginBotId: "364fd900-b734-4b50-9244-be335d6ccb6d",
+  conversationId: "a6c47092-543a-4c1c-bd2e-b4eb58e1406a",
+  ownerId: "67acbee1-9dd5-4faa-ad78-71a0f2b1fc1a",
+  content: "<timestamp>Tuesday, Nov 17, 2026, 9:07 AM (UTC+0)</timestamp>\n<user_query>\n[SAND_HIDDEN_PROMPT][The user reacted 👍 to your message: \"The answer is 391.\". You don't need to reply; act on it only if it's useful (e.g. acknowledge, adjust, or continue).][SAND_HIDDEN_PROMPT]\n</user_query>",
+  interruptedRunId: null,
+  images: [],
+  clientId: "reaction:81ecfa42-05a7-4f3a-9184-d47a81757477:85607c01-586f-4f4d-a259-d77874422d97",
+  cwd: "/tmp",
+  instructions: "",
+  sessionPath: null,
+  channelId: "8ba89ef3-bbdb-4eb0-996b-7e45643c0238",
+  deliveryId: null,
+  origin: "user",
+  outcomeWorkItemId: null,
+  runtimeProfile: "agent",
+  subagentType: null,
+  readOnly: false,
+  inferenceParentRunId: null,
+  taskConfiguration: null,
+  attachmentOwnerBotId: "364fd900-b734-4b50-9244-be335d6ccb6d",
+  fileAttachments: [],
+}
+
+      at <anonymous> (/Users/jackson/Code/openteam-spec004-worktrees/w3-worker-boundaries/apps/worker/test/reaction-claim-availability.integration.test.ts:52:44)
+      at async fixture (/Users/jackson/Code/openteam-spec004-worktrees/w3-worker-boundaries/apps/worker/test/reaction-claim-availability.integration.test.ts:12:15)
+(fail) queued 👍 feedback cannot claim after its chat is archived [162.84ms]
+(pass) ordinary 👍 feedback still claims in its live group and retains its reply guidance [133.08ms]
+38 | for (const emoji of ["👍", "👎"]) {
+39 |   test.skipIf(!url)(`queued ${emoji} feedback cannot claim after the author is removed from its group`, () => fixture(async f => {
+40 |     const result = await f.react(emoji);
+41 |     expect(result.runId).toBeString();
+42 |     await Effect.runPromise(f.service.setGroupMembers(f.group.id, { botIds: [f.peer.id], clientId: crypto.randomUUID() }));
+43 |     expect(await f.worker.claim(f.bot.id)).toBeNull();
+                                                ^
+error: expect(received).toBeNull()
+
+Received: {
+  runChannelId: "61f7ad64-d749-43b8-a712-3582ad5b6725",
+  inboxId: "18e64d36-3ebc-40fc-981e-67d59e7f8ced",
+  inboxType: "user.reaction",
+  runId: "e6cb1e44-3281-4b53-8cff-9b404e91816b",
+  botId: "b2cd917c-531b-4505-97a8-ecfea234e715",
+  contextSessionId: "9747f654-0676-4a57-af51-907de6140bdf",
+  screenBotId: "b2cd917c-531b-4505-97a8-ecfea234e715",
+  pluginBotId: "b2cd917c-531b-4505-97a8-ecfea234e715",
+  conversationId: "76d553a2-5bc9-4d75-9736-5fefa9381b60",
+  ownerId: "4efbcaf7-8cc5-4411-ac1a-e8542e249d90",
+  content: "<timestamp>Tuesday, Nov 17, 2026, 9:07 AM (UTC+0)</timestamp>\n<user_query>\n[SAND_HIDDEN_PROMPT][The user reacted 👎 to your message: \"The answer is 391.\". This is negative feedback on that reply. Re-check it and respond with a correction if needed; if it was correct, briefly clarify or ask what the user wants changed. Deliver your response with SendToUser.][SAND_HIDDEN_PROMPT]\n</user_query>",
+  interruptedRunId: null,
+  images: [],
+  clientId: "reaction:4ec4b67e-ff96-4d18-b480-9feeb1b1552e:78965472-c649-4ae3-9b11-acb3b6bb371b",
+  cwd: "/tmp",
+  instructions: "",
+  sessionPath: null,
+  channelId: "61f7ad64-d749-43b8-a712-3582ad5b6725",
+  deliveryId: null,
+  origin: "user",
+  outcomeWorkItemId: null,
+  runtimeProfile: "agent",
+  subagentType: null,
+  readOnly: false,
+  inferenceParentRunId: null,
+  taskConfiguration: null,
+  attachmentOwnerBotId: "b2cd917c-531b-4505-97a8-ecfea234e715",
+  fileAttachments: [],
+}
+
+      at <anonymous> (/Users/jackson/Code/openteam-spec004-worktrees/w3-worker-boundaries/apps/worker/test/reaction-claim-availability.integration.test.ts:43:44)
+      at async fixture (/Users/jackson/Code/openteam-spec004-worktrees/w3-worker-boundaries/apps/worker/test/reaction-claim-availability.integration.test.ts:12:15)
+(fail) queued 👎 feedback cannot claim after the author is removed from its group [107.58ms]
+47 |   }));
+48 | 
+49 |   test.skipIf(!url)(`queued ${emoji} feedback cannot claim after its chat is archived`, () => fixture(async f => {
+50 |     const result = await f.react(emoji);
+51 |     await f.db.channel.update({ where: { id: f.group.id }, data: { archivedAt: new Date() } });
+52 |     expect(await f.worker.claim(f.bot.id)).toBeNull();
+                                                ^
+error: expect(received).toBeNull()
+
+Received: {
+  runChannelId: "3a2b240a-ccf0-416a-b3c3-b6a520769894",
+  inboxId: "258f8315-e8a2-48d8-8c97-289cbaa0646b",
+  inboxType: "user.reaction",
+  runId: "a9d4ce4f-fcaf-4a4f-b4ea-3ec11e793bc9",
+  botId: "82a7836c-1567-4949-8ef4-c9f98c4fc660",
+  contextSessionId: "3027b9db-d08a-4f40-9418-05f2e2f99b63",
+  screenBotId: "82a7836c-1567-4949-8ef4-c9f98c4fc660",
+  pluginBotId: "82a7836c-1567-4949-8ef4-c9f98c4fc660",
+  conversationId: "9845acc8-0481-486e-9144-be44fdfe5a54",
+  ownerId: "8013ca2c-1a0b-4a45-a638-89da1f11e931",
+  content: "<timestamp>Tuesday, Nov 17, 2026, 9:07 AM (UTC+0)</timestamp>\n<user_query>\n[SAND_HIDDEN_PROMPT][The user reacted 👎 to your message: \"The answer is 391.\". This is negative feedback on that reply. Re-check it and respond with a correction if needed; if it was correct, briefly clarify or ask what the user wants changed. Deliver your response with SendToUser.][SAND_HIDDEN_PROMPT]\n</user_query>",
+  interruptedRunId: null,
+  images: [],
+  clientId: "reaction:27164754-478a-49bf-bf69-a1ddb53ced4c:9eb16c23-684e-404f-9597-5195015cf1d6",
+  cwd: "/tmp",
+  instructions: "",
+  sessionPath: null,
+  channelId: "3a2b240a-ccf0-416a-b3c3-b6a520769894",
+  deliveryId: null,
+  origin: "user",
+  outcomeWorkItemId: null,
+  runtimeProfile: "agent",
+  subagentType: null,
+  readOnly: false,
+  inferenceParentRunId: null,
+  taskConfiguration: null,
+  attachmentOwnerBotId: "82a7836c-1567-4949-8ef4-c9f98c4fc660",
+  fileAttachments: [],
+}
+
+      at <anonymous> (/Users/jackson/Code/openteam-spec004-worktrees/w3-worker-boundaries/apps/worker/test/reaction-claim-availability.integration.test.ts:52:44)
+      at async fixture (/Users/jackson/Code/openteam-spec004-worktrees/w3-worker-boundaries/apps/worker/test/reaction-claim-availability.integration.test.ts:12:15)
+(fail) queued 👎 feedback cannot claim after its chat is archived [94.74ms]
+(pass) ordinary 👎 feedback still claims in its live group and retains its reply guidance [75.37ms]
+63 | 
+64 | test.skipIf(!url)("discarding unavailable group feedback does not block an independent home-chat user message", () => fixture(async f => {
+65 |   const result = await f.react("👎");
+66 |   await Effect.runPromise(f.service.setGroupMembers(f.group.id, { botIds: [f.peer.id], clientId: crypto.randomUUID() }));
+67 |   const direct = await f.db.$transaction(tx => f.messaging.enqueueWake(tx, { botId: f.bot.id, channelId: f.home.id, origin: "user", type: "user.message", content: "What is 2+2?", clientId: crypto.randomUUID(), priority: 300 }));
+68 |   expect(await f.worker.claim(f.bot.id)).toMatchObject({ runId: direct.run.id, channelId: f.home.id });
+                                              ^
+error: expect(received).toMatchObject(expected)
+
+  {
+-   "channelId": "3926a804-8ffc-43b3-8a07-056f65812a8d",
+-   "runId": "469aff78-532e-4a59-b2f9-c317de4f8b19",
++   "attachmentOwnerBotId": "6b8c6a7d-18e7-43d1-9060-e814e054a4d8",
++   "botId": "6b8c6a7d-18e7-43d1-9060-e814e054a4d8",
++   "channelId": "d57a1f68-f1ab-4066-9de9-ccb551d88795",
++   "clientId": "reaction:6e74b9f4-2d52-44b3-b4a5-8181b9c8fbed:c5c094a8-be6e-4834-a680-fddbf8ffc517",
++   "content": 
++ "<timestamp>Tuesday, Nov 17, 2026, 9:07 AM (UTC+0)</timestamp>
++ <user_query>
++ [SAND_HIDDEN_PROMPT][The user reacted 👎 to your message: "The answer is 391.". This is negative feedback on that reply. Re-check it and respond with a correction if needed; if it was correct, briefly clarify or ask what the user wants changed. Deliver your response with SendToUser.][SAND_HIDDEN_PROMPT]
++ </user_query>"
++ ,
++   "contextSessionId": "6194ec57-cd14-4239-9804-18ff6892642b",
++   "conversationId": "846b496f-1d1b-41e4-938e-86722870ad32",
++   "cwd": "/tmp",
++   "deliveryId": null,
++   "fileAttachments": [],
++   "images": [],
++   "inboxId": "0bc62ace-d945-4f22-b6ff-af6392a6447d",
++   "inboxType": "user.reaction",
++   "inferenceParentRunId": null,
++   "instructions": "",
++   "interruptedRunId": null,
++   "origin": "user",
++   "outcomeWorkItemId": null,
++   "ownerId": "be53105e-e7fc-42bd-9837-0cb31f73b030",
++   "pluginBotId": "6b8c6a7d-18e7-43d1-9060-e814e054a4d8",
++   "readOnly": false,
++   "runChannelId": "d57a1f68-f1ab-4066-9de9-ccb551d88795",
++   "runId": "d7beaab4-7b9f-420e-9b21-6dd2d0bf9618",
++   "runtimeProfile": "agent",
++   "screenBotId": "6b8c6a7d-18e7-43d1-9060-e814e054a4d8",
++   "sessionPath": null,
++   "subagentType": null,
++   "taskConfiguration": null,
+  }
+
+- Expected  - 2
++ Received  + 33
+
+      at <anonymous> (/Users/jackson/Code/openteam-spec004-worktrees/w3-worker-boundaries/apps/worker/test/reaction-claim-availability.integration.test.ts:68:42)
+      at async fixture (/Users/jackson/Code/openteam-spec004-worktrees/w3-worker-boundaries/apps/worker/test/reaction-claim-availability.integration.test.ts:12:15)
+(fail) discarding unavailable group feedback does not block an independent home-chat user message [104.63ms]
+ 95 |       if (!waiting && !settled) await new Promise(resolve => setTimeout(resolve, 10));
+ 96 |     }
+ 97 |   } finally { release(); }
+ 98 |   await edit;
+ 99 |   const claimed = await claim;
+100 |   expect(waiting).toBe(true);
+                        ^
+error: expect(received).toBe(expected)
+
+Expected: true
+Received: false
+
+      at <anonymous> (/Users/jackson/Code/openteam-spec004-worktrees/w3-worker-boundaries/apps/worker/test/reaction-claim-availability.integration.test.ts:100:19)
+      at async fixture (/Users/jackson/Code/openteam-spec004-worktrees/w3-worker-boundaries/apps/worker/test/reaction-claim-availability.integration.test.ts:12:15)
+(fail) feedback claim waits for an in-flight group membership edit and checks its committed result [100.50ms]
+(pass) a mixed room-message and reaction queue takes the room execution lock before membership locks [96.63ms]
+
+ 3 pass
+ 6 fail
+ 14 expect() calls
+Ran 9 tests across 1 file. [1.60s]

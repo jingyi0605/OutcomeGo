@@ -51,6 +51,13 @@ export class NotificationService {
     private readonly authMode: PushAuthenticationMode = "required"
   ) {}
 
+  /** The shared consumer records D18 receipts and projects only committed current facts. */
+  projectOutcomeEvent = (eventSequence: string) => serviceEffect(() => this.prisma.$transaction(async tx => {
+    const { consumeOutcomeInboxEvent } = await import("@outcomego/messaging");
+    const result = await consumeOutcomeInboxEvent(tx, BigInt(eventSequence));
+    return { projected: result.projected };
+  }));
+
   routing = () => serviceEffect(() => notificationRouting(this.prisma, this.authMode));
 
   updatePreferences = (smartEnabled: boolean) => serviceEffect(() => this.prisma.$transaction(async tx => {
@@ -157,11 +164,12 @@ export class NotificationService {
   // multiple conversations on desktop still retires every acknowledged alert.
   snapshot = () => serviceEffect(async () => this.prisma.$transaction(async (tx) => {
     const event = await tx.event.findFirst({ orderBy: { sequence: "desc" }, select: { sequence: true } });
-    const [states, badgeCount] = await Promise.all([
+    const [states, badgeCount, outcomeNotifications] = await Promise.all([
       tx.channelReadState.findMany({ select: { channelId: true, lastReadSequence: true, lastReadNotificationSequence: true } }),
       unreadBadgeCount(tx),
+      import("@outcomego/messaging").then(({ unreadOutcomeNotifications }) => unreadOutcomeNotifications(tx)),
     ]);
-    return { notificationRouting: await notificationRouting(tx, this.authMode), cursor: (event?.sequence ?? 0n).toString(), badgeCount, readStates: states.map(s => ({
+    return { outcomeNotifications, notificationRouting: await notificationRouting(tx, this.authMode), cursor: (event?.sequence ?? 0n).toString(), badgeCount, readStates: states.map(s => ({
       channelId: s.channelId, lastReadSequence: s.lastReadSequence.toString(),
       lastReadNotificationSequence: s.lastReadNotificationSequence.toString(),
     })) };

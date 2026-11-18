@@ -8,7 +8,7 @@ import { AgentDataStore } from "../src/agent-data";
 import { parseAutomationFile } from "../src/automation-files";
 import { RoutineService } from "../src/routines";
 
-const databaseUrl = process.env.OPENTEAM_TEST_DATABASE_URL;
+const databaseUrl = (process.env.OUTCOMEGO_TEST_DATABASE_URL ?? process.env.OPENTEAM_TEST_DATABASE_URL);
 const integration = databaseUrl ? test : test.skip;
 const at = new Date("2026-11-12T17:00:00Z");
 afterEach(() => setSystemTime());

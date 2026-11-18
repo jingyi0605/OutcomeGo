@@ -1,6 +1,6 @@
 import XCTest
 
-@testable import OpenTeamCore
+@testable import OutcomeGoCore
 
 final class InboxUnreadPositionTests: XCTestCase {
   private let rows = (0..<12).map { "row-\($0)" }

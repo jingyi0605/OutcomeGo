@@ -1,5 +1,7 @@
 package com.outcomego.features
 
+import com.outcomego.mobile.core.OutcomeDetail
+import com.outcomego.mobile.core.OutcomeListPage
 import kotlinx.serialization.json.JsonObject
 
 /** Shared UI state used by feature screens while live operations are in flight. */
@@ -460,6 +462,19 @@ data class Plugin(
 )
 
 interface FeatureGateway {
+    suspend fun outcomeInbox(category: String? = null, cursor: String? = null): Result<com.outcomego.mobile.core.OutcomeInboxPage?> =
+        Result.failure(UnsupportedOperationException("Outcome Inbox is not available for this session."))
+    suspend fun outcomeDecision(id: String): Result<com.outcomego.mobile.core.OutcomeDecision> =
+        Result.failure(UnsupportedOperationException("Outcome Inbox is not available for this session."))
+    suspend fun resolveOutcomeDecision(id: String, input: com.outcomego.mobile.core.ResolveOutcomeDecision): Result<com.outcomego.mobile.core.OutcomeDecisionResolution> =
+        Result.failure(UnsupportedOperationException("Outcome Inbox is not available for this session."))
+    suspend fun outcomeHumanWorkItem(id: String): Result<com.outcomego.mobile.core.OutcomeHumanWorkItem> =
+        Result.failure(UnsupportedOperationException("Human actions are not available for this session."))
+
+    suspend fun listOutcomes(cursor: String? = null): Result<OutcomeListPage?> =
+        Result.failure(UnsupportedOperationException("Outcome API is not available for this session."))
+    suspend fun outcomeDetail(id: String): Result<OutcomeDetail> =
+        Result.failure(UnsupportedOperationException("Outcome API is not available for this session."))
     suspend fun submitRichAction(messageId: String, actionId: String, values: Map<String, String> = emptyMap()): Result<Unit>
     suspend fun uploadAttachment(uri: String): Result<Attachment>
     suspend fun downloadAttachment(attachmentId: String): Result<String>

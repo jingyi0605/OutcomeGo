@@ -118,6 +118,10 @@ class AndroidPlatformRuntime(
                 }
             }
         }
+        com.outcomego.mobile.core.parseOutcomeDeepLink(value.dataString)?.let { target ->
+            onOpenDeepLink(target.deepLink)
+            return AndroidPlatformIntent(share = share, shortcut = shortcut)
+        }
         val appLink = value.data?.let { AndroidAppLinks.parse(it, appLinkHost) }
         if (appLink != null) {
             if (appLink.action != null) {

@@ -5,7 +5,7 @@ import { BotService } from "../src/services/bot-service";
 import { GroupAdministration } from "../src/services/channel/group-administration";
 import { WakeWorker } from "../../worker/src/worker";
 import { dispatchComputerTurn } from "../../worker/src/runtime-dispatch";
-const databaseUrl = process.env.OPENTEAM_TEST_DATABASE_URL;
+const databaseUrl = (process.env.OUTCOMEGO_TEST_DATABASE_URL ?? process.env.OPENTEAM_TEST_DATABASE_URL);
 const gate = () => { let resolve!: () => void; const promise = new Promise<void>(r => { resolve = r; }); return { promise, resolve }; };
 const files = { deleteAgentFiles: async () => {}, repairActiveAgentAfterDeletion: async () => null };
 
@@ -63,7 +63,7 @@ test.skipIf(!databaseUrl)('a delayed runtime acceptance must not start work afte
     archive = Effect.runPromise(service.archive(bot.id)).then(() => { archiveDone = true; });
     let fenced = false; const deadline = Date.now() + 2_000;
     while (!archiveDone && !fenced && Date.now() < deadline) {
-      const waiting = await p.$queryRaw<{ pid: number }[]>`SELECT pid FROM pg_stat_activity WHERE wait_event_type = 'Lock' AND query LIKE '%Run%' AND query NOT LIKE '%pg_stat_activity%'`;
+      const waiting = await p.$queryRaw<{ pid: number }[]>`SELECT pid FROM pg_stat_activity WHERE wait_event_type = 'Lock' AND query LIKE '%outcomego_run%' AND query NOT LIKE '%pg_stat_activity%'`;
       fenced = waiting.length > 0;
       if (!fenced && !archiveDone) await new Promise(r => setTimeout(r, 2));
     }

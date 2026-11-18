@@ -1,0 +1,52 @@
+bun test v1.4.4 (38afee6c8)
+
+apps/worker/test/memory-multiworker.integration.test.ts:
+(pass) two worker processes serialize each bot's review backlog and recover a killed owner after the real lease TTL [46366.40ms]
+
+apps/worker/test/memory-inference-outage.integration.test.ts:
+(node:82662) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `bun --trace-warnings ...` to show where the warning was created)
+memory extraction for 64659870-fc84-4206-bfa4-91fe671ea917 warn: Injected model outage
+      at <anonymous> (/Users/jackson/Code/openteam-spec004-worktrees/l6-memory-recovery-fix/apps/worker/src/worker.ts:561:21)
+      at async inferMemory (/Users/jackson/Code/openteam-spec004-worktrees/l6-memory-recovery-fix/packages/messaging/src/agent-data.ts:3490:27)
+      at async runMemoryExtraction (/Users/jackson/Code/openteam-spec004-worktrees/l6-memory-recovery-fix/packages/messaging/src/agent-data.ts:3517:33)
+      at async recordTurnMemory (/Users/jackson/Code/openteam-spec004-worktrees/l6-memory-recovery-fix/packages/messaging/src/agent-data.ts:3729:35)
+      at async recordMemoryFromRun (/Users/jackson/Code/openteam-spec004-worktrees/l6-memory-recovery-fix/apps/worker/src/worker.ts:2326:56)
+
+(pass) a real unavailable inference outage retains review intent and cannot replay an older turn over a newer correction [15604.83ms]
+memory extraction for e9d9563e-b12f-4f58-8e21-eafb88390989 SyntaxError: JSON Parse error: Expected '}'
+      at <anonymous> (/Users/jackson/Code/openteam-spec004-worktrees/l6-memory-recovery-fix/apps/worker/src/worker.ts:559:38)
+      at async inferMemory (/Users/jackson/Code/openteam-spec004-worktrees/l6-memory-recovery-fix/packages/messaging/src/agent-data.ts:3490:27)
+      at async runMemoryExtraction (/Users/jackson/Code/openteam-spec004-worktrees/l6-memory-recovery-fix/packages/messaging/src/agent-data.ts:3517:33)
+      at async recordTurnMemory (/Users/jackson/Code/openteam-spec004-worktrees/l6-memory-recovery-fix/packages/messaging/src/agent-data.ts:3729:35)
+      at async recordMemoryFromRun (/Users/jackson/Code/openteam-spec004-worktrees/l6-memory-recovery-fix/apps/worker/src/worker.ts:2326:56)
+
+(pass) a real malformed-json inference outage retains review intent and cannot replay an older turn over a newer correction [15365.39ms]
+
+apps/worker/test/memory-recording.test.ts:
+(pass) memory recording prefers clean visible messages and joins visible agent replies [0.07ms]
+(pass) memory recording falls back to internal messages without a visible delivery [0.03ms]
+(pass) a turn answered with only a reaction or silence is still reviewed [0.01ms]
+
+apps/worker/test/memory-journey.integration.test.ts:
+(pass) a user remembers, corrects, recalls across fresh chats and restart, then forgets through HTTP [5055.38ms]
+
+apps/worker/test/memory-lifecycle-reliability.integration.test.ts:
+(pass) clearing the memory panel after correction fences the delayed review and its cached prompt [3166.36ms]
+memory extraction for 67dcdd04-b185-4bf6-b296-471a05a6fed6 warn: Controlled lifecycle outage
+      at <anonymous> (/Users/jackson/Code/openteam-spec004-worktrees/l6-memory-recovery-fix/apps/worker/src/worker.ts:561:21)
+      at async inferMemory (/Users/jackson/Code/openteam-spec004-worktrees/l6-memory-recovery-fix/packages/messaging/src/agent-data.ts:3490:27)
+      at async runMemoryExtraction (/Users/jackson/Code/openteam-spec004-worktrees/l6-memory-recovery-fix/packages/messaging/src/agent-data.ts:3517:33)
+      at async recordTurnMemory (/Users/jackson/Code/openteam-spec004-worktrees/l6-memory-recovery-fix/packages/messaging/src/agent-data.ts:3729:35)
+      at async recordMemoryFromRun (/Users/jackson/Code/openteam-spec004-worktrees/l6-memory-recovery-fix/apps/worker/src/worker.ts:2326:56)
+
+(pass) rejected hiding and idempotent unhiding preserve review work, while archive survives restart without replaying its backlog [10302.73ms]
+(pass) switching into a shared chat and widening membership cannot expose shared-owner facts from a delayed private review [21016.46ms]
+
+apps/worker/test/memory-routing.integration.test.ts:
+(pass) in a group room the worker gives each bot only its own memory, and saved and learned facts are bot-wide [1535.72ms]
+
+ 11 pass
+ 0 fail
+ 221 expect() calls
+Ran 11 tests across 6 files. [118.91s]

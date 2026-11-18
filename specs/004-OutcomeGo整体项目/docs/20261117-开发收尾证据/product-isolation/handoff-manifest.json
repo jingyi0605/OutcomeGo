@@ -1,0 +1,18 @@
+{
+  "status": "PASS",
+  "files": {
+    "apps/server/test/fixtures/outcome-recovery/product-replay.ts": "577b53372ef126a5b707eb4748b2a3714414faf076363bb76428ec5810bc41dc",
+    "apps/server/test/outcome-product-replay.integration.test.ts": "0867c59e5c062b650ab87129590185a552dda14aace1066c5c9f15d6a676a044",
+    "scripts/outcome-recovery/product-replay.ts": "c3f8ffce31080fd57a96a24ea1440b81478666b24e13b4dc8f7a3593b0f46788",
+    "specs/004.2-Outcome规划执行与成果验收闭环/docs/20261117-主链路回放开发与对账.md": "652cb5c476ecd7562d3dbaa965b3a43061bbc5691516169ceb405a443da7f9dd",
+    "specs/004.4-现实任务与知识资料闭环/docs/20261117-人工任务全链路开发与对账.md": "5a9cbf28d560df4affa966c748e12edd7273f997c08902a64ccd4ee626acfbf5"
+  },
+  "sourceProvenance": "source-final-five.json",
+  "historicalFourCaseSource": "source.json",
+  "executedCliHelperAndCliUnchanged": true,
+  "actualDocumentIdsAndLinksVerified": true,
+  "currentFocusedTests": "5 PASS / 0 FAIL / 43 assertions",
+  "productionConsumerChanged": false,
+  "commits": 0,
+  "existingSpecAcceptanceFilesWritten": false
+}

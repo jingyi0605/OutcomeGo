@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { createPrismaClient } from "@outcomego/db";
+import { createPrismaClient, type Prisma } from "@outcomego/db";
 import { Effect } from "effect";
 import { createHash } from "node:crypto";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
@@ -13,7 +13,7 @@ import { parsePluginDefinition } from "@outcomego/plugin-sdk";
 
 // Opt in to an existing test database. Only uniquely owned rows and a temporary
 // MCP state directory are created/deleted; no schema reset or Signal data is used.
-const databaseUrl = process.env.OPENTEAM_TEST_DATABASE_URL;
+const databaseUrl = (process.env.OUTCOMEGO_TEST_DATABASE_URL ?? process.env.OPENTEAM_TEST_DATABASE_URL);
 const integration = test.skipIf(!databaseUrl);
 const deferred = <T,>() => {
   let resolve!: (value: T) => void;
@@ -127,7 +127,7 @@ async function fixture() {
     await db.$disconnect();
     await rm(root, { recursive: true, force: true });
   };
-  return { db, manager, service, otherService, hooks, calls, id, pluginKey, installation, row, marker, close,
+  return { db, manager, service, otherService, fetchComputer, hooks, calls, id, pluginKey, installation, row, marker, close,
     connect: () => Effect.runPromise(service.connect(id)),
     poll: () => Effect.runPromise(service.pollDeviceLink(id)),
   };
@@ -218,6 +218,91 @@ integration("package update rolls back if account removal starts while its stop 
     expect((await f.row()).credentials).toHaveProperty("stateRemovalPending", true);
     expect((await f.db.pluginInstallation.findUniqueOrThrow({ where: { id: f.installation.id } })).version).toBe("1.0.0");
   } finally { release.resolve(); await updating; await f.close(); }
+}, 15_000);
+
+integration("package update does not stop an account whose private storage removal is pending", async () => {
+  const f = await fixture();
+  try {
+    f.hooks.beforeForget = async () => { throw new Error("Synthetic removal failure"); };
+    await expect(Effect.runPromise(f.service.removeAccount(f.id))).rejects.toThrow();
+    const before = await f.row();
+    const next = parsePluginDefinition({ ...parsePluginDefinition(f.installation.manifest), version: "1.1.0" });
+    let stops = 0;
+    const management = new PluginManagement(f.db, async () => [next], async () => {}, async () => {}, async () => { stops++; });
+    await expect(Effect.runPromise(management.update(f.pluginKey, pluginDigest(next))))
+      .rejects.toThrow("removal must finish");
+    expect(stops).toBe(0);
+    expect(await f.row()).toEqual(before);
+    expect((await f.db.pluginInstallation.findUniqueOrThrow({ where: { id: f.installation.id } })).version).toBe("1.0.0");
+  } finally { await f.close(); }
+}, 15_000);
+
+integration("package update waits behind uninstall without holding account locks", async () => {
+  const f = await fixture();
+  const uninstallDb = createPrismaClient(databaseUrl!);
+  const uninstallService = new PluginService(uninstallDb, f.fetchComputer);
+  const installationLocked = deferred<void>(), release = deferred<void>();
+  const updateStarted = deferred<number>();
+  const originalUpdateTransaction = f.db.$transaction.bind(f.db);
+  const originalUninstallTransaction = uninstallDb.$transaction.bind(uninstallDb);
+  let paused = false;
+  let updating: ReturnType<typeof observed> | undefined;
+  let uninstalling: ReturnType<typeof observed> | undefined;
+  Object.defineProperty(uninstallDb, "$transaction", {
+    configurable: true, writable: true,
+    value: (work: (tx: Prisma.TransactionClient) => Promise<unknown>) =>
+      originalUninstallTransaction(async tx => {
+        if (!paused) {
+          // Pause at uninstall's first real lock, before its account updates.
+          await tx.$queryRaw`SELECT id FROM "outcomego_plugin_installation" WHERE id = ${f.installation.id}::uuid FOR UPDATE`;
+          paused = true;
+          installationLocked.resolve();
+          await release.promise;
+        }
+        return work(tx);
+      }),
+  });
+  Object.defineProperty(f.db, "$transaction", {
+    configurable: true, writable: true,
+    value: (work: (tx: Prisma.TransactionClient) => Promise<unknown>) =>
+      originalUpdateTransaction(async tx => {
+        const [row] = await tx.$queryRaw<Array<{ pid: number }>>`SELECT pg_backend_pid() AS pid`;
+        updateStarted.resolve(row!.pid);
+        return work(tx);
+      }),
+  });
+  try {
+    const next = parsePluginDefinition({ ...parsePluginDefinition(f.installation.manifest), version: "1.1.0" });
+    const management = new PluginManagement(f.db, async () => [next], async () => {}, async () => {}, async () => {});
+    uninstalling = observed(Effect.runPromise(uninstallService.uninstall(f.pluginKey)));
+    await barrier(installationLocked.promise);
+    updating = observed(Effect.runPromise(management.update(f.pluginKey, pluginDigest(next))));
+    const pid = await barrier(updateStarted.promise);
+    let waiting = false;
+    const deadline = Date.now() + 2_000;
+    while (Date.now() < deadline) {
+      const rows = await f.db.$queryRaw<Array<{ waiting: boolean }>>`
+        SELECT EXISTS(SELECT 1 FROM pg_stat_activity WHERE pid = ${pid}
+          AND wait_event_type = 'Lock' AND query LIKE '%outcomego_plugin_installation%') AS waiting`;
+      if (rows[0]?.waiting) { waiting = true; break; }
+      await Bun.sleep(10);
+    }
+    expect(waiting).toBe(true);
+    // Uninstall must still be able to acquire the account while update waits.
+    await uninstallDb.$queryRaw`SELECT id FROM "outcomego_plugin_connection" WHERE id = ${f.id}::uuid FOR UPDATE NOWAIT`;
+    release.resolve();
+    expect(await uninstalling).toMatchObject({ value: { uninstalled: true } });
+    expect(await updating).toHaveProperty("error");
+    expect(await f.db.pluginInstallation.findUnique({ where: { id: f.installation.id } })).toBeNull();
+    expect(await f.db.pluginConnection.count({ where: { installationId: f.installation.id } })).toBe(0);
+  } finally {
+    release.resolve();
+    await updating; await uninstalling;
+    f.db.$transaction = originalUpdateTransaction;
+    await uninstallService.close();
+    await uninstallDb.$disconnect();
+    await f.close();
+  }
 }, 15_000);
 
 integration("compatible updates preserve private state and subsequent removal still deletes it", async () => {

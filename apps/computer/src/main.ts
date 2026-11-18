@@ -787,6 +787,15 @@ const server = Bun.serve({
       if (request.method === "POST" && backgroundShellsMatch?.[1])
         return json({ stopped: runtime.stopBackgroundShells(decodeURIComponent(backgroundShellsMatch[1])) });
 
+      const backgroundShellRunsMatch = url.pathname.match(/^\/v1\/bots\/([^/]+)\/background-shells\/stop-runs$/);
+      if (request.method === "POST" && backgroundShellRunsMatch?.[1]) {
+        const body = await request.json().catch(() => null) as { runIds?: unknown } | null;
+        if (!body || !Array.isArray(body.runIds) || body.runIds.some(id => typeof id !== "string" || !id.length))
+          return json({ error: "runIds must be an array of run IDs" }, 400);
+        const runIds = body.runIds as string[];
+        return json({ stopped: runtime.stopBackgroundShells(decodeURIComponent(backgroundShellRunsMatch[1]), runIds), runIds });
+      }
+
       const contextSessionMatch = url.pathname.match(/^\/v1\/context-sessions\/([^/]+)$/);
       if (request.method === "GET" && contextSessionMatch?.[1]) {
         return json(await runtime.contextState(contextSessionMatch[1]));

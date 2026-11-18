@@ -16,6 +16,10 @@ struct HomeView: View {
     var route: SettingsRoute?
   }
   @State private var settings: SettingsSheet?
+  @State private var outcomes = false
+  @State private var outcomeInitialTarget: OutcomeLinkTarget?
+  @State private var outcomePresentation = UUID()
+  @State private var outcomesSupported = false
   @State private var marketplace = false
   @State private var marketplaceRevision = 0
   @State private var marketplaceHovered = false
@@ -119,6 +123,7 @@ struct HomeView: View {
     }
     .readingBarRegions { barRegions = $0 }
     .onChange(of: store.navigation) { _, path in
+      if !path.isEmpty { outcomes = false }
       // Once the zoomed chat has closed (and zoomed back into its row), later
       // opens push as usual.
       guard path.isEmpty, zoomChannel != nil, store.landing == nil else { return }
@@ -126,6 +131,27 @@ struct HomeView: View {
         try? await Task.sleep(for: .seconds(1))
         if store.navigation.isEmpty, store.landing == nil { zoomChannel = nil }
       }
+    }
+    .task(id: store.api?.resourceGeneration) {
+      outcomesSupported = false
+      if store.api == nil { outcomes = false; outcomeInitialTarget = nil }
+      do { outcomesSupported = try await store.listOutcomes() != nil }
+      catch {
+        if !UserFacingError.isCancelled(error) && (error as? APIError)?.status != 401 {
+          outcomesSupported = true
+        }
+      }
+    }
+    .onChange(of: store.outcomeNavigation, initial: true) { _, target in
+      guard let target else { return }
+      outcomeInitialTarget = target
+      outcomePresentation = UUID()
+      outcomes = true
+      store.consumeOutcomeNavigation()
+    }
+    .sheet(isPresented: $outcomes, onDismiss: { outcomeInitialTarget = nil }) {
+      OutcomeInboxView(initialTarget: outcomeInitialTarget) { outcomesSupported = false; outcomes = false }
+        .id("\(store.api?.resourceGeneration.uuidString ?? "")-\(outcomePresentation.uuidString)").referenceSheet()
     }
     .sheet(isPresented: $marketplace, onDismiss: { marketplaceRevision += 1 }) {
       NavigationStack { PluginListView() }.referenceSheet()
@@ -547,6 +573,10 @@ struct HomeView: View {
       }
       Spacer()
       MobileUpdateBadge()
+      if outcomesSupported {
+        InboxChromeButton(title: "Outcomes", symbol: "checkmark.circle") { outcomes = true }
+          .accessibilityIdentifier("outcomes-button")
+      }
       InboxChromeButton(title: "Search", symbol: "magnifyingglass",
         pointSize: isSidebar ? SidebarMetrics.searchGlyph : 21) { search = true }
         .accessibilityIdentifier("search-button")
@@ -564,6 +594,10 @@ struct HomeView: View {
         if splitAvailable { sidebarToggle }
         Spacer(minLength: 12)
         creationMenu().frame(width: 44, height: 44).nativeInboxGlass()
+        if outcomesSupported {
+          InboxChromeButton(title: "Outcomes", symbol: "checkmark.circle") { outcomes = true }
+            .accessibilityIdentifier("outcomes-button")
+        }
         searchControl
         if !expandedReferenceSidebar, store.navigation.isEmpty {
           MarketplaceShortcut { marketplace = true }
@@ -583,6 +617,12 @@ struct HomeView: View {
   }
 
   @ToolbarContentBuilder private var inboxToolbar: some ToolbarContent {
+    if outcomesSupported {
+      ToolbarItem(id: "inbox.outcomes", placement: .topBarTrailing) {
+        Button("Outcomes", systemImage: "checkmark.circle") { outcomes = true }
+          .accessibilityIdentifier("outcomes-button")
+      }
+    }
     if toolbarOnSide {
       creationToolbarItem
       if #available(iOS 26.0, *) { ToolbarSpacer(.fixed, placement: .topBarTrailing) }

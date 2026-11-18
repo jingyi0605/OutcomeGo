@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer } from "electron";
 import { parseNotificationTarget } from "../main/notifications";
 import type { DesktopNotificationTarget } from "@outcomego/contracts/notification-content";
 import type { ApplicationMenuAction } from "../main/application-menu";
+import { parseDesktopOutcomeTarget } from "../renderer/lib/outcome-target";
 
 const appVersionArgument = process.argv.find((argument) =>
   argument.startsWith("--outcomego-app-version=")
@@ -138,6 +139,17 @@ interface ScreenBotDelivery {
 }
 
 contextBridge.exposeInMainWorld("outcomego", {
+  outcomes: {
+    takePendingTarget: async () => {
+      const value = await ipcRenderer.invoke("outcomego:outcomes:take-pending");
+      return value === null ? null : parseDesktopOutcomeTarget(value);
+    },
+    onTargetAvailable: (callback: () => void) => listen("outcomego:outcomes:target-available", () => callback()),
+    syncNotifications: (notifications: unknown[]) => {
+      if (!Array.isArray(notifications) || notifications.length > 100) throw new Error("Outcome notifications are invalid");
+      ipcRenderer.send("outcomego:outcomes:notifications", notifications);
+    },
+  },
   platform: process.platform,
   clipboard: {
     readText: (): Promise<string> => ipcRenderer.invoke("outcomego:computer-clipboard-read"),

@@ -1,0 +1,15 @@
+$ bun --no-install test scripts/migration/validate-outcomego-backup.test.ts
+exit=0
+bun test v1.4.4 (38afee6c8)
+
+scripts/migration/validate-outcomego-backup.test.ts:
+(pass) OutcomeGo latest-schema backup validation > accepts a backup that already uses the current physical schema [96.60ms]
+(pass) OutcomeGo latest-schema backup validation > rejects a legacy format instead of converting table or field names [12.34ms]
+(pass) OutcomeGo latest-schema backup validation > rejects a current manifest that contains a non-current table name [0.12ms]
+(pass) OutcomeGo latest-schema backup validation > rejects broken relationships before import [0.07ms]
+(pass) OutcomeGo latest-schema backup validation > rejects a changed payload or row count [1.59ms]
+
+ 5 pass
+ 0 fail
+ 6 expect() calls
+Ran 5 tests across 1 file. [1321.00ms]

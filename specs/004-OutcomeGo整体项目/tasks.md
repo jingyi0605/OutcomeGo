@@ -1,230 +1,205 @@
 # 任务清单 - OutcomeGo 整体项目（人话版）
 
-状态：Draft
+状态：IN_PROGRESS
+
+2026-11-17 逐项验收：以已审实现基线 `93d5ff665` 复核原九项未勾选任务，task67先接受 **3.0a**；task73补真实开发/回放后新增接受 **2.3**，原九项现接受2项/仍7项；其余任务保留原完成标准与依赖。逐项依据和全部五十项合并结论见[逐项任务验收总表](docs/20261117-逐项任务验收总表.md)。task67是历史文档复核；task73新增真实源码、验证及具名报告，均未提交，不覆盖历史实现关闭记录，不等于发布或远端 CI 放行。
 
 关联文档：[README.md](README.md) · [requirements.md](requirements.md) · [design.md](design.md)
 
-## 阶段 1：准备和项目更名
+2026-11-17 整理：合并了原来重复的“父级执行检查点”“阶段 4 父级交付检查点”“父级阶段检查”三组任务，统一为下面的阶段 0–3；任务编号重新排列。
 
-- [ ] 1.1 建立 `004` 及 `004.1`–`004.5` Spec 目录
-  - 状态：TODO
-  - 这一步到底做什么：按照仓库模板建立父 Spec 和阶段子 Spec，并完成相互引用。
-  - 做完你能看到什么：所有阶段都有需求、设计、任务和补充文档入口。
-  - 先依赖什么：无
-  - 主要改哪里：`specs/004*`
-  - 这一步先不做什么：不修改产品代码。
-  - 怎么算完成：所有文件存在，编号和路径一致，父子 Spec 关系清楚。
-  - 怎么验证：检查目录结构和链接。
+## 状态说明
+
+`TODO`、`IN_PROGRESS`、`BLOCKED`、`PENDING`（缺外部环境或设备，不能写成 PASS）、`DONE`、`CANCELLED`。只有 `DONE` 的任务才能勾选。
+
+## 阶段 0：准备、决策和更名
+
+- [x] 1.1 建立 `004` 及 `004.1`–`004.5` Spec 目录
+  - 状态：DONE
+  - 证据：`specs/004*` 目录、README、requirements/design/tasks/docs 均存在并相互链接；提交 `a6459787a`。
   - 对应需求：全部需求
   - 对应设计：`design.md` §3
 
-- [ ] 1.1a 确认决策基线和原规划覆盖
-  - 状态：TODO
-  - 这一步到底做什么：负责人复核 `design.md` §39–§41 的决策基线、门禁处理决定和客户端范围，并复核原规划覆盖核对文档。
-  - 做完你能看到什么：§39 每项状态为“已确认”或“默认基线（已复核）”；覆盖核对文档没有未归属项。
-  - 先依赖什么：1.1
-  - 开始前先看：`data/20261110-OutcomeGo-项目总体规划与OutcomeGo迁移方案-v1.1.md` §20、[`docs/20261112-OutcomeGo总体规划覆盖核对.md`](docs/20261112-OutcomeGo总体规划覆盖核对.md)
-  - 主要改哪里：父 `design.md` §39–§41、覆盖核对文档；改写默认基线时同步修改受影响子 Spec。
-  - 这一步先不做什么：不新增原规划之外的能力。
-  - 怎么算完成：D01–D08 都有结论；每个“不做”项都写进对应 Out of Scope。
-  - 怎么验证：逐项对照原规划和覆盖核对文档。
+- [x] 1.1a 确认决策基线和原规划覆盖
+  - 状态：DONE
+  - 证据（2026-11-17）：负责人确认 D01、D03、D05、D07；新增 D09（主线程 + 子线程执行模型）为已确认；D10–D20 为默认基线并写明确认时点（`design.md` §39）。覆盖核对文档已更新原规划路径和子线程相关落点。
+  - 开始前先看：`data/20261110-OutcomeGo-项目总体规划与ai-TeamOS迁移方案-v1.1.md` §20、[`docs/20261112-OutcomeGo总体规划覆盖核对.md`](docs/20261112-OutcomeGo总体规划覆盖核对.md)
   - 对应需求：需求 11、需求 12
   - 对应设计：`design.md` §39、§40、§41
 
-- [ ] 1.2 完成 `004.1` 项目更名与下一版本发布
-  - 状态：TODO
-  - 先依赖什么：1.1、1.1a
-  - 开始前先看：
-    - `../004.1-项目更名与下一版本发布/requirements.md`
-    - `../004.1-项目更名与下一版本发布/design.md`
-    - `../004.1-项目更名与下一版本发布/tasks.md`
-  - 主要改哪里：由 `004.1` 任务定义
-  - 这一步先不做什么：不提前开发 Outcome 功能。
-  - 怎么算完成：`004.1` 最终检查点为 DONE。
-  - 怎么验证：通过升级、签名、更新和回滚验证。
+- [x] 1.2 完成 `004.1` 项目更名与下一版本发布
+  - 状态：DONE（带已知 PENDING 项）
+  - 证据：`004.1/tasks.md` “收尾记录”；`004.1/docs/release-decision.md`；`004.1/docs/release-asset-inventory.md`。OutcomeGo 自 `v0.1.0-beta.14`（2026-11-12）启用，当前 Latest 为 `v0.1.0-beta.19`。
+  - 已知 PENDING：真实设备新安装、手动备份导入、回滚演练、跨平台旧资产混用负例、名称可用性核查。由任务 3.1 在最终验收中复核。
   - 对应需求：需求 1
   - 对应设计：`design.md` §6
 
-## 阶段 2：核心产品闭环
+- [ ] 1.3 修复 `OutcomeGo` 分支 CI 的 `checks` job
+  - 状态：PENDING（本地已执行组合验收零失败；未授权推送、未观测 GitHub CI，不能冒称远端 checks 已绿）
+  - 最终本地复核（2026-11-17）：最新 Computer / messaging / server / worker / Desktop / contracts 六个完整包命令合计 4950 PASS / 0 FAIL / 83 SKIP；十个专库恢复 / enrollment 用例另行实际通过，六类 CLI 40 checks 通过；七包完整类型、架构 / workflow / 静态检查通过。生产冻结 `5e2ce81d8` 与纯测试后继 `727d410f2` 分列，来源和原始日志见[组合验证总账](docs/20261117-全规格组合验证与修复记录.md)和[后端最终本机结果](docs/20261117-第3波后端组合验收最终本机结果.md)。历史失败仍保留，不以基线豁免或推测扣除替代复验；该本地证据不满足本任务“远端全部 job 成功”的完成标准。
+  - 组合验收修复（2026-11-17）：原 `read-transcript.integration.test.ts:51` 失败已修复，来源 `7e6b0e028` → `49a7500c6`。原集成测试文件及隐私断言未改；补充真实 Computer 写图 → 持久历史 → Native Read 图片验证。integrator 实际重跑三个 transcript 文件与 Routine schema 文件共 25 PASS / 0 FAIL / 217 assertions，见[截图修复证据](../004.5-运行时恢复与版本验收/docs/20261117-历史截图回执修复与验证.md)。规范测试库变量激活后，广泛测试新观测仍须逐项分类和修复；不沿用旧 14 项计数，不声称全量或 CI 通过。
+  - 后续波次代码进展（2026-11-17）：`543eef450` → 集成 `8667c7ba6` 将 51 处历史测试 / fixture 的数据库读取改为规范 `OUTCOMEGO_TEST_DATABASE_URL ?? OPENTEAM_TEST_DATABASE_URL`，保留专用隔离库优先级，未删除断言、skip 条件或工作流。该改动扩大规范命令实际激活的数据库用例，最终全量结果及失败身份比较待全部代码整合后统一执行；不能沿用旧计数宣称通过。见[后续波次集成记录](docs/20261117-后续波次代码集成记录.md)。
+  - 第 0 波 A 证据：规格 `2b9211c16`；偶发测试 `c686edae0`；SQL 表名 `5b9d4dc99`；004.2 阶段 1 `69e5edd7c`；CI/基线 `b7ff0099a`；[失败基线](docs/test-failure-baseline.md)。`checks` 增加 PostgreSQL 17、schema 部署和完整数据库测试；`turbo.json` 放行测试库环境。负责人选择全部数据库测试阻塞，未删除或跳过测试。
+  - 这一步到底做什么：2026-11-17 起 `CI` workflow 的 `checks` job 在 `209c770e6`、`3b02ebfe6` 上失败。恢复绿色基线，否则无法判断 Outcome 改动是否引入回归。
+  - 进展（2026-11-17，本地，未推送）：最近 4 次失败各不相同，属于 CI runner 上的偶发失败。已修复两项：`packages/plugins/wechat/connector/test/secrets.test.ts`（列目录时原子写临时文件已被重命名导致 ENOENT）、`packages/plugin-sdk/src/runtime-assets.test.ts`（20,001 条 tar 头的测试在 runner 上超过 5 秒默认超时）。仍待观察：Desktop code highlighter 测试、transport/acknowledgement 测试（run `43983034791`、`43980957724`）。
+  - 本地带数据库运行时发现的既有问题（基线提交 `3b02ebfe6` 上同样失败，与 Outcome 改动无关；CI 未设置 `OUTCOMEGO_TEST_DATABASE_URL`，所以没有暴露）：
+    - 已修复：`packages/messaging/src/read-transcript.ts` 原始 SQL 仍查询更名前的表 `"message"`，生产环境 ReadTranscript 读取子 Agent 记录会报 `relation "message" does not exist`。已改为 `"outcomego_message"`。
+    - 历史观测：`packages/messaging/test/read-transcript.integration.test.ts:51`（Computer 工具截图路径断言）现已按上述组合验收记录修复；当时 worker 集成测试 14 项失败，其中已抽查 `apps/worker/test/lifecycle.integration.test.ts`（bootstrap 欢迎消息断言），在基线上同样失败。该历史观测不代替本轮扩大覆盖后的实际结果。
+  - 先依赖什么：无
+  - 主要改哪里：按失败日志定位
+  - 怎么算完成：`OutcomeGo` 分支最新提交 `CI` 全部 job 成功。
+  - 怎么验证：`gh run list -R jingyi0605/OutcomeGo --branch OutcomeGo --workflow CI`
+  - 对应需求：需求 9
+  - 对应设计：`design.md` §25
+
+- [x] 1.4 完成并行开发第 0 波接口冻结与依赖同步
+  - 状态：DONE（2026-11-17，本地）
+  - 先依赖什么：1.3 的本地基线提交 `b7ff0099a`；负责人选择全部数据库测试阻塞，接受现有失败使 CI 暂红。1.3 的远端绿色检查点继续 PENDING。
+  - 实现提交：`23bc29151`（contracts）、`ad4b5de94`（共享实现、测试和接入）。
+  - 修改文件：`packages/contracts/src/{outcomes,index}.ts`；`packages/messaging/src/outcome-{state,threads,actions}.ts`、`testing/outcome-thread-fake.ts`、导出和测试；Server Outcome/InternalTool 服务；Computer marker 传递、工具注册点与快照测试；父/子规格依赖说明。
+  - 数据库变化：无（复用第 0 波 A 模型）。
+  - 验证命令：六个受影响包 typecheck、`bun run check:architecture`、`bun run check:workflows`、Outcome 定向数据库测试、工具快照、完整数据库测试与基线隔离复核。
+  - 验证结果：类型/架构/workflow 通过；定向 334 + 64 项通过；全量存在已记录失败，四个第二次才出现的失败在 A/B 隔离回放中均通过。
+  - 证据文件：[接口冻结](docs/parallel-interfaces.md)、[失败基线与比较](docs/test-failure-baseline.md)。
+  - 已知限制：`enqueueOutcomeTurn/settleOutcomeWorkItem` 是线 1 占位签名；Decision/人工工具尚未登记；`unavailableHumanActionPort` 明确报错；未推送、未重建远端 computer。
+  - 回滚方式：撤销第 0 波 B 实现提交，保留 A 的基础模型和测试证据。
+  - 对应需求：需求 6、需求 7、需求 10、需求 13。
+  - 对应设计：§14、§26、§39、§42–§45；[接口冻结](docs/parallel-interfaces.md)。
+
+## 阶段 1：核心产品闭环
 
 - [ ] 2.1 完成 `004.2` Outcome 规划执行与成果验收闭环
-  - 状态：TODO
+  - 状态：IN_PROGRESS（全部已分配代码及本地组合验证完成；真实 Bot / 远端子线程端到端和子规格最终检查点仍 PENDING）
   - 先依赖什么：1.2
-  - 开始前先看：
-    - `../004.2-Outcome规划执行与成果验收闭环/requirements.md`
-    - `../004.2-Outcome规划执行与成果验收闭环/design.md`
-    - `../004.2-Outcome规划执行与成果验收闭环/tasks.md`
-  - 主要改哪里：由 `004.2` 任务定义
+  - 开始前先看：`../004.2-Outcome规划执行与成果验收闭环/` 三个主文档
+  - 主要改哪里：由 `004.2/tasks.md` 定义，包含实际文件路径和验证命令
   - 这一步先不做什么：不加入现实任务和复杂通知系统。
-  - 怎么算完成：至少一条研究或文档任务完成端到端验收。
-  - 怎么验证：回放用户输入、Contract、Run、Evidence 和验收结果。
-  - 对应需求：需求 2
-  - 对应设计：`design.md` §3
+  - 怎么算完成：`004.2` 最终检查点为 DONE；至少一条研究任务在 Outcome 子线程中完成端到端验收。
+  - 怎么验证：回放用户输入、Contract、子线程运行组、Evidence 和验收结果。
+  - 对应需求：需求 2、需求 13
+  - 对应设计：`design.md` §3、§45
 
 - [ ] 2.2 完成 `004.3` Outcome 收件箱与决策通知
-  - 状态：TODO
-  - 先依赖什么：2.1
-  - 开始前先看：
-    - `../004.3-Outcome收件箱与决策通知/requirements.md`
-    - `../004.3-Outcome收件箱与决策通知/design.md`
-    - `../004.3-Outcome收件箱与决策通知/tasks.md`
-  - 主要改哪里：由 `004.3` 任务定义
+  - 状态：IN_PROGRESS（全部已分配代码、本地通知 / 决策 / 恢复测试及客户端编译 / 单元证明完成；真实通知送达、设备 UI / live API 和子规格最终检查点仍 PENDING）
+  - 先依赖什么：第 0 波 A/B；`004.2` 任务 1.2、1.3 提供模型；Decision 续跑依赖 `004.2` 3.2、3.4，事件接入依赖 4.2；不等待 `004.2` 最终检查点。
+  - 开始前先看：`../004.3-Outcome收件箱与决策通知/` 三个主文档
   - 这一步先不做什么：不建设通用消息中心。
-  - 怎么算完成：用户可以收到并解决必要 Decision。
-  - 怎么验证：完成通知、暂停、决策和恢复回放。
-  - 对应需求：需求 3
-  - 对应设计：`design.md` §4
+  - 怎么算完成：`004.3` 最终检查点为 DONE；Desktop、Android、iOS 都能查看 Inbox 并解决 Decision。
+  - 怎么验证：完成通知、暂停、决策和子线程继续执行回放。
+  - 对应需求：需求 3、需求 13
+  - 对应设计：`design.md` §4、§45
 
-## 阶段 3：现实任务和运行收尾
-
-- [ ] 3.1 完成 `004.4` 现实任务与知识资料闭环
-  - 状态：TODO
-  - 先依赖什么：2.2
-  - 开始前先看：
-    - `../004.4-现实任务与知识资料闭环/requirements.md`
-    - `../004.4-现实任务与知识资料闭环/design.md`
-    - `../004.4-现实任务与知识资料闭环/tasks.md`
-  - 主要改哪里：由 `004.4` 任务定义
+- [x] 2.3 完成 `004.4` 现实任务与知识资料闭环
+  - 状态：DONE（2026-11-17，本地人工产品闭环及004.4最终检查点原条件均满足；不表示正式发布）
+  - 实际闭环：004.4全部15任务DONE；18 mounted UI失败/刷新/重连测试、25步真实服务/请求/ID/结果及32/32检查已归档，资料→人工卡→receipt→Review→原context继续和Explore边界完整。
+  - 证据文件：[人工具名回放/18需求/八问](../004.4-现实任务与知识资料闭环/docs/human-task-replay.md)、[开发收尾与范围](docs/20261117-开发任务收尾与验收边界.md)。
+  - 限制：推理/Computer受控；真实Bot/provider、原生窗口/设备、CI/旧镜像/发布未获验，不以本项勾选豁免其他规格原门槛。
+  - 先依赖什么：第 0 波 B；资料和人工表/API 骨架依赖 `004.2` 1.2、1.3；工具来源依赖 `004.2` 3.2、3.4 和 `004.3` 1.3，回执验收依赖 `004.2` 4.2。
   - 这一步先不做什么：不把人工动作自动执行成 Agent 动作。
-  - 怎么算完成：人工动作卡、资料来源、人工回执和验收能够闭环。
+  - 怎么算完成：`004.4` 最终检查点为 DONE；人工动作卡、资料来源、人工回执和验收能够闭环。
   - 怎么验证：回放一个人工执行任务。
   - 对应需求：需求 4
   - 对应设计：`design.md` §5
 
-- [ ] 3.2 完成 `004.5` 运行时恢复与版本验收
-  - 状态：TODO
-  - 先依赖什么：2.1；部分任务可与 2.2 并行
-  - 开始前先看：
-    - `../004.5-运行时恢复与版本验收/requirements.md`
-    - `../004.5-运行时恢复与版本验收/design.md`
-    - `../004.5-运行时恢复与版本验收/tasks.md`
-  - 主要改哪里：由 `004.5` 任务定义
+- [ ] 2.4 完成 `004.5` 运行时恢复与版本验收
+  - 状态：IN_PROGRESS（本地恢复隔离、六故障、metrics/canary与同版有Planning/Explore数据恢复已通过；跨客户端安装、真实provider/Computer、完整旧镜像及正式回退仍PENDING）
+  - 先依赖什么：第 0 波 B；恢复依赖 `004.2` 3.2、3.4；Decision 路由依赖 `004.3` 1.3、1.4；`004.1` 遗留运维验证可先行，最终回放依赖产品闭环。
+  - 开始前先看：`../004.5-运行时恢复与版本验收/` 三个主文档
   - 这一步先不做什么：不建设泛化安全平台或复杂权限体系。
-  - 怎么算完成：恢复、重复事件、必要动作处理和最终版本验收通过。
-  - 怎么验证：故障回放、升级回放和父 Spec 端到端回放。
-  - 对应需求：需求 5
-  - 对应设计：`design.md` §6
+  - 怎么算完成：`004.5` 最终检查点为 DONE。
+  - 怎么验证：故障回放、新安装/导入回放和父 Spec 端到端回放。
+  - 对应需求：需求 5、需求 13
+  - 对应设计：`design.md` §6、§45
 
-## 最终检查
+## 阶段 2：跨阶段一致性
 
-- [ ] 4.1 父 Spec 最终检查点
-  - 状态：TODO
-  - 这一步到底做什么：检查所有阶段是否按需求、设计和验证证据完成。
-  - 做完你能看到什么：项目从更名到 Outcome 验收再到最终发布可以完整复核。
-  - 先依赖什么：1.2、2.1、2.2、3.1、3.2
-  - 主要改哪里：父 Spec 和全部子 Spec
-  - 这一步先不做什么：不追加未批准的新功能。
-  - 怎么算完成：所有子 Spec 的最终检查点为 DONE，父级端到端验收通过。
-  - 怎么验证：按父 Spec 验收矩阵逐项回放。
-  - 对应需求：全部需求
-  - 对应设计：`design.md` 全文
-
-## 任务执行规则
-
-每个子规格任务必须在实现前补充实际文件路径和验证命令，不能只写“由子 Spec 任务定义”。父任务的完成条件是子规格最终检查点已完成并且证据已经回填。
-
-## 证据登记模板
-
-每个阶段完成时，在对应 `docs/` 目录记录：
-
-```text
-阶段：004.x
-实现提交：<commit>
-数据库迁移：<migration>
-客户端构建：<command and result>
-服务端测试：<command and result>
-端到端回放：<fixture/report>
-已知限制：<none or list>
-回滚方法：<command or release asset>
-复核人：<name>
-复核日期：<date>
-```
-
-## 父级执行检查点
-
-- [ ] 4.2 每个子规格的需求、设计和任务引用完整。
-  - 状态：TODO
-  - 依赖：1.1
-  - 验证：脚本检查 Markdown 目标文件和编号引用。
-
-- [ ] 4.3 阶段间 API、数据库和事件兼容性复核。
-  - 状态：TODO
-  - 依赖：2.1、2.2、3.1、3.2
-  - 验证：检查所有跨规格载荷和迁移 fixture。
-
-- [ ] 4.4 全局场景 A–D 回放并生成发布结论。
-  - 状态：TODO
-  - 依赖：4.2、4.3
-  - 验证：运行父规格回放脚本和人工验收矩阵。
-
-## 阶段 4：父级交付检查点
-
-- [ ] 4.5 建立跨阶段 fixture 目录和 ID 关系
-  - 状态：TODO
-  - 这一步到底做什么：为升级、研究任务、Decision、人工任务和恢复场景建立固定输入和预期状态。
-  - 做完你能看到什么：`specs/004-OutcomeGo整体项目/docs/fixtures/` 下有可重复 fixture 和清理说明。
-  - 先依赖什么：各子 Spec 的 fixture 设计完成。
-  - 开始前先看：父 `requirements.md` 场景 A–D、父 `design.md` §23、各子 Spec docs/README。
-  - 主要改哪里：父级 `docs/fixtures/`、回放脚本说明。
+- [x] 3.0 建立跨阶段 fixture 目录和 ID 关系
+  - 状态：DONE（2026-11-17，本地固定 fixture、schema / ID / 事件检查及实际 CLI JSON 已核实；不代表安装、远端或父级场景 A–H 全部完成）
+  - 最终证据：六个固定 fixture、静态检查、跨阶段数据库测试、六类故障真实初态 / 请求 / ID / 终态及清理记录均存在；最终六 CLI 40 checks 和十个专库恢复 / enrollment 用例独立通过，见[组合验证总账](docs/20261117-全规格组合验证与修复记录.md)。下列“第 3 波”字段是 task-26 开闸前的来源历史，保持原样，不再作为当前尚未执行的声明。
+  - 第 3 波实现提交：`2d9eaeb43`、`e00496f5e`、`543eef450`、`d4de4846e`、`d330efc34`、`80ea59865`；`870ebac90` 仅为本线编译所需依赖合并，不拾取到集成线。
+  - 第 3 波修改文件：父六 JSON/合同检查脚本；`scripts/test-outcome-recovery.ts`、`scripts/outcome-recovery/`、`apps/server/test/fixtures/outcome-recovery/`、新 cross-phase 测试；本任务文档。51 个既有测试文件的精确清单见交接与入口补齐记录。
+  - 第 3 波数据库变化：none（本线不改 schema；恢复计数等为其他线原始提交依赖；没有启动或连接本线测试库）。
+  - 第 3 波验证命令：`bun test ./scripts/check-outcome-contracts.test.ts ./scripts/outcome-recovery/report.test.ts ./scripts/check/test-database-gates.test.ts`；`bun scripts/check/outcome-regression-types.ts`；`bun scripts/test-outcome-recovery.ts --scenario receipt-retry --plan`；`git diff --check`。
+  - 第 3 波验证结果：13 PASS / 0 FAIL / 62 assertions；14 个本线文件语义诊断 0、依赖诊断 0；51 个旧测试文件语法通过；11+6 个新 DB 测试、六场景实际 JSON/DB 对账及备份回退均 PENDING。
+  - 第 3 波证据文件：[第3波回归脚手架交接](docs/20261117-第3波回归脚手架交接.md)；同目录组合验证手册/合同矩阵/数据库入口补齐记录；`004.5/docs/final-replay.md` 和 `release-decision.md`。
+  - 第 3 波已知限制：canonical 入口补齐已扩大覆盖，新的完整失败数未知；历史 canonical/dual-flag 基线分别保留且数据库失败仍阻塞；远端 CI/Computer/真实模型、安装与旧镜像未验，不宣称 CI 全绿。
+  - 第 3 波回滚方式：只撤销本线脚手架、测试 URL 回退与文档提交；保留其他线依赖、真实 Outcome/人工证据和旧 l1 原始日志。
+  - 先依赖什么：`004.2` 任务 0.2（研究试点 fixture）
+  - 这一步到底做什么：为研究任务、Decision、人工任务、重复事件、新安装导入和发布资产建立固定输入和预期状态。
+  - 做完你能看到什么：`docs/fixtures/` 下 `research-outcome.json`、`decision-pending.json`、`human-action.json`、`duplicate-event.json`、`fresh-install-import.json`、`release-assets.json`，以及清理说明。
   - 这一步先不做什么：不引用生产账号、真实 token 或私有资料。
   - 怎么算完成：每个 fixture 有初始数据、请求顺序、预期状态、关键 ID 和清理方法。
   - 怎么验证：fixture schema 检查和 dry-run。
   - 对应需求：需求 2、需求 4、需求 5、需求 6
-  - 对应设计：父 `design.md` §23、§37
+  - 对应设计：`design.md` §23、§37
 
-- [ ] 4.6 执行跨阶段 API/事件/数据库兼容复核
-  - 状态：TODO
-  - 这一步到底做什么：核对各子 Spec 使用的 DTO、事件、revision、idempotency key 和 migration 是否一致。
-  - 做完你能看到什么：`docs/cross-phase-contract-matrix.md`。
-  - 先依赖什么：4.2、4.3、4.5
-  - 主要改哪里：父级矩阵和必要的子 Spec 交叉引用。
+- [x] 3.0a 跨阶段 API、事件和数据库合同复核
+  - 状态：DONE（2026-11-17，按本任务本地合同复核的原完成标准接受；不要求子规格最终检查点或外部发布门先完成）
+  - 逐项验收：模型依赖已交付；`docs/cross-phase-contract-matrix.md` 逐项记录生产者、消费者和兼容行为。规范事件目录 / 解析、共享事实 / revision / 幂等语义、Schema relation、真实服务端口并集和最终全部修复均已通过实际静态 / 数据库 / 合同验证及独立源码审查；未发现未解决的重复事实、字段冲突、未登记主题或无法解析事件。原完成标准无需安装或真实 provider 证明，因此不再以父级外部门阻塞本项。以下分波文字是来源历史，不能覆盖本次 DONE；其他任务依赖与外部门不变。
+  - 最终本地证据：所有已分配源码与修复均已整合并独立源码审查关闭；纯测试后继相对最终生产冻结只有六个已审测试文件差异。六完整包零失败、十个隔离 DB 用例和六 CLI 的 40 checks 通过，七完整类型 / 架构 / workflow / fixture 通过；Android shared 43 + app 86、Swift 329 为客户端执行者的实际证据，Desktop 真实生产 bundle 为 integrator 实际执行。来源、映射、原始 SHA、已知 skip 与外部门见[组合验证总账](docs/20261117-全规格组合验证与修复记录.md)。本地合同证据已完成，仍不把父级真实安装 / provider / 设备 / 远端与发布检查点勾为 DONE。
+  - 后续波次进展：[代码集成与覆盖矩阵](docs/20261117-后续波次代码集成记录.md) 从 `948ead5de` 继续，整个 Spec004 剩余代码及明确必做的 Explore 已整合，包括共享 Schema / 合同、Decision / 人工回执 / 恢复服务、真实工具 / 路由和客户端桥接。代码阶段只执行必要的编译与定向合并检查；后端、移动端、独立审查及静态合同的统一验收由负责人下一阶段启动。定向集成检查与所有者证据分列，正式验收仍未完成，本父任务保持未勾选。
+  - 第 3 波本线验收状态：BLOCKED（2026-11-17，task-26 代码交付及最小检查完成；按负责人要求集中数据库/回放待执行，未满足正式验收；此项为来源线状态，不覆盖父任务正在进行的整合与验证）
+  - 第 3 波实现提交：`2d9eaeb43`、`e00496f5e`、`543eef450`、`d4de4846e`、`d330efc34`、`80ea59865`；`870ebac90` 仅为本线编译所需依赖合并，不拾取到集成线。
+  - 第 3 波修改文件：父六 JSON/合同检查脚本；`scripts/test-outcome-recovery.ts`、`scripts/outcome-recovery/`、`apps/server/test/fixtures/outcome-recovery/`、新 cross-phase 测试；本任务文档。51 个既有测试文件的精确清单见交接与入口补齐记录。
+  - 第 3 波数据库变化：none（本线不改 schema；恢复计数等为其他线原始提交依赖；没有启动或连接本线测试库）。
+  - 第 3 波验证命令：`bun test ./scripts/check-outcome-contracts.test.ts ./scripts/outcome-recovery/report.test.ts ./scripts/check/test-database-gates.test.ts`；`bun scripts/check/outcome-regression-types.ts`；`bun scripts/test-outcome-recovery.ts --scenario receipt-retry --plan`；`git diff --check`。
+  - 第 3 波验证结果：13 PASS / 0 FAIL / 62 assertions；14 个本线文件语义诊断 0、依赖诊断 0；51 个旧测试文件语法通过；11+6 个新 DB 测试、六场景实际 JSON/DB 对账及备份回退均 PENDING。
+  - 第 3 波证据文件：[第3波回归脚手架交接](docs/20261117-第3波回归脚手架交接.md)；同目录组合验证手册/合同矩阵/数据库入口补齐记录；`004.5/docs/final-replay.md` 和 `release-decision.md`。
+  - 第 3 波已知限制：canonical 入口补齐已扩大覆盖，新的完整失败数未知；历史 canonical/dual-flag 基线分别保留且数据库失败仍阻塞；远端 CI/Computer/真实模型、安装与旧镜像未验，不宣称 CI 全绿。
+  - 第 3 波回滚方式：只撤销本线脚手架、测试 URL 回退与文档提交；保留其他线依赖、真实 Outcome/人工证据和旧 l1 原始日志。
+  - 证据：[第 1 波集成验证记录](docs/20261117-第1波集成验证记录.md)。schema/contracts 分批并集合入，保留 L1/L2 共享服务方法和第四参数撤回回调；最终组合定向数据库/合同/工具/Desktop/Stop 553 PASS（39 文件、2315 断言），7 包类型通过。内部事件流过滤、未消费 Evidence 保留、开放 Decision/HumanAction 验收门槛、永久 Decision 通知恢复、取消重绑定与停止事实均已有实际定向验证和审查闭环。完整父级合同矩阵/后续波次和真实端到端尚未结束，不勾选本父任务；1.3 的远端 CI 继续 PENDING。
+  - 先依赖什么：2.1、2.2、2.3、2.4 各自的模型任务
+  - 这一步到底做什么：核对各子 Spec 使用的 DTO、事件名（只能使用 §14 目录）、revision、idempotency key 和 schema 变更是否一致。
+  - 做完你能看到什么：`docs/cross-phase-contract-matrix.md`，每个跨阶段载荷都有生产者、消费者和兼容行为。
   - 这一步先不做什么：不通过修改测试快照掩盖合同不一致。
-  - 怎么算完成：没有重复的业务事实来源、冲突的字段语义或无法解析的事件。
-  - 怎么验证：合同静态检查、事件 fixture、数据库 relation 检查。
+  - 怎么算完成：没有重复的业务事实来源、冲突的字段语义、未登记的事件名或无法解析的事件。
+  - 怎么验证：合同静态检查（扫描 `topic:` 字面量是否都在 §14 目录或现有运行时主题中）、事件 fixture、数据库 relation 检查。
   - 对应需求：需求 6、需求 7、需求 8
-  - 对应设计：父 `design.md` §14、§16、§17
+  - 对应设计：`design.md` §14、§16、§17、§29
 
-- [ ] 4.7 执行全局场景 A–H
-  - 状态：TODO
-  - 这一步到底做什么：按固定 fixture 回放升级、规划执行、Decision、人工任务、重复事件、Contract 变更、外部内容、验收失败返工和旧客户端兼容。
+## 阶段 3：最终验收
+
+- [ ] 3.1 执行全局场景 A–H
+  - 状态：BLOCKED（具名A–H报告已交付并逐项记录本地PASS/现场PENDING；2.1、2.2、2.4原最终检查点前置未闭）
+  - 先依赖什么：2.1–2.4 最终检查点、3.0、3.0a
+  - 这一步到底做什么：按固定 fixture 回放新安装/导入、规划执行（含主对话不被打断）、Decision、人工任务、重复事件、Contract 变更、外部内容、验收失败返工和旧客户端兼容；同时复核 `004.1` 的已知 PENDING 项。
   - 做完你能看到什么：`docs/final-replay.md`，包含每个步骤、ID、命令和结果。
-  - 先依赖什么：所有子 Spec 最终检查点。
-  - 主要改哪里：父级回放记录和发布结论。
   - 这一步先不做什么：不在最终回放阶段新增功能。
-  - 怎么算完成：场景 A–H 全部通过，失败项明确为 BLOCKED/PENDING/FAIL。
+  - 怎么算完成：场景 A–H 全部有结论，失败项明确为 BLOCKED/PENDING/FAIL。
   - 怎么验证：父级 replay 命令和人工验收矩阵。
-  - 对应需求：需求 2、需求 3、需求 4、需求 5、需求 9
-  - 对应设计：父 `design.md` §19–§24
+  - 对应需求：需求 1–9、需求 13
+  - 对应设计：`design.md` §19–§24、§37、§45
 
-- [ ] 4.8 父级发布/回滚评审
-  - 状态：TODO
-  - 这一步到底做什么：评审版本、迁移、资产、已知限制、回滚和责任人。
+- [ ] 3.2 父级发布/回滚结论
+  - 状态：BLOCKED（具名release-decision.md已交付，正式发布PENDING及责任/回退明确；原依赖3.1未闭）
+  - 先依赖什么：3.1
+  - 这一步到底做什么：汇总版本、schema 变更、构建、测试、PENDING 证据、回滚方式和责任人。
   - 做完你能看到什么：`docs/release-decision.md`。
-  - 先依赖什么：4.7
-  - 主要改哪里：父级发布记录和子 Spec 未完成项。
-  - 这一步先不做什么：不以“稍后补测试”替代硬门槛。
-  - 怎么算完成：明确 PASS/PENDING/FAIL 和下一步。
+  - 这一步先不做什么：不以“稍后补测试”替代硬门槛；不把缺少设备/账号的检查写成 PASS。
+  - 怎么算完成：结论为 PASS/PENDING/FAIL，下一步明确。
   - 怎么验证：逐项检查父/子 requirements、design、tasks 和证据。
   - 对应需求：需求 9、需求 10
-  - 对应设计：父 `design.md` §34、§36、§38
+  - 对应设计：`design.md` §34、§36
 
-## 任务执行和证据规则
+- [ ] 3.3 父 Spec 最终检查点
+  - 状态：PENDING（全部已分配代码完成不等于全部子规格正式验收完成；保留上列外部与父级端到端门槛）
+  - 先依赖什么：3.2
+  - 怎么算完成：所有子 Spec 最终检查点为 DONE，父级场景 A–H 有实际验证记录，覆盖核对文档没有未归属项。
+  - 怎么验证：按本文件“父级质量检查清单”逐项核对。
+  - 对应需求：全部需求
+  - 对应设计：全文
 
-每个子任务必须在开始前确认：
+## 任务执行规则
 
-- 读取了对应 `requirements.md` 和 `design.md` 章节。
-- 当前工作树和相关版本状态。
-- 依赖任务是否为 `DONE`。
-- 具体修改文件和明确不修改文件。
-- 测试环境是否可用。
+每个子任务开始前确认：已读对应 `requirements.md` 和 `design.md` 章节；依赖任务为 `DONE`；明确要改和不改的文件；测试环境可用。
 
-每个任务完成时必须回写：
+每个任务完成时回写：
 
 ```text
 状态：DONE / BLOCKED / CANCELLED
 实现提交：<commit>
 修改文件：<paths>
-数据库变化：<migration or none>
+数据库变化：<schema 变更摘要 or none>
 验证命令：<commands>
 验证结果：<pass/fail/pending>
 证据文件：<path>
@@ -232,62 +207,16 @@
 回滚方式：<method>
 ```
 
-## 父级阶段检查
-
-- [ ] 5.1 检查子 Spec 状态和依赖
-  - 状态：TODO
-  - 先依赖什么：所有子 Spec tasks 的阶段检查点。
-  - 这一步到底做什么：确认父级状态只由真实子 Spec 证据驱动。
-  - 主要改哪里：父 `tasks.md`、子 Spec 状态和证据文件。
-  - 这一步先不做什么：不通过手工勾选跳过子任务。
-  - 怎么算完成：每个子 Spec 的 DONE 任务都有证据，BLOCKED/PENDING 项有原因。
-  - 怎么验证：状态扫描脚本和人工抽查。
-  - 对应需求：需求 6、需求 10
-  - 对应设计：父 `design.md` §27、§34
-
-- [ ] 5.2 检查跨阶段 API 和事件
-  - 状态：TODO
-  - 先依赖什么：5.1
-  - 这一步到底做什么：对照父级事件合同和各阶段 API，确认字段、revision、ID 和错误码一致。
-  - 主要改哪里：`docs/cross-phase-contract-matrix.md`
-  - 这一步先不做什么：不以客户端快照掩盖服务端合同差异。
-  - 怎么算完成：所有跨阶段载荷都有生产者、消费者和兼容行为。
-  - 怎么验证：合同静态检查、fixture replay 和 API snapshot。
-  - 对应需求：需求 6、需求 7、需求 8
-  - 对应设计：父 `design.md` §14、§29
-
-- [ ] 5.3 执行父级升级和功能回放
-  - 状态：TODO
-  - 先依赖什么：5.1、5.2
-  - 这一步到底做什么：按 A–D 场景顺序执行升级、Outcome、Decision、人工任务和重复事件回放。
-  - 主要改哪里：`docs/final-replay.md`、`docs/release-decision.md`
-  - 这一步先不做什么：不在回放阶段新增功能。
-  - 怎么算完成：每一步记录输入、ID、状态、命令和结果。
-  - 怎么验证：父级 replay fixture 和人工验收矩阵。
-  - 对应需求：需求 1–9
-  - 对应设计：父 `design.md` §19–§24、§37
-
-- [ ] 5.4 生成父级发布结论
-  - 状态：TODO
-  - 先依赖什么：5.3
-  - 这一步到底做什么：汇总版本、迁移、构建、测试、PENDING 证据和回滚方式。
-  - 主要改哪里：`docs/release-decision.md`
-  - 这一步先不做什么：不把缺少设备/账号的检查标记为 PASS。
-  - 怎么算完成：结论为 PASS/PENDING/FAIL，责任人和下一步明确。
-  - 怎么验证：发布评审和文件完整性检查。
-  - 对应需求：需求 9、需求 10
-  - 对应设计：父 `design.md` §34、§36
-
 ## 父级质量检查清单
 
 - [ ] 所有 `requirements.md` 都有 In Scope、Out of Scope、验收标准、非功能需求和成功定义。
-- [ ] 所有 `design.md` 都有当前代码基线、文件影响、验证策略、状态/API/数据合同。
-- [ ] 所有 `tasks.md` 都有依赖、文件、明确不做、完成标准和验证命令。
+- [ ] 所有 `design.md` 都有当前代码基线、文件影响、验证策略、状态/API/数据合同；设计决策只引用 §39 编号。
+- [ ] 所有 `tasks.md` 都有依赖、文件、明确不做、完成标准和验证命令；最终检查点引用的需求范围与 requirements 一致。
 - [ ] 每个子 Spec 的 README 链接到三个主文档和 docs/README。
 - [ ] 没有任务通过“由其他 Spec 定义”省略实际执行入口。
-- [ ] 没有将安全建议扩展为当前项目之外的通用平台。
+- [ ] 所有事件名都来自 `design.md` §14 目录。
+- [ ] 没有任何 Spec 按多 owner 设计查询或测试（§44）。
+- [ ] 没有将安全建议扩展为当前项目之外的通用平台；没有任何 Spec 宣称工具动作被拦截或阻止（§40）。
 - [ ] 父级场景 A–H 使用固定 fixture，不依赖生产账号。
 - [ ] 原规划覆盖核对文档与各子 Spec 需求一致，没有未归属项。
-- [ ] 没有任何 Spec 宣称工具动作被拦截或阻止（见 `design.md` §40）。
 - [ ] 所有发布和外部环境检查区分 PASS、PENDING 和 FAIL。
-

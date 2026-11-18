@@ -1,0 +1,29 @@
+bun test v1.4.4 (38afee6c8)
+
+apps/worker/test/reaction-claim-availability.integration.test.ts:
+(node:42873) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `bun --trace-warnings ...` to show where the warning was created)
+(pass) queued 👍 feedback cannot claim after the author is removed from its group [244.54ms]
+(pass) queued 👍 feedback cannot claim after its chat is archived [128.98ms]
+(pass) ordinary 👍 feedback still claims in its live group and retains its reply guidance [114.42ms]
+(pass) queued 👎 feedback cannot claim after the author is removed from its group [159.94ms]
+(pass) queued 👎 feedback cannot claim after its chat is archived [141.90ms]
+(pass) ordinary 👎 feedback still claims in its live group and retains its reply guidance [110.79ms]
+(pass) discarding unavailable group feedback does not block an independent home-chat user message [124.11ms]
+(pass) feedback claim waits for an in-flight group membership edit and checks its committed result [127.74ms]
+(pass) a mixed room-message and reaction queue takes the room execution lock before membership locks [146.18ms]
+
+apps/worker/test/outcome-claim-locks.integration.test.ts:
+(pass) Outcome claim lock order > real multi-Outcome Stop and reverse-priority claim both commit [275.00ms]
+(pass) Outcome claim lock order > a contended higher-priority Outcome cannot hold up foreground input [195.39ms]
+
+apps/worker/test/outcome-recovery.integration.test.ts:
+(pass) Outcome recovery ownership and mailbox fairness > a cancelled queued head is retired and the same claim reaches valid later work [188.18ms]
+(pass) Outcome recovery ownership and mailbox fairness > two worker claims produce one valid owner for one Outcome thread [154.22ms]
+(pass) Outcome recovery ownership and mailbox fairness > expired Outcome ownership cannot renew itself or be redispatched as the same Run [91.70ms]
+(pass) Outcome recovery ownership and mailbox fairness > closing Outcome dispatch preserves pending intents, foreground claims and business history [94.49ms]
+
+ 15 pass
+ 0 fail
+ 47 expect() calls
+Ran 15 tests across 3 files. [2.73s]

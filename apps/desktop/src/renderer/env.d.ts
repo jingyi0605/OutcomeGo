@@ -190,6 +190,11 @@ interface Window {
       }>;
       openSettings: () => Promise<void>;
     };
+    outcomes?: {
+      takePendingTarget: () => Promise<import("./lib/outcome-target").DesktopOutcomeTarget | null>;
+      onTargetAvailable: (callback: () => void) => () => void;
+      syncNotifications: (notifications: unknown[]) => void;
+    };
     getProcessMetrics: () => Promise<{
       at: number;
       app: Electron.ProcessMetric[];

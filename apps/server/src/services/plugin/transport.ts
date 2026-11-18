@@ -13,6 +13,7 @@ import {
 } from "../../plugins/packaged-oauth";
 import { toJson } from "../service-utils";
 import { PLUGIN_UNSAVED_UNKNOWN_OUTCOME } from "./invocation-outcomes";
+import { assertConnectedPublicationAllowed } from "./connected-publication";
 import {
   bitwardenInstanceEnvironment,
   boundPluginResult,
@@ -84,18 +85,28 @@ export class PluginTransport {
       );
       if (!tool && !hostTools.includes(invocation.toolName))
         throw new ApiError(404, "plugin_tool_not_found", "The tool is no longer available");
+      const connected = invocation.callId.startsWith("connected-channel:");
+      // Resolve packaged credentials before the publication claim, outside its locks.
+      const preparedRuntime = connected && current.transport === "stdio"
+        ? await this.stdioRuntime(current) : undefined;
       // Claim once, including simultaneous requests from multiple clients.
-      const claim = await this.prisma.pluginInvocation.updateMany({
-        where: { id: invocation.id, status: "running", OR: [{ error: null }, { error: { not: "Executing" } }] },
+      const claimInput = {
+        where: { id: invocation.id, status: "running" as const, OR: [{ error: null }, { error: { not: "Executing" } }] },
         data: { error: "Executing" },
-      });
+      };
+      const claim = connected
+        ? await this.prisma.$transaction(async tx => {
+          await assertConnectedPublicationAllowed(tx, invocation);
+          return tx.pluginInvocation.updateMany(claimInput);
+        })
+        : await this.prisma.pluginInvocation.updateMany(claimInput);
       if (!claim.count)
         throw new ApiError(409, "plugin_call_replayed", "This call is already executing");
       const rawResult =
         current.transport === "builtin"
           ? await this.invokeBuiltin(invocation.toolName, invocation.arguments, invocation)
           : current.transport === "stdio"
-            ? await this.callStdio(current, invocation.toolName, invocation.arguments, signal)
+            ? await this.callStdio(current, invocation.toolName, invocation.arguments, signal, preparedRuntime)
             : await this.callHttp(
                 current,
                 invocation.toolName,
@@ -140,7 +151,10 @@ export class PluginTransport {
         : await this.redactError(error, invocation.connection);
       const message = safe.message;
       await this.prisma.pluginInvocation.updateMany({
-        where: { id: invocation.id, status: "running" },
+        where: { id: invocation.id, status: "running",
+          ...(safe instanceof ApiError && ["request_stopped", "tool_context_invalid"].includes(safe.code)
+            ? { OR: [{ error: null }, { error: { not: "Executing" } }] } : {}),
+        },
         data: { status: "failed", error: message.slice(0, 2_000), completedAt: new Date() },
       }).catch(() => undefined); // A failed diagnostic write must not replace the primary outcome.
       throw safe;
@@ -450,9 +464,10 @@ export class PluginTransport {
     },
     toolName: string,
     args: unknown,
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    preparedRuntime?: Awaited<ReturnType<PluginTransport["stdioRuntime"]>>,
   ): Promise<unknown> {
-    const { configuration, runtimeGeneration } = await this.stdioRuntime(connection);
+    const { configuration, runtimeGeneration } = preparedRuntime ?? await this.stdioRuntime(connection);
     const response = await this.callComputer(`/v1/mcp/connections/${connection.id}/call`, {
       configuration,
       runtimeGeneration,

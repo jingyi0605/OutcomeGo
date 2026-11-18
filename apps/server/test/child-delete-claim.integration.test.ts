@@ -5,7 +5,7 @@ import { BotService } from "../src/services/bot-service";
 import { WakeWorker } from "../../worker/src/worker";
 import { dispatchComputerTurn } from "../../worker/src/runtime-dispatch";
 
-const databaseUrl = process.env.OPENTEAM_TEST_DATABASE_URL;
+const databaseUrl = (process.env.OUTCOMEGO_TEST_DATABASE_URL ?? process.env.OPENTEAM_TEST_DATABASE_URL);
 const gate = () => {
   let resolve!: () => void;
   const promise = new Promise<void>((next) => { resolve = next; });

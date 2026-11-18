@@ -1,0 +1,6 @@
+$ bun --no-install scripts/check/release-workflows.ts
+exit=0
+Release workflow checks passed.
+Release tags use native image builders or immutable digest reuse; Computer bases are built only on a recipe cache miss.
+Desktop keeps its historical artifact prefix until a beta.13 updater fixture proves the renamed prefix resolves.
+Versionless CLI binaries are stable download assets, not duplicate versioned application builds.

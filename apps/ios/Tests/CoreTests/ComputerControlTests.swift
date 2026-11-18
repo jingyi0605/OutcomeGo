@@ -1,5 +1,5 @@
 import XCTest
-@testable import OpenTeamCore
+@testable import OutcomeGoCore
 final class ComputerControlTests: XCTestCase {
   func testAnotherDeviceDoesNotGrantInput() {
     let status: JSON = .object(["humanTakeover": .bool(true), "controlSession": .object(["id": .string("desktop"), "generation": .number(4)])])

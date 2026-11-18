@@ -86,14 +86,21 @@ test("approval card displays instance names and binds credential read strictly t
         createdApproval = { id: "approval-new", ...data };
         return createdApproval;
       },
-      update: async () => ({}),
+      update: async ({ data }: any) => {
+        Object.assign(createdApproval, data);
+        return createdApproval;
+      },
       findUnique: async ({ where }: any) =>
         where.id === approvedRecord.id ? approvedRecord : null,
     },
   };
+  Object.assign(db, {
+    channelMessage: { findUniqueOrThrow: async () => ({ id: "msg-1", senderBotId: null }) },
+  });
   const messaging: any = {
-    sendVisible: async (_ctx: unknown, payload: unknown) => {
+    sendVisible: async (_ctx: unknown, payload: unknown, onPersisted: (tx: unknown, id: string) => Promise<void>) => {
       sentWidgets.push(payload);
+      await onPersisted(db, "msg-1");
       return { acknowledgement: { message_id: "msg-1" } };
     },
   };
@@ -126,6 +133,7 @@ test("approval card displays instance names and binds credential read strictly t
     { label: "GitHub - github.com (alice@example.com)", value: `${connA}:${itemA}` },
     { label: "GitHub Work - github.com (bob@vault.test)", value: `${connB}:${itemB}` },
   ]);
+  expect(createdApproval.widgetMessageId).toBe("msg-1");
 
   await expect(
     Effect.runPromise(

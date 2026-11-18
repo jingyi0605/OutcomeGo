@@ -1,0 +1,118 @@
+{
+  "db": {
+    "pass": 47,
+    "fail": 0,
+    "tests": 47,
+    "files": 11,
+    "elapsed": "17.69s"
+  },
+  "plugin-sdk": {
+    "pass": 260,
+    "fail": 0,
+    "tests": 260,
+    "files": 20,
+    "elapsed": "72.69s"
+  },
+  "contracts": {
+    "pass": 193,
+    "fail": 0,
+    "tests": 193,
+    "files": 35,
+    "elapsed": "292.00ms"
+  },
+  "plugins": {
+    "pass": 781,
+    "skip": 19,
+    "fail": 0,
+    "tests": 800,
+    "files": 68,
+    "elapsed": "56.47s"
+  },
+  "shell-jobs": {
+    "pass": 18,
+    "fail": 0,
+    "tests": 18,
+    "files": 5,
+    "elapsed": "182.00ms"
+  },
+  "product-core": {
+    "pass": 157,
+    "fail": 0,
+    "tests": 157,
+    "files": 21,
+    "elapsed": "2.50s"
+  },
+  "client-core": {
+    "pass": 82,
+    "fail": 0,
+    "tests": 82,
+    "files": 13,
+    "elapsed": "313.00ms"
+  },
+  "design-tokens": {
+    "pass": 4,
+    "fail": 0,
+    "tests": 4,
+    "files": 2,
+    "elapsed": "6.00ms"
+  },
+  "computer": {
+    "pass": 1355,
+    "skip": 68,
+    "fail": 4,
+    "tests": 1427,
+    "files": 221,
+    "elapsed": "211.31s"
+  },
+  "cli": {
+    "pass": 758,
+    "fail": 0,
+    "tests": 758,
+    "files": 52,
+    "elapsed": "89.47s"
+  },
+  "messaging": {
+    "pass": 854,
+    "fail": 2,
+    "tests": 856,
+    "files": 81,
+    "elapsed": "106.85s"
+  },
+  "landing": {
+    "pass": 61,
+    "fail": 0,
+    "tests": 61,
+    "files": 9,
+    "elapsed": "10.48s"
+  },
+  "ios": {
+    "pass": 7,
+    "fail": 0,
+    "tests": 7,
+    "files": 1
+  },
+  "desktop": {
+    "pass": 758,
+    "skip": 1,
+    "fail": 0,
+    "tests": 759,
+    "files": 138,
+    "elapsed": "24.84s"
+  },
+  "server": {
+    "pass": 1057,
+    "skip": 11,
+    "fail": 294,
+    "tests": 1362,
+    "files": 226,
+    "elapsed": "158.98s"
+  },
+  "worker": {
+    "pass": 178,
+    "skip": 3,
+    "fail": 51,
+    "tests": 232,
+    "files": 59,
+    "elapsed": "375.72s"
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "observedAt": "2026-11-17T12:26:52.166844+00:00",
+  "container": "outcomego-task72-populated-backup-pg-20261117",
+  "endpoint": "127.0.0.1:55439",
+  "postgresVersion": "pg_dump (PostgreSQL) 17.12",
+  "otherClientsBeforeRemoval": 0,
+  "removeExitCode": 0,
+  "exactContainerAbsent": true,
+  "dumpsPreserved": [
+    {
+      "path": "/Users/jackson/Code/openteam-spec004-worktrees/task72-populated-backup/data/task72/exact-proof/planning-explore.dump",
+      "bytes": 315021,
+      "sha256": "616ff76f531326291635e02b2aecc625205e0e2223c7b2c87b9854b74c4035f4"
+    },
+    {
+      "path": "/Users/jackson/Code/openteam-spec004-worktrees/task72-populated-backup/data/task72/final-proof/planning-explore.dump",
+      "bytes": 315031,
+      "sha256": "ed39f21e19d3736339c3e832ec29be95f440b29ec425637979913bb9afa24e41"
+    },
+    {
+      "path": "/Users/jackson/Code/openteam-spec004-worktrees/task72-populated-backup/data/task72/proof/planning-explore.dump",
+      "bytes": 315015,
+      "sha256": "f0869cff9168e1aca4ee58b88ac7fc6050135db63662e0f4386ccafa7d38bbdd"
+    }
+  ],
+  "previousTask30DumpUnchangedSha256": "0e5f11d9b725efadd5d388a47c31f964d4ecd5e431077a0e07f4ed9e061baf69",
+  "sharedIntegrationWritten": false,
+  "commitsCreated": false,
+  "temporaryFixtureDirectoriesCreated": false,
+  "ownedExecutorChildrenCreated": false
+}

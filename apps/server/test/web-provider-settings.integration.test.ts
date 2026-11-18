@@ -131,7 +131,7 @@ test.skipIf(!databaseUrl)(
 
       // A key in use cannot be removed until the tool moves elsewhere.
       const inUse = await patch({ search: { providers: { exa: { apiKey: null } } } });
-      expect(inUse.body.error.message).toBe("Exa is used for search. Choose another search provider before removing its API key.");
+      expect(inUse.body.error.message).toBe("Exa is used for search. Remove it from the provider schedule before removing its API key.");
       await patch({ search: { selected: null, providers: { exa: { apiKey: null } } } });
       expect(await service.credentials("search")).toEqual({ strategy: "failover", providers: [], cursor: 0 });
       expect(await service.credentials("fetch")).toEqual({ strategy: "failover", providers: [{ provider: "exa", apiKey: fetchKey }], cursor: 0 });

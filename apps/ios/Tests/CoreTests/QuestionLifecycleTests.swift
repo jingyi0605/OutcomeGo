@@ -1,5 +1,5 @@
 import XCTest
-@testable import OpenTeamCore
+@testable import OutcomeGoCore
 
 final class QuestionLifecycleTests: XCTestCase {
   private func row(_ id: String, user: Bool = false, metadata: JSON? = nil) -> Message {

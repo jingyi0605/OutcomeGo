@@ -8460,6 +8460,836 @@
           }
         }
       }
+    },
+    "Outcomes": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "成果"
+          }
+        }
+      }
+    },
+    "Outcome": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "成果"
+          }
+        }
+      }
+    },
+    "Updated: %@": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更新时间：%@"
+          }
+        }
+      }
+    },
+    "Current revision: %@": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "当前修订：%@"
+          }
+        }
+      }
+    },
+    "Revision %lld": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "修订 %lld"
+          }
+        }
+      }
+    },
+    "Work items": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "工作项"
+          }
+        }
+      }
+    },
+    "Outputs": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "输出"
+          }
+        }
+      }
+    },
+    "Acceptance results": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "验收结果"
+          }
+        }
+      }
+    },
+    "Required": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "必需"
+          }
+        }
+      }
+    },
+    "Optional": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "可选"
+          }
+        }
+      }
+    },
+    "No outcomes yet": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "暂无成果"
+          }
+        }
+      }
+    },
+    "Load more": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "加载更多"
+          }
+        }
+      }
+    },
+    "Planning, approval, acceptance and rework: please complete on Desktop.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "规划、批准、验收和返工：请在 Desktop 完成。"
+          }
+        }
+      }
+    },
+    "Draft": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "草稿"
+          }
+        }
+      }
+    },
+    "Planning": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "规划中"
+          }
+        }
+      }
+    },
+    "Pending approval": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "待批准"
+          }
+        }
+      }
+    },
+    "Approved": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已批准"
+          }
+        }
+      }
+    },
+    "Queued": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "排队中"
+          }
+        }
+      }
+    },
+    "Completed": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已完成"
+          }
+        }
+      }
+    },
+    "Pending review": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "待验收"
+          }
+        }
+      }
+    },
+    "Pending decision": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "待决策"
+          }
+        }
+      }
+    },
+    "Pending human action": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "待人工处理"
+          }
+        }
+      }
+    },
+    "Accepted": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已验收"
+          }
+        }
+      }
+    },
+    "Failed": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "失败"
+          }
+        }
+      }
+    },
+    "Cancelled": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已取消"
+          }
+        }
+      }
+    },
+    "Pending retry": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "待重试"
+          }
+        }
+      }
+    },
+    "Pass": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "通过"
+          }
+        }
+      }
+    },
+    "Fail": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "不通过"
+          }
+        }
+      }
+    },
+    "Unverified": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未验证"
+          }
+        }
+      }
+    },
+    "Waived by approved change": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "批准变更已豁免"
+          }
+        }
+      }
+    },
+    "Unknown status": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未知状态"
+          }
+        }
+      }
+    },
+    "Pending": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "待处理"
+          }
+        }
+      }
+    },
+    "In progress": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "处理中"
+          }
+        }
+      }
+    },
+    "Submitted": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已提交"
+          }
+        }
+      }
+    },
+    "Rejected": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已拒绝"
+          }
+        }
+      }
+    },
+    "Showing the last loaded items. They may be outdated.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在显示上次加载的事项，内容可能已过期。"
+          }
+        }
+      }
+    },
+    "Outcome Inbox": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "成果收件箱"
+          }
+        }
+      }
+    },
+    "All outcomes": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "全部成果"
+          }
+        }
+      }
+    },
+    "Category": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "分类"
+          }
+        }
+      }
+    },
+    "All categories": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "全部分类"
+          }
+        }
+      }
+    },
+    "Outcome update": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "成果更新"
+          }
+        }
+      }
+    },
+    "Outcome Inbox is unavailable on this server.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此服务器不支持成果收件箱。"
+          }
+        }
+      }
+    },
+    "No inbox items": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "暂无收件箱事项"
+          }
+        }
+      }
+    },
+    "Completed: %@": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已完成：%@"
+          }
+        }
+      }
+    },
+    "Problem: %@": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "当前问题：%@"
+          }
+        }
+      }
+    },
+    "Problem: No unresolved issues": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "当前问题：无未解问题"
+          }
+        }
+      }
+    },
+    "Start, pause, receipts and review: please complete on Desktop.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "开始、暂停、回执和验收：请在 Desktop 完成。"
+          }
+        }
+      }
+    },
+    "Decision": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "决策"
+          }
+        }
+      }
+    },
+    "The decision changed. The current card was refreshed; your choice is kept.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "决策已变化。已刷新当前卡片，并保留你的选择。"
+          }
+        }
+      }
+    },
+    "This decision has expired. Please view the current outcome.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此决策已过期，请查看当前成果。"
+          }
+        }
+      }
+    },
+    "Decision resolved": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "决策已解决"
+          }
+        }
+      }
+    },
+    "View outcome": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "查看成果"
+          }
+        }
+      }
+    },
+    "Recommendation: %@": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "推荐依据：%@"
+          }
+        }
+      }
+    },
+    "Expires: %@": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "到期时间：%@"
+          }
+        }
+      }
+    },
+    "This decision is no longer open. View the current outcome.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此决策已关闭，请查看当前成果。"
+          }
+        }
+      }
+    },
+    "Options": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "选项"
+          }
+        }
+      }
+    },
+    "Custom choice": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自定义方案"
+          }
+        }
+      }
+    },
+    "Up to 4,000 characters": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "最多 4,000 个字符"
+          }
+        }
+      }
+    },
+    "The selected option will be submitted.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "将提交已选选项。"
+          }
+        }
+      }
+    },
+    "Your previous option is unavailable. Choose another option to continue.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此前的选项已不可用，请重新选择。"
+          }
+        }
+      }
+    },
+    "Submit decision": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "提交决策"
+          }
+        }
+      }
+    },
+    "Additional options were omitted by the server.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "服务器省略了部分选项。"
+          }
+        }
+      }
+    },
+    "Awaiting your decision": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "等待你的决策"
+          }
+        }
+      }
+    },
+    "Decision expired": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "决策已过期"
+          }
+        }
+      }
+    },
+    "Replaced by a newer state": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已由新状态替代"
+          }
+        }
+      }
+    },
+    "The task is queued to continue.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "任务已排队等待继续。"
+          }
+        }
+      }
+    },
+    "A new revision needs approval on Desktop.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新修订需在 Desktop 批准。"
+          }
+        }
+      }
+    },
+    "A human action is required on Desktop.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请在 Desktop 处理人工动作。"
+          }
+        }
+      }
+    },
+    "The branch was cancelled.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "分支已取消。"
+          }
+        }
+      }
+    },
+    "View the outcome for its current state.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请查看成果的当前状态。"
+          }
+        }
+      }
+    },
+    "Human action": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "人工动作"
+          }
+        }
+      }
+    },
+    "View human action": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "查看人工动作"
+          }
+        }
+      }
+    },
+    "Receipt history": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "回执历史"
+          }
+        }
+      }
+    },
+    "Receipt %lld": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "回执 %lld"
+          }
+        }
+      }
+    },
+    "Prerequisites": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "前置条件"
+          }
+        }
+      }
+    },
+    "Steps": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "步骤"
+          }
+        }
+      }
+    },
+    "Required inputs": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "输入要求"
+          }
+        }
+      }
+    },
+    "Evidence requirements": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "证据要求"
+          }
+        }
+      }
+    },
+    "References": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "资料引用"
+          }
+        }
+      }
+    },
+    "This reference is outdated.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此资料已过期。"
+          }
+        }
+      }
+    },
+    "Saved Desktop progress": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Desktop 已保存的进度"
+          }
+        }
+      }
+    },
+    "No human action card is available.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "暂无人工动作卡。"
+          }
+        }
+      }
+    },
+    "%lld. %@": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld. %@"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

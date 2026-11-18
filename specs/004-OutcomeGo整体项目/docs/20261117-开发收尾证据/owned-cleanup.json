@@ -1,0 +1,106 @@
+{
+  "owned": {
+    "name": "outcomego-integrator-development-pg",
+    "id": "533e160dae3b1511afd0e4835c04e519bab656a055a74d1f6af47d9da5bbc84e",
+    "port": 55440,
+    "schema": "packages/db/prisma/schema.prisma",
+    "noDotenv": true,
+    "authentication": "disposable-loopback-only-trust"
+  },
+  "timestamp": "2026-11-17T20:53:13.857926+08:00",
+  "checks": [
+    {
+      "label": "owned-before-inspect",
+      "command": [
+        "docker",
+        "inspect",
+        "--format",
+        "{{.Id}} {{.Name}} {{json .NetworkSettings.Ports}}",
+        "533e160dae3b1511afd0e4835c04e519bab656a055a74d1f6af47d9da5bbc84e"
+      ],
+      "exitCode": 0,
+      "artifact": "owned-before-inspect.log",
+      "sha256": "41496997f0f81de16c020291b715333f5eb9a645de45bdb8836c2cd4ce6b6fca"
+    },
+    {
+      "label": "owned-before-clients",
+      "command": [
+        "docker",
+        "exec",
+        "533e160dae3b1511afd0e4835c04e519bab656a055a74d1f6af47d9da5bbc84e",
+        "psql",
+        "-U",
+        "outcomego",
+        "-d",
+        "outcomego",
+        "-At",
+        "-c",
+        "SELECT pid,datname,application_name FROM pg_stat_activity WHERE backend_type='client backend' AND pid<>pg_backend_pid() ORDER BY pid;"
+      ],
+      "exitCode": 0,
+      "artifact": "owned-before-clients.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "owned-before-private-databases",
+      "command": [
+        "docker",
+        "exec",
+        "533e160dae3b1511afd0e4835c04e519bab656a055a74d1f6af47d9da5bbc84e",
+        "psql",
+        "-U",
+        "outcomego",
+        "-d",
+        "outcomego",
+        "-At",
+        "-c",
+        "SELECT datname FROM pg_database WHERE datname LIKE 'outcomego_product_replay_%' ORDER BY datname;"
+      ],
+      "exitCode": 0,
+      "artifact": "owned-before-private-databases.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "owned-remove-exact",
+      "command": [
+        "docker",
+        "rm",
+        "-f",
+        "533e160dae3b1511afd0e4835c04e519bab656a055a74d1f6af47d9da5bbc84e"
+      ],
+      "exitCode": 0,
+      "artifact": "owned-remove-exact.log",
+      "sha256": "4d77459030f4400dfb48a5fb3132c5c101b8c49e67f50363c41d92091c7e8d90"
+    },
+    {
+      "label": "owned-after-absence",
+      "command": [
+        "docker",
+        "ps",
+        "-aq",
+        "--filter",
+        "id=533e160dae3b1511afd0e4835c04e519bab656a055a74d1f6af47d9da5bbc84e",
+        "--filter",
+        "name=^/outcomego-integrator-development-pg$"
+      ],
+      "exitCode": 0,
+      "artifact": "owned-after-absence.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "removedTemporaryPrismaConfig": {
+    "path": "data/spec004-development-validation/prisma.config.ts",
+    "sha256": "e2b3a11a81a13e4474bb8a5b67c11994159ebd5cd711992f9d728369f61f06f5"
+  },
+  "clientsBefore": 0,
+  "privateReplayDatabasesBefore": 0,
+  "exactOwnedContainerAbsent": true,
+  "preserved": [
+    "all old/new raw logs",
+    "owner dumps/backup artifacts",
+    "all worktrees",
+    "original13WIP backup",
+    "historicalAPK"
+  ],
+  "scope": "Only exact integrator development container and its temporary no-dotenv config; no main/source/foreign resources changed."
+}

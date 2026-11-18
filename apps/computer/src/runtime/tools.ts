@@ -1,4 +1,7 @@
+import { REQUEST_OUTCOME_DECISION_TOOL, RequestOutcomeDecisionInput } from "@outcomego/contracts/outcome-inbox";
 import { replaceTaskProgressContext } from "@outcomego/contracts/task-progress";
+import { OUTCOME_THREAD_TOOL_NAMES, type OutcomeThreadToolName } from "@outcomego/contracts/outcomes";
+import { REQUEST_HUMAN_ACTION_TOOL, humanActionInputSchema } from "@outcomego/contracts/human-work";
 import { applyArgumentAliases, normalizeMainToolArguments } from "@outcomego/contracts/reference-main-parsers";
 import { onlyPendingBackgroundWork } from "./background-status";
 import { markDelivered } from "./events";
@@ -249,11 +252,34 @@ export const SUBAGENT_PRIVATE_NATIVE_TOOLS: ReadonlySet<string> = new Set([
   SCREENSHOT_TOOL.name,
 ]);
 
+type OutcomeThreadToolRegistry = Partial<Record<OutcomeThreadToolName, Omit<RuntimeDynamicTool, "execute">>>;
+// Line 3 registers RequestOutcomeDecision here; line 4 registers RequestHumanAction independently.
+const OUTCOME_THREAD_TOOLS: OutcomeThreadToolRegistry = {
+  RequestOutcomeDecision: {
+    ...REQUEST_OUTCOME_DECISION_TOOL,
+    inputSchema: REQUEST_OUTCOME_DECISION_TOOL.inputSchema as unknown as Readonly<Record<string, unknown>>,
+    source: "first-party",
+    decodeArguments: Schema.decodeUnknownSync(RequestOutcomeDecisionInput),
+  },
+  RequestHumanAction: {
+    ...REQUEST_HUMAN_ACTION_TOOL, source: "first-party",
+    decodeArguments: (input) => humanActionInputSchema.parse(input),
+  },
+};
+
+export const outcomeThreadToolDefinitions = (
+  active: Pick<ActiveTurn, "outcomeThread">,
+  implemented: OutcomeThreadToolRegistry = OUTCOME_THREAD_TOOLS
+) => active.outcomeThread
+  ? OUTCOME_THREAD_TOOL_NAMES.flatMap((name) => implemented[name] ? [implemented[name]!] : [])
+  : [];
+
 /** First-party tools a worker or routine run calls directly instead of looking them up with GetDynamicTools. */
 export const workerTopLevelTools = (
-  active: Pick<ActiveTurn, "subagentType" | "readOnly"> & Partial<Pick<ActiveTurn, "requestSource" | "runtimeProfile">>
+  active: Pick<ActiveTurn, "subagentType" | "readOnly"> & Partial<Pick<ActiveTurn, "requestSource" | "runtimeProfile" | "outcomeThread">>
 ): readonly string[] => {
-  if (active.requestSource === "automation" && active.runtimeProfile !== "subagent") return [WAKE_PARENT_TOOL.name];
+  if (active.requestSource === "automation" && active.runtimeProfile !== "subagent")
+    return [WAKE_PARENT_TOOL.name, ...outcomeThreadToolDefinitions(active).map((tool) => tool.name)];
   // File transfers stay in the cursor namespace, as in the reference's Task worker manifest.
   if (active.subagentType === "executor" || active.subagentType === "knowledgeWork") return ["ReportTaskProgress", "AwaitShell", "WebSearch", "WebFetch"];
   if (active.subagentType === "computerUse") return ["ReportTaskProgress", "AwaitShell"];
@@ -293,7 +319,11 @@ const interruptibleByUser = <T extends { name: string; execute: (...args: any[])
 export class RuntimeTools {
   private readonly stepFileWriters = new Map<string, Set<Promise<unknown>>>();
   /** Box shells a stopped subagent left running in the background end with it. */
-  stopBackgroundShells(botId: string) { return this.nativeToolExecutor.stopBackgroundShells(botId); }
+  stopBackgroundShells(botId: string, runIds?: readonly string[]) {
+    return runIds === undefined
+      ? this.nativeToolExecutor.stopBackgroundShells(botId)
+      : this.nativeToolExecutor.stopAutomationShells(runIds);
+  }
 
   private async awaitShellForTurn(
     turn: ActiveTurn,
@@ -1769,6 +1799,12 @@ export class RuntimeTools {
     if (["ReportTaskProgress", "ReportRequestProgress"].includes(tool) && body && typeof body === "object" && (body as Record<string, unknown>).deferred === true) {
       active.endTurnRequested = true;
     }
+    if (tool === "RequestOutcomeDecision" && active.outcomeThread && body && typeof body === "object" &&
+      (body as Record<string, unknown>).status === "waiting_for_user") {
+      active.endTurnRequested = true;
+    }
+    if (tool === "RequestHumanAction" && active.outcomeThread && body && typeof body === "object" &&
+        (body as Record<string, unknown>).waiting_for_human === true) active.endTurnRequested = true;
     if (
       tool === "WakeParent" &&
       body &&
@@ -2008,6 +2044,11 @@ export class RuntimeTools {
       active,
       (turn, _callId, args, signal) => this.awaitShellForTurn(turn, args, signal),
       [
+        ...outcomeThreadToolDefinitions(active).map((definition): RuntimeDynamicTool => ({
+          ...definition,
+          execute: (turn, callId, args, signal) =>
+            this.callControlPlaneTool(turn, callId, definition.name, args, signal),
+        })),
         ...bitwardenTools,
         // Workers that use the parent's connectors move files with them both ways;
         // graphical and media workers have no connector accounts.

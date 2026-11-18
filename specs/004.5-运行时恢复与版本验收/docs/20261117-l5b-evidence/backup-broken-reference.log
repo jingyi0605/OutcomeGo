@@ -1,0 +1,16 @@
+$ bun --no-install scripts/migration/validate-outcomego-backup.ts --input '/Users/jackson/Code/openteam-spec004-worktrees/l5b-ops/specs/004.5-运行时恢复与版本验收/docs/20261117-l5b-evidence/.l5b-checks-7x3nlxgc/backup-broken-reference.json'
+exit=1
+153 |           value !== undefined &&
+154 |           value !== null &&
+155 |           ids.has(target) &&
+156 |           !ids.get(target)!.has(value)
+157 |         ) {
+158 |           throw new Error(`${table}.${column} references missing ${target} id ${String(value)}`);
+                          ^
+error: outcomego_channel.botId references missing outcomego_bot id missing
+      at checkReferences (/Users/jackson/Code/openteam-spec004-worktrees/l5b-ops/scripts/migration/validate-outcomego-backup.ts:158:21)
+      at validateBackupObject (/Users/jackson/Code/openteam-spec004-worktrees/l5b-ops/scripts/migration/validate-outcomego-backup.ts:183:3)
+      at validateOutcomegoBackup (/Users/jackson/Code/openteam-spec004-worktrees/l5b-ops/scripts/migration/validate-outcomego-backup.ts:209:18)
+      at <anonymous> (/Users/jackson/Code/openteam-spec004-worktrees/l5b-ops/scripts/migration/validate-outcomego-backup.ts:218:10)
+
+Bun v1.4.4 (macOS arm64)

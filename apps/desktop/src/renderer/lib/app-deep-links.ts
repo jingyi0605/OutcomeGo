@@ -1,4 +1,5 @@
 import { APP_SETTINGS_ANCHORS } from "@outcomego/contracts/app-deep-links";
+import { parseDesktopOutcomeLink, type DesktopOutcomeTarget } from "./outcome-target";
 
 export const SETTINGS_ANCHORS = APP_SETTINGS_ANCHORS;
 
@@ -36,11 +37,14 @@ const viewByAnchor: Record<SettingsAnchor, SettingsView> = {
 
 export type OutcomeGoDeepLink =
   | { kind: "settings"; anchor: SettingsAnchor }
-  | { kind: "plugin"; pluginId: string };
+  | { kind: "plugin"; pluginId: string }
+  | { kind: "outcome"; target: DesktopOutcomeTarget };
 
 export const settingsViewForAnchor = (anchor: SettingsAnchor): SettingsView => viewByAnchor[anchor];
 
 export const parseOutcomeGoDeepLink = (value: string): OutcomeGoDeepLink | null => {
+  const outcome = parseDesktopOutcomeLink(value);
+  if (outcome) return { kind: "outcome", target: outcome };
   let url: URL;
   try {
     url = new URL(value);

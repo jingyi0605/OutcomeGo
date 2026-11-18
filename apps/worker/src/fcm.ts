@@ -43,7 +43,13 @@ export function fcmPayload(
     notificationScope: device.notificationScope ?? "",
     badgeCount: String(Math.max(0, Math.floor(badgeCount))),
   };
-  if (payload.kind !== "badge-sync") {
+  if (payload.kind === "outcome") {
+    Object.assign(data, { type: payload.type, factKey: payload.factKey, outcomeId: payload.outcomeId,
+      ...(payload.decisionId ? { decisionId: payload.decisionId } : {}), category: payload.category,
+      contractRevision: String(payload.contractRevision), priority: String(payload.priority), botId: payload.botId,
+      channelId: payload.channelId, notificationSequence: payload.notificationSequence,
+      title: payload.title, body: payload.body, deepLink: payload.deepLink });
+  } else if (payload.kind !== "badge-sync") {
     Object.assign(data, {
       channelId: payload.channelId,
       botId: payload.botId,

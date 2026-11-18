@@ -63,6 +63,8 @@
         "undici": "7",
       },
       "devDependencies": {
+        "@outcomego/db": "workspace:*",
+        "@outcomego/messaging": "workspace:*",
         "@types/node": "22.19.19",
         "@types/turndown": "5.0.6",
       },
@@ -102,6 +104,7 @@
         "katex": "0.16.47",
         "libopus-wasm": "0.4.1",
         "libphonenumber-js": "1.13.13",
+        "linkedom": "0.18.13",
         "lucide-react": "1.34.0",
         "mammoth": "1.12.0",
         "maplibre-gl": "5.6.2",

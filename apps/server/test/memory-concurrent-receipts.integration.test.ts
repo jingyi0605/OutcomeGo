@@ -6,7 +6,7 @@ import { createPrismaClient, type PrismaClient } from "@outcomego/db";
 import { AgentDataStore } from "@outcomego/messaging";
 import { DurableStateService } from "../src/update-state";
 
-const url = process.env.OPENTEAM_TEST_DATABASE_URL;
+const url = (process.env.OUTCOMEGO_TEST_DATABASE_URL ?? process.env.OPENTEAM_TEST_DATABASE_URL);
 test.skipIf(!url)("simultaneous identical memory tool calls do not expose database uniqueness failures", async () => {
   const db = createPrismaClient(url!);
   const root = await mkdtemp(join(tmpdir(), "memory-concurrent-receipt-"));

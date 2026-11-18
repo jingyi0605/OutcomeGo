@@ -1,0 +1,98 @@
+import { afterAll, describe, expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
+import { Effect } from "effect";
+import { outcomeRoutes } from "../src/routes/outcome";
+import { errorResponse } from "../src/http";
+import { OutcomePlanningService } from "../src/services/outcome-planning-service";
+import { OutcomeReviewService } from "../src/services/outcome-review-service";
+import type { AgentMessaging } from "@outcomego/messaging";
+import type { RouteContext } from "../src/routes/context";
+import { outcomeFixture, testDatabaseUrl, fixtureSelections, requestId } from "./fixtures/outcome-fixture";
+import { outcomeThreadFixture } from "../../../packages/messaging/test/fixtures/outcome-thread";
+import { OutcomeService } from "../src/services/outcome-service";
+
+// The production authentication gate must run before every feature route.
+test("main registers Outcome behind the existing authentication middleware", () => {
+  const main = readFileSync(new URL("../src/main.ts", import.meta.url), "utf8");
+  expect(main.indexOf('const session = await auth.api.getSession')).toBeLessThan(main.indexOf('const context: RouteContext'));
+  expect(main).toContain("        outcomeRoutes,");
+  expect(main).toContain('if (authMode === "required" && !publicCallback && !voiceStreamPath)');
+  expect(main).toMatch(/if \(!session\) \{[\s\S]*?code: "unauthorized"[\s\S]*?401/);
+});
+
+describe.skipIf(!testDatabaseUrl)("Outcome HTTP routes", () => {
+  const f = outcomeFixture();
+  const planning = new OutcomePlanningService(f.prisma, async () => ({ text: JSON.stringify({ goal: [{ text: "Compare backups" }], acceptance: [{ text: "Compare costs" }], boundaries: [], questions: [] }) }));
+  const reviews = new OutcomeReviewService(f.prisma, {} as AgentMessaging, async () => { throw new Error("offline"); });
+  const app = { prisma: f.prisma, outcomes: f.outcomes, outcomePlanning: planning, outcomeReviews: reviews };
+  afterAll(() => f.close());
+  async function call(path: string, method = "GET", body?: unknown, authMode: "required" | "disabled" = "disabled", sessionId: string | null = null) {
+    const url = new URL(`http://localhost/api/v0${path}`);
+    const request = new Request(url, { method, ...(body === undefined ? {} : { body: JSON.stringify(body), headers: { "content-type": "application/json" } }) });
+    try { return (await outcomeRoutes({ app, request, url, path: url.pathname.replace("/api/v0", "/api"), authMode, authenticatedSessionId: sessionId } as unknown as RouteContext))!; }
+    catch (error) { return errorResponse(error); }
+  }
+  test("planning -> creation -> approval -> list/detail returns the frozen shapes and local actor", async () => {
+    const bot = await f.bot(); const input = { sourceText: "Compare backups", context: { botId: bot.id }, clientRequestId: requestId() };
+    const planned = await call("/outcomes/plans", "POST", input); expect(planned.status).toBe(201);
+    const plan = await planned.json() as { planId: string; goal: unknown };
+    expect(plan.goal).toMatchObject({ options: [{ id: "goal-1" }], selectedOptionIds: [], customEntries: [] });
+    expect((await call(`/outcomes/plans/${plan.planId}`)).status).toBe(200);
+    expect(await (await call("/outcomes/plans", "POST", input)).json()).toEqual(plan);
+    const create = { planId: plan.planId, ...fixtureSelections, acceptance: { selectedOptionIds: ["acceptance-1"], customEntries: [] }, boundaries: { selectedOptionIds: [], customEntries: [] }, title: "Comparison", clientRequestId: requestId() };
+    const response = await call("/outcomes", "POST", create); expect(response.status).toBe(201);
+    const outcome = await response.json() as { id: string; currentRevisionView: { revision: number } };
+    expect(outcome.currentRevisionView.revision).toBe(1);
+    const approve = { expectedRevision: 1, confirmationText: "I confirm", actorRef: "bot:forged", approvedBy: "forged", clientRequestId: requestId() };
+    const approved = await call(`/outcomes/${outcome.id}/revisions/1/approve`, "POST", approve);
+    expect(approved.status).toBe(200);
+    expect(await approved.json()).toMatchObject({ status: "approved", currentRevisionView: { approvedBy: "owner:local" } });
+    const list = await (await call("/outcomes?limit=1")).json(); expect(list).toHaveProperty("items"); expect(list).toHaveProperty("nextCursor");
+    const detail = await (await call(`/outcomes/${outcome.id}`)).json(); expect(detail).toHaveProperty("evidence"); expect(detail).toHaveProperty("reviews");
+  });
+  test("unauthenticated requests are rejected, missing resources and query errors use ApiError envelope", async () => {
+    expect((await call("/outcomes", "GET", undefined, "required", "missing-session")).status).toBe(401);
+    const missing = await call(`/outcomes/${crypto.randomUUID()}`); expect(missing.status).toBe(404);
+    expect(await missing.json()).toMatchObject({ error: { code: "outcome_not_found", details: { retryable: false } } });
+    const invalid = await call("/outcomes?status=fabricated"); expect(invalid.status).toBe(400);
+    expect(await invalid.json()).toMatchObject({ error: { code: "invalid_outcome_query" } });
+    expect((await call("/outcomes/plans", "POST", { sourceText: "" })).status).toBe(400);
+  });
+  test("session actors come from persisted authentication, ignoring forged reviewer fields", async () => {
+    const userId = `user-${crypto.randomUUID()}`, sessionId = `session-${crypto.randomUUID()}`;
+    await f.prisma.user.create({ data: { id: userId, name: "Test owner", email: `${userId}@example.test`, sessions: { create: { id: sessionId, token: crypto.randomUUID(), expiresAt: new Date(Date.now() + 60_000) } } } });
+    try {
+      const x = await f.completed();
+      const response = await call(`/outcomes/${x.outcome.id}/reviews`, "POST", { expectedRevision: 1, results: [{ criterionId: x.required.id, result: "PASS", evidenceIds: [], comment: "Checked", userConfirmed: true, reviewedBy: "bot:forged" }], actorRef: "owner:forged", clientRequestId: requestId() }, "required", sessionId);
+      expect(response.status).toBe(200);
+      expect(await response.json()).toMatchObject({ reviews: [{ reviewedBy: `user:${userId}` }] });
+    } finally { await f.prisma.user.delete({ where: { id: userId } }); }
+  });
+  test("review is wired to the single service entry, deduplicates client IDs, and cancellation preserves facts", async () => {
+    const x = await f.completed();
+    const input = { expectedRevision: 1, results: [{ criterionId: x.required.id, result: "FAIL", evidenceIds: [], comment: "Missing comparison" }], clientRequestId: requestId() };
+    const result = await call(`/outcomes/${x.outcome.id}/reviews`, "POST", input); expect(result.status).toBe(200);
+    const first = await result.json();
+    expect(await (await call(`/outcomes/${x.outcome.id}/reviews`, "POST", input)).json()).toEqual(first);
+    const cancelled = await call(`/outcomes/${x.outcome.id}/cancel`, "POST", { clientRequestId: requestId() });
+    expect(await cancelled.json()).toMatchObject({ status: "cancelled", outputs: [{ id: x.output.id }] });
+  });
+  test("run and transcript routes dispatch the real runtime and reject absent messaging", async () => {
+    const h = await outcomeThreadFixture();
+    const original = app.outcomes;
+    app.outcomes = new OutcomeService(h.db, h.messaging);
+    try {
+      const response = await call(`/outcomes/${h.outcome.id}/runs`, "POST", { expectedRevision: 1, clientRequestId: requestId() });
+      expect(response.status).toBe(202);
+      const detail = await response.json() as { workItems: { id: string; rootRunId: string }[] };
+      const item = detail.workItems[0]!;
+      expect(await h.db.run.count({ where: { id: item.rootRunId, origin: "outcome" } })).toBe(1);
+      const transcript = await call(`/outcomes/${h.outcome.id}/work-items/${item.id}/transcript?limit=10`);
+      expect(await transcript.json()).toMatchObject({ total: 1, next_before: null, rows: [{ role: "user", status: "completed" }] });
+      app.outcomes = new OutcomeService(h.db);
+      const unavailable = await call(`/outcomes/${h.outcome.id}/runs`, "POST", { expectedRevision: 1, clientRequestId: requestId() });
+      expect(unavailable.status).toBe(409);
+      expect(await unavailable.json()).toMatchObject({ error: { code: "bot_not_runnable", details: { retryable: true } } });
+    } finally { app.outcomes = original; await h.cleanup(); }
+  });
+});

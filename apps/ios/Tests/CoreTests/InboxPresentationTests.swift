@@ -1,6 +1,6 @@
 import XCTest
 
-@testable import OpenTeamCore
+@testable import OutcomeGoCore
 
 final class InboxPresentationTests: XCTestCase {
   private func message(_ content: String = "Latest reply", metadata: JSON = .object([:])) -> Message {

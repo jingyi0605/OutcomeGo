@@ -8,7 +8,7 @@ import { AgentDataStore, AgentMessaging, lockQuestions, dismissQuestions, type T
 import { RichMessageService } from "../src/services/rich-message-service";
 import { ChannelService } from "../src/services/channel-service";
 
-const url = process.env.OPENTEAM_TEST_DATABASE_URL;
+const url = (process.env.OUTCOMEGO_TEST_DATABASE_URL ?? process.env.OPENTEAM_TEST_DATABASE_URL);
 test.skipIf(!url)(
   "questions settle durably across normal sends, publication, retries, forks and races",
   async () => {

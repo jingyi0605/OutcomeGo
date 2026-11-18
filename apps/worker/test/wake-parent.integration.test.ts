@@ -85,7 +85,7 @@ test.skipIf(!databaseUrl)(
             if (query.includes("WP_ROUTINE_CHILD")) await routineChildGate;
             if (input.subagentType === "computerUse") {
               expect(input.taskConfiguration).toMatchObject({ graphicalAvailable: true });
-              expect(input.instructions).toStartWith("You are outcomeGo running as the computerUse subagent.");
+              expect(input.instructions).toStartWith("You are OutcomeGo running as the computerUse subagent.");
               expect(input.model).not.toContain("ignored-model");
             }
             final = query.includes("WP_ROUTINE_CHILD") ? "WP_ROUTINE_CHILD_RESULT" : query.includes("WP_FOREGROUND_CHILD") ? "WP_FOREGROUND_RESULT" : "WP_CHILD_RESULT: checked the fixture successfully.";

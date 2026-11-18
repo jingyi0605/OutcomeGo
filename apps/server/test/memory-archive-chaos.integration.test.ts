@@ -7,7 +7,7 @@ import { createPrismaClient, type PrismaClient } from "@outcomego/db";
 import { AgentDataStore } from "@outcomego/messaging";
 import { BotService } from "../src/services/bot-service";
 
-const databaseUrl = process.env.OPENTEAM_TEST_DATABASE_URL;
+const databaseUrl = (process.env.OUTCOMEGO_TEST_DATABASE_URL ?? process.env.OPENTEAM_TEST_DATABASE_URL);
 const gate = () => Promise.withResolvers<void>();
 
 test.skipIf(!databaseUrl)("shared memory correction and parent archival cannot deadlock on a child bot", async () => {

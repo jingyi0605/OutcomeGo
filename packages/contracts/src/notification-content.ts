@@ -1,3 +1,4 @@
+import { outcomeDeepLink, outcomeDecisionDeepLink } from "./app-deep-links";
 /** Cross-process PostgreSQL advisory lock protecting the final push authorization/send boundary. */
 export const PUSH_DELIVERY_ADVISORY_LOCK = {
   namespace: 0x4f50424f,
@@ -169,5 +170,48 @@ export const agentNotificationPresentation = (input: {
     title: normalizeNotificationText(input.botName) || "OutcomeGo",
     body: truncateNotificationText(input.body?.trim() ? input.body : definition.fallbackBody),
     ...agentNotificationDeliveryPolicy(input.kind),
+  };
+};
+
+export const OUTCOME_NOTIFICATION_TYPES = [
+  "outcome.decision.required", "outcome.review.required", "outcome.human_action.required", "outcome.accepted",
+] as const;
+export type OutcomeNotificationType = (typeof OUTCOME_NOTIFICATION_TYPES)[number];
+
+/** Separate from chat activity so old clients safely ignore the unknown kind. */
+export interface OutcomeNotificationPayload {
+  schemaVersion: 1;
+  kind: "outcome";
+  type: OutcomeNotificationType;
+  factKey: string;
+  outcomeId: string;
+  decisionId?: string;
+  category: import("./outcome-inbox").OutcomeInboxCategory;
+  contractRevision: number;
+  priority: number;
+  botId: string;
+  channelId: string;
+  notificationSequence: string;
+  badgeCount: number;
+  title: string;
+  body: string;
+  deepLink: string;
+}
+
+/** Fixed text deliberately excludes titles, options and summaries from business input. */
+export const outcomeNotificationPayload = (input: {
+  type: OutcomeNotificationType; factKey: string; outcomeId: string; decisionId?: string;
+  botId: string; channelId: string; contractRevision: number; urgent?: boolean;
+}): OutcomeNotificationPayload => {
+  const category = input.type === "outcome.decision.required" ? "decision_pending" : input.type === "outcome.review.required" ? "acceptance_pending" : input.type === "outcome.human_action.required" ? "human_action_pending" : "completed";
+  return {
+    schemaVersion: 1, kind: "outcome", type: input.type, factKey: input.factKey,
+    outcomeId: input.outcomeId, ...(input.decisionId ? { decisionId: input.decisionId } : {}),
+    category, contractRevision: input.contractRevision,
+    priority: input.urgent ? 4 : category === "decision_pending" ? 3 : category === "human_action_pending" ? 2 : category === "acceptance_pending" ? 1 : 0,
+    botId: input.botId, channelId: input.channelId, notificationSequence: "0", badgeCount: 0,
+    title: category === "completed" ? "Outcome completed" : "An Outcome needs your attention",
+    body: category === "decision_pending" ? "Open OutcomeGo to decide the next step." : "Open OutcomeGo to view the outcome.",
+    deepLink: input.decisionId ? outcomeDecisionDeepLink(input.decisionId) : outcomeDeepLink(input.outcomeId),
   };
 };

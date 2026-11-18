@@ -8,7 +8,13 @@ import {
   useDroppable,
 } from "@dnd-kit/react";
 import { isSortable, useSortable } from "@dnd-kit/react/sortable";
-import type { BotView, ChannelMessageView, ChannelView, RunItemView, RunView } from "@outcomego/contracts";
+import type {
+  BotView,
+  ChannelMessageView,
+  ChannelView,
+  RunItemView,
+  RunView,
+} from "@outcomego/contracts";
 import {
   ArrowDown,
   ArrowUp,
@@ -116,6 +122,7 @@ import { SidebarCollapseMotion, SidebarMotion } from "./sidebar-motion";
 import { SidebarActivityProvider, useSidebarComposing } from "./sidebar-activity";
 import { SidebarUnreadAvatar, SidebarUnreadDot } from "./sidebar-unread";
 import { externalPlatformLabel } from "./external-delivery-status";
+import { OutcomeNavigation } from "./outcomes/outcome-navigation";
 
 const EMPTY_PINNED_IDS: ReadonlySet<string> = new Set();
 
@@ -265,16 +272,18 @@ export function AccountMenu({
       ? t("Restart")
       : update?.status === "downloading"
         ? progress === null
-        ? t("Updating")
-        : `${progress}%`
+          ? t("Updating")
+          : `${progress}%`
         : update?.status === "installing"
-        ? t("Restarting")
-        : t("Update");
+          ? t("Restarting")
+          : t("Update");
   const updateDescription =
     update?.status === "downloaded"
       ? t("Update ready. Restart to update OutcomeGo.")
       : update?.status === "downloading"
-        ? t("Downloading OutcomeGo update{progress}.", { progress: progress === null ? "" : `, ${progress}%` })
+        ? t("Downloading OutcomeGo update{progress}.", {
+            progress: progress === null ? "" : `, ${progress}%`,
+          })
         : update?.status === "installing"
           ? t("Restarting OutcomeGo to install the update.")
           : t("An OutcomeGo update is available.");
@@ -317,11 +326,16 @@ export function AccountMenu({
               setUpdate(value);
               if (value.status === "idle") return window.outcomego?.updates.check().then(setUpdate);
             })
-            .catch(() => setUpdateError(t("Could not check for updates. Try again from Settings.")));
+            .catch(() =>
+              setUpdateError(t("Could not check for updates. Try again from Settings."))
+            );
         }}
       >
         <div className="relative min-w-0" data-account-update={hasUpdate || undefined}>
-          <DropdownMenuTrigger aria-describedby={hasUpdate ? updateDescriptionId : undefined} asChild>
+          <DropdownMenuTrigger
+            aria-describedby={hasUpdate ? updateDescriptionId : undefined}
+            asChild
+          >
             {children}
           </DropdownMenuTrigger>
           {hasUpdate ? (
@@ -376,13 +390,18 @@ export function AccountMenu({
           <DropdownMenuItem
             className={menuItem}
             onSelect={() =>
-              openExternal("https://github.com/jingyi0605/OutcomeGo/blob/OutcomeGo/docs/mobile/README.md")
+              openExternal(
+                "https://github.com/jingyi0605/OutcomeGo/blob/OutcomeGo/docs/mobile/README.md"
+              )
             }
           >
             <Smartphone className="size-4" strokeWidth={1.85} />
             {t("Get OutcomeGo for mobile")}
           </DropdownMenuItem>
-          <DropdownMenuItem className={menuItem} onSelect={onOpenSettings}><Settings className="size-4" strokeWidth={1.85} />{t("Settings")}</DropdownMenuItem>
+          <DropdownMenuItem className={menuItem} onSelect={onOpenSettings}>
+            <Settings className="size-4" strokeWidth={1.85} />
+            {t("Settings")}
+          </DropdownMenuItem>
           <DropdownMenuSeparator className="mx-1 my-1.5" />
           <DropdownMenuItem className={menuItem} onSelect={() => setSignOutOpen(true)}>
             <LogOut className="size-4" strokeWidth={1.85} />
@@ -399,8 +418,12 @@ export function AccountMenu({
             </AlertDialogTitle>
             <AlertDialogDescription>
               {auth.mode === "required"
-                ? t("You can sign back in with your OutcomeGo username and password. Your Bots and chats stay on this server.")
-                : t("This server is running in trusted no-auth mode, so there is no account session to remove.")}
+                ? t(
+                    "You can sign back in with your OutcomeGo username and password. Your Bots and chats stay on this server."
+                  )
+                : t(
+                    "This server is running in trusted no-auth mode, so there is no account session to remove."
+                  )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -455,7 +478,9 @@ const sidebarSensors = [
         : [new PointerActivationConstraints.Distance({ value: 6 })],
   }),
   // Enter activates the chat button; Space remains available for keyboard dragging.
-  KeyboardSensor.configure({ keyboardCodes: { ...KeyboardSensor.defaults.keyboardCodes, start: ["Space"] } }),
+  KeyboardSensor.configure({
+    keyboardCodes: { ...KeyboardSensor.defaults.keyboardCodes, start: ["Space"] },
+  }),
 ];
 
 function latestMessagePreview(row: ChannelRowData, botById: ReadonlyMap<string, BotView>) {
@@ -484,7 +509,11 @@ function ChannelPreviewTooltipContent({
       : bot?.status === "failed"
         ? t("Setup needs attention")
         : latestMessagePreview(row, botById) ||
-          (channel.kind === "agent_dm" ? t("Private bot exchange") : latest ? "" : t("No messages yet"));
+          (channel.kind === "agent_dm"
+            ? t("Private bot exchange")
+            : latest
+              ? ""
+              : t("No messages yet"));
 
   return (
     <TooltipContent
@@ -495,7 +524,12 @@ function ChannelPreviewTooltipContent({
       sideOffset={8}
     >
       <div className="flex min-w-0 items-center gap-2">
-        <WorkingAvatar channelId={row.channel.id} active={working} ringColor="var(--popover)" size="sm">
+        <WorkingAvatar
+          channelId={row.channel.id}
+          active={working}
+          ringColor="var(--popover)"
+          size="sm"
+        >
           <ChannelAvatar botById={botById} channel={channel} size="sm" />
         </WorkingAvatar>
         <span className="min-w-0 flex-1 truncate text-[13px] font-medium">{channel.name}</span>
@@ -533,7 +567,12 @@ function SidebarDragPreview({
       )}
       data-sidebar-drag-preview=""
     >
-      <WorkingAvatar channelId={row.channel.id} active={working} ringColor="var(--popover)" size="pin">
+      <WorkingAvatar
+        channelId={row.channel.id}
+        active={working}
+        ringColor="var(--popover)"
+        size="pin"
+      >
         {bot ? (
           <BotAvatar bot={bot} channelId={channel.id} size="lg" />
         ) : (
@@ -646,7 +685,12 @@ function BotContextMenu({
   const { t } = useI18n();
   const [renaming, setRenaming] = useState(false);
   const menuContent = (
-    <ContextMenuContent className="w-[202px]" onCloseAutoFocus={(event) => { if (renaming) event.preventDefault(); }}>
+    <ContextMenuContent
+      className="w-[202px]"
+      onCloseAutoFocus={(event) => {
+        if (renaming) event.preventDefault();
+      }}
+    >
       <ContextMenuItem onSelect={() => onBotAction(bot, "togglePin")}>
         {pinned ? <PinOff className="size-4" /> : <Pin className="size-4" />}
         {pinned ? t("Unpin") : t("Pin")}
@@ -697,15 +741,24 @@ function BotContextMenu({
   const content = tooltipContent ? (
     <Tooltip>
       <ContextMenu>
-        <TooltipTrigger asChild><ContextMenuTrigger asChild>{children}</ContextMenuTrigger></TooltipTrigger>
+        <TooltipTrigger asChild>
+          <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
+        </TooltipTrigger>
         {menuContent}
       </ContextMenu>
       {tooltipContent}
     </Tooltip>
   ) : (
-    <ContextMenu><ContextMenuTrigger asChild>{children}</ContextMenuTrigger>{menuContent}</ContextMenu>
+    <ContextMenu>
+      <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
+      {menuContent}
+    </ContextMenu>
   );
-  return <BotRenameContext.Provider value={{ bot, active: renaming, finish: () => setRenaming(false) }}>{content}</BotRenameContext.Provider>;
+  return (
+    <BotRenameContext.Provider value={{ bot, active: renaming, finish: () => setRenaming(false) }}>
+      {content}
+    </BotRenameContext.Provider>
+  );
 }
 
 function GroupContextMenu({
@@ -834,11 +887,10 @@ const ChannelRow = memo(function ChannelRow({
     : needsAttention
       ? t("Needs your input")
       : bot?.status === "provisioning"
-          ? t("Starting up…")
-          : bot?.status === "failed"
-            ? t("Setup needs attention")
-            : latestPreview ||
-              (channel.kind === "agent_dm" ? t("Private bot exchange") : "");
+        ? t("Starting up…")
+        : bot?.status === "failed"
+          ? t("Setup needs attention")
+          : latestPreview || (channel.kind === "agent_dm" ? t("Private bot exchange") : "");
   const content = (
     <Button
       className={cn(
@@ -878,7 +930,10 @@ const ChannelRow = memo(function ChannelRow({
               </span>
             ) : null}
             {pinned && (
-              <Pin aria-label={t("Pinned")} className="size-2.5 shrink-0 text-foreground-tertiary" />
+              <Pin
+                aria-label={t("Pinned")}
+                className="size-2.5 shrink-0 text-foreground-tertiary"
+              />
             )}
           </span>
         </span>
@@ -902,9 +957,7 @@ const ChannelRow = memo(function ChannelRow({
           )}
         </span>
       </span>
-      {unread && !needsAttention ? (
-        <SidebarUnreadDot />
-      ) : null}
+      {unread && !needsAttention ? <SidebarUnreadDot /> : null}
     </Button>
   );
 
@@ -1155,17 +1208,16 @@ function DraggablePinnedTile({
             className="sidebar-status-reveal size-1.5 shrink-0 rounded-full bg-amber-500"
           />
         ) : null}
-        <span className="min-w-0 truncate"><BotName name={channel.name} /></span>
+        <span className="min-w-0 truncate">
+          <BotName name={channel.name} />
+        </span>
       </span>
     </Button>
   );
 
   return (
     <div
-      className={cn(
-        "min-w-0",
-        isDragging && "relative z-20 opacity-0"
-      )}
+      className={cn("min-w-0", isDragging && "relative z-20 opacity-0")}
       data-pinned-channel-id={channel.id}
       ref={ref}
     >
@@ -2069,20 +2121,20 @@ function VirtualizedCompactChannels({
 
 function MarketplaceIcon() {
   return (
-                <svg
-                  aria-hidden="true"
-                  className="size-3.5"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeLinejoin="round"
-                  strokeWidth="1.8"
-                  viewBox="0 0 24 24"
-                >
-                  <rect x="3" y="3" width="7" height="7" rx="1" />
-                  <rect x="14" y="3" width="7" height="7" rx="1" />
-                  <rect x="3" y="14" width="7" height="7" rx="1" />
-                  <path d="m18 13 4.5 4.5L18 22l-4.5-4.5Z" />
-                </svg>
+    <svg
+      aria-hidden="true"
+      className="size-3.5"
+      fill="none"
+      stroke="currentColor"
+      strokeLinejoin="round"
+      strokeWidth="1.8"
+      viewBox="0 0 24 24"
+    >
+      <rect x="3" y="3" width="7" height="7" rx="1" />
+      <rect x="14" y="3" width="7" height="7" rx="1" />
+      <rect x="3" y="14" width="7" height="7" rx="1" />
+      <path d="m18 13 4.5 4.5L18 22l-4.5-4.5Z" />
+    </svg>
   );
 }
 
@@ -2094,6 +2146,8 @@ function CompactSidebarContent({
   onSelect,
   onNewBot,
   onOpenPlugins,
+  onOpenOutcomes,
+  outcomesActive,
 }: {
   groups: Array<{ id: string; rows: ChannelRowData[] }>;
   botById: ReadonlyMap<string, BotView>;
@@ -2102,6 +2156,8 @@ function CompactSidebarContent({
   onSelect: (id: string, focusComposer?: boolean) => void;
   onNewBot: () => void;
   onOpenPlugins: () => void;
+  onOpenOutcomes?: () => void;
+  outcomesActive?: boolean;
 }) {
   const { t } = useI18n();
   const scrollRef = useRef<HTMLElement>(null);
@@ -2165,6 +2221,9 @@ function CompactSidebarContent({
   return (
     <>
       <div className="electron-drag h-11 shrink-0" />
+      {onOpenOutcomes && (
+        <OutcomeNavigation compact active={Boolean(outcomesActive)} onOpen={onOpenOutcomes} />
+      )}
       <div className="relative flex min-h-0 flex-1">
         <nav
           className="relative sidebar-roster bot-scrollbar flex min-h-0 flex-1 flex-col items-center overflow-y-auto pl-3 pr-1 pt-1"
@@ -2177,35 +2236,35 @@ function CompactSidebarContent({
           }}
         >
           <SidebarMotion pinnedIds={EMPTY_PINNED_IDS}>
-          {channelCount > 180 ? (
-            <VirtualizedCompactChannels
-              botById={botById}
-              groups={groups}
-              onSelect={onSelect}
-              scrollRef={scrollRef}
-              selectedId={selectedId}
-              unreadIds={unreadIds}
-            />
-          ) : (
-            groups.map((group, groupIndex) => (
-              <div className="w-full" data-compact-group={group.id} key={group.id}>
-                {groupIndex > 0 && (
-                  <div aria-hidden="true" className="mx-auto my-2 h-px w-[54px] bg-border" />
-                )}
-                {group.rows.map((row) => (
-                  <div className="flex justify-center pb-1" key={row.channel.id}>
-                    <CompactChannelTile
-                      botById={botById}
-                      onSelect={onSelect}
-                      row={row}
-                      selected={row.channel.id === selectedId}
-                      unread={unreadIds.has(row.channel.id)}
-                    />
-                  </div>
-                ))}
-              </div>
-            ))
-          )}
+            {channelCount > 180 ? (
+              <VirtualizedCompactChannels
+                botById={botById}
+                groups={groups}
+                onSelect={onSelect}
+                scrollRef={scrollRef}
+                selectedId={selectedId}
+                unreadIds={unreadIds}
+              />
+            ) : (
+              groups.map((group, groupIndex) => (
+                <div className="w-full" data-compact-group={group.id} key={group.id}>
+                  {groupIndex > 0 && (
+                    <div aria-hidden="true" className="mx-auto my-2 h-px w-[54px] bg-border" />
+                  )}
+                  {group.rows.map((row) => (
+                    <div className="flex justify-center pb-1" key={row.channel.id}>
+                      <CompactChannelTile
+                        botById={botById}
+                        onSelect={onSelect}
+                        row={row}
+                        selected={row.channel.id === selectedId}
+                        unread={unreadIds.has(row.channel.id)}
+                      />
+                    </div>
+                  ))}
+                </div>
+              ))
+            )}
           </SidebarMotion>
         </nav>
         {scrollState.jumps.above && (
@@ -2241,7 +2300,13 @@ function CompactSidebarContent({
         </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button aria-label={t("Marketplace")} data-marketplace-trigger="" className="size-7 rounded-[7px] p-0 text-foreground-tertiary hover:bg-hover" onClick={onOpenPlugins} variant="ghost">
+            <Button
+              aria-label={t("Marketplace")}
+              data-marketplace-trigger=""
+              className="size-7 rounded-[7px] p-0 text-foreground-tertiary hover:bg-hover"
+              onClick={onOpenPlugins}
+              variant="ghost"
+            >
               <MarketplaceIcon />
             </Button>
           </TooltipTrigger>
@@ -2283,6 +2348,8 @@ export const Sidebar = memo(function Sidebar({
   creating,
   onPreloadSearch,
   onSearch,
+  onOpenOutcomes,
+  outcomesActive = false,
   onSelect,
   onNewBot,
   onNewGroup,
@@ -2307,6 +2374,8 @@ export const Sidebar = memo(function Sidebar({
   creating?: boolean;
   onPreloadSearch: () => void;
   onSearch: () => void;
+  onOpenOutcomes?: () => void;
+  outcomesActive?: boolean;
   onSelect: (id: string, focusComposer?: boolean) => void;
   onNewBot: () => void;
   onNewGroup: () => void;
@@ -2614,21 +2683,26 @@ export const Sidebar = memo(function Sidebar({
     },
     [preferences.createSection, t]
   );
-  const applySidebarWidth = useCallback((width: number) => {
-    const next = Math.min(maxExpandedWidth, clampSidebarWidth(width));
-    if (resizeSessionRef.current) resizeSessionRef.current.width = next;
-    sidebarWidthRef.current = next;
-    if (next >= MIN_EXPANDED_SIDEBAR_WIDTH) lastExpandedWidthRef.current = next;
-    if (sidebarRef.current) sidebarRef.current.style.width = `${next}px`;
-    if (sidebarResizerRef.current) {
-      sidebarResizerRef.current.setAttribute("aria-valuenow", String(next));
-      sidebarResizerRef.current.setAttribute(
-        "aria-valuetext",
-        next === COMPACT_SIDEBAR_WIDTH ? t("Compact") : t("{width} pixels", { width: Math.round(next) })
-      );
-    }
-    return next;
-  }, [maxExpandedWidth]);
+  const applySidebarWidth = useCallback(
+    (width: number) => {
+      const next = Math.min(maxExpandedWidth, clampSidebarWidth(width));
+      if (resizeSessionRef.current) resizeSessionRef.current.width = next;
+      sidebarWidthRef.current = next;
+      if (next >= MIN_EXPANDED_SIDEBAR_WIDTH) lastExpandedWidthRef.current = next;
+      if (sidebarRef.current) sidebarRef.current.style.width = `${next}px`;
+      if (sidebarResizerRef.current) {
+        sidebarResizerRef.current.setAttribute("aria-valuenow", String(next));
+        sidebarResizerRef.current.setAttribute(
+          "aria-valuetext",
+          next === COMPACT_SIDEBAR_WIDTH
+            ? t("Compact")
+            : t("{width} pixels", { width: Math.round(next) })
+        );
+      }
+      return next;
+    },
+    [maxExpandedWidth]
+  );
   const updateSidebarWidth = useCallback(
     (width: number) => {
       const next = applySidebarWidth(width);
@@ -2741,12 +2815,7 @@ export const Sidebar = memo(function Sidebar({
       }
       void navigator.clipboard.writeText(channel.id);
     },
-    [
-      onDeleteChannel,
-      onEditChannel,
-      preferences.togglePinned,
-      preferences.toggleUnread,
-    ]
+    [onDeleteChannel, onEditChannel, preferences.togglePinned, preferences.toggleUnread]
   );
 
   const renderRow = useCallback(
@@ -2824,575 +2893,613 @@ export const Sidebar = memo(function Sidebar({
 
   return (
     <SidebarActivityProvider runs={activeRunByChannel} items={itemsByRun}>
-    <aside
-      className={cn(
-        "relative flex min-w-0 shrink-0 flex-col overflow-hidden bg-sidebar",
-        (!sidebarResizing || sidebarSnapping) && "transition-[width] duration-[var(--motion-pane)] ease-[var(--ease-pane)]",
-        forcedCompact && "!w-[88px]"
-      )}
-      data-sidebar=""
-      data-sidebar-compact={compact ? "true" : "false"}
-      data-sidebar-forced-compact={forcedCompact ? "true" : "false"}
-      data-sidebar-snapping={sidebarSnapping ? "true" : "false"}
-      data-sidebar-virtualized={virtualizeExpanded ? "true" : "false"}
-      onKeyDown={(event) => {
-        // Virtualized lists handle their own offscreen navigation in capture.
-        if (event.defaultPrevented || dragSourceChannelId || dragSourceSectionId) return;
-        if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
-        if (!(event.target instanceof HTMLElement) || event.target.closest("input, textarea, [contenteditable=true]")) return;
-        const selector = "[data-channel-id] button, [data-pinned-channel-id] button, button[data-compact-channel-id]";
-        const current = event.target.closest("button");
-        const rows = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>(selector))
-          .filter((button) => !button.disabled && button.getClientRects().length > 0);
-        const index = rows.findIndex((button) => button === current);
-        if (index < 0) return;
-        const next = event.key === "Home" ? 0 : event.key === "End" ? rows.length - 1
-          : Math.max(0, Math.min(rows.length - 1, index + (event.key === "ArrowDown" ? 1 : -1)));
-        event.preventDefault();
-        rows[next]?.focus({ preventScroll: true });
-        rows[next]?.scrollIntoView({ block: "nearest" });
-      }}
-      ref={sidebarRef}
-      style={{ width: targetCompact ? COMPACT_SIDEBAR_WIDTH : Math.min(sidebarWidth, maxExpandedWidth) }}
-    >
-      <SidebarCollapseMotion compact={compact}>
-      {compact ? (
-        <CompactSidebarContent
-          botById={botById}
-          groups={compactGroups}
-          onNewBot={onNewBot}
-          onOpenPlugins={onOpenPlugins}
-          onSelect={onSelect}
-          selectedId={selectedId}
-          unreadIds={preferences.unreadIds}
-        />
-      ) : (
-        <>
-          <div className="electron-drag flex h-[47px] shrink-0 items-center justify-end gap-0.5 px-[13px] pt-0.5">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button aria-label={t("New chat")} className="electron-no-drag size-7 rounded-[7px] text-foreground-tertiary hover:bg-subtle hover:text-foreground dark:text-foreground-secondary" onClick={onNewBot} size="icon-sm" variant="ghost">
-                  <Plus className="size-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">{t("New chat")}</TooltipContent>
-            </Tooltip>
-          </div>
-          <div className="relative px-[12px] pb-[9px]">
-            <Search className="pointer-events-none absolute left-5 top-[10px] z-10 size-[14px] text-foreground-secondary" />
-            <button
-              aria-label={t("Search")}
-              className="relative top-px flex h-[32px] w-full items-center rounded-[8px] bg-field pl-[26.5px] pr-2 text-left text-[13.5px] text-foreground-secondary shadow-[inset_0_0_0_0.5px_var(--input)] outline-none focus-visible:shadow-[inset_0_0_0_0.5px_var(--ring)]"
-              onClick={onSearch}
-              onFocus={onPreloadSearch}
-              onPointerEnter={onPreloadSearch}
-              type="button"
-            >
-              {t("Search")}
-            </button>
-          </div>
-          <DragDropProvider
-            sensors={sidebarSensors}
-            onDragStart={(event) => {
-              setActiveDropGroup(null);
-              setOverSectionId(null);
-              const sourceData = event.operation.source?.data as
-                | {
+      <aside
+        className={cn(
+          "relative flex min-w-0 shrink-0 flex-col overflow-hidden bg-sidebar",
+          (!sidebarResizing || sidebarSnapping) &&
+            "transition-[width] duration-[var(--motion-pane)] ease-[var(--ease-pane)]",
+          forcedCompact && "!w-[88px]"
+        )}
+        data-sidebar=""
+        data-sidebar-compact={compact ? "true" : "false"}
+        data-sidebar-forced-compact={forcedCompact ? "true" : "false"}
+        data-sidebar-snapping={sidebarSnapping ? "true" : "false"}
+        data-sidebar-virtualized={virtualizeExpanded ? "true" : "false"}
+        onKeyDown={(event) => {
+          // Virtualized lists handle their own offscreen navigation in capture.
+          if (event.defaultPrevented || dragSourceChannelId || dragSourceSectionId) return;
+          if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
+          if (
+            !(event.target instanceof HTMLElement) ||
+            event.target.closest("input, textarea, [contenteditable=true]")
+          )
+            return;
+          const selector =
+            "[data-channel-id] button, [data-pinned-channel-id] button, button[data-compact-channel-id]";
+          const current = event.target.closest("button");
+          const rows = Array.from(
+            event.currentTarget.querySelectorAll<HTMLButtonElement>(selector)
+          ).filter((button) => !button.disabled && button.getClientRects().length > 0);
+          const index = rows.findIndex((button) => button === current);
+          if (index < 0) return;
+          const next =
+            event.key === "Home"
+              ? 0
+              : event.key === "End"
+                ? rows.length - 1
+                : Math.max(
+                    0,
+                    Math.min(rows.length - 1, index + (event.key === "ArrowDown" ? 1 : -1))
+                  );
+          event.preventDefault();
+          rows[next]?.focus({ preventScroll: true });
+          rows[next]?.scrollIntoView({ block: "nearest" });
+        }}
+        ref={sidebarRef}
+        style={{
+          width: targetCompact ? COMPACT_SIDEBAR_WIDTH : Math.min(sidebarWidth, maxExpandedWidth),
+        }}
+      >
+        <SidebarCollapseMotion compact={compact}>
+          {compact ? (
+            <CompactSidebarContent
+              botById={botById}
+              groups={compactGroups}
+              onNewBot={onNewBot}
+              onOpenPlugins={onOpenPlugins}
+              onOpenOutcomes={onOpenOutcomes}
+              outcomesActive={outcomesActive}
+              onSelect={onSelect}
+              selectedId={selectedId}
+              unreadIds={preferences.unreadIds}
+            />
+          ) : (
+            <>
+              <div className="electron-drag flex h-[47px] shrink-0 items-center justify-end gap-0.5 px-[13px] pt-0.5">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      aria-label={t("New chat")}
+                      className="electron-no-drag size-7 rounded-[7px] text-foreground-tertiary hover:bg-subtle hover:text-foreground dark:text-foreground-secondary"
+                      onClick={onNewBot}
+                      size="icon-sm"
+                      variant="ghost"
+                    >
+                      <Plus className="size-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">{t("New chat")}</TooltipContent>
+                </Tooltip>
+              </div>
+              {onOpenOutcomes && (
+                <div className="px-3">
+                  <OutcomeNavigation active={outcomesActive} onOpen={onOpenOutcomes} />
+                </div>
+              )}
+              <div className="relative px-[12px] pb-[9px]">
+                <Search className="pointer-events-none absolute left-5 top-[10px] z-10 size-[14px] text-foreground-secondary" />
+                <button
+                  aria-label={t("Search")}
+                  className="relative top-px flex h-[32px] w-full items-center rounded-[8px] bg-field pl-[26.5px] pr-2 text-left text-[13.5px] text-foreground-secondary shadow-[inset_0_0_0_0.5px_var(--input)] outline-none focus-visible:shadow-[inset_0_0_0_0.5px_var(--ring)]"
+                  onClick={onSearch}
+                  onFocus={onPreloadSearch}
+                  onPointerEnter={onPreloadSearch}
+                  type="button"
+                >
+                  {t("Search")}
+                </button>
+              </div>
+              <DragDropProvider
+                sensors={sidebarSensors}
+                onDragStart={(event) => {
+                  setActiveDropGroup(null);
+                  setOverSectionId(null);
+                  const sourceData = event.operation.source?.data as
+                    | {
+                        kind?: string;
+                        channelId?: string;
+                        group?: string;
+                        sectionId?: string;
+                      }
+                    | undefined;
+                  const sourceChannel = sourceData?.channelId
+                    ? channelById.get(sourceData.channelId)
+                    : undefined;
+                  setDragSourceGroup(
+                    sourceData?.kind === "channel" ? (sourceData.group ?? null) : null
+                  );
+                  setDragSourceChannelId(
+                    sourceData?.kind === "channel" ? (sourceData.channelId ?? null) : null
+                  );
+                  setDragSourceSectionId(
+                    sourceData?.kind === "section"
+                      ? (sourceData.sectionId ?? null)
+                      : sourceData?.kind === "channel" &&
+                          sourceData.group !== PINNED_GROUP_ID &&
+                          sourceData.group !== UNASSIGNED_GROUP_ID
+                        ? (sourceData.group ?? null)
+                        : null
+                  );
+                  setPinTargetVisible(
+                    sourceData?.kind === "channel" &&
+                      sourceData.group !== PINNED_GROUP_ID &&
+                      isPinnableChannel(sourceChannel)
+                  );
+                }}
+                onDragOver={(event) => {
+                  event.preventDefault();
+                  const targetData = event.operation.target?.data as
+                    | { kind?: string; group?: string; sectionId?: string }
+                    | undefined;
+                  const sourceData = event.operation.source?.data as { group?: string } | undefined;
+                  const group =
+                    targetData?.kind === "channel-drop" && targetData.group !== sourceData?.group
+                      ? (targetData.group ?? null)
+                      : null;
+                  setActiveDropGroup((current) => (current === group ? current : group));
+                  const nextOverSectionId =
+                    targetData?.kind === "section" ? (targetData.sectionId ?? null) : null;
+                  setOverSectionId((current) =>
+                    current === nextOverSectionId ? current : nextOverSectionId
+                  );
+                }}
+                onDragEnd={(event) => {
+                  setPinTargetVisible(false);
+                  setActiveDropGroup(null);
+                  setDragSourceGroup(null);
+                  setDragSourceChannelId(null);
+                  setDragSourceSectionId(null);
+                  setOverSectionId(null);
+                  if (event.canceled) return;
+                  const { source, target } = event.operation;
+                  if (!source || !target) return;
+                  const sourceData = source.data as {
                     kind?: string;
                     channelId?: string;
                     group?: string;
-                    sectionId?: string;
+                    index?: number;
+                  };
+                  const targetData = target.data as {
+                    kind?: string;
+                    group?: string;
+                    index?: number;
+                  };
+                  if (
+                    sourceData.kind === "section" &&
+                    targetData.kind === "section" &&
+                    isSortable(source) &&
+                    typeof sourceData.index === "number" &&
+                    typeof targetData.index === "number"
+                  ) {
+                    preferences.reorderSection(sourceData.index, targetData.index);
+                    return;
                   }
-                | undefined;
-              const sourceChannel = sourceData?.channelId
-                ? channelById.get(sourceData.channelId)
-                : undefined;
-              setDragSourceGroup(
-                sourceData?.kind === "channel" ? (sourceData.group ?? null) : null
-              );
-              setDragSourceChannelId(
-                sourceData?.kind === "channel" ? (sourceData.channelId ?? null) : null
-              );
-              setDragSourceSectionId(
-                sourceData?.kind === "section"
-                  ? (sourceData.sectionId ?? null)
-                  : sourceData?.kind === "channel" &&
-                      sourceData.group !== PINNED_GROUP_ID &&
-                      sourceData.group !== UNASSIGNED_GROUP_ID
-                    ? (sourceData.group ?? null)
-                    : null
-              );
-              setPinTargetVisible(
-                sourceData?.kind === "channel" &&
-                  sourceData.group !== PINNED_GROUP_ID &&
-                  isPinnableChannel(sourceChannel)
-              );
-            }}
-            onDragOver={(event) => {
-              event.preventDefault();
-              const targetData = event.operation.target?.data as
-                | { kind?: string; group?: string; sectionId?: string }
-                | undefined;
-              const sourceData = event.operation.source?.data as { group?: string } | undefined;
-              const group =
-                targetData?.kind === "channel-drop" && targetData.group !== sourceData?.group
-                  ? (targetData.group ?? null)
-                  : null;
-              setActiveDropGroup((current) => (current === group ? current : group));
-              const nextOverSectionId =
-                targetData?.kind === "section" ? (targetData.sectionId ?? null) : null;
-              setOverSectionId((current) =>
-                current === nextOverSectionId ? current : nextOverSectionId
-              );
-            }}
-            onDragEnd={(event) => {
-              setPinTargetVisible(false);
-              setActiveDropGroup(null);
-              setDragSourceGroup(null);
-              setDragSourceChannelId(null);
-              setDragSourceSectionId(null);
-              setOverSectionId(null);
-              if (event.canceled) return;
-              const { source, target } = event.operation;
-              if (!source || !target) return;
-              const sourceData = source.data as {
-                kind?: string;
-                channelId?: string;
-                group?: string;
-                index?: number;
-              };
-              const targetData = target.data as {
-                kind?: string;
-                group?: string;
-                index?: number;
-              };
-              if (
-                sourceData.kind === "section" &&
-                targetData.kind === "section" &&
-                isSortable(source) &&
-                typeof sourceData.index === "number" &&
-                typeof targetData.index === "number"
-              ) {
-                preferences.reorderSection(sourceData.index, targetData.index);
-                return;
-              }
-              if (
-                sourceData.kind !== "channel" ||
-                !sourceData.channelId ||
-                !sourceData.group ||
-                targetData.kind !== "channel-drop" ||
-                !targetData.group ||
-                targetData.group === sourceData.group
-              ) {
-                return;
-              }
-              const sourceChannel = channelById.get(sourceData.channelId);
-              if (targetData.group === PINNED_GROUP_ID && !isPinnableChannel(sourceChannel)) {
-                return;
-              }
-              preferences.moveChannel({
-                channelId: sourceData.channelId,
-                group: targetData.group,
-              });
-            }}
-          >
-            <div className="relative flex min-h-0 flex-1">
-              <nav
-                className="relative sidebar-roster bot-scrollbar flex min-h-0 w-full flex-1 flex-col overflow-y-auto pl-[12px] pr-1"
-                onScroll={scheduleUnreadJumpMeasure}
-                ref={sidebarScrollRef}
-                data-scroll-fade-top={sidebarTopFade}
-                data-scroll-fade-bottom={sidebarBottomFade}
-                style={{
-                  maskImage: `linear-gradient(to bottom, ${sidebarTopFade ? "transparent 0px, black 28px" : "black 0px"}, ${sidebarBottomFade ? "black calc(100% - 48px), transparent 100%" : "black 100%"})`,
+                  if (
+                    sourceData.kind !== "channel" ||
+                    !sourceData.channelId ||
+                    !sourceData.group ||
+                    targetData.kind !== "channel-drop" ||
+                    !targetData.group ||
+                    targetData.group === sourceData.group
+                  ) {
+                    return;
+                  }
+                  const sourceChannel = channelById.get(sourceData.channelId);
+                  if (targetData.group === PINNED_GROUP_ID && !isPinnableChannel(sourceChannel)) {
+                    return;
+                  }
+                  preferences.moveChannel({
+                    channelId: sourceData.channelId,
+                    group: targetData.group,
+                  });
                 }}
               >
-                <SidebarMotion pinnedIds={preferences.pinnedIds} disabled={Boolean(dragSourceChannelId || dragSourceSectionId || sidebarResizing)}>
-                {!creating && (
-                  <div className="grid">
-                    <TransitionDropZone
-                      group={PINNED_GROUP_ID}
-                      label={t("Drag here to pin")}
-                      settling={false}
-                      visible={pinTargetVisible && groups.pinned.length === 0}
-                    />
-                    <div className="col-start-1 row-start-1 relative overflow-x-visible overflow-y-clip [overflow-clip-margin:16px]" data-pinned-shell="">
-                    {groups.pinned.length > 0 && (
-                      <ChannelGroupSurface
-                        active={activeDropGroup === PINNED_GROUP_ID}
-                        className="col-start-1 row-start-1 pb-3 pt-2"
-                        disabled={dndDisabled || dragSourceGroup === PINNED_GROUP_ID}
-                        group={PINNED_GROUP_ID}
-                      >
-                        {groups.pinned.length > EXPANDED_SIDEBAR_MAX_MOUNTED_ITEMS ? (
-                          <VirtualizedPinnedTiles
-                            activeChannelId={dragSourceChannelId}
-                            botById={botById}
-                            onBotAction={onBotAction}
-                            onGroupAction={handleSidebarGroupAction}
-                            onCreateSection={createSection}
-                            onMoveToSection={preferences.moveToSection}
-                            onRegisterJumpHandler={registerVirtualJumpHandler}
-                            onSelect={onSelect}
-                            rows={groups.pinned}
-                            scrollRef={sidebarScrollRef}
-                            sections={preferences.sections}
-                            selectedId={selectedId}
-                            sidebarWidth={sidebarWidth}
-                            unreadIds={preferences.unreadIds}
-                          />
-                        ) : (
-                          <div
-                            className="grid w-full justify-center gap-x-2 gap-y-3 rounded-[12px] p-[6px]"
-                            data-pinned-grid=""
-                            style={{
-                              gridTemplateColumns:
-                                "repeat(auto-fit, minmax(80px, max-content))",
-                            }}
-                          >
-                            {groups.pinned.map((row) => (
-                              <DraggablePinnedTile
-                                botById={botById}
-                                key={row.channel.id}
-                                onBotAction={onBotAction}
-                                onGroupAction={handleSidebarGroupAction}
-                                onCreateSection={createSection}
-                                onMoveToSection={preferences.moveToSection}
-                                onSelect={onSelect}
-                                row={row}
-                                sections={preferences.sections}
-                                selected={row.channel.id === selectedId}
-                                unread={preferences.unreadIds.has(row.channel.id)}
-                              />
-                            ))}
-                          </div>
-                        )}
-                      </ChannelGroupSurface>
-                    )}
-                    </div>
-                  </div>
-                )}
-                {pendingBot && (
-                  <div
-                    aria-current="page"
-                    className="flex h-[54px] w-full items-center gap-2 rounded-[10px] bg-selected px-2 text-left"
-                    data-pending-bot-row=""
-                  >
-                    <span className="grid size-9 shrink-0 place-items-center rounded-full border border-border bg-subtle text-foreground-tertiary">
-                      <UserRound className="size-4 opacity-60" />
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[14px] font-medium">
-                        {pendingBot.name}
-                      </span>
-                      <span className="mt-px block text-[13px] leading-4 text-foreground-secondary">
-                        {t("Creating…")}
-                      </span>
-                    </span>
-                  </div>
-                )}
-                {virtualizeExpanded && preferences.sections.length > 0 ? (
-                  <VirtualizedSections
-                    activeSectionId={activeVirtualSectionId}
-                    renderSection={renderSection}
-                    onRegisterJumpHandler={registerVirtualJumpHandler}
-                    rowsBySection={groups.bySection}
-                    scrollRef={sidebarScrollRef}
-                    sections={preferences.sections}
-                  />
-                ) : (
-                  <div
-                    className={cn(
-                      "flex min-h-0 flex-col",
-                      preferences.sections.length > 0 && "gap-[10px]"
-                    )}
-                  >
-                    {preferences.sections.map(renderSection)}
-                  </div>
-                )}
-                <ChannelGroupSurface
-                  active={activeDropGroup === UNASSIGNED_GROUP_ID}
-                  className={cn(
-                    "flex min-h-[36px] flex-1 flex-col",
-                    preferences.sections.length > 0 && "pt-[10px]"
-                  )}
-                  disabled={dndDisabled || dragSourceGroup === UNASSIGNED_GROUP_ID}
-                  group={UNASSIGNED_GROUP_ID}
-                >
-                  <Collapsible.Root
-                    onOpenChange={(open) => {
-                      if (preferences.sections.length === 0) return;
-                      if (open === preferences.unassignedCollapsed) {
-                        preferences.toggleUnassigned();
-                      }
+                <div className="relative flex min-h-0 flex-1">
+                  <nav
+                    className="relative sidebar-roster bot-scrollbar flex min-h-0 w-full flex-1 flex-col overflow-y-auto pl-[12px] pr-1"
+                    onScroll={scheduleUnreadJumpMeasure}
+                    ref={sidebarScrollRef}
+                    data-scroll-fade-top={sidebarTopFade}
+                    data-scroll-fade-bottom={sidebarBottomFade}
+                    style={{
+                      maskImage: `linear-gradient(to bottom, ${sidebarTopFade ? "transparent 0px, black 28px" : "black 0px"}, ${sidebarBottomFade ? "black calc(100% - 48px), transparent 100%" : "black 100%"})`,
                     }}
-                    open={
-                      preferences.sections.length === 0 || !preferences.unassignedCollapsed
-                    }
                   >
-                    {preferences.sections.length > 0 && (
-                      <Collapsible.Trigger asChild>
-                        <button
-                          className="group flex h-[30px] w-full items-center rounded-md px-2 text-[12px] font-normal text-foreground-tertiary outline-none transition-colors duration-[170ms] ease-out hover:bg-foreground/[0.045] focus-visible:ring-2 focus-visible:ring-ring/30 motion-reduce:transition-none dark:text-foreground-secondary dark:hover:bg-hover"
-                          type="button"
-                        >
-                          <span className="min-w-0 flex-1 -translate-y-[1.5px] truncate text-left">
-                            {t("Unassigned")}
-                          </span>
-                          <SectionDisclosure
-                            collapsed={preferences.unassignedCollapsed}
-                            count={groups.unassigned.length}
-                          />
-                        </button>
-                      </Collapsible.Trigger>
-                    )}
-                    <SidebarCollapsibleContent
-                      className={preferences.sections.length > 0 ? "pt-1" : undefined}
+                    <SidebarMotion
+                      pinnedIds={preferences.pinnedIds}
+                      disabled={Boolean(
+                        dragSourceChannelId || dragSourceSectionId || sidebarResizing
+                      )}
                     >
-                      {groups.unassigned.length > EXPANDED_SIDEBAR_MAX_MOUNTED_ITEMS ? (
-                        <VirtualizedChannelRows
-                          activeChannelId={dragSourceChannelId}
-                          group={UNASSIGNED_GROUP_ID}
-                          onRegisterJumpHandler={registerVirtualJumpHandler}
-                          renderRow={renderRow}
-                          rows={groups.unassigned}
-                          scrollRef={sidebarScrollRef}
-                        />
-                      ) : (
-                        <div className="flex flex-col gap-1">
-                          {groups.unassigned.map((row, index) =>
-                            renderRow(row, index, UNASSIGNED_GROUP_ID)
-                          )}
+                      {!creating && (
+                        <div className="grid">
+                          <TransitionDropZone
+                            group={PINNED_GROUP_ID}
+                            label={t("Drag here to pin")}
+                            settling={false}
+                            visible={pinTargetVisible && groups.pinned.length === 0}
+                          />
+                          <div
+                            className="col-start-1 row-start-1 relative overflow-x-visible overflow-y-clip [overflow-clip-margin:16px]"
+                            data-pinned-shell=""
+                          >
+                            {groups.pinned.length > 0 && (
+                              <ChannelGroupSurface
+                                active={activeDropGroup === PINNED_GROUP_ID}
+                                className="col-start-1 row-start-1 pb-3 pt-2"
+                                disabled={dndDisabled || dragSourceGroup === PINNED_GROUP_ID}
+                                group={PINNED_GROUP_ID}
+                              >
+                                {groups.pinned.length > EXPANDED_SIDEBAR_MAX_MOUNTED_ITEMS ? (
+                                  <VirtualizedPinnedTiles
+                                    activeChannelId={dragSourceChannelId}
+                                    botById={botById}
+                                    onBotAction={onBotAction}
+                                    onGroupAction={handleSidebarGroupAction}
+                                    onCreateSection={createSection}
+                                    onMoveToSection={preferences.moveToSection}
+                                    onRegisterJumpHandler={registerVirtualJumpHandler}
+                                    onSelect={onSelect}
+                                    rows={groups.pinned}
+                                    scrollRef={sidebarScrollRef}
+                                    sections={preferences.sections}
+                                    selectedId={selectedId}
+                                    sidebarWidth={sidebarWidth}
+                                    unreadIds={preferences.unreadIds}
+                                  />
+                                ) : (
+                                  <div
+                                    className="grid w-full justify-center gap-x-2 gap-y-3 rounded-[12px] p-[6px]"
+                                    data-pinned-grid=""
+                                    style={{
+                                      gridTemplateColumns:
+                                        "repeat(auto-fit, minmax(80px, max-content))",
+                                    }}
+                                  >
+                                    {groups.pinned.map((row) => (
+                                      <DraggablePinnedTile
+                                        botById={botById}
+                                        key={row.channel.id}
+                                        onBotAction={onBotAction}
+                                        onGroupAction={handleSidebarGroupAction}
+                                        onCreateSection={createSection}
+                                        onMoveToSection={preferences.moveToSection}
+                                        onSelect={onSelect}
+                                        row={row}
+                                        sections={preferences.sections}
+                                        selected={row.channel.id === selectedId}
+                                        unread={preferences.unreadIds.has(row.channel.id)}
+                                      />
+                                    ))}
+                                  </div>
+                                )}
+                              </ChannelGroupSurface>
+                            )}
+                          </div>
                         </div>
                       )}
-                    </SidebarCollapsibleContent>
-                  </Collapsible.Root>
-                </ChannelGroupSurface>
-                </SidebarMotion>
-              </nav>
-              {unreadJumps.above ? (
-                <UnreadJumpPill
-                  direction="above"
-                  onJump={jumpToUnread}
-                  target={unreadJumps.above}
-                />
-              ) : null}
-              {unreadJumps.below ? (
-                <UnreadJumpPill
-                  direction="below"
-                  onJump={jumpToUnread}
-                  target={unreadJumps.below}
-                />
-              ) : null}
-            </div>
+                      {pendingBot && (
+                        <div
+                          aria-current="page"
+                          className="flex h-[54px] w-full items-center gap-2 rounded-[10px] bg-selected px-2 text-left"
+                          data-pending-bot-row=""
+                        >
+                          <span className="grid size-9 shrink-0 place-items-center rounded-full border border-border bg-subtle text-foreground-tertiary">
+                            <UserRound className="size-4 opacity-60" />
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-[14px] font-medium">
+                              {pendingBot.name}
+                            </span>
+                            <span className="mt-px block text-[13px] leading-4 text-foreground-secondary">
+                              {t("Creating…")}
+                            </span>
+                          </span>
+                        </div>
+                      )}
+                      {virtualizeExpanded && preferences.sections.length > 0 ? (
+                        <VirtualizedSections
+                          activeSectionId={activeVirtualSectionId}
+                          renderSection={renderSection}
+                          onRegisterJumpHandler={registerVirtualJumpHandler}
+                          rowsBySection={groups.bySection}
+                          scrollRef={sidebarScrollRef}
+                          sections={preferences.sections}
+                        />
+                      ) : (
+                        <div
+                          className={cn(
+                            "flex min-h-0 flex-col",
+                            preferences.sections.length > 0 && "gap-[10px]"
+                          )}
+                        >
+                          {preferences.sections.map(renderSection)}
+                        </div>
+                      )}
+                      <ChannelGroupSurface
+                        active={activeDropGroup === UNASSIGNED_GROUP_ID}
+                        className={cn(
+                          "flex min-h-[36px] flex-1 flex-col",
+                          preferences.sections.length > 0 && "pt-[10px]"
+                        )}
+                        disabled={dndDisabled || dragSourceGroup === UNASSIGNED_GROUP_ID}
+                        group={UNASSIGNED_GROUP_ID}
+                      >
+                        <Collapsible.Root
+                          onOpenChange={(open) => {
+                            if (preferences.sections.length === 0) return;
+                            if (open === preferences.unassignedCollapsed) {
+                              preferences.toggleUnassigned();
+                            }
+                          }}
+                          open={
+                            preferences.sections.length === 0 || !preferences.unassignedCollapsed
+                          }
+                        >
+                          {preferences.sections.length > 0 && (
+                            <Collapsible.Trigger asChild>
+                              <button
+                                className="group flex h-[30px] w-full items-center rounded-md px-2 text-[12px] font-normal text-foreground-tertiary outline-none transition-colors duration-[170ms] ease-out hover:bg-foreground/[0.045] focus-visible:ring-2 focus-visible:ring-ring/30 motion-reduce:transition-none dark:text-foreground-secondary dark:hover:bg-hover"
+                                type="button"
+                              >
+                                <span className="min-w-0 flex-1 -translate-y-[1.5px] truncate text-left">
+                                  {t("Unassigned")}
+                                </span>
+                                <SectionDisclosure
+                                  collapsed={preferences.unassignedCollapsed}
+                                  count={groups.unassigned.length}
+                                />
+                              </button>
+                            </Collapsible.Trigger>
+                          )}
+                          <SidebarCollapsibleContent
+                            className={preferences.sections.length > 0 ? "pt-1" : undefined}
+                          >
+                            {groups.unassigned.length > EXPANDED_SIDEBAR_MAX_MOUNTED_ITEMS ? (
+                              <VirtualizedChannelRows
+                                activeChannelId={dragSourceChannelId}
+                                group={UNASSIGNED_GROUP_ID}
+                                onRegisterJumpHandler={registerVirtualJumpHandler}
+                                renderRow={renderRow}
+                                rows={groups.unassigned}
+                                scrollRef={sidebarScrollRef}
+                              />
+                            ) : (
+                              <div className="flex flex-col gap-1">
+                                {groups.unassigned.map((row, index) =>
+                                  renderRow(row, index, UNASSIGNED_GROUP_ID)
+                                )}
+                              </div>
+                            )}
+                          </SidebarCollapsibleContent>
+                        </Collapsible.Root>
+                      </ChannelGroupSurface>
+                    </SidebarMotion>
+                  </nav>
+                  {unreadJumps.above ? (
+                    <UnreadJumpPill
+                      direction="above"
+                      onJump={jumpToUnread}
+                      target={unreadJumps.above}
+                    />
+                  ) : null}
+                  {unreadJumps.below ? (
+                    <UnreadJumpPill
+                      direction="below"
+                      onJump={jumpToUnread}
+                      target={unreadJumps.below}
+                    />
+                  ) : null}
+                </div>
 
-            <DragOverlay
-              className="pointer-events-none z-[100] flex justify-center overflow-visible"
-              dropAnimation={{
-                duration: 300,
-                easing: "cubic-bezier(0.25, 1.15, 0.4, 1)",
-              }}
+                <DragOverlay
+                  className="pointer-events-none z-[100] flex justify-center overflow-visible"
+                  dropAnimation={{
+                    duration: 300,
+                    easing: "cubic-bezier(0.25, 1.15, 0.4, 1)",
+                  }}
+                >
+                  {(source) => {
+                    const sourceData = source.data as {
+                      kind?: string;
+                      channelId?: string;
+                      sectionId?: string;
+                    };
+                    if (sourceData.kind === "section" && sourceData.sectionId) {
+                      const section = preferences.sections.find(
+                        (candidate) => candidate.id === sourceData.sectionId
+                      );
+                      return section ? (
+                        <div className="flex h-[30px] max-w-[220px] items-center overflow-hidden text-ellipsis whitespace-nowrap rounded-[8px] border-[0.5px] border-foreground/10 bg-popover px-2 pb-1.5 pt-2 text-[12px] leading-4 text-foreground-secondary shadow-lg">
+                          {section.name}
+                        </div>
+                      ) : null;
+                    }
+                    if (sourceData.kind !== "channel" || !sourceData.channelId) return null;
+                    const row = rowByChannelId.get(sourceData.channelId);
+                    return row ? <SidebarDragPreview botById={botById} row={row} /> : null;
+                  }}
+                </DragOverlay>
+              </DragDropProvider>
+            </>
+          )}
+        </SidebarCollapseMotion>
+        <div className="sidebar-account-footer">
+          <AccountMenu compact={compact} onOpenSettings={onOpenSettings}>
+            <button
+              aria-label={t("Account: {name}", { name: account.name })}
+              data-sidebar-account-trigger=""
+              className="sidebar-account-button"
+              title={account.name}
+              type="button"
             >
-              {(source) => {
-                const sourceData = source.data as {
-                  kind?: string;
-                  channelId?: string;
-                  sectionId?: string;
-                };
-                if (sourceData.kind === "section" && sourceData.sectionId) {
-                  const section = preferences.sections.find(
-                    (candidate) => candidate.id === sourceData.sectionId
-                  );
-                  return section ? (
-                    <div className="flex h-[30px] max-w-[220px] items-center overflow-hidden text-ellipsis whitespace-nowrap rounded-[8px] border-[0.5px] border-foreground/10 bg-popover px-2 pb-1.5 pt-2 text-[12px] leading-4 text-foreground-secondary shadow-lg">
-                      {section.name}
-                    </div>
-                  ) : null;
-                }
-                if (sourceData.kind !== "channel" || !sourceData.channelId) return null;
-                const row = rowByChannelId.get(sourceData.channelId);
-                return row ? <SidebarDragPreview botById={botById} row={row} /> : null;
-              }}
-            </DragOverlay>
-          </DragDropProvider>
-        </>
-      )}
-
-      </SidebarCollapseMotion>
-      <div className="sidebar-account-footer">
-        <AccountMenu compact={compact} onOpenSettings={onOpenSettings}>
+              <span
+                className="sidebar-account-avatar"
+                data-sidebar-account-avatar=""
+                aria-hidden="true"
+              >
+                {account.initials}
+              </span>
+              <span className="sidebar-account-name">{account.name}</span>
+            </button>
+          </AccountMenu>
           <button
-            aria-label={t("Account: {name}", { name: account.name })}
-            data-sidebar-account-trigger=""
-            className="sidebar-account-button"
-            title={account.name}
+            aria-label={t("Connect apps")}
+            className="sidebar-connect-apps"
+            data-marketplace-trigger=""
+            data-sidebar-connect-apps=""
+            onClick={onOpenPlugins}
             type="button"
           >
-            <span
-              className="sidebar-account-avatar"
-              data-sidebar-account-avatar=""
-              aria-hidden="true"
-            >
-              {account.initials}
+            <span className="sidebar-connect-glyph" aria-hidden="true">
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.7"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <rect x="3" y="3" width="7" height="7" rx="1" />
+                <rect x="14" y="3" width="7" height="7" rx="1" />
+                <rect x="3" y="14" width="7" height="7" rx="1" />
+                <path d="M17.5 14v7M14 17.5h7" />
+              </svg>
             </span>
-            <span className="sidebar-account-name">{account.name}</span>
-          </button>
-        </AccountMenu>
-        <button
-          aria-label={t("Connect apps")}
-          className="sidebar-connect-apps"
-          data-marketplace-trigger=""
-          data-sidebar-connect-apps=""
-          onClick={onOpenPlugins}
-          type="button"
-        >
-          <span className="sidebar-connect-glyph" aria-hidden="true">
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.7"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <rect x="3" y="3" width="7" height="7" rx="1" />
-              <rect x="14" y="3" width="7" height="7" rx="1" />
-              <rect x="3" y="14" width="7" height="7" rx="1" />
-              <path d="M17.5 14v7M14 17.5h7" />
-            </svg>
-          </span>
-          <span className="sidebar-connect-content" aria-hidden="true">
-            <span>{t("Connect apps")}</span>
-            <span className="sidebar-connect-logos">
-              {[calendarLogo, notionLogo, slackLogo].map((logo, index) => (
-                <span
-                  className="sidebar-connect-logo"
-                  key={logo}
-                  style={{ "--logo-index": index } as React.CSSProperties}
-                >
-                  <span className="sidebar-connect-logo-face">
-                    <img alt="" draggable={false} height="16" src={logo} width="16" />
+            <span className="sidebar-connect-content" aria-hidden="true">
+              <span>{t("Connect apps")}</span>
+              <span className="sidebar-connect-logos">
+                {[calendarLogo, notionLogo, slackLogo].map((logo, index) => (
+                  <span
+                    className="sidebar-connect-logo"
+                    key={logo}
+                    style={{ "--logo-index": index } as React.CSSProperties}
+                  >
+                    <span className="sidebar-connect-logo-face">
+                      <img alt="" draggable={false} height="16" src={logo} width="16" />
+                    </span>
                   </span>
-                </span>
-              ))}
+                ))}
+              </span>
             </span>
-          </span>
-        </button>
-      </div>
+          </button>
+        </div>
 
-      <div
-        aria-label={t("Resize sidebar")}
-        aria-orientation="vertical"
-        aria-valuemax={Math.min(maxSidebarWidth(), maxExpandedWidth)}
-        aria-valuemin={COMPACT_SIDEBAR_WIDTH}
-        className={cn(
-          "electron-no-drag group absolute inset-y-0 right-0 z-40 w-2 cursor-col-resize touch-none outline-none"
-        )}
-        data-sidebar-resizer=""
-        data-resizing={sidebarResizing ? "true" : "false"}
-        ref={sidebarResizerRef}
-        onDoubleClick={() => {
-          animateSidebarWidth(DEFAULT_SIDEBAR_WIDTH);
-          localStorage.setItem(SIDEBAR_WIDTH_KEY, String(DEFAULT_SIDEBAR_WIDTH));
-        }}
-        onKeyDown={(event) => {
-          let next = sidebarWidth;
-          if (event.key === "ArrowLeft") {
-            next =
-              sidebarWidth <= MIN_EXPANDED_SIDEBAR_WIDTH
-                ? COMPACT_SIDEBAR_WIDTH
-                : Math.max(MIN_EXPANDED_SIDEBAR_WIDTH, sidebarWidth - 16);
-          } else if (event.key === "ArrowRight") {
-            next =
-              sidebarWidth === COMPACT_SIDEBAR_WIDTH
-                ? MIN_EXPANDED_SIDEBAR_WIDTH
-                : sidebarWidth + 16;
-          } else if (event.key === "Home") next = COMPACT_SIDEBAR_WIDTH;
-          else if (event.key === "End") next = Math.min(maxSidebarWidth(), maxExpandedWidth);
-          else return;
-          event.preventDefault();
-          if (next === COMPACT_SIDEBAR_WIDTH || sidebarWidth === COMPACT_SIDEBAR_WIDTH) {
-            animateSidebarWidth(next);
-          } else {
-            updateSidebarWidth(next);
-          }
-          localStorage.setItem(SIDEBAR_WIDTH_KEY, String(clampSidebarWidth(next)));
-        }}
-        onPointerCancel={(event) => finishSidebarResize(event.currentTarget)}
-        onPointerDown={(event) => {
-          if (event.button !== 0) return;
-          event.preventDefault();
-          event.currentTarget.setPointerCapture(event.pointerId);
-          resizeSessionRef.current = {
-            pointerId: event.pointerId,
-            startX: event.clientX,
-            startWidth: Math.min(sidebarWidthRef.current, maxExpandedWidth),
-            width: sidebarWidthRef.current,
-            mode: targetCompact ? "compact" : "expanded",
-            cursor: document.body.style.cursor,
-            userSelect: document.body.style.userSelect,
-          };
-          setSidebarResizing(true);
-          document.body.style.cursor = "col-resize";
-          document.body.style.userSelect = "none";
-        }}
-        onPointerMove={(event) => {
-          const session = resizeSessionRef.current;
-          if (!session || session.pointerId !== event.pointerId) return;
-          const next = moveSnappedSidebar(session, event.clientX);
-          const snapped = next.mode !== session.mode;
-          Object.assign(session, next);
-          // Collapse snaps animate; outward dragging follows the pointer without
-          // a spring lag (keyboard/button toggles still animate both ways).
-          if (snapped && next.mode === "compact") animateSidebarWidth(next.width);
-          else {
-            if (next.mode === "expanded" && sidebarSnapTimerRef.current !== null) {
-              window.clearTimeout(sidebarSnapTimerRef.current);
-              sidebarSnapTimerRef.current = null;
-              flushSync(() => setSidebarSnapping(false));
-            }
-            const appliedWidth = applySidebarWidth(next.width);
-            if (snapped) setSidebarWidth(appliedWidth);
-          }
-        }}
-        onPointerUp={(event) => finishSidebarResize(event.currentTarget)}
-        role="separator"
-        tabIndex={0}
-      >
-        <span
+        <div
+          aria-label={t("Resize sidebar")}
+          aria-orientation="vertical"
+          aria-valuemax={Math.min(maxSidebarWidth(), maxExpandedWidth)}
+          aria-valuemin={COMPACT_SIDEBAR_WIDTH}
           className={cn(
-            "absolute inset-y-0 right-0 w-[0.5px] bg-divider transition-colors duration-150 ease-out group-hover:bg-divider-hover group-focus-visible:bg-divider-hover motion-reduce:transition-none",
-            sidebarResizing && "!bg-divider-active"
+            "electron-no-drag group absolute inset-y-0 right-0 z-40 w-2 cursor-col-resize touch-none outline-none"
           )}
-        />
-      </div>
+          data-sidebar-resizer=""
+          data-resizing={sidebarResizing ? "true" : "false"}
+          ref={sidebarResizerRef}
+          onDoubleClick={() => {
+            animateSidebarWidth(DEFAULT_SIDEBAR_WIDTH);
+            localStorage.setItem(SIDEBAR_WIDTH_KEY, String(DEFAULT_SIDEBAR_WIDTH));
+          }}
+          onKeyDown={(event) => {
+            let next = sidebarWidth;
+            if (event.key === "ArrowLeft") {
+              next =
+                sidebarWidth <= MIN_EXPANDED_SIDEBAR_WIDTH
+                  ? COMPACT_SIDEBAR_WIDTH
+                  : Math.max(MIN_EXPANDED_SIDEBAR_WIDTH, sidebarWidth - 16);
+            } else if (event.key === "ArrowRight") {
+              next =
+                sidebarWidth === COMPACT_SIDEBAR_WIDTH
+                  ? MIN_EXPANDED_SIDEBAR_WIDTH
+                  : sidebarWidth + 16;
+            } else if (event.key === "Home") next = COMPACT_SIDEBAR_WIDTH;
+            else if (event.key === "End") next = Math.min(maxSidebarWidth(), maxExpandedWidth);
+            else return;
+            event.preventDefault();
+            if (next === COMPACT_SIDEBAR_WIDTH || sidebarWidth === COMPACT_SIDEBAR_WIDTH) {
+              animateSidebarWidth(next);
+            } else {
+              updateSidebarWidth(next);
+            }
+            localStorage.setItem(SIDEBAR_WIDTH_KEY, String(clampSidebarWidth(next)));
+          }}
+          onPointerCancel={(event) => finishSidebarResize(event.currentTarget)}
+          onPointerDown={(event) => {
+            if (event.button !== 0) return;
+            event.preventDefault();
+            event.currentTarget.setPointerCapture(event.pointerId);
+            resizeSessionRef.current = {
+              pointerId: event.pointerId,
+              startX: event.clientX,
+              startWidth: Math.min(sidebarWidthRef.current, maxExpandedWidth),
+              width: sidebarWidthRef.current,
+              mode: targetCompact ? "compact" : "expanded",
+              cursor: document.body.style.cursor,
+              userSelect: document.body.style.userSelect,
+            };
+            setSidebarResizing(true);
+            document.body.style.cursor = "col-resize";
+            document.body.style.userSelect = "none";
+          }}
+          onPointerMove={(event) => {
+            const session = resizeSessionRef.current;
+            if (!session || session.pointerId !== event.pointerId) return;
+            const next = moveSnappedSidebar(session, event.clientX);
+            const snapped = next.mode !== session.mode;
+            Object.assign(session, next);
+            // Collapse snaps animate; outward dragging follows the pointer without
+            // a spring lag (keyboard/button toggles still animate both ways).
+            if (snapped && next.mode === "compact") animateSidebarWidth(next.width);
+            else {
+              if (next.mode === "expanded" && sidebarSnapTimerRef.current !== null) {
+                window.clearTimeout(sidebarSnapTimerRef.current);
+                sidebarSnapTimerRef.current = null;
+                flushSync(() => setSidebarSnapping(false));
+              }
+              const appliedWidth = applySidebarWidth(next.width);
+              if (snapped) setSidebarWidth(appliedWidth);
+            }
+          }}
+          onPointerUp={(event) => finishSidebarResize(event.currentTarget)}
+          role="separator"
+          tabIndex={0}
+        >
+          <span
+            className={cn(
+              "absolute inset-y-0 right-0 w-[0.5px] bg-divider transition-colors duration-150 ease-out group-hover:bg-divider-hover group-focus-visible:bg-divider-hover motion-reduce:transition-none",
+              sidebarResizing && "!bg-divider-active"
+            )}
+          />
+        </div>
 
-      <AlertDialog
-        onOpenChange={(open) => !open && setDeleteTarget(null)}
-        open={Boolean(deleteTarget)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t("Delete “{name}”", { name: deleteDialogTarget?.name ?? "" })}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t("Its Bots move to Unassigned. No Bots are deleted.")}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{t("Cancel")}</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                if (deleteDialogTarget) preferences.deleteSection(deleteDialogTarget.id);
-              }}
-            >
-              {t("Delete")}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </aside>
+        <AlertDialog
+          onOpenChange={(open) => !open && setDeleteTarget(null)}
+          open={Boolean(deleteTarget)}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>
+                {t("Delete “{name}”", { name: deleteDialogTarget?.name ?? "" })}
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                {t("Its Bots move to Unassigned. No Bots are deleted.")}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>{t("Cancel")}</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => {
+                  if (deleteDialogTarget) preferences.deleteSection(deleteDialogTarget.id);
+                }}
+              >
+                {t("Delete")}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </aside>
     </SidebarActivityProvider>
   );
 });

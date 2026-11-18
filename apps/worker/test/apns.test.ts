@@ -239,7 +239,7 @@ async function dispatch(result: { status: number; reason?: string } | Error) {
       return result;
     },
   };
-  const dispatcher = new PushNotificationDispatcher(prisma as never, "disabled", client as never);
+  const dispatcher = new PushNotificationDispatcher(prisma as never, "disabled", client as never, undefined, async () => undefined);
   await dispatcher.drain();
   return { updates, disabled, sends };
 }
