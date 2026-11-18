@@ -1,6 +1,7 @@
 import type { Prisma, PrismaClient } from "@outcomego/db";
 import type { AgentMessaging } from "./index";
-import { runGroupBackgroundWorkRunning } from "./automation-results";
+import { pendingAutomationShells } from "./automation-results";
+import { taskProgress } from "./task-progress";
 import { appendOutcomeEvent, transitionWorkItem } from "./outcome-state";
 import { dispatchQueuedOutcomeWorkItems, enqueueOutcomeTurn, settleOutcomeWorkItem, type OutcomeThreadRuntime } from "./outcome-threads";
 import { outcomeDispatchEnabled } from "./outcome-availability";
@@ -11,6 +12,11 @@ const terminal = ["completed", "failed", "cancelled", "accepted"];
 const ttl = () => new Date(Date.now() + 30 * 24 * 60 * 60_000);
 export const OUTCOME_RECOVERY_BATCH_SIZE = 100;
 export const OUTCOME_RECOVERY_PROMPT = "The previous turn was interrupted. Continue in this same Outcome thread. First inspect the transcript, existing outputs, delegated tasks and authoritative receipts to verify work already completed. Do not repeat sends, submissions or other external actions whose results are uncertain. Ask for a Decision if a result cannot be verified. Preserve the approved Contract and keep all work out of the main conversation.";
+
+/** The thread is told about a task the runtime parked for its decision, because that task will never resume by itself. */
+export function outcomeBlockedTaskPrompt(task: { description: string; id: string }, progress: { summary: string; remaining: readonly string[]; nextAction?: string }) {
+  return `A delegated task in this Outcome thread is blocked and will not continue on its own.\nTask: ${task.description}\nTask ID: sand-subagent-${task.id}\nWhy it stopped: ${progress.summary}\nUnfinished: ${progress.remaining.join("; ") || "none recorded"}\n${progress.nextAction ? `Suggested next step: ${progress.nextAction}\n` : ""}First inspect the transcript, existing outputs and authoritative receipts to verify what already completed. Then either dispatch a fresh task for only the remaining work (stop the obsolete parked task so no duplicate goal remains), finish it yourself, or ask for a Decision if the result cannot be verified. Do not repeat sends, submissions or other external actions whose results are uncertain. Preserve the approved Contract and keep all work out of the main conversation.`;
+}
 
 export type OutcomeNextFact =
   | { type: "decision"; decisionId: string }
@@ -83,12 +89,12 @@ export async function recoverOutcomeWorkItem(tx: Prisma.TransactionClient, workI
   const key = `recovery:${item.id}:${latest?.id ?? "unsubmitted"}:${revisionActive ? "active" : "stale"}:${item.outcome.cancelledAt ? "cancelled" : "open"}`;
   const scope = `outcome-recovery:${item.outcomeId}`;
   const record = await tx.idempotencyRecord.findUnique({ where: { scope_key: { scope, key } } });
-  const write = async (action: OutcomeRecoveryAction, reason: string) => {
+  const write = async (action: OutcomeRecoveryAction, reason: string, recordKey = key) => {
     await appendOutcomeEvent(tx, "outcome.recovered", item.outcomeId, {
       actor, workItemId: item.id, runId: latest?.id, contractRevision: item.contractRevision.revision,
-      idempotencyKey: key, payload: { workItemId: item.id, action, reason },
+      idempotencyKey: recordKey, payload: { workItemId: item.id, action, reason },
     });
-    await tx.idempotencyRecord.create({ data: { scope, key, requestHash: key, status: "completed", response: { action, reason }, expiresAt: ttl() } });
+    await tx.idempotencyRecord.create({ data: { scope, key: recordKey, requestHash: recordKey, status: "completed", response: { action, reason }, expiresAt: ttl() } });
     return action;
   };
   if (!terminal.includes(item.status) && (item.outcome.cancelledAt || !revisionActive)) {
@@ -110,7 +116,31 @@ export async function recoverOutcomeWorkItem(tx: Prisma.TransactionClient, workI
   }
   // The family includes Task/shell continuations; do not recover while background work still owns it.
   const allRuns = await tx.run.findMany({ where: { outcomeWorkItemId: item.id }, select: { id: true, status: true } });
-  if (allRuns.some(run => ["queued", "running"].includes(run.status)) || await runGroupBackgroundWorkRunning(tx, item.botId, allRuns.map(run => run.id))) return null;
+  if (allRuns.some(run => ["queued", "running"].includes(run.status))) return null;
+  const familyIds = allRuns.map(run => run.id);
+  // A task parked as blocked has no scheduled check and no live worker, so it never reports again.
+  // If its wake to this thread was lost (for example across a restart), nothing else would continue the goal.
+  const parked = (await tx.subagent.findMany({
+    where: { parentRunId: { in: familyIds }, status: "waiting", nextCheckAt: null },
+    select: { id: true, description: true, progress: true, progressRevision: true },
+  })).flatMap(task => {
+    const progress = taskProgress(task.progress);
+    return progress?.state === "blocked" ? [{ task, progress }] : [];
+  });
+  const stillWorking = await tx.subagent.count({
+    where: { parentRunId: { in: familyIds }, status: { in: ["provisioning", "queued", "running", "waiting"] }, id: { notIn: parked.map(({ task }) => task.id) } },
+  }) > 0 || await pendingAutomationShells(tx, item.botId, familyIds);
+  if (stillWorking) return null;
+  if (parked.length && item.status === "running" && outcomeDispatchEnabled()) {
+    const { task, progress } = parked[0]!;
+    // One dedicated resume per blocked state. When that resumed turn is itself cut off (another restart),
+    // the ordinary interrupted-thread recovery below continues it; returning here would strand the goal.
+    const blockedKey = `recovery-blocked:${item.id}:${task.id}:${task.progressRevision}`;
+    if (!await tx.idempotencyRecord.findUnique({ where: { scope_key: { scope, key: blockedKey } } })) {
+      await enqueueOutcomeTurn(tx, runtime.messaging, { workItemId: item.id, content: outcomeBlockedTaskPrompt(task, progress), reason: "recovery", clientId: blockedKey });
+      return write("resume_queued", "blocked_task_recovery", blockedKey);
+    }
+  }
   if (latest?.status === "interrupted" && item.recoveryCount < 2 && !["external_result_unknown", "external_receipt_unknown", "state_inconsistent"].includes(item.statusReason ?? "")) {
     if (!outcomeDispatchEnabled()) return null;
     if (item.status === "queued" || item.status === "retry_pending") await transitionWorkItem(tx, { workItemId: item.id, to: "running", reason: "interrupted_thread_recovery", actor });

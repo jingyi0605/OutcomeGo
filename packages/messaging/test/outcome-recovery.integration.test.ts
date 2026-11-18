@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { enqueueOutcomeTurn, recoverOutcomeWorkItem, recoverOutcomeWorkItems, transitionWorkItem } from "../src";
+import { enqueueOutcomeTurn, notifyTaskProgress, recoverOutcomeWorkItem, recoverOutcomeWorkItems, transitionWorkItem } from "../src";
 import { outcomeThreadFixture } from "./fixtures/outcome-thread";
 
 const url = process.env.OUTCOMEGO_TEST_DATABASE_URL;
@@ -61,6 +61,63 @@ describe.skipIf(!url)("durable Outcome restart recovery", () => {
       expect(await h.db.outcomeDecision.count({ where: { workItemId: item.id, reasonCode: "external_result_unknown", status: "open" } })).toBe(1);
       expect(await h.db.event.count({ where: { entityId: h.outcome.id, topic: "outcome.decision.required" } })).toBe(1);
       expect(await h.db.outcomeWorkItem.findUniqueOrThrow({ where: { id: item.id } })).toMatchObject({ status: "needs_review", recoveryCount: 2 });
+    } finally { await h.cleanup(); }
+  });
+
+  /** A worker task the runtime parked for the thread's decision (for example after repeated restarts). */
+  async function parkBlockedTask(h: Fixture, runId: string) {
+    const childId = crypto.randomUUID();
+    await h.db.bot.create({ data: { id: childId, name: "Blocked child", defaultDirectory: h.root } });
+    const progress = { key: "recovery-limit:10", runId, state: "blocked", blockSource: "runtime", revision: 10, summary: "Three automatic recovery attempts did not finish this task.", evidence: [], remaining: ["Collect the remaining report"], nextAction: "Ask for a decision." };
+    const task = await h.db.subagent.create({ data: { parentBotId: h.bot.id, parentRunId: runId, parentChannelId: h.channel.id, childBotId: childId, launchCallId: "blocked", description: "Collect report", prompt: "Collect report", subagentType: "executor", status: "waiting", outputPath: "/tmp/task", progress, progressRevision: 10 } });
+    return { task, childId, progress };
+  }
+
+  test("a task parked as blocked, whose wake was lost, resumes the thread once", async () => {
+    const h = await outcomeThreadFixture();
+    try {
+      const { item, runId } = await start(h);
+      await finish(h, runId, "completed");
+      const { task, childId } = await parkBlockedTask(h, runId);
+      expect(await recover(h, item.id)).toBe("resume_queued");
+      const resumed = await h.db.run.findFirstOrThrow({ where: { outcomeWorkItemId: item.id, id: { not: runId } } });
+      expect(resumed.origin).toBe("outcome");
+      const prompt = await h.db.message.findFirstOrThrow({ where: { runId: resumed.id } });
+      expect(prompt.content).toContain(`sand-subagent-${task.id}`);
+      // The queued turn owns the goal now; nothing else is enqueued while it is pending.
+      expect(await recover(h, item.id)).toBeNull();
+      // A restart cutting that resumed turn off must not strand the goal: ordinary recovery continues it.
+      await finish(h, resumed.id, "interrupted", 1000);
+      expect(await recover(h, item.id)).toBe("resume_queued");
+      expect(await h.db.run.count({ where: { outcomeWorkItemId: item.id } })).toBe(3);
+      await h.db.bot.delete({ where: { id: childId } });
+    } finally { await h.cleanup(); }
+  });
+
+  test("a waiting task with a scheduled check still holds the thread back", async () => {
+    const h = await outcomeThreadFixture();
+    try {
+      const { item, runId } = await start(h);
+      await finish(h, runId, "completed");
+      const { task, childId } = await parkBlockedTask(h, runId);
+      await h.db.subagent.update({ where: { id: task.id }, data: { nextCheckAt: new Date(Date.now() + 60_000), progress: { ...(task.progress as object), state: "waiting" } } });
+      expect(await recover(h, item.id)).toBeNull();
+      expect(await h.db.run.count({ where: { outcomeWorkItemId: item.id } })).toBe(1);
+      await h.db.bot.delete({ where: { id: childId } });
+    } finally { await h.cleanup(); }
+  });
+
+  test("a blocked-task notification reaches an Outcome thread instead of being superseded", async () => {
+    const h = await outcomeThreadFixture();
+    try {
+      const { item, runId } = await start(h);
+      const { task, childId, progress } = await parkBlockedTask(h, runId);
+      const wake = await h.db.$transaction(tx => notifyTaskProgress(tx, h.messaging, { ...task, requestRunId: null }, progress as never, "recovery-limit:10"));
+      const run = await h.db.run.findUniqueOrThrow({ where: { id: wake! } });
+      expect(run).toMatchObject({ origin: "outcome", outcomeWorkItemId: item.id });
+      // Routine progress stays quiet for Outcome threads; only a blocker needs them.
+      expect(await h.db.$transaction(tx => notifyTaskProgress(tx, h.messaging, { ...task, requestRunId: null }, { ...progress, state: "working" } as never, "working:11"))).toBeNull();
+      await h.db.bot.delete({ where: { id: childId } });
     } finally { await h.cleanup(); }
   });
 

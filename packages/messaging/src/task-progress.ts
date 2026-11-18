@@ -218,11 +218,20 @@ export async function notifyTaskProgress(
   const deliveryContext = routine
     ? `This task belongs to a saved routine. Its delivery instruction governs whether to speak: ${JSON.stringify(routine.routineRevision)}. This progress event does not hand off or stop the automation.`
     : "";
+  // An Outcome thread only needs to hear about a task that cannot continue by itself. A request
+  // context is never attached to it: requestWakeAllowed rejects wakes whose context is an Outcome
+  // run, which silently dropped this blocker and left the work item waiting forever.
+  const outcomeRoute = route.origin === "outcome";
+  if (outcomeRoute && progress.state !== "blocked") return null;
   const wake = await messaging.enqueueWake(tx, {
     botId: subagent.parentBotId,
     channelId: subagent.parentChannelId,
-    origin: "background_revival",
-    taskContextRunId: subagent.requestRunId ?? sourceContext ?? subagent.parentRunId,
+    ...(outcomeRoute
+      ? { origin: "outcome" as const, outcomeWorkItemId: route.outcomeWorkItemId }
+      : {
+          origin: "background_revival" as const,
+          taskContextRunId: subagent.requestRunId ?? sourceContext ?? subagent.parentRunId,
+        }),
     type: "subagent.progress",
     clientId: `task-progress:${subagent.id}:${key}`,
     priority: 260,
