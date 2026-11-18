@@ -556,7 +556,7 @@ test("decision-first default is short and categories reveal explanations before 
   expect(document.body.textContent).toContain("RAW_BACKGROUND_DETAIL");
   await click("Source for Background and original request");
   await expand("Prerequisites");
-  const body = host.querySelector(".outcome-brief-condition")!.parentElement;
+  const body = host.querySelector(".outcome-brief-body .outcome-item-heading")!.parentElement;
   expect(body?.textContent).toContain("Not met");
   const backup = [...host.querySelectorAll(".outcome-brief-list li")].find((item) =>
     item.textContent?.includes("Backup check")

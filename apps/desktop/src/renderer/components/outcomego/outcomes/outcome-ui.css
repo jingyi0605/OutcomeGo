@@ -849,13 +849,17 @@ button.outcome-chat-card-main:hover {
   width: 74px;
   font-weight: 500;
 }
+/* Every row's preview shares one size and a centered line, whatever chips it starts with. */
 .outcome-brief-preview {
-  color: var(--brief-muted);
+  display: flex;
   flex: 1;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 8px;
   min-width: 0;
-}
-.outcome-brief-preview > span + span {
-  margin-left: 8px;
+  color: var(--brief-muted);
+  font-size: 12px;
+  line-height: 1.65;
 }
 .outcome-brief-chevron {
   align-self: center;
@@ -891,7 +895,8 @@ button.outcome-chat-card-main:hover {
   display: inline-flex;
   gap: 4px;
   align-items: center;
-  font-size: 11px;
+  font-size: inherit;
+  line-height: inherit;
   white-space: nowrap;
 }
 .outcome-brief-status[data-state="met"] {
@@ -903,10 +908,11 @@ button.outcome-chat-card-main:hover {
 .outcome-brief-status[data-state="unknown"] {
   color: var(--brief-muted);
 }
-.outcome-brief-condition {
-  display: flex;
-  align-items: center;
-  gap: 12px;
+/* Inside an expanded section, conditions and tasks share one heading and state layout. */
+.outcome-brief-body .outcome-brief-status {
+  flex-shrink: 0;
+  gap: 5px;
+  font-size: 11px;
 }
 .outcome-brief-proposed,
 .outcome-brief-task-status {
@@ -1160,7 +1166,7 @@ button.outcome-chat-card-main:hover {
   padding-right: 16px;
 }
 .outcome-task-counts {
-  font-variant-numeric: tabular-nums;
+  font-size: inherit;
 }
 /* Entry: a single quiet row; the conversation itself lives in the read-only dialog below. */
 .outcome-execution-card {
