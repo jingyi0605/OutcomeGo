@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
+import { Suspense, lazy, useEffect, useState } from "react";
 import { useI18n } from "../../../lib/i18n";
 import {
-  ArrowUpRight,
   Check,
+  ChevronRight,
   CircleAlert,
   FileCheck2,
   LoaderCircle,
@@ -11,18 +11,16 @@ import {
   Target,
   X,
 } from "lucide-react";
-import { outcomeDeepLink, outcomeDecisionDeepLink } from "@outcomego/contracts/app-deep-links";
 import { outcomeCardStage, type OutcomeChatCard } from "@outcomego/contracts/outcome-chat";
 import type { OutcomeDetail } from "@outcomego/contracts/outcomes";
 import { outcomeStageLabels, outcomeNextSteps } from "./outcome-presentation";
-import { OUTCOMEGO_DEEP_LINK_EVENT } from "../../../lib/app-deep-links";
 import type { OutcomeClient } from "../../../client/outcome-api";
-import { OutcomeButton } from "./outcome-ui";
 import "./outcome-ui.css";
-import { OutcomeActionItems, OutcomeApprovalScope, OutcomeBriefView } from "./outcome-brief";
-import type { OutcomeInboxItemView } from "@outcomego/contracts/outcome-inbox";
 import type { InboxClient } from "./inbox/inbox-api";
-import { OutcomeExecutionCard, type OutcomeExecutionBot } from "./outcome-execution-card";
+import type { OutcomeExecutionBot } from "./outcome-execution-card";
+
+// The full detail view is only needed once a card is opened; keep it out of the message list.
+const OutcomeDetailModal = lazy(() => import("./inbox/outcome-detail-modal"));
 
 type CardClient = Pick<OutcomeClient, "get" | "brief"> & Partial<Pick<OutcomeClient, "transcript">>;
 
@@ -40,16 +38,47 @@ const icons = {
   failed: CircleAlert,
 };
 
-/** Read current facts without promoting generated output to owner acceptance. */
+/** Stages that can still change; settled goals are read once instead of polled. */
+const SETTLED_STAGES = ["accepted", "cancelled", "failed"];
+
+/** One-line progress: task steps reported by the executor, else work item counts. */
+export function outcomeProgressSummary(outcome: OutcomeDetail) {
+  const items = outcome.workItems.filter((item) => item.contractRevision === outcome.currentRevision);
+  const steps = items.flatMap((item) => item.progress?.tasks ?? []);
+  const active =
+    items.find((item) => item.status === "running" && item.progress) ??
+    [...items]
+      .filter((item) => item.progress)
+      .sort((a, b) => (b.progress!.updatedAt > a.progress!.updatedAt ? 1 : -1))[0];
+  if (steps.length > 0)
+    return {
+      phase: active?.progress?.phase,
+      done: steps.filter((step) => step.status === "completed").length,
+      total: steps.length,
+      unit: "steps" as const,
+    };
+  if (items.length > 0)
+    return {
+      done: items.filter((item) => item.status === "completed").length,
+      total: items.length,
+      unit: "work items" as const,
+    };
+  return null;
+}
+
+/**
+ * Compact goal card: stage and one progress line only. Everything else lives in the detail
+ * modal, which opens in place so the conversation is never replaced by the goals page.
+ */
 export function OutcomeChatCardView({
   card,
   client,
-  inboxClient,
   bot,
 }: {
   card: OutcomeChatCard;
   bot?: OutcomeExecutionBot;
   client?: CardClient;
+  /** Accepted for compatibility; the compact card no longer reads the inbox. */
   inboxClient?: Pick<InboxClient, "forOutcome">;
 }) {
   const { t } = useI18n();
@@ -57,48 +86,40 @@ export function OutcomeChatCardView({
   const [unavailable, setUnavailable] = useState(false);
   const [refresh, setRefresh] = useState(0);
   const [stale, setStale] = useState(false);
-  const [showResult, setShowResult] = useState(false);
-  const [source, setSource] = useState<CardClient | null>(client ?? null);
-  const [actions, setActions] = useState<OutcomeInboxItemView[]>([]);
+  const [detailOpen, setDetailOpen] = useState(false);
+  const live = current?.id === card.outcomeId ? current : null;
+  const stage = live ? outcomeCardStage(live.status) : card.stage;
+  const settled = SETTLED_STAGES.includes(stage);
   useEffect(() => {
     setCurrent(null);
     setUnavailable(false);
-    setActions([]);
   }, [card.outcomeId]);
   useEffect(() => {
     if (!card.outcomeId) return;
     let active = true;
-    let timer: ReturnType<typeof setTimeout>;
+    let timer: ReturnType<typeof setTimeout> | undefined;
     async function read() {
+      let next = true;
       try {
         const source = client ?? (await import("../../../client/outcomego-api")).api.outcomes;
         const value = await source.get(card.outcomeId!);
         if (active) {
-          setSource(source);
           setCurrent(value);
           setUnavailable(false);
         }
-        const inbox =
-          inboxClient ??
-          (!client ? (await import("../../../client/outcomego-api")).api.outcomeInbox : undefined);
-        if (inbox) {
-          const page = await inbox.forOutcome(card.outcomeId!);
-          if (active)
-            setActions(
-              page.items.filter((item) => item.outcomeId === card.outcomeId && item.requiresAction)
-            );
-        }
+        next = !SETTLED_STAGES.includes(outcomeCardStage(value.status));
       } catch {
         if (active) setUnavailable(true);
       }
-      if (active) timer = setTimeout(read, 10_000);
+      // Hidden windows and settled goals do not need the periodic read.
+      if (active && next) timer = setTimeout(read, document.hidden ? 60_000 : 10_000);
     }
     void read();
     return () => {
       active = false;
       clearTimeout(timer);
     };
-  }, [card.outcomeId, card.updatedAt, client, inboxClient, refresh]);
+  }, [card.outcomeId, card.updatedAt, client, refresh]);
   useEffect(() => {
     const check = () =>
       setStale(
@@ -109,156 +130,68 @@ export function OutcomeChatCardView({
     const timer = setInterval(check, 15_000);
     return () => clearInterval(timer);
   }, [card.stage, card.updatedAt]);
-  const live = current?.id === card.outcomeId ? current : null;
-  const result = live
-    ? [...live.outputs]
-        .reverse()
-        .find((output) =>
-          live.workItems.some(
-            (item) =>
-              item.id === output.workItemId && item.contractRevision === live.currentRevision
-          )
-        )
-    : undefined;
-  const stage = live ? outcomeCardStage(live.status) : card.stage;
   const Icon = icons[stage];
-  const open = (decisionId?: string) => {
-    if (card.outcomeId)
-      window.dispatchEvent(
-        new CustomEvent(OUTCOMEGO_DEEP_LINK_EVENT, {
-          detail: {
-            url: decisionId ? outcomeDecisionDeepLink(decisionId) : outcomeDeepLink(card.outcomeId),
-          },
-        })
-      );
-  };
-  const execution =
-    live && source?.transcript ? (
-      <OutcomeExecutionCard
-        key={`${live.id}:${live.currentRevision}`}
-        outcome={live}
-        bot={bot}
-        client={{ transcript: source.transcript }}
-      />
-    ) : null;
-  const showFooter =
-    Boolean(card.outcomeId) &&
-    (!live || actions.length > 0 || !["draft", "review", "attention", "ready"].includes(stage));
+  const progress = live && stage === "running" ? outcomeProgressSummary(live) : null;
+  const line = progress
+    ? [
+        progress.phase,
+        t(progress.unit === "steps" ? "{done}/{total} steps" : "{done}/{total} work items", {
+          done: progress.done,
+          total: progress.total,
+        }),
+      ]
+        .filter(Boolean)
+        .join(" · ")
+    : t(stale ? "This step has not been confirmed complete. Check the conversation or reload the goal." : outcomeNextSteps[stage]);
+  const body = (
+    <>
+      <span className="outcome-chat-stage-icon" aria-hidden="true">
+        <Icon size={17} />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="outcome-chat-eyebrow">
+          <Target size={11} aria-hidden="true" />
+          {t("Goal")} · {t(outcomeStageLabels[stage])}
+        </span>
+        <span className="outcome-chat-title">{live?.title ?? card.title}</span>
+        <span className="outcome-chat-line" role="status">
+          {line}
+        </span>
+      </span>
+      {card.outcomeId && <ChevronRight size={14} className="outcome-chat-chevron" aria-hidden="true" />}
+    </>
+  );
   return (
     <section
       className="outcome-chat-card"
       aria-label={t("Goal progress")}
       data-stage={stage}
+      data-settled={settled ? "true" : undefined}
       data-stale={stale || unavailable ? "true" : undefined}
     >
-      <header className="outcome-chat-card-heading">
-        <span className="outcome-chat-stage-icon" aria-hidden="true">
-          <Icon size={19} />
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className="outcome-chat-eyebrow">
-            <Target size={11} />
-            {t("Goal")} · {t(outcomeStageLabels[stage])}
-          </p>
-          <h3>{live?.title ?? card.title}</h3>
-        </div>
-      </header>
-      {!live && (
-        <div key={stage} className="outcome-chat-stage-content">
-          <p className="outcome-chat-next" role="status">
-            {t(
-              stale
-                ? "This step has not been confirmed complete. Check the conversation or reload the goal."
-                : outcomeNextSteps[stage]
-            )}
-          </p>
-          <ol className="outcome-chat-steps" aria-label={t("Goal stages")}>
-            {["Planning", "Review", "Execution", "Results"].map((label, i) => {
-              const index =
-                stage === "failed" || stage === "cancelled"
-                  ? -1
-                  : ["analyzing", "generating", "plan_ready"].includes(stage)
-                    ? 0
-                    : stage === "draft" || stage === "ready"
-                      ? 1
-                      : stage === "running" || stage === "attention"
-                        ? 2
-                        : 3;
-              return (
-                <li
-                  key={t(label)}
-                  aria-current={i === index ? "step" : undefined}
-                  data-complete={i < index ? "true" : undefined}
-                >
-                  <span />
-                  {t(label)}
-                </li>
-              );
-            })}
-          </ol>
-        </div>
-      )}
-      {live && source && (
-        <div key={stage} className="outcome-chat-stage-content">
-          <OutcomeBriefView outcome={live} client={source}>
-            {(brief) => (
-              <section className="outcome-now" aria-label={t("What needs you now")}>
-                <p className="outcome-now-eyebrow">{t("What needs you now")}</p>
-                <OutcomeActionItems items={actions} onSelect={(item) => open(item.decisionId)} />
-                {actions.length === 0 && (
-                  <div className="outcome-now-line">
-                    <div>
-                      <h3>
-                        {t(
-                          stage === "draft"
-                            ? "Approve this plan?"
-                            : stage === "review"
-                              ? "Do these results meet your requirements?"
-                              : outcomeNextSteps[stage]
-                        )}
-                      </h3>
-                      {stage === "draft" && <OutcomeApprovalScope intent={brief?.intent} />}
-                    </div>
-                    {["draft", "review", "attention", "ready"].includes(stage) && (
-                      <OutcomeButton onClick={() => open()}>
-                        {t(
-                          stage === "draft"
-                            ? "Review goal"
-                            : stage === "review"
-                              ? "Review results"
-                              : "Open goal"
-                        )}
-                        <ArrowUpRight size={13} aria-hidden="true" />
-                      </OutcomeButton>
-                    )}
-                  </div>
-                )}
-              </section>
-            )}
-          </OutcomeBriefView>
-        </div>
-      )}
-      {live && live.outputs.length > 0 && (
-        <p className="outcome-chat-summary">
-          {t("{count} outputs", { count: live.outputs.length })} ·{" "}
-          {t("{count} evidence records", { count: live.evidence.length })}
-          {stage !== "accepted" && ` · ${t("Not yet accepted")}`}
-        </p>
-      )}
-      {result && (
-        <details
-          className="outcome-chat-disclosure"
-          onToggle={(event) => setShowResult(event.currentTarget.open)}
+      {card.outcomeId ? (
+        <button
+          type="button"
+          className="outcome-chat-card-main"
+          aria-haspopup="dialog"
+          aria-label={`${t("View goal details")}: ${live?.title ?? card.title}`}
+          onClick={() => setDetailOpen(true)}
         >
-          <summary>
-            {t("Results")} · {result.title}
-          </summary>
-          {showResult && (
-            <p className="max-h-64 overflow-auto whitespace-pre-wrap break-words text-xs">
-              {result.content || t("Open the goal to inspect this result.")}
-            </p>
-          )}
-        </details>
+          {body}
+        </button>
+      ) : (
+        <div className="outcome-chat-card-main">{body}</div>
+      )}
+      {progress && progress.total > 0 && (
+        <div
+          className="outcome-chat-bar"
+          role="progressbar"
+          aria-valuemin={0}
+          aria-valuemax={progress.total}
+          aria-valuenow={progress.done}
+        >
+          <span style={{ width: `${Math.round((progress.done / progress.total) * 100)}%` }} />
+        </div>
       )}
       {card.suggestions && (
         <details className="outcome-chat-disclosure">
@@ -289,21 +222,14 @@ export function OutcomeChatCardView({
           </button>
         </div>
       )}
-      {execution && !showFooter && execution}
-      {card.outcomeId && showFooter && (
-        <footer>
-          {execution}
-          <OutcomeButton onClick={() => open()}>
-            {t(
-              stage === "draft"
-                ? "Review goal"
-                : stage === "review"
-                  ? "Review results"
-                  : "Open goal"
-            )}
-            <ArrowUpRight size={13} />
-          </OutcomeButton>
-        </footer>
+      {detailOpen && card.outcomeId && (
+        <Suspense fallback={null}>
+          <OutcomeDetailModal
+            outcomeId={card.outcomeId}
+            bots={bot ? [bot] : []}
+            onClose={() => setDetailOpen(false)}
+          />
+        </Suspense>
       )}
     </section>
   );

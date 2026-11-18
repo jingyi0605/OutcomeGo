@@ -2,12 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import { Inbox, Lightbulb, ListChecks, Plus, Target } from "lucide-react";
 import { api } from "../../../../client/outcomego-api";
 import type { DesktopOutcomeTarget } from "../../../../lib/outcome-target";
-import type { HumanWorkItemView } from "@outcomego/contracts/human-work";
 import type { OutcomeInboxItemView } from "@outcomego/contracts/outcome-inbox";
 import { OutcomeInbox } from "./outcome-inbox";
-import { DecisionCard } from "./decision-card";
-import { OutcomeDetail } from "../detail/outcome-detail";
-import { HumanAction } from "../human-work/human-action";
+import { OutcomeRouteView } from "./outcome-route-view";
 import { useI18n } from "../../../../lib/i18n";
 import { ExplorePanel } from "../explore/explore-panel";
 import { OutcomeList } from "../outcome-list";
@@ -232,115 +229,12 @@ export default function OutcomeWorkspace({
                 )}
               </div>
             )}
-            {route.kind === "decision" && (
-              <DecisionCard
-                key={route.id}
-                decisionId={route.id}
-                client={api.outcomeInbox}
-                outcomes={api.outcomes}
-                onOutcome={review}
-              />
-            )}
-            {route.kind === "human" && (
-              <HumanAction
-                key={route.id}
-                workItemId={route.id}
-                client={api.outcomeInbox}
-                materials={api.humanMaterials}
-                upload={async (file) => {
-                  const asset = await api.uploadAsset(file, file.name, file.type);
-                  return { assetRef: `asset:${asset.assetId}` };
-                }}
-                onReview={review}
-              />
-            )}
-            {route.kind === "outcome" && (
-              <OutcomeWithActions
-                key={`${route.id}:${route.reviewRevision ?? "current"}`}
-                bots={bots}
-                outcomeId={route.id}
-                reviewRevision={route.reviewRevision}
-                onHuman={(id) => openRoute({ kind: "human", id })}
-                onDecision={(id) => openRoute({ kind: "decision", id })}
-                onReceipt={(revision) => review(route.id, revision)}
-              />
+            {(route.kind === "decision" || route.kind === "human" || route.kind === "outcome") && (
+              <OutcomeRouteView route={route} bots={bots} onOpen={openRoute} />
             )}
           </div>
         </DialogContent>
       </Dialog>
     </section>
-  );
-}
-function OutcomeWithActions({
-  bots,
-  outcomeId,
-  reviewRevision,
-  onHuman,
-  onDecision,
-  onReceipt,
-}: {
-  bots: OutcomeExecutionBot[];
-  outcomeId: string;
-  reviewRevision?: number;
-  onHuman: (id: string) => void;
-  onDecision: (id: string) => void;
-  onReceipt: (revision: number) => void;
-}) {
-  const { t } = useI18n();
-  const [items, setItems] = useState<HumanWorkItemView[]>([]);
-  const [inbox, setInbox] = useState<OutcomeInboxItemView[]>([]);
-  const [error, setError] = useState(false);
-  const [loading, setLoading] = useState(true);
-  useEffect(() => {
-    let active = true;
-    let timer: ReturnType<typeof setTimeout>;
-    async function read() {
-      const [human, page] = await Promise.allSettled([
-        api.outcomeInbox.humanItems(outcomeId),
-        api.outcomeInbox.forOutcome(outcomeId),
-      ]);
-      if (!active) return;
-      if (human.status === "fulfilled") setItems(human.value);
-      if (page.status === "fulfilled")
-        setInbox(page.value.items.filter((item) => item.outcomeId === outcomeId));
-      setError(human.status === "rejected" || page.status === "rejected");
-      setLoading(false);
-      timer = setTimeout(read, 10_000);
-    }
-    void read();
-    return () => {
-      active = false;
-      clearTimeout(timer);
-    };
-  }, [outcomeId]);
-  return (
-    <div className="space-y-4">
-      <OutcomeDetail
-        outcomeId={outcomeId}
-        bots={bots}
-        client={api.outcomes}
-        inboxClient={api.outcomeInbox}
-        reviewRevision={reviewRevision}
-        actionItems={inbox.filter((item) => item.requiresAction)}
-        actionsError={error}
-        actionsLoading={loading}
-        onAction={(item) => {
-          if (item.decisionId) onDecision(item.decisionId);
-          else if (item.category === "human_action_pending" && item.workItemId)
-            onHuman(item.workItemId);
-          else if (item.category === "acceptance_pending") onReceipt(item.contractRevision);
-        }}
-      />
-      {items.length > 0 && (
-        <details className="outcome-disclosure">
-          <summary>{t("Human tasks")}</summary>
-          {items.map((item) => (
-            <button className="outcome-control" key={item.id} onClick={() => onHuman(item.id)}>
-              {item.title} · {t(item.status)}
-            </button>
-          ))}
-        </details>
-      )}
-    </div>
   );
 }

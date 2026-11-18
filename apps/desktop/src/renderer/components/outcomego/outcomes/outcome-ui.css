@@ -477,31 +477,76 @@ label.outcome-card:has(> input[type="radio"]:checked) {
 /* Outcome conversation stages share the desktop's quiet surfaces and compact controls. */
 .outcome-chat-card {
   width: 100%;
-  max-width: 460px;
+  max-width: 420px;
   overflow: hidden;
   border: 0.5px solid var(--border);
-  border-radius: 16px;
+  border-radius: 14px;
   background: var(--background);
   color: var(--foreground);
-  padding: 16px;
   font-size: 13px;
-  line-height: 1.6;
+  line-height: 1.5;
 }
-.outcome-chat-card-heading {
+/* The whole card is one target: stage, title and a single progress line. */
+.outcome-chat-card-main {
   display: flex;
+  width: 100%;
   align-items: center;
   gap: 12px;
+  padding: 12px 14px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
 }
-.outcome-chat-card-heading h3 {
+button.outcome-chat-card-main {
+  cursor: pointer;
+  transition: background 120ms ease-out;
+}
+button.outcome-chat-card-main:hover {
+  background: var(--subtle);
+}
+.outcome-chat-title {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
   font-size: 14px;
   font-weight: 500;
   overflow-wrap: anywhere;
 }
+.outcome-chat-line {
+  display: block;
+  overflow: hidden;
+  margin-top: 1px;
+  color: var(--foreground-secondary);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.outcome-chat-chevron {
+  flex-shrink: 0;
+  color: var(--foreground-tertiary);
+}
+.outcome-chat-bar {
+  height: 2px;
+  background: var(--subtle);
+}
+.outcome-chat-bar > span {
+  display: block;
+  height: 100%;
+  background: var(--foreground-secondary);
+  transition: width 240ms ease-out;
+}
+.outcome-chat-card > .outcome-chat-disclosure,
+.outcome-chat-card > .outcome-chat-summary {
+  margin: 0 14px 12px;
+}
 .outcome-chat-stage-icon {
   display: grid;
   place-items: center;
-  width: 38px;
-  height: 38px;
+  width: 34px;
+  height: 34px;
   flex-shrink: 0;
   border-radius: 12px;
   background: var(--subtle);

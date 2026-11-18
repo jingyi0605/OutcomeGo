@@ -320,7 +320,7 @@ test("a historical receipt opens its original criteria without substituting a pe
   expect(review.textContent).not.toContain("Future-only criterion");
   expect(review.textContent).toContain("Reviewing receipt Contract revision 1");
 });
-test("card reads real review status and navigates without claiming output is accepted", async () => {
+test("card is compact: stage, title and one line, with details left to the modal", async () => {
   let target: unknown;
   const handler = (event: Event) => {
     target = (event as CustomEvent).detail;
@@ -329,18 +329,49 @@ test("card reads real review status and navigates without claiming output is acc
   try {
     await mount(<OutcomeChatCardView card={card} client={client} />);
     expect(host.querySelector("[data-stage]")?.getAttribute("data-stage")).toBe("review");
-    expect(host.textContent).toContain("Not yet accepted");
-    expect(host.querySelector(".outcome-chat-stage-content .outcome-brief")).not.toBeNull();
-    expect(host.textContent).not.toContain("Accepted");
-    expect(host.textContent).toContain("Comparison report");
+    expect(host.textContent).toContain("Results ready for review");
+    expect(host.querySelector(".outcome-brief")).toBeNull();
+    expect(host.querySelector("details")).toBeNull();
+    expect(host.querySelector("footer")).toBeNull();
+    expect(host.textContent).not.toContain("Comparison report");
     expect(host.textContent).not.toContain("Plan A restores faster");
-    await expand("Results ·");
-    expect(host.textContent).toContain("Plan A restores faster");
-    await click("Review results");
-    expect(target).toEqual({ url: `outcomego://app/v1/outcomes?id=${outcomeFixture.id}` });
+    const main = host.querySelector<HTMLButtonElement>("button.outcome-chat-card-main")!;
+    expect(main.getAttribute("aria-haspopup")).toBe("dialog");
+    expect(host.querySelector(".outcome-execution-card")).toBeNull();
+    // Opening happens in place; it must never navigate to the goals page.
+    await act(async () => {
+      main.dispatchEvent(new dom.window.Event("click", { bubbles: true }));
+    });
+    expect(target).toBeUndefined();
   } finally {
     window.removeEventListener(OUTCOMEGO_DEEP_LINK_EVENT, handler);
   }
+});
+test("running card shows only the executor's step progress on one line", async () => {
+  const running = {
+    ...outcomeFixture,
+    status: "running" as const,
+    workItems: [
+      {
+        ...outcomeFixture.workItems[0]!,
+        status: "running" as const,
+        progress: {
+          phase: "Scanning shares",
+          updatedAt: "2026-11-18T02:00:00Z",
+          tasks: [
+            { id: "a", title: "List shares", status: "completed" as const },
+            { id: "b", title: "Measure usage", status: "in_progress" as const },
+            { id: "c", title: "Draft report", status: "pending" as const },
+          ],
+        },
+      },
+    ],
+  };
+  await mount(<OutcomeChatCardView card={card} client={{ ...client, get: async () => running }} />);
+  const line = host.querySelector(".outcome-chat-line")!;
+  expect(line.textContent).toBe("Scanning shares · 1/3 steps");
+  expect(host.querySelector('[role="progressbar"]')?.getAttribute("aria-valuenow")).toBe("1");
+  expect(host.textContent).not.toContain("Measure usage");
 });
 test("approved goals show that execution is starting, never an extra start prompt", async () => {
   await mount(
@@ -1190,7 +1221,7 @@ test("Bot photo stays mounted during same-Bot metadata refresh and clears when i
   }
 });
 
-test("same-goal refresh keeps the displayed facts and expanded sections while the next read is pending", async () => {
+test("same-goal refresh keeps the displayed card while the next read is pending", async () => {
   const live = { ...semanticGoal, status: "running" as const };
   let resolve!: (value: typeof live) => void;
   let reads = 0;
@@ -1204,9 +1235,8 @@ test("same-goal refresh keeps the displayed facts and expanded sections while th
     brief: async () => semanticBrief(live),
   };
   await mount(<OutcomeChatCardView card={card} client={source} />);
-  await expand("Background");
-  const overview = host.querySelector('[aria-label="Goal overview"]');
-  expect(overview?.textContent).toContain("The server is under storage pressure");
+  const main = host.querySelector(".outcome-chat-card-main");
+  expect(main?.textContent).toContain(live.title);
   await act(async () =>
     root!.render(
       <I18nProvider>
@@ -1218,11 +1248,10 @@ test("same-goal refresh keeps the displayed facts and expanded sections while th
     )
   );
   expect(reads).toBe(2);
-  expect(host.querySelector('[aria-label="Goal overview"]')).toBe(overview);
-  expect(overview?.querySelector("details")?.open).toBe(true);
-  expect(overview?.textContent).toContain("The server is under storage pressure");
+  expect(host.querySelector(".outcome-chat-card-main")).toBe(main);
+  expect(main?.textContent).toContain(live.title);
   await act(async () => resolve(live));
-  expect(host.querySelector('[aria-label="Goal overview"]')).toBe(overview);
+  expect(host.querySelector(".outcome-chat-card-main")).toBe(main);
 });
 
 test("original source renders Markdown paragraphs, emphasis and lists", async () => {
@@ -1348,22 +1377,21 @@ test("execution entry stays compact and reads only after the read-only conversat
   expect(executionDialog()).toBeNull();
 });
 
-test("card shows the execution entry and the goal button on one footer row", async () => {
+test("settled goal card is read once and carries no execution entry or footer", async () => {
+  let reads = 0;
   await mount(
     <OutcomeChatCardView
       card={card}
       client={{
-        get: async () => ({ ...outcomeFixture, status: "accepted" as const }),
+        get: async () => (reads++, { ...outcomeFixture, status: "accepted" as const }),
         transcript: async () => executionPage(),
       }}
     />
   );
-  const footer = host.querySelector(".outcome-chat-card > footer")!;
-  expect(footer).not.toBeNull();
-  const children = [...footer.children];
-  expect(children[0]?.classList.contains("outcome-execution-card")).toBe(true);
-  expect(children.at(-1)?.textContent).toContain("Open goal");
-  expect(host.querySelectorAll(".outcome-execution-card")).toHaveLength(1);
+  expect(host.querySelector(".outcome-chat-card > footer")).toBeNull();
+  expect(host.querySelectorAll(".outcome-execution-card")).toHaveLength(0);
+  expect(host.querySelectorAll(".outcome-chat-card button")).toHaveLength(1);
+  expect(reads).toBe(1);
 });
 
 test("execution refresh preserves readable messages; closing stops the scheduled refresh", async () => {
