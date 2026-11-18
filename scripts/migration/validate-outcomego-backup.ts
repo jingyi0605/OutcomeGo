@@ -62,7 +62,7 @@ const assertSha256 = (value: unknown, label: string): string => {
 const assertRowCounts = (value: unknown): Record<string, number> => {
   const rowCounts = assertObject(value, "backup.manifest.rowCounts");
   for (const [table, count] of Object.entries(rowCounts)) {
-    if (!Number.isSafeInteger(count) || count < 0) {
+    if (typeof count !== "number" || !Number.isSafeInteger(count) || count < 0) {
       throw new Error(`backup.manifest.rowCounts.${table} must be a non-negative integer`);
     }
   }

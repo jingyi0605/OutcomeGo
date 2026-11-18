@@ -1,10 +1,14 @@
 # 任务清单 - 运行时恢复与版本验收（人话版）
 
+2026-11-17 task73 当前开发更新：当前原十项仍7DONE/3开放。task72实际同版恢复已补Planning/Explore从0行到4Planning/3Explore/2Outcome，14/14检查/86表123FK；[完整证据](docs/20261117-规划探索数据备份回放开发与验证.md)与源字节匹配。3.4剩余是实际入口切换/两种回退或旧镜像，不再写“没有有数据备份开发”。父具名A–H及release报告已交付；4.1/4.2原指定最终前置未闭，继续开放。X5人工UI本地缺口已由task69实际18 mounted测试关闭，C完整链由task70 final3补齐；保留外部平台观测PENDING。
+
 状态：IN_PROGRESS（最终本机组合回归已通过；真实远端/provider、跨客户端安装/设备、CI 与完整旧镜像回退未验，整体发布不放行）
 
 关联文档：[README.md](README.md) · [requirements.md](requirements.md) · [design.md](design.md)
 
 只有 `DONE` 的任务才能勾选完成。任务必须同时包含实现、失败行为和验证证据。
+
+2026-11-17 task-66 逐项验收：原十项未勾选任务新增 **7 DONE（1.1、1.2、1.3、2.1、2.2、2.3、3.2）**，保留 **3 OPEN（3.4、4.1、4.2）**；连同原有四项共 **11 DONE / 3 OPEN**。详见[逐项任务验收记录](docs/20261117-逐项任务验收记录.md)：十项原文标准与证据、完整发布/跨客户端及004.1遗留矩阵、父A–H、十五条需求回写和父§34八问。3.2为报告完成，真实安装/设备子项仍PENDING；4.1报告和4.2文档内容已齐，但明确前置未关闭，不能形成正式退出或发布PASS。以下旧检查点“未执行/待装配”不覆盖最新逐项证据，原始失败记录不删除。
 
 2026-11-17 整理：恢复对象改为“WorkItem + 子线程运行组”，不建 checkpoint 表（D17）；事件去重使用 `IdempotencyRecord`（D18）；“旧版本升级”改为新安装和手动备份导入；合并了原先重复的普通 Run 隔离（4.1/6.1）、跨客户端矩阵（3.2/5.2）、父场景回放（3.1/7.1）和最终检查（3.3/5.3/7.2）。
 
@@ -35,8 +39,10 @@
 
 ## 阶段 1：子线程恢复
 
-- [ ] 1.1 增加 WorkItem 恢复字段和恢复视图
-  - 状态：IN_PROGRESS（代码完成，统一数据库部署与完整类型验证待集成）
+- [x] 1.1 增加 WorkItem 恢复字段和恢复视图
+  - 状态：DONE（2026-11-17，task-66；现有字段计算视图、两计数列及合同序列化已完成，本机实际schema部署和完整类型通过）。
+  - 最新验收：contracts完整194 PASS，七包完整类型、真实schema部署通过；来源、命令与raw SHA见[逐项记录§1–2](docs/20261117-逐项任务验收记录.md#2-十项任务逐项判定)。不新增checkpoint表、不写Run.requestProgress。正式部署库未操作，不将本机结果称为生产migration。
+  - 以下实现提交/聚焦验证为代码交付时历史；当时“数据库部署和整包typecheck PENDING”已由最新组合证据替代。
   - 实现提交：`943bbebca`、`8fa19b037`；服务映射 `6aae513e6`、`ee85a7977`。
   - 修改文件：`packages/db/prisma/schema.prisma`、`packages/contracts/src/outcome-runtime.ts`、contracts 导出、`outcome-recovery-service.ts`。
   - 数据库变化：仅 `OutcomeWorkItem.retryCount/recoveryCount Int @default(0)`；无检查点表和迁移目录。
@@ -52,8 +58,11 @@
   - 对应需求：需求 5、需求 9
   - 对应设计：§1、§8
 
-- [ ] 1.2 接入启动恢复
-  - 状态：IN_PROGRESS（真实启动/周期代码完成，数据库与生命周期验证待集成）
+- [x] 1.2 接入启动恢复
+  - 状态：DONE（2026-11-17，task-66；按规定本机fixture实际验证重结算、原线程最多两次恢复、等待保持、needs_review及recovered事件）。
+  - 最新验收：messaging12项、server4项、worker4项恢复数据库案例已实际纳入最终完整包；另九项专库恢复与六CLI共40/40 checks通过。共享Decision构造/有效approved执行谓词已集成，活租约/停止确认/取消队列头及非阻塞claim有真实断言。详见[逐项记录§1–2](docs/20261117-逐项任务验收记录.md#2-十项任务逐项判定)。
+  - 依赖/边界：004.2运行组实现已集成并通过本机验证，3.4已按自身本地结算标准DONE；其3.1/3.2/7.1真实Bot/远端租约与scoped stop及研究试点门槛仍未关闭，不把本地executor退出冒充远端证明。
+  - 以下最小检查与“20项未执行”为交付时历史，已被实际组合回放替代。
   - 第 3 波核验修复（2026-11-17）：原生任务 34 修复候选优先级与全局停止 UUID 顺序冲突；代码 `8be7c16b9`。真实冻结基线两个新增案例重现 `40P01` 和前台超时，修复后新增 2 项及既有 Worker 4 项合计 6 PASS、22 断言；原先其他数据库案例和全局验收不据此放行。见[领取锁顺序修复与验证](docs/20261117-领取锁顺序修复与验证.md)。
   - 实现提交：`6aae513e6`、`ee85a7977`；测试 `d4275f9c8`。
   - 修改文件：`startup-recovery.ts`、Worker 恢复/心跳/claim 区块、共享 `outcome-recovery.ts`、`outcome-threads.ts`、三个数据库测试文件。
@@ -70,8 +79,10 @@
   - 对应需求：需求 1、需求 5、需求 15
   - 对应设计：§12、§17、§32
 
-- [ ] 1.3 实现恢复查询和 reconcile
-  - 状态：IN_PROGRESS（服务实现完成，公共路由由 integrator 统一装配）
+- [x] 1.3 实现恢复查询和 reconcile
+  - 状态：DONE（2026-11-17，task-66；AppService和实际公共路由装配已完成，查询/幂等reconcile/原因脱敏实际DB与handler测试通过）。
+  - 最新验收：`OutcomeRecoveryService` 已由AppService构造，`routes/outcome.ts`实际装配GET recovery/POST reconcile；四项recovery service DB案例全部通过，包含actual startup/幂等/私密内容排除。见[逐项记录§2](docs/20261117-逐项任务验收记录.md#2-十项任务逐项判定)；真实live API/UI仍PENDING。
+  - 以下服务交付时历史保留；“公共路由待装配/测试未跑”不再是当前状态。
   - 实现提交：`6aae513e6`、`ee85a7977`。
   - 修改文件：新增 `apps/server/src/services/outcome-recovery-service.ts`；公共 `routes/outcome.ts` 留集成者。
   - 数据库变化：none。
@@ -89,8 +100,10 @@
 
 ## 阶段 2：幂等、路由和指标
 
-- [ ] 2.1 复核 Outcome 业务幂等和事件去重
-  - 状态：IN_PROGRESS（源码矩阵完成，线 3/4 完整新代码的并发与重复回放待组合验证）
+- [x] 2.1 复核 Outcome 业务幂等和事件去重
+  - 状态：DONE（2026-11-17，task-66；run/review/resolve/receipt/notification/event实际重复与并发回放通过，D18和业务终态围栏保留）。
+  - 最新验收：线3/4持久事实与消费者已集成；messaging/server完整DB回归、事件保留及CLI duplicate8/concurrent5/receipt9项checks通过；原key/hash冲突、处理中和完成响应有测试。证据见[逐项记录§1–2](docs/20261117-逐项任务验收记录.md#2-十项任务逐项判定)。真实provider发送/查询仍PENDING，不删除幂等审计。
+  - 以下源码审计/“新回放未执行”为交付时历史，已由实际新代码组合验证替代。
   - 实现提交：`6aae513e6`、`d4275f9c8`、`ee85a7977`；跨线依赖见能力矩阵。
   - 修改文件：`outcome-recovery.ts`、`outcome-threads.ts`、新增恢复/指标测试与能力矩阵。
   - 数据库变化：none，复用 `IdempotencyRecord` 和业务唯一键。
@@ -106,8 +119,10 @@
   - 对应需求：需求 2、需求 6
   - 对应设计：§9、§19、§20、§37、§38
 
-- [ ] 2.2 实现 WorkItem 下一步路由
-  - 状态：IN_PROGRESS（五种事实的路由实现和纯测试通过，真实 Decision/HumanAction 全链路待集成）
+- [x] 2.2 实现 WorkItem 下一步路由
+  - 状态：DONE（2026-11-17，task-66；§11五种持久事实的产品路由及规定单测通过，Decision/Human真实服务路径已集成本机验证）。
+  - 最新验收：`five durable workflow facts route to their actual product owner`实际通过；Decision/Human构造、receipt/统一Review后一次continuation已通过实际DB与CLI。详见[逐项记录§2](docs/20261117-逐项任务验收记录.md#2-十项任务逐项判定)。不分类或拦截工具，真实现场动作/客户端父场景仍PENDING。
+  - 以下4项纯检查及“全链路待集成”为交付时历史，不代替当前组合验证。
   - 实现提交：`6aae513e6`、`d4275f9c8`、`ee85a7977`。
   - 修改文件：共享 `outcome-recovery.ts:routeOutcomeNextStep`、Server 恢复查询、纯路由测试。
   - 数据库变化：none。
@@ -123,8 +138,10 @@
   - 对应需求：需求 3、需求 7、需求 8
   - 对应设计：§11、§23
 
-- [ ] 2.3 实现指标和注意力时间上报
-  - 状态：IN_PROGRESS（聚合与上报服务完成，Desktop/公共路由装配及数据库指标 fixture 待组合验证）
+- [x] 2.3 实现指标和注意力时间上报
+  - 状态：DONE（2026-11-17，task-66；聚合/attention公共路由和Desktop三surface生产者均已集成，规定指标fixture与T为空测试实际通过）。
+  - 最新验收：四项recovery service DB案例覆盖attention空值/去重/hash冲突、N/Q/通知比例/追溯；Desktop attention四测试及完整768/0/1通过。native active/visible、document focus/visibility、intersection共同限定前台；planning创建前缓冲绑定、原key重试、300秒上限已有断言。见[逐项记录§2/§5](docs/20261117-逐项任务验收记录.md#2-十项任务逐项判定)。
+  - 范围限制：live UI计时、provider日志、普遍PII和latency percentile未观察；T无样本null，缺持久重复次数来源时duplicateEventCount=null，不估算。以下“Desktop/公共路由/DB fixture未集成执行”为历史。
   - 实现提交：`943bbebca`、`8fa19b037`、`6aae513e6`、`d4275f9c8`、`ee85a7977`。
   - 修改文件：运行时合同、`outcome-recovery-service.ts`、指标与计时回归；Desktop 由客户端 owner 实现。
   - 数据库变化：none；计时增量保存在原 `IdempotencyRecord`，不新增指标事件。
@@ -145,7 +162,7 @@
 - [x] 3.1 普通 Run 和主对话恢复隔离回归
   - 状态：DONE（2026-11-17，task-30；普通 Run/main/group/Routine 本机恢复隔离完整回归与九项专库实跑通过，不代替真实远端或客户端验收）
   - 最终验证：Computer 1360/0/68、Messaging 857/0/0（`5e2ce81d8`）；Server 1535/0/11、Worker 236/0/3（`727d410f2`，无生产差异）；另专库 startup 6 PASS/32 assertions、dispatch 3 PASS/7 assertions。完整命令、raw SHA、82 skip/九项独立通过见[最终本机结果](../004-OutcomeGo整体项目/docs/20261117-第3波后端组合验收最终本机结果.md)。
-  - 完成范围：仅受控本地 PostgreSQL/fixture；metrics 的 T 未上报为 null，缺持久来源的重复计数为 null。没有 live UI 注意力采样、provider 日志、普遍 PII 审计或 latency percentile 证明，分位数 PENDING；真实 Bot/远端未证明；客户端/安装 3.2 与完整回退 3.4 保持未完成。
+  - 完成范围：仅受控本地 PostgreSQL/fixture；metrics 的 T 未上报为 null，缺持久来源的重复计数为 null。没有 live UI 注意力采样、provider 日志、普遍 PII 审计或 latency percentile 证明，分位数 PENDING；真实 Bot/远端未证明；3.2报告虽已完成，其实际客户端/安装子项与3.4完整回退仍PENDING。
   - 以下“第 3 波”字段是 task-26 开闸前历史，不代表当前未执行；原始最小检查与失败证据保留。
   - 第 3 波实现提交：`2d9eaeb43`、`e00496f5e`、`543eef450`、`d4de4846e`、`d330efc34`、`80ea59865`；`870ebac90` 仅为本线编译所需依赖合并，不拾取到集成线。
   - 第 3 波修改文件：父六 JSON/合同检查脚本；`scripts/test-outcome-recovery.ts`、`scripts/outcome-recovery/`、`apps/server/test/fixtures/outcome-recovery/`、新 cross-phase 测试；本任务文档。51 个既有测试文件的精确清单见交接与入口补齐记录。
@@ -161,8 +178,12 @@
   - 对应需求：需求 10、需求 15
   - 对应设计：§34、§35
 
-- [ ] 3.2 复核 `004.1` 已知 PENDING 项和跨客户端矩阵
-  - 状态：IN_PROGRESS（004.1 遗留项部分已完成：逐项复核与可执行离线证据已归档；真实验收仍有 FAIL/PENDING，跨客户端 Outcome 回归留第 3 波）
+- [x] 3.2 复核 `004.1` 已知 PENDING 项和跨客户端矩阵
+  - 状态：DONE（2026-11-17，task-66；完成原文允许含PENDING的逐项复核报告，不表示实际安装/设备/更新/旧镜像通过）。
+  - 最新验收：[逐项记录§3](docs/20261117-逐项任务验收记录.md#3-任务-32发布跨客户端和-0041-遗留复核)保留原A1–S1全部ID，补X1–X8跨客户端矩阵和004.1八条PENDING逐项结论；每行包含实际范围、证据、责任/恢复条件与回退。Desktop完整768/0/1、Android129JVM/真实APK、Swift Core329已验，实际UI/live API/安装子项如实PENDING；移动端批准/receipt写入首版范围外。
+  - 依赖判断：004.2/004.3移动与Desktop、004.4移动只读实现/验证已可复核；**指定前置004.4 3.3仍IN_PROGRESS**，实现可供矩阵审查，但缺实际ReceiptForm UI失败fixture/刷新/重连测试，是本地验证缺口，不能只归入native环境。逐项记录X5/场景C明确PENDING及Human/Desktop补证责任；3.2完成包含未满足前置结论的复核报告，不关闭3.3，也不要求报告每行外部PASS。
+  - 当前修复：历史validator三个错误接受已由真实物理schema/FK校验修复，23tests和最终CLI7/7通过；旧F2的Channel.botId不是当前真实列，补充真实ChannelMember缺Bot表负例。原FAIL日志不改写，实际导入/旧镜像仍PENDING。
+  - 以下第一波矩阵与当时“不勾选/未运行”的字段为历史检查点；当前报告结论以本块及逐项记录为准。
   - 第 1 波线 5B 记录（2026-11-17）：[发布验收矩阵](docs/release-acceptance-matrix.md) 已覆盖新安装、校验/导入、签名/更新、错误来源和两种回退，并逐项回写 `004.1` PENDING；本任务不勾选完成。
   - 实现提交：无产品实现提交；核验代码基线为 `5070c6bc9c564cc2c0b982a25393860bcd82c774`，本线文档/证据提交可用 `git log -1 -- specs/004.5-运行时恢复与版本验收/docs/release-acceptance-matrix.md` 查询。
   - 修改文件：本任务前半证据块、`docs/release-acceptance-matrix.md`、`docs/20261117-l5b-evidence/`、`004.1/tasks.md` 的遗留项证据和 `004.1/docs/release-decision.md` 的复核补充。
@@ -209,6 +230,7 @@
   - 对应设计：§27、§37、§42
 
 - [ ] 3.4 备份、回退演练和失败日志
+  - 逐项验收（2026-11-17，task-66）：保留BLOCKED；3.2报告前置可关闭，但原文要求的两种回退“实际结果”仍不齐。恢复/通知固定错误码、详情诊断及本地canary已有证据，不能代替真实旧镜像日志；发布负责人需提供新旧digest、有Planning/Explore数据的隔离副本、备份路径/SHA、入口切换/旧镜像实际拒绝或启动日志与对账。见[逐项记录§2/§3/§6](docs/20261117-逐项任务验收记录.md)。
   - 最终边界：同版本本机 dump/restore 86 表/22 有数据表/123 FK 对账通过且原 dump 保留；Planning/Explore 没有填充数据，旧镜像未演练，不把这两项写 DONE。最终本机测试零失败不关闭本任务。
   - 状态：BLOCKED（2026-11-17，task-30 实际 populated pg_dump/restore 已通过；旧镜像未提供且 Planning/Explore 有数据回退未覆盖，未满足两级回退完整验收）。
   - 集中验证补充：`03cf82651` 源码，在本线 `55439/outcomego_w3_backup` 保留六个真实故障 fixture 后执行 custom pg_dump，恢复到独立空库 `outcomego_w3_restored`；86 表行数/内容摘要完全一致，22 表有数据，123 个 FK 全部 validated；dump 333755 bytes，SHA-256 `0e5f11d9b725efadd5d388a47c31f964d4ecd5e431077a0e07f4ed9e061baf69`。
@@ -232,7 +254,7 @@
 - [x] 3.5 指标和日志脱敏复核
   - 状态：DONE（2026-11-17，task-30；本地 metrics/恢复诊断查询、四个 recovery service DB 案例及 cross-phase 脱敏 canary 通过，不代替真实远端或客户端验收）
   - 最终验证：Computer 1360/0/68、Messaging 857/0/0（`5e2ce81d8`）；Server 1535/0/11、Worker 236/0/3（`727d410f2`，无生产差异）；另专库 startup 6 PASS/32 assertions、dispatch 3 PASS/7 assertions。完整命令、raw SHA、82 skip/九项独立通过见[最终本机结果](../004-OutcomeGo整体项目/docs/20261117-第3波后端组合验收最终本机结果.md)。
-  - 完成范围：仅受控本地 PostgreSQL/fixture；metrics 的 T 未上报为 null，缺持久来源的重复计数为 null。没有 live UI 注意力采样、provider 日志、普遍 PII 审计或 latency percentile 证明，分位数 PENDING；真实 Bot/远端未证明；客户端/安装 3.2 与完整回退 3.4 保持未完成。
+  - 完成范围：仅受控本地 PostgreSQL/fixture；metrics 的 T 未上报为 null，缺持久来源的重复计数为 null。没有 live UI 注意力采样、provider 日志、普遍 PII 审计或 latency percentile 证明，分位数 PENDING；真实 Bot/远端未证明；3.2报告虽已完成，其实际客户端/安装子项与3.4完整回退仍PENDING。
   - 以下“第 3 波”字段是 task-26 开闸前历史，不代表当前未执行；原始最小检查与失败证据保留。
   - 第 3 波实现提交：`2d9eaeb43`、`e00496f5e`、`543eef450`、`d4de4846e`、`d330efc34`、`80ea59865`；`870ebac90` 仅为本线编译所需依赖合并，不拾取到集成线。
   - 第 3 波修改文件：父六 JSON/合同检查脚本；`scripts/test-outcome-recovery.ts`、`scripts/outcome-recovery/`、`apps/server/test/fixtures/outcome-recovery/`、新 cross-phase 测试；本任务文档。51 个既有测试文件的精确清单见交接与入口补齐记录。
@@ -251,7 +273,9 @@
 ## 阶段 4：最终交付
 
 - [ ] 4.1 父场景 A–H 回放报告和发布决策
-  - 状态：TODO
+  - 状态：IN_PROGRESS（2026-11-17，task-66；报告内容已补齐，指定前置3.4及各子规格最终检查点未关闭）。
+  - 验收记录：[既有回放](docs/final-replay.md)、[既有发布决策](docs/release-decision.md)及[逐项记录§3–4](docs/20261117-逐项任务验收记录.md#4-任务-41父场景-ah-与发布决策补充)覆盖新安装/导入、A–H、主对话、Decision、人工、重启/重复、回退；每行状态/证据/责任/回退明确。报告可以含PENDING，未要求外部全部PASS才算写完。
+  - 未勾选原因：3.4、004.2 7.3、004.3 4.4、004.4 6.1的原定前置未完成。正式发布BLOCKED/PENDING；本机六包4950/0/83及九恢复/40CLI不代替前置。lead/各owner补齐最终判定或明确范围决策后由集成者复核；本次不新增代码、测试、数据库或外部操作。
   - 先依赖什么：3.1–3.5、`004.2` 7.3、`004.3` 4.4、`004.4` 6.1；不依赖本规格 4.2，避免最终检查点循环。
   - 主要改哪里：`docs/final-replay.md`、`docs/release-decision.md`
   - 这一步先不做什么：不在验收阶段新增功能；不以“以后补测试”替代未通过的门槛。
@@ -261,7 +285,9 @@
   - 对应设计：§14、§28、§41
 
 - [ ] 4.2 Spec 最终检查点
-  - 状态：TODO
+  - 状态：IN_PROGRESS（2026-11-17，task-66；需求回写和八问已写齐，直接前置4.1未关闭，正式最终检查点不放行）。
+  - 文档交付：[逐项记录§5](docs/20261117-逐项任务验收记录.md#5-任务-42需求-115-回写矩阵)逐行回写需求1–15的实现/本机证据/实际环境缺项/下一步；[§6](docs/20261117-逐项任务验收记录.md#6-父设计-34-八个问题)明确回答父§34八问，§7记录四向追踪和5项设计计划路径漂移。不是以本机整包零失败替代逐需求判断。
+  - 未完成项：4.1指定前置与需求4/14实际发布/两级回退验收仍未满足，需求12正式发布PENDING。由lead/集成者根据具体外部证据与各子规格最终检查点重新判定，不把PENDING报告写齐等同于所有需求通过。
   - 先依赖什么：4.1
   - 怎么算完成：需求 1–15 全部回写；按父 design §34 回答八个问题。
   - 怎么验证：requirements/design/tasks/docs 四向核对
