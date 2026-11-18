@@ -1618,7 +1618,10 @@ if (!hasSingleInstanceLock) {
           const notification = new Notification({
             id: notificationId, groupId: `outcome:${target.outcomeId}`,
             title: target.category === "completed" ? chinese ? "Outcome 已完成" : "Outcome completed" : chinese ? "一个 Outcome 需要你处理" : "An Outcome needs your attention",
-            body: target.category === "decision_pending" ? chinese ? "打开 OutcomeGo 决定下一步。" : "Open OutcomeGo to decide the next step." : chinese ? "打开 OutcomeGo 查看结果。" : "Open OutcomeGo to view the outcome.",
+            body: target.category === "decision_pending" ? chinese ? "打开 OutcomeGo 决定下一步。" : "Open OutcomeGo to decide the next step."
+              : target.category === "failed" ? chinese ? "打开 OutcomeGo 查看停止的原因。" : "Open OutcomeGo to see why it stopped."
+              : target.category === "blocked" ? chinese ? "打开 OutcomeGo 查看阻塞的原因。" : "Open OutcomeGo to see what is blocking it."
+              : chinese ? "打开 OutcomeGo 查看结果。" : "Open OutcomeGo to view the outcome.",
             silent: true,
           });
           activeNotifications.add(notification); activityNotifications.set(notificationId, notification);

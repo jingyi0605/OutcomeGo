@@ -1,4 +1,5 @@
 import { useDayClock } from "../../hooks/use-day-clock";
+import { isOutcomeUpdateCardMetadata } from "@outcomego/contracts/outcome-chat";
 import { ResourceActivityProvider } from "../../hooks/resource-activity";
 import { ThinkingCaption } from "./thinking-caption";
 import { thinkingActivity } from "../../lib/thinking-activity";
@@ -365,6 +366,7 @@ const MessageRow = memo(function MessageRow({
   separatedFromPrevious,
   replyPreview,
   canInteract,
+  canReply,
   onReply,
   onReact,
   onOpenThread,
@@ -390,6 +392,8 @@ const MessageRow = memo(function MessageRow({
   separatedFromPrevious: boolean;
   replyPreview?: { content: string; senderLabel: string } | null;
   canInteract: boolean;
+  /** Goal notices are system messages: quotable, but reactions stay off. */
+  canReply: boolean;
   onReply: (message: ChannelMessageView) => void;
   onReact: (message: ChannelMessageView, emoji: string) => void;
   onOpenThread: (message: ChannelMessageView) => void;
@@ -536,7 +540,7 @@ const MessageRow = memo(function MessageRow({
       </EmojiPicker>
       <MessageAction
         className="size-6 shrink-0 rounded-full transition-colors duration-[120ms]"
-        disabled={!canInteract}
+        disabled={!canReply}
         onClick={() => onReply(message)}
         tooltip={t("Reply")}
       >
@@ -854,10 +858,12 @@ const MessageRow = memo(function MessageRow({
               </ContextMenuSub>
             </div>
             <ContextMenuSeparator className="my-0.5" />
-            <ContextMenuItem onSelect={() => onReply(message)}>
-              <Reply className="size-4" /> {t("Reply")}
-            </ContextMenuItem>
           </>
+        )}
+        {canReply && (
+          <ContextMenuItem onSelect={() => onReply(message)}>
+            <Reply className="size-4" /> {t("Reply")}
+          </ContextMenuItem>
         )}
         <ContextMenuItem onSelect={() => copyMessage(message)}>
           <Copy className="size-4" /> {t("Copy")}
@@ -1827,6 +1833,13 @@ export const ChatPane = memo(function ChatPane({
                               !entry.pending &&
                               entry.delivery?.phase !== "failed" &&
                               entry.message.sender !== "system"
+                            }
+                            canReply={
+                              canSend &&
+                              !entry.pending &&
+                              entry.delivery?.phase !== "failed" &&
+                              (entry.message.sender !== "system" ||
+                                isOutcomeUpdateCardMetadata(entry.message.metadata))
                             }
                             channel={channel}
                             groupPosition={appendThinkingIndicatorToGroup(

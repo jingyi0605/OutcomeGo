@@ -88,7 +88,15 @@ export function OutcomeChatCardView({
   const [stale, setStale] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
   const live = current?.id === card.outcomeId ? current : null;
-  const stage = live ? outcomeCardStage(live.status) : card.stage;
+  // The executor can mark tasks blocked while the goal stays running; that still needs the user.
+  const blockedCount =
+    live?.status === "running"
+      ? live.workItems
+          .filter((item) => item.contractRevision === live.currentRevision && item.status === "running")
+          .flatMap((item) => item.progress?.tasks ?? [])
+          .filter((step) => step.status === "blocked").length
+      : 0;
+  const stage = blockedCount > 0 ? "attention" : live ? outcomeCardStage(live.status) : card.stage;
   const settled = SETTLED_STAGES.includes(stage);
   useEffect(() => {
     setCurrent(null);
@@ -132,7 +140,9 @@ export function OutcomeChatCardView({
   }, [card.stage, card.updatedAt]);
   const Icon = icons[stage];
   const progress = live && stage === "running" ? outcomeProgressSummary(live) : null;
-  const line = progress
+  const line = blockedCount > 0
+    ? t("{count} task blocked, needs your attention", { count: blockedCount })
+    : progress
     ? [
         progress.phase,
         t(progress.unit === "steps" ? "{done}/{total} steps" : "{done}/{total} work items", {

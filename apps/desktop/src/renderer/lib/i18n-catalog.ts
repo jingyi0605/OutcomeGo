@@ -14,6 +14,7 @@ export const sourceTranslations: Record<string, string> = {
   "Execution messages": "执行消息",
   "View goal details": "查看目标详情",
   "{done}/{total} steps": "{done}/{total} 项步骤",
+  "{count} task blocked, needs your attention": "{count} 项任务被阻塞，需要你处理",
   "File change": "文件变更",
   "Exit {code}": "退出码 {code}",
   "Read-only": "只读",

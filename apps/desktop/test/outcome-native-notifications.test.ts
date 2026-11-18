@@ -33,3 +33,10 @@ test("native Outcome banners deduplicate fact keys, suppress initial backlog, an
   manager.sync([{ ...first[0]!, factKey: "focused" }]); expect(delivered).toHaveLength(1);
   manager.clear(); manager.sync(first); expect(delivered).toHaveLength(1);
 });
+test("failed and blocked notifications keep an Outcome deep link and parse on Desktop", () => {
+  for (const [type, category, priority] of [["outcome.failed", "failed", 3], ["outcome.blocked", "blocked", 2]] as const) {
+    const value = { ...outcomeNotificationPayload({ type, factKey: `${type}:${fixtureIds.outcome}`, outcomeId: fixtureIds.outcome, botId: fixtureIds.bot, channelId: fixtureIds.channel, contractRevision: 1 }), notificationSequence: "7" };
+    expect(value).toMatchObject({ category, priority, deepLink: `outcomego://app/v1/outcomes?id=${fixtureIds.outcome}` });
+    expect(parseOutcomeNotifications([value])).toEqual([{ factKey: `${type}:${fixtureIds.outcome}`, outcomeId: fixtureIds.outcome, category, channelId: fixtureIds.channel, notificationSequence: "7" }]);
+  }
+});
