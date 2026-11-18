@@ -736,6 +736,16 @@ label.outcome-card:has(> input[type="radio"]:checked) {
 .outcome-now-line > button {
   flex-shrink: 0;
 }
+.outcome-credential-items {
+  margin: 6px 0 2px;
+  padding: 0;
+  list-style: none;
+  font-size: 12px;
+  color: var(--foreground-secondary);
+}
+.outcome-credential-items > li + li {
+  margin-top: 3px;
+}
 .outcome-now-item + .outcome-now-item {
   border-top: 0.5px solid var(--border);
   margin-top: 14px;

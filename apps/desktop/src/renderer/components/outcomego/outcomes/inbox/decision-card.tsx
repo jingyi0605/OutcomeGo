@@ -92,6 +92,13 @@ export function DecisionCardView({
   const decision = state.decision;
   const approval = decision ? isApprovalDecision(decision) : false;
   const options = decision?.options.slice(0, 4) ?? [];
+  const credentialItems = [
+    ...new Map(
+      (decision?.options ?? [])
+        .flatMap((option) => option.credentialGrant ?? [])
+        .map((item) => [`${item.connectionId}:${item.itemId}`, item])
+    ).values(),
+  ];
   const busy = state.phase === "resolving" || state.phase === "loading";
   const allowed = canResolveDecision(decision) && state.phase !== "resolved";
   const validChoice =
@@ -135,7 +142,16 @@ export function DecisionCardView({
       {state.phase === "loading" && <p role="status">{t("Loading Decision…")}</p>}
       {decision && (
         <>
-          <h3>{decision.nextStepSummary}</h3>
+          <h3>{t(decision.nextStepSummary)}</h3>
+          {credentialItems.length > 0 && (
+            <ul className="outcome-credential-items" aria-label={t("Saved logins")}>
+              {credentialItems.map((item) => (
+                <li key={`${item.connectionId}:${item.itemId}`}>
+                  {item.title} · {item.hostname} · {item.instanceName}
+                </li>
+              ))}
+            </ul>
+          )}
           {state.phase === "expired" && (
             <p role="alert">
               {t(
@@ -186,7 +202,7 @@ export function DecisionCardView({
                         }
                         onClick={() => onResolve(option.id, true)}
                       >
-                        {option.label}
+                        {t(option.label)}
                       </OutcomeButton>
                       <OptionInfo
                         option={option}
@@ -212,7 +228,7 @@ export function DecisionCardView({
                       onChange={() => onEdit({ optionId: option.id })}
                     />
                     <div className="outcome-route-option-label">
-                      <label htmlFor={`decision-${decision.id}-${option.id}`}>{option.label}</label>
+                      <label htmlFor={`decision-${decision.id}-${option.id}`}>{t(option.label)}</label>
                       {(option.recommended || decision.recommendation?.optionId === option.id) && (
                         <span className="outcome-route-recommended">{t("Recommended")}</span>
                       )}
@@ -292,11 +308,11 @@ export function DecisionCardView({
                   {t("Status")}: {t(decision.status)} · {t("Revision")} {decision.contractRevision}
                 </p>
                 <p>
-                  <strong>{t("Completed")}</strong>: {decision.completedSummary}
+                  <strong>{t("Completed")}</strong>: {t(decision.completedSummary)}
                 </p>
                 <p>
                   <strong>{t("Current problem")}</strong>:{" "}
-                  {decision.problemSummary || t("No unresolved problem.")}
+                  {t(decision.problemSummary) || t("No unresolved problem.")}
                 </p>
                 {decision.expiresAt && (
                   <p>
@@ -306,7 +322,7 @@ export function DecisionCardView({
                 {decision.recommendation && <p>{decision.recommendation.reason}</p>}
                 {decision.options.map((option) => (
                   <p key={option.id}>
-                    {option.label}: {option.reason ?? option.consequence} · {option.source}
+                    {t(option.label)}: {t(option.reason ?? option.consequence)} · {option.source}
                   </p>
                 ))}
                 {decision.truncatedOptionCount > 0 && (
@@ -433,14 +449,14 @@ function OptionInfo({
   const { t } = useI18n();
   const reason = option.reason ?? recommendationReason;
   const markdown = [
-    `**${t("What happens")}**\n\n${option.consequence}`,
-    reason ? `**${t("Why recommended")}**\n\n${reason}` : null,
+    `**${t("What happens")}**\n\n${t(option.consequence)}`,
+    reason ? `**${t("Why recommended")}**\n\n${t(reason)}` : null,
     `**${t("Source")}**\n\n${t(option.source)}`,
   ]
     .filter(Boolean)
     .join("\n\n");
   return (
-    <OutcomeSourceInfo name={option.label}>
+    <OutcomeSourceInfo name={t(option.label)}>
       <MessageResponse>{markdown}</MessageResponse>
     </OutcomeSourceInfo>
   );

@@ -397,6 +397,19 @@ export const sourceTranslations: Record<string, string> = {
   "Receipt submitted. Acceptance review is still required.": "回执已提交，仍需进行验收。",
   "Human action accepted.": "人工动作已通过验收。",
   "Receipt history": "回执历史",
+  "Allow reading these saved logins for this goal?": "是否允许本目标读取这些已保存的登录凭据？",
+  "Execution reached a step that needs a saved sign-in.": "执行到了需要已保存登录凭据的步骤。",
+  "Reading saved logins needs your approval.": "读取已保存的登录凭据需要你的批准。",
+  "Allow reading for this goal": "允许本目标读取",
+  "Do not allow": "不允许",
+  "The listed logins can be read whenever this goal's steps need them. Values are never shown in the conversation.":
+    "只要本目标的步骤需要，就可以读取所列登录凭据。凭据内容不会出现在对话中。",
+  "The goal cannot continue without signing in.": "不登录，本目标无法继续。",
+  "The goal continues without reading these credentials and may ask you to sign in yourself.":
+    "本目标将不读取这些凭据继续执行，并可能请你自己登录。",
+  "Once you allow it, execution resumes and signs in without further prompts for this goal.":
+    "批准后执行会继续，并在本目标内不再重复询问。",
+  "Saved logins": "已保存的登录凭据",
   "No submitted receipts.": "尚未提交回执。",
   "Submitted by": "提交人",
   "Started by": "开始执行人",
