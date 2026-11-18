@@ -22,7 +22,12 @@ export const regressionTypeTargets = [
   "apps/server/test/fixtures/outcome-recovery/populated-backup.ts",
   "scripts/migration/validate-outcomego-backup.ts",
   "apps/desktop/test/outcome-human-receipt-ui.test.tsx",
+  "apps/desktop/test/outcome-disclosure-ui.test.tsx",
+  "apps/desktop/test/bot-screen-refresh.test.tsx",
+  "apps/server/test/outcome-chat-tools.integration.test.ts",
+  "apps/server/test/outcome-brief.test.ts",
   "apps/desktop/src/renderer/env.d.ts",
+  "apps/desktop/src/renderer/novnc.d.ts",
 ];
 
 const config = ts.readConfigFile(resolve(root, "tsconfig.base.json"), ts.sys.readFile);
