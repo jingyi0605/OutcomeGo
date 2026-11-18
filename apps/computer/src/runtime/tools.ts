@@ -1803,6 +1803,8 @@ export class RuntimeTools {
       (body as Record<string, unknown>).status === "waiting_for_user") {
       active.endTurnRequested = true;
     }
+    if (tool === "RequestBitwardenReadApproval" && active.outcomeThread && body && typeof body === "object" &&
+        (body as Record<string, unknown>).status === "waiting_for_user") active.endTurnRequested = true;
     if (tool === "RequestHumanAction" && active.outcomeThread && body && typeof body === "object" &&
         (body as Record<string, unknown>).waiting_for_human === true) active.endTurnRequested = true;
     if (

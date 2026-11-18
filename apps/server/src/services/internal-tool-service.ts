@@ -46,6 +46,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { OUTCOME_THREAD_TOOL_NAMES } from "@outcomego/contracts/outcomes";
 import { OUTCOME_CHAT_TOOL_NAMES } from "@outcomego/contracts/outcome-chat";
 import type { OutcomeChatTools } from "./outcome-chat-tools";
+import { findOutcomeCredentialGrant } from "./outcome-credential-approval";
 
 export interface OutcomeThreadToolContext {
   runId: string;
@@ -62,6 +63,8 @@ export type OutcomeThreadToolHandler = (
 export interface OutcomeThreadToolHandlers {
   RequestOutcomeDecision?: OutcomeThreadToolHandler;
   RequestHumanAction?: OutcomeThreadToolHandler;
+  /** Step approval for Bitwarden reads; called with already validated candidates, never with agent input. */
+  RequestBitwardenReadApproval?: OutcomeThreadToolHandler;
 }
 
 const UUID = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
@@ -203,8 +206,10 @@ export class InternalToolService {
       if (request.tool === "RefreshToolCatalog") return {namespaces:await this.plugins.dynamicNamespaces(childIdentity?.parentBotId ?? request.botId)};
       if (request.tool === "ReadProcessSecrets") return { environment: await processEnvironment(this.prisma, request.botId) };
       const bitwardenCallerAllowed = !childIdentity || childIdentity.subagentType === "computerUse";
+      // An Outcome turn has an owner to ask through a step approval; a routine run has nobody to answer.
+      const outcomeRun = run.origin === "outcome" && !!run.outcomeWorkItemId;
       if (["SearchBitwardenItems", "RequestBitwardenReadApproval", "ReadBitwardenCredential", "ConsumeBitwardenReadLease", "ConsumeBitwardenSearchLease"].includes(request.tool) &&
-          (!bitwardenCallerAllowed || backgroundRun))
+          (!bitwardenCallerAllowed || (backgroundRun && !outcomeRun)))
         throw new ApiError(403, "bitwarden_tool_forbidden", "Bitwarden reads are available only to the user-facing agent");
       if (request.tool === "SearchBitwardenItems") {
         const input = jsonObject(request.arguments);
@@ -277,6 +282,16 @@ export class InternalToolService {
           ...candidate,
           instanceName: aliasMap.get(candidate.connectionId.toLowerCase())!,
         }));
+        if (outcomeRun) {
+          // No chat widget exists here: the owner answers a step approval that stays valid for the whole Outcome.
+          const handler = this.outcomeThreadTools.RequestBitwardenReadApproval;
+          if (!handler)
+            throw new ApiError(503, "outcome_credential_approval_unavailable", "Bitwarden step approvals have not been registered");
+          return handler(
+            { ...request, arguments: { candidates: enriched } },
+            { runId: run.id, workItemId: run.outcomeWorkItemId!, botId: run.botId },
+          );
+        }
         const single = enriched.length === 1 ? enriched[0]! : null;
         const approval = await this.prisma.bitwardenReadApproval.create({
           data: {
@@ -340,27 +355,40 @@ export class InternalToolService {
           throw new ApiError(400, "bitwarden_read_invalid", "A Bitwarden itemId and field are required");
         if (connectionId && !UUID.test(connectionId))
           throw new ApiError(400, "bitwarden_read_invalid", "The Bitwarden connectionId is invalid");
-        const payload = run.inboxEvents[0]?.payload as Record<string, unknown> | undefined;
-        const reference = approvalReference(payload?.content);
-        if (!reference) throw new ApiError(403, "bitwarden_read_not_approved", "User approval is required before reading this Bitwarden item");
-        const approval = await this.prisma.bitwardenReadApproval.findUnique({ where: { id: reference } });
-        if (approval?.status === "approved" && approval.expiresAt <= new Date()) {
-          await this.prisma.bitwardenReadApproval.update({ where: { id: approval.id }, data: { status: "expired" } });
+        let approvedConnectionId: string;
+        if (outcomeRun) {
+          const grant = await findOutcomeCredentialGrant(this.prisma, run.outcomeWorkItemId!, itemId, connectionId);
+          if (!grant)
+            throw new ApiError(
+              403,
+              "bitwarden_read_not_approved",
+              "The owner has not approved reading this Bitwarden item for this goal. Call RequestBitwardenReadApproval with its connectionId and itemId, then wait for the next turn.",
+            );
+          approvedConnectionId = grant.connectionId;
+        } else {
+          const payload = run.inboxEvents[0]?.payload as Record<string, unknown> | undefined;
+          const reference = approvalReference(payload?.content);
+          if (!reference) throw new ApiError(403, "bitwarden_read_not_approved", "User approval is required before reading this Bitwarden item");
+          const approval = await this.prisma.bitwardenReadApproval.findUnique({ where: { id: reference } });
+          if (approval?.status === "approved" && approval.expiresAt <= new Date()) {
+            await this.prisma.bitwardenReadApproval.update({ where: { id: approval.id }, data: { status: "expired" } });
+          }
+          if (
+            !approval ||
+            approval.botId !== request.botId ||
+            approval.channelId !== request.channelId ||
+            approval.status !== "approved" ||
+            !approval.connectionId ||
+            approval.itemId?.toLowerCase() !== itemId.toLowerCase() ||
+            (connectionId && approval.connectionId.toLowerCase() !== connectionId.toLowerCase()) ||
+            approval.expiresAt <= new Date()
+          )
+            throw new ApiError(403, "bitwarden_read_not_approved", "User approval is missing, expired, or for a different Bitwarden item or instance");
+          approvedConnectionId = approval.connectionId!;
         }
-        if (
-          !approval ||
-          approval.botId !== request.botId ||
-          approval.channelId !== request.channelId ||
-          approval.status !== "approved" ||
-          !approval.connectionId ||
-          approval.itemId?.toLowerCase() !== itemId.toLowerCase() ||
-          (connectionId && approval.connectionId.toLowerCase() !== connectionId.toLowerCase()) ||
-          approval.expiresAt <= new Date()
-        )
-          throw new ApiError(403, "bitwarden_read_not_approved", "User approval is missing, expired, or for a different Bitwarden item or instance");
         const readyConnection = await this.prisma.pluginConnection.findFirst({
           where: {
-            id: approval.connectionId,
+            id: approvedConnectionId,
             connectorKey: "bitwarden",
             status: "ready",
             installation: { pluginKey: "bitwarden", status: "installed" },
@@ -376,7 +404,7 @@ export class InternalToolService {
             botId: request.botId,
             channelId: request.channelId,
             sourceRunId: request.runId,
-            connectionId: approval.connectionId,
+            connectionId: approvedConnectionId,
             itemId,
             title: "__lease__",
             hostname: String(field),
@@ -386,7 +414,7 @@ export class InternalToolService {
             leaseExpiresAt: new Date(Date.now() + 30_000),
           },
         });
-        return { leaseToken, connectionId: approval.connectionId };
+        return { leaseToken, connectionId: approvedConnectionId };
       }
       if (request.tool === "ConsumeBitwardenReadLease") {
         const input = jsonObject(request.arguments);

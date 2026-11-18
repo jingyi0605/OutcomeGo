@@ -32,7 +32,7 @@ Skill 通过 `SearchBitwardenItems` 跨所有「已连接」实例获取非 secr
 
 返回 JSON，成功退出码 0，失败非零。搜索只返回标题、hostname、UUID、来源 `connectionId`/`instanceName` 和 `ambiguous` 标志；多个候选需要用户选择。仅 exact hostname 或完整 URI 匹配，字段读取只接受显式 UUID 并校验 Login 类型。标题查询不会按用户名搜索。CLI 输出上限 8 MiB，单实例候选上限 50，单命令超时 90 秒，不自动重试认证或网站登录。
 
-凭据值只在 Computer 私有运行时短暂保留为环境变量；`ReadBitwardenCredential` 只向模型返回不含值的浏览器引用，浏览器和 Computer 写入路径解析引用后自动脱敏。父任务与受控 `computerUse` 子任务共享 credential scope，子任务完成后释放；没有子任务时由 TTL 清理。读取某个实例下某个 item 的第一个字段前，服务端 widget 同时承担实例/item 选择和授权，用户拒绝、关闭或未回答时 lease 不会发放。授权只对当前任务中的该实例及该 item 有效。本插件不会另外创建凭据日志，不提供 Vault 写入、导出、SSO/邮箱密码备用认证或交互 MFA 自动化。
+凭据值只在 Computer 私有运行时短暂保留为环境变量；`ReadBitwardenCredential` 只向模型返回不含值的浏览器引用，浏览器和 Computer 写入路径解析引用后自动脱敏。父任务与受控 `computerUse` 子任务共享 credential scope，子任务完成后释放；没有子任务时由 TTL 清理。读取某个实例下某个 item 的第一个字段前，服务端 widget 同时承担实例/item 选择和授权，用户拒绝、关闭或未回答时 lease 不会发放。授权只对当前任务中的该实例及该 item 有效。在目标（Outcome）执行线程中没有聊天窗口，授权改为生成一条步骤审批决策；用户批准后对该目标的所有后续执行轮次有效（仍按实例和 item 限定），只有真实用户的选择才会生成授权，Bot 或系统关闭决策不会。例行（routine）运行没有可回答的对象，仍不允许读取。本插件不会另外创建凭据日志，不提供 Vault 写入、导出、SSO/邮箱密码备用认证或交互 MFA 自动化。
 
 Bitwarden 服务端仍必须使用 HTTPS；登录目标页面可以是用户明确打开并授权的 HTTP 页面。Computer 只允许在已确认目标 hostname 内写入 HTTP 页面，拒绝把凭据写入其他 HTTP frame。
 

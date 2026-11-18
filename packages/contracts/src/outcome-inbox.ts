@@ -27,7 +27,23 @@ export interface DecisionOption {
   contract?: CreateContractRevisionInput["contract"];
   manualAction?: DecisionActionCard;
   supplement?: { title: string; instructions: string };
+  /**
+   * Password-manager items the owner lets this Outcome read once this option is chosen. Only the server
+   * writes it (the agent-facing tool schema has no such field), and the grant is the resolved option itself.
+   */
+  credentialGrant?: readonly CredentialGrantItem[];
 }
+
+export interface CredentialGrantItem {
+  connectionId: string;
+  itemId: string;
+  title: string;
+  hostname: string;
+  instanceName: string;
+}
+
+/** Decisions with this reason ask the owner to let an Outcome read password-manager items. */
+export const CREDENTIAL_ACCESS_REASON_CODE = "credential_access_required";
 
 /** Internal service input; never accepted directly from the public resolve route. */
 export interface DecisionCreateInput {
