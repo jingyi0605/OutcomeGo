@@ -1,4 +1,4 @@
-import { Schema } from "effect";
+import { JSONSchema, Schema } from "effect";
 
 /**
  * Outcome planning, contract, execution and review contracts (specs/004.2).
@@ -165,6 +165,7 @@ export const OUTCOME_EVENT_TOPICS = [
   "outcome.contract.revision_approved",
   "outcome.work_item.created",
   "outcome.work_item.updated",
+  "outcome.progress.updated",
   "outcome.output.recorded",
   "outcome.review.required",
   "outcome.review.recorded",
@@ -179,8 +180,78 @@ export const OUTCOME_EVENT_TOPICS = [
 export type OutcomeEventTopic = (typeof OUTCOME_EVENT_TOPICS)[number];
 export const OUTCOME_EVENT_SCHEMA_VERSION = 1;
 
-export const OUTCOME_THREAD_TOOL_NAMES = ["RequestOutcomeDecision", "RequestHumanAction"] as const;
+export const OUTCOME_THREAD_TOOL_NAMES = ["RequestOutcomeDecision", "RequestHumanAction", "ReportOutcomeProgress"] as const;
 export type OutcomeThreadToolName = (typeof OUTCOME_THREAD_TOOL_NAMES)[number];
+
+export const OUTCOME_TASK_STEP_STATUSES = ["pending", "in_progress", "completed", "blocked"] as const;
+export type OutcomeTaskStepStatus = (typeof OUTCOME_TASK_STEP_STATUSES)[number];
+
+export interface OutcomeTaskStep {
+  id: string;
+  title: string;
+  status: OutcomeTaskStepStatus;
+  summary?: string;
+}
+
+export interface OutcomeWorkItemProgress {
+  phase: string;
+  summary?: string;
+  tasks: OutcomeTaskStep[];
+  updatedAt: string;
+}
+
+export const OutcomeTaskStepInput = Schema.Struct({
+  id: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(80)),
+  title: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(200)),
+  status: Schema.Literal(...OUTCOME_TASK_STEP_STATUSES),
+  summary: Schema.optional(Schema.String.pipe(Schema.maxLength(300))),
+});
+
+export const ReportOutcomeProgressInput = Schema.Struct({
+  phase: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(120)),
+  summary: Schema.optional(Schema.String.pipe(Schema.maxLength(500))),
+  tasks: Schema.Array(OutcomeTaskStepInput).pipe(Schema.minItems(1), Schema.maxItems(30)),
+});
+export type ReportOutcomeProgressInput = typeof ReportOutcomeProgressInput.Type;
+
+export const REPORT_OUTCOME_PROGRESS_TOOL = {
+  name: "ReportOutcomeProgress",
+  description:
+    "Update the current execution phase/stage and structured task list for this Outcome work item. Call this at the start of execution to publish your task breakdown, and update it promptly whenever the phase changes or a task starts, completes, or becomes blocked.",
+  inputSchema: JSONSchema.make(ReportOutcomeProgressInput),
+} as const;
+
+export function parseOutcomeWorkItemProgress(value: unknown): OutcomeWorkItemProgress | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const raw = value as Record<string, unknown>;
+  if (typeof raw.phase !== "string" || !raw.phase.trim() || !Array.isArray(raw.tasks) || typeof raw.updatedAt !== "string") {
+    return null;
+  }
+  const tasks: OutcomeTaskStep[] = [];
+  for (const item of raw.tasks) {
+    if (!item || typeof item !== "object" || Array.isArray(item)) return null;
+    const step = item as Record<string, unknown>;
+    if (
+      typeof step.id !== "string" ||
+      typeof step.title !== "string" ||
+      !(OUTCOME_TASK_STEP_STATUSES as readonly unknown[]).includes(step.status)
+    ) {
+      return null;
+    }
+    tasks.push({
+      id: step.id,
+      title: step.title,
+      status: step.status as OutcomeTaskStepStatus,
+      ...(typeof step.summary === "string" && step.summary.trim() ? { summary: step.summary } : {}),
+    });
+  }
+  return {
+    phase: raw.phase,
+    ...(typeof raw.summary === "string" && raw.summary.trim() ? { summary: raw.summary } : {}),
+    tasks,
+    updatedAt: raw.updatedAt,
+  };
+}
 
 export type DecisionEffect = "plan_only" | "scope_change" | "acceptance_change" | "cancel_branch" | "manual_action";
 
@@ -194,6 +265,7 @@ export interface OutcomeEventPayloads {
   "outcome.contract.revision_approved": { revisionId: string; contentHash: string };
   "outcome.work_item.created": { workItemId: string; executorType: WorkItemExecutorType; kind: WorkItemKind };
   "outcome.work_item.updated": { from: WorkItemStatus; to: WorkItemStatus; reason: string };
+  "outcome.progress.updated": { workItemId: string; phase: string; completedCount: number; totalCount: number };
   "outcome.output.recorded": { outputId: string; kind: OutputKind };
   "outcome.review.required": { criterionIds: string[]; workItemIds: string[] };
   "outcome.review.recorded": { reviewId: string; criterionId: string; result: ReviewResult; evidenceIds: string[] };
@@ -540,6 +612,7 @@ export interface WorkItemView {
   title: string;
   status: WorkItemStatus;
   statusReason: string | null;
+  progress?: OutcomeWorkItemProgress | null;
   ordinal: number;
   dependsOn: string[];
   rootRunId: string | null;

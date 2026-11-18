@@ -2076,6 +2076,7 @@ model OutcomeWorkItem {
   instructions String                      @default("")
   status OutcomeWorkItemStatus
   statusReason String?
+  progress Json?
   /// Spec 004.5: bounded internal retries and interrupted-thread continuations.
   retryCount Int @default(0)
   recoveryCount Int @default(0)

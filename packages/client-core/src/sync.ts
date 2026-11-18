@@ -14,7 +14,7 @@ export const LIVE_SYNC_DEGRADED_FALLBACK_MS = 15_000;
 export const RUNTIME_REFRESH_MS = 30_000;
 
 export const shouldRefreshForEvent = (event: ProductEvent): boolean => {
-  if (event.topic === "message.delta" || event.topic === "conversation.attached") return false;
+  if (event.topic === "message.delta" || event.topic === "conversation.attached" || event.topic === "goal.progress.updated") return false;
   if (event.topic === "run_item.started" || event.topic === "run_item.completed") {
     const item = (event.payload as { item?: { type?: string } } | null)?.item;
     return !item?.type || !["agentMessage", "reasoning", "plan"].includes(item.type);
