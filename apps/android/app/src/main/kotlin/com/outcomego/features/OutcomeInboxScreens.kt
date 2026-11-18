@@ -58,6 +58,9 @@ fun OutcomeInboxScreen(
     var failure by remember(gateway) { mutableStateOf(false) }
     var failedMore by remember(gateway) { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+    val noticeStartedMsg = localizedText("Started.", "已开始处理。")
+    val noticePausedMsg = localizedText("Paused.", "已暂停。")
+    val noticeReceiptMsg = localizedText("Receipt submitted.", "回执已提交。")
     suspend fun load(more: Boolean = false) {
         if (loading) return
         loading = true; failure = false; failedMore = more
@@ -125,7 +128,6 @@ fun OutcomeInboxScreen(
                     Text(item.title, style = MaterialTheme.typography.titleMedium)
                     Text(outcomeCategoryLabel(item.category))
                     OutcomeSummaryLines(item.completed, item.problem, item.next)
-                    if (item.category in setOf("acceptance_pending", "human_action_pending")) OutcomeHumanDesktopNotice()
                 }
             }
             if (page?.nextCursor != null && !failure) item {
@@ -136,7 +138,7 @@ fun OutcomeInboxScreen(
 }
 
 @Composable
-private fun OutcomeDecisionScreen(
+internal fun OutcomeDecisionScreen(
     gateway: FeatureGateway, id: String, onBack: () -> Unit,
     onOutcome: (String) -> Unit, onAuthenticationRequired: (OutcomeLinkTarget) -> Unit,
 ) {
@@ -151,6 +153,9 @@ private fun OutcomeDecisionScreen(
     var resolution by remember { mutableStateOf<OutcomeDecisionResolution?>(null) }
     var expanded by rememberSaveable(id) { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+    val noticeStartedMsg = localizedText("Started.", "已开始处理。")
+    val noticePausedMsg = localizedText("Paused.", "已暂停。")
+    val noticeReceiptMsg = localizedText("Receipt submitted.", "回执已提交。")
     fun unauthorized(error: Throwable): Boolean {
         if ((error as? OutcomeGoRequestException)?.error?.status != 401) return false
         decision = null
@@ -260,9 +265,24 @@ internal fun OutcomeHumanActionScreen(
 ) {
     var detail by remember(gateway, id) { mutableStateOf<OutcomeHumanWorkItem?>(null) }
     var loading by remember { mutableStateOf(false) }
+    var mutating by remember { mutableStateOf(false) }
     var failure by remember { mutableStateOf(false) }
+    var actionError by remember { mutableStateOf<String?>(null) }
+    var actionNotice by remember { mutableStateOf<String?>(null) }
     var referencesExpanded by rememberSaveable(id) { mutableStateOf(false) }
+    var pauseReason by rememberSaveable(id) { mutableStateOf("") }
+    var showPauseForm by rememberSaveable(id) { mutableStateOf(false) }
+    var receiptComment by rememberSaveable(id) { mutableStateOf("") }
+    var receiptText by rememberSaveable(id) { mutableStateOf("") }
+    var receiptSourceRef by rememberSaveable(id) { mutableStateOf("") }
+    var knowledgeQuery by rememberSaveable(id) { mutableStateOf("") }
+    var knowledgeResults by remember(id) { mutableStateOf<List<OutcomeKnowledgeReference>>(emptyList()) }
+    var readingDoc by remember(id) { mutableStateOf<Pair<String, OutcomeKnowledgeDocument>?>(null) }
     val scope = rememberCoroutineScope()
+    val noticeStartedMsg = localizedText("Started.", "已开始处理。")
+    val noticePausedMsg = localizedText("Paused.", "已暂停。")
+    val noticeReceiptMsg = localizedText("Receipt submitted.", "回执已提交。")
+
     suspend fun load() {
         if (loading) return
         loading = true; failure = false
@@ -275,23 +295,158 @@ internal fun OutcomeHumanActionScreen(
             })
         } finally { loading = false }
     }
+
     LaunchedEffect(gateway, id) { load() }
     FeaturePage(detail?.title ?: localizedText("Human action", "人工动作"), onBack = onBack) {
         LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            item { OutcomeHumanDesktopNotice() }
-            item { TextButton(onClick = { scope.launch { load() } }, enabled = !loading) { Text(localizedText("Refresh", "刷新")) } }
+            item {
+                androidx.compose.foundation.layout.Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TextButton(onClick = { scope.launch { load() } }, enabled = !loading && !mutating) {
+                        Text(localizedText("Refresh", "刷新"))
+                    }
+                    detail?.let { value ->
+                        if (value.status in setOf("pending", "ready", "paused")) {
+                            androidx.compose.material3.Button(
+                                enabled = !mutating,
+                                onClick = {
+                                    scope.launch {
+                                        mutating = true; actionError = null; actionNotice = null
+                                        gateway.startHumanWorkItem(
+                                            id,
+                                            HumanWorkMutationRequest(
+                                                clientRequestId = UUID.randomUUID().toString(),
+                                                expectedContractRevision = value.contractRevision,
+                                            ),
+                                        ).fold(
+                                            onSuccess = { detail = it; actionNotice = noticeStartedMsg },
+                                            onFailure = { actionError = it.message ?: "Start failed" },
+                                        )
+                                        mutating = false
+                                    }
+                                },
+                            ) { Text(localizedText("Start", "开始处理")) }
+                        }
+                        if (value.status == "in_progress") {
+                            androidx.compose.material3.OutlinedButton(
+                                enabled = !mutating,
+                                onClick = { showPauseForm = !showPauseForm },
+                            ) { Text(localizedText("Pause", "暂停")) }
+                        }
+                    }
+                }
+            }
             if (loading) item { CircularProgressIndicator() }
             if (failure) item { OutcomeRetry { scope.launch { load() } } }
+            actionError?.let { msg -> item { Text(msg, color = MaterialTheme.colorScheme.error) } }
+            actionNotice?.let { msg -> item { Text(msg, color = MaterialTheme.colorScheme.primary) } }
+
             detail?.let { value ->
-                item { Text(outcomeStatusLabel(value.status)) }
-                item { Text(localizedText("Receipt history", "回执历史")) }
+                item { Text(outcomeStatusLabel(value.status), style = MaterialTheme.typography.titleSmall) }
+                if (showPauseForm && value.status == "in_progress") {
+                    item {
+                        OutcomeInboxCard {
+                            Text(localizedText("Pause Human Action", "暂停人工动作"), style = MaterialTheme.typography.titleMedium)
+                            OutlinedTextField(
+                                value = pauseReason,
+                                onValueChange = { pauseReason = it },
+                                label = { Text(localizedText("Pause reason", "暂停原因")) },
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                            androidx.compose.material3.Button(
+                                enabled = !mutating && pauseReason.isNotBlank(),
+                                onClick = {
+                                    scope.launch {
+                                        mutating = true; actionError = null; actionNotice = null
+                                        gateway.pauseHumanWorkItem(
+                                            id,
+                                            HumanWorkPauseRequest(
+                                                clientRequestId = UUID.randomUUID().toString(),
+                                                expectedContractRevision = value.contractRevision,
+                                                reason = pauseReason.trim(),
+                                            ),
+                                        ).fold(
+                                            onSuccess = {
+                                                detail = it
+                                                showPauseForm = false
+                                                pauseReason = ""
+                                                actionNotice = noticePausedMsg
+                                            },
+                                            onFailure = { actionError = it.message ?: "Pause failed" },
+                                        )
+                                        mutating = false
+                                    }
+                                },
+                            ) { Text(localizedText("Confirm Pause", "确认暂停")) }
+                        }
+                    }
+                }
+
+                if (value.status in setOf("ready", "in_progress", "paused", "rejected")) {
+                    item {
+                        OutcomeInboxCard {
+                            Text(localizedText("Submit Receipt", "提交执行回执"), style = MaterialTheme.typography.titleMedium)
+                            OutlinedTextField(
+                                value = receiptComment,
+                                onValueChange = { receiptComment = it },
+                                label = { Text(localizedText("Summary / Comment", "回执摘要")) },
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                            OutlinedTextField(
+                                value = receiptText,
+                                onValueChange = { receiptText = it },
+                                label = { Text(localizedText("Result details", "详细结果内容")) },
+                                modifier = Modifier.fillMaxWidth(),
+                                minLines = 3,
+                            )
+                            OutlinedTextField(
+                                value = receiptSourceRef,
+                                onValueChange = { receiptSourceRef = it },
+                                label = { Text(localizedText("External reference URL/path (optional)", "外部参考链接/路径（可选）")) },
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                            androidx.compose.material3.Button(
+                                enabled = !mutating && (receiptComment.isNotBlank() || receiptText.isNotBlank()),
+                                onClick = {
+                                    scope.launch {
+                                        mutating = true; actionError = null; actionNotice = null
+                                        val refs = receiptSourceRef.trim().takeIf { it.isNotEmpty() }
+                                            ?.let { listOf(HumanReceiptSourceRef(type = "external", ref = it)) }
+                                            ?: emptyList()
+                                        gateway.submitHumanReceipt(
+                                            id,
+                                            HumanReceiptRequest(
+                                                clientRequestId = UUID.randomUUID().toString(),
+                                                expectedContractRevision = value.contractRevision,
+                                                comment = receiptComment.trim(),
+                                                text = receiptText.trim(),
+                                                sourceRefs = refs,
+                                            ),
+                                        ).fold(
+                                            onSuccess = {
+                                                receiptComment = ""
+                                                receiptText = ""
+                                                receiptSourceRef = ""
+                                                actionNotice = noticeReceiptMsg
+                                                load()
+                                            },
+                                            onFailure = { actionError = it.message ?: "Submit failed" },
+                                        )
+                                        mutating = false
+                                    }
+                                },
+                            ) { Text(localizedText("Submit Receipt", "提交回执")) }
+                        }
+                    }
+                }
+
+                item { Text(localizedText("Receipt history", "回执历史"), style = MaterialTheme.typography.titleMedium) }
                 items(value.receipts.sortedByDescending { it.sequence }, key = { it.id }) { receipt ->
                     OutcomeInboxCard {
                         Text(localizedText("Receipt ${receipt.sequence}", "回执 ${receipt.sequence}"))
                         Text(outcomeStatusLabel(receipt.status))
                         Text(receipt.submittedAt)
-                        Text(receipt.payload.comment)
-                        Text(receipt.payload.text)
+                        if (receipt.payload.comment.isNotBlank()) Text(receipt.payload.comment)
+                        if (receipt.payload.text.isNotBlank()) Text(receipt.payload.text)
                         receipt.reviewComment?.let { Text(it) }
                         receipt.missingRequirements.forEach { Text(it.label) }
                     }
@@ -315,20 +470,67 @@ internal fun OutcomeHumanActionScreen(
                     item { Text(localizedText("Evidence requirements", "证据要求")) }
                     items(card.evidenceRequirements) { Text(it.label + if (it.required) localizedText(" (required)", "（必需）") else "") }
                     item {
-                        TextButton(onClick = { referencesExpanded = !referencesExpanded }) { Text(localizedText("References", "资料引用")) }
-                        if (referencesExpanded) card.references.forEach { reference ->
-                            OutcomeInboxCard {
-                                Text(reference.title)
-                                Text(reference.version)
-                                Text(reference.sourceRef)
-                                Text(reference.permissionSummary)
-                                if (reference.stale) Text(localizedText("This reference is outdated.", "此资料已过期。"))
-                                reference.excerpt?.let { Text(it) }
+                        TextButton(onClick = { referencesExpanded = !referencesExpanded }) {
+                            Text(localizedText("References & Knowledge", "资料引用与知识检索"))
+                        }
+                        if (referencesExpanded) {
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                OutlinedTextField(
+                                    value = knowledgeQuery,
+                                    onValueChange = { knowledgeQuery = it },
+                                    label = { Text(localizedText("Search outcome knowledge", "搜索目标知识库")) },
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
+                                androidx.compose.material3.OutlinedButton(
+                                    enabled = !mutating && knowledgeQuery.isNotBlank(),
+                                    onClick = {
+                                        scope.launch {
+                                            mutating = true; actionError = null
+                                            gateway.searchOutcomeKnowledge(value.outcomeId, knowledgeQuery.trim()).fold(
+                                                onSuccess = { knowledgeResults = it },
+                                                onFailure = { actionError = it.message ?: "Knowledge search failed" },
+                                            )
+                                            mutating = false
+                                        }
+                                    },
+                                ) { Text(localizedText("Search Knowledge", "检索资料")) }
+                                (card.references + knowledgeResults).distinctBy { it.id }.forEach { reference ->
+                                    OutcomeInboxCard {
+                                        Text(reference.title, style = MaterialTheme.typography.titleSmall)
+                                        Text(reference.version)
+                                        Text(reference.sourceRef)
+                                        Text(reference.permissionSummary)
+                                        if (reference.stale) Text(localizedText("This reference is outdated.", "此资料已过期。"))
+                                        reference.excerpt?.let { Text(it) }
+                                        TextButton(
+                                            enabled = !mutating,
+                                            onClick = {
+                                                scope.launch {
+                                                    mutating = true; actionError = null
+                                                    gateway.readOutcomeKnowledge(value.outcomeId, reference).fold(
+                                                        onSuccess = { doc -> readingDoc = reference.title to doc },
+                                                        onFailure = { actionError = it.message ?: "Read failed" },
+                                                    )
+                                                    mutating = false
+                                                }
+                                            },
+                                        ) { Text(localizedText("Read Full Content", "阅读全文")) }
+                                    }
+                                }
+                                readingDoc?.let { (docTitle, doc) ->
+                                    OutcomeInboxCard {
+                                        Text(docTitle, style = MaterialTheme.typography.titleMedium)
+                                        Text(doc.text)
+                                        TextButton(onClick = { readingDoc = null }) {
+                                            Text(localizedText("Close", "关闭"))
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
                     card.draft?.let { draft -> item { OutcomeInboxCard {
-                        Text(localizedText("Saved Desktop progress", "Desktop 已保存的进度"))
+                        Text(localizedText("Saved Progress", "已保存的进度"))
                         Text(draft.draftSummary)
                         Text(draft.reason)
                     } } }
