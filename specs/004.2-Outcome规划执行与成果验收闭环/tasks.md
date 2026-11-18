@@ -1,10 +1,14 @@
 # 任务清单 - Outcome 规划执行与成果验收闭环（人话版）
 
-状态：IN_PROGRESS（阶段 0、阶段 1 完成；下一步任务 2.1）
+2026-11-17 task73 当前开发更新：当前原九项仍4DONE/5开放。task70 final3已补同Outcome阳性Output/Evidence/Review及所有核心请求/ID，[acceptance-replay.md](docs/acceptance-replay.md)为当前对账，19检查PASS；旧两条空集合链仅为历史。本地7.2数据/报告缺口已关闭，但原7.1真实研究Bot前置仍未验，因此7.2/7.3不勾；3.1/3.2/7.1的真实Bot门也未被受控推理/Computer替代。
+
+状态：IN_PROGRESS（2026-11-17 逐项验收：本次九项中新增完成 3.4、5.1、5.2、5.3；3.1、3.2、7.1、7.2、7.3 保持未完成）
 
 关联文档：[README.md](README.md) · [requirements.md](requirements.md) · [design.md](design.md)
 
 只有 `DONE` 的任务才能勾选完成。任务必须同时包含实现、失败行为和验证证据。
+
+2026-11-17 最终逐项验收：原始完成标准、验证要求和前置依赖不变；判定与证据见[逐项任务验收记录](docs/20261117-逐项任务验收记录.md)。本次只接受四项本地实现/回归任务，不将真实 Bot、远端 Computer 或研究试点标为通过。3.4 的代码依赖 3.1/3.2 已交付并参与组合测试，但这两项的正式真实环境验证仍 BLOCKED；最终检查点不据此放行。下文较早波次计数保留历史归属，以本次记录区分当前结果。
 
 2026-11-17 整理：按“主线程 + 子线程”执行模型重排；合并了原先重复的最终检查点（4.6/5.5/7.2）、普通聊天回归（4.5/5.3/6.4）和失败回放（5.4/6.1/6.2）；原阶段 8 的规划服务、返工、预审和 Budget 并入对应阶段，解决“2.1 需要的 `kind=planning` 在 8.1 才实现”的顺序问题。
 
@@ -139,7 +143,8 @@
 ## 阶段 3：Outcome 子线程执行
 
 - [ ] 3.1 增加 Outcome 子线程运行时支持
-  - 状态：BLOCKED（代码及最终本机完整回归已通过；真实 Bot、远端租约与精确停止回放 PENDING）
+  - 状态：BLOCKED（本地完成标准和组合回归已满足；引用的运行时能力矩阵 §4 明确要求真实开发 Bot 回放，证据仍缺失）
+  - 本次验收：Worker 真实领取数据库测试 5 项及 Messaging 运行组测试 14 项均出现在最终通过日志；不替代能力矩阵 §4 的真实 Bot Run ID/租约记录。见[逐项记录第 2 节](docs/20261117-逐项任务验收记录.md#2-九项逐项判定)。
   - 最终本机检查点（2026-11-17，task-30）：Computer 1360/0/68、Messaging 857/0/0（生产冻结 `5e2ce81d8`）；Server 1535/0/11、Worker 236/0/3（纯测试后继 `727d410f2`，生产相同）；另九项专库恢复及六 CLI 40 checks 通过。此前本块 wave1 canonical/dual-flag 计数均保留为历史，不与当前结果混并。真实环境门槛不据此放行，见[最终本机结果](../004-OutcomeGo整体项目/docs/20261117-第3波后端组合验收最终本机结果.md)。
   - 实现提交：`ce875ef7f`、`aaed9e362`、`4754659cc`、`e74706d97`
   - 修改文件：`packages/messaging/src/index.ts`、`request-progress.ts`、`automation-results.ts`；`apps/worker/src/worker.ts`、`test/outcome-thread.integration.test.ts`；computer 精确取消接入见 3.2。
@@ -160,7 +165,8 @@
   - 对应设计：§12.3；父 design §45
 
 - [ ] 3.2 实现 `POST /runs` 和 WorkItem 入队调度
-  - 状态：BLOCKED（真实入队、服务及精确取消完成；集成负责人已证明本地 HTTP handler 装配，真实 Bot/远端回放 PENDING）
+  - 状态：BLOCKED（本地真实服务/Request handler、幂等入队与失败状态已验证；原文要求的“真实开发 Bot 一次运行”未执行）
+  - 本次验收：最终 Server/Worker/Messaging 整包及跨阶段测试已通过；保留真实 Bot 和远端回放门槛，不再把本地路由装配列为缺口。见[逐项记录第 2 节](docs/20261117-逐项任务验收记录.md#2-九项逐项判定)。
   - 最终本机检查点（2026-11-17，task-30）：Computer 1360/0/68、Messaging 857/0/0（生产冻结 `5e2ce81d8`）；Server 1535/0/11、Worker 236/0/3（纯测试后继 `727d410f2`，生产相同）；另九项专库恢复及六 CLI 40 checks 通过。此前本块 wave1 canonical/dual-flag 计数均保留为历史，不与当前结果混并。真实环境门槛不据此放行，见[最终本机结果](../004-OutcomeGo整体项目/docs/20261117-第3波后端组合验收最终本机结果.md)。
   - 实现提交：`767663a96`（独立 contracts）、`ce875ef7f`、`aaed9e362`、`4754659cc`、`9ddfd10b1`、`5681c940c`、`5cc33fba0`
   - 修改文件：`packages/contracts/src/service-protocol.ts`；`packages/messaging/src/outcome-threads.ts`；`apps/server/src/services/outcome-service.ts`、`run-service.ts`；`apps/computer/src/main.ts`、`runtime.ts`、`runtime/tools.ts`；对应路径、服务、shell 停止测试。
@@ -201,8 +207,9 @@
   - 对应需求：需求 3、需求 8、需求 11
   - 对应设计：§23
 
-- [ ] 3.4 实现运行组结算和 Output 记录
-  - 状态：BLOCKED（实现及最终本机完整回归已通过；真实 Bot/远端运行组回放仍待关闭）
+- [x] 3.4 实现运行组结算和 Output 记录
+  - 状态：DONE（2026-11-17，本地运行组结算、等待状态、Output 和 Routine 回归满足本任务原完成/验证标准；真实环境依赖仍未关闭）
+  - 本次验收：最终 Messaging 857 PASS / 0 FAIL（含 14 项 Outcome 运行组场景及既有 Routine），Worker 236 PASS / 0 FAIL / 3 SKIP（含 5 项 Outcome 领取/隔离）；子 Agent/后台 shell、waiting 状态、最终 Output 和 review_pending 均有实际断言。3.1/3.2 的代码/接口依赖已交付，正式真实 Bot 门槛仍 BLOCKED；不推导远端或发布通过。见[逐项记录](docs/20261117-逐项任务验收记录.md)。
   - 最终本机检查点（2026-11-17，task-30）：Computer 1360/0/68、Messaging 857/0/0（生产冻结 `5e2ce81d8`）；Server 1535/0/11、Worker 236/0/3（纯测试后继 `727d410f2`，生产相同）；另九项专库恢复及六 CLI 40 checks 通过。此前本块 wave1 canonical/dual-flag 计数均保留为历史，不与当前结果混并。真实环境门槛不据此放行，见[最终本机结果](../004-OutcomeGo整体项目/docs/20261117-第3波后端组合验收最终本机结果.md)。
   - 实现提交：`ce875ef7f`、`aaed9e362`、`e74706d97`
   - 修改文件：`packages/messaging/src/automation-results.ts`、`outcome-threads.ts`、`index.ts`、`request-progress.ts`；`apps/worker/src/worker.ts`；messaging、worker、真实 Task 集成测试及并发 barrier fixture。
@@ -335,13 +342,14 @@
 
 ## 阶段 5：Contract 变更、回归和失败路径
 
-- [ ] 5.1 实现 Contract 变更追溯和未开始 WorkItem 处理
-  - 状态：IN_PROGRESS（实现已交付，统一组合数据库验证待执行；不提前勾选验收完成）
+- [x] 5.1 实现 Contract 变更追溯和未开始 WorkItem 处理
+  - 状态：DONE（2026-11-17，原待执行六项数据库回归已在最终 Server 整包实际通过；追溯、只取消未开始项和旧快照保留满足标准）
+  - 本次验收：最终 Server 日志中 outcome-revision-successor.test.ts 五项、outcome-revision-read.test.ts 一项全部 PASS；Desktop 来源/历史 2 项及 route/client 2 项早期 PASS 保留执行归属。真实环境回放仍 PENDING。见[逐项记录第 3 节](docs/20261117-逐项任务验收记录.md#3-本地完成项的行为证据)。
   - 实现提交：`cf96b8e17`（可选 DTO）、`fb8b5aa60`（事务规则与回归）、`ed4373ad8`（Desktop）、`82651fb83`（批准生命周期 hook）、`a7b3067e0`（真实历史只读）。
   - 修改文件：`packages/contracts/src/outcomes.ts`；`apps/server/src/services/outcome-service.ts`、`test/outcome-revision-successor.test.ts`；Desktop `outcomes/detail/outcome-detail.tsx`、`revision-history.tsx`、`outcomes/planning/contract-confirmation.tsx`、`test/outcome-revision-history.test.ts`；冻结接口 §11。
   - 数据库变化：none，复用既有 base/sourceDecision/createdBy/startedAt 字段。
   - 验证命令：`bun test apps/desktop/test/outcome-revision-history.test.ts`；仅对服务/新数据库测试执行 Bun Transpiler 语法检查；数据库组合命令见证据。
-  - 验证结果：Desktop 2 PASS / 0 FAIL、14 断言；历史 route/client 2 PASS / 0 FAIL、4 断言；server 编译 PASS；新增 5 个批准/来源数据库回归及 1 个历史读数据库回归尚未执行，按负责人“代码优先、组合后统一验证”的要求保持 PENDING。
+  - 验证结果：Desktop 2 PASS / 0 FAIL、14 断言；历史 route/client 2 PASS / 0 FAIL、4 断言；server 编译 PASS；当时新增的 5 个批准/来源数据库回归及 1 个历史读数据库回归未执行；该历史 PENDING 已由最终 Server 整包六项 PASS 关闭。
   - 证据文件：[`docs/20261117-第2波产品追溯验证.md`](docs/20261117-第2波产品追溯验证.md)。
   - 已知限制：Recovery 所有者处理已取消项的待执行 Run/Inbox/容量意图，不在批准路径增加物理停止；已开始旧任务保留原执行快照；live API/远端/浏览器回放未执行。
   - 回滚方式：仅撤销本线新提交，保留已有运行时与其他线改动；可选字段可被旧客户端忽略。
@@ -353,15 +361,16 @@
   - 对应需求：需求 7、需求 12、需求 13
   - 对应设计：§17、§18、§22
 
-- [ ] 5.2 普通聊天和主对话隔离回归
-  - 状态：BLOCKED（2026-11-17，task-26 代码交付及最小检查完成；按负责人要求集中数据库/回放待执行，未满足正式验收）
+- [x] 5.2 普通聊天和主对话隔离回归
+  - 状态：DONE（2026-11-17，最终本地完整包回归与主对话隔离证据通过；外部环境及包内跳过项保持单列）
+  - 本次验收：最终 Worker 236/0/3、Messaging 857/0/0、Server 1535/0/11，Computer 1360/0/68；普通聊天/Tool/Memory/取消/可见消息/通知/Routine 及无 Outcome 事实的 canary 均有通过记录。九项 startup/dispatch 独立专库另行通过，不改包内 SKIP。见[逐项记录](docs/20261117-逐项任务验收记录.md)。
   - 第 3 波实现提交：`2d9eaeb43`、`e00496f5e`、`543eef450`、`d4de4846e`、`d330efc34`、`80ea59865`；`870ebac90` 仅为本线编译所需依赖合并，不拾取到集成线。
   - 第 3 波修改文件：父六 JSON/合同检查脚本；`scripts/test-outcome-recovery.ts`、`scripts/outcome-recovery/`、`apps/server/test/fixtures/outcome-recovery/`、新 cross-phase 测试；本任务文档。51 个既有测试文件的精确清单见交接与入口补齐记录。
   - 第 3 波数据库变化：none（本线不改 schema；恢复计数等为其他线原始提交依赖；没有启动或连接本线测试库）。
   - 第 3 波验证命令：`bun test ./scripts/check-outcome-contracts.test.ts ./scripts/outcome-recovery/report.test.ts ./scripts/check/test-database-gates.test.ts`；`bun scripts/check/outcome-regression-types.ts`；`bun scripts/test-outcome-recovery.ts --scenario receipt-retry --plan`；`git diff --check`。
-  - 第 3 波验证结果：13 PASS / 0 FAIL / 62 assertions；14 个本线文件语义诊断 0、依赖诊断 0；51 个旧测试文件语法通过；11+6 个新 DB 测试、六场景实际 JSON/DB 对账及备份回退均 PENDING。
+  - 第 3 波验证结果：13 PASS / 0 FAIL / 62 assertions；14 个本线文件语义诊断 0、依赖诊断 0；51 个旧测试文件语法通过；当时 11+6 个新 DB 测试、六场景 JSON/DB 对账及备份回退均 PENDING（历史阶段结果）；当前完整包、六 CLI 和同版本有数据备份/恢复已执行，详见本次验收。旧镜像回退仍未执行。
   - 第 3 波证据文件：[第3波回归脚手架交接](../004-OutcomeGo整体项目/docs/20261117-第3波回归脚手架交接.md)；同目录组合验证手册/合同矩阵/数据库入口补齐记录；`004.5/docs/final-replay.md` 和 `release-decision.md`。
-  - 第 3 波已知限制：canonical 入口补齐已扩大覆盖，新的完整失败数未知；历史 canonical/dual-flag 基线分别保留且数据库失败仍阻塞；远端 CI/Computer/真实模型、安装与旧镜像未验，不宣称 CI 全绿。
+  - 第 3 波已知限制：当时 canonical 入口补齐后的完整失败数未知、数据库失败阻塞（历史观测）；现最终各包结果已明确，历史 canonical/dual-flag 和修复前失败仍保留；远端 CI/Computer/真实模型、安装与旧镜像未验，不宣称 CI 全绿。
   - 第 3 波回滚方式：只撤销本线脚手架、测试 URL 回退与文档提交；保留其他线依赖、真实 Outcome/人工证据和旧 l1 原始日志。
   - 先依赖什么：3.3、3.4、4.2
   - 主要改哪里：现有 channel、worker、messaging 测试和新增断言
@@ -371,15 +380,16 @@
   - 对应需求：需求 11、需求 19
   - 对应设计：§12.5、§23
 
-- [ ] 5.3 受控失败回放
-  - 状态：BLOCKED（2026-11-17，task-26 代码交付及最小检查完成；按负责人要求集中数据库/回放待执行，未满足正式验收）
+- [x] 5.3 受控失败回放
+  - 状态：DONE（2026-11-17，需求 14 的本地受控失败与幂等/回滚断言、六场景实际 CLI/JSON 对账均通过）
+  - 本次验收：最终 Server 的跨阶段 11 项、Review 16 项及规划失败测试通过；六个 CLI 场景实际 40/40 checks PASS。restart 是本地 executor 137/SIGKILL，unknown 是虚构持久适配器；均不冒充远端 Computer 或真实 provider。见[逐项记录](docs/20261117-逐项任务验收记录.md)。
   - 第 3 波实现提交：`2d9eaeb43`、`e00496f5e`、`543eef450`、`d4de4846e`、`d330efc34`、`80ea59865`；`870ebac90` 仅为本线编译所需依赖合并，不拾取到集成线。
   - 第 3 波修改文件：父六 JSON/合同检查脚本；`scripts/test-outcome-recovery.ts`、`scripts/outcome-recovery/`、`apps/server/test/fixtures/outcome-recovery/`、新 cross-phase 测试；本任务文档。51 个既有测试文件的精确清单见交接与入口补齐记录。
   - 第 3 波数据库变化：none（本线不改 schema；恢复计数等为其他线原始提交依赖；没有启动或连接本线测试库）。
   - 第 3 波验证命令：`bun test ./scripts/check-outcome-contracts.test.ts ./scripts/outcome-recovery/report.test.ts ./scripts/check/test-database-gates.test.ts`；`bun scripts/check/outcome-regression-types.ts`；`bun scripts/test-outcome-recovery.ts --scenario receipt-retry --plan`；`git diff --check`。
-  - 第 3 波验证结果：13 PASS / 0 FAIL / 62 assertions；14 个本线文件语义诊断 0、依赖诊断 0；51 个旧测试文件语法通过；11+6 个新 DB 测试、六场景实际 JSON/DB 对账及备份回退均 PENDING。
+  - 第 3 波验证结果：13 PASS / 0 FAIL / 62 assertions；14 个本线文件语义诊断 0、依赖诊断 0；51 个旧测试文件语法通过；当时 11+6 个新 DB 测试、六场景 JSON/DB 对账及备份回退均 PENDING（历史阶段结果）；当前完整包、六 CLI 和同版本有数据备份/恢复已执行，详见本次验收。旧镜像回退仍未执行。
   - 第 3 波证据文件：[第3波回归脚手架交接](../004-OutcomeGo整体项目/docs/20261117-第3波回归脚手架交接.md)；同目录组合验证手册/合同矩阵/数据库入口补齐记录；`004.5/docs/final-replay.md` 和 `release-decision.md`。
-  - 第 3 波已知限制：canonical 入口补齐已扩大覆盖，新的完整失败数未知；历史 canonical/dual-flag 基线分别保留且数据库失败仍阻塞；远端 CI/Computer/真实模型、安装与旧镜像未验，不宣称 CI 全绿。
+  - 第 3 波已知限制：当时 canonical 入口补齐后的完整失败数未知、数据库失败阻塞（历史观测）；现最终各包结果已明确，历史 canonical/dual-flag 和修复前失败仍保留；远端 CI/Computer/真实模型、安装与旧镜像未验，不宣称 CI 全绿。
   - 第 3 波回滚方式：只撤销本线脚手架、测试 URL 回退与文档提交；保留其他线依赖、真实 Outcome/人工证据和旧 l1 原始日志。
   - 先依赖什么：2.1、3.4、4.2
   - 主要改哪里：失败 fixture、`docs/acceptance-replay.md`
@@ -430,7 +440,8 @@
 ## 阶段 7：交付检查
 
 - [ ] 7.1 完成研究试点端到端回放
-  - 状态：TODO
+  - 状态：BLOCKED（缺少 research-pilot.json 的真实开发 Bot 端到端执行及第 5 步主对话并行回放）
+  - 本次验收：固定 fixture 与本地测试齐备，但 acceptance-replay.md 中真实运行的 Run ID、租约、规划/模型及验收记录尚缺；局部 DB/CLI 不替代研究试点。见[逐项记录](docs/20261117-逐项任务验收记录.md)。
   - 先依赖什么：4.5、5.2
   - 主要改哪里：`docs/acceptance-replay.md`
   - 这一步先不做什么：不使用生产系统写入、付款或真实客户资料。
@@ -440,7 +451,8 @@
   - 对应设计：§15
 
 - [ ] 7.2 生成主链路对账报告
-  - 状态：TODO
+  - 状态：BLOCKED（本地对账报告已补充；前置 7.1 的真实试点及其同一 Outcome 全链路记录尚缺）
+  - 本次验收：[逐项记录第 4 节](docs/20261117-逐项任务验收记录.md#4-主链路本地归档对账任务-72-部分交付)保存已核验 dump 的两条独立 Outcome ID 链；一条有 Output/Review 且 Evidence 为空（用户确认），另一条有 Evidence/Review 且 Output 为空（执行续跑）。不跨 Outcome 拼接，不将真实试点依赖标为完成。
   - 先依赖什么：7.1、5.1、5.3
   - 主要改哪里：`docs/acceptance-replay.md`
   - 怎么算完成：一个 Outcome 可以反查每个核心 ID、状态转换、Run、Output、Evidence 和 Review。
@@ -449,7 +461,8 @@
   - 对应设计：§14、§24、§27
 
 - [ ] 7.3 Spec 最终检查点
-  - 状态：TODO
+  - 状态：BLOCKED（需求 1–20 和父 design §34 八问已回写；前置 7.2 与真实环境最终证据仍未满足）
+  - 本次验收：[逐项记录第 5、6 节](docs/20261117-逐项任务验收记录.md#5-需求-120-回写任务-73-部分交付)提供需求对照、回归/失败/限制及八问；本次报告交付完成不等于 Spec 最终退出。保留 6.1/6.2 的设备/live API/完整 iOS 限制，不改其他所有者任务块。
   - 先依赖什么：6.1、6.2、7.2
   - 怎么算完成：需求 1–20、普通聊天回归、主对话隔离、Contract 变更、失败证据和已知限制全部回写；按父 design §34 回答八个问题。
   - 怎么验证：requirements/design/tasks 三向核对
