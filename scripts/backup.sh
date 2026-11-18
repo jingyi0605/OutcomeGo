@@ -2,13 +2,15 @@
 set -eu
 
 script_dir=$(cd "$(dirname "$0")" && pwd)
-compose() { bash "$script_dir/compose.sh" "$@"; }
 
 # Docker names volumes "<project>_<key>", so read the project from the dev Compose file
-# instead of guessing. Pass a different project name as PROJECT to back up another stack
-# that uses the same volume keys, such as a CLI install (PROJECT=outcomego).
-project=${PROJECT:-$(sed -n 's/^name:[[:space:]]*//p' "$script_dir/../docker-compose.yml" | head -n 1)}
+# unless PROJECT or the standard COMPOSE_PROJECT_NAME override selects another stack
+# with the same volume keys, such as a CLI install (PROJECT=outcomego).
+project=${PROJECT:-${COMPOSE_PROJECT_NAME:-$(sed -n 's/^name:[[:space:]]*//p' "$script_dir/../docker-compose.yml" | head -n 1)}}
 [ -n "$project" ] || { echo "Could not read the Compose project name from docker-compose.yml" >&2; exit 1; }
+
+# Keep the database dump, resolved volume keys and archive prefixes on the same stack.
+compose() { bash "$script_dir/compose.sh" --project-name "$project" "$@"; }
 
 destination=${1:-"./backups/$(date -u +%Y%m%dT%H%M%SZ)"}
 mkdir -p "$destination"
