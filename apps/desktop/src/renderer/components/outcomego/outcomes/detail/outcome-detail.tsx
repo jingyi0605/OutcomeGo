@@ -29,7 +29,7 @@ import { OutcomeActionItems, OutcomeApprovalScope, OutcomeBriefView } from "../o
 import { DecisionCard } from "../inbox/decision-card";
 import type { InboxClient } from "../inbox/inbox-api";
 import type { OutcomeInboxItemView } from "@outcomego/contracts/outcome-inbox";
-import { OutcomeExecutionCard } from "../outcome-execution-card";
+import { OutcomeExecutionCard, type OutcomeExecutionBot } from "../outcome-execution-card";
 
 export const evidenceCredibilityLabels = {
   deterministic_check: "Deterministic check",
@@ -48,7 +48,9 @@ export function OutcomeDetail({
   actionsLoading = false,
   onAction,
   inboxClient,
+  bots = [],
 }: {
+  bots?: OutcomeExecutionBot[];
   outcomeId: string;
   client: OutcomeClient;
   inboxClient?: InboxClient;
@@ -400,6 +402,7 @@ export function OutcomeDetail({
         <OutcomeExecutionCard
           key={`${outcome.id}:${outcome.currentRevision}`}
           outcome={outcome}
+          bot={bots.find((bot) => bot.id === outcome.botId)}
           client={client}
         />
       )}

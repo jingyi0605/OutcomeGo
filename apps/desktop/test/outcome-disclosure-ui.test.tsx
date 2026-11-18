@@ -1284,7 +1284,29 @@ const executionPage = (text = "Measured **array** usage.") => ({
   ],
 });
 
-test("execution card reads only on expansion, formats messages and pages through the existing GET endpoint", async () => {
+/** The execution conversation is a dialog rendered in a portal, outside the mounted host. */
+const executionDialog = () => document.body.querySelector<HTMLElement>(".outcome-execution-dialog");
+async function openExecution() {
+  const entry = host.querySelector(".outcome-execution-card");
+  expect(entry).not.toBeNull();
+  await act(async () => {
+    entry!.dispatchEvent(new dom.window.Event("click", { bubbles: true }));
+  });
+  await act(async () => {
+    await import("../src/renderer/components/ai-elements/message-response");
+  });
+}
+async function clickInDialog(text: string) {
+  const button = [...executionDialog()!.querySelectorAll("button")].find(
+    (el) => el.textContent?.trim() === text
+  );
+  expect(button).toBeDefined();
+  await act(async () => {
+    button!.dispatchEvent(new dom.window.Event("click", { bubbles: true }));
+  });
+}
+
+test("execution entry stays compact and reads only after the read-only conversation opens", async () => {
   const { createOutcomeApi } = await import("../src/renderer/client/outcome-api");
   const requests: Array<{ path: string; method: string }> = [];
   const reader = createOutcomeApi(async <T,>(path: string, init?: RequestInit): Promise<T> => {
@@ -1298,27 +1320,49 @@ test("execution card reads only on expansion, formats messages and pages through
   await mount(<OutcomeExecutionCard outcome={executionGoal} client={reader} />);
   expect(requests).toHaveLength(0);
   expect(host.textContent).toContain("Read-only");
-  await expand("Execution messages");
-  await act(async () => {
-    await import("../src/renderer/components/ai-elements/message-response");
-  });
-  expect(host.textContent).toContain("Fixture observable output");
-  expect(host.textContent).not.toContain("SHOULD_NOT_RENDER");
-  expect(host.textContent).not.toContain("INTERNAL_EXECUTION_INPUT");
-  expect(host.querySelector(".outcome-execution-tool")?.hasAttribute("open")).toBe(false);
-  expect(host.querySelector('li[data-message-role="assistant"] strong')?.textContent).toBe("Bot");
-  expect(host.querySelector('li .bot-markdown [data-streamdown="strong"]')?.textContent).toBe(
+  expect(host.querySelector("details")).toBeNull();
+  expect(executionDialog()).toBeNull();
+  await openExecution();
+  const dialog = executionDialog()!;
+  expect(dialog.textContent).toContain("Fixture observable output");
+  expect(dialog.textContent).toContain("Measured array usage.");
+  expect(dialog.textContent).toContain("This chat is view-only");
+  expect(dialog.textContent).not.toContain("SHOULD_NOT_RENDER");
+  expect(dialog.textContent).not.toContain("INTERNAL_EXECUTION_INPUT");
+  expect(dialog.querySelector(".outcome-execution-tool")?.hasAttribute("open")).toBe(false);
+  expect(dialog.querySelector('li[data-message-role="assistant"] strong')?.textContent).toBe("Bot");
+  expect(dialog.querySelector('li .bot-markdown [data-streamdown="strong"]')?.textContent).toBe(
     "array"
   );
-  expect(host.querySelector("textarea,input")).toBeNull();
-  await click("Earlier messages");
+  expect(dialog.querySelector("textarea,input")).toBeNull();
+  await clickInDialog("Earlier messages");
   expect(requests.at(-1)?.path).toBe(
     "/api/outcomes/outcome-1/work-items/item-1/transcript?before=2"
   );
-  expect(host.textContent).toContain("Earlier visible message");
-  await click("Latest messages");
-  expect(host.textContent).toContain("Measured array usage.");
+  expect(dialog.textContent).toContain("Earlier visible message");
+  await clickInDialog("Latest messages");
+  expect(dialog.textContent).toContain("Measured array usage.");
   expect(requests.every((request) => request.method === "GET")).toBe(true);
+  await clickInDialog("Close Chat");
+  expect(executionDialog()).toBeNull();
+});
+
+test("card shows the execution entry and the goal button on one footer row", async () => {
+  await mount(
+    <OutcomeChatCardView
+      card={card}
+      client={{
+        get: async () => ({ ...outcomeFixture, status: "accepted" as const }),
+        transcript: async () => executionPage(),
+      }}
+    />
+  );
+  const footer = host.querySelector(".outcome-chat-card > footer")!;
+  expect(footer).not.toBeNull();
+  const children = [...footer.children];
+  expect(children[0]?.classList.contains("outcome-execution-card")).toBe(true);
+  expect(children.at(-1)?.textContent).toContain("Open goal");
+  expect(host.querySelectorAll(".outcome-execution-card")).toHaveLength(1);
 });
 
 test("execution refresh preserves readable messages; closing stops the scheduled refresh", async () => {
@@ -1349,9 +1393,9 @@ test("execution refresh preserves readable messages; closing stops the scheduled
   };
   try {
     await mount(<OutcomeExecutionCard outcome={executionGoal} client={reader} />);
-    await expand("Execution messages");
+    await openExecution();
     expect(reads).toBe(1);
-    const message = host.querySelector("li");
+    const message = executionDialog()!.querySelector("li");
     expect(scheduled).toBeDefined();
     clearTimeout(timer);
     let pending!: Promise<void>;
@@ -1359,19 +1403,15 @@ test("execution refresh preserves readable messages; closing stops the scheduled
       pending = scheduled!();
     });
     expect(reads).toBe(2);
-    expect(host.querySelector("li")).toBe(message);
-    expect(host.textContent).toContain("First visible message");
+    expect(executionDialog()!.querySelector("li")).toBe(message);
+    expect(executionDialog()!.textContent).toContain("First visible message");
     await act(async () => {
       resolve(executionPage("Second visible message"));
       await pending;
     });
-    expect(host.textContent).toContain("Second visible message");
-    await act(async () => {
-      const details = host.querySelector("details")!;
-      details.open = false;
-      details.dispatchEvent(new dom.window.Event("toggle"));
-    });
-    expect(host.querySelector("li")).toBeNull();
+    expect(executionDialog()!.textContent).toContain("Second visible message");
+    await clickInDialog("Close Chat");
+    expect(executionDialog()).toBeNull();
     expect(reads).toBe(2);
   } finally {
     globalThis.setTimeout = originalTimeout;
@@ -1399,19 +1439,19 @@ test("switching execution tasks discards a late old-task response and keeps curr
           : executionPage("Current task messages"),
   };
   await mount(<OutcomeExecutionCard outcome={goal} client={reader} />);
-  await expand("Execution messages");
-  const select = host.querySelector("select")!;
+  await openExecution();
+  const select = executionDialog()!.querySelector("select")!;
   await act(async () => {
     Object.defineProperty(select, "value", { configurable: true, value: "second-task" });
     select.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
   });
-  expect(host.querySelector('[role="alert"]')?.textContent).toContain(
+  expect(executionDialog()!.querySelector('[role="alert"]')?.textContent).toContain(
     "Could not load execution messages"
   );
   fail = false;
-  await click("Refresh");
-  expect(host.textContent).toContain("Current task messages");
+  await clickInDialog("Refresh");
+  expect(executionDialog()!.textContent).toContain("Current task messages");
   await act(async () => resolveOld(executionPage("Obsolete task message")));
-  expect(host.textContent).not.toContain("Obsolete task message");
-  expect(host.textContent).toContain("Current task messages");
+  expect(executionDialog()!.textContent).not.toContain("Obsolete task message");
+  expect(executionDialog()!.textContent).toContain("Current task messages");
 });

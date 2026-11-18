@@ -11,6 +11,7 @@ import { HumanAction } from "../human-work/human-action";
 import { useI18n } from "../../../../lib/i18n";
 import { ExplorePanel } from "../explore/explore-panel";
 import { OutcomeList } from "../outcome-list";
+import type { OutcomeExecutionBot } from "../outcome-execution-card";
 import { PlanningWizard } from "../planning/planning-wizard";
 import { OutcomeButton } from "../outcome-ui";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "../../../ui/dialog";
@@ -36,7 +37,7 @@ export default function OutcomeWorkspace({
 }: {
   target: DesktopOutcomeTarget;
   onClose: () => void;
-  bots: Array<{ id: string; name: string }>;
+  bots: OutcomeExecutionBot[];
 }) {
   const { t } = useI18n();
   const [route, setRoute] = useState<Route>(() => routeFor(target));
@@ -256,6 +257,7 @@ export default function OutcomeWorkspace({
             {route.kind === "outcome" && (
               <OutcomeWithActions
                 key={`${route.id}:${route.reviewRevision ?? "current"}`}
+                bots={bots}
                 outcomeId={route.id}
                 reviewRevision={route.reviewRevision}
                 onHuman={(id) => openRoute({ kind: "human", id })}
@@ -270,12 +272,14 @@ export default function OutcomeWorkspace({
   );
 }
 function OutcomeWithActions({
+  bots,
   outcomeId,
   reviewRevision,
   onHuman,
   onDecision,
   onReceipt,
 }: {
+  bots: OutcomeExecutionBot[];
   outcomeId: string;
   reviewRevision?: number;
   onHuman: (id: string) => void;
@@ -313,6 +317,7 @@ function OutcomeWithActions({
     <div className="space-y-4">
       <OutcomeDetail
         outcomeId={outcomeId}
+        bots={bots}
         client={api.outcomes}
         inboxClient={api.outcomeInbox}
         reviewRevision={reviewRevision}

@@ -22,7 +22,7 @@ import "./outcome-ui.css";
 import { OutcomeActionItems, OutcomeApprovalScope, OutcomeBriefView } from "./outcome-brief";
 import type { OutcomeInboxItemView } from "@outcomego/contracts/outcome-inbox";
 import type { InboxClient } from "./inbox/inbox-api";
-import { OutcomeExecutionCard } from "./outcome-execution-card";
+import { OutcomeExecutionCard, type OutcomeExecutionBot } from "./outcome-execution-card";
 
 type CardClient = Pick<OutcomeClient, "get" | "brief"> & Partial<Pick<OutcomeClient, "transcript">>;
 
@@ -45,8 +45,10 @@ export function OutcomeChatCardView({
   card,
   client,
   inboxClient,
+  bot,
 }: {
   card: OutcomeChatCard;
+  bot?: OutcomeExecutionBot;
   client?: CardClient;
   inboxClient?: Pick<InboxClient, "forOutcome">;
 }) {
@@ -130,6 +132,18 @@ export function OutcomeChatCardView({
         })
       );
   };
+  const execution =
+    live && source?.transcript ? (
+      <OutcomeExecutionCard
+        key={`${live.id}:${live.currentRevision}`}
+        outcome={live}
+        bot={bot}
+        client={{ transcript: source.transcript }}
+      />
+    ) : null;
+  const showFooter =
+    Boolean(card.outcomeId) &&
+    (!live || actions.length > 0 || !["draft", "review", "attention", "ready"].includes(stage));
   return (
     <section
       className="outcome-chat-card"
@@ -231,13 +245,6 @@ export function OutcomeChatCardView({
           {stage !== "accepted" && ` · ${t("Not yet accepted")}`}
         </p>
       )}
-      {live && source?.transcript && (
-        <OutcomeExecutionCard
-          key={`${live.id}:${live.currentRevision}`}
-          outcome={live}
-          client={{ transcript: source.transcript }}
-        />
-      )}
       {result && (
         <details
           className="outcome-chat-disclosure"
@@ -282,23 +289,22 @@ export function OutcomeChatCardView({
           </button>
         </div>
       )}
-      {card.outcomeId &&
-        (!live ||
-          actions.length > 0 ||
-          !["draft", "review", "attention", "ready"].includes(stage)) && (
-          <footer>
-            <OutcomeButton onClick={() => open()}>
-              {t(
-                stage === "draft"
-                  ? "Review goal"
-                  : stage === "review"
-                    ? "Review results"
-                    : "Open goal"
-              )}
-              <ArrowUpRight size={13} />
-            </OutcomeButton>
-          </footer>
-        )}
+      {execution && !showFooter && execution}
+      {card.outcomeId && showFooter && (
+        <footer>
+          {execution}
+          <OutcomeButton onClick={() => open()}>
+            {t(
+              stage === "draft"
+                ? "Review goal"
+                : stage === "review"
+                  ? "Review results"
+                  : "Open goal"
+            )}
+            <ArrowUpRight size={13} />
+          </OutcomeButton>
+        </footer>
+      )}
     </section>
   );
 }

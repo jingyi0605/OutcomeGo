@@ -284,6 +284,68 @@ test("workspace opens a full page with all goals, Bot names and execution status
   ).toBe("All goals");
 });
 
+test("goal rows open a read-only execution conversation without leaving or changing the list", async () => {
+  const paths: Array<{ path: string; method: string }> = [];
+  list = async () => ({
+    items: [
+      { ...outcomeFixture, status: "running" },
+      { ...outcomeFixture, id: "outcome-draft", title: "Not started yet", status: "pending_approval" },
+    ],
+    nextCursor: null,
+  });
+  const client = createOutcomeApi(async <T,>(path: string, init?: RequestInit): Promise<T> => {
+    paths.push({ path, method: init?.method ?? "GET" });
+    if (path.endsWith("/transcript"))
+      return {
+        next_before: null,
+        rows: [
+          {
+            id: "m1",
+            at: planFixture.generatedAt,
+            role: "assistant",
+            status: "completed",
+            content: "Bot reply for the list entry",
+          },
+        ],
+      } as T;
+    if (path.startsWith("/api/outcomes?")) return (await list(path.split("?")[1] ?? "")) as T;
+    if (path === "/api/outcomes") return (await list("")) as T;
+    return {
+      ...current,
+      status: "running",
+      workItems: structuredClone(outcomeFixture.workItems),
+    } as T;
+  });
+  let selected = "";
+  await mount(
+    <OutcomeList
+      client={client}
+      bots={bots}
+      onSelect={(id) => {
+        selected = id;
+      }}
+      onCreate={() => {}}
+    />
+  );
+  // Goals that never reached execution have nothing to observe.
+  expect(host.querySelectorAll(".outcome-row-action")).toHaveLength(1);
+  await act(async () => {
+    host
+      .querySelector(".outcome-row-action")!
+      .dispatchEvent(new dom.window.Event("click", { bubbles: true }));
+  });
+  const dialog = document.body.querySelector(".outcome-execution-dialog")!;
+  expect(dialog.textContent).toContain("Bot reply for the list entry");
+  expect(dialog.textContent).toContain("Research Bot");
+  expect(dialog.textContent).toContain("This chat is view-only");
+  expect(dialog.querySelector("textarea,input")).toBeNull();
+  expect(selected).toBe("");
+  expect(paths.some((entry) => entry.path.endsWith("/transcript"))).toBe(true);
+  expect(paths.every((entry) => entry.method === "GET")).toBe(true);
+  await click("Close Chat");
+  expect(document.body.querySelector(".outcome-execution-dialog")).toBeNull();
+});
+
 test("all-goals status filtering queries the server and discards an obsolete response", async () => {
   let resolve!: (value: OutcomeListPage) => void;
   list = async (query) =>
@@ -335,7 +397,7 @@ test("goal pagination retains existing goals, deduplicates overlap and passes th
   expect(host.querySelectorAll("ul > li")).toHaveLength(2);
   await act(async () => {
     host
-      .querySelectorAll("ul > li button")[1]!
+      .querySelectorAll("ul > li .outcome-row")[1]!
       .dispatchEvent(new dom.window.Event("click", { bubbles: true }));
   });
   expect(selected).toBe("next");

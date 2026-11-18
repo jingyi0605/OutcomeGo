@@ -1,10 +1,32 @@
-import { useEffect, useRef, useState } from "react";
-import { ChevronDown, MessagesSquare } from "lucide-react";
+import { Suspense, lazy, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { ChevronRight, LockKeyhole, MessagesSquare } from "lucide-react";
+import type { BotView } from "@outcomego/contracts";
 import type { OutcomeDetail } from "@outcomego/contracts/outcomes";
 import type { OutcomeClient } from "../../../client/outcome-api";
 import { useI18n } from "../../../lib/i18n";
 import { MessageResponse } from "../../ai-elements/message";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "../../ui/dialog";
 import { OutcomeButton } from "./outcome-ui";
+
+// The avatar pulls in authenticated image loading; load it only once a conversation is opened.
+const BotAvatar = lazy(() => import("../avatar").then((module) => ({ default: module.BotAvatar })));
+function ExecutionAvatar({ bot }: { bot?: Parameters<typeof BotAvatar>[0]["bot"] }) {
+  return (
+    <Suspense fallback={<span aria-hidden="true" className="size-[22px] shrink-0" />}>
+      <BotAvatar bot={bot} size="sm" />
+    </Suspense>
+  );
+}
+
+/** Bot identity used only for display; avatar fields are optional so name-only lists still work. */
+export type OutcomeExecutionBot = { id: string; name: string } & Partial<
+  Pick<BotView, "color" | "icon" | "hasAvatar" | "updatedAt">
+>;
 
 type TranscriptRow = {
   id: string;
@@ -53,26 +75,40 @@ function toolText(content: string, omitted: string) {
   }
 }
 
-export function OutcomeExecutionCard({
-  outcome,
-  client,
-}: {
-  outcome: OutcomeDetail;
-  client: Pick<OutcomeClient, "transcript">;
-}) {
-  const { t } = useI18n();
-  const items = outcome.workItems.filter(
+/** Agent tasks of the current revision that have a Run whose messages can be observed. */
+export function observableWorkItems(outcome: OutcomeDetail) {
+  return outcome.workItems.filter(
     (item) =>
       item.contractRevision === outcome.currentRevision &&
       item.executorType === "agent" &&
       item.rootRunId
   );
+}
+
+/**
+ * Read-only conversation with the execution Bot, shaped like the Bot-to-Bot view-only chat.
+ * It only issues GET requests and has no composer, so it can never steer or interrupt a Run.
+ */
+export function OutcomeExecutionDialog({
+  outcome,
+  client,
+  bot,
+  open,
+  onOpenChange,
+}: {
+  outcome: OutcomeDetail;
+  client: Pick<OutcomeClient, "transcript">;
+  bot?: OutcomeExecutionBot;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const { t } = useI18n();
+  const items = observableWorkItems(outcome);
   const [selected, setSelected] = useState("");
   const current =
     items.find((item) => item.id === selected) ??
     items.find((item) => item.status === "running") ??
     items.at(-1);
-  const [open, setOpen] = useState(false);
   const [before, setBefore] = useState<number>();
   const [retry, setRetry] = useState(0);
   const [state, setState] = useState<{
@@ -108,65 +144,99 @@ export function OutcomeExecutionCard({
       clearTimeout(timer);
     };
   }, [open, key, retry, client.transcript, running]);
-  if (!current) return null;
   const visible = state?.key === key ? state : undefined;
+
+  // Follow the newest message like a chat, unless the reader scrolled up to look at history.
+  const scroller = useRef<HTMLDivElement>(null);
+  const stickToEnd = useRef(true);
+  const newest = visible?.page?.rows[0]?.id;
+  useLayoutEffect(() => {
+    const element = scroller.current;
+    if (element && stickToEnd.current) element.scrollTop = element.scrollHeight;
+  }, [key, newest, visible?.page?.rows.length]);
+
+  const botName = bot?.name ?? t("Bot");
+  // Name-only Bots fall back to the default robot avatar.
+  const avatarBot =
+    bot && bot.color !== undefined && bot.icon !== undefined
+      ? { ...bot, color: bot.color, icon: bot.icon }
+      : undefined;
   return (
-    <details
-      className="outcome-execution-card"
-      onToggle={(event) => setOpen(event.currentTarget.open)}
-    >
-      <summary>
-        <MessagesSquare size={15} aria-hidden="true" />
-        <span>{t("Execution messages")}</span>
-        <span className="outcome-execution-readonly">{t("Read-only")}</span>
-        <ChevronDown size={13} className="outcome-execution-chevron" aria-hidden="true" />
-      </summary>
-      {open && (
-        <div className="outcome-execution-body">
-          <p className="outcome-execution-note">
-            {t("Follow visible messages and tool activity without interrupting the Bot.")}
-          </p>
-          <div className="outcome-execution-toolbar">
-            {items.length > 1 ? (
-              <select
-                aria-label={t("Execution task")}
-                className="outcome-control"
-                value={current.id}
-                onChange={(event) => {
-                  setSelected(event.target.value);
-                  setBefore(undefined);
-                }}
-              >
-                {items.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.title}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <span>{current.title}</span>
-            )}
-            <OutcomeButton variant="ghost" onClick={() => setRetry((value) => value + 1)}>
-              {t("Refresh")}
-            </OutcomeButton>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent
+        className="outcome-execution-dialog"
+        overlayClassName="outcome-modal-overlay"
+        showCloseButton={false}
+      >
+        <DialogTitle className="sr-only">{t("Execution messages")}</DialogTitle>
+        <DialogDescription className="sr-only">
+          {t("Follow visible messages and tool activity without interrupting the Bot.")}
+        </DialogDescription>
+        <header className="outcome-execution-header">
+          <ExecutionAvatar bot={avatarBot} />
+          <div className="outcome-execution-heading">
+            <strong>{botName}</strong>
+            <span>{outcome.title}</span>
           </div>
+          {items.length > 1 ? (
+            <select
+              aria-label={t("Execution task")}
+              className="outcome-control"
+              value={current?.id}
+              onChange={(event) => {
+                setSelected(event.target.value);
+                setBefore(undefined);
+                stickToEnd.current = true;
+              }}
+            >
+              {items.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.title}
+                </option>
+              ))}
+            </select>
+          ) : (
+            current && <span className="outcome-execution-task">{current.title}</span>
+          )}
+          <OutcomeButton variant="ghost" onClick={() => setRetry((value) => value + 1)}>
+            {t("Refresh")}
+          </OutcomeButton>
+        </header>
+        <div
+          ref={scroller}
+          className="outcome-execution-scroll"
+          onScroll={(event) => {
+            const { scrollTop, scrollHeight, clientHeight } = event.currentTarget;
+            stickToEnd.current = scrollHeight - scrollTop - clientHeight < 48;
+          }}
+        >
+          {!current && <p role="status">{t("No visible execution messages yet.")}</p>}
           {visible?.error && (
             <p role="alert">{t("Could not load execution messages. Refresh to try again.")}</p>
           )}
-          {!visible && <p role="status">{t("Loading execution messages…")}</p>}
+          {current && !visible && <p role="status">{t("Loading execution messages…")}</p>}
           {visible?.page && (
             <>
               <div className="outcome-execution-paging">
                 {visible.page.next_before !== null && (
                   <OutcomeButton
                     variant="ghost"
-                    onClick={() => setBefore(visible.page!.next_before!)}
+                    onClick={() => {
+                      stickToEnd.current = false;
+                      setBefore(visible.page!.next_before!);
+                    }}
                   >
                     {t("Earlier messages")}
                   </OutcomeButton>
                 )}
                 {before !== undefined && (
-                  <OutcomeButton variant="ghost" onClick={() => setBefore(undefined)}>
+                  <OutcomeButton
+                    variant="ghost"
+                    onClick={() => {
+                      stickToEnd.current = true;
+                      setBefore(undefined);
+                    }}
+                  >
                     {t("Latest messages")}
                   </OutcomeButton>
                 )}
@@ -175,7 +245,20 @@ export function OutcomeExecutionCard({
               <ol className="outcome-execution-messages" aria-label={t("Execution messages")}>
                 {[...visible.page.rows].reverse().map((row) => (
                   <li key={row.id} data-message-role={row.role}>
-                    <header>
+                    {row.role === "assistant" ? (
+                      <>
+                        <ExecutionAvatar bot={avatarBot} />
+                        <div className="outcome-execution-bubble">
+                          <MessageResponse>{row.content}</MessageResponse>
+                        </div>
+                      </>
+                    ) : (
+                      <details className="outcome-execution-tool">
+                        <summary>{t("View tool activity")}</summary>
+                        <pre>{toolText(row.content, t("Private tool details are omitted."))}</pre>
+                      </details>
+                    )}
+                    <footer>
                       <strong>{t(row.role === "assistant" ? "Bot" : "Tool activity")}</strong>
                       <span>{t(row.status)}</span>
                       <time dateTime={row.at}>
@@ -183,22 +266,139 @@ export function OutcomeExecutionCard({
                           ? ""
                           : new Date(row.at).toLocaleTimeString()}
                       </time>
-                    </header>
-                    {row.role === "assistant" ? (
-                      <MessageResponse>{row.content}</MessageResponse>
-                    ) : (
-                      <details className="outcome-execution-tool">
-                        <summary>{t("View tool activity")}</summary>
-                        <pre>{toolText(row.content, t("Private tool details are omitted."))}</pre>
-                      </details>
-                    )}
+                    </footer>
                   </li>
                 ))}
               </ol>
             </>
           )}
         </div>
+        <footer className="outcome-execution-footer">
+          <LockKeyhole aria-hidden="true" className="size-3.5" />
+          <span>{t("This chat is view-only")}</span>
+          <OutcomeButton onClick={() => onOpenChange(false)}>{t("Close Chat")}</OutcomeButton>
+        </footer>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/** Compact entry that keeps the card short and opens the full read-only conversation. */
+export function OutcomeExecutionCard({
+  outcome,
+  client,
+  bot,
+}: {
+  outcome: OutcomeDetail;
+  client: Pick<OutcomeClient, "transcript">;
+  bot?: OutcomeExecutionBot;
+}) {
+  const { t } = useI18n();
+  const [open, setOpen] = useState(false);
+  if (observableWorkItems(outcome).length === 0) return null;
+  return (
+    <>
+      <button
+        type="button"
+        className="outcome-execution-card"
+        aria-haspopup="dialog"
+        onClick={() => setOpen(true)}
+      >
+        <MessagesSquare size={15} aria-hidden="true" />
+        <span>{t("Execution messages")}</span>
+        <span className="outcome-execution-readonly">{t("Read-only")}</span>
+        <ChevronRight size={13} className="outcome-execution-chevron" aria-hidden="true" />
+      </button>
+      {open && (
+        <OutcomeExecutionDialog
+          outcome={outcome}
+          client={client}
+          bot={bot}
+          open
+          onOpenChange={setOpen}
+        />
       )}
-    </details>
+    </>
+  );
+}
+
+/**
+ * List-row entry: the list only holds summaries, so the goal is read when the viewer is opened.
+ * Reads are GET-only and never change the goal, its Run or any decision.
+ */
+export function OutcomeExecutionListAction({
+  outcomeId,
+  title,
+  client,
+  bot,
+}: {
+  outcomeId: string;
+  title: string;
+  client: Pick<OutcomeClient, "get" | "transcript">;
+  bot?: OutcomeExecutionBot;
+}) {
+  const { t } = useI18n();
+  const [open, setOpen] = useState(false);
+  const [detail, setDetail] = useState<OutcomeDetail>();
+  const [failed, setFailed] = useState(false);
+  const request = useRef(0);
+  useEffect(() => {
+    if (!open) return;
+    const id = ++request.current;
+    setFailed(false);
+    client
+      .get(outcomeId)
+      .then((value) => request.current === id && setDetail(value))
+      .catch(() => request.current === id && setFailed(true));
+    return () => {
+      request.current++;
+    };
+  }, [open, outcomeId, client]);
+  const label = `${t("Execution messages")} · ${title}`;
+  return (
+    <>
+      <OutcomeButton
+        className="outcome-row-action"
+        variant="ghost"
+        aria-label={label}
+        title={label}
+        onClick={() => setOpen(true)}
+      >
+        <MessagesSquare aria-hidden="true" className="size-3.5" />
+        {t("Execution messages")}
+      </OutcomeButton>
+      {open && detail && (
+        <OutcomeExecutionDialog
+          outcome={detail}
+          client={client}
+          bot={bot}
+          open
+          onOpenChange={(next) => {
+            if (!next) {
+              setOpen(false);
+              setDetail(undefined);
+            }
+          }}
+        />
+      )}
+      {open && !detail && (
+        <Dialog open onOpenChange={(next) => !next && setOpen(false)}>
+          <DialogContent
+            className="outcome-execution-dialog outcome-execution-dialog-loading"
+            overlayClassName="outcome-modal-overlay"
+          >
+            <DialogTitle className="sr-only">{t("Execution messages")}</DialogTitle>
+            <DialogDescription className="sr-only">
+              {t("Follow visible messages and tool activity without interrupting the Bot.")}
+            </DialogDescription>
+            <p role={failed ? "alert" : "status"}>
+              {failed
+                ? t("Could not load execution messages. Refresh to try again.")
+                : t("Loading execution messages…")}
+            </p>
+          </DialogContent>
+        </Dialog>
+      )}
+    </>
   );
 }

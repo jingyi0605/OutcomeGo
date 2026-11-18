@@ -8,6 +8,15 @@ import type { OutcomeClient } from "../../../client/outcome-api";
 import { useI18n } from "../../../lib/i18n";
 import { ChevronRight, Plus, Target } from "lucide-react";
 import { OutcomeButton, OutcomeEmptyState, OutcomeRefresh } from "./outcome-ui";
+import { OutcomeExecutionListAction, type OutcomeExecutionBot } from "./outcome-execution-card";
+
+/** Goals that never reached execution have no Run, so there are no messages to observe. */
+const unexecutedStatuses: ReadonlySet<OutcomeStatus> = new Set([
+  "draft",
+  "planning",
+  "pending_approval",
+  "approved",
+]);
 
 export const outcomeStatusLabels: Record<OutcomeStatus, string> = {
   draft: "Draft",
@@ -32,7 +41,7 @@ export function OutcomeList({
   refreshVersion = 0,
 }: {
   client: OutcomeClient;
-  bots: Array<{ id: string; name: string }>;
+  bots: OutcomeExecutionBot[];
   onSelect: (id: string) => void;
   onCreate: () => void;
   refreshVersion?: number;
@@ -167,6 +176,14 @@ export function OutcomeList({
                 className="size-3.5 shrink-0 text-foreground-tertiary"
               />
             </button>
+            {!unexecutedStatuses.has(outcome.status) && (
+              <OutcomeExecutionListAction
+                outcomeId={outcome.id}
+                title={outcome.title}
+                client={client}
+                bot={bots.find((bot) => bot.id === outcome.botId)}
+              />
+            )}
           </li>
         ))}
       </ul>

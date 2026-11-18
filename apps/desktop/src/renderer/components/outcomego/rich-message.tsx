@@ -695,7 +695,7 @@ export function RichMessage({ message, bot }: { message: ChannelMessageView; bot
   const metadata = record(message.metadata);
   if (metadata.type === "outcome-card") {
     const card = parseOutcomeChatCard(metadata.outcomeCard);
-    return card ? <OutcomeChatCardView card={card} /> : <p>{message.content}</p>;
+    return card ? <OutcomeChatCardView card={card} bot={bot} /> : <p>{message.content}</p>;
   }
   if (
     metadata.type === "bot-template" &&
