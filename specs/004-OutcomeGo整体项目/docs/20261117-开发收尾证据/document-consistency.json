@@ -1,0 +1,17 @@
+{
+  "base": "93d5ff66510ddb77d1f8b7fb589c365fe4b537f1",
+  "taskIds": 122,
+  "done": 96,
+  "open": 26,
+  "originalDoneRetained": 72,
+  "acceptedOfOriginal50": 24,
+  "tableUniqueRows": 50,
+  "protectedFieldComparisons": 610,
+  "protectedFieldChanges": [],
+  "newThisDevelopmentPhase": [
+    "004/2.3",
+    "004.4/3.3",
+    "004.4/4.1",
+    "004.4/6.1"
+  ]
+}

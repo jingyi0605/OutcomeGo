@@ -1,0 +1,57 @@
+[
+  {
+    "label": "isolation-create-database",
+    "command": [
+      "docker",
+      "exec",
+      "533e160dae3b1511afd0e4835c04e519bab656a055a74d1f6af47d9da5bbc84e",
+      "createdb",
+      "-U",
+      "outcomego",
+      "-T",
+      "template0",
+      "outcomego_development_isolated"
+    ],
+    "exitCode": 0,
+    "seconds": 0.14,
+    "log": "data/spec004-development-validation/isolation-create-database.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "label": "isolation-deploy-prisma",
+    "command": [
+      "bun",
+      "--no-env-file",
+      "./packages/db/node_modules/.bin/prisma",
+      "db",
+      "push",
+      "--config",
+      "/Users/jackson/Code/openteam-spec004/data/spec004-development-validation/prisma.config.ts"
+    ],
+    "exitCode": 0,
+    "seconds": 0.889,
+    "log": "data/spec004-development-validation/isolation-deploy-prisma.log",
+    "sha256": "f7bfb961acded772769a75e30a3c145690659a1756ae3005ebdc0f3f2889390b"
+  },
+  {
+    "label": "isolation-deploy-raw",
+    "command": [
+      "docker",
+      "exec",
+      "-i",
+      "533e160dae3b1511afd0e4835c04e519bab656a055a74d1f6af47d9da5bbc84e",
+      "psql",
+      "-U",
+      "outcomego",
+      "-d",
+      "outcomego_development_isolated",
+      "-v",
+      "ON_ERROR_STOP=1"
+    ],
+    "input": "packages/db/prisma/sql/raw-schema.sql",
+    "exitCode": 0,
+    "seconds": 0.058,
+    "log": "data/spec004-development-validation/isolation-deploy-raw.log",
+    "sha256": "efe0fe2e9b54d549b78751d61b0dbccb7d2dd49d760ac4d6df6c43c4ad55bb0e"
+  }
+]

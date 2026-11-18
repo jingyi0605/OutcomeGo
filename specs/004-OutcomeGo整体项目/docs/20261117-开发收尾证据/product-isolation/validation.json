@@ -1,0 +1,59 @@
+{
+  "status": "PASS",
+  "reports": [
+    {
+      "scenario": "research",
+      "report": "data/acceptance/task70-20261117/isolation/research-isolated.json",
+      "sha256": "76befaab5cc4400398bac2a8745d7656956b66beb1be8480ab3019fe3a8f6e1a",
+      "checks": 19,
+      "lineage": "PASS",
+      "databaseIsolation": {
+        "databaseName": "outcomego_product_replay_95f08acce21549ac9a56155be4311712",
+        "inheritedData": false,
+        "removed": true
+      }
+    },
+    {
+      "scenario": "human",
+      "report": "data/acceptance/task70-20261117/isolation/human-isolated.json",
+      "sha256": "345e9147720b2e800dc5b55a7821b5c75cb22e46930a39c6a0ed41eccf7bf3b7",
+      "checks": 32,
+      "lineage": "PASS",
+      "databaseIsolation": {
+        "databaseName": "outcomego_product_replay_57d64b19638f426baa3ee9c82b2db9ad",
+        "inheritedData": false,
+        "removed": true
+      }
+    }
+  ],
+  "foreignSeedUnchanged": {
+    "scenario": "foreign-output-isolation",
+    "foreignOutcomeId": "2d0c4e4f-e5ed-4fd4-b835-07f09659c70c",
+    "foreignOutputId": "40bcf75c-ed37-4128-8033-f73b19ab6dfd",
+    "before": {
+      "evidence": [],
+      "outputReceipt": null,
+      "prereviewReceipt": null,
+      "eventReceipt": null
+    },
+    "after": {
+      "evidence": [],
+      "outputReceipt": null,
+      "prereviewReceipt": null,
+      "eventReceipt": null
+    },
+    "databaseIsolation": {
+      "databaseName": "outcomego_product_replay_690cec6fae8742d3be525470dd665b14",
+      "inheritedData": false,
+      "removed": true
+    }
+  },
+  "executionFailureCleanup": {
+    "scenario": "execution-failure-cleanup",
+    "databaseName": "outcomego_product_replay_638d26d51e734f9ba63a2d90f5d0afea",
+    "remaining": []
+  },
+  "remainingOwnedTempRoots": [],
+  "realBotReplay": "PENDING",
+  "nativeUIReplay": "PENDING"
+}

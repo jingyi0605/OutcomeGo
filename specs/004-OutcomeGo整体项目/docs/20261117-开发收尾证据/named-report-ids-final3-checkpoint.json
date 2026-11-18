@@ -1,0 +1,20 @@
+[
+  {
+    "path": "specs/004.4-现实任务与知识资料闭环/docs/human-task-replay.md",
+    "report": "human-final.json",
+    "uuidCount": 23,
+    "absentIds": []
+  },
+  {
+    "path": "specs/004.3-Outcome收件箱与决策通知/docs/scenario-b-replay.md",
+    "report": "decision-replay.json",
+    "uuidCount": 12,
+    "absentIds": []
+  },
+  {
+    "path": "specs/004.2-Outcome规划执行与成果验收闭环/docs/acceptance-replay.md",
+    "report": "research-final.json",
+    "uuidCount": 23,
+    "absentIds": []
+  }
+]

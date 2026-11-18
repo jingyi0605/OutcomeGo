@@ -1,0 +1,31 @@
+[
+  {
+    "name": "focused-five",
+    "command": [
+      "bun",
+      "--no-env-file",
+      "test",
+      "apps/server/test/outcome-product-replay.integration.test.ts"
+    ],
+    "cwd": "/Users/jackson/Code/openteam-spec004",
+    "canonicalDatabaseEndpoint": "127.0.0.1:55443/task70_canonical",
+    "exitCode": 0,
+    "seconds": 6.522,
+    "log": "data/acceptance/task70-20261117/isolation/focused-five.log",
+    "sha256": "337ea01cb571930b9f2bbc7e3226620434ece2fc00c5ab915b8a8a7a559ce094"
+  },
+  {
+    "name": "types-five",
+    "command": [
+      "bun",
+      "--no-env-file",
+      "data/acceptance/task70-20261117/typecheck.ts"
+    ],
+    "cwd": "/Users/jackson/Code/openteam-spec004",
+    "canonicalDatabaseEndpoint": "127.0.0.1:55443/task70_canonical",
+    "exitCode": 0,
+    "seconds": 4.424,
+    "log": "data/acceptance/task70-20261117/isolation/types-five.log",
+    "sha256": "adf53c5ae98b5e9aa417f5fca6550ce7c6e515226b481a8b2e4471a012b135c9"
+  }
+]

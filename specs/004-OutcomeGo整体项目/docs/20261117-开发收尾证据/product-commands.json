@@ -1,0 +1,73 @@
+[
+  {
+    "name": "focused",
+    "command": [
+      "bun",
+      "--no-env-file",
+      "test",
+      "apps/server/test/outcome-product-replay.integration.test.ts"
+    ],
+    "cwd": "/Users/jackson/Code/openteam-spec004",
+    "databaseEndpoint": "127.0.0.1:55443/task70_final3_focused",
+    "environmentNames": [
+      "HOME",
+      "LANG",
+      "LC_ALL",
+      "PATH",
+      "TMPDIR",
+      "OUTCOMEGO_TEST_DATABASE_URL"
+    ],
+    "exitCode": 0,
+    "seconds": 1.532,
+    "log": "data/acceptance/task70-20261117/final3-focused.log",
+    "sha256": "a728046f25d5366eb8a3f7a18ba254d9302477d08dbd0c391f766671f18829d0"
+  },
+  {
+    "name": "research",
+    "command": [
+      "bun",
+      "--no-env-file",
+      "scripts/outcome-recovery/product-replay.ts",
+      "research",
+      "/Users/jackson/Code/openteam-spec004/data/acceptance/task70-20261117/research-final.json"
+    ],
+    "cwd": "/Users/jackson/Code/openteam-spec004",
+    "databaseEndpoint": "127.0.0.1:55443/task70_final3_research",
+    "environmentNames": [
+      "HOME",
+      "LANG",
+      "LC_ALL",
+      "PATH",
+      "TMPDIR",
+      "OUTCOMEGO_TEST_DATABASE_URL"
+    ],
+    "exitCode": 0,
+    "seconds": 0.531,
+    "log": "data/acceptance/task70-20261117/final3-research.log",
+    "sha256": "a2ea177e9ffe34608ee2512f4496a07d8e4ff2ff92fdc93724912de842df7e1e"
+  },
+  {
+    "name": "human",
+    "command": [
+      "bun",
+      "--no-env-file",
+      "scripts/outcome-recovery/product-replay.ts",
+      "human",
+      "/Users/jackson/Code/openteam-spec004/data/acceptance/task70-20261117/human-final.json"
+    ],
+    "cwd": "/Users/jackson/Code/openteam-spec004",
+    "databaseEndpoint": "127.0.0.1:55443/task70_final3_human",
+    "environmentNames": [
+      "HOME",
+      "LANG",
+      "LC_ALL",
+      "PATH",
+      "TMPDIR",
+      "OUTCOMEGO_TEST_DATABASE_URL"
+    ],
+    "exitCode": 0,
+    "seconds": 0.75,
+    "log": "data/acceptance/task70-20261117/final3-human.log",
+    "sha256": "b814d1231cd4e5ffc1cb6f4160876503d30f39c3bc65b1d11a48fa44699c8fa3"
+  }
+]

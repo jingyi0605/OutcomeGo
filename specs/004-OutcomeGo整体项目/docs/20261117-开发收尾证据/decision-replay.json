@@ -1,0 +1,1165 @@
+{
+  "scenario": "decision-tool-inbox-api-continuation",
+  "status": "PASS",
+  "execution": "local-disposable-database",
+  "computer": "controlled Projection.apply events",
+  "realBotReplay": "PENDING",
+  "nativeClientsReplay": "PENDING",
+  "networkServerStarted": false,
+  "bootstrap": "Existing approved Outcome fixture; planning is covered by the separate product replay",
+  "ids": {
+    "botId": "ddedd81f-10b0-49d1-9ee2-c707defacbc0",
+    "channelId": "93b6e6aa-add4-4b9c-8734-988f8937fc40",
+    "outcomeId": "e9dc5e6d-b53d-4fe0-966f-ebd826239adc",
+    "revisionId": "9969db47-920c-4f70-8a0b-6367f00d7ce1",
+    "workItemId": "29696862-23e0-490e-98fe-6ee16bc62d00",
+    "decisionId": "2b9b4030-0e11-4867-a799-ddaac6835e8b",
+    "rootRunId": "d1f5b2f6-bd40-47d1-98fe-a8c9775625a1",
+    "continuationRunId": "2a6e9b03-7b00-406d-aff5-ba31629b96a7",
+    "contextSessionId": "aed2feb3-3255-4a6d-8e4a-4e92f0d3708c",
+    "foregroundRunId": "3541864f-4470-4c8a-a2f9-986824440b03"
+  },
+  "requests": [
+    {
+      "operation": "enqueueOutcomeTurn",
+      "input": {
+        "workItemId": "29696862-23e0-490e-98fe-6ee16bc62d00",
+        "clientId": "decision-replay:9df167a7-8383-45a5-b385-373a9269f259:start"
+      },
+      "result": {
+        "status": "enqueued",
+        "runId": "d1f5b2f6-bd40-47d1-98fe-a8c9775625a1"
+      }
+    },
+    {
+      "operation": "worker.claim.initial",
+      "input": {
+        "botId": "ddedd81f-10b0-49d1-9ee2-c707defacbc0"
+      },
+      "result": {
+        "runChannelId": "93b6e6aa-add4-4b9c-8734-988f8937fc40",
+        "inboxId": "03a4a826-df9b-4973-bbea-c89b7420fa05",
+        "inboxType": "outcome.work_item",
+        "runId": "d1f5b2f6-bd40-47d1-98fe-a8c9775625a1",
+        "botId": "ddedd81f-10b0-49d1-9ee2-c707defacbc0",
+        "contextSessionId": "aed2feb3-3255-4a6d-8e4a-4e92f0d3708c",
+        "screenBotId": "ddedd81f-10b0-49d1-9ee2-c707defacbc0",
+        "pluginBotId": "ddedd81f-10b0-49d1-9ee2-c707defacbc0",
+        "conversationId": "31419c86-e266-4f63-9471-5cd0d07fa9b6",
+        "ownerId": "d5008fee-6d40-42be-88ed-c1c9b6e81a32",
+        "content": "<timestamp>Tuesday, Nov 17, 2026, 12:30 PM (UTC+0)</timestamp>\n<user_query>\nCompare fictional backup approaches\n</user_query>",
+        "interruptedRunId": null,
+        "images": [],
+        "clientId": "decision-replay:9df167a7-8383-45a5-b385-373a9269f259:start",
+        "cwd": "/var/folders/q5/5jq71t9d131d8p_8l01rth400000gn/T/outcome-thread-K90YvO",
+        "instructions": "",
+        "sessionPath": null,
+        "channelId": "93b6e6aa-add4-4b9c-8734-988f8937fc40",
+        "deliveryId": null,
+        "origin": "outcome",
+        "outcomeWorkItemId": "29696862-23e0-490e-98fe-6ee16bc62d00",
+        "runtimeProfile": "agent",
+        "subagentType": null,
+        "readOnly": false,
+        "inferenceParentRunId": null,
+        "taskConfiguration": null,
+        "attachmentOwnerBotId": "ddedd81f-10b0-49d1-9ee2-c707defacbc0",
+        "fileAttachments": []
+      }
+    },
+    {
+      "operation": "main user request / independent worker claim",
+      "input": {
+        "clientId": "decision-replay:9df167a7-8383-45a5-b385-373a9269f259:main"
+      },
+      "result": {
+        "runId": "3541864f-4470-4c8a-a2f9-986824440b03",
+        "claim": {
+          "runChannelId": "93b6e6aa-add4-4b9c-8734-988f8937fc40",
+          "inboxId": "936e6401-9e94-42ed-bc1c-065d151f5887",
+          "inboxType": "user.message",
+          "runId": "3541864f-4470-4c8a-a2f9-986824440b03",
+          "botId": "ddedd81f-10b0-49d1-9ee2-c707defacbc0",
+          "contextSessionId": "f977b745-a773-4c8f-9bd3-24ef82089527",
+          "screenBotId": "ddedd81f-10b0-49d1-9ee2-c707defacbc0",
+          "pluginBotId": "ddedd81f-10b0-49d1-9ee2-c707defacbc0",
+          "conversationId": "31419c86-e266-4f63-9471-5cd0d07fa9b6",
+          "ownerId": "43222ae0-16a0-40f8-af6a-6382d3087a6b",
+          "content": "<timestamp>Tuesday, Nov 17, 2026, 12:30 PM (UTC+0)</timestamp>\n<user_query>\nContinue an unrelated conversation\n</user_query>",
+          "interruptedRunId": null,
+          "images": [],
+          "clientId": "decision-replay:9df167a7-8383-45a5-b385-373a9269f259:main",
+          "cwd": "/var/folders/q5/5jq71t9d131d8p_8l01rth400000gn/T/outcome-thread-K90YvO",
+          "instructions": "",
+          "sessionPath": null,
+          "channelId": "93b6e6aa-add4-4b9c-8734-988f8937fc40",
+          "deliveryId": null,
+          "origin": "user",
+          "outcomeWorkItemId": null,
+          "runtimeProfile": "agent",
+          "subagentType": null,
+          "readOnly": false,
+          "inferenceParentRunId": null,
+          "taskConfiguration": null,
+          "attachmentOwnerBotId": "ddedd81f-10b0-49d1-9ee2-c707defacbc0",
+          "fileAttachments": []
+        },
+        "snapshot": {
+          "run": {
+            "id": "3541864f-4470-4c8a-a2f9-986824440b03",
+            "botId": "ddedd81f-10b0-49d1-9ee2-c707defacbc0",
+            "conversationId": "31419c86-e266-4f63-9471-5cd0d07fa9b6",
+            "userMessageId": "ccae00f7-c9a6-43d7-a570-5510148ef0f4",
+            "status": "running",
+            "runtimeTurnId": null,
+            "inferenceProvider": null,
+            "inferenceModel": null,
+            "inferenceReasoning": null,
+            "taskConfiguration": null,
+            "origin": "user",
+            "requestProgress": null,
+            "requestRevision": 0,
+            "requestNextCheckAt": null,
+            "requestReconciliations": 0,
+            "requestStoppedAt": null,
+            "channelId": "93b6e6aa-add4-4b9c-8734-988f8937fc40",
+            "deliveryId": null,
+            "error": null,
+            "inputDeliveredAt": null,
+            "startedAt": "2026-11-17T12:30:08.303Z",
+            "memoryReviewPending": false,
+            "memoryReviewRevision": null,
+            "completedAt": null,
+            "createdAt": "2026-11-17T12:30:08.295Z",
+            "updatedAt": "2026-11-17T12:30:08.303Z",
+            "outcomeWorkItemId": null
+          },
+          "lease": {
+            "botId": "ddedd81f-10b0-49d1-9ee2-c707defacbc0",
+            "scope": "foreground",
+            "runId": "3541864f-4470-4c8a-a2f9-986824440b03",
+            "ownerId": "43222ae0-16a0-40f8-af6a-6382d3087a6b",
+            "expiresAt": "2026-11-17T12:32:08.302Z",
+            "heartbeatAt": "2026-11-17T12:30:08.302Z",
+            "createdAt": "2026-11-17T12:30:08.302Z",
+            "updatedAt": "2026-11-17T12:30:08.302Z"
+          },
+          "messages": []
+        }
+      }
+    },
+    {
+      "operation": "RequestOutcomeDecision / trusted persisted context",
+      "input": {
+        "runId": "d1f5b2f6-bd40-47d1-98fe-a8c9775625a1",
+        "botId": "ddedd81f-10b0-49d1-9ee2-c707defacbc0",
+        "conversationId": "31419c86-e266-4f63-9471-5cd0d07fa9b6",
+        "channelId": "93b6e6aa-add4-4b9c-8734-988f8937fc40",
+        "deliveryId": null,
+        "callId": "decision-replay:9df167a7-8383-45a5-b385-373a9269f259:decision",
+        "tool": "RequestOutcomeDecision",
+        "arguments": {
+          "completedSummary": "Two fictional approaches were compared",
+          "problemSummary": "The owner must select the next approach",
+          "nextStepSummary": "Continue the approved comparison with the selected approach",
+          "reasonCode": "missing_input",
+          "options": [
+            {
+              "label": "Compare cost",
+              "consequence": "Continue within the approved contract"
+            },
+            {
+              "label": "Compare recovery time",
+              "consequence": "Continue within the approved contract"
+            }
+          ]
+        }
+      },
+      "result": {
+        "decisionId": "2b9b4030-0e11-4867-a799-ddaac6835e8b",
+        "status": "waiting_for_user"
+      }
+    },
+    {
+      "operation": "controlled Computer completion / production settlement",
+      "input": {
+        "runId": "d1f5b2f6-bd40-47d1-98fe-a8c9775625a1",
+        "text": "Comparison paused for the owner's choice."
+      },
+      "result": {
+        "run": {
+          "id": "d1f5b2f6-bd40-47d1-98fe-a8c9775625a1",
+          "botId": "ddedd81f-10b0-49d1-9ee2-c707defacbc0",
+          "conversationId": "31419c86-e266-4f63-9471-5cd0d07fa9b6",
+          "userMessageId": "f278b703-2d86-45e6-ab98-1c2638de8319",
+          "status": "completed",
+          "runtimeTurnId": null,
+          "inferenceProvider": null,
+          "inferenceModel": null,
+          "inferenceReasoning": null,
+          "taskConfiguration": null,
+          "origin": "outcome",
+          "requestProgress": null,
+          "requestRevision": 0,
+          "requestNextCheckAt": null,
+          "requestReconciliations": 0,
+          "requestStoppedAt": null,
+          "channelId": "93b6e6aa-add4-4b9c-8734-988f8937fc40",
+          "deliveryId": null,
+          "error": null,
+          "inputDeliveredAt": null,
+          "startedAt": "2026-11-17T12:30:08.277Z",
+          "memoryReviewPending": false,
+          "memoryReviewRevision": null,
+          "completedAt": "2026-11-17T12:30:08.346Z",
+          "createdAt": "2026-11-17T12:30:08.252Z",
+          "updatedAt": "2026-11-17T12:30:08.347Z",
+          "outcomeWorkItemId": "29696862-23e0-490e-98fe-6ee16bc62d00"
+        }
+      }
+    },
+    {
+      "operation": "GET /api/outcomes/e9dc5e6d-b53d-4fe0-966f-ebd826239adc/inbox?status=pending&category=decision_pending",
+      "input": null,
+      "result": {
+        "status": 401,
+        "body": null,
+        "errorCode": "unauthorized"
+      }
+    },
+    {
+      "operation": "GET /api/outcomes/e9dc5e6d-b53d-4fe0-966f-ebd826239adc/inbox?status=pending&category=decision_pending",
+      "input": null,
+      "result": {
+        "status": 200,
+        "body": {
+          "items": [
+            {
+              "id": "decision_pending:2b9b4030-0e11-4867-a799-ddaac6835e8b",
+              "outcomeId": "e9dc5e6d-b53d-4fe0-966f-ebd826239adc",
+              "contractRevision": 1,
+              "decisionId": "2b9b4030-0e11-4867-a799-ddaac6835e8b",
+              "workItemId": "29696862-23e0-490e-98fe-6ee16bc62d00",
+              "criterionIds": null,
+              "category": "decision_pending",
+              "priority": 3,
+              "title": "Compare backup approaches",
+              "completed": "Two fictional approaches were compared",
+              "problem": "The owner must select the next approach",
+              "next": "Continue the approved comparison with the selected approach",
+              "requiresAction": true,
+              "availableAt": "2026-11-17T12:30:08.325Z",
+              "createdAt": "2026-11-17T12:30:08.325Z",
+              "read": false
+            }
+          ],
+          "nextCursor": null
+        },
+        "errorCode": null
+      }
+    },
+    {
+      "operation": "GET /api/decisions/2b9b4030-0e11-4867-a799-ddaac6835e8b",
+      "input": null,
+      "result": {
+        "status": 200,
+        "body": {
+          "id": "2b9b4030-0e11-4867-a799-ddaac6835e8b",
+          "outcomeId": "e9dc5e6d-b53d-4fe0-966f-ebd826239adc",
+          "contractRevisionId": "9969db47-920c-4f70-8a0b-6367f00d7ce1",
+          "contractRevision": 1,
+          "runId": "d1f5b2f6-bd40-47d1-98fe-a8c9775625a1",
+          "workItemId": "29696862-23e0-490e-98fe-6ee16bc62d00",
+          "status": "presented",
+          "reasonCode": "missing_input",
+          "completedSummary": "Two fictional approaches were compared",
+          "problemSummary": "The owner must select the next approach",
+          "nextStepSummary": "Continue the approved comparison with the selected approach",
+          "recommendation": null,
+          "options": [
+            {
+              "id": "option-1",
+              "label": "Compare cost",
+              "source": "runtime",
+              "createdAt": "2026-11-17T12:30:08.325Z",
+              "consequence": "Continue within the approved contract",
+              "resolutionEffect": "plan_only"
+            },
+            {
+              "id": "option-2",
+              "label": "Compare recovery time",
+              "source": "runtime",
+              "createdAt": "2026-11-17T12:30:08.325Z",
+              "consequence": "Continue within the approved contract",
+              "resolutionEffect": "plan_only"
+            }
+          ],
+          "customEntryAllowed": true,
+          "expiresAt": null,
+          "resolvedOption": null,
+          "customText": null,
+          "resolvedBy": null,
+          "resolvedAt": null,
+          "truncatedOptionCount": 0,
+          "createdAt": "2026-11-17T12:30:08.325Z"
+        },
+        "errorCode": null
+      }
+    },
+    {
+      "operation": "POST /api/decisions/2b9b4030-0e11-4867-a799-ddaac6835e8b/resolve",
+      "input": {
+        "optionId": "option-1",
+        "expectedContractRevision": 1,
+        "clientRequestId": "decision-replay:9df167a7-8383-45a5-b385-373a9269f259:resolve:0"
+      },
+      "result": {
+        "status": 200,
+        "body": {
+          "decisionId": "2b9b4030-0e11-4867-a799-ddaac6835e8b",
+          "status": "resolved",
+          "outcomeId": "e9dc5e6d-b53d-4fe0-966f-ebd826239adc",
+          "contractRevision": 1,
+          "resolutionEffect": "plan_only",
+          "resume": {
+            "status": "enqueued",
+            "workItemIds": [
+              "29696862-23e0-490e-98fe-6ee16bc62d00"
+            ]
+          }
+        },
+        "errorCode": null
+      }
+    },
+    {
+      "operation": "POST /api/decisions/2b9b4030-0e11-4867-a799-ddaac6835e8b/resolve",
+      "input": {
+        "optionId": "option-2",
+        "expectedContractRevision": 1,
+        "clientRequestId": "decision-replay:9df167a7-8383-45a5-b385-373a9269f259:resolve:1"
+      },
+      "result": {
+        "status": 409,
+        "body": null,
+        "errorCode": "decision_already_resolved"
+      }
+    },
+    {
+      "operation": "POST /api/decisions/2b9b4030-0e11-4867-a799-ddaac6835e8b/resolve",
+      "input": {
+        "optionId": "option-1",
+        "expectedContractRevision": 1,
+        "clientRequestId": "decision-replay:9df167a7-8383-45a5-b385-373a9269f259:resolve:0"
+      },
+      "result": {
+        "status": 200,
+        "body": {
+          "resume": {
+            "status": "enqueued",
+            "workItemIds": [
+              "29696862-23e0-490e-98fe-6ee16bc62d00"
+            ]
+          },
+          "status": "resolved",
+          "outcomeId": "e9dc5e6d-b53d-4fe0-966f-ebd826239adc",
+          "decisionId": "2b9b4030-0e11-4867-a799-ddaac6835e8b",
+          "contractRevision": 1,
+          "resolutionEffect": "plan_only"
+        },
+        "errorCode": null
+      }
+    },
+    {
+      "operation": "worker.claim.continuation",
+      "input": {
+        "botId": "ddedd81f-10b0-49d1-9ee2-c707defacbc0"
+      },
+      "result": {
+        "runChannelId": "93b6e6aa-add4-4b9c-8734-988f8937fc40",
+        "inboxId": "20e9391a-a80f-4821-a9d4-141b73440a91",
+        "inboxType": "outcome.work_item",
+        "runId": "2a6e9b03-7b00-406d-aff5-ba31629b96a7",
+        "botId": "ddedd81f-10b0-49d1-9ee2-c707defacbc0",
+        "contextSessionId": "aed2feb3-3255-4a6d-8e4a-4e92f0d3708c",
+        "screenBotId": "ddedd81f-10b0-49d1-9ee2-c707defacbc0",
+        "pluginBotId": "ddedd81f-10b0-49d1-9ee2-c707defacbc0",
+        "conversationId": "31419c86-e266-4f63-9471-5cd0d07fa9b6",
+        "ownerId": "afb7c815-7ef7-45a3-aea8-9b225c555c8b",
+        "content": "<timestamp>Tuesday, Nov 17, 2026, 12:30 PM (UTC+0)</timestamp>\n<user_query>\n{\"decisionId\":\"2b9b4030-0e11-4867-a799-ddaac6835e8b\",\"optionId\":\"option-1\",\"choice\":\"Compare cost\",\"customText\":null}\n</user_query>",
+        "interruptedRunId": null,
+        "images": [],
+        "clientId": "decision:2b9b4030-0e11-4867-a799-ddaac6835e8b",
+        "cwd": "/var/folders/q5/5jq71t9d131d8p_8l01rth400000gn/T/outcome-thread-K90YvO",
+        "instructions": "",
+        "sessionPath": null,
+        "channelId": "93b6e6aa-add4-4b9c-8734-988f8937fc40",
+        "deliveryId": null,
+        "origin": "outcome",
+        "outcomeWorkItemId": "29696862-23e0-490e-98fe-6ee16bc62d00",
+        "runtimeProfile": "agent",
+        "subagentType": null,
+        "readOnly": false,
+        "inferenceParentRunId": null,
+        "taskConfiguration": null,
+        "attachmentOwnerBotId": "ddedd81f-10b0-49d1-9ee2-c707defacbc0",
+        "fileAttachments": []
+      }
+    },
+    {
+      "operation": "controlled Computer completion / production settlement",
+      "input": {
+        "runId": "2a6e9b03-7b00-406d-aff5-ba31629b96a7",
+        "text": "The selected fictional comparison is ready for owner review."
+      },
+      "result": {
+        "run": {
+          "id": "2a6e9b03-7b00-406d-aff5-ba31629b96a7",
+          "botId": "ddedd81f-10b0-49d1-9ee2-c707defacbc0",
+          "conversationId": "31419c86-e266-4f63-9471-5cd0d07fa9b6",
+          "userMessageId": "b790a867-7bdf-4442-858d-2ea5e2042728",
+          "status": "completed",
+          "runtimeTurnId": null,
+          "inferenceProvider": null,
+          "inferenceModel": null,
+          "inferenceReasoning": null,
+          "taskConfiguration": null,
+          "origin": "outcome",
+          "requestProgress": null,
+          "requestRevision": 0,
+          "requestNextCheckAt": null,
+          "requestReconciliations": 0,
+          "requestStoppedAt": null,
+          "channelId": "93b6e6aa-add4-4b9c-8734-988f8937fc40",
+          "deliveryId": null,
+          "error": null,
+          "inputDeliveredAt": null,
+          "startedAt": "2026-11-17T12:30:08.429Z",
+          "memoryReviewPending": false,
+          "memoryReviewRevision": null,
+          "completedAt": "2026-11-17T12:30:08.436Z",
+          "createdAt": "2026-11-17T12:30:08.391Z",
+          "updatedAt": "2026-11-17T12:30:08.437Z",
+          "outcomeWorkItemId": "29696862-23e0-490e-98fe-6ee16bc62d00"
+        }
+      }
+    },
+    {
+      "operation": "GET /api/decisions/2b9b4030-0e11-4867-a799-ddaac6835e8b",
+      "input": null,
+      "result": {
+        "status": 200,
+        "body": {
+          "id": "2b9b4030-0e11-4867-a799-ddaac6835e8b",
+          "outcomeId": "e9dc5e6d-b53d-4fe0-966f-ebd826239adc",
+          "contractRevisionId": "9969db47-920c-4f70-8a0b-6367f00d7ce1",
+          "contractRevision": 1,
+          "runId": "d1f5b2f6-bd40-47d1-98fe-a8c9775625a1",
+          "workItemId": "29696862-23e0-490e-98fe-6ee16bc62d00",
+          "status": "resolved",
+          "reasonCode": "missing_input",
+          "completedSummary": "Two fictional approaches were compared",
+          "problemSummary": "The owner must select the next approach",
+          "nextStepSummary": "Continue the approved comparison with the selected approach",
+          "recommendation": null,
+          "options": [
+            {
+              "id": "option-1",
+              "label": "Compare cost",
+              "source": "runtime",
+              "createdAt": "2026-11-17T12:30:08.325Z",
+              "consequence": "Continue within the approved contract",
+              "resolutionEffect": "plan_only"
+            },
+            {
+              "id": "option-2",
+              "label": "Compare recovery time",
+              "source": "runtime",
+              "createdAt": "2026-11-17T12:30:08.325Z",
+              "consequence": "Continue within the approved contract",
+              "resolutionEffect": "plan_only"
+            }
+          ],
+          "customEntryAllowed": true,
+          "expiresAt": null,
+          "resolvedOption": {
+            "id": "option-1",
+            "label": "Compare cost",
+            "source": "runtime",
+            "createdAt": "2026-11-17T12:30:08.325Z",
+            "consequence": "Continue within the approved contract",
+            "resolutionEffect": "plan_only"
+          },
+          "customText": null,
+          "resolvedBy": "owner:local",
+          "resolvedAt": "2026-11-17T12:30:08.383Z",
+          "truncatedOptionCount": 0,
+          "createdAt": "2026-11-17T12:30:08.325Z"
+        },
+        "errorCode": null
+      }
+    },
+    {
+      "operation": "GET /api/outcomes/e9dc5e6d-b53d-4fe0-966f-ebd826239adc/inbox?status=pending&category=decision_pending",
+      "input": null,
+      "result": {
+        "status": 200,
+        "body": {
+          "items": [],
+          "nextCursor": null
+        },
+        "errorCode": null
+      }
+    },
+    {
+      "operation": "outcomes.detail / transcript",
+      "input": {
+        "outcomeId": "e9dc5e6d-b53d-4fe0-966f-ebd826239adc",
+        "workItemId": "29696862-23e0-490e-98fe-6ee16bc62d00"
+      },
+      "result": {
+        "detail": {
+          "id": "e9dc5e6d-b53d-4fe0-966f-ebd826239adc",
+          "sourceExploreId": null,
+          "title": "Compare backup approaches",
+          "status": "review_pending",
+          "botId": "ddedd81f-10b0-49d1-9ee2-c707defacbc0",
+          "currentRevision": 1,
+          "updatedAt": "2026-11-17T12:30:08.453Z",
+          "description": "",
+          "resumeStatus": null,
+          "createdAt": "2026-11-17T12:30:08.211Z",
+          "acceptedAt": null,
+          "currentRevisionView": {
+            "id": "9969db47-920c-4f70-8a0b-6367f00d7ce1",
+            "revision": 1,
+            "status": "approved",
+            "goal": [
+              "Compare two approaches"
+            ],
+            "boundaries": {
+              "included": [],
+              "excluded": [
+                "Production changes"
+              ]
+            },
+            "budget": null,
+            "executionBotId": "ddedd81f-10b0-49d1-9ee2-c707defacbc0",
+            "changeSummary": null,
+            "baseRevisionId": null,
+            "sourceDecisionId": null,
+            "createdBy": "owner:local",
+            "approvedBy": "owner:local",
+            "approvedAt": "2026-11-17T12:30:08.213Z",
+            "conflicts": [],
+            "criteria": [
+              {
+                "id": "3f782def-5ae0-427e-8afc-edf5a1122d72",
+                "ordinal": 1,
+                "statement": "Cite sources",
+                "required": true,
+                "verificationMethod": "human_review",
+                "latestResult": null
+              }
+            ],
+            "createdAt": "2026-11-17T12:30:08.215Z"
+          },
+          "revisions": [
+            {
+              "id": "9969db47-920c-4f70-8a0b-6367f00d7ce1",
+              "revision": 1,
+              "status": "approved",
+              "changeSummary": null,
+              "baseRevisionId": null,
+              "sourceDecisionId": null,
+              "createdBy": "owner:local",
+              "createdAt": "2026-11-17T12:30:08.215Z"
+            }
+          ],
+          "workItems": [
+            {
+              "id": "29696862-23e0-490e-98fe-6ee16bc62d00",
+              "contractRevision": 1,
+              "executorType": "agent",
+              "kind": "initial",
+              "title": "Work 1",
+              "status": "completed",
+              "statusReason": "run_completed",
+              "ordinal": 1,
+              "dependsOn": [],
+              "rootRunId": "d1f5b2f6-bd40-47d1-98fe-a8c9775625a1",
+              "runIds": [
+                "d1f5b2f6-bd40-47d1-98fe-a8c9775625a1",
+                "2a6e9b03-7b00-406d-aff5-ba31629b96a7"
+              ],
+              "reworkOfWorkItemId": null,
+              "createdAt": "2026-11-17T12:30:08.223Z",
+              "updatedAt": "2026-11-17T12:30:08.451Z"
+            }
+          ],
+          "outputs": [
+            {
+              "id": "68212246-164a-46a5-8cd5-c30ac73fdcdc",
+              "workItemId": "29696862-23e0-490e-98fe-6ee16bc62d00",
+              "runId": "2a6e9b03-7b00-406d-aff5-ba31629b96a7",
+              "kind": "final_result",
+              "title": "Work 1",
+              "content": "The selected fictional comparison is ready for owner review.",
+              "contentRef": null,
+              "createdAt": "2026-11-17T12:30:08.449Z"
+            }
+          ],
+          "evidence": [],
+          "reviews": []
+        },
+        "transcript": {
+          "total": 4,
+          "next_before": null,
+          "note": "Read-only observable Outcome history. Hidden instructions, reasoning and private tool payloads are excluded; text is redacted and bounded.",
+          "rows": [
+            {
+              "position": 0,
+              "id": "f278b703-2d86-45e6-ab98-1c2638de8319",
+              "at": "2026-11-17T12:30:08.250Z",
+              "role": "user",
+              "status": "completed",
+              "content": "<timestamp>Tuesday, Nov 17, 2026, 12:30 PM (UTC+0)</timestamp>\n<user_query>\nCompare fictional backup approaches\n</user_query>"
+            },
+            {
+              "position": 1,
+              "id": "9a0189dd-2443-4da9-b8cf-43f04aaec347",
+              "at": "2026-11-17T12:30:08.343Z",
+              "role": "assistant",
+              "status": "completed",
+              "content": "Comparison paused for the owner's choice."
+            },
+            {
+              "position": 2,
+              "id": "b790a867-7bdf-4442-858d-2ea5e2042728",
+              "at": "2026-11-17T12:30:08.391Z",
+              "role": "user",
+              "status": "completed",
+              "content": "<timestamp>Tuesday, Nov 17, 2026, 12:30 PM (UTC+0)</timestamp>\n<user_query>\n{\"decisionId\":\"2b9b4030-0e11-4867-a799-ddaac6835e8b\",\"optionId\":\"option-1\",\"choice\":\"Compare cost\",\"customText\":null}\n</user_query>"
+            },
+            {
+              "position": 3,
+              "id": "18244867-c1de-432a-9506-e88598eda039",
+              "at": "2026-11-17T12:30:08.434Z",
+              "role": "assistant",
+              "status": "completed",
+              "content": "The selected fictional comparison is ready for owner review."
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "checks": [
+    {
+      "name": "initial_context_is_persisted_for_this_work_item",
+      "passed": true
+    },
+    {
+      "name": "foreground_and_outcome_claim_independently",
+      "passed": true
+    },
+    {
+      "name": "tool_replay_returns_one_decision",
+      "passed": true
+    },
+    {
+      "name": "settlement_keeps_waiting_decision",
+      "passed": true
+    },
+    {
+      "name": "paused_work_has_no_output",
+      "passed": true
+    },
+    {
+      "name": "required_auth_rejects_unsigned_request",
+      "passed": true
+    },
+    {
+      "name": "inbox_returns_the_tool_decision",
+      "passed": true
+    },
+    {
+      "name": "public_card_uses_persisted_options",
+      "passed": true
+    },
+    {
+      "name": "independent_user_requests_have_one_winner",
+      "passed": true
+    },
+    {
+      "name": "winner_retry_returns_original_response",
+      "passed": true
+    },
+    {
+      "name": "one_resolution_event_and_continuation",
+      "passed": true
+    },
+    {
+      "name": "choice_preserves_the_approved_revision",
+      "passed": true
+    },
+    {
+      "name": "continuation_preserves_work_item_and_context",
+      "passed": true
+    },
+    {
+      "name": "resolved_decision_is_queryable_and_no_longer_pending",
+      "passed": true
+    },
+    {
+      "name": "final_output_is_from_the_resumed_turn",
+      "passed": true
+    },
+    {
+      "name": "main_run_lease_and_visible_messages_unchanged",
+      "passed": true
+    }
+  ],
+  "contexts": [
+    {
+      "runChannelId": "93b6e6aa-add4-4b9c-8734-988f8937fc40",
+      "inboxId": "03a4a826-df9b-4973-bbea-c89b7420fa05",
+      "inboxType": "outcome.work_item",
+      "runId": "d1f5b2f6-bd40-47d1-98fe-a8c9775625a1",
+      "botId": "ddedd81f-10b0-49d1-9ee2-c707defacbc0",
+      "contextSessionId": "aed2feb3-3255-4a6d-8e4a-4e92f0d3708c",
+      "screenBotId": "ddedd81f-10b0-49d1-9ee2-c707defacbc0",
+      "pluginBotId": "ddedd81f-10b0-49d1-9ee2-c707defacbc0",
+      "conversationId": "31419c86-e266-4f63-9471-5cd0d07fa9b6",
+      "ownerId": "d5008fee-6d40-42be-88ed-c1c9b6e81a32",
+      "content": "<timestamp>Tuesday, Nov 17, 2026, 12:30 PM (UTC+0)</timestamp>\n<user_query>\nCompare fictional backup approaches\n</user_query>",
+      "interruptedRunId": null,
+      "images": [],
+      "clientId": "decision-replay:9df167a7-8383-45a5-b385-373a9269f259:start",
+      "cwd": "/var/folders/q5/5jq71t9d131d8p_8l01rth400000gn/T/outcome-thread-K90YvO",
+      "instructions": "",
+      "sessionPath": null,
+      "channelId": "93b6e6aa-add4-4b9c-8734-988f8937fc40",
+      "deliveryId": null,
+      "origin": "outcome",
+      "outcomeWorkItemId": "29696862-23e0-490e-98fe-6ee16bc62d00",
+      "runtimeProfile": "agent",
+      "subagentType": null,
+      "readOnly": false,
+      "inferenceParentRunId": null,
+      "taskConfiguration": null,
+      "attachmentOwnerBotId": "ddedd81f-10b0-49d1-9ee2-c707defacbc0",
+      "fileAttachments": []
+    },
+    {
+      "runChannelId": "93b6e6aa-add4-4b9c-8734-988f8937fc40",
+      "inboxId": "20e9391a-a80f-4821-a9d4-141b73440a91",
+      "inboxType": "outcome.work_item",
+      "runId": "2a6e9b03-7b00-406d-aff5-ba31629b96a7",
+      "botId": "ddedd81f-10b0-49d1-9ee2-c707defacbc0",
+      "contextSessionId": "aed2feb3-3255-4a6d-8e4a-4e92f0d3708c",
+      "screenBotId": "ddedd81f-10b0-49d1-9ee2-c707defacbc0",
+      "pluginBotId": "ddedd81f-10b0-49d1-9ee2-c707defacbc0",
+      "conversationId": "31419c86-e266-4f63-9471-5cd0d07fa9b6",
+      "ownerId": "afb7c815-7ef7-45a3-aea8-9b225c555c8b",
+      "content": "<timestamp>Tuesday, Nov 17, 2026, 12:30 PM (UTC+0)</timestamp>\n<user_query>\n{\"decisionId\":\"2b9b4030-0e11-4867-a799-ddaac6835e8b\",\"optionId\":\"option-1\",\"choice\":\"Compare cost\",\"customText\":null}\n</user_query>",
+      "interruptedRunId": null,
+      "images": [],
+      "clientId": "decision:2b9b4030-0e11-4867-a799-ddaac6835e8b",
+      "cwd": "/var/folders/q5/5jq71t9d131d8p_8l01rth400000gn/T/outcome-thread-K90YvO",
+      "instructions": "",
+      "sessionPath": null,
+      "channelId": "93b6e6aa-add4-4b9c-8734-988f8937fc40",
+      "deliveryId": null,
+      "origin": "outcome",
+      "outcomeWorkItemId": "29696862-23e0-490e-98fe-6ee16bc62d00",
+      "runtimeProfile": "agent",
+      "subagentType": null,
+      "readOnly": false,
+      "inferenceParentRunId": null,
+      "taskConfiguration": null,
+      "attachmentOwnerBotId": "ddedd81f-10b0-49d1-9ee2-c707defacbc0",
+      "fileAttachments": []
+    }
+  ],
+  "detail": {
+    "id": "e9dc5e6d-b53d-4fe0-966f-ebd826239adc",
+    "sourceExploreId": null,
+    "title": "Compare backup approaches",
+    "status": "review_pending",
+    "botId": "ddedd81f-10b0-49d1-9ee2-c707defacbc0",
+    "currentRevision": 1,
+    "updatedAt": "2026-11-17T12:30:08.453Z",
+    "description": "",
+    "resumeStatus": null,
+    "createdAt": "2026-11-17T12:30:08.211Z",
+    "acceptedAt": null,
+    "currentRevisionView": {
+      "id": "9969db47-920c-4f70-8a0b-6367f00d7ce1",
+      "revision": 1,
+      "status": "approved",
+      "goal": [
+        "Compare two approaches"
+      ],
+      "boundaries": {
+        "included": [],
+        "excluded": [
+          "Production changes"
+        ]
+      },
+      "budget": null,
+      "executionBotId": "ddedd81f-10b0-49d1-9ee2-c707defacbc0",
+      "changeSummary": null,
+      "baseRevisionId": null,
+      "sourceDecisionId": null,
+      "createdBy": "owner:local",
+      "approvedBy": "owner:local",
+      "approvedAt": "2026-11-17T12:30:08.213Z",
+      "conflicts": [],
+      "criteria": [
+        {
+          "id": "3f782def-5ae0-427e-8afc-edf5a1122d72",
+          "ordinal": 1,
+          "statement": "Cite sources",
+          "required": true,
+          "verificationMethod": "human_review",
+          "latestResult": null
+        }
+      ],
+      "createdAt": "2026-11-17T12:30:08.215Z"
+    },
+    "revisions": [
+      {
+        "id": "9969db47-920c-4f70-8a0b-6367f00d7ce1",
+        "revision": 1,
+        "status": "approved",
+        "changeSummary": null,
+        "baseRevisionId": null,
+        "sourceDecisionId": null,
+        "createdBy": "owner:local",
+        "createdAt": "2026-11-17T12:30:08.215Z"
+      }
+    ],
+    "workItems": [
+      {
+        "id": "29696862-23e0-490e-98fe-6ee16bc62d00",
+        "contractRevision": 1,
+        "executorType": "agent",
+        "kind": "initial",
+        "title": "Work 1",
+        "status": "completed",
+        "statusReason": "run_completed",
+        "ordinal": 1,
+        "dependsOn": [],
+        "rootRunId": "d1f5b2f6-bd40-47d1-98fe-a8c9775625a1",
+        "runIds": [
+          "d1f5b2f6-bd40-47d1-98fe-a8c9775625a1",
+          "2a6e9b03-7b00-406d-aff5-ba31629b96a7"
+        ],
+        "reworkOfWorkItemId": null,
+        "createdAt": "2026-11-17T12:30:08.223Z",
+        "updatedAt": "2026-11-17T12:30:08.451Z"
+      }
+    ],
+    "outputs": [
+      {
+        "id": "68212246-164a-46a5-8cd5-c30ac73fdcdc",
+        "workItemId": "29696862-23e0-490e-98fe-6ee16bc62d00",
+        "runId": "2a6e9b03-7b00-406d-aff5-ba31629b96a7",
+        "kind": "final_result",
+        "title": "Work 1",
+        "content": "The selected fictional comparison is ready for owner review.",
+        "contentRef": null,
+        "createdAt": "2026-11-17T12:30:08.449Z"
+      }
+    ],
+    "evidence": [],
+    "reviews": []
+  },
+  "transcript": {
+    "total": 4,
+    "next_before": null,
+    "note": "Read-only observable Outcome history. Hidden instructions, reasoning and private tool payloads are excluded; text is redacted and bounded.",
+    "rows": [
+      {
+        "position": 0,
+        "id": "f278b703-2d86-45e6-ab98-1c2638de8319",
+        "at": "2026-11-17T12:30:08.250Z",
+        "role": "user",
+        "status": "completed",
+        "content": "<timestamp>Tuesday, Nov 17, 2026, 12:30 PM (UTC+0)</timestamp>\n<user_query>\nCompare fictional backup approaches\n</user_query>"
+      },
+      {
+        "position": 1,
+        "id": "9a0189dd-2443-4da9-b8cf-43f04aaec347",
+        "at": "2026-11-17T12:30:08.343Z",
+        "role": "assistant",
+        "status": "completed",
+        "content": "Comparison paused for the owner's choice."
+      },
+      {
+        "position": 2,
+        "id": "b790a867-7bdf-4442-858d-2ea5e2042728",
+        "at": "2026-11-17T12:30:08.391Z",
+        "role": "user",
+        "status": "completed",
+        "content": "<timestamp>Tuesday, Nov 17, 2026, 12:30 PM (UTC+0)</timestamp>\n<user_query>\n{\"decisionId\":\"2b9b4030-0e11-4867-a799-ddaac6835e8b\",\"optionId\":\"option-1\",\"choice\":\"Compare cost\",\"customText\":null}\n</user_query>"
+      },
+      {
+        "position": 3,
+        "id": "18244867-c1de-432a-9506-e88598eda039",
+        "at": "2026-11-17T12:30:08.434Z",
+        "role": "assistant",
+        "status": "completed",
+        "content": "The selected fictional comparison is ready for owner review."
+      }
+    ]
+  },
+  "events": [
+    {
+      "sequence": "39",
+      "topic": "outcome.work_item.updated",
+      "entityId": "e9dc5e6d-b53d-4fe0-966f-ebd826239adc",
+      "schemaVersion": 1,
+      "payload": {
+        "actorId": "system:worker",
+        "eventId": "c4d07ddf-e5c3-4e1a-9d10-a1384db5d267",
+        "payload": {
+          "to": "running",
+          "from": "queued",
+          "reason": "lease_acquired"
+        },
+        "occurredAt": "2026-11-17T12:30:08.282Z",
+        "workItemId": "29696862-23e0-490e-98fe-6ee16bc62d00",
+        "correlationId": "c4d07ddf-e5c3-4e1a-9d10-a1384db5d267",
+        "schemaVersion": 1
+      },
+      "createdAt": "2026-11-17T12:30:08.282Z"
+    },
+    {
+      "sequence": "40",
+      "topic": "outcome.status_changed",
+      "entityId": "e9dc5e6d-b53d-4fe0-966f-ebd826239adc",
+      "schemaVersion": 1,
+      "payload": {
+        "actorId": "system:worker",
+        "eventId": "bfedb533-1bef-4a38-94ea-0c6af956fa80",
+        "payload": {
+          "to": "running",
+          "from": "approved"
+        },
+        "occurredAt": "2026-11-17T12:30:08.285Z",
+        "correlationId": "bfedb533-1bef-4a38-94ea-0c6af956fa80",
+        "schemaVersion": 1
+      },
+      "createdAt": "2026-11-17T12:30:08.285Z"
+    },
+    {
+      "sequence": "44",
+      "topic": "outcome.decision.required",
+      "entityId": "e9dc5e6d-b53d-4fe0-966f-ebd826239adc",
+      "schemaVersion": 1,
+      "payload": {
+        "runId": "d1f5b2f6-bd40-47d1-98fe-a8c9775625a1",
+        "actorId": "bot:ddedd81f-10b0-49d1-9ee2-c707defacbc0",
+        "eventId": "57aaa043-f801-4cd3-bd11-ed65215ee81d",
+        "payload": {
+          "decisionId": "2b9b4030-0e11-4867-a799-ddaac6835e8b",
+          "reasonCode": "missing_input"
+        },
+        "occurredAt": "2026-11-17T12:30:08.327Z",
+        "workItemId": "29696862-23e0-490e-98fe-6ee16bc62d00",
+        "correlationId": "decision-request:d1f5b2f6-bd40-47d1-98fe-a8c9775625a1:8801a0479dea5a7bfb9e12bc886d7033472e73f70408957c915e28b37abba790",
+        "schemaVersion": 1,
+        "idempotencyKey": "decision-request:d1f5b2f6-bd40-47d1-98fe-a8c9775625a1:8801a0479dea5a7bfb9e12bc886d7033472e73f70408957c915e28b37abba790",
+        "contractRevision": 1
+      },
+      "createdAt": "2026-11-17T12:30:08.327Z"
+    },
+    {
+      "sequence": "45",
+      "topic": "outcome.work_item.updated",
+      "entityId": "e9dc5e6d-b53d-4fe0-966f-ebd826239adc",
+      "schemaVersion": 1,
+      "payload": {
+        "actorId": "bot:ddedd81f-10b0-49d1-9ee2-c707defacbc0",
+        "eventId": "b2394119-b201-4378-8fff-f0bf38e49e7d",
+        "payload": {
+          "to": "waiting_decision",
+          "from": "running",
+          "reason": "outcome_decision_requested"
+        },
+        "occurredAt": "2026-11-17T12:30:08.331Z",
+        "workItemId": "29696862-23e0-490e-98fe-6ee16bc62d00",
+        "correlationId": "decision-request:2b9b4030-0e11-4867-a799-ddaac6835e8b",
+        "schemaVersion": 1,
+        "idempotencyKey": "decision-request:2b9b4030-0e11-4867-a799-ddaac6835e8b"
+      },
+      "createdAt": "2026-11-17T12:30:08.331Z"
+    },
+    {
+      "sequence": "46",
+      "topic": "outcome.status_changed",
+      "entityId": "e9dc5e6d-b53d-4fe0-966f-ebd826239adc",
+      "schemaVersion": 1,
+      "payload": {
+        "actorId": "bot:ddedd81f-10b0-49d1-9ee2-c707defacbc0",
+        "eventId": "95ef1bf0-4f01-496c-b5b8-10eae5898ce1",
+        "payload": {
+          "to": "decision_pending",
+          "from": "running"
+        },
+        "occurredAt": "2026-11-17T12:30:08.334Z",
+        "correlationId": "95ef1bf0-4f01-496c-b5b8-10eae5898ce1",
+        "schemaVersion": 1
+      },
+      "createdAt": "2026-11-17T12:30:08.334Z"
+    },
+    {
+      "sequence": "50",
+      "topic": "outcome.work_item.updated",
+      "entityId": "e9dc5e6d-b53d-4fe0-966f-ebd826239adc",
+      "schemaVersion": 1,
+      "payload": {
+        "actorId": "system:outcome-runtime",
+        "eventId": "264d0a3d-cd16-4702-803b-4cf204224e2c",
+        "payload": {
+          "to": "running",
+          "from": "waiting_decision",
+          "reason": "decision_resolved"
+        },
+        "occurredAt": "2026-11-17T12:30:08.395Z",
+        "workItemId": "29696862-23e0-490e-98fe-6ee16bc62d00",
+        "correlationId": "264d0a3d-cd16-4702-803b-4cf204224e2c",
+        "schemaVersion": 1
+      },
+      "createdAt": "2026-11-17T12:30:08.395Z"
+    },
+    {
+      "sequence": "51",
+      "topic": "outcome.status_changed",
+      "entityId": "e9dc5e6d-b53d-4fe0-966f-ebd826239adc",
+      "schemaVersion": 1,
+      "payload": {
+        "actorId": "system:outcome-runtime",
+        "eventId": "0f5d9308-0804-446c-804c-5e57d9cb62c5",
+        "payload": {
+          "to": "running",
+          "from": "decision_pending"
+        },
+        "occurredAt": "2026-11-17T12:30:08.396Z",
+        "correlationId": "0f5d9308-0804-446c-804c-5e57d9cb62c5",
+        "schemaVersion": 1
+      },
+      "createdAt": "2026-11-17T12:30:08.396Z"
+    },
+    {
+      "sequence": "52",
+      "topic": "outcome.decision.resolved",
+      "entityId": "e9dc5e6d-b53d-4fe0-966f-ebd826239adc",
+      "schemaVersion": 1,
+      "payload": {
+        "runId": "d1f5b2f6-bd40-47d1-98fe-a8c9775625a1",
+        "actorId": "owner:local",
+        "eventId": "0e1515ff-d779-4558-b602-56c7062c7e1c",
+        "payload": {
+          "optionId": "option-1",
+          "customText": null,
+          "decisionId": "2b9b4030-0e11-4867-a799-ddaac6835e8b",
+          "resolutionEffect": "plan_only"
+        },
+        "occurredAt": "2026-11-17T12:30:08.397Z",
+        "workItemId": "29696862-23e0-490e-98fe-6ee16bc62d00",
+        "correlationId": "decision-replay:9df167a7-8383-45a5-b385-373a9269f259:resolve:0",
+        "schemaVersion": 1,
+        "idempotencyKey": "decision-replay:9df167a7-8383-45a5-b385-373a9269f259:resolve:0",
+        "contractRevision": 1
+      },
+      "createdAt": "2026-11-17T12:30:08.397Z"
+    },
+    {
+      "sequence": "56",
+      "topic": "outcome.output.recorded",
+      "entityId": "e9dc5e6d-b53d-4fe0-966f-ebd826239adc",
+      "schemaVersion": 1,
+      "payload": {
+        "runId": "2a6e9b03-7b00-406d-aff5-ba31629b96a7",
+        "actorId": "system:outcome-runtime",
+        "eventId": "5d250144-efd7-4daf-8253-3f46e626daee",
+        "payload": {
+          "kind": "final_result",
+          "outputId": "68212246-164a-46a5-8cd5-c30ac73fdcdc"
+        },
+        "occurredAt": "2026-11-17T12:30:08.449Z",
+        "workItemId": "29696862-23e0-490e-98fe-6ee16bc62d00",
+        "correlationId": "final:29696862-23e0-490e-98fe-6ee16bc62d00",
+        "schemaVersion": 1,
+        "idempotencyKey": "final:29696862-23e0-490e-98fe-6ee16bc62d00",
+        "contractRevision": 1
+      },
+      "createdAt": "2026-11-17T12:30:08.449Z"
+    },
+    {
+      "sequence": "57",
+      "topic": "outcome.work_item.updated",
+      "entityId": "e9dc5e6d-b53d-4fe0-966f-ebd826239adc",
+      "schemaVersion": 1,
+      "payload": {
+        "actorId": "system:outcome-runtime",
+        "eventId": "3efc3ed8-e284-462b-9451-37c5092bb5b3",
+        "payload": {
+          "to": "completed",
+          "from": "running",
+          "reason": "run_completed"
+        },
+        "occurredAt": "2026-11-17T12:30:08.452Z",
+        "workItemId": "29696862-23e0-490e-98fe-6ee16bc62d00",
+        "correlationId": "settle:2a6e9b03-7b00-406d-aff5-ba31629b96a7",
+        "schemaVersion": 1,
+        "idempotencyKey": "settle:2a6e9b03-7b00-406d-aff5-ba31629b96a7"
+      },
+      "createdAt": "2026-11-17T12:30:08.452Z"
+    },
+    {
+      "sequence": "58",
+      "topic": "outcome.status_changed",
+      "entityId": "e9dc5e6d-b53d-4fe0-966f-ebd826239adc",
+      "schemaVersion": 1,
+      "payload": {
+        "actorId": "system:outcome-runtime",
+        "eventId": "d2a5f46f-9c06-47d5-909c-365a40a11c1d",
+        "payload": {
+          "to": "review_pending",
+          "from": "running"
+        },
+        "occurredAt": "2026-11-17T12:30:08.454Z",
+        "correlationId": "d2a5f46f-9c06-47d5-909c-365a40a11c1d",
+        "schemaVersion": 1
+      },
+      "createdAt": "2026-11-17T12:30:08.454Z"
+    },
+    {
+      "sequence": "59",
+      "topic": "outcome.review.required",
+      "entityId": "e9dc5e6d-b53d-4fe0-966f-ebd826239adc",
+      "schemaVersion": 1,
+      "payload": {
+        "actorId": "system:outcome-runtime",
+        "eventId": "32924374-f473-4a50-bfb9-86ed189c0502",
+        "payload": {
+          "workItemIds": [
+            "29696862-23e0-490e-98fe-6ee16bc62d00"
+          ],
+          "criterionIds": [
+            "3f782def-5ae0-427e-8afc-edf5a1122d72"
+          ]
+        },
+        "occurredAt": "2026-11-17T12:30:08.459Z",
+        "correlationId": "review-required:9969db47-920c-4f70-8a0b-6367f00d7ce1",
+        "schemaVersion": 1,
+        "idempotencyKey": "review-required:9969db47-920c-4f70-8a0b-6367f00d7ce1",
+        "contractRevision": 1
+      },
+      "createdAt": "2026-11-17T12:30:08.459Z"
+    }
+  ]
+}

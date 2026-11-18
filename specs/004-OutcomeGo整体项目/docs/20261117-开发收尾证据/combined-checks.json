@@ -1,0 +1,177 @@
+[
+  {
+    "label": "desktop-full",
+    "cwd": "/Users/jackson/Code/openteam-spec004/apps/desktop",
+    "command": [
+      "bun",
+      "--no-env-file",
+      "test",
+      "--pass-with-no-tests",
+      "--isolate"
+    ],
+    "environmentKeys": [
+      "HOME",
+      "PATH",
+      "TMPDIR"
+    ],
+    "testDatabase": null,
+    "exitCode": 0,
+    "seconds": 29.055,
+    "log": "data/spec004-development-validation/desktop-full.log",
+    "sha256": "ac04fa39d3696e291a822d2c6928474edcd4c97afa9569820ddf5281baba2284"
+  },
+  {
+    "label": "desktop-types",
+    "cwd": "/Users/jackson/Code/openteam-spec004",
+    "command": [
+      "bun",
+      "--no-env-file",
+      "run",
+      "--cwd",
+      "apps/desktop",
+      "typecheck"
+    ],
+    "environmentKeys": [
+      "HOME",
+      "PATH",
+      "TMPDIR"
+    ],
+    "testDatabase": null,
+    "exitCode": 0,
+    "seconds": 19.164,
+    "log": "data/spec004-development-validation/desktop-types.log",
+    "sha256": "b07a3e83f47a833e94d9bf65fb3dd1b9a2f5d9bc2868c6590a3d01b71bbc9368"
+  },
+  {
+    "label": "server-types",
+    "cwd": "/Users/jackson/Code/openteam-spec004",
+    "command": [
+      "bun",
+      "--no-env-file",
+      "./node_modules/.bin/tsc",
+      "-p",
+      "apps/server/tsconfig.json",
+      "--pretty",
+      "false"
+    ],
+    "environmentKeys": [
+      "HOME",
+      "PATH",
+      "TMPDIR"
+    ],
+    "testDatabase": null,
+    "exitCode": 0,
+    "seconds": 20.713,
+    "log": "data/spec004-development-validation/server-types.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "label": "regression-types",
+    "cwd": "/Users/jackson/Code/openteam-spec004",
+    "command": [
+      "bun",
+      "--no-env-file",
+      "scripts/check/outcome-regression-types.ts"
+    ],
+    "environmentKeys": [
+      "HOME",
+      "PATH",
+      "TMPDIR"
+    ],
+    "testDatabase": null,
+    "exitCode": 0,
+    "seconds": 18.27,
+    "log": "data/spec004-development-validation/regression-types.log",
+    "sha256": "e3167befbdb87e7e9618d1c2f78a73deba081139efdda618944e237fdb181eb7"
+  },
+  {
+    "label": "root-script-tests",
+    "cwd": "/Users/jackson/Code/openteam-spec004",
+    "command": [
+      "bun",
+      "--no-env-file",
+      "test",
+      "./scripts/backup.test.ts",
+      "./scripts/outcome-recovery/populated-backup.test.ts",
+      "./scripts/migration/validate-outcomego-backup.test.ts"
+    ],
+    "environmentKeys": [
+      "HOME",
+      "PATH",
+      "TMPDIR"
+    ],
+    "testDatabase": null,
+    "exitCode": 0,
+    "seconds": 3.35,
+    "log": "data/spec004-development-validation/root-script-tests.log",
+    "sha256": "8681d0b09bfba41c41bae9cf88b40e9d0a57338909fcb9483014a2f0e9e5cb3e"
+  },
+  {
+    "label": "database-gates",
+    "cwd": "/Users/jackson/Code/openteam-spec004",
+    "command": [
+      "bun",
+      "--no-env-file",
+      "test",
+      "./scripts/check/test-database-gates.test.ts"
+    ],
+    "environmentKeys": [
+      "HOME",
+      "PATH",
+      "TMPDIR"
+    ],
+    "testDatabase": null,
+    "exitCode": 0,
+    "seconds": 0.187,
+    "log": "data/spec004-development-validation/database-gates.log",
+    "sha256": "62c248b884ec94baf1cafe3af49a1afa1629ec9ea16453c7ed830b4f68ce7bec"
+  },
+  {
+    "label": "workflows",
+    "cwd": "/Users/jackson/Code/openteam-spec004",
+    "command": [
+      "bun",
+      "--no-env-file",
+      "scripts/check/release-workflows.ts"
+    ],
+    "environmentKeys": [
+      "HOME",
+      "PATH",
+      "TMPDIR"
+    ],
+    "testDatabase": null,
+    "exitCode": 0,
+    "seconds": 0.031,
+    "log": "data/spec004-development-validation/workflows.log",
+    "sha256": "d6fb2c1c7c162faa0ee0bf3ed897c82f7e51cf472e4179e19f1d52b7247311b9"
+  },
+  {
+    "label": "server-union",
+    "cwd": "/Users/jackson/Code/openteam-spec004",
+    "command": [
+      "bun",
+      "--no-env-file",
+      "test",
+      "./apps/server/test/outcome-product-replay.integration.test.ts",
+      "./apps/server/test/outcome-decision-full-replay.integration.test.ts",
+      "./apps/server/test/human-receipt.integration.test.ts",
+      "./apps/server/test/outcome-decision-tool.test.ts",
+      "./apps/server/test/outcome-inbox-service.test.ts",
+      "./apps/server/test/outcome-review-service.test.ts",
+      "./apps/server/test/human-work-service.test.ts",
+      "./apps/server/test/knowledge-provider.test.ts",
+      "./apps/server/test/outcome-inbox-routes.test.ts"
+    ],
+    "environmentKeys": [
+      "HOME",
+      "OUTCOMEGO_TEST_DATABASE_URL",
+      "PATH",
+      "TMPDIR"
+    ],
+    "testDatabase": "postgresql://outcomego@127.0.0.1:55440/outcomego_development_union",
+    "exitCode": 0,
+    "seconds": 18.771,
+    "log": "data/spec004-development-validation/server-union.log",
+    "sha256": "f2db54d218d9ec5e65a9a111f78e5ab622d78680a23be0827371b8c7105b7b75"
+  }
+]
