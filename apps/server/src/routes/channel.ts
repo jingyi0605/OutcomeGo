@@ -8,6 +8,7 @@ import {
   SetChannelAvatarInput,
   SetChannelHiddenInput,
   SetChannelMembersInput,
+  SetChannelNotificationMuteInput,
   UpdateChannelProfileInput,
   WidgetDismissInput,
   WidgetResponseInput,
@@ -144,6 +145,12 @@ export async function channelRoutes(context: RouteContext): Promise<Response | u
 }
 
 const routes = [
+  bodyRoute(
+    "PATCH",
+    /^\/api\/channels\/([^/]+)\/notification-mute$/,
+    SetChannelNotificationMuteInput,
+    ({ app }, id, input) => app.setGroupNotificationMute(id, input.muted)
+  ),
   effectRoute("DELETE", /^\/api\/channels\/([^/]+)$/, ({ app }, id) => app.deleteGroup(id)),
   effectRoute("GET", /^\/api\/channels\/([^/]+)\/client-state$/, ({ app }, id) =>
     app.channelClientState(decodeURIComponent(id))

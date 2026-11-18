@@ -5,6 +5,7 @@ import { createPrismaClient } from "@outcomego/db";
 import {
   AgentMessaging,
   channelNotificationStates,
+  publishChannelNotification,
   publishMessageNotification,
   unreadBadgeCount,
   unreadChannelCount,
@@ -308,8 +309,11 @@ test.skipIf(!databaseUrl)("thread replies carry their id so the alert opens the 
   }
 });
 
-test.skipIf(!databaseUrl)("group chat alerts are titled with the group, sent by the Bot", async () => {
+test.skipIf(!databaseUrl)("group mute suppresses alerts and badges while retaining unread messages and reactions", async () => {
   const prisma = createPrismaClient(databaseUrl!);
+  const initialBadge = await unreadBadgeCount(prisma);
+  const previousAuth = process.env.OUTCOMEGO_AUTH_MODE;
+  process.env.OUTCOMEGO_AUTH_MODE = "disabled";
   const bot = await prisma.bot.create({
     data: { name: "Planner", defaultDirectory: "/tmp/group-alert-qa" },
   });
@@ -320,22 +324,80 @@ test.skipIf(!databaseUrl)("group chat alerts are titled with the group, sent by 
       members: { create: { botId: bot.id, ordinal: 0 } },
     },
   });
-  try {
+  const service = new NotificationService(prisma, "disabled");
+  const installationId = crypto.randomUUID();
+  const delivered: Array<{ kind: string; badgeCount: number; body?: string }> = [];
+  const apns = {
+    send: async (_device: unknown, payload: { kind: string; body?: string }, badgeCount: number) => {
+      delivered.push({ ...payload, badgeCount });
+      return { status: 200 };
+    },
+  } as unknown as ApnsClient;
+  const dispatcher = new PushNotificationDispatcher(prisma, "disabled", apns, undefined, async () => {});
+  const drain = async () => {
+    await prisma.outboxDelivery.updateMany({
+      where: { topic: "push.notification", status: "pending" },
+      data: { availableAt: new Date(0) },
+    });
+    await dispatcher.drain();
+  };
+  const addMessage = async (content: string) => {
     const message = await prisma.channelMessage.create({
       data: {
         channelId: group.id,
         sender: "agent",
         senderBotId: bot.id,
-        content: "Hotels are booked.",
+        content,
         metadata: { kind: "send-message", type: "text" },
       },
     });
     await prisma.$transaction((tx) => publishMessageNotification(tx, message));
-    const state = (await channelNotificationStates(prisma, [group.id])).get(group.id)!;
-    expect(state.notifications.map(({ title, body, sender }) => ({ title, body, sender: sender?.name }))).toEqual([
+    return message;
+  };
+  const state = async () => (await channelNotificationStates(prisma, [group.id])).get(group.id)!;
+  try {
+    await Effect.runPromise(service.register({
+      installationId, platform: "ios", provider: "apns", pushToken: "ef".repeat(32),
+      apnsEnvironment: "development", apnsTopic: "dev.openteam.mobile.swift", notificationScope: "cd".repeat(32),
+    }, { mode: "disabled" }));
+    const first = await addMessage("Hotels are booked.");
+    expect((await state()).notifications.map(({ title, body, sender }) => ({ title, body, sender: sender?.name }))).toEqual([
       { title: "Trip Planning", body: "Hotels are booked.", sender: "Planner" },
     ]);
+    expect(await unreadBadgeCount(prisma)).toBe(initialBadge + 1);
+
+    await Effect.runPromise(service.setGroupNotificationMute(group.id, true));
+    await addMessage("Flights are booked.");
+    await prisma.$transaction((tx) => publishChannelNotification(tx, `reaction:${first.id}`, {
+      schemaVersion: 1, botId: bot.id, channelId: group.id, runId: "", kind: "reaction",
+      messageSequence: first.sequence.toString(), title: "Reaction", body: "Liked",
+    }));
+    const muted = await state();
+    expect(muted.notifications).toEqual([]);
+    expect(muted.activityUnreadCount).toBe(1);
+    expect(await unreadChannelCount(prisma, group.id, 0n)).toBe(2);
+    expect(await unreadBadgeCount(prisma)).toBe(initialBadge);
+    const snapshot = await Effect.runPromise(service.snapshot());
+    expect(snapshot).toMatchObject({ badgeCount: initialBadge, mutedChannelIds: [group.id] });
+
+    await Effect.runPromise(service.setGroupNotificationMute(group.id, false));
+    expect(await unreadBadgeCount(prisma)).toBe(initialBadge + 3);
+    expect((await state()).notifications).toEqual([]);
+    await drain();
+    expect(delivered.map(({ kind }) => kind)).toEqual(["badge-sync", "badge-sync"]);
+
+    await addMessage("Ready to go.");
+    expect((await state()).notifications.map(({ body }) => body)).toEqual(["Ready to go."]);
+    await drain();
+    expect(delivered.at(-1)).toMatchObject({ kind: "message", body: "Ready to go.", badgeCount: initialBadge + 4 });
   } finally {
+    if (previousAuth === undefined) delete process.env.OUTCOMEGO_AUTH_MODE;
+    else process.env.OUTCOMEGO_AUTH_MODE = previousAuth;
+    const device = await prisma.pushDevice.findUnique({ where: { installationId } });
+    if (device) {
+      await prisma.outboxDelivery.deleteMany({ where: { topic: "push.notification", target: device.id } });
+      await prisma.pushDevice.delete({ where: { id: device.id } });
+    }
     await prisma.channel.delete({ where: { id: group.id } });
     await prisma.bot.delete({ where: { id: bot.id } });
     await prisma.$disconnect();

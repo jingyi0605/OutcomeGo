@@ -164,12 +164,13 @@ export class NotificationService {
   // multiple conversations on desktop still retires every acknowledged alert.
   snapshot = () => serviceEffect(async () => this.prisma.$transaction(async (tx) => {
     const event = await tx.event.findFirst({ orderBy: { sequence: "desc" }, select: { sequence: true } });
-    const [states, badgeCount, outcomeNotifications] = await Promise.all([
+    const [states, badgeCount, outcomeNotifications, mutedGroups] = await Promise.all([
       tx.channelReadState.findMany({ select: { channelId: true, lastReadSequence: true, lastReadNotificationSequence: true } }),
       unreadBadgeCount(tx),
       import("@outcomego/messaging").then(({ unreadOutcomeNotifications }) => unreadOutcomeNotifications(tx)),
+      tx.channel.findMany({ where: { notificationsMuted: true, archivedAt: null }, select: { id: true } }),
     ]);
-    return { outcomeNotifications, notificationRouting: await notificationRouting(tx, this.authMode), cursor: (event?.sequence ?? 0n).toString(), badgeCount, readStates: states.map(s => ({
+    return { outcomeNotifications, mutedChannelIds: mutedGroups.map(({ id }) => id), notificationRouting: await notificationRouting(tx, this.authMode), cursor: (event?.sequence ?? 0n).toString(), badgeCount, readStates: states.map(s => ({
       channelId: s.channelId, lastReadSequence: s.lastReadSequence.toString(),
       lastReadNotificationSequence: s.lastReadNotificationSequence.toString(),
     })) };
@@ -212,6 +213,47 @@ export class NotificationService {
       }
       return { ok: true };
     });
+
+  setGroupNotificationMute = (channelId: string, muted: boolean) =>
+    serviceEffect(() => this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(${PUSH_DELIVERY_ADVISORY_LOCK.namespace}, ${PUSH_DELIVERY_ADVISORY_LOCK.key})`;
+      await tx.$executeRaw`SELECT 1 FROM "outcomego_channel" WHERE id = ${channelId}::uuid FOR NO KEY UPDATE`;
+      const channel = await tx.channel.findFirst({
+        where: { id: channelId, kind: "group", archivedAt: null },
+        select: { notificationsMuted: true, updatedAt: true },
+      });
+      if (!channel) throw new ApiError(404, "group_not_found", "Active group not found");
+      if (channel.notificationsMuted !== muted) {
+        const latest = await tx.channelNotification.findFirst({
+          where: { channelId }, orderBy: { sequence: "desc" }, select: { sequence: true },
+        });
+        await tx.channel.update({
+          where: { id: channelId },
+          data: {
+            notificationsMuted: muted,
+            mutedThroughNotificationSequence: latest?.sequence ?? 0n,
+            updatedAt: channel.updatedAt,
+          },
+        });
+        const event = await appendEvent(tx, "channel.notification_mute.updated", channelId, { muted });
+        const devices = await tx.pushDevice.findMany({
+          where: deliverablePushDeviceWhere(this.authMode), select: { id: true },
+        });
+        if (devices.length > 0) {
+          const badgeCount = await unreadBadgeCount(tx);
+          await tx.outboxDelivery.createMany({ data: devices.map(({ id }) => ({
+            deliveryKey: `notification:mute:${event.sequence}:${id}`,
+            topic: "push.notification",
+            target: id,
+            payload: {
+              schemaVersion: 1, kind: "badge-sync", badgeCount,
+              ...(muted ? { mutedChannelId: channelId } : {}),
+            },
+          })) });
+        }
+      }
+      return { channelId, muted };
+    }, { maxWait: PUSH_DELIVERY_LOCK_TIMEOUT_MS, timeout: PUSH_DELIVERY_LOCK_TIMEOUT_MS }));
 
   markChannelRead = (
     channelId: string,

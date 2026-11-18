@@ -24,6 +24,9 @@ export const publishChannelNotification = async (
     title: truncateNotificationText(input.title),
     body: truncateNotificationText(input.body),
   };
+  // Serialize activity allocation with reads in this channel. NO KEY UPDATE is
+  // compatible with the foreign-key locks already held by message inserts.
+  await tx.$executeRaw`SELECT 1 FROM "outcomego_channel" WHERE id = ${input.channelId}::uuid FOR NO KEY UPDATE`;
   const [bot, channel] = await Promise.all([
     tx.bot.findUnique({ where: { id: input.botId } }),
     tx.channel.findUnique({ where: { id: input.channelId } }),
@@ -52,9 +55,6 @@ export const publishChannelNotification = async (
       color: /^#[0-9a-f]{6}$/i.test(bot.color) ? bot.color : "#4f7cff",
     },
   };
-  // Serialize activity allocation with reads in this channel. NO KEY UPDATE is
-  // compatible with the foreign-key locks already held by message inserts.
-  await tx.$executeRaw`SELECT 1 FROM "outcomego_channel" WHERE id = ${input.channelId}::uuid FOR NO KEY UPDATE`;
   const created = await tx.channelNotification.createMany({
     data: {
       key,
@@ -80,6 +80,7 @@ export const publishChannelNotification = async (
       payload: payload as unknown as Prisma.InputJsonValue,
     },
   });
+  if (channel.notificationsMuted) return;
   const disabledAuth = process.env.OUTCOMEGO_AUTH_MODE?.trim().toLowerCase() === "disabled";
   const devices = await tx.pushDevice.findMany({
     where: disabledAuth
@@ -201,6 +202,7 @@ export const channelNotificationStates = async (
         FROM (SELECT n.payload, n.sequence FROM "outcomego_channel_notification" n
           JOIN "outcomego_bot" bot ON bot.id = n."botId"
           WHERE n."channelId" = requested."channelId" AND NOT n.revoked
+            AND NOT channel."notificationsMuted" AND n.sequence > channel."mutedThroughNotificationSequence"
             AND n.kind IN ('message', 'reaction')
             AND bot."notificationsEnabled" AND NOT bot."hiddenFromSidebar"
             AND CASE WHEN n.kind = 'reaction'
@@ -212,6 +214,7 @@ export const channelNotificationStates = async (
         AND EXISTS (SELECT 1 FROM "outcomego_bot" b WHERE b.id = n."botId" AND b."notificationsEnabled" AND NOT b."hiddenFromSidebar")
         AND n.sequence > COALESCE(state."lastReadNotificationSequence", 0)) AS "activityUnreadCount"
     FROM unnest(${channelIds}::uuid[]) requested("channelId")
+    JOIN "outcomego_channel" channel ON channel.id = requested."channelId"
     LEFT JOIN "outcomego_channel_read_state" state ON state."channelId" = requested."channelId"
   `);
   return new Map(

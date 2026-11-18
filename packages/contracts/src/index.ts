@@ -265,6 +265,7 @@ export interface BadgeSyncNotificationPayload {
   kind: "badge-sync";
   badgeCount: number;
   readState?: NotificationReadState;
+  mutedChannelId?: string;
 }
 
 export type PushNotificationPayload = AgentNotificationPayload | BadgeSyncNotificationPayload | import("./notification-content").OutcomeNotificationPayload;
@@ -366,6 +367,8 @@ export const SetChannelHiddenInput = Schema.Struct({
   clientId: Schema.String.pipe(Schema.minLength(8), Schema.maxLength(120)),
 });
 export type SetChannelHiddenInput = typeof SetChannelHiddenInput.Type;
+
+export const SetChannelNotificationMuteInput = Schema.Struct({ muted: Schema.Boolean });
 
 export const RenameChannelInput = Schema.Struct({
   name: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(80)),
@@ -1742,6 +1745,7 @@ export interface ChannelView {
   kind: ChannelKind;
   name: string;
   description: string;
+  notificationsMuted?: boolean;
   hasAvatar: boolean;
   directKey: string | null;
   workingDirectory: string | null;

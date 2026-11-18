@@ -639,6 +639,8 @@ model Channel {
   kind ChannelKind
   name String
   description String           @default("")
+  notificationsMuted Boolean @default(false)
+  mutedThroughNotificationSequence BigInt @default(0)
   avatarPath String?
   directKey String?          @unique
   workingDirectory String?

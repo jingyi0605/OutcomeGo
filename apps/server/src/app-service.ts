@@ -852,6 +852,7 @@ export class AppService {
   disablePushDevicesForSession = forwardServiceMethod(() => this.notifications.disableForSession);
 
   markChannelRead = forwardServiceMethod(() => this.notifications.markChannelRead);
+  setGroupNotificationMute = forwardServiceMethod(() => this.notifications.setGroupNotificationMute);
 
   search = forwardServiceMethod(() => this.searchIndex.search);
   channelLibrary = forwardServiceMethod(() => this.library.list);

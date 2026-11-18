@@ -14,6 +14,7 @@ export const toChannelView = (channel: {
   kind: ChannelView["kind"];
   name: string;
   description: string;
+  notificationsMuted?: boolean;
   avatarPath?: string | null;
   directKey: string | null;
   workingDirectory: string | null;
@@ -26,6 +27,7 @@ export const toChannelView = (channel: {
   kind: channel.kind,
   name: channel.name,
   description: channel.description,
+  notificationsMuted: channel.notificationsMuted,
   hasAvatar: Boolean(channel.avatarPath),
   directKey: channel.directKey,
   workingDirectory: channel.workingDirectory,

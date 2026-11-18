@@ -14,6 +14,7 @@ export const unreadBadgeCount = async (client: QueryClient): Promise<number> => 
     LEFT JOIN "outcomego_channel_read_state" AS read_state
       ON read_state."channelId" = channel."id"
     WHERE channel."archivedAt" IS NULL
+      AND NOT channel."notificationsMuted"
       AND message."sender" = 'agent'
       AND message."sequence" > coalesce(read_state."lastReadSequence", 0)
       AND NOT (message."metadata" ? 'fromAgent')
@@ -33,6 +34,7 @@ export const unreadBadgeCount = async (client: QueryClient): Promise<number> => 
       LEFT JOIN "outcomego_channel_read_state" s ON s."channelId" = n."channelId"
       WHERE NOT n.revoked AND c."archivedAt" IS NULL AND NOT c."hiddenFromSidebar"
         AND b."notificationsEnabled" AND NOT b."hiddenFromSidebar"
+        AND NOT c."notificationsMuted"
         AND (n.kind = 'reaction' OR n."messageSequence" IS NULL)
         AND n.sequence > COALESCE(s."lastReadNotificationSequence", 0)
     ))::bigint AS "count"

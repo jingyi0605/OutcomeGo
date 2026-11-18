@@ -622,6 +622,11 @@ export const createOutcomeGoClient = (options: OutcomeGoClientOptions) => {
         }
       );
     },
+    setGroupNotificationMute: (channelId: string, muted: boolean) =>
+      transport.request<{ channelId: string; muted: boolean }>(
+        `/api/v0/channels/${encodeURIComponent(channelId)}/notification-mute`,
+        { method: "PATCH", body: JSON.stringify({ muted }) }
+      ),
     setChannelAvatar: (channelId: string, pngBase64: string | null) =>
       transport.request<ChannelView>(`/api/v0/channels/${encodeURIComponent(channelId)}/avatar`, {
         method: "PUT",

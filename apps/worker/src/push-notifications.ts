@@ -318,6 +318,7 @@ export class PushNotificationDispatcher {
       bot.hiddenFromSidebar ||
       !channel ||
       channel.archivedAt ||
+      channel.notificationsMuted ||
       channel.hiddenFromSidebar
     )
       return false;
@@ -326,7 +327,7 @@ export class PushNotificationDispatcher {
     const activity = await tx.channelNotification.findUnique({
       where: { sequence: BigInt(payload.notificationSequence) },
     });
-    if (!activity || activity.revoked) return false;
+    if (!activity || activity.revoked || activity.sequence <= channel.mutedThroughNotificationSequence) return false;
     return (
       !state ||
       !notificationIsRead(payload, {

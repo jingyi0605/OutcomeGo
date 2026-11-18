@@ -62,6 +62,7 @@ export function fcmPayload(
     if (payload.sender) data.sender = JSON.stringify(payload.sender);
   } else {
     data.readState = JSON.stringify(payload.readState ?? null);
+    if (payload.mutedChannelId) data.mutedChannelId = payload.mutedChannelId;
   }
   const message: Record<string, unknown> = {
     token: device.pushToken,
