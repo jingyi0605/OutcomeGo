@@ -1197,7 +1197,7 @@ Info 复用 MessageResponse 渲染 Markdown，Popover Portal 优先放到最近�
 原有读取闸门把 `routine` 与 `outcome` 两种来源同视为后台并一律拒绝（`internal-tool-service.ts`），而聊天内授权依赖“向聊天发 widget、用户回复后下一轮携带隐藏引用”，在目标线程里无从完成。本设计只放开 `outcome` 来源，复用既有决策链路，不新增表：
 
 - 闸门：`outcome` 且带 WorkItem 的运行可调用 Bitwarden 工具；`routine` 与不合规子任务仍返回 `bitwarden_tool_forbidden`。搜索仅返回非机密元数据，与聊天一致，不需审批。
-- 申请：`RequestBitwardenReadApproval` 在 Outcome 运行中先按原规则校验候选实例与项目，再交给 `createOutcomeCredentialApprovalTool`。若所有候选已被授权则直接返回 `already_granted`；否则经共享的 `requestDecisionFromRun`（由原 `RequestOutcomeDecision` 的事务体抽出，行为不变）在同一事务内创建决策并把 WorkItem 置为等待决策。决策两个选项：允许（`credentialGrant` 携带候选，由服务端写入，代理侧工具输入没有该字段，解码时被忽略）与不允许；`customEntryAllowed=false`。固定英文文案由桌面端翻译；具体登录项由 `credentialGrant` 在卡片首屏列出。
+- 申请：`RequestBitwardenReadApproval` 在 Outcome 运行中先按原规则校验候选实例与项目，再交给 `createOutcomeCredentialApprovalTool`。若所有候选已被授权则直接返回 `already_granted`；否则经共享的 `requestDecisionFromRun`（由原 `RequestOutcomeDecision` 的事务体抽出，行为不变）在同一事务内创建决策并把 WorkItem 置为等待决策。决策两个选项：允许（`credentialGrant` 携带候选，由服务端写入，代理侧工具输入没有该字段，解码时被忽略）与不允许；`customEntryAllowed=true`（仅用于随按钮附带意见，不产生授权）；`isApprovalDecision` 按理由码 `credential_access_required` 识别，决策卡因此显示与目标审批相同的意见框和直接按钮。固定英文文案由桌面端翻译；具体登录项由 `credentialGrant` 在卡片首屏列出。
 - 授权判定：`findOutcomeCredentialGrant` 读取该 Outcome 下 `reasonCode=credential_access_required`、已解决且 `resolvedBy` 以 `owner:` 或 `user:` 开头的决策，其已选选项的 `credentialGrant` 匹配实例与登录项时才放行。授权随决策记录存在，因此可审计，无需单独撤销存储；Outcome 被取消或验收后不再有运行可使用。
 - 读取：`ReadBitwardenCredential` 在 Outcome 运行中以上述授权代替“隐藏引用 + 聊天授权记录”，其后的租约签发、消费和 Computer 内部读取流程完全沿用。
 - 回合控制：决策被所有者解决后沿用既有 `decision_resolved` 唤醒新一轮；Computer 在 Outcome 线程收到 `waiting_for_user` 时结束本轮（与 `RequestOutcomeDecision` 一致）。技能与 README 同步说明“Outcome 线程里申请即暂停，批准对整个目标有效，被拒绝不重复申请”。
