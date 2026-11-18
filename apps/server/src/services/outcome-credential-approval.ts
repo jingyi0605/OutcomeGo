@@ -103,7 +103,8 @@ export const createOutcomeCredentialApprovalTool = (
         problemSummary: "Reading saved logins needs your approval.",
         nextStepSummary: "Allow reading these saved logins for this goal?",
         options,
-        customEntryAllowed: false,
+        // Comments ride along with the chosen button; a grant only ever comes from the option itself.
+        customEntryAllowed: true,
       },
       { tool: "RequestBitwardenReadApproval", candidates: candidates.map((entry) => `${entry.connectionId}:${entry.itemId}`).sort() },
     );

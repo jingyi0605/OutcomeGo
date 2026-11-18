@@ -123,13 +123,19 @@ describe.skipIf(!url)("Outcome credential step approval", () => {
     }
   });
 
-  test("custom text cannot be used to answer a credential approval", async () => {
+  test("a comment may accompany the choice, but only the chosen option grants access", async () => {
     const f = await setup();
     try {
       const result = (await f.tool(f.request as never, f.context)) as { decisionId: string };
       const decision = await f.h.db.outcomeDecision.findUniqueOrThrow({ where: { id: result.decisionId } });
-      expect(decision.customEntryAllowed).toBe(false);
+      expect(decision.customEntryAllowed).toBe(true);
       expect(decision.reasonCode).toBe("credential_access_required");
+      await f.h.db.run.update({ where: { id: f.source.id }, data: { status: "completed", completedAt: new Date() } });
+      // Words alone are never a grant.
+      await Effect.runPromise(
+        f.decisions.resolve(result.decisionId, { customText: "yes please", expectedContractRevision: 1, clientRequestId: crypto.randomUUID() }, "owner:local"),
+      );
+      expect(await findOutcomeCredentialGrant(f.h.db, f.item.id, grantItem.itemId, null)).toBeNull();
     } finally {
       await f.h.cleanup();
     }
