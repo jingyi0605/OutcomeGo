@@ -72,6 +72,10 @@ jobs:
         env:
           DATABASE_URL: postgresql://outcomego:outcomego@127.0.0.1:5432/outcomego
         run: bun run db:deploy
+      - name: Validate replay and backup scripts outside package workspaces
+        run: |
+          bun --no-env-file scripts/check/outcome-regression-types.ts
+          bun --no-env-file test ./scripts/backup.test.ts ./scripts/outcome-recovery/populated-backup.test.ts ./scripts/migration/validate-outcomego-backup.test.ts
       - name: Run all tests with database integration
         run: bun run test --force --continue=always
       - run: bun run build
