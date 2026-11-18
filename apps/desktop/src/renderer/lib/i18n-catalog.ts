@@ -83,6 +83,7 @@ export const sourceTranslations: Record<string, string> = {
     "基于已保存记录整理 · 点击信息图标查看来源",
 
   "No prerequisite checks recorded": "尚无前提核实记录",
+  "Reported by the executing agent": "由执行方在运行中上报",
   "What does this plan include?": "这个方案包含什么？",
   "Original record": "查看原始记录",
   Met: "已满足",

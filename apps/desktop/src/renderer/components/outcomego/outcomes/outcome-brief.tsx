@@ -201,6 +201,12 @@ export function OutcomeBriefView({
     (item) => item.contractRevision === outcome.currentRevision
   );
   const dependencyIds = new Set(tasks.flatMap((item) => item.dependsOn));
+  const progressItem =
+    tasks.find((item) => item.status === "running" && item.progress?.tasks.length) ??
+    [...tasks].reverse().find((item) => item.progress?.tasks.length);
+  // Checks the executing agent reported while working; the generated summary can only list them as unverified.
+  const reportedItem = [...tasks].reverse().find((item) => item.progress?.prerequisites?.length);
+  const reportedPrerequisites = reportedItem?.progress?.prerequisites ?? [];
   for (const id of dependencyIds) {
     const dependency = outcome.workItems.find((item) => item.id === id);
     conditions.push({
@@ -211,12 +217,24 @@ export function OutcomeBriefView({
         : t("The prerequisite task could not be verified."),
     });
   }
-  for (const item of brief?.prerequisites ?? []) conditions.push({ ...item, status: "unknown" });
+  for (const check of reportedPrerequisites)
+    conditions.push({
+      title: check.title,
+      status: check.status,
+      explanation: check.summary ?? t("Reported by the executing agent"),
+      quote: [check.title, check.summary, reportedItem && `WorkItem ${reportedItem.id}`]
+        .filter(Boolean)
+        .join("\n"),
+    });
+  const sameCondition = (a: string, b: string) => {
+    const [x, y] = [a, b].map((text) => text.toLowerCase().replace(/\s+/g, " ").trim());
+    return Boolean(x && y && (x.includes(y) || y.includes(x)));
+  };
+  for (const item of brief?.prerequisites ?? [])
+    if (!reportedPrerequisites.some((check) => sameCondition(check.title, item.title)))
+      conditions.push({ ...item, status: "unknown" });
   const notMet = conditions.filter((item) => item.status === "unmet").length;
   const unknown = conditions.filter((item) => item.status === "unknown").length;
-  const progressItem =
-    tasks.find((item) => item.status === "running" && item.progress?.tasks.length) ??
-    [...tasks].reverse().find((item) => item.progress?.tasks.length);
   const taskSteps = progressItem?.progress?.tasks ?? null;
   const totalTasks = taskSteps ? taskSteps.length : tasks.length;
   const completedTasks = taskSteps
@@ -257,7 +275,11 @@ export function OutcomeBriefView({
                 value={
                   notMet
                     ? "unmet"
-                    : unknown || !brief || (!brief.prerequisites.length && !dependencyIds.size)
+                    : unknown ||
+                        (!brief && !reportedPrerequisites.length) ||
+                        (!brief?.prerequisites.length &&
+                          !reportedPrerequisites.length &&
+                          !dependencyIds.size)
                       ? "unknown"
                       : "met"
                 }
@@ -266,7 +288,7 @@ export function OutcomeBriefView({
                 {notMet ? t("{count} pending", { count: notMet }) : t("Plan approved")}
                 {unknown > 0
                   ? ` · ${t("{count} not verified", { count: unknown })}`
-                  : !notMet && !dependencyIds.size
+                  : !notMet && !dependencyIds.size && !reportedPrerequisites.length
                     ? ` · ${t("No prerequisite checks recorded")}`
                     : ""}
               </span>

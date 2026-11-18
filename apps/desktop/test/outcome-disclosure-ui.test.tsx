@@ -641,6 +641,43 @@ test("actual current-revision tasks and completed dependencies override proposed
   expect(host.querySelector('[data-record-status="completed"]')).not.toBeNull();
   expect(host.querySelector('[data-record-status="running"]')).not.toBeNull();
 });
+test("prerequisite checks reported by the executor replace the unverified summary entries", async () => {
+  const outcome = {
+    ...semanticGoal,
+    status: "running" as const,
+    currentRevisionView: { ...semanticGoal.currentRevisionView, status: "approved" as const },
+    workItems: [
+      {
+        ...outcomeFixture.workItems[0]!,
+        status: "running" as const,
+        dependsOn: [],
+        progress: {
+          phase: "Checking access",
+          tasks: [{ id: "scan", title: "Scan usage", status: "in_progress" as const }],
+          prerequisites: [
+            { id: "backup", title: "Backup check", status: "met" as const, summary: "Last backup verified" },
+            { id: "vault", title: "Vault access", status: "unmet" as const },
+          ],
+          updatedAt: "2026-11-18T00:00:00Z",
+        },
+      },
+    ],
+  };
+  await mount(
+    <OutcomeBriefView outcome={outcome} client={{ brief: async () => semanticBrief(outcome) }}>
+      <p>Running</p>
+    </OutcomeBriefView>
+  );
+  await expand("Prerequisites");
+  const rows = [...host.querySelectorAll("li")];
+  const backup = rows.filter((item) => item.textContent?.includes("Backup check"));
+  expect(backup).toHaveLength(1);
+  expect(backup[0]!.querySelector('[data-state="met"]')).not.toBeNull();
+  expect(backup[0]!.textContent).toContain("Last backup verified");
+  const vault = rows.find((item) => item.textContent?.includes("Vault access"))!;
+  expect(vault.querySelector('[data-state="unmet"]')).not.toBeNull();
+  expect(host.textContent).toContain("1 pending");
+});
 test("summary failure leaves actions available and can retry without approving anything", async () => {
   let reads = 0;
   const read = {
