@@ -148,7 +148,7 @@ describe("desktop notification projection", () => {
     expect(deriveUnreadChannelIds(base, current, "room")).toEqual([]);
   });
 
-  test("projects visible conversations and keeps muted Bots out of the badge", () => {
+  test("projects visible conversations and keeps muted Bots and groups out of the badge", () => {
     const state = (channelId: string) => ({
       channelId,
       lastReadSequence: "0",
@@ -169,11 +169,13 @@ describe("desktop notification projection", () => {
         ["quiet", "bot_dm", ["muted"], 3],
         ["gone", "bot_dm", ["hidden"], 4],
         ["room", "group", ["muted", "bot"], 1],
+        ["quiet-room", "group", ["bot"], 5],
       ].map(([id, kind, bots, unreadCount]) => ({
         id,
         kind,
         members: (bots as string[]).map((botId) => ({ botId })),
         unreadCount,
+        notificationsMuted: id === "quiet-room",
         notificationState: state(id as string),
       })),
       channelMessages: [],
@@ -190,6 +192,7 @@ describe("desktop notification projection", () => {
       ["quiet", 0],
       ["room", 1],
     ]);
+    expect(snapshot.channels.find(({ id }) => id === "quiet-room")?.unreadCount).toBe(5);
   });
 });
 

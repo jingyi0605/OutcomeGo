@@ -2327,6 +2327,7 @@ export const sourceTranslations: Record<string, string> = {
   "Desktop alerts {status}": "桌面提醒 {status}",
   Current: "当前",
   "Unread activity": "未读动态",
+  "Do Not Disturb": "消息免打扰",
   "Could not restart to update.": "无法重启以完成更新。",
   "Update ready": "更新已就绪",
   "Restart to finish installing OutcomeGo {version}. Your Bots and work will be right where you left them.":

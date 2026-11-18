@@ -902,14 +902,16 @@ const ChannelRow = memo(function ChannelRow({
       type="button"
       variant="ghost"
     >
-      <WorkingAvatar
-        channelId={row.channel.id}
-        active={working}
-        ringColor={selected ? "var(--selected)" : "var(--sidebar)"}
-        size="md"
-      >
-        <ChannelAvatar botById={botById} channel={channel} roster />
-      </WorkingAvatar>
+      <SidebarUnreadAvatar muted unread={unread && channel.notificationsMuted === true}>
+        <WorkingAvatar
+          channelId={row.channel.id}
+          active={working}
+          ringColor={selected ? "var(--selected)" : "var(--sidebar)"}
+          size="md"
+        >
+          <ChannelAvatar botById={botById} channel={channel} roster />
+        </WorkingAvatar>
+      </SidebarUnreadAvatar>
       <span className="min-w-0 flex-1 -translate-y-[0.5px]">
         <span className="flex items-center gap-2">
           <span className="flex min-w-0 flex-1 items-center gap-1.5">
@@ -957,7 +959,7 @@ const ChannelRow = memo(function ChannelRow({
           )}
         </span>
       </span>
-      {unread && !needsAttention ? <SidebarUnreadDot /> : null}
+      {unread && !needsAttention && !channel.notificationsMuted ? <SidebarUnreadDot /> : null}
     </Button>
   );
 
@@ -1187,7 +1189,7 @@ function DraggablePinnedTile({
       type="button"
       variant="ghost"
     >
-      <SidebarUnreadAvatar pinned unread={unread && !needsAttention}>
+      <SidebarUnreadAvatar pinned muted={channel.notificationsMuted} unread={unread && (!needsAttention || channel.notificationsMuted === true)}>
         <WorkingAvatar
           channelId={row.channel.id}
           active={working && !(needsAttention || unread)}
@@ -1919,7 +1921,7 @@ function CompactChannelTile({
           type="button"
           variant="ghost"
         >
-          <SidebarUnreadAvatar unread={unread && !needsAttention}>
+          <SidebarUnreadAvatar muted={channel.notificationsMuted} unread={unread && (!needsAttention || channel.notificationsMuted === true)}>
             <WorkingAvatar
               channelId={row.channel.id}
               active={working && !(needsAttention || unread)}
@@ -2169,7 +2171,7 @@ function CompactSidebarContent({
       return group.rows.map((row) => {
         const metric = {
           channelId: row.channel.id,
-          unread: unreadIds.has(row.channel.id),
+          unread: !row.channel.notificationsMuted && unreadIds.has(row.channel.id),
           unreadCount: row.channel.unreadCount,
           top,
           bottom: top + 54,
@@ -2540,7 +2542,7 @@ export const Sidebar = memo(function Sidebar({
     const appendRow = (row: ChannelRowData, top: number, height: number) => {
       metrics.push({
         channelId: row.channel.id,
-        unread: preferences.unreadIds.has(row.channel.id),
+        unread: !row.channel.notificationsMuted && preferences.unreadIds.has(row.channel.id),
         unreadCount: row.channel.unreadCount,
         top,
         bottom: top + height,

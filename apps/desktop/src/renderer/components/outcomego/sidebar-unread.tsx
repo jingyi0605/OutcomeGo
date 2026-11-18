@@ -4,16 +4,18 @@ import { useI18n } from "../../lib/i18n";
 /** Grok's normal/pinned markers are 8/10px; their cutout is outside the disc. */
 export function SidebarUnreadDot({
   corner = false,
+  muted = false,
   pinned = false,
 }: {
   corner?: boolean;
+  muted?: boolean;
   pinned?: boolean;
 }) {
   const { t } = useI18n();
   return (
     <span
       aria-label={t("Unread activity")}
-      className={`sidebar-status-reveal pointer-events-none block shrink-0 rounded-full bg-[#0c64c1] dark:bg-[#459ffe] ${pinned ? "size-2.5" : "size-2"}${corner ? " absolute bottom-0.5 right-0.5 z-20" : ""}`}
+      className={`sidebar-status-reveal pointer-events-none block shrink-0 rounded-full ${muted ? "bg-foreground-tertiary" : "bg-[#0c64c1] dark:bg-[#459ffe]"} ${pinned ? "size-2.5" : "size-2"}${corner ? " absolute bottom-0.5 right-0.5 z-20" : ""}`}
       data-unread-indicator="true"
       role="status"
     />
@@ -23,10 +25,12 @@ export function SidebarUnreadDot({
 export function SidebarUnreadAvatar({
   children,
   unread,
+  muted = false,
   pinned = false,
 }: {
   children: ReactNode;
   unread: boolean;
+  muted?: boolean;
   pinned?: boolean;
 }) {
   return (
@@ -47,7 +51,7 @@ export function SidebarUnreadAvatar({
       >
         {children}
       </span>
-      {unread ? <SidebarUnreadDot corner pinned={pinned} /> : null}
+      {unread ? <SidebarUnreadDot corner muted={muted} pinned={pinned} /> : null}
     </span>
   );
 }

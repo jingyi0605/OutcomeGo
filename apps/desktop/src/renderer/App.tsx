@@ -842,6 +842,10 @@ export default function App() {
       mutate(() => api.updateChannelProfile(channelId, name, description)),
     [mutate]
   );
+  const setGroupNotificationMute = useCallback(
+    (channelId: string, muted: boolean) => mutate(() => api.setGroupNotificationMute(channelId, muted)),
+    [mutate]
+  );
   const enableScreen = useCallback((botId: string) => {
     setEnabledScreenIds((current) => enableScreenForSession(current, botId));
   }, []);
@@ -1850,6 +1854,7 @@ export default function App() {
                               onOutcomeGo={openInspectorBot}
                               onRetryBot={retryInspectorBot}
                               onSetGroupAvatar={setChannelAvatar}
+                              onSetGroupNotificationMute={setGroupNotificationMute}
                               onSetMembers={setChannelMembers}
                               onUpdateGroupProfile={updateGroupProfile}
                               routineOpenRequest={

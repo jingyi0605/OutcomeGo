@@ -74,6 +74,7 @@ export const desktopNotificationSnapshot = (
     cursor: snapshot.cursor,
     channels: snapshot.channels.flatMap((channel) =>
       channel.notificationState &&
+      !channel.notificationsMuted &&
       !channel.hiddenFromSidebar &&
       channel.members.some((member) => !botById.get(member.botId)?.hiddenFromSidebar)
         ? [
