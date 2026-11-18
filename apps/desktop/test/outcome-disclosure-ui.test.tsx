@@ -1360,6 +1360,14 @@ test("execution entry stays compact and reads only after the read-only conversat
   expect(dialog.textContent).not.toContain("SHOULD_NOT_RENDER");
   expect(dialog.textContent).not.toContain("INTERNAL_EXECUTION_INPUT");
   expect(dialog.querySelector(".outcome-execution-tool")?.hasAttribute("open")).toBe(false);
+  // Chronological like a chat: the newest message is the last row, not the first.
+  const roles = [...dialog.querySelectorAll(".outcome-execution-messages > li")].map((li) =>
+    li.getAttribute("data-message-role")
+  );
+  expect(roles).toEqual(["assistant", "tool"]);
+  const tool = dialog.querySelector(".outcome-execution-tool")!;
+  expect(tool.querySelector(".outcome-execution-tool-type")?.textContent).toBe("Shell");
+  expect(tool.querySelector(".outcome-execution-tool-preview")?.textContent).toBe("df -h");
   expect(dialog.querySelector('li[data-message-role="assistant"] strong')?.textContent).toBe("Bot");
   expect(dialog.querySelector('li .bot-markdown [data-streamdown="strong"]')?.textContent).toBe(
     "array"

@@ -1289,7 +1289,7 @@ button.outcome-chat-card-main:hover {
   display: flex;
   min-width: 0;
   flex-direction: column;
-  gap: 18px;
+  gap: 4px;
 }
 .outcome-execution-messages > li {
   display: grid;
@@ -1298,6 +1298,10 @@ button.outcome-chat-card-main:hover {
   row-gap: 4px;
   min-width: 0;
   overflow-wrap: anywhere;
+}
+/* Conversation turns breathe; consecutive tool calls stack tightly. */
+.outcome-execution-messages > li[data-message-role="assistant"] {
+  margin-block: 10px;
 }
 .outcome-execution-bubble {
   min-width: 0;
@@ -1320,24 +1324,64 @@ button.outcome-chat-card-main:hover {
   color: var(--foreground-tertiary);
   font-size: 10px;
 }
+/* One quiet line per tool call: type, preview, state and time; expand for the full text. */
 .outcome-execution-tool {
   grid-column: 2;
   min-width: 0;
-  border: 0.5px solid var(--border);
-  border-radius: 10px;
-  padding: 6px 10px;
-}
-.outcome-execution-tool > summary {
-  cursor: pointer;
+  border-radius: 8px;
+  background: var(--subtle);
   color: var(--foreground-secondary);
   font-size: 11px;
 }
+.outcome-execution-tool > summary {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  list-style: none;
+}
+.outcome-execution-tool > summary::-webkit-details-marker {
+  display: none;
+}
+.outcome-execution-tool > summary:hover {
+  color: var(--foreground);
+}
+.outcome-execution-tool-type {
+  flex-shrink: 0;
+  color: var(--foreground);
+  font-weight: 500;
+}
+.outcome-execution-tool-preview {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.outcome-execution-tool-state {
+  flex-shrink: 0;
+}
+.outcome-execution-tool > summary > time {
+  flex-shrink: 0;
+  color: var(--foreground-tertiary);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+.outcome-execution-tool[data-failed] {
+  color: var(--destructive, #c0392b);
+}
 .outcome-execution-tool pre {
   max-height: 240px;
-  margin-top: 6px;
+  margin: 0;
+  padding: 4px 10px 10px;
   overflow: auto;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+  font-family: var(--font-mono, ui-monospace, monospace);
   font-size: 11px;
 }
 .outcome-execution-footer {

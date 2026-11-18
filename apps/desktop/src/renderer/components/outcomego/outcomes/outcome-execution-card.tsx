@@ -1,5 +1,15 @@
 import { Suspense, lazy, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { ChevronRight, LockKeyhole, MessagesSquare } from "lucide-react";
+import {
+  ChevronRight,
+  CircleAlert,
+  FileText,
+  Globe,
+  LoaderCircle,
+  LockKeyhole,
+  MessagesSquare,
+  Terminal,
+  Wrench,
+} from "lucide-react";
 import type { BotView } from "@outcomego/contracts";
 import type { OutcomeDetail } from "@outcomego/contracts/outcomes";
 import type { OutcomeClient } from "../../../client/outcome-api";
@@ -59,20 +69,60 @@ function transcriptPage(value: unknown): TranscriptPage {
   };
 }
 
+type ToolInfo = {
+  name: string;
+  command?: string;
+  output?: string;
+  exitCode?: number;
+};
+
+const jsonString = (content: string, key: string) => {
+  const match = new RegExp(`"${key}"\\s*:\\s*("(?:[^"\\\\]|\\\\.)*")`).exec(content);
+  try {
+    return match ? (JSON.parse(match[1]!) as string) : undefined;
+  } catch {
+    return undefined;
+  }
+};
+
 /** Tool rows are already redacted by the server; expose only its observable projection. */
-function toolText(content: string, omitted: string) {
+function toolInfo(content: string, role: string): ToolInfo {
+  const fallback = role === "file_change" ? "file_change" : "tool";
   try {
     const value = JSON.parse(content);
-    return [
-      typeof value.tool === "string" ? value.tool : "",
-      typeof value.command === "string" ? value.command : "",
-      typeof value.output === "string" ? value.output : omitted,
-    ]
-      .filter(Boolean)
-      .join("\n\n");
+    return {
+      name: typeof value.tool === "string" && value.tool ? value.tool : fallback,
+      command: typeof value.command === "string" ? value.command : undefined,
+      output: typeof value.output === "string" ? value.output : undefined,
+      exitCode: typeof value.exit_code === "number" ? value.exit_code : undefined,
+    };
   } catch {
-    return content;
+    // Long rows are truncated in the middle, so recover the leading fields when JSON is cut.
+    return {
+      name: jsonString(content, "tool") ?? fallback,
+      command: jsonString(content, "command"),
+    };
   }
+}
+
+/** Single-line preview: the command for shell calls, else the first line of observable output. */
+function toolPreview(info: ToolInfo) {
+  const source = info.command ?? info.output ?? "";
+  const line = source.split("\n").find((text) => text.trim()) ?? "";
+  return line.replace(/\s+/g, " ").trim().slice(0, 200);
+}
+
+function toolIcon(role: string, name: string) {
+  if (role === "file_change") return FileText;
+  if (name === "Shell" || role === "command") return Terminal;
+  if (name.startsWith("browser_")) return Globe;
+  return Wrench;
+}
+
+function toolDetails(info: ToolInfo, omitted: string) {
+  return [info.command, info.output ?? (info.command === undefined ? omitted : "")]
+    .filter(Boolean)
+    .join("\n\n");
 }
 
 /** Agent tasks of the current revision that have a Run whose messages can be observed. */
@@ -149,7 +199,7 @@ export function OutcomeExecutionDialog({
   // Follow the newest message like a chat, unless the reader scrolled up to look at history.
   const scroller = useRef<HTMLDivElement>(null);
   const stickToEnd = useRef(true);
-  const newest = visible?.page?.rows[0]?.id;
+  const newest = visible?.page?.rows.at(-1)?.id;
   useLayoutEffect(() => {
     const element = scroller.current;
     if (element && stickToEnd.current) element.scrollTop = element.scrollHeight;
@@ -243,32 +293,56 @@ export function OutcomeExecutionDialog({
               </div>
               {visible.page.rows.length === 0 && <p>{t("No visible execution messages yet.")}</p>}
               <ol className="outcome-execution-messages" aria-label={t("Execution messages")}>
-                {[...visible.page.rows].reverse().map((row) => (
-                  <li key={row.id} data-message-role={row.role}>
-                    {row.role === "assistant" ? (
-                      <>
+                {visible.page.rows.map((row) => {
+                  const time = Number.isNaN(Date.parse(row.at))
+                    ? ""
+                    : new Date(row.at).toLocaleTimeString();
+                  if (row.role === "assistant")
+                    return (
+                      <li key={row.id} data-message-role={row.role}>
                         <ExecutionAvatar bot={avatarBot} />
                         <div className="outcome-execution-bubble">
                           <MessageResponse>{row.content}</MessageResponse>
                         </div>
-                      </>
-                    ) : (
-                      <details className="outcome-execution-tool">
-                        <summary>{t("View tool activity")}</summary>
-                        <pre>{toolText(row.content, t("Private tool details are omitted."))}</pre>
+                        <footer>
+                          <strong>{t("Bot")}</strong>
+                          <span>{t(row.status)}</span>
+                          <time dateTime={row.at}>{time}</time>
+                        </footer>
+                      </li>
+                    );
+                  const info = toolInfo(row.content, row.role);
+                  const preview = toolPreview(info);
+                  const failed = row.status === "failed" || (info.exitCode ?? 0) !== 0;
+                  const running = row.status === "running";
+                  const Icon = toolIcon(row.role, info.name);
+                  return (
+                    <li key={row.id} data-message-role={row.role}>
+                      <details className="outcome-execution-tool" data-failed={failed || undefined}>
+                        <summary title={preview || undefined}>
+                          <Icon aria-hidden="true" className="size-3.5 shrink-0" />
+                          <strong className="outcome-execution-tool-type">
+                            {row.role === "file_change" ? t("File change") : info.name}
+                          </strong>
+                          <span className="outcome-execution-tool-preview">{preview}</span>
+                          {info.exitCode !== undefined && info.exitCode !== 0 && (
+                            <span className="outcome-execution-tool-state">
+                              {t("Exit {code}", { code: info.exitCode })}
+                            </span>
+                          )}
+                          {running && (
+                            <LoaderCircle aria-label={t(row.status)} className="size-3 animate-spin" />
+                          )}
+                          {row.status === "failed" && (
+                            <CircleAlert aria-label={t(row.status)} className="size-3" />
+                          )}
+                          <time dateTime={row.at}>{time}</time>
+                        </summary>
+                        <pre>{toolDetails(info, t("Private tool details are omitted."))}</pre>
                       </details>
-                    )}
-                    <footer>
-                      <strong>{t(row.role === "assistant" ? "Bot" : "Tool activity")}</strong>
-                      <span>{t(row.status)}</span>
-                      <time dateTime={row.at}>
-                        {Number.isNaN(Date.parse(row.at))
-                          ? ""
-                          : new Date(row.at).toLocaleTimeString()}
-                      </time>
-                    </footer>
-                  </li>
-                ))}
+                    </li>
+                  );
+                })}
               </ol>
             </>
           )}
