@@ -1,10 +1,14 @@
 # 任务清单 - Outcome 收件箱与决策通知（人话版）
 
-状态：实施中（第 1 波服务端任务完成；第 2 波工具/事件、第 3 波客户端待实施）
+2026-11-17 task73 当前开发更新：当前原五项仍2DONE/3开放。task73已补[scenario-b-replay.md](docs/scenario-b-replay.md)：实际工具→Inbox→生产路由并发200/409→同WorkItem/context继续→Output/transcript，16检查PASS。本地B具名链已交付；原4.1双真实客户端未关闭，因此4.3/4.4仍不勾。没有app/监听服务、原生通知或live模型新执行。
+
+状态：代码与已执行本地验证完成（2026-11-17 逐项复核：14 项中 11 项 DONE；4.1、4.3、4.4 保留真实双客户端、场景 B 和正式退出验收门槛）
 
 关联文档：[README.md](README.md) · [requirements.md](requirements.md) · [design.md](design.md)
 
 只有 `DONE` 的任务才能勾选完成。任务必须同时包含实现、失败行为和验证证据。
+
+最新五项逐项结论见 [20261117-逐项任务验收记录](docs/20261117-逐项任务验收记录.md)。早期分波证据保留为历史：第 2 波工具/事件和第 3 波客户端代码已整合，最新完整本地包命令合计 4950 PASS / 0 FAIL / 83 SKIP；这不是一次新 root/远端 CI，也不替代真实客户端和设备验收。
 
 2026-11-17 整理：合并了原先重复的 Decision 并发（2.4/4.4/5.1）、通知去重（2.2/4.3/5.2）、旧客户端兼容（3.2/5.3）、分页性能（3.3/5.4）、普通通知回归（2.5/4.5/6.3）和两个最终检查点（4.6/6.4）；新增 Android/iOS 的 Inbox 和 Decision 解决任务；Decision 解决后的继续执行改为在同一 Outcome 子线程中开启新回合。
 
@@ -164,16 +168,16 @@
 
 ## 阶段 3：客户端
 
-- [ ] 3.1 Desktop Inbox、Decision 卡和通知
-  - 状态：IN_PROGRESS（Desktop 代码完成；按负责人要求，统一集成后的正式验证 PENDING，暂不勾选）
+- [x] 3.1 Desktop Inbox、Decision 卡和通知
+  - 状态：DONE（2026-11-17，代码、整合后完整 Desktop 测试、SSR/无障碍结构检查、完整类型和生产 bundle 已验证；真实 OS 通知点击、认证恢复及双客户端运行验收仍由 4.1、4.3、4.4 保留）
   - 实现提交：`3abfc861e`、`4ed536b33`；依赖原始提交与本工作树映射见证据文档。
   - 修改文件：`outcomes/inbox/`、`outcomego-api.ts`、最小 App/深链/原生通知/preload/本地化接线；准确清单见证据文档。
   - 数据库变化：本线无；消费其他线已冻结合同，不把依赖提交归为本线实现。
-  - 验证命令：`bun test apps/desktop/test/outcome-inbox-state.test.ts apps/desktop/test/outcome-attention.test.ts apps/desktop/test/outcome-native-notifications.test.ts`；32 个变更 Desktop 根文件的聚焦编译；39 个源/测试文件语法检查；`git diff --check`。
-  - 验证结果：15 PASS / 0 FAIL / 50 assertions；聚焦编译及语法检查 0 diagnostics。未执行完整 Desktop typecheck、SSR 组件组、旧通知全套、无障碍和浏览器/打包回放。
-  - 证据文件：[桌面客户端代码与最小检查](../004.4-现实任务与知识资料闭环/docs/20261117-桌面客户端代码与最小检查.md)。
-  - 已知限制：真实通知、登录前深链、双客户端冲突与所有正式外部验收仍为 PENDING；此记录不宣称父 Spec 或阶段验收完成。
-  - 回滚方式：撤销两个本线代码提交和本次文档提交；保留其他线合同、数据库和用户数据。
+  - 验证命令：在 `apps/desktop` 执行 `bun --no-env-file test --pass-with-no-tests --isolate`；完整类型命令 `bun --no-env-file x --no-install tsc -p apps/desktop/tsconfig.json --pretty false`；renderer/Electron/helper 的实际构建步骤与原始最小检查命令见下列证据文档。
+  - 验证结果：原 15 PASS / 50 assertions 为代码交付时历史；后续 integrator 完整 Desktop `bun --no-env-file test --pass-with-no-tests --isolate` 实际 768 PASS / 0 FAIL / 1 SKIP / 20163 assertions / 140 files，含原七项 SSR/无障碍结构、Decision 状态、通知/深链与旧消息回归；完整 Desktop tsc、renderer/Electron/helper 生产构建均 exit 0。本次只读验收复核这些既有日志和源码，没有重新运行测试。
+  - 证据文件：[逐项任务验收记录](docs/20261117-逐项任务验收记录.md)；[全规格组合验证与修复记录](../004-OutcomeGo整体项目/docs/20261117-全规格组合验证与修复记录.md)；原始 [桌面客户端代码与最小检查](../004.4-现实任务与知识资料闭环/docs/20261117-桌面客户端代码与最小检查.md) 保留历史阶段边界。
+  - 已知限制：SSR/语义标签不是 VoiceOver、真实 OS banner、登录前深链或两个真实客户端的观测；未安装/启动 Desktop。本地 enrollment 的另一次 1 PASS / 51 assertions 也不是 Decision 双客户端证明。正式外部验收仍为 PENDING，不据此关闭 4.1、4.3、4.4 或父 Spec。
+  - 回滚方式：产品回滚按原两个本线代码提交及后续窄修的映射协调；本次仅文档编辑、未提交，可按负责人备份逐块恢复；保留其他线合同、数据库和用户数据。
   - 先依赖什么：1.2、1.3、1.4、2.2（第 2 波合入后进入第 3 波客户端）。
   - 主要改哪里：`apps/desktop/src/renderer/components/outcomego/outcomes/inbox/`、`apps/desktop/src/main/notifications.ts`、API client
   - 这一步先不做什么：不默认显示完整日志；主进程不缓存完整 Decision 文本。
@@ -221,15 +225,22 @@
 ## 阶段 4：交付检查
 
 - [ ] 4.1 双客户端并发、过期和撤回端到端回放
-  - 状态：TODO
+  - 状态：BLOCKED（服务端事务竞争、过期/撤回及客户端状态控制已有通过证据；Desktop 与 Android/iOS 两个真实客户端联验 PENDING，不勾选）
+  - 已核实证据：最新 server 完整 1535 PASS / 0 FAIL；`decision-service.test.ts` 一胜者、stored replay、旧 revision/withdraw/expiry；真实本地 `concurrent-decision` CLI 5/5 checks、一次 continuation、主对话不变；Desktop controller 冲突刷新保留选择。详见 [逐项验收 4.1](docs/20261117-逐项任务验收记录.md)。
+  - 仍缺证据与下一步：在获准的真实 Desktop 和 Android/iOS 会话中并发提交不同选项、打开过期/撤回旧卡，记录实际请求 ID、409/当前状态、同一 WorkItem 后续 Run 和 UI；不能把本地两个 enrollment 身份或两条 service Promise 当作此回放。
   - 先依赖什么：3.1、3.2 或 3.3
   - 怎么算完成：两个客户端只有一个 resolve 成功；旧卡片不可误 resolve；过期不视为同意。
   - 怎么验证：服务端并发测试 + Desktop/移动端回放
   - 对应需求：需求 6、需求 10、需求 16
   - 对应设计：§13、§29、§31
 
-- [ ] 4.2 普通消息通知和主对话回归
-  - 状态：TODO
+- [x] 4.2 普通消息通知和主对话回归
+  - 状态：DONE（2026-11-17，普通消息/reaction/read/push 适配器、子线程隔离和 progress 静默的完整本地回归已通过；不扩大为真实 provider/设备送达）
+  - 实现与修正：原通知设施及 Outcome 独立投影；Task53 多 emoji 并发/回执修正与用户明确选择，Task60 全局角标 fixture 因果红绿后整合；生产源码冻结 `5e2ce81d8`，最终 server/worker 测试后继 `727d410f2` 无生产改动。
+  - 修改文件/数据库变化：本次仅验收文档；既有实际文件、来源→集成提交映射及历史失败保存在组合总账；无新增 schema 或产品改动。
+  - 验证证据：Runtime 最终完整 server 1535 PASS / 0 FAIL、messaging 857 PASS / 0 FAIL、worker 236 PASS / 0 FAIL；integrator 最终 Desktop 768 PASS / 0 FAIL / 1 SKIP。日志中普通 progress 无主动意图、provider 失败/重试、恢复异常不阻止普通 badge 投递、真实 Worker 同上下文续跑且主对话可见消息为 0 均通过。完整命令、SHA 和具体验证项见 [逐项验收 4.2](docs/20261117-逐项任务验收记录.md)。
+  - 已知限制：多条完整包命令不相加冒充一次 root/CI；83 个 skip 按原 gate 保留。实际 APNs/FCM 送达、OS banner 和设备读状态同步仍归 4.4 外部验收；Task60 原始额外事实 producer UNKNOWN，不猜测归因。
+  - 回滚方式：本次只更新任务与验收记录，无产品或数据库变更；生产回滚遵守既有保留业务事实的方案。
   - 先依赖什么：2.1、2.2
   - 怎么算完成：普通 message/reaction/read state/push 与改动前一致；子线程汇报不出现在主对话；Run progress 不推送。
   - 怎么验证：`bun test apps/server/test/notification*`、messaging 和客户端通知测试、no-new-outbox 断言
@@ -237,7 +248,9 @@
   - 对应设计：§18、§35
 
 - [ ] 4.3 父场景 B 回放
-  - 状态：TODO
+  - 状态：BLOCKED（真实本地工具→暂停→resolve→同一子线程续跑及主对话隔离已验证；真实 Agent、Inbox UI 与跨客户端场景回放 PENDING，依赖 4.1 未完成）
+  - 已核实证据：`outcome-decision-tool.test.ts` 真实 trusted handler 和事务回滚；`outcome-thread.integration.test.ts` 的决策暂停/继续用真实 Worker claim、同 contextSessionId、同 WorkItem 和主对话继续断言；最新 worker 整包通过，见 [逐项验收 4.3](docs/20261117-逐项任务验收记录.md)。
+  - 仍缺证据与下一步：`docs/scenario-b-replay.md` 尚无实际场景报告；获准后用真实 Bot/远端 Computer 请求 Decision，在真实 Inbox 展示并解决，核对历史和原线程继续、主对话无打断，再记录场景 B。现有 CLI/数据库 fixture 不作为 live Agent/UI 的替代。
   - 先依赖什么：1.3、3.1、4.1
   - 怎么算完成：子线程中 Agent 请求决策 → Inbox → 用户解决 → 同一子线程继续 → Outcome 可查到决策结果；主对话全程不被打断。
   - 怎么验证：`docs/scenario-b-replay.md`
@@ -245,7 +258,9 @@
   - 对应设计：§41；父 design §20
 
 - [ ] 4.4 Spec 最终检查点
-  - 状态：TODO
+  - 状态：BLOCKED（需求 1–18 的本地实现/证据及父 design §34 八问已逐项核对；4.1、4.3 和真实平台/通知证据未齐，不宣布 Spec 退出）
+  - 已完成核对：[逐项任务验收记录](docs/20261117-逐项任务验收记录.md) 包含五项结论、18 项需求映射、八问、命令/来源和下一步；最新本地包命令 4950 PASS / 0 FAIL / 83 SKIP 按执行者与冻结点分别归属。Android 43+86 JVM/构建、Swift Core 329 与 Desktop bundle 通过不等于三端真实 UI。
+  - 仍缺证据与下一步：先补 4.1、4.3；真实 Desktop/Android/iOS 认证后深链、通知冷热启动、离线恢复和真实 provider 送达；完整 iOS App 编译仍被外部依赖 TLS 阻塞。由获准的验收者完成后重审八问；本次未启动服务、远端、设备或发布流程。
   - 先依赖什么：3.3、4.1、4.2、4.3
   - 怎么算完成：需求 1–18、Decision 状态、通知、分页、旧客户端、移动端和失败路径都有证据；按父 design §34 回答八个问题。
   - 怎么验证：requirements/design/tasks 三向核对
