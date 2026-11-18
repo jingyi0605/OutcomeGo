@@ -72,7 +72,7 @@ final class OutcomeInboxTests: XCTestCase {
     for raw in [url.absoluteString + "&token=private", url.absoluteString + "#private", "https://app/v1/outcomes?id=\(outcome)", "outcomego://app/v1/outcomes?id=invalid"] {
       XCTAssertNil(OutcomeLinkTarget.parse(try XCTUnwrap(URL(string: raw))))
     }
-    for kind in ["outcome.review.required", "outcome.human_action.required", "outcome.accepted"] {
+    for kind in ["outcome.review.required", "outcome.human_action.required", "outcome.accepted", "outcome.failed", "outcome.blocked"] {
       payload["type"] = .string(kind)
       payload["deepLink"] = .string("outcomego://app/v1/outcomes?id=\(outcome)")
       XCTAssertEqual(OutcomeLinkTarget.push(payload)?.outcomeId, outcome)
@@ -88,5 +88,28 @@ final class OutcomeInboxTests: XCTestCase {
   func testInboxQueryKeepsOpaqueCursorAndAllCategories() {
     XCTAssertEqual(API.outcomeInboxQuery(category: "completed", cursor: "opaque/+="),
       ["status": "all", "limit": "30", "category": "completed", "cursor": "opaque/+="])
+  }
+  func testGoalNoticeCardIsRecognisedOnlyWhenThePlatformPostedIt() throws {
+    let outcome = "11111111-1111-4111-8111-111111111111"
+    func message(sender: String, source: String?, outcomeId: String = outcome) throws -> Message {
+      var metadata: [String: JSON] = ["type": .string("outcome-card"),
+        "outcomeCard": .object(["stage": .string("attention"), "title": .string("Clean storage"), "outcomeId": .string(outcomeId)])]
+      if let source { metadata["source"] = .string(source) }
+      let value: JSON = .object(["id": .string("m1"), "sequence": .string("1"), "channelId": .string("c1"),
+        "sender": .string(sender), "content": .string("Goal · Clean storage · attention"),
+        "metadata": .object(metadata), "createdAt": .string("2026-11-18T00:00:00.000Z")])
+      return try JSONDecoder().decode(Message.self, from: JSONEncoder().encode(value))
+    }
+    let card = try XCTUnwrap(try message(sender: "system", source: "outcome-update").outcomeUpdateCard)
+    XCTAssertEqual(card.outcomeId, outcome)
+    XCTAssertEqual(card.title, "Clean storage")
+    XCTAssertEqual(card.stage, "attention")
+    XCTAssertEqual(card.target, OutcomeLinkTarget.parse(try XCTUnwrap(URL(string: "outcomego://app/v1/outcomes?id=\(outcome)"))))
+    XCTAssertNil(try message(sender: "agent", source: "outcome-update").outcomeUpdateCard)
+    XCTAssertNil(try message(sender: "system", source: nil).outcomeUpdateCard)
+    XCTAssertNil(try message(sender: "system", source: "outcome-update", outcomeId: "not-a-uuid").outcomeUpdateCard)
+    XCTAssertEqual(OutcomeUpdateCard.stage(forStatus: "review_pending"), "review")
+    XCTAssertEqual(OutcomeUpdateCard.stage(forStatus: "human_action_pending"), "attention")
+    XCTAssertEqual(OutcomeUpdateCard.stage(forStatus: "failed"), "failed")
   }
 }

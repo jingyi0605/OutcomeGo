@@ -230,7 +230,7 @@ public struct OutcomeLinkTarget: Hashable, Sendable {
   }
   public static func push(_ data: JSON) -> OutcomeLinkTarget? {
     guard data["kind"].string == "outcome", data["schemaVersion"] == .number(1) || data["schemaVersion"] == .string("1"),
-      ["outcome.decision.required", "outcome.review.required", "outcome.human_action.required", "outcome.accepted"].contains(data["type"].string),
+      ["outcome.decision.required", "outcome.review.required", "outcome.human_action.required", "outcome.accepted", "outcome.failed", "outcome.blocked"].contains(data["type"].string),
       UUID(uuidString: data["outcomeId"].string) != nil,
       let url = URL(string: data["deepLink"].string), let target = parse(url) else { return nil }
     if data["type"].string == "outcome.decision.required" {

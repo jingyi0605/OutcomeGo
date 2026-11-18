@@ -2501,6 +2501,26 @@
         }
       }
     },
+    "Goal": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "目标"
+          }
+        }
+      }
+    },
+    "Goal notice": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "目标通知"
+          }
+        }
+      }
+    },
     "GPT models, billed per use": {
       "localizations": {
         "zh-CN": {
@@ -3641,6 +3661,16 @@
         }
       }
     },
+    "Needs attention": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "需要处理"
+          }
+        }
+      }
+    },
     "NEW": {
       "localizations": {
         "zh-CN": {
@@ -4107,6 +4137,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "打开“连接设置”完成一次性设置，然后即可在此设备上登录。"
+          }
+        }
+      }
+    },
+    "Open goal": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "打开目标"
           }
         }
       }

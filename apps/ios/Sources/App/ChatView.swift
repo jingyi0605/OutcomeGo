@@ -304,6 +304,8 @@ struct ChatView: View {
           Text(message.content).font(.system(size: 12)).foregroundStyle(NativePalette.muted)
             .multilineTextAlignment(.center).frame(maxWidth: .infinity).padding(.horizontal, 24)
             .accessibilityIdentifier("interrupted-notice-" + message.id)
+        } else if let card = message.outcomeUpdateCard {
+          OutcomeUpdateCardView(card: card, onReply: { reply(message) })
         } else {
           MessageRow(message: message, channel: channel, onReply: { reply(message) },
             onThread: { branchesReplies = true; thread = message },
