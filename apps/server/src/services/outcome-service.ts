@@ -213,7 +213,9 @@ export class OutcomeService {
           revisionId: revision.id,
           contentHash: revision.contentHash,
         }, revisionNumber);
-        await this.recomputeStatus(tx, outcomeId, actor);
+        const status = await this.recomputeStatus(tx, outcomeId, actor);
+        // Same condition the Start button used: nothing older is still running or waiting, so this revision is next.
+        if (status === "approved") await this.startApprovedRevision(tx, outcome, revision, actor, input.clientRequestId);
         return this.detail(tx, outcomeId);
       })
     );
@@ -229,24 +231,40 @@ export class OutcomeService {
       if (revision.status !== "approved" || !revision.approvedAt)
         throw outcomeApiError("contract_revision_not_approved", "Approve the contract before execution", { currentStatus: revision.status });
       if (!this.messaging) throw outcomeApiError("bot_not_runnable", "Outcome execution messaging is not configured", { retryable: true });
-      // D11: repeated start gestures do not create a second initial work item in this revision.
-      const existing = await tx.outcomeWorkItem.findFirst({ where: { outcomeId, contractRevisionId: revision.id, executorType: "agent", kind: "initial" } });
-      if (existing) return this.detail(tx, outcomeId);
-      const last = await tx.outcomeWorkItem.findFirst({ where: { outcomeId }, orderBy: { ordinal: "desc" }, select: { ordinal: true } });
-      const item = await tx.outcomeWorkItem.create({ data: {
-        outcomeId, contractRevisionId: revision.id, botId: revision.executionBotId, executorType: "agent", kind: "initial",
-        title: outcome.title, instructions: "Execute the approved Outcome contract. Return a complete final result and write deliverable files to the assigned Outcome output directory.",
-        status: "queued", ordinal: (last?.ordinal ?? 0) + 1,
-      } });
-      await appendOutcomeEvent(tx, "outcome.work_item.created", outcomeId, {
-        actor, contractRevision: revision.revision, workItemId: item.id, idempotencyKey: input.clientRequestId,
-        payload: { workItemId: item.id, executorType: "agent", kind: "initial" },
-      });
-      await enqueueOutcomeTurn(tx, this.messaging, { workItemId: item.id, content: item.instructions, reason: "start",
-        clientId: `outcome-run:${outcomeId}:${revision.revision}:${item.id}` });
-      await this.recomputeStatus(tx, outcomeId, actor);
+      await this.startApprovedRevision(tx, outcome, revision, actor, input.clientRequestId);
       return this.detail(tx, outcomeId);
     }));
+
+  /**
+   * Creates the first work item of an approved revision and queues its turn. Approval calls this directly, so
+   * an approved Outcome is either executing or waiting on a step approval, never idle waiting for a start click.
+   * D11: a repeated start never creates a second initial work item in the same revision.
+   */
+  private async startApprovedRevision(
+    tx: Tx,
+    outcome: { id: string; title: string },
+    revision: { id: string; revision: number; executionBotId: string },
+    actor: ActorRef,
+    clientRequestId: string,
+  ) {
+    if (!this.messaging) return;
+    const outcomeId = outcome.id;
+    const existing = await tx.outcomeWorkItem.findFirst({ where: { outcomeId, contractRevisionId: revision.id, executorType: "agent", kind: "initial" } });
+    if (existing) return;
+    const last = await tx.outcomeWorkItem.findFirst({ where: { outcomeId }, orderBy: { ordinal: "desc" }, select: { ordinal: true } });
+    const item = await tx.outcomeWorkItem.create({ data: {
+      outcomeId, contractRevisionId: revision.id, botId: revision.executionBotId, executorType: "agent", kind: "initial",
+      title: outcome.title, instructions: "Execute the approved Outcome contract. Return a complete final result and write deliverable files to the assigned Outcome output directory.",
+      status: "queued", ordinal: (last?.ordinal ?? 0) + 1,
+    } });
+    await appendOutcomeEvent(tx, "outcome.work_item.created", outcomeId, {
+      actor, contractRevision: revision.revision, workItemId: item.id, idempotencyKey: clientRequestId,
+      payload: { workItemId: item.id, executorType: "agent", kind: "initial" },
+    });
+    await enqueueOutcomeTurn(tx, this.messaging, { workItemId: item.id, content: item.instructions, reason: "start",
+      clientId: `outcome-run:${outcomeId}:${revision.revision}:${item.id}` });
+    await this.recomputeStatus(tx, outcomeId, actor);
+  }
 
   /** Cancel facts atomically; stop only this Outcome's run groups outside the transaction. Retries reattempt incomplete stops. */
   cancel = (outcomeId: string, input: CancelOutcomeInput, actor: ActorRef) =>

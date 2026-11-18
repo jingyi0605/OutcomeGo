@@ -342,7 +342,7 @@ test("card reads real review status and navigates without claiming output is acc
     window.removeEventListener(OUTCOMEGO_DEEP_LINK_EVENT, handler);
   }
 });
-test("approved goals are ready to start, not executing; stale generation stops implying progress", async () => {
+test("approved goals show that execution is starting, never an extra start prompt", async () => {
   await mount(
     <OutcomeChatCardView
       card={card}
@@ -352,7 +352,8 @@ test("approved goals are ready to start, not executing; stale generation stops i
     />
   );
   expect(host.querySelector("[data-stage]")?.getAttribute("data-stage")).toBe("ready");
-  expect(host.textContent).toContain("Ready to start");
+  expect(host.textContent).toContain("Starting execution");
+  expect(host.textContent).not.toContain("Start approved Outcome");
 });
 test("read errors explicitly qualify saved state and allow a read-only retry", async () => {
   let attempts = 0;

@@ -33,6 +33,26 @@ describe.skipIf(!url)("Outcome execution service", () => {
     } finally { await h.cleanup(); }
   });
 
+  test("approval itself starts execution once; replaying it or a later start creates nothing more", async () => {
+    const h = await outcomeThreadFixture();
+    try {
+      const service = new OutcomeService(h.db, h.messaging);
+      await h.db.outcomeContractRevision.update({ where: { id: h.revision.id }, data: { status: "pending_approval", approvedAt: null } });
+      await h.db.outcome.update({ where: { id: h.outcome.id }, data: { status: "pending_approval" } });
+      const input = { expectedRevision: 1, confirmationText: "I confirm", clientRequestId: crypto.randomUUID() };
+      const approved = await Effect.runPromise(service.approve(h.outcome.id, 1, input, actor));
+      // No separate start: the goal is already executing, not parked as "approved".
+      expect(approved.workItems).toHaveLength(1);
+      expect(approved.workItems[0]!.status).toBe("queued");
+      expect(approved.workItems[0]!.rootRunId).not.toBeNull();
+      expect(approved.status).not.toBe("approved");
+      expect(await Effect.runPromise(service.approve(h.outcome.id, 1, input, actor))).toEqual(approved);
+      await Effect.runPromise(service.startRun(h.outcome.id, { expectedRevision: 1, clientRequestId: crypto.randomUUID() }, actor));
+      expect(await h.db.outcomeWorkItem.count({ where: { outcomeId: h.outcome.id } })).toBe(1);
+      expect(await h.db.run.count({ where: { botId: h.bot.id } })).toBe(1);
+    } finally { await h.cleanup(); }
+  });
+
   test("unapproved/mismatched contract cannot leave a WorkItem or Run", async () => {
     const h = await outcomeThreadFixture();
     try {

@@ -440,7 +440,7 @@ test("attention and Explore are separate full-page sections and can return to al
   expect(host.querySelector('[role="dialog"]')).toBeNull();
 });
 
-test("new Outcome uses the chosen Bot and requires approval before an explicit start", async () => {
+test("new Outcome uses the chosen Bot, waits for approval, then starts by itself without a start prompt", async () => {
   await mount(page());
   await click("New Outcome");
   await input(document.body.querySelector('select[aria-label="Execution Bot"]')!, bots[1]!.id);
@@ -461,9 +461,8 @@ test("new Outcome uses the chosen Bot and requires approval before an explicit s
   expect(document.body.textContent).toContain("Yes, approve");
   expect(calls.some((call) => call.path.endsWith("/runs"))).toBe(false);
   await click("Yes, approve");
-  expect(document.body.textContent).toContain("Start approved Outcome");
-  expect(calls.some((call) => call.path.endsWith("/runs"))).toBe(false);
-  await click("Start approved Outcome");
+  // No extra click: the approved goal starts once on its own and never shows a start prompt.
+  expect(document.body.textContent).not.toContain("Start approved Outcome");
   expect(calls.filter((call) => call.path.endsWith("/runs"))).toHaveLength(1);
   await act(async () => {
     document.body

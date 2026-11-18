@@ -48,7 +48,7 @@ export const sourceTranslations: Record<string, string> = {
   "Source for {name}": "查看“{name}”的来源",
   "Choose whether to approve this plan, suggest changes or decide later.":
     "请选择批准方案、自定义修改，或稍后决定。",
-  "The plan is approved and ready to start.": "方案已批准，可以开始执行。",
+  "The plan is approved. Execution is starting.": "方案已批准，正在启动执行。",
   "Saved plan": "已保存的方案",
   "Proposed plan": "建议方案",
   "Choose how to proceed with this plan.": "请选择接下来如何处理这个方案。",
@@ -119,7 +119,8 @@ export const sourceTranslations: Record<string, string> = {
   "Approve this plan?": "是否批准这个方案？",
   "Check the proposed scope before execution starts.": "执行前，请确认本次要做的范围。",
   "Do these results meet your requirements?": "这些成果是否符合你的要求？",
-  "Ready to start the approved plan?": "现在开始执行已批准的方案？",
+  "Starting execution…": "正在启动执行…",
+  "Starting execution": "正在启动执行",
   "Checking current decisions…": "正在读取当前待办…",
   "Current decisions could not be loaded. Open Needs attention to retry.":
     "暂时无法读取当前待办，请前往“需要处理”重试。",
@@ -128,7 +129,6 @@ export const sourceTranslations: Record<string, string> = {
   "Cancel Outcome": "取消目标",
   "Review history": "验收历史",
   "Show read-only transcript": "查看只读执行记录",
-  "Start approved Outcome": "启动已批准的目标",
   Next: "下一步",
   "Open the goal to inspect this result.": "打开目标查看这项成果。",
   "Edit contract as a new revision": "修改契约并创建新版本",

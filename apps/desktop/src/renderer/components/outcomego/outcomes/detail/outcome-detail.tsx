@@ -156,6 +156,24 @@ export function OutcomeDetail({
       generation.current++;
     };
   }, [outcomeId, client]);
+  // Approval starts execution on the server. A goal approved before that rule (or whose start failed) is
+  // started once when opened; the request is idempotent, so a repeat cannot create a second run.
+  const autoStarted = useRef<string | null>(null);
+  useEffect(() => {
+    const approved = outcome?.currentRevisionView;
+    if (!outcome || !approved || historicalReview || busy) return;
+    const waiting =
+      outcome.status === "approved" &&
+      approved.status === "approved" &&
+      !outcome.workItems.some((item) => item.contractRevision === approved.revision);
+    const key = `${outcomeId}:${approved.revision}`;
+    if (!waiting || autoStarted.current === key) return;
+    autoStarted.current = key;
+    const input = { expectedRevision: approved.revision };
+    void mutate("start", input, (clientRequestId) =>
+      client.start(outcomeId, { ...input, clientRequestId })
+    );
+  }, [outcome, busy, outcomeId, client, historicalReview]);
   async function mutate(
     action: string,
     input: unknown,
@@ -361,23 +379,7 @@ export function OutcomeDetail({
                 </OutcomeButton>
               </div>
             )}
-            {canStart && (
-              <div className="outcome-now-line">
-                <h3>{translateCurrent("Ready to start the approved plan?")}</h3>
-                <OutcomeButton
-                  variant="default"
-                  disabled={busy}
-                  onClick={() => {
-                    const input = { expectedRevision: revision!.revision };
-                    void mutate("start", input, (clientRequestId) =>
-                      client.start(outcomeId, { ...input, clientRequestId })
-                    );
-                  }}
-                >
-                  {translateCurrent("Start approved Outcome")}
-                </OutcomeButton>
-              </div>
-            )}
+            {canStart && <p role="status">{translateCurrent("Starting execution…")}</p>}
             {!historicalReview &&
               !canStart &&
               revision?.status !== "pending_approval" &&

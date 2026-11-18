@@ -22,7 +22,7 @@ export const outcomeStatusLabels: Record<OutcomeStatus, string> = {
   draft: "Draft",
   planning: "Planning",
   pending_approval: "Awaiting approval",
-  approved: "Ready to start",
+  approved: "Starting execution",
   running: "Running",
   review_pending: "Awaiting review",
   accepted: "Accepted",
