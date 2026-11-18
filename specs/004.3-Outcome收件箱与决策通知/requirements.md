@@ -118,7 +118,7 @@ Outcome Inbox 将用户真正需要处理的事项集中为待决策、待验收
 
 #### 验收标准
 
-1. WHEN Outcome 进入 `completed`、`decision_pending`、`acceptance_pending` 或 `human_action_pending` THEN System SHALL 创建一个可查询的通知事实。
+1. WHEN Outcome 进入 `completed`、`decision_pending`、`acceptance_pending` 或 `human_action_pending` THEN System SHALL 创建一个可查询的通知事实；失败和执行方上报阻塞见需求 20。
 2. WHEN 同一个事实重复处理 THEN System SHALL 通过稳定 key 只产生一个主动通知意图。
 3. WHEN 普通 Run 进度或内部 WorkItem 完成 THEN System SHALL 不创建主动 push 通知。
 4. WHEN 当前客户端不支持新通知 payload THEN System SHALL 返回通用 fallback，而不阻塞业务状态。
@@ -260,7 +260,7 @@ Outcome Inbox 将用户真正需要处理的事项集中为待决策、待验收
 
 #### 验收标准
 
-1. WHEN Outcome 子线程产生结果、待验收、待决策或待人工处理 THEN System SHALL 写入 Inbox 事实并按需通知，不向 Bot 主对话写入可见消息。
+1. WHEN Outcome 子线程产生结果、待验收、待决策或待人工处理 THEN System SHALL 写入 Inbox 事实并按需通知，不以 Bot 身份向主对话写入消息；平台可以另行写入一张不属于 Bot、不唤醒 Bot 的目标通知卡片（需求 19）。
 2. WHEN 子线程需要主线程处理的交接（例如重新授权连接） THEN System SHALL 使用现有 `WakeParent`，等主线程空闲后处理，不打断主线程当前回合。
 3. WHEN 同一事实同时满足 Inbox 通知和 `WakeParent` 条件 THEN 用户 SHALL 只收到一次主动通知。
 
@@ -274,4 +274,43 @@ Outcome Inbox 将用户真正需要处理的事项集中为待决策、待验收
 2. WHEN 用户在移动端选择选项或输入自定义内容 THEN System SHALL 使用与 Desktop 相同的 resolve API 和冲突处理。
 3. WHEN 卡片类别为待验收或待人工处理 THEN 移动端 SHALL 只读显示，并提示“请在 Desktop 完成”（父 design §41）。
 4. WHEN 用户点击通知 THEN 移动端 SHALL 通过深链打开对应 Decision 或 Outcome。
+
+## 需求 19：目标通知卡片出现在机器人对话中但不属于机器人
+
+**用户故事：** 作为用户，我希望目标在独立线程中运行时，需要我处理的变化会在对应机器人的对话里留下一张目标卡片并通知我，而不会因此打扰机器人或改变主对话的上下文。
+
+#### 验收标准
+
+1. WHEN 通知事实（需求 7、需求 20）被投影 THEN System SHALL 在该 Outcome 所属 Bot 的私聊频道写入一张目标卡片，卡片的发送者为 `system`，不是 Bot。
+2. WHEN 同一事实被重复处理或对账 THEN System SHALL 通过由事实 key 派生的 `clientId` 只保留一张卡片。
+3. WHEN 卡片写入 THEN System SHALL 不创建 Run、投递或唤醒，主对话中的机器人 SHALL 不因此开始工作。
+4. WHEN Bot 读取自己的转录 THEN System SHALL 不返回这类卡片；只有用户引用该卡片发言时，引用内容和 Outcome ID 才进入该回合的提示。
+5. WHEN 用户在 Desktop、iOS 或 Android 查看卡片 THEN 客户端 SHALL 读取 Outcome 的当前状态显示阶段，保存的阶段只在读取失败时作为回退。
+6. WHEN 用户关闭了 Bot 通知、频道静音或智能通知 THEN System SHALL 仍写入卡片，只跳过主动通知（需求 16）。
+7. WHEN 用户对卡片点击 THEN 客户端 SHALL 就地打开对应目标详情；客户端 SHALL 对卡片提供「回复」入口以便引用，不提供让 Bot 被动收到的其他入口。
+
+## 需求 20：失败和执行方上报的阻塞也会通知
+
+**用户故事：** 作为用户，我希望目标失败，或执行方明确告诉我某项任务被阻塞时，不必主动打开目标页面也能知道。
+
+#### 验收标准
+
+1. WHEN 当前 revision 的全部 Agent 尝试失败且 Outcome 状态为 `failed` THEN System SHALL 创建 `outcome.failed` 通知事实，其 key 随失败尝试集合变化，重试后再次失败会再次通知。
+2. WHEN 执行中的 WorkItem 通过 `ReportOutcomeProgress` 上报了 `blocked` 任务且 Outcome 仍为 `running` THEN System SHALL 创建 `outcome.blocked` 通知事实。
+3. WHEN 阻塞任务不再是 `blocked`、Outcome 离开 `running` 或失败状态被重试覆盖 THEN 事实 SHALL 失效，尚未发出的推送 SHALL 在发送前被丢弃（沿用 `outcomeNotificationIsCurrent`）。
+4. WHEN 部署后首次对账 THEN System SHALL 只补发近 2 天内的失败事实，不为更早的历史失败批量通知。
+5. WHEN 处理这两类事实 THEN System SHALL 不新增 Inbox 类别：它们只产生通知和卡片，Inbox 的四个类别和查询保持不变。
+6. WHEN 通知 payload 生成 THEN System SHALL 使用固定文案，不包含目标标题、任务名或错误详情（需求 11）。
+
+## 需求 21：移动端渲染目标卡片并识别新通知类型
+
+**用户故事：** 作为手机用户，我希望在聊天里看到目标卡片，点击进入目标，并能收到失败和阻塞的通知。
+
+#### 验收标准
+
+1. WHEN iOS 或 Android 收到发送者为 `system`、带 `source = outcome-update` 的目标卡片 THEN 客户端 SHALL 渲染为目标卡片，而不是文本气泡。
+2. WHEN 用户点击卡片 THEN 客户端 SHALL 通过现有目标深链打开该 Outcome。
+3. WHEN 卡片内容缺失、Outcome ID 不是合法 UUID 或发送者不是 `system` THEN 客户端 SHALL 回退为普通消息渲染。
+4. WHEN 移动端收到 `outcome.failed` 或 `outcome.blocked` 推送 THEN 客户端 SHALL 与既有四类相同地校验 schemaVersion、type、ID 和深链后展示并可点击打开。
+5. WHEN 旧版本客户端收到这两类推送 THEN 客户端 SHALL 按未知类型忽略，不崩溃（需求 12）。
 

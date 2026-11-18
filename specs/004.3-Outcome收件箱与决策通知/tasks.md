@@ -12,6 +12,8 @@
 
 2026-11-17 整理：合并了原先重复的 Decision 并发（2.4/4.4/5.1）、通知去重（2.2/4.3/5.2）、旧客户端兼容（3.2/5.3）、分页性能（3.3/5.4）、普通通知回归（2.5/4.5/6.3）和两个最终检查点（4.6/6.4）；新增 Android/iOS 的 Inbox 和 Decision 解决任务；Decision 解决后的继续执行改为在同一 Outcome 子线程中开启新回合。
 
+2026-11-18 追加：阶段 5 新增「目标通知卡片」与「失败、阻塞通知」三端实现，见 5.1–5.4；对应需求 19–21、设计 §44。
+
 分波及测试替身合同：[父接口冻结文档](../004-OutcomeGo整体项目/docs/parallel-interfaces.md)。需求见 [requirements.md](requirements.md)，业务设计见 [design.md](design.md)；本次只调整任务前置关系。
 
 ## 阶段 0：通知基线
@@ -266,3 +268,59 @@
   - 怎么验证：requirements/design/tasks 三向核对
   - 对应需求：全部需求
   - 对应设计：全文
+
+## 阶段 5：目标通知卡片与失败、阻塞通知
+
+2026-11-18。背景：目标在独立线程运行，需要用户处理时主对话没有任何信号。方案见设计 §44：在机器人对话里写入不属于 Bot、不唤醒 Bot 的目标卡片，并把失败和执行方上报的阻塞纳入通知。以下均为未提交的工作树改动。
+
+- [ ] 5.1 Server：目标卡片、失败与阻塞事实、引用提示
+  - 状态：代码完成；涉及数据库的集成测试已编写但未执行（本机没有一次性测试库），因此不勾选
+  - 实现提交：无（工作树未提交）
+  - 修改文件：`packages/messaging/src/outcome-update-cards.ts`（新）、`outcome-inbox-notifications.ts`、`index.ts`；`packages/contracts/src/outcome-chat.ts`、`notification-content.ts`；`apps/server/src/services/channel/formatting.ts`。
+  - 数据库变化：none（只新增 `ChannelMessage` 行和 `ChannelNotification` 行，不改 schema）。
+  - 验证命令：contracts、messaging、server 的 `tsc --noEmit`；`bun test apps/server/test/outcome-update-card-quote.test.ts`；`packages/messaging/test/outcome-inbox-events.integration.test.ts`（需 `OUTCOMEGO_TEST_DATABASE_URL`）。
+  - 验证结果：类型检查通过；引用提示单测 3 项通过；集成测试 6 项中新增 2 项（单张卡片不重复且不创建 Run、转录不含卡片；失败和阻塞各通知一次且阻塞解除后消失）未执行，仍为 SKIP。
+  - 失败行为：Bot 没有私聊频道时 `publishFact` 返回 false，下一次对账重试；通知被关闭或频道静音时仍写卡片、跳过推送。
+  - 已知限制：事实 SQL 在真实 PostgreSQL 上的行为（`jsonb_array_elements`、2 天窗口）尚未被真实库验证。
+  - 回滚方式：撤销 `publishFact` 中的 `postOutcomeUpdateCard` 调用即可停止写卡片；撤销事实 SQL 中后两个 `UNION ALL` 即可停止失败/阻塞通知。已写入的卡片是普通 `system` 消息，保留不影响其他功能。
+  - 先依赖什么：2.1、2.2。
+  - 对应需求：需求 19、需求 20
+  - 对应设计：§44.1–§44.6
+
+- [x] 5.2 Desktop：卡片回复入口、阻塞提示和新通知类型
+  - 状态：DONE（2026-11-18，类型检查和相关单测通过；真实 Electron 界面未检查）
+  - 修改文件：`apps/desktop/src/renderer/components/outcomego/chat-pane.tsx`、`outcomes/outcome-chat-card.tsx`；`renderer/lib/outcome-target.ts`、`i18n-catalog.ts`；`main/index.ts`；`test/outcome-native-notifications.test.ts`。
+  - 验证命令：desktop `tsc --noEmit`；`bun test --isolate` 运行 `outcome-disclosure-ui`、`outcome-attention`、`outcome-native-notifications`、`outcome-client-components`；`bun scripts/check/i18n-catalog.ts`。
+  - 验证结果：类型检查通过；目标相关测试通过（新增失败/阻塞通知解析用例）；i18n 检查通过。
+  - 已知限制：未在真实 Electron 中查看卡片的回复入口、系统通知文案和阻塞提示。
+  - 回滚方式：撤销 `chat-pane.tsx` 的 `canReply` 即恢复为 `system` 消息不可回复。
+  - 对应需求：需求 19.5、19.7、需求 20.6
+  - 对应设计：§44.3、§44.4、§44.6
+
+- [x] 5.3 iOS：卡片渲染、点击打开、回复和新通知类型
+  - 状态：DONE（2026-11-18，Core 测试通过；完整 App 构建受既有错误影响，真实设备未验收）
+  - 修改文件：Core `OutcomeUpdateCard.swift`（新）、`OutcomeInbox.swift`；App `OutcomeUpdateCardView.swift`（新）、`ChatView.swift`；`Localizable.xcstrings`；`Tests/CoreTests/OutcomeInboxTests.swift`。
+  - 验证命令：`DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test --filter OutcomeInboxTests`（在 `apps/ios`）；`xcodebuild build -scheme OutcomeGoNative -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO`。
+  - 验证结果：`OutcomeInboxTests` 7 项通过，含新增的卡片识别、阶段映射和新推送类型。xcodebuild 在 `QuestionCard.swift`、`TeamIntents.swift`、`AppStore.swift`、`HomeView.swift` 报错，这些文件不在本任务范围，未做干净基线对比；本任务新增的 `OutcomeUpdateCardView.swift` 与 `ChatView.swift` 无编译错误。
+  - 已知限制：完整 App 未能编译通过，所以卡片视图的实际渲染、点击和上下文菜单没有运行验证；真实推送冷热启动未验证。
+  - 回滚方式：删除 `ChatView.swift` 中 `outcomeUpdateCard` 分支，卡片退回文本气泡。
+  - 对应需求：需求 21
+  - 对应设计：§44.7
+
+- [x] 5.4 Android：卡片渲染、点击打开、回复和新通知类型
+  - 状态：DONE（2026-11-18，`package-debug.sh --test` 通过并生成 APK；未安装到设备，界面未检查）
+  - 修改文件：共享 `mobile/shared/.../core/OutcomeInbox.kt` 及 `OutcomeInboxTests.kt`；Android `data/MobileData.kt`、`ui/screens/chat/ChatMessageComponents.kt`、`ChatScreen.kt`、`ui/OutcomeGoApp.kt`、`test/.../MobileDataTest.kt`。
+  - 验证命令：`bash scripts/android/package-debug.sh --test`。
+  - 验证结果：wrapper exit 0；`MobileDataTest` 6 项、共享 `OutcomeInboxTests` 6 项，0 失败；assembleDebug 通过。APK：`/Users/jackson/Code/openteam/apps/android/app/build/outputs/apk/debug/androidApp-debug.apk`，SHA-256 `b98d152fbc4ceb02a0f227a8383b35777207b8fb87733ad4edac88fbde84dfb0`。该 APK 构建的是包含其他未提交改动的工作树。
+  - 已知限制：未安装到设备；卡片界面、回复图标、通知点击没有运行验证。
+  - 回滚方式：撤销 `MessageBubble` 中 `outcomeUpdateCard` 的提前返回，卡片退回文本气泡。
+  - 对应需求：需求 21
+  - 对应设计：§44.7
+
+- [ ] 5.5 三端真实验收
+  - 状态：PENDING
+  - 怎么算完成：真实服务端上让一个目标进入待决策、失败和阻塞；机器人私聊出现各一张卡片且 Bot 没有新的 Run；三端收到通知并点击进入目标；在主线程引用卡片提问，机器人能用 Outcome ID 读取目标；阻塞解除后未读通知消失。
+  - 怎么验证：真实设备或模拟器 + 真实服务端；执行 5.1 的集成测试。
+  - 对应需求：需求 19、需求 20、需求 21
+  - 对应设计：§44
+

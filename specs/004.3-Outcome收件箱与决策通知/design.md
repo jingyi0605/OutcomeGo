@@ -380,9 +380,11 @@ decision.required:<decisionId>
 review.required:<outcomeId>:<contractRevision>:<criterionGroup>
 human_action.required:<workItemId>
 outcome.completed:<outcomeId>:<acceptedRevision>
+outcome.failed:<outcomeId>:<contractRevision>:<md5(失败的 Agent WorkItem id 集合)>
+outcome.blocked:<workItemId>:<md5(blocked 任务 id 集合)>
 ```
 
-事实 key 写入已有通知模型或 Outbox 前必须唯一。Push 重试使用现有 Outbox delivery key，不由客户端重新生成。
+后两类见 §44。事实 key 写入已有通知模型或 Outbox 前必须唯一。Push 重试使用现有 Outbox delivery key，不由客户端重新生成。
 
 ### 17.2 通知内容
 
@@ -646,8 +648,12 @@ find open/presented Decision where expiresAt <= now
 1  acceptance required
 2  human action required
 3  decision required
+3  outcome failed
+2  outcome blocked
 4  urgent safety/operation issue explicitly emitted by service
 ```
+
+失败与决策同为 3，阻塞与人工处理同为 2（§44）。
 
 普通 Run progress 不创建 priority item。优先级不由模型自由设置，必须由事件类型或服务端规则映射。
 
@@ -825,3 +831,72 @@ Decision 的推荐选项为 1–4 个，并始终提供自定义输入。这一�
 2. 不实现自定义静默时间窗口和逾期自动升级；Decision 可以设置 `expiresAt`，过期后进入 `expired`，不视为同意（§31）。
 3. 同一 Outcome、同一 revision 的非紧急通知在 60 秒内合并为一条推送；Decision 不与其他 Decision 合并（§33）。
 4. `priority=4` 的紧急事件只由服务端规则产生（例如 `external_result_unknown`），不受合并窗口影响。
+
+## 44. 目标通知卡片与失败、阻塞事实
+
+对应需求：需求 19、需求 20、需求 21。
+
+### 44.1 卡片的位置和身份
+
+通知事实投影（`publishFact`，与通知意图同一事务）完成后，同一事务内调用 `postOutcomeUpdateCard`，向该 Bot 的 `bot_dm` 频道写入一条 `ChannelMessage`：
+
+```text
+sender      = system          （不是 agent，senderBotId = null，sourceRunId = null）
+clientId    = outcome-update:<factKey>   （频道内唯一，重放不会产生第二条）
+content     = Goal · <标题> · <stage>    （引用时进入提示的文本）
+metadata    = { type: "outcome-card", source: "outcome-update",
+                outcomeCard: { stage, title, outcomeId, revision, updatedAt } }
+```
+
+`source = outcome-update` 区分平台写入的卡片和 Bot 在对话工具中创建的卡片（后者发送者是 `agent`）。判断函数 `isOutcomeUpdateCardMetadata` 与常量 `OUTCOME_UPDATE_CARD_SOURCE` 位于 `packages/contracts/src/outcome-chat.ts`，Server 与 Desktop 共用。
+
+### 44.2 为什么不会唤醒 Bot
+
+- 写卡片只创建 `ChannelMessage` 和一条 `channel.message.created` 事件，不创建 Run、`ChannelDelivery` 或唤醒任务；该事件没有唤醒 Bot 的消费者。
+- 表情回应只在 `message.sender === "agent"` 时唤醒 Bot（`reactToMessage`），对 `system` 卡片只改元数据。
+- `buildSafeTranscript` 排除 `sender = system` 且 `metadata.source = outcome-update` 的消息，Bot 通过转录读取工具也看不到卡片。
+
+### 44.3 引用才进入对话
+
+用户在主线程引用卡片时走现有 `replyToMessageId` 路径。`formatUserPrompt` 在引用行追加 `; goal notice for Outcome <outcomeId>`（仅当被引用消息的元数据带 `outcomeCard.outcomeId`），让 Bot 能用 `GetOutcome` 读取真实目标，而不是只看到标题和阶段。普通引用的格式不变。
+
+Desktop 默认对 `system` 消息关闭交互（`canInteract`）。为卡片单独增加 `canReply`：只开放「回复」，表情仍关闭。
+
+### 44.4 卡片显示的阶段
+
+保存的 `stage` 只是写入时的事实。客户端读取 Outcome 当前状态：Desktop 沿用 `OutcomeChatCardView` 的轮询，iOS 通过 `API.outcomeDetail`，Android 通过 `FeatureGateway.outcomeDetail`；读取失败时回退到保存的阶段。`blocked` 事实写入的阶段是 `attention`；Desktop 另外在 Outcome 仍为 `running` 且存在 `blocked` 任务时显示阻塞提示。iOS 和 Android 以实时 Outcome 状态为准，因此阻塞解除后显示为运行中。
+
+### 44.5 失败和阻塞事实
+
+两类事实加入 `outcomeInboxNotificationFactsSql`，与 Inbox 查询分开（Inbox 服务有自己的 SQL，类别不变）：
+
+- `outcome.failed`：当前 revision 存在失败的 Agent WorkItem，Outcome 状态为 `failed`，未取消、未验收，revision 已批准，且最近失败发生在 2 天内。key 含失败 WorkItem id 集合，重试再失败会产生新 key。
+- `outcome.blocked`：执行中的 Agent WorkItem 的 `progress.tasks` 含 `status = blocked`，Outcome 状态为 `running`，WorkItem 属于当前 revision。key 含 blocked 任务 id 集合。
+
+投递沿用既有机制：Worker 每 2 秒的 push drain 调用 `reconcileOutcomeInboxNotifications`，按「当前事实且尚无通知记录」补发，所以这两类事实不需要新增事件主题，也不为 `outcome.status_changed` 或 `outcome.progress.updated` 逐条写入幂等回执。`outcomeNotificationIsCurrent` 和 `unreadOutcomeNotifications` 复用同一份事实 SQL，阻塞解除后未读通知自动消失。
+
+### 44.6 通知载荷
+
+`OUTCOME_NOTIFICATION_TYPES` 增加 `outcome.failed`、`outcome.blocked`；新增 `OUTCOME_NOTIFICATION_CATEGORIES = Inbox 四类 + failed + blocked`，载荷 `category` 使用该集合，Inbox 的 `OUTCOME_INBOX_CATEGORIES` 不变。固定文案：
+
+```text
+failed   title: An Outcome needs your attention   body: Open OutcomeGo to see why it stopped.
+blocked  title: An Outcome needs your attention   body: Open OutcomeGo to see what is blocking it.
+```
+
+深链仍是 `outcomego://app/v1/outcomes?id=<outcomeId>`。Desktop 主进程本地化同样的两句文案；iOS 的 `OutcomeLinkTarget.push` 与 Android 的 `parseOutcomePushTarget` 类型白名单各增加这两个值，其余校验不变。
+
+### 44.7 移动端卡片
+
+iOS：`Message.outcomeUpdateCard`（Core）解析卡片，`OutcomeUpdateCardView`（App）渲染，`ChatView` 在 `MessageRow` 之前分支；点击走 `store.deepLink`，上下文菜单和无障碍动作提供「回复」。
+Android：`ChatMessage.outcomeUpdateCard` 解析，`MessageBubble` 对卡片提前返回 `OutcomeUpdateCardRow`；点击通过 `onOpenOutcome` 进入现有目标导航，卡片右侧有「回复」图标按钮。移动端不提供表情入口。
+
+两端在 `sender != system`、缺少 `source`、Outcome ID 非 UUID 时均不识别为卡片，按普通消息显示。
+
+### 44.8 取舍
+
+- 每个事实一张卡片，不原地覆盖：不改写历史，也不依赖「置底」逻辑；每张卡片读取实时状态，旧卡片不会显示过期阶段。代价是同一目标在对话里可能出现多张卡片。
+- 不新增 Inbox 类别：失败和阻塞没有「解决」动作，Inbox 只承载可处理事项，避免连带修改三端 Inbox 页面和查询。
+- 阻塞通知依赖执行方上报；执行方不上报则不会通知，这是已知限制。
+- 卡片在通知被关闭时仍会写入（需求 19.6），因此关闭通知不等于关闭卡片。
+
