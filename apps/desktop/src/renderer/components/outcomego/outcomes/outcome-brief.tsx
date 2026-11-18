@@ -214,12 +214,17 @@ export function OutcomeBriefView({
   for (const item of brief?.prerequisites ?? []) conditions.push({ ...item, status: "unknown" });
   const notMet = conditions.filter((item) => item.status === "unmet").length;
   const unknown = conditions.filter((item) => item.status === "unknown").length;
-  const completedTasks = tasks.filter(
-    (item) => item.status === "completed" || item.status === "accepted"
-  ).length;
-  const runningTasks = tasks.filter(
-    (item) => item.status === "running" || item.status === "in_progress"
-  ).length;
+  const progressItem =
+    tasks.find((item) => item.status === "running" && item.progress?.tasks.length) ??
+    [...tasks].reverse().find((item) => item.progress?.tasks.length);
+  const taskSteps = progressItem?.progress?.tasks ?? null;
+  const totalTasks = taskSteps ? taskSteps.length : tasks.length;
+  const completedTasks = taskSteps
+    ? taskSteps.filter((step) => step.status === "completed").length
+    : tasks.filter((item) => item.status === "completed" || item.status === "accepted").length;
+  const runningTasks = taskSteps
+    ? taskSteps.filter((step) => step.status === "in_progress").length
+    : tasks.filter((item) => item.status === "running" || item.status === "in_progress").length;
   return (
     <section className="outcome-brief" aria-label={t("Goal overview")}>
       {typeof children === "function" ? children(brief) : children}
@@ -271,7 +276,7 @@ export function OutcomeBriefView({
           <ul className="outcome-brief-list">
             {conditions.map((item, i) => (
               <li key={i}>
-                <div className="outcome-brief-condition">
+                <div className="outcome-item-heading">
                   <strong>{item.title}</strong>
                   <Status value={item.status} />
                 </div>
@@ -301,11 +306,11 @@ export function OutcomeBriefView({
           icon={ListChecks}
           title="Tasks"
           preview={
-            tasks.length || brief ? (
+            totalTasks || brief ? (
               <span className="outcome-task-counts">
-                {!tasks.length && brief?.proposedTasks.length
+                {!totalTasks && brief?.proposedTasks.length
                   ? t("{count} suggested tasks", { count: brief.proposedTasks.length })
-                  : t("{count} tasks", { count: tasks.length })}
+                  : t("{count} tasks", { count: totalTasks })}
                 {" · "}
                 {t("{count} completed", { count: completedTasks })}
                 {" · "}
@@ -316,7 +321,36 @@ export function OutcomeBriefView({
             )
           }
         >
-          {tasks.length ? (
+          {taskSteps?.length ? (
+            <ol className="outcome-brief-list">
+              {taskSteps.map((step) => (
+                <li key={step.id}>
+                  <div className="outcome-item-heading">
+                    <strong>{step.title}</strong>
+                    <CompletionStatus status={step.status} />
+                  </div>
+                  <p>
+                    {step.summary ??
+                      (progressItem?.progress?.phase
+                        ? `${t("Current phase")}: ${progressItem.progress.phase}`
+                        : t("Status comes from the saved task record."))}
+                    <OutcomeSourceInfo
+                      name={step.title}
+                      text={[
+                        step.title,
+                        step.summary,
+                        progressItem?.progress?.phase && `Phase: ${progressItem.progress.phase}`,
+                        `Step ${step.id}`,
+                        progressItem && `WorkItem ${progressItem.id}`,
+                      ]
+                        .filter(Boolean)
+                        .join("\n")}
+                    />
+                  </p>
+                </li>
+              ))}
+            </ol>
+          ) : tasks.length ? (
             <ol className="outcome-brief-list">
               {tasks.map((item) => (
                 <li key={item.id}>

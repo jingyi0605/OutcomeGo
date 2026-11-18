@@ -12,6 +12,10 @@ export type TranslationValues = Record<string, string | number | null | undefine
 export const sourceTranslations: Record<string, string> = {
   "View tool activity": "查看工具活动",
   "Execution messages": "执行消息",
+  "View goal details": "查看目标详情",
+  "{done}/{total} steps": "{done}/{total} 项步骤",
+  "File change": "文件变更",
+  "Exit {code}": "退出码 {code}",
   "Read-only": "只读",
   "Follow visible messages and tool activity without interrupting the Bot.":
     "查看可观察消息与工具活动，不会打断 Bot。",
@@ -540,6 +544,8 @@ export const sourceTranslations: Record<string, string> = {
   withdrawn: "已撤回",
   ready: "就绪",
   in_progress: "执行中",
+  blocked: "已阻塞",
+  "Current phase": "当前阶段",
   paused: "已暂停",
   submitted: "已提交",
   review_pending: "待验收",

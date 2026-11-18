@@ -5,6 +5,7 @@ import {
 } from "@outcomego/client-core";
 import { outcomeGoClient } from "./outcomego-api";
 import { refreshMemoryViews } from "../lib/memory-events";
+import { refreshOutcomeViews } from "../lib/outcome-events";
 
 export { shouldRefreshForEvent };
 
@@ -16,10 +17,10 @@ export const createDesktopLiveSyncController = (
     listen: (cursor, eventHandlers, signal) =>
       outcomeGoClient.listenForEvents(cursor, {
         ...eventHandlers,
-        onOpen: () => { eventHandlers.onOpen?.(); refreshMemoryViews(); },
+        onOpen: () => { eventHandlers.onOpen?.(); refreshMemoryViews(); refreshOutcomeViews(); },
         onEvent: (event) => {
           if (event.topic === "notification.presence.changed") window.dispatchEvent(new Event("outcomego:notification-preferences-changed"));
-          eventHandlers.onEvent(event); refreshMemoryViews(event);
+          eventHandlers.onEvent(event); refreshMemoryViews(event); refreshOutcomeViews(event);
         },
       }, signal),
   });

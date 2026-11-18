@@ -20,6 +20,7 @@ import { RevisionHistory, revisionMaterialLabel } from "./revision-history";
 import { RecoveryDiagnostics } from "../inbox/recovery-diagnostics";
 import { responseStatus } from "../inbox/decision-state";
 import { useI18n } from "../../../../lib/i18n";
+import { subscribeOutcomeRefresh } from "../../../../lib/outcome-events";
 import { OutcomeAsset } from "../outcome-asset";
 import { OutcomeButton, OutcomeRefresh } from "../outcome-ui";
 import { outcomeCardStage } from "@outcomego/contracts/outcome-chat";
@@ -156,6 +157,22 @@ export function OutcomeDetail({
       generation.current++;
     };
   }, [outcomeId, client]);
+  useEffect(() => {
+    return subscribeOutcomeRefresh(outcomeId, () => {
+      const request = ++generation.current;
+      void client.get(outcomeId).then(
+        (result) => {
+          if (generation.current === request) {
+            setOutcome(result);
+            setRefreshVersion((v) => v + 1);
+          }
+        },
+        () => {
+          /* Keep current view until manual refresh or next event succeeds. */
+        }
+      );
+    });
+  }, [outcomeId, client]);
   // Approval starts execution on the server. A goal approved before that rule (or whose start failed) is
   // started once when opened; the request is idempotent, so a repeat cannot create a second run.
   const autoStarted = useRef<string | null>(null);
@@ -239,6 +256,13 @@ export function OutcomeDetail({
     revision?.status === "approved" &&
     !terminal &&
     !outcome.workItems.some((i) => i.contractRevision === revision.revision);
+  const currentWorkItems = outcome.workItems.filter(
+    (item) => item.contractRevision === outcome.currentRevision
+  );
+  const activeProgress =
+    currentWorkItems.find((item) => item.status === "running" && item.progress)?.progress ??
+    [...currentWorkItems].reverse().find((item) => item.progress)?.progress ??
+    null;
   const latestResult = [...outcome.outputs]
     .reverse()
     .find((output) =>
@@ -385,7 +409,17 @@ export function OutcomeDetail({
               revision?.status !== "pending_approval" &&
               outcome.status !== "review_pending" &&
               !actionItems.some((item) => item.requiresAction) && (
-                <p role="status">{translateCurrent(outcomeNextSteps[stage])}</p>
+                <>
+                  {activeProgress && (
+                    <div className="outcome-now-phase">
+                      <p className="font-medium">
+                        {translateCurrent("Current phase")}: {activeProgress.phase}
+                      </p>
+                      {activeProgress.summary && <p>{activeProgress.summary}</p>}
+                    </div>
+                  )}
+                  <p role="status">{translateCurrent(outcomeNextSteps[stage])}</p>
+                </>
               )}
             {actionsLoading && (
               <p role="status">{translateCurrent("Checking current decisions…")}</p>
