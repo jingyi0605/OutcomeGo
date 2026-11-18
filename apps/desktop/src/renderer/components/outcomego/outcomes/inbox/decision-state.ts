@@ -1,4 +1,8 @@
-import type { DecisionResolution, DecisionView } from "@outcomego/contracts/outcome-inbox";
+import {
+  CREDENTIAL_ACCESS_REASON_CODE,
+  type DecisionResolution,
+  type DecisionView,
+} from "@outcomego/contracts/outcome-inbox";
 import type { InboxClient } from "./inbox-api";
 import { OutcomeRequestIds } from "../planning/outcome-client";
 
@@ -143,16 +147,21 @@ export class DecisionController {
   }
 }
 
-/** Only explicit paired labels use approval buttons; effects always come from saved options. */
+/**
+ * Approvals (plan, step, credential access) answer with one click on a button next to the shared comment box.
+ * A credential decision is recognised by its server reason code; others only by explicit paired labels.
+ * Effects always come from saved options, never from the label.
+ */
 export function isApprovalDecision(decision: DecisionView): boolean {
   if (decision.options.length !== 2) return false;
+  if (decision.reasonCode === CREDENTIAL_ACCESS_REASON_CODE) return true;
   const labels = decision.options.map((option) =>
     option.label
       .trim()
       .toLocaleLowerCase()
       .replace(/[.!。！]$/, "")
   );
-  const yes = new Set(["yes", "approve", "agree", "是", "批准", "同意", "允许"]);
-  const no = new Set(["no", "reject", "decline", "否", "拒绝", "不同意", "不允许"]);
+  const yes = new Set(["yes", "approve", "agree", "是", "批准", "同意", "允许", "allow"]);
+  const no = new Set(["no", "reject", "decline", "否", "拒绝", "不同意", "不允许", "deny", "do not allow", "don't allow"]);
   return labels.some((label) => yes.has(label)) && labels.some((label) => no.has(label));
 }

@@ -253,7 +253,7 @@ test("receipt review loads approved N separately from pending N+1 and blocks aft
   expect(unavailable).not.toContain("A different future criterion.");
 });
 
-test("credential approval names the requested logins and never offers custom words as a grant", () => {
+test("credential approval names the logins and answers with one click beside the shared comment box", () => {
   const grant = {
     connectionId: "11111111-1111-4111-8111-111111111111",
     itemId: "22222222-2222-4222-8222-222222222222",
@@ -268,7 +268,7 @@ test("credential approval names the requested logins and never offers custom wor
         decision: {
           ...decisionFixture,
           reasonCode: "credential_access_required",
-          customEntryAllowed: false,
+          customEntryAllowed: true,
           nextStepSummary: "Allow reading these saved logins for this goal?",
           recommendation: null,
           options: [
@@ -305,6 +305,11 @@ test("credential approval names the requested logins and never offers custom wor
   expect(html).toContain("Unraid · 10.255.0.75 · Home vault");
   expect(html).toContain("Allow reading for this goal");
   expect(html).toContain("Do not allow");
+  // Same controls as the goal approval: comment box plus direct buttons, no radio list or submit step.
+  expect(html).toContain("outcome-direct-buttons");
+  expect(html).toContain("outcome-approval-comment");
+  expect(html).not.toContain('type="radio"');
+  expect(html).not.toContain("Submit choice");
 });
 test("human action opens on the next step; the long material stays behind disclosure rows", () => {
   const html = render(

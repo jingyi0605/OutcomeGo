@@ -180,6 +180,7 @@ export function DecisionCardView({
                   <textarea
                     aria-label={t("Decision comments")}
                     className={control}
+                    placeholder={t("Add comments or tell us what to change (optional).")}
                     rows={1}
                     maxLength={4000}
                     disabled={busy || !allowed}
