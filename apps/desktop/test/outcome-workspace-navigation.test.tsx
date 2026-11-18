@@ -5,9 +5,9 @@ import type { Root } from "react-dom/client";
 import type { OutcomeDetail, OutcomeListPage } from "@outcomego/contracts/outcomes";
 import { createOutcomeApi } from "../src/renderer/client/outcome-api";
 import { I18nProvider } from "../src/renderer/lib/i18n";
-import { TooltipProvider } from "../src/renderer/components/ui/tooltip";
-import { OutcomeNavigation } from "../src/renderer/components/outcomego/outcomes/outcome-navigation";
-import { OutcomeList } from "../src/renderer/components/outcomego/outcomes/outcome-list";
+let TooltipProvider: typeof import("../src/renderer/components/ui/tooltip").TooltipProvider;
+let OutcomeNavigation: typeof import("../src/renderer/components/outcomego/outcomes/outcome-navigation").OutcomeNavigation;
+let OutcomeList: typeof import("../src/renderer/components/outcomego/outcomes/outcome-list").OutcomeList;
 import { outcomeFixture, planFixture } from "./outcome-fixture";
 import { decisionFixture, exploreFixture, inboxFixture } from "./outcome-client-fixtures";
 
@@ -111,6 +111,21 @@ beforeAll(async () => {
       this.textContent = value;
     },
   });
+  const computedStyle = () => ({
+    display: "block",
+    visibility: "visible",
+    position: "static",
+    overflow: "visible",
+    overflowX: "visible",
+    overflowY: "visible",
+    direction: "ltr",
+    animationName: "none",
+    getPropertyValue: () => "",
+  });
+  Object.defineProperty(dom.window, "getComputedStyle", {
+    configurable: true,
+    value: computedStyle,
+  });
   for (const [key, value] of Object.entries({
     window: dom.window,
     document: dom.document,
@@ -118,6 +133,10 @@ beforeAll(async () => {
     HTMLElement: dom.window.HTMLElement,
     Element: dom.window.Element,
     Node: dom.window.Node,
+    DocumentFragment: dom.window.DocumentFragment,
+    MutationObserver: dom.window.MutationObserver,
+    getComputedStyle: dom.window.getComputedStyle,
+    NodeFilter: { SHOW_ELEMENT: 1, FILTER_ACCEPT: 1, FILTER_SKIP: 3 },
     HTMLInputElement: dom.window.HTMLInputElement,
     HTMLTextAreaElement: dom.window.HTMLTextAreaElement,
     Event: dom.window.Event,
@@ -127,6 +146,11 @@ beforeAll(async () => {
     descriptors.set(key, Object.getOwnPropertyDescriptor(globalThis, key));
     Object.defineProperty(globalThis, key, { configurable: true, writable: true, value });
   }
+  ({ TooltipProvider } = await import("../src/renderer/components/ui/tooltip"));
+  ({ OutcomeNavigation } = await import(
+    "../src/renderer/components/outcomego/outcomes/outcome-navigation"
+  ));
+  ({ OutcomeList } = await import("../src/renderer/components/outcomego/outcomes/outcome-list"));
   ({ createRoot } = await import("react-dom/client"));
   Workspace = (
     await import("../src/renderer/components/outcomego/outcomes/inbox/outcome-workspace")
@@ -189,7 +213,7 @@ async function render(node: ReactNode) {
     );
   });
 }
-async function click(text: string, scope: ParentNode = host) {
+async function click(text: string, scope: ParentNode = document.body) {
   const button = [...scope.querySelectorAll("button")].find(
     (element) => element.textContent === text
   );
@@ -352,33 +376,41 @@ test("attention and Explore are separate full-page sections and can return to al
 test("new Outcome uses the chosen Bot and requires approval before an explicit start", async () => {
   await mount(page());
   await click("New Outcome");
-  await input(host.querySelector('select[aria-label="Execution Bot"]')!, bots[1]!.id);
-  await input(host.querySelector("textarea")!, "Compare backup plans for this goal");
+  await input(document.body.querySelector('select[aria-label="Execution Bot"]')!, bots[1]!.id);
+  await input(document.body.querySelector("textarea")!, "Compare backup plans for this goal");
   await click("Generate planning options");
   expect(calls.find((call) => call.path === "/api/outcomes/plans")?.body).toMatchObject({
     context: { botId: bots[1]!.id },
   });
   for (let step = 0; step < 3; step++) {
     await act(async () => {
-      host
+      document.body
         .querySelector('input[type="checkbox"]')!
         .dispatchEvent(new dom.window.Event("click", { bubbles: true }));
     });
     await click("Next");
   }
   await click("Create contract for confirmation");
-  expect(host.textContent).toContain("Approve contract");
+  expect(document.body.textContent).toContain("Yes, approve");
   expect(calls.some((call) => call.path.endsWith("/runs"))).toBe(false);
-  await input(
-    host.querySelector('input[aria-label="Approval confirmation"]')!,
-    "I approve the goals and boundaries."
-  );
-  await click("Approve contract");
-  expect(host.textContent).toContain("Start approved Outcome");
+  await click("Yes, approve");
+  expect(document.body.textContent).toContain("Start approved Outcome");
   expect(calls.some((call) => call.path.endsWith("/runs"))).toBe(false);
   await click("Start approved Outcome");
   expect(calls.filter((call) => call.path.endsWith("/runs"))).toHaveLength(1);
-  expect(host.textContent).toContain("Research backups");
+  await act(async () => {
+    document.body
+      .querySelector('button[aria-label="More details"]')!
+      .dispatchEvent(new dom.window.Event("click", { bubbles: true }));
+  });
+  const execution = [...document.body.querySelectorAll("details")].find((el) =>
+    el.querySelector("summary")?.textContent?.startsWith("Execution progress")
+  )!;
+  await act(async () => {
+    execution.open = true;
+    execution.dispatchEvent(new dom.window.Event("toggle"));
+  });
+  expect(document.body.textContent).toContain("Research backups");
 });
 
 test("new Outcome with no Bots provides a way back to chat", async () => {
@@ -393,15 +425,15 @@ test("new Outcome with no Bots provides a way back to chat", async () => {
     />
   );
   await click("New Outcome");
-  expect(host.textContent).toContain("Create a Bot in chat before planning an Outcome.");
-  expect(host.querySelector('select[aria-label="Execution Bot"]')?.hasAttribute("disabled")).toBe(
-    true
-  );
+  expect(document.body.textContent).toContain("Create a Bot in chat before planning an Outcome.");
+  expect(
+    document.body.querySelector('select[aria-label="Execution Bot"]')?.hasAttribute("disabled")
+  ).toBe(true);
   await click("Back to chats");
   expect(closed).toBe(true);
 });
 
-test("notification targets open the corresponding detail on the page and mark only that notification read", async () => {
+test("notification targets open the corresponding detail in a modal and mark only that notification read", async () => {
   await mount(
     <Workspace
       target={{
@@ -413,7 +445,81 @@ test("notification targets open the corresponding detail on the page and mark on
       onClose={() => {}}
     />
   );
-  expect(host.textContent).toContain("Choose the next step");
+  expect(document.body.textContent).toContain("Choose the next step");
   expect(readCalls).toEqual([["notification-channel", "0", "42"]]);
-  expect(host.querySelector('[role="dialog"]')).toBeNull();
+  expect(document.body.querySelector('[role="dialog"]')).not.toBeNull();
+});
+
+async function openFirstGoal() {
+  const row = host.querySelector<HTMLButtonElement>(".outcome-row")!;
+  await act(async () => {
+    row.focus();
+    row.dispatchEvent(new dom.window.Event("click", { bubbles: true }));
+  });
+  expect(document.body.querySelector('[role="dialog"]')).not.toBeNull();
+  return row;
+}
+
+test("goal list opens a floating dialog; outside click closes it and retains the status filter", async () => {
+  await mount(page());
+  await input(host.querySelector("select")!, "running");
+  const row = await openFirstGoal();
+  expect(row.isConnected).toBe(true);
+  expect(host.querySelector(".outcome-row")).toBe(row);
+  expect(document.body.querySelector('[role="dialog"]')?.textContent).toContain(
+    "Backup comparison"
+  );
+  // DismissableLayer registers its document listener on the next task.
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  });
+  const overlay = document.querySelector(".outcome-modal-overlay")!;
+  await act(async () => {
+    const event = new dom.window.Event("pointerdown", { bubbles: true });
+    Object.assign(event, { pointerType: "mouse", button: 0 });
+    overlay.dispatchEvent(event);
+  });
+  expect(document.body.querySelector('[role="dialog"]')).toBeNull();
+  expect(host.querySelector("select")?.value).toBe("running");
+  expect(calls.at(-1)?.path).toBe("/api/outcomes?status=running");
+  expect(calls.every((call) => !call.body)).toBe(true);
+});
+
+test("Escape closes a goal modal; inspecting the saved plan inside does not dismiss it", async () => {
+  current = {
+    ...current,
+    status: "pending_approval",
+    currentRevisionView: {
+      ...current.currentRevisionView!,
+      status: "pending_approval",
+      approvedAt: null,
+    },
+  };
+  await mount(page());
+  await openFirstGoal();
+  const info = document.querySelector<HTMLButtonElement>(
+    'button[aria-label="Source for Proposed plan"]'
+  )!;
+  await act(async () => {
+    info.dispatchEvent(new dom.window.Event("click", { bubbles: true }));
+  });
+  const source = document.querySelector("[data-outcome-source]")!;
+  expect(source.textContent).toContain("Recommend a plan");
+  await act(async () => {
+    const event = new dom.window.Event("pointerdown", { bubbles: true });
+    Object.assign(event, { pointerType: "mouse", button: 0 });
+    source.dispatchEvent(event);
+  });
+  expect(document.querySelector('[role="dialog"]')).not.toBeNull();
+  await act(async () => {
+    info.dispatchEvent(new dom.window.Event("click", { bubbles: true }));
+  });
+  await act(async () => {
+    const event = new dom.window.Event("keydown", { bubbles: true, cancelable: true });
+    Object.assign(event, { key: "Escape" });
+    document.dispatchEvent(event);
+  });
+  expect(document.querySelector('[role="dialog"]')).toBeNull();
+  expect(host.textContent).toContain("All goals");
+  expect(calls.every((call) => !call.body)).toBe(true);
 });

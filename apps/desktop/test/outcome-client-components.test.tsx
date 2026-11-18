@@ -22,7 +22,7 @@ import {
 const render = (element: ReactNode) =>
   renderToStaticMarkup(createElement(I18nProvider, { children: element }));
 
-test("Decision default layer has three summaries, accessible custom input and no transcript", () => {
+test("Decision default layer prioritizes concise options and custom input; context stays hidden", () => {
   const html = render(
     createElement(DecisionCardView, {
       state: {
@@ -41,16 +41,17 @@ test("Decision default layer has three summaries, accessible custom input and no
     })
   );
   for (const text of [
-    "Completed",
-    "Current problem",
-    "No unresolved problem.",
-    "Next step",
+    "Choose a supported source.",
+    "Use source A",
+    "Source for Use source A",
     "Custom choice",
     "Recommendation, impact and evidence",
     'type="radio"',
     "Submit choice",
   ])
     expect(html).toContain(text);
+  expect(html).not.toContain(decisionFixture.completedSummary);
+  expect(html).not.toContain(decisionFixture.options[0]!.consequence);
   expect(html).not.toContain("Read-only transcript");
 });
 test("expired and unknown Decision states disable mutation without clearing custom words", () => {
@@ -71,7 +72,8 @@ test("expired and unknown Decision states disable mutation without clearing cust
       onOutcome() {},
     })
   );
-  expect(html).toContain('<fieldset disabled=""');
+  expect(html).toMatch(/<input[^>]*disabled=""/);
+  expect(html).not.toContain('<fieldset disabled=""');
   expect(html).toContain("Keep this choice");
   expect(html).toContain("expired, withdrawn");
 });

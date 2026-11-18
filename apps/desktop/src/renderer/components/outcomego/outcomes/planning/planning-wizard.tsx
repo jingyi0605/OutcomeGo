@@ -2,12 +2,20 @@ import { useRef, useState } from "react";
 import {
   OUTCOME_PLANNING_DIMENSIONS,
   hasBlockingConflict,
+  resolvePlanningSelections,
+  type ContractRevisionView,
   type PlanningDraftView,
   type OutcomeDetail,
   type OutcomeBudget,
 } from "@outcomego/contracts/outcomes";
+import { OutcomeApprovalScope } from "../outcome-brief";
 import { ContractConfirmation } from "./contract-confirmation";
-import { type OutcomeClient, OutcomeRequestIds, outcomeErrorMessage } from "./outcome-client";
+import {
+  type OutcomeClient,
+  OutcomeRequestIds,
+  outcomeErrorMessage,
+  planOutcomeChanges,
+} from "./outcome-client";
 import {
   customPlanningEntries,
   emptySelections,
@@ -26,6 +34,7 @@ export function PlanningWizard({
   initialBudget,
   onSaved,
   onDone,
+  revisionTarget,
 }: {
   botId: string;
   client: OutcomeClient;
@@ -33,6 +42,7 @@ export function PlanningWizard({
   initialBudget?: OutcomeBudget | null;
   onSaved?: (value: { planId?: string; outcomeId?: string }) => void;
   onDone: (outcome: OutcomeDetail) => void;
+  revisionTarget?: { outcomeId: string; revision: ContractRevisionView; changeSummary: string };
 }) {
   const { t } = useI18n();
   const [sourceText, setSourceText] = useState(initialPlan?.sourceText ?? "");
@@ -46,9 +56,12 @@ export function PlanningWizard({
   const [cost, setCost] = useState(initialBudget?.costLimit?.toString() ?? "");
   const [outcome, setOutcome] = useState<OutcomeDetail | null>(null);
   const attention = useOutcomeAttention({ surface: "planning", outcomeId: outcome?.id });
-  const [confirmation, setConfirmation] = useState("");
+  const [comment, setComment] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [changePlan, setChangePlan] = useState<{ plan: PlanningDraftView; request: string } | null>(
+    null
+  );
   const requestIds = useRef(new OutcomeRequestIds());
   const budget =
     !time && !cost
@@ -74,6 +87,26 @@ export function PlanningWizard({
   const dimensionLabel = { goal: "Goal", acceptance: "Acceptance", boundaries: "Boundaries" }[
     dimension
   ];
+  if (changePlan && outcome?.currentRevisionView)
+    return (
+      <PlanningWizard
+        botId={botId}
+        client={client}
+        initialPlan={changePlan.plan}
+        initialBudget={outcome.currentRevisionView.budget}
+        revisionTarget={{
+          outcomeId: outcome.id,
+          revision: outcome.currentRevisionView,
+          changeSummary: changePlan.request,
+        }}
+        onDone={(value) => {
+          setChangePlan(null);
+          setComment("");
+          setOutcome(value);
+          onDone(value);
+        }}
+      />
+    );
   return (
     <section
       ref={attention.ref}
@@ -81,7 +114,9 @@ export function PlanningWizard({
       className="space-y-4"
       aria-busy={busy}
     >
-      <h2 className="text-[15px] font-medium tracking-[-0.015em]">{t("Plan an Outcome")}</h2>
+      <h2 className="text-[15px] font-medium tracking-[-0.015em]">
+        {t(revisionTarget ? "Choose changes to your plan" : "Plan an Outcome")}
+      </h2>
       {error && <p role="alert">{error}</p>}
       {!draft && (
         <>
@@ -184,16 +219,18 @@ export function PlanningWizard({
             </fieldset>
           ) : (
             <>
-              <label className="block">
-                {t("Outcome title")}
-                <input
-                  className="mt-1 w-full outcome-control"
-                  value={title}
-                  maxLength={200}
-                  onChange={(e) => setTitle(e.target.value)}
-                  disabled={busy}
-                />
-              </label>
+              {!revisionTarget && (
+                <label className="block">
+                  {t("Outcome title")}
+                  <input
+                    className="mt-1 w-full outcome-control"
+                    value={title}
+                    maxLength={200}
+                    onChange={(e) => setTitle(e.target.value)}
+                    disabled={busy}
+                  />
+                </label>
+              )}
               <label className="block">
                 {t("Time limit in minutes (optional)")}
                 <input
@@ -232,13 +269,29 @@ export function PlanningWizard({
                 className="outcome-control"
                 disabled={
                   busy ||
-                  !title.trim() ||
+                  (!revisionTarget && !title.trim()) ||
                   !validBudget ||
                   hasBlockingConflict(conflicts) ||
                   draft.status !== "ready"
                 }
                 onClick={() =>
                   void submit(async () => {
+                    if (revisionTarget) {
+                      const input = {
+                        baseRevision: revisionTarget.revision.revision,
+                        contract: resolvePlanningSelections(draft, selections, budget),
+                        changeSummary: revisionTarget.changeSummary,
+                      };
+                      const changed = await client.revise(revisionTarget.outcomeId, {
+                        ...input,
+                        clientRequestId: requestIds.current.for(
+                          `revise:${revisionTarget.outcomeId}`,
+                          input
+                        ),
+                      });
+                      onDone(changed);
+                      return;
+                    }
                     const input = { planId: draft.planId, title, ...selections, budget };
                     const result = await client.create({
                       ...input,
@@ -250,7 +303,7 @@ export function PlanningWizard({
                   })
                 }
               >
-                {t("Create contract for confirmation")}
+                {t(revisionTarget ? "Save proposed changes" : "Create contract for confirmation")}
               </button>
             </>
           )}
@@ -286,16 +339,29 @@ export function PlanningWizard({
       )}
       {outcome?.currentRevisionView && (
         <>
+          <OutcomeApprovalScope revision={outcome.currentRevisionView} />
           <ContractConfirmation
+            key={outcome.currentRevisionView.id}
             revision={outcome.currentRevisionView}
             busy={busy}
-            confirmation={confirmation}
-            onConfirmation={setConfirmation}
+            comment={comment}
+            onComment={setComment}
+            onRequestChanges={(text) =>
+              void submit(async () => {
+                const plan = await planOutcomeChanges(client, outcome.currentRevisionView!, text);
+                setChangePlan({ plan, request: text });
+              })
+            }
             onApprove={() =>
               void submit(async () => {
                 const input = {
                   expectedRevision: outcome.currentRevision!,
-                  confirmationText: confirmation,
+                  confirmationText: [
+                    t("I approve the saved goals, acceptance criteria and scope."),
+                    comment.trim(),
+                  ]
+                    .filter(Boolean)
+                    .join("\n\n"),
                 };
                 const approved = await client.approve(outcome.id, outcome.currentRevision!, {
                   ...input,

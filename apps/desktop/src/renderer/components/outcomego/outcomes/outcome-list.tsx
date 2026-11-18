@@ -29,11 +29,13 @@ export function OutcomeList({
   bots,
   onSelect,
   onCreate,
+  refreshVersion = 0,
 }: {
   client: OutcomeClient;
   bots: Array<{ id: string; name: string }>;
   onSelect: (id: string) => void;
   onCreate: () => void;
+  refreshVersion?: number;
 }) {
   const { t } = useI18n();
   const [page, setPage] = useState<OutcomeListPage | null>(null);
@@ -83,6 +85,9 @@ export function OutcomeList({
       window.clearInterval(interval);
     };
   }, [client, status]);
+  useEffect(() => {
+    if (refreshVersion > 0) void load();
+  }, [refreshVersion]);
   return (
     <section aria-label={t("All goals")} aria-busy={busy}>
       <div className="outcome-toolbar">

@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { ArrowLeft, Inbox, Lightbulb, ListChecks, Plus, Target } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Inbox, Lightbulb, ListChecks, Plus, Target } from "lucide-react";
 import { api } from "../../../../client/outcomego-api";
 import type { DesktopOutcomeTarget } from "../../../../lib/outcome-target";
 import type { HumanWorkItemView } from "@outcomego/contracts/human-work";
@@ -13,6 +13,7 @@ import { ExplorePanel } from "../explore/explore-panel";
 import { OutcomeList } from "../outcome-list";
 import { PlanningWizard } from "../planning/planning-wizard";
 import { OutcomeButton } from "../outcome-ui";
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "../../../ui/dialog";
 
 type Route =
   | { kind: "all" }
@@ -39,6 +40,16 @@ export default function OutcomeWorkspace({
 }) {
   const { t } = useI18n();
   const [route, setRoute] = useState<Route>(() => routeFor(target));
+  const workspace = useRef<HTMLElement>(null);
+  const opener = useRef<HTMLElement | null>(null);
+  const openRoute = (next: Route) => {
+    if (
+      ["all", "inbox", "explore"].includes(route.kind) &&
+      document.activeElement instanceof HTMLElement
+    )
+      opener.current = document.activeElement;
+    setRoute(next);
+  };
   const [version, setVersion] = useState(0);
   const [botId, setBotId] = useState("");
   const [origin, setOrigin] = useState<"all" | "inbox" | "explore">("all");
@@ -52,7 +63,7 @@ export default function OutcomeWorkspace({
         .catch(() => undefined);
   }, [target]);
   const select = (item: OutcomeInboxItemView) => {
-    setRoute(
+    openRoute(
       item.decisionId
         ? { kind: "decision", id: item.decisionId }
         : item.category === "human_action_pending" && item.workItemId
@@ -67,11 +78,20 @@ export default function OutcomeWorkspace({
     );
   };
   const review = (id: string, reviewRevision?: number) =>
-    setRoute({ kind: "outcome", id, reviewRevision });
+    openRoute({ kind: "outcome", id, reviewRevision });
   const selectedBotId = bots.some((bot) => bot.id === botId) ? botId : (bots[0]?.id ?? "");
-  const tab = ["all", "inbox", "explore"].includes(route.kind) ? route.kind : origin;
+  const tab =
+    route.kind === "all" || route.kind === "inbox" || route.kind === "explore"
+      ? route.kind
+      : origin;
+  const modalOpen = route.kind !== "all" && route.kind !== "inbox" && route.kind !== "explore";
+  const closeModal = () => {
+    setVersion((value) => value + 1);
+    setRoute({ kind: origin });
+  };
   return (
     <section
+      ref={workspace}
       aria-label={t("Outcome workspace")}
       className="outcome-page flex min-h-0 flex-1 flex-col"
     >
@@ -90,7 +110,7 @@ export default function OutcomeWorkspace({
             variant="default"
             onClick={() => {
               setOrigin("all");
-              setRoute({ kind: "new" });
+              openRoute({ kind: "new" });
             }}
           >
             <Plus aria-hidden="true" className="size-3.5" />
@@ -121,73 +141,19 @@ export default function OutcomeWorkspace({
       </header>
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="outcome-page-content space-y-5">
-          {!["all", "inbox", "explore"].includes(route.kind) && (
-            <OutcomeButton
-              variant="ghost"
-              className="-ml-2 text-foreground-secondary"
-              onClick={() => {
-                setVersion((value) => value + 1);
-                setRoute({ kind: origin });
-              }}
-            >
-              <ArrowLeft aria-hidden="true" className="size-3.5" />
-              {t(
-                origin === "inbox"
-                  ? "Back to Inbox"
-                  : origin === "explore"
-                    ? "Back to ideas"
-                    : "Back to all goals"
-              )}
-            </OutcomeButton>
-          )}
-          {route.kind === "all" && (
+          {tab === "all" && (
             <OutcomeList
               client={api.outcomes}
               bots={bots}
               onSelect={review}
-              onCreate={() => setRoute({ kind: "new" })}
+              onCreate={() => openRoute({ kind: "new" })}
+              refreshVersion={version}
             />
           )}
-          {route.kind === "new" && (
-            <div className="outcome-form space-y-5">
-              <label className="block text-xs text-foreground-secondary">
-                {t("Execution Bot")}
-                <select
-                  aria-label={t("Execution Bot")}
-                  className="outcome-control mt-2 block w-full max-w-sm"
-                  value={selectedBotId}
-                  onChange={(event) => setBotId(event.target.value)}
-                  disabled={bots.length === 0}
-                >
-                  {bots.length === 0 && <option value="">{t("No Bots available")}</option>}
-                  {bots.map((bot) => (
-                    <option key={bot.id} value={bot.id}>
-                      {bot.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              {selectedBotId ? (
-                <PlanningWizard
-                  key={selectedBotId}
-                  botId={selectedBotId}
-                  client={api.outcomes}
-                  onDone={(outcome) => review(outcome.id)}
-                />
-              ) : (
-                <p role="status">
-                  {t("Create a Bot in chat before planning an Outcome.")}{" "}
-                  <button className="underline" onClick={onClose}>
-                    {t("Back to chats")}
-                  </button>
-                </p>
-              )}
-            </div>
-          )}
-          {route.kind === "inbox" && (
+          {tab === "inbox" && (
             <OutcomeInbox client={api.outcomeInbox} onSelect={select} refreshVersion={version} />
           )}
-          {route.kind === "explore" && (
+          {tab === "explore" && (
             <ExplorePanel
               client={api.explore}
               outcomes={api.outcomes}
@@ -195,39 +161,111 @@ export default function OutcomeWorkspace({
               onOutcome={review}
             />
           )}
-          {route.kind === "decision" && (
-            <DecisionCard
-              key={route.id}
-              decisionId={route.id}
-              client={api.outcomeInbox}
-              outcomes={api.outcomes}
-              onOutcome={review}
-            />
-          )}
-          {route.kind === "human" && (
-            <HumanAction
-              key={route.id}
-              workItemId={route.id}
-              client={api.outcomeInbox}
-              materials={api.humanMaterials}
-              upload={async (file) => {
-                const asset = await api.uploadAsset(file, file.name, file.type);
-                return { assetRef: `asset:${asset.assetId}` };
-              }}
-              onReview={review}
-            />
-          )}
-          {route.kind === "outcome" && (
-            <OutcomeWithActions
-              key={`${route.id}:${route.reviewRevision ?? "current"}`}
-              outcomeId={route.id}
-              reviewRevision={route.reviewRevision}
-              onHuman={(id) => setRoute({ kind: "human", id })}
-              onDecision={(id) => setRoute({ kind: "decision", id })}
-            />
-          )}
         </div>
       </div>
+      <Dialog
+        open={modalOpen}
+        onOpenChange={(open) => {
+          if (!open) closeModal();
+        }}
+      >
+        <DialogContent
+          className="outcome-modal outcome-page"
+          overlayClassName="outcome-modal-overlay"
+          onCloseAutoFocus={(event) => {
+            event.preventDefault();
+            const fallback = workspace.current?.querySelector<HTMLElement>(
+              'nav button[aria-current="page"]'
+            );
+            (opener.current?.isConnected ? opener.current : fallback)?.focus();
+          }}
+        >
+          <DialogTitle className="sr-only">
+            {t(
+              route.kind === "new"
+                ? "Plan an Outcome"
+                : route.kind === "decision"
+                  ? "Decision"
+                  : route.kind === "human"
+                    ? "Human action"
+                    : "Goal details"
+            )}
+          </DialogTitle>
+          <DialogDescription className="sr-only">
+            {t("Review the goal and handle current decisions.")}
+          </DialogDescription>
+          <div className="outcome-page-content outcome-modal-body space-y-5">
+            {route.kind === "new" && (
+              <div className="outcome-form space-y-5">
+                <label className="block text-xs text-foreground-secondary">
+                  {t("Execution Bot")}
+                  <select
+                    aria-label={t("Execution Bot")}
+                    className="outcome-control mt-2 block w-full max-w-sm"
+                    value={selectedBotId}
+                    onChange={(event) => setBotId(event.target.value)}
+                    disabled={bots.length === 0}
+                  >
+                    {bots.length === 0 && <option value="">{t("No Bots available")}</option>}
+                    {bots.map((bot) => (
+                      <option key={bot.id} value={bot.id}>
+                        {bot.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                {selectedBotId ? (
+                  <PlanningWizard
+                    key={selectedBotId}
+                    botId={selectedBotId}
+                    client={api.outcomes}
+                    onDone={(outcome) => review(outcome.id)}
+                  />
+                ) : (
+                  <p role="status">
+                    {t("Create a Bot in chat before planning an Outcome.")}{" "}
+                    <button className="underline" onClick={onClose}>
+                      {t("Back to chats")}
+                    </button>
+                  </p>
+                )}
+              </div>
+            )}
+            {route.kind === "decision" && (
+              <DecisionCard
+                key={route.id}
+                decisionId={route.id}
+                client={api.outcomeInbox}
+                outcomes={api.outcomes}
+                onOutcome={review}
+              />
+            )}
+            {route.kind === "human" && (
+              <HumanAction
+                key={route.id}
+                workItemId={route.id}
+                client={api.outcomeInbox}
+                materials={api.humanMaterials}
+                upload={async (file) => {
+                  const asset = await api.uploadAsset(file, file.name, file.type);
+                  return { assetRef: `asset:${asset.assetId}` };
+                }}
+                onReview={review}
+              />
+            )}
+            {route.kind === "outcome" && (
+              <OutcomeWithActions
+                key={`${route.id}:${route.reviewRevision ?? "current"}`}
+                outcomeId={route.id}
+                reviewRevision={route.reviewRevision}
+                onHuman={(id) => openRoute({ kind: "human", id })}
+                onDecision={(id) => openRoute({ kind: "decision", id })}
+                onReceipt={(revision) => review(route.id, revision)}
+              />
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }
@@ -236,61 +274,68 @@ function OutcomeWithActions({
   reviewRevision,
   onHuman,
   onDecision,
+  onReceipt,
 }: {
   outcomeId: string;
   reviewRevision?: number;
   onHuman: (id: string) => void;
   onDecision: (id: string) => void;
+  onReceipt: (revision: number) => void;
 }) {
   const { t } = useI18n();
   const [items, setItems] = useState<HumanWorkItemView[]>([]);
   const [inbox, setInbox] = useState<OutcomeInboxItemView[]>([]);
   const [error, setError] = useState(false);
+  const [loading, setLoading] = useState(true);
   useEffect(() => {
     let active = true;
-    void Promise.all([
-      api.outcomeInbox.humanItems(outcomeId),
-      api.outcomeInbox.forOutcome(outcomeId),
-    ]).then(
-      ([items, page]) => {
-        if (active) {
-          setItems(items);
-          setInbox(page.items);
-        }
-      },
-      () => {
-        if (active) setError(true);
-      }
-    );
+    let timer: ReturnType<typeof setTimeout>;
+    async function read() {
+      const [human, page] = await Promise.allSettled([
+        api.outcomeInbox.humanItems(outcomeId),
+        api.outcomeInbox.forOutcome(outcomeId),
+      ]);
+      if (!active) return;
+      if (human.status === "fulfilled") setItems(human.value);
+      if (page.status === "fulfilled")
+        setInbox(page.value.items.filter((item) => item.outcomeId === outcomeId));
+      setError(human.status === "rejected" || page.status === "rejected");
+      setLoading(false);
+      timer = setTimeout(read, 10_000);
+    }
+    void read();
     return () => {
       active = false;
+      clearTimeout(timer);
     };
   }, [outcomeId]);
   return (
     <div className="space-y-4">
-      {error && (
-        <p role="alert">
-          {t("Some action links could not be loaded. Reopen this Outcome to retry.")}
-        </p>
+      <OutcomeDetail
+        outcomeId={outcomeId}
+        client={api.outcomes}
+        inboxClient={api.outcomeInbox}
+        reviewRevision={reviewRevision}
+        actionItems={inbox.filter((item) => item.requiresAction)}
+        actionsError={error}
+        actionsLoading={loading}
+        onAction={(item) => {
+          if (item.decisionId) onDecision(item.decisionId);
+          else if (item.category === "human_action_pending" && item.workItemId)
+            onHuman(item.workItemId);
+          else if (item.category === "acceptance_pending") onReceipt(item.contractRevision);
+        }}
+      />
+      {items.length > 0 && (
+        <details className="outcome-disclosure">
+          <summary>{t("Human tasks")}</summary>
+          {items.map((item) => (
+            <button className="outcome-control" key={item.id} onClick={() => onHuman(item.id)}>
+              {item.title} · {t(item.status)}
+            </button>
+          ))}
+        </details>
       )}
-      {inbox
-        .filter((item) => item.decisionId)
-        .map((item) => (
-          <button
-            className="mr-2 outcome-control"
-            key={item.id}
-            onClick={() => onDecision(item.decisionId!)}
-          >
-            {t("Open Decision")}: {item.title}
-          </button>
-        ))}
-      {items.map((item) => (
-        <button className="mr-2 outcome-control" key={item.id} onClick={() => onHuman(item.id)}>
-          {t("Human action")}: {item.title} · {item.status} · {t("Revision")}{" "}
-          {item.contractRevision}
-        </button>
-      ))}
-      <OutcomeDetail outcomeId={outcomeId} client={api.outcomes} reviewRevision={reviewRevision} />
     </div>
   );
 }

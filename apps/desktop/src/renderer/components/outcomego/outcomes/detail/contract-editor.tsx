@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useI18n } from "../../../../lib/i18n";
 import type {
   ContractRevisionView,
   CreateContractRevisionInput,
@@ -18,6 +19,7 @@ export function ContractEditor({
   busy: boolean;
   onSave: (input: Omit<CreateContractRevisionInput, "clientRequestId">) => void;
 }) {
+  const { t } = useI18n();
   const [goal, setGoal] = useState(revision.goal.join("\n"));
   const [included, setIncluded] = useState(revision.boundaries.included.join("\n"));
   const [excluded, setExcluded] = useState(revision.boundaries.excluded.join("\n"));
@@ -27,7 +29,7 @@ export function ContractEditor({
   const [summary, setSummary] = useState("");
   return (
     <details className="outcome-card">
-      <summary>Edit contract as a new revision</summary>
+      <summary>{t("Edit contract as a new revision")}</summary>
       <fieldset disabled={busy} className="mt-3 space-y-3">
         <p className="text-xs">Approved snapshots and their evidence remain in history.</p>
         <label className="block">
