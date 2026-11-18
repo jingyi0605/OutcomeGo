@@ -2071,6 +2071,16 @@
         }
       }
     },
+    "Do Not Disturb": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "消息免打扰"
+          }
+        }
+      }
+    },
     "Do this on the computer": {
       "localizations": {
         "zh-CN": {

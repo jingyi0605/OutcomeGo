@@ -388,7 +388,7 @@ final class NativeNotifications {
     guard current == epoch else { return }
     let ids = delivered.compactMap { item -> String? in
       let push = Self.payload(item.request.content.userInfo)
-      return reads.hasRead(push) || (!push.scope.isEmpty && push.scope != reads.scope)
+      return reads.hasRead(push) || isMuted(push) || (!push.scope.isEmpty && push.scope != reads.scope)
         ? item.request.identifier : nil
     }
     center.removeDeliveredNotifications(withIdentifiers: ids)
@@ -398,8 +398,14 @@ final class NativeNotifications {
       !reads.hasRead(push)
     else { return false }
     if push.outcomeTarget != nil { return true }
+    if isMuted(push) { return false }
     return
       !(UIApplication.shared.applicationState == .active && store?.activeChannel == push.channelId)
+  }
+  private func isMuted(_ push: NativePush) -> Bool {
+    guard push.outcomeTarget == nil, push.isAlert else { return false }
+    return store?.channel(push.channelId)?.notificationsMuted
+      ?? (reads.mutedChannelIds?.contains(push.channelId) == true)
   }
   func tapped(_ push: NativePush) async {
     guard push.isAlert else { return }

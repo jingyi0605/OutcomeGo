@@ -67,7 +67,7 @@ struct HomeView: View {
     InboxUnreadPosition(orderedIDs: renderedChannels.map(\.id),
       visibleIDs: viewportChannelIDs.subtracting(store.pins)
         .union(pinnedStripVisible ? pinnedChannels.map(\.id) : []),
-      unreadIDs: Set(visible.filter { store.isUnread($0) }.map(\.id)))
+      unreadIDs: Set(visible.filter { $0.notificationsMuted != true && store.isUnread($0) }.map(\.id)))
   }
   private var visible: [Channel] { store.channels.filter { $0.kind != "agent_dm" } }
   private var sections: [JSON] { store.sidebar["sections"].array }
@@ -1293,7 +1293,9 @@ struct ChannelRow: View {
           }
           Text(preview).font(.system(size: 15)).tracking(isSidebar ? 0 : 0.2).lineLimit(1).truncationMode(.tail).frame(
             maxWidth: .infinity, alignment: .leading)
-          if unread { Circle().fill(NativePalette.inboxUnread).frame(width: 10, height: 10).accessibilityLabel("Unread") }
+          if unread && channel.notificationsMuted != true {
+            Circle().fill(NativePalette.inboxUnread).frame(width: 10, height: 10).accessibilityLabel("Unread")
+          }
         }.foregroundStyle(NativePalette.chatMuted)
       }
     }.frame(minHeight: isSidebar ? SidebarMetrics.rowHeight : 80).contentShape(Rectangle()).accessibilityElement(children: .combine)

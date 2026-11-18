@@ -41,6 +41,7 @@ public struct NotificationReads: Codable, Sendable {
   public private(set) var markers: [String: NotificationReadMarker] = [:]
   public private(set) var snapshotCursor: String?
   public private(set) var badgeCount: Int?
+  public private(set) var mutedChannelIds: Set<String>?
   public init(scope: String) { self.scope = scope }
 
   public static func sequence(_ value: String) -> String? {
@@ -87,6 +88,7 @@ public struct NotificationReads: Codable, Sendable {
     if let old = snapshotCursor, Self.less(cursor, old) { return false }
     snapshotCursor = cursor
     badgeCount = Int(badge)
+    mutedChannelIds = Set(snapshot["mutedChannelIds"].array.map(\.string))
     return true
   }
   public func hasRead(_ push: NativePush) -> Bool {

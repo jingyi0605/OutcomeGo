@@ -107,6 +107,7 @@ public struct Channel: Codable, Identifiable, Sendable, Hashable {
   public var hiddenFromSidebar: Bool?
   public var members: [Member]
   public var unreadCount: Int?
+  public var notificationsMuted: Bool?
   public var notificationState: JSON?
   public var updatedAt: String
   public var isGroup: Bool { kind == "group" }
