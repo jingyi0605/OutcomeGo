@@ -35,6 +35,7 @@
     "katex": "0.16.47",
     "libopus-wasm": "0.4.1",
     "libphonenumber-js": "1.13.13",
+    "linkedom": "0.18.13",
     "lucide-react": "1.34.0",
     "mammoth": "1.12.0",
     "pdfjs-dist": "5.4.296",
