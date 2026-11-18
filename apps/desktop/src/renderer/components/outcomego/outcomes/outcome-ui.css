@@ -1414,3 +1414,12 @@ button.outcome-chat-card-main:hover {
     padding: 36px 18px 20px;
   }
 }
+
+/* Night mode: the global muted greys are too dim on Outcome surfaces; raise their contrast. */
+:root[data-theme="dark"]
+  :is(.outcome-page, .outcome-modal, .outcome-chat-card, .outcome-execution-dialog) {
+  --foreground-secondary: #fcfcfccc;
+  --foreground-tertiary: #fcfcfcb3;
+  --color-foreground-secondary: #fcfcfccc;
+  --color-foreground-tertiary: #fcfcfcb3;
+}
