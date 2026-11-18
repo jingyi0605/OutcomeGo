@@ -32,7 +32,7 @@ export function KnowledgeReferences({
   ];
   return (
     <section aria-label={t("Knowledge references")} className="space-y-3">
-      <h3 className="font-medium">{t("Knowledge references")}</h3>
+      <h3 className="sr-only">{t("Knowledge references")}</h3>
       <p className="text-sm text-muted-foreground">
         {t("Sources open only when requested. Source text is not added to your receipt.")}
       </p>

@@ -122,7 +122,7 @@ export function ReceiptForm({
   }
   return (
     <section aria-label={t("Execution receipt")} aria-busy={busy} className="space-y-3">
-      <h3 className="font-medium">{t("Execution receipt")}</h3>
+      <h3 className="sr-only">{t("Execution receipt")}</h3>
       <p>
         {t(
           "Submit actual results. A receipt waits for acceptance review and does not complete the task automatically."

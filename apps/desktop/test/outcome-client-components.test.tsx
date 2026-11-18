@@ -306,3 +306,20 @@ test("credential approval names the requested logins and never offers custom wor
   expect(html).toContain("Allow reading for this goal");
   expect(html).toContain("Do not allow");
 });
+test("human action opens on the next step; the long material stays behind disclosure rows", () => {
+  const html = render(
+    createElement(HumanAction, {
+      workItemId: fixtureIds.human,
+      client: {} as InboxClient,
+      materials: {} as HumanMaterialClient,
+      initialItem: humanFixture,
+      upload: async () => ({ assetRef: "unused" }),
+      onReview() {},
+    })
+  );
+  expect(html).toContain("outcome-now");
+  expect(html).toContain("Why this is needed");
+  // Rows are collapsed unless the action is in progress.
+  expect(html).not.toMatch(/<details class="outcome-brief-section" open/);
+  expect(html.match(/class="outcome-brief-section"/g)!.length).toBeGreaterThanOrEqual(4);
+});

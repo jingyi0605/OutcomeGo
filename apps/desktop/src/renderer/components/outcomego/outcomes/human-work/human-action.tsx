@@ -1,4 +1,17 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  BookOpen,
+  ChevronRight,
+  ClipboardCheck,
+  FileCheck2,
+  History,
+  Info,
+  ListChecks,
+  PauseCircle,
+  Save,
+  ShieldCheck,
+  type LucideIcon,
+} from "lucide-react";
 import type { HumanWorkItemDetail } from "@outcomego/contracts/human-work";
 import type { InboxClient } from "../inbox/inbox-api";
 import type { HumanMaterialClient } from "./human-api";
@@ -116,12 +129,26 @@ export function HumanAction({
     }
   }
   const card = item?.card;
+  const canStart = !!card && ["pending", "ready", "paused", "rejected"].includes(card.status);
+  const inProgress = card?.status === "in_progress";
+  const nextStep = card
+    ? (card.steps.find((step) => step.id === card.draft?.currentStepId) ?? card.steps[0])
+    : undefined;
+  const requiredEvidence = card?.evidenceRequirements.filter((item) => item.required).length ?? 0;
+  const doneConditions = card?.prerequisites.filter((item) => item.completed).length ?? 0;
   return (
     <article aria-label={t("Human action")} aria-busy={busy} className="space-y-4">
       <header className="flex justify-between gap-3">
-        <h2 className="text-[15px] font-medium tracking-[-0.015em]">
-          {card?.title ?? t("Human action")}
-        </h2>
+        <div className="min-w-0">
+          <h2 className="text-[15px] font-medium tracking-[-0.015em]">
+            {card?.title ?? t("Human action")}
+          </h2>
+          {item && card && (
+            <p role="status" className="mt-1 text-[11px] text-muted-foreground">
+              {t(item.status)}
+            </p>
+          )}
+        </div>
         <button className="outcome-control" disabled={busy} onClick={() => void refresh()}>
           {t("Refresh from server")}
         </button>
@@ -131,93 +158,323 @@ export function HumanAction({
       {item && !card && <p role="status">{t("This WorkItem has no human action card.")}</p>}
       {item && card && (
         <>
-          <p role="status">
-            {t("Status")}: {t(item.status)} · {t("Revision")} {card.contractRevision}
-          </p>
-          {card.startedAt && (
-            <p className="text-sm">
-              {t("Started by")}: {card.startedBy ?? "—"} · {card.startedAt}
-            </p>
-          )}
-          {card.draft && (
-            <section aria-label={t("Saved progress")} className="outcome-card">
-              <h3 className="font-medium">{t("Saved progress")}</h3>
-              <p>
-                {t("Current step")}:{" "}
-                {card.steps.find((step) => step.id === card.draft!.currentStepId)?.text ?? "—"}
+          <div className="outcome-brief">
+            <section
+              className="outcome-now"
+              aria-label={t(canStart || inProgress ? "What needs you now" : "Status")}
+            >
+              <p className="outcome-now-eyebrow">
+                {t(canStart || inProgress ? "What needs you now" : "Status")}
               </p>
-              <p>
-                {t("Pause reason")}: {card.draft.reason}
-              </p>
-              <p className="whitespace-pre-wrap">{card.draft.draftSummary}</p>
-            </section>
-          )}
-          <section>
-            <h3 className="font-medium">{t("Purpose")}</h3>
-            <p className="whitespace-pre-wrap">{card.purpose}</p>
-          </section>
-          <section>
-            <h3 className="font-medium">{t("Prerequisites")}</h3>
-            {card.prerequisites.length ? (
-              <ul>
-                {card.prerequisites.map((prerequisite, index) => (
-                  <li key={index}>
-                    {prerequisite.completed ? "✓" : "○"} {prerequisite.label}
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p>{t("No additional prerequisites.")}</p>
-            )}
-          </section>
-          <section>
-            <h3 className="font-medium">{t("Steps")}</h3>
-            <p className="text-sm text-muted-foreground">
-              {t("These instructions are performed by a person. They do not run automatically.")}
-            </p>
-            <ol className="list-decimal space-y-2 pl-5">
-              {card.steps.map((step) => (
-                <li key={step.id}>
-                  {step.text}
-                  {step.optional && ` · ${t("Optional")}`}
-                </li>
-              ))}
-            </ol>
-          </section>
-          <KnowledgeReferences
-            outcomeId={item.outcomeId}
-            references={card.references}
-            client={materials}
-            onRead={(id) => {
-              if (card.references.some((reference) => reference.id === id))
-                setReadRefs((current) => (current.includes(id) ? current : [...current, id]));
-            }}
-          />
-          <section>
-            <h3 className="font-medium">{t("Evidence requirements")}</h3>
-            <ul className="space-y-2">
-              {card.evidenceRequirements.map((requirement, index) => (
-                <li key={`${requirement.criterionId}:${index}`}>
-                  {requirement.label} · {t(requirement.required ? "Required" : "Optional")} ·{" "}
-                  {requirement.acceptedTypes.join(", ")}
-                </li>
-              ))}
-            </ul>
-          </section>
-          <div className="flex flex-wrap gap-2">
-            {["pending", "ready", "paused", "rejected"].includes(card.status) && (
-              <button
-                disabled={busy}
-                className="outcome-control"
-                onClick={() => void mutate("start")}
-              >
-                {t(
-                  card.status === "paused" || card.status === "rejected"
-                    ? "Resume action"
-                    : "Start action"
+              <div className="outcome-now-line">
+                <div>
+                  {canStart || inProgress ? (
+                    <>
+                      <h3>{nextStep?.text ?? card.title}</h3>
+                      <p>
+                        {nextStep &&
+                          `${t("Step {current} of {count}", {
+                            current: nextStep.ordinal,
+                            count: card.steps.length,
+                          })} · `}
+                        {t("Done by a person, never run automatically")}
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <h3>
+                        {card.status === "accepted"
+                          ? t("Human action accepted.")
+                          : ["submitted", "review_pending"].includes(card.status)
+                            ? t("Receipt submitted. Acceptance review is still required.")
+                            : t(item.status)}
+                      </h3>
+                      {card.status === "accepted" && card.acceptedAt && <p>{card.acceptedAt}</p>}
+                    </>
+                  )}
+                  {card.status === "rejected" && (
+                    <p role="alert">
+                      {t(
+                        "The receipt was rejected. Review the feedback, resume the action and submit corrected materials."
+                      )}
+                    </p>
+                  )}
+                  {card.status === "paused" && card.draft?.reason && (
+                    <p>
+                      {t("Pause reason")}: {card.draft.reason}
+                    </p>
+                  )}
+                </div>
+                {canStart && (
+                  <button
+                    disabled={busy}
+                    className="outcome-control"
+                    onClick={() => void mutate("start")}
+                  >
+                    {t(
+                      card.status === "paused" || card.status === "rejected"
+                        ? "Resume action"
+                        : "Start action"
+                    )}
+                  </button>
                 )}
-              </button>
-            )}
+              </div>
+              <details className="outcome-now-context">
+                <summary>{t("Why this is needed")}</summary>
+                <p className="mt-2 whitespace-pre-wrap">{card.purpose}</p>
+              </details>
+            </section>
+            <div className="outcome-brief-facts">
+              <ActionSection
+                icon={ListChecks}
+                title="Steps"
+                preview={t("{count} steps", { count: card.steps.length })}
+                open={inProgress}
+              >
+                <p className="text-muted-foreground">
+                  {t("These instructions are performed by a person. They do not run automatically.")}
+                </p>
+                <ol className="mt-2 list-decimal space-y-2 pl-5">
+                  {card.steps.map((step) => (
+                    <li key={step.id}>
+                      {step.text}
+                      {step.optional && ` · ${t("Optional")}`}
+                    </li>
+                  ))}
+                </ol>
+              </ActionSection>
+              {card.prerequisites.length > 0 && (
+                <ActionSection
+                  icon={ShieldCheck}
+                  title="Prerequisites"
+                  preview={t("{done} of {count} done", {
+                    done: doneConditions,
+                    count: card.prerequisites.length,
+                  })}
+                >
+                  <ul className="space-y-1">
+                    {card.prerequisites.map((prerequisite, index) => (
+                      <li key={index}>
+                        {prerequisite.completed ? "✓" : "○"} {prerequisite.label}
+                      </li>
+                    ))}
+                  </ul>
+                </ActionSection>
+              )}
+              <ActionSection
+                icon={BookOpen}
+                title="Knowledge references"
+                preview={
+                  card.references.length
+                    ? t("{count} sources", { count: card.references.length })
+                    : t("Search when you need a source")
+                }
+              >
+                <KnowledgeReferences
+                  outcomeId={item.outcomeId}
+                  references={card.references}
+                  client={materials}
+                  onRead={(id) => {
+                    if (card.references.some((reference) => reference.id === id))
+                      setReadRefs((current) => (current.includes(id) ? current : [...current, id]));
+                  }}
+                />
+              </ActionSection>
+              <ActionSection
+                icon={ClipboardCheck}
+                title="Evidence requirements"
+                preview={t("{required} required · {count} in total", {
+                  required: requiredEvidence,
+                  count: card.evidenceRequirements.length,
+                })}
+              >
+                <ul className="space-y-2">
+                  {card.evidenceRequirements.map((requirement, index) => (
+                    <li key={`${requirement.criterionId}:${index}`}>
+                      {requirement.label} · {t(requirement.required ? "Required" : "Optional")} ·{" "}
+                      {requirement.acceptedTypes.join(", ")}
+                    </li>
+                  ))}
+                </ul>
+              </ActionSection>
+              <ActionSection
+                icon={FileCheck2}
+                title="Execution receipt"
+                preview={t(
+                  inProgress ? "Submit your result when done" : "Start the action to submit"
+                )}
+                open={inProgress}
+              >
+                <ReceiptForm
+                  card={card}
+                  client={materials}
+                  upload={upload}
+                  summary={summary}
+                  onSummary={setSummary}
+                  onConflict={() => void refresh()}
+                  onSubmitted={(receipt) => {
+                    setItem((current) =>
+                      current
+                        ? {
+                            ...current,
+                            receipts: [
+                              ...(current.receipts ?? []).filter((item) => item.id !== receipt.id),
+                              receipt,
+                            ],
+                          }
+                        : current
+                    );
+                    void refresh();
+                  }}
+                />
+              </ActionSection>
+              {inProgress && (
+                <ActionSection
+                  icon={PauseCircle}
+                  title="Pause and save progress"
+                  preview={t("Come back to it later")}
+                >
+                  <fieldset disabled={busy} className="space-y-2">
+                    <legend className="sr-only">{t("Pause and save progress")}</legend>
+                    <label className="block">
+                      {t("Current step")}
+                      <select
+                        className="ml-2 outcome-control"
+                        value={currentStep ?? ""}
+                        onChange={(event) => setCurrentStep(event.target.value || null)}
+                      >
+                        <option value="">{t("Not selected")}</option>
+                        {card.steps.map((step) => (
+                          <option key={step.id} value={step.id}>
+                            {step.ordinal}. {step.text}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="block">
+                      {t("Pause reason")}
+                      <input
+                        maxLength={1000}
+                        className="mt-1 w-full outcome-control"
+                        value={pauseReason}
+                        onChange={(event) => setPauseReason(event.target.value)}
+                      />
+                    </label>
+                    <p className="text-muted-foreground">
+                      {t(
+                        "The current step, read references, pause reason and first 2,000 summary characters are saved to the server."
+                      )}
+                    </p>
+                    <button
+                      className="outcome-control"
+                      disabled={!pauseReason.trim()}
+                      onClick={() => void mutate("pause")}
+                    >
+                      {t("Pause action")}
+                    </button>
+                  </fieldset>
+                </ActionSection>
+              )}
+              {card.draft && (
+                <ActionSection
+                  icon={Save}
+                  title="Saved progress"
+                  preview={
+                    card.steps.find((step) => step.id === card.draft!.currentStepId)?.text ?? "—"
+                  }
+                >
+                  <p>
+                    {t("Current step")}:{" "}
+                    {card.steps.find((step) => step.id === card.draft!.currentStepId)?.text ?? "—"}
+                  </p>
+                  <p>
+                    {t("Pause reason")}: {card.draft.reason}
+                  </p>
+                  <p className="whitespace-pre-wrap">{card.draft.draftSummary}</p>
+                </ActionSection>
+              )}
+              <ActionSection
+                icon={History}
+                title="Receipt history"
+                preview={
+                  item.receipts?.length
+                    ? t("{count} receipts", { count: item.receipts.length })
+                    : t("No submitted receipts.")
+                }
+                open={!!item.receipts?.some((receipt) => receipt.status === "rejected")}
+              >
+                <div aria-label={t("Receipt history")} className="space-y-3">
+                  {item.receipts?.map((receipt) => (
+                    <details
+                      key={receipt.id}
+                      className="outcome-card"
+                      open={receipt.status === "rejected" || receipt.missingRequirements.length > 0}
+                    >
+                      <summary>
+                        #{receipt.sequence} · {t(receipt.status)} · {receipt.submittedAt}
+                      </summary>
+                      <p>
+                        {t("Submitted by")}: {receipt.submittedBy}
+                      </p>
+                      {receipt.reviewComment && (
+                        <p className="whitespace-pre-wrap">{receipt.reviewComment}</p>
+                      )}
+                      {receipt.missingRequirements.length > 0 && (
+                        <div role="status">
+                          <h4>{t("Missing materials")}</h4>
+                          <ul>
+                            {receipt.missingRequirements.map((gap, index) => (
+                              <li key={index}>
+                                {gap.label} · {gap.kind} · {gap.criterionId}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      <p className="whitespace-pre-wrap">{receipt.payload.text}</p>
+                      <p>{receipt.payload.comment}</p>
+                      {receipt.payload.assetRefs.map((ref) => (
+                        <div key={ref} className="space-y-2">
+                          <p className="break-all text-xs">
+                            {t("Asset")}: {ref}
+                          </p>
+                          <OutcomeAsset sourceRef={ref} />
+                        </div>
+                      ))}
+                      {receipt.payload.sourceRefs.map((ref, index) => (
+                        <p key={index} className="break-all text-xs">
+                          {t("Source")}: {ref.type} · {ref.ref}
+                        </p>
+                      ))}
+                      {receipt.payload.observations.map((observation, index) => (
+                        <p key={index}>
+                          {observation.criterionId}: {observation.value}
+                        </p>
+                      ))}
+                      <p className="break-all text-xs">
+                        Receipt {receipt.id} · {t("Evidence")}: {receipt.evidenceIds.join(", ")}
+                      </p>
+                    </details>
+                  ))}
+                </div>
+              </ActionSection>
+              <ActionSection
+                icon={Info}
+                title="Details"
+                preview={`${t("Revision")} ${card.contractRevision}`}
+              >
+                <p>
+                  {t("Status")}: {t(item.status)} · {t("Revision")} {card.contractRevision}
+                </p>
+                {card.startedAt && (
+                  <p>
+                    {t("Started by")}: {card.startedBy ?? "—"} · {card.startedAt}
+                  </p>
+                )}
+              </ActionSection>
+            </div>
+          </div>
+          <div>
             <button
               className="outcome-control"
               onClick={() => onReview(item.outcomeId, card.contractRevision)}
@@ -225,142 +482,36 @@ export function HumanAction({
               {t("Open Outcome and acceptance review")}
             </button>
           </div>
-          {card.status === "in_progress" && (
-            <fieldset disabled={busy} className="space-y-2 outcome-card">
-              <legend>{t("Pause and save progress")}</legend>
-              <label className="block">
-                {t("Current step")}
-                <select
-                  className="ml-2 outcome-control"
-                  value={currentStep ?? ""}
-                  onChange={(event) => setCurrentStep(event.target.value || null)}
-                >
-                  <option value="">{t("Not selected")}</option>
-                  {card.steps.map((step) => (
-                    <option key={step.id} value={step.id}>
-                      {step.ordinal}. {step.text}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="block">
-                {t("Pause reason")}
-                <input
-                  maxLength={1000}
-                  className="mt-1 w-full outcome-control"
-                  value={pauseReason}
-                  onChange={(event) => setPauseReason(event.target.value)}
-                />
-              </label>
-              <p className="text-sm">
-                {t(
-                  "The current step, read references, pause reason and first 2,000 summary characters are saved to the server."
-                )}
-              </p>
-              <button
-                className="outcome-control"
-                disabled={!pauseReason.trim()}
-                onClick={() => void mutate("pause")}
-              >
-                {t("Pause action")}
-              </button>
-            </fieldset>
-          )}
-          {card.status === "rejected" && (
-            <p role="alert">
-              {t(
-                "The receipt was rejected. Review the feedback, resume the action and submit corrected materials."
-              )}
-            </p>
-          )}
-          {["submitted", "review_pending"].includes(card.status) && (
-            <p role="status">{t("Receipt submitted. Acceptance review is still required.")}</p>
-          )}
-          {card.status === "accepted" && (
-            <p role="status">
-              {t("Human action accepted.")} {card.acceptedAt}
-            </p>
-          )}
-          <ReceiptForm
-            card={card}
-            client={materials}
-            upload={upload}
-            summary={summary}
-            onSummary={setSummary}
-            onConflict={() => void refresh()}
-            onSubmitted={(receipt) => {
-              setItem((current) =>
-                current
-                  ? {
-                      ...current,
-                      receipts: [
-                        ...(current.receipts ?? []).filter((item) => item.id !== receipt.id),
-                        receipt,
-                      ],
-                    }
-                  : current
-              );
-              void refresh();
-            }}
-          />
-          <section aria-label={t("Receipt history")} className="space-y-3">
-            <h3 className="font-medium">{t("Receipt history")}</h3>
-            {!item.receipts?.length && <p>{t("No submitted receipts.")}</p>}
-            {item.receipts?.map((receipt) => (
-              <details
-                key={receipt.id}
-                className="outcome-card"
-                open={receipt.status === "rejected" || receipt.missingRequirements.length > 0}
-              >
-                <summary>
-                  #{receipt.sequence} · {t(receipt.status)} · {receipt.submittedAt}
-                </summary>
-                <p>
-                  {t("Submitted by")}: {receipt.submittedBy}
-                </p>
-                {receipt.reviewComment && (
-                  <p className="whitespace-pre-wrap">{receipt.reviewComment}</p>
-                )}
-                {receipt.missingRequirements.length > 0 && (
-                  <div role="status">
-                    <h4>{t("Missing materials")}</h4>
-                    <ul>
-                      {receipt.missingRequirements.map((gap, index) => (
-                        <li key={index}>
-                          {gap.label} · {gap.kind} · {gap.criterionId}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-                <p className="whitespace-pre-wrap">{receipt.payload.text}</p>
-                <p>{receipt.payload.comment}</p>
-                {receipt.payload.assetRefs.map((ref) => (
-                  <div key={ref} className="space-y-2">
-                    <p className="break-all text-xs">
-                      {t("Asset")}: {ref}
-                    </p>
-                    <OutcomeAsset sourceRef={ref} />
-                  </div>
-                ))}
-                {receipt.payload.sourceRefs.map((ref, index) => (
-                  <p key={index} className="break-all text-xs">
-                    {t("Source")}: {ref.type} · {ref.ref}
-                  </p>
-                ))}
-                {receipt.payload.observations.map((observation, index) => (
-                  <p key={index}>
-                    {observation.criterionId}: {observation.value}
-                  </p>
-                ))}
-                <p className="break-all text-xs">
-                  Receipt {receipt.id} · {t("Evidence")}: {receipt.evidenceIds.join(", ")}
-                </p>
-              </details>
-            ))}
-          </section>
         </>
       )}
     </article>
+  );
+}
+
+/** Every row stays mounted so half-written receipts survive collapsing it. */
+function ActionSection({
+  icon: Icon,
+  title,
+  preview,
+  open,
+  children,
+}: {
+  icon: LucideIcon;
+  title: string;
+  preview: ReactNode;
+  open?: boolean;
+  children: ReactNode;
+}) {
+  const { t } = useI18n();
+  return (
+    <details className="outcome-brief-section" open={open}>
+      <summary>
+        <Icon size={15} aria-hidden="true" />
+        <span className="outcome-brief-label">{t(title)}</span>
+        <span className="outcome-brief-preview">{preview}</span>
+        <ChevronRight size={13} className="outcome-brief-chevron" aria-hidden="true" />
+      </summary>
+      <div className="outcome-brief-body">{children}</div>
+    </details>
   );
 }
