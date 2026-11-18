@@ -75,16 +75,16 @@ export function OutcomeApprovalScope({
   const { t } = useI18n();
   const source = revision
     ? [
-        t("Goal"),
-        ...revision.goal,
-        t("Acceptance"),
+        `**${t("Goal")}**`,
+        ...revision.goal.map((goal) => `- ${goal}`),
+        `\n**${t("Acceptance")}**`,
         ...revision.criteria.map(
-          (item) => `${item.required ? t("Required") : t("Optional")}: ${item.statement}`
+          (item) => `- **${item.required ? t("Required") : t("Optional")}:** ${item.statement}`
         ),
-        t("Included"),
-        ...revision.boundaries.included,
-        t("Excluded"),
-        ...revision.boundaries.excluded,
+        `\n**${t("Included")}**`,
+        ...revision.boundaries.included.map((text) => `- ${text}`),
+        `\n**${t("Excluded")}**`,
+        ...revision.boundaries.excluded.map((text) => `- ${text}`),
         ...(revision.budget ? [t("Budget"), JSON.stringify(revision.budget)] : []),
       ].join("\n")
     : intent

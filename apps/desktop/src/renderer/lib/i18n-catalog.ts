@@ -10,6 +10,20 @@ import { DEFAULT_LOCALE, type Locale } from "@outcomego/contracts/localization";
 export type TranslationValues = Record<string, string | number | null | undefined>;
 
 export const sourceTranslations: Record<string, string> = {
+  "View tool activity": "查看工具活动",
+  "Execution messages": "执行消息",
+  "Read-only": "只读",
+  "Follow visible messages and tool activity without interrupting the Bot.":
+    "查看可观察消息与工具活动，不会打断 Bot。",
+  "Execution task": "执行任务",
+  "Could not load execution messages. Refresh to try again.": "无法读取执行消息，请刷新重试。",
+  "Loading execution messages…": "正在读取执行消息…",
+  "Earlier messages": "更早的消息",
+  "Latest messages": "最新消息",
+  "No visible execution messages yet.": "暂时没有可观察的执行消息。",
+  "Tool activity": "工具活动",
+  "Private tool details are omitted.": "私有工具详情已省略。",
+
   "Approve this plan or tell us what should change.": "批准此方案，或告诉我需要怎样修改。",
   "Add comments or tell us what to change (optional).": "可填写意见，或告诉我需要怎样修改。",
   "I do not approve this plan. Suggest an alternative.": "我不同意当前方案，请提出其他建议。",

@@ -29,6 +29,7 @@ import { OutcomeActionItems, OutcomeApprovalScope, OutcomeBriefView } from "../o
 import { DecisionCard } from "../inbox/decision-card";
 import type { InboxClient } from "../inbox/inbox-api";
 import type { OutcomeInboxItemView } from "@outcomego/contracts/outcome-inbox";
+import { OutcomeExecutionCard } from "../outcome-execution-card";
 
 export const evidenceCredibilityLabels = {
   deterministic_check: "Deterministic check",
@@ -395,6 +396,13 @@ export function OutcomeDetail({
           </section>
         )}
       </OutcomeBriefView>
+      {!historicalReview && (
+        <OutcomeExecutionCard
+          key={`${outcome.id}:${outcome.currentRevision}`}
+          outcome={outcome}
+          client={client}
+        />
+      )}
       {sections.has("records") && (
         <section
           hidden={sections.get("records") !== true}

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Info } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "../../ui/popover";
 import { useI18n } from "../../../lib/i18n";
+import { MessageResponse } from "../../ai-elements/message";
 
 /** Hover previews; a deliberate click pins the source until Escape or outside dismissal. */
 export function OutcomeSourceInfo({
@@ -16,6 +17,7 @@ export function OutcomeSourceInfo({
   const { t } = useI18n();
   const [mode, setMode] = useState<"closed" | "hover" | "pinned">("closed");
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const trigger = useRef<HTMLButtonElement>(null);
   const cancel = () => clearTimeout(timer.current);
   const leave = () => {
     cancel();
@@ -35,6 +37,7 @@ export function OutcomeSourceInfo({
     >
       <PopoverTrigger asChild>
         <button
+          ref={trigger}
           type="button"
           className="outcome-source-info"
           aria-label={t("Source for {name}", { name })}
@@ -58,6 +61,9 @@ export function OutcomeSourceInfo({
         </button>
       </PopoverTrigger>
       <PopoverContent
+        portalContainer={trigger.current?.closest<HTMLElement>('[role="dialog"]')}
+        collisionBoundary={trigger.current?.closest<HTMLElement>('[role="dialog"]')}
+        collisionPadding={16}
         align="start"
         side="top"
         className="outcome-source-popover"
@@ -70,7 +76,7 @@ export function OutcomeSourceInfo({
       >
         <p className="outcome-source-heading">{name}</p>
         <div className="outcome-source-content">
-          {children ?? <p className="whitespace-pre-wrap break-words">{text}</p>}
+          {children ?? <MessageResponse>{text ?? ""}</MessageResponse>}
         </div>
       </PopoverContent>
     </Popover>

@@ -6,6 +6,8 @@ import type { Root } from "react-dom/client";
 import { I18nProvider } from "../src/renderer/lib/i18n";
 let OutcomeDetail: typeof import("../src/renderer/components/outcomego/outcomes/detail/outcome-detail").OutcomeDetail;
 let OutcomeChatCardView: typeof import("../src/renderer/components/outcomego/outcomes/outcome-chat-card").OutcomeChatCardView;
+let BotAvatar: typeof import("../src/renderer/components/outcomego/avatar").BotAvatar;
+let OutcomeExecutionCard: typeof import("../src/renderer/components/outcomego/outcomes/outcome-execution-card").OutcomeExecutionCard;
 import {
   OUTCOME_CARD_STAGES,
   parseOutcomeChatCard,
@@ -104,6 +106,10 @@ beforeAll(async () => {
   ({ OutcomeBriefView } = await import(
     "../src/renderer/components/outcomego/outcomes/outcome-brief"
   ));
+  ({ OutcomeExecutionCard } = await import(
+    "../src/renderer/components/outcomego/outcomes/outcome-execution-card"
+  ));
+  ({ BotAvatar } = await import("../src/renderer/components/outcomego/avatar"));
 });
 afterEach(async () => {
   if (root) await act(async () => root!.unmount());
@@ -1114,4 +1120,298 @@ test("a snapshot which disallows custom text never offers or submits a fabricate
   );
   expect(host.querySelector('[aria-label="Your own idea"]')).toBeNull();
   expect(host.querySelectorAll('input[type="radio"]')).toHaveLength(1);
+});
+
+test("Bot photo stays mounted during same-Bot metadata refresh and clears when identity changes", async () => {
+  const originalFetch = globalThis.fetch;
+  const imagePrototype = dom.window.HTMLImageElement.prototype;
+  const imageDescriptors = ["complete", "naturalWidth"].map(
+    (key) => [key, Object.getOwnPropertyDescriptor(imagePrototype, key)] as const
+  );
+  // Linkedom has no image decoder; only supply the successful decode metadata.
+  Object.defineProperties(imagePrototype, {
+    complete: { configurable: true, get: () => true },
+    naturalWidth: { configurable: true, get: () => 36 },
+  });
+  let resolve!: (value: Response) => void;
+  let reads = 0;
+  globalThis.fetch = Object.assign(
+    async () =>
+      ++reads === 1
+        ? new Response("fixture photo")
+        : new Promise<Response>((done) => {
+            resolve = done;
+          }),
+    { preconnect: originalFetch.preconnect }
+  );
+  const bot = {
+    id: "avatar-fixture",
+    updatedAt: "2026-11-18T01:00:00Z",
+    hasAvatar: true,
+    color: "#777777",
+    icon: "round",
+  };
+  try {
+    await mount(<BotAvatar bot={bot} mode="still" />);
+    await act(async () => {
+      await new Promise((done) => setTimeout(done, 0));
+    });
+    const image = host.querySelector("img");
+    expect(image).not.toBeNull();
+    const oldSource = image!.getAttribute("src");
+    await act(async () =>
+      root!.render(
+        <I18nProvider>
+          <BotAvatar bot={{ ...bot, updatedAt: "2026-11-18T01:00:03Z" }} mode="still" />
+        </I18nProvider>
+      )
+    );
+    expect(reads).toBe(2);
+    expect(host.querySelector("img")).toBe(image);
+    expect(image!.getAttribute("src")).toBe(oldSource);
+    await act(async () => resolve(new Response("new fixture photo")));
+    expect(host.querySelector("img")).toBe(image);
+    expect(image!.getAttribute("src")).not.toBe(oldSource);
+    await act(async () =>
+      root!.render(
+        <I18nProvider>
+          <BotAvatar bot={{ ...bot, id: "other-bot" }} mode="still" />
+        </I18nProvider>
+      )
+    );
+    expect(host.querySelector("img")).toBeNull();
+  } finally {
+    globalThis.fetch = originalFetch;
+    for (const [key, descriptor] of imageDescriptors) {
+      if (descriptor) Object.defineProperty(imagePrototype, key, descriptor);
+      else Reflect.deleteProperty(imagePrototype, key);
+    }
+  }
+});
+
+test("same-goal refresh keeps the displayed facts and expanded sections while the next read is pending", async () => {
+  const live = { ...semanticGoal, status: "running" as const };
+  let resolve!: (value: typeof live) => void;
+  let reads = 0;
+  const source = {
+    get: async () =>
+      ++reads === 1
+        ? live
+        : new Promise<typeof live>((done) => {
+            resolve = done;
+          }),
+    brief: async () => semanticBrief(live),
+  };
+  await mount(<OutcomeChatCardView card={card} client={source} />);
+  await expand("Background");
+  const overview = host.querySelector('[aria-label="Goal overview"]');
+  expect(overview?.textContent).toContain("The server is under storage pressure");
+  await act(async () =>
+    root!.render(
+      <I18nProvider>
+        <OutcomeChatCardView
+          card={{ ...card, updatedAt: "2026-11-18T02:00:00Z" }}
+          client={source}
+        />
+      </I18nProvider>
+    )
+  );
+  expect(reads).toBe(2);
+  expect(host.querySelector('[aria-label="Goal overview"]')).toBe(overview);
+  expect(overview?.querySelector("details")?.open).toBe(true);
+  expect(overview?.textContent).toContain("The server is under storage pressure");
+  await act(async () => resolve(live));
+  expect(host.querySelector('[aria-label="Goal overview"]')).toBe(overview);
+});
+
+test("original source renders Markdown paragraphs, emphasis and lists", async () => {
+  const { OutcomeSourceInfo } = await import(
+    "../src/renderer/components/outcomego/outcomes/outcome-source-info"
+  );
+  await mount(
+    <OutcomeSourceInfo
+      name="Markdown source"
+      text={
+        "**Prerequisite**\n\nConfirm the backup.\n\n- **First:** measure usage.\n- Next: review results."
+      }
+    />
+  );
+  await click("Source for Markdown source");
+  await act(async () => {
+    await import("../src/renderer/components/ai-elements/message-response");
+  });
+  const content = document.querySelector("[data-outcome-source]")!;
+  expect(content.querySelector('[data-streamdown="strong"]')?.textContent).toBe("Prerequisite");
+  expect(content.querySelectorAll("li")).toHaveLength(2);
+  expect(content.textContent).not.toContain("**");
+});
+
+const executionGoal = {
+  ...outcomeFixture,
+  status: "running" as const,
+  workItems: [{ ...outcomeFixture.workItems[0]!, status: "running" as const }],
+};
+const executionPage = (text = "Measured **array** usage.") => ({
+  total: 5,
+  next_before: 2,
+  rows: [
+    {
+      id: "execution-input",
+      at: planFixture.generatedAt,
+      role: "user",
+      status: "completed",
+      content: "INTERNAL_EXECUTION_INPUT",
+    },
+    {
+      id: "visible-message",
+      at: planFixture.generatedAt,
+      role: "assistant",
+      status: "completed",
+      content: text,
+    },
+    {
+      id: "visible-tool",
+      at: planFixture.generatedAt,
+      role: "tool",
+      status: "completed",
+      content: JSON.stringify({
+        tool: "Shell",
+        command: "df -h",
+        output: "Fixture observable output",
+        arguments: "SHOULD_NOT_RENDER",
+      }),
+    },
+  ],
+});
+
+test("execution card reads only on expansion, formats messages and pages through the existing GET endpoint", async () => {
+  const { createOutcomeApi } = await import("../src/renderer/client/outcome-api");
+  const requests: Array<{ path: string; method: string }> = [];
+  const reader = createOutcomeApi(async <T,>(path: string, init?: RequestInit): Promise<T> => {
+    requests.push({ path, method: init?.method ?? "GET" });
+    return (
+      path.includes("?before=")
+        ? { ...executionPage("Earlier visible message"), next_before: null }
+        : executionPage()
+    ) as T;
+  });
+  await mount(<OutcomeExecutionCard outcome={executionGoal} client={reader} />);
+  expect(requests).toHaveLength(0);
+  expect(host.textContent).toContain("Read-only");
+  await expand("Execution messages");
+  await act(async () => {
+    await import("../src/renderer/components/ai-elements/message-response");
+  });
+  expect(host.textContent).toContain("Fixture observable output");
+  expect(host.textContent).not.toContain("SHOULD_NOT_RENDER");
+  expect(host.textContent).not.toContain("INTERNAL_EXECUTION_INPUT");
+  expect(host.querySelector(".outcome-execution-tool")?.hasAttribute("open")).toBe(false);
+  expect(host.querySelector('li[data-message-role="assistant"] strong')?.textContent).toBe("Bot");
+  expect(host.querySelector('li .bot-markdown [data-streamdown="strong"]')?.textContent).toBe(
+    "array"
+  );
+  expect(host.querySelector("textarea,input")).toBeNull();
+  await click("Earlier messages");
+  expect(requests.at(-1)?.path).toBe(
+    "/api/outcomes/outcome-1/work-items/item-1/transcript?before=2"
+  );
+  expect(host.textContent).toContain("Earlier visible message");
+  await click("Latest messages");
+  expect(host.textContent).toContain("Measured array usage.");
+  expect(requests.every((request) => request.method === "GET")).toBe(true);
+});
+
+test("execution refresh preserves readable messages; closing stops the scheduled refresh", async () => {
+  const originalTimeout = globalThis.setTimeout;
+  let scheduled: (() => Promise<void>) | undefined;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  globalThis.setTimeout = ((
+    callback: (...args: unknown[]) => void,
+    ms?: number,
+    ...args: unknown[]
+  ) => {
+    const handle = originalTimeout(callback, ms, ...args);
+    if (ms === 5000) {
+      scheduled = callback as () => Promise<void>;
+      timer = handle;
+    }
+    return handle;
+  }) as typeof setTimeout;
+  let resolve!: (value: ReturnType<typeof executionPage>) => void;
+  let reads = 0;
+  const reader = {
+    transcript: async () =>
+      ++reads === 1
+        ? executionPage("First visible message")
+        : new Promise<ReturnType<typeof executionPage>>((done) => {
+            resolve = done;
+          }),
+  };
+  try {
+    await mount(<OutcomeExecutionCard outcome={executionGoal} client={reader} />);
+    await expand("Execution messages");
+    expect(reads).toBe(1);
+    const message = host.querySelector("li");
+    expect(scheduled).toBeDefined();
+    clearTimeout(timer);
+    let pending!: Promise<void>;
+    await act(async () => {
+      pending = scheduled!();
+    });
+    expect(reads).toBe(2);
+    expect(host.querySelector("li")).toBe(message);
+    expect(host.textContent).toContain("First visible message");
+    await act(async () => {
+      resolve(executionPage("Second visible message"));
+      await pending;
+    });
+    expect(host.textContent).toContain("Second visible message");
+    await act(async () => {
+      const details = host.querySelector("details")!;
+      details.open = false;
+      details.dispatchEvent(new dom.window.Event("toggle"));
+    });
+    expect(host.querySelector("li")).toBeNull();
+    expect(reads).toBe(2);
+  } finally {
+    globalThis.setTimeout = originalTimeout;
+  }
+});
+
+test("switching execution tasks discards a late old-task response and keeps current-task errors retryable", async () => {
+  let resolveOld!: (value: ReturnType<typeof executionPage>) => void;
+  let fail = true;
+  const goal = {
+    ...executionGoal,
+    workItems: [
+      ...executionGoal.workItems,
+      { ...executionGoal.workItems[0]!, id: "second-task", title: "Inspect candidates" },
+    ],
+  };
+  const reader = {
+    transcript: async (_id: string, itemId: string) =>
+      itemId === "item-1"
+        ? new Promise<ReturnType<typeof executionPage>>((done) => {
+            resolveOld = done;
+          })
+        : fail
+          ? Promise.reject(new Error("offline"))
+          : executionPage("Current task messages"),
+  };
+  await mount(<OutcomeExecutionCard outcome={goal} client={reader} />);
+  await expand("Execution messages");
+  const select = host.querySelector("select")!;
+  await act(async () => {
+    Object.defineProperty(select, "value", { configurable: true, value: "second-task" });
+    select.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
+  });
+  expect(host.querySelector('[role="alert"]')?.textContent).toContain(
+    "Could not load execution messages"
+  );
+  fail = false;
+  await click("Refresh");
+  expect(host.textContent).toContain("Current task messages");
+  await act(async () => resolveOld(executionPage("Obsolete task message")));
+  expect(host.textContent).not.toContain("Obsolete task message");
+  expect(host.textContent).toContain("Current task messages");
 });

@@ -22,6 +22,9 @@ import "./outcome-ui.css";
 import { OutcomeActionItems, OutcomeApprovalScope, OutcomeBriefView } from "./outcome-brief";
 import type { OutcomeInboxItemView } from "@outcomego/contracts/outcome-inbox";
 import type { InboxClient } from "./inbox/inbox-api";
+import { OutcomeExecutionCard } from "./outcome-execution-card";
+
+type CardClient = Pick<OutcomeClient, "get" | "brief"> & Partial<Pick<OutcomeClient, "transcript">>;
 
 const icons = {
   analyzing: ScanLine,
@@ -44,7 +47,7 @@ export function OutcomeChatCardView({
   inboxClient,
 }: {
   card: OutcomeChatCard;
-  client?: Pick<OutcomeClient, "get" | "brief">;
+  client?: CardClient;
   inboxClient?: Pick<InboxClient, "forOutcome">;
 }) {
   const { t } = useI18n();
@@ -53,12 +56,14 @@ export function OutcomeChatCardView({
   const [refresh, setRefresh] = useState(0);
   const [stale, setStale] = useState(false);
   const [showResult, setShowResult] = useState(false);
-  const [source, setSource] = useState<Pick<OutcomeClient, "get" | "brief"> | null>(client ?? null);
+  const [source, setSource] = useState<CardClient | null>(client ?? null);
   const [actions, setActions] = useState<OutcomeInboxItemView[]>([]);
   useEffect(() => {
     setCurrent(null);
     setUnavailable(false);
     setActions([]);
+  }, [card.outcomeId]);
+  useEffect(() => {
     if (!card.outcomeId) return;
     let active = true;
     let timer: ReturnType<typeof setTimeout>;
@@ -225,6 +230,13 @@ export function OutcomeChatCardView({
           {t("{count} evidence records", { count: live.evidence.length })}
           {stage !== "accepted" && ` · ${t("Not yet accepted")}`}
         </p>
+      )}
+      {live && source?.transcript && (
+        <OutcomeExecutionCard
+          key={`${live.id}:${live.currentRevision}`}
+          outcome={live}
+          client={{ transcript: source.transcript }}
+        />
       )}
       {result && (
         <details

@@ -950,13 +950,18 @@ label.outcome-card:has(> input[type="radio"]:checked) {
 }
 .outcome-source-popover {
   width: min(390px, calc(100vw - 32px));
+  max-height: var(--radix-popover-content-available-height);
+  display: flex;
+  flex-direction: column;
   padding: 12px 14px;
   font-size: 12px;
   line-height: 1.7;
 }
 .outcome-source-content {
-  max-height: 260px;
+  min-height: 0;
+  max-height: min(360px, 60dvh);
   overflow: auto;
+  overscroll-behavior: contain;
   color: var(--foreground-secondary);
 }
 .outcome-source-heading {
@@ -1099,6 +1104,85 @@ label.outcome-card:has(> input[type="radio"]:checked) {
 }
 .outcome-task-counts {
   font-variant-numeric: tabular-nums;
+}
+.outcome-execution-card {
+  margin-top: 14px;
+  border: 0.5px solid var(--border);
+  border-radius: 12px;
+  font-size: 12px;
+}
+.outcome-execution-card > summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+  cursor: pointer;
+  list-style: none;
+}
+.outcome-execution-card > summary::-webkit-details-marker {
+  display: none;
+}
+.outcome-execution-readonly {
+  margin-left: auto;
+  color: var(--foreground-tertiary);
+  font-size: 10px;
+}
+.outcome-execution-body {
+  padding: 0 14px 14px;
+}
+.outcome-execution-note {
+  color: var(--foreground-secondary);
+  font-size: 11px;
+}
+.outcome-execution-toolbar,
+.outcome-execution-paging,
+.outcome-execution-messages header {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 10px 0;
+}
+.outcome-execution-toolbar > :first-child {
+  flex: 1;
+  min-width: 0;
+}
+.outcome-execution-messages {
+  min-width: 0;
+  max-height: 360px;
+  overflow: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+}
+.outcome-execution-card[open] .outcome-execution-chevron {
+  transform: rotate(180deg);
+}
+.outcome-execution-tool > summary {
+  cursor: pointer;
+  color: var(--foreground-secondary);
+  font-size: 11px;
+}
+.outcome-execution-messages > li {
+  min-width: 0;
+  padding: 10px 0;
+  border-top: 0.5px solid var(--border);
+  overflow-wrap: anywhere;
+}
+.outcome-execution-messages header {
+  margin: 0 0 6px;
+  color: var(--foreground-secondary);
+  font-size: 10px;
+}
+.outcome-execution-messages time {
+  margin-left: auto;
+}
+.outcome-execution-messages pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 11px;
+}
+.outcome-execution-messages .bot-markdown {
+  font-size: 12px;
 }
 @media (max-width: 720px) {
   .outcome-modal {

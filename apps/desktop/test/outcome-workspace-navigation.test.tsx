@@ -83,6 +83,10 @@ const textareaDefault = Object.getOwnPropertyDescriptor(
   "defaultValue"
 );
 beforeAll(async () => {
+  Object.defineProperty(dom.window, "location", {
+    configurable: true,
+    value: { href: "http://127.0.0.1:5173/" },
+  });
   const storage = new Map<string, string>();
   Object.defineProperty(dom.window, "localStorage", {
     configurable: true,
@@ -130,6 +134,7 @@ beforeAll(async () => {
     window: dom.window,
     document: dom.document,
     navigator: dom.window.navigator,
+    localStorage: dom.window.localStorage,
     HTMLElement: dom.window.HTMLElement,
     Element: dom.window.Element,
     Node: dom.window.Node,
@@ -505,6 +510,7 @@ test("Escape closes a goal modal; inspecting the saved plan inside does not dism
   });
   const source = document.querySelector("[data-outcome-source]")!;
   expect(source.textContent).toContain("Recommend a plan");
+  expect(source.closest('[role="dialog"]')).not.toBeNull();
   await act(async () => {
     const event = new dom.window.Event("pointerdown", { bubbles: true });
     Object.assign(event, { pointerType: "mouse", button: 0 });
