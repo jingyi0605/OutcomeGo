@@ -12,7 +12,8 @@ export class OutcomeGoClientError extends Error {
   constructor(
     message: string,
     readonly code = "request_failed",
-    readonly status = 0
+    readonly status = 0,
+    readonly details?: unknown
   ) {
     super(message);
     this.name = "OutcomeGoClientError";
@@ -112,7 +113,7 @@ export const createJsonTransport = ({
     const response = await open(path, init);
     const text = await response.text();
     let body: {
-      error?: { code?: string; message?: string };
+      error?: { code?: string; message?: string; details?: unknown };
     } & T;
     try {
       body = (text ? JSON.parse(text) : {}) as typeof body;
@@ -130,7 +131,8 @@ export const createJsonTransport = ({
       throw new OutcomeGoClientError(
         body.error?.message ?? `Request failed (${response.status})`,
         body.error?.code,
-        response.status
+        response.status,
+        body.error?.details
       );
     }
     return body;

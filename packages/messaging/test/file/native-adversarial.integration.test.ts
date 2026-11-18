@@ -857,9 +857,12 @@ test("live filesystem watchers, snapshots, namespaces, and deletion authority ag
       sections: [{ id: "work", name: "Work", collapsed: true }],
       sectionByChannel: { [secondChannelId]: "work" },
       channelOrderByGroup: { work: [secondChannelId] },
+      baseRevision: 0,
+      baseUpdatedAt: "1970-01-01T00:00:00.000Z",
     });
     const persistedRootSettings = JSON.parse(await readFile(join(root, "settings.json"), "utf8"));
     expect(persistedRootSettings.sidebarPreferences).toBeUndefined();
+    expect(persistedRootSettings.sidebarMeta.revision).toBe(1);
     expect(persistedRootSettings.pinnedAgentIds).toEqual([firstBotId]);
     expect(persistedRootSettings.sidebarSections).toEqual([
       {

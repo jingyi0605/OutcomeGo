@@ -72,7 +72,8 @@ import type {
   ServerSettingsView,
   SetChannelHiddenInput,
   SetChannelMembersInput,
-  SidebarPreferences,
+  SidebarPreferencesSaved,
+  SidebarPreferencesWrite,
   SystemVersionView,
   SystemActivityView,
   UpdateBotInput,
@@ -289,8 +290,8 @@ export const createOutcomeGoClient = (options: OutcomeGoClientOptions) => {
       transport.request<BotView[]>(`/api/v0/bots${includeHidden ? "?includeHidden=1" : ""}`),
     groups: (includeHidden = false) =>
       transport.request<ChannelView[]>(`/api/v0/groups${includeHidden ? "?includeHidden=1" : ""}`),
-    updateSidebarPreferences: (input: SidebarPreferences) =>
-      transport.request<SidebarPreferences>("/api/v0/settings/sidebar", {
+    updateSidebarPreferences: (input: SidebarPreferencesWrite) =>
+      transport.request<SidebarPreferencesSaved>("/api/v0/settings/sidebar", {
         method: "PATCH",
         body: JSON.stringify(input),
       }),

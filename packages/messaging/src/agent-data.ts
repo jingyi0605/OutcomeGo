@@ -47,8 +47,13 @@ import {
   type ServerInferenceSettings,
 } from "@outcomego/contracts";
 import {
+  INITIAL_SIDEBAR_LAYOUT_VERSION,
+  SIDEBAR_LAYOUT_CONFLICT_CODE,
   emptySidebarPreferences,
+  parseSidebarLayoutVersion,
   parseSidebarPreferences,
+  sidebarPreferencesFromRootSettings,
+  type SidebarLayoutVersion,
   type SidebarPreferences,
 } from "@outcomego/contracts/client-preferences";
 import type { ComputerInferenceRequest } from "@outcomego/contracts/service-protocol";
@@ -387,6 +392,8 @@ export interface RootSettings extends AccountScopedRootSettings {
   settingsMigrations: string[];
   pinnedAgentIds?: string[];
   sidebarSections?: RootSidebarSection[];
+  /** Server-assigned version of pins + sections; see `writeSidebarPreferences`. */
+  sidebarMeta?: SidebarLayoutVersion;
   accountScopes: Record<string, AccountScopedRootSettings>;
   activeAccountScope?: string;
 }
@@ -661,6 +668,11 @@ const parseRootSettings = (value: Record<string, unknown>): RootSettings => {
   }
   if (value.sidebarSections !== undefined) {
     parsed.sidebarSections = normalizeSidebarSections(value.sidebarSections);
+  }
+  if (value.sidebarMeta !== undefined) {
+    const meta = parseSidebarLayoutVersion(value.sidebarMeta);
+    if (!meta) throw new Error("settings.json sidebarMeta is malformed");
+    parsed.sidebarMeta = meta;
   }
   return parsed;
 };
@@ -3266,7 +3278,18 @@ export class AgentDataStore {
     valid: boolean;
     error?: string;
   }> {
-    const result = await this.loadRootSettings();
+    return this.projectRootSettingsForClient(await this.loadRootSettings());
+  }
+
+  private async projectRootSettingsForClient(result: {
+    settings: RootSettings;
+    valid: boolean;
+    error?: string;
+  }): Promise<{
+    settings: RootSettings;
+    valid: boolean;
+    error?: string;
+  }> {
     const ids = [
       ...(result.settings.pinnedAgentIds ?? []),
       ...(result.settings.sidebarSections ?? []).flatMap((section) => section.agentIds),
@@ -3277,6 +3300,7 @@ export class AgentDataStore {
       ...result,
       settings: {
         ...result.settings,
+        sidebarMeta: result.settings.sidebarMeta ?? INITIAL_SIDEBAR_LAYOUT_VERSION,
         ...(result.settings.pinnedAgentIds
           ? {
               pinnedAgentIds: result.settings.pinnedAgentIds.map((id) => mapping.get(id) ?? id),
@@ -3323,14 +3347,18 @@ export class AgentDataStore {
   async writeRootSettings(input: Partial<RootSettings>): Promise<RootSettings> {
     return this.withRootFileMutation("settings", async () => {
       const current = await this.loadRootSettings();
-      const next = parseRootSettings({
-        ...current.settings,
-        ...input,
-        version: 1,
-      });
-      await atomicWrite(join(this.root, "settings.json"), jsonFile(next), 0o600);
-      return next;
+      return this.applyRootSettings(current.settings, input);
     });
+  }
+
+  /** Writes settings.json; the caller must already hold the `settings` root-file lock. */
+  private async applyRootSettings(
+    current: RootSettings,
+    input: Partial<RootSettings>
+  ): Promise<RootSettings> {
+    const next = parseRootSettings({ ...current, ...input, version: 1 });
+    await atomicWrite(join(this.root, "settings.json"), jsonFile(next), 0o600);
+    return next;
   }
 
   async writeInferenceSettings(input: ServerInferenceSettings): Promise<ServerInferenceSettings> {
@@ -3338,7 +3366,20 @@ export class AgentDataStore {
     return settings.inference;
   }
 
-  async writeSidebarPreferences(input: unknown): Promise<SidebarPreferences> {
+  /**
+   * Stores pins and sections under compare-and-set versioning. The write is accepted only when
+   * `baseRevision` and `baseUpdatedAt` equal the server's current version, i.e. the client pulled
+   * the latest layout before editing it; otherwise the client gets a 409 carrying the current layout.
+   * An accepted write gets revision + 1 and a strictly later `updatedAt`, both assigned here so a
+   * client clock can never make a layout look newer than it is.
+   */
+  async writeSidebarPreferences(
+    input: unknown
+  ): Promise<SidebarPreferences & SidebarLayoutVersion> {
+    const base = parseSidebarLayoutVersion({
+      revision: (input as Record<string, unknown> | null)?.baseRevision,
+      updatedAt: (input as Record<string, unknown> | null)?.baseUpdatedAt,
+    });
     const sidebarPreferences = parseSidebarPreferences(input);
     const channelIds = [
       ...sidebarPreferences.pinnedIds,
@@ -3348,22 +3389,55 @@ export class AgentDataStore {
     const idMapping = new Map(
       channelIds.map((channelId, index) => [channelId, agentIds[index] ?? channelId])
     );
-    await this.writeRootSettings({
-      pinnedAgentIds: sidebarPreferences.pinnedIds.map(
-        (channelId) => idMapping.get(channelId) ?? channelId
-      ),
-      sidebarSections: normalizeSidebarSections(
-        sidebarPreferences.sections.map((section) => ({
-          id: section.id,
-          name: section.name,
-          agentIds: Object.entries(sidebarPreferences.sectionByChannel)
-            .filter(([, sectionId]) => sectionId === section.id)
-            .map(([channelId]) => idMapping.get(channelId) ?? channelId),
-          isCollapsed: section.collapsed,
-        }))
-      ),
+    const outcome = await this.withRootFileMutation("settings", async () => {
+      const current = await this.loadRootSettings();
+      const version = current.settings.sidebarMeta ?? INITIAL_SIDEBAR_LAYOUT_VERSION;
+      if (
+        !base ||
+        base.revision !== version.revision ||
+        base.updatedAt !== version.updatedAt
+      ) {
+        return { ok: false as const, current };
+      }
+      const next: SidebarLayoutVersion = {
+        revision: version.revision + 1,
+        updatedAt: new Date(
+          Math.max(Date.now(), Date.parse(version.updatedAt) + 1)
+        ).toISOString(),
+      };
+      await this.applyRootSettings(current.settings, {
+        pinnedAgentIds: sidebarPreferences.pinnedIds.map(
+          (channelId) => idMapping.get(channelId) ?? channelId
+        ),
+        sidebarSections: normalizeSidebarSections(
+          sidebarPreferences.sections.map((section) => ({
+            id: section.id,
+            name: section.name,
+            agentIds: Object.entries(sidebarPreferences.sectionByChannel)
+              .filter(([, sectionId]) => sectionId === section.id)
+              .map(([channelId]) => idMapping.get(channelId) ?? channelId),
+            isCollapsed: section.collapsed,
+          }))
+        ),
+        sidebarMeta: next,
+      });
+      return { ok: true as const, saved: next };
     });
-    return sidebarPreferences;
+    if (!outcome.ok) {
+      const view = await this.projectRootSettingsForClient(outcome.current);
+      const preferences =
+        sidebarPreferencesFromRootSettings(
+          { settings: view.settings, valid: view.valid },
+          emptySidebarPreferences()
+        ) ?? emptySidebarPreferences();
+      throw new ApiError(
+        409,
+        SIDEBAR_LAYOUT_CONFLICT_CODE,
+        "The sidebar layout changed on the server. Pull the latest layout before editing it.",
+        { current: { preferences, ...view.settings.sidebarMeta } }
+      );
+    }
+    return { ...sidebarPreferences, ...outcome.saved };
   }
 
   async loadActiveAgentId(): Promise<string | null> {
