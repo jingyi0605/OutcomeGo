@@ -1,5 +1,6 @@
 export { lockQuestions, dismissQuestions, questionScopeForReply } from "./question-lifecycle";
 import { lockQuestions, dismissQuestions, questionScopeForReply } from "./question-lifecycle";
+import { OUTCOME_UPDATE_CARD_SOURCE } from "@outcomego/contracts/outcome-chat";
 export { lockAgentLifecycle, canonicalAgentId } from "./agent-lifecycle";
 import { lockAgentLifecycle, canonicalAgentId } from "./agent-lifecycle";
 export { cleanupRetiredAgent, RETIRED_AGENT_CLEANUP_RETRY_MS } from "./retired-agent-cleanup";
@@ -3251,7 +3252,12 @@ export async function buildSafeTranscript(
   const channelIds = bot.channelMemberships.map((membership) => membership.channelId);
   const [messages, runs] = await Promise.all([
     prisma.channelMessage.findMany({
-      where: { channelId: { in: channelIds }, channel: { kind: { not: "agent_dm" } } },
+      where: {
+        channelId: { in: channelIds },
+        channel: { kind: { not: "agent_dm" } },
+        // Platform goal notices are for the user; the Bot sees one only when the user quotes it.
+        NOT: { sender: "system", metadata: { path: ["source"], equals: OUTCOME_UPDATE_CARD_SOURCE } },
+      },
       include: { channel: true, senderBot: true },
       orderBy: { sequence: "asc" },
     }),
@@ -3327,4 +3333,5 @@ export { notificationRouting } from "./notification-presence";
 
 export { createOutcomeDecision, isOutcomeDecisionRevisionActive, outcomeDecisionRevisionActiveSql, closeOutcomeDecision, revokeOutcomeDecisionNotification, withdrawSupersededOutcomeDecisions } from "./outcome-decisions";
 
+export { postOutcomeUpdateCard } from "./outcome-update-cards";
 export { consumeOutcomeInboxEvent, reconcileOutcomeInboxNotifications, outcomeNotificationIsCurrent, unreadOutcomeNotifications, outcomeReviewNotificationFactsSql } from "./outcome-inbox-notifications";

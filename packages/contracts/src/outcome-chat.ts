@@ -50,6 +50,13 @@ export interface OutcomeChatCard {
   updatedAt: string;
   suggestions?: { goals: string[]; acceptance: string[]; boundaries: string[] };
 }
+/** Marks a goal card the platform posted as a user notice; it is not a Bot message. */
+export const OUTCOME_UPDATE_CARD_SOURCE = "outcome-update";
+export function isOutcomeUpdateCardMetadata(metadata: unknown): boolean {
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) return false;
+  const record = metadata as Record<string, unknown>;
+  return record.type === "outcome-card" && record.source === OUTCOME_UPDATE_CARD_SOURCE;
+}
 export function parseOutcomeChatCard(value: unknown): OutcomeChatCard | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const card = value as OutcomeChatCard;

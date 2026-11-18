@@ -1,3 +1,4 @@
+import { OUTCOME_INBOX_CATEGORIES } from "./outcome-inbox";
 import { outcomeDeepLink, outcomeDecisionDeepLink } from "./app-deep-links";
 /** Cross-process PostgreSQL advisory lock protecting the final push authorization/send boundary. */
 export const PUSH_DELIVERY_ADVISORY_LOCK = {
@@ -175,8 +176,13 @@ export const agentNotificationPresentation = (input: {
 
 export const OUTCOME_NOTIFICATION_TYPES = [
   "outcome.decision.required", "outcome.review.required", "outcome.human_action.required", "outcome.accepted",
+  "outcome.failed", "outcome.blocked",
 ] as const;
 export type OutcomeNotificationType = (typeof OUTCOME_NOTIFICATION_TYPES)[number];
+
+/** Failed and blocked are notification-only: they are not Inbox cards, so the Inbox categories stay unchanged. */
+export const OUTCOME_NOTIFICATION_CATEGORIES = [...OUTCOME_INBOX_CATEGORIES, "failed", "blocked"] as const;
+export type OutcomeNotificationCategory = (typeof OUTCOME_NOTIFICATION_CATEGORIES)[number];
 
 /** Separate from chat activity so old clients safely ignore the unknown kind. */
 export interface OutcomeNotificationPayload {
@@ -186,7 +192,7 @@ export interface OutcomeNotificationPayload {
   factKey: string;
   outcomeId: string;
   decisionId?: string;
-  category: import("./outcome-inbox").OutcomeInboxCategory;
+  category: OutcomeNotificationCategory;
   contractRevision: number;
   priority: number;
   botId: string;
@@ -203,15 +209,16 @@ export const outcomeNotificationPayload = (input: {
   type: OutcomeNotificationType; factKey: string; outcomeId: string; decisionId?: string;
   botId: string; channelId: string; contractRevision: number; urgent?: boolean;
 }): OutcomeNotificationPayload => {
-  const category = input.type === "outcome.decision.required" ? "decision_pending" : input.type === "outcome.review.required" ? "acceptance_pending" : input.type === "outcome.human_action.required" ? "human_action_pending" : "completed";
+  const category: OutcomeNotificationCategory = input.type === "outcome.decision.required" ? "decision_pending" : input.type === "outcome.review.required" ? "acceptance_pending" : input.type === "outcome.human_action.required" ? "human_action_pending" : input.type === "outcome.failed" ? "failed" : input.type === "outcome.blocked" ? "blocked" : "completed";
+  const priorities: Record<OutcomeNotificationCategory, number> = { decision_pending: 3, failed: 3, human_action_pending: 2, blocked: 2, acceptance_pending: 1, completed: 0 };
   return {
     schemaVersion: 1, kind: "outcome", type: input.type, factKey: input.factKey,
     outcomeId: input.outcomeId, ...(input.decisionId ? { decisionId: input.decisionId } : {}),
     category, contractRevision: input.contractRevision,
-    priority: input.urgent ? 4 : category === "decision_pending" ? 3 : category === "human_action_pending" ? 2 : category === "acceptance_pending" ? 1 : 0,
+    priority: input.urgent ? 4 : priorities[category],
     botId: input.botId, channelId: input.channelId, notificationSequence: "0", badgeCount: 0,
     title: category === "completed" ? "Outcome completed" : "An Outcome needs your attention",
-    body: category === "decision_pending" ? "Open OutcomeGo to decide the next step." : "Open OutcomeGo to view the outcome.",
+    body: category === "decision_pending" ? "Open OutcomeGo to decide the next step." : category === "failed" ? "Open OutcomeGo to see why it stopped." : category === "blocked" ? "Open OutcomeGo to see what is blocking it." : "Open OutcomeGo to view the outcome.",
     deepLink: input.decisionId ? outcomeDecisionDeepLink(input.decisionId) : outcomeDeepLink(input.outcomeId),
   };
 };

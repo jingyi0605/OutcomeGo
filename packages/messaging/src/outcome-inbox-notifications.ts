@@ -2,6 +2,7 @@ import { outcomeNotificationPayload, type OutcomeNotificationPayload, type Outco
 import { Prisma, type PrismaClient } from "@outcomego/db";
 import { publishOutcomeNotification } from "./notifications";
 import { outcomeDecisionRevisionActiveSql, revokeOutcomeDecisionNotification } from "./outcome-decisions";
+import { postOutcomeUpdateCard } from "./outcome-update-cards";
 
 export const OUTCOME_INBOX_EVENT_SCOPE = "outcome-event:inbox";
 export const OUTCOME_INBOX_EVENT_TOPICS = ["outcome.decision.required", "outcome.review.required", "outcome.human_action.required", "outcome.accepted", "outcome.decision.closed"] as const;
@@ -75,6 +76,32 @@ export const outcomeInboxNotificationFactsSql = Prisma.sql`
     NULL, NULL, false, o."acceptedAt"
   FROM "outcomego_outcome" o JOIN "outcomego_outcome_contract_revision" r ON r.id = o."currentRevisionId"
   WHERE o.status = 'accepted' AND o."cancelledAt" IS NULL AND o."acceptedAt" >= CURRENT_TIMESTAMP - INTERVAL '7 days'
+  UNION ALL
+  -- Every agent attempt of the current revision failed. The key changes when a different set of attempts fails, so a retry that fails again notifies again.
+  SELECT 'outcome.failed:' || o.id::text || ':' || r.revision::text || ':' || md5(failed.ids), 'outcome.failed', o.id, o."botId", r.revision,
+    NULL, NULL, false, failed."availableAt"
+  FROM "outcomego_outcome" o JOIN "outcomego_outcome_contract_revision" r ON r.id = o."currentRevisionId"
+  CROSS JOIN LATERAL (
+    SELECT string_agg(w.id::text, ',' ORDER BY w.id) AS ids, MAX(w."updatedAt") AS "availableAt"
+    FROM "outcomego_outcome_work_item" w
+    WHERE w."outcomeId" = o.id AND w."contractRevisionId" = r.id AND w."executorType" = 'agent' AND w.status = 'failed'
+  ) failed
+  WHERE o.status = 'failed' AND o."cancelledAt" IS NULL AND o."acceptedAt" IS NULL AND r.status = 'approved'
+    AND failed.ids IS NOT NULL AND failed."availableAt" >= CURRENT_TIMESTAMP - INTERVAL '2 days'
+  UNION ALL
+  -- The executor reported a task as blocked while still running. It clears itself when no task is blocked any more.
+  SELECT 'outcome.blocked:' || w.id::text || ':' || md5(blocked.ids), 'outcome.blocked', o.id, o."botId", r.revision,
+    NULL, w.id::text, false, w."updatedAt"
+  FROM "outcomego_outcome_work_item" w
+    JOIN "outcomego_outcome" o ON o.id = w."outcomeId" AND o."currentRevisionId" = w."contractRevisionId"
+    JOIN "outcomego_outcome_contract_revision" r ON r.id = w."contractRevisionId"
+  CROSS JOIN LATERAL (
+    SELECT string_agg(task->>'id', ',' ORDER BY task->>'id') AS ids
+    FROM jsonb_array_elements(CASE WHEN jsonb_typeof(w.progress->'tasks') = 'array' THEN w.progress->'tasks' ELSE '[]'::jsonb END) task
+    WHERE task->>'status' = 'blocked'
+  ) blocked
+  WHERE w."executorType" = 'agent' AND w.status = 'running' AND blocked.ids IS NOT NULL
+    AND o.status = 'running' AND o."cancelledAt" IS NULL AND o."acceptedAt" IS NULL AND r.status = 'approved'
 `;
 
 async function publishFact(tx: Prisma.TransactionClient, fact: Fact): Promise<boolean> {
@@ -82,6 +109,8 @@ async function publishFact(tx: Prisma.TransactionClient, fact: Fact): Promise<bo
   if (!channel) return false;
   await publishOutcomeNotification(tx, outcomeNotificationPayload({ type: fact.type, factKey: fact.factKey, outcomeId: fact.outcomeId,
     ...(fact.decisionId ? { decisionId: fact.decisionId } : {}), botId: fact.botId, channelId: channel.id, contractRevision: fact.contractRevision, urgent: fact.urgent }));
+  // The same fact also leaves a card in the Bot conversation; it never wakes the Bot (see outcome-update-cards).
+  await postOutcomeUpdateCard(tx, { channelId: channel.id, outcomeId: fact.outcomeId, factKey: fact.factKey, contractRevision: fact.contractRevision, type: fact.type });
   return true;
 }
 

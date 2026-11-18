@@ -3,6 +3,7 @@ import { appendOutcomeEvent, transitionWorkItem } from "../src/outcome-state";
 import { consumeOutcomeInboxEvent, reconcileOutcomeInboxNotifications, unreadOutcomeNotifications } from "../src/outcome-inbox-notifications";
 import { outcomeThreadFixture } from "./fixtures/outcome-thread";
 import { outcomeNotificationIsCurrent } from "../src/outcome-inbox-notifications";
+import { buildSafeTranscript } from "../src";
 const url = process.env.OUTCOMEGO_TEST_DATABASE_URL;
 const actor = "owner:local" as const;
 
@@ -29,6 +30,44 @@ describe.skipIf(!url)("production Outcome inbox facts", () => {
       const after = await h.db.$transaction(tx => unreadOutcomeNotifications(tx));
       expect(after.map(value => value.type)).toEqual(["outcome.accepted"]);
       expect(await h.db.idempotencyRecord.count({ where: { scope: "outcome-event:inbox", key: { in: [review, action, accepted].map(event => (event.payload as { eventId: string }).eventId) } } })).toBe(3);
+    } finally { await h.cleanup(); }
+  });
+  test("a user-facing fact leaves one system goal card that never wakes or reaches the Bot", async () => {
+    const h = await outcomeThreadFixture();
+    try {
+      const item = await h.item();
+      await h.db.outcomeWorkItem.update({ where: { id: item.id }, data: { status: "completed" } });
+      await h.db.outcomeOutput.create({ data: { outcomeId: h.outcome.id, workItemId: item.id, kind: "final_result", title: "Result", content: "body", dedupeKey: `card:${item.id}` } });
+      const runsBefore = await h.db.run.count({ where: { botId: h.bot.id } });
+      const review = await h.db.$transaction(tx => appendOutcomeEvent(tx, "outcome.review.required", h.outcome.id, { actor, contractRevision: 1, payload: { criterionIds: [], workItemIds: [item.id] } }));
+      await h.db.$transaction(tx => consumeOutcomeInboxEvent(tx, review.sequence));
+      await reconcileOutcomeInboxNotifications(h.db); await reconcileOutcomeInboxNotifications(h.db);
+      const cards = await h.db.channelMessage.findMany({ where: { channelId: h.channel.id, clientId: { startsWith: "outcome-update:" } } });
+      expect(cards).toHaveLength(1);
+      expect(cards[0]).toMatchObject({ sender: "system", senderBotId: null, sourceRunId: null });
+      expect(cards[0]!.metadata).toMatchObject({ type: "outcome-card", source: "outcome-update", outcomeCard: { outcomeId: h.outcome.id } });
+      expect(await h.db.run.count({ where: { botId: h.bot.id } })).toBe(runsBefore);
+      const transcript = await buildSafeTranscript(h.db, h.bot.id);
+      expect(JSON.stringify(transcript)).not.toContain(cards[0]!.id);
+    } finally { await h.cleanup(); }
+  });
+  test("a failed Outcome and a blocked running task each notify once, with a goal card, and clear when resolved", async () => {
+    const h = await outcomeThreadFixture();
+    try {
+      const item = await h.item();
+      await h.db.outcome.update({ where: { id: h.outcome.id }, data: { status: "running" } });
+      await h.db.outcomeWorkItem.update({ where: { id: item.id }, data: { status: "running", progress: { phase: "Work", tasks: [{ id: "t1", title: "Wait for key", status: "blocked" }], updatedAt: new Date().toISOString() } } });
+      await reconcileOutcomeInboxNotifications(h.db); await reconcileOutcomeInboxNotifications(h.db);
+      expect(await h.db.channelNotification.count({ where: { key: { startsWith: `outcome.blocked:${item.id}:` } } })).toBe(1);
+      expect((await h.db.$transaction(tx => unreadOutcomeNotifications(tx))).find(value => value.outcomeId === h.outcome.id)).toMatchObject({ type: "outcome.blocked", category: "blocked" });
+      await h.db.outcomeWorkItem.update({ where: { id: item.id }, data: { progress: { phase: "Work", tasks: [{ id: "t1", title: "Wait for key", status: "in_progress" }], updatedAt: new Date().toISOString() } } });
+      expect((await h.db.$transaction(tx => unreadOutcomeNotifications(tx))).filter(value => value.outcomeId === h.outcome.id)).toEqual([]);
+      await h.db.outcomeWorkItem.update({ where: { id: item.id }, data: { status: "failed" } });
+      await h.db.outcome.update({ where: { id: h.outcome.id }, data: { status: "failed" } });
+      await reconcileOutcomeInboxNotifications(h.db); await reconcileOutcomeInboxNotifications(h.db);
+      expect(await h.db.channelNotification.count({ where: { key: { startsWith: `outcome.failed:${h.outcome.id}:1:` } } })).toBe(1);
+      const cards = await h.db.channelMessage.findMany({ where: { channelId: h.channel.id, clientId: { startsWith: "outcome-update:outcome." } } });
+      expect(cards.map(card => (card.metadata as { outcomeCard: { stage: string } }).outcomeCard.stage).sort()).toEqual(["attention", "failed"]);
     } finally { await h.cleanup(); }
   });
   test("permanent non-decision facts recover after Events are pruned without duplicating intents", async () => {
