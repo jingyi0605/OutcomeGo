@@ -222,8 +222,12 @@ export async function outcomeRunContext(db: Prisma.TransactionClient, botId: str
     JSON.stringify({
       outcome: { id: item.outcomeId, contractRevision: item.contractRevision.revision, goal: item.contractRevision.goal,
         acceptance: item.contractRevision.criteria.map(({ id, statement, required }) => ({ id, statement, required })), boundaries: item.contractRevision.boundaries },
-      execution: { workItemId: item.id, outputRequirements: [`Write deliverable files to outcomes/${item.outcomeId}/${item.id}/`] },
+      execution: {
+        workItemId: item.id,
+        outputRequirements: [`Write deliverable files to outcomes/${item.outcomeId}/${item.id}/`],
+        ...(item.progress ? { progress: item.progress } : {}),
+      },
     }),
-    "Work quietly in this isolated Outcome thread. End with a complete final assistant result. Never publish progress or results in the main conversation. Use RequestOutcomeDecision for decisions and RequestHumanAction for human work when available. Use WakeParent only when the main conversation must handle a platform blocker.",
+    "Work quietly in this isolated Outcome thread. End with a complete final assistant result. Never publish progress or results in the main conversation. Immediately call ReportOutcomeProgress when starting execution to publish the initial phase/stage and structured task list, and call ReportOutcomeProgress promptly at every phase change or whenever any task becomes in_progress, completed, or blocked. Use RequestOutcomeDecision for decisions and RequestHumanAction for human work when available. Use WakeParent only when the main conversation must handle a platform blocker.",
   ].join("\n");
 }

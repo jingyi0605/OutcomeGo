@@ -1,6 +1,11 @@
 import { REQUEST_OUTCOME_DECISION_TOOL, RequestOutcomeDecisionInput } from "@outcomego/contracts/outcome-inbox";
 import { replaceTaskProgressContext } from "@outcomego/contracts/task-progress";
-import { OUTCOME_THREAD_TOOL_NAMES, type OutcomeThreadToolName } from "@outcomego/contracts/outcomes";
+import {
+  OUTCOME_THREAD_TOOL_NAMES,
+  REPORT_OUTCOME_PROGRESS_TOOL,
+  ReportOutcomeProgressInput,
+  type OutcomeThreadToolName,
+} from "@outcomego/contracts/outcomes";
 import { REQUEST_HUMAN_ACTION_TOOL, humanActionInputSchema } from "@outcomego/contracts/human-work";
 import { applyArgumentAliases, normalizeMainToolArguments } from "@outcomego/contracts/reference-main-parsers";
 import { onlyPendingBackgroundWork } from "./background-status";
@@ -264,6 +269,12 @@ const OUTCOME_THREAD_TOOLS: OutcomeThreadToolRegistry = {
   RequestHumanAction: {
     ...REQUEST_HUMAN_ACTION_TOOL, source: "first-party",
     decodeArguments: (input) => humanActionInputSchema.parse(input),
+  },
+  ReportOutcomeProgress: {
+    ...REPORT_OUTCOME_PROGRESS_TOOL,
+    inputSchema: REPORT_OUTCOME_PROGRESS_TOOL.inputSchema as unknown as Readonly<Record<string, unknown>>,
+    source: "first-party",
+    decodeArguments: Schema.decodeUnknownSync(ReportOutcomeProgressInput),
   },
 };
 

@@ -6,6 +6,7 @@ import { ExploreService } from "./services/explore-service";
 import { OutcomeRecoveryService } from "./services/outcome-recovery-service";
 import { DecisionService } from "./services/decision-service";
 import { createOutcomeDecisionTool } from "./services/outcome-decision-tool";
+import { createOutcomeProgressTool } from "./services/outcome-progress-tool";
 import { createOutcomeCredentialApprovalTool } from "./services/outcome-credential-approval";
 import { OutcomeChatTools } from "./services/outcome-chat-tools";
 import { OutcomeChatCards } from "./services/outcome-chat-cards";
@@ -353,6 +354,7 @@ export class AppService {
       {
         RequestOutcomeDecision: createOutcomeDecisionTool(this.prisma, this.outcomeDecisions),
         RequestHumanAction: humanServices.humanActionTool,
+        ReportOutcomeProgress: createOutcomeProgressTool(this.prisma),
         RequestBitwardenReadApproval: createOutcomeCredentialApprovalTool(this.prisma, this.outcomeDecisions),
       },
       new OutcomeChatTools(this.outcomePlanning, this.outcomes, new OutcomeInboxService(this.prisma), this.explore, new OutcomeChatCards(this.prisma, this.messaging)),

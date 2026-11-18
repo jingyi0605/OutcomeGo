@@ -42,6 +42,7 @@ for (const requestSource of ["turn", "automation", "event"] as const) {
       })) }).toEqual(before.automation);
       expect(outcome.direct).toContain("RequestHumanAction");
       expect(outcome.direct).toContain("RequestOutcomeDecision");
+      expect(outcome.direct).toContain("ReportOutcomeProgress");
     }
   });
 }
