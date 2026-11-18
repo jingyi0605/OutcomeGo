@@ -84,6 +84,8 @@ export class OutcomeService {
     private readonly messaging?: AgentMessaging,
     private readonly runService?: Pick<RunService, "cancel"> & Partial<Pick<RunService, "cancelOutcomeWorkItems">>,
     private readonly onRevisionCreated?: (tx: Tx, outcomeId: string, actor: ActorRef) => Promise<void>,
+    /** Called after a goal or contract revision is committed, e.g. to pre-generate its overview. */
+    private readonly onContractSaved?: (outcome: OutcomeDetail) => void,
   ) {}
 
   createFromDraft = (input: CreateOutcomeInput, actor: ActorRef) =>
@@ -109,15 +111,25 @@ export class OutcomeService {
         if (explore) await tx.exploreIdea.update({ where: { id: explore.id }, data: { status: "converted", proposedOutcomeId: outcome.id } });
         await this.recomputeStatus(tx, outcome.id, actor);
         return this.detail(tx, outcome.id);
-      })
+      }).then((detail) => this.contractSaved(detail))
     );
 
   createRevision = (outcomeId: string, input: CreateContractRevisionInput, actor: ActorRef) =>
     serviceEffect(() =>
       this.idempotent(`outcome-revision:${outcomeId}`, input.clientRequestId, input, async (tx) => {
         return this.createRevisionInTransaction(tx, outcomeId, input, actor);
-      })
+      }).then((detail) => this.contractSaved(detail))
     );
+
+  /** Never lets a presentation side effect fail or delay the committed write. */
+  private contractSaved(detail: OutcomeDetail): OutcomeDetail {
+    try {
+      this.onContractSaved?.(detail);
+    } catch {
+      /* The overview is generated on first read instead. */
+    }
+    return detail;
+  }
 
   /** The caller owns the transaction and request idempotency (Decision resolution uses this entry point). */
   createRevisionInTransaction = async (tx: Tx, outcomeId: string, input: CreateContractRevisionInput, actor: ActorRef): Promise<OutcomeDetail> => {

@@ -1960,6 +1960,7 @@ model Outcome {
   evidence          OutcomeEvidence[]
   reviews           OutcomeReview[]
   humanReceipts     OutcomeHumanReceipt[]
+  briefs            OutcomeBrief[]
   createdAt DateTime       @default(now())
   updatedAt DateTime       @updatedAt
   acceptedAt DateTime?
@@ -1969,6 +1970,20 @@ model Outcome {
   @@index([updatedAt, id], map: "outcomego_outcome_updated_at_id_idx")
   @@index([botId, status], map: "outcomego_outcome_bot_id_status_idx")
   @@map("outcomego_outcome")
+}
+
+/// Generated short overview (background, risks, suggested tasks) of one Outcome content snapshot.
+/// Presentation only: business state never reads it. `sourceHash` is sha256 of outcomeBriefSource().
+model OutcomeBrief {
+  id String @id @default(uuid()) @db.Uuid
+  outcomeId String @db.Uuid
+  outcome Outcome @relation(fields: [outcomeId], references: [id], onDelete: Cascade)
+  sourceHash String
+  brief Json
+  createdAt DateTime @default(now())
+
+  @@unique([outcomeId, sourceHash], map: "outcomego_outcome_brief_outcome_id_source_hash_key")
+  @@map("outcomego_outcome_brief")
 }
 
 enum ExploreIdeaStatus {

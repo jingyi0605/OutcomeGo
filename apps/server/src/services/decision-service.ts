@@ -15,6 +15,8 @@ export interface DecisionServicePorts {
   enqueueTurn?: typeof enqueueOutcomeTurn;
   createRevision?: DecisionRevisionWriter;
   humanActions?: HumanActionPort;
+  /** Called after a decision resolution that created a new contract revision has committed. */
+  onRevisionCreated?: (outcomeId: string) => void;
 }
 const include = { contractRevision: { select: { revision: true } } } satisfies Prisma.OutcomeDecisionInclude;
 type Row = Prisma.OutcomeDecisionGetPayload<{ include: typeof include }>;
@@ -92,6 +94,13 @@ export class DecisionService {
     }).catch(mapError);
     // Expected stale/expired errors commit their automatic closure before reaching the HTTP boundary.
     if (result instanceof ApiError) throw result;
+    if (result.resume?.revisionId) {
+      try {
+        this.ports.onRevisionCreated?.(result.outcomeId);
+      } catch {
+        /* The overview is generated on first read instead. */
+      }
+    }
     return result;
   });
 

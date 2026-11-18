@@ -173,3 +173,62 @@ test("brief HTTP reads use the authenticated Outcome path and cannot approve or 
   expect(reads).toBe(1);
   expect(generations).toBe(1);
 });
+
+const memoryStore = () => {
+  const rows = new Map<string, unknown>();
+  return {
+    rows,
+    find: async (outcomeId: string, hash: string) => rows.get(`${outcomeId}:${hash}`) ?? null,
+    save: async (outcomeId: string, hash: string, brief: unknown) => {
+      rows.set(`${outcomeId}:${hash}`, JSON.parse(JSON.stringify(brief)));
+    },
+  };
+};
+
+test("warm generates and persists the overview so a fresh service reads it without inference", async () => {
+  const store = memoryStore();
+  let calls = 0;
+  const writer = new OutcomeBriefService(async () => {
+    calls++;
+    return { text: JSON.stringify(generated) };
+  }, store);
+  writer.warm(outcome);
+  await writer.get(outcome);
+  expect(calls).toBe(1);
+  expect(store.rows.size).toBe(1);
+
+  // A restarted server has an empty memory cache; opening the goal must not call the model again.
+  const reader = new OutcomeBriefService(async () => {
+    throw new Error("must not infer");
+  }, store);
+  expect((await reader.get(outcome)).background.title).toBe(generated.background.title);
+});
+
+test("a saved overview is ignored when it belongs to other content and failed saves do not fail reads", async () => {
+  const store = memoryStore();
+  let calls = 0;
+  const infer = async () => {
+    calls++;
+    return { text: JSON.stringify(generated) };
+  };
+  await new OutcomeBriefService(infer, store).get(outcome);
+  const [key] = [...store.rows.keys()];
+  store.rows.set(key!, { ...(store.rows.get(key!) as object), sourceKey: "stale" });
+  expect((await new OutcomeBriefService(infer, store).get(outcome)).sourceKey).toBe(outcomeBriefSource(outcome));
+  expect(calls).toBe(2);
+
+  const broken = { find: async () => { throw new Error("db down"); }, save: async () => { throw new Error("db down"); } };
+  expect((await new OutcomeBriefService(infer, broken).get(outcome)).outcomeId).toBe(outcome.id);
+});
+
+test("warm never throws when inference is unavailable and the first read retries", async () => {
+  let calls = 0;
+  const service = new OutcomeBriefService(async () => {
+    if (++calls === 1) throw new Error("computer offline");
+    return { text: JSON.stringify(generated) };
+  }, memoryStore());
+  expect(() => service.warm(outcome)).not.toThrow();
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  expect((await service.get(outcome)).outcomeId).toBe(outcome.id);
+  expect(calls).toBe(2);
+});

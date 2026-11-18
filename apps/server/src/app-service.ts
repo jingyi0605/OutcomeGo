@@ -73,7 +73,7 @@ import { DurableStateService } from "./update-state";
 import { VoiceService } from "./services/voice-service";
 import { ComputerNetworkPolicyService } from "./services/computer-network-policy-service";
 import { DingTalkService } from "./services/dingtalk";
-import { OutcomeBriefService } from "./services/outcome-brief-service";
+import { OutcomeBriefService, prismaOutcomeBriefStore } from "./services/outcome-brief-service";
 
 const COMPUTER_ID = "00000000-0000-0000-0000-000000000001";
 
@@ -249,8 +249,10 @@ export class AppService {
       (path, init) => this.computerFetch(path, init)
     );
     const inferOutcome = outcomeInference(this.agentData, (path, init) => this.computerJson(path, init));
-    this.outcomeBriefs = new OutcomeBriefService(inferOutcome);
-    this.outcomes = new OutcomeService(this.prisma, this.messaging, this.runs, withdrawSupersededDecisions);
+    this.outcomeBriefs = new OutcomeBriefService(inferOutcome, prismaOutcomeBriefStore(this.prisma));
+    this.outcomes = new OutcomeService(this.prisma, this.messaging, this.runs, withdrawSupersededDecisions, (outcome) =>
+      this.outcomeBriefs.warm(outcome)
+    );
     this.outcomePlanning = new OutcomePlanningService(this.prisma, inferOutcome);
     this.explore = new ExploreService(this.prisma, this.outcomePlanning);
     this.outcomeRecovery = new OutcomeRecoveryService(this.prisma, this.messaging);
@@ -262,6 +264,12 @@ export class AppService {
       messaging: this.messaging,
       createRevision: this.outcomes.createRevisionInTransaction,
       humanActions: this.humanWork,
+      onRevisionCreated: (outcomeId) => {
+        void Effect.runPromise(this.outcomes.get(outcomeId)).then(
+          (outcome) => this.outcomeBriefs.warm(outcome),
+          () => undefined
+        );
+      },
     });
     this.outcomeReviews = new OutcomeReviewService(this.prisma, this.messaging, inferOutcome, undefined, this.humanReceipts);
     this.outcomeEvidence = new OutcomeEvidenceConsumer(this.prisma, this.outcomeReviews, this.eventWakeup);
