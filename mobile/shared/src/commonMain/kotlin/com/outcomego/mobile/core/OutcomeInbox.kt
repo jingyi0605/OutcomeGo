@@ -260,7 +260,7 @@ fun parseOutcomeDeepLink(raw: String?): OutcomeLinkTarget? {
 }
 fun parseOutcomePushTarget(data: Map<String, String>): OutcomeLinkTarget? {
     if (data["schemaVersion"] != "1" || data["kind"] != "outcome") return null
-    if (data["type"] !in setOf("outcome.decision.required", "outcome.review.required", "outcome.human_action.required", "outcome.accepted")) return null
+    if (data["type"] !in setOf("outcome.decision.required", "outcome.review.required", "outcome.human_action.required", "outcome.accepted", "outcome.failed", "outcome.blocked")) return null
     val outcomeId = data["outcomeId"]?.takeIf { outcomeUuid.matches(it) } ?: return null
     val target = parseOutcomeDeepLink(data["deepLink"]) ?: return null
     return if (data["type"] == "outcome.decision.required") {

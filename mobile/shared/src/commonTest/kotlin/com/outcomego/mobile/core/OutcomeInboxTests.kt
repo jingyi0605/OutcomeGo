@@ -104,7 +104,7 @@ class OutcomeInboxTests {
         for (invalid in listOf(link + "&token=private", link + "#secret", link.replace("outcomego://", "https://"), "outcomego://app/v1/outcomes?id=not-a-uuid")) {
             assertNull(parseOutcomeDeepLink(invalid))
         }
-        for (type in listOf("outcome.review.required", "outcome.human_action.required", "outcome.accepted")) {
+        for (type in listOf("outcome.review.required", "outcome.human_action.required", "outcome.accepted", "outcome.failed", "outcome.blocked")) {
             assertEquals(OutcomeLinkTarget(outcomeId = outcome), parseOutcomePushTarget(payload + mapOf("type" to type, "deepLink" to "outcomego://app/v1/outcomes?id=$outcome")))
         }
     }

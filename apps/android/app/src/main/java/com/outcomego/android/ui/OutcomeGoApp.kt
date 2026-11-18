@@ -562,6 +562,12 @@ fun OutcomeGoApp(
                             conversation?.botId?.let(appViewModel::loadRoutinesForBot)
                             navController.navigate(ROUTINES)
                         },
+                        onOpenOutcome = { outcomeId ->
+                            outcomeOpening = com.outcomego.mobile.core.OutcomeLinkTarget(outcomeId = outcomeId)
+                            outcomeOpeningGeneration += 1
+                            navController.navigate(OUTCOMES) { launchSingleTop = true }
+                        },
+                        loadOutcomeStatus = { outcomeId -> outcomeGateway.outcomeDetail(outcomeId).getOrNull()?.status },
                         error = state.error,
                         onBack = { navController.popBackStack() },
                         onBotDetails = {

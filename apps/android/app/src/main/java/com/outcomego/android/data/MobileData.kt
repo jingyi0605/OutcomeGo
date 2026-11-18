@@ -168,6 +168,19 @@ data class ChatMessage(
             return RoutineEvent(id, name, action)
         }
 
+    /**
+     * A goal notice the platform posted into a Bot conversation. It is not a Bot message: the Bot is
+     * not woken and only sees it when the user quotes it in the main thread.
+     */
+    val outcomeUpdateCard: OutcomeUpdateCard?
+        get() {
+            if (sender != "system" || metadata["type"].text() != "outcome-card" || metadata["source"].text() != "outcome-update") return null
+            val card = metadata["outcomeCard"] as? JsonObject ?: return null
+            val outcomeId = card["outcomeId"].text().orEmpty()
+            if (!OutcomeUpdateCard.UUID.matches(outcomeId)) return null
+            return OutcomeUpdateCard(outcomeId, card["title"].text().orEmpty(), card["stage"].text().orEmpty())
+        }
+
     /** A safe label for malformed or metadata-only messages. */
     val displayBody: String?
         get() = body.ifBlank {
@@ -271,6 +284,25 @@ fun List<ChatMessage>.toChatRows(collapseAgentExchanges: Boolean = false): List<
         }
     }
     return rows
+}
+
+/** The saved [stage] is what was true when the notice was posted; the live Outcome status supersedes it. */
+data class OutcomeUpdateCard(val outcomeId: String, val title: String, val stage: String) {
+    companion object {
+        val UUID = Regex("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
+
+        /** Mirrors `outcomeCardStage` in the shared contracts. */
+        fun stageForStatus(status: String): String = when (status) {
+            "accepted", "cancelled", "failed" -> status
+            "review_pending" -> "review"
+            "approved" -> "ready"
+            "planning" -> "generating"
+            "decision_pending", "human_action_pending", "blocked", "paused" -> "attention"
+            "draft", "pending_approval" -> "draft"
+            "running" -> "running"
+            else -> "attention"
+        }
+    }
 }
 
 /** A routine change reported inline in the conversation, shown as a single tappable line. */

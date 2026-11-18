@@ -78,6 +78,31 @@ class MobileDataTest {
     }
 
     @Test
+    fun goalNoticeCardIsRecognisedOnlyWhenThePlatformPostedIt() {
+        val outcome = "11111111-1111-4111-8111-111111111111"
+        fun notice(sender: String, source: String? = "outcome-update", outcomeId: String = outcome) = ChatMessage(
+            "notice-1", "System", "Goal · Clean storage · attention", sender = sender,
+            metadata = buildJsonObject {
+                put("type", "outcome-card")
+                if (source != null) put("source", source)
+                put("outcomeCard", buildJsonObject {
+                    put("stage", "attention")
+                    put("title", "Clean storage")
+                    put("outcomeId", outcomeId)
+                })
+            },
+        )
+
+        assertEquals(OutcomeUpdateCard(outcome, "Clean storage", "attention"), notice("system").outcomeUpdateCard)
+        assertNull(notice("agent").outcomeUpdateCard)
+        assertNull(notice("system", source = null).outcomeUpdateCard)
+        assertNull(notice("system", outcomeId = "not-a-uuid").outcomeUpdateCard)
+        assertEquals("review", OutcomeUpdateCard.stageForStatus("review_pending"))
+        assertEquals("attention", OutcomeUpdateCard.stageForStatus("human_action_pending"))
+        assertEquals("failed", OutcomeUpdateCard.stageForStatus("failed"))
+    }
+
+    @Test
     fun deletingSectionMovesConversationsToUnassigned() {
         val preferences = SidebarPreferences(
             sections = listOf(SidebarSection("work", "Work", collapsed = true)),
