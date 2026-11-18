@@ -62,6 +62,53 @@ class OutcomeReadTests {
         assertTrue(outcomeDetailPath("研究").endsWith("%E7%A0%94%E7%A9%B6"))
     }
 
+    @Test
+    fun encodesOutcomeWritePathsAndExploreRoutes() = runTest {
+        assertEquals(
+            "/api/v0/outcomes?limit=20&cursor=c1&status=running&q=plan%20a",
+            outcomeListPath(cursor = "c1", status = "running", query = "plan a"),
+        )
+        assertEquals(
+            "/api/v0/outcomes/o-1/work-items/w-1/transcript?before=5",
+            outcomeTranscriptPath("o-1", "w-1", before = 5),
+        )
+        assertEquals("/api/v0/explore?limit=20&cursor=e1", exploreListPath("e1"))
+        val seen = mutableListOf<MobileRequest>()
+        val transport = object : OutcomeGoTransport {
+            override suspend fun execute(server: String, token: String?, request: MobileRequest): MobileResponse {
+                seen += request
+                return when {
+                    request.path.startsWith("/api/v0/outcomes/plans") -> MobileResponse(
+                        200,
+                        body = """{"planId":"p-1","status":"ready","sourceText":"goal","botId":"b-1"}""",
+                    )
+                    request.path.startsWith("/api/v0/explore?") && request.method == HttpMethod.GET -> MobileResponse(404)
+                    else -> MobileResponse(
+                        200,
+                        body = """{"id":"e-1","title":"Idea","note":"Note","status":"draft","createdAt":"now","updatedAt":"now"}""",
+                    )
+                }
+            }
+        }
+        val writeApi = TransportOutcomeWriteApi(transport)
+        val plan = writeApi.createPlan(
+            "https://fixture.invalid",
+            "tok",
+            CreateOutcomePlanRequest("goal", CreateOutcomePlanContext("b-1"), "req-12345678"),
+        )
+        assertEquals("p-1", plan.planId)
+        assertEquals("ready", plan.status)
+        val exploreApi = TransportExploreApi(transport)
+        assertNull(exploreApi.list("https://fixture.invalid", "tok"))
+        val createdIdea = exploreApi.create(
+            "https://fixture.invalid",
+            "tok",
+            CreateExploreIdeaRequest(title = "Idea", clientRequestId = "req-12345678"),
+        )
+        assertEquals("e-1", createdIdea.id)
+        assertEquals(HttpMethod.POST, seen.first().method)
+    }
+
     private companion object {
         val DETAIL = """{
   "id": "outcome-1",

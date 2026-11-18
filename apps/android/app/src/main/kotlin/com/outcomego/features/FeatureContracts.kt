@@ -471,10 +471,48 @@ interface FeatureGateway {
     suspend fun outcomeHumanWorkItem(id: String): Result<com.outcomego.mobile.core.OutcomeHumanWorkItem> =
         Result.failure(UnsupportedOperationException("Human actions are not available for this session."))
 
-    suspend fun listOutcomes(cursor: String? = null): Result<OutcomeListPage?> =
+    suspend fun listOutcomes(cursor: String? = null, status: String? = null, query: String? = null): Result<OutcomeListPage?> =
         Result.failure(UnsupportedOperationException("Outcome API is not available for this session."))
     suspend fun outcomeDetail(id: String): Result<OutcomeDetail> =
         Result.failure(UnsupportedOperationException("Outcome API is not available for this session."))
+    suspend fun createOutcomePlan(input: com.outcomego.mobile.core.CreateOutcomePlanRequest): Result<com.outcomego.mobile.core.OutcomePlanningDraft> =
+        Result.failure(UnsupportedOperationException("Outcome planning is not available for this session."))
+    suspend fun getOutcomePlan(planId: String): Result<com.outcomego.mobile.core.OutcomePlanningDraft> =
+        Result.failure(UnsupportedOperationException("Outcome planning is not available for this session."))
+    suspend fun createOutcome(input: com.outcomego.mobile.core.CreateOutcomeRequest): Result<OutcomeDetail> =
+        Result.failure(UnsupportedOperationException("Outcome creation is not available for this session."))
+    suspend fun reviseOutcome(id: String, input: com.outcomego.mobile.core.CreateContractRevisionRequest): Result<OutcomeDetail> =
+        Result.failure(UnsupportedOperationException("Outcome revision is not available for this session."))
+    suspend fun approveOutcomeRevision(id: String, revision: Int, input: com.outcomego.mobile.core.ApproveContractRevisionRequest): Result<OutcomeDetail> =
+        Result.failure(UnsupportedOperationException("Outcome approval is not available for this session."))
+    suspend fun startOutcomeRun(id: String, input: com.outcomego.mobile.core.StartOutcomeRunRequest): Result<OutcomeDetail> =
+        Result.failure(UnsupportedOperationException("Outcome run control is not available for this session."))
+    suspend fun cancelOutcome(id: String, input: com.outcomego.mobile.core.CancelOutcomeRequest): Result<OutcomeDetail> =
+        Result.failure(UnsupportedOperationException("Outcome cancellation is not available for this session."))
+    suspend fun submitOutcomeReview(id: String, input: com.outcomego.mobile.core.SubmitOutcomeReviewRequest): Result<OutcomeDetail> =
+        Result.failure(UnsupportedOperationException("Outcome review is not available for this session."))
+    suspend fun reworkOutcome(id: String, input: com.outcomego.mobile.core.OutcomeReworkRequest): Result<OutcomeDetail> =
+        Result.failure(UnsupportedOperationException("Outcome rework is not available for this session."))
+    suspend fun outcomeWorkItemTranscript(outcomeId: String, workItemId: String, before: Int? = null): Result<kotlinx.serialization.json.JsonElement> =
+        Result.failure(UnsupportedOperationException("Outcome transcript is not available for this session."))
+    suspend fun startHumanWorkItem(id: String, input: com.outcomego.mobile.core.HumanWorkMutationRequest): Result<com.outcomego.mobile.core.OutcomeHumanWorkItem> =
+        Result.failure(UnsupportedOperationException("Human actions are not available for this session."))
+    suspend fun pauseHumanWorkItem(id: String, input: com.outcomego.mobile.core.HumanWorkPauseRequest): Result<com.outcomego.mobile.core.OutcomeHumanWorkItem> =
+        Result.failure(UnsupportedOperationException("Human actions are not available for this session."))
+    suspend fun submitHumanReceipt(id: String, input: com.outcomego.mobile.core.HumanReceiptRequest): Result<com.outcomego.mobile.core.OutcomeHumanReceipt> =
+        Result.failure(UnsupportedOperationException("Human receipts are not available for this session."))
+    suspend fun searchOutcomeKnowledge(outcomeId: String, text: String): Result<List<com.outcomego.mobile.core.OutcomeKnowledgeReference>> =
+        Result.failure(UnsupportedOperationException("Knowledge search is not available for this session."))
+    suspend fun readOutcomeKnowledge(outcomeId: String, reference: com.outcomego.mobile.core.OutcomeKnowledgeReference): Result<com.outcomego.mobile.core.OutcomeKnowledgeDocument> =
+        Result.failure(UnsupportedOperationException("Knowledge read is not available for this session."))
+    suspend fun listExploreIdeas(cursor: String? = null): Result<com.outcomego.mobile.core.ExploreIdeaPage?> =
+        Result.failure(UnsupportedOperationException("Explore is not available for this session."))
+    suspend fun createExploreIdea(input: com.outcomego.mobile.core.CreateExploreIdeaRequest): Result<com.outcomego.mobile.core.ExploreIdea> =
+        Result.failure(UnsupportedOperationException("Explore is not available for this session."))
+    suspend fun proposeExploreIdea(id: String, input: com.outcomego.mobile.core.ProposeExploreIdeaRequest): Result<com.outcomego.mobile.core.ExploreProposal> =
+        Result.failure(UnsupportedOperationException("Explore is not available for this session."))
+    suspend fun discardExploreIdea(id: String, input: com.outcomego.mobile.core.DiscardExploreIdeaRequest): Result<com.outcomego.mobile.core.ExploreIdea> =
+        Result.failure(UnsupportedOperationException("Explore is not available for this session."))
     suspend fun submitRichAction(messageId: String, actionId: String, values: Map<String, String> = emptyMap()): Result<Unit>
     suspend fun uploadAttachment(uri: String): Result<Attachment>
     suspend fun downloadAttachment(attachmentId: String): Result<String>

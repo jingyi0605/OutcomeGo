@@ -215,6 +215,63 @@ data class OutcomeDecisionDraft(
     }
 }
 
+@Serializable
+data class HumanWorkMutationRequest(
+    val clientRequestId: String,
+    val expectedContractRevision: Int,
+)
+
+@Serializable
+data class HumanWorkPauseRequest(
+    val clientRequestId: String,
+    val expectedContractRevision: Int,
+    val currentStepId: String? = null,
+    val draftSummary: String = "",
+    val readReferenceIds: List<String> = emptyList(),
+    val reason: String,
+)
+
+@Serializable
+data class HumanReceiptSourceRef(
+    val type: String,
+    val ref: String,
+)
+
+@Serializable
+data class HumanReceiptObservation(
+    val criterionId: String,
+    val result: String = "observed",
+    val value: String,
+)
+
+@Serializable
+data class HumanReceiptRequest(
+    val clientRequestId: String,
+    val expectedContractRevision: Int,
+    val comment: String = "",
+    val text: String = "",
+    val assetRefs: List<String> = emptyList(),
+    val sourceRefs: List<HumanReceiptSourceRef> = emptyList(),
+    val observations: List<HumanReceiptObservation> = emptyList(),
+)
+
+@Serializable
+data class HumanKnowledgeSearchRequest(
+    val text: String,
+    val limit: Int = 20,
+)
+
+@Serializable
+data class HumanKnowledgeReadRequest(
+    val reference: OutcomeKnowledgeReference,
+)
+
+@Serializable
+data class OutcomeKnowledgeDocument(
+    val text: String,
+    val digest: String,
+)
+
 class TransportOutcomeInboxApi(private val transport: OutcomeGoTransport) {
     suspend fun list(server: String, token: String?, category: String? = null, cursor: String? = null): OutcomeInboxPage? {
         val response = transport.execute(server, token, MobileRequest(HttpMethod.GET, outcomeInboxPath(category, cursor)))
@@ -231,6 +288,26 @@ class TransportOutcomeInboxApi(private val transport: OutcomeGoTransport) {
     suspend fun humanWorkItem(server: String, token: String?, id: String): OutcomeHumanWorkItem =
         mobileJson.decodeFromString(transport.execute(server, token,
             MobileRequest(HttpMethod.GET, outcomeHumanWorkItemPath(id))).requireSuccess().body)
+    suspend fun startHumanWork(server: String, token: String?, id: String, input: HumanWorkMutationRequest): OutcomeHumanWorkItem =
+        mobileJson.decodeFromString(transport.execute(server, token,
+            MobileRequest(HttpMethod.POST, outcomeHumanWorkItemPath(id) + "/start", body = mobileJson.encodeToString(input)))
+            .requireSuccess().body)
+    suspend fun pauseHumanWork(server: String, token: String?, id: String, input: HumanWorkPauseRequest): OutcomeHumanWorkItem =
+        mobileJson.decodeFromString(transport.execute(server, token,
+            MobileRequest(HttpMethod.POST, outcomeHumanWorkItemPath(id) + "/pause", body = mobileJson.encodeToString(input)))
+            .requireSuccess().body)
+    suspend fun submitHumanReceipt(server: String, token: String?, id: String, input: HumanReceiptRequest): OutcomeHumanReceipt =
+        mobileJson.decodeFromString(transport.execute(server, token,
+            MobileRequest(HttpMethod.POST, outcomeHumanWorkItemPath(id) + "/receipts", body = mobileJson.encodeToString(input)))
+            .requireSuccess().body)
+    suspend fun searchKnowledge(server: String, token: String?, outcomeId: String, text: String): List<OutcomeKnowledgeReference> =
+        mobileJson.decodeFromString(transport.execute(server, token,
+            MobileRequest(HttpMethod.POST, "${outcomeDetailPath(outcomeId)}/knowledge/search", body = mobileJson.encodeToString(HumanKnowledgeSearchRequest(text))))
+            .requireSuccess().body)
+    suspend fun readKnowledge(server: String, token: String?, outcomeId: String, reference: OutcomeKnowledgeReference): OutcomeKnowledgeDocument =
+        mobileJson.decodeFromString(transport.execute(server, token,
+            MobileRequest(HttpMethod.POST, "${outcomeDetailPath(outcomeId)}/knowledge/read", body = mobileJson.encodeToString(HumanKnowledgeReadRequest(reference))))
+            .requireSuccess().body)
 }
 
 fun outcomeInboxPath(category: String? = null, cursor: String? = null): String =
