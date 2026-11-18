@@ -616,3 +616,53 @@
   - 怎么验证：只读观察既有目标，不向真实 Bot 发送消息、不批准或改变用户目标；截图与结论写入验证文档。本任务尚未执行。
 
 阶段 16 完成证据（16.1–16.3）：[执行消息只读对话与目标列表入口验证](docs/20261118-执行消息只读对话与目标列表入口验证.md)。完整 Desktop 840 PASS / 0 FAIL / 1 既有 DB-gated SKIP；两个受影响文件 43 PASS；Desktop 类型与 i18n 检查通过。`outcome-regression-types.ts` 在本环境失败（21 条诊断，均为 server 测试中 Prisma Client 缺少新模型），改动前后结果相同，不属于本阶段引入。16.4 未执行，界面观感未经实际 Electron 确认。
+
+
+## 阶段 17：人工动作浮层渐进披露与目标内凭据步骤审批
+
+- [x] 17.1 将人工动作浮层重排为“首屏下一步 + 主按钮 + 折叠行”，目的收入“查看为什么需要你”，内部状态与标识仅出现在“详情”。
+  - 对应需求：需求 28
+  - 对应设计：§42
+  - 怎么验证：静态与交互挂载测试核对首屏含下一步与“查看为什么需要你”、折叠行默认不带 `open`；既有 32 个回执表单、重试、暂停恢复、晚响应与资产测试保持通过。
+- [x] 17.2 补充中文文案并通过 i18n 一致性检查；新增人工动作首屏回归测试。
+  - 对应需求：需求 28
+  - 对应设计：§42
+  - 怎么验证：`scripts/check/i18n-catalog.ts` 一致；完整 Desktop 测试与类型检查通过。
+- [x] 17.3 放开 `outcome` 来源的 Bitwarden 工具闸门，`routine` 与不合规子任务保持拒绝；抽出共享的 `requestDecisionFromRun`。
+  - 对应需求：需求 29
+  - 对应设计：§43
+  - 怎么验证：`outcome-background-tools.test.ts` 核对 routine 仍 `bitwarden_tool_forbidden`、Outcome 越过闸门、未登记步骤审批时报 `outcome_credential_approval_unavailable` 且不发聊天卡；原 `RequestOutcomeDecision` 测试不变。
+- [x] 17.4 实现步骤审批决策与授权判定（`outcome-credential-approval.ts`），`DecisionOption` 增加服务端写入的 `credentialGrant`，决策卡首屏列出登录项。
+  - 对应需求：需求 29
+  - 对应设计：§43
+  - 怎么验证：`outcome-credential-approval.test.ts` 的桩数据测试核对仅匹配项放行、拒绝与自定义无授权、仅真实用户解决才计入、已授权不再询问；桌面决策卡测试核对登录项展示与选项文案。
+- [x] 17.5 Computer 在 Outcome 线程收到 `waiting_for_user` 时结束本轮；更新 Bitwarden 技能与 README。
+  - 对应需求：需求 29
+  - 对应设计：§43
+  - 怎么验证：服务端与 Computer 类型检查通过。**该改动运行在远端 Computer 容器里，须同步并重建后才生效（见验证文档），尚未执行。**
+- [ ] 17.6 在带数据库的环境运行 `outcome-credential-approval.test.ts` 的集成用例，并在真实目标中走通“申请 → 所有者批准 → 下一轮读取并登录 → 后续轮次无需再次审批”。
+  - 对应需求：需求 29
+  - 对应设计：§43
+  - 怎么验证：集成用例核对批准后授权覆盖同 Outcome 的其他任务、待决时无授权；真实流程须使用真实 Bitwarden 连接与远端 Computer，需要所有者同意重建后再做。本任务尚未执行。
+- [ ] 17.7 在实际 Electron 中人工检查人工动作浮层的首屏、折叠与展开、窄窗口表现，以及凭据审批卡的呈现。
+  - 对应需求：需求 28、需求 29
+  - 对应设计：§42、§43
+  - 怎么验证：只读观察，不提交回执、不批准真实决策；截图与结论写入验证文档。本任务尚未执行。
+
+阶段 17 完成证据（17.1–17.5）：[人工动作浮层渐进披露与目标内凭据审批验证](docs/20261118-人工动作浮层渐进披露与目标内凭据审批验证.md)。17.6、17.7 未执行，界面观感与真实登录流程均未经确认。
+
+
+## 阶段 18：批准即执行
+
+- [x] 18.1 `approve` 在同一事务内自动创建首个任务并入队，抽出 `startApprovedRevision` 与 `startRun` 共用。
+  - 对应需求：需求 30
+  - 对应设计：§44
+  - 怎么验证：`outcome-runs.test.ts` 新增数据库门用例（批准后即有一个排队任务和一次运行，重放与后续启动不新增）；服务端类型检查通过。**该用例本环境无数据库，未运行。**
+- [x] 18.2 桌面端移除启动提示，改为“正在启动执行…”，旧的“已批准无任务”目标打开时自动启动一次。
+  - 对应需求：需求 30
+  - 对应设计：§44
+  - 怎么验证：`outcome-workspace-navigation` 与 `outcome-disclosure-ui` 测试核对无启动按钮、批准后恰好一次 `/runs` 请求；完整 Desktop 842 PASS / 0 FAIL / 1 既有 SKIP，类型与 i18n 检查通过。
+- [ ] 18.3 在带数据库环境运行 `outcome-runs.test.ts`、`outcome-chat-tools.integration.test.ts`、`outcome-decision-supplement.integration.test.ts`，并在真实目标上走通“批准 → 自动执行 → 等待步骤批准”。
+  - 对应需求：需求 30
+  - 对应设计：§44
+  - 怎么验证：集成测试全部通过；真实流程用一个新目标观察。本任务尚未执行。

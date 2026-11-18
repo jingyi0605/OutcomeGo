@@ -1180,3 +1180,31 @@ Info 复用 MessageResponse 渲染 Markdown，Popover Portal 优先放到最近�
 既有 `useAuthenticatedResource` 已按 Bot 与凭据代际保留旧资源，但刷新失败会清空结果，且新 Blob 仅下载完成便切换，图片尚未解码时仍可能出现空白。继续复用现有资源租约，不新增画面缓存或第二套刷新状态：启用保留时，临时失败维持同一身份的已显示资源；BotScreen 单独启用 `decodeImage`，新 Blob 经浏览器原生 `HTMLImageElement.decode()` 成功后才提交 URL。旧租约继续在 React 替换 DOM 后释放；失败及取消的候选租约释放，原取消和凭据代际检查仍阻止过期结果。
 
 预览失败使用原重新连接文案，已有画面时以底部小提示标明暂未更新，成功加载新画面后移除提示。首次失败仍显示连接占位；Bot 身份变化、401 和退出不保留旧画面。其他资源默认不增加解码步骤；原五秒预览间隔、可见性/资源休眠、VNC 观看与接管流程不改变。对应需求 27 补充、任务 15.1–15.2。
+
+
+## 42. 人工动作浮层的渐进披露（2026-11-18）
+
+`human-work/human-action.tsx` 只改呈现，不改数据读取、开始/暂停变更、幂等键和回执提交逻辑。布局复用目标详情已有的简报样式：外层 `outcome-brief`，首屏 `outcome-now`（“现在需要你”），其下 `outcome-brief-facts` 内为若干折叠行。
+
+- 首屏：标题下仅一行状态；`outcome-now` 展示下一步文字（优先已保存进度中的当前步骤，否则第一步）、“第 n 步，共 m 步 · 由你亲自完成，不会自动运行”，以及可开始/继续时的主按钮。已提交、已验收或不可操作时改为状态说明，不再显示“现在需要你”。驳回提示与暂停原因紧随其后。目的收在 `details`“查看为什么需要你”。
+- 折叠行（`ActionSection`，原生 `details`，正文常驻挂载）：步骤（进行中默认展开）、前置条件（为空时不显示）、资料引用、证据要求、执行回执（进行中默认展开）、暂停并保存进度（仅进行中）、已保存进度（有草稿时）、回执历史（有被驳回回执时默认展开）、详情。正文常驻挂载是为了折叠后回执表单的本地输入不丢失，也让既有静态渲染与表单测试保持有效。
+- `ReceiptForm`、`KnowledgeReferences` 的可见标题改为仅屏幕阅读器可见，避免与行标题重复；表单字段、提交流程、上传与重试逻辑不变。
+- 新增文案同步到 `i18n-catalog.ts`；“详情”“状态”复用既有键。
+对应需求 28、任务 17.1–17.2。
+
+## 43. 目标内 Bitwarden 读取的步骤审批（2026-11-18）
+
+原有读取闸门把 `routine` 与 `outcome` 两种来源同视为后台并一律拒绝（`internal-tool-service.ts`），而聊天内授权依赖“向聊天发 widget、用户回复后下一轮携带隐藏引用”，在目标线程里无从完成。本设计只放开 `outcome` 来源，复用既有决策链路，不新增表：
+
+- 闸门：`outcome` 且带 WorkItem 的运行可调用 Bitwarden 工具；`routine` 与不合规子任务仍返回 `bitwarden_tool_forbidden`。搜索仅返回非机密元数据，与聊天一致，不需审批。
+- 申请：`RequestBitwardenReadApproval` 在 Outcome 运行中先按原规则校验候选实例与项目，再交给 `createOutcomeCredentialApprovalTool`。若所有候选已被授权则直接返回 `already_granted`；否则经共享的 `requestDecisionFromRun`（由原 `RequestOutcomeDecision` 的事务体抽出，行为不变）在同一事务内创建决策并把 WorkItem 置为等待决策。决策两个选项：允许（`credentialGrant` 携带候选，由服务端写入，代理侧工具输入没有该字段，解码时被忽略）与不允许；`customEntryAllowed=false`。固定英文文案由桌面端翻译；具体登录项由 `credentialGrant` 在卡片首屏列出。
+- 授权判定：`findOutcomeCredentialGrant` 读取该 Outcome 下 `reasonCode=credential_access_required`、已解决且 `resolvedBy` 以 `owner:` 或 `user:` 开头的决策，其已选选项的 `credentialGrant` 匹配实例与登录项时才放行。授权随决策记录存在，因此可审计，无需单独撤销存储；Outcome 被取消或验收后不再有运行可使用。
+- 读取：`ReadBitwardenCredential` 在 Outcome 运行中以上述授权代替“隐藏引用 + 聊天授权记录”，其后的租约签发、消费和 Computer 内部读取流程完全沿用。
+- 回合控制：决策被所有者解决后沿用既有 `decision_resolved` 唤醒新一轮；Computer 在 Outcome 线程收到 `waiting_for_user` 时结束本轮（与 `RequestOutcomeDecision` 一致）。技能与 README 同步说明“Outcome 线程里申请即暂停，批准对整个目标有效，被拒绝不重复申请”。
+对应需求 29、任务 17.3–17.6。
+
+## 44. 批准即执行（2026-11-18）
+
+`OutcomeService.approve` 在批准事务内、重新计算目标状态之后，若状态为 `approved`（即没有更早的运行中或等待中的任务），调用与 `startRun` 共用的 `startApprovedRevision`：创建该版本的初始 agent WorkItem、记录事件并 `enqueueOutcomeTurn`，随后重新计算状态。初始任务按“同目标同版本只有一个 `initial`”去重，因此批准重放、重复启动与旧客户端的 `startRun` 都不会再建任务。未注入 messaging 的服务实例只批准、不启动（保持既有测试和无执行环境的行为）。入队失败时整个事务回滚，批准也不会生效，错误返回给调用方重试。
+
+桌面端：`outcome-detail.tsx` 删除“现在开始执行已批准的方案？/启动已批准的目标”提示，改为“正在启动执行…”状态行；对话卡片与目标列表把 `approved` 阶段文案从“待启动”改为“正在启动执行”。对批准前遗留的“已批准且当前版本无任务”的目标，详情打开时用既有幂等 `start` 请求自动启动一次（按目标与版本去重，失败时显示错误，不循环重试）。对应需求 30、任务 18.1–18.3。
