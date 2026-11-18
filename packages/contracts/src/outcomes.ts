@@ -333,6 +333,40 @@ export interface OutcomeBudget {
   costLimit: number | null;
 }
 
+/** Advisory presentation only. Status and mutations always come from business records. */
+export interface OutcomeBriefItem {
+  title: string;
+  explanation: string;
+  quote: string;
+}
+export interface OutcomeBrief {
+  outcomeId: string;
+  revisionId: string | null;
+  sourceKey: string;
+  background: OutcomeBriefItem;
+  intent: OutcomeBriefItem;
+  prerequisites: OutcomeBriefItem[];
+  risks: OutcomeBriefItem[];
+  proposedTasks: OutcomeBriefItem[];
+}
+
+/** Includes content, so a response for a prior revision or description cannot be reused. */
+export function outcomeBriefSource(outcome: OutcomeDetail): string {
+  return JSON.stringify({
+    id: outcome.id,
+    title: outcome.title,
+    description: outcome.description,
+    revisionId: outcome.currentRevisionView?.id ?? null,
+    goal: outcome.currentRevisionView?.goal ?? [],
+    acceptance: outcome.currentRevisionView?.criteria.map(item => ({
+      statement: item.statement, required: item.required,
+    })) ?? [],
+    boundaries: outcome.currentRevisionView?.boundaries ?? { included: [], excluded: [] },
+    budget: outcome.currentRevisionView?.budget ?? null,
+    conflicts: outcome.currentRevisionView?.conflicts ?? [],
+  });
+}
+
 const normalizeText = (text: string) => text.replace(/\s+/g, " ").trim();
 
 const confirmedTextLength = (contract: ConfirmedContract) =>
@@ -696,6 +730,7 @@ export type CancelOutcomeInput = typeof CancelOutcomeInput.Type;
 
 export interface ListOutcomesQuery {
   statuses: OutcomeStatus[];
+  query?: string;
   cursor: { updatedAt: string; id: string } | null;
   limit: number;
 }
@@ -708,9 +743,13 @@ export function parseListOutcomesQuery(params: URLSearchParams): ListOutcomesQue
       throw new OutcomeError("invalid_outcome_query", `Unknown status ${status}`, { field: "status" });
   const rawLimit = params.get("limit");
   const limit = rawLimit === null ? OUTCOME_LIMITS.listPageSize : Number(rawLimit);
+  const query = params.get("query")?.trim();
+  if (query && query.length > 200)
+    throw new OutcomeError("invalid_outcome_query", "query must be at most 200 characters", { field: "query" });
   if (!Number.isInteger(limit) || limit < 1) throw new OutcomeError("invalid_outcome_query", "limit must be a positive integer", { field: "limit" });
   return {
     statuses: statuses as OutcomeStatus[],
+    ...(query ? { query } : {}),
     cursor: decodeOutcomeCursor(params.get("cursor")),
     limit: Math.min(limit, OUTCOME_LIMITS.listPageSizeMax),
   };

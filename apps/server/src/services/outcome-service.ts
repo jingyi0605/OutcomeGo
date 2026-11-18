@@ -308,6 +308,12 @@ export class OutcomeService {
       const rows = await this.prisma.outcome.findMany({
         where: {
           ...(query.statuses.length ? { status: { in: query.statuses } } : {}),
+          ...(query.query ? {
+            AND: [{ OR: [
+              { title: { contains: query.query, mode: "insensitive" } },
+              { description: { contains: query.query, mode: "insensitive" } },
+            ] }],
+          } : {}),
           ...(query.cursor
             ? {
                 OR: [

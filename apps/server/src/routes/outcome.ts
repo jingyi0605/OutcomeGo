@@ -38,6 +38,8 @@ export async function outcomeRoutes(context: RouteContext): Promise<Response | u
     if (!match) return;
     const id = match[1]!, tail = match[2];
     if (!tail && request.method === "GET") return json(await run(app.outcomes.get(id)));
+    if (tail === "/brief" && request.method === "GET")
+      return json(await app.outcomeBriefs.get(await run(app.outcomes.get(id))));
     if (tail === "/recovery" && request.method === "GET") return json(await run(app.outcomeRecovery.get(id)));
     if (tail === "/reconcile" && request.method === "POST")
       return json(await run(app.outcomeRecovery.reconcile(id, await parseBody(request, ReconcileOutcomeInput), actor)));

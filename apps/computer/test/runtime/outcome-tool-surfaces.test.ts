@@ -3,6 +3,7 @@ import { ComputerTurnRequest, OUTCOME_THREAD_TOOL_NAMES } from "@outcomego/contr
 import { Schema } from "effect";
 import { ComputerRuntime } from "../../src/runtime";
 import { outcomeThreadToolDefinitions } from "../../src/runtime/tools";
+import { OUTCOME_CHAT_TOOL_NAMES } from "@outcomego/contracts/outcome-chat";
 import before from "../fixtures/outcome-tool-surfaces.json";
 
 const tools = () => (new ComputerRuntime() as unknown as {
@@ -13,7 +14,7 @@ const tools = () => (new ComputerRuntime() as unknown as {
 }).tools;
 
 for (const requestSource of ["turn", "automation", "event"] as const) {
-  test(`${requestSource} retains its exact pre-wave-0 tool lists`, () => {
+  test(`${requestSource} retains existing tools alongside explicit native conversation tools`, () => {
     const runtime = tools();
     const active = { runtimeProfile: "agent", subagentType: null, pluginNamespaces: [], requestSource };
     const snapshot = (turn: unknown) => ({
@@ -22,7 +23,17 @@ for (const requestSource of ["turn", "automation", "event"] as const) {
         name: namespace.name, tools: namespace.tools.map((tool) => tool.name),
       })),
     });
-    expect(snapshot(active)).toEqual(before[requestSource]);
+    const current = snapshot(active);
+    const chatTools = current.dynamic.flatMap(namespace => namespace.tools)
+      .filter(name => (OUTCOME_CHAT_TOOL_NAMES as readonly string[]).includes(name));
+    expect(chatTools).toEqual(requestSource === "automation" ? [] : OUTCOME_CHAT_TOOL_NAMES);
+    expect({
+      direct: current.direct,
+      dynamic: current.dynamic.map(namespace => ({
+        ...namespace,
+        tools: namespace.tools.filter(name => !(OUTCOME_CHAT_TOOL_NAMES as readonly string[]).includes(name)),
+      })),
+    }).toEqual(before[requestSource]);
     if (requestSource === "automation") {
       const outcome = snapshot({ ...active, outcomeThread: { workItemId: "fixture" } });
       const originalTools = (names: string[]) => names.filter(name => !(OUTCOME_THREAD_TOOL_NAMES as readonly string[]).includes(name));
@@ -45,6 +56,21 @@ test("Outcome tools are selected only when implemented and the thread marker is 
   expect(outcomeThreadToolDefinitions({ outcomeThread: { workItemId: "fixture" } }).map(tool => tool.name)).toEqual([...OUTCOME_THREAD_TOOL_NAMES]);
   expect(outcomeThreadToolDefinitions({ outcomeThread: { workItemId: "fixture" } }, implemented).map((tool) => tool.name))
     .toEqual([...OUTCOME_THREAD_TOOL_NAMES]);
+});
+
+test("delegated and readonly turns never receive native goal management tools", () => {
+  const runtime = tools();
+  for (const overrides of [
+    { runtimeProfile: "subagent", subagentType: "executor" },
+    { runtimeProfile: "agent", readOnly: true },
+    { runtimeProfile: "agent", requestSource: "automation", outcomeThread: { workItemId: "fixture" } },
+  ]) {
+    const names = runtime.dynamicCatalog({
+      subagentType: null, pluginNamespaces: [], requestSource: "turn",
+      ...overrides,
+    }).flatMap(namespace => namespace.tools.map(tool => tool.name));
+    expect(names.filter(name => (OUTCOME_CHAT_TOOL_NAMES as readonly string[]).includes(name))).toEqual([]);
+  }
 });
 
 test("turn contract accepts the optional marker and keeps ordinary requests without it", () => {

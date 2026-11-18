@@ -44,6 +44,8 @@ import { toJson } from "./service-utils";
 import { withConnectorDraftCardReminder } from "./connector-draft-reminder";
 import { createHash, randomUUID } from "node:crypto";
 import { OUTCOME_THREAD_TOOL_NAMES } from "@outcomego/contracts/outcomes";
+import { OUTCOME_CHAT_TOOL_NAMES } from "@outcomego/contracts/outcome-chat";
+import type { OutcomeChatTools } from "./outcome-chat-tools";
 
 export interface OutcomeThreadToolContext {
   runId: string;
@@ -111,7 +113,8 @@ export class InternalToolService {
     private readonly onSpeechChunk?: (runId: string, callId: string, text: string) => Promise<boolean>,
     private readonly computerNetworkPolicy?: ComputerNetworkPolicyService,
     private readonly externalDelivery?: ExternalDeliveryService,
-    private readonly outcomeThreadTools: OutcomeThreadToolHandlers = {}
+    private readonly outcomeThreadTools: OutcomeThreadToolHandlers = {},
+    private readonly outcomeChatTools?: OutcomeChatTools,
   ) {}
 
   /**
@@ -189,6 +192,13 @@ export class InternalToolService {
         select: { id: true, parentBotId: true, parentRunId: true, subagentType: true },
       });
       const backgroundRun = isBackgroundOrigin(run.origin);
+      if ((OUTCOME_CHAT_TOOL_NAMES as readonly string[]).includes(request.tool)) {
+        if (childIdentity || backgroundRun)
+          throw new ApiError(403, "outcome_chat_required", "Manage native goals from the user-facing Bot conversation");
+        if (!this.outcomeChatTools)
+          throw new ApiError(503, "outcome_chat_unavailable", "Native Outcome conversation tools are not available");
+        return this.outcomeChatTools.execute(request, context, signal);
+      }
       // Private supervisor operation, never registered in any model catalog.
       if (request.tool === "RefreshToolCatalog") return {namespaces:await this.plugins.dynamicNamespaces(childIdentity?.parentBotId ?? request.botId)};
       if (request.tool === "ReadProcessSecrets") return { environment: await processEnvironment(this.prisma, request.botId) };

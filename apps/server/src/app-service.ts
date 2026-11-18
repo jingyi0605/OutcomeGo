@@ -6,6 +6,9 @@ import { ExploreService } from "./services/explore-service";
 import { OutcomeRecoveryService } from "./services/outcome-recovery-service";
 import { DecisionService } from "./services/decision-service";
 import { createOutcomeDecisionTool } from "./services/outcome-decision-tool";
+import { OutcomeChatTools } from "./services/outcome-chat-tools";
+import { OutcomeChatCards } from "./services/outcome-chat-cards";
+import { OutcomeInboxService } from "./services/outcome-inbox-service";
 import { createHumanWorkServices } from "./services/human-work-factory";
 import type { HumanKnowledgeService } from "./services/human-knowledge-service";
 import type { HumanWorkService } from "./services/human-work-service";
@@ -68,6 +71,7 @@ import { DurableStateService } from "./update-state";
 import { VoiceService } from "./services/voice-service";
 import { ComputerNetworkPolicyService } from "./services/computer-network-policy-service";
 import { DingTalkService } from "./services/dingtalk";
+import { OutcomeBriefService } from "./services/outcome-brief-service";
 
 const COMPUTER_ID = "00000000-0000-0000-0000-000000000001";
 
@@ -90,6 +94,7 @@ export class AppService {
   readonly messaging: AgentMessaging;
   readonly outcomes: OutcomeService;
   readonly outcomePlanning: OutcomePlanningService;
+  readonly outcomeBriefs: OutcomeBriefService;
   readonly explore: ExploreService;
   readonly outcomeRecovery: OutcomeRecoveryService;
   readonly outcomeDecisions: DecisionService;
@@ -242,6 +247,7 @@ export class AppService {
       (path, init) => this.computerFetch(path, init)
     );
     const inferOutcome = outcomeInference(this.agentData, (path, init) => this.computerJson(path, init));
+    this.outcomeBriefs = new OutcomeBriefService(inferOutcome);
     this.outcomes = new OutcomeService(this.prisma, this.messaging, this.runs, withdrawSupersededDecisions);
     this.outcomePlanning = new OutcomePlanningService(this.prisma, inferOutcome);
     this.explore = new ExploreService(this.prisma, this.outcomePlanning);
@@ -346,7 +352,8 @@ export class AppService {
       {
         RequestOutcomeDecision: createOutcomeDecisionTool(this.prisma, this.outcomeDecisions),
         RequestHumanAction: humanServices.humanActionTool,
-      }
+      },
+      new OutcomeChatTools(this.outcomePlanning, this.outcomes, new OutcomeInboxService(this.prisma), this.explore, new OutcomeChatCards(this.prisma, this.messaging)),
     );
     this.boss.on("error", (error) => console.error("pg-boss", error));
 
