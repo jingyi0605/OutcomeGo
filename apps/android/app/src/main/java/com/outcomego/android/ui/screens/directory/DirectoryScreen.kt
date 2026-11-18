@@ -141,7 +141,7 @@ internal fun DirectoryScreen(
             .fillMaxSize()
             .pointerInput(searchVisible) {
                 if (searchVisible) return@pointerInput
-                // Settings lives off the left edge: dragging the list to the right pulls it in.
+                // Settings lives off the left edge (drag right); Outcomes lives off the right edge (drag left).
                 val trigger = 72.dp.toPx()
                 var total = 0f
                 var fired = false
@@ -150,6 +150,9 @@ internal fun DirectoryScreen(
                     if (!fired && total >= trigger) {
                         fired = true
                         onSettings()
+                    } else if (!fired && total <= -trigger && onOutcomes != null) {
+                        fired = true
+                        onOutcomes()
                     }
                 }
             },

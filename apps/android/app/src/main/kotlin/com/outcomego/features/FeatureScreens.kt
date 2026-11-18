@@ -78,6 +78,7 @@ internal fun FeaturePage(
     subtitle: String? = null,
     onBack: (() -> Unit)? = null,
     @Suppress("UNUSED_PARAMETER") settingsStyle: Boolean = false,
+    actions: @Composable androidx.compose.foundation.layout.RowScope.() -> Unit = {},
     content: @Composable () -> Unit,
 ) {
     Column(
@@ -98,6 +99,7 @@ internal fun FeaturePage(
                     )
                 }
             },
+            actions = actions,
         )
         Box(
             Modifier

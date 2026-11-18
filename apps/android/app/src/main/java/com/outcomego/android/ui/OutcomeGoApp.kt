@@ -31,7 +31,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.key
-import com.outcomego.features.OutcomeInboxScreen
+import com.outcomego.features.OutcomeBotOption
+import com.outcomego.features.OutcomeWorkspaceScreen
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -385,7 +386,7 @@ fun OutcomeGoApp(
                         },
                         onRoutines = { navController.navigate(CREATE) },
                         onOutbox = { navController.navigate(OUTBOX) },
-                        onOutcomes = if (outcomesSupported) ({ outcomeOpening = null; navController.navigate(OUTCOMES) }) else null,
+                        onOutcomes = if (outcomesSupported) ({ outcomeOpening = null; navController.navigate(OUTCOMES) { launchSingleTop = true } }) else null,
                         onSettings = { navController.navigate(SETTINGS) { launchSingleTop = true } },
                         onSearch = appViewModel::search,
                         onClearSearch = appViewModel::clearSearch,
@@ -661,9 +662,16 @@ fun OutcomeGoApp(
                     }
                 }
                 spatialComposable(OUTCOMES) {
+                    val outcomeBots = remember(state.conversations) {
+                        state.conversations
+                            .filter { !it.isGroup && (it.isBot || !it.botId.isNullOrBlank()) }
+                            .map { OutcomeBotOption(id = it.botId ?: it.id, name = it.title) }
+                            .distinctBy { it.id }
+                    }
                     key(state.session, outcomeGateway, outcomeOpeningGeneration, outcomeOpening) {
-                        OutcomeInboxScreen(
+                        OutcomeWorkspaceScreen(
                             gateway = outcomeGateway,
+                            bots = outcomeBots,
                             initialTarget = outcomeOpening,
                             onAuthenticationRequired = { target ->
                                 if (appViewModel.requireOutcomeAuthentication(target, state.session, outcomeGateway)) {
