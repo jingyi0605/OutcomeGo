@@ -8,21 +8,11 @@
 
 ## Spec 文档位置和模板
 
-- 所有 Spec 文档必须保存到当前独立工作树的 `specs/` 目录下，不得回到主工作树 `/Users/jackson/Code/openteam/specs` 写入，也不得新建到 `docs/development/specs` 或其他目录。
+- 所有 Spec 文档必须保存到当前工作树的 `specs/` 目录下，不得新建到 `docs/development/specs` 或其他目录。
 - 新建 Spec 必须以 `specs/000-Spec规范/Spec模板` 为模板，复制其目录结构和 `README.md`、`requirements.md`、`design.md`、`tasks.md` 文件。
 - Spec 目录使用 `<编号>-<功能名称>` 命名；子规格使用带小数的编号，例如 `specs/002.1-群聊实时语音对话`。
 - `requirements.md`、`design.md` 和 `tasks.md` 必须相互引用，需求、设计章节、任务和验证方式必须可以逐项追踪。
 - Spec 文档内容必须使用中文；代码标识符、路径、协议字段和命令可以保留原文。
-
-## Spec 004 独立工作树
-
-- 负责人于 2026-11-17 明确要求：`data/spec004-并行开发提示词` 相关的所有后续工作都必须在独立 Git worktree 完成，包括代码、规格、测试、构建、回放、暂存和提交。
-- 主工作树 `/Users/jackson/Code/openteam` 只读，不在其中切换任务分支、修改文件或执行会写入仓库的命令。
-- 独立集成工作树为 `/Users/jackson/Code/openteam-spec004`，分支为 `outcome/spec004`；各线从该分支创建独立工作树，放在 `/Users/jackson/Code/openteam-spec004-worktrees/`。
-- 先通过 `git worktree list`、`git rev-parse --show-toplevel` 和 `git branch --show-current` 验证工作树与任务分支。复用已登记的工作树，不能覆盖其他会话的目录、分支或未提交改动。
-- 提示词的真实目录为 `/Users/jackson/Code/openteam-spec004/data/spec004-并行开发提示词`；主工作树下同名路径仅为指向此目录的符号链接。
-- 跨线日常集成仅在独立集成工作树进行。推送或最终合入 `OutcomeGo` 必须由负责人另行明确授权，不能从“完成某波/某条线”推断。
-- 完整路径、分支和交接规则见 [独立工作树执行约定](specs/004-OutcomeGo整体项目/docs/20261117-独立工作树执行约定.md) 和提示词通用约束 §2。
 
 ## Git Commit Messages
 
