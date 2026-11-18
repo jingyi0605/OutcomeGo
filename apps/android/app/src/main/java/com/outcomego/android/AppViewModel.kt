@@ -21,7 +21,9 @@ import com.outcomego.android.data.OutboxStore
 import com.outcomego.android.data.PendingSend
 import com.outcomego.android.data.PreviewMobileGateway
 import com.outcomego.android.data.ServerValidationApi
+import com.outcomego.android.data.SidebarLayoutConflictException
 import com.outcomego.android.data.SidebarPreferences
+import com.outcomego.android.data.SidebarVersion
 import com.outcomego.android.data.VoiceTranscriptionApi
 import com.outcomego.android.data.SearchResult
 import com.outcomego.android.data.newClientId
@@ -81,6 +83,8 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
@@ -180,6 +184,12 @@ class AppViewModel @JvmOverloads constructor(
     private var syncJob: Job? = null
     private var directoryRefreshJob: Job? = null
     private var activityJob: Job? = null
+
+    /** Serializes sidebar saves so each one is based on the version the previous one produced. */
+    private val sidebarSaveLock = Mutex()
+
+    /** The newest sidebar version confirmed by the server; edits must name exactly this one. */
+    private var confirmedSidebarVersion = SidebarVersion()
     private var activityQueued = false
     private var directoryRefreshQueued = false
     private var conversationRefreshJob: Job? = null
@@ -448,6 +458,7 @@ class AppViewModel @JvmOverloads constructor(
                     indexedAccount = accountScope(session)
                     activeGateway = target
                     routineOwnerId = null
+                    confirmedSidebarVersion = SidebarVersion()
                     activeFeatureGateway = featureGateway
                         ?: (target as? MobileFeatureApi)?.let(::LiveFeatureGateway)
                         ?: UnsupportedFeatureGateway
@@ -568,7 +579,7 @@ class AppViewModel @JvmOverloads constructor(
                 .onFailure { error -> mutableState.update { it.copy(error = error.message) } }
             // Load pins and grouping after the directory so both requests settle in order.
             runCatching { activeGateway.sidebarPreferences() }
-                .onSuccess { preferences -> mutableState.update { it.copy(sidebar = preferences) } }
+                .onSuccess(::adoptServerSidebar)
             runCatching { activeGateway.hiddenConversations() }
                 .onSuccess { hidden -> mutableState.update { it.copy(hiddenConversations = hidden) } }
         }
@@ -616,8 +627,15 @@ class AppViewModel @JvmOverloads constructor(
     fun loadSidebar() {
         viewModelScope.launch {
             runCatching { activeGateway.sidebarPreferences() }
-                .onSuccess { preferences -> mutableState.update { it.copy(sidebar = preferences) } }
+                .onSuccess(::adoptServerSidebar)
         }
+    }
+
+    /** A pulled layout replaces ours only when its version is not behind the one already confirmed. */
+    private fun adoptServerSidebar(preferences: SidebarPreferences) {
+        if (!preferences.version.isAtLeast(confirmedSidebarVersion)) return
+        confirmedSidebarVersion = preferences.version
+        mutableState.update { it.copy(sidebar = preferences) }
     }
 
     fun togglePinned(conversationId: String) {
@@ -649,14 +667,37 @@ class AppViewModel @JvmOverloads constructor(
         }
     }
 
-    /** Applies a sidebar change optimistically, then persists it to the server. */
+    /**
+     * Applies a sidebar change optimistically, then persists it to the server against the newest
+     * confirmed version. If another device saved first the server refuses the edit; its layout is
+     * adopted and the edit is dropped, so a stale copy can never overwrite newer grouping.
+     */
     private fun saveSidebar(next: SidebarPreferences) {
         val previous = mutableState.value.sidebar
         mutableState.update { it.copy(sidebar = next) }
         viewModelScope.launch {
-            runCatching { activeGateway.saveSidebarPreferences(next) }
-                .onSuccess { saved -> mutableState.update { it.copy(sidebar = saved) } }
-                .onFailure { mutableState.update { it.copy(sidebar = previous, error = it.error ?: "无法保存排序设置。") } }
+            sidebarSaveLock.withLock {
+                val request = next.copy(version = confirmedSidebarVersion)
+                runCatching { activeGateway.saveSidebarPreferences(request) }
+                    .onSuccess { saved ->
+                        confirmedSidebarVersion = saved.version
+                        // Keep any newer optimistic edit; only the confirmed version moves forward.
+                        mutableState.update { it.copy(sidebar = it.sidebar.copy(version = saved.version)) }
+                    }
+                    .onFailure { error ->
+                        if (error is SidebarLayoutConflictException) {
+                            confirmedSidebarVersion = error.current.version
+                            mutableState.update {
+                                it.copy(
+                                    sidebar = it.sidebar.withServerLayout(error.current),
+                                    error = it.error ?: "分组已在其他设备上更新，已同步最新分组，请重新操作。",
+                                )
+                            }
+                        } else {
+                            mutableState.update { it.copy(sidebar = previous, error = it.error ?: "无法保存排序设置。") }
+                        }
+                    }
+            }
         }
     }
 
@@ -1407,6 +1448,7 @@ class AppViewModel @JvmOverloads constructor(
         outboxJob?.cancel()
         viewModelScope.launch { runCatching { activeGateway.signOut() } }
         activeGateway = gateway
+        confirmedSidebarVersion = SidebarVersion()
         mutableState.value = AppState()
     }
 

@@ -80,6 +80,23 @@ data class SidebarSection(
  * Mirrors the cross-client sidebar preferences: which conversations are pinned to the
  * top, which are manually unread, and how the rest are grouped and ordered.
  */
+/** Server-assigned version of the pins and sections; the server only accepts edits based on its latest. */
+data class SidebarVersion(
+    val revision: Long = 0L,
+    /** UTC ISO-8601 with fixed millisecond precision, so plain string comparison orders it. */
+    val updatedAt: String = INITIAL_SIDEBAR_UPDATED_AT,
+) {
+    /** True when this version is not behind [other] in either revision or timestamp. */
+    fun isAtLeast(other: SidebarVersion): Boolean =
+        revision >= other.revision && updatedAt >= other.updatedAt
+}
+
+const val INITIAL_SIDEBAR_UPDATED_AT = "1970-01-01T00:00:00.000Z"
+
+/** The server rejected a sidebar edit because another client saved first; [current] is its layout. */
+class SidebarLayoutConflictException(val current: SidebarPreferences) :
+    Exception("The sidebar layout changed on another device.")
+
 data class SidebarPreferences(
     val pinnedIds: List<String> = emptyList(),
     val unreadIds: List<String> = emptyList(),
@@ -87,6 +104,8 @@ data class SidebarPreferences(
     val sections: List<SidebarSection> = emptyList(),
     val sectionByChannel: Map<String, String> = emptyMap(),
     val channelOrderByGroup: Map<String, List<String>> = emptyMap(),
+    /** The server version this copy was last confirmed against. */
+    val version: SidebarVersion = SidebarVersion(),
 ) {
     fun isPinned(conversationId: String): Boolean = pinnedIds.contains(conversationId)
 
@@ -123,6 +142,14 @@ data class SidebarPreferences(
 
     fun renameSection(sectionId: String, name: String): SidebarPreferences =
         copy(sections = sections.map { if (it.id == sectionId) it.copy(name = name.trim()) else it })
+
+    /** Takes the server-persisted layout and version from [remote]; unread and ordering stay local. */
+    fun withServerLayout(remote: SidebarPreferences): SidebarPreferences = copy(
+        pinnedIds = remote.pinnedIds,
+        sections = remote.sections,
+        sectionByChannel = remote.sectionByChannel,
+        version = remote.version,
+    )
 
     fun deleteSection(sectionId: String): SidebarPreferences =
         copy(
