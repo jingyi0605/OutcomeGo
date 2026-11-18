@@ -114,3 +114,64 @@ test("ReportOutcomeProgress rejects invalid arguments and updates work item prog
   expect(updates).toHaveLength(1);
   expect(events).toHaveLength(2);
 });
+
+test("ReportOutcomeProgress records prerequisite checks and keeps them when a later report omits them", async () => {
+  const updates: Array<{ data: { progress: { prerequisites?: Array<{ id: string; title: string; status: string; summary?: string }> } } }> = [];
+  let stored: unknown = null;
+  const prisma = {
+    $transaction: async (fn: (tx: unknown) => Promise<unknown>) =>
+      fn({
+        $executeRaw: async () => 1,
+        outcomeWorkItem: {
+          findUnique: async () => ({ outcomeId: "outcome-1" }),
+          findUniqueOrThrow: async () => ({
+            id: "work-1", outcomeId: "outcome-1", contractRevisionId: "rev-1", botId: "bot",
+            executorType: "agent", status: "running", progress: stored,
+            contractRevision: { revision: 2 }, outcome: { cancelledAt: null, acceptedAt: null },
+          }),
+          update: async (args: (typeof updates)[number]) => {
+            updates.push(args);
+            stored = args.data.progress;
+            return {};
+          },
+        },
+        run: {
+          findUnique: async () => ({ id: "run", botId: "bot", status: "running", origin: "outcome", outcomeWorkItemId: "work-1" }),
+        },
+        event: { create: async () => ({}) },
+      }),
+  } as never;
+  const tool = createOutcomeProgressTool(prisma);
+  const context = { runId: "run", workItemId: "work-1", botId: "bot" };
+  const base = { phase: "Check access", tasks: [{ id: "a", title: "Read credential", status: "in_progress" }] };
+
+  const first = (await tool(
+    {
+      ...request("ReportOutcomeProgress"),
+      arguments: { ...base, prerequisites: [{ id: "bw", title: "Bitwarden access", status: "unmet", summary: "Vault locked" }] },
+    },
+    context
+  )) as { progress: { prerequisites?: Array<{ id: string; title: string; status: string; summary?: string }> } };
+  expect(first.progress.prerequisites).toEqual([{ id: "bw", title: "Bitwarden access", status: "unmet", summary: "Vault locked" }]);
+
+  await tool({ ...request("ReportOutcomeProgress"), arguments: { ...base, phase: "Working" } }, context);
+  expect(updates[1]!.data.progress.prerequisites).toEqual([
+    { id: "bw", title: "Bitwarden access", status: "unmet", summary: "Vault locked" },
+  ]);
+
+  await tool(
+    {
+      ...request("ReportOutcomeProgress"),
+      arguments: { ...base, prerequisites: [{ id: "bw", title: "Bitwarden access", status: "met" }] },
+    },
+    context
+  );
+  expect(updates[2]!.data.progress.prerequisites).toEqual([{ id: "bw", title: "Bitwarden access", status: "met" }]);
+
+  await expect(
+    tool(
+      { ...request("ReportOutcomeProgress"), arguments: { ...base, prerequisites: [{ id: "x", title: "T", status: "maybe" }] } },
+      context
+    )
+  ).rejects.toThrow();
+});

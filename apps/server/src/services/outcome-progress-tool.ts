@@ -33,16 +33,22 @@ export const createOutcomeProgressTool = (prisma: PrismaClient): OutcomeThreadTo
       status: step.status,
       ...(step.summary?.trim() ? { summary: step.summary.trim() } : {}),
     }));
-    if (!phase || tasks.some((step) => !step.id || !step.title)) {
-      throw new ApiError(400, "invalid_request", "Phase and task id/title must be non-empty");
+    const prerequisites = (input.prerequisites ?? []).map((check) => ({
+      id: check.id.trim(),
+      title: check.title.trim(),
+      status: check.status,
+      ...(check.summary?.trim() ? { summary: check.summary.trim() } : {}),
+    }));
+    if (
+      !phase ||
+      tasks.some((step) => !step.id || !step.title) ||
+      prerequisites.some((check) => !check.id || !check.title)
+    ) {
+      throw new ApiError(400, "invalid_request", "Phase and task/prerequisite id/title must be non-empty");
     }
 
-    const progress: OutcomeWorkItemProgress = {
-      phase,
-      ...(summary ? { summary } : {}),
-      tasks,
-      updatedAt: new Date().toISOString(),
-    };
+    const reportedPrerequisites = input.prerequisites !== undefined;
+    const updatedAt = new Date().toISOString();
 
     try {
       return await prisma.$transaction(async (tx) => {
@@ -77,6 +83,15 @@ export const createOutcomeProgressTool = (prisma: PrismaClient): OutcomeThreadTo
           throw new ApiError(409, "invalid_outcome_transition", "The work item is not actively running");
         }
 
+        // A report that omits prerequisites keeps the checks already recorded, so a task-only update cannot erase them.
+        const kept = reportedPrerequisites ? prerequisites : parseOutcomeWorkItemProgress(item.progress)?.prerequisites ?? [];
+        const progress: OutcomeWorkItemProgress = {
+          phase,
+          ...(summary ? { summary } : {}),
+          tasks,
+          ...(kept.length ? { prerequisites: kept } : {}),
+          updatedAt,
+        };
         await tx.outcomeWorkItem.update({
           where: { id: item.id },
           data: { progress: toJson(progress) },

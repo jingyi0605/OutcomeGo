@@ -193,10 +193,22 @@ export interface OutcomeTaskStep {
   summary?: string;
 }
 
+export const OUTCOME_PREREQUISITE_STATUSES = ["met", "unmet", "unknown"] as const;
+export type OutcomePrerequisiteStatus = (typeof OUTCOME_PREREQUISITE_STATUSES)[number];
+
+/** A prerequisite the executing agent checked while working; absent until the agent reports it. */
+export interface OutcomePrerequisiteCheck {
+  id: string;
+  title: string;
+  status: OutcomePrerequisiteStatus;
+  summary?: string;
+}
+
 export interface OutcomeWorkItemProgress {
   phase: string;
   summary?: string;
   tasks: OutcomeTaskStep[];
+  prerequisites?: OutcomePrerequisiteCheck[];
   updatedAt: string;
 }
 
@@ -207,17 +219,25 @@ export const OutcomeTaskStepInput = Schema.Struct({
   summary: Schema.optional(Schema.String.pipe(Schema.maxLength(300))),
 });
 
+export const OutcomePrerequisiteInput = Schema.Struct({
+  id: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(80)),
+  title: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(200)),
+  status: Schema.Literal(...OUTCOME_PREREQUISITE_STATUSES),
+  summary: Schema.optional(Schema.String.pipe(Schema.maxLength(300))),
+});
+
 export const ReportOutcomeProgressInput = Schema.Struct({
   phase: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(120)),
   summary: Schema.optional(Schema.String.pipe(Schema.maxLength(500))),
   tasks: Schema.Array(OutcomeTaskStepInput).pipe(Schema.minItems(1), Schema.maxItems(30)),
+  prerequisites: Schema.optional(Schema.Array(OutcomePrerequisiteInput).pipe(Schema.maxItems(20))),
 });
 export type ReportOutcomeProgressInput = typeof ReportOutcomeProgressInput.Type;
 
 export const REPORT_OUTCOME_PROGRESS_TOOL = {
   name: "ReportOutcomeProgress",
   description:
-    "Update the current execution phase/stage and structured task list for this Outcome work item. Call this at the start of execution to publish your task breakdown, and update it promptly whenever the phase changes or a task starts, completes, or becomes blocked.",
+    "Update the current execution phase/stage and structured task list for this Outcome work item. Call this at the start of execution to publish your task breakdown, and update it promptly whenever the phase changes or a task starts, completes, or becomes blocked. When the saved goal states explicit prerequisites (access, credentials, approvals, environment conditions), also report each one in `prerequisites` with status met/unmet/unknown after you actually check it, and resend the full list whenever a status changes.",
   inputSchema: JSONSchema.make(ReportOutcomeProgressInput),
 } as const;
 
@@ -245,10 +265,31 @@ export function parseOutcomeWorkItemProgress(value: unknown): OutcomeWorkItemPro
       ...(typeof step.summary === "string" && step.summary.trim() ? { summary: step.summary } : {}),
     });
   }
+  const prerequisites: OutcomePrerequisiteCheck[] = [];
+  if (Array.isArray(raw.prerequisites)) {
+    for (const item of raw.prerequisites) {
+      if (!item || typeof item !== "object" || Array.isArray(item)) return null;
+      const check = item as Record<string, unknown>;
+      if (
+        typeof check.id !== "string" ||
+        typeof check.title !== "string" ||
+        !(OUTCOME_PREREQUISITE_STATUSES as readonly unknown[]).includes(check.status)
+      ) {
+        return null;
+      }
+      prerequisites.push({
+        id: check.id,
+        title: check.title,
+        status: check.status as OutcomePrerequisiteStatus,
+        ...(typeof check.summary === "string" && check.summary.trim() ? { summary: check.summary } : {}),
+      });
+    }
+  }
   return {
     phase: raw.phase,
     ...(typeof raw.summary === "string" && raw.summary.trim() ? { summary: raw.summary } : {}),
     tasks,
+    ...(prerequisites.length ? { prerequisites } : {}),
     updatedAt: raw.updatedAt,
   };
 }
