@@ -247,6 +247,51 @@ test("restores an opted-in dock and preserves its compact position through move,
       expect(window.hides).toBe(cornerHides);
       expect(window.visible).toBe(true);
 
+      if (process.platform === "darwin") {
+        const dropId = "12345678-1234-1234-1234-123456789abc";
+        await writeFile(
+          options.dragHelperPath,
+          `#!/bin/sh
+printf '%s\\n' 'ready drag' 'drag-start-promise'
+IFS= read -r targets || exit 1
+case "$targets" in
+  'drop-targets '[*'"surface":"invitation"'*) ;;
+  *) exit 1 ;;
+esac
+destination="$3/${dropId}"
+mkdir "$destination" || exit 1
+printf 'external attachment' > "$destination/external.txt"
+ln -s "$destination/external.txt" "$destination/link.txt"
+printf '%s\\n' 'drop-start {"id":"${dropId}","surface":"invitation"}'
+printf '%s\\n' 'drop-files {"id":"${dropId}","names":["external.txt","link.txt","../outside"]}' 'drag-end'
+while IFS= read -r targets; do :; done
+`,
+          { mode: 0o700 }
+        );
+        composer.sent.delete("botdock:dropped-files");
+        optedIn.refreshGlobalDrag(true);
+        for (
+          let attempt = 0;
+          attempt < 100 && !composer.sent.has("botdock:dropped-files");
+          attempt++
+        ) {
+          await Bun.sleep(10);
+        }
+        expect(composer.sent.get("botdock:dropped-files")).toEqual({
+          files: [
+            {
+              bytes: new TextEncoder().encode("external attachment"),
+              fileName: "external.txt",
+              mimeType: "application/octet-stream",
+            },
+          ],
+          rejected: true,
+        });
+        expect(composer.visible).toBe(true);
+        expect(window.visible).toBe(true);
+        expect(window.boundsChanges).toBe(cornerBoundsChanges);
+      }
+
       optedIn.reset();
       expect(window.destroyed).toBe(true);
       expect(composer.destroyed).toBe(true);

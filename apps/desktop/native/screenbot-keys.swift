@@ -45,6 +45,152 @@ struct FileDragDetector {
   }
 }
 
+private let filePromiseTypes = NSFilePromiseReceiver.readableDraggedTypes.map {
+  NSPasteboard.PasteboardType($0)
+}
+
+private struct FileDropTarget: Codable {
+  let surface: String
+  let x: Double
+  let y: Double
+  let width: Double
+  let height: Double
+
+  func frame(top: CGFloat) -> NSRect {
+    NSRect(x: x, y: top - y - height, width: width, height: height)
+  }
+}
+
+private func emitDrop<Event: Encodable>(_ event: String, _ value: Event) {
+  guard let data = try? JSONEncoder().encode(value) else { return }
+  emit("\(event) \(String(decoding: data, as: UTF8.self))")
+}
+
+private final class FilePromiseDropView: NSView {
+  struct Started: Encodable {
+    let id: String
+    let surface: String
+  }
+
+  struct Finished: Encodable {
+    let id: String
+    var names: [String] = []
+    var rejected = false
+  }
+
+  let surface: String
+  let directory: URL
+  private var receiving = false
+
+  init(surface: String, directory: URL) {
+    self.surface = surface
+    self.directory = directory
+    super.init(frame: .zero)
+    registerForDraggedTypes(filePromiseTypes)
+  }
+
+  required init?(coder: NSCoder) { nil }
+
+  override func draggingEntered(_ sender: any NSDraggingInfo) -> NSDragOperation {
+    let operations = sender.draggingSourceOperationMask
+    return operations.contains(.copy) ? .copy : operations.intersection(.generic)
+  }
+
+  override func draggingUpdated(_ sender: any NSDraggingInfo) -> NSDragOperation {
+    draggingEntered(sender)
+  }
+
+  override func performDragOperation(_ sender: any NSDraggingInfo) -> Bool {
+    guard !receiving, !draggingEntered(sender).isEmpty,
+      let promises = sender.draggingPasteboard.readObjects(
+        forClasses: [NSFilePromiseReceiver.self], options: nil
+      ) as? [NSFilePromiseReceiver], !promises.isEmpty else { return false }
+
+    let id = UUID().uuidString
+    let destination = directory.appendingPathComponent(id, isDirectory: true)
+    do {
+      try FileManager.default.createDirectory(at: destination, withIntermediateDirectories: false)
+    } catch { return false }
+    receiving = true
+    emitDrop("drop-start", Started(id: id, surface: surface))
+
+    let queue = OperationQueue()
+    queue.maxConcurrentOperationCount = 1
+    let accepted = promises.prefix(10)
+    var result = Finished(id: id, rejected: accepted.count != promises.count)
+    var remaining = 0
+    var finished = false
+    func finish() {
+      guard !finished else { return }
+      finished = true
+      receiving = false
+      emitDrop("drop-files", result)
+    }
+    for promise in accepted {
+      promise.receivePromisedFiles(atDestination: destination, options: [:], operationQueue: queue) { url, error in
+        DispatchQueue.main.async {
+          guard !finished else { return }
+          if error == nil, url.deletingLastPathComponent().standardizedFileURL.path == destination.standardizedFileURL.path,
+            result.names.count < 10 {
+            result.names.append(url.lastPathComponent)
+          } else {
+            result.rejected = true
+          }
+          remaining -= 1
+          if remaining <= 0 { finish() }
+        }
+      }
+      remaining += max(1, promise.fileNames.count)
+    }
+    DispatchQueue.main.asyncAfter(deadline: .now() + 60) {
+      if finished { return }
+      result.rejected = true
+      finish()
+    }
+    return true
+  }
+}
+
+private final class FilePromiseDropPanels {
+  let directory: URL
+  private var panels: [String: NSPanel] = [:]
+  private var active = false
+
+  init(directory: URL) { self.directory = directory }
+
+  func begin() { active = true }
+
+  func end() {
+    active = false
+    for panel in panels.values { panel.orderOut(nil) }
+  }
+
+  func place(_ targets: [FileDropTarget]) {
+    guard active, let top = NSScreen.screens.first?.frame.maxY else { return }
+    let surfaces = Set(targets.map(\.surface))
+    for (surface, panel) in panels where !surfaces.contains(surface) { panel.orderOut(nil) }
+    for target in targets {
+      let panel = panels[target.surface] ?? makePanel(target.surface)
+      panel.setFrame(target.frame(top: top), display: false)
+      if !panel.isVisible { panel.orderFrontRegardless() }
+    }
+  }
+
+  private func makePanel(_ surface: String) -> NSPanel {
+    let panel = NSPanel(contentRect: .zero, styleMask: [.borderless, .nonactivatingPanel],
+      backing: .buffered, defer: false)
+    panel.isOpaque = false
+    panel.backgroundColor = NSColor.white.withAlphaComponent(0.01)
+    panel.hasShadow = false
+    panel.hidesOnDeactivate = false
+    panel.level = NSWindow.Level(rawValue: NSWindow.Level.floating.rawValue + 1)
+    panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .ignoresCycle]
+    panel.contentView = FilePromiseDropView(surface: surface, directory: directory)
+    panels[surface] = panel
+    return panel
+  }
+}
+
 struct Chord {
   let left: UInt64
   let right: UInt64
@@ -232,6 +378,11 @@ let detector = ChordDetector(chord: initial)
 let fnDetector = FnDetector()
 fnDetector.enabled = CommandLine.arguments.contains("--fn")
 let parent = getppid()
+private let promisePanels = CommandLine.arguments.firstIndex(of: "--file-drop-directory").flatMap { index in
+  CommandLine.arguments.dropFirst(index + 1).first.map {
+    FilePromiseDropPanels(directory: URL(fileURLWithPath: $0, isDirectory: true))
+  }
+}
 
 func emit(_ line: String) {
   print(line)
@@ -273,6 +424,11 @@ input.readabilityHandler = { handle in
       // Recording a shortcut pauses the chord; Fn keeps reporting (it can be what's recorded).
       case "pause": detector.paused = true
       case "resume": detector.paused = false
+      case "drop-targets":
+        let json = Data(line.dropFirst("drop-targets ".count).utf8)
+        if let targets = try? JSONDecoder().decode([FileDropTarget].self, from: json) {
+          promisePanels?.place(targets)
+        }
       default: break
       }
     }
@@ -288,8 +444,11 @@ if getppid() != parent || kill(parent, 0) != 0 { exit(0) }
 
 if CommandLine.arguments.contains("--watch-file-drag") {
   let pasteboard = NSPasteboard(name: .drag)
-  let fileTypes: [NSPasteboard.PasteboardType] = [.fileURL, .init("NSFilenamesPboardType")]
+  let fileTypes: [NSPasteboard.PasteboardType] = [.fileURL, .init("NSFilenamesPboardType")] + filePromiseTypes
   var drag = FileDragDetector(changeCount: pasteboard.changeCount)
+  var promisedDrag = false
+  var pendingEnd: DispatchWorkItem?
+  if promisePanels != nil { NSApplication.shared.setActivationPolicy(.accessory) }
   let timer = DispatchSource.makeTimerSource(queue: .main)
   timer.schedule(deadline: .now(), repeating: .milliseconds(30), leeway: .milliseconds(5))
   timer.setEventHandler {
@@ -300,12 +459,32 @@ if CommandLine.arguments.contains("--watch-file-drag") {
       containsFiles: pasteboard.availableType(from: fileTypes) != nil,
       escape: pressed && CGEventSource.keyState(.combinedSessionState, key: 53)
     ) {
-      emit(event)
+      pendingEnd?.cancel()
+      pendingEnd = nil
+      if event == "drag-start", let promisePanels,
+        pasteboard.availableType(from: filePromiseTypes) != nil {
+        promisedDrag = true
+        promisePanels.begin()
+        emit("drag-start-promise")
+      } else if event == "drag-end", promisedDrag, !pressed, let promisePanels {
+        promisedDrag = false
+        let end = DispatchWorkItem {
+          promisePanels.end()
+          emit("drag-end")
+        }
+        pendingEnd = end
+        DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(80), execute: end)
+      } else {
+        promisedDrag = false
+        promisePanels?.end()
+        emit(event)
+      }
     }
   }
   timer.resume()
   emit("ready drag")
-  RunLoop.main.run()
+  if promisePanels != nil { NSApplication.shared.run() }
+  else { RunLoop.main.run() }
   exit(0)
 }
 

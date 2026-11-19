@@ -38,7 +38,7 @@ import {
   type DockRect,
 } from "./bot-dock-model";
 
-import { GlobalDragDetector } from "./bot-dock-global-drag";
+import { GlobalDragDetector, type DropSurface } from "./bot-dock-global-drag";
 
 const DRAG_INTERVAL_MS = 8;
 /** A drag whose release never arrives (the page died mid-gesture) must not follow the cursor forever. */
@@ -152,14 +152,18 @@ export class DesktopBotDock {
     this.settings = isSnoozed(settings, Date.now()) ? settings : { ...settings, hiddenUntil: null };
     this.armSnooze();
     this.globalDragDetector = options.dragHelperPath
-      ? new GlobalDragDetector(options.dragHelperPath, (dragging) => {
-          this.globalDragActive = dragging;
-          if (!dragging) {
-            this.mainWindowDragActive = false;
-            this.fileHover.clear();
-          }
-          this.updateInvitation();
-        })
+      ? new GlobalDragDetector(
+          options.dragHelperPath,
+          (dragging) => {
+            this.globalDragActive = dragging;
+            if (!dragging) {
+              this.mainWindowDragActive = false;
+              this.fileHover.clear();
+            }
+            this.updateInvitation();
+          },
+          (surface) => this.startNativeDrop(surface)
+        )
       : null;
 
     const listen = <Args extends unknown[]>(
@@ -320,6 +324,43 @@ export class DesktopBotDock {
     if (!this.hasFileDrag && invitation?.isVisible() && !this.dragHandoff) {
       this.dragHandoff = setTimeout(() => this.hideInvitation(), DRAG_HANDOFF_MS);
     }
+    this.placeNativeDropTargets();
+  }
+
+  private placeNativeDropTargets() {
+    const detector = this.globalDragDetector;
+    if (!detector?.receivingFilePromises) return;
+    const surfaces = [
+      ["dock", this.window],
+      ["invitation", this.invitationWindow],
+      ["composer", this.composerWindow],
+    ] as const satisfies ReadonlyArray<readonly [DropSurface, BrowserWindow | null]>;
+    detector.placeDropTargets(
+      this.state?.roster.length
+        ? surfaces.flatMap(([surface, window]) =>
+            window && !window.isDestroyed() && window.isVisible()
+              ? [{ surface, ...window.getBounds() }]
+              : []
+          )
+        : []
+    );
+  }
+
+  private startNativeDrop(surface: DropSurface) {
+    const source =
+      surface === "composer"
+        ? this.composerWindow
+        : surface === "invitation"
+          ? this.invitationWindow
+          : this.window;
+    if (!source || source.isDestroyed() || !source.isVisible() || !this.state?.roster.length) {
+      return null;
+    }
+    if (surface !== "composer") this.onDrop();
+    const composer = this.composerWindow;
+    return ({ files, rejected }: { files: BotDockAttachment[]; rejected: boolean }) => {
+      if (composer && this.composerWindow === composer) this.attachDroppedFiles(files, rejected);
+    };
   }
 
   private placeInvitation() {
@@ -340,6 +381,7 @@ export class DesktopBotDock {
       window.hide();
       window.webContents.send("botdock:surface-visible", false);
     }
+    this.placeNativeDropTargets();
   }
 
   private get snoozed() {
@@ -568,7 +610,10 @@ export class DesktopBotDock {
   }
 
   private applyBounds(window: BrowserWindow, next: DockRect) {
-    if (!sameBounds(window.getBounds(), next)) window.setBounds(next);
+    if (!sameBounds(window.getBounds(), next)) {
+      window.setBounds(next);
+      this.placeNativeDropTargets();
+    }
   }
 
   private initialBounds(size: { width: number; height: number }): DockRect {
@@ -722,6 +767,7 @@ export class DesktopBotDock {
       window.webContents.send("botdock:surface-visible", true);
       window.showInactive();
       window.focus();
+      this.placeNativeDropTargets();
     }
   }
 
@@ -732,6 +778,7 @@ export class DesktopBotDock {
     if (window?.isVisible()) {
       window.hide();
       window.webContents.send("botdock:surface-visible", false);
+      this.placeNativeDropTargets();
     }
     this.window?.webContents.send("botdock:composer-anchor", null);
   }
