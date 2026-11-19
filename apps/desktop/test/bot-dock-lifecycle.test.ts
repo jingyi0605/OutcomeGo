@@ -36,10 +36,11 @@ class FakeDockWindow extends EventEmitter {
   visible = false;
   destroyed = false;
   focused = false;
+  boundsChanges = 0;
+  hides = 0;
 
   setAlwaysOnTop() {}
   setVisibleOnAllWorkspaces() {}
-  setFocusable() {}
   focus() {
     this.focused = this.visible;
   }
@@ -60,11 +61,13 @@ class FakeDockWindow extends EventEmitter {
   }
 
   hide() {
+    this.hides++;
     this.visible = false;
     if (this.focused) this.blur();
   }
 
   setBounds(bounds: DockRect) {
+    this.boundsChanges++;
     this.visibleDuringResize = this.visible;
     this.bounds = bounds;
   }
@@ -173,26 +176,43 @@ test("restores an opted-in dock and preserves its compact position through move,
       ipc.emit("botdock:resize", event, 170, 98, "invitation");
       expect(window.bounds).toEqual({ x: 435, y: 303, width: 170, height: 98 });
       ipc.emit("botdock:drop", event);
-      ipc.emit("botdock:resize", event, 112, 64, "compact");
-      expect(window.bounds).toEqual({ x: 435, y: 303, width: 170, height: 98 });
-      ipc.emit("botdock:resize", event, 352, 224, "composer");
-      expect(window.bounds).toEqual({ x: 224, y: 320, width: 352, height: 224 });
-      expect(window.isFocused()).toBe(true);
-      ipc.emit("botdock:composer-close", event);
-      expect(window.isFocused()).toBe(false);
-      expect(focusMainWindow).not.toHaveBeenCalled();
+      const composer = windows[1];
+      if (!composer) throw new Error("Composer window was not created");
+      const composerEvent = {
+        sender: composer.webContents,
+        senderFrame: composer.webContents.mainFrame,
+      };
+      const file = { bytes: new Uint8Array([1]), fileName: "notes.txt", mimeType: "text/plain" };
+      ipc.emit("botdock:dropped-files", event, [file], false);
+      expect(composer.sent.has("botdock:dropped-files")).toBe(false);
       ipc.emit("botdock:resize", event, 112, 64, "compact", 1);
       expect(window.bounds).toEqual({ x: 464, y: 320, width: 112, height: 64 });
       expect(window.visibleDuringResize).toBe(false);
       expect(window.visible).toBe(false);
       expect(window.backgroundThrottling).toBe(false);
-      const composerViewport = compactViewport();
-      if (!composerViewport) throw new Error("Missing compact viewport after closing composer");
-      expect(composerViewport).toEqual({ resizeId: 1, width: 112, height: 64 });
-      ipc.emit("botdock:compact-painted", event, composerViewport.resizeId);
+      expect(compactViewport()).toEqual({ resizeId: 1, width: 112, height: 64 });
+      ipc.emit("botdock:compact-painted", event, 1);
       expect(window.visible).toBe(true);
       expect(window.backgroundThrottling).toBe(true);
       expect(window.isFocused()).toBe(false);
+
+      const boundsChangesBeforeComposer = window.boundsChanges;
+      const hidesBeforeComposer = window.hides;
+      ipc.emit("botdock:resize", event, 356, 164, "composer");
+      expect(composer.visible).toBe(false);
+      ipc.emit("botdock:resize", composerEvent, 356, 164, "composer");
+      expect(composer.bounds).toEqual({ x: 220, y: 363, width: 356, height: 164 });
+      expect(window.sent.get("botdock:composer-anchor")).toEqual({ right: true, bottom: false });
+      expect(composer.sent.get("botdock:dropped-files")).toEqual({ files: [file], rejected: false });
+      expect(composer.isFocused()).toBe(true);
+      ipc.emit("botdock:composer-close", composerEvent);
+      expect(composer.visible).toBe(false);
+      expect(composer.isFocused()).toBe(false);
+      expect(window.boundsChanges).toBe(boundsChangesBeforeComposer);
+      expect(window.hides).toBe(hidesBeforeComposer);
+      expect(window.visible).toBe(true);
+      expect(window.sent.get("botdock:composer-anchor")).toBeNull();
+      expect(focusMainWindow).not.toHaveBeenCalled();
 
       cursor = { x: 512, y: 352 };
       ipc.emit("botdock:drag-start", event);
@@ -207,34 +227,29 @@ test("restores an opted-in dock and preserves its compact position through move,
       expect(window.visibleDuringResize).toBe(false);
       const canceledDragViewport = compactViewport();
       if (!canceledDragViewport) throw new Error("Missing compact viewport after canceling drag");
-      expect(canceledDragViewport.resizeId).not.toBe(composerViewport.resizeId);
-      ipc.emit("botdock:compact-painted", event, composerViewport.resizeId);
-      expect(window.visible).toBe(false);
-
-      ipc.emit("botdock:open", event);
-      ipc.emit("botdock:resize", event, 352, 224, "composer");
-      expect(window.visible).toBe(true);
-      expect(window.isFocused()).toBe(true);
-      ipc.emit("botdock:composer-close", event);
-      ipc.emit("botdock:resize", event, 112, 64, "compact", 3);
-      ipc.emit("botdock:compact-painted", event, canceledDragViewport.resizeId);
-      expect(window.bounds).toEqual(corner);
+      expect(canceledDragViewport.resizeId).toBe(2);
+      ipc.emit("botdock:compact-painted", event, 1);
       expect(window.visible).toBe(false);
       await Bun.sleep(175);
       expect(window.visible).toBe(true);
       expect(window.backgroundThrottling).toBe(true);
 
-      ipc.emit("botdock:drop", event);
-      ipc.emit("botdock:composer-close", event);
-      ipc.emit("botdock:resize", event, 352, 224, "composer");
-      ipc.emit("botdock:resize", event, 112, 64, "compact", 4);
+      const cornerBoundsChanges = window.boundsChanges;
+      const cornerHides = window.hides;
+      ipc.emit("botdock:open", event);
+      expect(windows).toHaveLength(2);
+      expect(composer.bounds).toEqual({ x: 644, y: 593, width: 356, height: 164 });
+      expect(composer.isFocused()).toBe(true);
+      composer.blur();
+      expect(composer.visible).toBe(false);
       expect(window.bounds).toEqual(corner);
-      expect(compactViewport()?.resizeId).toBe(4);
-      ipc.emit("botdock:compact-painted", event, 4);
+      expect(window.boundsChanges).toBe(cornerBoundsChanges);
+      expect(window.hides).toBe(cornerHides);
       expect(window.visible).toBe(true);
 
       optedIn.reset();
       expect(window.destroyed).toBe(true);
+      expect(composer.destroyed).toBe(true);
       optedIn.refreshGlobalDrag();
       expect(checkAccessibility).toHaveBeenCalledTimes(1);
     } finally {

@@ -77,14 +77,25 @@ body {
   visibility: hidden;
 }
 
-/* With the composer open the capsule keeps its edges: the panel goes above a dock that sits in
-   the lower half of the screen, and the capsule stays on the side main anchored. */
-.dock-frame[data-up="true"] {
-  flex-direction: column-reverse;
+.dock-composer-frame {
+  padding: 10px 22px;
 }
 
-.dock-frame[data-right="true"] {
-  align-items: flex-end;
+.dock-drop-target {
+  transition: scale 160ms ease-out;
+  transform-origin: var(--dock-composer-x, right) var(--dock-composer-y, bottom);
+}
+
+.dock-drop-target[data-composer-x="left"] {
+  --dock-composer-x: left;
+}
+
+.dock-drop-target[data-composer-y="top"] {
+  --dock-composer-y: top;
+}
+
+.dock-frame[data-standby="true"] .dock-drop-target[data-composer-open] {
+  scale: calc(1 / 1.2);
 }
 
 .dock-capsule {
@@ -547,6 +558,9 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .dock-drop-target {
+    transition: none;
+  }
   .dock-frame[data-message-shake="true"] .dock-message-motion {
     animation-duration: 0s;
   }

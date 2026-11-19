@@ -1,11 +1,23 @@
 import type { BotDockStateView } from "../lib/bot-dock-state";
 
+export interface DockComposerAnchor {
+  right: boolean;
+  bottom: boolean;
+}
+
+export interface DockFile {
+  bytes: Uint8Array;
+  fileName: string;
+  mimeType: string;
+}
+
 /** The bridge preload/botdock.ts exposes to this page. */
 export interface BotDockBridge {
   platform: string;
   getState(): Promise<BotDockStateView | null>;
   onState(callback: (state: BotDockStateView | null) => void): () => void;
   onMessageArrival(callback: () => void): () => void;
+  onComposerAnchor(callback: (anchor: DockComposerAnchor | null) => void): () => void;
   resize(
     width: number,
     height: number,
@@ -14,9 +26,8 @@ export interface BotDockBridge {
   ): void;
   onCompactViewportReady(callback: (resizeId: number) => boolean): () => void;
   open(botId?: string): void;
-  onComposer(
-    callback: (composer: { open: boolean; up: boolean; right: boolean }) => void
-  ): () => void;
+  attachDroppedFiles(files: DockFile[], rejected: boolean): void;
+  onDroppedFiles(callback: (drop: { files: DockFile[]; rejected: boolean }) => void): () => void;
   onDragHint(callback: (active: boolean) => void): () => void;
   send(message: {
     botId: string;

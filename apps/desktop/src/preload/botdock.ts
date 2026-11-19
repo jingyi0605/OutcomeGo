@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from "electron";
-import type { BotDockAttachment, BotDockState, DockLayout } from "../main/bot-dock-model";
+import type { BotDockAttachment, BotDockState, DockAnchor, DockLayout } from "../main/bot-dock-model";
 
 /** What the page hands over; main checks the bytes and decides an image's type itself. */
 interface BotDockSendInput {
@@ -26,6 +26,12 @@ contextBridge.exposeInMainWorld("botdock", {
     const listener = () => callback();
     ipcRenderer.on("botdock:message-arrival", listener);
     return () => ipcRenderer.removeListener("botdock:message-arrival", listener);
+  },
+  onComposerAnchor: (callback: (anchor: DockAnchor | null) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, anchor: DockAnchor | null) =>
+      callback(anchor);
+    ipcRenderer.on("botdock:composer-anchor", listener);
+    return () => ipcRenderer.removeListener("botdock:composer-anchor", listener);
   },
   /** The capsule's size in CSS pixels; main sizes the window to it and shows it. */
   resize: (width: number, height: number, layout: DockLayout, compactResizeId?: number) =>
@@ -65,16 +71,15 @@ contextBridge.exposeInMainWorld("botdock", {
       ipcRenderer.removeListener("botdock:compact-viewport", listener);
     };
   },
-  /** The composer opened or closed. `up`/`right` say which way the panel extends, so the
-   * capsule keeps its place. */
-  onComposer: (callback: (composer: { open: boolean; up: boolean; right: boolean }) => void) => {
-    const listener = (_event: Electron.IpcRendererEvent, composer: unknown) => {
-      const value = composer as { open?: unknown; up?: unknown; right?: unknown } | null;
-      if (value && typeof value.open === "boolean")
-        callback({ open: value.open, up: value.up === true, right: value.right === true });
-    };
-    ipcRenderer.on("botdock:composer", listener);
-    return () => ipcRenderer.removeListener("botdock:composer", listener);
+  attachDroppedFiles: (files: BotDockAttachment[], rejected: boolean) =>
+    ipcRenderer.send("botdock:dropped-files", files, rejected),
+  onDroppedFiles: (callback: (drop: { files: BotDockAttachment[]; rejected: boolean }) => void) => {
+    const listener = (
+      _event: Electron.IpcRendererEvent,
+      drop: { files: BotDockAttachment[]; rejected: boolean }
+    ) => callback(drop);
+    ipcRenderer.on("botdock:dropped-files", listener);
+    return () => ipcRenderer.removeListener("botdock:dropped-files", listener);
   },
   /** Main window detected a file drag: the dock should grow. */
   onDragHint: (callback: (active: boolean) => void) => {

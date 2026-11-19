@@ -240,7 +240,6 @@ export const dockAnchorFor = (current: DockRect, workArea: DockRect): DockAnchor
 /**
  * A new size for a window that stays put. By default the edge nearer the screen's side stays
  * fixed, so a capsule parked on the right grows leftwards instead of running off the screen.
- * The composer passes a fixed anchor so the capsule does not jump while its panel opens and closes.
  */
 export const resizeDock = (
   current: DockRect,
@@ -280,11 +279,12 @@ export const placeDockComposer = (
   workArea: DockRect
 ): DockRect => {
   const anchor = dockAnchorFor(dock, workArea);
+  const shadowOverlap = 21;
   return clampToWorkArea(
     {
       ...size,
       x: anchor.right ? dock.x + dock.width - size.width : dock.x,
-      y: anchor.bottom ? dock.y - size.height : dock.y + dock.height,
+      y: anchor.bottom ? dock.y - size.height + shadowOverlap : dock.y + dock.height - shadowOverlap,
     },
     workArea
   );

@@ -19,13 +19,32 @@ import {
   removeMention,
 } from "../lib/bot-dock-compose";
 import type { BotDockRosterView, BotDockStateView } from "../lib/bot-dock-state";
-import type { BotDockBridge } from "./types";
+import type { BotDockBridge, DockFile } from "./types";
 
 const INPUT_MAX_HEIGHT = 140;
 /** Mirror BOT_DOCK_MAX_ATTACHMENTS and BOT_DOCK_MAX_TOTAL_BYTES in the main process, which
  * enforces them. */
 const MAX_ATTACHMENTS = 10;
 const MAX_TOTAL_BYTES = 200 * 1024 * 1024;
+
+export async function forwardDockFiles(bridge: BotDockBridge, files: readonly File[]) {
+  const accepted: DockFile[] = [];
+  let total = 0;
+  for (const file of files) {
+    const fileName = file.name.trim() || "Attachment";
+    if (accepted.length >= MAX_ATTACHMENTS) break;
+    if (total + file.size > MAX_TOTAL_BYTES || attachmentSizeRejection(fileName, file.size))
+      continue;
+    try {
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      accepted.push({ fileName, bytes, mimeType: file.type });
+      total += bytes.byteLength;
+    } catch {
+      continue;
+    }
+  }
+  bridge.attachDroppedFiles(accepted, accepted.length !== files.length);
+}
 
 type Status = "idle" | "sending" | "failed" | "invalid";
 
@@ -41,26 +60,33 @@ export interface DraftAttachment {
   url?: string;
 }
 
-const readAttachment = async (file: File): Promise<DraftAttachment | null> => {
-  const fileName = file.name.trim() || "Attachment";
+const inputFileName = (file: File | DockFile) =>
+  (file instanceof File ? file.name : file.fileName).trim() || "Attachment";
+
+const readAttachment = async (file: File | DockFile): Promise<DraftAttachment | null> => {
+  const fileName = inputFileName(file);
+  const size = file instanceof File ? file.size : file.bytes.byteLength;
   // Empty, or over the chat's limit for this kind of file.
-  if (attachmentSizeRejection(fileName, file.size)) return null;
+  if (attachmentSizeRejection(fileName, size)) return null;
   try {
     // A folder (or a file that vanished) cannot be read.
-    const bytes = new Uint8Array(await file.arrayBuffer());
+    const bytes = file instanceof File ? new Uint8Array(await file.arrayBuffer()) : file.bytes;
+    const mimeType = file instanceof File ? file.type : file.mimeType;
     const attachment: DraftAttachment = {
       id: crypto.randomUUID(),
       bytes,
       fileName,
-      mimeType: file.type,
+      mimeType,
     };
-    if (file.type.startsWith("image/")) {
+    if (mimeType.startsWith("image/")) {
       try {
-        const bitmap = await createImageBitmap(file);
+        const image =
+          file instanceof File ? file : new Blob([Uint8Array.from(bytes)], { type: mimeType });
+        const bitmap = await createImageBitmap(image);
         attachment.width = bitmap.width;
         attachment.height = bitmap.height;
         bitmap.close();
-        attachment.url = URL.createObjectURL(file);
+        attachment.url = URL.createObjectURL(image);
       } catch {
         // An image type this page cannot draw (HEIC, say) is still sent, as a plain file.
       }
@@ -100,20 +126,21 @@ export function useDockComposer(bridge: BotDockBridge | undefined, roster: BotDo
   }, []);
 
   /** Attaches pasted or dropped files, up to the limits; anything left out is reported. */
-  const addFiles = useCallback(async (files: readonly File[]) => {
+  const addFiles = useCallback(async (files: readonly (File | DockFile)[], alreadyRejected = false) => {
     let count = attachmentsRef.current.length;
     let total = attachmentsRef.current.reduce((sum, item) => sum + item.bytes.byteLength, 0);
     const accepted: DraftAttachment[] = [];
-    let rejected = 0;
+    let rejected = alreadyRejected;
     for (const file of files) {
       // Checked before reading, so a huge file is never loaded just to be turned away.
-      if (count >= MAX_ATTACHMENTS || total + file.size > MAX_TOTAL_BYTES) {
-        rejected++;
+      const size = file instanceof File ? file.size : file.bytes.byteLength;
+      if (count >= MAX_ATTACHMENTS || total + size > MAX_TOTAL_BYTES) {
+        rejected = true;
         continue;
       }
       const attachment = await readAttachment(file);
       if (!attachment) {
-        rejected++;
+        rejected = true;
         continue;
       }
       accepted.push(attachment);
@@ -121,7 +148,7 @@ export function useDockComposer(bridge: BotDockBridge | undefined, roster: BotDo
       total += attachment.bytes.byteLength;
     }
     if (accepted.length > 0) setAttachments((current) => [...current, ...accepted]);
-    setStatus(rejected > 0 ? "invalid" : "idle");
+    setStatus(rejected ? "invalid" : "idle");
   }, []);
 
   const removeAttachment = useCallback((id: string) => {
@@ -227,9 +254,18 @@ export function DockComposer({
   // The window takes focus a moment after the panel appears.
   useEffect(() => {
     const focus = () => inputRef.current?.focus();
+    const blur = () => {
+      setChipOpen(false);
+      setDismissed(true);
+      setIndex(0);
+    };
     focus();
     window.addEventListener("focus", focus);
-    return () => window.removeEventListener("focus", focus);
+    window.addEventListener("blur", blur);
+    return () => {
+      window.removeEventListener("focus", focus);
+      window.removeEventListener("blur", blur);
+    };
   }, []);
 
   // Return focus for a retry after a send fails.

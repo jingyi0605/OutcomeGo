@@ -15,6 +15,7 @@ import {
   parseBotDockMessage,
   parseBotDockSettings,
   parseBotDockState,
+  placeDockComposer,
   resizeDock,
   sniffImageMime,
   snoozeDeadline,
@@ -259,21 +260,24 @@ describe("Bot dock composer placement", () => {
     });
   });
 
-  test("a fixed bottom anchor grows the panel upwards and shrinks back to the same place", () => {
+  test("places a separate panel above and right-aligned on the lower-right side", () => {
     const capsule = { x: 1300, y: 800, width: 100, height: 60 };
-    const anchor = { right: true, bottom: true };
-    const open = resizeDock(capsule, { width: 356, height: 300 }, workArea, anchor);
-    expect(open).toEqual({ x: 1044, y: 560, width: 356, height: 300 });
-    expect(resizeDock(open, { width: 100, height: 60 }, workArea, anchor)).toEqual(capsule);
+    expect(placeDockComposer(capsule, { width: 356, height: 300 }, workArea)).toEqual({
+      x: 1044,
+      y: 521,
+      width: 356,
+      height: 300,
+    });
   });
 
-  test("the left anchor keeps the left edge while the panel widens", () => {
+  test("places the panel below and left-aligned on the upper-left side", () => {
     const capsule = { x: 40, y: 40, width: 100, height: 60 };
-    const open = resizeDock(capsule, { width: 356, height: 300 }, workArea, {
-      right: false,
-      bottom: false,
+    expect(placeDockComposer(capsule, { width: 356, height: 300 }, workArea)).toEqual({
+      x: 40,
+      y: 79,
+      width: 356,
+      height: 300,
     });
-    expect(open).toEqual({ x: 40, y: 40, width: 356, height: 300 });
   });
 
   test("without an anchor the top edge stays put, as before", () => {

@@ -9,8 +9,8 @@ import {
 } from "react";
 import { BotAvatarGlyph } from "../components/outcomego/avatar-picker-icons";
 import type { BotDockBotView, BotDockStateView } from "../lib/bot-dock-state";
-import { DockComposer, useDockComposer } from "./dock-composer";
-import "./types";
+import { forwardDockFiles } from "./dock-composer";
+import type { BotDockBridge, DockComposerAnchor } from "./types";
 
 /** Avatars stacked in the capsule; the rest collapse into a "+N" chip. */
 export const MAX_VISIBLE_BOTS = 4;
@@ -151,51 +151,66 @@ interface Gesture {
   target: PressTarget | undefined;
 }
 
-interface ComposerView {
-  open: boolean;
-  /** The panel extends above the capsule (the dock sits low on the screen). */
-  up: boolean;
-  /** The capsule keeps its right edge (the dock sits on the right of the screen). */
-  right: boolean;
+export function useDockState(bridge: BotDockBridge | undefined) {
+  const [state, setState] = useState<BotDockStateView | null>(null);
+  useEffect(() => {
+    if (!bridge) return;
+    let active = true;
+    const stop = bridge.onState(setState);
+    void bridge.getState().then((initial) => {
+      if (active) setState((current) => current ?? initial);
+    });
+    return () => {
+      active = false;
+      stop();
+    };
+  }, [bridge]);
+  const theme = state?.theme;
+  useEffect(() => {
+    if (theme === "light" || theme === "dark") document.documentElement.dataset.theme = theme;
+    else delete document.documentElement.dataset.theme;
+  }, [theme]);
+  return state;
 }
 
 /** The Bot floating window: a capsule with the app button on the left and, on the right, the
  * Bots that have something waiting, overlapped, each with a red (messages) and yellow (goals) badge. */
 export function BotDockApp() {
   const bridge = window.botdock;
-  const [state, setState] = useState<BotDockStateView | null>(null);
+  const state = useDockState(bridge);
   const frameRef = useRef<HTMLDivElement>(null);
   const dropTargetRef = useRef<HTMLDivElement>(null);
   const gesture = useRef<Gesture | null>(null);
-  const reported = useRef<{ key: string; layout: "compact" | "invitation" | "composer" } | null>(
+  const reported = useRef<{ key: string; layout: "compact" | "invitation" } | null>(
     null
   );
   const compactResizeId = useRef(0);
-  const [composer, setComposer] = useState<ComposerView>({ open: false, up: false, right: false });
   const [messageShake, setMessageShake] = useState(false);
-  const model = useDockComposer(bridge, state?.roster ?? []);
+  const [composerMotion, setComposerMotion] = useState<{
+    anchor: DockComposerAnchor;
+    open: boolean;
+  } | null>(null);
   const [fileHover, setFileHover] = useState<"outside" | "window" | "capsule">("outside");
   const [dragHint, setDragHint] = useState(false);
   const rosterSize = state?.roster.length ?? 0;
-  const dropInvitation = (fileHover !== "outside" || dragHint) && rosterSize > 0 && !composer.open;
-  const layout = composer.open ? "composer" : dropInvitation ? "invitation" : "compact";
+  const dropInvitation = (fileHover !== "outside" || dragHint) && rosterSize > 0;
+  const layout = dropInvitation ? "invitation" : "compact";
   const rosterSizeRef = useRef(rosterSize);
   rosterSizeRef.current = rosterSize;
-  const addFilesRef = useRef(model.addFiles);
-  addFilesRef.current = model.addFiles;
 
   useEffect(() => {
     if (!bridge) return;
-    const stop = bridge.onState(setState);
     const stopMessageArrival = bridge.onMessageArrival(() => setMessageShake(true));
-    const stopComposer = bridge.onComposer(setComposer);
     const stopDragHint = bridge.onDragHint(setDragHint);
-    void bridge.getState().then((initial) => setState((current) => current ?? initial));
+    const stopComposerAnchor = bridge.onComposerAnchor((anchor) => {
+      setComposerMotion((previous) =>
+        anchor ? { anchor, open: true } : previous && { ...previous, open: false }
+      );
+    });
     return () => {
-      stop();
       stopMessageArrival();
-      stopComposer();
       stopDragHint();
+      stopComposerAnchor();
     };
   }, [bridge]);
 
@@ -243,8 +258,8 @@ export function BotDockApp() {
       endHover();
       setDragHint(false);
       if (rosterSizeRef.current === 0) return;
-      if (files.length > 0) void addFilesRef.current(files);
       bridge.drop();
+      if (files.length > 0) void forwardDockFiles(bridge, files);
     };
     window.addEventListener("dragenter", onOver);
     window.addEventListener("dragover", onOver);
@@ -258,13 +273,6 @@ export function BotDockApp() {
       window.removeEventListener("drop", onDrop);
     };
   }, [bridge]);
-
-  // The app's appearance setting arrives with the state: this page has its own storage.
-  useEffect(() => {
-    const theme = state?.theme;
-    if (theme === "light" || theme === "dark") document.documentElement.dataset.theme = theme;
-    else delete document.documentElement.dataset.theme;
-  }, [state?.theme]);
 
   // Main sizes the window to the capsule, and shows it once it has a size.
   useLayoutEffect(() => {
@@ -366,12 +374,16 @@ export function BotDockApp() {
         data-dropping={dropInvitation ? true : undefined}
         data-drop-target={dropInvitation && fileHover === "capsule" ? true : undefined}
         data-message-shake={messageShake ? true : undefined}
-        data-right={composer.open ? composer.right : undefined}
         data-standby={layout === "compact" ? true : undefined}
-        data-up={composer.open ? composer.up : undefined}
         ref={frameRef}
       >
-        <div className="dock-drop-target" ref={dropTargetRef}>
+        <div
+          className="dock-drop-target"
+          data-composer-open={composerMotion?.open || undefined}
+          data-composer-x={composerMotion ? (composerMotion.anchor.right ? "right" : "left") : undefined}
+          data-composer-y={composerMotion ? (composerMotion.anchor.bottom ? "top" : "bottom") : undefined}
+          ref={dropTargetRef}
+        >
           <div
             className="dock-message-motion"
             onAnimationEnd={(event) => {
@@ -406,7 +418,6 @@ export function BotDockApp() {
             </div>
           </div>
         </div>
-        {composer.open ? <DockComposer bridge={bridge} model={model} state={state} /> : null}
       </div>
     </div>
   );

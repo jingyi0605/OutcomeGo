@@ -19,6 +19,7 @@ import {
   BOT_DOCK_SNOOZES,
   clampToWorkArea,
   defaultDockPosition,
+  dockAnchorFor,
   isRecord,
   isSnoozed,
   parseBotDockAttachments,
@@ -29,6 +30,7 @@ import {
   resizeDock,
   resizeDockFromCenter,
   snoozeDeadline,
+  type BotDockAttachment,
   type BotDockMessage,
   type BotDockSettings,
   type BotDockSnooze,
@@ -637,7 +639,7 @@ export class DesktopBotDock {
       composer.on("blur", () => {
         if (this.composerWindow === composer) this.closeComposer();
       });
-      composer.on("render-process-gone", () => {
+      composer.webContents.on("render-process-gone", () => {
         if (this.composerWindow === composer) this.destroyComposer();
       });
       composer.once("closed", () => {
@@ -668,26 +670,33 @@ export class DesktopBotDock {
     const dock = this.compactBounds;
     const window = this.composerWindow;
     if (!dock || !window || !this.composerSize) return;
-    this.applyBounds(window, placeDockComposer(dock, this.composerSize, screen.getDisplayMatching(dock).workArea));
+    const workArea = screen.getDisplayMatching(dock).workArea;
+    this.applyBounds(window, placeDockComposer(dock, this.composerSize, workArea));
+    this.window?.webContents.send("botdock:composer-anchor", dockAnchorFor(dock, workArea));
   }
 
   private showComposer() {
     const window = this.composerWindow;
     if (!window || !this.composerSize) return;
     this.placeComposer();
-    if (!window.isVisible()) window.show();
+    if (!window.isVisible()) {
+      window.showInactive();
+      window.focus();
+    }
   }
 
   private closeComposer() {
+    if (!this.composerOpen) return;
     this.composerOpen = false;
     const window = this.composerWindow;
     if (window?.isVisible()) window.hide();
+    this.window?.webContents.send("botdock:composer-anchor", null);
   }
 
   private destroyComposer() {
     const window = this.composerWindow;
     this.composerWindow = null;
-    this.composerOpen = false;
+    this.closeComposer();
     this.composerSize = null;
     this.pendingDrop = null;
     if (window && !window.isDestroyed()) window.destroy();
@@ -914,4 +923,3 @@ const sameBounds = (previous: DockRect, next: DockRect) =>
   previous.y === next.y &&
   previous.width === next.width &&
   previous.height === next.height;
-  type BotDockAttachment,

@@ -3,6 +3,7 @@ import { parseHTML } from "linkedom";
 import { act, useEffect, useState } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { badgeText, BotDockApp, DockBots, MAX_VISIBLE_BOTS } from "../src/renderer/botdock/botdock-app";
+import { DockComposerApp } from "../src/renderer/botdock/dock-composer-app";
 import { DockComposer, useDockComposer } from "../src/renderer/botdock/dock-composer";
 import type { BotDockBridge } from "../src/renderer/botdock/types";
 import type { BotDockBotView, BotDockStateView } from "../src/renderer/lib/bot-dock-state";
@@ -73,24 +74,21 @@ describe("Bot dock capsule", () => {
     expect(render([bot("a", 1, 0)])).not.toContain("<img");
   });
 
-  test("withholds the compact frame during collapse and shakes without resizing", async () => {
+  test("keeps the dock and composer in separate surfaces and withholds the drag collapse frame", async () => {
     const dom = parseHTML("<html><body></body></html>");
     Object.assign(dom.document, { oninput: null });
     const layouts: string[] = [];
     let hint: (active: boolean) => void = () => {};
+    let composerAnchor: Parameters<BotDockBridge["onComposerAnchor"]>[0] = () => {};
     const compactRequests: Array<{ id: number; hiddenAtRequest: boolean }> = [];
     let viewportReady: (resizeId: number) => boolean = () => false;
     let arrive: () => void = () => {};
-    let compose: (composer: { open: boolean; up: boolean; right: boolean }) => void = () => {};
+    let receiveFiles: Parameters<BotDockBridge["onDroppedFiles"]>[0] = () => {};
     const bridge: Partial<BotDockBridge> = {
       getState: async () => ({ bots: [], roster: [bot("a", 0, 0)], labels }),
       onState: () => () => {},
       onMessageArrival(listener) {
         arrive = listener;
-        return () => {};
-      },
-      onComposer(listener) {
-        compose = listener;
         return () => {};
       },
       onCompactViewportReady(listener) {
@@ -99,6 +97,14 @@ describe("Bot dock capsule", () => {
       },
       onDragHint(listener) {
         hint = listener;
+        return () => {};
+      },
+      onComposerAnchor(listener) {
+        composerAnchor = listener;
+        return () => {};
+      },
+      onDroppedFiles(listener) {
+        receiveFiles = listener;
         return () => {};
       },
       resize(_width, _height, layout, id) {
@@ -145,10 +151,19 @@ describe("Bot dock capsule", () => {
       expect(frame?.querySelector(".dock-home svg.dock-mascot")?.getAttribute("aria-hidden")).toBe(
         "true"
       );
+      await act(async () => composerAnchor({ right: true, bottom: false }));
+      expect(target.getAttribute("data-composer-open")).toBe("true");
+      expect(target.getAttribute("data-composer-x")).toBe("right");
+      expect(target.getAttribute("data-composer-y")).toBe("bottom");
+      expect(layouts).toEqual(["compact"]);
       await act(async () => hint(true));
       expect(frame?.hasAttribute("data-dropping")).toBe(true);
       expect(frame?.hasAttribute("data-standby")).toBe(false);
       expect(frame?.hasAttribute("data-drop-target")).toBe(false);
+      await act(async () => composerAnchor(null));
+      expect(target.hasAttribute("data-composer-open")).toBe(false);
+      expect(target.getAttribute("data-composer-x")).toBe("right");
+      expect(layouts).toEqual(["compact", "invitation"]);
 
       await hover(40, 40);
       expect(frame?.hasAttribute("data-drop-target")).toBe(true);
@@ -182,17 +197,16 @@ describe("Bot dock capsule", () => {
       expect(frame?.getAttribute("data-message-shake")).toBe("true");
       expect(layouts).toEqual(["compact", "invitation", "compact"]);
 
-      await act(async () => compose({ open: true, up: false, right: true }));
-      expect(dom.document.querySelector("textarea")).not.toBeNull();
-      expect(frame?.hasAttribute("data-awaiting-compact")).toBe(false);
-      await act(async () => compose({ open: false, up: false, right: true }));
       expect(dom.document.querySelector("textarea")).toBeNull();
-      expect(compactRequests.at(-1)).toEqual({ id: 2, hiddenAtRequest: true });
-      expect(viewportReady(1)).toBe(false);
-      expect(frame?.hasAttribute("data-awaiting-compact")).toBe(true);
-      expect(viewportReady(2)).toBe(true);
-      expect(frame?.hasAttribute("data-awaiting-compact")).toBe(false);
-      expect(layouts).toEqual(["compact", "invitation", "compact", "composer", "compact"]);
+      await act(async () => root.render(<DockComposerApp />));
+      expect(dom.document.querySelector(".dock-capsule")).toBeNull();
+      expect(dom.document.querySelector("textarea")).not.toBeNull();
+      expect(layouts.at(-1)).toBe("composer");
+      await act(async () => receiveFiles({
+        files: [{ bytes: new Uint8Array([65]), fileName: "notes.txt", mimeType: "text/plain" }],
+        rejected: false,
+      }));
+      expect(dom.document.querySelector(".dock-file-name")?.textContent).toBe("notes.txt");
     } finally {
       await act(async () => root.unmount());
       for (const [key, descriptor] of descriptors) {
