@@ -97,6 +97,9 @@ describe("platform prompt integration", () => {
       const on = renderPlatformBaseSystemPrompt({ ...base, outcomes: true });
       expect(on).toContain(heading);
       expect(on).toContain("TrackOutcome");
+      // An explicit "create a goal" must not be satisfied by a routine alone.
+      expect(on).toContain("An explicit request for a goal is an instruction");
+      expect(on).toContain("a routine, TodoWrite, a shell job or a reminder never stands in for it");
     }
   });
 
