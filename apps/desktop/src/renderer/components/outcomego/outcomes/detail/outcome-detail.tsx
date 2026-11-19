@@ -301,6 +301,14 @@ export function OutcomeDetail({
           <p className="outcome-status mt-2" data-outcome-status={outcome.status}>
             {translateCurrent(outcomeStatusLabels[outcome.status])}
           </p>
+          {outcome.trackingMode === "tracked" ? (
+            <p className="mt-1 text-[12px] opacity-70" data-outcome-tracked={outcome.autoClosedAt ? "closed" : "open"}>
+              {translateCurrent(
+                outcome.autoClosedAt ? "Closed automatically by its Bot" : "Tracked by its Bot"
+              )}
+              {outcome.closeSummary ? ` · ${outcome.closeSummary}` : ""}
+            </p>
+          ) : null}
         </div>
         <div className="flex items-center gap-1">
           <OutcomeRefresh

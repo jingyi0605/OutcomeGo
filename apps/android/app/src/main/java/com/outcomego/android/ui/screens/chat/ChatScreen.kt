@@ -60,6 +60,7 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -94,6 +95,7 @@ import com.outcomego.android.ui.screens.directory.ConversationAvatar
 import com.outcomego.features.Attachment
 import com.outcomego.features.FeatureOperationState
 import com.outcomego.features.HapticEffect
+import kotlin.math.abs
 import com.outcomego.features.LocalAppHaptics
 import com.outcomego.features.MessageAction
 import com.outcomego.features.localizedText
@@ -415,7 +417,31 @@ internal fun ChatScreen(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth()
-                .clipToBounds(),
+                .clipToBounds()
+                // Drag right anywhere on the messages to go back to the list. This runs after the
+                // children (main pass) and gives up once any of them consumes the gesture, so
+                // vertical scrolling, code-block scrolling and text selection are never hijacked.
+                .pointerInput(onBack, haptic) {
+                    val trigger = 72.dp.toPx()
+                    awaitEachGesture {
+                        awaitFirstDown(requireUnconsumed = false)
+                        var totalX = 0f
+                        var totalY = 0f
+                        do {
+                            val event = awaitPointerEvent()
+                            if (event.changes.size != 1 || event.changes.any { it.isConsumed }) return@awaitEachGesture
+                            val change = event.changes[0]
+                            val moved = change.positionChange()
+                            totalX += moved.x
+                            totalY += moved.y
+                            if (totalX >= trigger && totalX > abs(totalY) * 2f) {
+                                haptic.play(HapticEffect.Medium)
+                                onBack()
+                                return@awaitEachGesture
+                            }
+                        } while (change.pressed)
+                    }
+                },
         ) {
             ChatMessageList(
                 modifier = Modifier

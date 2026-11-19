@@ -20,7 +20,10 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.awaitHorizontalTouchSlopOrCancellation
+import androidx.compose.foundation.gestures.horizontalDrag
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -79,6 +82,7 @@ import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
@@ -203,21 +207,32 @@ internal fun MessageBubble(
                 .offset { IntOffset(swipe.value.roundToInt(), 0) }
                 .then(
                     if (!canSwipeReply) Modifier else Modifier.pointerInput(message.id) {
-                        var crossed = false
-                        detectHorizontalDragGestures(
-                            onDragStart = { crossed = false },
-                            onDragEnd = {
+                        awaitEachGesture {
+                            var crossed = false
+                            val down = awaitFirstDown(requireUnconsumed = false)
+                            fun drag(delta: Float) {
+                                val next = (swipe.value + delta).coerceIn(-maxSwipePx, 0f)
+                                swipeScope.launch { swipe.snapTo(next) }
+                                val nowCrossed = -next >= replyThresholdPx
+                                if (nowCrossed && !crossed) haptics.play(HapticEffect.Light)
+                                crossed = nowCrossed
+                            }
+                            // Only a leftward drag belongs to reply; a rightward drag stays unconsumed
+                            // so the screen-level swipe-back gesture can take it.
+                            val start = awaitHorizontalTouchSlopOrCancellation(down.id) { change, over ->
+                                if (over < 0f) {
+                                    change.consume()
+                                    drag(over)
+                                }
+                            }
+                            if (start != null) {
+                                horizontalDrag(start.id) { change ->
+                                    change.consume()
+                                    drag(change.positionChange().x)
+                                }
                                 if (crossed) onReply(message.id)
-                                swipeScope.launch { swipe.animateTo(0f) }
-                            },
-                            onDragCancel = { swipeScope.launch { swipe.animateTo(0f) } },
-                        ) { change, delta ->
-                            change.consume()
-                            val next = (swipe.value + delta).coerceIn(-maxSwipePx, 0f)
-                            swipeScope.launch { swipe.snapTo(next) }
-                            val nowCrossed = -next >= replyThresholdPx
-                            if (nowCrossed && !crossed) haptics.play(HapticEffect.Light)
-                            crossed = nowCrossed
+                            }
+                            swipeScope.launch { swipe.animateTo(0f) }
                         }
                     },
                 ),

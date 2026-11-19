@@ -75,6 +75,8 @@ export const sourceTranslations: Record<string, string> = {
   "Things you need to decide": "需要你决定的事",
   "Review choices": "查看决策选项",
   "More details": "更多详情",
+  "Closed automatically by its Bot": "已由 Bot 自动结束，无需验收",
+  "Tracked by its Bot": "由 Bot 跟进中",
   "Supporting records": "辅助记录",
   "Not assessed": "待评估",
   "Not scheduled": "未安排",
@@ -630,6 +632,7 @@ export const sourceTranslations: Record<string, string> = {
   "Receipt review uses Contract revision {revision}. The current Contract stays at revision {current}.":
     "回执按契约版本 {revision} 验收，当前契约仍为版本 {current}。",
   "Loading the receipt's original Contract…": "正在读取回执的原始契约…",
+  recorded: "已记录",
   "Could not load the receipt's Contract. Review is disabled until its actual criteria are available.":
     "无法读取回执的契约。在取得真实验收条款前，验收操作不可用。",
   "Reload receipt Contract": "重新读取回执契约",
