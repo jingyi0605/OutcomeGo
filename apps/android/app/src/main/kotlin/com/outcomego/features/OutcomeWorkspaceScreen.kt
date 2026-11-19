@@ -167,10 +167,11 @@ fun OutcomeWorkspaceScreen(
         return
     }
 
+    val haptic = LocalAppHaptics.current
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .pointerInput(onBack) {
+            .pointerInput(onBack, haptic) {
                 val trigger = 72.dp.toPx()
                 var total = 0f
                 var fired = false
@@ -178,6 +179,7 @@ fun OutcomeWorkspaceScreen(
                     total += delta
                     if (!fired && total >= trigger) {
                         fired = true
+                        haptic.play(HapticEffect.Medium)
                         onBack()
                     }
                 }

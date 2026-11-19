@@ -64,6 +64,7 @@ import com.outcomego.android.ui.designsystem.spatialGlassBackdropSource
 import com.outcomego.android.ui.groupConversations
 import androidx.compose.material3.TextButton
 import com.outcomego.features.HapticEffect
+import com.outcomego.features.LocalAppHaptics
 import com.outcomego.features.localizedText
 
 @Composable
@@ -95,6 +96,7 @@ internal fun DirectoryScreen(
     val keyboardController = LocalSoftwareKeyboardController.current
     val activity = LocalContext.current as? ComponentActivity
     val colors = SpatialTheme.colors
+    val haptic = LocalAppHaptics.current
 
     // Only manually pinned chats appear in the top row, and they are removed from the
     // grouped list below so each chat is shown in exactly one place.
@@ -139,7 +141,7 @@ internal fun DirectoryScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .pointerInput(searchVisible) {
+            .pointerInput(searchVisible, haptic) {
                 if (searchVisible) return@pointerInput
                 // Settings lives off the left edge (drag right); Outcomes lives off the right edge (drag left).
                 val trigger = 72.dp.toPx()
@@ -149,9 +151,11 @@ internal fun DirectoryScreen(
                     total += delta
                     if (!fired && total >= trigger) {
                         fired = true
+                        haptic.play(HapticEffect.Medium)
                         onSettings()
                     } else if (!fired && total <= -trigger && onOutcomes != null) {
                         fired = true
+                        haptic.play(HapticEffect.Medium)
                         onOutcomes()
                     }
                 }
