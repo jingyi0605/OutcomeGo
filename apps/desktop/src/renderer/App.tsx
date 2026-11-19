@@ -132,6 +132,9 @@ const SearchDialog = lazy(() =>
   }))
 );
 const AboutPanel = lazy(() => import("./components/outcomego/settings/about"));
+const QuickIdeaDialog = lazy(
+  () => import("./components/outcomego/outcomes/explore/quick-idea-dialog")
+);
 const OutcomeWorkspace = lazy(
   () => import("./components/outcomego/outcomes/inbox/outcome-workspace")
 );
@@ -366,6 +369,8 @@ export default function App() {
   });
   const appReady = Boolean(snapshot);
   const [outcomeTarget, setOutcomeTarget] = useState<DesktopOutcomeTarget | null>(null);
+  const [quickIdeaOpen, setQuickIdeaOpen] = useState(false);
+  const openQuickIdea = useCallback(() => setQuickIdeaOpen(true), []);
   const visibleChatId =
     outcomeTarget || newBotPicker || pendingBot || landing || a2aExchange ? null : selectedId;
   const visibleChatIdRef = useRef(visibleChatId);
@@ -1446,6 +1451,7 @@ export default function App() {
             onOpenSettings={openSettings}
             onPreloadSearch={preloadSearchDialog}
             onSearch={openSearch}
+            onNewIdea={openQuickIdea}
             onOpenOutcomes={() => {
               setOutcomeTarget({});
               setNewBotPicker(false);
@@ -1463,6 +1469,15 @@ export default function App() {
             }
           />
 
+          {quickIdeaOpen && (
+            <Suspense fallback={null}>
+              <QuickIdeaDialog
+                open
+                onOpenChange={setQuickIdeaOpen}
+                bots={snapshot.bots.filter((bot) => bot.status === "active")}
+              />
+            </Suspense>
+          )}
           <section className="relative flex min-w-0 flex-1 flex-col" data-workspace-main="">
             {outcomeTarget && (
               <Suspense
